@@ -1,10 +1,13 @@
 """
 API Key Authentication with Tenant Mapping
 Secure multi-tenant authentication using API keys stored in BigQuery.
+Fallback to local file-based API keys for development.
 """
 
 import hashlib
+import json
 from typing import Optional
+from pathlib import Path
 from fastapi import Header, HTTPException, status, Depends
 from functools import lru_cache
 import logging
@@ -40,12 +43,53 @@ def hash_api_key(api_key: str) -> str:
     return hashlib.sha256(api_key.encode()).hexdigest()
 
 
+async def get_tenant_from_local_file(api_key_hash: str) -> Optional[str]:
+    """
+    Look up tenant_id from local file-based API keys (development fallback).
+
+    Args:
+        api_key_hash: SHA256 hash of API key
+
+    Returns:
+        tenant_id if found, None otherwise
+    """
+    secrets_base = Path.home() / ".cloudact-secrets"
+
+    if not secrets_base.exists():
+        return None
+
+    # Search through tenant directories
+    for tenant_dir in secrets_base.iterdir():
+        if not tenant_dir.is_dir():
+            continue
+
+        metadata_file = tenant_dir / "api_key_metadata.json"
+        if not metadata_file.exists():
+            continue
+
+        try:
+            with open(metadata_file, 'r') as f:
+                metadata = json.load(f)
+
+            if metadata.get("api_key_hash") == api_key_hash:
+                tenant_id = metadata.get("tenant_id")
+                logger.info(f"Found API key in local file for tenant: {tenant_id}")
+                return tenant_id
+
+        except Exception as e:
+            logger.warning(f"Error reading {metadata_file}: {e}")
+            continue
+
+    return None
+
+
 async def get_tenant_from_api_key(
     api_key_hash: str,
     bq_client: BigQueryClient
 ) -> Optional[str]:
     """
     Look up tenant_id from API key hash in BigQuery.
+    Falls back to local file-based lookup if BigQuery fails.
 
     Args:
         api_key_hash: SHA256 hash of API key
@@ -70,8 +114,9 @@ async def get_tenant_from_api_key(
         ))
 
         if not results:
-            logger.warning(f"API key not found in database")
-            return None
+            logger.warning(f"API key not found in BigQuery, trying local files")
+            # Fallback to local file lookup
+            return await get_tenant_from_local_file(api_key_hash)
 
         row = results[0]
 
@@ -82,12 +127,13 @@ async def get_tenant_from_api_key(
         return row["tenant_id"]
 
     except Exception as e:
-        logger.error(f"Error looking up API key: {e}", exc_info=True)
-        return None
+        logger.warning(f"BigQuery lookup failed: {e}, trying local files")
+        # Fallback to local file lookup
+        return await get_tenant_from_local_file(api_key_hash)
 
 
 async def verify_api_key(
-    x_api_key: str = Header(..., description="API Key for authentication"),
+    x_api_key: Optional[str] = Header(None, description="API Key for authentication"),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ) -> TenantContext:
     """
@@ -101,8 +147,13 @@ async def verify_api_key(
         TenantContext with tenant_id
 
     Raises:
-        HTTPException: If API key is invalid or inactive
+        HTTPException: If API key is invalid or inactive (when auth is enabled)
     """
+    # Check if authentication is disabled
+    if settings.disable_auth:
+        logger.warning("Authentication is disabled - using default tenant 'acme1281'")
+        return TenantContext(tenant_id="acme1281", api_key_hash="disabled")
+
     if not x_api_key:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

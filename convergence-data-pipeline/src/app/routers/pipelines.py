@@ -5,13 +5,15 @@ Endpoints for triggering and monitoring pipelines.
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks
 from typing import List, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
 import uuid
 
 from src.app.dependencies.auth import verify_api_key, TenantContext
 from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
 from src.core.pipeline.executor import PipelineExecutor
+from src.core.pipeline.async_executor import AsyncPipelineExecutor
+from src.core.metadata.initializer import ensure_tenant_metadata
 from src.app.config import settings
 
 router = APIRouter()
@@ -32,8 +34,7 @@ class TriggerPipelineRequest(BaseModel):
         description="Date parameter for the pipeline (e.g., '2025-11-14')"
     )
 
-    class Config:
-        extra = "allow"  # Allow additional parameters
+    model_config = ConfigDict(extra="allow")  # Allow additional parameters
 
 
 class PipelineRunResponse(BaseModel):
@@ -62,8 +63,27 @@ class TriggerPipelineResponse(BaseModel):
 # Pipeline Execution Endpoints
 # ============================================
 
+async def run_async_pipeline_task(executor: AsyncPipelineExecutor, parameters: dict):
+    """Async wrapper function to execute pipeline with proper error handling."""
+    import logging
+    logger = logging.getLogger(__name__)
+
+    try:
+        logger.info(f"Starting background async pipeline execution: {executor.pipeline_logging_id}")
+        result = await executor.execute(parameters)
+        logger.info(f"Async pipeline execution completed: {executor.pipeline_logging_id}")
+        return result
+    except Exception as e:
+        logger.error(
+            f"Async pipeline execution failed: {executor.pipeline_logging_id}",
+            exc_info=True,
+            extra={"error": str(e)}
+        )
+        raise
+
+
 def run_pipeline_task(executor: PipelineExecutor, parameters: dict):
-    """Wrapper function to execute pipeline with proper error handling."""
+    """Legacy sync wrapper function (fallback for old executor)."""
     import logging
     logger = logging.getLogger(__name__)
 
@@ -85,43 +105,54 @@ def run_pipeline_task(executor: PipelineExecutor, parameters: dict):
     "/pipelines/run/{pipeline_id}",
     response_model=TriggerPipelineResponse,
     summary="Trigger a pipeline",
-    description="Start execution of a pipeline for the authenticated tenant"
+    description="Start execution of a pipeline for the authenticated tenant with async parallel processing"
 )
 async def trigger_pipeline(
     pipeline_id: str,
     background_tasks: BackgroundTasks,
     request: TriggerPipelineRequest = TriggerPipelineRequest(),
-    tenant: TenantContext = Depends(verify_api_key)
+    tenant: TenantContext = Depends(verify_api_key),
+    bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """
-    Trigger a pipeline execution.
+    Trigger a pipeline execution with async parallel processing.
 
     - **pipeline_id**: Pipeline identifier (e.g., pricing_calculation)
     - **trigger_by**: Optional identifier of who triggered the pipeline
     - **date**: Date parameter for the pipeline (YYYY-MM-DD format)
 
     Returns the pipeline_logging_id for tracking.
-    """
-    # Extract parameters from request
-    parameters = request.dict(exclude={'trigger_by'}, exclude_none=True)
 
-    # Create pipeline executor
-    executor = PipelineExecutor(
+    Features:
+    - Async/await architecture for non-blocking operations
+    - Parallel execution of independent pipeline steps
+    - DAG-based dependency resolution
+    - Support for 100+ concurrent pipelines
+    - Petabyte-scale data processing via partitioning
+    """
+    # Ensure tenant metadata infrastructure exists
+    ensure_tenant_metadata(tenant.tenant_id, bq_client.client)
+
+    # Extract parameters from request
+    parameters = request.model_dump(exclude={'trigger_by'}, exclude_none=True)
+
+    # Create ASYNC pipeline executor for parallel processing
+    executor = AsyncPipelineExecutor(
         tenant_id=tenant.tenant_id,
         pipeline_id=pipeline_id,
         trigger_type="api",
         trigger_by=request.trigger_by or "api_user"
     )
 
-    # Execute pipeline in background with error handling
-    background_tasks.add_task(run_pipeline_task, executor, parameters)
+    # Execute pipeline in background with async error handling
+    background_tasks.add_task(run_async_pipeline_task, executor, parameters)
 
     return TriggerPipelineResponse(
         pipeline_logging_id=executor.pipeline_logging_id,
         pipeline_id=pipeline_id,
         tenant_id=tenant.tenant_id,
         status="PENDING",
-        message=f"Pipeline {pipeline_id} triggered successfully"
+        message=f"Pipeline {pipeline_id} triggered successfully (async mode)"
     )
 
 

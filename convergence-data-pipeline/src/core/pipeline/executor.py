@@ -5,6 +5,7 @@ Orchestrates multi-step pipelines with data quality validation.
 
 import yaml
 import uuid
+import asyncio
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 from pathlib import Path
@@ -12,6 +13,7 @@ from pathlib import Path
 from src.core.engine.bq_client import BigQueryClient, get_bigquery_client
 from src.core.pipeline.data_quality import DataQualityValidator
 from src.core.utils.logging import create_structured_logger
+from src.core.metadata import MetadataLogger
 from src.app.config import settings
 
 
@@ -51,11 +53,35 @@ class PipelineExecutor:
             pipeline_logging_id=self.pipeline_logging_id
         )
 
+        # Initialize metadata logger
+        self.metadata_logger = MetadataLogger(
+            bq_client=self.bq_client.client,
+            tenant_id=tenant_id
+        )
+
         self.config: Optional[Dict[str, Any]] = None
         self.start_time: Optional[datetime] = None
         self.end_time: Optional[datetime] = None
         self.status: str = "PENDING"
         self.step_results: List[Dict[str, Any]] = []
+
+    def _run_async(self, coro):
+        """
+        Helper method to run async coroutines in sync context.
+
+        Args:
+            coro: Coroutine to execute
+
+        Returns:
+            Result of the coroutine
+        """
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
+        return loop.run_until_complete(coro)
 
     def load_config(self, parameters: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
@@ -96,17 +122,26 @@ class PipelineExecutor:
         """
         self.start_time = datetime.utcnow()
         self.status = "RUNNING"
+        error_message = None
 
         try:
             # Load configuration
             self.load_config(parameters)
 
-            # Log pipeline start
-            self._log_pipeline_start()
+            # Log pipeline start using metadata logger (async)
+            self._run_async(
+                self.metadata_logger.log_pipeline_start(
+                    pipeline_logging_id=self.pipeline_logging_id,
+                    pipeline_id=self.pipeline_id,
+                    trigger_type=self.trigger_type,
+                    trigger_by=self.trigger_by,
+                    parameters=self.config.get('parameters', {})
+                )
+            )
 
             # Execute steps sequentially
-            for step in self.config.get('steps', []):
-                self._execute_step(step)
+            for step_index, step in enumerate(self.config.get('steps', [])):
+                self._execute_step(step, step_index)
 
             # All steps completed
             self.status = "COMPLETED"
@@ -117,36 +152,78 @@ class PipelineExecutor:
         except Exception as e:
             self.status = "FAILED"
             self.end_time = datetime.utcnow()
+            error_message = str(e)
             self.logger.error(f"Pipeline failed: {e}", exc_info=True)
             raise
 
         finally:
-            # Log pipeline completion
-            self._log_pipeline_completion()
+            # Log pipeline completion using metadata logger (async)
+            if self.end_time:
+                self._run_async(
+                    self.metadata_logger.log_pipeline_end(
+                        pipeline_logging_id=self.pipeline_logging_id,
+                        pipeline_id=self.pipeline_id,
+                        status=self.status,
+                        start_time=self.start_time,
+                        trigger_type=self.trigger_type,
+                        trigger_by=self.trigger_by,
+                        error_message=error_message,
+                        parameters=self.config.get('parameters', {}) if self.config else None
+                    )
+                )
+
+                # Flush all pending logs (async)
+                self._run_async(self.metadata_logger.flush())
 
         return self._get_execution_summary()
 
-    def _execute_step(self, step_config: Dict[str, Any]) -> None:
+    def _execute_step(self, step_config: Dict[str, Any], step_index: int) -> None:
         """
-        Execute a single pipeline step.
+        Execute a single pipeline step with metadata logging.
 
         Args:
             step_config: Step configuration from YAML
+            step_index: Step position in pipeline (0-indexed)
         """
         step_id = step_config['step_id']
         step_type = step_config['type']
+
+        # Create unique step logging ID
+        step_logging_id = str(uuid.uuid4())
 
         self.logger.info(f"Starting step: {step_id}", step_type=step_type)
 
         step_start = datetime.utcnow()
         step_status = "RUNNING"
+        rows_processed = None
+        error_message = None
+        step_metadata = {}
 
         try:
+            # Log step start (async)
+            self._run_async(
+                self.metadata_logger.log_step_start(
+                    step_logging_id=step_logging_id,
+                    pipeline_logging_id=self.pipeline_logging_id,
+                    step_name=step_id,
+                    step_type=step_type,
+                    step_index=step_index,
+                    metadata=step_config.get('metadata', {})
+                )
+            )
+
+            # Execute step based on type
             if step_type == "bigquery_to_bigquery":
-                self._execute_bq_to_bq_step(step_config)
+                result = self._execute_bq_to_bq_step(step_config)
+                rows_processed = result.get('rows_written', 0)
+                step_metadata = {
+                    'destination_table': result.get('destination_table'),
+                    'bytes_processed': result.get('bytes_processed')
+                }
 
             elif step_type == "data_quality":
-                self._execute_dq_step(step_config)
+                result = self._execute_dq_step(step_config)
+                step_metadata = result
 
             else:
                 raise ValueError(f"Unknown step type: {step_type}")
@@ -156,26 +233,50 @@ class PipelineExecutor:
 
         except Exception as e:
             step_status = "FAILED"
+            error_message = str(e)
             self.logger.error(f"Step {step_id} failed: {e}", exc_info=True)
             raise
 
         finally:
             step_end = datetime.utcnow()
+
+            # Log step completion (async)
+            self._run_async(
+                self.metadata_logger.log_step_end(
+                    step_logging_id=step_logging_id,
+                    pipeline_logging_id=self.pipeline_logging_id,
+                    step_name=step_id,
+                    step_type=step_type,
+                    step_index=step_index,
+                    status=step_status,
+                    start_time=step_start,
+                    rows_processed=rows_processed,
+                    error_message=error_message,
+                    metadata=step_metadata
+                )
+            )
+
+            # Track step results for summary
             self.step_results.append({
+                'step_logging_id': step_logging_id,
                 'step_id': step_id,
                 'step_type': step_type,
                 'status': step_status,
                 'start_time': step_start,
                 'end_time': step_end,
-                'duration_ms': int((step_end - step_start).total_seconds() * 1000)
+                'duration_ms': int((step_end - step_start).total_seconds() * 1000),
+                'rows_processed': rows_processed
             })
 
-    def _execute_bq_to_bq_step(self, step_config: Dict[str, Any]) -> None:
+    def _execute_bq_to_bq_step(self, step_config: Dict[str, Any]) -> Dict[str, Any]:
         """
         Execute BigQuery to BigQuery data transfer step using processor.
 
         Args:
             step_config: Step configuration
+
+        Returns:
+            Execution result with rows_written, destination_table, etc.
         """
         from src.core.pipeline.processors.bq_to_bq import BigQueryToBigQueryProcessor
 
@@ -199,12 +300,17 @@ class PipelineExecutor:
             }
         )
 
-    def _execute_dq_step(self, step_config: Dict[str, Any]) -> None:
+        return result
+
+    def _execute_dq_step(self, step_config: Dict[str, Any]) -> Dict[str, Any]:
         """
         Execute data quality validation step.
 
         Args:
             step_config: Step configuration
+
+        Returns:
+            DQ validation results with passed/failed counts
         """
         source = step_config['source']
         dq_config_path = step_config['dq_config']
@@ -226,6 +332,7 @@ class PipelineExecutor:
 
         # Check if any expectations failed
         failed_count = sum(1 for r in results if not r['success'])
+        passed_count = sum(1 for r in results if r['success'])
 
         if failed_count > 0:
             self.logger.warning(
@@ -238,6 +345,13 @@ class PipelineExecutor:
                 raise ValueError(f"Data quality validation failed: {failed_count} expectations failed")
         else:
             self.logger.info("Data quality validation passed", total_checks=len(results))
+
+        return {
+            'total_checks': len(results),
+            'passed_count': passed_count,
+            'failed_count': failed_count,
+            'table_id': table_id
+        }
 
     def _render_query(self, query_template: str) -> str:
         """
@@ -269,66 +383,6 @@ class PipelineExecutor:
 
         return query
 
-    def _log_pipeline_start(self) -> None:
-        """Log pipeline start to BigQuery metadata table."""
-        from google.cloud import bigquery
-
-        row = {
-            'pipeline_logging_id': self.pipeline_logging_id,
-            'pipeline_id': self.pipeline_id,
-            'tenant_id': self.tenant_id,
-            'status': self.status,
-            'trigger_type': self.trigger_type,
-            'trigger_by': self.trigger_by,
-            'start_time': self.start_time.isoformat(),
-            'run_metadata': {
-                'config': self.config,
-                'parameters': self.config.get('parameters', {})
-            },
-            'ingestion_date': self.start_time.date().isoformat()
-        }
-
-        try:
-            table_id = f"{settings.gcp_project_id}.metadata.pipeline_runs"
-            errors = self.bq_client.client.insert_rows_json(table_id, [row])
-
-            if errors:
-                self.logger.error(f"Failed to log pipeline start: {errors}")
-        except Exception as e:
-            self.logger.error(f"Error logging pipeline start: {e}")
-
-    def _log_pipeline_completion(self) -> None:
-        """Update pipeline status in BigQuery metadata table."""
-        from google.cloud import bigquery
-
-        duration_ms = int((self.end_time - self.start_time).total_seconds() * 1000) if self.end_time else None
-
-        # Update the existing row
-        update_query = f"""
-        UPDATE `{settings.gcp_project_id}.metadata.pipeline_runs`
-        SET
-            status = @status,
-            end_time = @end_time,
-            duration_ms = @duration_ms,
-            run_metadata = JSON_SET(run_metadata, '$.steps', @steps)
-        WHERE pipeline_logging_id = @pipeline_logging_id
-        """
-
-        job_config = bigquery.QueryJobConfig(
-            query_parameters=[
-                bigquery.ScalarQueryParameter("status", "STRING", self.status),
-                bigquery.ScalarQueryParameter("end_time", "TIMESTAMP", self.end_time),
-                bigquery.ScalarQueryParameter("duration_ms", "INT64", duration_ms),
-                bigquery.ScalarQueryParameter("steps", "STRING", str(self.step_results)),
-                bigquery.ScalarQueryParameter("pipeline_logging_id", "STRING", self.pipeline_logging_id),
-            ]
-        )
-
-        try:
-            query_job = self.bq_client.client.query(update_query, job_config=job_config)
-            query_job.result()
-        except Exception as e:
-            self.logger.error(f"Error logging pipeline completion: {e}")
 
     def _get_execution_summary(self) -> Dict[str, Any]:
         """

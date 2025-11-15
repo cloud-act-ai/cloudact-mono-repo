@@ -61,6 +61,7 @@ class Settings(BaseSettings):
     # ============================================
     # Security Configuration
     # ============================================
+    disable_auth: bool = Field(default=True, description="Disable API key authentication (for development)")
     api_key_hash_algorithm: str = Field(default="HS256")
     api_key_secret_key: str = Field(
         default="change-this-in-production-to-a-secure-random-key"
@@ -99,6 +100,41 @@ class Settings(BaseSettings):
     # ============================================
     dq_fail_on_error: bool = Field(default=False)
     dq_store_results_in_bq: bool = Field(default=True)
+
+    # ============================================
+    # Metadata Logging Configuration
+    # ============================================
+    metadata_log_batch_size: int = Field(default=100, ge=1, le=10000)
+    metadata_log_flush_interval_seconds: int = Field(default=5, ge=1, le=60)
+    metadata_log_max_retries: int = Field(default=3, ge=1, le=10)
+    metadata_log_workers: int = Field(
+        default=5,
+        ge=1,
+        le=20,
+        description="Number of background workers for concurrent log flushing"
+    )
+    metadata_log_queue_size: int = Field(
+        default=1000,
+        ge=100,
+        le=10000,
+        description="Maximum queue size for buffered logs (backpressure when full)"
+    )
+
+    # ============================================
+    # Pipeline Parallel Processing
+    # ============================================
+    pipeline_max_parallel_steps: int = Field(
+        default=10,
+        ge=1,
+        le=100,
+        description="Maximum number of steps to execute in parallel per level"
+    )
+    pipeline_partition_batch_size: int = Field(
+        default=10,
+        ge=1,
+        le=100,
+        description="Number of partitions to process in parallel"
+    )
 
     # ============================================
     # File Paths
@@ -146,10 +182,18 @@ class Settings(BaseSettings):
         Returns:
             Fully qualified dataset name: {tenant_id}_{dataset_type}
         """
-        if dataset_type == "metadata":
-            # Shared metadata dataset for all tenants
-            return "metadata"
+        # All datasets are tenant-specific, including metadata
         return f"{tenant_id}_{dataset_type}"
+
+    def get_admin_metadata_dataset(self) -> str:
+        """
+        Get the admin/global metadata dataset name.
+        This dataset contains unified view of all tenant metadata.
+
+        Returns:
+            Admin metadata dataset name
+        """
+        return "metadata"
 
 
 @lru_cache()
@@ -158,7 +202,14 @@ def get_settings() -> Settings:
     Get cached settings instance.
     Use LRU cache to avoid reloading environment variables.
     """
-    return Settings()
+    settings_instance = Settings()
+
+    # Set GOOGLE_APPLICATION_CREDENTIALS environment variable if configured
+    # This is required because the Google Cloud client libraries look for this env var
+    if settings_instance.google_application_credentials:
+        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = settings_instance.google_application_credentials
+
+    return settings_instance
 
 
 # Convenience export

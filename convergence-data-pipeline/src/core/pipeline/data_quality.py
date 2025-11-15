@@ -4,14 +4,17 @@ Validate data using Great Expectations rules.
 """
 
 import yaml
+import uuid
 from typing import Dict, Any, List
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, date
 
 from great_expectations.data_context import AbstractDataContext
 from great_expectations.core.batch import RuntimeBatchRequest
 from great_expectations.dataset import PandasDataset
 import pandas as pd
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from google.api_core import exceptions as gcp_exceptions
 
 from src.core.engine.bq_client import get_bigquery_client
 from src.core.utils.logging import get_logger
@@ -93,7 +96,7 @@ class DataQualityValidator:
 
         # Store results in BigQuery if enabled
         if settings.dq_store_results_in_bq:
-            self._store_results(results, table_id, tenant_id, pipeline_logging_id)
+            self._store_results(results, table_id, tenant_id, pipeline_logging_id, dq_config_path)
 
         return results
 
@@ -191,51 +194,96 @@ class DataQualityValidator:
                 'kwargs': kwargs
             }
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception_type((gcp_exceptions.ServiceUnavailable, gcp_exceptions.InternalServerError)),
+        reraise=True
+    )
     def _store_results(
         self,
         results: List[Dict[str, Any]],
         table_id: str,
         tenant_id: str,
-        pipeline_logging_id: str
+        pipeline_logging_id: str,
+        dq_config_path: str
     ) -> None:
         """
         Store DQ validation results in BigQuery.
+        Aggregates results per table instead of one row per expectation.
 
         Args:
             results: List of validation results
             table_id: Table that was validated
             tenant_id: Tenant identifier
             pipeline_logging_id: Pipeline run ID
+            dq_config_path: Path to DQ config file
         """
-        rows = []
-        validation_time = datetime.utcnow()
+        executed_at = datetime.utcnow()
+        ingestion_date = executed_at.date()
 
-        for result in results:
-            row = {
-                'validation_id': f"{pipeline_logging_id}_{result['expectation_type']}",
-                'pipeline_logging_id': pipeline_logging_id,
-                'tenant_id': tenant_id,
-                'table_id': table_id,
-                'expectation_type': result['expectation_type'],
-                'success': result['success'],
-                'details': str(result.get('details', {})),
-                'error': result.get('error'),
-                'validation_time': validation_time.isoformat(),
-                'ingestion_date': validation_time.date().isoformat()
+        # Aggregate results
+        expectations_passed = sum(1 for r in results if r['success'])
+        expectations_failed = sum(1 for r in results if not r['success'])
+
+        # Collect failed expectations details
+        failed_expectations = [
+            {
+                'expectation_type': r['expectation_type'],
+                'kwargs': r.get('kwargs', {}),
+                'details': r.get('details', {}),
+                'error': r.get('error')
             }
-            rows.append(row)
+            for r in results if not r['success']
+        ]
+
+        # Determine overall status
+        if expectations_failed == 0:
+            overall_status = "PASS"
+        elif expectations_passed > 0:
+            overall_status = "WARNING"  # Some passed, some failed
+        else:
+            overall_status = "FAIL"  # All failed
+
+        # Extract dq_config_id from the dq_config_path
+        # Use the filename without extension as config identifier
+        dq_config_id = Path(dq_config_path).stem
+
+        # Create aggregated row
+        row = {
+            'dq_result_id': str(uuid.uuid4()),
+            'pipeline_logging_id': pipeline_logging_id,
+            'tenant_id': tenant_id,
+            'target_table': table_id,
+            'dq_config_id': dq_config_id,
+            'executed_at': executed_at.isoformat(),
+            'expectations_passed': expectations_passed,
+            'expectations_failed': expectations_failed,
+            'failed_expectations': failed_expectations if failed_expectations else None,
+            'overall_status': overall_status,
+            'ingestion_date': ingestion_date.isoformat()
+        }
 
         try:
-            metadata_table = f"{settings.gcp_project_id}.metadata.dq_results"
-            errors = self.bq_client.client.insert_rows_json(metadata_table, rows)
+            # Use tenant-specific metadata dataset
+            metadata_dataset = settings.get_tenant_dataset_name(tenant_id, "metadata")
+            metadata_table = f"{settings.gcp_project_id}.{metadata_dataset}.dq_results"
+
+            errors = self.bq_client.client.insert_rows_json(metadata_table, [row])
 
             if errors:
                 logger.error(f"Failed to store DQ results: {errors}")
             else:
                 logger.info(
-                    f"Stored {len(rows)} DQ results",
-                    extra={"table": metadata_table}
+                    f"Stored DQ results for table {table_id}",
+                    extra={
+                        "table": metadata_table,
+                        "overall_status": overall_status,
+                        "expectations_passed": expectations_passed,
+                        "expectations_failed": expectations_failed
+                    }
                 )
 
         except Exception as e:
             logger.error(f"Error storing DQ results: {e}")
+            raise

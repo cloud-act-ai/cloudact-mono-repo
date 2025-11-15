@@ -4,7 +4,7 @@ Type-safe configuration models for pipelines, sources, and DQ rules.
 """
 
 from typing import List, Optional, Dict, Any, Literal
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 from enum import Enum
 
 
@@ -127,8 +127,7 @@ class SourceConfig(BaseModel):
     connector: RestAPIConnectorConfig | BigQueryConnectorConfig | DatabaseConnectorConfig
     loading: LoadingConfig
 
-    class Config:
-        use_enum_values = True
+    model_config = ConfigDict(use_enum_values=True)
 
 
 # ============================================
@@ -171,22 +170,23 @@ class PipelineStepConfig(BaseModel):
     destination: Optional[str] = None
     on_failure: OnFailure = OnFailure.STOP
 
-    @validator("source_config")
-    def validate_ingest_step(cls, v, values):
+    @field_validator("source_config")
+    @classmethod
+    def validate_ingest_step(cls, v, info):
         """Validate ingest step has source_config."""
-        if values.get("type") == StepType.INGEST and not v:
+        if info.data.get("type") == StepType.INGEST and not v:
             raise ValueError("Ingest step must have source_config")
         return v
 
-    @validator("rules_config")
-    def validate_dq_step(cls, v, values):
+    @field_validator("rules_config")
+    @classmethod
+    def validate_dq_step(cls, v, info):
         """Validate DQ step has rules_config."""
-        if values.get("type") == StepType.DQ_CHECK and not v:
+        if info.data.get("type") == StepType.DQ_CHECK and not v:
             raise ValueError("DQ check step must have rules_config")
         return v
 
-    class Config:
-        use_enum_values = True
+    model_config = ConfigDict(use_enum_values=True)
 
 
 class PipelineConfig(BaseModel):
@@ -198,8 +198,7 @@ class PipelineConfig(BaseModel):
     timeout_seconds: int = Field(default=3600, ge=60)
     retry_attempts: int = Field(default=3, ge=0, le=10)
 
-    class Config:
-        use_enum_values = True
+    model_config = ConfigDict(use_enum_values=True)
 
 
 # ============================================

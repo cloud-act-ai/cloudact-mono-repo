@@ -2,13 +2,44 @@
 
 ## Technical Executive Summary
 
-Convergence Data Pipeline is an enterprise-grade data ingestion platform designed to unify disparate cost and utilization data streams from multiple cloud and AI providers (OpenAI, Claude, Google) into a central **BigQuery data lake**.
+Convergence Data Pipeline is an enterprise-grade, **multi-tenant** data ingestion platform designed to unify disparate cost and utilization data streams from multiple cloud and AI providers (OpenAI, Claude, Google) into a central **BigQuery data lake**.
 
-This project is built on three core principles:
+This project is built on four core principles:
 
-1. **Config-as-Code (CaC) Framework**: Engineers define source configs, data quality (DQ) rules, and pipeline workflows in declarative YAML files stored in the repository.
-2. **Decoupled Worker Architecture**: The system is broken into a lightweight Control Plane (API) and a scalable Data Plane (Async Workers), all deployed as a **single FastAPI application on Cloud Run**.
-3. **Observable & Reliable by Design**: Built-in state management, distributed tracing, and structured metadata logging using **BigQuery as the operational database**.
+1. **Multi-Tenant Architecture**: Complete tenant isolation with auto-provisioning of metadata infrastructure
+2. **Config-as-Code (CaC) Framework**: Engineers define source configs, data quality (DQ) rules, and pipeline workflows in declarative YAML files stored in the repository
+3. **Decoupled Worker Architecture**: The system is broken into a lightweight Control Plane (API) and a scalable Data Plane (Async Workers), all deployed as a **single FastAPI application on Cloud Run**
+4. **Observable & Reliable by Design**: Built-in state management, distributed tracing, and structured metadata logging using **BigQuery as the operational database**
+
+---
+
+## Multi-Tenant Metadata Architecture
+
+Each tenant gets their own isolated metadata infrastructure that is **automatically created** on first pipeline execution:
+
+```
+{project_id}/
+├── {tenant_id}_metadata/          # Tenant-specific metadata (e.g., acme1281_metadata)
+│   ├── api_keys                   # Tenant's API keys
+│   ├── pipeline_runs              # Pipeline execution tracking
+│   ├── step_logs                  # Detailed step-by-step logs
+│   └── dq_results                 # Data quality validation results
+│
+├── {tenant_id}_raw_openai/        # Tenant's OpenAI data
+├── {tenant_id}_raw_google/        # Tenant's Google Cloud data
+└── {tenant_id}_silver_cost/       # Tenant's transformed data
+```
+
+### Key Features
+
+- **Auto-Initialization**: Metadata infrastructure is automatically created when a tenant runs their first pipeline
+- **Configuration-Driven**: All table schemas defined in `configs/metadata/schemas/` as JSON files
+- **Complete Isolation**: Each tenant's data and metadata are completely isolated
+- **JSON Type Support**: Flexible parameter and metadata storage using BigQuery JSON type
+- **No Manual Setup**: Zero manual configuration required for new tenants
+- **Development Mode**: Authentication can be disabled for local development (`DISABLE_AUTH=true`)
+
+**Documentation**: See [`docs/metadata-schema.md`](docs/metadata-schema.md) for complete schema reference.
 
 ---
 
@@ -301,24 +332,33 @@ GROUP BY pipeline_id;
 
 ## Dataset Organization
 
-### Domain-Based Dataset Structure
+### Multi-Tenant Dataset Structure
 
-BigQuery datasets are organized by **data source domain**:
+BigQuery datasets are organized by **tenant and data source domain** for complete tenant isolation:
 
 ```
-{project_id}.raw_openai.*        # OpenAI API billing data
-{project_id}.raw_google.*        # Google Cloud billing exports
-{project_id}.raw_anthropic.*     # Claude API usage data
-{project_id}.silver_cost.*       # Normalized cost data (cross-provider)
-{project_id}.gold_reporting.*    # Business-ready aggregations
-{project_id}.metadata.*          # Operational tables (pipeline_runs, etc.)
+{project_id}.{tenant_id}_metadata.*       # Tenant metadata (auto-created)
+{project_id}.{tenant_id}_raw_openai.*     # Tenant's OpenAI data
+{project_id}.{tenant_id}_raw_google.*     # Tenant's Google Cloud data
+{project_id}.{tenant_id}_raw_anthropic.*  # Tenant's Claude data
+{project_id}.{tenant_id}_silver_cost.*    # Tenant's normalized cost data
+{project_id}.{tenant_id}_gold_reporting.* # Tenant's business reports
+```
+
+**Example for tenant `acme1281`:**
+```
+gac-prod-471220.acme1281_metadata.*
+gac-prod-471220.acme1281_raw_openai.*
+gac-prod-471220.acme1281_raw_google.*
+gac-prod-471220.acme1281_silver_cost.*
 ```
 
 ### Table Naming Conventions
 
-- **Raw Layer**: `raw_{provider}.{entity}` → `raw_openai.usage_logs`
-- **Silver Layer**: `silver_{domain}.{entity}` → `silver_cost.unified_daily`
-- **Gold Layer**: `gold_{business_area}.{report}` → `gold_reporting.monthly_spend_by_team`
+- **Metadata**: `{tenant_id}_metadata.{table}` → `acme1281_metadata.pipeline_runs`
+- **Raw Layer**: `{tenant_id}_raw_{provider}.{entity}` → `acme1281_raw_openai.usage_logs`
+- **Silver Layer**: `{tenant_id}_silver_{domain}.{entity}` → `acme1281_silver_cost.unified_daily`
+- **Gold Layer**: `{tenant_id}_gold_{business_area}.{report}` → `acme1281_gold_reporting.monthly_spend`
 
 ### Standard Table Features
 
