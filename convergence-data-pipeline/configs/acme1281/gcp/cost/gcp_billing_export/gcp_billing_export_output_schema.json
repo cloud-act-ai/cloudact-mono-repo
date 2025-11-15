@@ -1,0 +1,38 @@
+[
+  {
+    "name": "billing_account_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Billing account identifier"
+  },
+  {
+    "name": "transaction_type",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Type of transaction"
+  },
+  {
+    "name": "seller_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Name of the seller"
+  },
+  {
+    "name": "cost",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Cost amount"
+  },
+  {
+    "name": "ingestion_date",
+    "type": "DATE",
+    "mode": "REQUIRED",
+    "description": "Date when data was ingested (partition key)"
+  },
+  {
+    "name": "ingestion_timestamp",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "Timestamp when data was ingested"
+  }
+]

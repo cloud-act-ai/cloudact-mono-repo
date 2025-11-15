@@ -372,6 +372,119 @@ All raw tables include:
 
 ---
 
+## Pipeline Configuration Structure
+
+The Convergence Data Pipeline uses a **pipeline-as-config** approach where each pipeline is completely self-contained in its own folder with all configuration files co-located.
+
+### Directory Structure
+
+Pipelines are organized under: `configs/{tenant_id}/{cloud_provider}/{domain}/{pipeline_name}/`
+
+Each pipeline folder contains:
+- **Pipeline YAML** - Main pipeline configuration
+- **DQ Config YAML** - Data quality rules
+- **Output Schema JSON** - BigQuery table schema definition
+
+**Current Structure:**
+```
+configs/acme1281/gcp/cost/
+├── gcp_billing_export/
+│   ├── gcp_billing_export.yml                    # Pipeline config
+│   ├── gcp_billing_export_dq.yml                 # Data quality rules
+│   └── gcp_billing_export_output_schema.json     # Output table schema
+│
+└── gcp_pricing_calculation/
+    ├── gcp_pricing_calculation.yml               # Pipeline config
+    ├── gcp_pricing_calculation_dq.yml            # Data quality rules
+    ├── gcp_pricing_calculation_raw_output_schema.json    # Raw output schema
+    └── gcp_pricing_calculation_final_output_schema.json  # Final output schema
+```
+
+### Key Principles
+
+1. **Self-Contained Pipelines**: Each pipeline folder contains ALL its configuration files - no external dependencies or shared configs (except metadata schemas).
+
+2. **Relative Path References**: All paths in pipeline YAMLs are relative to the pipeline folder:
+   ```yaml
+   dq_config: "gcp_billing_export_dq.yml"          # Not full path
+   schema_file: "gcp_billing_export_output_schema.json"
+   ```
+
+3. **Dynamic Discovery**: System finds pipelines automatically using glob pattern `**/{pipeline_id}.yml` - no central registration needed.
+
+4. **Schema-Driven Tables**: Output tables are created from JSON schema files, ensuring consistency between config and actual table structure.
+
+### Pipeline YAML Structure
+
+Each pipeline YAML defines source queries, transformations, and destinations:
+
+```yaml
+pipeline_id: gcp_billing_export
+source:
+  type: bigquery
+  project_id: gac-prod-471220
+  dataset: billing
+  table: gcp_billing_export_v1_*
+
+destination:
+  dataset_type: gcp
+  table: example_output
+  write_mode: overwrite
+  recreate: true
+  schema_file: "gcp_billing_export_output_schema.json"  # Relative path
+
+dq_config: "gcp_billing_export_dq.yml"  # Relative path
+```
+
+### Output Schema Files
+
+Schema files define BigQuery table structure in JSON format:
+
+```json
+[
+  {
+    "name": "billing_account_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Billing account identifier"
+  },
+  {
+    "name": "cost",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Cost amount"
+  },
+  {
+    "name": "ingestion_date",
+    "type": "DATE",
+    "mode": "REQUIRED",
+    "description": "Date when data was ingested (partition key)"
+  }
+]
+```
+
+### Triggering Pipelines
+
+Trigger by pipeline ID - system finds config automatically:
+
+```bash
+curl -X POST http://localhost:8000/pipelines/run/gcp_billing_export \
+  -H "Content-Type: application/json"
+```
+
+### Adding New Pipelines
+
+1. Create new folder: `configs/{tenant}/{cloud}/{domain}/{pipeline_name}/`
+2. Add pipeline YAML: `{pipeline_name}.yml`
+3. Add DQ config: `{pipeline_name}_dq.yml`
+4. Add output schema: `{pipeline_name}_output_schema.json`
+5. Use relative paths in YAML
+6. Trigger pipeline - no registration needed
+
+For detailed configuration guide, see [`docs/pipeline-configuration.md`](docs/pipeline-configuration.md).
+
+---
+
 ## Local Development Setup
 
 ### Prerequisites
@@ -398,8 +511,8 @@ source venv/bin/activate
 pip install -r requirements.txt
 
 # 4. Set environment variables
-export GOOGLE_APPLICATION_CREDENTIALS="$HOME/gcp/convergence-dev-sa.json"
-export GCP_PROJECT_ID="your-dev-project-id"
+export GOOGLE_APPLICATION_CREDENTIALS="/Users/gurukallam/.gcp/gac-prod-471220-e34944040b62.json"
+export GCP_PROJECT_ID="gac-prod-471220"
 export BIGQUERY_LOCATION="US"
 
 # 5. Verify BigQuery access
@@ -976,7 +1089,7 @@ git push origin main
 python scripts/validate_configs.py
 
 # Test ingest worker locally
-export GOOGLE_APPLICATION_CREDENTIALS="$HOME/gcp/dev-sa.json"
+export GOOGLE_APPLICATION_CREDENTIALS="/Users/gurukallam/.gcp/gac-prod-471220-e34944040b62.json"
 python -m core.workers.ingest_task \
   --source-config configs/anthropic/sources/usage_api.yml \
   --dry-run

@@ -28,6 +28,7 @@ steps:
       table: example_output
       write_mode: overwrite
       recreate: true  # Delete and recreate table on each run
+      schema_file: "gcp_billing_export_output_schema.json"
 
   # Step 2: Validate output data quality
   - step_id: validate_output
@@ -36,7 +37,7 @@ steps:
     source:
       dataset_type: gcp
       table: example_output
-    dq_config: "configs/acme1281/gcp/cost/gcp_billing_export_dq.yml"
+    dq_config: "gcp_billing_export_dq.yml"
     fail_on_error: false  # Don't fail pipeline if DQ checks fail (for demo)
     depends_on:
       - extract_sample_data

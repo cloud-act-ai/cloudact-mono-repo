@@ -26,7 +26,7 @@ steps:
       table: pricing_export_raw
       write_mode: overwrite
       recreate: true  # Delete and recreate table on each run
-      # Schema removed - will be inferred or defined inline if needed
+      schema_file: "gcp_pricing_calculation_raw_output_schema.json"
 
   # Step 2: Validate raw data quality
   - step_id: validate_raw_data
@@ -36,7 +36,7 @@ steps:
     source:
       dataset_type: gcp
       table: pricing_export_raw
-    dq_config: configs/acme1281/gcp/cost/gcp_pricing_calculation_dq.yml  # Note: This references final DQ rules - raw DQ removed per simplification
+    dq_config: gcp_pricing_calculation_dq.yml  # Note: This references final DQ rules - raw DQ removed per simplification
     fail_on_error: true
 
   # Step 3: Aggregate pricing data
@@ -61,7 +61,7 @@ steps:
       table: pricing_export_final
       write_mode: append
       recreate: true  # Delete and recreate table on each run
-      # Schema removed - will be inferred or defined inline if needed
+      schema_file: "gcp_pricing_calculation_final_output_schema.json"
       partition_field: export_date
       cluster_fields: [billing_account_id]
 
@@ -73,5 +73,5 @@ steps:
     source:
       dataset_type: gcp
       table: pricing_export_final
-    dq_config: configs/acme1281/gcp/cost/gcp_pricing_calculation_dq.yml
+    dq_config: gcp_pricing_calculation_dq.yml
     fail_on_error: false

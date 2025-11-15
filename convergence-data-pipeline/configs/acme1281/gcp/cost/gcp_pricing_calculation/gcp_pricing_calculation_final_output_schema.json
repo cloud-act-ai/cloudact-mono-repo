@@ -1,0 +1,38 @@
+[
+  {
+    "name": "export_date",
+    "type": "DATE",
+    "mode": "REQUIRED",
+    "description": "Date of pricing export (partition key)"
+  },
+  {
+    "name": "billing_account_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Billing account identifier (cluster key)"
+  },
+  {
+    "name": "record_count",
+    "type": "INTEGER",
+    "mode": "NULLABLE",
+    "description": "Number of records in this aggregation"
+  },
+  {
+    "name": "min_export_time",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "Minimum export timestamp in this aggregation"
+  },
+  {
+    "name": "max_export_time",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "Maximum export timestamp in this aggregation"
+  },
+  {
+    "name": "ingestion_timestamp",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "Timestamp when data was ingested"
+  }
+]
