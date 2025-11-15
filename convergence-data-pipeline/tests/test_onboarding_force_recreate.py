@@ -54,8 +54,8 @@ async def onboard_customer(session: aiohttp.ClientSession, tenant_id: str) -> Tu
 
     payload = {
         "tenant_id": tenant_id,
-        "force_recreate_dataset": True,
-        "force_recreate_tables": True
+        "force_recreate_dataset": False,
+        "force_recreate_tables": False
     }
 
     try:
@@ -170,20 +170,19 @@ async def main():
         # Small delay to ensure all responses are processed
         await asyncio.sleep(2)
 
-        # Step 2: Run sample pipelines for all customers in parallel
+        # Step 2: Run sample pipelines for all customers sequentially (not parallel to avoid race conditions)
         print(f"{Colors.BLUE}========================================{Colors.NC}")
-        print(f"{Colors.BLUE}Step 2: Running Sample Pipelines (Parallel){Colors.NC}")
+        print(f"{Colors.BLUE}Step 2: Running Sample Pipelines (Sequential){Colors.NC}")
         print(f"{Colors.BLUE}========================================{Colors.NC}")
         print()
 
-        pipeline_tasks = []
+        pipeline_results = []
         for tenant_id in CUSTOMERS:
             if tenant_id in customer_api_keys:
-                pipeline_tasks.append(run_sample_pipeline(session, tenant_id, customer_api_keys[tenant_id]))
+                result = await run_sample_pipeline(session, tenant_id, customer_api_keys[tenant_id])
+                pipeline_results.append(result)
             else:
                 print(f"{Colors.RED}[{tenant_id}] ✗ Skipping pipeline test (no API key){Colors.NC}")
-
-        pipeline_results = await asyncio.gather(*pipeline_tasks) if pipeline_tasks else []
 
         print()
         print(f"{Colors.GREEN}✓ All pipeline tests completed{Colors.NC}")
