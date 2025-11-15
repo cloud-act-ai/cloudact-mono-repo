@@ -1,0 +1,52 @@
+# Cloud Build Configuration
+# Builds and deploys the Convergence Data Pipeline to Cloud Run
+
+steps:
+  # Step 1: Build Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'us-docker.pkg.dev/${PROJECT_ID}/convergence/api:${SHORT_SHA}'
+      - '-t'
+      - 'us-docker.pkg.dev/${PROJECT_ID}/convergence/api:latest'
+      - '-f'
+      - 'deployment/Dockerfile'
+      - '.'
+
+  # Step 2: Push image to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - '--all-tags'
+      - 'us-docker.pkg.dev/${PROJECT_ID}/convergence/api'
+
+  # Step 3: Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'convergence-api'
+      - '--image=us-docker.pkg.dev/${PROJECT_ID}/convergence/api:${SHORT_SHA}'
+      - '--region=us-central1'
+      - '--platform=managed'
+      - '--service-account=convergence-api@${PROJECT_ID}.iam.gserviceaccount.com'
+      - '--set-env-vars=GCP_PROJECT_ID=${PROJECT_ID},BIGQUERY_LOCATION=US,ENVIRONMENT=production'
+      - '--allow-unauthenticated'
+      - '--memory=2Gi'
+      - '--cpu=2'
+      - '--concurrency=80'
+      - '--max-instances=10'
+      - '--min-instances=0'
+      - '--timeout=3600'
+
+timeout: 1200s
+options:
+  machineType: 'N1_HIGHCPU_8'
+  logging: CLOUD_LOGGING_ONLY
+
+# Substitutions (can be overridden)
+substitutions:
+  _REGION: 'us-central1'
+  _SERVICE_NAME: 'convergence-api'

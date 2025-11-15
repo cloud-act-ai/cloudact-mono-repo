@@ -1,0 +1,195 @@
+"""
+Enterprise Structured Logging
+JSON-formatted logs with trace correlation for Cloud Logging.
+"""
+
+import logging
+import json
+import sys
+from typing import Any, Dict, Optional
+from datetime import datetime
+from pythonjsonlogger import jsonlogger
+from opentelemetry import trace
+
+from src.app.config import settings
+
+
+class CloudLoggingFormatter(jsonlogger.JsonFormatter):
+    """
+    Custom JSON formatter for Google Cloud Logging.
+    Adds trace_id, span_id, and severity mapping.
+    """
+
+    def add_fields(
+        self,
+        log_record: Dict[str, Any],
+        record: logging.LogRecord,
+        message_dict: Dict[str, Any]
+    ):
+        """Add custom fields to log record."""
+        super().add_fields(log_record, record, message_dict)
+
+        # Add timestamp in ISO format
+        log_record["timestamp"] = datetime.utcnow().isoformat() + "Z"
+
+        # Add severity (Cloud Logging compatible)
+        log_record["severity"] = record.levelname
+
+        # Add trace context from OpenTelemetry
+        span = trace.get_current_span()
+        if span and span.get_span_context().is_valid:
+            span_context = span.get_span_context()
+            log_record["trace_id"] = f"{span_context.trace_id:032x}"
+            log_record["span_id"] = f"{span_context.span_id:016x}"
+            log_record["trace_sampled"] = span_context.trace_flags.sampled
+
+        # Add service metadata
+        log_record["service"] = settings.app_name
+        log_record["version"] = settings.app_version
+        log_record["environment"] = settings.environment
+
+        # Move 'message' to 'msg' if exists
+        if "message" in log_record:
+            log_record["msg"] = log_record.pop("message")
+
+
+def setup_logging(log_level: Optional[str] = None):
+    """
+    Configure application-wide structured logging.
+
+    Args:
+        log_level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+                  Defaults to settings.log_level
+    """
+    level = log_level or settings.log_level
+
+    # Create handler for stdout
+    handler = logging.StreamHandler(sys.stdout)
+
+    # Set formatter
+    formatter = CloudLoggingFormatter(
+        fmt="%(timestamp)s %(severity)s %(name)s %(msg)s",
+        json_ensure_ascii=False
+    )
+    handler.setFormatter(formatter)
+
+    # Configure root logger
+    root_logger = logging.getLogger()
+    root_logger.setLevel(level)
+    root_logger.handlers.clear()
+    root_logger.addHandler(handler)
+
+    # Suppress noisy third-party loggers
+    logging.getLogger("google").setLevel(logging.WARNING)
+    logging.getLogger("urllib3").setLevel(logging.WARNING)
+    logging.getLogger("asyncio").setLevel(logging.WARNING)
+
+    logging.info(
+        "Logging initialized",
+        extra={
+            "log_level": level,
+            "environment": settings.environment
+        }
+    )
+
+
+def get_logger(name: str) -> logging.Logger:
+    """
+    Get a logger instance with the given name.
+
+    Args:
+        name: Logger name (typically __name__)
+
+    Returns:
+        Configured logger instance
+    """
+    return logging.getLogger(name)
+
+
+class StructuredLogger:
+    """
+    Structured logger wrapper for adding consistent contextual information.
+    """
+
+    def __init__(
+        self,
+        logger: logging.Logger,
+        tenant_id: Optional[str] = None,
+        pipeline_id: Optional[str] = None,
+        pipeline_logging_id: Optional[str] = None
+    ):
+        """
+        Initialize structured logger.
+
+        Args:
+            logger: Base logger instance
+            tenant_id: Tenant identifier
+            pipeline_id: Pipeline identifier
+            pipeline_logging_id: Unique pipeline run ID
+        """
+        self.logger = logger
+        self.context = {}
+
+        if tenant_id:
+            self.context["tenant_id"] = tenant_id
+        if pipeline_id:
+            self.context["pipeline_id"] = pipeline_id
+        if pipeline_logging_id:
+            self.context["pipeline_logging_id"] = pipeline_logging_id
+
+    def _log(self, level: int, msg: str, **kwargs):
+        """Internal logging method with context injection."""
+        extra = {**self.context, **kwargs}
+        self.logger.log(level, msg, extra=extra)
+
+    def debug(self, msg: str, **kwargs):
+        """Log debug message."""
+        self._log(logging.DEBUG, msg, **kwargs)
+
+    def info(self, msg: str, **kwargs):
+        """Log info message."""
+        self._log(logging.INFO, msg, **kwargs)
+
+    def warning(self, msg: str, **kwargs):
+        """Log warning message."""
+        self._log(logging.WARNING, msg, **kwargs)
+
+    def error(self, msg: str, **kwargs):
+        """Log error message."""
+        self._log(logging.ERROR, msg, **kwargs)
+
+    def critical(self, msg: str, **kwargs):
+        """Log critical message."""
+        self._log(logging.CRITICAL, msg, **kwargs)
+
+    def exception(self, msg: str, **kwargs):
+        """Log exception with stack trace."""
+        extra = {**self.context, **kwargs}
+        self.logger.exception(msg, extra=extra)
+
+
+def create_structured_logger(
+    name: str,
+    tenant_id: Optional[str] = None,
+    pipeline_id: Optional[str] = None,
+    pipeline_logging_id: Optional[str] = None
+) -> StructuredLogger:
+    """
+    Create a structured logger with context.
+
+    Args:
+        name: Logger name
+        tenant_id: Tenant identifier
+        pipeline_id: Pipeline identifier
+        pipeline_logging_id: Unique pipeline run ID
+
+    Returns:
+        StructuredLogger instance
+    """
+    logger = get_logger(name)
+    return StructuredLogger(
+        logger=logger,
+        tenant_id=tenant_id,
+        pipeline_id=pipeline_id,
+        pipeline_logging_id=pipeline_logging_id
+    )
