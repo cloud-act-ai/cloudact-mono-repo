@@ -68,8 +68,10 @@ class BigQueryClient:
             )
             logger.info(
                 f"Initialized BigQuery client",
-                project_id=self.project_id,
-                location=self.location
+                extra={
+                    "project_id": self.project_id,
+                    "location": self.location
+                }
             )
         return self._client
 
@@ -137,17 +139,13 @@ class BigQueryClient:
             dataset = self.client.create_dataset(dataset, exists_ok=True)
             logger.info(
                 f"Created/verified dataset: {dataset_id}",
-                tenant_id=tenant_id,
-                dataset_type=dataset_type
-            )
+                extra={"tenant_id": tenant_id, "dataset_type": dataset_type})
             return dataset
 
         except Exception as e:
             logger.error(
                 f"Error creating dataset {dataset_id}: {e}",
-                tenant_id=tenant_id,
-                exc_info=True
-            )
+                extra={"tenant_id": tenant_id}, exc_info=True)
             raise
 
     # ============================================
@@ -202,7 +200,7 @@ class BigQueryClient:
         dataset_type: str,
         table_name: str,
         schema: List[SchemaField],
-        partition_field: Optional[str] = "ingestion_date",
+        partition_field: Optional[str] = None,
         cluster_fields: Optional[List[str]] = None,
         description: Optional[str] = None
     ) -> Table:
@@ -214,7 +212,7 @@ class BigQueryClient:
             dataset_type: Type of dataset
             table_name: Table name
             schema: List of SchemaField objects
-            partition_field: Field to partition by (default: ingestion_date)
+            partition_field: Field to partition by (None = no partitioning)
             cluster_fields: List of fields to cluster by
             description: Table description
 
@@ -244,18 +242,14 @@ class BigQueryClient:
             table = self.client.create_table(table, exists_ok=True)
             logger.info(
                 f"Created/verified table: {table_id}",
-                tenant_id=tenant_id,
-                table_name=table_name,
-                num_fields=len(schema)
+                extra={"tenant_id": tenant_id, "table_name": table_name, "num_fields": len(schema)}
             )
             return table
 
         except Exception as e:
             logger.error(
                 f"Error creating table {table_id}: {e}",
-                tenant_id=tenant_id,
-                exc_info=True
-            )
+                extra={"tenant_id": tenant_id}, exc_info=True)
             raise
 
     def create_table_from_schema_file(
@@ -264,7 +258,7 @@ class BigQueryClient:
         dataset_type: str,
         table_name: str,
         schema_file: str,
-        partition_field: Optional[str] = "ingestion_date",
+        partition_field: Optional[str] = None,
         cluster_fields: Optional[List[str]] = None,
         description: Optional[str] = None
     ) -> Table:
@@ -276,7 +270,7 @@ class BigQueryClient:
             dataset_type: Type of dataset
             table_name: Table name
             schema_file: Path to schema JSON file
-            partition_field: Field to partition by
+            partition_field: Field to partition by (None = no partitioning)
             cluster_fields: List of fields to cluster by
             description: Table description
 
@@ -342,9 +336,7 @@ class BigQueryClient:
 
         logger.info(
             f"Inserted {len(rows)} rows into {table_id}",
-            tenant_id=tenant_id,
-            table_name=table_name,
-            row_count=len(rows)
+            extra={"tenant_id": tenant_id, "table_name": table_name, "row_count": len(rows)}
         )
 
     # ============================================
@@ -386,10 +378,7 @@ class BigQueryClient:
 
         logger.info(
             f"Query completed",
-            total_bytes_processed=query_job.total_bytes_processed,
-            total_bytes_billed=query_job.total_bytes_billed,
-            cache_hit=query_job.cache_hit
-        )
+            extra={"total_bytes_processed": query_job.total_bytes_processed, "total_bytes_billed": query_job.total_bytes_billed, "cache_hit": query_job.cache_hit})
 
         # Yield rows as dictionaries
         for row in results:
@@ -465,9 +454,7 @@ class BigQueryClient:
 
         logger.info(
             f"Deleted table: {table_id}",
-            tenant_id=tenant_id,
-            table_name=table_name
-        )
+            extra={"tenant_id": tenant_id, "table_name": table_name})
 
 
 @lru_cache()

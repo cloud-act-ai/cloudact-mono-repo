@@ -1,0 +1,77 @@
+pipeline_id: pricing_calculation
+description: "Google Cloud pricing data aggregation pipeline"
+version: "1.0.0"
+
+# Runtime parameters (passed in API request)
+parameters:
+  date: "2025-11-14"  # Default value, can be overridden
+
+steps:
+  # Step 1: Extract raw pricing data from source BigQuery
+  - step_id: extract_raw_pricing
+    type: bigquery_to_bigquery
+    description: "Extract raw pricing data from cloud_pricing_export"
+    source:
+      project_id: gac-prod-471220
+      dataset: cloudact_cost_usage
+      table: cloud_pricing_export
+      query: |
+        SELECT
+          export_time,
+          billing_account_id
+        FROM `gac-prod-471220.cloudact_cost_usage.cloud_pricing_export`
+        WHERE TIMESTAMP_TRUNC(_PARTITIONTIME, DAY) = TIMESTAMP('@date')
+    destination:
+      dataset_type: google
+      table: pricing_export_raw
+      write_mode: overwrite
+      recreate: true  # Delete and recreate table on each run
+      schema_file: configs/acme1281/google/schemas/pricing_export_raw.json
+
+  # Step 2: Validate raw data quality
+  - step_id: validate_raw_data
+    type: data_quality
+    description: "Validate raw pricing data"
+    depends_on: extract_raw_pricing
+    source:
+      dataset_type: google
+      table: pricing_export_raw
+    dq_config: configs/acme1281/google/dq_rules/pricing_export_raw_dq.yml
+    fail_on_error: true
+
+  # Step 3: Aggregate pricing data
+  - step_id: aggregate_pricing
+    type: bigquery_to_bigquery
+    description: "Aggregate pricing data by date and billing account"
+    depends_on: validate_raw_data
+    source:
+      dataset_type: google
+      table: pricing_export_raw
+      query: |
+        SELECT
+          DATE(export_time) as export_date,
+          billing_account_id,
+          COUNT(*) as record_count,
+          MIN(export_time) as min_export_time,
+          MAX(export_time) as max_export_time
+        FROM `{project_id}.{dataset}.pricing_export_raw`
+        GROUP BY export_date, billing_account_id
+    destination:
+      dataset_type: google
+      table: pricing_export_final
+      write_mode: append
+      recreate: true  # Delete and recreate table on each run
+      schema_file: configs/acme1281/google/schemas/pricing_export_final.json
+      partition_field: export_date
+      cluster_fields: [billing_account_id]
+
+  # Step 4: Validate final data quality
+  - step_id: validate_final_data
+    type: data_quality
+    description: "Validate aggregated pricing data"
+    depends_on: aggregate_pricing
+    source:
+      dataset_type: google
+      table: pricing_export_final
+    dq_config: configs/acme1281/google/dq_rules/pricing_export_final_dq.yml
+    fail_on_error: false

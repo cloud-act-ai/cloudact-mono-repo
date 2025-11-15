@@ -139,8 +139,21 @@ class StructuredLogger:
 
     def _log(self, level: int, msg: str, **kwargs):
         """Internal logging method with context injection."""
+        # Extract reserved logging parameters
+        exc_info = kwargs.pop('exc_info', False)
+        stack_info = kwargs.pop('stack_info', False)
+        stacklevel = kwargs.pop('stacklevel', 1)
+
+        # Remaining kwargs go into extra
         extra = {**self.context, **kwargs}
-        self.logger.log(level, msg, extra=extra)
+
+        self.logger.log(
+            level, msg,
+            exc_info=exc_info,
+            stack_info=stack_info,
+            stacklevel=stacklevel,
+            extra=extra
+        )
 
     def debug(self, msg: str, **kwargs):
         """Log debug message."""

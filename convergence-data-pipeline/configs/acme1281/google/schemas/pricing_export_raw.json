@@ -1,0 +1,14 @@
+[
+  {
+    "name": "export_time",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "Timestamp when the pricing data was exported"
+  },
+  {
+    "name": "billing_account_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Google Cloud billing account ID"
+  }
+]

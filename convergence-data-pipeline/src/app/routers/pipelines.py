@@ -11,6 +11,7 @@ import uuid
 
 from src.app.dependencies.auth import verify_api_key, TenantContext
 from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
+from src.core.pipeline.executor import PipelineExecutor
 from src.app.config import settings
 
 router = APIRouter()
@@ -26,6 +27,13 @@ class TriggerPipelineRequest(BaseModel):
         default="api_user",
         description="Who is triggering the pipeline"
     )
+    date: Optional[str] = Field(
+        default=None,
+        description="Date parameter for the pipeline (e.g., '2025-11-14')"
+    )
+
+    class Config:
+        extra = "allow"  # Allow additional parameters
 
 
 class PipelineRunResponse(BaseModel):
@@ -54,6 +62,25 @@ class TriggerPipelineResponse(BaseModel):
 # Pipeline Execution Endpoints
 # ============================================
 
+def run_pipeline_task(executor: PipelineExecutor, parameters: dict):
+    """Wrapper function to execute pipeline with proper error handling."""
+    import logging
+    logger = logging.getLogger(__name__)
+
+    try:
+        logger.info(f"Starting background pipeline execution: {executor.pipeline_logging_id}")
+        result = executor.execute(parameters)
+        logger.info(f"Pipeline execution completed: {executor.pipeline_logging_id}")
+        return result
+    except Exception as e:
+        logger.error(
+            f"Pipeline execution failed: {executor.pipeline_logging_id}",
+            exc_info=True,
+            extra={"error": str(e)}
+        )
+        raise
+
+
 @router.post(
     "/pipelines/run/{pipeline_id}",
     response_model=TriggerPipelineResponse,
@@ -62,29 +89,39 @@ class TriggerPipelineResponse(BaseModel):
 )
 async def trigger_pipeline(
     pipeline_id: str,
+    background_tasks: BackgroundTasks,
     request: TriggerPipelineRequest = TriggerPipelineRequest(),
     tenant: TenantContext = Depends(verify_api_key)
 ):
     """
     Trigger a pipeline execution.
 
-    - **pipeline_id**: Pipeline identifier (e.g., p_openai_billing)
+    - **pipeline_id**: Pipeline identifier (e.g., pricing_calculation)
     - **trigger_by**: Optional identifier of who triggered the pipeline
+    - **date**: Date parameter for the pipeline (YYYY-MM-DD format)
 
     Returns the pipeline_logging_id for tracking.
-
-    Note: This is a placeholder implementation. Full pipeline execution
-    will be implemented based on your requirements (async tasks, Cloud Functions, etc.)
     """
-    # Generate a unique pipeline logging ID
-    pipeline_logging_id = str(uuid.uuid4())
+    # Extract parameters from request
+    parameters = request.dict(exclude={'trigger_by'}, exclude_none=True)
+
+    # Create pipeline executor
+    executor = PipelineExecutor(
+        tenant_id=tenant.tenant_id,
+        pipeline_id=pipeline_id,
+        trigger_type="api",
+        trigger_by=request.trigger_by or "api_user"
+    )
+
+    # Execute pipeline in background with error handling
+    background_tasks.add_task(run_pipeline_task, executor, parameters)
 
     return TriggerPipelineResponse(
-        pipeline_logging_id=pipeline_logging_id,
+        pipeline_logging_id=executor.pipeline_logging_id,
         pipeline_id=pipeline_id,
         tenant_id=tenant.tenant_id,
         status="PENDING",
-        message=f"Pipeline {pipeline_id} triggered successfully (placeholder)"
+        message=f"Pipeline {pipeline_id} triggered successfully"
     )
 
 

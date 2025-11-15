@@ -1,0 +1,31 @@
+# Data Quality Rules for pricing_export_raw table
+description: "Validate raw pricing export data"
+sample_size: 10000  # Number of rows to sample for validation
+
+expectations:
+  # Table-level checks
+  - expectation_type: expect_table_row_count_to_be_between
+    kwargs:
+      min_value: 1
+      max_value: 1000000
+
+  # export_time checks
+  - expectation_type: expect_column_values_to_not_be_null
+    kwargs:
+      column: export_time
+
+  - expectation_type: expect_column_values_to_be_of_type
+    kwargs:
+      column: export_time
+      type_: datetime64
+
+  # billing_account_id checks
+  - expectation_type: expect_column_values_to_not_be_null
+    kwargs:
+      column: billing_account_id
+
+  - expectation_type: expect_column_value_lengths_to_be_between
+    kwargs:
+      column: billing_account_id
+      min_value: 10
+      max_value: 50
