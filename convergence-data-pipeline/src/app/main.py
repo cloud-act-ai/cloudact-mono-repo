@@ -12,7 +12,7 @@ import logging
 
 from src.app.config import settings
 from src.core.utils.logging import setup_logging
-from src.core.utils.telemetry import setup_telemetry
+# from src.core.utils.telemetry import setup_telemetry  # Disabled for local dev
 
 # Initialize logging
 setup_logging()
@@ -28,14 +28,16 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info(
         f"Starting {settings.app_name} v{settings.app_version}",
-        environment=settings.environment,
-        project_id=settings.gcp_project_id
+        extra={
+            "environment": settings.environment,
+            "project_id": settings.gcp_project_id
+        }
     )
 
     # Initialize OpenTelemetry if enabled
-    if settings.enable_tracing:
-        setup_telemetry()
-        logger.info("OpenTelemetry tracing initialized")
+    # if settings.enable_tracing:
+    #     setup_telemetry()
+    #     logger.info("OpenTelemetry tracing initialized")
 
     yield
 
@@ -79,9 +81,11 @@ async def log_requests(request: Request, call_next):
 
     logger.info(
         f"Request started",
-        method=request.method,
-        path=request.url.path,
-        tenant_id=tenant_id
+        extra={
+            "method": request.method,
+            "path": request.url.path,
+            "tenant_id": tenant_id
+        }
     )
 
     response = await call_next(request)
@@ -90,11 +94,13 @@ async def log_requests(request: Request, call_next):
 
     logger.info(
         f"Request completed",
-        method=request.method,
-        path=request.url.path,
-        status_code=response.status_code,
-        duration_ms=round(duration * 1000, 2),
-        tenant_id=tenant_id
+        extra={
+            "method": request.method,
+            "path": request.url.path,
+            "status_code": response.status_code,
+            "duration_ms": round(duration * 1000, 2),
+            "tenant_id": tenant_id
+        }
     )
 
     # Add custom headers
@@ -113,10 +119,12 @@ async def global_exception_handler(request: Request, exc: Exception):
     """Global exception handler for unhandled errors."""
     logger.error(
         f"Unhandled exception",
-        method=request.method,
-        path=request.url.path,
-        error=str(exc),
-        exc_info=True
+        exc_info=True,
+        extra={
+            "method": request.method,
+            "path": request.url.path,
+            "error": str(exc)
+        }
     )
 
     return JSONResponse(

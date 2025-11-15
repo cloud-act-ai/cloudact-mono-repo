@@ -19,7 +19,6 @@ from google.cloud.bigquery import (
     WriteDisposition,
     TimePartitioning,
     TimePartitioningType,
-    Clustering
 )
 from google.api_core import retry
 from tenacity import (

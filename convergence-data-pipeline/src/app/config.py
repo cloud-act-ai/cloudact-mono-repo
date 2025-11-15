@@ -59,51 +59,6 @@ class Settings(BaseSettings):
     cors_allow_headers: List[str] = Field(default=["*"])
 
     # ============================================
-    # Redis Configuration
-    # ============================================
-    redis_host: str = Field(default="localhost")
-    redis_port: int = Field(default=6379, ge=1, le=65535)
-    redis_db: int = Field(default=0, ge=0, le=15)
-    redis_password: Optional[str] = Field(default=None)
-    redis_url: Optional[str] = Field(default=None)
-
-    @field_validator("redis_url", mode="before")
-    @classmethod
-    def build_redis_url(cls, v, info):
-        """Build Redis URL from components if not provided."""
-        if v:
-            return v
-
-        values = info.data
-        password = values.get("redis_password")
-        auth = f":{password}@" if password else ""
-
-        return (
-            f"redis://{auth}{values.get('redis_host', 'localhost')}"
-            f":{values.get('redis_port', 6379)}/{values.get('redis_db', 0)}"
-        )
-
-    # ============================================
-    # Celery Configuration
-    # ============================================
-    celery_broker_url: Optional[str] = Field(default=None)
-    celery_result_backend: Optional[str] = Field(default=None)
-    celery_task_track_started: bool = Field(default=True)
-    celery_task_time_limit: int = Field(default=3600, ge=60)  # seconds
-
-    @field_validator("celery_broker_url", mode="before")
-    @classmethod
-    def set_celery_broker(cls, v, info):
-        """Use redis_url if celery_broker_url not set."""
-        return v or info.data.get("redis_url")
-
-    @field_validator("celery_result_backend", mode="before")
-    @classmethod
-    def set_celery_backend(cls, v, info):
-        """Use redis_url if celery_result_backend not set."""
-        return v or info.data.get("redis_url")
-
-    # ============================================
     # Security Configuration
     # ============================================
     api_key_hash_algorithm: str = Field(default="HS256")
@@ -195,11 +150,6 @@ class Settings(BaseSettings):
             # Shared metadata dataset for all tenants
             return "metadata"
         return f"{tenant_id}_{dataset_type}"
-
-    class Config:
-        """Pydantic configuration."""
-        env_file = ".env"
-        case_sensitive = False
 
 
 @lru_cache()

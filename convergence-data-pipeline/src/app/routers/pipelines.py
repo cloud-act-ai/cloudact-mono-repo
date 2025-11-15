@@ -3,13 +3,13 @@ Pipeline Management API Routes
 Endpoints for triggering and monitoring pipelines.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks
 from typing import List, Optional
 from pydantic import BaseModel, Field
 from datetime import datetime
+import uuid
 
 from src.app.dependencies.auth import verify_api_key, TenantContext
-from src.core.workers.pipeline_task import run_pipeline
 from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
 from src.app.config import settings
 
@@ -72,21 +72,19 @@ async def trigger_pipeline(
     - **trigger_by**: Optional identifier of who triggered the pipeline
 
     Returns the pipeline_logging_id for tracking.
+
+    Note: This is a placeholder implementation. Full pipeline execution
+    will be implemented based on your requirements (async tasks, Cloud Functions, etc.)
     """
-    # Dispatch pipeline task to Celery
-    task = run_pipeline.delay(
-        tenant_id=tenant.tenant_id,
-        pipeline_id=pipeline_id,
-        trigger_type="api",
-        trigger_by=request.trigger_by or "api_user"
-    )
+    # Generate a unique pipeline logging ID
+    pipeline_logging_id = str(uuid.uuid4())
 
     return TriggerPipelineResponse(
-        pipeline_logging_id=task.id,  # Celery task ID
+        pipeline_logging_id=pipeline_logging_id,
         pipeline_id=pipeline_id,
         tenant_id=tenant.tenant_id,
         status="PENDING",
-        message=f"Pipeline {pipeline_id} triggered successfully"
+        message=f"Pipeline {pipeline_id} triggered successfully (placeholder)"
     )
 
 
@@ -235,15 +233,10 @@ async def cancel_pipeline_run(
 
     - **pipeline_logging_id**: Pipeline run ID to cancel
 
-    Note: This will attempt to revoke the Celery task. Already completed
-    steps cannot be rolled back.
+    Note: This is a placeholder. Cancellation logic will be implemented
+    based on your pipeline execution architecture.
     """
-    from src.core.workers.celery_app import celery_app
-
-    # Revoke Celery task
-    celery_app.control.revoke(pipeline_logging_id, terminate=True)
-
     return {
         "pipeline_logging_id": pipeline_logging_id,
-        "message": "Pipeline cancellation requested. In-progress steps may complete."
+        "message": "Pipeline cancellation requested (placeholder). In-progress steps may complete."
     }
