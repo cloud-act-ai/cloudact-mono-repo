@@ -6,6 +6,7 @@ Fallback to local file-based API keys for development.
 
 import hashlib
 import json
+import os
 from typing import Optional
 from pathlib import Path
 from fastapi import Header, HTTPException, status, Depends
@@ -53,7 +54,9 @@ async def get_tenant_from_local_file(api_key_hash: str) -> Optional[str]:
     Returns:
         tenant_id if found, None otherwise
     """
-    secrets_base = Path.home() / ".cloudact-secrets"
+    # Expand ~ to home directory if present
+    secrets_base_str = os.path.expanduser(settings.secrets_base_path)
+    secrets_base = Path(secrets_base_str)
 
     if not secrets_base.exists():
         return None
@@ -100,7 +103,7 @@ async def get_tenant_from_api_key(
     """
     query = f"""
     SELECT tenant_id, is_active
-    FROM `{settings.gcp_project_id}.metadata.api_keys`
+    FROM `{settings.get_admin_metadata_table('api_keys')}`
     WHERE api_key_hash = @api_key_hash
     LIMIT 1
     """
@@ -151,8 +154,8 @@ async def verify_api_key(
     """
     # Check if authentication is disabled
     if settings.disable_auth:
-        logger.warning("Authentication is disabled - using default tenant 'acme1281'")
-        return TenantContext(tenant_id="acme1281", api_key_hash="disabled")
+        logger.warning(f"Authentication is disabled - using default tenant '{settings.default_tenant_id}'")
+        return TenantContext(tenant_id=settings.default_tenant_id, api_key_hash="disabled")
 
     if not x_api_key:
         raise HTTPException(

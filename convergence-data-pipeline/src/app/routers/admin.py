@@ -76,13 +76,10 @@ async def create_tenant(
     """
     tenant_id = request.tenant_id
 
-    # Create BigQuery datasets for tenant
+    # Load dataset types from configuration
     datasets_to_create = [
-        ("raw_openai", f"Raw data from OpenAI APIs for {tenant_id}"),
-        ("raw_google", f"Raw data from Google Cloud for {tenant_id}"),
-        ("raw_anthropic", f"Raw data from Anthropic APIs for {tenant_id}"),
-        ("silver_cost", f"Normalized cost data for {tenant_id}"),
-        ("gold_reporting", f"Business-ready reports for {tenant_id}"),
+        (dataset_type, f"{description} for {tenant_id}")
+        for dataset_type, description in settings.get_dataset_types_with_descriptions()
     ]
 
     datasets_created = 0
@@ -127,7 +124,7 @@ async def get_tenant(
     # Count API keys
     api_keys_query = f"""
     SELECT COUNT(*) as count
-    FROM `{settings.gcp_project_id}.metadata.api_keys`
+    FROM `{settings.get_admin_metadata_table('api_keys')}`
     WHERE tenant_id = @tenant_id
     """
 
@@ -145,15 +142,15 @@ async def get_tenant(
     # Count pipeline runs
     runs_query = f"""
     SELECT COUNT(*) as count
-    FROM `{settings.gcp_project_id}.metadata.pipeline_runs`
+    FROM `{settings.get_admin_metadata_table('pipeline_runs')}`
     WHERE tenant_id = @tenant_id
     """
 
     runs_result = list(bq_client.client.query(runs_query, job_config=job_config).result())
     runs_count = runs_result[0]["count"] if runs_result else 0
 
-    # Count datasets (simplified - just return expected count)
-    datasets_created = 5  # raw_openai, raw_google, raw_anthropic, silver_cost, gold_reporting
+    # Get dataset count from configuration
+    datasets_created = len(settings.get_dataset_type_names())
 
     return TenantResponse(
         tenant_id=tenant_id,
@@ -193,7 +190,7 @@ async def create_api_key(
 
     # Insert into BigQuery
     insert_query = f"""
-    INSERT INTO `{settings.gcp_project_id}.metadata.api_keys`
+    INSERT INTO `{settings.get_admin_metadata_table('api_keys')}`
     (api_key_hash, tenant_id, created_at, created_by, is_active, description)
     VALUES
     (@api_key_hash, @tenant_id, CURRENT_TIMESTAMP(), @created_by, TRUE, @description)
@@ -238,7 +235,7 @@ async def revoke_api_key(
     The API key will be marked as inactive and can no longer be used.
     """
     update_query = f"""
-    UPDATE `{settings.gcp_project_id}.metadata.api_keys`
+    UPDATE `{settings.get_admin_metadata_table('api_keys')}`
     SET is_active = FALSE
     WHERE api_key_hash = @api_key_hash
     """

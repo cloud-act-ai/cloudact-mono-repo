@@ -33,7 +33,7 @@ def create_metadata_dataset(client: bigquery.Client) -> bigquery.Dataset:
     Returns:
         Dataset object
     """
-    dataset_id = f"{settings.gcp_project_id}.metadata"
+    dataset_id = f"{settings.gcp_project_id}.{settings.admin_metadata_dataset}"
 
     dataset = bigquery.Dataset(dataset_id)
     dataset.location = settings.bigquery_location
@@ -51,7 +51,7 @@ def create_metadata_dataset(client: bigquery.Client) -> bigquery.Dataset:
 
 def create_api_keys_table(client: bigquery.Client) -> bigquery.Table:
     """
-    Create metadata.api_keys table for tenant authentication.
+    Create admin metadata api_keys table for tenant authentication.
 
     Table schema:
     - api_key_hash (STRING): SHA256 hash of API key
@@ -62,7 +62,7 @@ def create_api_keys_table(client: bigquery.Client) -> bigquery.Table:
     - last_used_at (TIMESTAMP): Last time API key was used
     - usage_count (INTEGER): Number of times API key was used
     """
-    table_id = f"{settings.gcp_project_id}.metadata.api_keys"
+    table_id = settings.get_admin_metadata_table('api_keys')
 
     schema = [
         bigquery.SchemaField("api_key_hash", "STRING", mode="REQUIRED",
@@ -97,11 +97,11 @@ def create_api_keys_table(client: bigquery.Client) -> bigquery.Table:
 
 def create_pipeline_runs_table(client: bigquery.Client) -> bigquery.Table:
     """
-    Create metadata.pipeline_runs table for pipeline execution tracking.
+    Create admin metadata pipeline_runs table for pipeline execution tracking.
 
     Table schema matches the design in README.md
     """
-    table_id = f"{settings.gcp_project_id}.metadata.pipeline_runs"
+    table_id = settings.get_admin_metadata_table('pipeline_runs')
 
     schema = [
         bigquery.SchemaField("pipeline_logging_id", "STRING", mode="REQUIRED",
@@ -150,9 +150,9 @@ def create_pipeline_runs_table(client: bigquery.Client) -> bigquery.Table:
 
 def create_dq_results_table(client: bigquery.Client) -> bigquery.Table:
     """
-    Create metadata.dq_results table for data quality results.
+    Create admin metadata dq_results table for data quality results.
     """
-    table_id = f"{settings.gcp_project_id}.metadata.dq_results"
+    table_id = settings.get_admin_metadata_table('dq_results')
 
     schema = [
         bigquery.SchemaField("dq_result_id", "STRING", mode="REQUIRED",

@@ -4,10 +4,16 @@ Centralized settings using Pydantic Settings with environment variable support.
 """
 
 import os
-from typing import List, Optional
+import yaml
+from typing import List, Optional, Dict, Any
 from functools import lru_cache
+from pathlib import Path
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+# Module-level cache for dataset types configuration
+_DATASET_TYPES_CACHE: Optional[List[Dict[str, Any]]] = None
 
 
 class Settings(BaseSettings):
@@ -62,9 +68,17 @@ class Settings(BaseSettings):
     # Security Configuration
     # ============================================
     disable_auth: bool = Field(default=True, description="Disable API key authentication (for development)")
+    default_tenant_id: str = Field(
+        default="acme1281",
+        description="Default tenant ID when authentication is disabled"
+    )
     api_key_hash_algorithm: str = Field(default="HS256")
     api_key_secret_key: str = Field(
         default="change-this-in-production-to-a-secure-random-key"
+    )
+    secrets_base_path: str = Field(
+        default="~/.cloudact-secrets",
+        description="Base path for tenant secrets directory"
     )
 
     # ============================================
@@ -137,9 +151,42 @@ class Settings(BaseSettings):
     )
 
     # ============================================
+    # Admin Metadata Configuration
+    # ============================================
+    admin_metadata_dataset: str = Field(
+        default="metadata",
+        description="Admin/global metadata dataset name (shared across tenants)"
+    )
+
+    # ============================================
     # File Paths
     # ============================================
     configs_base_path: str = Field(default="./configs")
+    system_configs_path: str = Field(default="./configs/system")
+    dataset_types_config: str = Field(default="./configs/system/dataset_types.yml")
+    metadata_schemas_path: str = Field(
+        default="configs/metadata/schemas",
+        description="Path to metadata table schema definitions"
+    )
+
+    # ============================================
+    # Distributed Lock Configuration
+    # ============================================
+    lock_backend: str = Field(
+        default="firestore",
+        pattern="^(memory|firestore)$",
+        description="Lock backend: 'memory' (single instance) or 'firestore' (distributed)"
+    )
+    lock_timeout_seconds: int = Field(
+        default=3600,
+        ge=60,
+        le=86400,
+        description="Lock expiration timeout in seconds (1 hour default)"
+    )
+    firestore_lock_collection: str = Field(
+        default="pipeline_locks",
+        description="Firestore collection name for pipeline locks"
+    )
 
     @property
     def is_production(self) -> bool:
@@ -231,7 +278,69 @@ class Settings(BaseSettings):
         Returns:
             Admin metadata dataset name
         """
-        return "metadata"
+        return self.admin_metadata_dataset
+
+    def get_admin_metadata_table(self, table_name: str) -> str:
+        """
+        Get fully qualified admin metadata table name.
+
+        Args:
+            table_name: Name of the table (e.g., 'api_keys', 'pipeline_runs')
+
+        Returns:
+            Fully qualified table name: {project_id}.{admin_dataset}.{table_name}
+        """
+        return f"{self.gcp_project_id}.{self.admin_metadata_dataset}.{table_name}"
+
+    def load_dataset_types(self) -> List[Dict[str, Any]]:
+        """
+        Load dataset types from YAML configuration file.
+        Uses module-level cache to avoid re-reading the file.
+
+        Returns:
+            List of dataset type configurations with name, description, layer, etc.
+
+        Raises:
+            FileNotFoundError: If dataset_types.yml not found
+        """
+        global _DATASET_TYPES_CACHE
+
+        # Return cached value if available
+        if _DATASET_TYPES_CACHE is not None:
+            return _DATASET_TYPES_CACHE
+
+        config_path = Path(self.dataset_types_config)
+
+        if not config_path.exists():
+            raise FileNotFoundError(
+                f"Dataset types configuration not found at {config_path}"
+            )
+
+        with open(config_path, 'r') as f:
+            config = yaml.safe_load(f)
+
+        _DATASET_TYPES_CACHE = config.get('dataset_types', [])
+        return _DATASET_TYPES_CACHE
+
+    def get_dataset_type_names(self) -> List[str]:
+        """
+        Get list of dataset type names.
+
+        Returns:
+            List of dataset type names (e.g., ['raw_openai', 'raw_google', ...])
+        """
+        dataset_types = self.load_dataset_types()
+        return [dt['name'] for dt in dataset_types]
+
+    def get_dataset_types_with_descriptions(self) -> List[tuple[str, str]]:
+        """
+        Get list of dataset types with descriptions.
+
+        Returns:
+            List of tuples: [(name, description), ...]
+        """
+        dataset_types = self.load_dataset_types()
+        return [(dt['name'], dt['description']) for dt in dataset_types]
 
 
 @lru_cache()

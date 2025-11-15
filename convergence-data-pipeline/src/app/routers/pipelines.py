@@ -15,9 +15,33 @@ from src.core.pipeline.executor import PipelineExecutor
 from src.core.pipeline.async_executor import AsyncPipelineExecutor
 from src.core.metadata.initializer import ensure_tenant_metadata
 from src.core.utils.pipeline_lock import get_pipeline_lock_manager
+from src.core.utils.firestore_lock import get_firestore_lock_manager
 from src.app.config import settings
 
 router = APIRouter()
+
+
+# ============================================
+# Lock Manager Factory
+# ============================================
+
+def get_lock_manager():
+    """
+    Get the appropriate lock manager based on configuration.
+
+    Returns:
+        Lock manager instance (PipelineLockManager or FirestoreLockManager)
+    """
+    if settings.lock_backend == "firestore":
+        return get_firestore_lock_manager(
+            project_id=settings.gcp_project_id,
+            lock_timeout_seconds=settings.lock_timeout_seconds
+        )
+    else:
+        # Default to in-memory lock manager
+        return get_pipeline_lock_manager(
+            lock_timeout_seconds=settings.lock_timeout_seconds
+        )
 
 
 # ============================================
@@ -69,7 +93,7 @@ async def run_async_pipeline_task(executor: AsyncPipelineExecutor, parameters: d
     import logging
     logger = logging.getLogger(__name__)
 
-    lock_manager = get_pipeline_lock_manager()
+    lock_manager = get_lock_manager()
 
     try:
         logger.info(f"Starting background async pipeline execution: {executor.pipeline_logging_id}")
@@ -160,7 +184,7 @@ async def trigger_pipeline(
     )
 
     # Try to acquire lock for concurrency control
-    lock_manager = get_pipeline_lock_manager()
+    lock_manager = get_lock_manager()
     lock_acquired, existing_pipeline_logging_id = await lock_manager.acquire_lock(
         tenant_id=tenant.tenant_id,
         pipeline_id=pipeline_id,
@@ -220,7 +244,7 @@ async def get_pipeline_run(
         start_time,
         end_time,
         duration_ms
-    FROM `{settings.gcp_project_id}.metadata.pipeline_runs`
+    FROM `{settings.get_admin_metadata_table('pipeline_runs')}`
     WHERE pipeline_logging_id = @pipeline_logging_id
       AND tenant_id = @tenant_id
     LIMIT 1
@@ -297,7 +321,7 @@ async def list_pipeline_runs(
         start_time,
         end_time,
         duration_ms
-    FROM `{settings.gcp_project_id}.metadata.pipeline_runs`
+    FROM `{settings.get_admin_metadata_table('pipeline_runs')}`
     WHERE {where_sql}
     ORDER BY start_time DESC
     LIMIT @limit

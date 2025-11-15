@@ -1188,6 +1188,40 @@ gcloud projects get-iam-policy YOUR_PROJECT_ID \
 
 ---
 
+## Documentation
+
+### Core Documentation
+- **[Pipeline Configuration Guide](docs/pipeline-configuration.md)** - Complete guide to configuring pipelines, sources, and DQ rules
+- **[Metadata Schema Reference](docs/metadata-schema.md)** - BigQuery metadata table schemas and usage
+- **[Quick Start Guide](docs/QUICK_START.md)** - Get up and running quickly
+- **[Deployment Guide](docs/DEPLOYMENT_GUIDE.md)** - Production deployment instructions
+- **[Implementation Status](docs/IMPLEMENTATION_STATUS.md)** - Current project status and roadmap
+
+### Technical Documentation
+- **[Technical Debt & Issues](docs/TECHNICAL_DEBT.md)** - Known issues, prioritized backlog, and improvement opportunities
+- **[Code Review Findings](docs/CODE_REVIEW_FINDINGS.md)** - Security review, hardcoded values, and best practices analysis
+- **[Concurrency Control](docs/CONCURRENCY_CONTROL.md)** - Pipeline lock manager design, usage, and limitations
+- **[Secrets Management](docs/README_SECRETS.md)** - How to manage API keys and credentials securely
+
+### Configuration Management
+
+This project follows a **strict configuration-as-code approach**:
+- ✅ All pipeline logic is defined in YAML/JSON configuration files
+- ✅ No hardcoded pipeline behavior in application code
+- ✅ Self-contained pipeline folders with co-located configs
+- ✅ Version-controlled configurations deployed with application
+- ✅ Environment-specific settings via environment variables
+
+**Key Principles:**
+1. **Pipeline-as-Code:** All pipeline definitions in `configs/{tenant}/{provider}/{domain}/{pipeline}/`
+2. **Schema-as-Code:** BigQuery schemas defined in JSON files alongside configs
+3. **DQ-as-Code:** Data quality rules in YAML files, not hardcoded
+4. **Environment Variables:** Runtime settings exposed via Pydantic Settings (see `.env.example`)
+
+For detailed configuration reference, see [Pipeline Configuration Guide](docs/pipeline-configuration.md).
+
+---
+
 ## References
 
 - [BigQuery Python Client](https://cloud.google.com/python/docs/reference/bigquery/latest)
@@ -1199,5 +1233,5 @@ gcloud projects get-iam-policy YOUR_PROJECT_ID \
 ---
 
 **Version**: 1.0.0
-**Last Updated**: 2024-11-14
+**Last Updated**: 2025-11-15
 **Maintained By**: Data Engineering Team

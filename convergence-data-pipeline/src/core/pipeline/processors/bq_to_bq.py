@@ -4,11 +4,13 @@ Handles data transfer and transformation between BigQuery tables.
 """
 
 from typing import Dict, Any, Optional, List
+from pathlib import Path
 from google.cloud import bigquery
 from google.cloud.bigquery import SchemaField, QueryJobConfig, WriteDisposition
 
 from src.core.engine.bq_client import BigQueryClient
 from src.core.utils.logging import get_logger
+from src.core.utils.sql_params import SQLParameterInjector
 
 logger = get_logger(__name__)
 
@@ -30,7 +32,8 @@ class BigQueryToBigQueryProcessor:
         step_config: Dict[str, Any],
         tenant_id: str,
         bq_client: BigQueryClient,
-        parameters: Optional[Dict[str, Any]] = None
+        parameters: Optional[Dict[str, Any]] = None,
+        pipeline_dir: Optional[Path] = None
     ):
         """
         Initialize BigQuery to BigQuery processor.
@@ -40,11 +43,13 @@ class BigQueryToBigQueryProcessor:
             tenant_id: Tenant identifier
             bq_client: BigQuery client instance
             parameters: Pipeline parameters for query templating
+            pipeline_dir: Pipeline directory for resolving relative paths (optional for backward compatibility)
         """
         self.step_config = step_config
         self.tenant_id = tenant_id
         self.bq_client = bq_client
         self.parameters = parameters or {}
+        self.pipeline_dir = pipeline_dir
 
         self.step_id = step_config.get('step_id', 'unknown')
         self.source_config = step_config['source']
@@ -54,7 +59,8 @@ class BigQueryToBigQueryProcessor:
             f"Initialized BigQueryToBigQueryProcessor",
             extra={
                 "step_id": self.step_id,
-                "tenant_id": self.tenant_id
+                "tenant_id": self.tenant_id,
+                "pipeline_dir": str(pipeline_dir) if pipeline_dir else None
             }
         )
 
@@ -92,22 +98,27 @@ class BigQueryToBigQueryProcessor:
 
     def _build_source_query(self) -> str:
         """
-        Build the source SQL query with parameter substitution.
+        Build the source SQL query.
+
+        Note: Query parameters are NOT substituted here - they are passed
+        securely via QueryJobConfig in _execute_query_to_table.
 
         Returns:
-            SQL query string
+            SQL query string with @parameter placeholders intact
         """
         if 'query' in self.source_config:
             # Use provided query template
+            # SECURITY: Parameters remain as @param_name placeholders
+            # They will be safely injected via QueryJobConfig.query_parameters
             query = self.source_config['query']
 
-            # Replace parameters in query
-            for param_name, param_value in self.parameters.items():
-                query = query.replace(f"@{param_name}", str(param_value))
-
             logger.debug(
-                f"Built query from template",
-                extra={"step_id": self.step_id, "query_length": len(query)}
+                f"Built query from template with {len(self.parameters)} parameters",
+                extra={
+                    "step_id": self.step_id,
+                    "query_length": len(query),
+                    "param_names": list(self.parameters.keys())
+                }
             )
         else:
             # Build simple SELECT * query from source table
@@ -177,14 +188,23 @@ class BigQueryToBigQueryProcessor:
         schema = None
         if 'schema_file' in self.destination_config:
             schema_file = self.destination_config['schema_file']
+
+            # Resolve schema file path relative to pipeline directory
+            if self.pipeline_dir:
+                schema_path = self.pipeline_dir / schema_file
+            else:
+                # Backward compatibility: use schema_file as-is
+                schema_path = Path(schema_file)
+
             logger.info(
                 f"Loading schema from file",
                 extra={
                     "step_id": self.step_id,
-                    "schema_file": schema_file
+                    "schema_file": schema_file,
+                    "resolved_path": str(schema_path)
                 }
             )
-            schema = self.bq_client.load_schema_from_file(schema_file)
+            schema = self.bq_client.load_schema_from_file(str(schema_path))
 
         # Create table if it doesn't exist (or was just deleted)
         table_exists = self.bq_client.table_exists(
@@ -229,7 +249,7 @@ class BigQueryToBigQueryProcessor:
         Execute query and write results to destination table.
 
         Args:
-            query: SQL query to execute
+            query: SQL query to execute (with @parameter placeholders)
             dest_table_id: Fully qualified destination table ID
 
         Returns:
@@ -248,11 +268,12 @@ class BigQueryToBigQueryProcessor:
             extra={
                 "step_id": self.step_id,
                 "destination": dest_table_id,
-                "write_mode": write_mode
+                "write_mode": write_mode,
+                "parameter_count": len(self.parameters)
             }
         )
 
-        # Configure query job
+        # Configure query job with SECURE parameter injection
         job_config = QueryJobConfig(
             destination=dest_table_id,
             write_disposition=write_disposition,
@@ -260,35 +281,74 @@ class BigQueryToBigQueryProcessor:
             allow_large_results=True
         )
 
+        # SECURITY FIX: Use parameterized queries instead of string replacement
+        if self.parameters:
+            job_config = SQLParameterInjector.create_query_config(
+                parameters=self.parameters,
+                base_config=job_config
+            )
+            logger.info(
+                f"Injected {len(self.parameters)} parameters securely",
+                extra={
+                    "step_id": self.step_id,
+                    "param_names": list(self.parameters.keys())
+                }
+            )
+
         # Note: Schema is already set on the table when it was created
         # QueryJobConfig doesn't have a schema property - schema is inferred from query or table
 
-        # Execute query
-        query_job = self.bq_client.client.query(query, job_config=job_config)
+        query_job = None
+        dest_table = None
 
-        # Wait for completion
-        query_job.result()
+        try:
+            # Execute query with parameterized config
+            query_job = self.bq_client.client.query(query, job_config=job_config)
 
-        # Collect execution metadata
-        # For query jobs that write to a table, we need to get the destination table to count rows
-        dest_table = self.bq_client.client.get_table(dest_table_id)
+            # Wait for completion
+            query_job.result()
 
-        result = {
-            'rows_written': dest_table.num_rows or 0,
-            'bytes_processed': query_job.total_bytes_processed or 0,
-            'bytes_billed': query_job.total_bytes_billed or 0,
-            'cache_hit': query_job.cache_hit or False,
-            'destination_table': dest_table_id
-        }
+            # Collect execution metadata
+            # For query jobs that write to a table, we need to get the destination table to count rows
+            dest_table = self.bq_client.client.get_table(dest_table_id)
 
-        logger.info(
-            f"Query execution complete",
-            extra={
-                "step_id": self.step_id,
-                "rows_written": result['rows_written'],
-                "bytes_processed": result['bytes_processed'],
-                "cache_hit": result['cache_hit']
+            result = {
+                'rows_written': dest_table.num_rows or 0,
+                'bytes_processed': query_job.total_bytes_processed or 0,
+                'bytes_billed': query_job.total_bytes_billed or 0,
+                'cache_hit': query_job.cache_hit or False,
+                'destination_table': dest_table_id
             }
-        )
 
-        return result
+            logger.info(
+                f"Query execution complete",
+                extra={
+                    "step_id": self.step_id,
+                    "rows_written": result['rows_written'],
+                    "bytes_processed": result['bytes_processed'],
+                    "cache_hit": result['cache_hit']
+                }
+            )
+
+            return result
+
+        finally:
+            # Clean up query job resources
+            try:
+                if query_job:
+                    # Cancel job if still running (shouldn't happen, but defensive)
+                    if query_job.state in ['PENDING', 'RUNNING']:
+                        query_job.cancel()
+                        logger.debug(f"Cancelled running query job: {query_job.job_id}")
+
+                    # Clear job reference
+                    del query_job
+            except Exception as cleanup_error:
+                logger.error(f"Error cleaning up query job: {cleanup_error}", exc_info=True)
+
+            # Clear table reference
+            try:
+                if dest_table:
+                    del dest_table
+            except Exception as cleanup_error:
+                logger.error(f"Error cleaning up table reference: {cleanup_error}", exc_info=True)

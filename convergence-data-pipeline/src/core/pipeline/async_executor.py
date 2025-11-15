@@ -16,6 +16,9 @@ from src.core.pipeline.data_quality import DataQualityValidator
 from src.core.utils.logging import create_structured_logger
 from src.core.metadata import MetadataLogger
 from src.app.config import settings
+from src.core.abstractor.config_loader import get_config_loader
+from src.core.abstractor.models import PipelineConfig
+from pydantic import ValidationError
 
 
 class StepNode:
@@ -83,6 +86,7 @@ class AsyncPipelineExecutor:
         )
 
         self.config: Optional[Dict[str, Any]] = None
+        self.pipeline_dir: Optional[Path] = None
         self.start_time: Optional[datetime] = None
         self.end_time: Optional[datetime] = None
         self.status: str = "PENDING"
@@ -91,9 +95,13 @@ class AsyncPipelineExecutor:
         # DAG for step dependencies
         self.step_dag: Dict[str, StepNode] = {}
 
+        # Thread-safe storage for step execution results (keyed by step_id)
+        # This replaces the problematic _last_step_result instance variable
+        self._step_execution_results: Dict[str, Dict[str, Any]] = {}
+
     async def load_config(self, parameters: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
-        Load pipeline configuration from YAML file (async).
+        Load pipeline configuration from YAML file with Pydantic validation (async).
 
         Searches recursively for pipeline in cloud-provider/domain structure:
         configs/{tenant_id}/{provider}/{domain}/{pipeline_id}.yml
@@ -103,35 +111,61 @@ class AsyncPipelineExecutor:
 
         Returns:
             Pipeline configuration dict
+
+        Raises:
+            FileNotFoundError: If pipeline config file not found
+            ValidationError: If config fails Pydantic validation
+            ValueError: If config has invalid YAML or missing required fields
         """
-        # Use new recursive search method to find pipeline
-        config_path_str = settings.find_pipeline_path(self.tenant_id, self.pipeline_id)
-        config_path = Path(config_path_str)
+        try:
+            # Use ConfigLoader with Pydantic validation
+            loop = asyncio.get_event_loop()
+            config_loader = get_config_loader()
 
-        # Read file asynchronously
-        loop = asyncio.get_event_loop()
-        config = await loop.run_in_executor(
-            None,
-            self._read_yaml_file,
-            config_path
-        )
+            # Load and validate config asynchronously
+            validated_config: PipelineConfig = await loop.run_in_executor(
+                None,
+                config_loader.load_pipeline_config,
+                self.tenant_id,
+                self.pipeline_id
+            )
 
-        # Inject runtime parameters
-        if parameters:
-            config['parameters'] = {**(config.get('parameters', {})), **parameters}
+            # Get pipeline directory for resolving relative paths
+            config_path_str = settings.find_pipeline_path(self.tenant_id, self.pipeline_id)
+            self.pipeline_dir = Path(config_path_str).parent
 
-        self.config = config
-        self.logger.info(f"Loaded pipeline config", config_path=str(config_path))
+            # Convert Pydantic model to dict for backward compatibility
+            config = validated_config.model_dump()
 
-        # Build DAG from config
-        self._build_dag(config.get('steps', []))
+            # Inject runtime parameters
+            if parameters:
+                config['parameters'] = {**(config.get('parameters', {})), **parameters}
 
-        return config
+            self.config = config
+            self.logger.info(
+                f"Loaded and validated pipeline config",
+                pipeline_id=self.pipeline_id,
+                num_steps=len(config.get('steps', [])),
+                pipeline_dir=str(self.pipeline_dir)
+            )
 
-    def _read_yaml_file(self, path: Path) -> Dict[str, Any]:
-        """Helper to read YAML file (runs in executor)."""
-        with open(path, 'r') as f:
-            return yaml.safe_load(f)
+            # Build DAG from validated config
+            self._build_dag(config.get('steps', []))
+
+            return config
+
+        except ValidationError as e:
+            error_msg = f"Pipeline config validation failed for '{self.pipeline_id}': {e}"
+            self.logger.error(error_msg, validation_errors=e.errors())
+            raise ValueError(error_msg) from e
+        except FileNotFoundError as e:
+            error_msg = f"Pipeline config not found: {self.pipeline_id}"
+            self.logger.error(error_msg)
+            raise
+        except Exception as e:
+            error_msg = f"Error loading pipeline config '{self.pipeline_id}': {e}"
+            self.logger.error(error_msg, exc_info=True)
+            raise ValueError(error_msg) from e
 
     def _build_dag(self, steps: List[Dict[str, Any]]) -> None:
         """
@@ -243,21 +277,34 @@ class AsyncPipelineExecutor:
             raise
 
         finally:
-            # Log pipeline completion
-            if self.end_time:
-                await self.metadata_logger.log_pipeline_end(
-                    pipeline_logging_id=self.pipeline_logging_id,
-                    pipeline_id=self.pipeline_id,
-                    status=self.status,
-                    start_time=self.start_time,
-                    trigger_type=self.trigger_type,
-                    trigger_by=self.trigger_by,
-                    error_message=error_message,
-                    parameters=self.config.get('parameters', {}) if self.config else None
-                )
+            try:
+                # Log pipeline completion
+                if self.end_time:
+                    await self.metadata_logger.log_pipeline_end(
+                        pipeline_logging_id=self.pipeline_logging_id,
+                        pipeline_id=self.pipeline_id,
+                        status=self.status,
+                        start_time=self.start_time,
+                        trigger_type=self.trigger_type,
+                        trigger_by=self.trigger_by,
+                        error_message=error_message,
+                        parameters=self.config.get('parameters', {}) if self.config else None
+                    )
 
-                # Flush all pending logs
-                await self.metadata_logger.flush()
+                    # Flush all pending logs
+                    await self.metadata_logger.flush()
+            except Exception as cleanup_error:
+                self.logger.error(f"Error during metadata logger cleanup: {cleanup_error}", exc_info=True)
+
+            # Clean up BigQuery client resources
+            try:
+                if hasattr(self, 'bq_client') and self.bq_client:
+                    if hasattr(self.bq_client, 'client') and self.bq_client.client:
+                        loop = asyncio.get_event_loop()
+                        await loop.run_in_executor(None, self.bq_client.client.close)
+                        self.logger.debug("BigQuery client closed successfully")
+            except Exception as cleanup_error:
+                self.logger.error(f"Error closing BigQuery client: {cleanup_error}", exc_info=True)
 
         return self._get_execution_summary()
 
@@ -347,15 +394,11 @@ class AsyncPipelineExecutor:
                 metadata=step_config.get('metadata', {})
             )
 
-            # Wrap step execution in timeout
-            await asyncio.wait_for(
+            # Wrap step execution in timeout and capture result
+            result = await asyncio.wait_for(
                 self._execute_step_internal(step_config, step_id, step_type),
                 timeout=step_timeout_seconds
             )
-
-            # If we get here, step succeeded
-            # Get result from the internal execution
-            result = getattr(self, '_last_step_result', {})
 
             if step_type == "bigquery_to_bigquery":
                 rows_processed = result.get('rows_written', 0)
@@ -414,7 +457,7 @@ class AsyncPipelineExecutor:
                 'rows_processed': rows_processed
             })
 
-    async def _execute_step_internal(self, step_config: Dict[str, Any], step_id: str, step_type: str) -> None:
+    async def _execute_step_internal(self, step_config: Dict[str, Any], step_id: str, step_type: str) -> Dict[str, Any]:
         """
         Internal step execution logic (wrapped by timeout in _execute_step_async()).
 
@@ -422,18 +465,24 @@ class AsyncPipelineExecutor:
             step_config: Step configuration from YAML
             step_id: Step identifier
             step_type: Step type (bigquery_to_bigquery, data_quality, etc.)
+
+        Returns:
+            Step execution result dictionary
         """
         # Execute step based on type
         if step_type == "bigquery_to_bigquery":
             result = await self._execute_bq_to_bq_step_async(step_config)
-            self._last_step_result = result
 
         elif step_type == "data_quality":
             result = await self._execute_dq_step_async(step_config)
-            self._last_step_result = result
 
         else:
             raise ValueError(f"Unknown step type: {step_type}")
+
+        # Store result in thread-safe dictionary keyed by step_id
+        self._step_execution_results[step_id] = result
+
+        return result
 
     async def _execute_bq_to_bq_step_async(self, step_config: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -452,7 +501,8 @@ class AsyncPipelineExecutor:
             step_config=step_config,
             tenant_id=self.tenant_id,
             bq_client=self.bq_client,
-            parameters=self.config.get('parameters', {})
+            parameters=self.config.get('parameters', {}),
+            pipeline_dir=self.pipeline_dir
         )
 
         # Execute the processor asynchronously
@@ -497,7 +547,8 @@ class AsyncPipelineExecutor:
             table_id,
             dq_config_path,
             self.tenant_id,
-            self.pipeline_logging_id
+            self.pipeline_logging_id,
+            self.pipeline_dir
         )
 
         # Check if any expectations failed

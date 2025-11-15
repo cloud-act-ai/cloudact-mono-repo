@@ -1,0 +1,29 @@
+# Dataset Types Configuration
+# This file defines all available dataset types in the system
+# Used by admin routes, pipeline executors, and other components that need dataset type information
+
+dataset_types:
+  - name: raw_openai
+    description: Raw data from OpenAI APIs
+    layer: raw
+    provider: openai
+
+  - name: raw_google
+    description: Raw data from Google Cloud
+    layer: raw
+    provider: google
+
+  - name: raw_anthropic
+    description: Raw data from Anthropic APIs
+    layer: raw
+    provider: anthropic
+
+  - name: silver_cost
+    description: Normalized cost data
+    layer: silver
+    domain: cost
+
+  - name: gold_reporting
+    description: Business-ready reports
+    layer: gold
+    domain: reporting

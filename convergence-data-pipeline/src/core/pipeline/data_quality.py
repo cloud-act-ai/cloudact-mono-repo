@@ -5,7 +5,7 @@ Validate data using Great Expectations rules.
 
 import yaml
 import uuid
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from pathlib import Path
 from datetime import datetime, date
 
@@ -37,7 +37,8 @@ class DataQualityValidator:
         table_id: str,
         dq_config_path: str,
         tenant_id: str,
-        pipeline_logging_id: str
+        pipeline_logging_id: str,
+        base_dir: Optional[Path] = None
     ) -> List[Dict[str, Any]]:
         """
         Validate a BigQuery table using DQ rules from YAML config.
@@ -47,17 +48,18 @@ class DataQualityValidator:
             dq_config_path: Path to DQ rules YAML file
             tenant_id: Tenant identifier
             pipeline_logging_id: Pipeline run ID
+            base_dir: Base directory for resolving relative paths (optional for backward compatibility)
 
         Returns:
             List of validation results
         """
         logger.info(
             f"Starting data quality validation",
-            extra={"table_id": table_id, "config": dq_config_path}
+            extra={"table_id": table_id, "config": dq_config_path, "base_dir": str(base_dir) if base_dir else None}
         )
 
         # Load DQ config
-        dq_config = self._load_dq_config(dq_config_path)
+        dq_config = self._load_dq_config(dq_config_path, base_dir)
 
         # Fetch data from BigQuery
         df = self._fetch_table_data(table_id, dq_config.get('sample_size', 10000))
@@ -100,25 +102,49 @@ class DataQualityValidator:
 
         return results
 
-    def _load_dq_config(self, config_path: str) -> Dict[str, Any]:
+    def _load_dq_config(self, config_path: str, base_dir: Optional[Path] = None) -> Dict[str, Any]:
         """
         Load DQ configuration from YAML file.
 
         Args:
-            config_path: Path to DQ config file
+            config_path: Path to DQ config file (relative or absolute)
+            base_dir: Base directory for resolving relative paths (optional for backward compatibility)
 
         Returns:
             DQ configuration dict
         """
-        path = Path(config_path)
+        # Resolve config path relative to base_dir if provided
+        if base_dir:
+            path = base_dir / config_path
+        else:
+            # Backward compatibility: use config_path as-is
+            path = Path(config_path)
 
         if not path.exists():
-            raise FileNotFoundError(f"DQ config not found: {config_path}")
+            raise FileNotFoundError(f"DQ config not found: {path} (original: {config_path}, base_dir: {base_dir})")
 
-        with open(path, 'r') as f:
+        logger.info(
+            f"Loading DQ config",
+            extra={
+                "config_path": config_path,
+                "resolved_path": str(path),
+                "base_dir": str(base_dir) if base_dir else None
+            }
+        )
+
+        f = None
+        try:
+            f = open(path, 'r')
             config = yaml.safe_load(f)
+            return config
 
-        return config
+        finally:
+            # Ensure file handle is closed
+            try:
+                if f:
+                    f.close()
+            except Exception as cleanup_error:
+                logger.error(f"Error closing DQ config file: {cleanup_error}", exc_info=True)
 
     def _fetch_table_data(self, table_id: str, sample_size: int = 10000) -> pd.DataFrame:
         """
@@ -136,15 +162,31 @@ class DataQualityValidator:
         else:
             query = f"SELECT * FROM `{table_id}`"
 
-        query_job = self.bq_client.client.query(query)
-        df = query_job.to_dataframe()
+        query_job = None
+        df = None
 
-        logger.info(
-            f"Fetched {len(df)} rows for validation",
-            extra={"table_id": table_id}
-        )
+        try:
+            query_job = self.bq_client.client.query(query)
+            df = query_job.to_dataframe()
 
-        return df
+            logger.info(
+                f"Fetched {len(df)} rows for validation",
+                extra={"table_id": table_id}
+            )
+
+            return df
+
+        finally:
+            # Clean up query job resources
+            try:
+                if query_job:
+                    # Cancel job if still running (shouldn't happen, but defensive)
+                    if query_job.state in ['PENDING', 'RUNNING']:
+                        query_job.cancel()
+                        logger.debug(f"Cancelled data fetch query job: {query_job.job_id}")
+                    del query_job
+            except Exception as cleanup_error:
+                logger.error(f"Error cleaning up data fetch query job: {cleanup_error}", exc_info=True)
 
     def _run_expectation(
         self,

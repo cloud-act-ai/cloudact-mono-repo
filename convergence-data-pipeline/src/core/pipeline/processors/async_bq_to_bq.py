@@ -5,11 +5,13 @@ Non-blocking data transfer and transformation between BigQuery tables.
 
 import asyncio
 from typing import Dict, Any, Optional, List
+from pathlib import Path
 from google.cloud import bigquery
 from google.cloud.bigquery import SchemaField, QueryJobConfig, WriteDisposition
 
 from src.core.engine.bq_client import BigQueryClient
 from src.core.utils.logging import get_logger
+from src.core.utils.sql_params import SQLParameterInjector
 
 logger = get_logger(__name__)
 
@@ -31,7 +33,8 @@ class AsyncBigQueryToBigQueryProcessor:
         step_config: Dict[str, Any],
         tenant_id: str,
         bq_client: BigQueryClient,
-        parameters: Optional[Dict[str, Any]] = None
+        parameters: Optional[Dict[str, Any]] = None,
+        pipeline_dir: Optional[Path] = None
     ):
         """
         Initialize async BigQuery to BigQuery processor.
@@ -41,11 +44,13 @@ class AsyncBigQueryToBigQueryProcessor:
             tenant_id: Tenant identifier
             bq_client: BigQuery client instance
             parameters: Pipeline parameters for query templating
+            pipeline_dir: Pipeline directory for resolving relative paths (optional for backward compatibility)
         """
         self.step_config = step_config
         self.tenant_id = tenant_id
         self.bq_client = bq_client
         self.parameters = parameters or {}
+        self.pipeline_dir = pipeline_dir
 
         self.step_id = step_config.get('step_id', 'unknown')
         self.source_config = step_config['source']
@@ -59,7 +64,8 @@ class AsyncBigQueryToBigQueryProcessor:
             extra={
                 "step_id": self.step_id,
                 "tenant_id": self.tenant_id,
-                "partitioned": bool(self.partition_config)
+                "partitioned": bool(self.partition_config),
+                "pipeline_dir": str(pipeline_dir) if pipeline_dir else None
             }
         )
 
@@ -199,21 +205,44 @@ class AsyncBigQueryToBigQueryProcessor:
         ORDER BY partition_value
         """
 
-        # Execute query asynchronously
-        loop = asyncio.get_event_loop()
-        query_job = await loop.run_in_executor(
-            None,
-            self.bq_client.client.query,
-            query
-        )
+        query_job = None
+        results = None
 
-        # Wait for results asynchronously
-        results = await loop.run_in_executor(None, query_job.result)
+        try:
+            # Execute query asynchronously
+            loop = asyncio.get_event_loop()
+            query_job = await loop.run_in_executor(
+                None,
+                self.bq_client.client.query,
+                query
+            )
 
-        # Extract partition values
-        partitions = [str(row.partition_value) for row in results]
+            # Wait for results asynchronously
+            results = await loop.run_in_executor(None, query_job.result)
 
-        return partitions
+            # Extract partition values
+            partitions = [str(row.partition_value) for row in results]
+
+            return partitions
+
+        finally:
+            # Clean up query job resources
+            try:
+                if query_job:
+                    if query_job.state in ['PENDING', 'RUNNING']:
+                        loop = asyncio.get_event_loop()
+                        await loop.run_in_executor(None, query_job.cancel)
+                        logger.debug(f"Cancelled partition detection query job: {query_job.job_id}")
+                    del query_job
+            except Exception as cleanup_error:
+                logger.error(f"Error cleaning up partition detection query job: {cleanup_error}", exc_info=True)
+
+            # Clear results reference
+            try:
+                if results:
+                    del results
+            except Exception as cleanup_error:
+                logger.error(f"Error cleaning up partition results: {cleanup_error}", exc_info=True)
 
     async def _execute_partition(self, partition_value: str, dest_table_id: str) -> Dict[str, Any]:
         """
@@ -231,18 +260,30 @@ class AsyncBigQueryToBigQueryProcessor:
         # Build partition-specific query
         base_query = self._build_source_query()
 
-        # Add partition filter
+        # SECURITY FIX: Use parameterized filter instead of string interpolation
+        # Build safe filter clause using SQLParameterInjector
+        filter_clause, filter_params = SQLParameterInjector.build_safe_filter(
+            field_name=partition_field,
+            operator='=',
+            value=partition_value
+        )
+
+        # Add partition filter to query
+        has_where = "WHERE" in base_query.upper()
         partition_query = f"""
         {base_query}
-        {"WHERE" if "WHERE" not in base_query.upper() else "AND"}
-        {partition_field} = '{partition_value}'
+        {"AND" if has_where else "WHERE"} {filter_clause}
         """
+
+        # Merge partition filter parameters with existing parameters
+        combined_params = {**self.parameters, **filter_params}
 
         # Execute with WRITE_APPEND since we're processing multiple partitions
         result = await self._execute_query_to_table_async(
             partition_query,
             dest_table_id,
-            write_disposition=WriteDisposition.WRITE_APPEND
+            write_disposition=WriteDisposition.WRITE_APPEND,
+            partition_parameters=combined_params
         )
 
         logger.info(
@@ -270,22 +311,27 @@ class AsyncBigQueryToBigQueryProcessor:
 
     def _build_source_query(self) -> str:
         """
-        Build the source SQL query with parameter substitution.
+        Build the source SQL query.
+
+        Note: Query parameters are NOT substituted here - they are passed
+        securely via QueryJobConfig in _execute_query_to_table_async.
 
         Returns:
-            SQL query string
+            SQL query string with @parameter placeholders intact
         """
         if 'query' in self.source_config:
             # Use provided query template
+            # SECURITY: Parameters remain as @param_name placeholders
+            # They will be safely injected via QueryJobConfig.query_parameters
             query = self.source_config['query']
 
-            # Replace parameters in query
-            for param_name, param_value in self.parameters.items():
-                query = query.replace(f"@{param_name}", str(param_value))
-
             logger.debug(
-                f"Built query from template",
-                extra={"step_id": self.step_id, "query_length": len(query)}
+                f"Built query from template with {len(self.parameters)} parameters",
+                extra={
+                    "step_id": self.step_id,
+                    "query_length": len(query),
+                    "param_names": list(self.parameters.keys())
+                }
             )
         else:
             # Build simple SELECT * query from source table
@@ -358,17 +404,26 @@ class AsyncBigQueryToBigQueryProcessor:
         schema = None
         if 'schema_file' in self.destination_config:
             schema_file = self.destination_config['schema_file']
+
+            # Resolve schema file path relative to pipeline directory
+            if self.pipeline_dir:
+                schema_path = self.pipeline_dir / schema_file
+            else:
+                # Backward compatibility: use schema_file as-is
+                schema_path = Path(schema_file)
+
             logger.info(
                 f"Loading schema from file",
                 extra={
                     "step_id": self.step_id,
-                    "schema_file": schema_file
+                    "schema_file": schema_file,
+                    "resolved_path": str(schema_path)
                 }
             )
             schema = await loop.run_in_executor(
                 None,
                 self.bq_client.load_schema_from_file,
-                schema_file
+                str(schema_path)
             )
 
         # Create table if it doesn't exist
@@ -409,15 +464,17 @@ class AsyncBigQueryToBigQueryProcessor:
         self,
         query: str,
         dest_table_id: str,
-        write_disposition: WriteDisposition = None
+        write_disposition: WriteDisposition = None,
+        partition_parameters: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
         Execute query and write results to destination table asynchronously.
 
         Args:
-            query: SQL query to execute
+            query: SQL query to execute (with @parameter placeholders)
             dest_table_id: Fully qualified destination table ID
             write_disposition: How to write (overwrite/append)
+            partition_parameters: Override parameters for partition processing
 
         Returns:
             Execution metadata
@@ -430,16 +487,20 @@ class AsyncBigQueryToBigQueryProcessor:
                 else WriteDisposition.WRITE_TRUNCATE
             )
 
+        # Use partition parameters if provided, otherwise use instance parameters
+        parameters = partition_parameters if partition_parameters is not None else self.parameters
+
         logger.info(
             f"Executing query to table",
             extra={
                 "step_id": self.step_id,
                 "destination": dest_table_id,
-                "write_disposition": str(write_disposition)
+                "write_disposition": str(write_disposition),
+                "parameter_count": len(parameters)
             }
         )
 
-        # Configure query job
+        # Configure query job with SECURE parameter injection
         job_config = QueryJobConfig(
             destination=dest_table_id,
             write_disposition=write_disposition,
@@ -447,43 +508,83 @@ class AsyncBigQueryToBigQueryProcessor:
             allow_large_results=True
         )
 
-        # Execute query asynchronously
-        loop = asyncio.get_event_loop()
+        # SECURITY FIX: Use parameterized queries instead of string replacement
+        if parameters:
+            job_config = SQLParameterInjector.create_query_config(
+                parameters=parameters,
+                base_config=job_config
+            )
+            logger.info(
+                f"Injected {len(parameters)} parameters securely",
+                extra={
+                    "step_id": self.step_id,
+                    "param_names": list(parameters.keys())
+                }
+            )
 
-        # Start query job (non-blocking)
-        query_job = await loop.run_in_executor(
-            None,
-            self.bq_client.client.query,
-            query,
-            job_config
-        )
+        query_job = None
+        dest_table = None
 
-        # Wait for completion asynchronously
-        await loop.run_in_executor(None, query_job.result)
+        try:
+            # Execute query asynchronously
+            loop = asyncio.get_event_loop()
 
-        # Get destination table metadata
-        dest_table = await loop.run_in_executor(
-            None,
-            self.bq_client.client.get_table,
-            dest_table_id
-        )
+            # Start query job (non-blocking)
+            query_job = await loop.run_in_executor(
+                None,
+                self.bq_client.client.query,
+                query,
+                job_config
+            )
 
-        result = {
-            'rows_written': dest_table.num_rows or 0,
-            'bytes_processed': query_job.total_bytes_processed or 0,
-            'bytes_billed': query_job.total_bytes_billed or 0,
-            'cache_hit': query_job.cache_hit or False,
-            'destination_table': dest_table_id
-        }
+            # Wait for completion asynchronously
+            await loop.run_in_executor(None, query_job.result)
 
-        logger.info(
-            f"Query execution complete",
-            extra={
-                "step_id": self.step_id,
-                "rows_written": result['rows_written'],
-                "bytes_processed": result['bytes_processed'],
-                "cache_hit": result['cache_hit']
+            # Get destination table metadata
+            dest_table = await loop.run_in_executor(
+                None,
+                self.bq_client.client.get_table,
+                dest_table_id
+            )
+
+            result = {
+                'rows_written': dest_table.num_rows or 0,
+                'bytes_processed': query_job.total_bytes_processed or 0,
+                'bytes_billed': query_job.total_bytes_billed or 0,
+                'cache_hit': query_job.cache_hit or False,
+                'destination_table': dest_table_id
             }
-        )
 
-        return result
+            logger.info(
+                f"Query execution complete",
+                extra={
+                    "step_id": self.step_id,
+                    "rows_written": result['rows_written'],
+                    "bytes_processed": result['bytes_processed'],
+                    "cache_hit": result['cache_hit']
+                }
+            )
+
+            return result
+
+        finally:
+            # Clean up query job resources
+            try:
+                if query_job:
+                    # Cancel job if still running (shouldn't happen, but defensive)
+                    if query_job.state in ['PENDING', 'RUNNING']:
+                        loop = asyncio.get_event_loop()
+                        await loop.run_in_executor(None, query_job.cancel)
+                        logger.debug(f"Cancelled running query job: {query_job.job_id}")
+
+                    # Clear job reference
+                    del query_job
+            except Exception as cleanup_error:
+                logger.error(f"Error cleaning up query job: {cleanup_error}", exc_info=True)
+
+            # Clear table reference
+            try:
+                if dest_table:
+                    del dest_table
+            except Exception as cleanup_error:
+                logger.error(f"Error cleaning up table reference: {cleanup_error}", exc_info=True)

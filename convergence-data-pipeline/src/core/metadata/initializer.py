@@ -27,7 +27,7 @@ class MetadataInitializer:
         self.client = bq_client
         self.project_id = settings.gcp_project_id
         self.location = settings.bigquery_location
-        self.metadata_schemas_path = Path("configs/metadata/schemas")
+        self.metadata_schemas_path = Path(settings.metadata_schemas_path)
 
     def ensure_tenant_metadata(self, tenant_id: str) -> None:
         """

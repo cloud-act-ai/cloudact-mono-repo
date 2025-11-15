@@ -15,6 +15,9 @@ from src.core.pipeline.data_quality import DataQualityValidator
 from src.core.utils.logging import create_structured_logger
 from src.core.metadata import MetadataLogger
 from src.app.config import settings
+from src.core.abstractor.config_loader import get_config_loader
+from src.core.abstractor.models import PipelineConfig
+from pydantic import ValidationError
 
 
 class PipelineExecutor:
@@ -60,6 +63,7 @@ class PipelineExecutor:
         )
 
         self.config: Optional[Dict[str, Any]] = None
+        self.pipeline_dir: Optional[Path] = None
         self.start_time: Optional[datetime] = None
         self.end_time: Optional[datetime] = None
         self.status: str = "PENDING"
@@ -85,7 +89,7 @@ class PipelineExecutor:
 
     def load_config(self, parameters: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
-        Load pipeline configuration from YAML file.
+        Load pipeline configuration from YAML file with Pydantic validation.
 
         Searches recursively for pipeline in cloud-provider/domain structure:
         configs/{tenant_id}/{provider}/{domain}/{pipeline_id}.yml
@@ -95,22 +99,55 @@ class PipelineExecutor:
 
         Returns:
             Pipeline configuration dict
+
+        Raises:
+            FileNotFoundError: If pipeline config file not found
+            ValidationError: If config fails Pydantic validation
+            ValueError: If config has invalid YAML or missing required fields
         """
-        # Use new recursive search method to find pipeline
-        config_path_str = settings.find_pipeline_path(self.tenant_id, self.pipeline_id)
-        config_path = Path(config_path_str)
+        try:
+            # Use ConfigLoader with Pydantic validation
+            config_loader = get_config_loader()
 
-        with open(config_path, 'r') as f:
-            config = yaml.safe_load(f)
+            # Load and validate config
+            validated_config: PipelineConfig = config_loader.load_pipeline_config(
+                self.tenant_id,
+                self.pipeline_id
+            )
 
-        # Inject runtime parameters
-        if parameters:
-            config['parameters'] = {**(config.get('parameters', {})), **parameters}
+            # Get pipeline directory for resolving relative paths
+            config_path_str = settings.find_pipeline_path(self.tenant_id, self.pipeline_id)
+            self.pipeline_dir = Path(config_path_str).parent
 
-        self.config = config
-        self.logger.info(f"Loaded pipeline config", config_path=str(config_path))
+            # Convert Pydantic model to dict for backward compatibility
+            config = validated_config.model_dump()
 
-        return config
+            # Inject runtime parameters
+            if parameters:
+                config['parameters'] = {**(config.get('parameters', {})), **parameters}
+
+            self.config = config
+            self.logger.info(
+                f"Loaded and validated pipeline config",
+                pipeline_id=self.pipeline_id,
+                num_steps=len(config.get('steps', [])),
+                pipeline_dir=str(self.pipeline_dir)
+            )
+
+            return config
+
+        except ValidationError as e:
+            error_msg = f"Pipeline config validation failed for '{self.pipeline_id}': {e}"
+            self.logger.error(error_msg, validation_errors=e.errors())
+            raise ValueError(error_msg) from e
+        except FileNotFoundError as e:
+            error_msg = f"Pipeline config not found: {self.pipeline_id}"
+            self.logger.error(error_msg)
+            raise
+        except Exception as e:
+            error_msg = f"Error loading pipeline config '{self.pipeline_id}': {e}"
+            self.logger.error(error_msg, exc_info=True)
+            raise ValueError(error_msg) from e
 
     def execute(self, parameters: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
@@ -159,23 +196,35 @@ class PipelineExecutor:
             raise
 
         finally:
-            # Log pipeline completion using metadata logger (async)
-            if self.end_time:
-                self._run_async(
-                    self.metadata_logger.log_pipeline_end(
-                        pipeline_logging_id=self.pipeline_logging_id,
-                        pipeline_id=self.pipeline_id,
-                        status=self.status,
-                        start_time=self.start_time,
-                        trigger_type=self.trigger_type,
-                        trigger_by=self.trigger_by,
-                        error_message=error_message,
-                        parameters=self.config.get('parameters', {}) if self.config else None
+            try:
+                # Log pipeline completion using metadata logger (async)
+                if self.end_time:
+                    self._run_async(
+                        self.metadata_logger.log_pipeline_end(
+                            pipeline_logging_id=self.pipeline_logging_id,
+                            pipeline_id=self.pipeline_id,
+                            status=self.status,
+                            start_time=self.start_time,
+                            trigger_type=self.trigger_type,
+                            trigger_by=self.trigger_by,
+                            error_message=error_message,
+                            parameters=self.config.get('parameters', {}) if self.config else None
+                        )
                     )
-                )
 
-                # Flush all pending logs (async)
-                self._run_async(self.metadata_logger.flush())
+                    # Flush all pending logs (async)
+                    self._run_async(self.metadata_logger.flush())
+            except Exception as cleanup_error:
+                self.logger.error(f"Error during metadata logger cleanup: {cleanup_error}", exc_info=True)
+
+            # Clean up BigQuery client resources
+            try:
+                if hasattr(self, 'bq_client') and self.bq_client:
+                    if hasattr(self.bq_client, 'client') and self.bq_client.client:
+                        self.bq_client.client.close()
+                        self.logger.debug("BigQuery client closed successfully")
+            except Exception as cleanup_error:
+                self.logger.error(f"Error closing BigQuery client: {cleanup_error}", exc_info=True)
 
         return self._get_execution_summary()
 
@@ -287,7 +336,8 @@ class PipelineExecutor:
             step_config=step_config,
             tenant_id=self.tenant_id,
             bq_client=self.bq_client,
-            parameters=self.config.get('parameters', {})
+            parameters=self.config.get('parameters', {}),
+            pipeline_dir=self.pipeline_dir
         )
 
         # Execute the processor
@@ -329,7 +379,8 @@ class PipelineExecutor:
             table_id=table_id,
             dq_config_path=dq_config_path,
             tenant_id=self.tenant_id,
-            pipeline_logging_id=self.pipeline_logging_id
+            pipeline_logging_id=self.pipeline_logging_id,
+            base_dir=self.pipeline_dir
         )
 
         # Check if any expectations failed
@@ -377,11 +428,16 @@ class PipelineExecutor:
         # Replace {project_id}, {dataset} for table references
         query = query.replace("{project_id}", settings.gcp_project_id)
 
-        # Replace dataset references
-        for dataset_type in ['google', 'raw_google', 'silver_cost']:
+        # Replace dataset references dynamically for all configured dataset types
+        for dataset_type in settings.get_dataset_type_names():
             dataset_name = settings.get_tenant_dataset_name(self.tenant_id, dataset_type)
             query = query.replace(f"{{dataset_{dataset_type}}}", dataset_name)
-            query = query.replace(f"{{dataset}}", dataset_name)  # Generic replacement
+
+        # Generic replacement for {dataset} placeholder (use first match if any)
+        if "{dataset}" in query and settings.get_dataset_type_names():
+            first_dataset = settings.get_dataset_type_names()[0]
+            dataset_name = settings.get_tenant_dataset_name(self.tenant_id, first_dataset)
+            query = query.replace(f"{{dataset}}", dataset_name)
 
         return query
 
