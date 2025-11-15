@@ -69,8 +69,8 @@ class Settings(BaseSettings):
     # ============================================
     disable_auth: bool = Field(default=True, description="Disable API key authentication (for development)")
     default_tenant_id: str = Field(
-        default="acme1281",
-        description="Default tenant ID when authentication is disabled"
+        default="acmeinc_23xv2",
+        description="Default tenant ID when authentication is disabled (new architecture)"
     )
     api_key_hash_algorithm: str = Field(default="HS256")
     api_key_secret_key: str = Field(
@@ -79,6 +79,30 @@ class Settings(BaseSettings):
     secrets_base_path: str = Field(
         default="~/.cloudact-secrets",
         description="Base path for tenant secrets directory"
+    )
+
+    # ============================================
+    # KMS Encryption Configuration
+    # ============================================
+    kms_key_name: Optional[str] = Field(
+        default=None,
+        description="Full GCP KMS key resource name (projects/{project}/locations/{location}/keyRings/{keyring}/cryptoKeys/{key})"
+    )
+    kms_project_id: Optional[str] = Field(
+        default=None,
+        description="GCP project ID for KMS (used if kms_key_name not provided)"
+    )
+    kms_location: str = Field(
+        default="us-central1",
+        description="GCP KMS location (used if kms_key_name not provided)"
+    )
+    kms_keyring: str = Field(
+        default="convergence-keyring",
+        description="GCP KMS keyring name (used if kms_key_name not provided)"
+    )
+    kms_key: str = Field(
+        default="convergence-encryption-key",
+        description="GCP KMS key name (used if kms_key_name not provided)"
     )
 
     # ============================================
@@ -151,11 +175,14 @@ class Settings(BaseSettings):
     )
 
     # ============================================
-    # Admin Metadata Configuration
+    # Admin Metadata Configuration (DEPRECATED)
     # ============================================
+    # NOTE: This is deprecated in the new single-dataset architecture.
+    # API keys and metadata are now stored in per-tenant datasets: {tenant_id}.api_keys
+    # Keeping for backward compatibility only.
     admin_metadata_dataset: str = Field(
         default="metadata",
-        description="Admin/global metadata dataset name (shared across tenants)"
+        description="DEPRECATED: Use {tenant_id}.api_keys instead"
     )
 
     # ============================================
@@ -238,19 +265,22 @@ class Settings(BaseSettings):
 
         return str(matches[0])
 
-    def get_tenant_dataset_name(self, tenant_id: str, dataset_type: str) -> str:
+    def get_tenant_dataset_name(self, tenant_id: str, dataset_type: str = None) -> str:
         """
         Generate tenant-specific dataset name.
 
+        Single-dataset-per-tenant architecture: All data and metadata tables
+        are stored in a single dataset named after the tenant_id.
+
         Args:
             tenant_id: The tenant identifier
-            dataset_type: Type of dataset (e.g., 'raw_openai', 'silver_cost', 'metadata')
+            dataset_type: DEPRECATED - kept for backward compatibility, ignored
 
         Returns:
-            Fully qualified dataset name: {tenant_id}_{dataset_type}
+            Dataset name: {tenant_id}
         """
-        # All datasets are tenant-specific, including metadata
-        return f"{tenant_id}_{dataset_type}"
+        # Single dataset per tenant - dataset_type parameter ignored
+        return tenant_id
 
     def get_admin_metadata_dataset(self) -> str:
         """

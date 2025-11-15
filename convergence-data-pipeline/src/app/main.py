@@ -169,10 +169,11 @@ async def root():
 # API Routers
 # ============================================
 
-from src.app.routers import pipelines, admin
+from src.app.routers import pipelines, admin, customers
 
 app.include_router(pipelines.router, prefix="/api/v1", tags=["Pipelines"])
 app.include_router(admin.router, prefix="/api/v1", tags=["Admin"])
+app.include_router(customers.router, prefix="/api/v1", tags=["Customers"])
 
 
 if __name__ == "__main__":

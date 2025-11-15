@@ -1,0 +1,28 @@
+# GCP Billing Export Template (used by ALL tenants)
+pipeline_name: "{pipeline_id}"  # Dynamic: {tenant_id}-gcp-cost-bill-sample-export-template
+
+steps:
+  - name: "extract_billing_data"
+    type: "bigquery_query"
+    sql: |
+      SELECT
+        'billing-account-' || CAST(MOD(seq, 3) + 1 AS STRING) as billing_account_id,
+        CASE
+          WHEN MOD(seq, 5) = 0 THEN 'Compute Engine'
+          WHEN MOD(seq, 5) = 1 THEN 'Cloud Storage'
+          WHEN MOD(seq, 5) = 2 THEN 'BigQuery'
+          WHEN MOD(seq, 5) = 3 THEN 'Cloud Pub/Sub'
+          ELSE 'Kubernetes Engine'
+        END as service_name,
+        'sku-description-' || CAST(seq AS STRING) as sku_description,
+        CURRENT_TIMESTAMP() as usage_start_time,
+        CURRENT_TIMESTAMP() as usage_end_time,
+        CAST(seq * 10.5 AS FLOAT64) as cost,
+        'USD' as currency
+      FROM UNNEST(GENERATE_ARRAY(1, 10)) as seq
+
+    output:
+      project_id: "gac-prod-471220"
+      dataset: "{tenant_id}"
+      table: "gcp_billing_export_transformed"
+      write_disposition: "WRITE_TRUNCATE"

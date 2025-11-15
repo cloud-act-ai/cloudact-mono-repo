@@ -13,21 +13,21 @@ This project is built on four core principles:
 
 ---
 
-## Multi-Tenant Metadata Architecture
+## Multi-Tenant Single-Dataset Architecture
 
-Each tenant gets their own isolated metadata infrastructure that is **automatically created** on first pipeline execution:
+Each tenant gets their own **single isolated dataset** that contains both metadata and data tables. This simplified architecture is **automatically created** during customer onboarding:
 
 ```
 {project_id}/
-├── {tenant_id}_metadata/          # Tenant-specific metadata (e.g., acme1281_metadata)
-│   ├── api_keys                   # Tenant's API keys
+├── {tenant_id}/                   # Single dataset per tenant (e.g., acmeinc_23xv2)
+│   ├── api_keys                   # Tenant's API keys (KMS encrypted)
+│   ├── cloud_credentials          # Cloud provider credentials
 │   ├── pipeline_runs              # Pipeline execution tracking
 │   ├── step_logs                  # Detailed step-by-step logs
-│   └── dq_results                 # Data quality validation results
-│
-├── {tenant_id}_raw_openai/        # Tenant's OpenAI data
-├── {tenant_id}_raw_google/        # Tenant's Google Cloud data
-└── {tenant_id}_silver_cost/       # Tenant's transformed data
+│   ├── dq_results                 # Data quality validation results
+│   ├── gcp_billing_export_*       # GCP billing data tables
+│   ├── gcp_usage_analytics        # GCP usage analytics
+│   └── gcp_*                      # Other tenant data tables
 ```
 
 ### Key Features

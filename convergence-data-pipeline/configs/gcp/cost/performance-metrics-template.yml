@@ -1,0 +1,29 @@
+pipeline_name: "{pipeline_id}"
+description: "GCP performance metrics for {tenant_id}"
+
+steps:
+  - name: "calculate_performance_metrics"
+    type: "bigquery_query"
+    sql: |
+      SELECT
+        'test-project-' || CAST(MOD(seq, 3) + 1 AS STRING) as project_id,
+        CASE
+          WHEN MOD(seq, 5) = 0 THEN 'Compute Engine'
+          WHEN MOD(seq, 5) = 1 THEN 'Cloud Storage'
+          WHEN MOD(seq, 5) = 2 THEN 'BigQuery'
+          WHEN MOD(seq, 5) = 3 THEN 'Cloud Pub/Sub'
+          ELSE 'Kubernetes Engine'
+        END as service_name,
+        CAST(seq * 25.50 AS FLOAT64) as total_cost,
+        CAST(seq * 100.0 AS FLOAT64) as total_usage,
+        SAFE_DIVIDE(CAST(seq * 25.50 AS FLOAT64), CAST(seq * 100.0 AS FLOAT64)) as cost_per_unit,
+        CURRENT_TIMESTAMP() as metrics_date
+      FROM UNNEST(GENERATE_ARRAY(1, 12)) as seq
+      WHERE seq * 100.0 > 0
+      ORDER BY total_cost DESC
+
+    output:
+      project_id: "gac-prod-471220"
+      dataset: "{tenant_id}"
+      table: "gcp_performance_metrics"
+      write_disposition: "WRITE_TRUNCATE"

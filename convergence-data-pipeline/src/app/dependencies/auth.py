@@ -92,7 +92,10 @@ async def get_tenant_from_api_key(
 ) -> Optional[str]:
     """
     Look up tenant_id from API key hash in BigQuery.
+    Searches all tenant datasets' api_keys tables using UNION ALL.
     Falls back to local file-based lookup if BigQuery fails.
+
+    New Architecture: API keys stored in {tenant_id}.api_keys tables.
 
     Args:
         api_key_hash: SHA256 hash of API key
@@ -101,24 +104,61 @@ async def get_tenant_from_api_key(
     Returns:
         tenant_id if found and active, None otherwise
     """
+    # Query across all tenant datasets using INFORMATION_SCHEMA
     query = f"""
     SELECT tenant_id, is_active
-    FROM `{settings.get_admin_metadata_table('api_keys')}`
-    WHERE api_key_hash = @api_key_hash
+    FROM (
+      SELECT table_schema AS tenant_id
+      FROM `{settings.gcp_project_id}.region-{settings.bigquery_location}.INFORMATION_SCHEMA.TABLES`
+      WHERE table_name = 'api_keys'
+        AND table_schema NOT IN ('information_schema', 'metadata', 'pg_catalog')
+    ) AS tenant_datasets
+    LEFT JOIN `{settings.gcp_project_id}.{{tenant_id}}.api_keys` AS api_keys
+      USING (tenant_id)
+    WHERE api_keys.api_key_hash = @api_key_hash
+      AND api_keys.is_active = TRUE
     LIMIT 1
     """
 
     try:
+        # First, get all datasets that have api_keys table
+        datasets_query = f"""
+        SELECT DISTINCT table_schema
+        FROM `{settings.gcp_project_id}.region-{settings.bigquery_location}.INFORMATION_SCHEMA.TABLES`
+        WHERE table_name = 'api_keys'
+          AND table_schema NOT IN ('information_schema', 'metadata', 'pg_catalog')
+        """
+
+        datasets = list(bq_client.client.query(datasets_query).result())
+
+        if not datasets:
+            logger.warning(f"No tenant datasets with api_keys table found")
+            return await get_tenant_from_local_file(api_key_hash)
+
+        # Build UNION ALL query across all tenant api_keys tables
+        union_parts = []
+        for row in datasets:
+            tenant_id = row['table_schema']
+            union_parts.append(f"""
+                SELECT '{tenant_id}' as tenant_id, is_active
+                FROM `{settings.gcp_project_id}.{tenant_id}.api_keys`
+                WHERE api_key_hash = @api_key_hash
+            """)
+
+        if not union_parts:
+            return await get_tenant_from_local_file(api_key_hash)
+
+        union_query = " UNION ALL ".join(union_parts) + " LIMIT 1"
+
         results = list(bq_client.query(
-            query,
+            union_query,
             parameters=[
                 bigquery.ScalarQueryParameter("api_key_hash", "STRING", api_key_hash)
             ]
         ))
 
         if not results:
-            logger.warning(f"API key not found in BigQuery, trying local files")
-            # Fallback to local file lookup
+            logger.warning(f"API key not found in any tenant dataset, trying local files")
             return await get_tenant_from_local_file(api_key_hash)
 
         row = results[0]
@@ -127,7 +167,9 @@ async def get_tenant_from_api_key(
             logger.warning(f"API key is inactive for tenant: {row.get('tenant_id')}")
             return None
 
-        return row["tenant_id"]
+        tenant_id = row["tenant_id"]
+        logger.info(f"Found active API key for tenant: {tenant_id}")
+        return tenant_id
 
     except Exception as e:
         logger.warning(f"BigQuery lookup failed: {e}, trying local files")
@@ -163,6 +205,49 @@ async def verify_api_key(
             detail="Missing API key",
             headers={"WWW-Authenticate": "ApiKey"},
         )
+
+    # Hash the API key
+    api_key_hash = hash_api_key(x_api_key)
+
+    # Look up tenant
+    tenant_id = await get_tenant_from_api_key(api_key_hash, bq_client)
+
+    if not tenant_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or inactive API key",
+            headers={"WWW-Authenticate": "ApiKey"},
+        )
+
+    logger.info(f"Authenticated request for tenant: {tenant_id}")
+
+    return TenantContext(tenant_id=tenant_id, api_key_hash=api_key_hash)
+
+
+async def verify_api_key_header(
+    x_api_key: str = Header(..., description="API Key for authentication"),
+    bq_client: BigQueryClient = Depends(get_bigquery_client)
+) -> TenantContext:
+    """
+    FastAPI dependency to verify API key from X-API-Key header (required).
+
+    This is a stricter version of verify_api_key that always requires the header.
+    Use this for new endpoints that need explicit authentication.
+
+    Args:
+        x_api_key: API key from X-API-Key header (required)
+        bq_client: BigQuery client (injected)
+
+    Returns:
+        TenantContext with tenant_id
+
+    Raises:
+        HTTPException: If API key is invalid or inactive
+    """
+    # Check if authentication is disabled
+    if settings.disable_auth:
+        logger.warning(f"Authentication is disabled - using default tenant '{settings.default_tenant_id}'")
+        return TenantContext(tenant_id=settings.default_tenant_id, api_key_hash="disabled")
 
     # Hash the API key
     api_key_hash = hash_api_key(x_api_key)

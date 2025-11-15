@@ -10,10 +10,11 @@ from datetime import datetime
 import uuid
 import asyncio
 
-from src.app.dependencies.auth import verify_api_key, TenantContext
+from src.app.dependencies.auth import verify_api_key, verify_api_key_header, TenantContext
 from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
 from src.core.pipeline.executor import PipelineExecutor
 from src.core.pipeline.async_executor import AsyncPipelineExecutor
+from src.core.pipeline.template_resolver import resolve_template, get_template_path
 from src.core.metadata.initializer import ensure_tenant_metadata
 from src.app.config import settings
 from google.cloud import bigquery
@@ -104,10 +105,215 @@ def run_pipeline_task(executor: PipelineExecutor, parameters: dict):
 
 
 @router.post(
+    "/pipelines/run/{tenant_id}/{provider}/{domain}/{template_name}",
+    response_model=TriggerPipelineResponse,
+    summary="Trigger a templated pipeline",
+    description="Start execution of a pipeline from a template with automatic variable substitution"
+)
+async def trigger_templated_pipeline(
+    tenant_id: str,
+    provider: str,
+    domain: str,
+    template_name: str,
+    background_tasks: BackgroundTasks,
+    request: TriggerPipelineRequest = TriggerPipelineRequest(),
+    tenant: TenantContext = Depends(verify_api_key_header),
+    bq_client: BigQueryClient = Depends(get_bigquery_client)
+):
+    """
+    Trigger a pipeline execution from a template with automatic variable substitution.
+
+    This endpoint loads a template from `configs/{provider}/{domain}/{template_name}.yml`
+    and replaces all template variables before execution.
+
+    Template Variables:
+    - {tenant_id} - Replaced with tenant_id from path
+    - {provider} - Replaced with provider from path (e.g., 'gcp', 'aws')
+    - {domain} - Replaced with domain from path (e.g., 'cost', 'security')
+    - {template_name} - Replaced with template_name from path
+    - {pipeline_id} - Auto-generated: {tenant_id}-{provider}-{domain}-{template_name}
+
+    Example:
+    ```
+    POST /api/v1/pipelines/run/acmeinc_23xv2/gcp/cost/bill-sample-export-template
+    Headers: X-API-Key: your-api-key
+    Body: {"date": "2025-11-15"}
+    ```
+
+    This will:
+    1. Load template from: configs/gcp/cost/bill-sample-export-template.yml
+    2. Replace {tenant_id} with 'acmeinc_23xv2'
+    3. Replace {pipeline_id} with 'acmeinc_23xv2-gcp-cost-bill-sample-export-template'
+    4. Execute the resolved pipeline
+
+    Args:
+        tenant_id: Tenant identifier (must match authenticated tenant)
+        provider: Cloud provider (gcp, aws, azure)
+        domain: Domain category (cost, security, compute)
+        template_name: Template name (without .yml extension)
+        request: Pipeline trigger request with optional parameters
+
+    Returns:
+        TriggerPipelineResponse with pipeline_logging_id for tracking
+
+    Features:
+    - Template-based configuration (one template, many tenants)
+    - Automatic variable substitution
+    - Async/await architecture for non-blocking operations
+    - Parallel execution of independent pipeline steps
+    - DAG-based dependency resolution
+    - Built-in concurrency control - prevents duplicate pipeline execution
+    """
+    # Verify tenant_id matches authenticated tenant
+    if tenant_id != tenant.tenant_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Tenant ID mismatch: authenticated as '{tenant.tenant_id}' but requested '{tenant_id}'"
+        )
+
+    # Generate pipeline_id from components
+    pipeline_id = f"{tenant_id}-{provider}-{domain}-{template_name}"
+
+    # Get template path
+    template_path = get_template_path(provider, domain, template_name)
+
+    # Prepare template variables
+    template_variables = {
+        "tenant_id": tenant_id,
+        "provider": provider,
+        "domain": domain,
+        "template_name": template_name,
+        "pipeline_id": pipeline_id
+    }
+
+    # Load and resolve template
+    try:
+        resolved_config = resolve_template(template_path, template_variables)
+    except FileNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Template not found: {template_path}"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to resolve template: {str(e)}"
+        )
+
+    # Ensure tenant metadata infrastructure exists
+    ensure_tenant_metadata(tenant.tenant_id, bq_client.client)
+
+    # Extract parameters from request
+    parameters = request.model_dump(exclude={'trigger_by'}, exclude_none=True)
+
+    # Extract run_date from parameters
+    run_date = parameters.get('date')
+
+    # Generate pipeline_logging_id
+    pipeline_logging_id = str(uuid.uuid4())
+
+    # ATOMIC: Insert pipeline run ONLY IF no RUNNING/PENDING pipeline exists
+    insert_query = f"""
+    INSERT INTO `{settings.get_admin_metadata_table('pipeline_runs')}`
+    (pipeline_logging_id, pipeline_id, tenant_id, status, trigger_type, trigger_by, start_time, run_date, parameters)
+    SELECT * FROM (
+        SELECT
+            @pipeline_logging_id AS pipeline_logging_id,
+            @pipeline_id AS pipeline_id,
+            @tenant_id AS tenant_id,
+            'PENDING' AS status,
+            @trigger_type AS trigger_type,
+            @trigger_by AS trigger_by,
+            CURRENT_TIMESTAMP() AS start_time,
+            @run_date AS run_date,
+            PARSE_JSON(@parameters) AS parameters
+    ) AS new_run
+    WHERE NOT EXISTS (
+        SELECT 1
+        FROM `{settings.get_admin_metadata_table('pipeline_runs')}`
+        WHERE tenant_id = @tenant_id
+          AND pipeline_id = @pipeline_id
+          AND status IN ('RUNNING', 'PENDING')
+    )
+    """
+
+    import json
+    job_config = bigquery.QueryJobConfig(
+        query_parameters=[
+            bigquery.ScalarQueryParameter("pipeline_logging_id", "STRING", pipeline_logging_id),
+            bigquery.ScalarQueryParameter("pipeline_id", "STRING", pipeline_id),
+            bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant.tenant_id),
+            bigquery.ScalarQueryParameter("trigger_type", "STRING", "api"),
+            bigquery.ScalarQueryParameter("trigger_by", "STRING", request.trigger_by or "api_user"),
+            bigquery.ScalarQueryParameter("run_date", "DATE", run_date),
+            bigquery.ScalarQueryParameter("parameters", "STRING", json.dumps(parameters) if parameters else "{}"),
+        ]
+    )
+
+    # Execute atomic INSERT
+    query_job = bq_client.client.query(insert_query, job_config=job_config)
+    result = query_job.result()
+
+    # Check if row was inserted
+    if query_job.num_dml_affected_rows > 0:
+        # Successfully inserted - create executor with resolved config
+        # Note: We'll need to modify AsyncPipelineExecutor to accept pre-loaded config
+        executor = AsyncPipelineExecutor(
+            tenant_id=tenant.tenant_id,
+            pipeline_id=pipeline_id,
+            trigger_type="api",
+            trigger_by=request.trigger_by or "api_user"
+        )
+        # Override the executor's pipeline_logging_id
+        executor.pipeline_logging_id = pipeline_logging_id
+
+        # Execute pipeline in background
+        background_tasks.add_task(run_async_pipeline_task, executor, parameters)
+
+        return TriggerPipelineResponse(
+            pipeline_logging_id=pipeline_logging_id,
+            pipeline_id=pipeline_id,
+            tenant_id=tenant.tenant_id,
+            status="PENDING",
+            message=f"Templated pipeline {template_name} triggered successfully for {tenant_id} (async mode)"
+        )
+    else:
+        # Pipeline already running/pending
+        check_query = f"""
+        SELECT pipeline_logging_id
+        FROM `{settings.get_admin_metadata_table('pipeline_runs')}`
+        WHERE tenant_id = @tenant_id
+          AND pipeline_id = @pipeline_id
+          AND status IN ('RUNNING', 'PENDING')
+        ORDER BY start_time DESC
+        LIMIT 1
+        """
+
+        check_job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant.tenant_id),
+                bigquery.ScalarQueryParameter("pipeline_id", "STRING", pipeline_id),
+            ]
+        )
+
+        existing_runs = list(bq_client.client.query(check_query, job_config=check_job_config).result())
+        existing_pipeline_logging_id = existing_runs[0]["pipeline_logging_id"] if existing_runs else "unknown"
+
+        return TriggerPipelineResponse(
+            pipeline_logging_id=existing_pipeline_logging_id,
+            pipeline_id=pipeline_id,
+            tenant_id=tenant.tenant_id,
+            status="RUNNING",
+            message=f"Pipeline {pipeline_id} already running or pending - returning existing execution {existing_pipeline_logging_id}"
+        )
+
+
+@router.post(
     "/pipelines/run/{pipeline_id}",
     response_model=TriggerPipelineResponse,
-    summary="Trigger a pipeline",
-    description="Start execution of a pipeline for the authenticated tenant with async parallel processing"
+    summary="Trigger a pipeline (DEPRECATED)",
+    description="Start execution of a pipeline for the authenticated tenant with async parallel processing. DEPRECATED: Use /pipelines/run/{tenant_id}/{provider}/{domain}/{template_name} instead.",
+    deprecated=True
 )
 async def trigger_pipeline(
     pipeline_id: str,

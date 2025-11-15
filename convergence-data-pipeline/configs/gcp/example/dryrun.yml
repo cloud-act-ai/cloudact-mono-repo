@@ -1,0 +1,16 @@
+# Dryrun Pipeline - Used during customer onboarding
+pipeline_name: "{pipeline_id}"  # Dynamic: {tenant_id}-gcp-example-dryrun
+
+steps:
+  - name: "dryrun_test"
+    type: "bigquery_query"
+    sql: |
+      SELECT
+        CURRENT_TIMESTAMP() as test_timestamp,
+        '{tenant_id}' as tenant_id,
+        'Onboarding dryrun successful' as message
+
+    output:
+      dataset: "{tenant_id}"
+      table: "onboarding_dryrun_test"
+      write_disposition: "WRITE_TRUNCATE"

@@ -1,0 +1,39 @@
+pipeline_name: "{pipeline_id}"
+description: "GCP usage analytics pipeline for {tenant_id}"
+
+steps:
+  - name: "extract_usage_data"
+    type: "bigquery_query"
+    sql: |
+      SELECT
+        'test-project-' || CAST(seq AS STRING) as project_id,
+        CASE
+          WHEN MOD(seq, 5) = 0 THEN 'Compute Engine'
+          WHEN MOD(seq, 5) = 1 THEN 'Cloud Storage'
+          WHEN MOD(seq, 5) = 2 THEN 'BigQuery'
+          WHEN MOD(seq, 5) = 3 THEN 'Cloud Pub/Sub'
+          ELSE 'Kubernetes Engine'
+        END as service_name,
+        'test-sku-' || CAST(seq AS STRING) as sku_name,
+        CURRENT_TIMESTAMP() as usage_start_time,
+        CURRENT_TIMESTAMP() as usage_end_time,
+        CAST(seq * 100 AS FLOAT64) as usage_amount,
+        'unit' as usage_unit,
+        CURRENT_TIMESTAMP() as processed_at
+      FROM UNNEST(GENERATE_ARRAY(1, 10)) as seq
+      ORDER BY usage_amount DESC
+
+    output:
+      project_id: "gac-prod-471220"
+      dataset: "{tenant_id}"
+      table: "gcp_usage_analytics"
+      write_disposition: "WRITE_TRUNCATE"
+
+    data_quality:
+      enabled: true
+      checks:
+        - type: "row_count"
+          operator: ">"
+          value: 0
+        - type: "null_check"
+          columns: ["project_id", "service_name"]

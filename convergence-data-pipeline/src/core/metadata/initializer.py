@@ -31,20 +31,24 @@ class MetadataInitializer:
 
     def ensure_tenant_metadata(self, tenant_id: str) -> None:
         """
-        Ensure tenant-specific metadata dataset and tables exist.
+        Ensure tenant-specific dataset and metadata tables exist.
         Creates them if they don't exist.
+
+        Single-dataset-per-tenant architecture: All tables (metadata + data)
+        are stored in a single dataset named after the tenant_id.
 
         Args:
             tenant_id: The tenant identifier
         """
         logger.info(f"Ensuring metadata infrastructure for tenant: {tenant_id}")
 
-        # Create tenant-specific metadata dataset
-        dataset_name = settings.get_tenant_dataset_name(tenant_id, "metadata")
+        # Create single tenant dataset (not tenant_id_metadata)
+        dataset_name = tenant_id
         self._ensure_dataset(dataset_name)
 
-        # Create metadata tables
+        # Create metadata tables in the tenant dataset
         self._ensure_api_keys_table(dataset_name)
+        self._ensure_cloud_credentials_table(dataset_name)
         self._ensure_pipeline_runs_table(dataset_name)
         self._ensure_step_logs_table(dataset_name)
         self._ensure_dq_results_table(dataset_name)
@@ -127,6 +131,34 @@ class MetadataInitializer:
 
             table = bigquery.Table(table_id, schema=schema)
             table.description = "API keys for tenant authentication"
+            self.client.create_table(table)
+            logger.info(f"Created table: {table_id}")
+
+    def _ensure_cloud_credentials_table(self, dataset_name: str, recreate: bool = False) -> None:
+        """
+        Create cloud_credentials table if it doesn't exist.
+
+        Args:
+            dataset_name: Dataset name
+            recreate: If True, delete and recreate table even if it exists
+        """
+        table_id = f"{self.project_id}.{dataset_name}.cloud_credentials"
+
+        # Load schema from JSON configuration file
+        schema = self._load_schema_from_json("cloud_credentials")
+
+        if recreate:
+            logger.info(f"Recreating table (delete + create): {table_id}")
+            self.client.delete_table(table_id, not_found_ok=True)
+
+        try:
+            self.client.get_table(table_id)
+            logger.debug(f"Table {table_id} already exists")
+        except exceptions.NotFound:
+            logger.info(f"Creating table: {table_id}")
+
+            table = bigquery.Table(table_id, schema=schema)
+            table.description = "Encrypted cloud provider credentials for tenant"
             self.client.create_table(table)
             logger.info(f"Created table: {table_id}")
 

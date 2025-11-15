@@ -1,0 +1,28 @@
+pipeline_name: "{pipeline_id}"
+description: "GCP cost optimization report for {tenant_id}"
+
+steps:
+  - name: "identify_cost_optimizations"
+    type: "bigquery_query"
+    sql: |
+      SELECT
+        CASE
+          WHEN MOD(seq, 5) = 0 THEN 'Compute Engine'
+          WHEN MOD(seq, 5) = 1 THEN 'Cloud Storage'
+          WHEN MOD(seq, 5) = 2 THEN 'BigQuery'
+          WHEN MOD(seq, 5) = 3 THEN 'Cloud Pub/Sub'
+          ELSE 'Kubernetes Engine'
+        END as service_name,
+        CAST(seq * 150.0 AS FLOAT64) as total_cost,
+        CAST(MOD(seq, 3) + 1 AS INT64) as num_projects,
+        CURRENT_TIMESTAMP() as analyzed_at
+      FROM UNNEST(GENERATE_ARRAY(1, 20)) as seq
+      WHERE seq * 150.0 > 100
+      ORDER BY total_cost DESC
+      LIMIT 20
+
+    output:
+      project_id: "gac-prod-471220"
+      dataset: "{tenant_id}"
+      table: "gcp_cost_optimization"
+      write_disposition: "WRITE_TRUNCATE"
