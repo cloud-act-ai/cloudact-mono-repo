@@ -14,6 +14,7 @@ from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
 from src.core.pipeline.executor import PipelineExecutor
 from src.core.pipeline.async_executor import AsyncPipelineExecutor
 from src.core.metadata.initializer import ensure_tenant_metadata
+from src.core.utils.pipeline_lock import get_pipeline_lock_manager
 from src.app.config import settings
 
 router = APIRouter()
@@ -64,9 +65,11 @@ class TriggerPipelineResponse(BaseModel):
 # ============================================
 
 async def run_async_pipeline_task(executor: AsyncPipelineExecutor, parameters: dict):
-    """Async wrapper function to execute pipeline with proper error handling."""
+    """Async wrapper function to execute pipeline with proper error handling and lock release."""
     import logging
     logger = logging.getLogger(__name__)
+
+    lock_manager = get_pipeline_lock_manager()
 
     try:
         logger.info(f"Starting background async pipeline execution: {executor.pipeline_logging_id}")
@@ -80,6 +83,17 @@ async def run_async_pipeline_task(executor: AsyncPipelineExecutor, parameters: d
             extra={"error": str(e)}
         )
         raise
+    finally:
+        # Always release lock when pipeline completes or fails
+        released = await lock_manager.release_lock(
+            tenant_id=executor.tenant_id,
+            pipeline_id=executor.pipeline_id,
+            pipeline_logging_id=executor.pipeline_logging_id
+        )
+        if released:
+            logger.info(f"Lock released for pipeline: {executor.pipeline_logging_id}")
+        else:
+            logger.warning(f"Failed to release lock for pipeline: {executor.pipeline_logging_id}")
 
 
 def run_pipeline_task(executor: PipelineExecutor, parameters: dict):
@@ -129,6 +143,7 @@ async def trigger_pipeline(
     - DAG-based dependency resolution
     - Support for 100+ concurrent pipelines
     - Petabyte-scale data processing via partitioning
+    - Built-in concurrency control - prevents duplicate pipeline execution
     """
     # Ensure tenant metadata infrastructure exists
     ensure_tenant_metadata(tenant.tenant_id, bq_client.client)
@@ -144,7 +159,26 @@ async def trigger_pipeline(
         trigger_by=request.trigger_by or "api_user"
     )
 
-    # Execute pipeline in background with async error handling
+    # Try to acquire lock for concurrency control
+    lock_manager = get_pipeline_lock_manager()
+    lock_acquired, existing_pipeline_logging_id = await lock_manager.acquire_lock(
+        tenant_id=tenant.tenant_id,
+        pipeline_id=pipeline_id,
+        pipeline_logging_id=executor.pipeline_logging_id,
+        locked_by=request.trigger_by or "api_user"
+    )
+
+    # If lock not acquired, pipeline already running - return existing execution
+    if not lock_acquired:
+        return TriggerPipelineResponse(
+            pipeline_logging_id=existing_pipeline_logging_id,
+            pipeline_id=pipeline_id,
+            tenant_id=tenant.tenant_id,
+            status="RUNNING",
+            message=f"Pipeline {pipeline_id} already running - returning existing execution"
+        )
+
+    # Lock acquired - execute pipeline in background with async error handling
     background_tasks.add_task(run_async_pipeline_task, executor, parameters)
 
     return TriggerPipelineResponse(

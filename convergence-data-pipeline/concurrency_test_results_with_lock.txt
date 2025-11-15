@@ -1,0 +1,24 @@
+================================================================================
+Starting Concurrency Test: 10 parallel requests to same pipeline
+Time: 2025-11-15T07:57:27.333978
+================================================================================
+✓ Request  8: bd268fc2-edf5-44... | status=PENDING | 17.70s
+✓ Request  4: 5ccb2095-2653-4e... | status=PENDING | 19.67s
+✓ Request 10: 442431fe-de26-40... | status=PENDING | 19.67s
+✓ Request  3: 9a50721b-2386-46... | status=PENDING | 19.67s
+✓ Request  7: bed63887-8e73-49... | status=PENDING | 19.67s
+✓ Request  6: 5b90eb7f-0f63-4d... | status=PENDING | 19.67s
+✓ Request  9: 67d961f0-3140-44... | status=PENDING | 19.67s
+✓ Request  5: 3d49b7c4-e0fc-4f... | status=PENDING | 19.67s
+✓ Request  2: f8d8cdd5-b535-40... | status=PENDING | 19.67s
+✓ Request  1: 6f3ec787-317c-42... | status=PENDING | 19.68s
+================================================================================
+Results Summary:
+  Total time: 19.69s
+  Successful: 10/10
+  Failed: 0/10
+  Avg response time: 19.47s
+================================================================================
+
+Unique pipeline_logging_ids: 10
+✓ All 10 requests created SEPARATE pipeline runs (no concurrency control)
