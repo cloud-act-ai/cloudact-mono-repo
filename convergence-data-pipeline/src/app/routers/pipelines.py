@@ -8,40 +8,17 @@ from typing import List, Optional
 from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
 import uuid
+import asyncio
 
 from src.app.dependencies.auth import verify_api_key, TenantContext
 from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
 from src.core.pipeline.executor import PipelineExecutor
 from src.core.pipeline.async_executor import AsyncPipelineExecutor
 from src.core.metadata.initializer import ensure_tenant_metadata
-from src.core.utils.pipeline_lock import get_pipeline_lock_manager
-from src.core.utils.firestore_lock import get_firestore_lock_manager
 from src.app.config import settings
+from google.cloud import bigquery
 
 router = APIRouter()
-
-
-# ============================================
-# Lock Manager Factory
-# ============================================
-
-def get_lock_manager():
-    """
-    Get the appropriate lock manager based on configuration.
-
-    Returns:
-        Lock manager instance (PipelineLockManager or FirestoreLockManager)
-    """
-    if settings.lock_backend == "firestore":
-        return get_firestore_lock_manager(
-            project_id=settings.gcp_project_id,
-            lock_timeout_seconds=settings.lock_timeout_seconds
-        )
-    else:
-        # Default to in-memory lock manager
-        return get_pipeline_lock_manager(
-            lock_timeout_seconds=settings.lock_timeout_seconds
-        )
 
 
 # ============================================
@@ -89,11 +66,9 @@ class TriggerPipelineResponse(BaseModel):
 # ============================================
 
 async def run_async_pipeline_task(executor: AsyncPipelineExecutor, parameters: dict):
-    """Async wrapper function to execute pipeline with proper error handling and lock release."""
+    """Async wrapper function to execute pipeline with proper error handling."""
     import logging
     logger = logging.getLogger(__name__)
-
-    lock_manager = get_lock_manager()
 
     try:
         logger.info(f"Starting background async pipeline execution: {executor.pipeline_logging_id}")
@@ -107,17 +82,6 @@ async def run_async_pipeline_task(executor: AsyncPipelineExecutor, parameters: d
             extra={"error": str(e)}
         )
         raise
-    finally:
-        # Always release lock when pipeline completes or fails
-        released = await lock_manager.release_lock(
-            tenant_id=executor.tenant_id,
-            pipeline_id=executor.pipeline_id,
-            pipeline_logging_id=executor.pipeline_logging_id
-        )
-        if released:
-            logger.info(f"Lock released for pipeline: {executor.pipeline_logging_id}")
-        else:
-            logger.warning(f"Failed to release lock for pipeline: {executor.pipeline_logging_id}")
 
 
 def run_pipeline_task(executor: PipelineExecutor, parameters: dict):
@@ -175,43 +139,109 @@ async def trigger_pipeline(
     # Extract parameters from request
     parameters = request.model_dump(exclude={'trigger_by'}, exclude_none=True)
 
-    # Create ASYNC pipeline executor for parallel processing
-    executor = AsyncPipelineExecutor(
-        tenant_id=tenant.tenant_id,
-        pipeline_id=pipeline_id,
-        trigger_type="api",
-        trigger_by=request.trigger_by or "api_user"
+    # Extract run_date from parameters (e.g., "2025-11-15")
+    run_date = parameters.get('date')  # Will be None if not provided
+
+    # Generate pipeline_logging_id
+    import uuid
+    pipeline_logging_id = str(uuid.uuid4())
+
+    # ATOMIC: Insert pipeline run ONLY IF no RUNNING/PENDING pipeline exists
+    # This single DML operation prevents race conditions by being atomic
+    insert_query = f"""
+    INSERT INTO `{settings.get_admin_metadata_table('pipeline_runs')}`
+    (pipeline_logging_id, pipeline_id, tenant_id, status, trigger_type, trigger_by, start_time, run_date, parameters)
+    SELECT * FROM (
+        SELECT
+            @pipeline_logging_id AS pipeline_logging_id,
+            @pipeline_id AS pipeline_id,
+            @tenant_id AS tenant_id,
+            'PENDING' AS status,
+            @trigger_type AS trigger_type,
+            @trigger_by AS trigger_by,
+            CURRENT_TIMESTAMP() AS start_time,
+            @run_date AS run_date,
+            PARSE_JSON(@parameters) AS parameters
+    ) AS new_run
+    WHERE NOT EXISTS (
+        SELECT 1
+        FROM `{settings.get_admin_metadata_table('pipeline_runs')}`
+        WHERE tenant_id = @tenant_id
+          AND pipeline_id = @pipeline_id
+          AND status IN ('RUNNING', 'PENDING')
+    )
+    """
+
+    import json
+    job_config = bigquery.QueryJobConfig(
+        query_parameters=[
+            bigquery.ScalarQueryParameter("pipeline_logging_id", "STRING", pipeline_logging_id),
+            bigquery.ScalarQueryParameter("pipeline_id", "STRING", pipeline_id),
+            bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant.tenant_id),
+            bigquery.ScalarQueryParameter("trigger_type", "STRING", "api"),
+            bigquery.ScalarQueryParameter("trigger_by", "STRING", request.trigger_by or "api_user"),
+            bigquery.ScalarQueryParameter("run_date", "DATE", run_date),
+            bigquery.ScalarQueryParameter("parameters", "STRING", json.dumps(parameters) if parameters else "{}"),
+        ]
     )
 
-    # Try to acquire lock for concurrency control
-    lock_manager = get_lock_manager()
-    lock_acquired, existing_pipeline_logging_id = await lock_manager.acquire_lock(
-        tenant_id=tenant.tenant_id,
-        pipeline_id=pipeline_id,
-        pipeline_logging_id=executor.pipeline_logging_id,
-        locked_by=request.trigger_by or "api_user"
-    )
+    # Execute atomic INSERT
+    query_job = bq_client.client.query(insert_query, job_config=job_config)
+    result = query_job.result()  # Wait for completion
 
-    # If lock not acquired, pipeline already running - return existing execution
-    if not lock_acquired:
+    # Check if row was inserted (num_dml_affected_rows > 0 means INSERT succeeded)
+    if query_job.num_dml_affected_rows > 0:
+        # Successfully inserted - this is a new pipeline execution
+        # Create ASYNC pipeline executor
+        executor = AsyncPipelineExecutor(
+            tenant_id=tenant.tenant_id,
+            pipeline_id=pipeline_id,
+            trigger_type="api",
+            trigger_by=request.trigger_by or "api_user"
+        )
+        # Override the executor's pipeline_logging_id with our pre-generated one
+        executor.pipeline_logging_id = pipeline_logging_id
+
+        # Execute pipeline in background with async error handling
+        background_tasks.add_task(run_async_pipeline_task, executor, parameters)
+
+        return TriggerPipelineResponse(
+            pipeline_logging_id=pipeline_logging_id,
+            pipeline_id=pipeline_id,
+            tenant_id=tenant.tenant_id,
+            status="PENDING",
+            message=f"Pipeline {pipeline_id} triggered successfully (async mode)"
+        )
+    else:
+        # INSERT was blocked - pipeline already running/pending
+        # Query to get the existing pipeline_logging_id
+        check_query = f"""
+        SELECT pipeline_logging_id
+        FROM `{settings.get_admin_metadata_table('pipeline_runs')}`
+        WHERE tenant_id = @tenant_id
+          AND pipeline_id = @pipeline_id
+          AND status IN ('RUNNING', 'PENDING')
+        ORDER BY start_time DESC
+        LIMIT 1
+        """
+
+        check_job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant.tenant_id),
+                bigquery.ScalarQueryParameter("pipeline_id", "STRING", pipeline_id),
+            ]
+        )
+
+        existing_runs = list(bq_client.client.query(check_query, job_config=check_job_config).result())
+        existing_pipeline_logging_id = existing_runs[0]["pipeline_logging_id"] if existing_runs else "unknown"
+
         return TriggerPipelineResponse(
             pipeline_logging_id=existing_pipeline_logging_id,
             pipeline_id=pipeline_id,
             tenant_id=tenant.tenant_id,
             status="RUNNING",
-            message=f"Pipeline {pipeline_id} already running - returning existing execution"
+            message=f"Pipeline {pipeline_id} already running or pending - returning existing execution {existing_pipeline_logging_id}"
         )
-
-    # Lock acquired - execute pipeline in background with async error handling
-    background_tasks.add_task(run_async_pipeline_task, executor, parameters)
-
-    return TriggerPipelineResponse(
-        pipeline_logging_id=executor.pipeline_logging_id,
-        pipeline_id=pipeline_id,
-        tenant_id=tenant.tenant_id,
-        status="PENDING",
-        message=f"Pipeline {pipeline_id} triggered successfully (async mode)"
-    )
 
 
 @router.get(

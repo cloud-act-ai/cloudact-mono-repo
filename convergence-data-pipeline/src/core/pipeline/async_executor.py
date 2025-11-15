@@ -312,14 +312,8 @@ class AsyncPipelineExecutor:
         """
         Internal pipeline execution logic (wrapped by timeout in execute()).
         """
-        # Log pipeline start
-        await self.metadata_logger.log_pipeline_start(
-            pipeline_logging_id=self.pipeline_logging_id,
-            pipeline_id=self.pipeline_id,
-            trigger_type=self.trigger_type,
-            trigger_by=self.trigger_by,
-            parameters=self.config.get('parameters', {})
-        )
+        # NOTE: log_pipeline_start is now called in the API endpoint BEFORE background task
+        # to prevent race condition with duplicate detection
 
         # Get execution levels for parallel processing
         execution_levels = self._get_execution_levels()

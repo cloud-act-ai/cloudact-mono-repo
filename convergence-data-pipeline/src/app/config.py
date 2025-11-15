@@ -169,24 +169,6 @@ class Settings(BaseSettings):
         description="Path to metadata table schema definitions"
     )
 
-    # ============================================
-    # Distributed Lock Configuration
-    # ============================================
-    lock_backend: str = Field(
-        default="firestore",
-        pattern="^(memory|firestore)$",
-        description="Lock backend: 'memory' (single instance) or 'firestore' (distributed)"
-    )
-    lock_timeout_seconds: int = Field(
-        default=3600,
-        ge=60,
-        le=86400,
-        description="Lock expiration timeout in seconds (1 hour default)"
-    )
-    firestore_lock_collection: str = Field(
-        default="pipeline_locks",
-        description="Firestore collection name for pipeline locks"
-    )
 
     @property
     def is_production(self) -> bool:

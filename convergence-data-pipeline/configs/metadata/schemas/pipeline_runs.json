@@ -72,6 +72,12 @@
     "description": "Human-readable error message if pipeline failed. Contains exception message, stack trace summary, or failure reason. NULL for successful runs. Used for error analysis, alerting, and debugging pipeline failures. Max recommended length: 10KB."
   },
   {
+    "name": "run_date",
+    "type": "DATE",
+    "mode": "NULLABLE",
+    "description": "The business date this pipeline run is processing data for (e.g., '2025-11-15'). Extracted from parameters.date field. Used for data partitioning, deduplication by date, and business reporting. NULL if pipeline doesn't have a date parameter."
+  },
+  {
     "name": "parameters",
     "type": "JSON",
     "mode": "NULLABLE",
