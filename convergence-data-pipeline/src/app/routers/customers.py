@@ -35,6 +35,14 @@ class OnboardCustomerRequest(BaseModel):
         ...,
         description="Tenant identifier (alphanumeric + underscore, 3-50 chars)"
     )
+    force_recreate_dataset: bool = Field(
+        default=False,
+        description="If True, delete and recreate the entire dataset (DESTRUCTIVE)"
+    )
+    force_recreate_tables: bool = Field(
+        default=False,
+        description="If True, delete and recreate all metadata tables (DESTRUCTIVE)"
+    )
 
     @validator('tenant_id')
     def validate_tenant_id(cls, v):
@@ -97,7 +105,12 @@ async def onboard_customer(
     try:
         # Step 1: Create tenant metadata infrastructure (dataset + tables)
         logger.info(f"Creating metadata infrastructure for tenant: {tenant_id}")
-        ensure_tenant_metadata(tenant_id, bq_client.client)
+        ensure_tenant_metadata(
+            tenant_id=tenant_id,
+            bq_client=bq_client.client,
+            force_recreate_dataset=request.force_recreate_dataset,
+            force_recreate_tables=request.force_recreate_tables
+        )
 
         # Get list of tables that should be created
         tables_created = [

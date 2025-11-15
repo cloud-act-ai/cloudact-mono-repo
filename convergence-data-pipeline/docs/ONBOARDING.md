@@ -21,10 +21,23 @@ curl -X POST "http://localhost:8080/api/v1/customers/onboard" \
   -d '{"tenant_id": "<TENANT_ID>"}'
 ```
 
-**Tenant ID Format**:
-- Alphanumeric with underscores only
-- Length: 3-50 characters
-- Example: `acmeinc_23xv2`, `techcorp_99zx4`
+**Request Parameters**:
+- `tenant_id` (required): Alphanumeric with underscores, 3-50 characters
+  - Example: `acmeinc_23xv2`, `techcorp_99zx4`
+- `force_recreate_dataset` (optional, default: `false`): If `true`, **DELETES** and recreates the entire dataset (DESTRUCTIVE)
+- `force_recreate_tables` (optional, default: `false`): If `true`, **DELETES** and recreates all metadata tables (DESTRUCTIVE)
+
+**Force Recreation Example** (for testing/development):
+```bash
+curl -X POST "http://localhost:8080/api/v1/customers/onboard" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tenant_id": "acmeinc_23xv2",
+    "force_recreate_dataset": true,
+    "force_recreate_tables": true
+  }'
+```
+⚠️ **WARNING**: Force recreation options will **DELETE ALL DATA**. Use with extreme caution!
 
 **Response**:
 ```json

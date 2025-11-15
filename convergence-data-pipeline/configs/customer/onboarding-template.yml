@@ -1,6 +1,11 @@
 # Customer Onboarding Template
 tenant_config:
   dataset_name: "{tenant_id}"  # Will be replaced at runtime
+
+  # Force recreation options (DESTRUCTIVE - use with caution)
+  force_recreate_dataset: true   # If true, DELETE and recreate entire dataset
+  force_recreate_tables: true    # If true, DELETE and recreate all metadata tables
+
   tables:
     - pipeline_runs
     - step_logs

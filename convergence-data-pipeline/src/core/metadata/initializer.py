@@ -29,7 +29,12 @@ class MetadataInitializer:
         self.location = settings.bigquery_location
         self.metadata_schemas_path = Path(settings.metadata_schemas_path)
 
-    def ensure_tenant_metadata(self, tenant_id: str) -> None:
+    def ensure_tenant_metadata(
+        self,
+        tenant_id: str,
+        force_recreate_dataset: bool = False,
+        force_recreate_tables: bool = False
+    ) -> None:
         """
         Ensure tenant-specific dataset and metadata tables exist.
         Creates them if they don't exist.
@@ -39,19 +44,21 @@ class MetadataInitializer:
 
         Args:
             tenant_id: The tenant identifier
+            force_recreate_dataset: If True, delete and recreate the entire dataset (default: False)
+            force_recreate_tables: If True, delete and recreate all metadata tables (default: False)
         """
         logger.info(f"Ensuring metadata infrastructure for tenant: {tenant_id}")
 
         # Create single tenant dataset (not tenant_id_metadata)
         dataset_name = tenant_id
-        self._ensure_dataset(dataset_name)
+        self._ensure_dataset(dataset_name, force_recreate=force_recreate_dataset)
 
         # Create metadata tables in the tenant dataset
-        self._ensure_api_keys_table(dataset_name)
-        self._ensure_cloud_credentials_table(dataset_name)
-        self._ensure_pipeline_runs_table(dataset_name)
-        self._ensure_step_logs_table(dataset_name)
-        self._ensure_dq_results_table(dataset_name)
+        self._ensure_api_keys_table(dataset_name, recreate=force_recreate_tables)
+        self._ensure_cloud_credentials_table(dataset_name, recreate=force_recreate_tables)
+        self._ensure_pipeline_runs_table(dataset_name, recreate=force_recreate_tables)
+        self._ensure_step_logs_table(dataset_name, recreate=force_recreate_tables)
+        self._ensure_dq_results_table(dataset_name, recreate=force_recreate_tables)
 
         logger.info(f"Metadata infrastructure ready for tenant: {tenant_id}")
 
@@ -91,9 +98,20 @@ class MetadataInitializer:
         except Exception as e:
             raise ValueError(f"Error loading schema from {schema_file}: {e}")
 
-    def _ensure_dataset(self, dataset_name: str) -> None:
-        """Create dataset if it doesn't exist."""
+    def _ensure_dataset(self, dataset_name: str, force_recreate: bool = False) -> None:
+        """
+        Create dataset if it doesn't exist.
+
+        Args:
+            dataset_name: Dataset name
+            force_recreate: If True, delete and recreate dataset even if it exists (default: False)
+        """
         dataset_id = f"{self.project_id}.{dataset_name}"
+
+        if force_recreate:
+            logger.warning(f"Force recreating dataset (delete + create): {dataset_id}")
+            self.client.delete_dataset(dataset_id, delete_contents=True, not_found_ok=True)
+            logger.info(f"Deleted dataset: {dataset_id}")
 
         try:
             self.client.get_dataset(dataset_id)
@@ -277,13 +295,24 @@ class MetadataInitializer:
             logger.info(f"Created table: {table_id}")
 
 
-def ensure_tenant_metadata(tenant_id: str, bq_client: bigquery.Client) -> None:
+def ensure_tenant_metadata(
+    tenant_id: str,
+    bq_client: bigquery.Client,
+    force_recreate_dataset: bool = False,
+    force_recreate_tables: bool = False
+) -> None:
     """
     Convenience function to ensure tenant metadata exists.
 
     Args:
         tenant_id: The tenant identifier
         bq_client: BigQuery client instance
+        force_recreate_dataset: If True, delete and recreate the entire dataset (default: False)
+        force_recreate_tables: If True, delete and recreate all metadata tables (default: False)
     """
     initializer = MetadataInitializer(bq_client)
-    initializer.ensure_tenant_metadata(tenant_id)
+    initializer.ensure_tenant_metadata(
+        tenant_id=tenant_id,
+        force_recreate_dataset=force_recreate_dataset,
+        force_recreate_tables=force_recreate_tables
+    )
