@@ -1,5 +1,5 @@
-pipeline_id: pricing_calculation
-description: "Google Cloud pricing data aggregation pipeline"
+pipeline_id: gcp_pricing_calculation
+description: "GCP pricing data aggregation pipeline"
 version: "1.0.0"
 
 # Runtime parameters (passed in API request)
@@ -22,11 +22,11 @@ steps:
         FROM `gac-prod-471220.cloudact_cost_usage.cloud_pricing_export`
         WHERE TIMESTAMP_TRUNC(_PARTITIONTIME, DAY) = TIMESTAMP('@date')
     destination:
-      dataset_type: google
+      dataset_type: gcp
       table: pricing_export_raw
       write_mode: overwrite
       recreate: true  # Delete and recreate table on each run
-      schema_file: configs/acme1281/google/schemas/pricing_export_raw.json
+      # Schema removed - will be inferred or defined inline if needed
 
   # Step 2: Validate raw data quality
   - step_id: validate_raw_data
@@ -34,9 +34,9 @@ steps:
     description: "Validate raw pricing data"
     depends_on: extract_raw_pricing
     source:
-      dataset_type: google
+      dataset_type: gcp
       table: pricing_export_raw
-    dq_config: configs/acme1281/google/dq_rules/pricing_export_raw_dq.yml
+    dq_config: configs/acme1281/gcp/cost/gcp_pricing_calculation_dq.yml  # Note: This references final DQ rules - raw DQ removed per simplification
     fail_on_error: true
 
   # Step 3: Aggregate pricing data
@@ -45,7 +45,7 @@ steps:
     description: "Aggregate pricing data by date and billing account"
     depends_on: validate_raw_data
     source:
-      dataset_type: google
+      dataset_type: gcp
       table: pricing_export_raw
       query: |
         SELECT
@@ -57,11 +57,11 @@ steps:
         FROM `{project_id}.{dataset}.pricing_export_raw`
         GROUP BY export_date, billing_account_id
     destination:
-      dataset_type: google
+      dataset_type: gcp
       table: pricing_export_final
       write_mode: append
       recreate: true  # Delete and recreate table on each run
-      schema_file: configs/acme1281/google/schemas/pricing_export_final.json
+      # Schema removed - will be inferred or defined inline if needed
       partition_field: export_date
       cluster_fields: [billing_account_id]
 
@@ -71,7 +71,7 @@ steps:
     description: "Validate aggregated pricing data"
     depends_on: aggregate_pricing
     source:
-      dataset_type: google
+      dataset_type: gcp
       table: pricing_export_final
-    dq_config: configs/acme1281/google/dq_rules/pricing_export_final_dq.yml
+    dq_config: configs/acme1281/gcp/cost/gcp_pricing_calculation_dq.yml
     fail_on_error: false

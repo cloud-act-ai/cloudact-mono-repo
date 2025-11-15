@@ -1,5 +1,5 @@
-pipeline_id: google_example_pipeline
-description: "Simple example pipeline for testing Google Cloud data pipeline"
+pipeline_id: gcp_billing_export
+description: "GCP billing export data pipeline for extracting and validating billing data"
 version: "1.0.0"
 
 # Runtime parameters (passed in API request)
@@ -24,7 +24,7 @@ steps:
         FROM `gac-prod-471220.cloudact_cost_usage.gcp_billing_export_v1_01ECB7_6EE0BA_7357F1`
         LIMIT 10
     destination:
-      dataset_type: google
+      dataset_type: gcp
       table: example_output
       write_mode: overwrite
       recreate: true  # Delete and recreate table on each run
@@ -34,9 +34,9 @@ steps:
     type: data_quality
     description: "Validate output data quality"
     source:
-      dataset_type: google
+      dataset_type: gcp
       table: example_output
-    dq_config: "configs/acme1281/dq_rules/example_output_dq.yml"
+    dq_config: "configs/acme1281/gcp/cost/gcp_billing_export_dq.yml"
     fail_on_error: false  # Don't fail pipeline if DQ checks fail (for demo)
     depends_on:
       - extract_sample_data

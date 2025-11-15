@@ -147,6 +147,9 @@ class ConfigLoader:
         """
         Load pipeline configuration from YAML file.
 
+        Searches recursively for pipeline in cloud-provider/domain structure:
+        configs/{tenant_id}/{provider}/{domain}/{pipeline_id}.yml
+
         Args:
             tenant_id: Tenant identifier
             pipeline_id: Pipeline identifier (e.g., "p_openai_billing")
@@ -160,15 +163,13 @@ class ConfigLoader:
             logger.debug(f"Config cache hit: {cache_key}")
             return self._cache[cache_key]
 
-        # Pipelines stored in configs/{tenant_id}/pipelines/{pipeline_id}.yml
-        config_path = (
-            Path(settings.get_tenant_pipelines_path(tenant_id))
-            / f"{pipeline_id}.yml"
-        )
-
-        if not config_path.exists():
+        # Use new recursive search method to find pipeline
+        try:
+            config_path_str = settings.find_pipeline_path(tenant_id, pipeline_id)
+            config_path = Path(config_path_str)
+        except (FileNotFoundError, ValueError) as e:
             raise FileNotFoundError(
-                f"Pipeline config not found: {config_path} for tenant {tenant_id}"
+                f"Pipeline config not found: {pipeline_id} for tenant {tenant_id}. {e}"
             )
 
         try:

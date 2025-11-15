@@ -171,6 +171,44 @@ class Settings(BaseSettings):
         """Get the pipelines directory path for a tenant."""
         return os.path.join(self.get_tenant_config_path(tenant_id), "pipelines")
 
+    def find_pipeline_path(self, tenant_id: str, pipeline_id: str) -> str:
+        """
+        Find pipeline file recursively in tenant config directory.
+
+        Searches for pipeline in new cloud-provider/domain structure:
+        configs/{tenant_id}/{provider}/{domain}/{pipeline_id}.yml
+
+        Args:
+            tenant_id: The tenant identifier
+            pipeline_id: The pipeline identifier (filename without .yml)
+
+        Returns:
+            Absolute path to pipeline YAML file
+
+        Raises:
+            FileNotFoundError: If pipeline file not found
+            ValueError: If multiple pipelines found with same ID
+        """
+        from pathlib import Path
+
+        base_path = Path(self.get_tenant_config_path(tenant_id))
+
+        # Search for pipeline file recursively
+        matches = list(base_path.glob(f"**/{pipeline_id}.yml"))
+
+        if not matches:
+            raise FileNotFoundError(
+                f"Pipeline '{pipeline_id}' not found for tenant '{tenant_id}' in {base_path}"
+            )
+
+        if len(matches) > 1:
+            match_paths = [str(m) for m in matches]
+            raise ValueError(
+                f"Multiple pipelines found with ID '{pipeline_id}': {match_paths}"
+            )
+
+        return str(matches[0])
+
     def get_tenant_dataset_name(self, tenant_id: str, dataset_type: str) -> str:
         """
         Generate tenant-specific dataset name.

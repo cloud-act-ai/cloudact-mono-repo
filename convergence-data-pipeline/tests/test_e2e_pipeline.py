@@ -11,7 +11,7 @@ from datetime import datetime
 
 # Configuration
 API_BASE_URL = "http://localhost:8080"
-PIPELINE_ID = "google_example_pipeline"
+PIPELINE_ID = "gcp_billing_export"
 TENANT_ID = "acme1281"
 
 

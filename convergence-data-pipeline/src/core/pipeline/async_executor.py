@@ -95,16 +95,18 @@ class AsyncPipelineExecutor:
         """
         Load pipeline configuration from YAML file (async).
 
+        Searches recursively for pipeline in cloud-provider/domain structure:
+        configs/{tenant_id}/{provider}/{domain}/{pipeline_id}.yml
+
         Args:
             parameters: Runtime parameters to inject into config
 
         Returns:
             Pipeline configuration dict
         """
-        config_path = Path(settings.get_tenant_pipelines_path(self.tenant_id)) / f"{self.pipeline_id}.yml"
-
-        if not config_path.exists():
-            raise FileNotFoundError(f"Pipeline config not found: {config_path}")
+        # Use new recursive search method to find pipeline
+        config_path_str = settings.find_pipeline_path(self.tenant_id, self.pipeline_id)
+        config_path = Path(config_path_str)
 
         # Read file asynchronously
         loop = asyncio.get_event_loop()
