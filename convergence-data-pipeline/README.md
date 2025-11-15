@@ -244,89 +244,15 @@ def create_or_update_table(dataset_id: str, table_id: str, schema_path: str):
 
 ## Pipeline State Management (BigQuery)
 
-### The `metadata.pipeline_runs` Table
+All pipeline execution state is stored in BigQuery `pipeline_runs` tables. Features:
 
-All pipeline execution state is stored in **BigQuery** (not Postgres/Firestore):
-
-**DDL** (applied via Python client at deployment):
-
-```sql
-CREATE TABLE IF NOT EXISTS `{project_id}.metadata.pipeline_runs` (
-  pipeline_logging_id STRING NOT NULL,         -- UUID for this specific run
-  pipeline_id STRING NOT NULL,                 -- e.g., "p_openai_billing"
-  status STRING NOT NULL,                      -- PENDING, INGESTING, VALIDATING, TRANSFORMING, FAILED, COMPLETE
-  trigger_type STRING,                         -- api, scheduler, manual
-  trigger_by STRING,                           -- service-account@project.iam.gserviceaccount.com
-  start_time TIMESTAMP NOT NULL,
-  end_time TIMESTAMP,
-  duration_ms INT64,
-  run_metadata JSON,                           -- Detailed step-by-step execution log
-  error_message STRING,                        -- Full stack trace if failed
-  ingestion_date DATE NOT NULL                 -- Partition column
-)
-PARTITION BY ingestion_date
-CLUSTER BY pipeline_id, status;
-```
-
-### `run_metadata` JSON Structure
-
-The `run_metadata` column stores detailed execution steps:
-
-```json
-{
-  "steps": [
-    {
-      "name": "ingest_raw",
-      "status": "COMPLETE",
-      "start_time": "2024-11-14T10:00:00Z",
-      "duration_ms": 120450,
-      "metadata": {
-        "type": "rest_api",
-        "rows_ingested": 1500,
-        "api_calls": 30,
-        "source_config": "openai/sources/billing_usage.yml"
-      }
-    },
-    {
-      "name": "validate_raw",
-      "status": "COMPLETE",
-      "start_time": "2024-11-14T10:02:01Z",
-      "duration_ms": 30100,
-      "metadata": {
-        "expectations_passed": 20,
-        "expectations_failed": 1,
-        "failed_rows_percent": 0.05,
-        "dq_config": "openai/dq_rules/billing_dq.yml"
-      }
-    }
-  ],
-  "config_version": "abc123def",               -- Git commit SHA of configs
-  "worker_instance": "cloudrun-worker-xyz"
-}
-```
-
-### Querying Pipeline State
-
-Example queries for operational monitoring:
-
-```sql
--- Find all failed pipelines in last 24 hours
-SELECT pipeline_id, pipeline_logging_id, error_message, start_time
-FROM `project.metadata.pipeline_runs`
-WHERE status = 'FAILED'
-  AND start_time > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 24 HOUR)
-ORDER BY start_time DESC;
-
--- Average duration by pipeline
-SELECT
-  pipeline_id,
-  ROUND(AVG(duration_ms) / 1000, 2) as avg_duration_seconds,
-  COUNT(*) as total_runs
-FROM `project.metadata.pipeline_runs`
-WHERE status = 'COMPLETE'
-  AND ingestion_date >= CURRENT_DATE() - 7
-GROUP BY pipeline_id;
-```
+- **Duplicate Detection**: Atomic BigQuery operations prevent concurrent pipeline execution for same pipeline_id
+- **Concurrency Control**: Single pipeline instance per tenant via BigQuery transactional queries
+- **Run Tracking**: Pipeline status (PENDING, RUNNING, COMPLETE, FAILED), duration, and error logging
+- **Multi-tenant Isolation**: Separate `{tenant}_metadata.pipeline_runs` tables per tenant
+- **Step Logging**: Detailed execution steps stored in JSON `run_metadata` column
+- **Partitioning**: Daily partitions by `start_time` for efficient queries
+- **run_date Support**: Business date tracking via `run_date DATE` column (extracted from parameters)
 
 ---
 
