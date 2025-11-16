@@ -1,15 +1,17 @@
 # GCP Cost Billing Pipeline
 # Extracts billing data from GCP billing export and loads into tenant cost dataset
+# Usage: POST /api/v1/pipelines/run/{tenant_id}/gcp/cost/cost_billing
 
-pipeline_id: "cost_billing"
-description: "Extract GCP billing costs with data quality validation and notifications"
+pipeline_id: "{tenant_id}-gcp-cost-billing"
+description: "Extract GCP billing costs for tenant {tenant_id} - date {date}"
 
 # Pipeline-level variables
+# These can be overridden via API request body
 variables:
   source_billing_table: "gac-prod-471220.cloudact_cost_usage.gcp_billing_export_resource_v1_01ECB7_6EE0BA_7357F1"
   destination_dataset_type: "gcp_silver_cost"
   destination_table: "billing_cost_daily"
-  filter_date: "2025-11-15"
+  admin_email: "admin@example.com"  # Override via API request body
 
 steps:
   # Step 1: Extract billing data from GCP billing export
@@ -53,7 +55,7 @@ steps:
           TO_JSON_STRING(ARRAY(SELECT AS STRUCT key, value FROM UNNEST(labels))) AS labels_json,
           TO_JSON_STRING(ARRAY(SELECT AS STRUCT key, value FROM UNNEST(system_labels))) AS system_labels_json
         FROM `{source_billing_table}`
-        WHERE DATE(usage_start_time) = '{filter_date}'
+        WHERE DATE(usage_start_time) = '{date}'
         LIMIT 1000
 
     # Destination configuration (at step level, not in config!)
@@ -74,19 +76,25 @@ steps:
           - "project_id"
           - "location_region"
 
-  # Step 2: Notification on failure (simplified for now)
+  # Step 2: Notification on failure
   - step_id: "notify_on_failure"
     name: "Send Failure Notification"
     ps_type: "shared.email_notification"
     trigger: "on_failure"
     to_emails:
-      - "data-ops@company.com"
-    subject: "[ALERT] Cost Billing Pipeline Failed"
+      - "{admin_email}"
+      - "data-ops@example.com"  # System admin email
+    subject: "[ALERT] Cost Billing Pipeline Failed - {tenant_id}"
     message: |
-      The GCP cost billing pipeline has failed.
+      ALERT: The GCP cost billing pipeline has failed!
 
+      Tenant ID: {tenant_id}
       Pipeline: {pipeline_id}
-      Tenant: {tenant_id}
-      Date: {filter_date}
+      Run Date: {date}
+      Trigger By: {trigger_by}
 
-      Please investigate.
+      Destination: {destination_dataset_type}.{destination_table}
+
+      Please investigate the logs in:
+      {tenant_id}.x_meta_step_logs
+      {tenant_id}.x_meta_pipeline_runs

@@ -1,0 +1,113 @@
+# Customer Onboarding Pipeline Template
+# Creates tenant infrastructure (dataset + metadata tables)
+# Called automatically during: POST /api/v1/customers/onboard
+
+pipeline_id: "{tenant_id}-customer-onboarding"
+description: "Onboard new tenant {tenant_id} - create dataset and metadata infrastructure"
+
+# Pipeline-level variables
+# These can be overridden via API request body
+variables:
+  gcp_project_id: "gac-prod-471220"
+  location: "US"
+  dataset_id: "{tenant_id}"  # Tenant-specific dataset
+  admin_email: "admin@example.com"  # Override via API request body
+
+steps:
+  # Step 1: Create tenant metadata infrastructure
+  - step_id: "create_infrastructure"
+    name: "Create Tenant Dataset and Metadata Tables"
+    ps_type: "customer.onboarding"
+    timeout_minutes: 10
+
+    config:
+      gcp_project_id: "{gcp_project_id}"
+      dataset_id: "{dataset_id}"
+      location: "{location}"
+
+      # Metadata tables to create (from schemas in templates/customer/onboarding/schemas/)
+      metadata_tables:
+        - table_name: "x_meta_api_keys"
+          schema_file: "x_meta_api_keys.json"
+          description: "API keys for tenant authentication"
+
+        - table_name: "x_meta_cloud_credentials"
+          schema_file: "x_meta_cloud_credentials.json"
+          description: "Cloud provider credentials"
+
+        - table_name: "x_meta_pipeline_runs"
+          schema_file: "x_meta_pipeline_runs.json"
+          description: "Pipeline execution history"
+
+        - table_name: "x_meta_step_logs"
+          schema_file: "x_meta_step_logs.json"
+          description: "Step-by-step execution logs"
+
+        - table_name: "x_meta_dq_results"
+          schema_file: "x_meta_dq_results.json"
+          description: "Data quality validation results"
+
+      # Validation test
+      create_validation_table: true
+      validation_table_name: "onboarding_validation_test"
+
+  # Step 2: Send welcome email notification
+  - step_id: "send_welcome_email"
+    name: "Send Welcome Email to Admin"
+    ps_type: "shared.email_notification"
+    trigger: "on_success"  # Only send on successful onboarding
+
+    to_emails:
+      - "{admin_email}"
+
+    subject: "Welcome to Convergence Data Pipeline - Tenant {tenant_id} Onboarded"
+
+    message: |
+      Welcome to Convergence Data Pipeline!
+
+      Your tenant has been successfully onboarded:
+
+      Tenant ID: {tenant_id}
+      Dataset: {gcp_project_id}.{dataset_id}
+      Location: {location}
+      Onboarding Date: {run_date}
+
+      Infrastructure Created:
+      - BigQuery Dataset: {dataset_id}
+      - Metadata Tables: 5 tables (x_meta_*)
+      - API Key: Generated (check onboarding response)
+
+      Next Steps:
+      1. Save your API key securely (shown once during onboarding)
+      2. Configure your pipelines in configs/{provider}/{domain}/
+      3. Run your first pipeline:
+         POST /api/v1/pipelines/run/{tenant_id}/gcp/cost/cost_billing
+
+      Documentation: https://github.com/your-org/convergence-data-pipeline
+
+      Questions? Contact: {admin_email}
+
+  # Step 3: Notification on failure
+  - step_id: "notify_on_failure"
+    name: "Send Failure Notification"
+    ps_type: "shared.email_notification"
+    trigger: "on_failure"
+
+    to_emails:
+      - "{admin_email}"
+      - "data-ops@example.com"  # System admin email
+
+    subject: "[ALERT] Tenant Onboarding Failed - {tenant_id}"
+
+    message: |
+      ALERT: Tenant onboarding has failed!
+
+      Tenant ID: {tenant_id}
+      Pipeline: {pipeline_id}
+      Run Date: {run_date}
+      Trigger By: {trigger_by}
+
+      Please investigate the logs in:
+      {gcp_project_id}.{dataset_id}.x_meta_step_logs
+
+      Or check the onboarding endpoint logs.
