@@ -65,6 +65,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 EXPOSE 8080
 
 # Run FastAPI with Uvicorn
-# Use shell entrypoint to allow environment variable substitution
-ENTRYPOINT ["/bin/sh", "-c"]
-CMD ["uvicorn src.app.main:app --host 0.0.0.0 --port ${PORT:-8080} --workers 1"]
+# Use shell form to allow environment variable substitution
+CMD uvicorn src.app.main:app --host 0.0.0.0 --port ${PORT:-8080} --workers 1

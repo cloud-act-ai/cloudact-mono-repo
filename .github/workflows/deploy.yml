@@ -9,19 +9,19 @@ on:
       environment:
         description: 'Environment to deploy'
         required: true
-        default: 'stage'
+        default: 'staging'
         type: choice
         options:
-          - stage
-          - prod
+          - staging
+          - production
 
 jobs:
   deploy:
-    name: Deploy to ${{ github.event.inputs.environment || 'stage' }}
+    name: Deploy to ${{ github.event.inputs.environment || 'staging' }}
     runs-on: ubuntu-latest
 
     env:
-      ENVIRONMENT: ${{ github.event.inputs.environment || 'stage' }}
+      ENVIRONMENT: ${{ github.event.inputs.environment || 'staging' }}
 
     steps:
       - name: Checkout code
@@ -29,7 +29,7 @@ jobs:
 
       - name: Set environment variables
         run: |
-          if [ "${{ env.ENVIRONMENT }}" = "prod" ]; then
+          if [ "${{ env.ENVIRONMENT }}" = "production" ]; then
             echo "GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID_PROD }}" >> $GITHUB_ENV
             echo "SERVICE_NAME=convergence-pipeline-prod" >> $GITHUB_ENV
           else
@@ -39,13 +39,13 @@ jobs:
           echo "REGION=us-central1" >> $GITHUB_ENV
 
       - name: Authenticate to Google Cloud (Stage)
-        if: github.event.inputs.environment != 'prod'
+        if: github.event.inputs.environment != 'production'
         uses: google-github-actions/auth@v1
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY_STAGE }}
 
       - name: Authenticate to Google Cloud (Prod)
-        if: github.event.inputs.environment == 'prod'
+        if: github.event.inputs.environment == 'production'
         uses: google-github-actions/auth@v1
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY_PROD }}
