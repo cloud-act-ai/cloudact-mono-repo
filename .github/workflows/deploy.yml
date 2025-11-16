@@ -77,7 +77,8 @@ jobs:
             --cpu=2 \
             --timeout=300 \
             --max-instances=10 \
-            --set-env-vars="GCP_PROJECT_ID=${{ env.GCP_PROJECT_ID }},BIGQUERY_LOCATION=US,ENVIRONMENT=${{ env.ENVIRONMENT }}"
+            --port=8080 \
+            --set-env-vars="GCP_PROJECT_ID=${{ env.GCP_PROJECT_ID }},BIGQUERY_LOCATION=US,ENVIRONMENT=${{ env.ENVIRONMENT }},DISABLE_AUTH=true"
 
       - name: Get Service URL
         id: get-url
