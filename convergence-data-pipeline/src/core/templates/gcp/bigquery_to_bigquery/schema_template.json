@@ -1,0 +1,26 @@
+{
+  "description": "Schema template for BigQuery destination tables",
+  "schemas": {
+    "billing_cost": {
+      "description": "GCP billing cost data schema",
+      "fields": [
+        {
+          "name": "billing_account_id",
+          "type": "STRING",
+          "mode": "NULLABLE",
+          "description": "GCP billing account identifier"
+        },
+        {
+          "name": "cost",
+          "type": "FLOAT64",
+          "mode": "NULLABLE",
+          "description": "Cost amount in USD"
+        }
+      ]
+    },
+    "default": {
+      "description": "Default schema - auto-detected from query results",
+      "fields": []
+    }
+  }
+}

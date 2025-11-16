@@ -1,0 +1,35 @@
+ps_type: "shared.email_notification"
+name: "Email Notification"
+description: "Send email notifications for pipeline events (supports Gmail SMTP, AWS SES, SendGrid)"
+version: "1.0.0"
+provider: "shared"
+
+# Engine to process this template
+engine: "src.core.engines.shared.email_notification"
+
+# Required parameters
+required_params:
+  - to_emails
+  - trigger
+
+# Optional parameters
+optional_params:
+  - subject_template
+  - body_template
+  - from_email
+  - cc_emails
+  - bcc_emails
+
+# Supported triggers
+supported_triggers:
+  - on_failure
+  - on_success
+  - on_completion
+  - always
+
+# Features
+features:
+  html_formatting: true
+  template_variables: true
+  attachment_support: false
+  multi_provider: true

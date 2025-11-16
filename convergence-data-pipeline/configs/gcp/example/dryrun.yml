@@ -5,7 +5,7 @@ description: "Onboarding validation pipeline to test BigQuery infrastructure"
 steps:
   - step_id: "dryrun_test"
     name: "dryrun_test"
-    type: "bigquery_to_bigquery"
+    ps_type: "gcp.bigquery_to_bigquery"
     source:
       bq_project_id: "gac-prod-471220"
       query: |

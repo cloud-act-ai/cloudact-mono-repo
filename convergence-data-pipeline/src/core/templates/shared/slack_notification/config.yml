@@ -1,0 +1,35 @@
+ps_type: "shared.slack_notification"
+name: "Slack Notification"
+description: "Send Slack notifications for pipeline events via webhooks"
+version: "1.0.0"
+provider: "shared"
+
+# Engine to process this template
+engine: "src.core.engines.shared.slack_notification"
+
+# Required parameters
+required_params:
+  - webhook_url
+  - trigger
+
+# Optional parameters
+optional_params:
+  - channel
+  - username
+  - icon_emoji
+  - mention_users
+  - mention_channels
+
+# Supported triggers
+supported_triggers:
+  - on_failure
+  - on_success
+  - on_completion
+  - always
+
+# Features
+features:
+  block_kit_formatting: true
+  template_variables: true
+  mentions_support: true
+  thread_support: false

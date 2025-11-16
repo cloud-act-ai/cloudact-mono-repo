@@ -287,7 +287,7 @@ curl -s -X POST "http://localhost:8080/api/v1/pipelines/run/wrong_tenant/gcp/exa
 # 4. Test successful run
 echo -e "\n\nTest 3: Successful Run (expect 200)..."
 curl -s -X POST "http://localhost:8080/api/v1/pipelines/run/test_pipeline_user/gcp/example/dryrun" \
-  -H "X-API-Key: ${API_KEY}" \
+  -H "X-API-Key: test_pipeline_user_api_gk0-XpfwlY0rewD7" \
   -H "Content-Type: application/json" \
   -d '{"date": "2025-11-16", "trigger_by": "guru.kallam@gmail.com"}' | jq .
 ```

@@ -6,6 +6,7 @@ Orchestrates multi-step pipelines with data quality validation.
 import yaml
 import uuid
 import asyncio
+import importlib
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 from pathlib import Path
@@ -86,6 +87,43 @@ class PipelineExecutor:
             asyncio.set_event_loop(loop)
 
         return loop.run_until_complete(coro)
+
+    def _load_engine(self, ps_type: str):
+        """
+        Dynamically load engine for given ps_type.
+
+        Args:
+            ps_type: Pipeline step type with provider prefix (e.g., "gcp.bigquery_to_bigquery", "shared.email_notification")
+
+        Returns:
+            Engine instance with execute() method
+
+        Raises:
+            ImportError: If engine module cannot be loaded
+            AttributeError: If engine doesn't have get_engine() function
+        """
+        # Convert ps_type to module path
+        # "gcp.bigquery_to_bigquery" -> "src.core.engines.gcp.bigquery_to_bigquery"
+        # "shared.email_notification" -> "src.core.engines.shared.email_notification"
+        module_name = f"src.core.engines.{ps_type}"
+
+        try:
+            # Dynamically import engine module
+            engine_module = importlib.import_module(module_name)
+
+            # Get engine instance from get_engine() factory function
+            if not hasattr(engine_module, 'get_engine'):
+                raise AttributeError(f"Engine module {module_name} must have get_engine() function")
+
+            engine = engine_module.get_engine()
+            self.logger.info(f"Loaded engine for ps_type: {ps_type}", module=module_name)
+
+            return engine
+
+        except ImportError as e:
+            self.logger.error(f"Failed to import engine for ps_type: {ps_type}", error=str(e))
+            raise ImportError(f"No engine found for ps_type '{ps_type}'. "
+                              f"Expected module at {module_name}") from e
 
     def load_config(self, parameters: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
@@ -230,19 +268,23 @@ class PipelineExecutor:
 
     def _execute_step(self, step_config: Dict[str, Any], step_index: int) -> None:
         """
-        Execute a single pipeline step with metadata logging.
+        Execute a single pipeline step with metadata logging using dynamic engine loading.
 
         Args:
             step_config: Step configuration from YAML
             step_index: Step position in pipeline (0-indexed)
         """
         step_id = step_config['step_id']
-        step_type = step_config['type']
+        # Use ps_type instead of type (backward compatible - falls back to type if ps_type not found)
+        ps_type = step_config.get('ps_type', step_config.get('type'))
+
+        if not ps_type:
+            raise ValueError(f"Step {step_id} must have 'ps_type' field defined")
 
         # Create unique step logging ID
         step_logging_id = str(uuid.uuid4())
 
-        self.logger.info(f"Starting step: {step_id}", step_type=step_type)
+        self.logger.info(f"Starting step: {step_id}", ps_type=ps_type)
 
         step_start = datetime.utcnow()
         step_status = "RUNNING"
@@ -257,35 +299,50 @@ class PipelineExecutor:
                     step_logging_id=step_logging_id,
                     pipeline_logging_id=self.pipeline_logging_id,
                     step_name=step_id,
-                    step_type=step_type,
+                    step_type=ps_type,
                     step_index=step_index,
                     metadata=step_config.get('metadata', {})
                 )
             )
 
-            # Execute step based on type
-            if step_type == "bigquery_to_bigquery":
-                result = self._execute_bq_to_bq_step(step_config)
-                rows_processed = result.get('rows_written', 0)
-                step_metadata = {
-                    'destination_table': result.get('destination_table'),
-                    'bytes_processed': result.get('bytes_processed')
-                }
+            # Build execution context
+            context = {
+                'tenant_id': self.tenant_id,
+                'pipeline_id': self.pipeline_id,
+                'pipeline_logging_id': self.pipeline_logging_id,
+                'step_logging_id': step_logging_id,
+                'step_index': step_index,
+                'pipeline_status': self.status,
+                'parameters': self.config.get('parameters', {})
+            }
 
-            elif step_type == "data_quality":
-                result = self._execute_dq_step(step_config)
-                step_metadata = result
+            # Load engine dynamically based on ps_type
+            engine = self._load_engine(ps_type)
 
-            else:
-                raise ValueError(f"Unknown step type: {step_type}")
+            # Execute step using engine
+            self.logger.info(f"Executing step with engine: {ps_type}")
+            result = self._run_async(engine.execute(step_config, context))
+
+            # Extract metrics from result
+            rows_processed = result.get('rows_processed', result.get('rows_written', 0))
+            step_metadata = result
 
             step_status = "COMPLETED"
-            self.logger.info(f"Completed step: {step_id}")
+            self.logger.info(f"Completed step: {step_id}", result=result)
 
         except Exception as e:
             step_status = "FAILED"
             error_message = str(e)
             self.logger.error(f"Step {step_id} failed: {e}", exc_info=True)
+
+            # Update context with error for notification steps
+            if hasattr(self, '_error_context'):
+                self._error_context = {
+                    'error_message': error_message,
+                    'failed_step': step_id,
+                    'pipeline_status': 'FAILED'
+                }
+
             raise
 
         finally:
@@ -297,7 +354,7 @@ class PipelineExecutor:
                     step_logging_id=step_logging_id,
                     pipeline_logging_id=self.pipeline_logging_id,
                     step_name=step_id,
-                    step_type=step_type,
+                    step_type=ps_type,
                     step_index=step_index,
                     status=step_status,
                     start_time=step_start,
@@ -311,7 +368,7 @@ class PipelineExecutor:
             self.step_results.append({
                 'step_logging_id': step_logging_id,
                 'step_id': step_id,
-                'step_type': step_type,
+                'ps_type': ps_type,
                 'status': step_status,
                 'start_time': step_start,
                 'end_time': step_end,

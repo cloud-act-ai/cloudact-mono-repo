@@ -196,7 +196,14 @@ class PipelineStepConfig(BaseModel):
     step_id: str = Field(..., description="Unique step identifier")
     name: Optional[str] = Field(None, description="Human-readable step name")
     description: Optional[str] = Field(None, description="Step description")
-    type: str = Field(..., description="Step type (e.g., 'bigquery_to_bigquery', 'data_quality')")
+    ps_type: str = Field(..., description="Pipeline step type with provider prefix (e.g., 'gcp.bigquery_to_bigquery', 'shared.email_notification')")
+
+    # Additional fields for any ps_type
+    trigger: Optional[str] = Field(None, description="Notification trigger (on_failure, on_success, etc.)")
+    to_emails: Optional[str | List[str]] = Field(None, description="Email recipients for notifications")
+    subject: Optional[str] = Field(None, description="Email subject for notifications")
+    message: Optional[str] = Field(None, description="Email message for notifications")
+    variables: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Variables for template replacement")
 
     # BigQuery to BigQuery step fields
     # Note: source can be BigQuerySourceConfig OR DataQualitySourceConfig OR dict (for flexibility)
@@ -221,13 +228,12 @@ class PipelineStepConfig(BaseModel):
     depends_on: List[str] = Field(default_factory=list, description="List of step IDs this step depends on")
     metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
 
-    @field_validator("type")
+    @field_validator("ps_type")
     @classmethod
-    def validate_step_type(cls, v):
-        """Validate step type is supported."""
-        valid_types = ["bigquery_to_bigquery", "data_quality", "ingest", "dq_check", "transform"]
-        if v not in valid_types:
-            raise ValueError(f"Unsupported step type: {v}. Valid types: {valid_types}")
+    def validate_ps_type(cls, v):
+        """Validate ps_type follows provider.template_name format."""
+        if "." not in v:
+            raise ValueError(f"ps_type must follow 'provider.template_name' format (e.g., 'gcp.bigquery_to_bigquery'). Got: {v}")
         return v
 
     @field_validator("depends_on")

@@ -155,6 +155,7 @@ await service.notify_pipeline_failure(
 
 ### Documentation
 - **[Testing Guide](testing/README.md)** - Complete testing documentation
+- **[Pipeline Testing Guide](guides/PIPELINE_TESTING_GUIDE.md)** - End-to-end pipeline testing with dryrun.yml
 
 ### Test Coverage
 - Unit tests for core modules
@@ -223,6 +224,7 @@ convergence-data-pipeline/
 - **Configure notifications**: [Notification Configuration](notifications/CONFIGURATION.md)
 - **Set up rate limits**: [Rate Limiting Quick Start](guides/RATE_LIMITING_QUICK_START.md)
 - **Deploy to production**: [Deployment Guide](guides/DEPLOYMENT_GUIDE.md)
+- **Test pipelines end-to-end**: [Pipeline Testing Guide](guides/PIPELINE_TESTING_GUIDE.md)
 - **Troubleshoot issues**: Check logs, see [Monthly Testing Guide](guides/MONTHLY_TESTING_GUIDE.md)
 
 ### External Resources

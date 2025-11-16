@@ -34,6 +34,7 @@ docs/
 - ✅ `MONTHLY_TESTING_GUIDE.md` → `docs/guides/`
 - ✅ `HANDS_OFF_IMPLEMENTATION.md` → `docs/guides/`
 - ✅ `RATE_LIMITING_QUICK_START.md` → `docs/guides/`
+- ✅ `PIPELINE_TESTING_GUIDE.md` → `docs/guides/`
 - ✅ `RATE_LIMITS_REFERENCE.md` → `docs/reference/`
 - ✅ `RATE_LIMITING.md` → `docs/reference/`
 - ✅ `NOTIFICATION_SYSTEM_IMPLEMENTATION.md` → `docs/notifications/`
@@ -107,6 +108,7 @@ convergence-data-pipeline/
 │   │   ├── ONBOARDING.md
 │   │   ├── GCP_NAVIGATION_GUIDE.md
 │   │   ├── MONTHLY_TESTING_GUIDE.md
+│   │   ├── PIPELINE_TESTING_GUIDE.md
 │   │   ├── HANDS_OFF_IMPLEMENTATION.md
 │   │   └── RATE_LIMITING_QUICK_START.md
 │   │
