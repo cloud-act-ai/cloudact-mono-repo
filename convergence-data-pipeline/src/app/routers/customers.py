@@ -175,14 +175,15 @@ async def onboard_customer(
 
         insert_query = f"""
         INSERT INTO `{settings.gcp_project_id}.{tenant_id}.api_keys`
-        (api_key_id, api_key_hash, encrypted_api_key, created_at, is_active)
+        (api_key_id, tenant_id, api_key_hash, encrypted_api_key, created_at, is_active)
         VALUES
-        (@api_key_id, @api_key_hash, @encrypted_api_key, CURRENT_TIMESTAMP(), TRUE)
+        (@api_key_id, @tenant_id, @api_key_hash, @encrypted_api_key, CURRENT_TIMESTAMP(), TRUE)
         """
 
         job_config = bigquery.QueryJobConfig(
             query_parameters=[
                 bigquery.ScalarQueryParameter("api_key_id", "STRING", api_key_id),
+                bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
                 bigquery.ScalarQueryParameter("api_key_hash", "STRING", api_key_hash),
                 bigquery.ScalarQueryParameter("encrypted_api_key", "BYTES", encrypted_api_key_bytes),
             ]

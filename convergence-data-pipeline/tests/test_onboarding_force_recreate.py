@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
-Test Onboarding with Force Recreation
-This script onboards 5 customers with force_recreate options enabled,
+Test Onboarding with Configurable Force Recreation
+This script onboards 5 customers with force_recreate options,
 then runs a sample pipeline for each customer to validate infrastructure.
+The force recreation flags can be configured in the test (default: false).
 
 Usage: python tests/test_onboarding_force_recreate.py
 """
@@ -55,7 +56,7 @@ async def onboard_customer(session: aiohttp.ClientSession, tenant_id: str) -> Tu
     payload = {
         "tenant_id": tenant_id,
         "force_recreate_dataset": False,
-        "force_recreate_tables": False
+        "force_recreate_tables": True
     }
 
     try:
@@ -88,9 +89,10 @@ async def onboard_customer(session: aiohttp.ClientSession, tenant_id: str) -> Tu
         return (tenant_id, {"error": str(e)}, False)
 
 
-async def run_sample_pipeline(session: aiohttp.ClientSession, tenant_id: str, api_key: str) -> Tuple[str, Dict, bool]:
+async def run_sample_pipeline(tenant_id: str, api_key: str) -> Tuple[str, Dict, bool]:
     """
     Run sample pipeline for a customer.
+    Creates a fresh session for each request to avoid authentication caching.
 
     Returns:
         Tuple of (tenant_id, response_data, success)
@@ -98,6 +100,7 @@ async def run_sample_pipeline(session: aiohttp.ClientSession, tenant_id: str, ap
     log_file = LOG_DIR / f"{tenant_id}_pipeline.json"
 
     print(f"{Colors.BLUE}[{tenant_id}] Running sample pipeline...{Colors.NC}")
+    print(f"{Colors.YELLOW}[DEBUG] Using API key: {api_key[:30]}...{Colors.NC}")
 
     # Run dryrun pipeline
     pipeline_endpoint = f"{API_BASE_URL}/api/v1/pipelines/run/{tenant_id}/gcp/example/dryrun"
@@ -108,27 +111,29 @@ async def run_sample_pipeline(session: aiohttp.ClientSession, tenant_id: str, ap
     }
 
     try:
-        async with session.post(pipeline_endpoint, json={}, headers=headers) as response:
-            response_data = await response.json()
+        # Create a fresh session for each pipeline request to avoid authentication caching
+        async with aiohttp.ClientSession() as fresh_session:
+            async with fresh_session.post(pipeline_endpoint, json={}, headers=headers) as response:
+                response_data = await response.json()
 
-            # Save response to log file
-            with open(log_file, 'w') as f:
-                json.dump(response_data, f, indent=2)
+                # Save response to log file
+                with open(log_file, 'w') as f:
+                    json.dump(response_data, f, indent=2)
 
-            # Check if successful
-            if 'pipeline_logging_id' in response_data:
-                pipeline_id = response_data.get('pipeline_logging_id', '')
-                status = response_data.get('status', 'UNKNOWN')
+                # Check if successful
+                if 'pipeline_logging_id' in response_data:
+                    pipeline_id = response_data.get('pipeline_logging_id', '')
+                    status = response_data.get('status', 'UNKNOWN')
 
-                print(f"{Colors.GREEN}[{tenant_id}] ✓ Pipeline started successfully{Colors.NC}")
-                print(f"{Colors.GREEN}[{tenant_id}]   - Pipeline ID: {pipeline_id}{Colors.NC}")
-                print(f"{Colors.GREEN}[{tenant_id}]   - Status: {status}{Colors.NC}")
+                    print(f"{Colors.GREEN}[{tenant_id}] ✓ Pipeline started successfully{Colors.NC}")
+                    print(f"{Colors.GREEN}[{tenant_id}]   - Pipeline ID: {pipeline_id}{Colors.NC}")
+                    print(f"{Colors.GREEN}[{tenant_id}]   - Status: {status}{Colors.NC}")
 
-                return (tenant_id, response_data, True)
-            else:
-                print(f"{Colors.YELLOW}[{tenant_id}] ⚠ Pipeline test skipped or failed{Colors.NC}")
-                print(f"{Colors.YELLOW}[{tenant_id}] Response: {response_data}{Colors.NC}")
-                return (tenant_id, response_data, False)
+                    return (tenant_id, response_data, True)
+                else:
+                    print(f"{Colors.YELLOW}[{tenant_id}] ⚠ Pipeline test skipped or failed{Colors.NC}")
+                    print(f"{Colors.YELLOW}[{tenant_id}] Response: {response_data}{Colors.NC}")
+                    return (tenant_id, response_data, False)
 
     except Exception as e:
         print(f"{Colors.YELLOW}[{tenant_id}] ⚠ Exception during pipeline test: {e}{Colors.NC}")
@@ -148,14 +153,16 @@ async def main():
 
     # Create aiohttp session
     async with aiohttp.ClientSession() as session:
-        # Step 1: Onboard all customers in parallel
+        # Step 1: Onboard all customers sequentially (to avoid race conditions with API key storage)
         print(f"{Colors.BLUE}========================================{Colors.NC}")
-        print(f"{Colors.BLUE}Step 1: Onboarding Customers (Parallel){Colors.NC}")
+        print(f"{Colors.BLUE}Step 1: Onboarding Customers (Sequential){Colors.NC}")
         print(f"{Colors.BLUE}========================================{Colors.NC}")
         print()
 
-        onboarding_tasks = [onboard_customer(session, tenant_id) for tenant_id in CUSTOMERS]
-        onboarding_results = await asyncio.gather(*onboarding_tasks)
+        onboarding_results = []
+        for tenant_id in CUSTOMERS:
+            result = await onboard_customer(session, tenant_id)
+            onboarding_results.append(result)
 
         print()
         print(f"{Colors.GREEN}✓ All onboarding requests completed{Colors.NC}")
@@ -166,6 +173,12 @@ async def main():
         for tenant_id, response_data, success in onboarding_results:
             if success and 'api_key' in response_data:
                 customer_api_keys[tenant_id] = response_data['api_key']
+                print(f"{Colors.YELLOW}[DEBUG] Stored API key for {tenant_id}: {response_data['api_key'][:30]}...{Colors.NC}")
+
+        # Debug: Print all collected API keys
+        print(f"{Colors.YELLOW}[DEBUG] Total API keys collected: {len(customer_api_keys)}{Colors.NC}")
+        for tid, key in customer_api_keys.items():
+            print(f"{Colors.YELLOW}[DEBUG] {tid} -> {key[:30]}...{Colors.NC}")
 
         # Small delay to ensure all responses are processed
         await asyncio.sleep(2)
@@ -179,7 +192,7 @@ async def main():
         pipeline_results = []
         for tenant_id in CUSTOMERS:
             if tenant_id in customer_api_keys:
-                result = await run_sample_pipeline(session, tenant_id, customer_api_keys[tenant_id])
+                result = await run_sample_pipeline(tenant_id, customer_api_keys[tenant_id])
                 pipeline_results.append(result)
             else:
                 print(f"{Colors.RED}[{tenant_id}] ✗ Skipping pipeline test (no API key){Colors.NC}")

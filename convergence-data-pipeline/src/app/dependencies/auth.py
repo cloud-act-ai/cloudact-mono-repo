@@ -140,7 +140,7 @@ async def get_tenant_from_api_key(
         for row in datasets:
             tenant_id = row['table_schema']
             union_parts.append(f"""
-                SELECT '{tenant_id}' as tenant_id, is_active
+                SELECT tenant_id, is_active
                 FROM `{settings.gcp_project_id}.{tenant_id}.api_keys`
                 WHERE api_key_hash = @api_key_hash
             """)

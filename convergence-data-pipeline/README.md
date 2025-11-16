@@ -1,1163 +1,878 @@
 # Convergence Data Pipeline
 
-## Technical Executive Summary
+> **Multi-tenant SaaS platform for GCP billing and cost data processing**
 
-Convergence Data Pipeline is an enterprise-grade, **multi-tenant** data ingestion platform designed to unify disparate cost and utilization data streams from multiple cloud and AI providers (OpenAI, Claude, Google) into a central **BigQuery data lake**.
+## What This Platform Does
 
-This project is built on four core principles:
-
-1. **Multi-Tenant Architecture**: Complete tenant isolation with auto-provisioning of metadata infrastructure
-2. **Config-as-Code (CaC) Framework**: Engineers define source configs, data quality (DQ) rules, and pipeline workflows in declarative YAML files stored in the repository
-3. **Decoupled Worker Architecture**: The system is broken into a lightweight Control Plane (API) and a scalable Data Plane (Async Workers), all deployed as a **single FastAPI application on Cloud Run**
-4. **Observable & Reliable by Design**: Built-in state management, distributed tracing, and structured metadata logging using **BigQuery as the operational database**
+**Two Core Workflows:**
+1. **Customer Onboarding** - Provision isolated infrastructure for new customers
+2. **Pipeline Execution** - Run automated data processing pipelines for customers
 
 ---
 
-## Multi-Tenant Single-Dataset Architecture
+## 1- Customer Onboarding Flow
 
-Each tenant gets their own **single isolated dataset** that contains both metadata and data tables. This simplified architecture is **automatically created** during customer onboarding:
-
-```
-{project_id}/
-├── {tenant_id}/                   # Single dataset per tenant (e.g., acmeinc_23xv2)
-│   ├── api_keys                   # Tenant's API keys (KMS encrypted)
-│   ├── cloud_credentials          # Cloud provider credentials
-│   ├── pipeline_runs              # Pipeline execution tracking
-│   ├── step_logs                  # Detailed step-by-step logs
-│   ├── dq_results                 # Data quality validation results
-│   ├── gcp_billing_export_*       # GCP billing data tables
-│   ├── gcp_usage_analytics        # GCP usage analytics
-│   └── gcp_*                      # Other tenant data tables
-```
-
-### Key Features
-
-- **Auto-Initialization**: Metadata infrastructure is automatically created when a tenant runs their first pipeline
-- **Configuration-Driven**: All table schemas defined in `configs/metadata/schemas/` as JSON files
-- **Complete Isolation**: Each tenant's data and metadata are completely isolated
-- **JSON Type Support**: Flexible parameter and metadata storage using BigQuery JSON type
-- **No Manual Setup**: Zero manual configuration required for new tenants
-- **Development Mode**: Authentication can be disabled for local development (`DISABLE_AUTH=true`)
-
-**Documentation**: See [`docs/metadata-schema.md`](docs/metadata-schema.md) for complete schema reference.
-
----
-
-## GCP-Native Architecture
-
-This platform is **100% Google Cloud Platform (GCP)** native with no external databases or orchestrators:
-
-| Component | GCP Service | Purpose |
-|-----------|-------------|---------|
-| **Compute** | Cloud Run | Single FastAPI service (API + async workers) |
-| **Data Lake** | BigQuery (US multi-region) | All data storage including operational metadata |
-| **Orchestration** | Cloud Scheduler | Triggers pipelines via HTTP POST |
-| **Message Queue** | Cloud Tasks / Pub/Sub | Async task distribution to workers |
-| **Secrets** | Cloud Secret Manager | API keys, service account keys |
-| **Config Storage** | Repository (configs/) | Version-controlled YAML configs |
-| **Schema Definitions** | Repository (configs/) | BigQuery schemas as JSON files |
-| **Deployment** | Cloud Build | CI/CD triggered by GitHub push to `main` |
-| **Authentication** | Service Accounts | Both local (`~/gcp/*.json`) and Cloud Run |
-| **Monitoring** | Cloud Logging + Error Reporting | Structured JSON logs with trace correlation |
-
-### Architecture Diagram
-
-```mermaid
-graph TD
-    subgraph "Trigger Layer"
-        CS[Cloud Scheduler]
-        USER[API User]
-    end
-
-    subgraph "Cloud Run (Single Service)"
-        API[FastAPI App<br/>POST /pipelines/run/:id]
-        API --> QUEUE[Cloud Tasks Queue]
-        QUEUE --> OW[Orchestrator Worker]
-        OW --> IW[Ingest Worker]
-        OW --> DQW[DQ Worker]
-        OW --> TW[Transform Worker]
-    end
-
-    subgraph "BigQuery (US Multi-Region)"
-        META[(metadata.pipeline_runs<br/>Operational State)]
-        RAW_OPENAI[(raw_openai.*<br/>OpenAI Cost Data)]
-        RAW_GOOGLE[(raw_google.*<br/>Google Cloud Cost Data)]
-        SILVER[(silver_*<br/>Transformed Data)]
-    end
-
-    subgraph "Config Store (Repository)"
-        CONFIGS[configs/openai/sources/*.yml<br/>configs/google/schemas/*.json]
-    end
-
-    CS -->|POST /pipelines/run/p_openai_billing| API
-    USER -->|HTTP Request| API
-
-    API -->|1. Create Run Record| META
-    OW -->|2. Update Status| META
-    IW -->|3. Load Data| RAW_OPENAI
-    IW --> RAW_GOOGLE
-    DQW -->|4. Validate| RAW_OPENAI
-    TW -->|5. Transform| SILVER
-
-    OW -.->|Read Pipeline Config| CONFIGS
-    IW -.->|Read Source Config + Schema| CONFIGS
-```
-
----
-
-## Core Technical Stack
-
-### Application Layer
-- **FastAPI**: Async HTTP API + background task orchestration
-- **Celery** or **Arq**: Async worker framework (backed by Redis or Cloud Tasks)
-- **Pydantic**: Config validation and data modeling
-- **Polars**: High-performance in-memory data transformations (replaces Pandas)
-
-### Data Layer (100% BigQuery)
-- **BigQuery Python Client**: All DDL, DML, schema management
-- **Datasets**: Domain-based (`raw_openai`, `raw_google`, `silver_`, `gold_`, `metadata`)
-- **Location**: `US` (multi-region for high availability)
-- **Partitioning**: All raw tables partitioned by `ingestion_date` (DATE column)
-
-### Observability
-- **Cloud Logging**: Structured JSON logs with `trace_id` injection
-- **OpenTelemetry**: Distributed tracing across API → Workers → BigQuery
-- **Error Reporting**: Automatic exception tracking
-
----
-
-## BigQuery Schema Management
-
-### Schema Definition Strategy
-
-All BigQuery schemas are defined as **JSON files** in the repository under `configs/{domain}/schemas/`:
+### What Happens When You Onboard a Customer?
 
 ```
-configs/
-├── openai/
-│   ├── sources/
-│   │   └── billing_usage.yml        # Ingest config references schema below
-│   └── schemas/
-│       └── focus_cost.json          # BigQuery schema definition
-├── google/
-│   ├── sources/
-│   │   └── cloud_billing.yml
-│   └── schemas/
-│       └── billing_export.json
-└── metadata/
-    └── schemas/
-        └── pipeline_runs.json       # Operational metadata table
+Step 1: API Request
+  ↓
+Step 2: Create BigQuery Dataset
+  ↓
+Step 3: Create Metadata Tables
+  ↓
+Step 4: Generate & Encrypt API Key
+  ↓
+Step 5: Run Validation Pipeline
+  ↓
+Step 6: Return API Key
 ```
 
-### Schema File Format
+### 1-1. Trigger Customer Onboarding
 
-Example: `configs/openai/schemas/focus_cost.json`
-
-```json
-[
-  {
-    "name": "billing_date",
-    "type": "DATE",
-    "mode": "REQUIRED",
-    "description": "The date of the billing record"
-  },
-  {
-    "name": "organization_id",
-    "type": "STRING",
-    "mode": "REQUIRED"
-  },
-  {
-    "name": "usage_amount",
-    "type": "FLOAT64",
-    "mode": "NULLABLE"
-  },
-  {
-    "name": "cost_usd",
-    "type": "NUMERIC",
-    "mode": "REQUIRED",
-    "description": "Total cost in USD (precision: 2 decimal places)"
-  },
-  {
-    "name": "ingestion_date",
-    "type": "DATE",
-    "mode": "REQUIRED",
-    "description": "Partition column for table partitioning"
-  },
-  {
-    "name": "ingestion_timestamp",
-    "type": "TIMESTAMP",
-    "mode": "REQUIRED",
-    "description": "When this record was ingested"
-  }
-]
-```
-
-### Schema Application via Python Client
-
-The **Ingest Worker** applies schemas programmatically using the BigQuery Python client:
-
-```python
-from google.cloud import bigquery
-
-def create_or_update_table(dataset_id: str, table_id: str, schema_path: str):
-    """
-    Creates or updates a BigQuery table with schema from JSON file.
-
-    Args:
-        dataset_id: e.g., "raw_openai"
-        table_id: e.g., "usage_logs"
-        schema_path: e.g., "configs/openai/schemas/focus_cost.json"
-    """
-    client = bigquery.Client()
-
-    # Load schema from JSON file
-    with open(schema_path) as f:
-        schema_json = json.load(f)
-
-    schema = [bigquery.SchemaField.from_api_repr(field) for field in schema_json]
-
-    # Define table with partitioning
-    table_ref = f"{client.project}.{dataset_id}.{table_id}"
-    table = bigquery.Table(table_ref, schema=schema)
-
-    # Partition by ingestion_date
-    table.time_partitioning = bigquery.TimePartitioning(
-        type_=bigquery.TimePartitioningType.DAY,
-        field="ingestion_date"
-    )
-
-    # Create or update table (idempotent)
-    table = client.create_table(table, exists_ok=True)
-
-    return table
-```
-
-### Schema Versioning
-
-- **No Alembic/Migration Tool**: Schemas are managed via **idempotent DDL** in Python
-- **Schema Evolution**:
-  - Add new columns: Use `ALTER TABLE` via BigQuery client
-  - Breaking changes: Create new table with version suffix (`usage_logs_v2`)
-- **Git as Source of Truth**: All schema changes committed to `main` branch
-
----
-
-## Pipeline State Management (BigQuery)
-
-All pipeline execution state is stored in BigQuery `pipeline_runs` tables. Features:
-
-- **Duplicate Detection**: Atomic BigQuery operations prevent concurrent pipeline execution for same pipeline_id
-- **Concurrency Control**: Single pipeline instance per tenant via BigQuery transactional queries
-- **Run Tracking**: Pipeline status (PENDING, RUNNING, COMPLETE, FAILED), duration, and error logging
-- **Multi-tenant Isolation**: Separate `{tenant}_metadata.pipeline_runs` tables per tenant
-- **Step Logging**: Detailed execution steps stored in JSON `run_metadata` column
-- **Partitioning**: Daily partitions by `start_time` for efficient queries
-- **run_date Support**: Business date tracking via `run_date DATE` column (extracted from parameters)
-
----
-
-## Dataset Organization
-
-### Multi-Tenant Dataset Structure
-
-BigQuery datasets are organized by **tenant and data source domain** for complete tenant isolation:
-
-```
-{project_id}.{tenant_id}_metadata.*       # Tenant metadata (auto-created)
-{project_id}.{tenant_id}_raw_openai.*     # Tenant's OpenAI data
-{project_id}.{tenant_id}_raw_google.*     # Tenant's Google Cloud data
-{project_id}.{tenant_id}_raw_anthropic.*  # Tenant's Claude data
-{project_id}.{tenant_id}_silver_cost.*    # Tenant's normalized cost data
-{project_id}.{tenant_id}_gold_reporting.* # Tenant's business reports
-```
-
-**Example for tenant `acme1281`:**
-```
-gac-prod-471220.acme1281_metadata.*
-gac-prod-471220.acme1281_raw_openai.*
-gac-prod-471220.acme1281_raw_google.*
-gac-prod-471220.acme1281_silver_cost.*
-```
-
-### Table Naming Conventions
-
-- **Metadata**: `{tenant_id}_metadata.{table}` → `acme1281_metadata.pipeline_runs`
-- **Raw Layer**: `{tenant_id}_raw_{provider}.{entity}` → `acme1281_raw_openai.usage_logs`
-- **Silver Layer**: `{tenant_id}_silver_{domain}.{entity}` → `acme1281_silver_cost.unified_daily`
-- **Gold Layer**: `{tenant_id}_gold_{business_area}.{report}` → `acme1281_gold_reporting.monthly_spend`
-
-### Standard Table Features
-
-All raw tables include:
-- **Partitioning**: By `ingestion_date` (DATE column, day granularity)
-- **Clustering**: By frequently filtered columns (e.g., `organization_id`, `project_id`)
-- **Metadata Columns**:
-  - `ingestion_date DATE` (partition key)
-  - `ingestion_timestamp TIMESTAMP` (exact load time)
-  - `pipeline_logging_id STRING` (links to `metadata.pipeline_runs`)
-
----
-
-## Pipeline Configuration Structure
-
-The Convergence Data Pipeline uses a **pipeline-as-config** approach where each pipeline is completely self-contained in its own folder with all configuration files co-located.
-
-### Directory Structure
-
-Pipelines are organized under: `configs/{tenant_id}/{cloud_provider}/{domain}/{pipeline_name}/`
-
-Each pipeline folder contains:
-- **Pipeline YAML** - Main pipeline configuration
-- **DQ Config YAML** - Data quality rules
-- **Output Schema JSON** - BigQuery table schema definition
-
-**Current Structure:**
-```
-configs/acme1281/gcp/cost/
-├── gcp_billing_export/
-│   ├── gcp_billing_export.yml                    # Pipeline config
-│   ├── gcp_billing_export_dq.yml                 # Data quality rules
-│   └── gcp_billing_export_output_schema.json     # Output table schema
-│
-└── gcp_pricing_calculation/
-    ├── gcp_pricing_calculation.yml               # Pipeline config
-    ├── gcp_pricing_calculation_dq.yml            # Data quality rules
-    ├── gcp_pricing_calculation_raw_output_schema.json    # Raw output schema
-    └── gcp_pricing_calculation_final_output_schema.json  # Final output schema
-```
-
-### Key Principles
-
-1. **Self-Contained Pipelines**: Each pipeline folder contains ALL its configuration files - no external dependencies or shared configs (except metadata schemas).
-
-2. **Relative Path References**: All paths in pipeline YAMLs are relative to the pipeline folder:
-   ```yaml
-   dq_config: "gcp_billing_export_dq.yml"          # Not full path
-   schema_file: "gcp_billing_export_output_schema.json"
-   ```
-
-3. **Dynamic Discovery**: System finds pipelines automatically using glob pattern `**/{pipeline_id}.yml` - no central registration needed.
-
-4. **Schema-Driven Tables**: Output tables are created from JSON schema files, ensuring consistency between config and actual table structure.
-
-### Pipeline YAML Structure
-
-Each pipeline YAML defines source queries, transformations, and destinations:
-
-```yaml
-pipeline_id: gcp_billing_export
-source:
-  type: bigquery
-  project_id: gac-prod-471220
-  dataset: billing
-  table: gcp_billing_export_v1_*
-
-destination:
-  dataset_type: gcp
-  table: example_output
-  write_mode: overwrite
-  recreate: true
-  schema_file: "gcp_billing_export_output_schema.json"  # Relative path
-
-dq_config: "gcp_billing_export_dq.yml"  # Relative path
-```
-
-### Output Schema Files
-
-Schema files define BigQuery table structure in JSON format:
-
-```json
-[
-  {
-    "name": "billing_account_id",
-    "type": "STRING",
-    "mode": "NULLABLE",
-    "description": "Billing account identifier"
-  },
-  {
-    "name": "cost",
-    "type": "FLOAT64",
-    "mode": "NULLABLE",
-    "description": "Cost amount"
-  },
-  {
-    "name": "ingestion_date",
-    "type": "DATE",
-    "mode": "REQUIRED",
-    "description": "Date when data was ingested (partition key)"
-  }
-]
-```
-
-### Triggering Pipelines
-
-Trigger by pipeline ID - system finds config automatically:
+**Endpoint:** `POST /api/v1/customers/onboard`
 
 ```bash
-curl -X POST http://localhost:8000/pipelines/run/gcp_billing_export \
-  -H "Content-Type: application/json"
+curl -X POST "http://localhost:8080/api/v1/customers/onboard" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tenant_id": "acmeinc_23xv2"
+  }'
 ```
 
-### Adding New Pipelines
+**Request Parameters:**
+- `tenant_id` (required) - Unique customer identifier (alphanumeric + underscore, 3-50 chars)
+- `force_recreate_dataset` (optional) - Delete and recreate dataset (⚠️ DESTRUCTIVE)
+- `force_recreate_tables` (optional) - Delete and recreate tables (⚠️ DESTRUCTIVE)
 
-1. Create new folder: `configs/{tenant}/{cloud}/{domain}/{pipeline_name}/`
-2. Add pipeline YAML: `{pipeline_name}.yml`
-3. Add DQ config: `{pipeline_name}_dq.yml`
-4. Add output schema: `{pipeline_name}_output_schema.json`
-5. Use relative paths in YAML
-6. Trigger pipeline - no registration needed
+### 1-2. What Gets Created
 
-For detailed configuration guide, see [`docs/pipeline-configuration.md`](docs/pipeline-configuration.md).
+**1-2-1. BigQuery Dataset**
+```
+Project: gac-prod-471220
+Dataset: acmeinc_23xv2
+Location: US
+Labels: tenant=acmeinc_23xv2
+```
+
+**1-2-2. Metadata Tables** (5 tables created in dataset)
+```
+acmeinc_23xv2.api_keys             # Encrypted API keys
+acmeinc_23xv2.cloud_credentials    # Cloud provider credentials
+acmeinc_23xv2.pipeline_runs        # Pipeline execution tracking
+acmeinc_23xv2.step_logs            # Step-by-step execution logs
+acmeinc_23xv2.dq_results           # Data quality validation results
+```
+
+**1-2-3. API Key Generation**
+```
+Format: {tenant_id}_api_{random_16_chars}
+Example: acmeinc_23xv2_api_xK9mPqWz7LnR4vYt
+
+Security:
+  ├─ SHA256 hash → Stored for fast lookup
+  ├─ KMS encryption → Encrypted storage in BigQuery
+  └─ Show once → Returned only during onboarding
+```
+
+**1-2-4. Validation Pipeline**
+```
+Pipeline: configs/gcp/example/dryrun.yml
+Purpose: Verify infrastructure setup
+Result: SUCCESS or FAILED
+```
+
+### 1-3. Onboarding Response
+
+```json
+{
+  "tenant_id": "acmeinc_23xv2",
+  "api_key": "acmeinc_23xv2_api_xK9mPqWz7LnR4vYt",
+  "dataset_created": true,
+  "tables_created": [
+    "api_keys",
+    "cloud_credentials",
+    "pipeline_runs",
+    "step_logs",
+    "dq_results"
+  ],
+  "dryrun_status": "SUCCESS",
+  "message": "Customer acmeinc_23xv2 onboarded successfully. Save your API key - it will only be shown once!"
+}
+```
+
+**⚠️ CRITICAL:** Save the `api_key` immediately! It's shown only once.
+
+### 1-4. Verify Onboarding
+
+**1-4-1. Check Dataset Created**
+```bash
+bq ls --project_id=gac-prod-471220 | grep acmeinc_23xv2
+```
+
+**1-4-2. Check Tables Created**
+```bash
+bq ls --project_id=gac-prod-471220 acmeinc_23xv2
+```
+
+Expected output:
+```
+api_keys
+cloud_credentials
+pipeline_runs
+step_logs
+dq_results
+```
+
+**1-4-3. Query API Key**
+```sql
+SELECT
+  tenant_id,
+  created_at,
+  is_active
+FROM `gac-prod-471220.acmeinc_23xv2.api_keys`
+LIMIT 1;
+```
+
+### 1-5. Onboarding Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     ONBOARDING REQUEST                       │
+│  POST /api/v1/customers/onboard                             │
+│  {"tenant_id": "acmeinc_23xv2"}                             │
+└─────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────┐
+│  Step 1: CREATE DATASET                                      │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │ BigQuery Client API Call                             │   │
+│  │ dataset_id: acmeinc_23xv2                            │   │
+│  │ location: US                                          │   │
+│  │ labels: {tenant: acmeinc_23xv2}                      │   │
+│  └──────────────────────────────────────────────────────┘   │
+│  File: src/core/engine/bq_client.py                         │
+└─────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────┐
+│  Step 2: CREATE METADATA TABLES                              │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │ Load schemas from:                                    │   │
+│  │   configs/metadata/schemas/api_keys.json             │   │
+│  │   configs/metadata/schemas/cloud_credentials.json    │   │
+│  │   configs/metadata/schemas/pipeline_runs.json        │   │
+│  │   configs/metadata/schemas/step_logs.json            │   │
+│  │   configs/metadata/schemas/dq_results.json           │   │
+│  │                                                       │   │
+│  │ Create tables with:                                   │   │
+│  │   - Partitioning (time-based)                        │   │
+│  │   - Clustering (query optimization)                  │   │
+│  │   - JSON types (flexible metadata)                   │   │
+│  └──────────────────────────────────────────────────────┘   │
+│  File: src/core/metadata/initializer.py                     │
+└─────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────┐
+│  Step 3: GENERATE API KEY                                    │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │ Generate: {tenant_id}_api_{random_16_chars}          │   │
+│  │ Hash: SHA256(api_key) → api_key_hash                 │   │
+│  │ Encrypt: KMS.encrypt(api_key) → encrypted_api_key    │   │
+│  │ Store: INSERT INTO acmeinc_23xv2.api_keys            │   │
+│  └──────────────────────────────────────────────────────┘   │
+│  File: src/core/security/kms_encryption.py                  │
+└─────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────┐
+│  Step 4: RUN VALIDATION PIPELINE                             │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │ Load: configs/gcp/example/dryrun.yml                 │   │
+│  │ Execute: Dummy pipeline to test infrastructure       │   │
+│  │ Verify: Dataset accessible, tables writeable         │   │
+│  └──────────────────────────────────────────────────────┘   │
+│  File: src/app/routers/pipelines.py                         │
+└─────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────┐
+│  Step 5: RETURN RESPONSE                                     │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │ {                                                     │   │
+│  │   "tenant_id": "acmeinc_23xv2",                      │   │
+│  │   "api_key": "acmeinc_23xv2_api_xK9mPqWz7LnR4vYt",  │   │
+│  │   "dataset_created": true,                           │   │
+│  │   "tables_created": [...],                           │   │
+│  │   "dryrun_status": "SUCCESS"                         │   │
+│  │ }                                                     │   │
+│  └──────────────────────────────────────────────────────┘   │
+│  File: src/app/routers/customers.py                         │
+└─────────────────────────────────────────────────────────────┘
+```
 
 ---
 
-## Local Development Setup
+## 2- Pipeline Execution Flow
+
+### What Happens When You Run a Pipeline?
+
+```
+Step 1: API Request with Authentication
+  ↓
+Step 2: Authenticate & Extract Tenant
+  ↓
+Step 3: Load Pipeline Template
+  ↓
+Step 4: Resolve Template Variables
+  ↓
+Step 5: Create Pipeline Run Record
+  ↓
+Step 6: Execute Pipeline Steps
+  ↓
+Step 7: Update Pipeline Status
+  ↓
+Step 8: Return Pipeline Logging ID
+```
+
+### 2-1. Trigger Pipeline Execution
+
+**Endpoint:** `POST /api/v1/pipelines/run/{tenant_id}/{provider}/{domain}/{template_name}`
+
+```bash
+curl -X POST \
+  "http://localhost:8080/api/v1/pipelines/run/acmeinc_23xv2/gcp/cost/bill-sample-export-template" \
+  -H "X-API-Key: acmeinc_23xv2_api_xK9mPqWz7LnR4vYt" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "date": "2025-11-15",
+    "trigger_by": "user@example.com"
+  }'
+```
+
+**URL Path Parameters:**
+- `tenant_id` - Customer identifier (e.g., `acmeinc_23xv2`)
+- `provider` - Cloud provider (e.g., `gcp`, `aws`, `openai`)
+- `domain` - Service domain (e.g., `cost`, `usage`, `billing`)
+- `template_name` - Template filename without `.yml` (e.g., `bill-sample-export-template`)
+
+**Request Headers:**
+- `X-API-Key` (required) - Customer's API key from onboarding
+- `Content-Type: application/json`
+
+**Request Body:**
+- `date` (optional) - Date parameter for pipeline
+- `trigger_by` (optional) - Who/what triggered the pipeline
+- *Any other parameters* - Passed to template as variables
+
+### 2-2. Authentication Process
+
+**2-2-1. Extract API Key**
+```
+Header: X-API-Key: acmeinc_23xv2_api_xK9mPqWz7LnR4vYt
+```
+
+**2-2-2. Hash API Key**
+```
+SHA256(api_key) → api_key_hash
+```
+
+**2-2-3. Query BigQuery**
+```sql
+SELECT tenant_id, is_active
+FROM `gac-prod-471220.acmeinc_23xv2.api_keys`
+WHERE api_key_hash = SHA256('acmeinc_23xv2_api_xK9mPqWz7LnR4vYt')
+  AND is_active = TRUE
+```
+
+**2-2-4. Validate Tenant**
+```
+Extracted tenant_id: acmeinc_23xv2
+URL tenant_id: acmeinc_23xv2
+Match? YES → Allow
+Match? NO → HTTP 403 Forbidden
+```
+
+**File:** `src/app/dependencies/auth.py`
+
+### 2-3. Template Resolution
+
+**2-3-1. Locate Template File**
+```
+Path: configs/{provider}/{domain}/{template_name}.yml
+Example: configs/gcp/cost/bill-sample-export-template.yml
+```
+
+**2-3-2. Load Template YAML**
+```yaml
+pipeline_id: "{pipeline_id}"
+description: "GCP billing export for {tenant_id}"
+source:
+  project_id: "gac-prod-471220"
+  dataset: "{tenant_id}"
+  query: "SELECT * FROM billing WHERE date = '{date}'"
+destination:
+  dataset: "{tenant_id}"
+  table: "billing_export_{date}"
+```
+
+**2-3-3. Build Variable Context**
+```json
+{
+  "tenant_id": "acmeinc_23xv2",
+  "provider": "gcp",
+  "domain": "cost",
+  "template_name": "bill-sample-export-template",
+  "pipeline_id": "acmeinc_23xv2-gcp-cost-bill-sample-export-template",
+  "date": "2025-11-15"
+}
+```
+
+**2-3-4. Replace Variables**
+```yaml
+pipeline_id: "acmeinc_23xv2-gcp-cost-bill-sample-export-template"
+description: "GCP billing export for acmeinc_23xv2"
+source:
+  project_id: "gac-prod-471220"
+  dataset: "acmeinc_23xv2"
+  query: "SELECT * FROM billing WHERE date = '2025-11-15'"
+destination:
+  dataset: "acmeinc_23xv2"
+  table: "billing_export_2025-11-15"
+```
+
+**File:** `src/core/pipeline/template_resolver.py`
+
+### 2-4. Pipeline Execution
+
+**2-4-1. Create Pipeline Run Record**
+```sql
+INSERT INTO `gac-prod-471220.acmeinc_23xv2.pipeline_runs` (
+  pipeline_logging_id,
+  pipeline_id,
+  tenant_id,
+  status,
+  trigger_type,
+  trigger_by,
+  start_time,
+  parameters
+) VALUES (
+  '550e8400-e29b-41d4-a716-446655440000',  -- UUID
+  'acmeinc_23xv2-gcp-cost-bill-sample-export-template',
+  'acmeinc_23xv2',
+  'PENDING',
+  'api',
+  'user@example.com',
+  CURRENT_TIMESTAMP(),
+  JSON '{"date": "2025-11-15"}'
+);
+```
+
+**2-4-2. Execute Pipeline Steps** (Sequential)
+```
+For each step in pipeline:
+  1. Update step_logs: status = RUNNING
+  2. Execute step logic (query, transform, DQ check)
+  3. Track: rows_processed, duration_ms
+  4. Update step_logs: status = COMPLETE/FAILED
+  5. If failed and on_failure=stop → Stop pipeline
+```
+
+**2-4-3. Update Pipeline Run Status**
+```sql
+UPDATE `gac-prod-471220.acmeinc_23xv2.pipeline_runs`
+SET
+  status = 'COMPLETE',
+  end_time = CURRENT_TIMESTAMP(),
+  duration_ms = TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), start_time, MILLISECOND)
+WHERE pipeline_logging_id = '550e8400-e29b-41d4-a716-446655440000';
+```
+
+**File:** `src/app/routers/pipelines.py`
+
+### 2-5. Execution Response
+
+```json
+{
+  "pipeline_logging_id": "550e8400-e29b-41d4-a716-446655440000",
+  "pipeline_id": "acmeinc_23xv2-gcp-cost-bill-sample-export-template",
+  "status": "PENDING",
+  "message": "Templated pipeline triggered successfully",
+  "parameters": {
+    "date": "2025-11-15",
+    "trigger_by": "user@example.com"
+  }
+}
+```
+
+**⚠️ Save `pipeline_logging_id`** to track execution!
+
+### 2-6. Pipeline Status Tracking
+
+**2-6-1. Check Status**
+
+```bash
+curl -X GET \
+  "http://localhost:8080/api/v1/pipelines/runs/550e8400-e29b-41d4-a716-446655440000" \
+  -H "X-API-Key: acmeinc_23xv2_api_xK9mPqWz7LnR4vYt"
+```
+
+**Response:**
+```json
+{
+  "pipeline_logging_id": "550e8400-e29b-41d4-a716-446655440000",
+  "pipeline_id": "acmeinc_23xv2-gcp-cost-bill-sample-export-template",
+  "tenant_id": "acmeinc_23xv2",
+  "status": "COMPLETE",
+  "trigger_type": "api",
+  "trigger_by": "user@example.com",
+  "start_time": "2025-11-15T10:00:00Z",
+  "end_time": "2025-11-15T10:05:30Z",
+  "duration_ms": 330000,
+  "parameters": {
+    "date": "2025-11-15"
+  },
+  "error_message": null
+}
+```
+
+**2-6-2. Status Values**
+- `PENDING` - Queued for execution
+- `RUNNING` - Currently executing
+- `COMPLETE` - Successfully completed
+- `FAILED` - Execution failed (check error_message)
+
+**2-6-3. Query Step Details**
+```sql
+SELECT
+  step_name,
+  step_type,
+  status,
+  start_time,
+  end_time,
+  duration_ms,
+  rows_processed,
+  error_message
+FROM `gac-prod-471220.acmeinc_23xv2.step_logs`
+WHERE pipeline_logging_id = '550e8400-e29b-41d4-a716-446655440000'
+ORDER BY step_index;
+```
+
+### 2-7. Pipeline Execution Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     PIPELINE REQUEST                         │
+│  POST /api/v1/pipelines/run/{tenant}/{provider}/{domain}/   │
+│                                   {template}                 │
+│  Headers: X-API-Key                                          │
+│  Body: {"date": "2025-11-15"}                               │
+└─────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────┐
+│  Step 1: AUTHENTICATION                                      │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │ Extract: X-API-Key header                            │   │
+│  │ Hash: SHA256(api_key)                                │   │
+│  │ Query: {tenant_id}.api_keys table                    │   │
+│  │ Verify: tenant_id matches URL path                   │   │
+│  │ Result: TenantContext(tenant_id='acmeinc_23xv2')    │   │
+│  └──────────────────────────────────────────────────────┘   │
+│  File: src/app/dependencies/auth.py                         │
+└─────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────┐
+│  Step 2: LOAD TEMPLATE                                       │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │ Path: configs/gcp/cost/bill-sample-export-template   │   │
+│  │       .yml                                            │   │
+│  │ Read: YAML file content                               │   │
+│  │ Parse: YAML → Python dict                            │   │
+│  │ Validate: Pydantic model validation                  │   │
+│  └──────────────────────────────────────────────────────┘   │
+│  File: src/core/abstractor/config_loader.py                 │
+└─────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────┐
+│  Step 3: RESOLVE VARIABLES                                   │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │ Variables:                                            │   │
+│  │   {tenant_id} → acmeinc_23xv2                        │   │
+│  │   {provider} → gcp                                   │   │
+│  │   {domain} → cost                                    │   │
+│  │   {template_name} → bill-sample-export-template      │   │
+│  │   {pipeline_id} → acmeinc_23xv2-gcp-cost-bill-...    │   │
+│  │   {date} → 2025-11-15                                │   │
+│  │                                                       │   │
+│  │ Replace: All occurrences in template recursively     │   │
+│  └──────────────────────────────────────────────────────┘   │
+│  File: src/core/pipeline/template_resolver.py               │
+└─────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────┐
+│  Step 4: CREATE PIPELINE RUN RECORD                          │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │ Generate: pipeline_logging_id (UUID)                 │   │
+│  │ Status: PENDING                                       │   │
+│  │ Table: acmeinc_23xv2.pipeline_runs                   │   │
+│  │ Columns:                                              │   │
+│  │   - pipeline_logging_id                              │   │
+│  │   - pipeline_id                                       │   │
+│  │   - tenant_id                                         │   │
+│  │   - status (PENDING)                                 │   │
+│  │   - trigger_type (api)                               │   │
+│  │   - start_time (CURRENT_TIMESTAMP)                   │   │
+│  │   - parameters (JSON)                                │   │
+│  └──────────────────────────────────────────────────────┘   │
+│  File: src/core/engine/bq_client.py                         │
+└─────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────┐
+│  Step 5: EXECUTE PIPELINE STEPS                              │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │ For each step in pipeline.steps:                     │   │
+│  │                                                       │   │
+│  │   Step 5-1: Log step start                           │   │
+│  │   INSERT INTO acmeinc_23xv2.step_logs                │   │
+│  │   (step_name, status='RUNNING', start_time)          │   │
+│  │                                                       │   │
+│  │   Step 5-2: Execute step                             │   │
+│  │   - BigQuery query                                    │   │
+│  │   - Data transformation                              │   │
+│  │   - API call                                          │   │
+│  │   - Data quality check                               │   │
+│  │                                                       │   │
+│  │   Step 5-3: Track metrics                            │   │
+│  │   - rows_processed                                    │   │
+│  │   - bytes_processed                                   │   │
+│  │   - duration_ms                                       │   │
+│  │                                                       │   │
+│  │   Step 5-4: Update step status                       │   │
+│  │   UPDATE acmeinc_23xv2.step_logs                     │   │
+│  │   SET status='COMPLETE', end_time, metrics           │   │
+│  │                                                       │   │
+│  │   Step 5-5: Handle failures                          │   │
+│  │   IF status='FAILED' AND on_failure='stop':          │   │
+│  │     STOP pipeline execution                          │   │
+│  └──────────────────────────────────────────────────────┘   │
+│  Files: src/core/workers/pipeline_task.py                   │
+│         src/core/workers/ingest_task.py                     │
+└─────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────┐
+│  Step 6: UPDATE PIPELINE STATUS                              │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │ UPDATE acmeinc_23xv2.pipeline_runs                   │   │
+│  │ SET                                                   │   │
+│  │   status = 'COMPLETE' (or 'FAILED'),                │   │
+│  │   end_time = CURRENT_TIMESTAMP(),                    │   │
+│  │   duration_ms = TIMESTAMP_DIFF(...)                  │   │
+│  │ WHERE pipeline_logging_id = '550e8400-...'           │   │
+│  └──────────────────────────────────────────────────────┘   │
+│  File: src/core/engine/bq_client.py                         │
+└─────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────┐
+│  Step 7: RETURN RESPONSE                                     │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │ {                                                     │   │
+│  │   "pipeline_logging_id": "550e8400-...",             │   │
+│  │   "pipeline_id": "acmeinc_23xv2-gcp-cost-...",       │   │
+│  │   "status": "PENDING",                               │   │
+│  │   "message": "Pipeline triggered successfully"       │   │
+│  │ }                                                     │   │
+│  └──────────────────────────────────────────────────────┘   │
+│  File: src/app/routers/pipelines.py                         │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Complete Customer Journey
+
+### Scenario: Onboard and Run Pipeline for ACME Inc
+
+**Step 1: Onboard Customer**
+```bash
+curl -X POST "http://localhost:8080/api/v1/customers/onboard" \
+  -H "Content-Type: application/json" \
+  -d '{"tenant_id": "acmeinc_23xv2"}'
+```
+**Result:** API Key = `acmeinc_23xv2_api_xK9mPqWz7LnR4vYt` (save it!)
+
+**Step 2: Run Pipeline**
+```bash
+curl -X POST \
+  "http://localhost:8080/api/v1/pipelines/run/acmeinc_23xv2/gcp/cost/bill-sample-export-template" \
+  -H "X-API-Key: acmeinc_23xv2_api_xK9mPqWz7LnR4vYt" \
+  -H "Content-Type: application/json" \
+  -d '{"date": "2025-11-15"}'
+```
+**Result:** Pipeline Logging ID = `550e8400-e29b-41d4-a716-446655440000` (save it!)
+
+**Step 3: Check Status**
+```bash
+curl -X GET \
+  "http://localhost:8080/api/v1/pipelines/runs/550e8400-e29b-41d4-a716-446655440000" \
+  -H "X-API-Key: acmeinc_23xv2_api_xK9mPqWz7LnR4vYt"
+```
+**Result:** Status = `COMPLETE`
+
+**Step 4: Query Results**
+```sql
+SELECT *
+FROM `gac-prod-471220.acmeinc_23xv2.billing_export_2025-11-15`
+LIMIT 100;
+```
+
+---
+
+## Data Architecture
+
+### BigQuery Dataset Structure (Per Customer)
+
+```
+gac-prod-471220/
+│
+├── acmeinc_23xv2/                           (Customer 1)
+│   ├── api_keys                             (API keys - KMS encrypted)
+│   ├── cloud_credentials                    (Cloud credentials - KMS encrypted)
+│   ├── pipeline_runs                        (Pipeline execution metadata)
+│   ├── step_logs                            (Step-by-step execution logs)
+│   ├── dq_results                           (Data quality results)
+│   ├── gcp_billing_export_2025-11-15       (Pipeline output - date partitioned)
+│   ├── gcp_billing_export_2025-11-14       (Pipeline output - date partitioned)
+│   └── gcp_usage_analytics                  (Pipeline output)
+│
+├── techcorp_99zx4/                          (Customer 2)
+│   ├── api_keys
+│   ├── cloud_credentials
+│   ├── pipeline_runs
+│   ├── step_logs
+│   ├── dq_results
+│   └── ... (customer 2's data)
+│
+└── bytefactory_12ghi/                       (Customer 3)
+    └── ... (customer 3's data)
+```
+
+**Key Principles:**
+1. **Complete Isolation** - Each customer has their own dataset
+2. **Same Structure** - All customers have identical metadata tables
+3. **Scalable** - No cross-tenant queries, independent scaling
+
+---
+
+## Security Model
+
+### 1- API Key Security (Three Layers)
+
+**Layer 1: SHA256 Hash (Lookup)**
+```
+API Key: acmeinc_23xv2_api_xK9mPqWz7LnR4vYt
+  ↓
+SHA256 Hash: a3f2b...9c7d
+  ↓
+Stored in: api_keys.api_key_hash
+Purpose: Fast lookup without decryption
+```
+
+**Layer 2: KMS Encryption (Storage)**
+```
+API Key: acmeinc_23xv2_api_xK9mPqWz7LnR4vYt
+  ↓
+KMS Encrypt: Google Cloud KMS
+  ↓
+Ciphertext: <encrypted_bytes>
+  ↓
+Stored in: api_keys.encrypted_api_key
+Purpose: Encrypted storage in BigQuery
+```
+
+**Layer 3: Show Once (Delivery)**
+```
+API Key returned: ONLY during onboarding
+Cannot retrieve: API key after onboarding
+Must regenerate: If lost
+```
+
+### 2- Tenant Isolation
+
+**Dataset-Level Isolation:**
+- Each customer → Separate BigQuery dataset
+- No shared tables between customers
+- Queries scoped to customer's dataset
+
+**API Validation:**
+```
+Request: /pipelines/run/techcorp_99zx4/...
+API Key: acmeinc_23xv2_api_xK9mPqWz7LnR4vYt
+         ↓
+Extract tenant from API key: acmeinc_23xv2
+Compare with URL tenant: techcorp_99zx4
+Match? NO
+         ↓
+HTTP 403 Forbidden: "API key does not belong to tenant"
+```
+
+---
+
+## Monitoring & Troubleshooting
+
+### Monitor Pipeline Execution
+
+**Query Recent Runs:**
+```sql
+SELECT
+  pipeline_logging_id,
+  pipeline_id,
+  status,
+  start_time,
+  end_time,
+  TIMESTAMP_DIFF(end_time, start_time, SECOND) as duration_seconds,
+  error_message
+FROM `gac-prod-471220.acmeinc_23xv2.pipeline_runs`
+WHERE start_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 24 HOUR)
+ORDER BY start_time DESC;
+```
+
+**Query Failed Pipelines:**
+```sql
+SELECT
+  pipeline_logging_id,
+  pipeline_id,
+  error_message,
+  parameters
+FROM `gac-prod-471220.acmeinc_23xv2.pipeline_runs`
+WHERE status = 'FAILED'
+  AND start_time >= CURRENT_DATE()
+ORDER BY start_time DESC;
+```
+
+**Query Step Details:**
+```sql
+SELECT
+  sl.step_name,
+  sl.step_type,
+  sl.status,
+  sl.duration_ms,
+  sl.rows_processed,
+  sl.error_message
+FROM `gac-prod-471220.acmeinc_23xv2.step_logs` sl
+JOIN `gac-prod-471220.acmeinc_23xv2.pipeline_runs` pr
+  ON sl.pipeline_logging_id = pr.pipeline_logging_id
+WHERE pr.pipeline_id = 'acmeinc_23xv2-gcp-cost-bill-sample-export-template'
+  AND pr.start_time >= CURRENT_DATE()
+ORDER BY sl.step_index;
+```
+
+### Common Issues
+
+**Issue 1: Authentication Failed**
+```
+Error: 401 Unauthorized
+
+Solution:
+1. Check API key is correct
+2. Query: SELECT * FROM {tenant_id}.api_keys WHERE api_key_hash = SHA256('{key}')
+3. Verify is_active = TRUE
+4. If not found → Re-onboard customer
+```
+
+**Issue 2: Permission Denied**
+```
+Error: BigQuery permission denied
+
+Solution:
+1. Check service account permissions
+2. Required roles:
+   - roles/bigquery.dataEditor
+   - roles/bigquery.jobUser
+3. Grant: gcloud projects add-iam-policy-binding ...
+```
+
+**Issue 3: Pipeline Stuck in PENDING**
+```
+Error: Status never changes from PENDING
+
+Solution:
+1. Check Cloud Run logs for errors
+2. Verify pipeline template exists
+3. Check if workers are running
+4. Query step_logs for error details
+```
+
+---
+
+## Quick Start
 
 ### Prerequisites
-
-1. **Python 3.11+**
-2. **GCP Service Account** with permissions:
-   - BigQuery Data Editor
-   - BigQuery Job User
-   - Secret Manager Secret Accessor
-3. **Service Account Key** stored at `~/gcp/{your-service-account}.json`
-
-### Setup Steps
-
 ```bash
-# 1. Clone repository
-git clone https://github.com/your-org/convergence-data-pipeline.git
+# Required
+Python 3.11+
+GCP project with BigQuery enabled
+Service account with BigQuery permissions
+```
+
+### Setup (5 minutes)
+```bash
+# 1. Install
+git clone <repo>
 cd convergence-data-pipeline
-
-# 2. Create virtual environment
-python3.11 -m venv venv
+python3 -m venv venv
 source venv/bin/activate
-
-# 3. Install dependencies
 pip install -r requirements.txt
 
-# 4. Set environment variables
-export GOOGLE_APPLICATION_CREDENTIALS="/Users/gurukallam/.gcp/gac-prod-471220-e34944040b62.json"
+# 2. Configure
+export GOOGLE_APPLICATION_CREDENTIALS="~/.gcp/service-account.json"
 export GCP_PROJECT_ID="gac-prod-471220"
 export BIGQUERY_LOCATION="US"
 
-# 5. Verify BigQuery access
-python -c "from google.cloud import bigquery; print(bigquery.Client().project)"
-
-# 6. Initialize metadata tables (one-time setup)
-python scripts/init_metadata_tables.py
-
-# 7. Run FastAPI locally
-uvicorn app.main:app --reload --port 8000
+# 3. Start
+python3 -m uvicorn src.app.main:app --host 0.0.0.0 --port 8080
 ```
 
-### Running Workers Locally
-
+### Test
 ```bash
-# Terminal 1: Start Redis (for Celery)
-docker run -d -p 6379:6379 redis:7-alpine
+# Health check
+curl http://localhost:8080/health
 
-# Terminal 2: Start Celery worker
-celery -A core.workers.celery_app worker --loglevel=info
-
-# Terminal 3: Start FastAPI
-uvicorn app.main:app --reload
-```
-
-### Testing a Pipeline Locally
-
-```bash
-# Trigger a pipeline via API
-curl -X POST http://localhost:8000/pipelines/run/p_openai_billing \
+# Onboard customer
+curl -X POST "http://localhost:8080/api/v1/customers/onboard" \
   -H "Content-Type: application/json" \
-  -d '{"trigger_by": "user:dev@example.com"}'
-
-# Check pipeline status
-curl http://localhost:8000/pipelines/runs/{pipeline_logging_id}
+  -d '{"tenant_id": "test_customer"}'
 ```
-
----
-
-## Deployment (GitHub → Cloud Build → Cloud Run)
-
-### Deployment Architecture
-
-```mermaid
-graph LR
-    DEV[Developer] -->|git push origin main| GH[GitHub Repository]
-    GH -->|Webhook Trigger| CB[Cloud Build]
-    CB -->|1. Build Docker Image| GCR[Artifact Registry]
-    CB -->|2. Deploy| CR[Cloud Run Service]
-    CR -->|Uses| SA[Service Account]
-    SA -->|Access| BQ[BigQuery]
-    SA -->|Read| SM[Secret Manager]
-```
-
-### Repository Files
-
-```
-.
-├── cloudbuild.yaml          # Cloud Build configuration
-├── Dockerfile               # Multi-stage build for FastAPI app
-├── requirements.txt         # Python dependencies
-├── app/                     # FastAPI application
-├── core/                    # Workers and business logic
-└── configs/                 # YAML/JSON configs (deployed in container)
-```
-
-### `cloudbuild.yaml`
-
-```yaml
-steps:
-  # Step 1: Build Docker image
-  - name: 'gcr.io/cloud-builders/docker'
-    args:
-      - 'build'
-      - '-t'
-      - 'us-docker.pkg.dev/${PROJECT_ID}/convergence/api:${SHORT_SHA}'
-      - '-t'
-      - 'us-docker.pkg.dev/${PROJECT_ID}/convergence/api:latest'
-      - '.'
-
-  # Step 2: Push image to Artifact Registry
-  - name: 'gcr.io/cloud-builders/docker'
-    args:
-      - 'push'
-      - '--all-tags'
-      - 'us-docker.pkg.dev/${PROJECT_ID}/convergence/api'
-
-  # Step 3: Deploy to Cloud Run
-  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    entrypoint: gcloud
-    args:
-      - 'run'
-      - 'deploy'
-      - 'convergence-api'
-      - '--image=us-docker.pkg.dev/${PROJECT_ID}/convergence/api:${SHORT_SHA}'
-      - '--region=us-central1'
-      - '--platform=managed'
-      - '--service-account=convergence-api@${PROJECT_ID}.iam.gserviceaccount.com'
-      - '--set-env-vars=GCP_PROJECT_ID=${PROJECT_ID},BIGQUERY_LOCATION=US'
-      - '--allow-unauthenticated'  # Change to --no-allow-unauthenticated for prod
-      - '--memory=2Gi'
-      - '--cpu=2'
-      - '--concurrency=80'
-      - '--max-instances=10'
-
-timeout: 1200s
-options:
-  machineType: 'N1_HIGHCPU_8'
-```
-
-### `Dockerfile`
-
-```dockerfile
-# Multi-stage build for smaller image size
-FROM python:3.11-slim as builder
-
-WORKDIR /build
-COPY requirements.txt .
-RUN pip install --user --no-cache-dir -r requirements.txt
-
-# Runtime stage
-FROM python:3.11-slim
-
-WORKDIR /app
-
-# Copy dependencies from builder
-COPY --from=builder /root/.local /root/.local
-
-# Copy application code
-COPY app/ ./app/
-COPY core/ ./core/
-COPY configs/ ./configs/
-
-# Add local bin to PATH
-ENV PATH=/root/.local/bin:$PATH
-
-# Run FastAPI with Uvicorn
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
-```
-
-### Triggering Deployment
-
-**Automatic (on push to `main`):**
-```bash
-git add .
-git commit -m "Add new OpenAI pipeline"
-git push origin main
-# Cloud Build automatically triggered via GitHub App webhook
-```
-
-**Manual (Cloud Build trigger):**
-```bash
-gcloud builds submit --config=cloudbuild.yaml
-```
-
-### Cloud Run Service Configuration
-
-The deployed service has:
-- **Service Account**: `convergence-api@{project}.iam.gserviceaccount.com`
-- **IAM Bindings**:
-  - `roles/bigquery.dataEditor` (create/update tables)
-  - `roles/bigquery.jobUser` (run queries)
-  - `roles/secretmanager.secretAccessor` (read API keys)
-- **Environment Variables**:
-  - `GCP_PROJECT_ID`: Target BigQuery project
-  - `BIGQUERY_LOCATION`: `US`
-  - `LOG_LEVEL`: `INFO`
-
----
-
-## Configuration Management
-
-### Config Store Structure
-
-All configs live in the **repository** (not GCS) and are deployed with the Docker image:
-
-```
-configs/
-├── pipelines/
-│   ├── p_openai_billing.yml       # Pipeline orchestration
-│   └── p_google_billing.yml
-├── openai/
-│   ├── sources/
-│   │   └── billing_usage.yml      # Ingest config
-│   ├── schemas/
-│   │   └── focus_cost.json        # BigQuery schema
-│   └── dq_rules/
-│       └── billing_dq.yml         # Data quality expectations
-└── google/
-    ├── sources/
-    │   └── cloud_billing_export.yml
-    ├── schemas/
-    │   └── billing_export.json
-    └── dq_rules/
-        └── billing_dq.yml
-```
-
-### Secret Management (Cloud Secret Manager)
-
-API keys and credentials are stored in **Secret Manager**, not in configs:
-
-```yaml
-# configs/openai/sources/billing_usage.yml
-source_id: openai_billing_daily
-domain: openai
-
-connector:
-  type: rest_api
-  base_url: "https://api.openai.com/v1"
-  endpoint: "/usage"
-  auth:
-    type: bearer
-    secret_key: "openai_api_key"  # <-- References Secret Manager secret name
-
-loading:
-  destination: "raw_openai.usage_logs"
-  strategy: "merge"
-  keys: ["billing_date", "organization_id"]
-```
-
-**Reading secrets in workers:**
-
-```python
-from google.cloud import secretmanager
-
-def get_secret(secret_name: str) -> str:
-    """Fetch secret from Secret Manager."""
-    client = secretmanager.SecretManagerServiceClient()
-    name = f"projects/{PROJECT_ID}/secrets/{secret_name}/versions/latest"
-    response = client.access_secret_version(request={"name": name})
-    return response.payload.data.decode("UTF-8")
-
-# Usage
-api_key = get_secret("openai_api_key")
-```
-
----
-
-## Config-as-Code Examples
-
-### 1. Pipeline Config (`configs/pipelines/p_openai_billing.yml`)
-
-```yaml
-pipeline_id: p_openai_billing
-description: "E2E pipeline for OpenAI billing data"
-schedule: "0 4 * * *"  # Daily at 4 AM UTC (for Cloud Scheduler cron)
-
-steps:
-  - name: "ingest_raw"
-    type: "ingest"
-    source_config: "openai/sources/billing_usage.yml"
-    on_failure: "stop"
-
-  - name: "validate_raw"
-    type: "dq_check"
-    target_table: "raw_openai.usage_logs"
-    rules_config: "openai/dq_rules/billing_dq.yml"
-    on_failure: "alert"
-
-  - name: "transform_silver"
-    type: "transform"
-    sql_file: "sql/silver/openai_daily_cost.sql"
-    destination: "silver_cost.openai_daily"
-    on_failure: "stop"
-```
-
-### 2. Source Config (`configs/openai/sources/billing_usage.yml`)
-
-```yaml
-source_id: openai_billing_daily
-domain: openai
-description: "Ingests daily billing breakdown from OpenAI API"
-
-connector:
-  type: rest_api
-  base_url: "https://api.openai.com/v1"
-  endpoint: "/usage"
-  auth:
-    type: bearer
-    secret_key: "openai_api_key"
-  pagination:
-    type: "cursor"
-    cursor_field: "next_page_token"
-  rate_limit:
-    requests_per_minute: 60
-
-loading:
-  destination: "raw_openai.usage_logs"
-  schema_file: "openai/schemas/focus_cost.json"  # <-- BigQuery schema
-  strategy: "merge"
-  merge_keys: ["billing_date", "organization_id"]
-  partition_field: "ingestion_date"
-```
-
-### 3. Data Quality Config (`configs/openai/dq_rules/billing_dq.yml`)
-
-```yaml
-dq_id: openai_billing_quality_checks
-target_table: "raw_openai.usage_logs"
-description: "Validates OpenAI billing data quality"
-
-expectations:
-  - name: "no_null_billing_dates"
-    type: "expect_column_values_to_not_be_null"
-    column: "billing_date"
-    severity: "critical"
-
-  - name: "valid_cost_range"
-    type: "expect_column_values_to_be_between"
-    column: "cost_usd"
-    min_value: 0
-    max_value: 100000
-    severity: "warning"
-
-  - name: "recent_data_check"
-    type: "expect_table_row_count_to_be_between"
-    min_value: 1
-    max_value: null
-    filter: "billing_date = CURRENT_DATE() - 1"
-    severity: "critical"
-```
-
----
-
-## Enterprise Architecture & Scaling
-
-### How This Scales
-
-**Control Plane (FastAPI)**:
-- Handles API requests, auth, and dispatching jobs to message queue
-- Scales via Cloud Run **concurrency** (80 concurrent requests per instance)
-- Scales via Cloud Run **max instances** (up to 10 instances)
-- Does **no heavy lifting** (just creates tasks and returns)
-
-**Data Plane (Workers)**:
-- All workers run in the **same Cloud Run service** (single codebase)
-- Scale **horizontally** via Cloud Run instances based on:
-  - Cloud Tasks queue depth
-  - CPU/memory utilization
-- Workers are **stateless** (all state in BigQuery)
-
-**BigQuery**:
-- **On-demand pricing**: No slot reservation needed initially
-- **Partitioning**: All raw tables partitioned by `ingestion_date` (reduces query costs)
-- **Clustering**: Secondary clustering on high-cardinality columns (e.g., `organization_id`)
-- **Streaming Inserts**: For real-time use cases (higher cost)
-- **Batch Inserts**: For scheduled pipelines (cost-effective)
-
-### Cost Optimization
-
-1. **Partition Pruning**: Always filter on `ingestion_date` in queries
-2. **Clustering**: Cluster on frequently filtered columns
-3. **Materialized Views**: For expensive aggregations (silver → gold)
-4. **Cloud Run Auto-scaling**: Min instances = 0 (scale to zero when idle)
-5. **BigQuery Caching**: Enable query result caching (24-hour TTL)
-
----
-
-## Observability & Monitoring
-
-### 1. Structured Logging
-
-All logs are JSON-formatted and sent to **Cloud Logging**:
-
-```python
-import logging
-import json
-from opentelemetry import trace
-
-# Configure JSON logging
-logging.basicConfig(
-    format='%(message)s',
-    level=logging.INFO
-)
-
-def log_structured(message: str, **kwargs):
-    """Log structured JSON to Cloud Logging."""
-    tracer = trace.get_current_span()
-    log_entry = {
-        "message": message,
-        "trace_id": f"{tracer.get_span_context().trace_id:032x}",
-        "severity": "INFO",
-        **kwargs
-    }
-    logging.info(json.dumps(log_entry))
-
-# Usage
-log_structured(
-    "Pipeline started",
-    pipeline_id="p_openai_billing",
-    pipeline_logging_id="abc-123-def",
-    trigger_by="cloud-scheduler"
-)
-```
-
-### 2. Distributed Tracing
-
-Using **OpenTelemetry** to trace requests across API → Workers → BigQuery:
-
-```python
-from opentelemetry import trace
-from opentelemetry.exporter.cloud_trace import CloudTraceSpanExporter
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-
-# Setup (in app startup)
-tracer_provider = TracerProvider()
-cloud_trace_exporter = CloudTraceSpanExporter()
-tracer_provider.add_span_processor(BatchSpanProcessor(cloud_trace_exporter))
-trace.set_tracer_provider(tracer_provider)
-
-# Usage in worker
-tracer = trace.get_tracer(__name__)
-
-with tracer.start_as_current_span("ingest_openai_billing") as span:
-    span.set_attribute("pipeline_id", "p_openai_billing")
-    span.set_attribute("rows_ingested", 1500)
-    # ... perform ingestion
-```
-
-### 3. Monitoring Dashboards
-
-**Cloud Monitoring Metrics**:
-- **Cloud Run**: Request latency, error rate, instance count
-- **BigQuery**: Slot utilization, query duration, bytes processed
-- **Custom Metrics**: Pipeline success rate, data quality failures
-
-**Alerts**:
-- Pipeline failure (status = 'FAILED' in `pipeline_runs`)
-- Data quality degradation (DQ expectations failing)
-- Cloud Run error rate > 5%
-- BigQuery query costs > threshold
-
----
-
-## Project Structure
-
-```
-convergence-data-pipeline/
-│
-├── app/                        # === CONTROL PLANE (FastAPI) ===
-│   ├── routers/
-│   │   ├── pipeline_runs.py    # POST /pipelines/run/{id}
-│   │   ├── webhooks.py         # Webhook handlers
-│   │   └── health.py           # /health endpoint
-│   ├── core_services.py        # Singleton clients (BigQuery, Secret Manager)
-│   ├── logging_config.py       # Structured JSON logging setup
-│   └── main.py                 # FastAPI app entrypoint
-│
-├── core/                       # === CORE LOGIC & DATA PLANE ===
-│   ├── abstractor/             # Config parsers (Pydantic models)
-│   │   ├── pipeline_config.py
-│   │   ├── source_config.py
-│   │   └── dq_config.py
-│   ├── engine/                 # Reusable business logic
-│   │   ├── bq_loader.py        # BigQuery table creation + loading
-│   │   ├── api_connector.py    # REST API fetching
-│   │   ├── polars_processor.py # Data transformations
-│   │   └── dq_runner.py        # Great Expectations runner
-│   ├── workers/                # === ASYNC WORKERS (Celery/Arq) ===
-│   │   ├── pipeline_task.py    # Orchestrator (reads pipeline.yml)
-│   │   ├── ingest_task.py      # Ingest processor
-│   │   ├── transform_task.py   # Transform processor
-│   │   └── dq_task.py          # DQ processor
-│   └── utils/
-│       ├── telemetry.py        # OpenTelemetry setup
-│       └── secrets.py          # Secret Manager client
-│
-├── configs/                    # === CONFIG-AS-CODE ===
-│   ├── pipelines/
-│   │   ├── p_openai_billing.yml
-│   │   └── p_google_billing.yml
-│   ├── openai/
-│   │   ├── sources/
-│   │   │   └── billing_usage.yml
-│   │   ├── schemas/
-│   │   │   └── focus_cost.json
-│   │   └── dq_rules/
-│   │       └── billing_dq.yml
-│   ├── google/
-│   │   ├── sources/
-│   │   │   └── cloud_billing_export.yml
-│   │   ├── schemas/
-│   │   │   └── billing_export.json
-│   │   └── dq_rules/
-│   │       └── billing_dq.yml
-│   └── metadata/
-│       └── schemas/
-│           └── pipeline_runs.json
-│
-├── scripts/
-│   ├── init_metadata_tables.py  # Creates metadata.pipeline_runs
-│   └── validate_configs.py      # Pre-commit config validation
-│
-├── tests/
-│   ├── unit/
-│   ├── integration/
-│   └── e2e/
-│
-├── .github/
-│   └── workflows/
-│       └── validate-configs.yml  # CI: Lint and validate YAML/JSON
-│
-├── cloudbuild.yaml              # Cloud Build deployment
-├── Dockerfile                   # Multi-stage Docker build
-├── requirements.txt
-├── README.md
-└── .gitignore
-```
-
----
-
-## Development Workflow
-
-### 1. Adding a New Data Source
-
-```bash
-# 1. Create schema file
-cat > configs/anthropic/schemas/usage_logs.json <<EOF
-[
-  {"name": "usage_date", "type": "DATE", "mode": "REQUIRED"},
-  {"name": "model", "type": "STRING", "mode": "REQUIRED"},
-  {"name": "tokens_used", "type": "INT64", "mode": "REQUIRED"},
-  {"name": "cost_usd", "type": "NUMERIC", "mode": "REQUIRED"},
-  {"name": "ingestion_date", "type": "DATE", "mode": "REQUIRED"},
-  {"name": "ingestion_timestamp", "type": "TIMESTAMP", "mode": "REQUIRED"}
-]
-EOF
-
-# 2. Create source config
-cat > configs/anthropic/sources/usage_api.yml <<EOF
-source_id: anthropic_usage_daily
-domain: anthropic
-
-connector:
-  type: rest_api
-  base_url: "https://api.anthropic.com/v1"
-  endpoint: "/usage"
-  auth:
-    type: api_key
-    secret_key: "anthropic_api_key"
-
-loading:
-  destination: "raw_anthropic.usage_logs"
-  schema_file: "anthropic/schemas/usage_logs.json"
-  strategy: "merge"
-  merge_keys: ["usage_date", "model"]
-EOF
-
-# 3. Create pipeline
-cat > configs/pipelines/p_anthropic_usage.yml <<EOF
-pipeline_id: p_anthropic_usage
-description: "Daily Anthropic usage ingestion"
-schedule: "0 5 * * *"
-
-steps:
-  - name: "ingest_raw"
-    type: "ingest"
-    source_config: "anthropic/sources/usage_api.yml"
-    on_failure: "stop"
-EOF
-
-# 4. Commit and push
-git add configs/anthropic configs/pipelines/p_anthropic_usage.yml
-git commit -m "Add Anthropic usage pipeline"
-git push origin main
-# Cloud Build auto-deploys
-```
-
-### 2. Testing Configuration Changes
-
-```bash
-# Validate configs locally before committing
-python scripts/validate_configs.py
-
-# Test ingest worker locally
-export GOOGLE_APPLICATION_CREDENTIALS="/Users/gurukallam/.gcp/gac-prod-471220-e34944040b62.json"
-python -m core.workers.ingest_task \
-  --source-config configs/anthropic/sources/usage_api.yml \
-  --dry-run
-```
-
----
-
-## Security & Compliance
-
-### Authentication & Authorization
-
-1. **Cloud Run Service**: Uses service account with minimal IAM roles
-2. **Local Development**: Uses `~/gcp/*.json` service account keys (never committed)
-3. **API Authentication**: Optional Cloud IAM authentication for `/pipelines/run` endpoints
-4. **Secret Access**: Only the Cloud Run service account can access Secret Manager
-
-### Data Governance
-
-1. **Column-Level Security**: BigQuery authorized views for sensitive columns
-2. **Row-Level Security**: BigQuery row-level policies based on user email
-3. **Audit Logging**: All BigQuery queries logged to Cloud Audit Logs
-4. **Data Retention**: Partition expiration policies (e.g., delete raw data after 90 days)
-
-### Secrets Management Checklist
-
-- ✅ API keys stored in **Secret Manager** (not configs)
-- ✅ Service account keys **never committed** to Git
-- ✅ Local keys stored in `~/gcp/` (added to `.gitignore`)
-- ✅ Secret Manager IAM: Only Cloud Run SA has `secretAccessor` role
-- ✅ Secrets rotated every 90 days (automated via Secret Manager)
-
----
-
-## Troubleshooting
-
-### Pipeline Failed: Check Logs
-
-```bash
-# 1. Find the pipeline_logging_id
-gcloud logging read "resource.type=cloud_run_revision AND jsonPayload.pipeline_id=p_openai_billing" \
-  --limit 10 \
-  --format json
-
-# 2. Query BigQuery for error details
-bq query --use_legacy_sql=false '
-SELECT pipeline_logging_id, error_message, run_metadata
-FROM `project.metadata.pipeline_runs`
-WHERE pipeline_id = "p_openai_billing" AND status = "FAILED"
-ORDER BY start_time DESC
-LIMIT 1
-'
-```
-
-### Worker Not Processing Tasks
-
-```bash
-# Check Cloud Run logs
-gcloud logging read "resource.type=cloud_run_revision AND severity>=ERROR" \
-  --limit 50
-
-# Check Cloud Tasks queue depth
-gcloud tasks queues describe convergence-tasks --location=us-central1
-```
-
-### BigQuery Permission Errors
-
-```bash
-# Verify service account has correct roles
-gcloud projects get-iam-policy YOUR_PROJECT_ID \
-  --flatten="bindings[].members" \
-  --filter="bindings.members:convergence-api@YOUR_PROJECT_ID.iam.gserviceaccount.com"
-
-# Expected roles:
-# - roles/bigquery.dataEditor
-# - roles/bigquery.jobUser
-```
-
----
-
-## Next Steps
-
-1. **Initialize Metadata Tables**: Run `python scripts/init_metadata_tables.py`
-2. **Deploy to GCP**: Push to `main` branch to trigger Cloud Build
-3. **Set Up Cloud Scheduler**: Create jobs to trigger pipelines via HTTP
-4. **Configure Secrets**: Add API keys to Secret Manager
-5. **Set Up Monitoring**: Create Cloud Monitoring dashboards and alerts
-
----
-
-## Contributing
-
-1. All config changes must pass `python scripts/validate_configs.py`
-2. Add tests for new connector types or processors
-3. Update this README when adding new architecture components
-4. Follow conventional commit messages (`feat:`, `fix:`, `docs:`)
 
 ---
 
 ## Documentation
 
-### Core Documentation
-- **[Pipeline Configuration Guide](docs/pipeline-configuration.md)** - Complete guide to configuring pipelines, sources, and DQ rules
-- **[Metadata Schema Reference](docs/metadata-schema.md)** - BigQuery metadata table schemas and usage
-- **[Quick Start Guide](docs/QUICK_START.md)** - Get up and running quickly
-- **[Deployment Guide](docs/DEPLOYMENT_GUIDE.md)** - Production deployment instructions
-- **[Implementation Status](docs/IMPLEMENTATION_STATUS.md)** - Current project status and roadmap
+**Core Guides:**
+- `docs/QUICK_START.md` - 5-minute setup guide
+- `docs/ONBOARDING.md` - Customer onboarding details
+- `docs/pipeline-configuration.md` - Pipeline configuration guide
+- `docs/TECHNICAL_IMPLEMENTATION.md` - Technical architecture
 
-### Technical Documentation
-- **[Technical Debt & Issues](docs/TECHNICAL_DEBT.md)** - Known issues, prioritized backlog, and improvement opportunities
-- **[Code Review Findings](docs/CODE_REVIEW_FINDINGS.md)** - Security review, hardcoded values, and best practices analysis
-- **[Concurrency Control](docs/CONCURRENCY_CONTROL.md)** - Pipeline lock manager design, usage, and limitations
-- **[Secrets Management](docs/README_SECRETS.md)** - How to manage API keys and credentials securely
+**Configuration:**
+- `docs/ENVIRONMENT_VARIABLES.md` - All environment variables
+- `docs/metadata-schema.md` - BigQuery metadata schemas
+- `docs/README_SECRETS.md` - Secrets management
 
-### Configuration Management
-
-This project follows a **strict configuration-as-code approach**:
-- ✅ All pipeline logic is defined in YAML/JSON configuration files
-- ✅ No hardcoded pipeline behavior in application code
-- ✅ Self-contained pipeline folders with co-located configs
-- ✅ Version-controlled configurations deployed with application
-- ✅ Environment-specific settings via environment variables
-
-**Key Principles:**
-1. **Pipeline-as-Code:** All pipeline definitions in `configs/{tenant}/{provider}/{domain}/{pipeline}/`
-2. **Schema-as-Code:** BigQuery schemas defined in JSON files alongside configs
-3. **DQ-as-Code:** Data quality rules in YAML files, not hardcoded
-4. **Environment Variables:** Runtime settings exposed via Pydantic Settings (see `.env.example`)
-
-For detailed configuration reference, see [Pipeline Configuration Guide](docs/pipeline-configuration.md).
+**Deployment:**
+- `docs/DEPLOYMENT_GUIDE.md` - Production deployment
 
 ---
 
-## References
+## Technology Stack
 
-- [BigQuery Python Client](https://cloud.google.com/python/docs/reference/bigquery/latest)
-- [Cloud Run Documentation](https://cloud.google.com/run/docs)
-- [OpenTelemetry Python](https://opentelemetry-python.readthedocs.io/)
-- [Great Expectations](https://docs.greatexpectations.io/)
-- [Polars Documentation](https://pola-rs.github.io/polars/)
+- **API:** FastAPI (Python 3.11+)
+- **Data Warehouse:** Google BigQuery
+- **Encryption:** Google Cloud KMS
+- **Authentication:** SHA256 + API Keys
+- **Configuration:** YAML + Pydantic
+- **Deployment:** Cloud Run (Docker)
 
 ---
 
-**Version**: 1.0.0
-**Last Updated**: 2025-11-15
-**Maintained By**: Data Engineering Team
+## Version
+
+- **Version:** 1.0.0
+- **Last Updated:** 2025-11-15
+- **Maintained By:** Data Engineering Team

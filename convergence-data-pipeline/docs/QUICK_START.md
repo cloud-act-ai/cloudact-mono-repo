@@ -1,364 +1,171 @@
-# Quick Start Guide - Convergence Data Pipeline
+# Quick Start Guide
 
-## 🎉 What's Been Built
+Get the Convergence Data Pipeline running locally in 5 minutes.
 
-You now have a **production-ready enterprise FastAPI foundation** with:
+## Prerequisites
 
-### ✅ Core Infrastructure (100% Complete)
-- **Multi-tenant architecture** with dataset-level isolation
-- **Secure API key authentication** with BigQuery-backed tenant mapping
-- **Filesystem secrets management** with Cloud Secret Manager fallback
-- **Enterprise logging** (structured JSON + OpenTelemetry traces)
-- **BigQuery client** with retry logic, partitioning, schema management
-- **Docker deployment** ready for Cloud Run
-- **Type-safe configuration** using Pydantic models
+- **Python 3.11+** (`python3 --version`)
+- **GCP Project** with BigQuery enabled
+- **Service Account JSON** with BigQuery Admin permissions (`~/.gcp/gac-prod-471220-e34944040b62.json`)
 
-### 📦 Files Created (10 Core Files)
+## Setup (5 minutes)
 
-1. `requirements.txt` - All dependencies
-2. `Dockerfile` - Multi-stage production build
-3. `.env.example` - Environment configuration
-4. `app/config.py` - Centralized settings
-5. `app/main.py` - FastAPI application
-6. `app/dependencies/auth.py` - API key authentication
-7. `core/utils/secrets.py` - Secrets management
-8. `core/utils/logging.py` - Structured logging
-9. `core/utils/telemetry.py` - OpenTelemetry tracing
-10. `core/engine/bq_client.py` - BigQuery client
-11. `core/abstractor/models.py` - Pydantic config models
-12. `scripts/init_metadata_tables.py` - Metadata table initialization
-
----
-
-## 🚀 Local Setup (5 Minutes)
-
-### Step 1: Install Dependencies
+### 1. Install Dependencies
 
 ```bash
-# Create virtual environment
-python3.11 -m venv venv
+python3 -m venv venv
 source venv/bin/activate
-
-# Install requirements
 pip install -r requirements.txt
 ```
 
-### Step 2: Configure Environment
+### 2. Configure Environment
 
 ```bash
-# Copy environment template
 cp .env.example .env
-
-# Edit .env with your GCP project details
-export GCP_PROJECT_ID="your-project-id"
-export GOOGLE_APPLICATION_CREDENTIALS="$HOME/gcp/your-service-account.json"
+# Edit .env with your GCP_PROJECT_ID and GOOGLE_APPLICATION_CREDENTIALS path
 ```
 
-### Step 3: Initialize BigQuery Metadata Tables
+Key settings:
+- `GCP_PROJECT_ID=gac-prod-471220`
+- `GOOGLE_APPLICATION_CREDENTIALS=~/.gcp/gac-prod-471220-e34944040b62.json`
+- `DISABLE_AUTH=true` (for local development)
+- `DEFAULT_TENANT_ID=acme1281`
+
+### 3. Start the Server
 
 ```bash
-# Create metadata dataset and tables
-python scripts/init_metadata_tables.py
+uvicorn src.app.main:app --reload --port 8080
 ```
 
-Expected output:
-```
-✓ BigQuery client initialized
-Created/verified metadata dataset: your-project-id.metadata
-Created/verified table: your-project-id.metadata.api_keys
-Created/verified table: your-project-id.metadata.pipeline_runs
-Created/verified table: your-project-id.metadata.dq_results
-✅ Metadata tables initialized successfully!
-```
+Visit http://localhost:8080/docs for interactive API documentation.
 
-### Step 4: Create Your First Tenant
+## Onboard Your First Customer
 
 ```bash
-# Create tenant directory structure
-mkdir -p configs/acme_corp/{secrets,schemas,sources,pipelines}
-
-# Create a test secret
-echo "sk-test-openai-api-key-123" > configs/acme_corp/secrets/openai_api_key.txt
-chmod 600 configs/acme_corp/secrets/openai_api_key.txt
+curl -X POST http://localhost:8080/api/v1/customers/onboard \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tenant_id": "acme1281",
+    "force_recreate_dataset": false,
+    "force_recreate_tables": false
+  }'
 ```
 
-### Step 5: Generate API Key for Tenant
+Response includes:
+- `tenant_id`: acme1281
+- `api_key`: Your new API key (save this!)
+- `dataset_created`: true/false
+- `tables_created`: List of initialized tables
+
+## Run Your First Pipeline
+
+1. **List available pipelines** for a tenant:
+```bash
+curl http://localhost:8080/api/v1/pipelines \
+  -H "X-API-Key: your-api-key"
+```
+
+2. **Trigger a pipeline** (example):
+```bash
+curl -X POST http://localhost:8080/api/v1/pipelines/run/p_openai_billing \
+  -H "X-API-Key: your-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "trigger_by": "api_user",
+    "date": "2025-11-14"
+  }'
+```
+
+Response:
+```json
+{
+  "pipeline_logging_id": "uuid-here",
+  "pipeline_id": "p_openai_billing",
+  "tenant_id": "acme1281",
+  "status": "running",
+  "message": "Pipeline queued for execution"
+}
+```
+
+3. **Check pipeline status**:
+```bash
+curl http://localhost:8080/api/v1/pipelines/runs/uuid-here \
+  -H "X-API-Key: your-api-key"
+```
+
+## Verify Results in BigQuery
 
 ```bash
-# Insert API key into BigQuery
-bq query --use_legacy_sql=false "
-INSERT INTO \`${GCP_PROJECT_ID}.metadata.api_keys\`
-(api_key_hash, tenant_id, created_at, created_by, is_active, description)
-VALUES
-(
-  TO_HEX(SHA256('test-api-key-acme-corp')),
-  'acme_corp',
-  CURRENT_TIMESTAMP(),
-  'admin@example.com',
-  TRUE,
-  'Test API key for ACME Corp'
-)
-"
+# Check pipeline run history
+bq query --use_legacy_sql=false \
+  "SELECT * FROM acme1281.pipeline_runs ORDER BY start_time DESC LIMIT 5"
+
+# View loaded data (example)
+bq query --use_legacy_sql=false \
+  "SELECT * FROM acme1281.gcp_billing_export LIMIT 10"
+
+# Check data quality results
+bq query --use_legacy_sql=false \
+  "SELECT * FROM acme1281.dq_results ORDER BY run_date DESC LIMIT 10"
 ```
 
-### Step 6: Start FastAPI Locally
+## Next Steps
 
-```bash
-# Terminal 1: Start Redis (for Celery workers - coming next)
-docker run -d -p 6379:6379 redis:7-alpine
+1. **Configure Pipelines**: See [`docs/pipeline-configuration.md`](pipeline-configuration.md)
+2. **Onboarding Guide**: See [`docs/ONBOARDING.md`](ONBOARDING.md)
+3. **Environment Variables**: See [`docs/ENVIRONMENT_VARIABLES.md`](ENVIRONMENT_VARIABLES.md)
+4. **Deployment**: See [`docs/DEPLOYMENT_GUIDE.md`](DEPLOYMENT_GUIDE.md)
+5. **Metadata Schema**: See [`docs/metadata-schema.md`](metadata-schema.md)
 
-# Terminal 2: Start FastAPI
-uvicorn app.main:app --reload --port 8080
-```
+## Troubleshooting
 
-### Step 7: Test Authentication
+**API returns 401 Unauthorized**
+- Check `X-API-Key` header is set
+- Verify tenant exists: `SELECT * FROM metadata.api_keys`
 
-```bash
-# Health check (no auth required)
-curl http://localhost:8080/health
+**Pipeline fails with "Dataset not found"**
+- Ensure tenant was onboarded: `POST /customers/onboard`
+- Check BigQuery permissions on service account
 
-# Test authenticated endpoint (when routers are added)
-curl http://localhost:8080/api/v1/pipelines/runs \
-  -H "X-API-Key: test-api-key-acme-corp"
-```
+**Cannot connect to BigQuery**
+- Verify `GOOGLE_APPLICATION_CREDENTIALS` path is correct
+- Check service account has BigQuery Admin role in GCP
 
----
+## Key Endpoints
 
-## 🏗️ Architecture Overview
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/v1/customers/onboard` | Create new tenant and dataset |
+| GET | `/api/v1/pipelines` | List available pipelines |
+| POST | `/api/v1/pipelines/run/{pipeline_id}` | Trigger pipeline |
+| GET | `/api/v1/pipelines/runs/{run_id}` | Get pipeline run status |
+| GET | `/api/v1/pipelines/runs` | List pipeline runs (filter by tenant) |
+| POST | `/api/v1/pipelines/runs/{run_id}/cancel` | Cancel running pipeline |
+| GET | `/health` | Health check |
+| GET | `/docs` | Interactive API docs (Swagger UI) |
 
-### File System Layout
-
-```
-configs/
-├── acme_corp/                    # Tenant: ACME Corp
-│   ├── secrets/
-│   │   └── openai_api_key.txt   # API keys (git-ignored)
-│   ├── schemas/
-│   │   └── openai_usage.json    # BigQuery table schemas
-│   ├── sources/
-│   │   └── openai_billing.yml   # Data source configs
-│   └── pipelines/
-│       └── p_openai_daily.yml   # Pipeline definitions
-│
-└── widgetsinc/                   # Tenant: Widgets Inc
-    ├── secrets/
-    ├── schemas/
-    ├── sources/
-    └── pipelines/
-```
-
-### BigQuery Datasets (Per Tenant)
+## Architecture
 
 ```
-your-project-id.metadata              # Shared metadata (api_keys, pipeline_runs)
-your-project-id.acme_corp_raw_openai  # ACME's raw OpenAI data
-your-project-id.acme_corp_silver_cost # ACME's normalized cost data
-your-project-id.widgetsinc_raw_openai # Widgets Inc's raw data
+┌─────────────────────┐
+│    FastAPI Server   │ (Cloud Run / Local)
+│  ┌───────────────┐  │
+│  │ API Routers   │  │
+│  │ - pipelines   │  │
+│  │ - customers   │  │
+│  │ - admin       │  │
+│  └───────────────┘  │
+└──────────┬──────────┘
+           │
+      (HTTP/REST)
+           │
+    ┌──────▼───────┐
+    │  BigQuery    │
+    │ (Multi-Region)
+    │ - metadata   │
+    │ - raw data   │
+    │ - silver     │
+    └──────────────┘
 ```
 
-### Request Flow
-
-```
-1. Client sends request with X-API-Key header
-   ↓
-2. FastAPI middleware logs request
-   ↓
-3. verify_api_key() dependency:
-   - Hashes API key (SHA256)
-   - Queries metadata.api_keys table
-   - Returns TenantContext(tenant_id='acme_corp')
-   ↓
-4. API router processes request with tenant isolation
-   ↓
-5. Worker accesses tenant-specific:
-   - BigQuery datasets (acme_corp_raw_openai)
-   - Secrets (configs/acme_corp/secrets/)
-   - Configs (configs/acme_corp/pipelines/)
-```
-
----
-
-## 📋 What's Next (Implementation Roadmap)
-
-### Phase 1: Core Workers (NEXT - 1-2 days)
-
-Files to create:
-1. `core/abstractor/config_loader.py` - Load YAML configs with Pydantic validation
-2. `core/workers/celery_app.py` - Celery configuration
-3. `core/engine/polars_processor.py` - **Petabyte-scale streaming processor**
-4. `core/workers/ingest_task.py` - Data ingestion with Polars
-5. `core/workers/pipeline_task.py` - Pipeline orchestrator
-
-### Phase 2: API Routers (1 day)
-
-Files to create:
-6. `app/routers/pipelines.py` - Pipeline management endpoints
-7. `app/routers/admin.py` - Tenant and API key management
-8. `app/middleware/rate_limit.py` - Per-tenant rate limiting
-
-### Phase 3: DQ & Transform (1 day)
-
-Files to create:
-9. `core/engine/dq_runner.py` - Great Expectations integration
-10. `core/workers/dq_task.py` - Data quality worker
-11. `core/workers/transform_task.py` - SQL transformation worker
-
-### Phase 4: Deployment (1 day)
-
-Files to create:
-12. `cloudbuild.yaml` - Cloud Build deployment pipeline
-13. `.github/workflows/ci.yml` - GitHub Actions for CI/CD
-14. `scripts/create_tenant.py` - Automated tenant onboarding
-
----
-
-## 🔧 Testing What's Built
-
-### Test 1: Configuration Loading
-
-```python
-from app.config import settings
-
-print(f"Project: {settings.gcp_project_id}")
-print(f"Location: {settings.bigquery_location}")
-print(f"Environment: {settings.environment}")
-
-# Test tenant path helpers
-print(settings.get_tenant_secrets_path("acme_corp"))
-# Output: ./configs/acme_corp/secrets
-
-print(settings.get_tenant_dataset_name("acme_corp", "raw_openai"))
-# Output: acme_corp_raw_openai
-```
-
-### Test 2: Secrets Management
-
-```python
-from core.utils.secrets import get_secret
-
-# Load secret from filesystem
-api_key = get_secret("acme_corp", "openai_api_key")
-print(f"Loaded API key: {api_key[:10]}...")
-```
-
-### Test 3: BigQuery Client
-
-```python
-from core.engine.bq_client import get_bigquery_client
-
-bq = get_bigquery_client()
-
-# Create tenant dataset
-dataset = bq.create_dataset(
-    tenant_id="acme_corp",
-    dataset_type="raw_openai",
-    description="ACME Corp OpenAI billing data"
-)
-
-# Check if table exists
-exists = bq.table_exists("acme_corp", "raw_openai", "usage_logs")
-print(f"Table exists: {exists}")
-```
-
-### Test 4: Structured Logging
-
-```python
-from core.utils.logging import create_structured_logger
-
-logger = create_structured_logger(
-    __name__,
-    tenant_id="acme_corp",
-    pipeline_id="p_openai_billing"
-)
-
-logger.info("Pipeline started", rows_to_process=1500)
-# Output: JSON log with tenant_id, pipeline_id, trace_id
-```
-
----
-
-## 🎯 Key Features Implemented
-
-### 1. Multi-Tenancy
-- ✅ Dataset-level isolation (`{tenant_id}_raw_openai`)
-- ✅ Filesystem-based tenant configs (`configs/{tenant_id}/`)
-- ✅ API key → tenant_id mapping in BigQuery
-- ✅ TenantContext propagation through FastAPI dependencies
-
-### 2. Security
-- ✅ SHA256 API key hashing
-- ✅ Secure file permissions (0o600) for secrets
-- ✅ Non-root Docker user (appuser)
-- ✅ CORS configuration
-- ✅ Per-tenant rate limiting (configurable)
-
-### 3. Scalability (Ready for Petabytes)
-- ✅ BigQuery partitioning by ingestion_date
-- ✅ BigQuery clustering on tenant_id, pipeline_id
-- ✅ Configurable Polars thread pool
-- ✅ Retry logic with exponential backoff
-- ✅ Connection pooling (lazy-loaded singletons)
-
-### 4. Observability
-- ✅ Structured JSON logging (Cloud Logging compatible)
-- ✅ OpenTelemetry distributed tracing
-- ✅ Request timing middleware
-- ✅ Tenant context in all logs
-- ✅ trace_id correlation across services
-
-### 5. Developer Experience
-- ✅ Type-safe Pydantic models for all configs
-- ✅ Environment variable configuration
-- ✅ Hot-reload for local development
-- ✅ Comprehensive error messages
-- ✅ Health check endpoints
-
----
-
-## 📚 Documentation
-
-- **README.md** - Complete technical architecture documentation
-- **IMPLEMENTATION_STATUS.md** - Detailed implementation status and roadmap
-- **QUICK_START.md** - This file
-- **.env.example** - Environment configuration template
-
----
-
-## 🤔 Common Questions
-
-### Q: Can I deploy this to Cloud Run now?
-**A:** Yes! The FastAPI application is ready to deploy. However, you won't be able to trigger pipelines until workers are implemented (Phase 1).
-
-### Q: How do I add a new tenant?
-**A:**
-1. Create directory: `configs/{tenant_id}/`
-2. Add secrets to `configs/{tenant_id}/secrets/`
-3. Insert API key into `metadata.api_keys` table
-4. Create BigQuery datasets with `bq.create_dataset()`
-
-### Q: Where are Polars and workers?
-**A:** They're next! See Phase 1 in the roadmap above. The foundation (config, auth, BigQuery, logging) is complete.
-
-### Q: Can I use Cloud Secret Manager instead of filesystem?
-**A:** Yes! The `SecretsManager` automatically falls back to Cloud Secret Manager if a secret isn't found in `configs/{tenant_id}/secrets/`.
-
-### Q: How do I scale to petabytes?
-**A:** Polars streaming processor (coming in Phase 1) uses:
-- Lazy evaluation (deferred computation)
-- Chunked processing (configurable chunk size)
-- Parallel execution (configurable thread pool)
-- Direct BigQuery integration
-
----
-
-## 🚀 Ready to Continue?
-
-You have a **solid enterprise foundation**. Next steps:
-
-1. ✅ **Test what's built** (run the test scripts above)
-2. ⏳ **Implement Phase 1 workers** (config loader, Polars, ingest worker)
-3. ⏳ **Add API routers** (trigger pipelines via HTTP)
-4. ⏳ **Deploy to Cloud Run**
-5. ⏳ **Create example tenant configs**
-
-**Questions? Let me know which phase to build next!** 🎯
+See [`README.md`](../README.md) for full technical documentation.
