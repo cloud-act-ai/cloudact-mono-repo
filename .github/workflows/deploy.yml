@@ -53,7 +53,7 @@ jobs:
 
       - name: Build with Cloud Build
         run: |
-          gcloud builds submit ../convergence-data-pipeline \
+          gcloud builds submit convergence-data-pipeline \
             --tag=gcr.io/${{ env.GCP_PROJECT_ID }}/${{ env.SERVICE_NAME }} \
             --timeout=20m
 
