@@ -232,7 +232,8 @@ class Settings(BaseSettings):
         Find pipeline file recursively in tenant config directory.
 
         Searches for pipeline in new cloud-provider/domain structure:
-        configs/{tenant_id}/{provider}/{domain}/{pipeline_id}.yml
+        1. First tries: configs/{tenant_id}/{provider}/{domain}/{pipeline_id}.yml
+        2. Falls back to shared templates: configs/{provider}/{domain}/{pipeline_id}.yml
 
         Args:
             tenant_id: The tenant identifier
@@ -247,14 +248,21 @@ class Settings(BaseSettings):
         """
         from pathlib import Path
 
-        base_path = Path(self.get_tenant_config_path(tenant_id))
+        # First try tenant-specific config
+        tenant_base_path = Path(self.get_tenant_config_path(tenant_id))
+        matches = list(tenant_base_path.glob(f"**/{pipeline_id}.yml"))
 
-        # Search for pipeline file recursively
-        matches = list(base_path.glob(f"**/{pipeline_id}.yml"))
+        # If not found in tenant directory, try shared templates
+        if not matches:
+            shared_base_path = Path(self.configs_base_path)
+            matches = list(shared_base_path.glob(f"**/{pipeline_id}.yml"))
+
+            # Filter out tenant-specific paths from shared search
+            matches = [m for m in matches if not str(m).startswith(str(tenant_base_path))]
 
         if not matches:
             raise FileNotFoundError(
-                f"Pipeline '{pipeline_id}' not found for tenant '{tenant_id}' in {base_path}"
+                f"Pipeline '{pipeline_id}' not found for tenant '{tenant_id}' in {tenant_base_path} or shared configs"
             )
 
         if len(matches) > 1:

@@ -217,10 +217,10 @@ async def onboard_customer(
             dryrun_status = "SKIPPED"
             dryrun_message = "Dryrun pipeline configuration not found"
         else:
-            # Create async pipeline executor for dryrun
+            # Create async pipeline executor for dryrun (uses shared template at configs/gcp/example/dryrun.yml)
             executor = AsyncPipelineExecutor(
                 tenant_id=tenant_id,
-                pipeline_id=f"{tenant_id}-dryrun",
+                pipeline_id="dryrun",  # References shared template configs/gcp/example/dryrun.yml
                 trigger_type="onboarding",
                 trigger_by="onboarding_api"
             )
