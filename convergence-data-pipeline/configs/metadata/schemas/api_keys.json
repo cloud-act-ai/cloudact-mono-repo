@@ -1,0 +1,44 @@
+[
+  {
+    "name": "api_key_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Unique identifier (UUID) for this API key record. Used as primary key for API key management operations (revocation, updates, lookups). Each generated API key gets a unique ID for lifecycle tracking."
+  },
+  {
+    "name": "tenant_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "The tenant identifier that owns this API key. Used for tenant isolation and ensures API keys can only be used by their owning tenant. Stored redundantly for query optimization and data integrity validation."
+  },
+  {
+    "name": "api_key_hash",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Cryptographically hashed version of the API key using secure one-way hashing (bcrypt, SHA-256, etc.). Never store plaintext API keys for security. This hash is compared against the hashed incoming API key for authentication. The actual API key is only shown once during generation and never stored."
+  },
+  {
+    "name": "encrypted_api_key",
+    "type": "BYTES",
+    "mode": "REQUIRED",
+    "description": "AES-256 encrypted version of the actual API key stored as binary bytes. Encrypted using Cloud KMS or application-level encryption. Used for key recovery scenarios if needed, but primary authentication uses the hash field. Provides additional security layer compared to storing plaintext."
+  },
+  {
+    "name": "created_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "UTC timestamp when this API key was generated. Used for audit trails, key rotation policies, and identifying old keys that should be deprecated. Immutable after creation."
+  },
+  {
+    "name": "expires_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "UTC timestamp when this API key expires and becomes invalid. NULL for keys that never expire (not recommended for production). Used for automatic key rotation policies, security compliance, and preventing long-lived credentials. Authentication checks reject expired keys even if is_active=true."
+  },
+  {
+    "name": "is_active",
+    "type": "BOOLEAN",
+    "mode": "REQUIRED",
+    "description": "Whether this API key is currently active and can be used for authentication. FALSE means key is revoked/disabled. Used for immediate key revocation without deletion (maintains audit trail). Can be toggled for emergency key disabling or temporary access suspension. Default: TRUE for new keys."
+  }
+]
