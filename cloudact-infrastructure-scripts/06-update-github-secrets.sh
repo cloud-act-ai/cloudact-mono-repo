@@ -37,66 +37,40 @@ if ! gh auth status &> /dev/null; then
     exit 1
 fi
 
-# Get repository info
-REPO_OWNER="your-org"  # Update this
-REPO_NAME="convergence-data-pipeline"  # Update this
-REPO="${REPO_OWNER}/${REPO_NAME}"
+# Get repository info from current git repo
+REPO=$(gh repo view --json nameWithOwner -q '.nameWithOwner')
 
 echo "Repository: $REPO"
 echo ""
 
-# Secrets directory
-SECRETS_DIR="./secrets"
+# Use existing prod key for both environments (same key, different projects)
+SA_KEY="$HOME/.gcp/gac-prod-471220-e34944040b62.json"
 
-if [ ! -d "$SECRETS_DIR" ]; then
-    echo -e "${YELLOW}Creating secrets directory...${NC}"
-    mkdir -p $SECRETS_DIR
+if [ ! -f "$SA_KEY" ]; then
+    echo -e "${RED}Error: Service account key not found: $SA_KEY${NC}"
     echo ""
-    echo -e "${BLUE}Please place service account JSON keys in: $SECRETS_DIR/${NC}"
-    echo "  - stage-sa-key.json (for staging)"
-    echo "  - prod-sa-key.json (for production)"
-    echo ""
-    echo "Download keys from GCP Console:"
-    echo "  1. Go to IAM & Admin > Service Accounts"
-    echo "  2. Find convergence-sa-stage@gac-stage-471220.iam.gserviceaccount.com"
-    echo "  3. Create key (JSON) and save as $SECRETS_DIR/stage-sa-key.json"
-    echo "  4. Repeat for prod service account"
-    echo ""
+    echo "Please ensure the service account key exists at: $SA_KEY"
     exit 1
 fi
 
-# Check for key files
-STAGE_KEY="$SECRETS_DIR/stage-sa-key.json"
-PROD_KEY="$SECRETS_DIR/prod-sa-key.json"
-
-if [ ! -f "$STAGE_KEY" ]; then
-    echo -e "${RED}Error: Stage service account key not found: $STAGE_KEY${NC}"
-    exit 1
-fi
-
-if [ ! -f "$PROD_KEY" ]; then
-    echo -e "${RED}Error: Prod service account key not found: $PROD_KEY${NC}"
-    exit 1
-fi
+echo -e "${GREEN}Using service account key: $SA_KEY${NC}"
+echo ""
 
 # Update secrets
-echo -e "${GREEN}[1/6] Setting GCP_PROJECT_ID_STAGE...${NC}"
-gh secret set GCP_PROJECT_ID_STAGE --body "gac-stage-471220" --repo $REPO
+echo -e "${GREEN}[1/5] Setting GCP_PROJECT_ID_STAGE...${NC}"
+gh secret set GCP_PROJECT_ID_STAGE --body "gac-stage-471220"
 
-echo -e "${GREEN}[2/6] Setting GCP_PROJECT_ID_PROD...${NC}"
-gh secret set GCP_PROJECT_ID_PROD --body "gac-prod-471220" --repo $REPO
+echo -e "${GREEN}[2/5] Setting GCP_PROJECT_ID_PROD...${NC}"
+gh secret set GCP_PROJECT_ID_PROD --body "gac-prod-471220"
 
-echo -e "${GREEN}[3/6] Setting GCP_SA_KEY_STAGE...${NC}"
-gh secret set GCP_SA_KEY_STAGE < $STAGE_KEY --repo $REPO
+echo -e "${GREEN}[3/5] Setting GCP_SA_KEY_STAGE (using prod key)...${NC}"
+gh secret set GCP_SA_KEY_STAGE < $SA_KEY
 
-echo -e "${GREEN}[4/6] Setting GCP_SA_KEY_PROD...${NC}"
-gh secret set GCP_SA_KEY_PROD < $PROD_KEY --repo $REPO
+echo -e "${GREEN}[4/5] Setting GCP_SA_KEY_PROD...${NC}"
+gh secret set GCP_SA_KEY_PROD < $SA_KEY
 
-echo -e "${GREEN}[5/6] Setting CLOUD_RUN_REGION...${NC}"
-gh secret set CLOUD_RUN_REGION --body "us-central1" --repo $REPO
-
-echo -e "${GREEN}[6/6] Setting CLOUD_RUN_SERVICE_STAGE...${NC}"
-gh secret set CLOUD_RUN_SERVICE_STAGE --body "convergence-pipeline-stage" --repo $REPO
+echo -e "${GREEN}[5/5] Setting CLOUD_RUN_REGION...${NC}"
+gh secret set CLOUD_RUN_REGION --body "us-central1"
 
 echo ""
 echo -e "${GREEN}✓ GitHub secrets updated successfully!${NC}"
@@ -107,7 +81,5 @@ echo "  - GCP_PROJECT_ID_PROD"
 echo "  - GCP_SA_KEY_STAGE"
 echo "  - GCP_SA_KEY_PROD"
 echo "  - CLOUD_RUN_REGION"
-echo "  - CLOUD_RUN_SERVICE_STAGE"
 echo ""
-echo -e "${YELLOW}IMPORTANT: Delete the key files after upload!${NC}"
-echo "  rm $SECRETS_DIR/*.json"
+echo -e "${YELLOW}Next: Push to main branch or manually trigger workflow${NC}"
