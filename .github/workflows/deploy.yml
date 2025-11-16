@@ -36,7 +36,7 @@ jobs:
             echo "GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID_STAGE }}" >> $GITHUB_ENV
             echo "SERVICE_NAME=convergence-pipeline-stage" >> $GITHUB_ENV
           fi
-          echo "REGION=${{ secrets.CLOUD_RUN_REGION }}" >> $GITHUB_ENV
+          echo "REGION=us-central1" >> $GITHUB_ENV
 
       - name: Authenticate to Google Cloud (Stage)
         if: github.event.inputs.environment != 'prod'
