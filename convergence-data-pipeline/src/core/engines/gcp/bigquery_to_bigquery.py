@@ -21,7 +21,8 @@ class BigQueryToBigQueryEngine:
 
     def __init__(self):
         self.settings = get_settings()
-        self.template_dir = Path(__file__).parent.parent.parent / "templates" / "gcp" / "bigquery_to_bigquery"
+        # Templates are now at project root level, same as configs/
+        self.template_dir = Path(__file__).parent.parent.parent.parent.parent / "templates" / "gcp" / "bigquery_to_bigquery"
         self.schema_templates = self._load_schema_templates()
 
     def _load_schema_templates(self) -> Dict[str, Any]:
