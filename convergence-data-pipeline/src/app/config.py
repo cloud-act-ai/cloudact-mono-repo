@@ -67,7 +67,7 @@ class Settings(BaseSettings):
     # ============================================
     # Security Configuration
     # ============================================
-    disable_auth: bool = Field(default=True, description="Disable API key authentication (for development)")
+    disable_auth: bool = Field(default=False, description="Disable API key authentication (for development)")
     default_tenant_id: str = Field(
         default="acmeinc_23xv2",
         description="Default tenant ID when authentication is disabled (new architecture)"

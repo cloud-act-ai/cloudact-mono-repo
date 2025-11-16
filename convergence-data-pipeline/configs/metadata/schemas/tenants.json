@@ -1,0 +1,104 @@
+[
+  {
+    "name": "tenant_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Unique tenant identifier (primary key). Used for all tenant operations and data isolation."
+  },
+  {
+    "name": "company_name",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Company or organization name for this tenant."
+  },
+  {
+    "name": "contact_email",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Primary contact email for tenant notifications and support."
+  },
+  {
+    "name": "subscription_tier",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Subscription tier: FREE, STARTER, PROFESSIONAL, ENTERPRISE. Determines feature access and default quotas."
+  },
+  {
+    "name": "is_active",
+    "type": "BOOLEAN",
+    "mode": "REQUIRED",
+    "description": "Whether tenant account is active. FALSE blocks all pipeline executions and API access. Used for account suspension, non-payment, or security incidents."
+  },
+  {
+    "name": "max_pipelines_per_month",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "Maximum pipeline runs allowed per calendar month. NULL means unlimited (for enterprise tier). Enforced before every pipeline execution."
+  },
+  {
+    "name": "max_concurrent_pipelines",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "Maximum number of pipelines that can run simultaneously. NULL means unlimited. Prevents resource exhaustion."
+  },
+  {
+    "name": "pipeline_runs_count",
+    "type": "INT64",
+    "mode": "REQUIRED",
+    "description": "Total lifetime pipeline runs executed by this tenant. Never resets. Used for billing and analytics."
+  },
+  {
+    "name": "pipeline_runs_this_month",
+    "type": "INT64",
+    "mode": "REQUIRED",
+    "description": "Pipeline runs in current calendar month. Auto-resets to 0 on first day of each month by background job."
+  },
+  {
+    "name": "current_running_pipelines",
+    "type": "INT64",
+    "mode": "REQUIRED",
+    "description": "Number of pipelines currently executing. Incremented on start, decremented on completion/failure."
+  },
+  {
+    "name": "last_pipeline_run_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "UTC timestamp of last pipeline execution. Used for identifying inactive tenants and retention analysis."
+  },
+  {
+    "name": "quota_reset_date",
+    "type": "DATE",
+    "mode": "REQUIRED",
+    "description": "Date when monthly quota was last reset. Used to track monthly billing cycles."
+  },
+  {
+    "name": "created_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "UTC timestamp when tenant was onboarded. Immutable."
+  },
+  {
+    "name": "updated_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "UTC timestamp of last metadata update (quota changes, tier upgrades, etc.)."
+  },
+  {
+    "name": "suspended_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "UTC timestamp when account was suspended (is_active=FALSE). NULL if never suspended or currently active."
+  },
+  {
+    "name": "suspension_reason",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Reason for account suspension: PAYMENT_FAILED, QUOTA_EXCEEDED, SECURITY_VIOLATION, ADMIN_ACTION, etc."
+  },
+  {
+    "name": "notes",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Internal admin notes about this tenant. Not exposed to tenant."
+  }
+]

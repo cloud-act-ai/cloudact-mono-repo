@@ -846,13 +846,16 @@ curl -X POST "http://localhost:8080/api/v1/customers/onboard" \
 
 **Core Guides:**
 - `docs/QUICK_START.md` - 5-minute setup guide
-- `docs/ONBOARDING.md` - Customer onboarding details
+- `docs/ONBOARDING.md` - Enterprise multi-tenant onboarding with quota management
+- `MULTI_TENANCY_DESIGN.md` - Complete multi-tenancy architecture specification
+- `IMPLEMENTATION_SUMMARY.md` - Step-by-step implementation guide
 - `docs/pipeline-configuration.md` - Pipeline configuration guide
 - `docs/TECHNICAL_IMPLEMENTATION.md` - Technical architecture
 
 **Configuration:**
 - `docs/ENVIRONMENT_VARIABLES.md` - All environment variables
 - `docs/metadata-schema.md` - BigQuery metadata schemas
+- `configs/metadata/schemas/tenants.json` - Tenant quota & tracking schema
 - `docs/README_SECRETS.md` - Secrets management
 
 **Deployment:**

@@ -121,15 +121,37 @@ async def get_tenant_from_api_key(
     """
 
     try:
-        # First, get all datasets that have api_keys table
+        # First, get all datasets (using standard INFORMATION_SCHEMA instead of regional)
+        # Then check each one for api_keys table existence
         datasets_query = f"""
-        SELECT DISTINCT table_schema
-        FROM `{settings.gcp_project_id}.region-{settings.bigquery_location}.INFORMATION_SCHEMA.TABLES`
-        WHERE table_name = 'api_keys'
-          AND table_schema NOT IN ('information_schema', 'metadata', 'pg_catalog')
+        SELECT schema_name
+        FROM `{settings.gcp_project_id}.INFORMATION_SCHEMA.SCHEMATA`
+        WHERE schema_name NOT IN ('information_schema', 'metadata', 'pg_catalog')
         """
 
-        datasets = list(bq_client.client.query(datasets_query).result())
+        logger.info(f"[AUTH DEBUG] Looking up API key hash: {api_key_hash[:20]}...")
+        all_datasets = list(bq_client.client.query(datasets_query).result())
+        logger.info(f"[AUTH DEBUG] Found {len(all_datasets)} tenant datasets")
+
+        # Filter to only datasets that have api_keys table
+        datasets = []
+        for row in all_datasets:
+            schema_name = row['schema_name']
+            try:
+                # Check if api_keys table exists in this dataset
+                table_check = f"""
+                SELECT COUNT(*) as cnt
+                FROM `{settings.gcp_project_id}.{schema_name}.INFORMATION_SCHEMA.TABLES`
+                WHERE table_name = 'api_keys'
+                """
+                result = list(bq_client.client.query(table_check).result())
+                if result and result[0]['cnt'] > 0:
+                    datasets.append({'table_schema': schema_name})
+            except Exception as e:
+                logger.debug(f"[AUTH DEBUG] Skipping dataset {schema_name}: {e}")
+                continue
+
+        logger.info(f"[AUTH DEBUG] Found {len(datasets)} datasets with api_keys table")
 
         if not datasets:
             logger.warning(f"No tenant datasets with api_keys table found")
@@ -139,6 +161,7 @@ async def get_tenant_from_api_key(
         union_parts = []
         for row in datasets:
             tenant_id = row['table_schema']
+            logger.info(f"[AUTH DEBUG] Adding dataset to UNION query: {tenant_id}")
             union_parts.append(f"""
                 SELECT tenant_id, is_active
                 FROM `{settings.gcp_project_id}.{tenant_id}.api_keys`
@@ -149,6 +172,8 @@ async def get_tenant_from_api_key(
             return await get_tenant_from_local_file(api_key_hash)
 
         union_query = " UNION ALL ".join(union_parts) + " LIMIT 1"
+        logger.info(f"[AUTH DEBUG] Executing UNION query:\n{union_query}")
+        logger.info(f"[AUTH DEBUG] With parameter: api_key_hash = {api_key_hash[:20]}...")
 
         results = list(bq_client.query(
             union_query,
@@ -157,18 +182,21 @@ async def get_tenant_from_api_key(
             ]
         ))
 
+        logger.info(f"[AUTH DEBUG] Query returned {len(results)} results")
+
         if not results:
             logger.warning(f"API key not found in any tenant dataset, trying local files")
             return await get_tenant_from_local_file(api_key_hash)
 
         row = results[0]
+        logger.info(f"[AUTH DEBUG] First result row: tenant_id={row.get('tenant_id')}, is_active={row.get('is_active')}")
 
         if not row.get("is_active", False):
             logger.warning(f"API key is inactive for tenant: {row.get('tenant_id')}")
             return None
 
         tenant_id = row["tenant_id"]
-        logger.info(f"Found active API key for tenant: {tenant_id}")
+        logger.info(f"[AUTH DEBUG] Returning tenant_id: {tenant_id}")
         return tenant_id
 
     except Exception as e:
