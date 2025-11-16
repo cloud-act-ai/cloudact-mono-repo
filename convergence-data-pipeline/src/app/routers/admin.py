@@ -141,7 +141,7 @@ async def get_tenant(
     # Count API keys
     api_keys_query = f"""
     SELECT COUNT(*) as count
-    FROM `{settings.get_admin_metadata_table('api_keys')}`
+    FROM `{settings.get_admin_metadata_table('x_meta_api_keys')}`
     WHERE tenant_id = @tenant_id
     """
 
@@ -159,7 +159,7 @@ async def get_tenant(
     # Count pipeline runs
     runs_query = f"""
     SELECT COUNT(*) as count
-    FROM `{settings.get_admin_metadata_table('pipeline_runs')}`
+    FROM `{settings.get_admin_metadata_table('x_meta_pipeline_runs')}`
     WHERE tenant_id = @tenant_id
     """
 
@@ -207,7 +207,7 @@ async def create_api_key(
 
     # Insert into BigQuery
     insert_query = f"""
-    INSERT INTO `{settings.get_admin_metadata_table('api_keys')}`
+    INSERT INTO `{settings.get_admin_metadata_table('x_meta_api_keys')}`
     (api_key_hash, tenant_id, created_at, created_by, is_active, description)
     VALUES
     (@api_key_hash, @tenant_id, CURRENT_TIMESTAMP(), @created_by, TRUE, @description)
@@ -252,7 +252,7 @@ async def revoke_api_key(
     The API key will be marked as inactive and can no longer be used.
     """
     update_query = f"""
-    UPDATE `{settings.get_admin_metadata_table('api_keys')}`
+    UPDATE `{settings.get_admin_metadata_table('x_meta_api_keys')}`
     SET is_active = FALSE
     WHERE api_key_hash = @api_key_hash
     """

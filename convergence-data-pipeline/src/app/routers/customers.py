@@ -114,11 +114,11 @@ async def onboard_customer(
 
         # Get list of tables that should be created
         tables_created = [
-            "api_keys",
-            "cloud_credentials",
-            "pipeline_runs",
-            "step_logs",
-            "dq_results"
+            "x_meta_api_keys",
+            "x_meta_cloud_credentials",
+            "x_meta_pipeline_runs",
+            "x_meta_step_logs",
+            "x_meta_dq_results"
         ]
 
         dataset_created = True
@@ -174,7 +174,7 @@ async def onboard_customer(
         logger.info(f"Storing API key in database for tenant: {tenant_id}")
 
         insert_query = f"""
-        INSERT INTO `{settings.gcp_project_id}.{tenant_id}.api_keys`
+        INSERT INTO `{settings.gcp_project_id}.{tenant_id}.x_meta_api_keys`
         (api_key_id, tenant_id, api_key_hash, encrypted_api_key, created_at, is_active)
         VALUES
         (@api_key_id, @tenant_id, @api_key_hash, @encrypted_api_key, CURRENT_TIMESTAMP(), TRUE)
@@ -230,7 +230,7 @@ async def onboard_customer(
             result = await executor.execute(parameters={})
 
             # Check execution result
-            if result and result.get('status') in ['COMPLETE', 'SUCCESS']:
+            if result and result.get('status') in ['COMPLETED', 'COMPLETE', 'SUCCESS']:
                 dryrun_status = "SUCCESS"
                 dryrun_message = "Dryrun pipeline completed successfully"
                 logger.info(f"Dryrun pipeline succeeded for tenant: {tenant_id}")

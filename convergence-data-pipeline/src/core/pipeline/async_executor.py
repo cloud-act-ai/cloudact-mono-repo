@@ -6,6 +6,7 @@ Orchestrates multi-step pipelines with async/await and parallel execution.
 import yaml
 import uuid
 import asyncio
+import importlib
 from typing import Dict, Any, List, Optional, Set
 from datetime import datetime
 from pathlib import Path
@@ -377,7 +378,7 @@ class AsyncPipelineExecutor:
             step_index: Step position in pipeline (0-indexed)
         """
         step_id = step_config['step_id']
-        step_type = step_config['type']
+        step_type = step_config.get('ps_type', step_config.get('type', 'unknown'))
 
         # Create unique step logging ID
         step_logging_id = str(uuid.uuid4())
@@ -480,20 +481,37 @@ class AsyncPipelineExecutor:
         Args:
             step_config: Step configuration from YAML
             step_id: Step identifier
-            step_type: Step type (bigquery_to_bigquery, data_quality, etc.)
+            step_type: Step type (e.g., "gcp.bigquery_to_bigquery", "customer.onboarding")
 
         Returns:
             Step execution result dictionary
         """
-        # Execute step based on type
-        if step_type == "bigquery_to_bigquery":
-            result = await self._execute_bq_to_bq_step_async(step_config)
+        # Execute step using dynamic engine loading
+        try:
+            # Convert ps_type (e.g., "customer.onboarding") to module path (e.g., "src.core.engines.customer.onboarding")
+            module_name = f"src.core.engines.{step_type.replace('.', '.')}"
 
-        elif step_type == "data_quality":
-            result = await self._execute_dq_step_async(step_config)
+            # Dynamically import the engine module
+            engine_module = importlib.import_module(module_name)
 
-        else:
-            raise ValueError(f"Unknown step type: {step_type}")
+            # Get the engine instance
+            engine = engine_module.get_engine()
+
+            # Execute the engine with step config and context
+            context = {
+                "tenant_id": self.tenant_id,
+                "pipeline_id": self.pipeline_id,
+                "step_id": step_id
+            }
+
+            result = await engine.execute(step_config, context)
+
+        except ModuleNotFoundError:
+            raise ValueError(f"Engine not found for step type: {step_type}. Module: {module_name}")
+        except AttributeError:
+            raise ValueError(f"Engine module {module_name} does not have get_engine() function")
+        except Exception as e:
+            raise ValueError(f"Error executing engine for step type {step_type}: {str(e)}")
 
         # Store result in thread-safe dictionary keyed by step_id
         self._step_execution_results[step_id] = result

@@ -797,7 +797,7 @@ class MetadataLogger:
         Raises:
             Exception: If insert fails after retries
         """
-        table_id = f"{self.project_id}.{self.metadata_dataset}.pipeline_runs"
+        table_id = f"{self.project_id}.{self.metadata_dataset}.x_meta_pipeline_runs"
 
         # Use streaming inserts with insertId for idempotency
         rows_to_insert = [log["json"] for log in logs]
@@ -848,7 +848,7 @@ class MetadataLogger:
         Raises:
             Exception: If insert fails after retries
         """
-        table_id = f"{self.project_id}.{self.metadata_dataset}.step_logs"
+        table_id = f"{self.project_id}.{self.metadata_dataset}.x_meta_step_logs"
 
         # Use streaming inserts with insertId for idempotency
         rows_to_insert = [log["json"] for log in logs]

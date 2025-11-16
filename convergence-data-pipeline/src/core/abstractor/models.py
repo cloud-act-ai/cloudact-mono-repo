@@ -246,16 +246,16 @@ class PipelineStepConfig(BaseModel):
 
     @model_validator(mode="after")
     def validate_step_requirements(self):
-        """Validate step has required fields based on type."""
+        """Validate step has required fields based on ps_type."""
         # BigQuery to BigQuery step requirements
-        if self.type == "bigquery_to_bigquery":
+        if self.ps_type == "gcp.bigquery_to_bigquery":
             if not self.source:
                 raise ValueError("BigQuery to BigQuery step must have 'source' configuration")
             if not self.destination:
                 raise ValueError("BigQuery to BigQuery step must have 'destination' configuration")
 
         # Data quality step requirements
-        if self.type == "data_quality":
+        if self.ps_type == "gcp.data_quality":
             if not self.dq_config:
                 raise ValueError("Data quality step must have 'dq_config' field")
 

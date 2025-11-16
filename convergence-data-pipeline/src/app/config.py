@@ -273,11 +273,11 @@ class Settings(BaseSettings):
     # Admin Metadata Configuration (DEPRECATED)
     # ============================================
     # NOTE: This is deprecated in the new single-dataset architecture.
-    # API keys and metadata are now stored in per-tenant datasets: {tenant_id}.api_keys
+    # API keys and metadata are now stored in per-tenant datasets: {tenant_id}.x_meta_api_keys
     # Keeping for backward compatibility only.
     admin_metadata_dataset: str = Field(
         default="metadata",
-        description="DEPRECATED: Use {tenant_id}.api_keys instead"
+        description="DEPRECATED: Use {tenant_id}.x_meta_api_keys instead"
     )
 
     # ============================================
@@ -287,7 +287,7 @@ class Settings(BaseSettings):
     system_configs_path: str = Field(default="./configs/system")
     dataset_types_config: str = Field(default="./configs/system/dataset_types.yml")
     metadata_schemas_path: str = Field(
-        default="configs/metadata/schemas",
+        default="src/core/templates/customer/onboarding/schemas",
         description="Path to metadata table schema definitions"
     )
 
@@ -460,7 +460,7 @@ class Settings(BaseSettings):
         Get fully qualified admin metadata table name.
 
         Args:
-            table_name: Name of the table (e.g., 'api_keys', 'pipeline_runs')
+            table_name: Name of the table (e.g., 'x_meta_api_keys', 'x_meta_pipeline_runs')
 
         Returns:
             Fully qualified table name: {project_id}.{admin_dataset}.{table_name}

@@ -1,0 +1,18 @@
+ps_type: "customer.onboarding"
+name: "Customer Onboarding Validation"
+description: "Validates customer BigQuery infrastructure during onboarding"
+version: "1.0.0"
+provider: "customer"
+
+# Engine to process this template
+engine: "src.core.engines.customer.onboarding"
+
+# Required parameters
+required_params:
+  - tenant_id
+
+# Features
+features:
+  infrastructure_validation: true
+  schema_creation: true
+  test_query_execution: true

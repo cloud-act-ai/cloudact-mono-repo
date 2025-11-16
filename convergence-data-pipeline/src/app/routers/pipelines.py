@@ -185,8 +185,11 @@ async def trigger_templated_pipeline(
             detail=f"Tenant ID mismatch: authenticated as '{tenant.tenant_id}' but requested '{tenant_id}'"
         )
 
-    # Generate pipeline_id from components
+    # Generate pipeline_id for tracking (includes tenant prefix)
     pipeline_id = f"{tenant_id}-{provider}-{domain}-{template_name}"
+
+    # File identifier for config lookup (just the template name for glob search)
+    file_identifier = template_name  # e.g., "billing_cost"
 
     # Get template path
     template_path = get_template_path(provider, domain, template_name)
@@ -228,7 +231,7 @@ async def trigger_templated_pipeline(
 
     # ATOMIC: Insert pipeline run ONLY IF no RUNNING/PENDING pipeline exists
     insert_query = f"""
-    INSERT INTO `{settings.get_admin_metadata_table('pipeline_runs')}`
+    INSERT INTO `{settings.get_admin_metadata_table('x_meta_pipeline_runs')}`
     (pipeline_logging_id, pipeline_id, tenant_id, status, trigger_type, trigger_by, start_time, run_date, parameters)
     SELECT * FROM (
         SELECT
@@ -244,7 +247,7 @@ async def trigger_templated_pipeline(
     ) AS new_run
     WHERE NOT EXISTS (
         SELECT 1
-        FROM `{settings.get_admin_metadata_table('pipeline_runs')}`
+        FROM `{settings.get_admin_metadata_table('x_meta_pipeline_runs')}`
         WHERE tenant_id = @tenant_id
           AND pipeline_id = @pipeline_id
           AND status IN ('RUNNING', 'PENDING')
@@ -270,11 +273,11 @@ async def trigger_templated_pipeline(
 
     # Check if row was inserted
     if query_job.num_dml_affected_rows > 0:
-        # Successfully inserted - create executor with resolved config
-        # Note: We'll need to modify AsyncPipelineExecutor to accept pre-loaded config
+        # Successfully inserted - create executor with file identifier for config lookup
+        # pipeline_id is the full tracking ID, but file_identifier is used for finding the YAML file
         executor = AsyncPipelineExecutor(
             tenant_id=tenant.tenant_id,
-            pipeline_id=pipeline_id,
+            pipeline_id=file_identifier,  # Use file path for config lookup
             trigger_type="api",
             trigger_by=request.trigger_by or "api_user"
         )
@@ -295,7 +298,7 @@ async def trigger_templated_pipeline(
         # Pipeline already running/pending
         check_query = f"""
         SELECT pipeline_logging_id
-        FROM `{settings.get_admin_metadata_table('pipeline_runs')}`
+        FROM `{settings.get_admin_metadata_table('x_meta_pipeline_runs')}`
         WHERE tenant_id = @tenant_id
           AND pipeline_id = @pipeline_id
           AND status IN ('RUNNING', 'PENDING')
@@ -379,7 +382,7 @@ async def trigger_pipeline(
     # ATOMIC: Insert pipeline run ONLY IF no RUNNING/PENDING pipeline exists
     # This single DML operation prevents race conditions by being atomic
     insert_query = f"""
-    INSERT INTO `{settings.get_admin_metadata_table('pipeline_runs')}`
+    INSERT INTO `{settings.get_admin_metadata_table('x_meta_pipeline_runs')}`
     (pipeline_logging_id, pipeline_id, tenant_id, status, trigger_type, trigger_by, start_time, run_date, parameters)
     SELECT * FROM (
         SELECT
@@ -395,7 +398,7 @@ async def trigger_pipeline(
     ) AS new_run
     WHERE NOT EXISTS (
         SELECT 1
-        FROM `{settings.get_admin_metadata_table('pipeline_runs')}`
+        FROM `{settings.get_admin_metadata_table('x_meta_pipeline_runs')}`
         WHERE tenant_id = @tenant_id
           AND pipeline_id = @pipeline_id
           AND status IN ('RUNNING', 'PENDING')
@@ -447,7 +450,7 @@ async def trigger_pipeline(
         # Query to get the existing pipeline_logging_id
         check_query = f"""
         SELECT pipeline_logging_id
-        FROM `{settings.get_admin_metadata_table('pipeline_runs')}`
+        FROM `{settings.get_admin_metadata_table('x_meta_pipeline_runs')}`
         WHERE tenant_id = @tenant_id
           AND pipeline_id = @pipeline_id
           AND status IN ('RUNNING', 'PENDING')
@@ -504,7 +507,7 @@ async def get_pipeline_run(
         start_time,
         end_time,
         duration_ms
-    FROM `{settings.get_admin_metadata_table('pipeline_runs')}`
+    FROM `{settings.get_admin_metadata_table('x_meta_pipeline_runs')}`
     WHERE pipeline_logging_id = @pipeline_logging_id
       AND tenant_id = @tenant_id
     LIMIT 1
@@ -581,7 +584,7 @@ async def list_pipeline_runs(
         start_time,
         end_time,
         duration_ms
-    FROM `{settings.get_admin_metadata_table('pipeline_runs')}`
+    FROM `{settings.get_admin_metadata_table('x_meta_pipeline_runs')}`
     WHERE {where_sql}
     ORDER BY start_time DESC
     LIMIT @limit

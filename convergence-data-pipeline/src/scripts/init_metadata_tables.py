@@ -51,7 +51,7 @@ def create_metadata_dataset(client: bigquery.Client) -> bigquery.Dataset:
 
 def create_api_keys_table(client: bigquery.Client) -> bigquery.Table:
     """
-    Create admin metadata api_keys table for tenant authentication.
+    Create admin metadata x_meta_api_keys table for tenant authentication.
 
     Table schema:
     - api_key_hash (STRING): SHA256 hash of API key
@@ -62,7 +62,7 @@ def create_api_keys_table(client: bigquery.Client) -> bigquery.Table:
     - last_used_at (TIMESTAMP): Last time API key was used
     - usage_count (INTEGER): Number of times API key was used
     """
-    table_id = settings.get_admin_metadata_table('api_keys')
+    table_id = settings.get_admin_metadata_table('x_meta_api_keys')
 
     schema = [
         bigquery.SchemaField("api_key_hash", "STRING", mode="REQUIRED",
@@ -97,11 +97,11 @@ def create_api_keys_table(client: bigquery.Client) -> bigquery.Table:
 
 def create_pipeline_runs_table(client: bigquery.Client) -> bigquery.Table:
     """
-    Create admin metadata pipeline_runs table for pipeline execution tracking.
+    Create admin metadata x_meta_pipeline_runs table for pipeline execution tracking.
 
     Table schema matches the design in README.md
     """
-    table_id = settings.get_admin_metadata_table('pipeline_runs')
+    table_id = settings.get_admin_metadata_table('x_meta_pipeline_runs')
 
     schema = [
         bigquery.SchemaField("pipeline_logging_id", "STRING", mode="REQUIRED",
@@ -150,15 +150,15 @@ def create_pipeline_runs_table(client: bigquery.Client) -> bigquery.Table:
 
 def create_dq_results_table(client: bigquery.Client) -> bigquery.Table:
     """
-    Create admin metadata dq_results table for data quality results.
+    Create admin metadata x_meta_dq_results table for data quality results.
     """
-    table_id = settings.get_admin_metadata_table('dq_results')
+    table_id = settings.get_admin_metadata_table('x_meta_dq_results')
 
     schema = [
         bigquery.SchemaField("dq_result_id", "STRING", mode="REQUIRED",
                             description="UUID for this DQ check result"),
         bigquery.SchemaField("pipeline_logging_id", "STRING", mode="REQUIRED",
-                            description="Links to pipeline_runs table"),
+                            description="Links to x_meta_pipeline_runs table"),
         bigquery.SchemaField("tenant_id", "STRING", mode="REQUIRED",
                             description="Tenant identifier"),
         bigquery.SchemaField("target_table", "STRING", mode="REQUIRED",

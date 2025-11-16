@@ -1,0 +1,6 @@
+# Ignore actual config with credentials
+config.json
+
+# Keep example files
+!config.example.json
+!tenant-config.example.json
