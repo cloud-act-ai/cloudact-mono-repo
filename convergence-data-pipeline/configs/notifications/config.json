@@ -1,0 +1,73 @@
+{
+  "enabled": true,
+  "description": "Root notification configuration for email testing",
+  "default_provider": "email",
+
+  "email": {
+    "enabled": true,
+    "smtp_host": "smtp.gmail.com",
+    "smtp_port": 587,
+    "smtp_username": "elsa@genai.community",
+    "smtp_password": "awhm nxbo riyo ejuh",
+    "smtp_use_tls": true,
+    "from_email": "elsa@genai.community",
+    "from_name": "CloudAct Platform",
+    "to_emails": ["guru.kallam@gmail.com"],
+    "cc_emails": null,
+    "subject_prefix": "[CloudAct Alert]"
+  },
+
+  "slack": {
+    "enabled": false,
+    "webhook_url": "https://hooks.slack.com/services/YOUR/WEBHOOK/URL",
+    "channel": "#cloudact-alerts",
+    "username": "CloudAct Bot",
+    "icon_emoji": ":robot_face:",
+    "mention_users": null,
+    "mention_channel": false
+  },
+
+  "event_triggers": [
+    {
+      "event": "pipeline_failure",
+      "enabled": true,
+      "severity": "error",
+      "providers": ["email"],
+      "template": null,
+      "cooldown_seconds": null
+    },
+    {
+      "event": "pipeline_success",
+      "enabled": true,
+      "severity": "info",
+      "providers": ["email"],
+      "template": null,
+      "cooldown_seconds": null
+    },
+    {
+      "event": "data_quality_failure",
+      "enabled": true,
+      "severity": "warning",
+      "providers": ["email"],
+      "template": null,
+      "cooldown_seconds": null
+    },
+    {
+      "event": "system_error",
+      "enabled": true,
+      "severity": "critical",
+      "providers": ["email"],
+      "template": null,
+      "cooldown_seconds": null
+    }
+  ],
+
+  "retry_config": {
+    "max_attempts": 3,
+    "initial_delay_seconds": 5,
+    "max_delay_seconds": 300,
+    "exponential_backoff": true
+  },
+
+  "timeout_seconds": 30
+}

@@ -1,0 +1,106 @@
+{
+  "enabled": true,
+  "description": "Tenant-specific notification configuration - Copy to ./configs/{tenant_id}/notifications.json",
+  "tenant_id": "acme_corp",
+  "default_provider": "slack",
+
+  "email": {
+    "enabled": true,
+    "smtp_host": "smtp.office365.com",
+    "smtp_port": 587,
+    "smtp_username": "alerts@acmecorp.com",
+    "smtp_password": "tenant-specific-password",
+    "smtp_use_tls": true,
+    "from_email": "cloudact-alerts@acmecorp.com",
+    "from_name": "ACME Corp Data Platform",
+    "to_emails": ["data-team@acmecorp.com", "ops@acmecorp.com"],
+    "cc_emails": null,
+    "subject_prefix": "[ACME Data Platform]"
+  },
+
+  "slack": {
+    "enabled": true,
+    "webhook_url": "https://hooks.slack.com/services/TENANT/SPECIFIC/WEBHOOK",
+    "channel": "#data-pipeline-alerts",
+    "username": "ACME Data Bot",
+    "icon_emoji": ":bar_chart:",
+    "mention_users": ["U1234567890"],
+    "mention_channel": true
+  },
+
+  "event_triggers": [
+    {
+      "event": "pipeline_started",
+      "enabled": true,
+      "severity": "info",
+      "providers": ["slack"],
+      "template": null,
+      "cooldown_seconds": null
+    },
+    {
+      "event": "pipeline_success",
+      "enabled": true,
+      "severity": "info",
+      "providers": ["slack"],
+      "template": null,
+      "cooldown_seconds": null
+    },
+    {
+      "event": "pipeline_failure",
+      "enabled": true,
+      "severity": "error",
+      "providers": ["both"],
+      "template": null,
+      "cooldown_seconds": 180
+    },
+    {
+      "event": "pipeline_warning",
+      "enabled": true,
+      "severity": "warning",
+      "providers": ["slack"],
+      "template": null,
+      "cooldown_seconds": 300
+    },
+    {
+      "event": "data_quality_failure",
+      "enabled": true,
+      "severity": "error",
+      "providers": ["both"],
+      "template": null,
+      "cooldown_seconds": 300
+    },
+    {
+      "event": "data_quality_warning",
+      "enabled": true,
+      "severity": "warning",
+      "providers": ["slack"],
+      "template": null,
+      "cooldown_seconds": 900
+    },
+    {
+      "event": "rate_limit_exceeded",
+      "enabled": true,
+      "severity": "warning",
+      "providers": ["email"],
+      "template": null,
+      "cooldown_seconds": 3600
+    },
+    {
+      "event": "system_error",
+      "enabled": true,
+      "severity": "critical",
+      "providers": ["both"],
+      "template": null,
+      "cooldown_seconds": 120
+    }
+  ],
+
+  "retry_config": {
+    "max_attempts": 5,
+    "initial_delay_seconds": 3,
+    "max_delay_seconds": 180,
+    "exponential_backoff": true
+  },
+
+  "timeout_seconds": 45
+}

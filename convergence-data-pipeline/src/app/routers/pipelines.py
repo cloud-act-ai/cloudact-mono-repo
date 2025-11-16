@@ -626,3 +626,65 @@ async def cancel_pipeline_run(
         "pipeline_logging_id": pipeline_logging_id,
         "message": "Pipeline cancellation requested (placeholder). In-progress steps may complete."
     }
+
+
+# ============================================
+# Pub/Sub Batch Pipeline Execution
+# ============================================
+
+class BatchPipelinePublishRequest(BaseModel):
+    """Request to publish batch pipeline tasks to Pub/Sub."""
+    tenant_ids: List[str] = Field(..., description="List of tenant IDs (can be 10k+)")
+    pipeline_id: str = Field(..., description="Pipeline to execute")
+    parameters: Optional[dict] = Field(
+        default_factory=dict,
+        description="Pipeline parameters (date, trigger_by, etc)"
+    )
+    randomize_delay: bool = Field(
+        default=True,
+        description="Add random delay to spread execution over time"
+    )
+    max_jitter_seconds: int = Field(
+        default=3600,
+        description="Maximum random delay in seconds (default: 1 hour)"
+    )
+
+
+@router.post(
+    "/pipelines/batch/publish",
+    summary="Publish batch pipeline tasks to Pub/Sub",
+    description="Publish pipeline tasks for multiple tenants to Pub/Sub for distributed execution (ADMIN ONLY)"
+)
+async def publish_batch_pipeline(
+    request: BatchPipelinePublishRequest,
+    admin_context: None = Depends(verify_admin_key)
+):
+    """
+    Publish pipeline tasks for multiple tenants to Pub/Sub.
+
+    This endpoint is for ADMIN use only. It publishes tasks that will be
+    executed asynchronously by worker instances.
+
+    Use Cases:
+    - Daily batch processing for all 10k tenants
+    - Backfill pipelines for multiple tenants
+    - Distributed execution with load leveling
+    """
+    from src.core.pubsub.publisher import PipelinePublisher
+    from src.app.dependencies.auth import verify_admin_key
+
+    publisher = PipelinePublisher()
+
+    result = await publisher.publish_pipeline_batch(
+        tenant_ids=request.tenant_ids,
+        pipeline_id=request.pipeline_id,
+        parameters=request.parameters,
+        randomize_delay=request.randomize_delay,
+        max_jitter_seconds=request.max_jitter_seconds
+    )
+
+    return {
+        "status": "published",
+        "pipeline_id": request.pipeline_id,
+        **result
+    }

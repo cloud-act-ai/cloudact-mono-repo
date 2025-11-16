@@ -212,6 +212,64 @@ class Settings(BaseSettings):
     )
 
     # ============================================
+    # Notification Configuration
+    # ============================================
+    notifications_enabled: bool = Field(
+        default=False,
+        description="Enable notification system (Email, Slack)"
+    )
+    notifications_config_path: str = Field(
+        default="./configs/notifications",
+        description="Path to notification configurations"
+    )
+
+    # Email notification defaults (root fallback)
+    email_notifications_enabled: bool = Field(
+        default=False,
+        description="Enable email notifications (root configuration)"
+    )
+    email_smtp_host: Optional[str] = Field(
+        default=None,
+        description="SMTP server hostname (root configuration)"
+    )
+    email_smtp_port: int = Field(
+        default=587,
+        ge=25,
+        le=65535,
+        description="SMTP server port (root configuration)"
+    )
+    email_smtp_username: Optional[str] = Field(
+        default=None,
+        description="SMTP username (root configuration)"
+    )
+    email_smtp_password: Optional[str] = Field(
+        default=None,
+        description="SMTP password (root configuration)"
+    )
+    email_from_address: Optional[str] = Field(
+        default=None,
+        description="Email sender address (root configuration)"
+    )
+    email_to_addresses: Optional[str] = Field(
+        default=None,
+        description="Comma-separated recipient email addresses (root configuration)"
+    )
+
+    # Slack notification defaults (root fallback)
+    slack_notifications_enabled: bool = Field(
+        default=False,
+        description="Enable Slack notifications (root configuration)"
+    )
+    slack_webhook_url: Optional[str] = Field(
+        default=None,
+        description="Slack webhook URL (root configuration)"
+    )
+    slack_channel: Optional[str] = Field(
+        default=None,
+        description="Slack channel override (root configuration)"
+    )
+
+    # ============================================
     # Admin Metadata Configuration (DEPRECATED)
     # ============================================
     # NOTE: This is deprecated in the new single-dataset architecture.

@@ -842,24 +842,37 @@ curl -X POST "http://localhost:8080/api/v1/customers/onboard" \
 
 ---
 
-## Documentation
+## 📚 Documentation
 
-**Core Guides:**
-- `docs/QUICK_START.md` - 5-minute setup guide
-- `docs/ONBOARDING.md` - Enterprise multi-tenant onboarding with quota management
-- `MULTI_TENANCY_DESIGN.md` - Complete multi-tenancy architecture specification
-- `IMPLEMENTATION_SUMMARY.md` - Step-by-step implementation guide
-- `docs/pipeline-configuration.md` - Pipeline configuration guide
-- `docs/TECHNICAL_IMPLEMENTATION.md` - Technical architecture
+**📖 [Complete Documentation Index](docs/INDEX.md)** - Master documentation hub
 
-**Configuration:**
-- `docs/ENVIRONMENT_VARIABLES.md` - All environment variables
-- `docs/metadata-schema.md` - BigQuery metadata schemas
-- `configs/metadata/schemas/tenants.json` - Tenant quota & tracking schema
-- `docs/README_SECRETS.md` - Secrets management
+### Quick Access
 
-**Deployment:**
-- `docs/DEPLOYMENT_GUIDE.md` - Production deployment
+**Getting Started:**
+- **[Quick Start Guide](docs/guides/QUICK_START.md)** - Get up and running in 15 minutes
+- **[Onboarding Guide](docs/guides/ONBOARDING.md)** - Enterprise multi-tenant onboarding
+- **[Deployment Guide](docs/guides/DEPLOYMENT_GUIDE.md)** - Production deployment
+
+**Notifications (NEW! 🔔):**
+- **[Notification System](docs/notifications/NOTIFICATION_SYSTEM_IMPLEMENTATION.md)** - Complete notification system
+- **[Integration Guide](docs/notifications/INTEGRATION_GUIDE.md)** - Integrate into your pipelines
+- **[Configuration](docs/notifications/CONFIGURATION.md)** - Email & Slack setup
+
+**Architecture & Implementation:**
+- **[Multi-Tenancy Design](docs/implementation/MULTI_TENANCY_DESIGN.md)** - Multi-tenant architecture
+- **[Implementation Summary](docs/implementation/IMPLEMENTATION_SUMMARY.md)** - Step-by-step guide
+- **[Technical Implementation](docs/implementation/TECHNICAL_IMPLEMENTATION.md)** - Detailed technical docs
+
+**Reference:**
+- **[API Reference](docs/reference/API_REFERENCE.md)** - Complete API documentation
+- **[Environment Variables](docs/reference/ENVIRONMENT_VARIABLES.md)** - All environment variables
+- **[Pipeline Configuration](docs/reference/pipeline-configuration.md)** - Pipeline YAML structure
+- **[Metadata Schema](docs/reference/metadata-schema.md)** - BigQuery metadata tables
+- **[Rate Limiting](docs/reference/RATE_LIMITING.md)** - Rate limiting guide
+
+**Security:**
+- **[Secrets Management](docs/security/README_SECRETS.md)** - Secure secrets handling
+- **[KMS Encryption](docs/security/KMS_ENCRYPTION.md)** - Google Cloud KMS integration
 
 ---
 
