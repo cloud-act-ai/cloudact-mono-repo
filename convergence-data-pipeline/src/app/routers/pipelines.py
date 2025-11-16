@@ -3,14 +3,16 @@ Pipeline Management API Routes
 Endpoints for triggering and monitoring pipelines.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks, Request
 from typing import List, Optional
 from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
 import uuid
 import asyncio
+import logging
 
 from src.app.dependencies.auth import verify_api_key, verify_api_key_header, TenantContext
+from src.app.dependencies.rate_limit_decorator import rate_limit_by_tenant
 from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
 from src.core.pipeline.executor import PipelineExecutor
 from src.core.pipeline.async_executor import AsyncPipelineExecutor
@@ -18,6 +20,8 @@ from src.core.pipeline.template_resolver import resolve_template, get_template_p
 from src.core.metadata.initializer import ensure_tenant_metadata
 from src.app.config import settings
 from google.cloud import bigquery
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -108,7 +112,7 @@ def run_pipeline_task(executor: PipelineExecutor, parameters: dict):
     "/pipelines/run/{tenant_id}/{provider}/{domain}/{template_name}",
     response_model=TriggerPipelineResponse,
     summary="Trigger a templated pipeline",
-    description="Start execution of a pipeline from a template with automatic variable substitution"
+    description="Start execution of a pipeline from a template with automatic variable substitution. Rate limited: 50 requests/minute per tenant"
 )
 async def trigger_templated_pipeline(
     tenant_id: str,
@@ -116,6 +120,7 @@ async def trigger_templated_pipeline(
     domain: str,
     template_name: str,
     background_tasks: BackgroundTasks,
+    http_request: Request,
     request: TriggerPipelineRequest = TriggerPipelineRequest(),
     tenant: TenantContext = Depends(verify_api_key_header),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
@@ -163,7 +168,16 @@ async def trigger_templated_pipeline(
     - Parallel execution of independent pipeline steps
     - DAG-based dependency resolution
     - Built-in concurrency control - prevents duplicate pipeline execution
+    - Rate limited: 50 requests/minute per tenant (prevents resource exhaustion)
     """
+    # Apply rate limiting for expensive pipeline execution
+    await rate_limit_by_tenant(
+        http_request,
+        tenant_id=tenant.tenant_id,
+        limit_per_minute=settings.rate_limit_pipeline_run_per_minute,
+        endpoint_name="trigger_templated_pipeline"
+    )
+
     # Verify tenant_id matches authenticated tenant
     if tenant_id != tenant.tenant_id:
         raise HTTPException(
@@ -312,12 +326,13 @@ async def trigger_templated_pipeline(
     "/pipelines/run/{pipeline_id}",
     response_model=TriggerPipelineResponse,
     summary="Trigger a pipeline (DEPRECATED)",
-    description="Start execution of a pipeline for the authenticated tenant with async parallel processing. DEPRECATED: Use /pipelines/run/{tenant_id}/{provider}/{domain}/{template_name} instead.",
+    description="Start execution of a pipeline for the authenticated tenant with async parallel processing. DEPRECATED: Use /pipelines/run/{tenant_id}/{provider}/{domain}/{template_name} instead. Rate limited: 50 requests/minute per tenant",
     deprecated=True
 )
 async def trigger_pipeline(
     pipeline_id: str,
     background_tasks: BackgroundTasks,
+    http_request: Request,
     request: TriggerPipelineRequest = TriggerPipelineRequest(),
     tenant: TenantContext = Depends(verify_api_key),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
@@ -338,7 +353,16 @@ async def trigger_pipeline(
     - Support for 100+ concurrent pipelines
     - Petabyte-scale data processing via partitioning
     - Built-in concurrency control - prevents duplicate pipeline execution
+    - Rate limited: 50 requests/minute per tenant (prevents resource exhaustion)
     """
+    # Apply rate limiting for expensive pipeline execution
+    await rate_limit_by_tenant(
+        http_request,
+        tenant_id=tenant.tenant_id,
+        limit_per_minute=settings.rate_limit_pipeline_run_per_minute,
+        endpoint_name="trigger_pipeline_deprecated"
+    )
+
     # Ensure tenant metadata infrastructure exists
     ensure_tenant_metadata(tenant.tenant_id, bq_client.client)
 

@@ -4,6 +4,7 @@ Thread-safe BigQuery client with connection pooling and retry logic.
 """
 
 import json
+import threading
 from typing import Optional, List, Dict, Any, Iterator
 from pathlib import Path
 from functools import lru_cache
@@ -20,7 +21,7 @@ from google.cloud.bigquery import (
     TimePartitioning,
     TimePartitioningType,
 )
-from google.api_core import retry
+from google.api_core import retry, exceptions as google_api_exceptions
 from tenacity import (
     retry as tenacity_retry,
     stop_after_attempt,
@@ -32,6 +33,50 @@ from src.app.config import settings
 from src.core.utils.logging import get_logger
 
 logger = get_logger(__name__)
+
+# ============================================
+# Retry Policy Configuration
+# ============================================
+
+def is_transient_error(exception: Exception) -> bool:
+    """
+    Determine if an exception is transient (should be retried).
+
+    Transient errors (retryable):
+    - ConnectionError: Network connectivity issues
+    - TimeoutError: Request timeout
+    - google.api_core.exceptions.ServiceUnavailable (503): Temporary service outage
+    - google.api_core.exceptions.TooManyRequests (429): Rate limiting
+
+    Permanent errors (NOT retried):
+    - BadRequest (400): Invalid request
+    - Unauthenticated (401): Auth failure
+    - NotFound (404): Resource doesn't exist
+    - ValueError: Invalid data
+    - TypeError: Type mismatch
+
+    Args:
+        exception: The exception to evaluate
+
+    Returns:
+        True if exception is transient and should be retried, False otherwise
+    """
+    transient_exceptions = (
+        ConnectionError,
+        TimeoutError,
+        google_api_exceptions.ServiceUnavailable,  # 503
+        google_api_exceptions.TooManyRequests,     # 429
+    )
+    return isinstance(exception, transient_exceptions)
+
+
+# Transient error retry strategy for tenacity
+TRANSIENT_RETRY_POLICY = retry_if_exception_type((
+    ConnectionError,
+    TimeoutError,
+    google_api_exceptions.ServiceUnavailable,
+    google_api_exceptions.TooManyRequests,
+))
 
 
 class BigQueryClient:
@@ -57,22 +102,37 @@ class BigQueryClient:
         self.project_id = project_id or settings.gcp_project_id
         self.location = location or settings.bigquery_location
         self._client: Optional[bigquery.Client] = None
+        self._client_lock = threading.Lock()
 
     @property
     def client(self) -> bigquery.Client:
-        """Lazy-load BigQuery client (thread-safe singleton per instance)."""
+        """
+        Lazy-load BigQuery client (thread-safe singleton per instance).
+
+        Implements double-checked locking pattern:
+        1. First check: if not client -> continue
+        2. Acquire lock: prevents concurrent initialization
+        3. Second check: if not client -> initialize
+        4. Return client: guaranteed to be initialized
+
+        This ensures only one client is created even with 10k concurrent threads.
+        """
+        # First check (lock-free fast path)
         if self._client is None:
-            self._client = bigquery.Client(
-                project=self.project_id,
-                location=self.location
-            )
-            logger.info(
-                f"Initialized BigQuery client",
-                extra={
-                    "project_id": self.project_id,
-                    "location": self.location
-                }
-            )
+            with self._client_lock:
+                # Second check (under lock)
+                if self._client is None:
+                    self._client = bigquery.Client(
+                        project=self.project_id,
+                        location=self.location
+                    )
+                    logger.info(
+                        "Initialized BigQuery client",
+                        extra={
+                            "project_id": self.project_id,
+                            "location": self.location
+                        }
+                    )
         return self._client
 
     # ============================================
@@ -96,7 +156,7 @@ class BigQueryClient:
     @tenacity_retry(
         stop=stop_after_attempt(settings.bq_max_retry_attempts),
         wait=wait_exponential(multiplier=1, min=2, max=30),
-        retry=retry_if_exception_type(Exception)
+        retry=TRANSIENT_RETRY_POLICY
     )
     def create_dataset(
         self,
@@ -192,7 +252,8 @@ class BigQueryClient:
 
     @tenacity_retry(
         stop=stop_after_attempt(settings.bq_max_retry_attempts),
-        wait=wait_exponential(multiplier=1, min=2, max=30)
+        wait=wait_exponential(multiplier=1, min=2, max=30),
+        retry=TRANSIENT_RETRY_POLICY
     )
     def create_table(
         self,
@@ -295,7 +356,8 @@ class BigQueryClient:
 
     @tenacity_retry(
         stop=stop_after_attempt(settings.bq_max_retry_attempts),
-        wait=wait_exponential(multiplier=1, min=2, max=30)
+        wait=wait_exponential(multiplier=1, min=2, max=30),
+        retry=TRANSIENT_RETRY_POLICY
     )
     def insert_rows(
         self,
@@ -345,7 +407,8 @@ class BigQueryClient:
 
     @tenacity_retry(
         stop=stop_after_attempt(settings.bq_max_retry_attempts),
-        wait=wait_exponential(multiplier=1, min=2, max=30)
+        wait=wait_exponential(multiplier=1, min=2, max=30),
+        retry=TRANSIENT_RETRY_POLICY
     )
     def query(
         self,

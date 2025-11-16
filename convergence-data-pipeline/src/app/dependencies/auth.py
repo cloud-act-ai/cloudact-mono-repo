@@ -313,3 +313,37 @@ async def optional_auth(
         return await verify_api_key(x_api_key, bq_client)
     except HTTPException:
         return None
+
+
+async def verify_admin_key(
+    x_admin_key: str = Header(..., description="Admin API Key for platform operations")
+) -> None:
+    """
+    FastAPI dependency to verify admin API key for platform-level operations.
+
+    This is used for endpoints that manage tenants, API keys, and other platform
+    operations that exist outside the tenant scope.
+
+    Args:
+        x_admin_key: Admin API key from X-Admin-Key header (required)
+
+    Raises:
+        HTTPException: If admin key is invalid or not configured
+    """
+    # Check if admin key is configured
+    if not settings.admin_api_key:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Admin API key not configured. Set ADMIN_API_KEY environment variable.",
+        )
+
+    # Verify the admin key
+    if x_admin_key != settings.admin_api_key:
+        logger.warning("Invalid admin API key attempt")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid admin API key",
+            headers={"WWW-Authenticate": "AdminKey"},
+        )
+
+    logger.info("Admin authentication successful")

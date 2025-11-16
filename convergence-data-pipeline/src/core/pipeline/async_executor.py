@@ -336,7 +336,29 @@ class AsyncPipelineExecutor:
             ]
 
             # Wait for all steps in this level to complete
-            await asyncio.gather(*step_tasks)
+            # Use return_exceptions=True to collect all results without cancelling other tasks
+            results = await asyncio.gather(*step_tasks, return_exceptions=True)
+
+            # Check for failures and aggregate errors
+            failed_steps = []
+            for idx, (step_id, result) in enumerate(zip(level_step_ids, results)):
+                if isinstance(result, Exception):
+                    failed_steps.append({
+                        'step_id': step_id,
+                        'error': str(result),
+                        'exception_type': type(result).__name__
+                    })
+                    self.logger.error(
+                        f"Step {step_id} failed in level {level_idx + 1}",
+                        extra={"error": str(result), "exception_type": type(result).__name__}
+                    )
+
+            # If any steps failed, raise aggregated error
+            if failed_steps:
+                error_summary = "; ".join([f"{s['step_id']}: {s['error']}" for s in failed_steps])
+                raise ValueError(
+                    f"{len(failed_steps)} step(s) failed in level {level_idx + 1}: {error_summary}"
+                )
 
             self.logger.info(f"Completed level {level_idx + 1}/{len(execution_levels)}")
 

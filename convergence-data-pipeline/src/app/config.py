@@ -5,6 +5,7 @@ Centralized settings using Pydantic Settings with environment variable support.
 
 import os
 import yaml
+import re
 from typing import List, Optional, Dict, Any
 from functools import lru_cache
 from pathlib import Path
@@ -76,6 +77,10 @@ class Settings(BaseSettings):
     api_key_secret_key: str = Field(
         default="change-this-in-production-to-a-secure-random-key"
     )
+    admin_api_key: Optional[str] = Field(
+        default=None,
+        description="Admin API key for platform-level operations (tenant creation, etc). REQUIRED in production!"
+    )
     secrets_base_path: str = Field(
         default="~/.cloudact-secrets",
         description="Base path for tenant secrets directory"
@@ -108,8 +113,40 @@ class Settings(BaseSettings):
     # ============================================
     # Rate Limiting
     # ============================================
-    rate_limit_requests_per_minute: int = Field(default=100, ge=1)
-    rate_limit_requests_per_hour: int = Field(default=1000, ge=1)
+    rate_limit_requests_per_minute: int = Field(
+        default=100,
+        ge=1,
+        description="Per-tenant requests per minute limit"
+    )
+    rate_limit_requests_per_hour: int = Field(
+        default=1000,
+        ge=1,
+        description="Per-tenant requests per hour limit"
+    )
+    rate_limit_global_requests_per_minute: int = Field(
+        default=10000,
+        ge=1,
+        description="Global requests per minute limit (all tenants combined)"
+    )
+    rate_limit_global_requests_per_hour: int = Field(
+        default=100000,
+        ge=1,
+        description="Global requests per hour limit (all tenants combined)"
+    )
+    rate_limit_enabled: bool = Field(
+        default=True,
+        description="Enable rate limiting globally"
+    )
+    rate_limit_admin_tenants_per_minute: int = Field(
+        default=10,
+        ge=1,
+        description="Rate limit for expensive /admin/tenants endpoint (per-tenant per minute)"
+    )
+    rate_limit_pipeline_run_per_minute: int = Field(
+        default=50,
+        ge=1,
+        description="Rate limit for expensive /pipelines/run/* endpoints (per-tenant per minute)"
+    )
     rate_limit_pipeline_concurrency: int = Field(default=5, ge=1, le=50)
 
     # ============================================
@@ -227,9 +264,35 @@ class Settings(BaseSettings):
         """Get the pipelines directory path for a tenant."""
         return os.path.join(self.get_tenant_config_path(tenant_id), "pipelines")
 
+    def _validate_safe_identifier(self, value: str, param_name: str) -> None:
+        """
+        Validate that an identifier is safe and cannot be used for path traversal.
+
+        SECURITY: Rejects path separators, parent directory references, and special chars.
+        Only allows alphanumeric characters, underscores, and hyphens.
+
+        Args:
+            value: The identifier to validate (pipeline_id, provider, domain, tenant_id)
+            param_name: Name of parameter for error messages
+
+        Raises:
+            ValueError: If identifier contains invalid characters or path traversal patterns
+        """
+        if not value:
+            raise ValueError(f"{param_name} cannot be empty")
+
+        # CRITICAL: Only allow safe characters - alphanumeric, underscore, hyphen
+        # This prevents: ../, ..\, /, \, etc.
+        safe_pattern = r'^[a-zA-Z0-9_-]+$'
+        if not re.match(safe_pattern, value):
+            raise ValueError(
+                f"{param_name} contains invalid characters. "
+                f"Must match pattern {safe_pattern}, got: {value}"
+            )
+
     def find_pipeline_path(self, tenant_id: str, pipeline_id: str) -> str:
         """
-        Find pipeline file recursively in tenant config directory.
+        Find pipeline file recursively in tenant config directory with path traversal protection.
 
         Searches for pipeline in new cloud-provider/domain structure:
         1. First tries: configs/{tenant_id}/{provider}/{domain}/{pipeline_id}.yml
@@ -244,21 +307,55 @@ class Settings(BaseSettings):
 
         Raises:
             FileNotFoundError: If pipeline file not found
-            ValueError: If multiple pipelines found with same ID
+            ValueError: If path traversal detected or multiple pipelines found
         """
-        from pathlib import Path
+        # SECURITY: Validate inputs to prevent path traversal attacks (CVE-2024-XXXXX)
+        self._validate_safe_identifier(tenant_id, "tenant_id")
+        self._validate_safe_identifier(pipeline_id, "pipeline_id")
+
+        # Resolve base paths to absolute paths for comparison
+        configs_base_abs = Path(self.configs_base_path).resolve()
+        tenant_base_path = Path(self.get_tenant_config_path(tenant_id)).resolve()
+
+        # Verify tenant path is within configs directory (prevent escape)
+        try:
+            tenant_base_path.relative_to(configs_base_abs)
+        except ValueError:
+            raise ValueError(
+                f"Tenant path {tenant_base_path} escapes base configs directory {configs_base_abs}"
+            )
 
         # First try tenant-specific config
-        tenant_base_path = Path(self.get_tenant_config_path(tenant_id))
         matches = list(tenant_base_path.glob(f"**/{pipeline_id}.yml"))
+
+        # SECURITY: Verify all matched paths are within tenant directory
+        safe_matches = []
+        for match in matches:
+            try:
+                match.relative_to(tenant_base_path)
+                safe_matches.append(match)
+            except ValueError:
+                # Path escaped tenant directory - reject it
+                continue
+        matches = safe_matches
 
         # If not found in tenant directory, try shared templates
         if not matches:
-            shared_base_path = Path(self.configs_base_path)
-            matches = list(shared_base_path.glob(f"**/{pipeline_id}.yml"))
+            shared_base_path = configs_base_abs
+            all_matches = list(shared_base_path.glob(f"**/{pipeline_id}.yml"))
+
+            # SECURITY: Verify all matched paths are within configs directory
+            safe_shared_matches = []
+            for match in all_matches:
+                try:
+                    match.relative_to(configs_base_abs)
+                    safe_shared_matches.append(match)
+                except ValueError:
+                    # Path escaped configs directory - reject it
+                    continue
 
             # Filter out tenant-specific paths from shared search
-            matches = [m for m in matches if not str(m).startswith(str(tenant_base_path))]
+            matches = [m for m in safe_shared_matches if not str(m).startswith(str(tenant_base_path))]
 
         if not matches:
             raise FileNotFoundError(

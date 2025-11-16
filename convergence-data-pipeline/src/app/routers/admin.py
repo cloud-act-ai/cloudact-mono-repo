@@ -3,15 +3,20 @@ Admin API Routes
 Endpoints for tenant and API key management.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import datetime
 import hashlib
 import secrets
+import logging
 
 from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
 from src.app.config import settings
+from src.app.dependencies.auth import verify_admin_key
+from src.app.dependencies.rate_limit_decorator import rate_limit_global
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -57,11 +62,13 @@ class TenantResponse(BaseModel):
     "/admin/tenants",
     response_model=TenantResponse,
     summary="Create a new tenant",
-    description="Initialize a new tenant with BigQuery datasets"
+    description="Initialize a new tenant with BigQuery datasets. Rate limited: 10 requests/minute (expensive operation)"
 )
 async def create_tenant(
     request: CreateTenantRequest,
-    bq_client: BigQueryClient = Depends(get_bigquery_client)
+    http_request: Request,
+    bq_client: BigQueryClient = Depends(get_bigquery_client),
+    _admin: None = Depends(verify_admin_key)
 ):
     """
     Create a new tenant.
@@ -73,7 +80,16 @@ async def create_tenant(
 
     - **tenant_id**: Unique tenant identifier (lowercase, alphanumeric, underscores only)
     - **description**: Optional description
+
+    RATE LIMITED: 10 requests/minute per admin (protects expensive BigQuery operations)
     """
+    # Apply rate limiting for expensive tenant creation
+    await rate_limit_global(
+        http_request,
+        endpoint_name="admin_create_tenant",
+        limit_per_minute=settings.rate_limit_admin_tenants_per_minute
+    )
+
     tenant_id = request.tenant_id
 
     # Load dataset types from configuration
@@ -112,7 +128,8 @@ async def create_tenant(
 )
 async def get_tenant(
     tenant_id: str,
-    bq_client: BigQueryClient = Depends(get_bigquery_client)
+    bq_client: BigQueryClient = Depends(get_bigquery_client),
+    _admin: None = Depends(verify_admin_key)
 ):
     """
     Get tenant details and statistics.

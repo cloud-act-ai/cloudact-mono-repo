@@ -9,6 +9,8 @@ import time
 from typing import Dict, Any, Optional, Iterator, List
 from dataclasses import dataclass
 import logging
+import ipaddress
+from urllib.parse import urlparse
 
 from tenacity import (
     retry,
@@ -26,6 +28,92 @@ from src.core.utils.secrets import get_secret
 from src.core.utils.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+class SSRFValidationError(ValueError):
+    """Raised when URL fails SSRF security validation."""
+    pass
+
+
+def validate_url(url: str) -> None:
+    """
+    Validate URL to prevent SSRF attacks.
+
+    Blocks:
+    - Private IP ranges: 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
+    - Loopback: 127.0.0.0/8
+    - Link-local: 169.254.0.0/16 (AWS metadata service, etc)
+    - Broadcast/special: 0.0.0.0, 255.255.255.255
+    - localhost hostname
+    - Non-HTTP(S) schemes
+
+    Args:
+        url: URL to validate
+
+    Raises:
+        SSRFValidationError: If URL fails validation
+    """
+    try:
+        parsed = urlparse(url)
+    except Exception as e:
+        raise SSRFValidationError(f"Invalid URL format: {url}") from e
+
+    # Validate scheme
+    if parsed.scheme not in ("http", "https"):
+        raise SSRFValidationError(
+            f"Invalid scheme '{parsed.scheme}' for URL: {url}. Only http and https are allowed."
+        )
+
+    # Validate hostname exists
+    hostname = parsed.hostname
+    if not hostname:
+        raise SSRFValidationError(f"URL missing hostname: {url}")
+
+    # Block localhost by hostname
+    if hostname.lower() in ("localhost", "localhost.localdomain"):
+        raise SSRFValidationError(
+            f"Localhost not allowed: {url}"
+        )
+
+    # Try to parse as IP address
+    try:
+        ip = ipaddress.ip_address(hostname)
+
+        # Block private IP ranges
+        private_ranges = [
+            ipaddress.ip_network("10.0.0.0/8"),           # Private
+            ipaddress.ip_network("172.16.0.0/12"),        # Private
+            ipaddress.ip_network("192.168.0.0/16"),       # Private
+            ipaddress.ip_network("127.0.0.0/8"),          # Loopback
+            ipaddress.ip_network("169.254.0.0/16"),       # Link-local (AWS metadata)
+            ipaddress.ip_network("0.0.0.0/8"),            # Current network
+            ipaddress.ip_network("255.255.255.255/32"),   # Broadcast
+        ]
+
+        for private_range in private_ranges:
+            if ip in private_range:
+                raise SSRFValidationError(
+                    f"URL resolves to blocked private/reserved IP range {private_range}: {url}"
+                )
+
+        # Block IPv6 private ranges
+        if ip.version == 6:
+            ipv6_private_ranges = [
+                ipaddress.ip_network("::1/128"),           # Loopback
+                ipaddress.ip_network("fc00::/7"),          # Unique local
+                ipaddress.ip_network("fe80::/10"),         # Link-local
+                ipaddress.ip_network("::/128"),            # Unspecified
+            ]
+            for private_range in ipv6_private_ranges:
+                if ip in private_range:
+                    raise SSRFValidationError(
+                        f"URL resolves to blocked IPv6 private range {private_range}: {url}"
+                    )
+
+    except ipaddress.AddressValueError:
+        # Not an IP address, assume it's a valid hostname (DNS resolution happens at request time)
+        # In production, consider adding DNS rebinding protection
+        pass
 
 
 @dataclass
@@ -96,9 +184,16 @@ class APIConnector:
         Args:
             config: REST API connector configuration
             tenant_id: Tenant identifier for secret management
+
+        Raises:
+            SSRFValidationError: If base_url fails SSRF validation
         """
         self.config = config
         self.tenant_id = tenant_id
+
+        # SECURITY: Validate base_url to prevent SSRF attacks
+        validate_url(config.base_url)
+
         self.base_url = config.base_url.rstrip("/")
 
         # Rate limiter
@@ -110,13 +205,17 @@ class APIConnector:
         self._client: Optional[httpx.AsyncClient] = None
 
     async def _get_client(self) -> httpx.AsyncClient:
-        """Get or create HTTP client."""
+        """
+        Get or create HTTP client.
+
+        SECURITY: follow_redirects is disabled to prevent SSRF redirect attacks.
+        """
         if self._client is None:
             headers = self._build_headers()
             self._client = httpx.AsyncClient(
                 headers=headers,
                 timeout=self.config.timeout,
-                follow_redirects=True
+                follow_redirects=False
             )
         return self._client
 
@@ -193,7 +292,11 @@ class APIConnector:
 
         Raises:
             httpx.HTTPStatusError: If response status is error
+            SSRFValidationError: If URL fails SSRF validation
         """
+        # SECURITY: Validate URL to prevent SSRF attacks
+        validate_url(url)
+
         # Apply rate limiting
         if self.rate_limiter:
             await self.rate_limiter.acquire()

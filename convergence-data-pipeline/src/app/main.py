@@ -12,6 +12,7 @@ import logging
 
 from src.app.config import settings
 from src.core.utils.logging import setup_logging
+from src.core.utils.rate_limiter import init_rate_limiter, get_rate_limiter
 # from src.core.utils.telemetry import setup_telemetry  # Disabled for local dev
 
 # Initialize logging
@@ -33,6 +34,18 @@ async def lifespan(app: FastAPI):
             "project_id": settings.gcp_project_id
         }
     )
+
+    # Initialize rate limiting
+    if settings.rate_limit_enabled:
+        init_rate_limiter(
+            default_limit_per_minute=settings.rate_limit_requests_per_minute,
+            default_limit_per_hour=settings.rate_limit_requests_per_hour,
+            global_limit_per_minute=settings.rate_limit_global_requests_per_minute,
+            global_limit_per_hour=settings.rate_limit_global_requests_per_hour
+        )
+        logger.info("Rate limiting initialized")
+    else:
+        logger.warning("Rate limiting is disabled")
 
     # Initialize OpenTelemetry if enabled
     # if settings.enable_tracing:
@@ -67,6 +80,95 @@ app.add_middleware(
     allow_methods=settings.cors_allow_methods,
     allow_headers=settings.cors_allow_headers,
 )
+
+
+# Rate limiting middleware
+@app.middleware("http")
+async def rate_limit_middleware(request: Request, call_next):
+    """
+    Global rate limiting middleware.
+    Checks both per-tenant and global rate limits.
+    Sets tenant_id in request.state for downstream use.
+    """
+    if not settings.rate_limit_enabled:
+        return await call_next(request)
+
+    # Skip rate limiting for health checks
+    if request.url.path in ["/health", "/"]:
+        return await call_next(request)
+
+    rate_limiter = get_rate_limiter()
+
+    # Extract tenant from authentication or path
+    tenant_id = None
+    if hasattr(request.state, "tenant_id"):
+        tenant_id = request.state.tenant_id
+    elif "tenant_id" in request.path_params:
+        tenant_id = request.path_params.get("tenant_id")
+
+    # Check per-tenant limit if tenant identified
+    if tenant_id:
+        is_allowed, metadata = await rate_limiter.check_tenant_limit(
+            tenant_id,
+            limit_per_minute=settings.rate_limit_requests_per_minute,
+            limit_per_hour=settings.rate_limit_requests_per_hour
+        )
+
+        if not is_allowed:
+            logger.warning(
+                f"Rate limit exceeded for tenant {tenant_id}",
+                extra={
+                    "tenant_id": tenant_id,
+                    "path": request.url.path,
+                    "remaining": metadata["minute"]["remaining"]
+                }
+            )
+
+            return JSONResponse(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                content={
+                    "error": "Rate limit exceeded",
+                    "message": f"Too many requests for tenant {tenant_id}",
+                    "retry_after": metadata["minute"]["reset"]
+                }
+            )
+
+    # Check global limit for all requests
+    endpoint_key = request.url.path.split("/")[1]  # Use first path segment as key
+    is_allowed, metadata = await rate_limiter.check_global_limit(
+        endpoint_key,
+        limit_per_minute=settings.rate_limit_global_requests_per_minute,
+        limit_per_hour=settings.rate_limit_global_requests_per_hour
+    )
+
+    if not is_allowed:
+        logger.warning(
+            f"Global rate limit exceeded for endpoint {endpoint_key}",
+            extra={
+                "endpoint": endpoint_key,
+                "path": request.url.path,
+                "remaining": metadata["minute"]["remaining"]
+            }
+        )
+
+        return JSONResponse(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            content={
+                "error": "Rate limit exceeded",
+                "message": f"Global rate limit exceeded",
+                "retry_after": metadata["minute"]["reset"]
+            }
+        )
+
+    # Proceed with request
+    response = await call_next(request)
+
+    # Add rate limit headers if limits were checked
+    if tenant_id:
+        response.headers["X-RateLimit-Tenant-Limit"] = str(settings.rate_limit_requests_per_minute)
+        response.headers["X-RateLimit-Tenant-Remaining"] = str(metadata.get("minute", {}).get("remaining", 0))
+
+    return response
 
 
 # Request logging middleware

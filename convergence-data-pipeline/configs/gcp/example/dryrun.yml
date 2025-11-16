@@ -5,14 +5,14 @@ description: "Onboarding validation pipeline to test BigQuery infrastructure"
 steps:
   - step_id: "dryrun_test"
     name: "dryrun_test"
-    type: "bigquery_query"
-    sql: |
-      SELECT
-        CURRENT_TIMESTAMP() as test_timestamp,
-        '{tenant_id}' as tenant_id,
-        'Onboarding dryrun successful' as message
-
-    output:
-      dataset: "{tenant_id}"
+    type: "bigquery_to_bigquery"
+    source:
+      query: |
+        SELECT
+          CURRENT_TIMESTAMP() as test_timestamp,
+          '{tenant_id}' as tenant_id,
+          'Onboarding dryrun successful' as message
+    destination:
+      dataset_type: "gcp"
       table: "onboarding_dryrun_test"
-      write_disposition: "WRITE_TRUNCATE"
+      write_mode: "overwrite"

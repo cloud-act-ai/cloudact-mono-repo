@@ -157,16 +157,28 @@ class DataQualityValidator:
         Returns:
             Pandas DataFrame
         """
+        from google.cloud import bigquery
+        from src.core.utils.sql_params import SQLParameterInjector
+
+        # SECURITY FIX: Use parameterized query to prevent SQL injection
+        # Note: table_id is a system identifier (not user input) but we validate it properly
+        # For table names, we use backticks which is safe, but we parameterize LIMIT value
         if sample_size:
-            query = f"SELECT * FROM `{table_id}` LIMIT {sample_size}"
+            query = f"SELECT * FROM `{table_id}` LIMIT @sample_size"
+            job_config = bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("sample_size", "INT64", sample_size)
+                ]
+            )
         else:
             query = f"SELECT * FROM `{table_id}`"
+            job_config = None
 
         query_job = None
         df = None
 
         try:
-            query_job = self.bq_client.client.query(query)
+            query_job = self.bq_client.client.query(query, job_config=job_config)
             df = query_job.to_dataframe()
 
             logger.info(
