@@ -7,10 +7,11 @@ import asyncio
 import httpx
 import time
 from datetime import datetime
+from test_config import get_api_base_url, get_current_environment
 
 
 # Configuration
-API_BASE_URL = "http://localhost:8080"
+API_BASE_URL = get_api_base_url()
 PIPELINE_ID = "gcp_billing_export"
 TENANT_ID = "acme1281"
 
@@ -28,6 +29,7 @@ async def test_single_pipeline_execution():
     print("=" * 80)
     print("END-TO-END PIPELINE TEST")
     print("=" * 80)
+    print(f"Environment: {get_current_environment().upper()}")
     print(f"API URL: {API_BASE_URL}")
     print(f"Pipeline: {PIPELINE_ID}")
     print(f"Tenant: {TENANT_ID}")

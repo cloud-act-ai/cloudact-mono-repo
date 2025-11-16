@@ -15,9 +15,10 @@ import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Tuple
+from test_config import get_api_base_url, get_current_environment
 
 # Configuration
-API_BASE_URL = "http://localhost:8080"
+API_BASE_URL = get_api_base_url()
 ONBOARDING_ENDPOINT = f"{API_BASE_URL}/api/v1/customers/onboard"
 
 # List of customers to onboard
@@ -146,6 +147,7 @@ async def main():
     print(f"{Colors.BLUE}Customer Onboarding Test with Force Recreation{Colors.NC}")
     print(f"{Colors.BLUE}========================================{Colors.NC}")
     print()
+    print(f"{Colors.YELLOW}Environment: {get_current_environment().upper()}{Colors.NC}")
     print(f"{Colors.YELLOW}API Base URL: {API_BASE_URL}{Colors.NC}")
     print(f"{Colors.YELLOW}Log Directory: {LOG_DIR}{Colors.NC}")
     print(f"{Colors.YELLOW}Customers to onboard: {len(CUSTOMERS)}{Colors.NC}")
