@@ -7,10 +7,10 @@ tenant_config:
   force_recreate_tables: false    # If true, DELETE and recreate all metadata tables
 
   tables:
-    - pipeline_runs
-    - step_logs
-    - dq_results
-    - api_keys
-    - cloud_credentials
+    - x_meta_pipeline_runs
+    - x_meta_step_logs
+    - x_meta_dq_results
+    - x_meta_api_keys
+    - x_meta_cloud_credentials
 
   dryrun_pipeline: "gcp/example/dryrun"

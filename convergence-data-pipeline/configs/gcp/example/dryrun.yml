@@ -1,8 +1,10 @@
 # Dryrun Pipeline - Used during customer onboarding
-pipeline_name: "{pipeline_id}"  # Dynamic: {tenant_id}-gcp-example-dryrun
+pipeline_id: "dryrun"
+description: "Onboarding validation pipeline to test BigQuery infrastructure"
 
 steps:
-  - name: "dryrun_test"
+  - step_id: "dryrun_test"
+    name: "dryrun_test"
     type: "bigquery_query"
     sql: |
       SELECT

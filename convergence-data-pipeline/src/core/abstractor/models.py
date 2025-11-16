@@ -225,7 +225,7 @@ class PipelineStepConfig(BaseModel):
     @classmethod
     def validate_step_type(cls, v):
         """Validate step type is supported."""
-        valid_types = ["bigquery_to_bigquery", "data_quality", "ingest", "dq_check", "transform"]
+        valid_types = ["bigquery_to_bigquery", "bigquery_query", "data_quality", "ingest", "dq_check", "transform"]
         if v not in valid_types:
             raise ValueError(f"Unsupported step type: {v}. Valid types: {valid_types}")
         return v

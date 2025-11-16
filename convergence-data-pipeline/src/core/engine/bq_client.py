@@ -331,7 +331,7 @@ class BigQueryClient:
 
         if errors:
             error_msg = f"Failed to insert rows into {table_id}: {errors}"
-            logger.error(error_msg, tenant_id=tenant_id, errors=errors)
+            logger.error(error_msg, extra={"tenant_id": tenant_id, "errors": errors})
             raise ValueError(error_msg)
 
         logger.info(
