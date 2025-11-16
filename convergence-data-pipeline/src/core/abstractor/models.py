@@ -174,6 +174,7 @@ class BigQueryDestinationConfig(BaseModel):
     write_mode: str = Field(default="overwrite", description="Write mode: overwrite, append, merge")
     recreate: bool = Field(default=False, description="Delete and recreate table")
     schema_file: Optional[str] = Field(None, description="Path to schema JSON file")
+    schema_template: Optional[str] = Field(None, description="Name of schema template from template directory")
 
     @field_validator("write_mode")
     @classmethod

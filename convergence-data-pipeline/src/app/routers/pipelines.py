@@ -230,8 +230,11 @@ async def trigger_templated_pipeline(
     pipeline_logging_id = str(uuid.uuid4())
 
     # ATOMIC: Insert pipeline run ONLY IF no RUNNING/PENDING pipeline exists
+    # Use tenant-specific metadata table: {tenant_id}.x_meta_pipeline_runs
+    tenant_pipeline_runs_table = f"{settings.gcp_project_id}.{tenant.tenant_id}.x_meta_pipeline_runs"
+
     insert_query = f"""
-    INSERT INTO `{settings.get_admin_metadata_table('x_meta_pipeline_runs')}`
+    INSERT INTO `{tenant_pipeline_runs_table}`
     (pipeline_logging_id, pipeline_id, tenant_id, status, trigger_type, trigger_by, start_time, run_date, parameters)
     SELECT * FROM (
         SELECT
@@ -247,7 +250,7 @@ async def trigger_templated_pipeline(
     ) AS new_run
     WHERE NOT EXISTS (
         SELECT 1
-        FROM `{settings.get_admin_metadata_table('x_meta_pipeline_runs')}`
+        FROM `{tenant_pipeline_runs_table}`
         WHERE tenant_id = @tenant_id
           AND pipeline_id = @pipeline_id
           AND status IN ('RUNNING', 'PENDING')
@@ -295,10 +298,12 @@ async def trigger_templated_pipeline(
             message=f"Templated pipeline {template_name} triggered successfully for {tenant_id} (async mode)"
         )
     else:
-        # Pipeline already running/pending
+        # Pipeline already running/pending - use tenant-specific metadata table
+        tenant_pipeline_runs_table = f"{settings.gcp_project_id}.{tenant.tenant_id}.x_meta_pipeline_runs"
+
         check_query = f"""
         SELECT pipeline_logging_id
-        FROM `{settings.get_admin_metadata_table('x_meta_pipeline_runs')}`
+        FROM `{tenant_pipeline_runs_table}`
         WHERE tenant_id = @tenant_id
           AND pipeline_id = @pipeline_id
           AND status IN ('RUNNING', 'PENDING')

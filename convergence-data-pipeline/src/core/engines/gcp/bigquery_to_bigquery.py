@@ -5,9 +5,9 @@ Processes gcp.bigquery_to_bigquery ps_type with schema template support
 import json
 from pathlib import Path
 from typing import Dict, Any, Optional, List
+from datetime import datetime, date
 from google.cloud import bigquery
 from google.cloud.exceptions import NotFound
-import polars as pl
 
 from src.core.engine.bq_client import BigQueryClient
 from src.app.config import get_settings
@@ -93,19 +93,20 @@ class BigQueryToBigQueryEngine:
 
         # Execute query
         print(f"[GCP BQ Engine] Executing query: {query[:100]}...")
-        result_df = await bq_client.execute_query(query)
+        result_rows = bq_client.query_to_list(query)
 
-        row_count = len(result_df)
+        row_count = len(result_rows)
         print(f"[GCP BQ Engine] Query returned {row_count} rows")
 
-        # Get destination details
+        # Get destination details and replace variables
         dest_project = destination.get("bq_project_id", self.settings.gcp_project_id)
         tenant_id = context.get("tenant_id")
-        dataset_type = destination.get("dataset_type", "gcp")
+        dataset_type = self._replace_variables(destination.get("dataset_type", "gcp"), variables)
+        table = self._replace_variables(destination.get("table", ""), variables)
 
         # Build dataset name
         dataset_id = f"{tenant_id}_{dataset_type}" if dataset_type != "tenant" else tenant_id
-        table_id = destination.get("table")
+        table_id = table
 
         full_table_id = f"{dest_project}.{dataset_id}.{table_id}"
 
@@ -114,10 +115,10 @@ class BigQueryToBigQueryEngine:
         schema = None
         if schema_template_name:
             schema = self._get_schema_for_template(schema_template_name)
-            print(f"[GCP BQ Engine] Using schema template: {schema_template_name}")
+            print(f"[GCP BQ Engine] Using schema template: {schema_template_name} ({len(schema) if schema else 0} fields)")
 
         # Ensure table exists with schema
-        await self._ensure_table_exists(
+        self._ensure_table_exists(
             bq_client=bq_client,
             project_id=dest_project,
             dataset_id=dataset_id,
@@ -130,13 +131,42 @@ class BigQueryToBigQueryEngine:
 
         print(f"[GCP BQ Engine] Writing {row_count} rows to {full_table_id} (mode: {write_mode})")
 
-        await bq_client.write_dataframe(
-            df=result_df,
-            dataset_id=dataset_id,
-            table_id=table_id,
-            write_mode=write_mode,
-            schema=schema
+        # Convert datetime objects to ISO format strings for JSON serialization
+        json_rows = []
+        for row in result_rows:
+            json_row = {}
+            for key, value in row.items():
+                if isinstance(value, (datetime, date)):
+                    json_row[key] = value.isoformat()
+                else:
+                    json_row[key] = value
+            json_rows.append(json_row)
+
+        # Insert rows using load_table_from_json (more robust than insert_rows_json)
+        job_config = bigquery.LoadJobConfig(
+            source_format=bigquery.SourceFormat.NEWLINE_DELIMITED_JSON,
+            write_disposition=bigquery.WriteDisposition.WRITE_APPEND if write_mode == "append" else bigquery.WriteDisposition.WRITE_TRUNCATE,
         )
+
+        # Convert to newline-delimited JSON format
+        import io
+        json_file = io.StringIO()
+        for row in json_rows:
+            import json as json_module
+            json_file.write(json_module.dumps(row) + '\n')
+        json_file.seek(0)
+
+        load_job = bq_client.client.load_table_from_file(
+            json_file,
+            full_table_id,
+            job_config=job_config
+        )
+
+        # Wait for the load job to complete
+        load_job.result()
+
+        if load_job.errors:
+            raise ValueError(f"Failed to load rows into {full_table_id}: {load_job.errors}")
 
         return {
             "status": "SUCCESS",
@@ -147,7 +177,7 @@ class BigQueryToBigQueryEngine:
             "schema_template": schema_template_name
         }
 
-    async def _ensure_table_exists(
+    def _ensure_table_exists(
         self,
         bq_client: BigQueryClient,
         project_id: str,

@@ -498,11 +498,16 @@ class AsyncPipelineExecutor:
             engine = engine_module.get_engine()
 
             # Execute the engine with step config and context
+            # Include pipeline-level variables in context for template replacement
             context = {
                 "tenant_id": self.tenant_id,
                 "pipeline_id": self.pipeline_id,
                 "step_id": step_id
             }
+
+            # Merge pipeline-level variables into context
+            if "variables" in self.config:
+                context.update(self.config["variables"])
 
             result = await engine.execute(step_config, context)
 

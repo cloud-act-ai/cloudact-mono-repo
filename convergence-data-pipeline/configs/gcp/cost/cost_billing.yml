@@ -1,0 +1,92 @@
+# GCP Cost Billing Pipeline
+# Extracts billing data from GCP billing export and loads into tenant cost dataset
+
+pipeline_id: "cost_billing"
+description: "Extract GCP billing costs with data quality validation and notifications"
+
+# Pipeline-level variables
+variables:
+  source_billing_table: "gac-prod-471220.cloudact_cost_usage.gcp_billing_export_resource_v1_01ECB7_6EE0BA_7357F1"
+  destination_dataset_type: "gcp_silver_cost"
+  destination_table: "billing_cost_daily"
+  filter_date: "2025-11-15"
+
+steps:
+  # Step 1: Extract billing data from GCP billing export
+  - step_id: "extract_billing_costs"
+    name: "Extract GCP Billing Costs"
+    ps_type: "gcp.bigquery_to_bigquery"
+    timeout_minutes: 20
+
+    # Source configuration (at step level, not in config!)
+    source:
+      bq_project_id: "gac-prod-471220"
+      query: |
+        SELECT
+          billing_account_id,
+          service.id AS service_id,
+          service.description AS service_description,
+          sku.id AS sku_id,
+          sku.description AS sku_description,
+          usage_start_time,
+          usage_end_time,
+          project.id AS project_id,
+          project.name AS project_name,
+          project.number AS project_number,
+          location.location AS location_location,
+          location.region AS location_region,
+          location.zone AS location_zone,
+          resource.name AS resource_name,
+          resource.global_name AS resource_global_name,
+          cost,
+          currency,
+          currency_conversion_rate,
+          usage.amount AS usage_amount,
+          usage.unit AS usage_unit,
+          usage.amount_in_pricing_units AS usage_amount_in_pricing_units,
+          usage.pricing_unit AS usage_pricing_unit,
+          cost_type,
+          (SELECT IFNULL(SUM(amount), 0.0) FROM UNNEST(credits)) AS credits_total,
+          cost_at_list,
+          invoice.month AS invoice_month,
+          CURRENT_DATE() AS ingestion_date,
+          TO_JSON_STRING(ARRAY(SELECT AS STRUCT key, value FROM UNNEST(labels))) AS labels_json,
+          TO_JSON_STRING(ARRAY(SELECT AS STRUCT key, value FROM UNNEST(system_labels))) AS system_labels_json
+        FROM `{source_billing_table}`
+        WHERE DATE(usage_start_time) = '{filter_date}'
+        LIMIT 1000
+
+    # Destination configuration (at step level, not in config!)
+    destination:
+      bq_project_id: "gac-prod-471220"
+      dataset_type: "{destination_dataset_type}"
+      table: "{destination_table}"
+      write_mode: "append"
+      schema_template: "billing_cost"
+      table_config:
+        time_partitioning:
+          field: "ingestion_date"
+          type: "DAY"
+          expiration_days: 730
+        clustering_fields:
+          - "billing_account_id"
+          - "service_id"
+          - "project_id"
+          - "location_region"
+
+  # Step 2: Notification on failure (simplified for now)
+  - step_id: "notify_on_failure"
+    name: "Send Failure Notification"
+    ps_type: "shared.email_notification"
+    trigger: "on_failure"
+    to_emails:
+      - "data-ops@company.com"
+    subject: "[ALERT] Cost Billing Pipeline Failed"
+    message: |
+      The GCP cost billing pipeline has failed.
+
+      Pipeline: {pipeline_id}
+      Tenant: {tenant_id}
+      Date: {filter_date}
+
+      Please investigate.
