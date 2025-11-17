@@ -1,12 +1,58 @@
 # Convergence Data Pipeline
 
-> **Multi-tenant SaaS platform for GCP billing and cost data processing**
+> **Enterprise Multi-Tenant SaaS Platform for Cloud Data Processing**
 
 ## What This Platform Does
 
-**Two Core Workflows:**
-1. **Customer Onboarding** - Provision isolated infrastructure for new customers
-2. **Pipeline Execution** - Run automated data processing pipelines for customers
+**Customer-Centric Architecture with Subscription Management**
+
+This platform provides a complete multi-tenant SaaS solution for processing GCP billing, cost, and usage data with:
+- **Customer Management** - Centralized customer dataset with subscription plans
+- **Secure Onboarding** - Automated infrastructure provisioning per customer
+- **Pipeline Execution** - Scalable data processing with quota enforcement
+- **Subscription Plans** - Three tiers (Starter, Professional, Enterprise) with usage limits
+
+---
+
+## Architecture Overview
+
+### Customer-Centric Data Model
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                  CENTRALIZED CUSTOMERS DATASET               │
+│                     (Single Source of Truth)                 │
+│                                                              │
+│  customers_metadata/                                         │
+│  ├─ customers           (7 tables - core management)        │
+│  ├─ customer_subscriptions                                  │
+│  ├─ customer_api_keys                                       │
+│  ├─ customer_credentials                                    │
+│  ├─ customer_usage                                          │
+│  ├─ customer_audit_logs                                     │
+│  └─ customer_invitations                                    │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ↓
+         ┌────────────────────┼────────────────────┐
+         │                    │                    │
+         ↓                    ↓                    ↓
+  ┌─────────────┐      ┌─────────────┐     ┌─────────────┐
+  │  Customer 1 │      │  Customer 2 │     │  Customer 3 │
+  │  Dataset    │      │  Dataset    │     │  Dataset    │
+  │             │      │             │     │             │
+  │ (Pipeline   │      │ (Pipeline   │     │ (Pipeline   │
+  │  Outputs)   │      │  Outputs)   │     │  Outputs)   │
+  └─────────────┘      └─────────────┘     └─────────────┘
+```
+
+### Subscription Plans
+
+| Plan | Monthly Pipelines | Concurrent | Storage | Features |
+|------|------------------|------------|---------|----------|
+| **Starter** | 1,000 | 5 | 100 GB | Basic support, Standard SLA |
+| **Professional** | 5,000 | 15 | 500 GB | Priority support, 99.5% SLA, Advanced analytics |
+| **Enterprise** | Unlimited | Unlimited | Unlimited | Dedicated support, 99.9% SLA, Custom features, SSO |
 
 ---
 
@@ -55,16 +101,28 @@ Location: US
 Labels: tenant=acmeinc_23xv2
 ```
 
-**1-2-2. Metadata Tables** (5 tables created in dataset)
+**1-2-2. Customer Record in Central Dataset**
 ```
-acmeinc_23xv2.api_keys             # Encrypted API keys
-acmeinc_23xv2.cloud_credentials    # Cloud provider credentials
-acmeinc_23xv2.pipeline_runs        # Pipeline execution tracking
-acmeinc_23xv2.step_logs            # Step-by-step execution logs
-acmeinc_23xv2.dq_results           # Data quality validation results
+Entry created in: customers_metadata.customers
+Fields:
+  - customer_id: UUID
+  - tenant_id: acmeinc_23xv2
+  - company_name: "ACME Corporation"
+  - subscription_plan: "professional"
+  - status: "active"
+  - created_at: timestamp
 ```
 
-**1-2-3. API Key Generation**
+**1-2-3. Metadata Tables** (5 tables created in customer dataset)
+```
+acmeinc_23xv2.x_meta_api_keys             # Encrypted API keys (customer-specific)
+acmeinc_23xv2.x_meta_cloud_credentials    # Cloud provider credentials
+acmeinc_23xv2.x_meta_pipeline_runs        # Pipeline execution tracking
+acmeinc_23xv2.x_meta_step_logs            # Step-by-step execution logs
+acmeinc_23xv2.x_meta_dq_results           # Data quality validation results
+```
+
+**1-2-4. API Key Generation**
 ```
 Format: {tenant_id}_api_{random_16_chars}
 Example: acmeinc_23xv2_api_xK9mPqWz7LnR4vYt
@@ -75,7 +133,7 @@ Security:
   └─ Show once → Returned only during onboarding
 ```
 
-**1-2-4. Validation Pipeline**
+**1-2-5. Validation Pipeline**
 ```
 Pipeline: configs/gcp/example/dryrun.yml
 Purpose: Verify infrastructure setup

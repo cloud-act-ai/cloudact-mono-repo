@@ -1,0 +1,746 @@
+"""
+Comprehensive Pydantic models for customer management entities.
+
+This module provides:
+- Request models for customer operations
+- Response models with appropriate data exposure
+- Enums for categorical fields
+- Subscription plan limits and constants
+- Validation rules for all customer-related data
+"""
+
+from datetime import datetime, date
+from enum import Enum
+from typing import Optional, List, Dict, Any
+from pydantic import BaseModel, Field, EmailStr, field_validator, computed_field
+import re
+
+
+# ============================================================================
+# ENUMS
+# ============================================================================
+
+class SubscriptionPlan(str, Enum):
+    """Subscription tier levels."""
+    STARTER = "STARTER"
+    PROFESSIONAL = "PROFESSIONAL"
+    SCALE = "SCALE"
+
+
+class CustomerStatus(str, Enum):
+    """Customer account status."""
+    ACTIVE = "ACTIVE"
+    TRIAL = "TRIAL"
+    SUSPENDED = "SUSPENDED"
+    CANCELLED = "CANCELLED"
+
+
+class Provider(str, Enum):
+    """Cloud and AI service providers."""
+    GCP = "GCP"
+    AWS = "AWS"
+    AZURE = "AZURE"
+    OPENAI = "OPENAI"
+    CLAUDE = "CLAUDE"
+
+
+class CredentialType(str, Enum):
+    """Types of credentials supported."""
+    SERVICE_ACCOUNT = "SERVICE_ACCOUNT"
+    ACCESS_KEY = "ACCESS_KEY"
+    API_KEY = "API_KEY"
+
+
+class TeamRole(str, Enum):
+    """Team member roles with hierarchical permissions."""
+    OWNER = "OWNER"
+    ADMIN = "ADMIN"
+    COLLABORATOR = "COLLABORATOR"
+    VIEWER = "VIEWER"
+
+
+class Domain(str, Enum):
+    """Pipeline domains for provider configurations."""
+    COST = "COST"
+    SECURITY = "SECURITY"
+    COMPLIANCE = "COMPLIANCE"
+    OBSERVABILITY = "OBSERVABILITY"
+
+
+class SubscriptionStatus(str, Enum):
+    """Subscription status values."""
+    ACTIVE = "ACTIVE"
+    TRIAL = "TRIAL"
+    EXPIRED = "EXPIRED"
+    SUSPENDED = "SUSPENDED"
+    CANCELLED = "CANCELLED"
+
+
+class MemberStatus(str, Enum):
+    """Team member invitation/activation status."""
+    INVITED = "INVITED"
+    ACTIVE = "ACTIVE"
+    SUSPENDED = "SUSPENDED"
+    REMOVED = "REMOVED"
+
+
+class ValidationStatus(str, Enum):
+    """Credential validation status."""
+    VALID = "VALID"
+    INVALID = "INVALID"
+    PENDING = "PENDING"
+    EXPIRED = "EXPIRED"
+
+
+# ============================================================================
+# SUBSCRIPTION PLAN LIMITS (CONSTANTS)
+# ============================================================================
+
+SUBSCRIPTION_LIMITS = {
+    SubscriptionPlan.STARTER: {
+        "max_team_members": 2,
+        "max_providers": 3,
+        "max_pipelines_per_day": 6,
+        "max_pipelines_per_month": 180,
+        "max_concurrent_pipelines": 1,
+        "price_usd": 19
+    },
+    SubscriptionPlan.PROFESSIONAL: {
+        "max_team_members": 6,
+        "max_providers": 6,
+        "max_pipelines_per_day": 25,
+        "max_pipelines_per_month": 750,
+        "max_concurrent_pipelines": 3,
+        "price_usd": None  # TBD
+    },
+    SubscriptionPlan.SCALE: {
+        "max_team_members": 11,
+        "max_providers": 10,
+        "max_pipelines_per_day": 100,
+        "max_pipelines_per_month": 3000,
+        "max_concurrent_pipelines": 10,
+        "price_usd": 199
+    }
+}
+
+
+# ============================================================================
+# REQUEST MODELS
+# ============================================================================
+
+class OnboardCustomerRequest(BaseModel):
+    """Request model for customer onboarding."""
+    customer_id: str = Field(
+        ...,
+        min_length=3,
+        max_length=50,
+        description="Unique customer identifier (3-50 alphanumeric + underscore)"
+    )
+    company_name: str = Field(
+        ...,
+        min_length=2,
+        max_length=200,
+        description="Company or organization name"
+    )
+    admin_email: EmailStr = Field(
+        ...,
+        description="Primary admin email address"
+    )
+    subscription_plan: SubscriptionPlan = Field(
+        default=SubscriptionPlan.STARTER,
+        description="Initial subscription plan"
+    )
+
+    @field_validator('customer_id')
+    @classmethod
+    def validate_customer_id(cls, v: str) -> str:
+        """Validate customer_id format: alphanumeric + underscore only."""
+        if not re.match(r'^[a-zA-Z0-9_]{3,50}$', v):
+            raise ValueError(
+                'customer_id must be 3-50 characters containing only '
+                'alphanumeric characters and underscores'
+            )
+        return v
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "customer_id": "acme_corp_prod",
+                "company_name": "Acme Corporation",
+                "admin_email": "admin@acme.com",
+                "subscription_plan": "STARTER"
+            }
+        }
+
+
+class CreateAPIKeyRequest(BaseModel):
+    """Request model for creating API keys."""
+    key_name: str = Field(
+        ...,
+        min_length=3,
+        max_length=100,
+        description="Descriptive name for the API key"
+    )
+    scopes: List[str] = Field(
+        default_factory=list,
+        description="Permission scopes for the API key",
+        examples=[["pipelines:run", "admin:read"]]
+    )
+    expires_in_days: Optional[int] = Field(
+        default=365,
+        ge=1,
+        le=3650,
+        description="Number of days until expiration (default: 365, max: 10 years)"
+    )
+
+    @field_validator('scopes')
+    @classmethod
+    def validate_scopes(cls, v: List[str]) -> List[str]:
+        """Validate scopes are non-empty and properly formatted."""
+        if not v:
+            raise ValueError('At least one scope must be provided')
+        for scope in v:
+            if not re.match(r'^[a-z_]+:[a-z_]+$', scope):
+                raise ValueError(
+                    f'Invalid scope format: {scope}. '
+                    f'Expected format: "resource:action"'
+                )
+        return v
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "key_name": "production_api_key",
+                "scopes": ["pipelines:run", "pipelines:read", "credentials:read"],
+                "expires_in_days": 365
+            }
+        }
+
+
+class AddCredentialRequest(BaseModel):
+    """Request model for adding provider credentials."""
+    provider: Provider = Field(
+        ...,
+        description="Cloud or AI service provider"
+    )
+    credential_type: CredentialType = Field(
+        ...,
+        description="Type of credential"
+    )
+    credential_name: str = Field(
+        ...,
+        min_length=3,
+        max_length=100,
+        description="Descriptive name for the credential"
+    )
+    credentials: Dict[str, Any] = Field(
+        ...,
+        description="Credential data (will be encrypted at rest)"
+    )
+    project_id: Optional[str] = Field(
+        default=None,
+        max_length=100,
+        description="Project or account identifier"
+    )
+    region: Optional[str] = Field(
+        default=None,
+        max_length=50,
+        description="Cloud region (e.g., us-central1, us-east-1)"
+    )
+    scopes: Optional[List[str]] = Field(
+        default=None,
+        description="OAuth scopes or permissions for the credential"
+    )
+
+    @field_validator('credentials')
+    @classmethod
+    def validate_credentials(cls, v: Dict[str, Any]) -> Dict[str, Any]:
+        """Validate credentials dictionary is not empty."""
+        if not v:
+            raise ValueError('Credentials dictionary cannot be empty')
+        return v
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "provider": "GCP",
+                "credential_type": "SERVICE_ACCOUNT",
+                "credential_name": "gcp_production_sa",
+                "credentials": {
+                    "type": "service_account",
+                    "project_id": "my-project",
+                    "private_key_id": "key123",
+                    "private_key": "-----BEGIN PRIVATE KEY-----\n...",
+                    "client_email": "sa@project.iam.gserviceaccount.com"
+                },
+                "project_id": "my-gcp-project",
+                "region": "us-central1",
+                "scopes": ["https://www.googleapis.com/auth/cloud-platform"]
+            }
+        }
+
+
+class CreateProviderConfigRequest(BaseModel):
+    """Request model for creating provider configurations."""
+    provider: Provider = Field(
+        ...,
+        description="Cloud or AI service provider"
+    )
+    domain: Domain = Field(
+        ...,
+        description="Pipeline domain (COST, SECURITY, etc.)"
+    )
+    source_project_id: str = Field(
+        ...,
+        min_length=1,
+        max_length=100,
+        description="Source project/account identifier"
+    )
+    source_dataset: Optional[str] = Field(
+        default=None,
+        max_length=100,
+        description="Source dataset or database name"
+    )
+    notification_emails: List[EmailStr] = Field(
+        default_factory=list,
+        description="Email addresses for notifications"
+    )
+    default_parameters: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Default parameters for pipeline execution"
+    )
+
+    @field_validator('notification_emails')
+    @classmethod
+    def validate_emails(cls, v: List[EmailStr]) -> List[EmailStr]:
+        """Validate at least one notification email is provided."""
+        if not v:
+            raise ValueError('At least one notification email must be provided')
+        if len(v) > 10:
+            raise ValueError('Maximum 10 notification emails allowed')
+        return v
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "provider": "GCP",
+                "domain": "COST",
+                "source_project_id": "billing-project-123",
+                "source_dataset": "billing_export",
+                "notification_emails": ["team@acme.com", "alerts@acme.com"],
+                "default_parameters": {
+                    "lookback_days": 30,
+                    "currency": "USD"
+                }
+            }
+        }
+
+
+class InviteTeamMemberRequest(BaseModel):
+    """Request model for inviting team members."""
+    email: EmailStr = Field(
+        ...,
+        description="Team member email address"
+    )
+    full_name: Optional[str] = Field(
+        default=None,
+        max_length=200,
+        description="Team member full name"
+    )
+    role: TeamRole = Field(
+        default=TeamRole.VIEWER,
+        description="Team member role"
+    )
+    permissions: Optional[List[str]] = Field(
+        default=None,
+        description="Additional granular permissions"
+    )
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "email": "developer@acme.com",
+                "full_name": "Jane Developer",
+                "role": "COLLABORATOR",
+                "permissions": ["pipelines:run", "credentials:read"]
+            }
+        }
+
+
+class UpdateSubscriptionRequest(BaseModel):
+    """Request model for updating subscriptions."""
+    plan_name: SubscriptionPlan = Field(
+        ...,
+        description="New subscription plan"
+    )
+    max_team_members: int = Field(
+        ...,
+        ge=1,
+        le=100,
+        description="Maximum team members allowed"
+    )
+    max_providers: int = Field(
+        ...,
+        ge=1,
+        le=50,
+        description="Maximum provider configurations"
+    )
+    max_pipelines_per_day: int = Field(
+        ...,
+        ge=1,
+        le=10000,
+        description="Daily pipeline execution limit"
+    )
+    max_pipelines_per_month: int = Field(
+        ...,
+        ge=1,
+        le=300000,
+        description="Monthly pipeline execution limit"
+    )
+    subscription_start_date: date = Field(
+        ...,
+        description="Subscription start date"
+    )
+    subscription_end_date: Optional[date] = Field(
+        default=None,
+        description="Subscription end date (None for ongoing)"
+    )
+
+    @field_validator('subscription_end_date')
+    @classmethod
+    def validate_end_date(cls, v: Optional[date], info) -> Optional[date]:
+        """Validate end date is after start date."""
+        if v and 'subscription_start_date' in info.data:
+            if v <= info.data['subscription_start_date']:
+                raise ValueError('subscription_end_date must be after subscription_start_date')
+        return v
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "plan_name": "PROFESSIONAL",
+                "max_team_members": 6,
+                "max_providers": 6,
+                "max_pipelines_per_day": 25,
+                "max_pipelines_per_month": 750,
+                "subscription_start_date": "2025-01-01",
+                "subscription_end_date": "2025-12-31"
+            }
+        }
+
+
+# ============================================================================
+# RESPONSE MODELS
+# ============================================================================
+
+class CustomerProfileResponse(BaseModel):
+    """Response model for customer profile."""
+    customer_id: str
+    company_name: str
+    admin_email: EmailStr
+    status: CustomerStatus
+    subscription_plan: SubscriptionPlan
+    tenant_dataset_id: str
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+        json_schema_extra = {
+            "example": {
+                "customer_id": "acme_corp_prod",
+                "company_name": "Acme Corporation",
+                "admin_email": "admin@acme.com",
+                "status": "ACTIVE",
+                "subscription_plan": "PROFESSIONAL",
+                "tenant_dataset_id": "customer_acme_corp_prod",
+                "created_at": "2025-01-15T10:00:00Z",
+                "updated_at": "2025-01-15T10:00:00Z"
+            }
+        }
+
+
+class APIKeyResponse(BaseModel):
+    """Response model for API keys."""
+    api_key_id: str
+    api_key: Optional[str] = Field(
+        default=None,
+        description="Full API key (only returned on creation)"
+    )
+    key_name: str
+    scopes: List[str]
+    created_at: datetime
+    expires_at: datetime
+    is_active: bool
+
+    class Config:
+        from_attributes = True
+        json_schema_extra = {
+            "example": {
+                "api_key_id": "key_abc123xyz",
+                "api_key": "ck_live_abc123xyz...",  # Only on creation
+                "key_name": "production_api_key",
+                "scopes": ["pipelines:run", "pipelines:read"],
+                "created_at": "2025-01-15T10:00:00Z",
+                "expires_at": "2026-01-15T10:00:00Z",
+                "is_active": True
+            }
+        }
+
+
+class CredentialResponse(BaseModel):
+    """Response model for credentials (excludes sensitive data)."""
+    credential_id: str
+    customer_id: str
+    provider: Provider
+    credential_type: CredentialType
+    credential_name: str
+    project_id: Optional[str]
+    region: Optional[str]
+    created_at: datetime
+    last_validated_at: Optional[datetime]
+    is_active: bool
+    validation_status: ValidationStatus
+
+    class Config:
+        from_attributes = True
+        json_schema_extra = {
+            "example": {
+                "credential_id": "cred_xyz789",
+                "customer_id": "acme_corp_prod",
+                "provider": "GCP",
+                "credential_type": "SERVICE_ACCOUNT",
+                "credential_name": "gcp_production_sa",
+                "project_id": "my-gcp-project",
+                "region": "us-central1",
+                "created_at": "2025-01-15T10:00:00Z",
+                "last_validated_at": "2025-01-16T08:30:00Z",
+                "is_active": True,
+                "validation_status": "VALID"
+            }
+        }
+
+
+class SubscriptionResponse(BaseModel):
+    """Response model for subscription details."""
+    subscription_id: str
+    customer_id: str
+    plan_name: SubscriptionPlan
+    status: SubscriptionStatus
+    max_team_members: int
+    max_providers: int
+    max_pipelines_per_day: int
+    max_pipelines_per_month: int
+    trial_end_date: Optional[date]
+    subscription_end_date: Optional[date]
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+        json_schema_extra = {
+            "example": {
+                "subscription_id": "sub_123abc",
+                "customer_id": "acme_corp_prod",
+                "plan_name": "PROFESSIONAL",
+                "status": "ACTIVE",
+                "max_team_members": 6,
+                "max_providers": 6,
+                "max_pipelines_per_day": 25,
+                "max_pipelines_per_month": 750,
+                "trial_end_date": None,
+                "subscription_end_date": "2025-12-31",
+                "created_at": "2025-01-15T10:00:00Z",
+                "updated_at": "2025-01-15T10:00:00Z"
+            }
+        }
+
+
+class UsageQuotaResponse(BaseModel):
+    """Response model for usage quotas."""
+    customer_id: str
+    usage_date: date
+    pipelines_run_today: int
+    daily_limit: int
+    pipelines_run_month: int
+    monthly_limit: int
+    concurrent_pipelines_running: int
+    concurrent_limit: int
+    quota_exceeded: bool
+
+    @computed_field
+    @property
+    def quota_remaining(self) -> Dict[str, int]:
+        """Compute remaining quotas."""
+        return {
+            "daily": max(0, self.daily_limit - self.pipelines_run_today),
+            "monthly": max(0, self.monthly_limit - self.pipelines_run_month),
+            "concurrent": max(0, self.concurrent_limit - self.concurrent_pipelines_running)
+        }
+
+    class Config:
+        from_attributes = True
+        json_schema_extra = {
+            "example": {
+                "customer_id": "acme_corp_prod",
+                "usage_date": "2025-01-15",
+                "pipelines_run_today": 12,
+                "daily_limit": 25,
+                "pipelines_run_month": 180,
+                "monthly_limit": 750,
+                "concurrent_pipelines_running": 1,
+                "concurrent_limit": 3,
+                "quota_exceeded": False,
+                "quota_remaining": {
+                    "daily": 13,
+                    "monthly": 570,
+                    "concurrent": 2
+                }
+            }
+        }
+
+
+class TeamMemberResponse(BaseModel):
+    """Response model for team members."""
+    member_id: str
+    customer_id: str
+    email: EmailStr
+    full_name: Optional[str]
+    role: TeamRole
+    permissions: Optional[List[str]]
+    status: MemberStatus
+    invited_at: datetime
+    joined_at: Optional[datetime]
+    last_login_at: Optional[datetime]
+
+    class Config:
+        from_attributes = True
+        json_schema_extra = {
+            "example": {
+                "member_id": "member_xyz123",
+                "customer_id": "acme_corp_prod",
+                "email": "developer@acme.com",
+                "full_name": "Jane Developer",
+                "role": "COLLABORATOR",
+                "permissions": ["pipelines:run", "credentials:read"],
+                "status": "ACTIVE",
+                "invited_at": "2025-01-10T09:00:00Z",
+                "joined_at": "2025-01-10T10:30:00Z",
+                "last_login_at": "2025-01-15T14:20:00Z"
+            }
+        }
+
+
+class ValidationResponse(BaseModel):
+    """Response model for customer validation checks."""
+    customer_id: str
+    can_run_pipeline: bool
+    subscription_status: SubscriptionStatus
+    subscription_valid: bool
+    quota_available: bool
+    quota_remaining: Dict[str, int]
+    credentials_configured: bool
+    message: str
+
+    class Config:
+        from_attributes = True
+        json_schema_extra = {
+            "example": {
+                "customer_id": "acme_corp_prod",
+                "can_run_pipeline": True,
+                "subscription_status": "ACTIVE",
+                "subscription_valid": True,
+                "quota_available": True,
+                "quota_remaining": {
+                    "daily": 13,
+                    "monthly": 570,
+                    "concurrent": 2
+                },
+                "credentials_configured": True,
+                "message": "Customer is valid and can run pipelines"
+            }
+        }
+
+
+class ProviderConfigResponse(BaseModel):
+    """Response model for provider configurations."""
+    config_id: str
+    customer_id: str
+    provider: Provider
+    domain: Domain
+    source_project_id: str
+    source_dataset: Optional[str]
+    notification_emails: List[EmailStr]
+    default_parameters: Optional[Dict[str, Any]]
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+        json_schema_extra = {
+            "example": {
+                "config_id": "config_abc123",
+                "customer_id": "acme_corp_prod",
+                "provider": "GCP",
+                "domain": "COST",
+                "source_project_id": "billing-project-123",
+                "source_dataset": "billing_export",
+                "notification_emails": ["team@acme.com"],
+                "default_parameters": {"lookback_days": 30},
+                "is_active": True,
+                "created_at": "2025-01-15T10:00:00Z",
+                "updated_at": "2025-01-15T10:00:00Z"
+            }
+        }
+
+
+# ============================================================================
+# HELPER FUNCTIONS
+# ============================================================================
+
+def get_subscription_limits(plan: SubscriptionPlan) -> Dict[str, Any]:
+    """
+    Get subscription limits for a given plan.
+
+    Args:
+        plan: The subscription plan
+
+    Returns:
+        Dictionary containing limits for the plan
+    """
+    return SUBSCRIPTION_LIMITS[plan].copy()
+
+
+def validate_quota_available(
+    pipelines_run_today: int,
+    daily_limit: int,
+    pipelines_run_month: int,
+    monthly_limit: int,
+    concurrent_running: int,
+    concurrent_limit: int
+) -> tuple[bool, str]:
+    """
+    Check if customer has available quota.
+
+    Args:
+        pipelines_run_today: Number of pipelines run today
+        daily_limit: Daily pipeline limit
+        pipelines_run_month: Number of pipelines run this month
+        monthly_limit: Monthly pipeline limit
+        concurrent_running: Number of concurrent pipelines running
+        concurrent_limit: Concurrent pipeline limit
+
+    Returns:
+        Tuple of (quota_available: bool, message: str)
+    """
+    if pipelines_run_today >= daily_limit:
+        return False, "Daily pipeline limit exceeded"
+
+    if pipelines_run_month >= monthly_limit:
+        return False, "Monthly pipeline limit exceeded"
+
+    if concurrent_running >= concurrent_limit:
+        return False, "Concurrent pipeline limit exceeded"
+
+    return True, "Quota available"

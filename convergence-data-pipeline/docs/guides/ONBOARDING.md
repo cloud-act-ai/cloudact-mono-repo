@@ -2,16 +2,19 @@
 
 ## Overview
 
-This guide covers the complete customer onboarding process for the Convergence Data Pipeline platform - an enterprise-grade, multi-tenant SaaS solution with quota management, tenant isolation, and production-ready security.
+This guide covers the complete customer onboarding process for the Convergence Data Pipeline platform - an enterprise-grade, multi-tenant SaaS solution with centralized customer management, subscription plans, and production-ready security.
 
 ## Key Features
 
-- **Complete Tenant Isolation**: Each tenant gets a dedicated BigQuery dataset
+- **Customer-Centric Architecture**: Centralized customer management in `customers_metadata` dataset
+- **Subscription Plans**: Three tiers (Starter, Professional, Enterprise) with quota enforcement
+- **Complete Tenant Isolation**: Each customer gets a dedicated BigQuery dataset for data processing
 - **Quota Management**: Monthly pipeline limits and concurrent execution controls
-- **Active Status Enforcement**: Suspend/activate tenants dynamically
+- **Active Status Enforcement**: Suspend/activate customers dynamically
 - **Usage Tracking**: Real-time counters for billing and analytics
-- **Enterprise Security**: API key SHA256 hashing + KMS encryption
+- **Enterprise Security**: KMS encryption, row-level security, API key rotation
 - **Schema-Driven**: All table schemas in config files (zero hardcoded schemas)
+- **Stripe Integration**: Ready for payment processing with Stripe webhooks
 
 ---
 
@@ -24,6 +27,30 @@ This guide covers the complete customer onboarding process for the Convergence D
   - `roles/bigquery.dataEditor` - Create/modify datasets/tables
   - `roles/bigquery.jobUser` - Run queries
   - `roles/cloudkms.cryptoKeyEncrypterDecrypter` - Encrypt/decrypt secrets
+
+---
+
+## Complete Onboarding Workflow
+
+### Frontend → Stripe → Backend Flow
+
+```
+Step 1: User signs up on frontend
+  ↓
+Step 2: Stripe checkout for subscription plan
+  ↓
+Step 3: Payment success → Stripe webhook
+  ↓
+Step 4: Backend receives webhook → Create customer
+  ↓
+Step 5: Provision infrastructure (dataset + tables)
+  ↓
+Step 6: Generate API key
+  ↓
+Step 7: Send welcome email with API key
+  ↓
+Step 8: Customer can start using platform
+```
 
 ---
 
@@ -42,9 +69,9 @@ POST /api/v1/customers/onboard
 | `tenant_id` | string | ✅ Yes | Unique tenant identifier (alphanumeric + underscore, 3-50 chars) |
 | `company_name` | string | ✅ Yes | Company or organization name |
 | `contact_email` | string | ❌ No | Primary contact email for notifications |
-| `subscription_tier` | string | ❌ No | Tier: FREE, STARTER, PROFESSIONAL, ENTERPRISE (default: FREE) |
-| `max_pipelines_per_month` | integer | ❌ No | Monthly pipeline limit (NULL = unlimited) |
-| `max_concurrent_pipelines` | integer | ❌ No | Concurrent execution limit (NULL = unlimited) |
+| `subscription_plan` | string | ❌ No | Plan: "starter", "professional", "enterprise" (default: "starter") |
+| `stripe_subscription_id` | string | ❌ No | Stripe subscription ID from webhook |
+| `stripe_customer_id` | string | ❌ No | Stripe customer ID from webhook |
 | `force_recreate_dataset` | boolean | ❌ No | Delete and recreate dataset (⚠️ DESTRUCTIVE) |
 | `force_recreate_tables` | boolean | ❌ No | Delete and recreate tables (⚠️ DESTRUCTIVE) |
 
@@ -107,20 +134,38 @@ Location: US
 Labels: tenant=acmeinc_23xv2
 ```
 
-### 2. Metadata Tables
+### 2. Central Customer Record
 
-The following tables are created from schema files in `templates/customer/onboarding/schemas/`:
+A record is created in the centralized `customers_metadata` dataset:
 
-#### `x_meta_api_keys` - API Key Management
-- Stores SHA256 hashed and KMS-encrypted API keys
-- Tracks active/inactive status per key
+#### `customers_metadata.customers` - Core Customer Information
+- Customer ID (UUID), tenant ID, company name
+- Subscription plan and status
+- Dataset ID for tenant data
+
+#### `customers_metadata.customer_subscriptions` - Subscription & Quotas
+- Subscription plan (starter/professional/enterprise)
+- Monthly pipeline quota, concurrent pipeline quota, storage quota
+- Stripe subscription ID and customer ID
+- Billing cycle dates
+
+#### `customers_metadata.customer_api_keys` - API Keys (Centralized)
+- SHA256 hashed and KMS-encrypted API keys
+- Scopes, expiration, last used timestamp
+- Centralized across all customers
+
+#### `customers_metadata.customer_usage` - Usage Tracking
+- Real-time usage counters per month
+- Pipelines run count, currently running count
+- Storage used, compute hours
+
+### 3. Metadata Tables (Per-Customer Dataset)
+
+The following tables are created in the customer's dataset from schema files in `templates/customer/onboarding/schemas/`:
+
+#### `x_meta_api_keys` - Legacy API Keys (for backward compatibility)
+- Stores customer-specific API keys
 - Schema: `templates/customer/onboarding/schemas/x_meta_api_keys.json`
-
-#### `x_meta_tenants` - **NEW** Tenant Metadata & Quota Management
-- Stores tenant subscription info and quotas
-- Tracks real-time usage counters
-- Enforces monthly and concurrent limits
-- Schema: `templates/customer/onboarding/schemas/x_meta_tenants.json`
 
 **Tenant Fields:**
 ```json

@@ -271,11 +271,13 @@ async def root():
 # API Routers
 # ============================================
 
-from src.app.routers import pipelines, admin, customers
+from src.app.routers import pipelines, admin, customers, customer_management, scheduler
 
 app.include_router(pipelines.router, prefix="/api/v1", tags=["Pipelines"])
 app.include_router(admin.router, prefix="/api/v1", tags=["Admin"])
 app.include_router(customers.router, prefix="/api/v1", tags=["Customers"])
+app.include_router(customer_management.router, prefix="/api/v1", tags=["Customer Management"])
+app.include_router(scheduler.router, prefix="/api/v1", tags=["Scheduler"])
 
 
 if __name__ == "__main__":

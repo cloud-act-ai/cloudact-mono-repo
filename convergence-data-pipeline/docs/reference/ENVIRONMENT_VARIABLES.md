@@ -305,6 +305,98 @@ CORS_ALLOW_HEADERS=Content-Type,Authorization,X-API-Key
 
 Authentication and security settings.
 
+### KMS_PROJECT_ID
+
+**Type:** `string`
+**Required:** Yes (for production)
+**Default:** None
+**Description:** Google Cloud Project ID for KMS encryption.
+
+**Example:**
+```bash
+KMS_PROJECT_ID=gac-prod-471220
+```
+
+**Notes:**
+- Required for API key and credentials encryption
+- Must have KMS API enabled
+
+---
+
+### KMS_LOCATION
+
+**Type:** `string`
+**Required:** Yes (for production)
+**Default:** `us-central1`
+**Description:** Google Cloud region for KMS keyring.
+
+**Example:**
+```bash
+KMS_LOCATION=us-central1
+```
+
+---
+
+### KMS_KEYRING
+
+**Type:** `string`
+**Required:** Yes (for production)
+**Default:** None
+**Description:** KMS keyring name for encryption keys.
+
+**Example:**
+```bash
+KMS_KEYRING=convergence-customer-keys
+```
+
+---
+
+### KMS_API_KEY_NAME
+
+**Type:** `string`
+**Required:** Yes (for production)
+**Default:** `api-key-encryption`
+**Description:** KMS key name for API key encryption.
+
+**Example:**
+```bash
+KMS_API_KEY_NAME=api-key-encryption
+```
+
+---
+
+### KMS_CREDENTIALS_KEY_NAME
+
+**Type:** `string`
+**Required:** Yes (for production)
+**Default:** `credentials-encryption`
+**Description:** KMS key name for cloud credentials encryption.
+
+**Example:**
+```bash
+KMS_CREDENTIALS_KEY_NAME=credentials-encryption
+```
+
+---
+
+### CUSTOMERS_DATASET_ID
+
+**Type:** `string`
+**Required:** Yes (for production)
+**Default:** `customers_metadata`
+**Description:** BigQuery dataset ID for centralized customer management.
+
+**Example:**
+```bash
+CUSTOMERS_DATASET_ID=customers_metadata
+```
+
+**Notes:**
+- Contains customer, subscription, API key, and usage tables
+- Must be created before application startup
+
+---
+
 ### DISABLE_AUTH
 
 **Type:** `boolean`
@@ -919,7 +1011,7 @@ Full production configuration:
 ```bash
 # .env file for production
 GOOGLE_APPLICATION_CREDENTIALS=/etc/secrets/prod-service-account.json
-GCP_PROJECT_ID=my-production-project
+GCP_PROJECT_ID=gac-prod-471220
 ENVIRONMENT=production
 BIGQUERY_LOCATION=US
 
@@ -943,6 +1035,16 @@ CORS_ALLOW_CREDENTIALS=true
 DISABLE_AUTH=false
 API_KEY_SECRET_KEY=your-super-secret-production-key-here
 SECRETS_BASE_PATH=/opt/cloudact/secrets
+
+# KMS Encryption (NEW)
+KMS_PROJECT_ID=gac-prod-471220
+KMS_LOCATION=us-central1
+KMS_KEYRING=convergence-customer-keys
+KMS_API_KEY_NAME=api-key-encryption
+KMS_CREDENTIALS_KEY_NAME=credentials-encryption
+
+# Customers Dataset (NEW)
+CUSTOMERS_DATASET_ID=customers_metadata
 
 # Rate Limiting
 RATE_LIMIT_REQUESTS_PER_MINUTE=1000

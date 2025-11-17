@@ -45,6 +45,7 @@ sqlalchemy==2.0.25
 # Utilities
 tenacity==8.2.3
 pendulum==3.0.0
+croniter==2.0.1
 
 # Development
 pytest==7.4.4
