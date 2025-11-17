@@ -367,7 +367,7 @@ class Settings(BaseSettings):
             FileNotFoundError: If pipeline file not found
             ValueError: If path traversal detected or multiple pipelines found
         """
-        # SECURITY: Validate inputs to prevent path traversal attacks (CVE-2024-XXXXX)
+        # SECURITY: Validate inputs to prevent path traversal attacks (CWE-22: Improper Limitation of Pathname)
         self._validate_safe_identifier(tenant_id, "tenant_id")
         self._validate_safe_identifier(pipeline_id, "pipeline_id")
 

@@ -2,6 +2,7 @@
 Email Notification Engine (Shared)
 Processes shared.email_notification ps_type for sending pipeline notifications
 """
+import logging
 from typing import Dict, Any, Optional
 from src.core.notifications.service import get_notification_service
 from src.core.notifications.config import NotificationMessage, NotificationSeverity, NotificationEvent
@@ -14,6 +15,7 @@ class EmailNotificationEngine:
     """
 
     def __init__(self):
+        self.logger = logging.getLogger(__name__)
         self.notification_service = get_notification_service()
 
     def _determine_severity(self, trigger: str) -> NotificationSeverity:
@@ -90,7 +92,17 @@ class EmailNotificationEngine:
             details["pipeline_logging_id"] = context["pipeline_logging_id"]
 
         # Send notification using existing service
-        print(f"[Email Engine] Sending {trigger} notification to {to_emails}")
+        self.logger.info(
+            "Sending email notification",
+            extra={
+                "trigger": trigger,
+                "recipients": to_emails,
+                "tenant_id": tenant_id,
+                "pipeline_id": pipeline_id,
+                "severity": severity.value,
+                "event": event.value
+            }
+        )
 
         if trigger == "on_failure" and context.get("error_message"):
             # Use convenience method for failures

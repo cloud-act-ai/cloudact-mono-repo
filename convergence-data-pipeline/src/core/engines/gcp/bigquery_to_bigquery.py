@@ -3,6 +3,7 @@ BigQuery to BigQuery Engine (GCP)
 Processes gcp.bigquery_to_bigquery ps_type with schema template support
 """
 import json
+import logging
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 from datetime import datetime, date
@@ -21,6 +22,7 @@ class BigQueryToBigQueryEngine:
 
     def __init__(self):
         self.settings = get_settings()
+        self.logger = logging.getLogger(__name__)
         # Templates are now at project root level, same as configs/
         self.template_dir = Path(__file__).parent.parent.parent.parent.parent / "templates" / "gcp" / "bigquery_to_bigquery"
         self.schema_templates = self._load_schema_templates()
@@ -93,11 +95,26 @@ class BigQueryToBigQueryEngine:
         )
 
         # Execute query
-        print(f"[GCP BQ Engine] Executing query: {query[:100]}...")
+        self.logger.info(
+            "Executing BigQuery query",
+            extra={
+                "query_preview": query[:100],
+                "tenant_id": context.get("tenant_id"),
+                "pipeline_id": context.get("pipeline_id"),
+                "step_id": context.get("step_id")
+            }
+        )
         result_rows = bq_client.query_to_list(query)
 
         row_count = len(result_rows)
-        print(f"[GCP BQ Engine] Query returned {row_count} rows")
+        self.logger.info(
+            "Query execution completed",
+            extra={
+                "row_count": row_count,
+                "tenant_id": context.get("tenant_id"),
+                "pipeline_id": context.get("pipeline_id")
+            }
+        )
 
         # Get destination details and replace variables
         dest_project = destination.get("bq_project_id", self.settings.gcp_project_id)
@@ -116,7 +133,15 @@ class BigQueryToBigQueryEngine:
         schema = None
         if schema_template_name:
             schema = self._get_schema_for_template(schema_template_name)
-            print(f"[GCP BQ Engine] Using schema template: {schema_template_name} ({len(schema) if schema else 0} fields)")
+            self.logger.info(
+                "Loading schema template",
+                extra={
+                    "schema_template": schema_template_name,
+                    "field_count": len(schema) if schema else 0,
+                    "tenant_id": context.get("tenant_id"),
+                    "pipeline_id": context.get("pipeline_id")
+                }
+            )
 
         # Ensure table exists with schema
         self._ensure_table_exists(
@@ -130,7 +155,16 @@ class BigQueryToBigQueryEngine:
         # Write data
         write_mode = destination.get("write_mode", "append")
 
-        print(f"[GCP BQ Engine] Writing {row_count} rows to {full_table_id} (mode: {write_mode})")
+        self.logger.info(
+            "Writing data to BigQuery table",
+            extra={
+                "row_count": row_count,
+                "destination_table": full_table_id,
+                "write_mode": write_mode,
+                "tenant_id": context.get("tenant_id"),
+                "pipeline_id": context.get("pipeline_id")
+            }
+        )
 
         # Convert datetime objects to ISO format strings for JSON serialization
         json_rows = []
@@ -192,13 +226,25 @@ class BigQueryToBigQueryEngine:
         try:
             # Check if table exists
             table = bq_client.client.get_table(full_table_id)
-            print(f"[GCP BQ Engine] Table {full_table_id} already exists")
+            self.logger.info(
+                "BigQuery table already exists",
+                extra={"table_id": full_table_id}
+            )
         except NotFound:
             # Create table with schema
-            print(f"[GCP BQ Engine] Creating table {full_table_id}")
+            self.logger.info(
+                "Creating new BigQuery table",
+                extra={
+                    "table_id": full_table_id,
+                    "schema_fields": len(schema) if schema else 0
+                }
+            )
             table = bigquery.Table(full_table_id, schema=schema)
             table = bq_client.client.create_table(table)
-            print(f"[GCP BQ Engine] Table {full_table_id} created successfully")
+            self.logger.info(
+                "BigQuery table created successfully",
+                extra={"table_id": full_table_id}
+            )
 
 
 # Factory function to get engine instance

@@ -827,16 +827,16 @@ ADMIN_METADATA_DATASET=metadata
 
 **Type:** `string` (directory path)
 **Required:** No
-**Default:** `configs/metadata/schemas`
+**Default:** `templates/customer/onboarding/schemas`
 **Description:** Directory containing metadata table schema JSON definitions.
 
 **Example:**
 ```bash
-METADATA_SCHEMAS_PATH=configs/metadata/schemas
+METADATA_SCHEMAS_PATH=templates/customer/onboarding/schemas
 ```
 
 **Notes:**
-- Contains schema files: `api_keys.json`, `pipeline_runs.json`, etc.
+- Contains schema files: `x_meta_api_keys.json`, `x_meta_pipeline_runs.json`, etc.
 - Used by metadata initializer to create tables
 
 ---
@@ -982,7 +982,7 @@ PIPELINE_PARTITION_BATCH_SIZE=20
 # Paths
 CONFIGS_BASE_PATH=/opt/cloudact/configs
 ADMIN_METADATA_DATASET=metadata
-METADATA_SCHEMAS_PATH=/opt/cloudact/configs/metadata/schemas
+METADATA_SCHEMAS_PATH=/opt/cloudact/templates/customer/onboarding/schemas
 DATASET_TYPES_CONFIG=/opt/cloudact/configs/system/dataset_types.yml
 ```
 
@@ -1052,9 +1052,9 @@ If validation fails, the application will:
 
 ## Related Documentation
 
-- [Quick Start Guide](QUICK_START.md)
-- [Deployment Guide](DEPLOYMENT_GUIDE.md)
-- [Secrets Management](README_SECRETS.md)
+- [Quick Start Guide](../guides/QUICK_START.md)
+- [Deployment Guide](../guides/DEPLOYMENT_GUIDE.md)
+- [Secrets Management](../security/README_SECRETS.md)
 - [Pipeline Configuration](pipeline-configuration.md)
 
 ---

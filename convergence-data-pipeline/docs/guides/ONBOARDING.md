@@ -109,18 +109,18 @@ Labels: tenant=acmeinc_23xv2
 
 ### 2. Metadata Tables
 
-The following tables are created from schema files in `configs/metadata/schemas/`:
+The following tables are created from schema files in `templates/customer/onboarding/schemas/`:
 
-#### `api_keys` - API Key Management
+#### `x_meta_api_keys` - API Key Management
 - Stores SHA256 hashed and KMS-encrypted API keys
 - Tracks active/inactive status per key
-- Schema: `configs/metadata/schemas/api_keys.json`
+- Schema: `templates/customer/onboarding/schemas/x_meta_api_keys.json`
 
-#### `tenants` - **NEW** Tenant Metadata & Quota Management
+#### `x_meta_tenants` - **NEW** Tenant Metadata & Quota Management
 - Stores tenant subscription info and quotas
 - Tracks real-time usage counters
 - Enforces monthly and concurrent limits
-- Schema: `configs/metadata/schemas/tenants.json`
+- Schema: `templates/customer/onboarding/schemas/x_meta_tenants.json`
 
 **Tenant Fields:**
 ```json
@@ -142,23 +142,23 @@ The following tables are created from schema files in `configs/metadata/schemas/
 }
 ```
 
-#### `cloud_credentials` - Cloud Provider Credentials
+#### `x_meta_cloud_credentials` - Cloud Provider Credentials
 - Stores encrypted credentials for GCP, AWS, Azure
-- Schema: `configs/metadata/schemas/cloud_credentials.json`
+- Schema: `templates/customer/onboarding/schemas/x_meta_cloud_credentials.json`
 
-#### `pipeline_runs` - Pipeline Execution Tracking
+#### `x_meta_pipeline_runs` - Pipeline Execution Tracking
 - Tracks all pipeline executions
 - Stores status, timestamps, parameters
-- Schema: `configs/metadata/schemas/pipeline_runs.json`
+- Schema: `templates/customer/onboarding/schemas/x_meta_pipeline_runs.json`
 
-#### `step_logs` - Step-by-Step Execution Logs
+#### `x_meta_step_logs` - Step-by-Step Execution Logs
 - Detailed logs for each pipeline step
 - Tracks rows processed, duration, errors
-- Schema: `configs/metadata/schemas/step_logs.json`
+- Schema: `templates/customer/onboarding/schemas/x_meta_step_logs.json`
 
-#### `dq_results` - Data Quality Results
+#### `x_meta_dq_results` - Data Quality Results
 - Stores data quality check results
-- Schema: `configs/metadata/schemas/dq_results.json`
+- Schema: `templates/customer/onboarding/schemas/x_meta_dq_results.json`
 
 ### 3. API Key Generation
 
@@ -449,22 +449,22 @@ done
 BigQuery Project (gac-prod-471220)
 │
 ├── acmeinc_23xv2/              (Tenant 1 - PROFESSIONAL)
-│   ├── api_keys
-│   ├── cloud_credentials
-│   ├── tenants                 ← Quota & status tracking
-│   ├── pipeline_runs
-│   ├── step_logs
-│   ├── dq_results
+│   ├── x_meta_api_keys
+│   ├── x_meta_cloud_credentials
+│   ├── x_meta_tenants                 ← Quota & status tracking
+│   ├── x_meta_pipeline_runs
+│   ├── x_meta_step_logs
+│   ├── x_meta_dq_results
 │   └── <pipeline outputs>
 │
 ├── techcorp_99zx4/             (Tenant 2 - ENTERPRISE)
-│   ├── api_keys
-│   ├── tenants
+│   ├── x_meta_api_keys
+│   ├── x_meta_tenants
 │   └── ...
 │
 └── startupco_55abc/            (Tenant 3 - STARTER)
-    ├── api_keys
-    ├── tenants
+    ├── x_meta_api_keys
+    ├── x_meta_tenants
     └── ...
 ```
 
@@ -472,7 +472,7 @@ BigQuery Project (gac-prod-471220)
 
 1. **Complete Tenant Isolation**: Each tenant = separate BigQuery dataset
 2. **No Cross-Tenant Queries**: Zero data leakage between tenants
-3. **Schema-Driven**: All table schemas in `configs/metadata/schemas/*.json`
+3. **Schema-Driven**: All table schemas in `templates/customer/onboarding/schemas/*.json`
 4. **Quota Enforcement**: Checked before every pipeline execution
 5. **Real-Time Tracking**: Usage counters updated atomically
 6. **Production-Ready**: Enterprise security, monitoring, and error handling
@@ -624,7 +624,7 @@ WHERE tenant_id = '{tenant_id}';
 
 - **MULTI_TENANCY_IMPROVEMENTS.md** - Design specifications
 - **IMPLEMENTATION_SUMMARY.md** - Implementation guide
-- **configs/metadata/schemas/tenants.json** - Tenant table schema
+- **templates/customer/onboarding/schemas/x_meta_tenants.json** - Tenant table schema
 - **README.md** - Platform overview
 - **TECHNICAL_IMPLEMENTATION.md** - Technical architecture
 

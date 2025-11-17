@@ -207,13 +207,14 @@ All sensitive data (API keys, credentials) is encrypted using Google Cloud KMS:
 - **Purpose**: Log pipeline execution to metadata tables
 
 **Metadata Schemas**
-- **Directory**: `configs/metadata/schemas/`
+- **Directory**: `templates/customer/onboarding/schemas/`
 - **Files**:
-  - `pipeline_runs.json` - Pipeline execution tracking
-  - `step_logs.json` - Step execution logs
-  - `dq_results.json` - Data quality results
-  - `api_keys.json` - API key storage
-  - `cloud_credentials.json` - Cloud credentials storage
+  - `x_meta_pipeline_runs.json` - Pipeline execution tracking
+  - `x_meta_step_logs.json` - Step execution logs
+  - `x_meta_dq_results.json` - Data quality results
+  - `x_meta_api_keys.json` - API key storage
+  - `x_meta_cloud_credentials.json` - Cloud credentials storage
+  - `x_meta_tenants.json` - Tenant metadata and quotas
 - **Documentation**: `docs/metadata-schema.md`
 
 ### 6. Application Layer

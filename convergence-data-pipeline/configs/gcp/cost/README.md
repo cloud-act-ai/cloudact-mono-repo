@@ -105,7 +105,7 @@ The pipeline extracts 29 key fields from the standard GCP billing export schema:
 - Labels (user and system)
 
 ### Destination Schema
-See `src/core/templates/gcp/bigquery_to_bigquery/schema_template.json` for the complete `billing_cost` schema definition.
+See `templates/gcp/bigquery_to_bigquery/schema_template.json` for the complete `billing_cost` schema definition.
 
 Key fields:
 | Field | Type | Mode | Description |
@@ -248,7 +248,7 @@ WHERE
    - Adjust expectations if billing export schema changed
 
 3. **Schema Errors**
-   - Verify schema template: `src/core/templates/gcp/bigquery_to_bigquery/schema_template.json`
+   - Verify schema template: `templates/gcp/bigquery_to_bigquery/schema_template.json`
    - Check for BigQuery schema changes in billing export
    - Validate field type compatibility
 
@@ -352,7 +352,7 @@ gcloud scheduler jobs create http cost-billing-pipeline-daily \
 ## Related Files
 
 - **Pipeline Config**: `configs/gcp/cost/cost_billing_pipeline.yml`
-- **Schema Template**: `src/core/templates/gcp/bigquery_to_bigquery/schema_template.json`
+- **Schema Template**: `templates/gcp/bigquery_to_bigquery/schema_template.json`
 - **DQ Suite**: `configs/data_quality/expectations/billing_cost_suite.json`
 - **BQ Engine**: `src/core/engines/gcp/bigquery_to_bigquery.py`
 - **Notification Engine**: `src/core/engines/shared/email_notification.py`

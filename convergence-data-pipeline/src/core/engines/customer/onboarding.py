@@ -3,6 +3,7 @@ Customer Onboarding Engine
 Validates tenant BigQuery infrastructure during onboarding
 """
 import json
+import logging
 from pathlib import Path
 from typing import Dict, Any, List
 from google.cloud import bigquery
@@ -20,6 +21,7 @@ class CustomerOnboardingEngine:
 
     def __init__(self):
         self.settings = get_settings()
+        self.logger = logging.getLogger(__name__)
         self.template_dir = Path(__file__).parent.parent.parent / "templates" / "customer" / "onboarding"
         self.schema_config = self._load_schema()
 
@@ -63,7 +65,13 @@ class CustomerOnboardingEngine:
         # Initialize BigQuery client
         bq_client = BigQueryClient(project_id=self.settings.gcp_project_id)
 
-        print(f"[Onboarding Engine] Starting onboarding validation for tenant: {tenant_id}")
+        self.logger.info(
+            "Starting tenant onboarding validation",
+            extra={
+                "tenant_id": tenant_id,
+                "pipeline_id": context.get("pipeline_id")
+            }
+        )
 
         # Get table name from schema config
         table_name = self.schema_config.get("table_name", "x_meta_onboarding_dryrun_test")
@@ -82,7 +90,14 @@ class CustomerOnboardingEngine:
 
         # Insert test data directly
         full_table_id = f"{self.settings.gcp_project_id}.{dataset_id}.{table_name}"
-        print(f"[Onboarding Engine] Inserting test data to {full_table_id}")
+        self.logger.info(
+            "Inserting onboarding test data",
+            extra={
+                "table_id": full_table_id,
+                "tenant_id": tenant_id,
+                "pipeline_id": context.get("pipeline_id")
+            }
+        )
 
         insert_query = f"""
         INSERT INTO `{full_table_id}`
@@ -95,7 +110,14 @@ class CustomerOnboardingEngine:
         query_job = bq_client.client.query(insert_query)
         query_job.result()  # Wait for completion
 
-        print(f"[Onboarding Engine] Onboarding validation successful!")
+        self.logger.info(
+            "Tenant onboarding validation completed successfully",
+            extra={
+                "tenant_id": tenant_id,
+                "pipeline_id": context.get("pipeline_id"),
+                "test_table": full_table_id
+            }
+        )
 
         return {
             "status": "SUCCESS",
@@ -118,13 +140,25 @@ class CustomerOnboardingEngine:
         try:
             # Check if table exists
             table = bq_client.client.get_table(full_table_id)
-            print(f"[Onboarding Engine] Table {full_table_id} already exists")
+            self.logger.info(
+                "Onboarding table already exists",
+                extra={"table_id": full_table_id}
+            )
         except NotFound:
             # Create table with schema
-            print(f"[Onboarding Engine] Creating table {full_table_id} with schema")
+            self.logger.info(
+                "Creating onboarding table with schema",
+                extra={
+                    "table_id": full_table_id,
+                    "schema_fields": len(schema)
+                }
+            )
             table = bigquery.Table(full_table_id, schema=schema)
             table = bq_client.client.create_table(table)
-            print(f"[Onboarding Engine] Table {full_table_id} created successfully")
+            self.logger.info(
+                "Onboarding table created successfully",
+                extra={"table_id": full_table_id}
+            )
 
 
 # Factory function to get engine instance

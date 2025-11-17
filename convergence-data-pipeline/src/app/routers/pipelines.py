@@ -664,8 +664,8 @@ class BatchPipelinePublishRequest(BaseModel):
     description="Publish pipeline tasks for multiple tenants to Pub/Sub for distributed execution (ADMIN ONLY)"
 )
 async def publish_batch_pipeline(
-    request: BatchPipelinePublishRequest
-    # admin_context: None = Depends(verify_admin_key)  # Temporarily disabled for testing
+    request: BatchPipelinePublishRequest,
+    admin_context: None = Depends(verify_admin_key)
 ):
     """
     Publish pipeline tasks for multiple tenants to Pub/Sub.

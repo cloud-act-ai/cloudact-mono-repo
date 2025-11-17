@@ -49,7 +49,7 @@ BigQuery Project (gac-prod-471220)
 
 **Purpose**: Central registry for tenant metadata, quotas, and usage tracking
 
-**Schema Location**: `configs/metadata/schemas/tenants.json`
+**Schema Location**: `templates/customer/onboarding/schemas/x_meta_tenants.json`
 
 **Fields:**
 
@@ -209,12 +209,12 @@ class OnboardCustomerRequest(BaseModel):
    - labels = {tenant: tenant_id}
    ↓
 3. Create Metadata Tables (from schema files)
-   - api_keys (configs/metadata/schemas/api_keys.json)
-   - cloud_credentials (configs/metadata/schemas/cloud_credentials.json)
-   - tenants (configs/metadata/schemas/tenants.json) ← NEW
-   - pipeline_runs (configs/metadata/schemas/pipeline_runs.json)
-   - step_logs (configs/metadata/schemas/step_logs.json)
-   - dq_results (configs/metadata/schemas/dq_results.json)
+   - x_meta_api_keys (templates/customer/onboarding/schemas/x_meta_api_keys.json)
+   - x_meta_cloud_credentials (templates/customer/onboarding/schemas/x_meta_cloud_credentials.json)
+   - x_meta_tenants (templates/customer/onboarding/schemas/x_meta_tenants.json) ← NEW
+   - x_meta_pipeline_runs (templates/customer/onboarding/schemas/x_meta_pipeline_runs.json)
+   - x_meta_step_logs (templates/customer/onboarding/schemas/x_meta_step_logs.json)
+   - x_meta_dq_results (templates/customer/onboarding/schemas/x_meta_dq_results.json)
    ↓
 4. Generate API Key
    - format: {tenant_id}_api_{random_16_chars}
@@ -343,7 +343,7 @@ class TenantService:
 
 1. **`src/core/metadata/initializer.py`**
    - Add `_ensure_tenants_table()` method
-   - Load schema from `configs/metadata/schemas/tenants.json`
+   - Load schema from `templates/customer/onboarding/schemas/x_meta_tenants.json`
    - Create table with clustering on `tenant_id`
 
 2. **`src/core/services/tenant_service.py`** (NEW FILE)
@@ -351,7 +351,7 @@ class TenantService:
    - All methods listed above
    - Uses BigQueryClient for queries
 
-3. **`configs/metadata/schemas/tenants.json`** (ALREADY CREATED)
+3. **`templates/customer/onboarding/schemas/x_meta_tenants.json`** (ALREADY CREATED)
    - Production-ready schema
    - All fields documented
 
@@ -637,7 +637,7 @@ VALUES
 - ✅ `docs/ONBOARDING.md` - Updated with quota management
 - ✅ `MULTI_TENANCY_DESIGN.md` - This document
 - ✅ `IMPLEMENTATION_SUMMARY.md` - Step-by-step implementation guide
-- ✅ `configs/metadata/schemas/tenants.json` - Production-ready schema
+- ✅ `templates/customer/onboarding/schemas/x_meta_tenants.json` - Production-ready schema
 - ⏳ `README.md` - Update with new features (if needed)
 
 ---

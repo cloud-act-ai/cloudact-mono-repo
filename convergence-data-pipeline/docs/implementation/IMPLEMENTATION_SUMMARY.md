@@ -4,14 +4,14 @@
 
 ### 1. Design Analysis & Documentation
 - ✅ Created `MULTI_TENANCY_IMPROVEMENTS.md` - Complete architectural design
-- ✅ Created `tenants.json` schema in `configs/metadata/schemas/`
+- ✅ Created `x_meta_tenants.json` schema in `templates/customer/onboarding/schemas/`
 - ✅ Identified all 6 critical design gaps
 - ✅ Documented enterprise-grade solution
 
 ### 2. Schema Configuration (All in Config Files - NO CODE)
-- ✅ `configs/metadata/schemas/tenants.json` - Tenant metadata table
-- ✅ `configs/metadata/schemas/api_keys.json` - Already exists
-- ✅ `configs/metadata/schemas/pipeline_runs.json` - Already exists
+- ✅ `templates/customer/onboarding/schemas/x_meta_tenants.json` - Tenant metadata table
+- ✅ `templates/customer/onboarding/schemas/x_meta_api_keys.json` - Already exists
+- ✅ `templates/customer/onboarding/schemas/x_meta_pipeline_runs.json` - Already exists
 - ✅ All other metadata schemas already in config
 
 ---

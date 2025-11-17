@@ -13,11 +13,13 @@ Metadata tables are automatically created per-tenant when pipelines execute. All
 
 All metadata schemas are defined in JSON format at:
 ```
-configs/metadata/schemas/
-├── pipeline_runs.json
-├── step_logs.json
-├── api_keys.json
-└── dq_results.json
+templates/customer/onboarding/schemas/
+├── x_meta_pipeline_runs.json
+├── x_meta_step_logs.json
+├── x_meta_api_keys.json
+├── x_meta_dq_results.json
+├── x_meta_cloud_credentials.json
+└── x_meta_tenants.json
 ```
 
 ## Tables
@@ -162,7 +164,7 @@ ORDER BY executed_at DESC
 
 To update metadata schemas:
 
-1. Edit the JSON schema file in `configs/metadata/schemas/`
+1. Edit the JSON schema file in `templates/customer/onboarding/schemas/`
 2. Use the `recreate=True` flag in MetadataInitializer:
    ```python
    initializer._ensure_pipeline_runs_table(dataset_name, recreate=True)
@@ -209,7 +211,7 @@ Metadata tables are created automatically when:
 2. The tenant's metadata dataset doesn't exist yet
 3. Pipeline uses metadata logging (default behavior)
 
-Tables are created from JSON schema definitions in `configs/metadata/schemas/`, ensuring:
+Tables are created from JSON schema definitions in `templates/customer/onboarding/schemas/`, ensuring:
 - Consistent schema across environments
 - Version-controlled table definitions
 - Easy schema updates via configuration

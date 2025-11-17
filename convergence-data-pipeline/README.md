@@ -158,11 +158,12 @@ LIMIT 1;
 │  Step 2: CREATE METADATA TABLES                              │
 │  ┌──────────────────────────────────────────────────────┐   │
 │  │ Load schemas from:                                    │   │
-│  │   configs/metadata/schemas/api_keys.json             │   │
-│  │   configs/metadata/schemas/cloud_credentials.json    │   │
-│  │   configs/metadata/schemas/pipeline_runs.json        │   │
-│  │   configs/metadata/schemas/step_logs.json            │   │
-│  │   configs/metadata/schemas/dq_results.json           │   │
+│  │   templates/customer/onboarding/schemas/x_meta_api_keys.json             │   │
+│  │   templates/customer/onboarding/schemas/x_meta_cloud_credentials.json    │   │
+│  │   templates/customer/onboarding/schemas/x_meta_pipeline_runs.json        │   │
+│  │   templates/customer/onboarding/schemas/x_meta_step_logs.json            │   │
+│  │   templates/customer/onboarding/schemas/x_meta_dq_results.json           │   │
+│  │   templates/customer/onboarding/schemas/x_meta_tenants.json              │   │
 │  │                                                       │   │
 │  │ Create tables with:                                   │   │
 │  │   - Partitioning (time-based)                        │   │

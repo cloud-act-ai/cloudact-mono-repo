@@ -111,11 +111,11 @@ bq query --use_legacy_sql=false \
 
 ## Next Steps
 
-1. **Configure Pipelines**: See [`docs/pipeline-configuration.md`](pipeline-configuration.md)
+1. **Configure Pipelines**: See [`docs/pipeline-configuration.md`](../reference/pipeline-configuration.md)
 2. **Onboarding Guide**: See [`docs/ONBOARDING.md`](ONBOARDING.md)
-3. **Environment Variables**: See [`docs/ENVIRONMENT_VARIABLES.md`](ENVIRONMENT_VARIABLES.md)
+3. **Environment Variables**: See [`docs/ENVIRONMENT_VARIABLES.md`](../reference/ENVIRONMENT_VARIABLES.md)
 4. **Deployment**: See [`docs/DEPLOYMENT_GUIDE.md`](DEPLOYMENT_GUIDE.md)
-5. **Metadata Schema**: See [`docs/metadata-schema.md`](metadata-schema.md)
+5. **Metadata Schema**: See [`docs/metadata-schema.md`](../reference/metadata-schema.md)
 
 ## Troubleshooting
 
@@ -168,4 +168,4 @@ bq query --use_legacy_sql=false \
     └──────────────┘
 ```
 
-See [`README.md`](../README.md) for full technical documentation.
+See [`README.md`](../../README.md) for full technical documentation.
