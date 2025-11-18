@@ -389,7 +389,7 @@ class PipelineExecutor:
         Returns:
             Execution result with rows_written, destination_table, etc.
         """
-        from src.core.pipeline.processors.bq_to_bq import BigQueryToBigQueryProcessor
+        from src.core.processors.gcp.bigquery_to_bigquery import BigQueryToBigQueryProcessor
 
         # Create processor instance
         processor = BigQueryToBigQueryProcessor(

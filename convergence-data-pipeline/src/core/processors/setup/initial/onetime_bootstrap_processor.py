@@ -38,8 +38,9 @@ class OnetimeBootstrapProcessor:
         # Navigate to ps_templates/setup/initial/
         # From: src/core/processors/setup/initial/onetime_bootstrap_processor.py
         # To: ps_templates/setup/initial/
+        # Path: src/core/processors/setup/initial/ -> go up 5 levels to src/, then up 1 more to project root
         self.template_dir = (
-            Path(__file__).parent.parent.parent.parent.parent
+            Path(__file__).parent.parent.parent.parent.parent.parent
             / "ps_templates" / "setup" / "initial"
         )
 

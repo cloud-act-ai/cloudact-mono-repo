@@ -37,7 +37,8 @@ class Colors:
 
 async def test_bootstrap(
     force_recreate_dataset: bool = False,
-    force_recreate_tables: bool = False
+    force_recreate_tables: bool = False,
+    skip_confirmation: bool = False
 ):
     """
     Test the bootstrap processor.
@@ -45,13 +46,14 @@ async def test_bootstrap(
     Args:
         force_recreate_dataset: Delete and recreate entire dataset
         force_recreate_tables: Delete and recreate all tables
+        skip_confirmation: Skip confirmation prompts (use with caution!)
     """
     print(f"{Colors.BLUE}{'=' * 80}{Colors.NC}")
     print(f"{Colors.BLUE}One-Time Bootstrap Processor Test{Colors.NC}")
     print(f"{Colors.BLUE}{'=' * 80}{Colors.NC}")
     print()
 
-    if force_recreate_dataset:
+    if force_recreate_dataset and not skip_confirmation:
         print(f"{Colors.RED}WARNING: force_recreate_dataset=True{Colors.NC}")
         print(f"{Colors.RED}This will DELETE the entire tenants dataset!{Colors.NC}")
         print()
@@ -60,7 +62,7 @@ async def test_bootstrap(
             print("Aborted.")
             return False
 
-    if force_recreate_tables:
+    if force_recreate_tables and not skip_confirmation:
         print(f"{Colors.YELLOW}WARNING: force_recreate_tables=True{Colors.NC}")
         print(f"{Colors.YELLOW}This will DELETE all data in tenant tables!{Colors.NC}")
         print()
@@ -155,15 +157,22 @@ def main():
         action='store_true',
         help='Delete and recreate entire dataset (DANGER!)'
     )
+    parser.add_argument(
+        '--yes',
+        action='store_true',
+        help='Skip confirmation prompts (DANGER!)'
+    )
 
     args = parser.parse_args()
 
     force_recreate_dataset = args.force_all
     force_recreate_tables = args.force_tables or args.force_all
+    skip_confirmation = args.yes
 
     success = asyncio.run(test_bootstrap(
         force_recreate_dataset=force_recreate_dataset,
-        force_recreate_tables=force_recreate_tables
+        force_recreate_tables=force_recreate_tables,
+        skip_confirmation=skip_confirmation
     ))
 
     sys.exit(0 if success else 1)
