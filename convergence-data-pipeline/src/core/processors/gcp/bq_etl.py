@@ -1,6 +1,6 @@
 """
-BigQuery to BigQuery Engine (GCP)
-Processes gcp.bigquery_to_bigquery ps_type with schema template support
+BigQuery ETL Engine (GCP)
+Processes gcp.bq_etl ps_type for extract-transform-load operations with schema template support
 """
 import json
 import logging
@@ -14,9 +14,10 @@ from src.core.engine.bq_client import BigQueryClient
 from src.app.config import get_settings
 
 
-class BigQueryToBigQueryEngine:
+class BigQueryETLEngine:
     """
-    Engine for processing BigQuery to BigQuery data transfers
+    Engine for BigQuery ETL (Extract-Transform-Load) operations
+    Reads data from BigQuery source, optionally transforms via query, and loads to destination
     Supports schema templates, variable replacement, and table creation
     """
 
@@ -24,7 +25,7 @@ class BigQueryToBigQueryEngine:
         self.settings = get_settings()
         self.logger = logging.getLogger(__name__)
         # Templates are now at project root level, same as configs/
-        self.template_dir = Path(__file__).parent.parent.parent.parent.parent / "templates" / "gcp" / "bigquery_to_bigquery"
+        self.template_dir = Path(__file__).parent.parent.parent.parent.parent / "ps_templates" / "gcp" / "bq_etl"
         self.schema_templates = self._load_schema_templates()
 
     def _load_schema_templates(self) -> Dict[str, Any]:
@@ -249,5 +250,5 @@ class BigQueryToBigQueryEngine:
 
 # Factory function to get engine instance
 def get_engine():
-    """Get BigQueryToBigQueryEngine instance"""
-    return BigQueryToBigQueryEngine()
+    """Get BigQueryETLEngine instance"""
+    return BigQueryETLEngine()

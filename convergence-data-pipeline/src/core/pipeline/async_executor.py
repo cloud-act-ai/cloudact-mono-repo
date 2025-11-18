@@ -714,7 +714,7 @@ class AsyncPipelineExecutor:
                 timeout=step_timeout_seconds
             )
 
-            if step_type == "bigquery_to_bigquery":
+            if step_type == "gcp.bq_etl":
                 rows_processed = result.get('rows_written', 0)
                 step_metadata = {
                     'destination_table': result.get('destination_table'),
@@ -794,7 +794,7 @@ class AsyncPipelineExecutor:
         Args:
             step_config: Step configuration from YAML
             step_id: Step identifier
-            step_type: Step type (e.g., "gcp.bigquery_to_bigquery", "customer.onboarding")
+            step_type: Step type (e.g., "gcp.bq_etl", "setup.tenants.onboarding")
 
         Returns:
             Step execution result dictionary

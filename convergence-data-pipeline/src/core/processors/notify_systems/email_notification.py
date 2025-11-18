@@ -1,6 +1,6 @@
 """
-Email Notification Engine (Shared)
-Processes shared.email_notification ps_type for sending pipeline notifications
+Email Notification Engine (Notify Systems)
+Processes notify_systems.email_notification ps_type for sending pipeline notifications
 """
 import logging
 from typing import Dict, Any, Optional

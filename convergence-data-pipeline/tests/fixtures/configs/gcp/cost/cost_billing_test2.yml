@@ -15,7 +15,7 @@ steps:
   # Step 1: Extract billing data from GCP billing export
   - step_id: "extract_billing_costs"
     name: "Extract GCP Billing Costs"
-    ps_type: "gcp.bigquery_to_bigquery"
+    ps_type: "gcp.bq_etl"
     timeout_minutes: 20
 
     # Source configuration (at step level, not in config!)
@@ -77,7 +77,7 @@ steps:
   # Step 2: Notification on failure (simplified for now)
   - step_id: "notify_on_failure"
     name: "Send Failure Notification"
-    ps_type: "shared.email_notification"
+    ps_type: "notify_systems.email_notification"
     trigger: "on_failure"
     to_emails:
       - "data-ops@company.com"
