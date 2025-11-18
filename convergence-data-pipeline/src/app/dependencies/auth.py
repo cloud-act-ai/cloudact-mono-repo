@@ -1,6 +1,6 @@
 """
 API Key Authentication with Customer-Centric Architecture
-Secure multi-tenant authentication using centralized customers dataset.
+Secure multi-tenant authentication using centralized tenants dataset.
 Supports subscription validation, quota management, and credential retrieval.
 Fallback to local file-based API keys for development.
 """
@@ -173,7 +173,7 @@ class AuthMetricsAggregator:
             key_list = ", ".join(f"'{key_id}'" for key_id in api_key_ids)
 
             update_query = f"""
-            UPDATE `{settings.gcp_project_id}.customers.customer_api_keys`
+            UPDATE `{settings.gcp_project_id}.tenants.tenant_api_keys`
             SET last_used_at = CURRENT_TIMESTAMP()
             WHERE api_key_id IN ({key_list})
             """
@@ -269,7 +269,7 @@ async def get_current_customer(
     background_tasks: BackgroundTasks = BackgroundTasks()
 ) -> Dict[str, Any]:
     """
-    Authenticate customer using API key from centralized customers.customer_api_keys table.
+    Authenticate customer using API key from centralized tenants.tenant_api_keys table.
 
     Returns customer profile with subscription info.
 
@@ -319,7 +319,7 @@ async def get_current_customer(
     # Hash the API key
     api_key_hash = hash_api_key(api_key)
 
-    # Query customers.customer_api_keys for authentication
+    # Query tenants.tenant_api_keys for authentication
     query = f"""
     SELECT
         k.api_key_id,
@@ -339,10 +339,10 @@ async def get_current_customer(
         s.max_concurrent_pipelines,
         s.trial_end_date,
         s.subscription_end_date
-    FROM `{settings.gcp_project_id}.customers.customer_api_keys` k
-    INNER JOIN `{settings.gcp_project_id}.customers.customer_profiles` p
+    FROM `{settings.gcp_project_id}.tenants.tenant_api_keys` k
+    INNER JOIN `{settings.gcp_project_id}.tenants.tenant_profiles` p
         ON k.tenant_id = p.tenant_id
-    INNER JOIN `{settings.gcp_project_id}.customers.customer_subscriptions` s
+    INNER JOIN `{settings.gcp_project_id}.tenants.tenant_subscriptions` s
         ON p.tenant_id = s.tenant_id
     WHERE k.api_key_hash = @api_key_hash
         AND k.is_active = TRUE
@@ -481,7 +481,7 @@ async def validate_quota(
     """
     Validate customer has not exceeded daily/monthly pipeline quotas.
 
-    Checks customers.customer_usage_quotas table.
+    Checks tenants.tenant_usage_quotas table.
     Returns quota info or raises HTTPException if exceeded.
 
     Args:
@@ -516,7 +516,7 @@ async def validate_quota(
         daily_limit,
         monthly_limit,
         concurrent_limit
-    FROM `{settings.gcp_project_id}.customers.customer_usage_quotas`
+    FROM `{settings.gcp_project_id}.tenants.tenant_usage_quotas`
     WHERE tenant_id = @tenant_id
         AND usage_date = @usage_date
     LIMIT 1
@@ -535,7 +535,7 @@ async def validate_quota(
             # Create today's usage record
             usage_id = f"{tenant_id}_{today.strftime('%Y%m%d')}"
             insert_query = f"""
-            INSERT INTO `{settings.gcp_project_id}.customers.customer_usage_quotas`
+            INSERT INTO `{settings.gcp_project_id}.tenants.tenant_usage_quotas`
             (usage_id, tenant_id, usage_date, pipelines_run_today, pipelines_failed_today,
              pipelines_succeeded_today, pipelines_run_month, concurrent_pipelines_running,
              daily_limit, monthly_limit, concurrent_limit, created_at)
@@ -639,7 +639,7 @@ async def increment_pipeline_usage(
     """
     Increment usage counters after pipeline execution.
 
-    Updates customers.customer_usage_quotas.
+    Updates tenants.tenant_usage_quotas.
 
     Args:
         tenant_id: Customer identifier
@@ -652,7 +652,7 @@ async def increment_pipeline_usage(
     if pipeline_status == "RUNNING":
         # Increment concurrent counter
         update_query = f"""
-        UPDATE `{settings.gcp_project_id}.customers.customer_usage_quotas`
+        UPDATE `{settings.gcp_project_id}.tenants.tenant_usage_quotas`
         SET concurrent_pipelines_running = concurrent_pipelines_running + 1
         WHERE tenant_id = @tenant_id
             AND usage_date = @usage_date
@@ -663,7 +663,7 @@ async def increment_pipeline_usage(
         failed_increment = "1" if pipeline_status == "FAILED" else "0"
 
         update_query = f"""
-        UPDATE `{settings.gcp_project_id}.customers.customer_usage_quotas`
+        UPDATE `{settings.gcp_project_id}.tenants.tenant_usage_quotas`
         SET
             pipelines_run_today = pipelines_run_today + 1,
             pipelines_run_month = pipelines_run_month + 1,
@@ -732,7 +732,7 @@ async def get_customer_credentials(
         region,
         scopes,
         validation_status
-    FROM `{settings.gcp_project_id}.customers.customer_cloud_credentials`
+    FROM `{settings.gcp_project_id}.tenants.tenant_cloud_credentials`
     WHERE tenant_id = @tenant_id
         AND provider = @provider
         AND is_active = TRUE
@@ -851,7 +851,7 @@ async def get_provider_config(
         notification_emails,
         default_parameters,
         is_active
-    FROM `{settings.gcp_project_id}.customers.customer_provider_configs`
+    FROM `{settings.gcp_project_id}.tenants.tenant_provider_configs`
     WHERE tenant_id = @tenant_id
         AND provider = @provider
         AND domain = @domain
@@ -914,7 +914,7 @@ async def get_tenant_from_local_file(api_key_hash: str) -> Optional[str]:
     Look up tenant_id from local file-based API keys (development fallback).
 
     DEPRECATED: This is a legacy fallback for development only.
-    Production should use get_current_customer() which reads from customers dataset.
+    Production should use get_current_customer() which reads from tenants dataset.
 
     Args:
         api_key_hash: SHA256 hash of API key
@@ -959,9 +959,9 @@ async def get_tenant_from_api_key(
     bq_client: BigQueryClient
 ) -> Optional[str]:
     """
-    Look up tenant_id from API key hash using centralized customers dataset.
+    Look up tenant_id from API key hash using centralized tenants dataset.
 
-    UPDATED: Now reads from customers.customer_api_keys instead of {tenant_id}.x_meta_api_keys.
+    UPDATED: Now reads from tenants.tenant_api_keys instead of {tenant_id}.x_meta_api_keys.
     This is more secure as API keys are stored in a centralized, access-controlled dataset.
 
     Args:
@@ -971,7 +971,7 @@ async def get_tenant_from_api_key(
     Returns:
         tenant_id if found and active, None otherwise
     """
-    # Query centralized customers.customer_api_keys table
+    # Query centralized tenants.tenant_api_keys table
     query = f"""
     SELECT
         k.tenant_id,
@@ -979,8 +979,8 @@ async def get_tenant_from_api_key(
         k.is_active,
         k.expires_at,
         c.status AS customer_status
-    FROM `{settings.gcp_project_id}.customers.customer_api_keys` k
-    INNER JOIN `{settings.gcp_project_id}.customers.customer_profiles` c
+    FROM `{settings.gcp_project_id}.tenants.tenant_api_keys` k
+    INNER JOIN `{settings.gcp_project_id}.tenants.tenant_profiles` c
         ON k.tenant_id = c.tenant_id
     WHERE k.api_key_hash = @api_key_hash
         AND k.is_active = TRUE
@@ -989,7 +989,7 @@ async def get_tenant_from_api_key(
     """
 
     try:
-        logger.info(f"[AUTH] Looking up API key in centralized customers dataset")
+        logger.info(f"[AUTH] Looking up API key in centralized tenants dataset")
         results = list(bq_client.query(
             query,
             parameters=[
@@ -998,7 +998,7 @@ async def get_tenant_from_api_key(
         ))
 
         if not results:
-            logger.warning(f"API key not found in customers dataset, trying local files")
+            logger.warning(f"API key not found in tenants dataset, trying local files")
             return await get_tenant_from_local_file(api_key_hash)
 
         row = results[0]

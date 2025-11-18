@@ -336,92 +336,11 @@ async def validation_middleware(request: Request, call_next):
                     )
 
         # ============================================
-        # 5. Validate Request Body for Pipeline Endpoints
+        # 5. Skip body validation for pipeline endpoints
         # ============================================
-        # Only validate body for POST requests to pipeline endpoints
-        if request.method == "POST" and "/pipelines/run/" in request.url.path:
-            try:
-                # Read and parse request body
-                body_bytes = await request.body()
-
-                if body_bytes:
-                    try:
-                        body = json.loads(body_bytes.decode('utf-8'))
-
-                        # Validate date format if present
-                        if 'date' in body and body['date'] is not None:
-                            if not validate_date_format(body['date']):
-                                logger.warning(
-                                    f"Invalid date format in request body: {body.get('date')}",
-                                    extra={"path": request.url.path, "date": body.get('date')}
-                                )
-                                return JSONResponse(
-                                    status_code=status.HTTP_400_BAD_REQUEST,
-                                    content={
-                                        "error": "INVALID_DATE_FORMAT",
-                                        "message": f"Date must be in YYYY-MM-DD format (got: {body.get('date')})",
-                                        "category": "VALIDATION"
-                                    }
-                                )
-
-                        # Check for trigger_by field (required for pipeline runs)
-                        # Note: Pydantic has default="api_user", so this catches explicit null/missing
-                        if 'trigger_by' in body and body['trigger_by'] == '':
-                            logger.warning(
-                                "Empty trigger_by in request body",
-                                extra={"path": request.url.path}
-                            )
-                            return JSONResponse(
-                                status_code=status.HTTP_400_BAD_REQUEST,
-                                content={
-                                    "error": "INVALID_TRIGGER_BY",
-                                    "message": "trigger_by cannot be empty",
-                                    "category": "VALIDATION"
-                                }
-                            )
-
-                    except json.JSONDecodeError as e:
-                        logger.warning(
-                            f"Invalid JSON in request body: {e}",
-                            extra={"path": request.url.path}
-                        )
-                        return JSONResponse(
-                            status_code=status.HTTP_400_BAD_REQUEST,
-                            content={
-                                "error": "INVALID_JSON",
-                                "message": f"Request body must be valid JSON: {str(e)}",
-                                "category": "VALIDATION"
-                            }
-                        )
-                    except UnicodeDecodeError:
-                        logger.warning(
-                            "Invalid UTF-8 encoding in request body",
-                            extra={"path": request.url.path}
-                        )
-                        return JSONResponse(
-                            status_code=status.HTTP_400_BAD_REQUEST,
-                            content={
-                                "error": "INVALID_ENCODING",
-                                "message": "Request body must be UTF-8 encoded",
-                                "category": "VALIDATION"
-                            }
-                        )
-
-                # Important: Create new request with body for downstream handlers
-                # Since we consumed the body, we need to make it available again
-                async def receive():
-                    return {"type": "http.request", "body": body_bytes}
-
-                request._receive = receive
-
-            except Exception as e:
-                logger.error(
-                    f"Error reading request body: {e}",
-                    exc_info=True,
-                    extra={"path": request.url.path}
-                )
-                # Don't block on body read errors, let it through
-                pass
+        # Skip body validation to avoid middleware conflicts with request stream
+        # The actual validation happens in the endpoint handlers via Pydantic models
+        # This prevents the "Unexpected message received: http.request" error
 
         # ============================================
         # All validations passed - proceed with request

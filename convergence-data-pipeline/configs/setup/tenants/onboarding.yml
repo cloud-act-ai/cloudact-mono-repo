@@ -25,6 +25,11 @@ steps:
       dataset_id: "{dataset_id}"
       location: "{location}"
 
+      # Default quota limits for new tenants
+      default_daily_limit: 50      # Daily pipeline runs allowed
+      default_monthly_limit: 1000  # Monthly pipeline runs allowed
+      default_concurrent_limit: 5  # Concurrent pipelines allowed
+
       # Metadata tables to create (ONLY operational tables in tenant dataset)
       # NOTE: API keys and credentials are stored in central 'tenants' dataset
       metadata_tables:

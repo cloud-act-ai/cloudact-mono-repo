@@ -189,7 +189,69 @@ class TenantOnboardingProcessor:
             else:
                 tables_failed.append(table_name)
 
-        # Step 3: Create validation test table if configured
+        # Step 3: Create initial quota record for the new tenant
+        # This ensures the tenant can run pipelines immediately after onboarding
+        self.logger.info(f"Creating initial quota record for tenant {tenant_id}")
+        try:
+            import uuid
+            from datetime import datetime
+
+            quota_table = f"{self.settings.gcp_project_id}.tenants.tenant_usage_quotas"
+            usage_id = str(uuid.uuid4())
+
+            # Default quotas for new tenants
+            default_daily_limit = config.get("default_daily_limit", 50)
+            default_monthly_limit = config.get("default_monthly_limit", 1000)
+            default_concurrent_limit = config.get("default_concurrent_limit", 5)
+
+            quota_insert_query = f"""
+            INSERT INTO `{quota_table}` (
+                usage_id,
+                tenant_id,
+                usage_date,
+                pipelines_run_today,
+                pipelines_succeeded_today,
+                pipelines_failed_today,
+                pipelines_run_month,
+                concurrent_pipelines_running,
+                daily_limit,
+                monthly_limit,
+                concurrent_limit,
+                last_updated,
+                created_at
+            )
+            VALUES (
+                '{usage_id}',
+                '{tenant_id}',
+                CURRENT_DATE(),
+                0,
+                0,
+                0,
+                0,
+                0,
+                {default_daily_limit},
+                {default_monthly_limit},
+                {default_concurrent_limit},
+                CURRENT_TIMESTAMP(),
+                CURRENT_TIMESTAMP()
+            )
+            """
+
+            await bq_client.query(quota_insert_query)
+            self.logger.info(
+                f"Created initial quota record for tenant {tenant_id}",
+                extra={
+                    "daily_limit": default_daily_limit,
+                    "monthly_limit": default_monthly_limit,
+                    "concurrent_limit": default_concurrent_limit
+                }
+            )
+        except Exception as e:
+            self.logger.error(f"Failed to create initial quota record: {e}", exc_info=True)
+            # Don't fail onboarding if quota record creation fails
+            # Admin can manually add it later
+
+        # Step 4: Create validation test table if configured
         if config.get("create_validation_table", False):
             validation_table = config.get("validation_table_name", "onboarding_validation_test")
 

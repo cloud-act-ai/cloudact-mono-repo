@@ -357,7 +357,7 @@ async def onboard_customer(
                 logger.debug(f"Table already exists: {table_id}")
             except Exception:
                 # Load schema from JSON
-                schema_file = Path(settings.metadata_schemas_path) / f"{table_name}.json"
+                schema_file = Path(__file__).parent.parent.parent.parent / "ps_templates" / "setup" / "tenants" / "onboarding" / "schemas" / f"{table_name}.json"
                 if not schema_file.exists():
                     logger.error(f"Schema file not found: {schema_file}")
                     continue
