@@ -1,8 +1,8 @@
-# Customer Onboarding Pipeline Template
+# Tenant Onboarding Pipeline Template
 # Creates tenant infrastructure (dataset + metadata tables)
 # Called automatically during: POST /api/v1/customers/onboard
 
-pipeline_id: "{tenant_id}-customer-onboarding"
+pipeline_id: "{tenant_id}-tenant-onboarding"
 description: "Onboard new tenant {tenant_id} - create dataset and metadata infrastructure"
 
 # Pipeline-level variables
@@ -17,7 +17,7 @@ steps:
   # Step 1: Create tenant metadata infrastructure
   - step_id: "create_infrastructure"
     name: "Create Tenant Dataset and Metadata Tables"
-    ps_type: "customer.onboarding"
+    ps_type: "setup.tenants.onboarding"
     timeout_minutes: 10
 
     config:

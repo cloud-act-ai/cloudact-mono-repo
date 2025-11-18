@@ -1,8 +1,8 @@
-# Dryrun Pipeline - Used during customer onboarding
+# Dryrun Pipeline - Used during tenant onboarding
 pipeline_id: "dryrun"
 description: "Onboarding validation pipeline to test BigQuery infrastructure"
 
 steps:
   - step_id: "dryrun_test"
     name: "dryrun_test"
-    ps_type: "customer.onboarding"
+    ps_type: "setup.tenants.onboarding"

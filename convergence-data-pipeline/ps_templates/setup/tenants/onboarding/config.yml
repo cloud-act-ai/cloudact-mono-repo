@@ -1,0 +1,18 @@
+ps_type: "setup.tenants.onboarding"
+name: "Tenant Onboarding Validation"
+description: "Validates tenant BigQuery infrastructure during onboarding"
+version: "1.0.0"
+provider: "setup"
+
+# Processor to execute this template
+processor: "src.core.processors.setup.tenants.onboarding"
+
+# Required parameters
+required_params:
+  - tenant_id
+
+# Features
+features:
+  infrastructure_validation: true
+  schema_creation: true
+  test_query_execution: true

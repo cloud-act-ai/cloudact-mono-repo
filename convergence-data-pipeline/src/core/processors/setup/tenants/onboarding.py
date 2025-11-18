@@ -1,5 +1,5 @@
 """
-Customer Onboarding Engine
+Tenant Onboarding Processor
 Validates tenant BigQuery infrastructure during onboarding
 """
 import json
@@ -13,17 +13,18 @@ from src.core.engine.bq_client import BigQueryClient
 from src.app.config import get_settings
 
 
-class CustomerOnboardingEngine:
+class TenantOnboardingProcessor:
     """
-    Engine for customer onboarding validation
+    Processor for tenant onboarding validation
     Creates test table with schema and validates BigQuery access
     """
 
     def __init__(self):
         self.settings = get_settings()
         self.logger = logging.getLogger(__name__)
-        # Navigate from src/core/processors/customer/onboarding.py to root/ps_templates/customer/onboarding
-        self.template_dir = Path(__file__).parent.parent.parent.parent.parent / "ps_templates" / "customer" / "onboarding"
+        # Navigate from src/core/processors/setup/tenants/onboarding.py to ps_templates/setup/tenants/onboarding
+        # Path: src/core/processors/setup/tenants/ -> go up 6 levels to project root
+        self.template_dir = Path(__file__).parent.parent.parent.parent.parent.parent / "ps_templates" / "setup" / "tenants" / "onboarding"
         self.schema_config = self._load_schema()
 
     def _load_schema(self) -> Dict[str, Any]:
@@ -164,5 +165,5 @@ class CustomerOnboardingEngine:
 
 # Factory function to get engine instance
 def get_engine():
-    """Get CustomerOnboardingEngine instance"""
-    return CustomerOnboardingEngine()
+    """Get TenantOnboardingProcessor instance"""
+    return TenantOnboardingProcessor()

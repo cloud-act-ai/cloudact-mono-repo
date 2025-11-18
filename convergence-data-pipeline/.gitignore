@@ -46,9 +46,13 @@ env/
 **/*key*.json
 **/*keys*.json
 !configs/metadata/schemas/*key*.json
+!ps_templates/**/schemas/*key*.json
+!ps_templates/**/schemas/*keys*.json
 **/*credential*.json
 **/*credentials*.json
 !configs/metadata/schemas/*credential*.json
+!ps_templates/**/schemas/*credential*.json
+!ps_templates/**/schemas/*credentials*.json
 **/service-account*.json
 **/*token*.json
 **/*tokens*.json
@@ -67,8 +71,13 @@ configs/**/*credential*.json
 # API Keys (block actual keys, allow schema templates)
 **/api_keys*.json
 !configs/metadata/schemas/api_keys.json
+!ps_templates/**/schemas/*api_keys*.json
+!ps_templates/**/schemas/x_meta_api_keys.json
 **/api_keys*.yaml
 **/api_keys*.yml
+
+# Allow all schema files in ps_templates (overrides above blocks)
+!ps_templates/**/schemas/*.json
 
 # Logs
 *.log
