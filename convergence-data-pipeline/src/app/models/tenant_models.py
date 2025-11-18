@@ -2,11 +2,11 @@
 Comprehensive Pydantic models for tenant management entities.
 
 This module provides:
-- Request models for customer operations
+- Request models for tenant operations
 - Response models with appropriate data exposure
 - Enums for categorical fields
 - Subscription plan limits and constants
-- Validation rules for all customer-related data
+- Validation rules for all tenant-related data
 """
 
 from datetime import datetime, date
@@ -120,12 +120,12 @@ SUBSCRIPTION_LIMITS = {
 # ============================================================================
 
 class OnboardTenantRequest(BaseModel):
-    """Request model for customer onboarding."""
+    """Request model for tenant onboarding."""
     tenant_id: str = Field(
         ...,
         min_length=3,
         max_length=50,
-        description="Unique customer identifier (3-50 alphanumeric + underscore)"
+        description="Unique tenant identifier (3-50 alphanumeric + underscore)"
     )
     company_name: str = Field(
         ...,
@@ -463,7 +463,7 @@ class UpdateLimitsRequest(BaseModel):
 # ============================================================================
 
 class TenantProfileResponse(BaseModel):
-    """Response model for customer profile."""
+    """Response model for tenant profile."""
     tenant_id: str
     company_name: str
     admin_email: EmailStr
@@ -482,7 +482,7 @@ class TenantProfileResponse(BaseModel):
                 "admin_email": "admin@acme.com",
                 "status": "ACTIVE",
                 "subscription_plan": "PROFESSIONAL",
-                "tenant_dataset_id": "customer_acme_corp_prod",
+                "tenant_dataset_id": "tenant_acme_corp_prod",
                 "created_at": "2025-01-15T10:00:00Z",
                 "updated_at": "2025-01-15T10:00:00Z"
             }
@@ -666,7 +666,7 @@ class LimitsResponse(BaseModel):
 
 
 class ValidationResponse(BaseModel):
-    """Response model for customer validation checks."""
+    """Response model for tenant validation checks."""
     tenant_id: str
     can_run_pipeline: bool
     subscription_status: SubscriptionStatus
@@ -755,7 +755,7 @@ def validate_quota_available(
     concurrent_limit: int
 ) -> tuple[bool, str]:
     """
-    Check if customer has available quota.
+    Check if tenant has available quota.
 
     Args:
         pipelines_run_today: Number of pipelines run today

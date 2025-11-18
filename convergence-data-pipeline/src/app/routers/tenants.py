@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 # Request/Response Models
 # ============================================
 
-class OnboardCustomerRequest(BaseModel):
+class OnboardTenantRequest(BaseModel):
     """Request to onboard a new tenant."""
     tenant_id: str = Field(
         ...,
@@ -100,8 +100,8 @@ class OnboardCustomerResponse(BaseModel):
     summary="Onboard a new tenant",
     description="Complete tenant onboarding: create tenant profile, API key, subscription, and tenant dataset"
 )
-async def onboard_customer(
-    request: OnboardCustomerRequest,
+async def onboard_tenant(
+    request: OnboardTenantRequest,
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """

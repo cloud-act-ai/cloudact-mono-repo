@@ -13,7 +13,7 @@ import logging
 from croniter import croniter
 import pytz
 
-from src.app.dependencies.auth import verify_api_key_header, verify_admin_key, TenantContext, get_current_customer
+from src.app.dependencies.auth import verify_api_key_header, verify_admin_key, TenantContext, get_current_tenant
 from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
 from src.app.config import settings
 from google.cloud import bigquery
@@ -804,7 +804,7 @@ async def get_scheduler_status(
 async def get_customer_pipelines(
     tenant_id: str,
     is_active: Optional[bool] = Query(None, description="Filter by active status"),
-    customer: Dict[str, Any] = Depends(get_current_customer),
+    customer: Dict[str, Any] = Depends(get_current_tenant),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """
@@ -882,7 +882,7 @@ async def get_customer_pipelines(
 async def create_customer_pipeline(
     tenant_id: str,
     request: PipelineConfigRequest,
-    customer: Dict[str, Any] = Depends(get_current_customer),
+    customer: Dict[str, Any] = Depends(get_current_tenant),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """
@@ -1001,7 +1001,7 @@ async def create_customer_pipeline(
 async def delete_customer_pipeline(
     tenant_id: str,
     config_id: str,
-    customer: Dict[str, Any] = Depends(get_current_customer),
+    customer: Dict[str, Any] = Depends(get_current_tenant),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """

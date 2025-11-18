@@ -4,15 +4,15 @@ Exports authentication, rate limiting, and other dependency injection functions.
 """
 
 from src.app.dependencies.auth import (
-    # Customer-centric authentication (new architecture)
-    get_current_customer,
+    # Tenant authentication and authorization
+    get_current_tenant,
     validate_subscription,
     validate_quota,
     increment_pipeline_usage,
-    get_customer_credentials,
+    get_tenant_credentials,
     get_provider_config,
 
-    # Legacy tenant-based authentication (backward compatibility)
+    # Core authentication components
     TenantContext,
     hash_api_key,
     verify_api_key,
@@ -28,15 +28,15 @@ from src.app.dependencies.rate_limit_decorator import (
 )
 
 __all__ = [
-    # Customer-centric authentication
-    "get_current_customer",
+    # Tenant authentication and authorization
+    "get_current_tenant",
     "validate_subscription",
     "validate_quota",
     "increment_pipeline_usage",
-    "get_customer_credentials",
+    "get_tenant_credentials",
     "get_provider_config",
 
-    # Legacy tenant authentication
+    # Core authentication components
     "TenantContext",
     "hash_api_key",
     "verify_api_key",

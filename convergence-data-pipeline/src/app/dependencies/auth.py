@@ -1,5 +1,5 @@
 """
-API Key Authentication with Customer-Centric Architecture
+API Key Authentication with Tenant-Centric Architecture
 Secure multi-tenant authentication using centralized tenants dataset.
 Supports subscription validation, quota management, and credential retrieval.
 Fallback to local file-based API keys for development.
@@ -38,11 +38,11 @@ def load_test_api_keys() -> Dict[str, Dict[str, Any]]:
     """
     Load test API keys from test_api_keys.json for development/QA testing.
 
-    Returns a dict mapping api_key -> customer data.
+    Returns a dict mapping api_key -> tenant data.
     Only loaded when ENABLE_DEV_MODE=true or DISABLE_AUTH=true.
 
     Returns:
-        Dict mapping API key to customer profile
+        Dict mapping API key to tenant profile
     """
     global _test_api_keys
 
@@ -60,7 +60,7 @@ def load_test_api_keys() -> Dict[str, Dict[str, Any]]:
         with open(test_keys_file, 'r') as f:
             data = json.load(f)
 
-        # Build lookup dict: api_key -> customer data
+        # Build lookup dict: api_key -> tenant data
         _test_api_keys = {}
         for key_data in data.get("test_keys", []):
             api_key = key_data.get("api_key")
@@ -77,15 +77,15 @@ def load_test_api_keys() -> Dict[str, Dict[str, Any]]:
         return _test_api_keys
 
 
-def get_test_customer_from_api_key(api_key: str) -> Optional[Dict[str, Any]]:
+def get_test_tenant_from_api_key(api_key: str) -> Optional[Dict[str, Any]]:
     """
-    Look up test customer data from test API key.
+    Look up test tenant data from test API key.
 
     Args:
         api_key: Plain text API key
 
     Returns:
-        Customer dict if found, None otherwise
+        Tenant dict if found, None otherwise
     """
     test_keys = load_test_api_keys()
     return test_keys.get(api_key)
@@ -259,19 +259,19 @@ def hash_api_key(api_key: str) -> str:
 
 
 # ============================================
-# Customer-Centric Authentication Functions
+# Tenant-Centric Authentication Functions
 # ============================================
 
 
-async def get_current_customer(
+async def get_current_tenant(
     api_key: str = Header(..., alias="X-API-Key"),
     bq_client: BigQueryClient = Depends(get_bigquery_client),
     background_tasks: BackgroundTasks = BackgroundTasks()
 ) -> Dict[str, Any]:
     """
-    Authenticate customer using API key from centralized tenants.tenant_api_keys table.
+    Authenticate tenant using API key from centralized tenants.tenant_api_keys table.
 
-    Returns customer profile with subscription info.
+    Returns tenant profile with subscription info.
 
     Args:
         api_key: API key from X-API-Key header
@@ -279,23 +279,23 @@ async def get_current_customer(
 
     Returns:
         Dict containing:
-            - tenant_id: Unique customer identifier
-            - company_name: Customer company name
-            - admin_email: Customer admin email
-            - status: Customer status (ACTIVE, SUSPENDED, etc.)
+            - tenant_id: Unique tenant identifier
+            - company_name: Tenant company name
+            - admin_email: Tenant admin email
+            - status: Tenant status (ACTIVE, SUSPENDED, etc.)
             - subscription: Subscription details with limits
             - api_key_id: ID of the API key used
 
     Raises:
-        HTTPException: If API key invalid, inactive, or customer suspended
+        HTTPException: If API key invalid, inactive, or tenant suspended
     """
     # Check if authentication is disabled (development mode)
     if settings.disable_auth:
-        logger.warning(f"Authentication disabled - using default customer '{settings.default_tenant_id}'")
-        # Return mock customer for development
+        logger.warning(f"Authentication disabled - using default tenant '{settings.default_tenant_id}'")
+        # Return mock tenant for development
         return {
             "tenant_id": settings.default_tenant_id,
-            "company_name": "Development Customer",
+            "company_name": "Development Tenant",
             "admin_email": "dev@example.com",
             "status": "ACTIVE",
             "subscription": {
@@ -311,10 +311,10 @@ async def get_current_customer(
     # Check for test API keys (development/QA mode)
     enable_dev_mode = os.getenv("ENABLE_DEV_MODE", "false").lower() == "true"
     if enable_dev_mode or settings.is_development:
-        test_customer = get_test_customer_from_api_key(api_key)
-        if test_customer:
-            logger.info(f"[DEV MODE] Using test API key for customer: {test_customer['tenant_id']}")
-            return test_customer
+        test_tenant = get_test_tenant_from_api_key(api_key)
+        if test_tenant:
+            logger.info(f"[DEV MODE] Using test API key for tenant: {test_tenant['tenant_id']}")
+            return test_tenant
 
     # Hash the API key
     api_key_hash = hash_api_key(api_key)
@@ -329,7 +329,7 @@ async def get_current_customer(
         k.scopes,
         p.company_name,
         p.admin_email,
-        p.status as customer_status,
+        p.status as tenant_status,
         p.tenant_dataset_id,
         s.subscription_id,
         s.plan_name,
@@ -371,7 +371,7 @@ async def get_current_customer(
 
         # Check if API key has expired
         if row.get("expires_at") and row["expires_at"] < datetime.utcnow():
-            logger.warning(f"API key expired for customer: {row['tenant_id']}")
+            logger.warning(f"API key expired for tenant: {row['tenant_id']}")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="API key has expired",
@@ -384,12 +384,12 @@ async def get_current_customer(
         aggregator.add_update(row["api_key_id"])
         logger.debug(f"Queued last_used_at update for API key: {row['api_key_id']}")
 
-        # Build customer object
-        customer = {
+        # Build tenant object
+        tenant = {
             "tenant_id": row["tenant_id"],
             "company_name": row["company_name"],
             "admin_email": row["admin_email"],
-            "status": row["customer_status"],
+            "status": row["tenant_status"],
             "tenant_dataset_id": row["tenant_dataset_id"],
             "api_key_id": row["api_key_id"],
             "scopes": row.get("scopes", []),
@@ -405,13 +405,13 @@ async def get_current_customer(
             }
         }
 
-        logger.info(f"Authenticated customer: {customer['tenant_id']} ({customer['company_name']})")
-        return customer
+        logger.info(f"Authenticated tenant: {tenant['tenant_id']} ({tenant['company_name']})")
+        return tenant
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error during customer authentication: {e}", exc_info=True)
+        logger.error(f"Error during tenant authentication: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Authentication service error"
@@ -419,16 +419,16 @@ async def get_current_customer(
 
 
 async def validate_subscription(
-    customer: Dict = Depends(get_current_customer),
+    tenant: Dict = Depends(get_current_tenant),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ) -> Dict[str, Any]:
     """
-    Validate customer subscription is active and not expired.
+    Validate tenant subscription is active and not expired.
 
     Raises HTTPException if subscription invalid.
 
     Args:
-        customer: Customer object from get_current_customer
+        tenant: Customer object from get_current_tenant
         bq_client: BigQuery client instance
 
     Returns:
@@ -437,11 +437,11 @@ async def validate_subscription(
     Raises:
         HTTPException: If subscription expired or inactive
     """
-    subscription = customer.get("subscription", {})
+    subscription = tenant.get("subscription", {})
 
     # Check subscription status
     if subscription.get("status") != "ACTIVE":
-        logger.warning(f"Inactive subscription for customer: {customer['tenant_id']}")
+        logger.warning(f"Inactive subscription for tenant: {tenant['tenant_id']}")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"Subscription is {subscription.get('status')}. Please contact support."
@@ -452,7 +452,7 @@ async def validate_subscription(
     if trial_end and isinstance(trial_end, (datetime, date)):
         trial_end_date = trial_end if isinstance(trial_end, date) else trial_end.date()
         if trial_end_date < date.today():
-            logger.warning(f"Trial expired for customer: {customer['tenant_id']}")
+            logger.warning(f"Trial expired for tenant: {tenant['tenant_id']}")
             raise HTTPException(
                 status_code=status.HTTP_402_PAYMENT_REQUIRED,
                 detail="Trial period has expired. Please upgrade your subscription."
@@ -463,29 +463,29 @@ async def validate_subscription(
     if sub_end and isinstance(sub_end, (datetime, date)):
         sub_end_date = sub_end if isinstance(sub_end, date) else sub_end.date()
         if sub_end_date < date.today():
-            logger.warning(f"Subscription expired for customer: {customer['tenant_id']}")
+            logger.warning(f"Subscription expired for tenant: {tenant['tenant_id']}")
             raise HTTPException(
                 status_code=status.HTTP_402_PAYMENT_REQUIRED,
                 detail="Subscription has expired. Please renew your subscription."
             )
 
-    logger.info(f"Subscription validated for customer: {customer['tenant_id']}")
+    logger.info(f"Subscription validated for tenant: {tenant['tenant_id']}")
     return subscription
 
 
 async def validate_quota(
-    customer: Dict = Depends(get_current_customer),
+    tenant: Dict = Depends(get_current_tenant),
     subscription: Dict = Depends(validate_subscription),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ) -> Dict[str, Any]:
     """
-    Validate customer has not exceeded daily/monthly pipeline quotas.
+    Validate tenant has not exceeded daily/monthly pipeline quotas.
 
     Checks tenants.tenant_usage_quotas table.
     Returns quota info or raises HTTPException if exceeded.
 
     Args:
-        customer: Customer object from get_current_customer
+        tenant: Customer object from get_current_tenant
         subscription: Subscription info from validate_subscription
         bq_client: BigQuery client instance
 
@@ -503,7 +503,7 @@ async def validate_quota(
     Raises:
         HTTPException: 429 if quota exceeded
     """
-    tenant_id = customer["tenant_id"]
+    tenant_id = tenant["tenant_id"]
     today = date.today()
 
     # Get or create today's usage record
@@ -582,7 +582,7 @@ async def validate_quota(
 
         # Check daily limit
         if usage["pipelines_run_today"] >= usage["daily_limit"]:
-            logger.warning(f"Daily quota exceeded for customer: {tenant_id}")
+            logger.warning(f"Daily quota exceeded for tenant: {tenant_id}")
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail=f"Daily pipeline quota exceeded ({usage['daily_limit']} pipelines/day). Try again tomorrow.",
@@ -591,7 +591,7 @@ async def validate_quota(
 
         # Check monthly limit
         if usage["pipelines_run_month"] >= usage["monthly_limit"]:
-            logger.warning(f"Monthly quota exceeded for customer: {tenant_id}")
+            logger.warning(f"Monthly quota exceeded for tenant: {tenant_id}")
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail=f"Monthly pipeline quota exceeded ({usage['monthly_limit']} pipelines/month). Upgrade your plan.",
@@ -599,7 +599,7 @@ async def validate_quota(
 
         # Check concurrent limit
         if usage["concurrent_pipelines_running"] >= usage["concurrent_limit"]:
-            logger.warning(f"Concurrent pipeline limit reached for customer: {tenant_id}")
+            logger.warning(f"Concurrent pipeline limit reached for tenant: {tenant_id}")
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail=f"Concurrent pipeline limit reached ({usage['concurrent_limit']} pipelines). Wait for running pipelines to complete.",
@@ -618,7 +618,7 @@ async def validate_quota(
             "remaining_month": usage["monthly_limit"] - usage["pipelines_run_month"]
         }
 
-        logger.info(f"Quota validated for customer: {tenant_id} - {quota_info['remaining_today']} remaining today")
+        logger.info(f"Quota validated for tenant: {tenant_id} - {quota_info['remaining_today']} remaining today")
         return quota_info
 
     except HTTPException:
@@ -688,24 +688,24 @@ async def increment_pipeline_usage(
             )
         ).result()
 
-        logger.info(f"Updated usage for customer {tenant_id}: status={pipeline_status}")
+        logger.info(f"Updated usage for tenant {tenant_id}: status={pipeline_status}")
 
     except Exception as e:
         logger.error(f"Failed to increment pipeline usage: {e}", exc_info=True)
 
 
-async def get_customer_credentials(
+async def get_tenant_credentials(
     tenant_id: str,
     provider: str,
     bq_client: BigQueryClient
 ) -> Dict[str, Any]:
     """
-    Retrieve and decrypt customer cloud credentials for a specific provider.
+    Retrieve and decrypt tenant cloud credentials for a specific provider.
 
     Returns decrypted credentials for pipeline execution.
 
     Args:
-        tenant_id: Customer identifier
+        tenant_id: Tenant identifier
         provider: Cloud provider (GCP, AWS, AZURE, OPENAI, CLAUDE)
         bq_client: BigQuery client instance
 
@@ -750,10 +750,10 @@ async def get_customer_credentials(
         ))
 
         if not results:
-            logger.warning(f"No active credentials found for customer {tenant_id}, provider {provider}")
+            logger.warning(f"No active credentials found for tenant {tenant_id}, provider {provider}")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"No active {provider} credentials configured for this customer"
+                detail=f"No active {provider} credentials configured for this tenant"
             )
 
         row = results[0]
@@ -799,13 +799,13 @@ async def get_customer_credentials(
             "scopes": row.get("scopes", [])
         }
 
-        logger.info(f"Retrieved credentials for customer {tenant_id}, provider {provider}")
+        logger.info(f"Retrieved credentials for tenant {tenant_id}, provider {provider}")
         return result
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error retrieving customer credentials: {e}", exc_info=True)
+        logger.error(f"Error retrieving tenant credentials: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Credential retrieval service error"
@@ -819,7 +819,7 @@ async def get_provider_config(
     bq_client: BigQueryClient
 ) -> Dict[str, Any]:
     """
-    Get customer's provider-specific configuration.
+    Get tenant's provider-specific configuration.
 
     Returns source_project_id, source_dataset, notification_emails, default_parameters.
 
@@ -871,7 +871,7 @@ async def get_provider_config(
 
         if not results:
             # Return default configuration if not found
-            logger.info(f"No provider config found for customer {tenant_id}, provider {provider}, domain {domain} - using defaults")
+            logger.info(f"No provider config found for tenant {tenant_id}, provider {provider}, domain {domain} - using defaults")
             return {
                 "provider": provider.upper(),
                 "domain": domain.upper(),
@@ -893,7 +893,7 @@ async def get_provider_config(
             "default_parameters": row.get("default_parameters", {})
         }
 
-        logger.info(f"Retrieved provider config for customer {tenant_id}: {provider}/{domain}")
+        logger.info(f"Retrieved provider config for tenant {tenant_id}: {provider}/{domain}")
         return config
 
     except Exception as e:
@@ -905,7 +905,7 @@ async def get_provider_config(
 
 
 # ============================================
-# Legacy Tenant-Based Authentication (DEPRECATED - Use get_current_customer)
+# Legacy Tenant-Based Authentication (DEPRECATED - Use get_current_tenant)
 # ============================================
 
 
@@ -914,7 +914,7 @@ async def get_tenant_from_local_file(api_key_hash: str) -> Optional[str]:
     Look up tenant_id from local file-based API keys (development fallback).
 
     DEPRECATED: This is a legacy fallback for development only.
-    Production should use get_current_customer() which reads from tenants dataset.
+    Production should use get_current_tenant() which reads from tenants dataset.
 
     Args:
         api_key_hash: SHA256 hash of API key
@@ -978,7 +978,7 @@ async def get_tenant_from_api_key(
         k.tenant_id,
         k.is_active,
         k.expires_at,
-        c.status AS customer_status
+        c.status AS tenant_status
     FROM `{settings.gcp_project_id}.tenants.tenant_api_keys` k
     INNER JOIN `{settings.gcp_project_id}.tenants.tenant_profiles` c
         ON k.tenant_id = c.tenant_id
@@ -1005,15 +1005,15 @@ async def get_tenant_from_api_key(
 
         # Check if API key has expired
         if row.get("expires_at") and row["expires_at"] < datetime.utcnow():
-            logger.warning(f"API key expired for customer: {row['tenant_id']}")
+            logger.warning(f"API key expired for tenant: {row['tenant_id']}")
             return None
 
         if not row.get("is_active", False):
-            logger.warning(f"API key is inactive for customer: {row.get('tenant_id')}")
+            logger.warning(f"API key is inactive for tenant: {row.get('tenant_id')}")
             return None
 
         tenant_id = row["tenant_id"]
-        logger.info(f"[AUTH] Authenticated tenant: {tenant_id} (customer: {row['tenant_id']})")
+        logger.info(f"[AUTH] Authenticated tenant: {tenant_id} (tenant: {row['tenant_id']})")
         return tenant_id
 
     except Exception as e:

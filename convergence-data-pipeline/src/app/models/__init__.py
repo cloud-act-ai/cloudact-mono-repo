@@ -37,16 +37,10 @@ from .tenant_models import (
     LimitsResponse,
 )
 
-# Backward compatibility aliases
-CustomerStatus = TenantStatus
-OnboardCustomerRequest = OnboardTenantRequest
-CustomerProfileResponse = TenantProfileResponse
-
 __all__ = [
     # Enums
     "SubscriptionPlan",
     "TenantStatus",
-    "CustomerStatus",  # Backward compat
     "Provider",
     "CredentialType",
     "Domain",
@@ -58,7 +52,6 @@ __all__ = [
 
     # Request Models
     "OnboardTenantRequest",
-    "OnboardCustomerRequest",  # Backward compat
     "CreateAPIKeyRequest",
     "AddCredentialRequest",
     "CreateProviderConfigRequest",
@@ -68,7 +61,6 @@ __all__ = [
 
     # Response Models
     "TenantProfileResponse",
-    "CustomerProfileResponse",  # Backward compat
     "APIKeyResponse",
     "CredentialResponse",
     "SubscriptionResponse",
