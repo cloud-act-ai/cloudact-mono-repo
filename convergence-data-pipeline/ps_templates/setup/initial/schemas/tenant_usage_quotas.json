@@ -1,0 +1,80 @@
+[
+  {
+    "name": "usage_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Unique identifier for this usage record"
+  },
+  {
+    "name": "tenant_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Tenant for this usage tracking"
+  },
+  {
+    "name": "usage_date",
+    "type": "DATE",
+    "mode": "REQUIRED",
+    "description": "Date of usage tracking (partition key)"
+  },
+  {
+    "name": "pipelines_run_today",
+    "type": "INTEGER",
+    "mode": "REQUIRED",
+    "description": "Number of pipelines run today"
+  },
+  {
+    "name": "pipelines_succeeded_today",
+    "type": "INTEGER",
+    "mode": "REQUIRED",
+    "description": "Number of successful pipeline runs today"
+  },
+  {
+    "name": "pipelines_failed_today",
+    "type": "INTEGER",
+    "mode": "REQUIRED",
+    "description": "Number of failed pipeline runs today"
+  },
+  {
+    "name": "pipelines_run_month",
+    "type": "INTEGER",
+    "mode": "REQUIRED",
+    "description": "Number of pipelines run this month"
+  },
+  {
+    "name": "concurrent_pipelines_running",
+    "type": "INTEGER",
+    "mode": "REQUIRED",
+    "description": "Current number of concurrent running pipelines"
+  },
+  {
+    "name": "daily_limit",
+    "type": "INTEGER",
+    "mode": "REQUIRED",
+    "description": "Daily pipeline run limit"
+  },
+  {
+    "name": "monthly_limit",
+    "type": "INTEGER",
+    "mode": "NULLABLE",
+    "description": "Monthly pipeline run limit"
+  },
+  {
+    "name": "concurrent_limit",
+    "type": "INTEGER",
+    "mode": "NULLABLE",
+    "description": "Concurrent pipeline execution limit"
+  },
+  {
+    "name": "last_updated",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "Timestamp of last quota update"
+  },
+  {
+    "name": "created_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "Timestamp when usage record was created"
+  }
+]

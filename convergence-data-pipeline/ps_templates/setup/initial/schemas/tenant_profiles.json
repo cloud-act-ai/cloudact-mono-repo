@@ -1,0 +1,50 @@
+[
+  {
+    "name": "tenant_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Unique identifier for the tenant"
+  },
+  {
+    "name": "company_name",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Company or organization name"
+  },
+  {
+    "name": "admin_email",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Primary administrator email address"
+  },
+  {
+    "name": "tenant_dataset_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "BigQuery dataset ID for this tenant's data"
+  },
+  {
+    "name": "status",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Tenant status: ACTIVE, SUSPENDED, DELETED"
+  },
+  {
+    "name": "subscription_plan",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Current subscription plan tier"
+  },
+  {
+    "name": "created_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "Timestamp when tenant was created"
+  },
+  {
+    "name": "updated_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "Timestamp of last update"
+  }
+]

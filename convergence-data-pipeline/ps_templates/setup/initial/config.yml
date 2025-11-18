@@ -1,0 +1,46 @@
+ps_type: "setup.initial.onetime_bootstrap"
+name: "One-Time Bootstrap Setup"
+description: "Creates central tenants dataset and all tenant management tables during initial system setup"
+version: "1.0.0"
+provider: "setup"
+
+# Processor to execute this template
+processor: "src.core.processors.setup.initial.onetime_bootstrap"
+
+# Required parameters
+required_params: []
+
+# Optional parameters with defaults
+optional_params:
+  force_recreate_dataset: false  # If true, delete and recreate entire tenants dataset
+  force_recreate_tables: false   # If true, delete and recreate all tables
+
+# Features
+features:
+  central_dataset_creation: true
+  tenant_management_tables: true
+  infrastructure_validation: true
+  idempotent_execution: true
+
+# Dataset configuration
+dataset:
+  name: "tenants"
+  description: "Central dataset for tenant management, authentication, and quotas"
+  location: "US"
+
+# Tables to create (in order)
+tables:
+  - tenant_profiles
+  - tenant_api_keys
+  - tenant_subscriptions
+  - tenant_usage_quotas
+  - tenant_cloud_credentials
+  - tenant_pipeline_configs
+  - scheduled_pipeline_runs
+  - pipeline_execution_queue
+
+# Notes:
+# - This processor should be run ONCE during initial system setup
+# - Can be re-run with force_recreate flags if schema changes are needed
+# - All table schemas are versioned in ps_templates/setup/initial/schemas/
+# - Schemas use BigQuery JSON schema format

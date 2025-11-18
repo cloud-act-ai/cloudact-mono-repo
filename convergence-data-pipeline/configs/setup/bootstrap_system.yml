@@ -1,0 +1,42 @@
+# One-Time System Bootstrap Pipeline
+# Run this ONCE during initial system setup to create:
+# - Central 'tenants' dataset
+# - All tenant management tables
+#
+# Usage:
+#   1. First time setup: Run as-is
+#   2. Schema updates: Set force_recreate_tables: true
+#   3. Complete reset: Set both force flags to true (DANGER!)
+
+pipeline:
+  id: "system_bootstrap"
+  name: "One-Time System Bootstrap"
+  description: "Creates central tenants dataset and management tables"
+  version: "1.0.0"
+
+# Steps to execute
+steps:
+  - step_id: "bootstrap_setup"
+    name: "Bootstrap System Infrastructure"
+    ps_type: "setup.initial.onetime_bootstrap"
+
+    # Configuration
+    config:
+      # Force recreation flags (use with caution!)
+      force_recreate_dataset: false  # If true, DELETES entire tenants dataset
+      force_recreate_tables: false   # If true, DELETES and recreates all tables
+
+    # Error handling
+    on_failure: "stop"  # Stop pipeline if bootstrap fails
+
+# Variables (can be overridden at runtime)
+variables:
+  force_recreate_dataset: false
+  force_recreate_tables: false
+
+# Metadata
+metadata:
+  owner: "data-ops"
+  category: "setup"
+  run_once: true
+  critical: true
