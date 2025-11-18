@@ -240,7 +240,8 @@ async def enqueue_pipeline(
     # Insert into scheduled_pipeline_runs
     insert_run_query = f"""
     INSERT INTO `{settings.gcp_project_id}.tenants.scheduled_pipeline_runs`
-    (run_id, config_id, tenant_id, pipeline_id, state, scheduled_time, priority, parameters)
+    (run_id, config_id, tenant_id, pipeline_id, state, scheduled_time, priority,
+     parameters, retry_count, max_retries, created_at)
     VALUES (
         @run_id,
         @config_id,
@@ -249,7 +250,10 @@ async def enqueue_pipeline(
         'PENDING',
         @scheduled_time,
         @priority,
-        PARSE_JSON(@parameters)
+        PARSE_JSON(@parameters),
+        0,
+        3,
+        CURRENT_TIMESTAMP()
     )
     """
 
