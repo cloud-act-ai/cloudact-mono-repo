@@ -22,7 +22,7 @@ def demo_validation():
     print("-" * 40)
     try:
         config = PipelineConfig(
-            steps=[PipelineStepConfig(step_id="test", type="bigquery_to_bigquery")]
+            steps=[PipelineStepConfig(step_id="test", type="gcp.bq_etl")]
         )
         print("   FAILED: Should have raised ValidationError!")
     except ValidationError as e:
@@ -36,7 +36,7 @@ def demo_validation():
     try:
         config = PipelineConfig(
             pipeline_id="test pipeline!",  # Spaces and special chars
-            steps=[PipelineStepConfig(step_id="test", type="bigquery_to_bigquery")]
+            steps=[PipelineStepConfig(step_id="test", type="gcp.bq_etl")]
         )
         print("   FAILED: Should have raised ValidationError!")
     except ValidationError as e:
@@ -62,7 +62,7 @@ def demo_validation():
     try:
         step = PipelineStepConfig(
             step_id="test_step",
-            type="bigquery_to_bigquery",
+            type="gcp.bq_etl",
             destination=BigQueryDestinationConfig(
                 dataset_type="gcp",
                 table="output_table"
@@ -79,7 +79,7 @@ def demo_validation():
     try:
         step = PipelineStepConfig(
             step_id="test_step",
-            type="bigquery_to_bigquery",
+            type="gcp.bq_etl",
             source=BigQuerySourceConfig(
                 project_id="test-project",
                 dataset="test_dataset",
@@ -231,7 +231,7 @@ def demo_validation():
             steps=[
                 PipelineStepConfig(
                     step_id="extract_data",
-                    type="bigquery_to_bigquery",
+                    type="gcp.bq_etl",
                     source=BigQuerySourceConfig(
                         project_id="test-project",
                         dataset="source_dataset",

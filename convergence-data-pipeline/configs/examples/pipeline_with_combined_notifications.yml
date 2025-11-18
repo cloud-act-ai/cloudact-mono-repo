@@ -17,7 +17,7 @@ steps:
   # Step 1: Example data processing step
   - step_id: "process_data"
     name: "Process Sample Data"
-    ps_type: "gcp.bigquery_to_bigquery"
+    ps_type: "gcp.bq_etl"
     timeout_minutes: 30
 
     source:

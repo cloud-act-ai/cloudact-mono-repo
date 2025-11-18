@@ -197,7 +197,7 @@ class PipelineStepConfig(BaseModel):
     step_id: str = Field(..., description="Unique step identifier")
     name: Optional[str] = Field(None, description="Human-readable step name")
     description: Optional[str] = Field(None, description="Step description")
-    ps_type: str = Field(..., description="Pipeline step type with provider prefix (e.g., 'gcp.bigquery_to_bigquery', 'notify_systems.email_notification')")
+    ps_type: str = Field(..., description="Pipeline step type with provider prefix (e.g., 'gcp.bq_etl', 'notify_systems.email_notification')")
 
     # Additional fields for any ps_type
     trigger: Optional[str] = Field(None, description="Notification trigger (on_failure, on_success, etc.)")
@@ -234,7 +234,7 @@ class PipelineStepConfig(BaseModel):
     def validate_ps_type(cls, v):
         """Validate ps_type follows provider.template_name format."""
         if "." not in v:
-            raise ValueError(f"ps_type must follow 'provider.template_name' format (e.g., 'gcp.bigquery_to_bigquery'). Got: {v}")
+            raise ValueError(f"ps_type must follow 'provider.template_name' format (e.g., 'gcp.bq_etl'). Got: {v}")
         return v
 
     @field_validator("depends_on")
@@ -249,7 +249,7 @@ class PipelineStepConfig(BaseModel):
     def validate_step_requirements(self):
         """Validate step has required fields based on ps_type."""
         # BigQuery to BigQuery step requirements
-        if self.ps_type == "gcp.bigquery_to_bigquery":
+        if self.ps_type == "gcp.bq_etl":
             if not self.source:
                 raise ValueError("BigQuery to BigQuery step must have 'source' configuration")
             if not self.destination:

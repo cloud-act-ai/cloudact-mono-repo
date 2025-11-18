@@ -27,7 +27,7 @@ class TestPipelineConfigValidation:
             steps=[
                 PipelineStepConfig(
                     step_id="step1",
-                    type="bigquery_to_bigquery",
+                    type="gcp.bq_etl",
                     source=BigQuerySourceConfig(
                         project_id="test-project",
                         dataset="test_dataset",
@@ -51,7 +51,7 @@ class TestPipelineConfigValidation:
                 steps=[
                     PipelineStepConfig(
                         step_id="step1",
-                        type="bigquery_to_bigquery"
+                        type="gcp.bq_etl"
                     )
                 ]
             )
@@ -65,7 +65,7 @@ class TestPipelineConfigValidation:
                 steps=[
                     PipelineStepConfig(
                         step_id="step1",
-                        type="bigquery_to_bigquery"
+                        type="gcp.bq_etl"
                     )
                 ]
             )
@@ -81,7 +81,7 @@ class TestPipelineConfigValidation:
                 steps=[
                     PipelineStepConfig(
                         step_id="step1",
-                        type="bigquery_to_bigquery"
+                        type="gcp.bq_etl"
                     )
                 ]
             )
@@ -104,7 +104,7 @@ class TestPipelineConfigValidation:
                 steps=[
                     PipelineStepConfig(
                         step_id="duplicate_step",
-                        type="bigquery_to_bigquery"
+                        type="gcp.bq_etl"
                     ),
                     PipelineStepConfig(
                         step_id="duplicate_step",  # Duplicate!
@@ -124,7 +124,7 @@ class TestPipelineConfigValidation:
                 steps=[
                     PipelineStepConfig(
                         step_id="step1",
-                        type="bigquery_to_bigquery"
+                        type="gcp.bq_etl"
                     )
                 ]
             )
@@ -138,7 +138,7 @@ class TestPipelineConfigValidation:
                 steps=[
                     PipelineStepConfig(
                         step_id="step1",
-                        type="bigquery_to_bigquery"
+                        type="gcp.bq_etl"
                     )
                 ]
             )
@@ -153,7 +153,7 @@ class TestPipelineConfigValidation:
                 steps=[
                     PipelineStepConfig(
                         step_id="step1",
-                        type="bigquery_to_bigquery"
+                        type="gcp.bq_etl"
                     )
                 ]
             )
@@ -167,7 +167,7 @@ class TestPipelineStepValidation:
         """Step without step_id should fail."""
         with pytest.raises(ValidationError) as exc_info:
             PipelineStepConfig(
-                type="bigquery_to_bigquery"
+                type="gcp.bq_etl"
             )
         assert "step_id" in str(exc_info.value)
 
@@ -185,7 +185,7 @@ class TestPipelineStepValidation:
         with pytest.raises(ValidationError) as exc_info:
             PipelineStepConfig(
                 step_id="step1",
-                type="bigquery_to_bigquery",
+                type="gcp.bq_etl",
                 destination=BigQueryDestinationConfig(
                     dataset_type="gcp",
                     table="output"
@@ -198,7 +198,7 @@ class TestPipelineStepValidation:
         with pytest.raises(ValidationError) as exc_info:
             PipelineStepConfig(
                 step_id="step1",
-                type="bigquery_to_bigquery",
+                type="gcp.bq_etl",
                 source=BigQuerySourceConfig(
                     project_id="test",
                     dataset="test",
@@ -222,7 +222,7 @@ class TestPipelineStepValidation:
         with pytest.raises(ValidationError) as exc_info:
             PipelineStepConfig(
                 step_id="step1",
-                type="bigquery_to_bigquery",
+                type="gcp.bq_etl",
                 timeout_minutes=0
             )
         assert "greater than or equal to 1" in str(exc_info.value)
@@ -231,7 +231,7 @@ class TestPipelineStepValidation:
         with pytest.raises(ValidationError) as exc_info:
             PipelineStepConfig(
                 step_id="step1",
-                type="bigquery_to_bigquery",
+                type="gcp.bq_etl",
                 timeout_minutes=200
             )
         assert "less than or equal to 120" in str(exc_info.value)
@@ -241,7 +241,7 @@ class TestPipelineStepValidation:
         with pytest.raises(ValidationError) as exc_info:
             PipelineStepConfig(
                 step_id="step1",
-                type="bigquery_to_bigquery",
+                type="gcp.bq_etl",
                 depends_on=["step0", "step0"]  # Duplicate!
             )
         assert "unique step IDs" in str(exc_info.value)
@@ -290,7 +290,7 @@ class TestDependencyValidation:
                 steps=[
                     PipelineStepConfig(
                         step_id="step1",
-                        type="bigquery_to_bigquery",
+                        type="gcp.bq_etl",
                         depends_on=["unknown_step"]  # Doesn't exist!
                     )
                 ]
@@ -305,12 +305,12 @@ class TestDependencyValidation:
                 steps=[
                     PipelineStepConfig(
                         step_id="step1",
-                        type="bigquery_to_bigquery",
+                        type="gcp.bq_etl",
                         depends_on=["step2"]
                     ),
                     PipelineStepConfig(
                         step_id="step2",
-                        type="bigquery_to_bigquery",
+                        type="gcp.bq_etl",
                         depends_on=["step1"]  # Circular!
                     )
                 ]
@@ -325,17 +325,17 @@ class TestDependencyValidation:
                 steps=[
                     PipelineStepConfig(
                         step_id="step1",
-                        type="bigquery_to_bigquery",
+                        type="gcp.bq_etl",
                         depends_on=["step3"]
                     ),
                     PipelineStepConfig(
                         step_id="step2",
-                        type="bigquery_to_bigquery",
+                        type="gcp.bq_etl",
                         depends_on=["step1"]
                     ),
                     PipelineStepConfig(
                         step_id="step3",
-                        type="bigquery_to_bigquery",
+                        type="gcp.bq_etl",
                         depends_on=["step2"]  # Circular: 1->3->2->1
                     )
                 ]
@@ -349,7 +349,7 @@ class TestDependencyValidation:
             steps=[
                 PipelineStepConfig(
                     step_id="step1",
-                    type="bigquery_to_bigquery",
+                    type="gcp.bq_etl",
                     source=BigQuerySourceConfig(
                         project_id="test",
                         dataset="test",
@@ -362,7 +362,7 @@ class TestDependencyValidation:
                 ),
                 PipelineStepConfig(
                     step_id="step2",
-                    type="bigquery_to_bigquery",
+                    type="gcp.bq_etl",
                     depends_on=["step1"],
                     source=BigQuerySourceConfig(
                         project_id="test",

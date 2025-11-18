@@ -93,7 +93,7 @@ class PipelineExecutor:
         Dynamically load engine for given ps_type.
 
         Args:
-            ps_type: Pipeline step type with provider prefix (e.g., "gcp.bigquery_to_bigquery", "notify_systems.email_notification")
+            ps_type: Pipeline step type with provider prefix (e.g., "gcp.bq_etl", "notify_systems.email_notification")
 
         Returns:
             Engine instance with execute() method
@@ -103,8 +103,8 @@ class PipelineExecutor:
             AttributeError: If engine doesn't have get_engine() function
         """
         # Convert ps_type to module path
-        # "gcp.bigquery_to_bigquery" -> "src.core.engines.gcp.bigquery_to_bigquery"
-        # "notify_systems.email_notification" -> "src.core.engines.notify_systems.email_notification"
+        # "gcp.bq_etl" -> "src.core.processors.gcp.bq_etl"
+        # "notify_systems.email_notification" -> "src.core.processors.notify_systems.email_notification"
         module_name = f"src.core.engines.{ps_type}"
 
         try:
@@ -389,19 +389,20 @@ class PipelineExecutor:
         Returns:
             Execution result with rows_written, destination_table, etc.
         """
-        from src.core.processors.gcp.bigquery_to_bigquery import BigQueryToBigQueryProcessor
+        from src.core.processors.gcp.bq_etl import BigQueryETLEngine
 
-        # Create processor instance
-        processor = BigQueryToBigQueryProcessor(
+        # Create engine instance
+        engine = BigQueryETLEngine()
+
+        # Execute the BigQuery ETL step
+        result = await engine.execute(
             step_config=step_config,
-            tenant_id=self.tenant_id,
-            bq_client=self.bq_client,
-            parameters=self.config.get('parameters', {}),
-            pipeline_dir=self.pipeline_dir
+            context={
+                'tenant_id': self.tenant_id,
+                'pipeline_id': self.config.get('pipeline_id'),
+                'execution_id': self.execution_id
+            }
         )
-
-        # Execute the processor
-        result = processor.execute()
 
         self.logger.info(
             f"BigQuery to BigQuery step completed",

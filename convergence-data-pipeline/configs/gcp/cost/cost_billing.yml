@@ -17,7 +17,7 @@ steps:
   # Step 1: Extract billing data from GCP billing export
   - step_id: "extract_billing_costs"
     name: "Extract GCP Billing Costs"
-    ps_type: "gcp.bigquery_to_bigquery"
+    ps_type: "gcp.bq_etl"
     timeout_minutes: 20
 
     # Source configuration (at step level, not in config!)
