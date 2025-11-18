@@ -1,6 +1,21 @@
 # Convergence Data Pipeline - Production Ready 🚀
 
-Multi-tenant data pipeline backend for GCP, AWS, and Azure cloud cost and compliance data processing.
+**Configuration-driven** multi-tenant data pipeline backend for GCP, AWS, and Azure cloud cost and compliance data processing.
+
+## 🔑 Key Architecture: Configuration-Driven Pipelines
+
+**All pipelines execute as YAML configurations** stored in `/configs/` directory. No hardcoded pipeline logic!
+
+After successful tenant onboarding, pipelines run via:
+- **Manual Execution**: Real-time sync through API calls from frontend systems
+- **Scheduled Execution**: Offline/batch sync via Cloud Scheduler
+- **Provider CRUD**: GCP/AWS/Azure credential management (sync or async)
+
+```
+Frontend → API → Pipeline Config (YAML) → Processor Engine → BigQuery
+                 ↑
+        configs/gcp/cost/cost_billing.yml
+```
 
 ## ⚡ Quick Start
 
@@ -40,6 +55,61 @@ curl -X POST http://localhost:8080/api/v1/pipelines/run/guru_232342/gcp/cost/cos
   -H "Content-Type: application/json" \
   -H "X-API-Key: sk_guru_232342_xxxxx" \
   -d '{"date": "2025-11-17"}'
+```
+
+---
+
+## 🔄 Post-Onboarding: Complete Tenant Lifecycle
+
+After successful tenant onboarding, the system supports:
+
+### 1. Provider Credential Management (CRUD)
+```bash
+# Add GCP credentials (real-time sync)
+POST /api/v1/tenants/guru_232342/credentials
+Body: {provider: "GCP", credentials: {project_id: "...", private_key: "..."}}
+
+# Update credentials (offline sync)
+PUT /api/v1/tenants/guru_232342/credentials/{credential_id}
+
+# List all credentials
+GET /api/v1/tenants/guru_232342/credentials
+
+# Delete provider
+DELETE /api/v1/tenants/guru_232342/credentials/{credential_id}
+```
+
+### 2. Pipeline Configuration & Execution
+
+All pipelines are **YAML configurations** in `/configs/`:
+
+```yaml
+# Example: configs/gcp/cost/cost_billing.yml
+pipeline_id: "{tenant_id}_gcp_cost_billing"
+steps:
+  - step_id: "extract"
+    ps_type: "gcp.bq_etl"  # Maps to processor
+    source:
+      query: "SELECT * FROM billing WHERE date='{date}'"
+```
+
+**Execution Modes:**
+- **Real-time Sync**: Immediate processing via API calls from frontend
+- **Offline/Batch Sync**: Scheduled processing via Cloud Scheduler
+
+### 3. Sync Patterns
+
+**Real-Time Sync** (Frontend → API → Immediate Execution):
+```
+POST /api/v1/pipelines/run/guru_232342/gcp/cost/cost_billing
+                                               ↑
+                     Points to: configs/gcp/cost/cost_billing.yml
+```
+
+**Offline Sync** (Frontend → Queue → Scheduler → Batch Execution):
+```
+POST /api/v1/scheduler/configs
+Body: {pipeline_config: "gcp/cost/cost_billing", schedule: "0 2 * * *"}
 ```
 
 ---

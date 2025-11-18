@@ -88,9 +88,85 @@ tenants.pipeline_execution_queue     # Active queue for scheduled pipelines
 
 ---
 
-## 4. Pipeline Execution Flow
+## 4. Configuration-Driven Pipeline Execution
 
-### API-Triggered Pipeline
+### Architecture: YAML-Based Pipeline Definitions
+
+ALL pipelines are configuration-driven using YAML files. The entire pipeline execution model is **declarative**, not imperative.
+
+#### Configuration Structure
+
+```
+/configs/                                      # All pipeline configurations
+  ├── gcp/
+  │   ├── cost/
+  │   │   └── billing.yml                      # GCP cost extraction config
+  │   ├── security/
+  │   │   └── iam_audit.yml
+  │   └── compliance/
+  ├── aws/
+  │   ├── cost/
+  │   │   └── cur.yml                          # AWS CUR extraction config
+  │   └── ...
+  ├── setup/
+  │   └── bootstrap_system.yml                 # One-time bootstrap config
+  └── azure/
+      └── ...
+
+/ps_templates/                                 # Processor schema templates
+  ├── gcp/cost/
+  │   ├── config.yml                           # Processor config
+  │   ├── README.md                            # Documentation
+  │   └── schemas/                             # JSON schemas
+  │       └── billing_output.json
+  └── setup/initial/
+      ├── config.yml
+      └── schemas/
+          ├── tenant_profiles.json
+          ├── tenant_api_keys.json
+          └── ... (8 total)
+```
+
+#### Pipeline Execution Model
+
+**Key Principle**: Pipelines execute by loading YAML configuration files from `/configs/` directory.
+
+```yaml
+# Example: configs/gcp/cost/billing.yml
+name: "GCP Cost Billing Extract"
+version: "1.0.0"
+enabled: true
+
+processors:
+  - processor_id: "gcp_billing_extract"
+    processor_type: "gcp/cost/billing"
+    template_id: "gcp_cost_billing"
+
+    input:
+      provider: "gcp"
+      project_id: "{gcp_project_id}"
+      service_account: "{gcp_service_account}"
+      billing_dataset: "{gcp_billing_dataset}"
+
+    parameters:
+      extraction_date: "{date}"
+      include_credits: true
+      include_taxes: true
+
+    output:
+      dataset: "{tenant_id}"
+      table: "gcp_cost_billing"
+      write_mode: "WRITE_APPEND"
+
+    retry:
+      max_attempts: 3
+      backoff_multiplier: 2.0
+```
+
+### API-Triggered Pipeline (Real-Time Sync)
+
+**Trigger**: Frontend/API calls pipeline directly for immediate execution
+
 ```
 POST /api/v1/pipelines/run/{tenant_id}/{provider}/{domain}/{template_name}
 Headers:
@@ -106,13 +182,25 @@ Flow:
    - pipelines_run_today < daily_limit
    - concurrent_pipelines_running < concurrent_limit
 5. Increment concurrent counter
-6. Load pipeline template: configs/{provider}/{domain}/{template_name}.yml
-7. Execute pipeline async (background task)
+6. LOAD PIPELINE CONFIGURATION:
+   - Load: /configs/{provider}/{domain}/{template_name}.yml
+   - Replace variables: {tenant_id}, {gcp_project_id}, {date}, etc.
+7. Execute pipeline async (background task) via AsyncPipelineExecutor
 8. Log metadata to {tenant_id}.x_meta_pipeline_runs (tenant_id + user_id)
 9. On completion:
    - Decrement concurrent counter
    - Increment daily/monthly counters
    - Update status (SUCCESS/FAILED)
+```
+
+**Response**: Immediate (pipeline runs asynchronously)
+```json
+{
+  "pipeline_logging_id": "uuid",
+  "tenant_id": "acme_corp_12312025",
+  "status": "RUNNING",
+  "message": "Pipeline triggered successfully"
+}
 ```
 
 ### Scheduler-Triggered Pipeline (Queue-Based Architecture)
@@ -182,6 +270,318 @@ Flow:
 - `tenants.tenant_pipeline_configs` - Cron schedules and configurations
 - `tenants.scheduled_pipeline_runs` - Track each scheduled execution
 - `tenants.pipeline_execution_queue` - Active queue (QUEUED → PROCESSING)
+
+---
+
+## 4.1 Post-Onboarding Flows: Provider Credentials and Pipeline Configuration
+
+### Prerequisites
+After subscription onboarding is complete, tenant has:
+- tenant_id (from subscription system)
+- tenants.tenant_profiles record
+- tenants.tenant_subscriptions (ACTIVE)
+- tenants.tenant_api_keys (for API authentication)
+- tenants.tenant_usage_quotas (initialized)
+
+### Flow 1: Cloud Provider Credential Setup (CRUD)
+
+**Purpose**: Add/update/delete cloud provider credentials (GCP, AWS, Azure, OpenAI, Claude) after subscription.
+
+```
+POST /api/v1/tenants/{tenant_id}/credentials
+Headers:
+  X-API-Key: acme_corp_12312025_api_xyz789
+  X-User-ID: alice_uuid_from_supabase     # Audit logging
+
+Body:
+{
+  "provider": "GCP",                       # or AWS, AZURE, OPENAI, CLAUDE
+  "credentials": {
+    "project_id": "acme-gcp-project",
+    "service_account_json": "{...}"        # Will be KMS encrypted
+  }
+}
+
+FLOW:
+1. Authenticate API key → Extract tenant_id
+2. Verify X-User-ID header (for audit logging)
+3. Check if credentials already exist:
+   - SELECT credential_id FROM tenants.tenant_cloud_credentials
+   - WHERE tenant_id = 'acme_corp_12312025' AND provider = 'GCP'
+4. Encrypt credentials with KMS:
+   - encrypted_creds = KMS.encrypt('tenant-credentials-key', service_account_json)
+5. INSERT or UPDATE tenants.tenant_cloud_credentials:
+   - IF NOT EXISTS: INSERT (credential_id, tenant_id, provider, encrypted_credentials, created_by_user_id)
+   - IF EXISTS: UPDATE encrypted_credentials, updated_by_user_id
+6. Create BigQuery dataset (first time only):
+   - CREATE DATASET `project.{tenant_id}`
+7. Create metadata tables (first time only):
+   - x_meta_pipeline_runs, x_meta_step_logs, x_meta_dq_results
+8. Log credential action:
+   - INSERT INTO {tenant_id}.x_meta_step_logs (action='CREDENTIAL_ADDED', provider='GCP', user_id='alice_uuid')
+
+RESPONSE:
+{
+  "tenant_id": "acme_corp_12312025",
+  "provider": "GCP",
+  "action": "CREATED",                     # or "UPDATED"
+  "dataset_status": "CREATED",             # or "ALREADY_EXISTS"
+  "tables_created": ["x_meta_pipeline_runs", "x_meta_step_logs", "x_meta_dq_results"],
+  "message": "GCP credentials added successfully"
+}
+```
+
+### Flow 2: Pipeline Configuration (Schedule Setup)
+
+**Purpose**: Create/update scheduled pipeline configurations with cron expressions.
+
+```
+POST /api/v1/scheduler/customer/{tenant_id}/pipelines
+Headers:
+  X-API-Key: {api_key}
+  X-User-ID: {user_uuid}
+
+Body:
+{
+  "config_id": "uuid-or-auto-generated",
+  "pipeline_id": "gcp-cost-billing",
+  "provider": "gcp",
+  "domain": "cost",
+  "template": "billing",
+  "is_active": true,
+  "cron_expression": "0 2 * * *",           # 2 AM daily
+  "parameters": {
+    "include_credits": true,
+    "include_taxes": true
+  },
+  "next_run_time": "2025-11-18T02:00:00Z",
+  "max_retries": 3
+}
+
+FLOW:
+1. Authenticate API key → Extract tenant_id
+2. Validate cron_expression
+3. INSERT INTO tenants.tenant_pipeline_configs:
+   - (config_id, tenant_id, pipeline_id, provider, domain, template,
+   -  is_active, cron_expression, parameters, created_by_user_id, next_run_time)
+4. Calculate next_run_time from cron expression
+5. Log configuration:
+   - INSERT INTO {tenant_id}.x_meta_step_logs (action='PIPELINE_CONFIG_CREATED')
+
+RESPONSE:
+{
+  "config_id": "uuid",
+  "tenant_id": "acme_corp_12312025",
+  "pipeline_id": "gcp-cost-billing",
+  "status": "ACTIVE",
+  "next_run_time": "2025-11-18T02:00:00Z",
+  "message": "Pipeline schedule configured successfully"
+}
+```
+
+**Later**: Cloud Scheduler hourly job queries this table and triggers due pipelines.
+
+---
+
+## 4.2 Sync Patterns: Real-Time API vs Offline Scheduler
+
+### Pattern 1: Real-Time API Sync (On-Demand)
+
+**Trigger**: Frontend/User initiates pipeline via API call
+
+**Use Cases**:
+- User clicks "Sync Now" button in dashboard
+- Manual data refresh needed
+- Ad-hoc data collection
+
+**Flow**:
+```
+POST /api/v1/pipelines/run/{tenant_id}/gcp/cost/billing
+  ↓
+[Auth: Verify API key + subscription + quota]
+  ↓
+[Load: configs/gcp/cost/billing.yml]
+  ↓
+[Execute: Async background task (non-blocking)]
+  ↓
+[Response: Immediate with status=RUNNING]
+  ↓
+[Async: Pipeline executes and logs to metadata tables]
+  ↓
+[Client polls: GET /api/v1/pipelines/{pipeline_logging_id}/status]
+```
+
+**Characteristics**:
+- User-initiated
+- Immediate response
+- Real-time execution
+- Audit trail includes user_id
+- Subject to quota limits
+
+**Response Time**:
+- API response: <100ms (returns immediately)
+- Pipeline execution: Minutes to hours (depends on data size)
+
+---
+
+### Pattern 2: Offline Scheduler Sync (Automatic)
+
+**Trigger**: Cloud Scheduler hourly job
+
+**Use Cases**:
+- Daily cost extractions
+- Scheduled compliance checks
+- Automated data synchronization
+
+**Architecture**: Queue-based with three scheduled jobs
+
+#### Job 1: Pipeline Trigger (Hourly at :00)
+```
+Cloud Scheduler → POST /api/v1/scheduler/trigger
+  ↓
+[Query] tenants.tenant_pipeline_configs
+  WHERE is_active=TRUE AND next_run_time <= NOW()
+  ↓
+[Enqueue] For each due pipeline:
+  - INSERT INTO tenants.scheduled_pipeline_runs (state=PENDING)
+  - INSERT INTO tenants.pipeline_execution_queue (state=QUEUED)
+  - UPDATE tenant_pipeline_configs SET next_run_time (from cron)
+  ↓
+[Response] {triggered_count, queued_count}
+```
+
+#### Job 2: Queue Processor (Every 5 minutes)
+```
+Cloud Scheduler → POST /api/v1/scheduler/process-queue
+  ↓
+[Dequeue] Get one QUEUED pipeline (ORDER BY priority, scheduled_time)
+  ↓
+[Execute] AsyncPipelineExecutor (user_id = NULL)
+  ↓
+[Update] On success/failure:
+  - Mark scheduled_pipeline_runs as COMPLETED/FAILED
+  - Remove from pipeline_execution_queue (or re-queue for retry)
+  ↓
+[Response] Processing status
+```
+
+#### Job 3: Daily Quota Reset (Daily at midnight UTC)
+```
+Cloud Scheduler → POST /api/v1/scheduler/reset-daily-quotas
+  ↓
+[Reset] UPDATE tenants.tenant_usage_quotas
+  SET pipelines_run_today=0, concurrent_pipelines_running=0
+  ↓
+[Archive] DELETE records older than 90 days
+  ↓
+[Response] {records_updated, records_archived}
+```
+
+**Characteristics**:
+- Automatic/scheduled
+- Decoupled execution (queue-based)
+- Sequential processing (one pipeline at a time)
+- No user context (user_id = NULL)
+- Retry logic built-in
+- Not subject to user quota (system quota only)
+
+**Key Tables**:
+- `tenants.tenant_pipeline_configs` - Cron schedules
+- `tenants.scheduled_pipeline_runs` - Execution tracking
+- `tenants.pipeline_execution_queue` - Active queue
+
+---
+
+### Pattern Comparison
+
+| Aspect | Real-Time API | Offline Scheduler |
+|--------|---------------|-------------------|
+| **Trigger** | User action | Cron schedule |
+| **Initiation** | POST /pipelines/run | Cloud Scheduler job |
+| **Response Time** | Immediate (<100ms) | Delayed (next scheduler run) |
+| **Execution** | Async (non-blocking) | Async (queue processor) |
+| **User Context** | user_id included | user_id = NULL |
+| **Quota Impact** | Yes (daily limit) | Yes (separate system quota) |
+| **Audit Trail** | Full (who/when/why) | Partial (no user context) |
+| **Use Case** | On-demand refresh | Scheduled sync |
+| **Example** | "Sync Now" button | "Daily 2 AM cost extract" |
+
+---
+
+## 5. Bootstrap Process and Initial Setup
+
+### One-Time Bootstrap Processor
+
+**Purpose**: Set up the entire tenant management infrastructure on first deployment.
+
+**Process**:
+```
+1. Create central 'tenants' dataset
+   └── CREATE DATASET tenants
+
+2. Create 8 management tables with schemas
+   ├── tenant_profiles              # Tenant accounts
+   ├── tenant_api_keys              # Auth (SHA256 hashed + KMS encrypted)
+   ├── tenant_subscriptions         # Plan info & limits
+   ├── tenant_usage_quotas          # Real-time quota tracking (partitioned daily)
+   ├── tenant_cloud_credentials     # Encrypted provider credentials
+   ├── tenant_pipeline_configs      # Scheduled pipeline definitions
+   ├── scheduled_pipeline_runs      # Execution history (partitioned daily)
+   └── pipeline_execution_queue     # Active queue (partitioned daily)
+
+3. Apply schemas and optimizations
+   ├── Partitioning (daily for time-series tables)
+   ├── Clustering (on tenant_id)
+   └── Indexes (on frequently queried columns)
+
+4. Log bootstrap completion
+   └── INSERT INTO tenants.audit_log
+```
+
+**Implementation**:
+```
+src/core/processors/setup/initial/onetime_bootstrap_processor.py
+  ├── Load 8 JSON schemas from ps_templates/setup/initial/schemas/
+  ├── Check dataset/table existence
+  ├── Create missing tables with full schemas
+  └── Apply partitioning and clustering
+
+ps_templates/setup/initial/
+  ├── config.yml                    # Processor configuration
+  ├── README.md                     # Full documentation
+  └── schemas/                      # 8 JSON schema files
+      ├── tenant_profiles.json
+      ├── tenant_api_keys.json
+      ├── tenant_subscriptions.json
+      ├── tenant_usage_quotas.json
+      ├── tenant_cloud_credentials.json
+      ├── tenant_pipeline_configs.json
+      ├── scheduled_pipeline_runs.json
+      └── pipeline_execution_queue.json
+
+configs/setup/
+  └── bootstrap_system.yml          # Example bootstrap pipeline config
+```
+
+**Quick Start**:
+```bash
+cd convergence-data-pipeline
+
+# First-time setup (idempotent)
+python tests/test_bootstrap_setup.py
+
+# Verify setup
+# Check: BigQuery project.tenants dataset with 8 tables
+
+# Subsequent deployments
+# Bootstrap automatically skips tables that already exist
+```
+
+**Key Features**:
+- **Idempotent**: Safe to run multiple times
+- **Schema-first**: All schemas in JSON (no SQL strings)
+- **Integrated**: Standard processor pattern
+- **Non-destructive**: Creates only missing tables
 
 ---
 
@@ -407,7 +807,138 @@ Quota adjustment:   Direct BigQuery UPDATE to tenant_usage_quotas
 
 ---
 
-## 15. API Endpoints
+## 15. End-to-End System Flow: Frontend to Pipeline Execution
+
+### Complete Journey: From User Action to Data in BigQuery
+
+```
+FRONTEND SYSTEM (Supabase)          CONVERGENCE API (Cloud Run)          DATA (BigQuery)
+    |                                    |                                    |
+[1. User Logs In]
+    |
+[2. Tenant Dashboard]
+    └─ [Add Provider Credentials]
+         |
+         └─> POST /api/v1/tenants/{tenant_id}/credentials
+             Headers: X-API-Key, X-User-ID
+             |
+             └─> [Auth: Verify API key]
+                 |
+                 └─> SELECT tenant_id FROM tenants.tenant_api_keys
+                     |
+                     └─> [Load: KMS to decrypt stored key]
+                         |
+                         └─> [Verify subscription status]
+                             |
+                             └─> SELECT status FROM tenants.tenant_subscriptions
+                                 |
+                                 └─> [Encrypt credentials with KMS]
+                                     |
+                                     └─> INSERT INTO tenants.tenant_cloud_credentials
+                                         |
+                                         └─> [Create dataset]
+                                             |
+                                             └─> CREATE DATASET {tenant_id}
+                                                 |
+                                                 └─> [Create metadata tables]
+                                                     |
+                                                     └─> x_meta_pipeline_runs
+                                                         x_meta_step_logs
+                                                         x_meta_dq_results
+                                                         |
+                                                         └─> Response: Credentials saved!
+
+[3. Configure Pipeline Schedule]
+    |
+    └─> POST /api/v1/scheduler/customer/{tenant_id}/pipelines
+        Body: {provider, domain, template, cron_expression}
+        |
+        └─> [Auth + Validate]
+            |
+            └─> [INSERT INTO tenants.tenant_pipeline_configs]
+                |
+                └─> Response: Schedule configured!
+
+[4a. MANUAL TRIGGER: "Sync Now" Button]
+    |
+    └─> POST /api/v1/pipelines/run/{tenant_id}/gcp/cost/billing
+        |
+        └─> [Auth: Verify API key]
+            |
+            └─> [Check: Quota available?]
+                |
+                YES └─> [Load: configs/gcp/cost/billing.yml]
+                        |
+                        └─> [Execute: AsyncPipelineExecutor]
+                            |
+                            └─> [INSERT INTO x_meta_pipeline_runs]
+                                |
+                                └─> [Execute processors in sequence]
+                                    ├─> Processor 1: Extract GCP billing data
+                                    ├─> Processor 2: Transform/validate
+                                    └─> Processor 3: Load to BigQuery
+                                    |
+                                    └─> [INSERT INTO x_meta_step_logs]
+                                        |
+                                        └─> [UPDATE x_meta_pipeline_runs]
+                                            |
+                                            └─> Response: RUNNING
+                |
+                NO  └─> Response: HTTP 429 Quota exceeded
+
+[4b. SCHEDULED TRIGGER: Cloud Scheduler]
+    |
+    Cloud Scheduler (Hourly)
+    └─> POST /api/v1/scheduler/trigger
+        |
+        └─> [Query: Due pipelines]
+            |
+            └─> SELECT * FROM tenants.tenant_pipeline_configs
+                WHERE is_active=TRUE AND next_run_time <= NOW()
+                |
+                └─> [For each due pipeline]
+                    |
+                    └─> [INSERT INTO tenants.scheduled_pipeline_runs]
+                        [INSERT INTO tenants.pipeline_execution_queue]
+                        [UPDATE tenant_pipeline_configs]
+                        |
+                        └─> Response: {triggered_count, queued_count}
+
+    Cloud Scheduler (Every 5 minutes)
+    └─> POST /api/v1/scheduler/process-queue
+        |
+        └─> [Get next QUEUED pipeline]
+            |
+            └─> SELECT * FROM tenants.pipeline_execution_queue
+                WHERE state='QUEUED' ORDER BY priority
+                |
+                └─> [Execute pipeline]
+                    |
+                    └─> [Load: configs/{provider}/{domain}/{template}.yml]
+                        |
+                        └─> [AsyncPipelineExecutor (user_id=NULL)]
+                            |
+                            └─> [Execute each processor step]
+                                |
+                                └─> [Log execution to x_meta_pipeline_runs]
+                                    [Log steps to x_meta_step_logs]
+                                    [Write results to {tenant_id}.* tables]
+                                    |
+                                    └─> [UPDATE pipeline_execution_queue]
+                                        [UPDATE scheduled_pipeline_runs]
+                                        |
+                                        └─> Response: Processing status
+
+[5. Data Available in BigQuery]
+    |
+    Dashboard queries: SELECT * FROM {tenant_id}.gcp_cost_billing
+    |
+    └─> Display cost breakdown to user
+```
+
+---
+
+## 16. API Endpoints
 
 ```
 Health & Metrics:
@@ -416,26 +947,110 @@ Health & Metrics:
   GET  /health/ready
   GET  /metrics
 
-Pipeline Execution:
-  POST /api/v1/pipelines/run/{tenant_id}/{provider}/{domain}/{template}
+Pipeline Execution (Real-Time):
+  POST /api/v1/pipelines/run/{tenant_id}/{provider}/{domain}/{template}      # Manual trigger
 
-Admin Operations (X-Admin-Key required):
-  POST /api/v1/admin/tenants/onboard
-  GET  /api/v1/admin/tenants
-  POST /api/v1/admin/tenants/{id}/api-keys
+Provider Credentials (Post-Onboarding):
+  POST /api/v1/tenants/{tenant_id}/credentials                               # Add/update credentials
+  GET  /api/v1/tenants/{tenant_id}/credentials                               # List credentials
+  DELETE /api/v1/tenants/{tenant_id}/credentials/{provider}                  # Delete credentials
+
+Tenant Pipeline Configuration (Scheduled):
+  GET    /api/v1/scheduler/customer/{tenant_id}/pipelines                    # List configurations
+  POST   /api/v1/scheduler/customer/{tenant_id}/pipelines                    # Create schedule
+  PUT    /api/v1/scheduler/customer/{tenant_id}/pipelines/{config_id}        # Update schedule
+  DELETE /api/v1/scheduler/customer/{tenant_id}/pipelines/{config_id}        # Delete schedule
 
 Scheduler Operations (X-Admin-Key required):
-  POST /api/v1/scheduler/trigger              # Hourly: Queue due pipelines
-  POST /api/v1/scheduler/process-queue        # Every 5 min: Process one queued pipeline
-  POST /api/v1/scheduler/reset-daily-quotas   # Daily: Reset quota counters
-  GET  /api/v1/scheduler/status               # Get scheduler metrics
-  POST /api/v1/scheduler/cleanup-orphaned-pipelines
+  POST /api/v1/scheduler/trigger                                              # Hourly: Queue due pipelines
+  POST /api/v1/scheduler/process-queue                                        # Every 5 min: Process one queued pipeline
+  POST /api/v1/scheduler/reset-daily-quotas                                   # Daily: Reset quota counters
+  POST /api/v1/scheduler/cleanup-orphaned-pipelines                           # Hourly: Mark stale as failed
+  GET  /api/v1/scheduler/status                                               # Get scheduler metrics
 
-Tenant Pipeline Configuration (Authenticated):
-  GET    /api/v1/scheduler/customer/{tenant_id}/pipelines
-  POST   /api/v1/scheduler/customer/{tenant_id}/pipelines
-  DELETE /api/v1/scheduler/customer/{tenant_id}/pipelines/{config_id}
+Admin Operations (X-Admin-Key required):
+  POST /api/v1/admin/tenants/onboard                                          # Onboard new tenant
+  GET  /api/v1/admin/tenants                                                  # List all tenants
+  POST /api/v1/admin/tenants/{id}/api-keys                                    # Rotate API key
 ```
+
+---
+
+## 17. Configuration-Driven Architecture: Key Principles
+
+### All Pipelines Execute from YAML Configs
+
+**Core Principle**: There is no hardcoded pipeline logic. All pipeline definitions are YAML files in `/configs/`.
+
+```
+Pipeline Execution Flow:
+
+  API Request → Load YAML Config → Execute Processors → Store Results
+
+Example:
+  POST /api/v1/pipelines/run/acme_corp/gcp/cost/billing
+    ↓
+  Load: /configs/gcp/cost/billing.yml
+    ↓
+  Parse processors from YAML
+    ↓
+  For each processor:
+    - Load processor class (e.g., GcpCostBillingProcessor)
+    - Load processor template from ps_templates/gcp/cost/
+    - Execute with parameters from YAML
+    - Log to metadata tables
+    ↓
+  Write results to BigQuery dataset: {tenant_id}
+```
+
+### Configuration Hierarchy
+
+```
+/configs/                               # YAML pipeline definitions
+  └── {provider}/{domain}/{template}.yml
+      Contains:
+      - processors: List of processor steps
+      - input: Source configuration
+      - parameters: Execution parameters
+      - output: Target dataset/table
+      - retry: Failure handling
+
+/ps_templates/                          # Processor implementation templates
+  └── {provider}/{domain}/
+      Contains:
+      - config.yml: Processor template config
+      - schemas/: Output schema definitions
+      - README.md: Documentation
+
+/src/core/processors/                   # Processor implementations
+  └── {provider}/{domain}/
+      Contains:
+      - processor.py: Actual Python code
+      - __init__.py
+```
+
+### Adding a New Pipeline (No Code Changes Required)
+
+To add a new pipeline (e.g., Azure Storage Cost Extraction):
+
+1. Create YAML config:
+   ```
+   /configs/azure/cost/storage.yml
+   ```
+
+2. Create processor template:
+   ```
+   /ps_templates/azure/cost/
+   ├── config.yml
+   └── schemas/storage_output.json
+   ```
+
+3. If processor code doesn't exist, implement:
+   ```
+   /src/core/processors/azure/cost/processor.py
+   ```
+
+4. Deploy. No API changes needed.
 
 ---
 
