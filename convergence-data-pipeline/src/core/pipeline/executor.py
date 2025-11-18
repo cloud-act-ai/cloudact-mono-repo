@@ -105,7 +105,7 @@ class PipelineExecutor:
         # Convert ps_type to module path
         # "gcp.bq_etl" -> "src.core.processors.gcp.bq_etl"
         # "notify_systems.email_notification" -> "src.core.processors.notify_systems.email_notification"
-        module_name = f"src.core.engines.{ps_type}"
+        module_name = f"src.core.processors.{ps_type}"
 
         try:
             # Dynamically import engine module

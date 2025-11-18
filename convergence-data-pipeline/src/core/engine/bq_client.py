@@ -209,10 +209,14 @@ class BigQueryClient:
                     )
 
                     # Override default HTTP session with our pooled session
+                    # Use default values if constants not available (for compatibility)
+                    refresh_status_codes = getattr(google.auth.transport.requests, 'DEFAULT_REFRESH_STATUS_CODES', (401,))
+                    max_refresh_attempts = getattr(google.auth.transport.requests, 'DEFAULT_MAX_REFRESH_ATTEMPTS', 2)
+
                     self._client._http = google.auth.transport.requests.AuthorizedSession(
                         credentials=self._client._credentials,
-                        refresh_status_codes=google.auth.transport.requests.DEFAULT_REFRESH_STATUS_CODES,
-                        max_refresh_attempts=google.auth.transport.requests.DEFAULT_MAX_REFRESH_ATTEMPTS,
+                        refresh_status_codes=refresh_status_codes,
+                        max_refresh_attempts=max_refresh_attempts,
                     )
                     self._client._http.session = session
 
