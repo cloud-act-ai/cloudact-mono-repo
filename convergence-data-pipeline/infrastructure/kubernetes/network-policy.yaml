@@ -1,0 +1,218 @@
+# ============================================
+# Network Policies
+# ============================================
+# Implements micro-segmentation and zero-trust networking
+# Controls ingress and egress traffic at the pod level
+# ============================================
+
+# ============================================
+# Default Deny All Policy
+# ============================================
+# Best practice: Start with deny all, then explicitly allow
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: default # Change to 'convergence-pipeline' if using custom namespace
+  labels:
+    app: convergence-pipeline
+    component: network-policy
+    managed-by: kubectl
+spec:
+  podSelector: {}  # Applies to all pods in namespace
+  policyTypes:
+    - Ingress
+    - Egress
+
+---
+# ============================================
+# Allow Ingress from Load Balancer
+# ============================================
+# Allows traffic from GCP Load Balancer to application pods
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-from-loadbalancer
+  namespace: default # Change to 'convergence-pipeline' if using custom namespace
+  labels:
+    app: convergence-pipeline
+    component: network-policy
+    managed-by: kubectl
+spec:
+  podSelector:
+    matchLabels:
+      app: convergence-pipeline
+
+  policyTypes:
+    - Ingress
+
+  ingress:
+    # Allow traffic from anywhere on port 8000
+    # GCP Load Balancer traffic comes from GKE nodes
+    - from:
+        # Allow from all sources (load balancer)
+        - podSelector: {}
+        - namespaceSelector: {}
+        # GCP health check IP ranges
+        - ipBlock:
+            cidr: 35.191.0.0/16
+        - ipBlock:
+            cidr: 130.211.0.0/22
+      ports:
+        - protocol: TCP
+          port: 8000
+
+---
+# ============================================
+# Allow Egress to GCP APIs
+# ============================================
+# Allows pods to communicate with GCP services
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-to-gcp-apis
+  namespace: default # Change to 'convergence-pipeline' if using custom namespace
+  labels:
+    app: convergence-pipeline
+    component: network-policy
+    managed-by: kubectl
+spec:
+  podSelector:
+    matchLabels:
+      app: convergence-pipeline
+
+  policyTypes:
+    - Egress
+
+  egress:
+    # Allow DNS resolution
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+        - podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+
+    # Allow HTTPS to GCP APIs (BigQuery, Storage, etc.)
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              # Exclude private IP ranges (RFC 1918)
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+      ports:
+        - protocol: TCP
+          port: 443
+
+    # Allow HTTP for GCP metadata server
+    - to:
+        - ipBlock:
+            cidr: 169.254.169.254/32  # GCP metadata server
+      ports:
+        - protocol: TCP
+          port: 80
+
+---
+# ============================================
+# Allow Pod-to-Pod Communication
+# ============================================
+# Allows pods within the same app to communicate
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-pod-to-pod
+  namespace: default # Change to 'convergence-pipeline' if using custom namespace
+  labels:
+    app: convergence-pipeline
+    component: network-policy
+    managed-by: kubectl
+spec:
+  podSelector:
+    matchLabels:
+      app: convergence-pipeline
+
+  policyTypes:
+    - Ingress
+    - Egress
+
+  ingress:
+    # Allow from other pods in the same app
+    - from:
+        - podSelector:
+            matchLabels:
+              app: convergence-pipeline
+      ports:
+        - protocol: TCP
+          port: 8000
+
+  egress:
+    # Allow to other pods in the same app
+    - to:
+        - podSelector:
+            matchLabels:
+              app: convergence-pipeline
+      ports:
+        - protocol: TCP
+          port: 8000
+
+---
+# ============================================
+# Allow Prometheus Scraping
+# ============================================
+# Allows Prometheus to scrape metrics
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-prometheus-scraping
+  namespace: default # Change to 'convergence-pipeline' if using custom namespace
+  labels:
+    app: convergence-pipeline
+    component: network-policy
+    managed-by: kubectl
+spec:
+  podSelector:
+    matchLabels:
+      app: convergence-pipeline
+
+  policyTypes:
+    - Ingress
+
+  ingress:
+    # Allow Prometheus (if deployed in cluster)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: monitoring  # Adjust based on your Prometheus namespace
+        - podSelector:
+            matchLabels:
+              app: prometheus
+      ports:
+        - protocol: TCP
+          port: 8000
+
+---
+# ============================================
+# Network Policy Best Practices
+# ============================================
+# 1. Start with default deny-all
+# 2. Explicitly allow only necessary traffic
+# 3. Use pod selectors for internal traffic
+# 4. Use namespace selectors for cross-namespace traffic
+# 5. Minimize egress to external IPs
+# 6. Always allow DNS (port 53)
+# 7. Always allow GCP metadata server (169.254.169.254)
+# 8. Test policies in staging before production
+# 9. Monitor denied connections with network policy logs
+# 10. Document all network policies
+# ============================================

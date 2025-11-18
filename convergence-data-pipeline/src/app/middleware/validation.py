@@ -4,6 +4,7 @@ Validates tenant_id format, request size limits, and header safety.
 """
 
 import re
+import json
 from typing import Optional
 from fastapi import Request, status
 from fastapi.responses import JSONResponse
@@ -24,6 +25,9 @@ logger = logging.getLogger(__name__)
 # Tenant ID validation: alphanumeric, underscores, hyphens only (3-64 chars)
 # Prevents SQL injection, path traversal, and invalid dataset names
 TENANT_ID_PATTERN = re.compile(r'^[a-zA-Z0-9_-]{3,64}$')
+
+# Date format validation: YYYY-MM-DD
+DATE_PATTERN = re.compile(r'^\d{4}-\d{2}-\d{2}$')
 
 # Request size limits
 MAX_REQUEST_SIZE_BYTES = 10 * 1024 * 1024  # 10 MB
@@ -113,6 +117,56 @@ def validate_headers(headers: dict) -> Optional[str]:
     return None
 
 
+def validate_date_format(date_str: str) -> bool:
+    """
+    Validate date format (YYYY-MM-DD).
+
+    Args:
+        date_str: Date string to validate
+
+    Returns:
+        True if valid, False otherwise
+    """
+    if not date_str:
+        return True  # Optional field
+
+    # Check pattern match
+    if not DATE_PATTERN.match(date_str):
+        return False
+
+    # Additional validation for reasonable date ranges
+    try:
+        year, month, day = date_str.split('-')
+        year_int = int(year)
+        month_int = int(month)
+        day_int = int(day)
+
+        # Basic range checks
+        if year_int < 2000 or year_int > 2100:
+            return False
+        if month_int < 1 or month_int > 12:
+            return False
+        if day_int < 1 or day_int > 31:
+            return False
+
+        return True
+    except (ValueError, AttributeError):
+        return False
+
+
+def contains_null_bytes(value: str) -> bool:
+    """
+    Check if string contains NULL bytes (\x00).
+
+    Args:
+        value: String to check
+
+    Returns:
+        True if NULL bytes found, False otherwise
+    """
+    return '\x00' in value if isinstance(value, str) else False
+
+
 def get_tenant_id_from_request(request: Request) -> Optional[str]:
     """
     Extract tenant_id from request (path params, query params, or headers).
@@ -150,10 +204,11 @@ async def validation_middleware(request: Request, call_next):
     FastAPI middleware for input validation.
 
     Validates:
-    1. Tenant ID format (if present in request)
+    1. Headers safety and size
     2. Request payload size
-    3. Header safety and size
-    4. Dangerous patterns
+    3. Tenant ID format (if present in request) - BEFORE auth
+    4. Path parameters for NULL bytes and path traversal
+    5. Request body for date format and required fields
 
     Args:
         request: Incoming HTTP request
@@ -211,28 +266,60 @@ async def validation_middleware(request: Request, call_next):
                 pass  # Invalid content-length, let it through for other validation
 
         # ============================================
-        # 3. Validate Tenant ID (if present)
+        # 3. Validate Tenant ID (if present) - BEFORE AUTH
         # ============================================
         tenant_id = get_tenant_id_from_request(request)
-        if tenant_id and not validate_tenant_id(tenant_id):
-            logger.warning(
-                f"Invalid tenant_id format: {tenant_id}",
-                extra={"path": request.url.path, "tenant_id": tenant_id}
-            )
+        if tenant_id:
+            # Check for NULL bytes first
+            if contains_null_bytes(tenant_id):
+                logger.warning(
+                    f"NULL bytes detected in tenant_id",
+                    extra={"path": request.url.path, "tenant_id_repr": repr(tenant_id)}
+                )
+                return JSONResponse(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    content={
+                        "error": "INVALID_TENANT_ID",
+                        "message": "Tenant ID contains invalid characters (NULL bytes)",
+                        "category": "VALIDATION"
+                    }
+                )
 
-            exc = InvalidTenantIdError(tenant_id=tenant_id)
+            # Validate tenant_id format
+            if not validate_tenant_id(tenant_id):
+                logger.warning(
+                    f"Invalid tenant_id format: {tenant_id}",
+                    extra={"path": request.url.path, "tenant_id": tenant_id}
+                )
 
-            return JSONResponse(
-                status_code=exc.http_status,
-                content=exc.to_dict()
-            )
+                exc = InvalidTenantIdError(tenant_id=tenant_id)
+
+                return JSONResponse(
+                    status_code=exc.http_status,
+                    content=exc.to_dict()
+                )
 
         # ============================================
-        # 4. Validate Path Parameters
+        # 4. Validate Path Parameters for NULL bytes and Path Traversal
         # ============================================
-        # Check for path traversal attempts in all path params
         for key, value in request.path_params.items():
             if isinstance(value, str):
+                # Check for NULL bytes
+                if contains_null_bytes(value):
+                    logger.warning(
+                        f"NULL bytes detected in path parameter '{key}'",
+                        extra={"path": request.url.path, "param": key, "value_repr": repr(value)}
+                    )
+                    return JSONResponse(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        content={
+                            "error": "INVALID_PARAMETER",
+                            "message": f"Path parameter '{key}' contains invalid characters (NULL bytes)",
+                            "category": "VALIDATION"
+                        }
+                    )
+
+                # Check for path traversal attempts
                 if '..' in value or '//' in value or '\\' in value:
                     logger.warning(
                         f"Path traversal attempt in parameter '{key}': {value}",
@@ -247,6 +334,94 @@ async def validation_middleware(request: Request, call_next):
                             "category": "VALIDATION"
                         }
                     )
+
+        # ============================================
+        # 5. Validate Request Body for Pipeline Endpoints
+        # ============================================
+        # Only validate body for POST requests to pipeline endpoints
+        if request.method == "POST" and "/pipelines/run/" in request.url.path:
+            try:
+                # Read and parse request body
+                body_bytes = await request.body()
+
+                if body_bytes:
+                    try:
+                        body = json.loads(body_bytes.decode('utf-8'))
+
+                        # Validate date format if present
+                        if 'date' in body and body['date'] is not None:
+                            if not validate_date_format(body['date']):
+                                logger.warning(
+                                    f"Invalid date format in request body: {body.get('date')}",
+                                    extra={"path": request.url.path, "date": body.get('date')}
+                                )
+                                return JSONResponse(
+                                    status_code=status.HTTP_400_BAD_REQUEST,
+                                    content={
+                                        "error": "INVALID_DATE_FORMAT",
+                                        "message": f"Date must be in YYYY-MM-DD format (got: {body.get('date')})",
+                                        "category": "VALIDATION"
+                                    }
+                                )
+
+                        # Check for trigger_by field (required for pipeline runs)
+                        # Note: Pydantic has default="api_user", so this catches explicit null/missing
+                        if 'trigger_by' in body and body['trigger_by'] == '':
+                            logger.warning(
+                                "Empty trigger_by in request body",
+                                extra={"path": request.url.path}
+                            )
+                            return JSONResponse(
+                                status_code=status.HTTP_400_BAD_REQUEST,
+                                content={
+                                    "error": "INVALID_TRIGGER_BY",
+                                    "message": "trigger_by cannot be empty",
+                                    "category": "VALIDATION"
+                                }
+                            )
+
+                    except json.JSONDecodeError as e:
+                        logger.warning(
+                            f"Invalid JSON in request body: {e}",
+                            extra={"path": request.url.path}
+                        )
+                        return JSONResponse(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            content={
+                                "error": "INVALID_JSON",
+                                "message": f"Request body must be valid JSON: {str(e)}",
+                                "category": "VALIDATION"
+                            }
+                        )
+                    except UnicodeDecodeError:
+                        logger.warning(
+                            "Invalid UTF-8 encoding in request body",
+                            extra={"path": request.url.path}
+                        )
+                        return JSONResponse(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            content={
+                                "error": "INVALID_ENCODING",
+                                "message": "Request body must be UTF-8 encoded",
+                                "category": "VALIDATION"
+                            }
+                        )
+
+                # Important: Create new request with body for downstream handlers
+                # Since we consumed the body, we need to make it available again
+                async def receive():
+                    return {"type": "http.request", "body": body_bytes}
+
+                request._receive = receive
+
+            except Exception as e:
+                logger.error(
+                    f"Error reading request body: {e}",
+                    exc_info=True,
+                    extra={"path": request.url.path}
+                )
+                # Don't block on body read errors, let it through
+                pass
 
         # ============================================
         # All validations passed - proceed with request

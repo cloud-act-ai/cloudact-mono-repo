@@ -205,12 +205,7 @@ class BigQueryClient:
                     # Create BigQuery client with custom HTTP session
                     self._client = bigquery.Client(
                         project=self.project_id,
-                        location=self.location,
-                        client_options={
-                            'api_endpoint': 'https://bigquery.googleapis.com',
-                            # Connection timeout: 60 seconds
-                            'timeout': 60,
-                        }
+                        location=self.location
                     )
 
                     # Override default HTTP session with our pooled session

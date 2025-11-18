@@ -1,0 +1,247 @@
+# ============================================
+# Deployment - Convergence Data Pipeline
+# ============================================
+# Production-ready deployment with:
+# - Resource limits and requests
+# - Health checks (liveness, readiness, startup)
+# - Security context (non-root user)
+# - Rolling update strategy
+# - Pod anti-affinity for high availability
+# ============================================
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: convergence-pipeline
+  namespace: default # Change to 'convergence-pipeline' if using custom namespace
+  labels:
+    app: convergence-pipeline
+    version: v1
+    component: api
+    managed-by: kubectl
+  annotations:
+    description: "Multi-tenant BigQuery data pipeline API"
+spec:
+  # Replica count (will be managed by HPA)
+  replicas: 2
+
+  # Selector to match pods
+  selector:
+    matchLabels:
+      app: convergence-pipeline
+      version: v1
+
+  # Rolling update strategy
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1        # Max 1 extra pod during update
+      maxUnavailable: 0  # Ensure no downtime during update
+
+  # Pod template
+  template:
+    metadata:
+      labels:
+        app: convergence-pipeline
+        version: v1
+        component: api
+      annotations:
+        # Prometheus scraping annotations
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      # Use dedicated service account for Workload Identity
+      serviceAccountName: convergence-pipeline-sa
+
+      # Security context for the pod
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+
+      # Termination grace period for graceful shutdown
+      terminationGracePeriodSeconds: 30
+
+      # Pod anti-affinity for high availability
+      # Spreads pods across different nodes/zones
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - convergence-pipeline
+                topologyKey: kubernetes.io/hostname
+            - weight: 50
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - convergence-pipeline
+                topologyKey: topology.kubernetes.io/zone
+
+      # Init containers (optional - for setup tasks)
+      # initContainers:
+      #   - name: init-setup
+      #     image: busybox:1.36
+      #     command: ['sh', '-c', 'echo "Initializing..."']
+
+      # Main application container
+      containers:
+        - name: convergence-pipeline
+          # Replace with your actual container image
+          image: gcr.io/PROJECT_ID/convergence-pipeline:latest
+          imagePullPolicy: Always
+
+          # Container ports
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+
+          # Environment variables from ConfigMap
+          envFrom:
+            - configMapRef:
+                name: convergence-pipeline-config
+            - secretRef:
+                name: convergence-pipeline-secrets
+
+          # Additional environment variables
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+
+          # Resource limits and requests
+          resources:
+            requests:
+              cpu: "500m"       # 0.5 CPU cores
+              memory: "1Gi"     # 1 GiB RAM
+              ephemeral-storage: "1Gi"
+            limits:
+              cpu: "1000m"      # 1 CPU core
+              memory: "2Gi"     # 2 GiB RAM
+              ephemeral-storage: "2Gi"
+
+          # Startup probe - allows slow-starting containers
+          # Runs before liveness probe
+          startupProbe:
+            httpGet:
+              path: /health/live
+              port: 8000
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            successThreshold: 1
+            failureThreshold: 30  # Allow up to 150s for startup (5s * 30)
+
+          # Liveness probe - restart if unhealthy
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 8000
+              scheme: HTTP
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+
+          # Readiness probe - remove from service if not ready
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 8000
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+
+          # Security context for container
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false # Set to true if possible
+            runAsNonRoot: true
+            runAsUser: 1000
+            capabilities:
+              drop:
+                - ALL
+              # Add only required capabilities
+              # add:
+              #   - NET_BIND_SERVICE
+
+          # Volume mounts (if needed)
+          # volumeMounts:
+          #   - name: tmp
+          #     mountPath: /tmp
+          #   - name: cache
+          #     mountPath: /app/.cache
+
+          # Lifecycle hooks
+          lifecycle:
+            preStop:
+              exec:
+                # Graceful shutdown - allow time for connections to drain
+                command: ["/bin/sh", "-c", "sleep 15"]
+
+      # Volumes (if needed)
+      # volumes:
+      #   - name: tmp
+      #     emptyDir: {}
+      #   - name: cache
+      #     emptyDir: {}
+
+      # DNS configuration
+      dnsPolicy: ClusterFirst
+
+      # Restart policy
+      restartPolicy: Always
+
+---
+# ============================================
+# PodDisruptionBudget
+# ============================================
+# Ensures minimum availability during voluntary disruptions
+# (e.g., node drains, cluster upgrades)
+# ============================================
+
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: convergence-pipeline-pdb
+  namespace: default # Change to 'convergence-pipeline' if using custom namespace
+  labels:
+    app: convergence-pipeline
+    managed-by: kubectl
+spec:
+  minAvailable: 1  # At least 1 pod must be available
+  selector:
+    matchLabels:
+      app: convergence-pipeline
+      version: v1

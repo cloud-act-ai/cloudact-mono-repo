@@ -1,0 +1,132 @@
+# ============================================
+# Horizontal Pod Autoscaler (HPA)
+# ============================================
+# Automatically scales pods based on CPU and memory utilization
+# GKE Autopilot also supports custom metrics (e.g., request rate)
+# ============================================
+
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: convergence-pipeline-hpa
+  namespace: default # Change to 'convergence-pipeline' if using custom namespace
+  labels:
+    app: convergence-pipeline
+    component: autoscaler
+    managed-by: kubectl
+spec:
+  # Target deployment
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: convergence-pipeline
+
+  # Min/max replicas
+  minReplicas: 2
+  maxReplicas: 10
+
+  # Scaling behavior
+  behavior:
+    scaleDown:
+      # Prevent flapping - stable scale down
+      stabilizationWindowSeconds: 300  # 5 minutes
+      policies:
+        - type: Percent
+          value: 50  # Scale down max 50% of current pods
+          periodSeconds: 60
+        - type: Pods
+          value: 2   # Scale down max 2 pods at a time
+          periodSeconds: 60
+      selectPolicy: Min  # Use the policy that scales down the least
+
+    scaleUp:
+      # Aggressive scale up for traffic spikes
+      stabilizationWindowSeconds: 0  # No stabilization - scale up immediately
+      policies:
+        - type: Percent
+          value: 100  # Scale up max 100% of current pods
+          periodSeconds: 30
+        - type: Pods
+          value: 4    # Scale up max 4 pods at a time
+          periodSeconds: 30
+      selectPolicy: Max  # Use the policy that scales up the most
+
+  # Metrics for autoscaling
+  metrics:
+    # CPU utilization
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 80  # Target 80% CPU utilization
+
+    # Memory utilization
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 85  # Target 85% memory utilization
+
+    # Custom metrics (requires Metrics Server and Stackdriver Adapter)
+    # Uncomment to scale based on custom metrics
+    # - type: External
+    #   external:
+    #     metric:
+    #       name: pubsub.googleapis.com|subscription|num_undelivered_messages
+    #       selector:
+    #         matchLabels:
+    #           resource.labels.subscription_id: convergence-pipeline-sub
+    #     target:
+    #       type: AverageValue
+    #       averageValue: "100"  # Target 100 messages per pod
+
+    # Request rate (requires custom metrics)
+    # - type: Pods
+    #   pods:
+    #     metric:
+    #       name: http_requests_per_second
+    #     target:
+    #       type: AverageValue
+    #       averageValue: "1000"  # Target 1000 requests/sec per pod
+
+---
+# ============================================
+# Vertical Pod Autoscaler (VPA) - Optional
+# ============================================
+# Automatically adjusts CPU and memory requests/limits
+# NOTE: VPA and HPA should not target the same metrics
+# Use VPA for rightsizing, HPA for scaling
+# ============================================
+
+# apiVersion: autoscaling.k8s.io/v1
+# kind: VerticalPodAutoscaler
+# metadata:
+#   name: convergence-pipeline-vpa
+#   namespace: default
+#   labels:
+#     app: convergence-pipeline
+#     component: vpa
+#     managed-by: kubectl
+# spec:
+#   targetRef:
+#     apiVersion: apps/v1
+#     kind: Deployment
+#     name: convergence-pipeline
+#
+#   # Update mode
+#   updatePolicy:
+#     updateMode: "Auto"  # Auto, Recreate, Initial, or Off
+#
+#   # Resource policy
+#   resourcePolicy:
+#     containerPolicies:
+#       - containerName: convergence-pipeline
+#         minAllowed:
+#           cpu: 500m
+#           memory: 1Gi
+#         maxAllowed:
+#           cpu: 2000m
+#           memory: 4Gi
+#         controlledResources: ["cpu", "memory"]

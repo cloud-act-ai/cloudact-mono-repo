@@ -22,8 +22,73 @@ import threading
 
 from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
 from src.app.config import settings
+from src.core.exceptions import classify_exception
 
 logger = logging.getLogger(__name__)
+
+
+# ============================================
+# Test API Keys for Development/QA
+# ============================================
+
+_test_api_keys: Optional[Dict[str, Dict[str, Any]]] = None
+
+
+def load_test_api_keys() -> Dict[str, Dict[str, Any]]:
+    """
+    Load test API keys from test_api_keys.json for development/QA testing.
+
+    Returns a dict mapping api_key -> customer data.
+    Only loaded when ENABLE_DEV_MODE=true or DISABLE_AUTH=true.
+
+    Returns:
+        Dict mapping API key to customer profile
+    """
+    global _test_api_keys
+
+    if _test_api_keys is not None:
+        return _test_api_keys
+
+    test_keys_file = Path(__file__).parent.parent.parent.parent / "test_api_keys.json"
+
+    if not test_keys_file.exists():
+        logger.warning(f"Test API keys file not found: {test_keys_file}")
+        _test_api_keys = {}
+        return _test_api_keys
+
+    try:
+        with open(test_keys_file, 'r') as f:
+            data = json.load(f)
+
+        # Build lookup dict: api_key -> customer data
+        _test_api_keys = {}
+        for key_data in data.get("test_keys", []):
+            api_key = key_data.get("api_key")
+            if api_key:
+                # Store by the plain API key for hash lookup
+                _test_api_keys[api_key] = key_data
+
+        logger.info(f"Loaded {len(_test_api_keys)} test API keys from {test_keys_file}")
+        return _test_api_keys
+
+    except Exception as e:
+        logger.error(f"Failed to load test API keys: {e}", exc_info=True)
+        _test_api_keys = {}
+        return _test_api_keys
+
+
+def get_test_customer_from_api_key(api_key: str) -> Optional[Dict[str, Any]]:
+    """
+    Look up test customer data from test API key.
+
+    Args:
+        api_key: Plain text API key
+
+    Returns:
+        Customer dict if found, None otherwise
+    """
+    test_keys = load_test_api_keys()
+    return test_keys.get(api_key)
 
 
 # ============================================
@@ -240,6 +305,14 @@ async def get_current_customer(
             },
             "api_key_id": "dev-key"
         }
+
+    # Check for test API keys (development/QA mode)
+    enable_dev_mode = os.getenv("ENABLE_DEV_MODE", "false").lower() == "true"
+    if enable_dev_mode or settings.is_development:
+        test_customer = get_test_customer_from_api_key(api_key)
+        if test_customer:
+            logger.info(f"[DEV MODE] Using test API key for customer: {test_customer['customer_id']}")
+            return test_customer
 
     # Hash the API key
     api_key_hash = hash_api_key(api_key)

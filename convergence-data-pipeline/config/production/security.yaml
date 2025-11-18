@@ -1,0 +1,523 @@
+# ============================================
+# Convergence Data Pipeline - Security Configuration
+# ============================================
+# CORS, CSP, rate limiting, and security headers
+
+# ============================================
+# Authentication & Authorization
+# ============================================
+authentication:
+  enabled: true
+
+  # API Key authentication
+  api_key:
+    enabled: true
+    header_name: x-api-key
+    hash_algorithm: HS256
+
+    # Key rotation policy
+    rotation:
+      enabled: true
+      max_age_days: 90
+      warning_days: 14
+
+    # Key validation
+    validation:
+      min_length: 32
+      max_length: 128
+      pattern: "^[a-zA-Z0-9_-]+$"
+
+  # JWT tokens (future enhancement)
+  jwt:
+    enabled: false
+    secret_key: ${JWT_SECRET_KEY}
+    algorithm: HS256
+    expiry_hours: 24
+
+# ============================================
+# Authorization
+# ============================================
+authorization:
+  # Role-based access control
+  rbac:
+    enabled: true
+    roles:
+      - name: admin
+        permissions:
+          - "*"
+
+      - name: tenant_admin
+        permissions:
+          - "tenant:*"
+          - "pipeline:*"
+          - "schedule:*"
+
+      - name: pipeline_operator
+        permissions:
+          - "pipeline:read"
+          - "pipeline:execute"
+          - "schedule:read"
+
+      - name: read_only
+        permissions:
+          - "pipeline:read"
+          - "schedule:read"
+
+  # Tenant isolation
+  tenant_isolation:
+    enabled: true
+    enforce_strict: true
+
+    # Prevent cross-tenant access
+    validate_tenant_id: true
+    reject_invalid_tenant: true
+
+# ============================================
+# CORS Configuration
+# ============================================
+cors:
+  enabled: true
+
+  # Allowed origins
+  allowed_origins:
+    - "https://app.cloudact.io"
+    - "https://console.cloudact.io"
+    - "https://*.cloudact.io"  # Wildcard for subdomains
+
+  # Production: Strict CORS
+  allow_credentials: true
+  allowed_methods:
+    - GET
+    - POST
+    - PUT
+    - DELETE
+    - PATCH
+    - OPTIONS
+
+  allowed_headers:
+    - Authorization
+    - Content-Type
+    - X-API-Key
+    - X-Request-ID
+    - X-Tenant-ID
+
+  exposed_headers:
+    - X-RateLimit-Tenant-Limit
+    - X-RateLimit-Tenant-Remaining
+    - X-Process-Time
+    - X-API-Version
+
+  max_age: 3600  # 1 hour
+
+  # Origin validation
+  validate_origin: true
+  reject_invalid_origin: true
+
+# ============================================
+# Content Security Policy (CSP)
+# ============================================
+csp:
+  enabled: true
+
+  # CSP directives
+  directives:
+    default-src:
+      - "'self'"
+
+    script-src:
+      - "'self'"
+      - "'unsafe-inline'"  # Required for some frameworks
+      - "https://cdn.cloudact.io"
+
+    style-src:
+      - "'self'"
+      - "'unsafe-inline'"
+      - "https://cdn.cloudact.io"
+
+    img-src:
+      - "'self'"
+      - "data:"
+      - "https:"
+
+    font-src:
+      - "'self'"
+      - "data:"
+      - "https://fonts.gstatic.com"
+
+    connect-src:
+      - "'self'"
+      - "https://api.cloudact.io"
+
+    frame-src:
+      - "'none'"
+
+    frame-ancestors:
+      - "'none'"
+
+    object-src:
+      - "'none'"
+
+    base-uri:
+      - "'self'"
+
+    form-action:
+      - "'self'"
+
+  # CSP reporting
+  report_uri: https://csp-reports.cloudact.io/report
+  report_only: false  # Set to true for testing
+
+# ============================================
+# Security Headers
+# ============================================
+security_headers:
+  # Strict Transport Security
+  hsts:
+    enabled: true
+    max_age: 31536000  # 1 year
+    include_subdomains: true
+    preload: true
+
+  # X-Frame-Options
+  x_frame_options:
+    enabled: true
+    value: DENY
+
+  # X-Content-Type-Options
+  x_content_type_options:
+    enabled: true
+    value: nosniff
+
+  # X-XSS-Protection
+  x_xss_protection:
+    enabled: true
+    value: "1; mode=block"
+
+  # Referrer-Policy
+  referrer_policy:
+    enabled: true
+    value: strict-origin-when-cross-origin
+
+  # Permissions-Policy
+  permissions_policy:
+    enabled: true
+    directives:
+      geolocation: "()"
+      microphone: "()"
+      camera: "()"
+      payment: "()"
+
+# ============================================
+# Request Validation
+# ============================================
+request_validation:
+  enabled: true
+
+  # Size limits
+  limits:
+    max_request_size_bytes: 10485760  # 10 MB
+    max_header_size_bytes: 8192       # 8 KB
+    max_url_length: 2048
+    max_query_params: 50
+
+  # Content type validation
+  content_types:
+    allowed:
+      - application/json
+      - application/x-www-form-urlencoded
+      - multipart/form-data
+    reject_others: true
+
+  # Input validation
+  validation:
+    # Tenant ID validation
+    tenant_id:
+      pattern: "^[a-zA-Z0-9_-]+$"
+      min_length: 3
+      max_length: 64
+      reject_path_traversal: true
+
+    # Pipeline ID validation
+    pipeline_id:
+      pattern: "^[a-zA-Z0-9_-]+$"
+      min_length: 3
+      max_length: 128
+      reject_path_traversal: true
+
+    # SQL injection protection
+    sql_injection:
+      enabled: true
+      reject_patterns:
+        - "';\\s*(DROP|DELETE|UPDATE|INSERT|CREATE|ALTER)"
+        - "UNION\\s+SELECT"
+        - "--\\s"
+        - "/\\*.*\\*/"
+        - "xp_cmdshell"
+
+    # Path traversal protection
+    path_traversal:
+      enabled: true
+      reject_patterns:
+        - "\\.\\."
+        - "\\.\\./"
+        - "\\.\\.\\\\"
+        - "%2e%2e"
+        - "%252e%252e"
+
+    # Command injection protection
+    command_injection:
+      enabled: true
+      reject_patterns:
+        - "&&"
+        - "||"
+        - ";"
+        - "|"
+        - "`"
+        - "$("
+
+# ============================================
+# Rate Limiting
+# ============================================
+rate_limiting:
+  enabled: true
+
+  # Strategy
+  strategy: sliding_window  # fixed_window or sliding_window
+
+  # Per-tenant limits
+  tenant:
+    requests_per_minute: 100
+    requests_per_hour: 1000
+    burst_size: 20
+
+  # Global limits
+  global:
+    requests_per_minute: 10000
+    requests_per_hour: 100000
+    burst_size: 200
+
+  # Endpoint-specific limits
+  endpoints:
+    "/admin/*":
+      requests_per_minute: 10
+      requests_per_hour: 100
+
+    "/api/v1/pipelines/run/*":
+      requests_per_minute: 50
+      requests_per_hour: 500
+
+    "/api/v1/pipelines":
+      requests_per_minute: 20
+      requests_per_hour: 200
+
+  # Response headers
+  headers:
+    include_limit: true
+    include_remaining: true
+    include_reset: true
+
+  # Action on limit exceeded
+  action: reject  # reject or throttle
+  retry_after_seconds: 60
+
+# ============================================
+# Encryption
+# ============================================
+encryption:
+  # Encryption at rest
+  at_rest:
+    enabled: true
+
+    # KMS configuration
+    kms:
+      provider: gcp
+      project_id: ${GCP_PROJECT_ID}
+      location: us-central1
+      keyring: convergence-keyring
+      key: convergence-encryption-key
+
+      # Key rotation
+      rotation:
+        enabled: true
+        period_days: 90
+
+  # Encryption in transit
+  in_transit:
+    enabled: true
+    tls_version: "1.2"  # Minimum TLS version
+    cipher_suites:
+      - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+      - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+
+  # Field-level encryption
+  field_level:
+    enabled: true
+    fields:
+      - api_key
+      - password
+      - secret
+      - token
+
+# ============================================
+# Secrets Management
+# ============================================
+secrets:
+  # GCP Secret Manager
+  provider: gcp_secret_manager
+
+  # Secret naming convention
+  naming:
+    pattern: "projects/{project}/secrets/{name}/versions/{version}"
+
+  # Secret rotation
+  rotation:
+    enabled: true
+    period_days: 90
+    warning_days: 14
+
+  # Access control
+  access:
+    max_attempts: 3
+    lockout_duration_minutes: 15
+
+# ============================================
+# Audit Logging
+# ============================================
+audit:
+  enabled: true
+
+  # Events to audit
+  events:
+    # Authentication events
+    - auth_success
+    - auth_failure
+    - api_key_created
+    - api_key_revoked
+
+    # Authorization events
+    - access_granted
+    - access_denied
+
+    # Data access events
+    - pipeline_executed
+    - data_accessed
+    - data_modified
+
+    # Administrative events
+    - tenant_created
+    - tenant_deleted
+    - config_changed
+
+  # Audit log format
+  format: json
+
+  # Audit log retention
+  retention_days: 90
+
+  # Audit log destination
+  destination: gcp_cloud_logging
+
+# ============================================
+# DDoS Protection
+# ============================================
+ddos_protection:
+  enabled: true
+
+  # Connection limits
+  connection_limits:
+    max_connections_per_ip: 100
+    max_connections_global: 10000
+
+  # Request pattern detection
+  pattern_detection:
+    enabled: true
+    threshold_requests_per_second: 100
+    window_seconds: 10
+    action: block  # block or challenge
+
+  # IP blacklist/whitelist
+  ip_filtering:
+    enabled: true
+    blacklist: []
+    whitelist: []
+
+# ============================================
+# Intrusion Detection
+# ============================================
+intrusion_detection:
+  enabled: true
+
+  # Patterns to detect
+  patterns:
+    - name: sql_injection
+      severity: high
+      action: block
+
+    - name: path_traversal
+      severity: high
+      action: block
+
+    - name: command_injection
+      severity: critical
+      action: block
+
+    - name: brute_force
+      severity: high
+      action: rate_limit
+
+  # Response actions
+  actions:
+    block:
+      duration_minutes: 60
+      notify: true
+
+    rate_limit:
+      duration_minutes: 30
+      notify: true
+
+# ============================================
+# Compliance
+# ============================================
+compliance:
+  # GDPR compliance
+  gdpr:
+    enabled: true
+    data_retention_days: 90
+    right_to_erasure: true
+
+  # SOC 2 compliance
+  soc2:
+    enabled: true
+    audit_logging: true
+    encryption_at_rest: true
+    encryption_in_transit: true
+
+  # HIPAA compliance (if applicable)
+  hipaa:
+    enabled: false
+    audit_logging: true
+    encryption_required: true
+
+# ============================================
+# Security Scanning
+# ============================================
+scanning:
+  # Dependency scanning
+  dependencies:
+    enabled: true
+    schedule: daily
+    severity_threshold: medium
+
+  # Container scanning
+  containers:
+    enabled: true
+    schedule: weekly
+    severity_threshold: high
+
+  # Code scanning
+  code:
+    enabled: true
+    tools:
+      - bandit
+      - safety
+      - semgrep

@@ -1,0 +1,429 @@
+# ============================================
+# Convergence Data Pipeline - Logging Configuration
+# ============================================
+# Structured JSON logging for production environments
+
+version: 1
+disable_existing_loggers: false
+
+# ============================================
+# Formatters
+# ============================================
+formatters:
+  # JSON formatter for structured logging
+  json:
+    class: pythonjsonlogger.jsonlogger.JsonFormatter
+    format: "%(asctime)s %(name)s %(levelname)s %(message)s %(pathname)s %(lineno)d %(funcName)s %(process)d %(thread)d"
+    datefmt: "%Y-%m-%d %H:%M:%S"
+
+  # Standard formatter for local development
+  standard:
+    format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    datefmt: "%Y-%m-%d %H:%M:%S"
+
+  # Detailed formatter with trace information
+  detailed:
+    format: "%(asctime)s - %(name)s - %(levelname)s - [%(process)d:%(thread)d] - %(pathname)s:%(lineno)d - %(funcName)s - %(message)s"
+    datefmt: "%Y-%m-%d %H:%M:%S"
+
+  # Request formatter with trace context
+  request:
+    class: pythonjsonlogger.jsonlogger.JsonFormatter
+    format: "%(asctime)s %(name)s %(levelname)s %(message)s %(request_id)s %(tenant_id)s %(trace_id)s %(span_id)s"
+    datefmt: "%Y-%m-%d %H:%M:%S"
+
+# ============================================
+# Filters
+# ============================================
+filters:
+  # Add request context to logs
+  request_context:
+    (): src.core.utils.logging.RequestContextFilter
+
+  # Filter out health check logs
+  health_check_filter:
+    (): src.core.utils.logging.HealthCheckFilter
+
+  # Rate limit filter (prevents log flooding)
+  rate_limit:
+    (): src.core.utils.logging.RateLimitFilter
+    max_per_minute: 100
+
+# ============================================
+# Handlers
+# ============================================
+handlers:
+  # Console output (stdout)
+  console:
+    class: logging.StreamHandler
+    level: INFO
+    formatter: json
+    stream: ext://sys.stdout
+    filters:
+      - request_context
+      - health_check_filter
+
+  # Error file (stderr)
+  error_file:
+    class: logging.handlers.RotatingFileHandler
+    level: ERROR
+    formatter: detailed
+    filename: /var/log/convergence/error.log
+    maxBytes: 10485760  # 10 MB
+    backupCount: 5
+    filters:
+      - request_context
+
+  # Application log file
+  app_file:
+    class: logging.handlers.TimedRotatingFileHandler
+    level: INFO
+    formatter: json
+    filename: /var/log/convergence/app.log
+    when: midnight
+    interval: 1
+    backupCount: 30
+    filters:
+      - request_context
+      - health_check_filter
+
+  # Audit log file (compliance)
+  audit_file:
+    class: logging.handlers.TimedRotatingFileHandler
+    level: INFO
+    formatter: json
+    filename: /var/log/convergence/audit.log
+    when: midnight
+    interval: 1
+    backupCount: 90
+    filters:
+      - request_context
+
+  # GCP Cloud Logging
+  gcp_logging:
+    class: google.cloud.logging.handlers.CloudLoggingHandler
+    level: INFO
+    formatter: json
+    filters:
+      - request_context
+      - health_check_filter
+
+  # Null handler (for silencing specific loggers)
+  null:
+    class: logging.NullHandler
+
+# ============================================
+# Loggers
+# ============================================
+loggers:
+  # Root logger
+  "":
+    level: INFO
+    handlers:
+      - console
+      - app_file
+      - error_file
+      - gcp_logging
+    propagate: false
+
+  # Application loggers
+  src:
+    level: INFO
+    handlers:
+      - console
+      - app_file
+      - error_file
+    propagate: false
+
+  src.app:
+    level: INFO
+    handlers:
+      - console
+      - app_file
+    propagate: false
+
+  src.app.routers:
+    level: INFO
+    handlers:
+      - console
+      - app_file
+    propagate: false
+
+  src.core.pipeline:
+    level: INFO
+    handlers:
+      - console
+      - app_file
+    propagate: false
+
+  src.core.engine:
+    level: INFO
+    handlers:
+      - console
+      - app_file
+    propagate: false
+
+  # Security and audit logger
+  src.app.dependencies.auth:
+    level: INFO
+    handlers:
+      - console
+      - audit_file
+    propagate: false
+
+  src.app.middleware.validation:
+    level: WARNING
+    handlers:
+      - console
+      - audit_file
+    propagate: false
+
+  # Metadata logger
+  src.core.metadata:
+    level: INFO
+    handlers:
+      - console
+      - app_file
+    propagate: false
+
+  # Notification logger
+  src.core.notifications:
+    level: INFO
+    handlers:
+      - console
+      - app_file
+    propagate: false
+
+  # Third-party libraries
+  uvicorn:
+    level: INFO
+    handlers:
+      - console
+    propagate: false
+
+  uvicorn.access:
+    level: INFO
+    handlers:
+      - console
+      - app_file
+    filters:
+      - health_check_filter
+    propagate: false
+
+  uvicorn.error:
+    level: WARNING
+    handlers:
+      - console
+      - error_file
+    propagate: false
+
+  fastapi:
+    level: INFO
+    handlers:
+      - console
+      - app_file
+    propagate: false
+
+  google.cloud:
+    level: WARNING
+    handlers:
+      - console
+    propagate: false
+
+  google.cloud.bigquery:
+    level: INFO
+    handlers:
+      - console
+      - app_file
+    propagate: false
+
+  httpx:
+    level: WARNING
+    handlers:
+      - console
+    propagate: false
+
+  aiohttp:
+    level: WARNING
+    handlers:
+      - console
+    propagate: false
+
+  # Silence noisy libraries
+  urllib3:
+    level: ERROR
+    handlers:
+      - null
+    propagate: false
+
+  google.auth:
+    level: WARNING
+    handlers:
+      - null
+    propagate: false
+
+# ============================================
+# Log Levels by Environment
+# ============================================
+# Override log levels based on environment variable
+environment_overrides:
+  development:
+    root_level: DEBUG
+    formatters:
+      console: standard
+
+  staging:
+    root_level: INFO
+    formatters:
+      console: json
+
+  production:
+    root_level: INFO
+    formatters:
+      console: json
+    handlers:
+      - console
+      - app_file
+      - error_file
+      - gcp_logging
+
+# ============================================
+# Structured Logging Fields
+# ============================================
+# Additional fields to include in all log messages
+structured_fields:
+  # Request context
+  - request_id
+  - tenant_id
+  - user_id
+
+  # Trace context
+  - trace_id
+  - span_id
+  - parent_span_id
+
+  # Application context
+  - environment
+  - service_name
+  - service_version
+  - hostname
+  - process_id
+
+  # Performance metrics
+  - duration_ms
+  - status_code
+  - error_type
+
+  # Business context
+  - pipeline_id
+  - pipeline_run_id
+  - step_id
+  - dataset_name
+
+# ============================================
+# Log Sampling Configuration
+# ============================================
+sampling:
+  enabled: true
+
+  # Sample rates by log level (1.0 = 100%, 0.1 = 10%)
+  rates:
+    DEBUG: 0.01    # 1% sampling
+    INFO: 0.1      # 10% sampling
+    WARNING: 1.0   # 100% sampling
+    ERROR: 1.0     # 100% sampling
+    CRITICAL: 1.0  # 100% sampling
+
+  # Never sample these loggers
+  exclude:
+    - src.app.dependencies.auth
+    - src.app.middleware.validation
+    - src.core.metadata
+
+# ============================================
+# Log Redaction Configuration
+# ============================================
+redaction:
+  enabled: true
+
+  # Patterns to redact (regex)
+  patterns:
+    - pattern: "password=\\w+"
+      replacement: "password=***REDACTED***"
+
+    - pattern: "api_key=\\w+"
+      replacement: "api_key=***REDACTED***"
+
+    - pattern: "token=\\w+"
+      replacement: "token=***REDACTED***"
+
+    - pattern: "secret=\\w+"
+      replacement: "secret=***REDACTED***"
+
+    - pattern: "\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Z|a-z]{2,}\\b"
+      replacement: "***EMAIL_REDACTED***"
+
+    - pattern: "\\b\\d{3}-\\d{2}-\\d{4}\\b"
+      replacement: "***SSN_REDACTED***"
+
+    - pattern: "\\b\\d{16}\\b"
+      replacement: "***CARD_REDACTED***"
+
+  # Fields to always redact
+  fields:
+    - password
+    - api_key
+    - secret
+    - token
+    - authorization
+    - x-api-key
+
+# ============================================
+# Performance Configuration
+# ============================================
+performance:
+  # Async logging (non-blocking)
+  async_logging:
+    enabled: true
+    queue_size: 1000
+    timeout_seconds: 1
+
+  # Batch logging
+  batching:
+    enabled: true
+    batch_size: 100
+    flush_interval_seconds: 5
+
+  # Log compression
+  compression:
+    enabled: true
+    algorithm: gzip
+
+# ============================================
+# Alerting Configuration
+# ============================================
+# Configure log-based alerts
+alerts:
+  - name: high_error_rate
+    condition: "level == 'ERROR'"
+    threshold: 10
+    window_minutes: 5
+    severity: high
+
+  - name: critical_errors
+    condition: "level == 'CRITICAL'"
+    threshold: 1
+    window_minutes: 1
+    severity: critical
+
+  - name: auth_failures
+    condition: "message contains 'authentication failed'"
+    threshold: 5
+    window_minutes: 1
+    severity: high
+
+  - name: pipeline_failures
+    condition: "message contains 'pipeline failed'"
+    threshold: 3
+    window_minutes: 10
+    severity: medium

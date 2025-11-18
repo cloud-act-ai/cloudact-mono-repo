@@ -1,0 +1,158 @@
+# ============================================
+# Service - Load Balancer
+# ============================================
+# Exposes the application to external traffic via GCP Load Balancer
+# ============================================
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: convergence-pipeline-service
+  namespace: default # Change to 'convergence-pipeline' if using custom namespace
+  labels:
+    app: convergence-pipeline
+    component: loadbalancer
+    managed-by: kubectl
+  annotations:
+    # Cloud Load Balancer annotations
+    cloud.google.com/neg: '{"ingress": true}'
+
+    # Use pre-created static IP (from Terraform)
+    # Replace with actual IP name from: terraform output load_balancer_ip_name
+    # cloud.google.com/load-balancer-type: "External"
+
+    # Health check configuration
+    cloud.google.com/backend-config: '{"default": "convergence-pipeline-backend-config"}'
+
+    # Connection draining timeout
+    cloud.google.com/connection-draining-timeout: "30"
+spec:
+  type: LoadBalancer
+
+  # Use pre-allocated static IP (optional)
+  # Get IP from: terraform output load_balancer_ip
+  # loadBalancerIP: "YOUR_STATIC_IP_HERE"
+
+  # Session affinity (optional - for sticky sessions)
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 3600  # 1 hour
+
+  # Ports
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8000
+      protocol: TCP
+    # Uncomment for HTTPS
+    # - name: https
+    #   port: 443
+    #   targetPort: 8000
+    #   protocol: TCP
+
+  # Selector to route traffic to pods
+  selector:
+    app: convergence-pipeline
+    version: v1
+
+  # External traffic policy
+  # "Cluster" for cross-node load balancing
+  # "Local" for preserving client IP (no cross-node traffic)
+  externalTrafficPolicy: Cluster
+
+  # Health check node port (auto-assigned if not specified)
+  # healthCheckNodePort: 30000
+
+---
+# ============================================
+# BackendConfig
+# ============================================
+# Configures GCP Load Balancer backend behavior
+# ============================================
+
+apiVersion: cloud.google.com/v1
+kind: BackendConfig
+metadata:
+  name: convergence-pipeline-backend-config
+  namespace: default # Change to 'convergence-pipeline' if using custom namespace
+  labels:
+    app: convergence-pipeline
+    managed-by: kubectl
+spec:
+  # Health check configuration
+  healthCheck:
+    checkIntervalSec: 10
+    timeoutSec: 5
+    healthyThreshold: 2
+    unhealthyThreshold: 3
+    type: HTTP
+    requestPath: /health/ready
+    port: 8000
+
+  # Connection draining timeout
+  connectionDraining:
+    drainingTimeoutSec: 30
+
+  # Session affinity
+  sessionAffinity:
+    affinityType: "CLIENT_IP"
+    affinityCookieTtlSec: 3600
+
+  # Timeout configuration
+  timeoutSec: 300  # 5 minutes
+
+  # Cloud Armor security policy (created by Terraform)
+  # Replace with actual policy name from: terraform output cloud_armor_policy_name
+  # securityPolicy:
+  #   name: "convergence-pipeline-cluster-security-policy"
+
+  # IAP (Identity-Aware Proxy) - optional
+  # iap:
+  #   enabled: true
+  #   oauthclientCredentials:
+  #     secretName: oauth-client-secret
+
+  # Custom request/response headers
+  customRequestHeaders:
+    headers:
+      - "X-Client-Region:{client_region}"
+      - "X-Client-City:{client_city}"
+
+  # Logging configuration
+  logging:
+    enable: true
+    sampleRate: 1.0  # Log 100% of requests (reduce for production)
+
+---
+# ============================================
+# Internal Service (for pod-to-pod communication)
+# ============================================
+# Optional: Use this for internal communication within the cluster
+# ============================================
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: convergence-pipeline-internal
+  namespace: default # Change to 'convergence-pipeline' if using custom namespace
+  labels:
+    app: convergence-pipeline
+    component: internal
+    managed-by: kubectl
+spec:
+  type: ClusterIP
+  clusterIP: None  # Headless service for direct pod communication
+
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+      protocol: TCP
+
+  selector:
+    app: convergence-pipeline
+    version: v1
+
+  # Session affinity
+  sessionAffinity: None
