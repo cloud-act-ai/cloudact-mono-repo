@@ -223,7 +223,7 @@ async def enqueue_pipeline(
     """
     Add pipeline to execution queue.
 
-    Creates record in pipeline_execution_queue and scheduled_pipeline_runs tables.
+    Creates record in tenant_pipeline_execution_queue and tenant_scheduled_pipeline_runs tables.
 
     Args:
         bq_client: BigQuery client instance
@@ -239,7 +239,7 @@ async def enqueue_pipeline(
 
     # Insert into scheduled_pipeline_runs
     insert_run_query = f"""
-    INSERT INTO `{settings.gcp_project_id}.tenants.scheduled_pipeline_runs`
+    INSERT INTO `{settings.gcp_project_id}.tenants.tenant_scheduled_pipeline_runs`
     (run_id, config_id, tenant_id, pipeline_id, state, scheduled_time, priority,
      parameters, retry_count, max_retries, created_at)
     VALUES (
@@ -275,7 +275,7 @@ async def enqueue_pipeline(
 
     # Insert into pipeline_execution_queue
     insert_queue_query = f"""
-    INSERT INTO `{settings.gcp_project_id}.tenants.pipeline_execution_queue`
+    INSERT INTO `{settings.gcp_project_id}.tenants.tenant_pipeline_execution_queue`
     (run_id, tenant_id, pipeline_id, state, scheduled_time, priority, added_at)
     VALUES (
         @run_id,
@@ -312,7 +312,7 @@ async def should_retry_failed_run(
     SELECT
         retry_count,
         max_retries
-    FROM `{settings.gcp_project_id}.tenants.scheduled_pipeline_runs`
+    FROM `{settings.gcp_project_id}.tenants.tenant_scheduled_pipeline_runs`
     WHERE run_id = @run_id
     LIMIT 1
     """
@@ -490,7 +490,7 @@ async def process_queue(
             pipeline_id,
             scheduled_time,
             priority
-        FROM `{settings.gcp_project_id}.tenants.pipeline_execution_queue`
+        FROM `{settings.gcp_project_id}.tenants.tenant_pipeline_execution_queue`
         WHERE state = 'QUEUED'
         ORDER BY priority DESC, scheduled_time ASC
         LIMIT 1
@@ -512,7 +512,7 @@ async def process_queue(
 
         # Update queue state to PROCESSING
         update_query = f"""
-        UPDATE `{settings.gcp_project_id}.tenants.pipeline_execution_queue`
+        UPDATE `{settings.gcp_project_id}.tenants.tenant_pipeline_execution_queue`
         SET state = 'PROCESSING',
             processing_started_at = CURRENT_TIMESTAMP()
         WHERE run_id = @run_id
@@ -534,7 +534,7 @@ async def process_queue(
             c.provider,
             c.domain,
             c.pipeline_template
-        FROM `{settings.gcp_project_id}.tenants.scheduled_pipeline_runs` r
+        FROM `{settings.gcp_project_id}.tenants.tenant_scheduled_pipeline_runs` r
         INNER JOIN `{settings.gcp_project_id}.tenants.tenant_pipeline_configs` c
             ON r.config_id = c.config_id
         WHERE r.run_id = @run_id
@@ -570,9 +570,9 @@ async def process_queue(
             try:
                 result = await executor.execute(parameters)
 
-                # Update scheduled_pipeline_runs
+                # Update tenant_scheduled_pipeline_runs
                 update_run_query = f"""
-                UPDATE `{settings.gcp_project_id}.tenants.scheduled_pipeline_runs`
+                UPDATE `{settings.gcp_project_id}.tenants.tenant_scheduled_pipeline_runs`
                 SET state = 'COMPLETED',
                     completed_at = CURRENT_TIMESTAMP(),
                     pipeline_logging_id = @pipeline_logging_id
@@ -606,7 +606,7 @@ async def process_queue(
 
                 # Remove from queue
                 delete_queue_query = f"""
-                DELETE FROM `{settings.gcp_project_id}.tenants.pipeline_execution_queue`
+                DELETE FROM `{settings.gcp_project_id}.tenants.tenant_pipeline_execution_queue`
                 WHERE run_id = @run_id
                 """
 
@@ -615,9 +615,9 @@ async def process_queue(
             except Exception as e:
                 logger.error(f"Pipeline execution failed for run_id {run_id}: {e}", exc_info=True)
 
-                # Update scheduled_pipeline_runs to FAILED
+                # Update tenant_scheduled_pipeline_runs to FAILED
                 update_run_query = f"""
-                UPDATE `{settings.gcp_project_id}.tenants.scheduled_pipeline_runs`
+                UPDATE `{settings.gcp_project_id}.tenants.tenant_scheduled_pipeline_runs`
                 SET state = 'FAILED',
                     failed_at = CURRENT_TIMESTAMP(),
                     error_message = @error_message,
@@ -656,7 +656,7 @@ async def process_queue(
                 if should_retry:
                     # Re-queue with lower priority
                     update_queue_query = f"""
-                    UPDATE `{settings.gcp_project_id}.tenants.pipeline_execution_queue`
+                    UPDATE `{settings.gcp_project_id}.tenants.tenant_pipeline_execution_queue`
                     SET state = 'QUEUED',
                         priority = GREATEST(priority - 1, 1),
                         processing_started_at = NULL
@@ -666,7 +666,7 @@ async def process_queue(
                 else:
                     # Remove from queue
                     delete_queue_query = f"""
-                    DELETE FROM `{settings.gcp_project_id}.tenants.pipeline_execution_queue`
+                    DELETE FROM `{settings.gcp_project_id}.tenants.tenant_pipeline_execution_queue`
                     WHERE run_id = @run_id
                     """
                     bq_client.client.query(delete_queue_query, job_config=run_job_config).result()
@@ -731,13 +731,13 @@ async def get_scheduler_status(
                 COUNT(*) as total_queued,
                 COUNTIF(state = 'QUEUED') as queued,
                 COUNTIF(state = 'PROCESSING') as processing
-            FROM `{settings.gcp_project_id}.tenants.pipeline_execution_queue`
+            FROM `{settings.gcp_project_id}.tenants.tenant_pipeline_execution_queue`
         ),
         today_runs AS (
             SELECT
                 COUNTIF(state = 'COMPLETED') as completed_today,
                 COUNTIF(state = 'FAILED') as failed_today
-            FROM `{settings.gcp_project_id}.tenants.scheduled_pipeline_runs`
+            FROM `{settings.gcp_project_id}.tenants.tenant_scheduled_pipeline_runs`
             WHERE DATE(scheduled_time) = CURRENT_DATE()
         ),
         avg_time AS (

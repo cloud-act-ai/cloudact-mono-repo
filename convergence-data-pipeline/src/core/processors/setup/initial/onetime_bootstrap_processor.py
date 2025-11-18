@@ -283,13 +283,13 @@ class OnetimeBootstrapProcessor:
                     field="usage_date"
                 )
                 table.clustering_fields = ["tenant_id", "usage_date"]
-            elif table_name == 'scheduled_pipeline_runs':
+            elif table_name == 'tenant_scheduled_pipeline_runs':
                 table.time_partitioning = bigquery.TimePartitioning(
                     type_=bigquery.TimePartitioningType.DAY,
                     field="scheduled_time"
                 )
                 table.clustering_fields = ["tenant_id", "state", "config_id"]
-            elif table_name == 'pipeline_execution_queue':
+            elif table_name == 'tenant_pipeline_execution_queue':
                 table.time_partitioning = bigquery.TimePartitioning(
                     type_=bigquery.TimePartitioningType.DAY,
                     field="scheduled_time"

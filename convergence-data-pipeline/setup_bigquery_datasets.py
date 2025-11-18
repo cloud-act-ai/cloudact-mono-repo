@@ -144,9 +144,9 @@ def create_tenants_tables():
         )
         """,
 
-        # Table 7: scheduled_pipeline_runs
+        # Table 7: tenant_scheduled_pipeline_runs
         f"""
-        CREATE TABLE IF NOT EXISTS `{GCP_PROJECT_ID}.tenants.scheduled_pipeline_runs` (
+        CREATE TABLE IF NOT EXISTS `{GCP_PROJECT_ID}.tenants.tenant_scheduled_pipeline_runs` (
             run_id STRING NOT NULL,
             config_id STRING NOT NULL,
             tenant_id STRING NOT NULL,
@@ -165,9 +165,9 @@ def create_tenants_tables():
         )
         """,
 
-        # Table 8: pipeline_execution_queue
+        # Table 8: tenant_pipeline_execution_queue
         f"""
-        CREATE TABLE IF NOT EXISTS `{GCP_PROJECT_ID}.tenants.pipeline_execution_queue` (
+        CREATE TABLE IF NOT EXISTS `{GCP_PROJECT_ID}.tenants.tenant_pipeline_execution_queue` (
             run_id STRING NOT NULL,
             tenant_id STRING NOT NULL,
             pipeline_id STRING NOT NULL,
