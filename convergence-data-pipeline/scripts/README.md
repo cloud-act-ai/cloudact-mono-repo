@@ -153,8 +153,8 @@ The pipeline uses a single dataset per tenant (e.g., `guru_232342`). The `destin
 
 All tables (data tables, metadata tables, cost tables) are stored in the same tenant dataset:
 - `guru_232342.billing_cost_daily` - Cost data
-- `tenants.x_meta_pipeline_runs` - Centralized pipeline execution metadata (all tenants)
-- `guru_232342.x_meta_step_logs` - Step execution logs
+- `tenants.tenant_pipeline_runs` - Centralized pipeline execution metadata (all tenants)
+- `guru_232342.tenant_step_logs` - Step execution logs
 - And other tenant-specific tables
 
 #### Example Output

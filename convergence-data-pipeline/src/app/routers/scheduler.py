@@ -742,7 +742,7 @@ async def get_scheduler_status(
         ),
         avg_time AS (
             SELECT AVG(duration_ms) / 1000.0 as avg_seconds
-            FROM `{settings.gcp_project_id}.metadata.x_meta_pipeline_runs`
+            FROM `{settings.gcp_project_id}.tenants.tenant_pipeline_runs`
             WHERE DATE(start_time) >= DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY)
               AND duration_ms IS NOT NULL
         )
@@ -1156,7 +1156,7 @@ async def cleanup_orphaned_pipelines(
 
     Logic:
     1. Get all active tenants from tenant_profiles
-    2. For each tenant, UPDATE tenants.x_meta_pipeline_runs SET status='FAILED'
+    2. For each tenant, UPDATE tenants.tenant_pipeline_runs SET status='FAILED'
        WHERE status IN ('PENDING','RUNNING') AND start_time > 60 minutes ago
     3. Decrement concurrent_pipelines_running counter for each cleaned pipeline
     4. Return count of pipelines cleaned per tenant
@@ -1200,7 +1200,7 @@ async def cleanup_orphaned_pipelines(
             try:
                 # Find and mark orphaned pipelines as FAILED
                 cleanup_query = f"""
-                UPDATE `{settings.gcp_project_id}.tenants.x_meta_pipeline_runs`
+                UPDATE `{settings.gcp_project_id}.tenants.tenant_pipeline_runs`
                 SET
                     status = 'FAILED',
                     end_time = CURRENT_TIMESTAMP(),

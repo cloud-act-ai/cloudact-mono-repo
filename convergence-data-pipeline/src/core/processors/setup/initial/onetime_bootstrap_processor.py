@@ -149,6 +149,9 @@ class OnetimeBootstrapProcessor:
             else:
                 tables_created.append(table_name)
 
+        # Step 3: Create global pipeline execution view (for cross-tenant monitoring)
+        self._create_pipeline_execution_view()
+
         self.logger.info(
             "Bootstrap setup completed successfully",
             extra={
@@ -295,6 +298,24 @@ class OnetimeBootstrapProcessor:
                     field="scheduled_time"
                 )
                 table.clustering_fields = ["state", "priority", "tenant_id"]
+            elif table_name == 'tenant_pipeline_runs':
+                table.time_partitioning = bigquery.TimePartitioning(
+                    type_=bigquery.TimePartitioningType.DAY,
+                    field="start_time"
+                )
+                table.clustering_fields = ["tenant_id", "status"]
+            elif table_name == 'tenant_step_logs':
+                table.time_partitioning = bigquery.TimePartitioning(
+                    type_=bigquery.TimePartitioningType.DAY,
+                    field="start_time"
+                )
+                table.clustering_fields = ["tenant_id", "pipeline_logging_id"]
+            elif table_name == 'tenant_dq_results':
+                table.time_partitioning = bigquery.TimePartitioning(
+                    type_=bigquery.TimePartitioningType.DAY,
+                    field="ingestion_date"
+                )
+                table.clustering_fields = ["tenant_id", "overall_status"]
 
             # Create table
             table = self.client.create_table(table)
@@ -309,6 +330,32 @@ class OnetimeBootstrapProcessor:
                 }
             )
             return False
+
+    def _create_pipeline_execution_view(self):
+        """Create customer-facing view for pipeline execution logs."""
+        view_file = self.template_dir / "views" / "tenant_pipeline_execution_view.sql"
+
+        if not view_file.exists():
+            self.logger.warning(f"View SQL file not found: {view_file}")
+            return
+
+        try:
+            with open(view_file, 'r') as f:
+                view_sql = f.read()
+
+            # Replace {project_id} placeholder
+            view_sql = view_sql.replace('{project_id}', self.project_id)
+
+            # Execute view creation
+            query_job = self.client.query(view_sql)
+            query_job.result()  # Wait for completion
+
+            self.logger.info(
+                f"Created view: {self.project_id}.tenants.tenant_pipeline_execution_view"
+            )
+
+        except Exception as e:
+            self.logger.error(f"Failed to create pipeline execution view: {e}", exc_info=True)
 
 
 # Factory function to get processor instance

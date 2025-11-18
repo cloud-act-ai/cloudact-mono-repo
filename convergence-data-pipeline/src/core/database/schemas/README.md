@@ -33,9 +33,9 @@ All database schemas are created **programmatically via the API**, not manually.
 **Protection Level**: SAFE for GenAI - NO credentials
 
 **Tables**:
-- `x_meta_pipeline_runs` - Pipeline execution metadata and logging
-- `x_meta_step_logs` - Detailed step-by-step execution logs
-- `x_meta_dq_results` - Data quality validation results
+- `tenant_pipeline_runs` - Pipeline execution metadata and logging
+- `tenant_step_logs` - Detailed step-by-step execution logs
+- `tenant_dq_results` - Data quality validation results
 - `tenant_pipeline_configs` - Per-tenant pipeline scheduling configurations
 - `tenant_scheduled_pipeline_runs` - Scheduled pipeline execution history
 
@@ -83,9 +83,9 @@ tenants/                        ← Protected, IAM-restricted (central)
 └── tenant_pipeline_execution_queue ← Task queue
 
 {tenant_id}/                    ← GenAI-safe, operational only
-├── x_meta_pipeline_runs        ← NO credentials
-├── x_meta_step_logs            ← NO credentials
-├── x_meta_dq_results           ← NO credentials
+├── tenant_pipeline_runs        ← NO credentials
+├── tenant_step_logs            ← NO credentials
+├── tenant_dq_results           ← NO credentials
 └── data tables (cost, compliance, etc.)
 ```
 

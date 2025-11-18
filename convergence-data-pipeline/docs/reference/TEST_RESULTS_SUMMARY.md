@@ -230,9 +230,9 @@
 
 ### Tables Created
 - `gac-prod-471220.guru_232342.test_dq_data` (test data for DQ checks)
-- `gac-prod-471220.guru_test_001.x_meta_pipeline_runs` (metadata)
-- `gac-prod-471220.guru_test_001.x_meta_step_logs` (metadata)
-- `gac-prod-471220.guru_test_001.x_meta_dq_results` (metadata)
+- `gac-prod-471220.guru_test_001.tenant_pipeline_runs` (metadata)
+- `gac-prod-471220.guru_test_001.tenant_step_logs` (metadata)
+- `gac-prod-471220.guru_test_001.tenant_dq_results` (metadata)
 - `gac-prod-471220.guru_test_001.x_meta_onboarding_dryrun_test` (onboarding test)
 
 ---

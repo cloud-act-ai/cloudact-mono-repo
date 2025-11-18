@@ -61,15 +61,15 @@ curl -X POST "http://your-host:8090/api/v1/tenants/onboard" \
 | tenant_subscriptions | Plan limits | tenant_id, plan_name, daily_limit |
 | tenant_usage_quotas | Usage tracking | tenant_id, pipelines_run_today |
 | tenant_pipeline_configs | Pipeline definitions | config_id, tenant_id, pipeline_yaml |
-| x_meta_pipeline_runs | Centralized monitoring | pipeline_logging_id, status |
+| tenant_pipeline_runs | Centralized monitoring | pipeline_logging_id, status |
 
 ### Tenant Tables (per-tenant dataset)
 
 | Table | Purpose | Key Fields |
 |-------|---------|------------|
-| x_meta_pipeline_runs | Pipeline execution logs | pipeline_id, status, duration_ms |
-| x_meta_step_logs | Step-level logs | step_id, status, error_message |
-| x_meta_dq_results | Data quality results | check_name, status, row_count |
+| tenant_pipeline_runs | Pipeline execution logs | pipeline_id, status, duration_ms |
+| tenant_step_logs | Step-level logs | step_id, status, error_message |
+| tenant_dq_results | Data quality results | check_name, status, row_count |
 
 ## API Endpoints
 
@@ -185,7 +185,7 @@ curl -X GET "http://your-host:8090/api/v1/tenants/quota" \
    - Update subscription plan if needed
 
 3. **Pipeline Failures**
-   - Check x_meta_step_logs for error details
+   - Check tenant_step_logs for error details
    - Verify BigQuery permissions
 
 ### Required Permissions
@@ -217,7 +217,7 @@ bigquery.jobs.create
 ## Support
 
 For issues or questions:
-1. Check logs in x_meta_step_logs
+1. Check logs in tenant_step_logs
 2. Review quota usage
 3. Verify API key is active
 4. Check BigQuery permissions

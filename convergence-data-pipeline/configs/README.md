@@ -253,11 +253,11 @@ steps:
       dataset_id: "{tenant_id}"
       location: "{location}"
       metadata_tables:
-        # Note: x_meta_pipeline_runs is now in central 'tenants' dataset
-        - table_name: "x_meta_step_logs"
-          schema_file: "x_meta_step_logs.json"
-        - table_name: "x_meta_dq_results"
-          schema_file: "x_meta_dq_results.json"
+        # Note: tenant_pipeline_runs is now in central 'tenants' dataset
+        - table_name: "tenant_step_logs"
+          schema_file: "tenant_step_logs.json"
+        - table_name: "tenant_dq_results"
+          schema_file: "tenant_dq_results.json"
 
   - step_id: "send_welcome_email"
     name: "Send Welcome Email"

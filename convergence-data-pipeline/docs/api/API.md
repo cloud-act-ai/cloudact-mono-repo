@@ -59,9 +59,9 @@ Creates a new tenant with API key, BigQuery dataset, and subscription.
   "subscription_plan": "STARTER",
   "dataset_created": true,
   "tables_created": [
-    "x_meta_pipeline_runs",
-    "x_meta_step_logs",
-    "x_meta_dq_results"
+    "tenant_pipeline_runs",
+    "tenant_step_logs",
+    "tenant_dq_results"
   ],
   "dryrun_status": "SUCCESS",
   "message": "Tenant Acme Inc onboarded successfully..."

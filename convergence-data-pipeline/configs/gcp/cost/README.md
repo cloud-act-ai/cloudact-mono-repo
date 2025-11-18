@@ -244,7 +244,7 @@ WHERE
    - Check permissions on source table
 
 2. **Data Quality Failures**
-   - Review DQ results: `SELECT * FROM {tenant_id}.x_meta_dq_results WHERE dq_config_id = 'billing_cost_suite' ORDER BY executed_at DESC LIMIT 1`
+   - Review DQ results: `SELECT * FROM {tenant_id}.tenant_dq_results WHERE dq_config_id = 'billing_cost_suite' ORDER BY executed_at DESC LIMIT 1`
    - Check `failed_expectations` JSON for specific issues
    - Adjust expectations if billing export schema changed
 
@@ -256,7 +256,7 @@ WHERE
 4. **Notification Failures**
    - Check notification service configuration
    - Verify email addresses in pipeline config
-   - Review logs: `SELECT * FROM tenants.x_meta_pipeline_runs WHERE tenant_id = '{tenant_id}' AND pipeline_id = 'cost_billing_pipeline' ORDER BY start_time DESC`
+   - Review logs: `SELECT * FROM tenants.tenant_pipeline_runs WHERE tenant_id = '{tenant_id}' AND pipeline_id = 'cost_billing_pipeline' ORDER BY start_time DESC`
 
 ### Common Issues
 
@@ -284,7 +284,7 @@ SELECT
   end_time,
   status,
   TIMESTAMP_DIFF(end_time, start_time, SECOND) AS duration_seconds
-FROM `tenants.x_meta_pipeline_runs`
+FROM `tenants.tenant_pipeline_runs`
 WHERE tenant_id = '{tenant_id}'
   AND pipeline_id = 'cost_billing_pipeline'
 ORDER BY start_time DESC
@@ -298,7 +298,7 @@ SELECT
   expectations_passed,
   expectations_failed,
   overall_status
-FROM `{tenant_id}.x_meta_dq_results`
+FROM `{tenant_id}.tenant_dq_results`
 WHERE dq_config_id = 'billing_cost_suite'
 ORDER BY executed_at DESC
 LIMIT 30;
@@ -362,6 +362,6 @@ gcloud scheduler jobs create http cost-billing-pipeline-daily \
 ## Support
 
 For issues or questions:
-1. Check pipeline logs: `tenants.x_meta_pipeline_runs` (filter by tenant_id) and `{tenant_id}.x_meta_step_logs`
-2. Review DQ results: `{tenant_id}.x_meta_dq_results`
+1. Check pipeline logs: `tenants.tenant_pipeline_runs` (filter by tenant_id) and `{tenant_id}.tenant_step_logs`
+2. Review DQ results: `{tenant_id}.tenant_dq_results`
 3. Contact: data-ops@company.com

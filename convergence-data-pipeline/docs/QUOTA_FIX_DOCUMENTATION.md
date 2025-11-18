@@ -34,9 +34,9 @@ The bootstrap pipeline (`configs/setup/bootstrap_system.yml`) creates the centra
 When a new tenant is onboarded (`POST /api/v1/tenants/onboard`):
 
 1. **Creates tenant dataset** with operational tables:
-   - `x_meta_pipeline_runs` - Pipeline execution history
-   - `x_meta_step_logs` - Detailed step logs
-   - `x_meta_dq_results` - Data quality results
+   - `tenant_pipeline_runs` - Pipeline execution history
+   - `tenant_step_logs` - Detailed step logs
+   - `tenant_dq_results` - Data quality results
 
 2. **Creates initial quota record** with defaults:
    - Daily limit: 50 pipelines

@@ -28,7 +28,7 @@ Async Executor Initialization
     ↓
 Step-by-Step Execution (sequential or parallel)
     ↓
-Metadata Logging (x_meta_pipeline_runs, x_meta_step_logs)
+Metadata Logging (tenant_pipeline_runs, tenant_step_logs)
     ↓
 Final Status Return
 ```
@@ -183,11 +183,11 @@ result = await engine.execute(step_config, context)
 All pipeline executions are logged to tenant BigQuery tables:
 
 ### Pipeline Runs Table
-**Table:** `tenants.x_meta_pipeline_runs`
+**Table:** `tenants.tenant_pipeline_runs`
 
 **Schema:**
 ```sql
-CREATE TABLE x_meta_pipeline_runs (
+CREATE TABLE tenant_pipeline_runs (
   pipeline_logging_id STRING,      -- Unique execution ID
   tenant_id STRING,
   pipeline_id STRING,
@@ -205,11 +205,11 @@ CREATE TABLE x_meta_pipeline_runs (
 ```
 
 ### Step Logs Table
-**Table:** `{tenant_id}.x_meta_step_logs`
+**Table:** `{tenant_id}.tenant_step_logs`
 
 **Schema:**
 ```sql
-CREATE TABLE x_meta_step_logs (
+CREATE TABLE tenant_step_logs (
   log_id STRING,
   pipeline_logging_id STRING,
   step_id STRING,
@@ -283,9 +283,9 @@ steps:
 Pipelines use atomic INSERT to prevent duplicate runs:
 
 ```sql
-INSERT INTO x_meta_pipeline_runs (...)
+INSERT INTO tenant_pipeline_runs (...)
 WHERE NOT EXISTS (
-  SELECT 1 FROM x_meta_pipeline_runs
+  SELECT 1 FROM tenant_pipeline_runs
   WHERE tenant_id = @tenant_id
     AND pipeline_id = @pipeline_id
     AND status IN ('RUNNING', 'PENDING')
@@ -382,14 +382,14 @@ All engines use `async/await` for non-blocking I/O:
 ### Pipeline Not Starting
 
 **Check:**
-1. Is another instance already running? Query `tenants.x_meta_pipeline_runs` for `RUNNING` status
+1. Is another instance already running? Query `tenants.tenant_pipeline_runs` for `RUNNING` status
 2. Are API keys valid? Test authentication endpoint
 3. Does tenant dataset exist? Check BigQuery
 
 ### Step Failures
 
 **Check:**
-1. Step logs: `SELECT * FROM {tenant_id}.x_meta_step_logs WHERE pipeline_logging_id = '...'`
+1. Step logs: `SELECT * FROM {tenant_id}.tenant_step_logs WHERE pipeline_logging_id = '...'`
 2. Engine logs: Cloud Logging with filter `resource.labels.tenant_id="{tenant_id}"`
 3. Timeout: Did step exceed `timeout_minutes`?
 
@@ -410,6 +410,6 @@ All engines use `async/await` for non-blocking I/O:
 ## Support
 
 For questions or issues:
-1. Review step logs in `x_meta_step_logs`
+1. Review step logs in `tenant_step_logs`
 2. Check engine documentation in `src/core/engines/README.md`
 3. Contact: data-ops@company.com

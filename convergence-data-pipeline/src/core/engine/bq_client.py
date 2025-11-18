@@ -248,6 +248,22 @@ class BigQueryClient:
         wait=wait_exponential(multiplier=1, min=2, max=30),
         retry=TRANSIENT_RETRY_POLICY
     )
+    async def get_dataset(self, dataset_id: str) -> Dataset:
+        """Get a BigQuery dataset (async wrapper)"""
+        return self.client.get_dataset(dataset_id)
+
+    async def get_table(self, table_id: str) -> Table:
+        """Get a BigQuery table (async wrapper)"""
+        return self.client.get_table(table_id)
+
+    async def create_dataset_raw(self, dataset: Dataset) -> Dataset:
+        """Create a BigQuery dataset from Dataset object (async wrapper)"""
+        return self.client.create_dataset(dataset, exists_ok=True)
+
+    async def create_table_raw(self, table: Table) -> Table:
+        """Create a BigQuery table from Table object (async wrapper)"""
+        return self.client.create_table(table, exists_ok=True)
+
     def create_dataset(
         self,
         tenant_id: str,

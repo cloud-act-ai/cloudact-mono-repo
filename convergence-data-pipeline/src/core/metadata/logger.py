@@ -244,8 +244,8 @@ class MetadataLogger:
         self.tenant_id = tenant_id
         self.project_id = settings.gcp_project_id
 
-        # Get tenant-specific metadata dataset
-        self.metadata_dataset = settings.get_tenant_dataset_name(tenant_id, "metadata")
+        # Use CENTRAL tenants dataset for ALL metadata (not per-tenant)
+        self.metadata_dataset = "tenants"
 
         # Batch configuration from settings
         self.batch_size = settings.metadata_log_batch_size
@@ -502,7 +502,8 @@ class MetadataLogger:
             parameters_json_str = json.dumps(parameters_serialized) if parameters_serialized is not None else None
 
             # Use UPDATE query to update existing row instead of INSERT
-            table_id = f"{self.project_id}.{self.metadata_dataset}.x_meta_pipeline_runs"
+            # NOTE: tenant_pipeline_runs is in CENTRAL tenants dataset, not per-tenant dataset
+            table_id = f"{self.project_id}.tenants.tenant_pipeline_runs"
 
             update_query = f"""
             UPDATE `{table_id}`
@@ -846,7 +847,8 @@ class MetadataLogger:
         Raises:
             Exception: If insert fails after retries
         """
-        table_id = f"{self.project_id}.{self.metadata_dataset}.x_meta_pipeline_runs"
+        # NOTE: tenant_pipeline_runs is in CENTRAL tenants dataset, not per-tenant dataset
+        table_id = f"{self.project_id}.tenants.tenant_pipeline_runs"
 
         # Use streaming inserts with insertId for idempotency
         rows_to_insert = [log["json"] for log in logs]
@@ -897,7 +899,8 @@ class MetadataLogger:
         Raises:
             Exception: If insert fails after retries
         """
-        table_id = f"{self.project_id}.{self.metadata_dataset}.x_meta_step_logs"
+        # NOTE: tenant_step_logs is in CENTRAL tenants dataset
+        table_id = f"{self.project_id}.tenants.tenant_step_logs"
 
         # Use streaming inserts with insertId for idempotency
         rows_to_insert = [log["json"] for log in logs]

@@ -280,7 +280,8 @@ class AsyncPipelineExecutor:
         from src.app.config import settings
 
         try:
-            tenant_pipeline_runs_table = f"{settings.gcp_project_id}.{self.tenant_id}.x_meta_pipeline_runs"
+            # NOTE: tenant_pipeline_runs is in CENTRAL tenants dataset, not per-tenant dataset
+            tenant_pipeline_runs_table = f"{settings.gcp_project_id}.tenants.tenant_pipeline_runs"
 
             update_query = f"""
             UPDATE `{tenant_pipeline_runs_table}`

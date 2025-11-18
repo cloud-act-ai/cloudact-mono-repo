@@ -63,7 +63,7 @@ tenants.tenant_provider_configs      # Pipeline settings per provider/domain
 tenants.tenant_pipeline_configs      # Scheduled pipeline configurations (cron)
 tenants.scheduled_pipeline_runs      # Track scheduled executions (PENDING/COMPLETED/FAILED)
 tenants.pipeline_execution_queue     # Active queue for scheduled pipelines
-tenants.x_meta_pipeline_runs         # Centralized pipeline execution logs (all tenants)
+tenants.tenant_pipeline_runs         # Centralized pipeline execution logs (all tenants)
 ```
 
 **Access Pattern**: Every API request authenticates against this dataset
@@ -73,11 +73,11 @@ tenants.x_meta_pipeline_runs         # Centralized pipeline execution logs (all 
 
 **Metadata Tables** (has tenant_id + user_id):
 ```
-{tenant_id}.x_meta_step_logs         # Step-by-step execution details
-{tenant_id}.x_meta_dq_results        # Data quality validation results
+{tenant_id}.tenant_step_logs         # Step-by-step execution details
+{tenant_id}.tenant_dq_results        # Data quality validation results
 ```
 
-**Note:** `x_meta_pipeline_runs` is stored centrally in the `tenants` dataset, not per-tenant dataset.
+**Note:** `tenant_pipeline_runs` is stored centrally in the `tenants` dataset, not per-tenant dataset.
 
 **Data Tables** (provider-specific):
 ```
@@ -200,7 +200,7 @@ Flow:
    - Load: /configs/{provider}/{domain}/{template_name}.yml
    - Replace variables: {tenant_id}, {gcp_project_id}, {date}, etc.
 7. Execute pipeline async (background task) via AsyncPipelineExecutor
-8. Log metadata to tenants.x_meta_pipeline_runs (tenant_id + user_id)
+8. Log metadata to tenants.tenant_pipeline_runs (tenant_id + user_id)
 9. On completion:
    - Decrement concurrent counter
    - Increment daily/monthly counters
@@ -317,9 +317,9 @@ YAML Pipeline Step:
          ↓
 [Executes processor with step configuration]
          ↓
-[Logs pipeline run to tenants.x_meta_pipeline_runs]
+[Logs pipeline run to tenants.tenant_pipeline_runs]
          ↓
-[Logs step details to {tenant_id}.x_meta_step_logs]
+[Logs step details to {tenant_id}.tenant_step_logs]
 ```
 
 ### Complete Flow: API Call to Processor Execution
@@ -349,14 +349,14 @@ YAML Pipeline Step:
 
 5. STEP EXECUTION
    ├─ Run processor (e.g., BigQuery ETL)
-   ├─ Log to x_meta_step_logs
+   ├─ Log to tenant_step_logs
    └─ Handle errors/retries
 
 6. NEXT STEP (IF SUCCESS)
    └─ Repeat from step 4
 
 7. PIPELINE COMPLETION
-   ├─ Update x_meta_pipeline_runs (status: SUCCESS/FAILED)
+   ├─ Update tenant_pipeline_runs (status: SUCCESS/FAILED)
    ├─ Update tenant quota counters
    └─ Send notifications (if configured)
 
@@ -469,7 +469,7 @@ YAML Pipeline Step:
     subject_template: "[ALERT] Pipeline Failed: {pipeline_id}"
     body_template: |
       Pipeline {pipeline_id} failed for tenant {tenant_id}
-      Check logs at: {tenant_id}.x_meta_step_logs
+      Check logs at: {tenant_id}.tenant_step_logs
   ```
 
 **Processor**: `notify_systems.slack_notification` (Slack)
@@ -603,9 +603,9 @@ FLOW:
 6. Create BigQuery dataset (first time only):
    - CREATE DATASET `project.{tenant_id}`
 7. Create metadata tables (first time only):
-   - x_meta_pipeline_runs, x_meta_step_logs, x_meta_dq_results
+   - tenant_pipeline_runs, tenant_step_logs, tenant_dq_results
 8. Log credential action:
-   - INSERT INTO {tenant_id}.x_meta_step_logs (action='CREDENTIAL_ADDED', provider='GCP', user_id='alice_uuid')
+   - INSERT INTO {tenant_id}.tenant_step_logs (action='CREDENTIAL_ADDED', provider='GCP', user_id='alice_uuid')
 
 RESPONSE:
 {
@@ -613,7 +613,7 @@ RESPONSE:
   "provider": "GCP",
   "action": "CREATED",                     # or "UPDATED"
   "dataset_status": "CREATED",             # or "ALREADY_EXISTS"
-  "tables_created": ["x_meta_pipeline_runs", "x_meta_step_logs", "x_meta_dq_results"],
+  "tables_created": ["tenant_pipeline_runs", "tenant_step_logs", "tenant_dq_results"],
   "message": "GCP credentials added successfully"
 }
 ```
@@ -653,7 +653,7 @@ FLOW:
    -  is_active, cron_expression, parameters, created_by_user_id, next_run_time)
 4. Calculate next_run_time from cron expression
 5. Log configuration:
-   - INSERT INTO {tenant_id}.x_meta_step_logs (action='PIPELINE_CONFIG_CREATED')
+   - INSERT INTO {tenant_id}.tenant_step_logs (action='PIPELINE_CONFIG_CREATED')
 
 RESPONSE:
 {
@@ -946,7 +946,7 @@ verify_api_key()             # Returns tenant_id only
 ### AsyncPipelineExecutor
 - Async pipeline execution (non-blocking)
 - Step dependencies (sequential + parallel)
-- Metadata logging to `x_meta_pipeline_runs`, `x_meta_step_logs`
+- Metadata logging to `tenant_pipeline_runs`, `tenant_step_logs`
 - Error handling + retry logic
 
 ### BigQueryClient
@@ -1129,9 +1129,9 @@ FRONTEND SYSTEM (Supabase)          CONVERGENCE API (Cloud Run)          DATA (B
                                                  |
                                                  └─> [Create metadata tables]
                                                      |
-                                                     └─> x_meta_pipeline_runs
-                                                         x_meta_step_logs
-                                                         x_meta_dq_results
+                                                     └─> tenant_pipeline_runs
+                                                         tenant_step_logs
+                                                         tenant_dq_results
                                                          |
                                                          └─> Response: Credentials saved!
 
@@ -1158,16 +1158,16 @@ FRONTEND SYSTEM (Supabase)          CONVERGENCE API (Cloud Run)          DATA (B
                         |
                         └─> [Execute: AsyncPipelineExecutor]
                             |
-                            └─> [INSERT INTO x_meta_pipeline_runs]
+                            └─> [INSERT INTO tenant_pipeline_runs]
                                 |
                                 └─> [Execute processors in sequence]
                                     ├─> Processor 1: Extract GCP billing data
                                     ├─> Processor 2: Transform/validate
                                     └─> Processor 3: Load to BigQuery
                                     |
-                                    └─> [INSERT INTO x_meta_step_logs]
+                                    └─> [INSERT INTO tenant_step_logs]
                                         |
-                                        └─> [UPDATE x_meta_pipeline_runs]
+                                        └─> [UPDATE tenant_pipeline_runs]
                                             |
                                             └─> Response: RUNNING
                 |
@@ -1207,8 +1207,8 @@ FRONTEND SYSTEM (Supabase)          CONVERGENCE API (Cloud Run)          DATA (B
                             |
                             └─> [Execute each processor step]
                                 |
-                                └─> [Log execution to tenants.x_meta_pipeline_runs]
-                                    [Log steps to {tenant_id}.x_meta_step_logs]
+                                └─> [Log execution to tenants.tenant_pipeline_runs]
+                                    [Log steps to {tenant_id}.tenant_step_logs]
                                     [Write results to {tenant_id}.* tables]
                                     |
                                     └─> [UPDATE pipeline_execution_queue]

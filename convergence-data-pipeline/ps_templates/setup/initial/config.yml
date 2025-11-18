@@ -25,7 +25,7 @@ features:
 # Dataset configuration
 dataset:
   name: "tenants"
-  description: "Central dataset for tenant management, authentication, and quotas"
+  description: "Central dataset for tenant management, authentication, quotas, and centralized logging"
   location: "US"
 
 # Tables to create (in order)
@@ -38,7 +38,9 @@ tables:
   - tenant_pipeline_configs
   - tenant_scheduled_pipeline_runs
   - tenant_pipeline_execution_queue
-  - x_meta_pipeline_runs
+  - tenant_pipeline_runs
+  - tenant_step_logs
+  - tenant_dq_results
 
 # Notes:
 # - This processor should be run ONCE during initial system setup

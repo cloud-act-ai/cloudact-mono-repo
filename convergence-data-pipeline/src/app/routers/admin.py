@@ -54,6 +54,111 @@ class TenantResponse(BaseModel):
     total_pipeline_runs: int
 
 
+class BootstrapRequest(BaseModel):
+    """Request to bootstrap system."""
+    force_recreate_dataset: bool = Field(
+        False,
+        description="Force delete and recreate central tenants dataset"
+    )
+    force_recreate_tables: bool = Field(
+        False,
+        description="Force delete and recreate all tenant management tables"
+    )
+
+
+class BootstrapResponse(BaseModel):
+    """Response from bootstrap operation."""
+    status: str = Field(..., description="Bootstrap status (SUCCESS, FAILED)")
+    dataset_created: bool
+    tables_created: list = Field(..., description="List of created tables")
+    tables_existed: list = Field(..., description="List of existing tables")
+    total_tables: int
+    message: str
+
+
+# ============================================
+# System Bootstrap
+# ============================================
+
+@router.post(
+    "/admin/bootstrap",
+    response_model=BootstrapResponse,
+    summary="Bootstrap system",
+    description="One-time system bootstrap to create central tenants dataset and management tables"
+)
+async def bootstrap_system(
+    request: BootstrapRequest,
+    _admin: None = Depends(verify_admin_key)
+):
+    """
+    Bootstrap the system for first-time setup.
+
+    Creates:
+    - Central 'tenants' dataset
+    - All tenant management tables with proper schemas
+
+    This endpoint requires admin authentication via X-Admin-Key header.
+
+    Parameters:
+    - **force_recreate_dataset**: If true, delete and recreate the central dataset (DANGEROUS)
+    - **force_recreate_tables**: If true, delete and recreate all tables (DANGEROUS)
+
+    Returns:
+    - **status**: SUCCESS or FAILED
+    - **dataset_created**: Whether dataset was newly created
+    - **tables_created**: List of tables that were created
+    - **tables_existed**: List of tables that already existed
+    - **total_tables**: Total number of tables configured
+    """
+    try:
+        from src.core.processors.setup.initial.onetime_bootstrap_processor import OnetimeBootstrapProcessor
+
+        logger.info(
+            "Bootstrap request received",
+            extra={
+                "force_recreate_dataset": request.force_recreate_dataset,
+                "force_recreate_tables": request.force_recreate_tables
+            }
+        )
+
+        # Initialize bootstrap processor
+        processor = OnetimeBootstrapProcessor()
+
+        # Execute bootstrap with configuration
+        result = await processor.execute(
+            step_config={},
+            context={
+                "force_recreate_dataset": request.force_recreate_dataset,
+                "force_recreate_tables": request.force_recreate_tables
+            }
+        )
+
+        logger.info(
+            "Bootstrap completed successfully",
+            extra={
+                "dataset_created": result.get("dataset_created"),
+                "tables_created": len(result.get("tables_created", [])),
+                "tables_existed": len(result.get("tables_existed", []))
+            }
+        )
+
+        return BootstrapResponse(
+            status=result.get("status", "SUCCESS"),
+            dataset_created=result.get("dataset_created", False),
+            tables_created=result.get("tables_created", []),
+            tables_existed=result.get("tables_existed", []),
+            total_tables=result.get("total_tables", 0),
+            message=result.get("message", "Bootstrap completed")
+        )
+
+    except Exception as e:
+        logger.error(f"Bootstrap failed: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Bootstrap failed: {str(e)}"
+        )
+
+
 # ============================================
 # Tenant Management
 # ============================================
@@ -159,7 +264,7 @@ async def get_tenant(
     # Count pipeline runs
     runs_query = f"""
     SELECT COUNT(*) as count
-    FROM `{settings.gcp_project_id}.tenants.x_meta_pipeline_runs`
+    FROM `{settings.gcp_project_id}.tenants.tenant_pipeline_runs`
     WHERE tenant_id = @tenant_id
     """
 

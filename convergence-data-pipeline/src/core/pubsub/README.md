@@ -498,7 +498,7 @@ bq query --use_legacy_sql=false '
 SELECT
   error_message,
   COUNT(*) as error_count
-FROM `gac-prod-471220.x_meta_pipeline_runs`
+FROM `gac-prod-471220.tenant_pipeline_runs`
 WHERE DATE(start_time) = CURRENT_DATE()
   AND status = "FAILED"
 GROUP BY error_message

@@ -320,7 +320,7 @@ class DataQualityValidator:
         try:
             # Use tenant-specific metadata dataset
             metadata_dataset = settings.get_tenant_dataset_name(tenant_id, "metadata")
-            metadata_table = f"{settings.gcp_project_id}.{metadata_dataset}.x_meta_dq_results"
+            metadata_table = f"{settings.gcp_project_id}.{metadata_dataset}.tenant_dq_results"
 
             errors = self.bq_client.client.insert_rows_json(metadata_table, [row])
 

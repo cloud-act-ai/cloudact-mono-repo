@@ -97,7 +97,7 @@ Function: `_create_metadata_tables()` (Line 686-700)
 
 ### Current Code
 ```python
-CREATE TABLE IF NOT EXISTS `{dataset_id}.x_meta_pipeline_runs` (
+CREATE TABLE IF NOT EXISTS `{dataset_id}.tenant_pipeline_runs` (
     pipeline_logging_id STRING NOT NULL,
     tenant_id STRING NOT NULL,
     pipeline_id STRING NOT NULL,
@@ -110,7 +110,7 @@ CREATE TABLE IF NOT EXISTS `{dataset_id}.x_meta_pipeline_runs` (
 Remove `DEFAULT CURRENT_TIMESTAMP()` from schema:
 
 ```python
-CREATE TABLE IF NOT EXISTS `{dataset_id}.x_meta_pipeline_runs` (
+CREATE TABLE IF NOT EXISTS `{dataset_id}.tenant_pipeline_runs` (
     pipeline_logging_id STRING NOT NULL,
     tenant_id STRING NOT NULL,
     pipeline_id STRING NOT NULL,

@@ -144,7 +144,7 @@ Body: {date: "2025-11-17"}
               ↓
 Authenticate (API Key → tenant_id) → Check Quota → Execute Pipeline
               ↓
-Logs to: tenants.x_meta_pipeline_runs (with user_id for audit)
+Logs to: tenants.tenant_pipeline_runs (with user_id for audit)
               ↓
 Increment Quota: UPDATE tenant_usage_quotas SET pipelines_run_today + 1
               ↓
@@ -212,11 +212,11 @@ The system uses **API-based bootstrap** instead of manual SQL files:
 - tenant_pipeline_execution_queue
 
 **2. Per-Tenant Datasets** (`{tenant_id}`)
-- x_meta_step_logs
-- x_meta_dq_results
+- tenant_step_logs
+- tenant_dq_results
 - Data tables (gcp_cost_billing, aws_cost_billing, etc.)
 
-**Note:** `x_meta_pipeline_runs` is stored centrally in the `tenants` dataset for tracking all pipeline executions across all tenants.
+**Note:** `tenant_pipeline_runs` is stored centrally in the `tenants` dataset for tracking all pipeline executions across all tenants.
 
 ### Tenant vs User
 

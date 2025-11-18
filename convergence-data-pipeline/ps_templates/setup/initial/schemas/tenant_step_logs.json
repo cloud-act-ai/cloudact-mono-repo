@@ -6,6 +6,12 @@
     "description": "Unique identifier (UUID) for this specific step execution within a pipeline run. Used to track individual step performance and correlate with external monitoring systems. Each step execution gets a unique ID even across retries."
   },
   {
+    "name": "tenant_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Tenant identifier for multi-tenancy isolation"
+  },
+  {
     "name": "pipeline_logging_id",
     "type": "STRING",
     "mode": "REQUIRED",

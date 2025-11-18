@@ -30,20 +30,15 @@ steps:
       default_monthly_limit: 1000  # Monthly pipeline runs allowed
       default_concurrent_limit: 5  # Concurrent pipelines allowed
 
-      # Metadata tables to create (ONLY operational tables in tenant dataset)
-      # NOTE: API keys and credentials are stored in central 'tenants' dataset
-      metadata_tables:
-        - table_name: "x_meta_pipeline_runs"
-          schema_file: "x_meta_pipeline_runs.json"
-          description: "Pipeline execution history"
-
-        - table_name: "x_meta_step_logs"
-          schema_file: "x_meta_step_logs.json"
-          description: "Step-by-step execution logs"
-
-        - table_name: "x_meta_dq_results"
-          schema_file: "x_meta_dq_results.json"
-          description: "Data quality validation results"
+      # Metadata tables are NOW in central 'tenants' dataset:
+      # - tenant_pipeline_runs (pipeline execution logs)
+      # - tenant_step_logs (step-by-step execution logs)
+      # - tenant_dq_results (data quality validation results)
+      #
+      # Per-tenant dataset contains ONLY:
+      # - Data tables (gcp_cost_billing, etc.)
+      # - Optional validation/test tables
+      metadata_tables: []
 
       # Validation test
       create_validation_table: true
@@ -72,7 +67,7 @@ steps:
 
       Infrastructure Created:
       - BigQuery Dataset: {dataset_id}
-      - Metadata Tables: 3 operational tables (x_meta_*)
+      - Metadata Tables: Centralized in 'tenants' dataset (tenant_*)
       - API Key: Generated (stored in central tenants dataset)
 
       Next Steps:
@@ -106,6 +101,6 @@ steps:
       Trigger By: {trigger_by}
 
       Please investigate the logs in:
-      {gcp_project_id}.{dataset_id}.x_meta_step_logs
+      {gcp_project_id}.tenants.tenant_step_logs (filter by tenant_id={tenant_id})
 
       Or check the onboarding endpoint logs.

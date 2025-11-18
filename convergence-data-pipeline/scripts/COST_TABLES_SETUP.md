@@ -67,7 +67,7 @@ This document summarizes the cost-related tables created in BigQuery for the `gu
 
 All tenant data is stored in a single dataset:
 - Cost tables: `billing_cost_daily`
-- Metadata tables: `x_meta_pipeline_runs`, `x_meta_step_logs`, etc.
+- Metadata tables: `tenant_pipeline_runs`, `tenant_step_logs`, etc.
 - Data tables: Various data processing tables
 
 The `destination_dataset_type: "gcp_silver_cost"` configuration value is used for organizational purposes but does not create separate datasets.
@@ -179,7 +179,7 @@ python scripts/create_cost_tables.py --tenant-id guru_232342 --verify
 
 2. **Monitor Ingestion**: Check pipeline execution logs
    ```sql
-   SELECT * FROM `gac-prod-471220.tenants.x_meta_pipeline_runs`
+   SELECT * FROM `gac-prod-471220.tenants.tenant_pipeline_runs`
    WHERE tenant_id = 'guru_232342'
      AND pipeline_id = 'guru_232342_gcp_cost_billing'
    ORDER BY start_time DESC

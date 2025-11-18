@@ -38,9 +38,9 @@ This document provides comprehensive flow diagrams for the convergence data pipe
 │  │ DATASET: {tenant_id} (Isolated per tenant, e.g., acmeinc_23xv2)     │    │
 │  ├─────────────────────────────────────────────────────────────────────┤    │
 │  │ Tables (Isolated operational data):                                 │    │
-│  │  • x_meta_pipeline_runs            - Pipeline execution logs        │    │
-│  │  • x_meta_step_logs                - Step-level execution logs      │    │
-│  │  • x_meta_dq_results               - Data quality results           │    │
+│  │  • tenant_pipeline_runs            - Pipeline execution logs        │    │
+│  │  • tenant_step_logs                - Step-level execution logs      │    │
+│  │  • tenant_dq_results               - Data quality results           │    │
 │  │  • {custom_tables}                 - Business data tables           │    │
 │  └─────────────────────────────────────────────────────────────────────┘    │
 │                                                                               │
@@ -164,21 +164,21 @@ Content-Type: application/json
 │                                                                              │
 │ 2. Create Operational Tables (NO API keys, NO credentials):                 │
 │                                                                              │
-│    CREATE TABLE `gac-prod-471220.tenants.x_meta_pipeline_runs`             │
+│    CREATE TABLE `gac-prod-471220.tenants.tenant_pipeline_runs`             │
 │    PARTITION BY DATE(start_time)                                            │
 │    CLUSTER BY (tenant_id, pipeline_id, status)                              │
 │    Schema: pipeline_logging_id, pipeline_id, tenant_id, status,            │
 │            trigger_type, trigger_by, user_id, start_time, end_time,        │
 │            duration_ms, run_date, parameters                                │
 │                                                                              │
-│    CREATE TABLE `gac-prod-471220.acmeinc_23xv2.x_meta_step_logs`           │
+│    CREATE TABLE `gac-prod-471220.acmeinc_23xv2.tenant_step_logs`           │
 │    PARTITION BY DATE(start_time)                                            │
 │    CLUSTER BY (pipeline_logging_id, status)                                 │
 │    Schema: step_log_id, pipeline_logging_id, step_name, status,            │
 │            start_time, end_time, duration_ms, rows_processed,              │
 │            error_message, retry_count                                       │
 │                                                                              │
-│    CREATE TABLE `gac-prod-471220.acmeinc_23xv2.x_meta_dq_results`          │
+│    CREATE TABLE `gac-prod-471220.acmeinc_23xv2.tenant_dq_results`          │
 │    PARTITION BY DATE(ingestion_date)                                        │
 │    CLUSTER BY (tenant_id, target_table, overall_status)                     │
 │    Schema: dq_result_id, tenant_id, target_table, validation_rules,        │
@@ -209,8 +209,8 @@ Content-Type: application/json
 │    c) Validate BigQuery access, permissions, and table creation            │
 │                                                                              │
 │ 4. Log execution to:                                                         │
-│    tenants.x_meta_pipeline_runs                                             │
-│    acmeinc_23xv2.x_meta_step_logs                                           │
+│    tenants.tenant_pipeline_runs                                             │
+│    acmeinc_23xv2.tenant_step_logs                                           │
 │                                                                              │
 │ Result: dryrun_status='SUCCESS' or 'FAILED'                                 │
 └──────────────────────────┬───────────────────────────────────────────────────┘
@@ -226,9 +226,9 @@ Content-Type: application/json
 │   "subscription_plan": "PROFESSIONAL",                                       │
 │   "dataset_created": true,                                                   │
 │   "tables_created": [                                                        │
-│     "x_meta_pipeline_runs",                                                  │
-│     "x_meta_step_logs",                                                      │
-│     "x_meta_dq_results"                                                      │
+│     "tenant_pipeline_runs",                                                  │
+│     "tenant_step_logs",                                                      │
+│     "tenant_dq_results"                                                      │
 │   ],                                                                         │
 │   "dryrun_status": "SUCCESS",                                                │
 │   "message": "Tenant Acme Inc onboarded successfully. API key generated."  │
@@ -245,8 +245,8 @@ Content-Type: application/json
 │ tenants.tenant_usage_quotas:       1 row (0/25 pipelines used today)        │
 │                                                                              │
 │ Dataset Created: gac-prod-471220.acmeinc_23xv2                              │
-│   • x_meta_step_logs (empty)                                                │
-│   • x_meta_dq_results (empty)                                               │
+│   • tenant_step_logs (empty)                                                │
+│   • tenant_dq_results (empty)                                               │
 │   • x_meta_onboarding_dryrun_test (1 test row)                              │
 │                                                                              │
 │ Tenant is now ACTIVE and ready to execute pipelines                         │
@@ -383,7 +383,7 @@ Content-Type: application/json
 ├──────────────────────────────────────────────────────────────────────────────┤
 │ Use conditional INSERT to prevent duplicate pipeline execution:             │
 │                                                                              │
-│ INSERT INTO `gac-prod-471220.tenants.x_meta_pipeline_runs`                 │
+│ INSERT INTO `gac-prod-471220.tenants.tenant_pipeline_runs`                 │
 │ (pipeline_logging_id, pipeline_id, tenant_id, status, trigger_type,        │
 │  trigger_by, user_id, start_time, run_date, parameters)                    │
 │ SELECT * FROM (                                                              │
@@ -401,7 +401,7 @@ Content-Type: application/json
 │ ) AS new_run                                                                 │
 │ WHERE NOT EXISTS (                                                           │
 │   SELECT 1                                                                   │
-│   FROM `gac-prod-471220.tenants.x_meta_pipeline_runs`                      │
+│   FROM `gac-prod-471220.tenants.tenant_pipeline_runs`                      │
 │   WHERE tenant_id = 'acmeinc_23xv2'                                         │
 │     AND pipeline_id = 'acmeinc_23xv2-gcp-cost-billing_cost'                │
 │     AND status IN ('RUNNING', 'PENDING')                                    │
@@ -424,7 +424,7 @@ Content-Type: application/json
 │ 1. Load Template:         │  │ Query existing pipeline:         │
 │    Path: configs/gcp/cost/│  │ SELECT pipeline_logging_id       │
 │          billing_cost.yml │  │ FROM acmeinc_23xv2.              │
-│                           │  │      x_meta_pipeline_runs        │
+│                           │  │      tenant_pipeline_runs        │
 │ 2. Resolve Variables:     │  │ WHERE status IN ('RUNNING',      │
 │    {tenant_id}           │  │                  'PENDING')       │
 │    → 'acmeinc_23xv2'     │  │                                  │
@@ -444,7 +444,7 @@ Content-Type: application/json
 │    a) Update status:      │
 │       UPDATE              │
 │       tenants.            │
-│       x_meta_pipeline_runs│
+│       tenant_pipeline_runs│
 │       SET status='RUNNING'│
 │                           │
 │    b) Execute each step:  │
@@ -452,12 +452,12 @@ Content-Type: application/json
 │       - Transform data    │
 │       - Load to BQ        │
 │       - Log to            │
-│         x_meta_step_logs  │
+│         tenant_step_logs  │
 │                           │
 │    c) Finalize:           │
 │       UPDATE              │
 │       tenants.            │
-│       x_meta_pipeline_runs│
+│       tenant_pipeline_runs│
 │       SET status='COMPLETE│
 │           end_time=NOW()  │
 │           duration_ms=... │
@@ -496,7 +496,7 @@ Content-Type: application/json
 │                    DATABASE STATE AFTER EXECUTION                            │
 ├──────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
-│ tenants.x_meta_pipeline_runs:                                               │
+│ tenants.tenant_pipeline_runs:                                               │
 │   • pipeline_logging_id: "a1b2c3d4-..."                                     │
 │   • pipeline_id: "acmeinc_23xv2-gcp-cost-billing_cost"                     │
 │   • tenant_id: "acmeinc_23xv2"                                              │
@@ -509,7 +509,7 @@ Content-Type: application/json
 │   • duration_ms: 135000                                                      │
 │   • run_date: 2025-11-15                                                     │
 │                                                                              │
-│ acmeinc_23xv2.x_meta_step_logs: (3 rows)                                    │
+│ acmeinc_23xv2.tenant_step_logs: (3 rows)                                    │
 │   • Step 1: extract_billing_data - COMPLETE                                 │
 │   • Step 2: transform_cost_data - COMPLETE                                  │
 │   • Step 3: load_to_bq - COMPLETE                                           │
@@ -833,7 +833,7 @@ Automated pipeline execution orchestrated by Google Cloud Scheduler using HTTP t
 │    pipeline_logging_id = "p7q8r9s0-t1u2-v3w4-x5y6-z7a8b9c0d1e2"            │
 │                                                                              │
 │ 3. Insert into tenant pipeline runs:                                         │
-│    INSERT INTO tenants.x_meta_pipeline_runs                                 │
+│    INSERT INTO tenants.tenant_pipeline_runs                                 │
 │    (pipeline_logging_id, pipeline_id, tenant_id, status,                   │
 │     trigger_type, trigger_by, user_id, start_time, parameters)             │
 │    VALUES                                                                    │
@@ -849,10 +849,10 @@ Automated pipeline execution orchestrated by Google Cloud Scheduler using HTTP t
 │       - Analyze security events                                              │
 │       - Generate audit report                                                │
 │       - Load results to BigQuery                                             │
-│    d) Log each step to megacorp_xyz.x_meta_step_logs                        │
+│    d) Log each step to megacorp_xyz.tenant_step_logs                        │
 │                                                                              │
 │ 5. Update status to RUNNING:                                                 │
-│    UPDATE tenants.x_meta_pipeline_runs                                      │
+│    UPDATE tenants.tenant_pipeline_runs                                      │
 │    SET status = 'RUNNING'                                                    │
 │    WHERE pipeline_logging_id = 'p7q8r9s0-...'                               │
 │                                                                              │
@@ -947,11 +947,11 @@ Automated pipeline execution orchestrated by Google Cloud Scheduler using HTTP t
 │   • run_id "r1s2t3u4-..." state=COMPLETED, completed_at=NOW()              │
 │   • pipeline_logging_id="p7q8r9s0-..." (links to tenant run)               │
 │                                                                              │
-│ tenants.x_meta_pipeline_runs:                                               │
+│ tenants.tenant_pipeline_runs:                                               │
 │   • pipeline_logging_id="p7q8r9s0-..."                                      │
 │   • status=COMPLETE, trigger_type=scheduler, user_id=NULL                   │
 │                                                                              │
-│ megacorp_xyz.x_meta_step_logs:                                              │
+│ megacorp_xyz.tenant_step_logs:                                              │
 │   • 4 step logs for pipeline execution                                       │
 │                                                                              │
 │ tenants.tenant_usage_quotas:                                                │
@@ -1063,9 +1063,9 @@ Automated pipeline execution orchestrated by Google Cloud Scheduler using HTTP t
 
 | Table Name | Purpose | Updated By |
 |------------|---------|------------|
-| `x_meta_pipeline_runs` | Pipeline execution logs | Pipeline executor, Scheduler |
-| `x_meta_step_logs` | Step-level execution logs | Pipeline executor |
-| `x_meta_dq_results` | Data quality validation results | DQ validator |
+| `tenant_pipeline_runs` | Pipeline execution logs | Pipeline executor, Scheduler |
+| `tenant_step_logs` | Step-level execution logs | Pipeline executor |
+| `tenant_dq_results` | Data quality validation results | DQ validator |
 
 ---
 
@@ -1101,7 +1101,7 @@ Automated pipeline execution orchestrated by Google Cloud Scheduler using HTTP t
 │                                                                              │
 │ Scheduler-triggered pipelines are logged with:                               │
 │                                                                              │
-│ tenants.x_meta_pipeline_runs:                                               │
+│ tenants.tenant_pipeline_runs:                                               │
 │   • trigger_type = "scheduler"                                               │
 │   • trigger_by = "cloud_scheduler"                                           │
 │   • user_id = NULL  ← No user context for automated runs                     │

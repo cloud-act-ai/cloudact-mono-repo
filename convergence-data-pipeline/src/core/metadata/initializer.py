@@ -60,9 +60,9 @@ class MetadataInitializer:
 
         # Create metadata tables in the tenant dataset
         # Note: API keys and credentials are now centralized in tenants dataset
-        self._ensure_x_meta_pipeline_runs_table(dataset_name, recreate=force_recreate_tables)
-        self._ensure_x_meta_step_logs_table(dataset_name, recreate=force_recreate_tables)
-        self._ensure_x_meta_dq_results_table(dataset_name, recreate=force_recreate_tables)
+        self._ensure_tenant_pipeline_runs_table(dataset_name, recreate=force_recreate_tables)
+        self._ensure_tenant_step_logs_table(dataset_name, recreate=force_recreate_tables)
+        self._ensure_tenant_dq_results_table(dataset_name, recreate=force_recreate_tables)
 
         logger.info(f"Metadata infrastructure ready for tenant: {tenant_id}")
 
@@ -71,7 +71,7 @@ class MetadataInitializer:
         Load BigQuery schema from JSON file in configs/metadata/schemas/.
 
         Args:
-            table_name: Name of the table (e.g., 'x_meta_pipeline_runs', 'x_meta_step_logs')
+            table_name: Name of the table (e.g., 'tenant_pipeline_runs', 'tenant_step_logs')
 
         Returns:
             List of SchemaField objects
@@ -128,18 +128,18 @@ class MetadataInitializer:
             self.client.create_dataset(dataset, timeout=30)
             logger.info(f"Created dataset: {dataset_id}")
 
-    def _ensure_x_meta_pipeline_runs_table(self, dataset_name: str, recreate: bool = False) -> None:
+    def _ensure_tenant_pipeline_runs_table(self, dataset_name: str, recreate: bool = False) -> None:
         """
-        Create x_meta_pipeline_runs table if it doesn't exist.
+        Create tenant_pipeline_runs table if it doesn't exist.
 
         Args:
             dataset_name: Dataset name
             recreate: If True, delete and recreate table even if it exists
         """
-        table_id = f"{self.project_id}.{dataset_name}.x_meta_pipeline_runs"
+        table_id = f"{self.project_id}.{dataset_name}.tenant_pipeline_runs"
 
         # Load schema from JSON configuration file
-        schema = self._load_schema_from_json("x_meta_pipeline_runs")
+        schema = self._load_schema_from_json("tenant_pipeline_runs")
 
         if recreate:
             logger.info(f"Recreating table (delete + create): {table_id}")
@@ -166,18 +166,18 @@ class MetadataInitializer:
             self.client.create_table(table)
             logger.info(f"Created table: {table_id}")
 
-    def _ensure_x_meta_step_logs_table(self, dataset_name: str, recreate: bool = False) -> None:
+    def _ensure_tenant_step_logs_table(self, dataset_name: str, recreate: bool = False) -> None:
         """
-        Create x_meta_step_logs table if it doesn't exist.
+        Create tenant_step_logs table if it doesn't exist.
 
         Args:
             dataset_name: Dataset name
             recreate: If True, delete and recreate table even if it exists
         """
-        table_id = f"{self.project_id}.{dataset_name}.x_meta_step_logs"
+        table_id = f"{self.project_id}.{dataset_name}.tenant_step_logs"
 
         # Load schema from JSON configuration file
-        schema = self._load_schema_from_json("x_meta_step_logs")
+        schema = self._load_schema_from_json("tenant_step_logs")
 
         if recreate:
             logger.info(f"Recreating table (delete + create): {table_id}")
@@ -204,18 +204,18 @@ class MetadataInitializer:
             self.client.create_table(table)
             logger.info(f"Created table: {table_id}")
 
-    def _ensure_x_meta_dq_results_table(self, dataset_name: str, recreate: bool = False) -> None:
+    def _ensure_tenant_dq_results_table(self, dataset_name: str, recreate: bool = False) -> None:
         """
-        Create x_meta_dq_results table if it doesn't exist.
+        Create tenant_dq_results table if it doesn't exist.
 
         Args:
             dataset_name: Dataset name
             recreate: If True, delete and recreate table even if it exists
         """
-        table_id = f"{self.project_id}.{dataset_name}.x_meta_dq_results"
+        table_id = f"{self.project_id}.{dataset_name}.tenant_dq_results"
 
         # Load schema from JSON configuration file
-        schema = self._load_schema_from_json("x_meta_dq_results")
+        schema = self._load_schema_from_json("tenant_dq_results")
 
         if recreate:
             logger.info(f"Recreating table (delete + create): {table_id}")

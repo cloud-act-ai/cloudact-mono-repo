@@ -65,9 +65,9 @@ destination:
   - Validates BigQuery permissions
   - Generates API keys (stored in central tenants.tenant_api_keys)
 - **Per-Tenant Metadata Tables Created**:
-  - `x_meta_pipeline_runs` - Execution tracking
-  - `x_meta_step_logs` - Detailed logs
-  - `x_meta_dq_results` - Data quality results
+  - `tenant_pipeline_runs` - Execution tracking
+  - `tenant_step_logs` - Detailed logs
+  - `tenant_dq_results` - Data quality results
 - **Note**: API keys and cloud credentials are stored in the central `tenants` dataset:
   - `tenants.tenant_api_keys` - Authentication
   - `tenants.tenant_cloud_credentials` - Encrypted credentials

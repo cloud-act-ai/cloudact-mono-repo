@@ -78,8 +78,8 @@ credential_id (STRING), tenant_id, provider (GCP/AWS/AZURE/OPENAI/CLAUDE), encry
 
 **Dataset**: `tenants` (centralized for all tenants)
 
-### x_meta_pipeline_runs
-**Location**: `tenants.x_meta_pipeline_runs` (centralized, not per-tenant)
+### tenant_pipeline_runs
+**Location**: `tenants.tenant_pipeline_runs` (centralized, not per-tenant)
 
 pipeline_logging_id (UUID), pipeline_id, tenant_id, status (PENDING/RUNNING/COMPLETED/FAILED), trigger_type (api/scheduler/manual), user_id, start_time (partition key), end_time, duration_ms, error_message, parameters (JSON)
 
@@ -87,10 +87,10 @@ pipeline_logging_id (UUID), pipeline_id, tenant_id, status (PENDING/RUNNING/COMP
 
 **Dataset**: `{tenant_id}` (per-tenant isolation)
 
-### x_meta_step_logs
+### tenant_step_logs
 step_logging_id (UUID), pipeline_logging_id, step_name, step_type (bigquery_to_bigquery/data_quality), step_index, status (PENDING/RUNNING/COMPLETED/FAILED/SKIPPED), start_time (partition key), duration_ms, rows_processed, metadata (JSON)
 
-### x_meta_dq_results
+### tenant_dq_results
 dq_result_id (UUID), pipeline_logging_id, tenant_id, target_table, dq_config_id, executed_at, expectations_passed, expectations_failed, failed_expectations (JSON), overall_status (PASS/WARNING/FAIL), ingestion_date (partition key)
 
 ---

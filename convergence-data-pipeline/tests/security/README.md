@@ -65,7 +65,7 @@ pytest tests/security/test_multi_tenant_isolation.py::test_team_member_isolation
    - Creates two test tenants (Tenant A and Tenant B)
    - Creates isolated BigQuery datasets for each tenant
    - Generates and stores API keys for each tenant in central `tenants.tenant_api_keys` table
-   - Sets up per-tenant metadata tables (`x_meta_pipeline_runs`, `x_meta_step_logs`, `x_meta_dq_results`)
+   - Sets up per-tenant metadata tables (`tenant_pipeline_runs`, `tenant_step_logs`, `tenant_dq_results`)
 
 2. **Test Execution** (runs for each test)
    - Simulates attack scenarios (cross-tenant access attempts)

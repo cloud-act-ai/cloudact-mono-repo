@@ -302,8 +302,8 @@ async def trigger_templated_pipeline(
     pipeline_logging_id = str(uuid.uuid4())
 
     # ATOMIC: Insert pipeline run ONLY IF no RUNNING/PENDING pipeline exists
-    # Use centralized metadata table: tenants.x_meta_pipeline_runs
-    tenant_pipeline_runs_table = f"{settings.gcp_project_id}.tenants.x_meta_pipeline_runs"
+    # Use centralized metadata table: tenants.tenant_pipeline_runs
+    tenant_pipeline_runs_table = f"{settings.gcp_project_id}.tenants.tenant_pipeline_runs"
 
     insert_query = f"""
     INSERT INTO `{tenant_pipeline_runs_table}`
@@ -374,7 +374,8 @@ async def trigger_templated_pipeline(
         )
     else:
         # Pipeline already running/pending - use tenant-specific metadata table
-        tenant_pipeline_runs_table = f"{settings.gcp_project_id}.{tenant.tenant_id}.x_meta_pipeline_runs"
+        # Use CENTRAL tenants dataset for all metadata (not per-tenant)
+        tenant_pipeline_runs_table = f"{settings.gcp_project_id}.tenants.tenant_pipeline_runs"
 
         check_query = f"""
         SELECT pipeline_logging_id
@@ -462,7 +463,7 @@ async def trigger_pipeline(
     # ATOMIC: Insert pipeline run ONLY IF no RUNNING/PENDING pipeline exists
     # This single DML operation prevents race conditions by being atomic
     insert_query = f"""
-    INSERT INTO `{settings.gcp_project_id}.tenants.x_meta_pipeline_runs`
+    INSERT INTO `{settings.gcp_project_id}.tenants.tenant_pipeline_runs`
     (pipeline_logging_id, pipeline_id, tenant_id, status, trigger_type, trigger_by, user_id, start_time, run_date, parameters)
     SELECT * FROM (
         SELECT
@@ -479,7 +480,7 @@ async def trigger_pipeline(
     ) AS new_run
     WHERE NOT EXISTS (
         SELECT 1
-        FROM `{settings.gcp_project_id}.tenants.x_meta_pipeline_runs`
+        FROM `{settings.gcp_project_id}.tenants.tenant_pipeline_runs`
         WHERE tenant_id = @tenant_id
           AND pipeline_id = @pipeline_id
           AND status IN ('RUNNING', 'PENDING')
@@ -533,7 +534,7 @@ async def trigger_pipeline(
         # Query to get the existing pipeline_logging_id
         check_query = f"""
         SELECT pipeline_logging_id
-        FROM `{settings.gcp_project_id}.tenants.x_meta_pipeline_runs`
+        FROM `{settings.gcp_project_id}.tenants.tenant_pipeline_runs`
         WHERE tenant_id = @tenant_id
           AND pipeline_id = @pipeline_id
           AND status IN ('RUNNING', 'PENDING')
@@ -590,7 +591,7 @@ async def get_pipeline_run(
         start_time,
         end_time,
         duration_ms
-    FROM `{settings.gcp_project_id}.tenants.x_meta_pipeline_runs`
+    FROM `{settings.gcp_project_id}.tenants.tenant_pipeline_runs`
     WHERE pipeline_logging_id = @pipeline_logging_id
       AND tenant_id = @tenant_id
     LIMIT 1
@@ -667,7 +668,7 @@ async def list_pipeline_runs(
         start_time,
         end_time,
         duration_ms
-    FROM `{settings.gcp_project_id}.tenants.x_meta_pipeline_runs`
+    FROM `{settings.gcp_project_id}.tenants.tenant_pipeline_runs`
     WHERE {where_sql}
     ORDER BY start_time DESC
     LIMIT @limit

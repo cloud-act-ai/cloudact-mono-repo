@@ -243,7 +243,7 @@ Tracks scheduled pipeline runs and their state lifecycle.
 | scheduled_time | TIMESTAMP | When pipeline should run |
 | created_at | TIMESTAMP | When run was created |
 | updated_at | TIMESTAMP | Last state change |
-| pipeline_logging_id | STRING | Links to x_meta_pipeline_runs |
+| pipeline_logging_id | STRING | Links to tenant_pipeline_runs |
 | retry_count | INTEGER | Number of retry attempts |
 | error_message | STRING | Error from last failure |
 | metadata | JSON | Additional execution metadata |

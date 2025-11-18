@@ -335,9 +335,9 @@ async def onboard_tenant(
 
         # Create ONLY operational tables (NO API keys or credentials)
         operational_tables = [
-            "x_meta_pipeline_runs",
-            "x_meta_step_logs",
-            "x_meta_dq_results"
+            "tenant_pipeline_runs",
+            "tenant_step_logs",
+            "tenant_dq_results"
         ]
 
         for table_name in operational_tables:
@@ -364,19 +364,19 @@ async def onboard_tenant(
                 table = bigquery.Table(table_id, schema=schema)
 
                 # Add partitioning and clustering based on table type
-                if table_name == "x_meta_pipeline_runs":
+                if table_name == "tenant_pipeline_runs":
                     table.time_partitioning = bigquery.TimePartitioning(
                         type_=bigquery.TimePartitioningType.DAY,
                         field="start_time"
                     )
                     table.clustering_fields = ["tenant_id", "pipeline_id", "status"]
-                elif table_name == "x_meta_step_logs":
+                elif table_name == "tenant_step_logs":
                     table.time_partitioning = bigquery.TimePartitioning(
                         type_=bigquery.TimePartitioningType.DAY,
                         field="start_time"
                     )
                     table.clustering_fields = ["pipeline_logging_id", "status"]
-                elif table_name == "x_meta_dq_results":
+                elif table_name == "tenant_dq_results":
                     table.time_partitioning = bigquery.TimePartitioning(
                         type_=bigquery.TimePartitioningType.DAY,
                         field="ingestion_date"

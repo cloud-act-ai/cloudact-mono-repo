@@ -94,9 +94,9 @@ acme123_gold_analytics   # Analytics
 
 **Metadata Isolation:**
 - Centralized: `tenants` dataset (shared, filtered by tenant_id)
-  - Contains: tenant_api_keys, tenant_profiles, tenant_subscriptions, tenant_usage_quotas, tenant_cloud_credentials, x_meta_pipeline_runs (centralized)
+  - Contains: tenant_api_keys, tenant_profiles, tenant_subscriptions, tenant_usage_quotas, tenant_cloud_credentials, tenant_pipeline_runs (centralized)
 - Per-tenant: `{tenant_id}` dataset (fully isolated)
-  - Contains: x_meta_step_logs, x_meta_dq_results, operational data tables
+  - Contains: tenant_step_logs, tenant_dq_results, operational data tables
 
 ---
 
@@ -114,9 +114,9 @@ curl -H "X-API-Key: tenant-key" \
 ```
 
 **Stored In:**
-- `tenants.x_meta_pipeline_runs` - User who triggered pipeline (centralized for all tenants)
-- `{tenant_id}.x_meta_step_logs` - User context for logs
-- `{tenant_id}.x_meta_dq_results` - User who ran DQ checks
+- `tenants.tenant_pipeline_runs` - User who triggered pipeline (centralized for all tenants)
+- `{tenant_id}.tenant_step_logs` - User context for logs
+- `{tenant_id}.tenant_dq_results` - User who ran DQ checks
 
 **Note:** Authentication is via API key only. `user_id` is for logging/auditing.
 

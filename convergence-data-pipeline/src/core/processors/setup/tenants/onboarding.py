@@ -64,7 +64,7 @@ class TenantOnboardingProcessor:
             dataset.description = f"Dataset for tenant {dataset_id}"
 
             try:
-                await bq_client.create_dataset(dataset)
+                await bq_client.create_dataset_raw(dataset)
                 self.logger.info(f"Created dataset: {full_dataset_id}")
                 return True
             except Exception as e:
@@ -94,19 +94,20 @@ class TenantOnboardingProcessor:
                 table.description = description
 
             # Add partitioning for tables that need it
-            if table_name in ["x_meta_pipeline_runs", "x_meta_step_logs"]:
+            # NOTE: tenant_pipeline_runs is in central dataset, not created here
+            if table_name == "tenant_step_logs":
                 table.time_partitioning = bigquery.TimePartitioning(
                     type_=bigquery.TimePartitioningType.DAY,
                     field="start_time"
                 )
-            elif table_name == "x_meta_dq_results":
+            elif table_name == "tenant_dq_results":
                 table.time_partitioning = bigquery.TimePartitioning(
                     type_=bigquery.TimePartitioningType.DAY,
                     field="ingestion_date"
                 )
 
             try:
-                await bq_client.create_table(table)
+                await bq_client.create_table_raw(table)
                 self.logger.info(f"Created table: {full_table_id}")
                 return True
             except Exception as e:
@@ -292,6 +293,9 @@ class TenantOnboardingProcessor:
                 except Exception as e:
                     self.logger.warning(f"Failed to insert test record: {e}")
 
+        # Step 4: Create tenant-specific comprehensive view
+        self._create_tenant_comprehensive_view(tenant_id, dataset_id)
+
         # Prepare result
         result = {
             "status": "SUCCESS" if not tables_failed else "PARTIAL",
@@ -312,6 +316,38 @@ class TenantOnboardingProcessor:
         )
 
         return result
+
+    def _create_tenant_comprehensive_view(self, tenant_id: str, dataset_id: str):
+        """Create tenant-specific comprehensive view in tenant's dataset."""
+        from pathlib import Path
+
+        # Navigate to view template
+        view_file = Path(__file__).parent.parent.parent.parent.parent.parent / "ps_templates" / "setup" / "initial" / "views" / "tenant_comprehensive_view.sql"
+
+        if not view_file.exists():
+            self.logger.warning(f"View SQL file not found: {view_file}")
+            return
+
+        try:
+            with open(view_file, 'r') as f:
+                view_sql = f.read()
+
+            # Replace placeholders
+            view_sql = view_sql.replace('{project_id}', self.settings.gcp_project_id)
+            view_sql = view_sql.replace('{tenant_id}', tenant_id)
+
+            # Execute view creation
+            from google.cloud import bigquery
+            client = bigquery.Client(project=self.settings.gcp_project_id)
+            query_job = client.query(view_sql)
+            query_job.result()  # Wait for completion
+
+            self.logger.info(
+                f"Created comprehensive view: {self.settings.gcp_project_id}.{dataset_id}.tenant_comprehensive_view"
+            )
+
+        except Exception as e:
+            self.logger.error(f"Failed to create tenant comprehensive view: {e}", exc_info=True)
 
 
 # Function for pipeline executor to call

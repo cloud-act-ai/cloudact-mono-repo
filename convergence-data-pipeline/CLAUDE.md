@@ -1,339 +1,170 @@
 # CLAUDE.md - Convergence Data Pipeline Project Mandates
 
-## 🔒 CRITICAL PROJECT RULES (MANDATORY)
+## 🔒 KEEP IT SIMPLE - Core Architecture
 
-### 1. Configuration-Driven Architecture
+### Pipeline Execution Flow (SCHEDULER-DRIVEN)
 
-**CORE PRINCIPLE**: All pipelines execute as YAML configurations, NOT hardcoded logic.
+**Cloud Scheduler** → Checks tenants with pipelines DUE → Runs ALL pipelines for those tenants
 
 ```
-Frontend → API → Pipeline Config (YAML) → Processor Engine → BigQuery
-                 ↑
-        configs/gcp/cost/cost_billing.yml
+Cloud Scheduler (hourly)
+    ↓
+POST /api/v1/scheduler/trigger
+    ↓
+Query: tenant_pipeline_configs WHERE is_active=TRUE AND next_run_time <= NOW
+    ↓
+For EACH tenant with due pipelines:
+    → Queue ALL their pipelines
+    → Run them via AsyncPipelineExecutor
+    ↓
+Logs to: tenants.tenant_pipeline_runs (centralized)
 ```
 
-### 2. API-Based Operations (NO Manual Execution)
+**NOT**: "Manual execution OR scheduler"
+**IS**: Cloud Scheduler triggers, finds DUE tenants, runs ALL their pipelines
 
-**✅ DO:**
-- Use API endpoints for all operations
-- Bootstrap via `POST /admin/bootstrap` or `python deployment/setup_bigquery_datasets.py`
-- Onboard tenants via `POST /api/v1/tenants/onboard`
-- Execute pipelines via `POST /api/v1/pipelines/run/{tenant_id}/{provider}/{domain}/{template}`
+---
 
-**❌ DON'T:**
-- Execute manual SQL scripts directly
-- Run tenant operations outside of API
-- Create datasets/tables manually via BigQuery console
-- Bypass API authentication
+## 📋 Simple Operations
 
-### 3. Documentation Structure (MANDATORY)
+### 1. Bootstrap (ONE-TIME SETUP)
 
-**✅ ALLOWED in root:**
-- `CLAUDE.md` - Project mandates (this file)
-- `README.md` - Project overview
-
-**✅ ALL other docs in `docs/`:**
-```
-docs/
-├── api/                    # API documentation
-├── architecture/           # System architecture
-├── guides/                 # Implementation guides
-├── reference/              # Technical references
-└── security/              # Security guidelines
+**Command**: Run bootstrap via test agent
+```bash
+python tests/test_bootstrap_setup.py
 ```
 
-**❌ FORBIDDEN:**
-- `.md` files in root (except CLAUDE.md and README.md)
-- Documentation in `tests/` folder
-- Random doc files scattered in project
+**What it does**: Executes `configs/setup/bootstrap_system.yml` pipeline
+**Creates**: Central `tenants` dataset + 9 management tables
 
-### 4. Parameterized Testing (MANDATORY)
+### 2. Onboard New Customer (VIA TEST)
 
-**✅ ALL tests MUST use JSON configurations:**
+**Command**: Run onboarding via test
+```bash
+python tests/test_config_tenant_onboarding.py
+```
 
+**What it does**: Executes `configs/setup/tenants/onboarding.yml` pipeline for each tenant in config
+**Creates**:
+- Tenant records in central `tenants` dataset
+- Per-tenant dataset with:
+  - Validation table (onboarding_validation_test)
+  - **tenant_comprehensive_view** - Comprehensive view showing all pipeline details for this tenant
+
+### 3. Run Pipelines (SCHEDULER-DRIVEN)
+
+**Cloud Scheduler Jobs**:
+1. **Hourly Trigger** (`0 * * * *`) → `POST /api/v1/scheduler/trigger`
+2. **Queue Processor** (`*/5 * * * *`) → `POST /api/v1/scheduler/process-queue`
+3. **Daily Reset** (`0 0 * * *`) → `POST /api/v1/scheduler/reset-daily-quotas`
+
+---
+
+## 🏗️ Architecture (SIMPLE)
+
+### Two Datasets
+
+**1. Central `tenants` Dataset** (ONE dataset for ALL tenants)
+
+*Management Tables (tenant_* prefix):*
+- tenant_profiles - Tenant info
+- tenant_api_keys - Authentication
+- tenant_subscriptions - Plans/limits
+- tenant_usage_quotas - Current usage
+- tenant_cloud_credentials - Encrypted creds
+- tenant_pipeline_configs - Which pipelines to run
+- tenant_scheduled_pipeline_runs - Scheduler state
+- tenant_pipeline_execution_queue - Execution queue
+
+*Execution Logs (tenant_* prefix - centralized):*
+- **tenant_pipeline_runs** - Pipeline execution logs
+- **tenant_step_logs** - Step execution logs
+- **tenant_dq_results** - Data quality results
+
+**NAMING CONVENTION**:
+- Central dataset: `tenant_*` prefix (ALL tables)
+- Per-tenant datasets: Data tables ONLY (no metadata)
+
+**2. Per-Tenant Datasets** (ONE per tenant: `{tenant_id}`)
+- Data tables (gcp_cost_billing, etc.)
+- **tenant_comprehensive_view** - View showing ALL pipeline execution details for this tenant only
+- Optional validation/test tables
+
+**KEY**:
+- ALL metadata TABLES (`tenant_*`) are in CENTRAL dataset for centralized logging/monitoring
+- Each tenant gets a COMPREHENSIVE VIEW in their dataset (queries central tables, filters by tenant_id)
+
+---
+
+## 📁 Configuration Structure
+
+```
+configs/
+├── setup/
+│   ├── bootstrap_system.yml          # Bootstrap pipeline
+│   ├── tenants/onboarding.yml        # Onboarding pipeline
+│   └── dryrun/dryrun.yml             # Dryrun validation
+├── gcp/cost/cost_billing.yml         # GCP cost pipeline
+└── {provider}/{domain}/{template}.yml # Other pipelines
+```
+
+All pipelines are YAML files. System loads and executes them.
+
+---
+
+## 🧪 Testing (JSON-DRIVEN)
+
+### Test Configuration Location
 ```
 tests/configs/
-├── tenants/               # Tenant test configs
-│   ├── tenant_test_config.json
-│   ├── tenant_bootstrap_config.json
-│   └── tenant_dryrun_config.json
-├── pipelines/             # Pipeline test configs
-│   └── pipeline_test_config.json
-└── schemas/               # Schema validation configs
-    └── schema_validation_config.json
+├── tenants/tenant_test_config.json
+├── pipelines/pipeline_test_config.json
+└── schemas/schema_validation_config.json
 ```
 
-**Test Pattern:**
-```python
-import json
-import requests
+### Run Tests
+```bash
+# Test bootstrap
+python tests/test_bootstrap_setup.py
 
-# Load config
-with open('tests/configs/tenants/tenant_test_config.json') as f:
-    config = json.load(f)
+# Test onboarding
+python tests/test_config_tenant_onboarding.py
 
-# Use config data
-for tenant in config['test_tenants']:
-    response = requests.post(
-        f"{API_BASE}/api/v1/tenants/onboard",
-        json={
-            "tenant_id": tenant['tenant_id'],
-            "company_name": tenant['name'],
-            "subscription_plan": tenant['subscription_tier']
-        }
-    )
+# Test pipelines
+python tests/test_config_pipeline_execution.py
 ```
 
-**❌ NEVER:**
-- Hardcode tenant data in test files
-- Create manual test scripts without configs
-- Skip JSON-based parameterization
-
-### 5. Two-Dataset Architecture
-
-**Central `tenants` Dataset** (shared across all tenants):
-- `tenant_profiles` - Tenant metadata
-- `tenant_api_keys` - API authentication
-- `tenant_subscriptions` - Plan limits
-- `tenant_usage_quotas` - Real-time tracking
-- `tenant_cloud_credentials` - KMS-encrypted creds
-- `tenant_pipeline_configs` - YAML configurations
-- `x_meta_pipeline_runs` - Centralized execution logs
-
-**Per-Tenant Datasets** (`{tenant_id}`):
-- `x_meta_step_logs` - Step-level logs
-- `x_meta_dq_results` - Data quality results
-- Data tables (gcp_cost_billing, etc.)
-
-### 6. Schema Management
-
-**✅ CORRECT Approach:**
-- Schema definitions in `ps_templates/setup/initial/schemas/*.json`
-- Table creation via API bootstrap
-- Programmatic creation through `OnetimeBootstrapProcessor`
-
-**❌ INCORRECT:**
-- ~~Use Alembic migrations~~ (NO ALEMBIC IN THIS PROJECT)
-- ~~Create from database dumps~~
-- ~~Manual SQL execution~~
-
-**Schema Recreation Process:**
-1. Schema deletion allowed if needed
-2. Recreation MUST be via API bootstrap: `POST /admin/bootstrap` with `force_recreate_tables: true`
-3. Schema source: `ps_templates/setup/initial/schemas/` JSON files
-4. NO manual SQL, NO dumps, NO Alembic
-
-### 7. Dry-Run Testing
-
-**✅ Configuration Location:**
-```
-configs/setup/dryrun/
-├── tenants/
-├── pipelines/
-└── validation/
-```
-
-**✅ Execution Method:**
-- Load configuration from `tests/configs/tenants/tenant_dryrun_config.json`
-- Execute via test scripts that call API endpoints
-- Verify in BigQuery
-
-**❌ FORBIDDEN:**
-- Manual dry-run execution
-- Hardcoded dry-run values
-- Bypassing API endpoints
+**All test data comes from JSON configs, NO hardcoding**
 
 ---
 
-## 📋 Real Project Practices
+## ❌ Common Mistakes
 
-### Bootstrap Process
+### WRONG: tenant_pipeline_runs in per-tenant dataset
+**Correct**: ONLY in central `tenants` dataset
 
-**One-Time System Bootstrap:**
-```bash
-# Method 1: Direct Python script
-python deployment/setup_bigquery_datasets.py
+### WRONG: Manual pipeline execution
+**Correct**: Scheduler-driven - Cloud Scheduler triggers, finds due tenants, runs their pipelines
 
-# Method 2: API endpoint
-curl -X POST http://localhost:8080/admin/bootstrap \
-  -H "X-Admin-Key: $ADMIN_API_KEY" \
-  -d '{"force_recreate_dataset": false, "force_recreate_tables": false}'
-```
+### WRONG: Running bootstrap manually via SQL
+**Correct**: Run via test agent: `python tests/test_bootstrap_setup.py`
 
-Creates:
-- Central `tenants` dataset
-- 8 management tables
-- Proper IAM bindings
-
-### Tenant Onboarding
-
-**Via API (CORRECT):**
-```bash
-curl -X POST http://localhost:8080/api/v1/tenants/onboard \
-  -H "Content-Type: application/json" \
-  -d '{
-    "tenant_id": "guru_232342",
-    "company_name": "Guru Corp",
-    "admin_email": "admin@guru.com",
-    "subscription_plan": "PROFESSIONAL"
-  }'
-```
-
-Creates:
-- Tenant profile in `tenants.tenant_profiles`
-- API key in `tenants.tenant_api_keys`
-- Subscription in `tenants.tenant_subscriptions`
-- Quotas in `tenants.tenant_usage_quotas`
-- Tenant dataset `{tenant_id}`
-- Metadata tables in tenant dataset
-
-### Pipeline Execution
-
-**Manual Execution (Real-Time Sync):**
-```bash
-POST /api/v1/pipelines/run/{tenant_id}/{provider}/{domain}/{template}
-# Maps to: configs/{provider}/{domain}/{template}.yml
-```
-
-**Example:**
-```bash
-curl -X POST http://localhost:8080/api/v1/pipelines/run/guru_232342/gcp/cost/cost_billing \
-  -H "X-API-Key: sk_guru_232342_xxxxx" \
-  -d '{"date": "2025-11-17"}'
-```
-
-**Scheduled Execution (Offline Sync):**
-```bash
-POST /api/v1/scheduler/configs
-Body: {
-  "pipeline_config": "gcp/cost/cost_billing",
-  "schedule": "0 2 * * *"
-}
-```
-
-### Variable Substitution
-
-**Pipeline YAML supports variables:**
-```yaml
-pipeline_id: "{tenant_id}_gcp_cost_billing"
-description: "Extract billing for {tenant_id}"
-variables:
-  source_table: "billing_export"
-  destination_dataset_type: "gcp_silver_cost"
-steps:
-  - step_id: "extract"
-    ps_type: "gcp.bq_etl"
-    source:
-      query: "SELECT * FROM {source_table} WHERE date='{date}'"
-```
-
-**Variables replaced at runtime:**
-- `{tenant_id}` - From execution context
-- `{date}` - From request parameters
-- `{admin_email}` - From tenant profile
-- Custom variables from YAML `variables` section
-
----
-
-## 🧪 Testing Standards
-
-### Test File Structure
-
-```python
-#!/usr/bin/env python3
-"""
-Test Description
-
-This script tests:
-1. Feature A via API
-2. Feature B with config
-3. Verification in BigQuery
-"""
-import requests
-import json
-from google.cloud import bigquery
-
-# Load config
-with open('tests/configs/tenants/tenant_test_config.json') as f:
-    config = json.load(f)
-
-API_BASE = "http://localhost:8080"
-PROJECT_ID = "gac-prod-471220"
-
-# Test functions
-def test_feature():
-    for tenant in config['test_tenants']:
-        response = requests.post(
-            f"{API_BASE}/api/v1/tenants/onboard",
-            json={...}
-        )
-        # Verify in BigQuery
-        client = bigquery.Client(project=PROJECT_ID)
-        # ...
-```
-
-### Test Execution
-
-```bash
-# Run test
-python tests/test_tenant_onboarding.py
-
-# Run with pytest
-pytest tests/test_tenant_onboarding.py -v
-```
-
----
-
-## ❌ Common Mistakes to Avoid
-
-### 1. ~~Using Alembic~~
-**WRONG:** This project does NOT use Alembic
-**RIGHT:** Use API bootstrap for schema management
-
-### 2. ~~CI/CD Pipelines for Bootstrapping~~
-**WRONG:** There are no CI/CD pipelines for tenant operations
-**RIGHT:** Use API endpoints directly
-
-### 3. ~~Manual SQL Execution~~
-**WRONG:** Running SQL scripts directly in BigQuery
-**RIGHT:** Use API endpoints that execute programmatically
-
-### 4. ~~Hardcoding Test Data~~
-**WRONG:** Tenant data hardcoded in test files
-**RIGHT:** Load from JSON configs in `tests/configs/`
-
-### 5. ~~Database Dumps~~
-**WRONG:** Using `pg_dump` or BQ exports for schema recreation
-**RIGHT:** Use API bootstrap with `force_recreate_tables: true`
+### WRONG: Onboarding via direct API call
+**Correct**: Run via test: `python tests/test_config_tenant_onboarding.py`
 
 ---
 
 ## ✅ Compliance Checklist
 
-Before ANY commit, verify:
-
-- [ ] All tenant operations via API endpoints
-- [ ] No manual SQL execution
+- [ ] Bootstrap via `python tests/test_bootstrap_setup.py`
+- [ ] Onboarding via `python tests/test_config_tenant_onboarding.py`
+- [ ] All tests use JSON configs from `tests/configs/`
+- [ ] `tenant_pipeline_runs` ONLY in central dataset
+- [ ] Cloud Scheduler configured for automatic pipeline execution
 - [ ] All docs in `docs/` folder (except CLAUDE.md/README.md)
-- [ ] Test configs are JSON files in `tests/configs/`
-- [ ] Tests load configs, not hardcode data
-- [ ] Pipeline configurations are YAML in `configs/`
-- [ ] No Alembic references
-- [ ] No CI/CD pipeline assumptions
 
 ---
 
-## 🔍 Architecture Summary
-
-**Configuration-Driven**: Pipelines = YAML configs, not code
-**API-Based**: All operations through FastAPI endpoints
-**Multi-Tenant**: Two-dataset model (central + per-tenant)
-**Real-Time + Scheduled**: Sync modes for pipeline execution
-**Quota Enforced**: Tenant-level quotas, user-level audit
-**Parameterized Testing**: JSON-driven test configurations
-
----
-
-*Version: 2.0.0*
+*Version: 3.0.0 (SIMPLIFIED)*
 *Last Updated: 2025-11-18*
-*Based on actual project architecture and documentation*
+*Core Principle: KEEP IT SIMPLE - Scheduler-driven pipeline execution*

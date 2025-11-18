@@ -156,9 +156,9 @@ BigQuery Project (gac-prod-471220)
 │   └── tenant_usage_quotas
 │
 └── {tenant_id}/               # Per-tenant dataset
-    ├── x_meta_pipeline_runs   # Metadata tables
-    ├── x_meta_step_logs
-    ├── x_meta_dq_results
+    ├── tenant_pipeline_runs   # Metadata tables
+    ├── tenant_step_logs
+    ├── tenant_dq_results
     └── billing_cost_daily     # Data tables
 ```
 

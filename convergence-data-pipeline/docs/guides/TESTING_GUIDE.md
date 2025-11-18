@@ -76,8 +76,8 @@ python tests/test_config_tenant_onboarding.py
 - Loading pipeline config from JSON
 - Retrieving tenant API key from BigQuery
 - Executing pipeline via `POST /api/v1/pipelines/run/{tenant_id}/{provider}/{domain}/{template}`
-- Verifying execution in `tenants.x_meta_pipeline_runs`
-- Checking step logs in `{tenant_id}.x_meta_step_logs`
+- Verifying execution in `tenants.tenant_pipeline_runs`
+- Checking step logs in `{tenant_id}.tenant_step_logs`
 
 **Usage**:
 ```bash
@@ -165,7 +165,7 @@ python tests/test_config_bootstrap_validation.py
 - tenant_cloud_credentials
 - tenant_pipeline_configs
 - tenant_scheduled_pipeline_runs
-- x_meta_pipeline_runs
+- tenant_pipeline_runs
 
 ---
 
@@ -295,11 +295,11 @@ All tests verify results in BigQuery to ensure API operations actually worked.
 - `tenants.tenant_api_keys` - API keys (hashed)
 - `tenants.tenant_subscriptions` - Subscription plans
 - `tenants.tenant_usage_quotas` - Quota counters
-- `tenants.x_meta_pipeline_runs` - Pipeline executions
+- `tenants.tenant_pipeline_runs` - Pipeline executions
 
 ### Per-Tenant Tables:
-- `{tenant_id}.x_meta_step_logs` - Step execution logs
-- `{tenant_id}.x_meta_dq_results` - Data quality results
+- `{tenant_id}.tenant_step_logs` - Step execution logs
+- `{tenant_id}.tenant_dq_results` - Data quality results
 
 ### Example Verification:
 ```python
