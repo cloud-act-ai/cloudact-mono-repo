@@ -202,6 +202,9 @@ class PipelineExecutor:
         error_message = None
 
         try:
+            # Start metadata logger background workers
+            self._run_async(self.metadata_logger.start())
+
             # Load configuration
             self.load_config(parameters)
 
@@ -250,8 +253,8 @@ class PipelineExecutor:
                         )
                     )
 
-                    # Flush all pending logs (async)
-                    self._run_async(self.metadata_logger.flush())
+                # Stop metadata logger and flush all pending logs (async)
+                self._run_async(self.metadata_logger.stop())
             except Exception as cleanup_error:
                 self.logger.error(f"Error during metadata logger cleanup: {cleanup_error}", exc_info=True)
 

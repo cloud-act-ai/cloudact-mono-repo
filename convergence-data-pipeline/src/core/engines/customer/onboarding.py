@@ -22,7 +22,8 @@ class CustomerOnboardingEngine:
     def __init__(self):
         self.settings = get_settings()
         self.logger = logging.getLogger(__name__)
-        self.template_dir = Path(__file__).parent.parent.parent / "templates" / "customer" / "onboarding"
+        # Navigate from src/core/engines/customer/onboarding.py to root/templates/customer/onboarding
+        self.template_dir = Path(__file__).parent.parent.parent.parent.parent / "templates" / "customer" / "onboarding"
         self.schema_config = self._load_schema()
 
     def _load_schema(self) -> Dict[str, Any]:

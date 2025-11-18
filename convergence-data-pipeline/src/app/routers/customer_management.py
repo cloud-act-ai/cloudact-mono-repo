@@ -20,6 +20,7 @@ from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
 from src.core.security.kms_encryption import encrypt_value_base64, decrypt_value_base64
 from src.core.metadata.initializer import ensure_tenant_metadata
 from src.app.config import settings
+from src.app.models.customer_models import UpgradeSubscriptionRequest, UpdateLimitsRequest, SUBSCRIPTION_LIMITS
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -480,84 +481,282 @@ async def update_customer_profile(
 
 @router.get(
     "/api/v1/customers/{customer_id}/subscription",
-    response_model=SubscriptionInfo,
     summary="Get subscription info",
-    description="Get current subscription plan and limits"
+    description="Get current subscription plan, status, and limits from centralized customers dataset"
 )
-async def get_subscription(
+async def get_subscription_info(
     customer_id: str,
     tenant: TenantContext = Depends(verify_api_key_header),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
-    """Get current subscription and limits."""
+    """
+    Get customer's current subscription information from customers.customer_subscriptions.
+
+    Returns subscription plan, status, limits, trial info, and billing details.
+    """
     if customer_id != tenant.tenant_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot access other customer's subscription"
         )
 
-    # Default to free plan
-    plan = "free"
-    limits = get_subscription_limits(plan)
-
-    # Get usage statistics
-    usage_query = f"""
+    # Query subscription from centralized customers dataset
+    query = f"""
     SELECT
-        COUNT(*) as pipelines_this_month
-    FROM `{settings.gcp_project_id}.{customer_id}.x_meta_pipeline_runs`
-    WHERE tenant_id = @customer_id
-      AND start_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)
+        s.subscription_id,
+        s.customer_id,
+        s.plan_name,
+        s.status,
+        s.max_team_members,
+        s.max_providers,
+        s.max_pipelines_per_day,
+        s.max_concurrent_pipelines,
+        s.trial_start_date,
+        s.trial_end_date,
+        s.is_trial,
+        s.subscription_start_date,
+        s.subscription_end_date,
+        s.billing_cycle,
+        s.monthly_price_usd,
+        s.stripe_subscription_id,
+        s.auto_renew,
+        s.next_billing_date,
+        s.created_at,
+        s.updated_at
+    FROM `{settings.gcp_project_id}.customers.customer_subscriptions` s
+    WHERE s.customer_id = @customer_id
+        AND s.status = 'ACTIVE'
+    LIMIT 1
     """
 
-    usage_results = list(bq_client.client.query(
-        usage_query,
-        job_config=bigquery.QueryJobConfig(
-            query_parameters=[
-                bigquery.ScalarQueryParameter("customer_id", "STRING", customer_id)
-            ]
+    try:
+        results = list(bq_client.client.query(
+            query,
+            job_config=bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("customer_id", "STRING", customer_id)
+                ]
+            )
+        ).result())
+
+        if not results:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"No active subscription found for customer {customer_id}"
+            )
+
+        row = results[0]
+
+        return {
+            "subscription_id": row["subscription_id"],
+            "customer_id": row["customer_id"],
+            "plan_name": row["plan_name"],
+            "status": row["status"],
+            "limits": {
+                "max_team_members": row["max_team_members"],
+                "max_providers": row["max_providers"],
+                "max_pipelines_per_day": row["max_pipelines_per_day"],
+                "max_concurrent_pipelines": row["max_concurrent_pipelines"]
+            },
+            "trial_info": {
+                "is_trial": row.get("is_trial", False),
+                "trial_start_date": row.get("trial_start_date"),
+                "trial_end_date": row.get("trial_end_date")
+            },
+            "billing": {
+                "subscription_start_date": row["subscription_start_date"],
+                "subscription_end_date": row.get("subscription_end_date"),
+                "billing_cycle": row.get("billing_cycle"),
+                "monthly_price_usd": float(row.get("monthly_price_usd", 0)),
+                "stripe_subscription_id": row.get("stripe_subscription_id"),
+                "auto_renew": row.get("auto_renew", True),
+                "next_billing_date": row.get("next_billing_date")
+            },
+            "created_at": row["created_at"],
+            "updated_at": row["updated_at"]
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to retrieve subscription for {customer_id}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve subscription: {str(e)}"
         )
-    ).result())
-
-    pipelines_this_month = usage_results[0]["pipelines_this_month"] if usage_results else 0
-
-    return SubscriptionInfo(
-        customer_id=customer_id,
-        plan=plan,
-        limits=limits,
-        usage={
-            "pipelines_this_month": pipelines_this_month,
-            "team_members": 1,
-            "providers": 0,
-            "api_keys": 1
-        },
-        is_active=True
-    )
 
 
 @router.put(
     "/api/v1/customers/{customer_id}/subscription",
-    response_model=SubscriptionInfo,
     summary="Update subscription",
-    description="Update subscription plan (called by frontend/Stripe webhook)"
+    description="Update subscription plan and limits (typically called by Stripe webhook or admin)"
 )
-async def update_subscription(
+async def update_subscription_plan(
     customer_id: str,
     request: UpdateSubscriptionRequest,
     tenant: TenantContext = Depends(verify_api_key_header),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
-    """Update subscription when customer changes plan in Stripe."""
+    """
+    Update customer subscription in customers.customer_subscriptions.
+
+    This endpoint is typically called by:
+    1. Stripe webhooks when subscription changes
+    2. Frontend when customer upgrades/downgrades
+    3. Admin panel for manual adjustments
+    """
     if customer_id != tenant.tenant_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot update other customer's subscription"
         )
 
-    # In production, this would update subscription in database
-    # For now, return updated subscription info
-    logger.info(f"Subscription updated for {customer_id} to {request.plan}")
+    # Update subscription in centralized dataset
+    update_query = f"""
+    UPDATE `{settings.gcp_project_id}.customers.customer_subscriptions`
+    SET
+        plan_name = @plan_name,
+        max_team_members = @max_team_members,
+        max_providers = @max_providers,
+        max_pipelines_per_day = @max_pipelines_per_day,
+        max_pipelines_per_month = @max_pipelines_per_month,
+        subscription_start_date = @subscription_start_date,
+        subscription_end_date = @subscription_end_date,
+        updated_at = CURRENT_TIMESTAMP()
+    WHERE customer_id = @customer_id
+        AND status = 'ACTIVE'
+    """
 
-    return await get_subscription(customer_id, tenant, bq_client)
+    try:
+        job = bq_client.client.query(
+            update_query,
+            job_config=bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("customer_id", "STRING", customer_id),
+                    bigquery.ScalarQueryParameter("plan_name", "STRING", request.plan_name.value),
+                    bigquery.ScalarQueryParameter("max_team_members", "INT64", request.max_team_members),
+                    bigquery.ScalarQueryParameter("max_providers", "INT64", request.max_providers),
+                    bigquery.ScalarQueryParameter("max_pipelines_per_day", "INT64", request.max_pipelines_per_day),
+                    bigquery.ScalarQueryParameter("max_pipelines_per_month", "INT64", request.max_pipelines_per_month),
+                    bigquery.ScalarQueryParameter("subscription_start_date", "DATE", request.subscription_start_date),
+                    bigquery.ScalarQueryParameter("subscription_end_date", "DATE", request.subscription_end_date)
+                ]
+            )
+        )
+        job.result()
+
+        if job.num_dml_affected_rows == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"No active subscription found for customer {customer_id}"
+            )
+
+        logger.info(f"Subscription updated for {customer_id} to {request.plan_name}")
+
+        # Return updated subscription
+        return await get_subscription_info(customer_id, tenant, bq_client)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to update subscription for {customer_id}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update subscription: {str(e)}"
+        )
+
+
+@router.post(
+    "/api/v1/customers/{customer_id}/subscription/upgrade",
+    summary="Upgrade subscription plan",
+    description="Upgrade to a higher-tier subscription plan"
+)
+async def upgrade_subscription(
+    customer_id: str,
+    request: UpgradeSubscriptionRequest,
+    tenant: TenantContext = Depends(verify_api_key_header),
+    bq_client: BigQueryClient = Depends(get_bigquery_client)
+):
+    """
+    Upgrade customer to a higher subscription tier.
+
+    Automatically applies new limits based on the target plan.
+    """
+    from src.app.models.customer_models import SUBSCRIPTION_LIMITS
+
+    if customer_id != tenant.tenant_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cannot upgrade other customer's subscription"
+        )
+
+    # Get limits for new plan
+    new_limits = SUBSCRIPTION_LIMITS.get(request.new_plan)
+    if not new_limits:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid subscription plan: {request.new_plan}"
+        )
+
+    # Get current subscription
+    current_sub = await get_subscription_info(customer_id, tenant, bq_client)
+
+    # Validate upgrade (can only upgrade, not downgrade)
+    plan_order = {"STARTER": 1, "PROFESSIONAL": 2, "SCALE": 3}
+    current_tier = plan_order.get(current_sub["plan_name"], 0)
+    new_tier = plan_order.get(request.new_plan.value, 0)
+
+    if new_tier <= current_tier:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot upgrade from {current_sub['plan_name']} to {request.new_plan}. Use downgrade endpoint instead."
+        )
+
+    # Update subscription with new plan and limits
+    update_query = f"""
+    UPDATE `{settings.gcp_project_id}.customers.customer_subscriptions`
+    SET
+        plan_name = @plan_name,
+        max_team_members = @max_team_members,
+        max_providers = @max_providers,
+        max_pipelines_per_day = @max_pipelines_per_day,
+        max_pipelines_per_month = @max_pipelines_per_month,
+        max_concurrent_pipelines = @max_concurrent_pipelines,
+        updated_at = CURRENT_TIMESTAMP()
+    WHERE customer_id = @customer_id
+        AND status = 'ACTIVE'
+    """
+
+    try:
+        job = bq_client.client.query(
+            update_query,
+            job_config=bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("customer_id", "STRING", customer_id),
+                    bigquery.ScalarQueryParameter("plan_name", "STRING", request.new_plan.value),
+                    bigquery.ScalarQueryParameter("max_team_members", "INT64", new_limits["max_team_members"]),
+                    bigquery.ScalarQueryParameter("max_providers", "INT64", new_limits["max_providers"]),
+                    bigquery.ScalarQueryParameter("max_pipelines_per_day", "INT64", new_limits["max_pipelines_per_day"]),
+                    bigquery.ScalarQueryParameter("max_pipelines_per_month", "INT64", new_limits["max_pipelines_per_month"]),
+                    bigquery.ScalarQueryParameter("max_concurrent_pipelines", "INT64", new_limits["max_concurrent_pipelines"])
+                ]
+            )
+        )
+        job.result()
+
+        logger.info(f"Subscription upgraded for {customer_id} from {current_sub['plan_name']} to {request.new_plan}")
+
+        # Return updated subscription
+        return await get_subscription_info(customer_id, tenant, bq_client)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to upgrade subscription for {customer_id}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to upgrade subscription: {str(e)}"
+        )
 
 
 # ============================================
@@ -1069,58 +1268,288 @@ async def validate_customer(
 
 @router.get(
     "/api/v1/customers/{customer_id}/usage",
-    response_model=UsageStatistics,
     summary="Get usage statistics",
-    description="Get usage statistics and trends"
+    description="Get current usage statistics from customers.customer_usage_quotas"
 )
 async def get_usage_statistics(
     customer_id: str,
     tenant: TenantContext = Depends(verify_api_key_header),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
-    """Get usage statistics."""
+    """
+    Get customer's current usage statistics from customers.customer_usage_quotas.
+
+    Returns pipelines run today/month, concurrent pipelines, and quota information.
+    """
     if customer_id != tenant.tenant_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot access other customer's usage"
         )
 
-    # Get subscription
-    subscription = await get_subscription(customer_id, tenant, bq_client)
+    from datetime import date
+    today = date.today()
 
-    # Get today's pipelines
-    today_query = f"""
-    SELECT COUNT(*) as count
-    FROM `{settings.gcp_project_id}.{customer_id}.x_meta_pipeline_runs`
-    WHERE tenant_id = @customer_id
-      AND DATE(start_time) = CURRENT_DATE()
+    # Query usage quotas
+    query = f"""
+    SELECT
+        usage_id,
+        customer_id,
+        usage_date,
+        pipelines_run_today,
+        pipelines_failed_today,
+        pipelines_succeeded_today,
+        pipelines_run_month,
+        concurrent_pipelines_running,
+        daily_limit,
+        monthly_limit,
+        concurrent_limit,
+        quota_exceeded,
+        last_pipeline_started_at,
+        last_pipeline_completed_at
+    FROM `{settings.gcp_project_id}.customers.customer_usage_quotas`
+    WHERE customer_id = @customer_id
+        AND usage_date = @usage_date
+    LIMIT 1
     """
 
-    today_results = list(bq_client.client.query(
-        today_query,
-        job_config=bigquery.QueryJobConfig(
-            query_parameters=[
-                bigquery.ScalarQueryParameter("customer_id", "STRING", customer_id)
-            ]
-        )
-    ).result())
+    try:
+        results = list(bq_client.client.query(
+            query,
+            job_config=bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("customer_id", "STRING", customer_id),
+                    bigquery.ScalarQueryParameter("usage_date", "DATE", today)
+                ]
+            )
+        ).result())
 
-    pipelines_today = today_results[0]["count"] if today_results else 0
-    pipelines_this_month = subscription.usage["pipelines_this_month"]
-    quota_limit = subscription.limits.max_pipelines_per_month
-    quota_remaining = max(0, quota_limit - pipelines_this_month)
+        if not results:
+            # Return empty usage if no record exists
+            subscription = await get_subscription_info(customer_id, tenant, bq_client)
+            return {
+                "customer_id": customer_id,
+                "usage_date": today,
+                "pipelines_run_today": 0,
+                "pipelines_failed_today": 0,
+                "pipelines_succeeded_today": 0,
+                "pipelines_run_month": 0,
+                "concurrent_pipelines_running": 0,
+                "limits": {
+                    "daily_limit": subscription["limits"]["max_pipelines_per_day"],
+                    "monthly_limit": subscription["limits"].get("max_pipelines_per_month", 0),
+                    "concurrent_limit": subscription["limits"]["max_concurrent_pipelines"]
+                },
+                "quota_remaining": {
+                    "daily": subscription["limits"]["max_pipelines_per_day"],
+                    "monthly": subscription["limits"].get("max_pipelines_per_month", 0),
+                    "concurrent": subscription["limits"]["max_concurrent_pipelines"]
+                },
+                "quota_exceeded": False
+            }
 
-    return UsageStatistics(
-        customer_id=customer_id,
-        pipelines_today=pipelines_today,
-        pipelines_this_month=pipelines_this_month,
-        quota_limit=quota_limit,
-        quota_remaining=quota_remaining,
-        trends={
-            "daily_average": pipelines_this_month / 30,
-            "usage_percentage": (pipelines_this_month / quota_limit * 100) if quota_limit > 0 else 0
+        row = results[0]
+
+        return {
+            "customer_id": row["customer_id"],
+            "usage_date": row["usage_date"],
+            "pipelines_run_today": row["pipelines_run_today"],
+            "pipelines_failed_today": row.get("pipelines_failed_today", 0),
+            "pipelines_succeeded_today": row.get("pipelines_succeeded_today", 0),
+            "pipelines_run_month": row["pipelines_run_month"],
+            "concurrent_pipelines_running": row["concurrent_pipelines_running"],
+            "limits": {
+                "daily_limit": row["daily_limit"],
+                "monthly_limit": row.get("monthly_limit"),
+                "concurrent_limit": row["concurrent_limit"]
+            },
+            "quota_remaining": {
+                "daily": max(0, row["daily_limit"] - row["pipelines_run_today"]),
+                "monthly": max(0, row.get("monthly_limit", 0) - row["pipelines_run_month"]) if row.get("monthly_limit") else None,
+                "concurrent": max(0, row["concurrent_limit"] - row["concurrent_pipelines_running"])
+            },
+            "quota_exceeded": row.get("quota_exceeded", False),
+            "last_pipeline_started_at": row.get("last_pipeline_started_at"),
+            "last_pipeline_completed_at": row.get("last_pipeline_completed_at")
         }
-    )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to retrieve usage for {customer_id}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve usage: {str(e)}"
+        )
+
+
+@router.get(
+    "/api/v1/customers/{customer_id}/limits",
+    summary="Get subscription limits",
+    description="Get subscription limits and current usage counts"
+)
+async def get_limits(
+    customer_id: str,
+    tenant: TenantContext = Depends(verify_api_key_header),
+    bq_client: BigQueryClient = Depends(get_bigquery_client)
+):
+    """
+    Get customer's subscription limits with current usage counts.
+
+    Returns limits for team members, providers, and pipeline executions.
+    """
+    if customer_id != tenant.tenant_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cannot access other customer's limits"
+        )
+
+    # Get subscription limits
+    subscription = await get_subscription_info(customer_id, tenant, bq_client)
+
+    # Get current usage counts
+    usage_query = f"""
+    SELECT
+        (SELECT COUNT(*) FROM `{settings.gcp_project_id}.customers.customer_team_members`
+         WHERE customer_id = @customer_id AND status IN ('ACTIVE', 'INVITED')) as team_members_count,
+        (SELECT COUNT(DISTINCT provider) FROM `{settings.gcp_project_id}.customers.customer_cloud_credentials`
+         WHERE customer_id = @customer_id AND is_active = TRUE) as providers_count,
+        (SELECT pipelines_run_today FROM `{settings.gcp_project_id}.customers.customer_usage_quotas`
+         WHERE customer_id = @customer_id AND usage_date = CURRENT_DATE() LIMIT 1) as pipelines_today,
+        (SELECT pipelines_run_month FROM `{settings.gcp_project_id}.customers.customer_usage_quotas`
+         WHERE customer_id = @customer_id AND usage_date = CURRENT_DATE() LIMIT 1) as pipelines_month,
+        (SELECT concurrent_pipelines_running FROM `{settings.gcp_project_id}.customers.customer_usage_quotas`
+         WHERE customer_id = @customer_id AND usage_date = CURRENT_DATE() LIMIT 1) as concurrent_running
+    """
+
+    try:
+        usage_results = list(bq_client.client.query(
+            usage_query,
+            job_config=bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("customer_id", "STRING", customer_id)
+                ]
+            )
+        ).result())
+
+        usage = usage_results[0] if usage_results else {}
+
+        return {
+            "customer_id": customer_id,
+            "subscription_plan": subscription["plan_name"],
+            "limits": subscription["limits"],
+            "current_usage": {
+                "team_members": usage.get("team_members_count", 0),
+                "providers": usage.get("providers_count", 0),
+                "pipelines_today": usage.get("pipelines_today", 0),
+                "pipelines_month": usage.get("pipelines_month", 0),
+                "concurrent_running": usage.get("concurrent_running", 0)
+            },
+            "available": {
+                "team_members": max(0, subscription["limits"]["max_team_members"] - usage.get("team_members_count", 0)),
+                "providers": max(0, subscription["limits"]["max_providers"] - usage.get("providers_count", 0)),
+                "pipelines_today": max(0, subscription["limits"]["max_pipelines_per_day"] - usage.get("pipelines_today", 0)),
+                "concurrent": max(0, subscription["limits"]["max_concurrent_pipelines"] - usage.get("concurrent_running", 0))
+            }
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to retrieve limits for {customer_id}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve limits: {str(e)}"
+        )
+
+
+@router.put(
+    "/api/v1/customers/{customer_id}/limits",
+    summary="Update subscription limits (admin only)",
+    description="Update custom limits for customer (requires admin privileges)"
+)
+async def update_limits(
+    customer_id: str,
+    request: UpdateLimitsRequest,
+    tenant: TenantContext = Depends(verify_api_key_header),
+    bq_client: BigQueryClient = Depends(get_bigquery_client)
+):
+    """
+    Update custom limits for a customer subscription.
+
+    This is an admin-only operation for providing custom limits beyond standard plans.
+    """
+    from src.app.models.customer_models import UpdateLimitsRequest
+
+    if customer_id != tenant.tenant_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cannot update limits for other customers"
+        )
+
+    # Build dynamic update query
+    updates = ["updated_at = CURRENT_TIMESTAMP()"]
+    params = [bigquery.ScalarQueryParameter("customer_id", "STRING", customer_id)]
+
+    if request.max_team_members is not None:
+        updates.append("max_team_members = @max_team_members")
+        params.append(bigquery.ScalarQueryParameter("max_team_members", "INT64", request.max_team_members))
+
+    if request.max_providers is not None:
+        updates.append("max_providers = @max_providers")
+        params.append(bigquery.ScalarQueryParameter("max_providers", "INT64", request.max_providers))
+
+    if request.max_pipelines_per_day is not None:
+        updates.append("max_pipelines_per_day = @max_pipelines_per_day")
+        params.append(bigquery.ScalarQueryParameter("max_pipelines_per_day", "INT64", request.max_pipelines_per_day))
+
+    if request.max_pipelines_per_month is not None:
+        updates.append("max_pipelines_per_month = @max_pipelines_per_month")
+        params.append(bigquery.ScalarQueryParameter("max_pipelines_per_month", "INT64", request.max_pipelines_per_month))
+
+    if request.max_concurrent_pipelines is not None:
+        updates.append("max_concurrent_pipelines = @max_concurrent_pipelines")
+        params.append(bigquery.ScalarQueryParameter("max_concurrent_pipelines", "INT64", request.max_concurrent_pipelines))
+
+    if len(updates) == 1:  # Only updated_at
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No limits provided to update"
+        )
+
+    update_query = f"""
+    UPDATE `{settings.gcp_project_id}.customers.customer_subscriptions`
+    SET {', '.join(updates)}
+    WHERE customer_id = @customer_id
+        AND status = 'ACTIVE'
+    """
+
+    try:
+        job = bq_client.client.query(
+            update_query,
+            job_config=bigquery.QueryJobConfig(query_parameters=params)
+        )
+        job.result()
+
+        if job.num_dml_affected_rows == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"No active subscription found for customer {customer_id}"
+            )
+
+        logger.info(f"Custom limits updated for customer {customer_id}")
+
+        # Return updated limits
+        return await get_limits(customer_id, tenant, bq_client)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to update limits for {customer_id}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update limits: {str(e)}"
+        )
 
 
 # ============================================
@@ -1193,89 +1622,371 @@ async def update_provider_config(
 
 
 # ============================================
-# Team Management Endpoints (Stub)
+# Team Member Management Endpoints
 # ============================================
-# Note: These endpoints are stubs since team management would need
-# a separate table. Implement when needed.
-
-@router.post(
-    "/api/v1/customers/{customer_id}/team",
-    summary="Invite team member (stub)",
-    description="Invite team member"
-)
-async def invite_team_member(
-    customer_id: str,
-    request: InviteTeamMemberRequest,
-    tenant: TenantContext = Depends(verify_api_key_header)
-):
-    """Invite team member (stub - implement with dedicated table)."""
-    if customer_id != tenant.tenant_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Cannot invite team members for other customers"
-        )
-
-    return {
-        "message": "Team management endpoints require dedicated table implementation",
-        "member_id": str(uuid.uuid4())
-    }
-
 
 @router.get(
     "/api/v1/customers/{customer_id}/team",
-    summary="List team members (stub)",
-    description="List team members"
+    summary="List team members",
+    description="Get all team members for customer from customers.customer_team_members"
 )
 async def list_team_members(
     customer_id: str,
-    tenant: TenantContext = Depends(verify_api_key_header)
+    tenant: TenantContext = Depends(verify_api_key_header),
+    bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
-    """List team members (stub)."""
+    """List all team members for the customer."""
     if customer_id != tenant.tenant_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot list other customer's team"
         )
 
-    return []
+    query = f"""
+    SELECT
+        member_id,
+        customer_id,
+        email,
+        full_name,
+        role,
+        permissions,
+        status,
+        invited_by,
+        invited_at,
+        joined_at,
+        last_login_at,
+        is_active
+    FROM `{settings.gcp_project_id}.customers.customer_team_members`
+    WHERE customer_id = @customer_id
+        AND status != 'REMOVED'
+    ORDER BY invited_at DESC
+    """
+
+    try:
+        results = bq_client.client.query(
+            query,
+            job_config=bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("customer_id", "STRING", customer_id)
+                ]
+            )
+        ).result()
+
+        members = []
+        for row in results:
+            members.append({
+                "member_id": row["member_id"],
+                "customer_id": row["customer_id"],
+                "email": row["email"],
+                "full_name": row.get("full_name"),
+                "role": row["role"],
+                "permissions": row.get("permissions", []),
+                "status": row["status"],
+                "invited_by": row.get("invited_by"),
+                "invited_at": row["invited_at"],
+                "joined_at": row.get("joined_at"),
+                "last_login_at": row.get("last_login_at"),
+                "is_active": row["is_active"]
+            })
+
+        return {"team_members": members, "total_count": len(members)}
+
+    except Exception as e:
+        logger.error(f"Failed to list team members for {customer_id}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to list team members: {str(e)}"
+        )
+
+
+@router.post(
+    "/api/v1/customers/{customer_id}/team/invite",
+    summary="Invite team member",
+    description="Send invitation to new team member"
+)
+async def invite_team_member(
+    customer_id: str,
+    request: InviteTeamMemberRequest,
+    tenant: TenantContext = Depends(verify_api_key_header),
+    bq_client: BigQueryClient = Depends(get_bigquery_client)
+):
+    """
+    Invite a new team member to the customer account.
+
+    Creates entry in customers.customer_team_members with INVITED status.
+    """
+    from src.app.models.customer_models import SUBSCRIPTION_LIMITS
+
+    if customer_id != tenant.tenant_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cannot invite team members for other customers"
+        )
+
+    # Check if email already exists
+    check_query = f"""
+    SELECT COUNT(*) as count
+    FROM `{settings.gcp_project_id}.customers.customer_team_members`
+    WHERE customer_id = @customer_id
+        AND email = @email
+        AND status != 'REMOVED'
+    """
+
+    existing = list(bq_client.client.query(
+        check_query,
+        job_config=bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("customer_id", "STRING", customer_id),
+                bigquery.ScalarQueryParameter("email", "STRING", request.email)
+            ]
+        )
+    ).result())
+
+    if existing and existing[0]["count"] > 0:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Team member with email {request.email} already exists"
+        )
+
+    # Check team member limit
+    count_query = f"""
+    SELECT COUNT(*) as count
+    FROM `{settings.gcp_project_id}.customers.customer_team_members`
+    WHERE customer_id = @customer_id
+        AND status IN ('ACTIVE', 'INVITED')
+    """
+
+    count_result = list(bq_client.client.query(
+        count_query,
+        job_config=bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("customer_id", "STRING", customer_id)
+            ]
+        )
+    ).result())
+
+    current_count = count_result[0]["count"] if count_result else 0
+
+    # Get subscription limits
+    subscription = await get_subscription_info(customer_id, tenant, bq_client)
+    max_members = subscription["limits"]["max_team_members"]
+
+    if current_count >= max_members:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Team member limit reached ({max_members} members). Upgrade your plan to add more members."
+        )
+
+    # Generate invitation token
+    invitation_token = secrets.token_urlsafe(32)
+    member_id = str(uuid.uuid4())
+
+    # Insert team member
+    insert_query = f"""
+    INSERT INTO `{settings.gcp_project_id}.customers.customer_team_members`
+    (member_id, customer_id, email, full_name, role, permissions, status,
+     invited_by, invited_at, invitation_token, invitation_expires_at, is_active)
+    VALUES
+    (@member_id, @customer_id, @email, @full_name, @role, @permissions, 'INVITED',
+     @invited_by, CURRENT_TIMESTAMP(), @invitation_token,
+     TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL 7 DAY), TRUE)
+    """
+
+    try:
+        bq_client.client.query(
+            insert_query,
+            job_config=bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("member_id", "STRING", member_id),
+                    bigquery.ScalarQueryParameter("customer_id", "STRING", customer_id),
+                    bigquery.ScalarQueryParameter("email", "STRING", request.email),
+                    bigquery.ScalarQueryParameter("full_name", "STRING", request.full_name),
+                    bigquery.ScalarQueryParameter("role", "STRING", request.role.value),
+                    bigquery.ScalarQueryParameter("permissions", "STRING", ",".join(request.permissions or [])),
+                    bigquery.ScalarQueryParameter("invited_by", "STRING", "api"),  # TODO: Get from auth context
+                    bigquery.ScalarQueryParameter("invitation_token", "STRING", invitation_token)
+                ]
+            )
+        ).result()
+
+        logger.info(f"Team member invited: {request.email} to customer {customer_id}")
+
+        return {
+            "member_id": member_id,
+            "email": request.email,
+            "role": request.role.value,
+            "status": "INVITED",
+            "invitation_token": invitation_token,
+            "message": f"Invitation sent to {request.email}"
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to invite team member for {customer_id}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to invite team member: {str(e)}"
+        )
 
 
 @router.put(
     "/api/v1/customers/{customer_id}/team/{member_id}",
-    summary="Update team member (stub)",
-    description="Update team member role"
+    summary="Update team member",
+    description="Update team member role, permissions, or details"
 )
 async def update_team_member(
     customer_id: str,
     member_id: str,
     request: UpdateTeamMemberRequest,
-    tenant: TenantContext = Depends(verify_api_key_header)
+    tenant: TenantContext = Depends(verify_api_key_header),
+    bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
-    """Update team member (stub)."""
+    """Update team member role, permissions, or other details."""
     if customer_id != tenant.tenant_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot update other customer's team"
         )
 
-    return {"message": "Team management endpoints require dedicated table implementation"}
+    # Build dynamic update query
+    updates = ["updated_at = CURRENT_TIMESTAMP()"]
+    params = [
+        bigquery.ScalarQueryParameter("customer_id", "STRING", customer_id),
+        bigquery.ScalarQueryParameter("member_id", "STRING", member_id)
+    ]
+
+    if request.role is not None:
+        updates.append("role = @role")
+        params.append(bigquery.ScalarQueryParameter("role", "STRING", request.role.value))
+
+    if request.permissions is not None:
+        updates.append("permissions = @permissions")
+        params.append(bigquery.ScalarQueryParameter("permissions", "STRING", ",".join(request.permissions)))
+
+    if request.full_name is not None:
+        updates.append("full_name = @full_name")
+        params.append(bigquery.ScalarQueryParameter("full_name", "STRING", request.full_name))
+
+    update_query = f"""
+    UPDATE `{settings.gcp_project_id}.customers.customer_team_members`
+    SET {', '.join(updates)}
+    WHERE customer_id = @customer_id
+        AND member_id = @member_id
+    """
+
+    try:
+        job = bq_client.client.query(
+            update_query,
+            job_config=bigquery.QueryJobConfig(query_parameters=params)
+        )
+        job.result()
+
+        if job.num_dml_affected_rows == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Team member {member_id} not found"
+            )
+
+        logger.info(f"Team member {member_id} updated for customer {customer_id}")
+
+        # Return updated member
+        get_query = f"""
+        SELECT member_id, email, full_name, role, permissions, status
+        FROM `{settings.gcp_project_id}.customers.customer_team_members`
+        WHERE customer_id = @customer_id AND member_id = @member_id
+        LIMIT 1
+        """
+
+        result = list(bq_client.client.query(
+            get_query,
+            job_config=bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("customer_id", "STRING", customer_id),
+                    bigquery.ScalarQueryParameter("member_id", "STRING", member_id)
+                ]
+            )
+        ).result())
+
+        if result:
+            row = result[0]
+            return {
+                "member_id": row["member_id"],
+                "email": row["email"],
+                "full_name": row.get("full_name"),
+                "role": row["role"],
+                "permissions": row.get("permissions", []),
+                "status": row["status"]
+            }
+
+        return {"message": "Team member updated successfully"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to update team member {member_id}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update team member: {str(e)}"
+        )
 
 
 @router.delete(
     "/api/v1/customers/{customer_id}/team/{member_id}",
-    summary="Remove team member (stub)",
-    description="Remove team member"
+    summary="Remove team member",
+    description="Remove team member from customer account"
 )
 async def remove_team_member(
     customer_id: str,
     member_id: str,
-    tenant: TenantContext = Depends(verify_api_key_header)
+    tenant: TenantContext = Depends(verify_api_key_header),
+    bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
-    """Remove team member (stub)."""
+    """Remove team member by setting status to REMOVED."""
     if customer_id != tenant.tenant_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot remove team members from other customers"
         )
 
-    return {"message": "Team member removed (stub implementation)"}
+    update_query = f"""
+    UPDATE `{settings.gcp_project_id}.customers.customer_team_members`
+    SET
+        status = 'REMOVED',
+        is_active = FALSE,
+        removed_at = CURRENT_TIMESTAMP(),
+        removed_by = @removed_by
+    WHERE customer_id = @customer_id
+        AND member_id = @member_id
+        AND status != 'REMOVED'
+    """
+
+    try:
+        job = bq_client.client.query(
+            update_query,
+            job_config=bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("customer_id", "STRING", customer_id),
+                    bigquery.ScalarQueryParameter("member_id", "STRING", member_id),
+                    bigquery.ScalarQueryParameter("removed_by", "STRING", "api")  # TODO: Get from auth context
+                ]
+            )
+        )
+        job.result()
+
+        if job.num_dml_affected_rows == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Team member {member_id} not found or already removed"
+            )
+
+        logger.info(f"Team member {member_id} removed from customer {customer_id}")
+
+        return {"message": f"Team member {member_id} removed successfully"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to remove team member {member_id}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to remove team member: {str(e)}"
+        )

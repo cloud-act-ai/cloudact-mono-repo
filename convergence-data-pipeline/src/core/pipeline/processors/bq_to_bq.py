@@ -7,6 +7,7 @@ from typing import Dict, Any, Optional, List, Tuple
 from pathlib import Path
 from google.cloud import bigquery
 from google.cloud.bigquery import SchemaField, QueryJobConfig, WriteDisposition
+from google.api_core import exceptions as google_exceptions
 
 from src.core.engine.bq_client import BigQueryClient
 from src.core.utils.logging import get_logger
@@ -21,6 +22,16 @@ logger = get_logger(__name__)
 
 class SchemaValidationError(Exception):
     """Raised when schema validation fails."""
+    pass
+
+
+class QueryValidationError(Exception):
+    """Raised when query validation fails."""
+    pass
+
+
+class QueryExecutionError(Exception):
+    """Raised when query execution fails."""
     pass
 
 
@@ -522,6 +533,101 @@ class BigQueryToBigQueryProcessor:
             step_id=self.step_id
         )
 
+    def _validate_query_syntax(self, query: str, job_config: Optional[QueryJobConfig] = None) -> bool:
+        """
+        Validate query syntax using BigQuery dry run before actual execution.
+
+        This prevents wasting resources on queries with syntax errors and provides
+        early feedback on query validity.
+
+        Args:
+            query: SQL query to validate
+            job_config: Optional query configuration with parameters
+
+        Returns:
+            True if query is valid
+
+        Raises:
+            QueryValidationError: If query validation fails
+        """
+        logger.info(
+            f"Validating query syntax with dry run",
+            extra={"step_id": self.step_id}
+        )
+
+        try:
+            # Create dry run configuration
+            dry_run_config = QueryJobConfig(
+                dry_run=True,
+                use_query_cache=False,
+                use_legacy_sql=False
+            )
+
+            # Copy parameters from original config if provided
+            if job_config and hasattr(job_config, 'query_parameters'):
+                dry_run_config.query_parameters = job_config.query_parameters
+
+            # Execute dry run
+            dry_run_job = self.bq_client.client.query(query, job_config=dry_run_config)
+
+            # Dry run jobs complete immediately, but we still check the result
+            _ = dry_run_job.result()
+
+            # Get validation statistics
+            total_bytes = dry_run_job.total_bytes_processed or 0
+            bytes_mb = total_bytes / (1024 * 1024)
+
+            logger.info(
+                f"Query validation successful",
+                extra={
+                    "step_id": self.step_id,
+                    "total_bytes_processed": total_bytes,
+                    "total_bytes_mb": round(bytes_mb, 2),
+                    "estimated_cost_usd": round((total_bytes / (1024**4)) * 5, 4)  # $5 per TB
+                }
+            )
+
+            return True
+
+        except google_exceptions.BadRequest as e:
+            error_message = f"Query syntax validation failed: {str(e)}"
+            logger.error(
+                f"Query validation failed - syntax error",
+                extra={
+                    "step_id": self.step_id,
+                    "error": str(e),
+                    "error_type": "BadRequest"
+                },
+                exc_info=True
+            )
+            raise QueryValidationError(error_message) from e
+
+        except google_exceptions.Forbidden as e:
+            error_message = f"Query validation failed - permission denied: {str(e)}"
+            logger.error(
+                f"Query validation failed - insufficient permissions",
+                extra={
+                    "step_id": self.step_id,
+                    "error": str(e),
+                    "error_type": "Forbidden"
+                },
+                exc_info=True
+            )
+            raise QueryValidationError(error_message) from e
+
+        except Exception as e:
+            error_message = f"Query validation failed with unexpected error: {str(e)}"
+            logger.error(
+                f"Query validation failed - unexpected error",
+                extra={
+                    "step_id": self.step_id,
+                    "error": str(e),
+                    "error_type": type(e).__name__
+                },
+                exc_info=True
+            )
+            raise QueryValidationError(error_message) from e
+
     def _execute_query_to_table(self, query: str, dest_table_id: str) -> Dict[str, Any]:
         """
         Execute query and write results to destination table.
@@ -576,35 +682,216 @@ class BigQueryToBigQueryProcessor:
         # Note: Schema is already set on the table when it was created
         # QueryJobConfig doesn't have a schema property - schema is inferred from query or table
 
+        # STEP 1: Validate query syntax with dry run
+        try:
+            self._validate_query_syntax(query, job_config)
+        except QueryValidationError:
+            # Validation error already logged, re-raise
+            raise
+
         query_job = None
         dest_table = None
 
         try:
-            # Execute query with parameterized config
+            # STEP 2: Execute query with parameterized config
+            logger.info(
+                f"Executing BigQuery query",
+                extra={
+                    "step_id": self.step_id,
+                    "destination": dest_table_id,
+                    "write_mode": write_mode
+                }
+            )
+
             query_job = self.bq_client.client.query(query, job_config=job_config)
 
-            # Wait for completion
-            query_job.result()
+            # STEP 3: Wait for completion and check for errors
+            try:
+                query_job.result()
+            except google_exceptions.BadRequest as e:
+                error_message = f"Query execution failed with BadRequest: {str(e)}"
+                logger.error(
+                    f"Query execution failed - bad request",
+                    extra={
+                        "step_id": self.step_id,
+                        "job_id": query_job.job_id if query_job else None,
+                        "error": str(e),
+                        "error_type": "BadRequest"
+                    },
+                    exc_info=True
+                )
+                raise QueryExecutionError(error_message) from e
 
-            # Collect execution metadata
+            except google_exceptions.Forbidden as e:
+                error_message = f"Query execution failed - permission denied: {str(e)}"
+                logger.error(
+                    f"Query execution failed - insufficient permissions",
+                    extra={
+                        "step_id": self.step_id,
+                        "job_id": query_job.job_id if query_job else None,
+                        "error": str(e),
+                        "error_type": "Forbidden"
+                    },
+                    exc_info=True
+                )
+                raise QueryExecutionError(error_message) from e
+
+            except google_exceptions.NotFound as e:
+                error_message = f"Query execution failed - resource not found: {str(e)}"
+                logger.error(
+                    f"Query execution failed - resource not found",
+                    extra={
+                        "step_id": self.step_id,
+                        "job_id": query_job.job_id if query_job else None,
+                        "error": str(e),
+                        "error_type": "NotFound"
+                    },
+                    exc_info=True
+                )
+                raise QueryExecutionError(error_message) from e
+
+            except Exception as e:
+                error_message = f"Query execution failed with unexpected error: {str(e)}"
+                logger.error(
+                    f"Query execution failed - unexpected error",
+                    extra={
+                        "step_id": self.step_id,
+                        "job_id": query_job.job_id if query_job else None,
+                        "error": str(e),
+                        "error_type": type(e).__name__
+                    },
+                    exc_info=True
+                )
+                raise QueryExecutionError(error_message) from e
+
+            # STEP 4: Validate query job state and check for errors
+            if query_job.state != 'DONE':
+                error_message = f"Query job did not complete successfully. State: {query_job.state}"
+                logger.error(
+                    f"Query job incomplete",
+                    extra={
+                        "step_id": self.step_id,
+                        "job_id": query_job.job_id,
+                        "state": query_job.state,
+                        "expected_state": "DONE"
+                    }
+                )
+                raise QueryExecutionError(error_message)
+
+            # Check for job-level errors
+            if query_job.errors:
+                error_details = [
+                    f"{err.get('reason', 'unknown')}: {err.get('message', 'no message')}"
+                    for err in query_job.errors
+                ]
+                error_message = f"Query job completed with errors: {'; '.join(error_details)}"
+                logger.error(
+                    f"Query job errors detected",
+                    extra={
+                        "step_id": self.step_id,
+                        "job_id": query_job.job_id,
+                        "error_count": len(query_job.errors),
+                        "errors": query_job.errors
+                    }
+                )
+                raise QueryExecutionError(error_message)
+
+            # Check for error_result (alternative error reporting)
+            if query_job.error_result:
+                error_message = (
+                    f"Query job error: {query_job.error_result.get('reason', 'unknown')} - "
+                    f"{query_job.error_result.get('message', 'no message')}"
+                )
+                logger.error(
+                    f"Query job error_result detected",
+                    extra={
+                        "step_id": self.step_id,
+                        "job_id": query_job.job_id,
+                        "error_result": query_job.error_result
+                    }
+                )
+                raise QueryExecutionError(error_message)
+
+            logger.info(
+                f"Query job completed successfully",
+                extra={
+                    "step_id": self.step_id,
+                    "job_id": query_job.job_id,
+                    "state": query_job.state
+                }
+            )
+
+            # STEP 5: Collect execution metadata
             # For query jobs that write to a table, we need to get the destination table to count rows
-            dest_table = self.bq_client.client.get_table(dest_table_id)
+            try:
+                dest_table = self.bq_client.client.get_table(dest_table_id)
+            except Exception as e:
+                error_message = f"Failed to retrieve destination table metadata: {str(e)}"
+                logger.error(
+                    f"Failed to get destination table",
+                    extra={
+                        "step_id": self.step_id,
+                        "table": dest_table_id,
+                        "error": str(e)
+                    },
+                    exc_info=True
+                )
+                raise QueryExecutionError(error_message) from e
+
+            rows_written = dest_table.num_rows or 0
+            bytes_processed = query_job.total_bytes_processed or 0
+            bytes_billed = query_job.total_bytes_billed or 0
+            cache_hit = query_job.cache_hit or False
 
             result = {
-                'rows_written': dest_table.num_rows or 0,
-                'bytes_processed': query_job.total_bytes_processed or 0,
-                'bytes_billed': query_job.total_bytes_billed or 0,
-                'cache_hit': query_job.cache_hit or False,
+                'rows_written': rows_written,
+                'bytes_processed': bytes_processed,
+                'bytes_billed': bytes_billed,
+                'cache_hit': cache_hit,
                 'destination_table': dest_table_id
             }
+
+            # STEP 6: Validate result data
+            if rows_written == 0:
+                if write_mode == 'overwrite':
+                    error_message = (
+                        f"Query completed but wrote 0 rows in overwrite mode. "
+                        f"This will result in an empty table. Verify query logic."
+                    )
+                    logger.error(
+                        f"Zero rows written in overwrite mode",
+                        extra={
+                            "step_id": self.step_id,
+                            "destination": dest_table_id,
+                            "write_mode": write_mode,
+                            "rows_written": rows_written,
+                            "bytes_processed": bytes_processed
+                        }
+                    )
+                    raise QueryExecutionError(error_message)
+                else:
+                    # Append mode with 0 rows - warning only
+                    logger.warning(
+                        f"Query completed but wrote 0 rows in append mode",
+                        extra={
+                            "step_id": self.step_id,
+                            "destination": dest_table_id,
+                            "write_mode": write_mode,
+                            "rows_written": rows_written,
+                            "bytes_processed": bytes_processed
+                        }
+                    )
 
             logger.info(
                 f"Query execution complete",
                 extra={
                     "step_id": self.step_id,
-                    "rows_written": result['rows_written'],
-                    "bytes_processed": result['bytes_processed'],
-                    "cache_hit": result['cache_hit']
+                    "job_id": query_job.job_id,
+                    "rows_written": rows_written,
+                    "bytes_processed": bytes_processed,
+                    "bytes_billed": bytes_billed,
+                    "cache_hit": cache_hit,
+                    "destination": dest_table_id
                 }
             )
 
@@ -615,18 +902,38 @@ class BigQueryToBigQueryProcessor:
             try:
                 if query_job:
                     # Cancel job if still running (shouldn't happen, but defensive)
-                    if query_job.state in ['PENDING', 'RUNNING']:
+                    if hasattr(query_job, 'state') and query_job.state in ['PENDING', 'RUNNING']:
                         query_job.cancel()
-                        logger.debug(f"Cancelled running query job: {query_job.job_id}")
+                        logger.warning(
+                            f"Cancelled running query job during cleanup",
+                            extra={
+                                "step_id": self.step_id,
+                                "job_id": query_job.job_id
+                            }
+                        )
 
                     # Clear job reference
                     del query_job
             except Exception as cleanup_error:
-                logger.error(f"Error cleaning up query job: {cleanup_error}", exc_info=True)
+                logger.error(
+                    f"Error cleaning up query job",
+                    extra={
+                        "step_id": self.step_id,
+                        "error": str(cleanup_error)
+                    },
+                    exc_info=True
+                )
 
             # Clear table reference
             try:
                 if dest_table:
                     del dest_table
             except Exception as cleanup_error:
-                logger.error(f"Error cleaning up table reference: {cleanup_error}", exc_info=True)
+                logger.error(
+                    f"Error cleaning up table reference",
+                    extra={
+                        "step_id": self.step_id,
+                        "error": str(cleanup_error)
+                    },
+                    exc_info=True
+                )

@@ -54,22 +54,29 @@ class AsyncPipelineExecutor:
         tenant_id: str,
         pipeline_id: str,
         trigger_type: str = "api",
-        trigger_by: str = "api_user"
+        trigger_by: str = "api_user",
+        tracking_pipeline_id: Optional[str] = None,
+        pipeline_logging_id: Optional[str] = None
     ):
         """
         Initialize async pipeline executor.
 
         Args:
             tenant_id: Tenant identifier
-            pipeline_id: Pipeline identifier (matches YAML filename)
+            pipeline_id: Pipeline identifier (matches YAML filename for config lookup)
             trigger_type: How pipeline was triggered (api, scheduler, manual)
             trigger_by: Who triggered the pipeline
+            tracking_pipeline_id: Full tracking ID for database logging (e.g., tenant-provider-domain-template)
+                                  If not provided, defaults to pipeline_id
+            pipeline_logging_id: Pre-generated logging ID for this run
+                                If not provided, generates a new UUID
         """
         self.tenant_id = tenant_id
         self.pipeline_id = pipeline_id
         self.trigger_type = trigger_type
         self.trigger_by = trigger_by
-        self.pipeline_logging_id = str(uuid.uuid4())
+        self.tracking_pipeline_id = tracking_pipeline_id or pipeline_id
+        self.pipeline_logging_id = pipeline_logging_id or str(uuid.uuid4())
 
         self.bq_client = get_bigquery_client()
         self.dq_validator = DataQualityValidator()
@@ -224,6 +231,121 @@ class AsyncPipelineExecutor:
 
         return levels
 
+    async def _update_pipeline_status_to_running(self) -> None:
+        """
+        Update the existing PENDING pipeline row to RUNNING status.
+
+        The API endpoint creates an initial row with status='PENDING' for concurrency control.
+        This method updates that row to 'RUNNING' when actual execution begins.
+        """
+        from google.cloud import bigquery
+        from src.app.config import settings
+
+        try:
+            tenant_pipeline_runs_table = f"{settings.gcp_project_id}.{self.tenant_id}.x_meta_pipeline_runs"
+
+            update_query = f"""
+            UPDATE `{tenant_pipeline_runs_table}`
+            SET status = 'RUNNING'
+            WHERE pipeline_logging_id = @pipeline_logging_id
+              AND tenant_id = @tenant_id
+              AND status = 'PENDING'
+            """
+
+            job_config = bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("pipeline_logging_id", "STRING", self.pipeline_logging_id),
+                    bigquery.ScalarQueryParameter("tenant_id", "STRING", self.tenant_id),
+                ]
+            )
+
+            # Run update asynchronously
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(
+                None,
+                lambda: self.bq_client.client.query(update_query, job_config=job_config).result()
+            )
+
+            self.logger.info(
+                f"Updated pipeline status to RUNNING",
+                pipeline_logging_id=self.pipeline_logging_id,
+                tracking_pipeline_id=self.tracking_pipeline_id
+            )
+
+        except Exception as e:
+            # Don't fail the pipeline if status update fails, just log it
+            self.logger.warning(
+                f"Failed to update pipeline status to RUNNING: {e}",
+                pipeline_logging_id=self.pipeline_logging_id,
+                exc_info=True
+            )
+
+    async def _update_customer_usage_quotas(self) -> None:
+        """
+        Update customer usage quotas after pipeline completion.
+
+        Quotas are tracked at TENANT level (not customer/user level).
+        All users in a tenant share the same quota.
+        """
+        from google.cloud import bigquery
+        from src.app.config import settings
+
+        try:
+            # Determine which counter to increment based on status
+            if self.status == "COMPLETED":
+                success_increment = 1
+                failed_increment = 0
+            elif self.status == "FAILED":
+                success_increment = 0
+                failed_increment = 1
+            else:
+                success_increment = 0
+                failed_increment = 0
+
+            # Update usage quotas directly by tenant_id
+            update_query = f"""
+            UPDATE `{settings.gcp_project_id}.customers.customer_usage_quotas`
+            SET
+                pipelines_run_today = pipelines_run_today + 1,
+                pipelines_succeeded_today = pipelines_succeeded_today + @success_increment,
+                pipelines_failed_today = pipelines_failed_today + @failed_increment,
+                last_updated = CURRENT_TIMESTAMP()
+            WHERE
+                tenant_id = @tenant_id
+                AND usage_date = CURRENT_DATE()
+            """
+
+            job_config = bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("tenant_id", "STRING", self.tenant_id),
+                    bigquery.ScalarQueryParameter("success_increment", "INT64", success_increment),
+                    bigquery.ScalarQueryParameter("failed_increment", "INT64", failed_increment),
+                ]
+            )
+
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(
+                None,
+                lambda: self.bq_client.client.query(update_query, job_config=job_config).result()
+            )
+
+            self.logger.info(
+                f"Updated customer usage quotas",
+                tenant_id=self.tenant_id,
+                status=self.status,
+                pipelines_run=1,
+                pipelines_succeeded=success_increment,
+                pipelines_failed=failed_increment
+            )
+
+        except Exception as e:
+            self.logger.warning(
+                f"Failed to update customer usage quotas: {e}",
+                tenant_id=self.tenant_id,
+                status=self.status,
+                exc_info=True
+            )
+
     async def execute(self, parameters: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Execute the complete pipeline asynchronously with parallel step execution.
@@ -239,6 +361,9 @@ class AsyncPipelineExecutor:
         error_message = None
 
         try:
+            # Start metadata logger background workers
+            await self.metadata_logger.start()
+
             # Load configuration
             await self.load_config(parameters)
 
@@ -283,7 +408,7 @@ class AsyncPipelineExecutor:
                 if self.end_time:
                     await self.metadata_logger.log_pipeline_end(
                         pipeline_logging_id=self.pipeline_logging_id,
-                        pipeline_id=self.pipeline_id,
+                        pipeline_id=self.tracking_pipeline_id,
                         status=self.status,
                         start_time=self.start_time,
                         trigger_type=self.trigger_type,
@@ -292,10 +417,16 @@ class AsyncPipelineExecutor:
                         parameters=self.config.get('parameters', {}) if self.config else None
                     )
 
-                    # Flush all pending logs
-                    await self.metadata_logger.flush()
+                # Stop metadata logger and flush all pending logs
+                await self.metadata_logger.stop()
             except Exception as cleanup_error:
                 self.logger.error(f"Error during metadata logger cleanup: {cleanup_error}", exc_info=True)
+
+            # Update customer usage quotas
+            try:
+                await self._update_customer_usage_quotas()
+            except Exception as quota_error:
+                self.logger.error(f"Error updating customer usage quotas: {quota_error}", exc_info=True)
 
             # Clean up BigQuery client resources
             try:
@@ -313,8 +444,9 @@ class AsyncPipelineExecutor:
         """
         Internal pipeline execution logic (wrapped by timeout in execute()).
         """
-        # NOTE: log_pipeline_start is now called in the API endpoint BEFORE background task
-        # to prevent race condition with duplicate detection
+        # NOTE: Pipeline start row already inserted by API endpoint with status='PENDING'
+        # Update status to RUNNING now that execution has started
+        await self._update_pipeline_status_to_running()
 
         # Get execution levels for parallel processing
         execution_levels = self._get_execution_levels()
@@ -618,13 +750,13 @@ class AsyncPipelineExecutor:
         Get execution summary.
 
         Returns:
-            Summary dict
+            Summary dict with tracking_pipeline_id matching database records
         """
         duration_ms = int((self.end_time - self.start_time).total_seconds() * 1000) if self.end_time and self.start_time else None
 
         return {
             'pipeline_logging_id': self.pipeline_logging_id,
-            'pipeline_id': self.pipeline_id,
+            'pipeline_id': self.tracking_pipeline_id,  # Use tracking ID for consistency with DB
             'tenant_id': self.tenant_id,
             'status': self.status,
             'start_time': self.start_time,

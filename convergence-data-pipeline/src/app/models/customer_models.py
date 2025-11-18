@@ -429,6 +429,94 @@ class UpdateSubscriptionRequest(BaseModel):
         }
 
 
+class UpgradeSubscriptionRequest(BaseModel):
+    """Request model for subscription plan upgrades."""
+    new_plan: SubscriptionPlan = Field(
+        ...,
+        description="Target subscription plan to upgrade to"
+    )
+    effective_immediately: bool = Field(
+        default=True,
+        description="Whether upgrade takes effect immediately or at next billing cycle"
+    )
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "new_plan": "SCALE",
+                "effective_immediately": True
+            }
+        }
+
+
+class UpdateLimitsRequest(BaseModel):
+    """Request model for updating subscription limits (admin only)."""
+    max_team_members: Optional[int] = Field(
+        default=None,
+        ge=1,
+        le=1000,
+        description="Maximum team members allowed"
+    )
+    max_providers: Optional[int] = Field(
+        default=None,
+        ge=1,
+        le=100,
+        description="Maximum provider configurations"
+    )
+    max_pipelines_per_day: Optional[int] = Field(
+        default=None,
+        ge=1,
+        le=100000,
+        description="Daily pipeline execution limit"
+    )
+    max_pipelines_per_month: Optional[int] = Field(
+        default=None,
+        ge=1,
+        le=3000000,
+        description="Monthly pipeline execution limit"
+    )
+    max_concurrent_pipelines: Optional[int] = Field(
+        default=None,
+        ge=1,
+        le=100,
+        description="Concurrent pipeline execution limit"
+    )
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "max_team_members": 15,
+                "max_pipelines_per_day": 150,
+                "max_pipelines_per_month": 4500
+            }
+        }
+
+
+class UpdateTeamMemberRequest(BaseModel):
+    """Request model for updating team member details."""
+    role: Optional[TeamRole] = Field(
+        default=None,
+        description="Updated role for team member"
+    )
+    permissions: Optional[List[str]] = Field(
+        default=None,
+        description="Updated granular permissions"
+    )
+    full_name: Optional[str] = Field(
+        default=None,
+        max_length=200,
+        description="Updated full name"
+    )
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "role": "ADMIN",
+                "permissions": ["pipelines:run", "pipelines:read", "credentials:read", "credentials:write"]
+            }
+        }
+
+
 # ============================================================================
 # RESPONSE MODELS
 # ============================================================================
@@ -595,6 +683,39 @@ class UsageQuotaResponse(BaseModel):
                     "daily": 13,
                     "monthly": 570,
                     "concurrent": 2
+                }
+            }
+        }
+
+
+class LimitsResponse(BaseModel):
+    """Response model for subscription limits."""
+    customer_id: str
+    subscription_plan: SubscriptionPlan
+    max_team_members: int
+    max_providers: int
+    max_pipelines_per_day: int
+    max_pipelines_per_month: int
+    max_concurrent_pipelines: int
+    current_usage: Dict[str, int]
+
+    class Config:
+        from_attributes = True
+        json_schema_extra = {
+            "example": {
+                "customer_id": "acme_corp_prod",
+                "subscription_plan": "PROFESSIONAL",
+                "max_team_members": 6,
+                "max_providers": 6,
+                "max_pipelines_per_day": 25,
+                "max_pipelines_per_month": 750,
+                "max_concurrent_pipelines": 3,
+                "current_usage": {
+                    "team_members": 3,
+                    "providers": 2,
+                    "pipelines_today": 12,
+                    "pipelines_month": 180,
+                    "concurrent_running": 1
                 }
             }
         }

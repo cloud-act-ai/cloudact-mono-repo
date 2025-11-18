@@ -17,7 +17,8 @@ from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
 from src.core.pipeline.executor import PipelineExecutor
 from src.core.pipeline.async_executor import AsyncPipelineExecutor
 from src.core.pipeline.template_resolver import resolve_template, get_template_path
-from src.core.metadata.initializer import ensure_tenant_metadata
+# Removed: ensure_tenant_metadata - tenant datasets created during onboarding
+# from src.core.metadata.initializer import ensure_tenant_metadata
 from src.app.config import settings
 from google.cloud import bigquery
 
@@ -185,6 +186,77 @@ async def trigger_templated_pipeline(
             detail=f"Tenant ID mismatch: authenticated as '{tenant.tenant_id}' but requested '{tenant_id}'"
         )
 
+    # ============================================
+    # QUOTA ENFORCEMENT (Tenant-Level)
+    # ============================================
+    # Check if tenant has exceeded daily pipeline quota
+    quota_query = f"""
+    SELECT
+        pipelines_run_today,
+        daily_limit,
+        COALESCE(daily_limit - pipelines_run_today, 0) as remaining
+    FROM `{settings.gcp_project_id}.customers.customer_usage_quotas`
+    WHERE tenant_id = @tenant_id
+      AND usage_date = CURRENT_DATE()
+    LIMIT 1
+    """
+
+    quota_params = [
+        bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id)
+    ]
+
+    quota_config = bigquery.QueryJobConfig(query_parameters=quota_params)
+
+    try:
+        quota_result = list(bq_client.client.query(quota_query, job_config=quota_config).result())
+
+        if not quota_result:
+            logger.warning(f"No quota record found for tenant: {tenant_id}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Quota record not found for tenant {tenant_id}. Please contact support."
+            )
+
+        quota = quota_result[0]
+        pipelines_run_today = quota["pipelines_run_today"]
+        daily_limit = quota["daily_limit"]
+        remaining = quota["remaining"]
+
+        # Enforce quota limit
+        if pipelines_run_today >= daily_limit:
+            logger.warning(
+                f"Quota exceeded for tenant: {tenant_id}",
+                extra={
+                    "tenant_id": tenant_id,
+                    "pipelines_run_today": pipelines_run_today,
+                    "daily_limit": daily_limit,
+                    "remaining": remaining
+                }
+            )
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Daily pipeline quota exceeded. You have run {pipelines_run_today} pipelines today (limit: {daily_limit}). Please upgrade your subscription or wait until tomorrow."
+            )
+
+        logger.info(
+            f"Quota check passed for tenant: {tenant_id}",
+            extra={
+                "tenant_id": tenant_id,
+                "pipelines_run_today": pipelines_run_today,
+                "daily_limit": daily_limit,
+                "remaining": remaining
+            }
+        )
+
+    except HTTPException:
+        raise  # Re-raise HTTP exceptions
+    except Exception as e:
+        logger.error(f"Failed to check quota for tenant {tenant_id}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to check quota: {str(e)}"
+        )
+
     # Generate pipeline_id for tracking (includes tenant prefix)
     pipeline_id = f"{tenant_id}-{provider}-{domain}-{template_name}"
 
@@ -217,8 +289,8 @@ async def trigger_templated_pipeline(
             detail=f"Failed to resolve template: {str(e)}"
         )
 
-    # Ensure tenant metadata infrastructure exists
-    ensure_tenant_metadata(tenant.tenant_id, bq_client.client)
+    # Note: Tenant dataset and operational tables created during onboarding
+    # No need to ensure_tenant_metadata here - it would try to create API key tables
 
     # Extract parameters from request
     parameters = request.model_dump(exclude={'trigger_by'}, exclude_none=True)
@@ -277,15 +349,15 @@ async def trigger_templated_pipeline(
     # Check if row was inserted
     if query_job.num_dml_affected_rows > 0:
         # Successfully inserted - create executor with file identifier for config lookup
-        # pipeline_id is the full tracking ID, but file_identifier is used for finding the YAML file
+        # pipeline_id is used for YAML file lookup, tracking_pipeline_id is the full tracking ID for DB
         executor = AsyncPipelineExecutor(
             tenant_id=tenant.tenant_id,
-            pipeline_id=file_identifier,  # Use file path for config lookup
+            pipeline_id=file_identifier,  # Use file identifier for config lookup
             trigger_type="api",
-            trigger_by=request.trigger_by or "api_user"
+            trigger_by=request.trigger_by or "api_user",
+            tracking_pipeline_id=pipeline_id,  # Full tracking ID for database logging
+            pipeline_logging_id=pipeline_logging_id  # Pre-generated UUID from atomic INSERT
         )
-        # Override the executor's pipeline_logging_id
-        executor.pipeline_logging_id = pipeline_logging_id
 
         # Execute pipeline in background
         background_tasks.add_task(run_async_pipeline_task, executor, parameters)
@@ -371,8 +443,8 @@ async def trigger_pipeline(
         endpoint_name="trigger_pipeline_deprecated"
     )
 
-    # Ensure tenant metadata infrastructure exists
-    ensure_tenant_metadata(tenant.tenant_id, bq_client.client)
+    # Note: Tenant dataset and operational tables created during onboarding
+    # No need to ensure_tenant_metadata here - it would try to create API key tables
 
     # Extract parameters from request
     parameters = request.model_dump(exclude={'trigger_by'}, exclude_none=True)

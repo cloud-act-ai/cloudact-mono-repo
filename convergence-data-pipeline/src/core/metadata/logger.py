@@ -471,10 +471,10 @@ class MetadataLogger:
         parameters: Optional[Dict[str, Any]] = None
     ):
         """
-        Log pipeline execution end (non-blocking).
+        Log pipeline execution end using UPDATE to avoid duplicates.
 
-        IMPORTANT: BigQuery requires ALL fields for each row, not just the changed ones.
-        This method must include all required fields from the schema.
+        IMPORTANT: This method UPDATEs the existing row created by the API endpoint
+        instead of INSERTing a new row to prevent duplicate records.
 
         Args:
             pipeline_logging_id: Unique logging ID for this run
@@ -491,52 +491,56 @@ class MetadataLogger:
             duration_ms = int((end_time - start_time).total_seconds() * 1000)
 
             # Serialize datetime values in parameters dict then convert to JSON string
-            # BigQuery insert_rows_json() requires JSON type fields to be JSON strings, not dicts
             parameters_serialized = _serialize_datetime_values(parameters) if parameters else None
             parameters_json_str = json.dumps(parameters_serialized) if parameters_serialized is not None else None
 
-            # BigQuery requires ALL fields for each row - include all required fields
-            log_entry = {
-                "insertId": f"{pipeline_logging_id}_end",  # Idempotency
-                "json": {
+            # Use UPDATE query to update existing row instead of INSERT
+            table_id = f"{self.project_id}.{self.metadata_dataset}.x_meta_pipeline_runs"
+
+            update_query = f"""
+            UPDATE `{table_id}`
+            SET
+                status = @status,
+                end_time = @end_time,
+                duration_ms = @duration_ms,
+                error_message = @error_message,
+                parameters = PARSE_JSON(@parameters)
+            WHERE
+                pipeline_logging_id = @pipeline_logging_id
+                AND tenant_id = @tenant_id
+            """
+
+            job_config = bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("status", "STRING", status),
+                    bigquery.ScalarQueryParameter("end_time", "TIMESTAMP", end_time),
+                    bigquery.ScalarQueryParameter("duration_ms", "INT64", duration_ms),
+                    bigquery.ScalarQueryParameter("error_message", "STRING", error_message),
+                    bigquery.ScalarQueryParameter("parameters", "STRING", parameters_json_str),
+                    bigquery.ScalarQueryParameter("pipeline_logging_id", "STRING", pipeline_logging_id),
+                    bigquery.ScalarQueryParameter("tenant_id", "STRING", self.tenant_id)
+                ]
+            )
+
+            # Execute UPDATE in thread pool to avoid blocking
+            loop = asyncio.get_event_loop()
+            query_job = await loop.run_in_executor(
+                None,
+                lambda: self.client.query(update_query, job_config=job_config)
+            )
+
+            # Wait for query to complete
+            await loop.run_in_executor(None, query_job.result)
+
+            logger.debug(
+                f"Updated pipeline end log",
+                extra={
                     "pipeline_logging_id": pipeline_logging_id,
-                    "pipeline_id": pipeline_id,
-                    "tenant_id": self.tenant_id,
                     "status": status,
-                    "trigger_type": trigger_type,
-                    "trigger_by": trigger_by,
-                    "start_time": start_time.isoformat(),
-                    "end_time": end_time.isoformat(),
                     "duration_ms": duration_ms,
-                    "config_version": self.config_version,
-                    "worker_instance": self.worker_instance,
-                    "error_message": error_message,
-                    "parameters": parameters_json_str
+                    "num_updated_rows": query_job.num_dml_affected_rows
                 }
-            }
-
-            # Non-blocking queue put with backpressure handling
-            try:
-                self._pipeline_queue.put_nowait(log_entry)
-
-                logger.debug(
-                    f"Queued pipeline end log",
-                    extra={
-                        "pipeline_logging_id": pipeline_logging_id,
-                        "status": status,
-                        "duration_ms": duration_ms,
-                        "queue_size": self._pipeline_queue.qsize()
-                    }
-                )
-            except asyncio.QueueFull:
-                # Queue is full - apply backpressure
-                logger.warning(
-                    f"Pipeline log queue full ({self.queue_size}), dropping log entry",
-                    extra={
-                        "pipeline_logging_id": pipeline_logging_id,
-                        "queue_size": self.queue_size
-                    }
-                )
+            )
 
         except Exception as e:
             logger.error(

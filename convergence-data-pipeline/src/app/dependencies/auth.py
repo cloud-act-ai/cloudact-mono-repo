@@ -698,13 +698,16 @@ async def get_provider_config(
 
 
 # ============================================
-# Legacy Tenant-Based Authentication (Backward Compatibility)
+# Legacy Tenant-Based Authentication (DEPRECATED - Use get_current_customer)
 # ============================================
 
 
 async def get_tenant_from_local_file(api_key_hash: str) -> Optional[str]:
     """
     Look up tenant_id from local file-based API keys (development fallback).
+
+    DEPRECATED: This is a legacy fallback for development only.
+    Production should use get_current_customer() which reads from customers dataset.
 
     Args:
         api_key_hash: SHA256 hash of API key
@@ -749,11 +752,10 @@ async def get_tenant_from_api_key(
     bq_client: BigQueryClient
 ) -> Optional[str]:
     """
-    Look up tenant_id from API key hash in BigQuery.
-    Searches all tenant datasets' api_keys tables using UNION ALL.
-    Falls back to local file-based lookup if BigQuery fails.
+    Look up tenant_id from API key hash using centralized customers dataset.
 
-    New Architecture: API keys stored in {tenant_id}.api_keys tables.
+    UPDATED: Now reads from customers.customer_api_keys instead of {tenant_id}.x_meta_api_keys.
+    This is more secure as API keys are stored in a centralized, access-controlled dataset.
 
     Args:
         api_key_hash: SHA256 hash of API key
@@ -762,104 +764,54 @@ async def get_tenant_from_api_key(
     Returns:
         tenant_id if found and active, None otherwise
     """
-    # Query across all tenant datasets using INFORMATION_SCHEMA
+    # Query centralized customers.customer_api_keys table
     query = f"""
-    SELECT tenant_id, is_active
-    FROM (
-      SELECT table_schema AS tenant_id
-      FROM `{settings.gcp_project_id}.region-{settings.bigquery_location}.INFORMATION_SCHEMA.TABLES`
-      WHERE table_name = 'x_meta_api_keys'
-        AND table_schema NOT IN ('information_schema', 'metadata', 'pg_catalog')
-    ) AS tenant_datasets
-    LEFT JOIN `{settings.gcp_project_id}.{{tenant_id}}.x_meta_api_keys` AS api_keys
-      USING (tenant_id)
-    WHERE api_keys.api_key_hash = @api_key_hash
-      AND api_keys.is_active = TRUE
+    SELECT
+        k.tenant_id,
+        k.customer_id,
+        k.is_active,
+        k.expires_at,
+        c.status AS customer_status
+    FROM `{settings.gcp_project_id}.customers.customer_api_keys` k
+    INNER JOIN `{settings.gcp_project_id}.customers.customer_profiles` c
+        ON k.customer_id = c.customer_id
+    WHERE k.api_key_hash = @api_key_hash
+        AND k.is_active = TRUE
+        AND c.status = 'ACTIVE'
     LIMIT 1
     """
 
     try:
-        # First, get all datasets (using standard INFORMATION_SCHEMA instead of regional)
-        # Then check each one for x_meta_api_keys table existence
-        datasets_query = f"""
-        SELECT schema_name
-        FROM `{settings.gcp_project_id}.INFORMATION_SCHEMA.SCHEMATA`
-        WHERE schema_name NOT IN ('information_schema', 'metadata', 'pg_catalog')
-        """
-
-        logger.info(f"[AUTH DEBUG] Looking up API key hash: {api_key_hash[:20]}...")
-        all_datasets = list(bq_client.client.query(datasets_query).result())
-        logger.info(f"[AUTH DEBUG] Found {len(all_datasets)} tenant datasets")
-
-        # Filter to only datasets that have x_meta_api_keys table
-        datasets = []
-        for row in all_datasets:
-            schema_name = row['schema_name']
-            try:
-                # Check if x_meta_api_keys table exists in this dataset
-                table_check = f"""
-                SELECT COUNT(*) as cnt
-                FROM `{settings.gcp_project_id}.{schema_name}.INFORMATION_SCHEMA.TABLES`
-                WHERE table_name = 'x_meta_api_keys'
-                """
-                result = list(bq_client.client.query(table_check).result())
-                if result and result[0]['cnt'] > 0:
-                    datasets.append({'table_schema': schema_name})
-            except Exception as e:
-                logger.debug(f"[AUTH DEBUG] Skipping dataset {schema_name}: {e}")
-                continue
-
-        logger.info(f"[AUTH DEBUG] Found {len(datasets)} datasets with x_meta_api_keys table")
-
-        if not datasets:
-            logger.warning(f"No tenant datasets with x_meta_api_keys table found")
-            return await get_tenant_from_local_file(api_key_hash)
-
-        # Build UNION ALL query across all tenant x_meta_api_keys tables
-        union_parts = []
-        for row in datasets:
-            tenant_id = row['table_schema']
-            logger.info(f"[AUTH DEBUG] Adding dataset to UNION query: {tenant_id}")
-            union_parts.append(f"""
-                SELECT tenant_id, is_active
-                FROM `{settings.gcp_project_id}.{tenant_id}.x_meta_api_keys`
-                WHERE api_key_hash = @api_key_hash
-            """)
-
-        if not union_parts:
-            return await get_tenant_from_local_file(api_key_hash)
-
-        union_query = " UNION ALL ".join(union_parts) + " LIMIT 1"
-        logger.info(f"[AUTH DEBUG] Executing UNION query:\n{union_query}")
-        logger.info(f"[AUTH DEBUG] With parameter: api_key_hash = {api_key_hash[:20]}...")
-
+        logger.info(f"[AUTH] Looking up API key in centralized customers dataset")
         results = list(bq_client.query(
-            union_query,
+            query,
             parameters=[
                 bigquery.ScalarQueryParameter("api_key_hash", "STRING", api_key_hash)
             ]
         ))
 
-        logger.info(f"[AUTH DEBUG] Query returned {len(results)} results")
-
         if not results:
-            logger.warning(f"API key not found in any tenant dataset, trying local files")
+            logger.warning(f"API key not found in customers dataset, trying local files")
             return await get_tenant_from_local_file(api_key_hash)
 
         row = results[0]
-        logger.info(f"[AUTH DEBUG] First result row: tenant_id={row.get('tenant_id')}, is_active={row.get('is_active')}")
+
+        # Check if API key has expired
+        if row.get("expires_at") and row["expires_at"] < datetime.utcnow():
+            logger.warning(f"API key expired for customer: {row['customer_id']}")
+            return None
 
         if not row.get("is_active", False):
-            logger.warning(f"API key is inactive for tenant: {row.get('tenant_id')}")
+            logger.warning(f"API key is inactive for customer: {row.get('customer_id')}")
             return None
 
         tenant_id = row["tenant_id"]
-        logger.info(f"[AUTH DEBUG] Returning tenant_id: {tenant_id}")
+        logger.info(f"[AUTH] Authenticated tenant: {tenant_id} (customer: {row['customer_id']})")
         return tenant_id
 
     except Exception as e:
-        logger.warning(f"BigQuery lookup failed: {e}, trying local files")
-        # Fallback to local file lookup
+        logger.warning(f"Centralized auth lookup failed: {e}, trying local files")
+        # Fallback to local file lookup for development
         return await get_tenant_from_local_file(api_key_hash)
 
 
