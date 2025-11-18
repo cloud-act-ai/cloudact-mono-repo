@@ -132,35 +132,47 @@ ALL pipelines are configuration-driven using YAML files. The entire pipeline exe
 **Key Principle**: Pipelines execute by loading YAML configuration files from `/configs/` directory.
 
 ```yaml
-# Example: configs/gcp/cost/billing.yml
-name: "GCP Cost Billing Extract"
-version: "1.0.0"
-enabled: true
+# Example: configs/gcp/cost/cost_billing.yml (ACTUAL STRUCTURE)
+pipeline_id: "{tenant_id}_gcp_cost_billing"
+description: "Extract GCP billing costs"
 
-processors:
-  - processor_id: "gcp_billing_extract"
-    processor_type: "gcp/cost/billing"
-    template_id: "gcp_cost_billing"
+# Pipeline-level variables
+variables:
+  source_billing_table: "project.dataset.table"
+  destination_dataset_type: "gcp_silver_cost"
+  destination_table: "billing_cost_daily"
+  admin_email: "admin@example.com"
 
-    input:
-      provider: "gcp"
-      project_id: "{gcp_project_id}"
-      service_account: "{gcp_service_account}"
-      billing_dataset: "{gcp_billing_dataset}"
+# STEPS array (not "processors")
+steps:
+  # Step 1: Data extraction and transformation
+  - step_id: "extract_billing_costs"
+    name: "Extract GCP Billing Costs"
+    ps_type: "gcp.bq_etl"                    # Maps to processor file
+    timeout_minutes: 20
 
-    parameters:
-      extraction_date: "{date}"
-      include_credits: true
-      include_taxes: true
+    # Source config (directly in step, not separate)
+    source:
+      bq_project_id: "gac-prod-471220"
+      query: |
+        SELECT billing_account_id, service_id, cost, ...
+        FROM `{source_billing_table}`
+        WHERE DATE(usage_start_time) = '{date}'
 
-    output:
-      dataset: "{tenant_id}"
-      table: "gcp_cost_billing"
-      write_mode: "WRITE_APPEND"
+    # Destination config (directly in step, not separate)
+    destination:
+      bq_project_id: "gac-prod-471220"
+      dataset_type: "{destination_dataset_type}"
+      table: "{destination_table}"
+      write_mode: "append"
 
-    retry:
-      max_attempts: 3
-      backoff_multiplier: 2.0
+  # Step 2: Notification on failure
+  - step_id: "notify_on_failure"
+    name: "Send Failure Notification"
+    ps_type: "notify_systems.email_notification"    # Maps to processor file
+    trigger: "on_failure"
+    to_emails:
+      - "{admin_email}"
 ```
 
 ### API-Triggered Pipeline (Real-Time Sync)
@@ -273,7 +285,278 @@ Flow:
 
 ---
 
-## 4.1 Post-Onboarding Flows: Provider Credentials and Pipeline Configuration
+## 4.1 Pipeline Step Processors (ps_type) and Processor Discovery
+
+### What is ps_type?
+
+The `ps_type` field in each pipeline step is the **key that connects YAML configuration to actual processor code**. It follows the pattern: `{provider}.{processor_name}`
+
+**Examples**:
+- `gcp.bq_etl` → `src/core/processors/gcp/bq_etl.py`
+- `notify_systems.email_notification` → `src/core/processors/notify_systems/email_notification.py`
+- `aws.s3_data_loader` → `src/core/processors/aws/s3_data_loader.py`
+
+### How the Pipeline Execution Resolves ps_type
+
+```
+YAML Pipeline Step:
+  - step_id: "extract_data"
+    ps_type: "gcp.bq_etl"
+    source: {...}
+    destination: {...}
+         ↓
+[Pipeline Executor reads ps_type]
+         ↓
+[Loads processor template from ps_templates/gcp/bq_etl/config.yml]
+         ↓
+[Loads processor engine: src.core.engines.gcp.bq_etl]
+         ↓
+[Validates required parameters against step config]
+         ↓
+[Executes processor with step configuration]
+         ↓
+[Logs to x_meta_step_logs in tenant dataset]
+```
+
+### Complete Flow: API Call to Processor Execution
+
+```
+1. CLIENT REQUEST
+   ├─ Endpoint: POST /api/v1/pipelines/run/{tenant_id}/gcp/cost/cost_billing
+   ├─ Headers: X-API-Key, X-User-ID
+   └─ Body: {"date": "2025-11-15"}
+
+2. AUTHENTICATION & VALIDATION
+   ├─ Hash API key → Lookup tenant_id
+   ├─ Check subscription status
+   └─ Validate quota
+
+3. YAML CONFIGURATION LOADING
+   ├─ Load: /configs/gcp/cost/cost_billing.yml
+   ├─ Replace variables: {tenant_id}, {date}, etc.
+   └─ Parse steps array
+
+4. FOR EACH STEP IN steps[]
+   ├─ Extract ps_type (e.g., "gcp.bq_etl")
+   ├─ Load ps_templates/{provider}/{processor}/config.yml
+   ├─ Validate step parameters against required_params
+   ├─ Instantiate processor engine
+   └─ Execute processor with step configuration
+
+5. STEP EXECUTION
+   ├─ Run processor (e.g., BigQuery ETL)
+   ├─ Log to x_meta_step_logs
+   └─ Handle errors/retries
+
+6. NEXT STEP (IF SUCCESS)
+   └─ Repeat from step 4
+
+7. PIPELINE COMPLETION
+   ├─ Update x_meta_pipeline_runs (status: SUCCESS/FAILED)
+   ├─ Update tenant quota counters
+   └─ Send notifications (if configured)
+
+8. RESPONSE TO CLIENT
+   └─ Return pipeline_logging_id + status
+```
+
+### Available Processors
+
+#### 1. GCP Processors
+
+**Processor**: `gcp.bq_etl` (BigQuery ETL)
+- **Path**: `src/core/processors/gcp/bq_etl.py`
+- **Template**: `ps_templates/gcp/bq_etl/config.yml`
+- **Description**: Extract, transform, and load data from BigQuery to BigQuery with schema validation
+- **Required Parameters**:
+  - `source.bq_project_id` - GCP project ID
+  - `source.query` - SQL query for extraction
+  - `destination.bq_project_id` - Target GCP project
+  - `destination.dataset_type` - Dataset name/type
+  - `destination.table` - Target table name
+  - `destination.write_mode` - `overwrite`, `append`, or `truncate`
+- **Optional Parameters**:
+  - `source.query_params` - Query parameters
+  - `destination.partition_by` - Partitioning field
+  - `destination.cluster_by` - Clustering fields
+  - `destination.schema_template` - Schema validation
+  - `timeout_minutes` - Step timeout
+- **Features**: Auto-create tables, schema validation, partitioning, clustering
+- **Usage Example**:
+  ```yaml
+  - step_id: "extract_costs"
+    ps_type: "gcp.bq_etl"
+    source:
+      bq_project_id: "project-123"
+      query: "SELECT * FROM `project.dataset.table`"
+    destination:
+      bq_project_id: "project-123"
+      dataset_type: "silver_costs"
+      table: "daily_billing"
+      write_mode: "append"
+  ```
+
+#### 2. AWS Processors
+
+**Processor**: `aws.s3_data_loader` (S3 Data Loader)
+- **Path**: `src/core/processors/aws/s3_data_loader.py`
+- **Template**: `ps_templates/aws/s3_data_loader/config.yml`
+- **Description**: Load data from AWS S3 to Google BigQuery with format detection and validation
+- **Required Parameters**:
+  - `source.s3_bucket` - S3 bucket name
+  - `source.s3_key` - S3 object key/path
+  - `source.aws_region` - AWS region
+  - `destination.bq_project_id` - GCP project
+  - `destination.dataset_type` - BigQuery dataset
+  - `destination.table` - BigQuery table
+  - `destination.write_mode` - Write mode
+- **Optional Parameters**:
+  - `source.file_format` - `csv`, `json`, `parquet`, `avro`
+  - `source.compression` - Compression type
+  - `source.aws_access_key_id` - AWS credentials
+  - `source.aws_secret_access_key` - AWS credentials
+  - `destination.schema_template` - Schema validation
+  - `destination.partition_by` - Partitioning
+- **Features**: Format detection, compression support, multiple files, schema validation
+- **Usage Example**:
+  ```yaml
+  - step_id: "load_from_s3"
+    ps_type: "aws.s3_data_loader"
+    source:
+      s3_bucket: "my-data-bucket"
+      s3_key: "exports/2025-11-15/data.csv"
+      aws_region: "us-east-1"
+    destination:
+      bq_project_id: "project-123"
+      dataset_type: "raw_aws"
+      table: "cost_usage_reports"
+      write_mode: "append"
+  ```
+
+#### 3. Notification Processors (notify_systems)
+
+**Processor**: `notify_systems.email_notification` (Email)
+- **Path**: `src/core/processors/notify_systems/email_notification.py`
+- **Template**: `ps_templates/notify_systems/email_notification/config.yml`
+- **Description**: Send email notifications for pipeline events (supports Gmail SMTP, AWS SES, SendGrid)
+- **Required Parameters**:
+  - `to_emails` - List of recipient emails
+  - `trigger` - When to send: `on_failure`, `on_success`, `on_completion`, or `always`
+- **Optional Parameters**:
+  - `subject_template` - Email subject (supports variables)
+  - `body_template` - Email body (supports variables)
+  - `from_email` - Sender email (optional, uses default)
+  - `cc_emails` - CC recipients
+  - `bcc_emails` - BCC recipients
+- **Supported Triggers**:
+  - `on_failure` - Send when pipeline fails
+  - `on_success` - Send when pipeline succeeds
+  - `on_completion` - Send on completion (success or failure)
+  - `always` - Send regardless
+- **Features**: HTML formatting, template variables, multi-provider support
+- **Usage Example**:
+  ```yaml
+  - step_id: "notify_failure"
+    ps_type: "notify_systems.email_notification"
+    trigger: "on_failure"
+    to_emails:
+      - "{admin_email}"
+      - "ops@company.com"
+    subject_template: "[ALERT] Pipeline Failed: {pipeline_id}"
+    body_template: |
+      Pipeline {pipeline_id} failed for tenant {tenant_id}
+      Check logs at: {tenant_id}.x_meta_step_logs
+  ```
+
+**Processor**: `notify_systems.slack_notification` (Slack)
+- **Path**: `src/core/notifications/providers/slack.py`
+- **Template**: `ps_templates/notify_systems/slack_notification/config.yml`
+- **Description**: Send Slack notifications for pipeline events
+- **Required Parameters**:
+  - `slack_webhook_url` or `slack_channel` - Slack destination
+  - `trigger` - When to send
+- **Optional Parameters**:
+  - `message_template` - Message format
+  - `include_details` - Include execution details
+- **Usage Example**:
+  ```yaml
+  - step_id: "notify_slack"
+    ps_type: "notify_systems.slack_notification"
+    trigger: "on_failure"
+    slack_webhook_url: "{slack_webhook}"
+    message_template: "Pipeline failed: {pipeline_id}"
+  ```
+
+#### 4. Setup Processors
+
+**Processor**: `setup.initial` (Bootstrap)
+- **Path**: `src/core/processors/setup/initial/onetime_bootstrap_processor.py`
+- **Template**: `ps_templates/setup/initial/config.yml`
+- **Description**: One-time bootstrap to create tenants dataset and 8 management tables
+- **Usage**: Automatic on first deployment
+- **Creates**: `tenants` dataset with tables for auth, subscriptions, quotas, etc.
+
+**Processor**: `setup.tenants.onboarding` (Tenant Onboarding)
+- **Path**: `src/core/processors/setup/tenants/onboarding.py`
+- **Template**: `ps_templates/setup/tenants/onboarding/config.yml`
+- **Description**: Onboard new tenants (create dataset, tables, API keys)
+
+### Processor Template Structure
+
+Each processor has a template configuration that defines requirements:
+
+```
+ps_templates/{provider}/{processor}/
+├── config.yml                    # Template definition
+├── README.md                     # Documentation
+└── schemas/                      # Output schemas (if applicable)
+    └── output_schema.json
+```
+
+**Template config.yml fields**:
+```yaml
+ps_type: "gcp.bq_etl"            # Must match step ps_type value
+name: "BigQuery ETL Processor"
+description: "..."
+version: "1.0.0"
+provider: "gcp"
+engine: "src.core.engines.gcp.bq_etl"  # Python module to execute
+
+required_params:                  # Must be in step config
+  - source.bq_project_id
+  - source.query
+  - destination.bq_project_id
+  - destination.dataset_type
+  - destination.table
+
+optional_params:                  # Can be in step config
+  - destination.partition_by
+  - destination.cluster_by
+
+supported_write_modes:            # Valid values for destination.write_mode
+  - overwrite
+  - append
+  - truncate
+
+features:                         # Processor capabilities
+  auto_create_table: true
+  schema_validation: true
+```
+
+### Summary: ps_type Mapping
+
+| ps_type | Processor File | Engine Module | Purpose |
+|---------|---|---|---|
+| `gcp.bq_etl` | `src/core/processors/gcp/bq_etl.py` | `src.core.engines.gcp.bq_etl` | BigQuery extraction/transformation |
+| `aws.s3_data_loader` | `src/core/processors/aws/s3_data_loader.py` | `src.core.engines.aws.s3_data_loader` | Load S3 data to BigQuery |
+| `notify_systems.email_notification` | `src/core/processors/notify_systems/email_notification.py` | `src.core.engines.notify_systems.email_notification` | Send email notifications |
+| `notify_systems.slack_notification` | `src/core/notifications/providers/slack.py` | `src.core.engines.notify_systems.slack_notification` | Send Slack notifications |
+| `setup.initial` | `src/core/processors/setup/initial/onetime_bootstrap_processor.py` | `src.core.engines.setup.initial` | Bootstrap system (one-time) |
+| `setup.tenants.onboarding` | `src/core/processors/setup/tenants/onboarding.py` | `src.core.engines.setup.tenants.onboarding` | Onboard new tenants |
+
+---
+
+## 4.2 Post-Onboarding Flows: Provider Credentials and Pipeline Configuration
 
 ### Prerequisites
 After subscription onboarding is complete, tenant has:
@@ -383,7 +666,7 @@ RESPONSE:
 
 ---
 
-## 4.2 Sync Patterns: Real-Time API vs Offline Scheduler
+## 4.3 Sync Patterns: Real-Time API vs Offline Scheduler
 
 ### Pattern 1: Real-Time API Sync (On-Demand)
 
@@ -508,7 +791,7 @@ Cloud Scheduler → POST /api/v1/scheduler/reset-daily-quotas
 
 ---
 
-## 5. Bootstrap Process and Initial Setup
+## 5. Bootstrap Process and Initial Setup (Updated - Use sections 4.1 Processors instead)
 
 ### One-Time Bootstrap Processor
 
@@ -585,7 +868,7 @@ python tests/test_bootstrap_setup.py
 
 ---
 
-## 5. Quota Management
+## 6. Quota Management
 
 ### Real-Time Tracking (`tenants.tenant_usage_quotas`)
 ```sql
@@ -613,7 +896,7 @@ Cloud Scheduler job (`reset-daily-quotas`) resets `pipelines_run_today` at midni
 
 ---
 
-## 6. Authentication Flow
+## 7. Authentication Flow
 
 ```
 1. Client Request:
@@ -654,7 +937,7 @@ verify_api_key()             # Returns tenant_id only
 
 ---
 
-## 7. Core Components
+## 8. Core Components
 
 ### AsyncPipelineExecutor
 - Async pipeline execution (non-blocking)
@@ -675,7 +958,7 @@ verify_api_key()             # Returns tenant_id only
 
 ---
 
-## 8. Security
+## 9. Security
 
 ### API Key Security
 - **Hash storage**: SHA256 in `tenant_api_keys.api_key_hash`
@@ -689,7 +972,7 @@ verify_api_key()             # Returns tenant_id only
 
 ---
 
-## 9. Rate Limiting
+## 10. Rate Limiting
 
 | Scope | Limit | Response |
 |-------|-------|----------|
@@ -700,7 +983,7 @@ verify_api_key()             # Returns tenant_id only
 
 ---
 
-## 10. Observability
+## 11. Observability
 
 ### Logging
 - **Format**: Structured JSON with tenant_id, user_id, pipeline_id
@@ -726,7 +1009,7 @@ GET /health/ready        # Readiness probe (BigQuery check)
 
 ---
 
-## 11. Key Design Decisions
+## 12. Key Design Decisions
 
 ### Why Separate Tenants Dataset?
 - Centralized auth and quota management
@@ -746,7 +1029,7 @@ GET /health/ready        # Readiness probe (BigQuery check)
 
 ---
 
-## 12. Scaling Design
+## 13. Scaling Design
 
 ### Current Scale
 - **Tenants**: 10,000+ supported
@@ -764,7 +1047,7 @@ GET /health/ready        # Readiness probe (BigQuery check)
 
 ---
 
-## 13. Maintenance Operations
+## 14. Maintenance Operations
 
 ### Automated (Cloud Scheduler)
 ```
@@ -796,7 +1079,7 @@ Quota adjustment:   Direct BigQuery UPDATE to tenant_usage_quotas
 
 ---
 
-## 14. Error Handling
+## 15. Error Handling
 
 | Error Type | Response | Recovery |
 |-----------|----------|----------|
@@ -807,7 +1090,7 @@ Quota adjustment:   Direct BigQuery UPDATE to tenant_usage_quotas
 
 ---
 
-## 15. End-to-End System Flow: Frontend to Pipeline Execution
+## 16. End-to-End System Flow: Frontend to Pipeline Execution
 
 ### Complete Journey: From User Action to Data in BigQuery
 
@@ -938,7 +1221,7 @@ FRONTEND SYSTEM (Supabase)          CONVERGENCE API (Cloud Run)          DATA (B
 
 ---
 
-## 16. API Endpoints
+## 17. API Endpoints
 
 ```
 Health & Metrics:
@@ -976,7 +1259,7 @@ Admin Operations (X-Admin-Key required):
 
 ---
 
-## 17. Configuration-Driven Architecture: Key Principles
+## 18. Configuration-Driven Architecture: Key Principles
 
 ### All Pipelines Execute from YAML Configs
 
