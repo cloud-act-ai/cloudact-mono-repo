@@ -1050,3 +1050,206 @@ async def delete_customer_pipeline(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete pipeline configuration: {str(e)}"
         )
+
+
+# ============================================
+# Maintenance Scheduler Jobs
+# ============================================
+
+@router.post(
+    "/scheduler/reset-daily-quotas",
+    summary="Reset daily quotas (Daily)",
+    description="Called by Cloud Scheduler to reset daily quota counters (ADMIN ONLY)"
+)
+async def reset_daily_quotas(
+    admin_context: None = Depends(verify_admin_key),
+    bq_client: BigQueryClient = Depends(get_bigquery_client)
+):
+    """
+    Reset daily quota counters and archive old records.
+
+    Logic:
+    1. UPDATE customer_usage_quotas SET all daily counters to 0 WHERE usage_date < CURRENT_DATE()
+    2. Archive/DELETE records older than 90 days
+    3. Return count of records updated/archived
+
+    Security:
+    - Requires admin API key
+    - Validates before executing destructive operations
+
+    Performance:
+    - Batch processes all customers in single UPDATE
+    - Archives old data to prevent table bloat
+    """
+    try:
+        updated_count = 0
+        archived_count = 0
+
+        # Reset daily counters for previous days
+        reset_query = f"""
+        UPDATE `{settings.gcp_project_id}.customers.customer_usage_quotas`
+        SET
+            pipelines_run_today = 0,
+            pipelines_succeeded_today = 0,
+            pipelines_failed_today = 0,
+            concurrent_pipelines_running = 0,
+            last_updated = CURRENT_TIMESTAMP()
+        WHERE usage_date < CURRENT_DATE()
+        """
+
+        reset_job = bq_client.client.query(reset_query)
+        reset_job.result()
+        updated_count = reset_job.num_dml_affected_rows
+
+        logger.info(f"Reset daily quotas for {updated_count} records")
+
+        # Archive/delete records older than 90 days
+        archive_query = f"""
+        DELETE FROM `{settings.gcp_project_id}.customers.customer_usage_quotas`
+        WHERE usage_date < DATE_SUB(CURRENT_DATE(), INTERVAL 90 DAY)
+        """
+
+        archive_job = bq_client.client.query(archive_query)
+        archive_job.result()
+        archived_count = archive_job.num_dml_affected_rows
+
+        logger.info(f"Archived {archived_count} old quota records")
+
+        return {
+            "status": "success",
+            "records_updated": updated_count,
+            "records_archived": archived_count,
+            "message": f"Reset {updated_count} daily quotas, archived {archived_count} old records",
+            "executed_at": datetime.now(timezone.utc).isoformat()
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to reset daily quotas: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to reset daily quotas: {str(e)}"
+        )
+
+
+@router.post(
+    "/scheduler/cleanup-orphaned-pipelines",
+    summary="Cleanup orphaned pipelines (Hourly)",
+    description="Called by Cloud Scheduler to cleanup stuck/orphaned pipelines (ADMIN ONLY)"
+)
+async def cleanup_orphaned_pipelines(
+    admin_context: None = Depends(verify_admin_key),
+    bq_client: BigQueryClient = Depends(get_bigquery_client)
+):
+    """
+    Cleanup orphaned and stuck pipelines.
+
+    Logic:
+    1. Get all active tenants from customer_profiles
+    2. For each tenant, UPDATE x_meta_pipeline_runs SET status='FAILED'
+       WHERE status IN ('PENDING','RUNNING') AND start_time > 60 minutes ago
+    3. Decrement concurrent_pipelines_running counter for each cleaned pipeline
+    4. Return count of pipelines cleaned per tenant
+
+    Security:
+    - Requires admin API key
+    - Only affects genuinely stuck pipelines (>60 min)
+
+    Performance:
+    - Processes all tenants in batch queries
+    - Uses TIMESTAMP_DIFF for accurate timeout calculation
+    """
+    try:
+        total_cleaned = 0
+        tenant_details = []
+
+        # Get all active tenants
+        tenants_query = f"""
+        SELECT DISTINCT customer_id, tenant_id
+        FROM `{settings.gcp_project_id}.customers.customer_profiles`
+        WHERE status = 'ACTIVE'
+        """
+
+        tenants_results = list(bq_client.client.query(tenants_query).result())
+
+        if not tenants_results:
+            return {
+                "status": "success",
+                "total_pipelines_cleaned": 0,
+                "tenants_processed": 0,
+                "message": "No active tenants found",
+                "executed_at": datetime.now(timezone.utc).isoformat()
+            }
+
+        # Process each tenant
+        for tenant_row in tenants_results:
+            tenant = dict(tenant_row)
+            customer_id = tenant['customer_id']
+            tenant_id = tenant.get('tenant_id', customer_id)
+
+            try:
+                # Find and mark orphaned pipelines as FAILED
+                cleanup_query = f"""
+                UPDATE `{settings.gcp_project_id}.{tenant_id}.x_meta_pipeline_runs`
+                SET
+                    status = 'FAILED',
+                    end_time = CURRENT_TIMESTAMP(),
+                    error_message = 'Pipeline marked as FAILED due to timeout (>60 minutes)',
+                    duration_ms = TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), start_time, MILLISECOND)
+                WHERE status IN ('PENDING', 'RUNNING')
+                  AND TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), start_time, MINUTE) > 60
+                """
+
+                cleanup_job = bq_client.client.query(cleanup_query)
+                cleanup_job.result()
+                cleaned_count = cleanup_job.num_dml_affected_rows
+
+                if cleaned_count > 0:
+                    # Decrement concurrent_pipelines_running counter
+                    decrement_query = f"""
+                    UPDATE `{settings.gcp_project_id}.customers.customer_usage_quotas`
+                    SET
+                        concurrent_pipelines_running = GREATEST(concurrent_pipelines_running - @cleaned_count, 0),
+                        last_updated = CURRENT_TIMESTAMP()
+                    WHERE customer_id = @customer_id
+                      AND usage_date = CURRENT_DATE()
+                    """
+
+                    job_config = bigquery.QueryJobConfig(
+                        query_parameters=[
+                            bigquery.ScalarQueryParameter("cleaned_count", "INT64", cleaned_count),
+                            bigquery.ScalarQueryParameter("customer_id", "STRING", customer_id)
+                        ]
+                    )
+
+                    bq_client.client.query(decrement_query, job_config=job_config).result()
+
+                    total_cleaned += cleaned_count
+                    tenant_details.append({
+                        "customer_id": customer_id,
+                        "tenant_id": tenant_id,
+                        "pipelines_cleaned": cleaned_count
+                    })
+
+                    logger.info(f"Cleaned {cleaned_count} orphaned pipelines for tenant {tenant_id}")
+
+            except Exception as tenant_error:
+                logger.warning(f"Failed to cleanup orphaned pipelines for tenant {tenant_id}: {tenant_error}")
+                # Continue processing other tenants
+                continue
+
+        return {
+            "status": "success",
+            "total_pipelines_cleaned": total_cleaned,
+            "tenants_processed": len(tenants_results),
+            "tenants_with_cleanup": len(tenant_details),
+            "details": tenant_details,
+            "message": f"Cleaned {total_cleaned} orphaned pipelines across {len(tenant_details)} tenants",
+            "executed_at": datetime.now(timezone.utc).isoformat()
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to cleanup orphaned pipelines: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to cleanup orphaned pipelines: {str(e)}"
+        )

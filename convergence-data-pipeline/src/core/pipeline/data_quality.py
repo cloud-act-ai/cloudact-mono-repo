@@ -96,9 +96,8 @@ class DataQualityValidator:
                     extra={"details": result.get('details')}
                 )
 
-        # Store results in BigQuery if enabled
-        if settings.dq_store_results_in_bq:
-            self._store_results(results, table_id, tenant_id, pipeline_logging_id, dq_config_path)
+        # Store results in BigQuery
+        self._store_results(results, table_id, tenant_id, pipeline_logging_id, dq_config_path)
 
         return results
 

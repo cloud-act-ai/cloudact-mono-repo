@@ -848,7 +848,8 @@ class BigQueryToBigQueryProcessor:
                 'bytes_processed': bytes_processed,
                 'bytes_billed': bytes_billed,
                 'cache_hit': cache_hit,
-                'destination_table': dest_table_id
+                'destination_table': dest_table_id,
+                'job_id': query_job.job_id
             }
 
             # STEP 6: Validate result data

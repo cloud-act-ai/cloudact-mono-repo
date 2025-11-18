@@ -7,6 +7,7 @@ import yaml
 import uuid
 import asyncio
 import importlib
+import traceback
 from typing import Dict, Any, List, Optional, Set
 from datetime import datetime
 from pathlib import Path
@@ -272,11 +273,63 @@ class AsyncPipelineExecutor:
                 tracking_pipeline_id=self.tracking_pipeline_id
             )
 
+            # Increment concurrent counter after successful status update
+            await self._increment_concurrent_counter()
+
         except Exception as e:
             # Don't fail the pipeline if status update fails, just log it
             self.logger.warning(
                 f"Failed to update pipeline status to RUNNING: {e}",
                 pipeline_logging_id=self.pipeline_logging_id,
+                exc_info=True
+            )
+
+    async def _increment_concurrent_counter(self) -> None:
+        """
+        Increment concurrent_pipelines_running counter and update related metrics.
+
+        Updates:
+        - concurrent_pipelines_running: Incremented by 1
+        - max_concurrent_reached: Updated to maximum value seen
+        - last_pipeline_started_at: Set to current timestamp
+        """
+        from google.cloud import bigquery
+        from src.app.config import settings
+
+        try:
+            update_query = f"""
+            UPDATE `{settings.gcp_project_id}.customers.customer_usage_quotas`
+            SET
+                concurrent_pipelines_running = concurrent_pipelines_running + 1,
+                max_concurrent_reached = GREATEST(max_concurrent_reached, concurrent_pipelines_running + 1),
+                last_pipeline_started_at = CURRENT_TIMESTAMP(),
+                last_updated = CURRENT_TIMESTAMP()
+            WHERE
+                tenant_id = @tenant_id
+                AND usage_date = CURRENT_DATE()
+            """
+
+            job_config = bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("tenant_id", "STRING", self.tenant_id),
+                ]
+            )
+
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(
+                None,
+                lambda: self.bq_client.client.query(update_query, job_config=job_config).result()
+            )
+
+            self.logger.info(
+                f"Incremented concurrent pipelines counter",
+                tenant_id=self.tenant_id
+            )
+
+        except Exception as e:
+            self.logger.warning(
+                f"Failed to increment concurrent pipelines counter: {e}",
+                tenant_id=self.tenant_id,
                 exc_info=True
             )
 
@@ -309,6 +362,8 @@ class AsyncPipelineExecutor:
                 pipelines_run_today = pipelines_run_today + 1,
                 pipelines_succeeded_today = pipelines_succeeded_today + @success_increment,
                 pipelines_failed_today = pipelines_failed_today + @failed_increment,
+                concurrent_pipelines_running = GREATEST(concurrent_pipelines_running - 1, 0),
+                last_pipeline_completed_at = CURRENT_TIMESTAMP(),
                 last_updated = CURRENT_TIMESTAMP()
             WHERE
                 tenant_id = @tenant_id
@@ -553,7 +608,10 @@ class AsyncPipelineExecutor:
                 rows_processed = result.get('rows_written', 0)
                 step_metadata = {
                     'destination_table': result.get('destination_table'),
-                    'bytes_processed': result.get('bytes_processed')
+                    'bytes_processed': result.get('bytes_processed'),
+                    'job_id': result.get('job_id'),
+                    'bytes_billed': result.get('bytes_billed'),
+                    'cache_hit': result.get('cache_hit')
                 }
             elif step_type == "data_quality":
                 step_metadata = result
@@ -574,6 +632,9 @@ class AsyncPipelineExecutor:
         except Exception as e:
             step_status = "FAILED"
             error_message = str(e)
+            stack_trace = traceback.format_exc()
+            if 'stack_trace' not in step_metadata:
+                step_metadata['stack_trace'] = stack_trace
             self.logger.error(f"Step {step_id} failed: {e}", exc_info=True)
             raise
 
