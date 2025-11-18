@@ -13,14 +13,33 @@ python -m uvicorn src.app.main:app --host 0.0.0.0 --port 8080 --reload
 curl http://localhost:8080/health
 ```
 
-### 2. Setup BigQuery (One-Time)
+### 2. System Bootstrap (One-Time)
+Initialize the central 'tenants' dataset with 8 management tables:
 ```bash
-python setup_bigquery_datasets.py  # Creates 'tenants' dataset + 8 tables
+# Run the Python setup script
+python deployment/setup_bigquery_datasets.py
 ```
 
-### 3. Test with 10 Tenants
+### 3. Onboard Your First Tenant
+Create a tenant dataset and metadata tables:
 ```bash
-python test_10_tenants.py  # Tests onboarding for 10 different tenants
+curl -X POST http://localhost:8080/api/v1/tenants/onboard \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tenant_id": "guru_232342",
+    "company_name": "Guru Corp",
+    "admin_email": "admin@guru.com",
+    "subscription_plan": "PROFESSIONAL"
+  }'
+```
+
+### 4. Execute Your First Pipeline
+Run a pipeline for the onboarded tenant:
+```bash
+curl -X POST http://localhost:8080/api/v1/pipelines/run/guru_232342/gcp/cost/cost_billing \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: sk_guru_232342_xxxxx" \
+  -d '{"date": "2025-11-17"}'
 ```
 
 ---
@@ -95,6 +114,21 @@ POST /api/v1/scheduler/reset-daily-quotas
 
 ## 🏗️ Architecture
 
+### Bootstrap Approach
+
+The system uses **API-based bootstrap** instead of manual SQL files:
+
+1. **System Bootstrap** (one-time):
+   - Run `python deployment/setup_bigquery_datasets.py`
+   - Creates central `tenants` dataset with 8 management tables
+
+2. **Tenant Onboarding** (per-tenant):
+   - POST `/api/v1/tenants/onboard`
+   - Creates tenant profile, API key, subscription, and tenant-specific dataset
+   - Full end-to-end via API
+
+**Manual SQL files** in `src/core/database/schemas/` are reference implementations only. All infrastructure is created programmatically via the Python API.
+
 ### Two-Dataset Model
 
 **1. Central `tenants` Dataset** (shared across all tenants)
@@ -104,14 +138,14 @@ POST /api/v1/scheduler/reset-daily-quotas
 - tenant_usage_quotas (real-time tracking)
 - tenant_cloud_credentials (KMS-encrypted)
 - tenant_pipeline_configs (cron schedules)
-- scheduled_pipeline_runs
-- pipeline_execution_queue
+- tenant_scheduled_pipeline_runs
+- tenant_pipeline_execution_queue
 
 **2. Per-Tenant Datasets** (`{tenant_id}`)
-- x_meta_pipeline_runs (tenant_id + user_id)
+- x_meta_pipeline_runs (tenant_id + user_id for audit)
 - x_meta_step_logs
 - x_meta_dq_results
-- Data tables (gcp_cost_billing, etc.)
+- Data tables (gcp_cost_billing, aws_cost_billing, etc.)
 
 ### Tenant vs User
 
@@ -157,8 +191,8 @@ POST /api/v1/scheduler/reset-daily-quotas
 ## 🚨 Production Checklist
 
 ### 1. BigQuery Setup (CRITICAL)
-- [ ] Create `tenants` dataset: `python setup_bigquery_datasets.py`
-- [ ] Verify 8 tables created successfully
+- [ ] Create `tenants` dataset: `python deployment/setup_bigquery_datasets.py`
+- [ ] Verify 8 management tables created successfully
 - [ ] Grant service account permissions:
   - `bigquery.datasets.create`
   - `bigquery.tables.create`
@@ -190,15 +224,26 @@ Create 3 jobs with target URLs pointing to Cloud Run service:
 
 ## 🧪 Testing
 
-### Run All Tests
+### Manual API Test
+Test tenant onboarding with the guru_232342 example:
 ```bash
-# Test 10 tenants
-python test_10_tenants.py
-
-# Manual API test
 curl -X POST http://localhost:8080/api/v1/tenants/onboard \
   -H "Content-Type: application/json" \
-  -d '{"tenant_id":"test_001","company_name":"Test Corp","admin_email":"test@test.com","subscription_plan":"PROFESSIONAL"}'
+  -d '{
+    "tenant_id": "guru_232342",
+    "company_name": "Guru Corporation",
+    "admin_email": "admin@guru.com",
+    "subscription_plan": "PROFESSIONAL"
+  }'
+```
+
+### Test Pipeline Execution
+After onboarding, execute a test pipeline:
+```bash
+curl -X POST http://localhost:8080/api/v1/pipelines/run/guru_232342/gcp/cost/cost_billing \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: sk_guru_232342_xxxxx" \
+  -d '{"date": "2025-11-17"}'
 ```
 
 ---
@@ -244,18 +289,24 @@ Fix: Grant service account bigquery.dataEditor role
 
 ## 📁 Key Files
 
-**Core:**
+**Core API:**
 - `src/app/main.py` - FastAPI app
-- `src/app/routers/tenants.py` - Tenant onboarding
-- `src/app/routers/pipelines.py` - Pipeline execution
+- `src/app/routers/tenants.py` - Tenant onboarding endpoint (`POST /api/v1/tenants/onboard`)
+- `src/app/routers/pipelines.py` - Pipeline execution endpoint (`POST /api/v1/pipelines/run/...`)
 - `src/app/routers/scheduler.py` - Cloud Scheduler integration
+- `src/app/routers/admin.py` - Admin tenant management endpoints
 
-**Setup:**
-- `setup_bigquery_datasets.py` - Initialize BigQuery
-- `test_10_tenants.py` - Test with 10 tenants
+**Bootstrap & Setup:**
+- `deployment/setup_bigquery_datasets.py` - One-time system bootstrap (creates 'tenants' dataset + 8 tables)
+- `src/core/processors/setup/initial/` - Bootstrap processor for system initialization
 - `.env` - Environment configuration
 
-**Docs:**
+**Database Schemas (Legacy - SQL only, not used by API):**
+- `src/core/database/schemas/tenants_dataset.sql` - Full schema definition
+- `src/core/database/schemas/tenant_dataset.sql` - Per-tenant dataset template
+- `deployment/migrate_tenant_usage_quotas.sql` - Migration script
+
+**Documentation:**
 - `README.md` - This file
 - `COMPLETE_FLOWS.md` - Detailed flow diagrams
 - `TESTING_STRATEGY.md` - Test consolidation
