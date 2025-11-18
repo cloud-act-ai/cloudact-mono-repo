@@ -60,6 +60,9 @@ tenants.tenant_subscriptions         # Plan limits (daily/monthly/concurrent)
 tenants.tenant_usage_quotas          # Real-time quota tracking (CRITICAL)
 tenants.tenant_cloud_credentials     # KMS-encrypted provider credentials
 tenants.tenant_provider_configs      # Pipeline settings per provider/domain
+tenants.tenant_pipeline_configs      # Scheduled pipeline configurations (cron)
+tenants.scheduled_pipeline_runs      # Track scheduled executions (PENDING/COMPLETED/FAILED)
+tenants.pipeline_execution_queue     # Active queue for scheduled pipelines
 ```
 
 **Access Pattern**: Every API request authenticates against this dataset
@@ -112,15 +115,73 @@ Flow:
    - Update status (SUCCESS/FAILED)
 ```
 
-### Scheduler-Triggered Pipeline
-```
-Cloud Scheduler Job:
-  URL: {api}/api/v1/pipelines/run/{tenant_id}/{provider}/{domain}/{template}
-  Headers: X-API-Key: {tenant_api_key}
-  Schedule: "0 2 * * *"  # Daily at 2 AM UTC
+### Scheduler-Triggered Pipeline (Queue-Based Architecture)
 
-Flow: Same as API-triggered, trigger_by = "cloud_scheduler"
+Cloud Scheduler uses **HTTP calls** (NOT Pub/Sub) with three separate jobs:
+
+#### Job 1: Pipeline Trigger (Hourly)
 ```
+Schedule: 0 * * * * (every hour at :00)
+Endpoint: POST /api/v1/scheduler/trigger
+Headers: X-Admin-Key: {admin_api_key}
+
+Flow:
+1. Query tenants.tenant_pipeline_configs for due pipelines:
+   - WHERE is_active = TRUE
+   - AND next_run_time <= NOW()
+   - AND tenant status = ACTIVE
+   - AND pipelines_run_today < daily_limit
+
+2. For each due pipeline:
+   - INSERT INTO tenants.scheduled_pipeline_runs (state = PENDING)
+   - INSERT INTO tenants.pipeline_execution_queue (state = QUEUED)
+   - UPDATE tenant_pipeline_configs SET next_run_time (from cron)
+
+3. Return summary: {triggered_count, queued_count, skipped_count}
+```
+
+#### Job 2: Queue Processor (Every 5 Minutes)
+```
+Schedule: */5 * * * * (every 5 minutes)
+Endpoint: POST /api/v1/scheduler/process-queue
+Headers: X-Admin-Key: {admin_api_key}
+
+Flow:
+1. Get next queued pipeline (ORDER BY priority DESC, scheduled_time ASC)
+2. UPDATE queue state to PROCESSING
+3. Execute pipeline via AsyncPipelineExecutor (user_id = NULL)
+4. On success:
+   - UPDATE scheduled_pipeline_runs SET state = COMPLETED
+   - UPDATE tenant_pipeline_configs (last_run_time, last_run_status)
+   - DELETE FROM pipeline_execution_queue
+5. On failure:
+   - If retry_count < max_retries: re-queue with lower priority
+   - Else: remove from queue
+
+Note: user_id = NULL for scheduled runs (no user context)
+```
+
+#### Job 3: Daily Quota Reset (Daily)
+```
+Schedule: 0 0 * * * (midnight UTC)
+Endpoint: POST /api/v1/scheduler/reset-daily-quotas
+Headers: X-Admin-Key: {admin_api_key}
+
+Flow:
+1. Reset all daily counters:
+   UPDATE tenants.tenant_usage_quotas
+   SET pipelines_run_today = 0, concurrent_pipelines_running = 0
+   WHERE usage_date < CURRENT_DATE()
+
+2. Archive old records (>90 days):
+   DELETE FROM tenants.tenant_usage_quotas
+   WHERE usage_date < DATE_SUB(CURRENT_DATE(), INTERVAL 90 DAY)
+```
+
+**Key Tables**:
+- `tenants.tenant_pipeline_configs` - Cron schedules and configurations
+- `tenants.scheduled_pipeline_runs` - Track each scheduled execution
+- `tenants.pipeline_execution_queue` - Active queue (QUEUED → PROCESSING)
 
 ---
 
@@ -307,10 +368,21 @@ GET /health/ready        # Readiness probe (BigQuery check)
 
 ### Automated (Cloud Scheduler)
 ```
-Daily (00:00 UTC): reset-daily-quotas
-  - Reset tenants.tenant_usage_quotas.pipelines_run_today
+Hourly (0 * * * *): trigger-due-pipelines
+  - Query tenant_pipeline_configs for pipelines due to run
+  - Add to pipeline_execution_queue
+  - Update next_run_time based on cron expression
 
-Every 30 minutes: cleanup-orphaned-pipelines
+Every 5 min (*/5 * * * *): process-queue
+  - Process one queued pipeline at a time
+  - Execute via AsyncPipelineExecutor (user_id = NULL)
+  - Handle retries and failures
+
+Daily (0 0 * * *): reset-daily-quotas
+  - Reset tenants.tenant_usage_quotas.pipelines_run_today
+  - Archive records older than 90 days
+
+Hourly (0 * * * *): cleanup-orphaned-pipelines
   - Mark PENDING/RUNNING > 60 min as FAILED
   - Decrement concurrent counters
 ```
@@ -353,8 +425,16 @@ Admin Operations (X-Admin-Key required):
   POST /api/v1/admin/tenants/{id}/api-keys
 
 Scheduler Operations (X-Admin-Key required):
-  POST /api/v1/scheduler/reset-daily-quotas
+  POST /api/v1/scheduler/trigger              # Hourly: Queue due pipelines
+  POST /api/v1/scheduler/process-queue        # Every 5 min: Process one queued pipeline
+  POST /api/v1/scheduler/reset-daily-quotas   # Daily: Reset quota counters
+  GET  /api/v1/scheduler/status               # Get scheduler metrics
   POST /api/v1/scheduler/cleanup-orphaned-pipelines
+
+Tenant Pipeline Configuration (Authenticated):
+  GET    /api/v1/scheduler/customer/{tenant_id}/pipelines
+  POST   /api/v1/scheduler/customer/{tenant_id}/pipelines
+  DELETE /api/v1/scheduler/customer/{tenant_id}/pipelines/{config_id}
 ```
 
 ---

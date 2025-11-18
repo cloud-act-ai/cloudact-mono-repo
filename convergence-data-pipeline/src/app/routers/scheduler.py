@@ -186,12 +186,12 @@ async def get_pipelines_due_now(
             p.status as customer_status,
             s.max_pipelines_per_day,
             COALESCE(u.pipelines_run_today, 0) as pipelines_run_today
-        FROM `{settings.gcp_project_id}.customers.customer_pipeline_configs` c
-        INNER JOIN `{settings.gcp_project_id}.customers.customer_profiles` p
+        FROM `{settings.gcp_project_id}.tenants.tenant_pipeline_configs` c
+        INNER JOIN `{settings.gcp_project_id}.tenants.tenant_profiles` p
             ON c.tenant_id = p.tenant_id
-        LEFT JOIN `{settings.gcp_project_id}.customers.customer_subscriptions` s
+        LEFT JOIN `{settings.gcp_project_id}.tenants.tenant_subscriptions` s
             ON p.tenant_id = s.tenant_id AND s.status = 'ACTIVE'
-        LEFT JOIN `{settings.gcp_project_id}.customers.customer_usage_quotas` u
+        LEFT JOIN `{settings.gcp_project_id}.tenants.tenant_usage_quotas` u
             ON p.tenant_id = u.tenant_id AND u.usage_date = CURRENT_DATE()
         WHERE c.is_active = TRUE
           AND c.next_run_time <= CURRENT_TIMESTAMP()
@@ -239,7 +239,7 @@ async def enqueue_pipeline(
 
     # Insert into scheduled_pipeline_runs
     insert_run_query = f"""
-    INSERT INTO `{settings.gcp_project_id}.customers.scheduled_pipeline_runs`
+    INSERT INTO `{settings.gcp_project_id}.tenants.scheduled_pipeline_runs`
     (run_id, config_id, tenant_id, pipeline_id, state, scheduled_time, priority, parameters)
     VALUES (
         @run_id,
@@ -271,7 +271,7 @@ async def enqueue_pipeline(
 
     # Insert into pipeline_execution_queue
     insert_queue_query = f"""
-    INSERT INTO `{settings.gcp_project_id}.customers.pipeline_execution_queue`
+    INSERT INTO `{settings.gcp_project_id}.tenants.pipeline_execution_queue`
     (run_id, tenant_id, pipeline_id, state, scheduled_time, priority, added_at)
     VALUES (
         @run_id,
@@ -308,7 +308,7 @@ async def should_retry_failed_run(
     SELECT
         retry_count,
         max_retries
-    FROM `{settings.gcp_project_id}.customers.scheduled_pipeline_runs`
+    FROM `{settings.gcp_project_id}.tenants.scheduled_pipeline_runs`
     WHERE run_id = @run_id
     LIMIT 1
     """
@@ -406,7 +406,7 @@ async def trigger_scheduler(
                 )
 
                 update_query = f"""
-                UPDATE `{settings.gcp_project_id}.customers.customer_pipeline_configs`
+                UPDATE `{settings.gcp_project_id}.tenants.tenant_pipeline_configs`
                 SET next_run_time = @next_run_time,
                     updated_at = CURRENT_TIMESTAMP()
                 WHERE config_id = @config_id
@@ -486,7 +486,7 @@ async def process_queue(
             pipeline_id,
             scheduled_time,
             priority
-        FROM `{settings.gcp_project_id}.customers.pipeline_execution_queue`
+        FROM `{settings.gcp_project_id}.tenants.pipeline_execution_queue`
         WHERE state = 'QUEUED'
         ORDER BY priority DESC, scheduled_time ASC
         LIMIT 1
@@ -508,7 +508,7 @@ async def process_queue(
 
         # Update queue state to PROCESSING
         update_query = f"""
-        UPDATE `{settings.gcp_project_id}.customers.pipeline_execution_queue`
+        UPDATE `{settings.gcp_project_id}.tenants.pipeline_execution_queue`
         SET state = 'PROCESSING',
             processing_started_at = CURRENT_TIMESTAMP()
         WHERE run_id = @run_id
@@ -530,8 +530,8 @@ async def process_queue(
             c.provider,
             c.domain,
             c.pipeline_template
-        FROM `{settings.gcp_project_id}.customers.scheduled_pipeline_runs` r
-        INNER JOIN `{settings.gcp_project_id}.customers.customer_pipeline_configs` c
+        FROM `{settings.gcp_project_id}.tenants.scheduled_pipeline_runs` r
+        INNER JOIN `{settings.gcp_project_id}.tenants.tenant_pipeline_configs` c
             ON r.config_id = c.config_id
         WHERE r.run_id = @run_id
         LIMIT 1
@@ -568,7 +568,7 @@ async def process_queue(
 
                 # Update scheduled_pipeline_runs
                 update_run_query = f"""
-                UPDATE `{settings.gcp_project_id}.customers.scheduled_pipeline_runs`
+                UPDATE `{settings.gcp_project_id}.tenants.scheduled_pipeline_runs`
                 SET state = 'COMPLETED',
                     completed_at = CURRENT_TIMESTAMP(),
                     pipeline_logging_id = @pipeline_logging_id
@@ -586,7 +586,7 @@ async def process_queue(
 
                 # Update customer_pipeline_configs
                 update_config_query = f"""
-                UPDATE `{settings.gcp_project_id}.customers.customer_pipeline_configs`
+                UPDATE `{settings.gcp_project_id}.tenants.tenant_pipeline_configs`
                 SET last_run_time = CURRENT_TIMESTAMP(),
                     last_run_status = 'SUCCESS'
                 WHERE config_id = @config_id
@@ -602,7 +602,7 @@ async def process_queue(
 
                 # Remove from queue
                 delete_queue_query = f"""
-                DELETE FROM `{settings.gcp_project_id}.customers.pipeline_execution_queue`
+                DELETE FROM `{settings.gcp_project_id}.tenants.pipeline_execution_queue`
                 WHERE run_id = @run_id
                 """
 
@@ -613,7 +613,7 @@ async def process_queue(
 
                 # Update scheduled_pipeline_runs to FAILED
                 update_run_query = f"""
-                UPDATE `{settings.gcp_project_id}.customers.scheduled_pipeline_runs`
+                UPDATE `{settings.gcp_project_id}.tenants.scheduled_pipeline_runs`
                 SET state = 'FAILED',
                     failed_at = CURRENT_TIMESTAMP(),
                     error_message = @error_message,
@@ -632,7 +632,7 @@ async def process_queue(
 
                 # Update customer_pipeline_configs
                 update_config_query = f"""
-                UPDATE `{settings.gcp_project_id}.customers.customer_pipeline_configs`
+                UPDATE `{settings.gcp_project_id}.tenants.tenant_pipeline_configs`
                 SET last_run_time = CURRENT_TIMESTAMP(),
                     last_run_status = 'FAILED'
                 WHERE config_id = @config_id
@@ -652,7 +652,7 @@ async def process_queue(
                 if should_retry:
                     # Re-queue with lower priority
                     update_queue_query = f"""
-                    UPDATE `{settings.gcp_project_id}.customers.pipeline_execution_queue`
+                    UPDATE `{settings.gcp_project_id}.tenants.pipeline_execution_queue`
                     SET state = 'QUEUED',
                         priority = GREATEST(priority - 1, 1),
                         processing_started_at = NULL
@@ -662,7 +662,7 @@ async def process_queue(
                 else:
                     # Remove from queue
                     delete_queue_query = f"""
-                    DELETE FROM `{settings.gcp_project_id}.customers.pipeline_execution_queue`
+                    DELETE FROM `{settings.gcp_project_id}.tenants.pipeline_execution_queue`
                     WHERE run_id = @run_id
                     """
                     bq_client.client.query(delete_queue_query, job_config=run_job_config).result()
@@ -675,7 +675,7 @@ async def process_queue(
             tenant_id=tenant_id,
             pipeline_id=pipeline_id,
             status="PROCESSING",
-            message=f"Pipeline {pipeline_id} started processing for customer {tenant_id}"
+            message=f"Pipeline {pipeline_id} started processing for tenant {tenant_id}"
         )
 
     except Exception as e:
@@ -713,12 +713,12 @@ async def get_scheduler_status(
         query = f"""
         WITH active_configs AS (
             SELECT COUNT(*) as total_active
-            FROM `{settings.gcp_project_id}.customers.customer_pipeline_configs`
+            FROM `{settings.gcp_project_id}.tenants.tenant_pipeline_configs`
             WHERE is_active = TRUE
         ),
         due_now AS (
             SELECT COUNT(*) as due_count
-            FROM `{settings.gcp_project_id}.customers.customer_pipeline_configs`
+            FROM `{settings.gcp_project_id}.tenants.tenant_pipeline_configs`
             WHERE is_active = TRUE
               AND next_run_time <= CURRENT_TIMESTAMP()
         ),
@@ -727,13 +727,13 @@ async def get_scheduler_status(
                 COUNT(*) as total_queued,
                 COUNTIF(state = 'QUEUED') as queued,
                 COUNTIF(state = 'PROCESSING') as processing
-            FROM `{settings.gcp_project_id}.customers.pipeline_execution_queue`
+            FROM `{settings.gcp_project_id}.tenants.pipeline_execution_queue`
         ),
         today_runs AS (
             SELECT
                 COUNTIF(state = 'COMPLETED') as completed_today,
                 COUNTIF(state = 'FAILED') as failed_today
-            FROM `{settings.gcp_project_id}.customers.scheduled_pipeline_runs`
+            FROM `{settings.gcp_project_id}.tenants.scheduled_pipeline_runs`
             WHERE DATE(scheduled_time) = CURRENT_DATE()
         ),
         avg_time AS (
@@ -843,7 +843,7 @@ async def get_customer_pipelines(
             parameters,
             created_at,
             updated_at
-        FROM `{settings.gcp_project_id}.customers.customer_pipeline_configs`
+        FROM `{settings.gcp_project_id}.tenants.tenant_pipeline_configs`
         WHERE {where_sql}
         ORDER BY created_at DESC
         """
@@ -919,7 +919,7 @@ async def create_customer_pipeline(
 
         # Insert configuration
         insert_query = f"""
-        INSERT INTO `{settings.gcp_project_id}.customers.customer_pipeline_configs`
+        INSERT INTO `{settings.gcp_project_id}.tenants.tenant_pipeline_configs`
         (
             config_id,
             tenant_id,
@@ -1014,7 +1014,7 @@ async def delete_customer_pipeline(
 
     try:
         update_query = f"""
-        UPDATE `{settings.gcp_project_id}.customers.customer_pipeline_configs`
+        UPDATE `{settings.gcp_project_id}.tenants.tenant_pipeline_configs`
         SET is_active = FALSE,
             updated_at = CURRENT_TIMESTAMP()
         WHERE config_id = @config_id
@@ -1088,7 +1088,7 @@ async def reset_daily_quotas(
 
         # Reset daily counters for previous days
         reset_query = f"""
-        UPDATE `{settings.gcp_project_id}.customers.customer_usage_quotas`
+        UPDATE `{settings.gcp_project_id}.tenants.tenant_usage_quotas`
         SET
             pipelines_run_today = 0,
             pipelines_succeeded_today = 0,
@@ -1106,7 +1106,7 @@ async def reset_daily_quotas(
 
         # Archive/delete records older than 90 days
         archive_query = f"""
-        DELETE FROM `{settings.gcp_project_id}.customers.customer_usage_quotas`
+        DELETE FROM `{settings.gcp_project_id}.tenants.tenant_usage_quotas`
         WHERE usage_date < DATE_SUB(CURRENT_DATE(), INTERVAL 90 DAY)
         """
 
@@ -1166,7 +1166,7 @@ async def cleanup_orphaned_pipelines(
         # Get all active tenants
         tenants_query = f"""
         SELECT DISTINCT tenant_id, tenant_id
-        FROM `{settings.gcp_project_id}.customers.customer_profiles`
+        FROM `{settings.gcp_project_id}.tenants.tenant_profiles`
         WHERE status = 'ACTIVE'
         """
 
@@ -1207,7 +1207,7 @@ async def cleanup_orphaned_pipelines(
                 if cleaned_count > 0:
                     # Decrement concurrent_pipelines_running counter
                     decrement_query = f"""
-                    UPDATE `{settings.gcp_project_id}.customers.customer_usage_quotas`
+                    UPDATE `{settings.gcp_project_id}.tenants.tenant_usage_quotas`
                     SET
                         concurrent_pipelines_running = GREATEST(concurrent_pipelines_running - @cleaned_count, 0),
                         last_updated = CURRENT_TIMESTAMP()
