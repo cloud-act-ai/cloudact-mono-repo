@@ -240,12 +240,12 @@ OPTIONS(
 );
 
 -- ============================================================================
--- TABLE 5: scheduled_pipeline_runs
+-- TABLE 5: tenant_scheduled_pipeline_runs
 -- ============================================================================
 -- Purpose: Track scheduled pipeline execution history
 -- Scope: Tenant-specific execution history
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS `{project_id}.{tenant_id}.scheduled_pipeline_runs` (
+CREATE TABLE IF NOT EXISTS `{project_id}.{tenant_id}.tenant_scheduled_pipeline_runs` (
   -- Primary Identifiers
   run_id STRING NOT NULL,                           -- Unique run ID (UUID)
   config_id STRING NOT NULL,                        -- Foreign key to tenant_pipeline_configs
@@ -308,7 +308,7 @@ OPTIONS(
 --    - Fast "due to run" queries
 --    - Efficient scheduler lookups
 --
--- 5. scheduled_pipeline_runs: Clustered by (state, scheduled_time)
+-- 5. tenant_scheduled_pipeline_runs: Clustered by (state, scheduled_time)
 --    - Fast state-based queries
 --    - Efficient historical lookups
 -- ============================================================================

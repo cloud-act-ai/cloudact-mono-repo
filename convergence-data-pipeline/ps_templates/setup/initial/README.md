@@ -44,13 +44,13 @@ The **One-Time Bootstrap Processor** creates the central system infrastructure r
    - Cron schedules and parameters
    - No partitioning
 
-7. **scheduled_pipeline_runs**
+7. **tenant_scheduled_pipeline_runs**
    - Individual scheduled run records
    - Run state and retry logic
    - **Partitioned by**: `scheduled_time` (daily)
    - **Clustered by**: `tenant_id`, `state`, `config_id`
 
-8. **pipeline_execution_queue**
+8. **tenant_pipeline_execution_queue**
    - Active execution queue
    - Priority-based scheduling
    - **Partitioned by**: `scheduled_time` (daily)
@@ -69,8 +69,8 @@ ps_templates/setup/initial/
     ├── tenant_usage_quotas.json
     ├── tenant_cloud_credentials.json
     ├── tenant_pipeline_configs.json
-    ├── scheduled_pipeline_runs.json
-    └── pipeline_execution_queue.json
+    ├── tenant_scheduled_pipeline_runs.json
+    └── tenant_pipeline_execution_queue.json
 ```
 
 ## Usage

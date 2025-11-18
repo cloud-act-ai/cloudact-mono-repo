@@ -36,8 +36,8 @@ tables:
   - tenant_usage_quotas
   - tenant_cloud_credentials
   - tenant_pipeline_configs
-  - scheduled_pipeline_runs
-  - pipeline_execution_queue
+  - tenant_scheduled_pipeline_runs
+  - tenant_pipeline_execution_queue
 
 # Notes:
 # - This processor should be run ONCE during initial system setup

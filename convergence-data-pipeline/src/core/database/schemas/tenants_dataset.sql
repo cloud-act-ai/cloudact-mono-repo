@@ -383,12 +383,12 @@ OPTIONS(
 --    - Efficient filtering of active pipelines
 --    - Optimized for scheduler lookups
 --
--- 9. scheduled_pipeline_runs: Clustered by (tenant_id, state, scheduled_time)
+-- 9. tenant_scheduled_pipeline_runs: Clustered by (tenant_id, state, scheduled_time)
 --    - Fast lookup of running pipelines by state
 --    - Efficient historical queries by scheduled_time
 --    - Optimized for retry attempt tracking
 --
--- 10. pipeline_execution_queue: Clustered by (state, priority DESC, scheduled_time)
+-- 10. tenant_pipeline_execution_queue: Clustered by (state, priority DESC, scheduled_time)
 --     - Optimized for worker pickup (state='QUEUED')
 --     - Priority-based sorting for queue management
 --     - Efficient time-based ordering for FIFO processing
@@ -474,13 +474,13 @@ OPTIONS(
 );
 
 -- ============================================================================
--- TABLE 9: scheduled_pipeline_runs
+-- TABLE 9: tenant_scheduled_pipeline_runs
 -- ============================================================================
 -- Purpose: Track scheduled pipeline execution history and state
 -- RLS: Filter by tenant_id
 -- Links: References tenant_pipeline_configs and tenant pipeline_runs
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS `gac-prod-471220.tenants.scheduled_pipeline_runs` (
+CREATE TABLE IF NOT EXISTS `gac-prod-471220.tenants.tenant_scheduled_pipeline_runs` (
   -- Primary Identifiers
   run_id STRING NOT NULL,                           -- Unique run ID (UUID)
   config_id STRING NOT NULL,                        -- Foreign key to tenant_pipeline_configs
@@ -522,13 +522,13 @@ OPTIONS(
 );
 
 -- ============================================================================
--- TABLE 10: pipeline_execution_queue
+-- TABLE 10: tenant_pipeline_execution_queue
 -- ============================================================================
 -- Purpose: Priority-based pipeline execution queue for worker management
 -- RLS: Filter by tenant_id
 -- Workers: Pick tasks from QUEUED state ordered by priority and scheduled_time
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS `gac-prod-471220.tenants.pipeline_execution_queue` (
+CREATE TABLE IF NOT EXISTS `gac-prod-471220.tenants.tenant_pipeline_execution_queue` (
   -- Primary Identifiers
   queue_id STRING NOT NULL,                         -- Unique queue entry ID (UUID)
   tenant_id STRING NOT NULL,                      -- Foreign key to tenant_profiles
@@ -549,7 +549,7 @@ CREATE TABLE IF NOT EXISTS `gac-prod-471220.tenants.pipeline_execution_queue` (
   worker_id STRING,                                 -- Which worker is processing this
 
   -- Execution Reference
-  run_id STRING,                                    -- References scheduled_pipeline_runs
+  run_id STRING,                                    -- References tenant_scheduled_pipeline_runs
 
   -- Metadata
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP()
@@ -613,7 +613,7 @@ SELECT
   c.domain,
   p.company_name,
   TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), r.actual_start_time, SECOND) AS running_duration_seconds
-FROM `gac-prod-471220.tenants.scheduled_pipeline_runs` r
+FROM `gac-prod-471220.tenants.tenant_scheduled_pipeline_runs` r
 INNER JOIN `gac-prod-471220.tenants.tenant_pipeline_configs` c
   ON r.config_id = c.config_id
 INNER JOIN `gac-prod-471220.tenants.tenant_profiles` p
@@ -635,7 +635,7 @@ SELECT
   MAX(execution_duration_seconds) AS max_duration_seconds,
   MIN(execution_duration_seconds) AS min_duration_seconds,
   ROUND(SAFE_DIVIDE(COUNTIF(state = 'COMPLETED'), COUNT(*)) * 100, 2) AS success_rate_percent
-FROM `gac-prod-471220.tenants.scheduled_pipeline_runs`
+FROM `gac-prod-471220.tenants.tenant_scheduled_pipeline_runs`
 WHERE scheduled_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)
 GROUP BY tenant_id, pipeline_template
 ORDER BY total_runs DESC;
@@ -654,7 +654,7 @@ SELECT
   p.company_name,
   p.subscription_plan,
   TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), q.scheduled_time, SECOND) AS delay_seconds
-FROM `gac-prod-471220.tenants.pipeline_execution_queue` q
+FROM `gac-prod-471220.tenants.tenant_pipeline_execution_queue` q
 INNER JOIN `gac-prod-471220.tenants.tenant_profiles` p
   ON q.tenant_id = p.tenant_id
 WHERE q.state = 'QUEUED'
