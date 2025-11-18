@@ -60,6 +60,12 @@
     "description": "Error message from most recent failure. NULL if run hasn't failed. Used for debugging and determining if error is retryable."
   },
   {
+    "name": "user_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "User UUID from frontend (X-User-ID header). NULL for scheduler-triggered pipelines. Used for user-level analytics and audit trails. Example: 'f47ac10b-58cc-4372-a567-0e02b2c3d479'."
+  },
+  {
     "name": "metadata",
     "type": "JSON",
     "mode": "NULLABLE",

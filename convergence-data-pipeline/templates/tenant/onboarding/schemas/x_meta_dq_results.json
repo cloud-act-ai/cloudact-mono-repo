@@ -60,6 +60,12 @@
     "description": "High-level outcome of the DQ validation run. Valid values: 'PASS' (all expectations passed, expectations_failed=0), 'WARNING' (some non-critical expectations failed but within tolerance), 'FAIL' (critical expectations failed or too many failures, pipeline should be stopped). Used for quick DQ health assessment, automated alerting thresholds, and pipeline failure decisions."
   },
   {
+    "name": "user_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "User UUID from frontend (X-User-ID header). Tracks which specific user triggered the parent pipeline execution. NULL for scheduler-triggered or system-triggered pipelines. Inherited from parent pipeline run. Used for user-level analytics and audit trails. Example: 'f47ac10b-58cc-4372-a567-0e02b2c3d479'."
+  },
+  {
     "name": "ingestion_date",
     "type": "DATE",
     "mode": "REQUIRED",

@@ -66,6 +66,12 @@
     "description": "Detailed error message if step failed. Contains exception class, error description, relevant context (table names, query snippets, validation failures). NULL for successful steps. Used for debugging step failures, creating alerts, and error categorization. Max recommended length: 10KB."
   },
   {
+    "name": "user_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "User UUID from frontend (X-User-ID header). Tracks which specific user triggered the parent pipeline execution. NULL for scheduler-triggered or system-triggered pipelines. Inherited from parent pipeline run. Used for user-level analytics and audit trails. Example: 'f47ac10b-58cc-4372-a567-0e02b2c3d479'."
+  },
+  {
     "name": "metadata",
     "type": "JSON",
     "mode": "NULLABLE",

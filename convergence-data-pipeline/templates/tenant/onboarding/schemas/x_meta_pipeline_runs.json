@@ -33,7 +33,13 @@
     "name": "trigger_by",
     "type": "STRING",
     "mode": "REQUIRED",
-    "description": "Identity of the user, service account, or system that triggered the pipeline. Examples: 'api_user', 'scheduler-service@project.iam', 'john@company.com'. Used for access auditing and accountability."
+    "description": "Identity of the user, service account, or system that triggered the pipeline. Examples: 'api_user', 'scheduler-service@project.iam', 'john@company.com'. Used for access auditing and accountability. DEPRECATED: Use user_id instead."
+  },
+  {
+    "name": "user_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "User UUID from frontend (X-User-ID header). Tracks which specific user triggered this pipeline execution. NULL for scheduler-triggered or system-triggered pipelines. Used for user-level analytics, audit trails, and tracking user activity. Example: 'f47ac10b-58cc-4372-a567-0e02b2c3d479'."
   },
   {
     "name": "start_time",

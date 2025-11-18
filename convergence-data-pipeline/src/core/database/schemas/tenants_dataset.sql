@@ -278,60 +278,12 @@ OPTIONS(
 );
 
 -- ============================================================================
--- TABLE 6: users
+-- TABLE 6: users (REMOVED - Managed by Supabase Frontend)
 -- ============================================================================
--- Purpose: User management with role-based access control (RBAC)
--- RLS: Filter by tenant_id
--- Roles: OWNER, ADMIN, COLLABORATOR, VIEWER
+-- Users are now managed by the Supabase frontend.
+-- The data pipeline only receives user_id via X-User-ID header for logging.
+-- See x_meta_pipeline_runs.user_id, x_meta_step_logs.user_id, etc.
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS `gac-prod-471220.tenants.users` (
-  -- Primary Identifiers
-  user_id STRING NOT NULL,                          -- Unique user ID (UUID) - primary key
-  tenant_id STRING NOT NULL,                      -- Foreign key to tenant_profiles
-
-  -- User Information
-  email STRING NOT NULL,                            -- User email (unique per tenant)
-  full_name STRING,                                 -- Full name
-  avatar_url STRING,                                -- Profile picture URL
-
-  -- Role & Permissions
-  role STRING NOT NULL,                             -- OWNER, ADMIN, COLLABORATOR, VIEWER
-  permissions ARRAY<STRING>,                        -- Granular permissions array
-
-  -- Status
-  status STRING NOT NULL,                           -- ACTIVE, INVITED, SUSPENDED, REMOVED
-  is_active BOOL DEFAULT TRUE,
-
-  -- Invitation & Onboarding
-  invited_by STRING,                                -- Email of inviter
-  invited_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP(),
-  invitation_token STRING,                          -- One-time invitation token
-  invitation_expires_at TIMESTAMP,                  -- Invitation expiry
-  joined_at TIMESTAMP,                              -- When invitation was accepted
-
-  -- Activity Tracking
-  last_login_at TIMESTAMP,                          -- Last login timestamp
-  last_activity_at TIMESTAMP,                       -- Last activity in platform
-  login_count INT64 DEFAULT 0,                      -- Total login count
-
-  -- Lifecycle Management
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP(),
-  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP(),
-  removed_at TIMESTAMP,
-  removed_by STRING,                                -- Email of remover
-  removal_reason STRING,
-
-  -- Preferences
-  email_notifications BOOL DEFAULT TRUE,
-  slack_notifications BOOL DEFAULT FALSE,
-  timezone STRING DEFAULT 'UTC'
-)
-PARTITION BY DATE(invited_at)
-CLUSTER BY tenant_id, email
-OPTIONS(
-  description="User management with RBAC and invitation tracking",
-  labels=[("category", "user_management"), ("tier", "core")]
-);
 
 -- ============================================================================
 -- TABLE 7: tenant_provider_configs
@@ -421,9 +373,7 @@ OPTIONS(
 --    - Real-time quota checks
 --    - Efficient daily usage queries
 --
--- 6. users: Clustered by (tenant_id, email)
---    - Fast member lookup
---    - Efficient team listing
+-- 6. users: REMOVED (managed by Supabase frontend)
 --
 -- 7. tenant_provider_configs: Clustered by (tenant_id, provider, domain)
 --    - Fast config lookup by provider and domain
@@ -727,11 +677,7 @@ ORDER BY q.priority DESC, q.scheduled_time ASC;
 -- FROM `gac-prod-471220.tenants.tenant_usage_quotas`
 -- WHERE tenant_id = 'customer-uuid' AND usage_date = CURRENT_DATE();
 
--- Query 3: List team members with roles
--- SELECT email, full_name, role, status, last_login_at
--- FROM `gac-prod-471220.tenants.users`
--- WHERE tenant_id = 'customer-uuid' AND status = 'ACTIVE'
--- ORDER BY role, email;
+-- Query 3: List team members - REMOVED (managed by Supabase frontend)
 
 -- Query 4: Get active API keys for customer
 -- SELECT api_key_id, key_name, scopes, last_used_at

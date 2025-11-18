@@ -51,12 +51,8 @@ class CredentialType(str, Enum):
     API_KEY = "API_KEY"
 
 
-class TeamRole(str, Enum):
-    """User roles with hierarchical permissions."""
-    OWNER = "OWNER"
-    ADMIN = "ADMIN"
-    COLLABORATOR = "COLLABORATOR"
-    VIEWER = "VIEWER"
+# TeamRole enum removed - User management is now handled by Supabase frontend
+# The data pipeline only receives user_id via X-User-ID header for logging purposes
 
 
 class Domain(str, Enum):
@@ -76,12 +72,7 @@ class SubscriptionStatus(str, Enum):
     CANCELLED = "CANCELLED"
 
 
-class UserStatus(str, Enum):
-    """User invitation/activation status."""
-    INVITED = "INVITED"
-    ACTIVE = "ACTIVE"
-    SUSPENDED = "SUSPENDED"
-    REMOVED = "REMOVED"
+# UserStatus enum removed - User management is now handled by Supabase frontend
 
 
 class ValidationStatus(str, Enum):
@@ -336,35 +327,7 @@ class CreateProviderConfigRequest(BaseModel):
         }
 
 
-class InviteUserRequest(BaseModel):
-    """Request model for inviting users."""
-    email: EmailStr = Field(
-        ...,
-        description="User email address"
-    )
-    full_name: Optional[str] = Field(
-        default=None,
-        max_length=200,
-        description="User full name"
-    )
-    role: TeamRole = Field(
-        default=TeamRole.VIEWER,
-        description="User role"
-    )
-    permissions: Optional[List[str]] = Field(
-        default=None,
-        description="Additional granular permissions"
-    )
-
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "email": "developer@acme.com",
-                "full_name": "Jane Developer",
-                "role": "COLLABORATOR",
-                "permissions": ["pipelines:run", "credentials:read"]
-            }
-        }
+# InviteUserRequest removed - User management is now handled by Supabase frontend
 
 
 class UpdateSubscriptionRequest(BaseModel):
@@ -492,29 +455,7 @@ class UpdateLimitsRequest(BaseModel):
         }
 
 
-class UpdateUserRequest(BaseModel):
-    """Request model for updating user details."""
-    role: Optional[TeamRole] = Field(
-        default=None,
-        description="Updated role for user"
-    )
-    permissions: Optional[List[str]] = Field(
-        default=None,
-        description="Updated granular permissions"
-    )
-    full_name: Optional[str] = Field(
-        default=None,
-        max_length=200,
-        description="Updated full name"
-    )
-
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "role": "ADMIN",
-                "permissions": ["pipelines:run", "pipelines:read", "credentials:read", "credentials:write"]
-            }
-        }
+# UpdateUserRequest removed - User management is now handled by Supabase frontend
 
 
 # ============================================================================
@@ -721,35 +662,7 @@ class LimitsResponse(BaseModel):
         }
 
 
-class UserResponse(BaseModel):
-    """Response model for users."""
-    user_id: str
-    tenant_id: str
-    email: EmailStr
-    full_name: Optional[str]
-    role: TeamRole
-    permissions: Optional[List[str]]
-    status: UserStatus
-    invited_at: datetime
-    joined_at: Optional[datetime]
-    last_login_at: Optional[datetime]
-
-    class Config:
-        from_attributes = True
-        json_schema_extra = {
-            "example": {
-                "user_id": "member_xyz123",
-                "tenant_id": "acme_corp_prod",
-                "email": "developer@acme.com",
-                "full_name": "Jane Developer",
-                "role": "COLLABORATOR",
-                "permissions": ["pipelines:run", "credentials:read"],
-                "status": "ACTIVE",
-                "invited_at": "2025-01-10T09:00:00Z",
-                "joined_at": "2025-01-10T10:30:00Z",
-                "last_login_at": "2025-01-15T14:20:00Z"
-            }
-        }
+# UserResponse removed - User management is now handled by Supabase frontend
 
 
 class ValidationResponse(BaseModel):

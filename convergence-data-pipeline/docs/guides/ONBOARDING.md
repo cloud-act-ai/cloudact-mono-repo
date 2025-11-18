@@ -2,16 +2,18 @@
 
 ## Overview
 
-This guide covers the complete customer onboarding process for the Convergence Data Pipeline platform - an enterprise-grade, multi-tenant SaaS solution with centralized customer management, subscription plans, and production-ready security.
+This guide covers the complete onboarding process for the Convergence Data Pipeline platform - an enterprise-grade, multi-user tenant SaaS solution with separated tenant (organization) and user (individual) management.
 
 ## Key Features
 
-- **Customer-Centric Architecture**: Centralized customer management in `customers_metadata` dataset
+- **Multi-User Tenant Architecture**: Separate tenant (organization) and user (individual) entities
+- **Tenant-Level Billing**: One stripe_tenant_id per organization with multiple users
+- **User-Level Tracking**: Track which user triggered each pipeline run via user_id
 - **Subscription Plans**: Three tiers (Starter, Professional, Enterprise) with quota enforcement
-- **Complete Tenant Isolation**: Each customer gets a dedicated BigQuery dataset for data processing
-- **Quota Management**: Monthly pipeline limits and concurrent execution controls
-- **Active Status Enforcement**: Suspend/activate customers dynamically
-- **Usage Tracking**: Real-time counters for billing and analytics
+- **Complete Tenant Isolation**: Each tenant gets a dedicated BigQuery dataset for data processing
+- **Quota Management**: Tenant-level monthly pipeline limits and concurrent execution controls
+- **Active Status Enforcement**: Suspend/activate tenants and users independently
+- **Usage Tracking**: Real-time counters for billing and per-user analytics
 - **Enterprise Security**: KMS encryption, row-level security, API key rotation
 - **Schema-Driven**: All table schemas in config files (zero hardcoded schemas)
 - **Stripe Integration**: Ready for payment processing with Stripe webhooks
@@ -30,36 +32,106 @@ This guide covers the complete customer onboarding process for the Convergence D
 
 ---
 
+## Tenant vs User Model
+
+### Understanding the Separation
+
+```
+Tenant (Organization Level)
+├─ tenant_id: "acme_corp"
+├─ stripe_tenant_id: "cus_stripe123" (for billing)
+├─ API Keys (tenant-level authentication)
+├─ Subscriptions (tenant-level billing)
+├─ Usage Quotas (tenant-level limits)
+└─ Users (Team Members)
+   ├─ user_id: "alice_uuid_123" (Owner)
+   ├─ user_id: "bob_uuid_456" (Admin)
+   └─ user_id: "charlie_uuid_789" (Member)
+```
+
+**Key Concepts:**
+- **tenant_id**: Organization identifier (one per company)
+- **user_id**: Individual user identifier (many users per tenant)
+- **Sign-up**: Creates user_id for the individual
+- **Onboarding**: Creates tenant_id for the organization
+- **Billing**: Tenant-level via stripe_tenant_id
+- **Tracking**: User-level via user_id in pipeline_runs, step_logs, etc.
+- **API Requests**: Require **both** X-API-Key (tenant) + X-User-ID (user)
+
+---
+
 ## Complete Onboarding Workflow
 
-### Frontend → Stripe → Backend Flow
+### Flow 1: Tenant Onboarding (Organization Setup)
+
+This flow creates the organization and infrastructure.
 
 ```
 Step 1: User signs up on frontend
+  → Creates user_id (e.g., "alice_uuid_123")
   ↓
-Step 2: Stripe checkout for subscription plan
+Step 2: User creates organization (tenant)
+  → Provides company name, selects plan
   ↓
-Step 3: Payment success → Stripe webhook
+Step 3: Stripe checkout for subscription plan
+  → Creates stripe_tenant_id
   ↓
-Step 4: Backend receives webhook → Create customer
+Step 4: Payment success → Stripe webhook
   ↓
-Step 5: Provision infrastructure (dataset + tables)
+Step 5: Backend receives webhook → Create tenant
+  → POST /api/v1/tenants/onboard
+  → tenant_id, stripe_tenant_id, created_by_user_id
   ↓
-Step 6: Generate API key
+Step 6: Provision infrastructure (dataset + tables)
+  → Creates BigQuery dataset
+  → Creates tables: tenants, users, x_meta_*
   ↓
-Step 7: Send welcome email with API key
+Step 7: Generate tenant API key
+  → Format: {tenant_id}_api_{random}
   ↓
-Step 8: Customer can start using platform
+Step 8: Create owner user in users table
+  → user_id, tenant_id, role=OWNER
+  ↓
+Step 9: Send welcome email with API key
+  → To created_by_user_id email
+  ↓
+Step 10: Tenant ready - owner can invite team members
+```
+
+### Flow 2: User Onboarding (Team Member Invite)
+
+This flow adds additional users to an existing tenant.
+
+```
+Step 1: Owner/Admin invites team member
+  → POST /api/v1/tenants/{tenant_id}/users
+  → Requires X-API-Key + X-User-ID (inviter)
+  ↓
+Step 2: User record created
+  → user_id, tenant_id, role, is_active=true
+  → created_by_user_id (who invited them)
+  ↓
+Step 3: Send invitation email
+  → User receives invite link
+  ↓
+Step 4: User accepts invite
+  → Frontend authenticates user
+  → User gets user_id from invitation
+  ↓
+Step 5: User can access platform
+  → Uses tenant's X-API-Key
+  → Provides their own X-User-ID
+  → All actions tracked under their user_id
 ```
 
 ---
 
-## Onboarding API
+## Tenant Onboarding API
 
 ### Endpoint
 
 ```
-POST /api/v1/customers/onboard
+POST /api/v1/tenants/onboard
 ```
 
 ### Request Parameters
@@ -71,22 +143,25 @@ POST /api/v1/customers/onboard
 | `contact_email` | string | ❌ No | Primary contact email for notifications |
 | `subscription_plan` | string | ❌ No | Plan: "starter", "professional", "enterprise" (default: "starter") |
 | `stripe_subscription_id` | string | ❌ No | Stripe subscription ID from webhook |
-| `stripe_tenant_id` | string | ❌ No | Stripe customer ID from webhook |
+| `stripe_tenant_id` | string | ❌ No | Stripe customer ID from webhook (for billing) |
+| `created_by_user_id` | string | ✅ Yes | User ID of the person creating the tenant (becomes owner) |
 | `force_recreate_dataset` | boolean | ❌ No | Delete and recreate dataset (⚠️ DESTRUCTIVE) |
 | `force_recreate_tables` | boolean | ❌ No | Delete and recreate tables (⚠️ DESTRUCTIVE) |
 
 ### Example Request
 
 ```bash
-curl -X POST "http://localhost:8080/api/v1/customers/onboard" \
+curl -X POST "http://localhost:8080/api/v1/tenants/onboard" \
   -H "Content-Type: application/json" \
   -d '{
-    "tenant_id": "acmeinc_23xv2",
+    "tenant_id": "acme_corp",
     "company_name": "ACME Corporation",
     "contact_email": "admin@acmecorp.com",
-    "subscription_tier": "PROFESSIONAL",
-    "max_pipelines_per_month": 1000,
-    "max_concurrent_pipelines": 5
+    "subscription_plan": "professional",
+    "stripe_tenant_id": "cus_stripe123",
+    "created_by_user_id": "alice_uuid_123",
+    "force_recreate_dataset": false,
+    "force_recreate_tables": false
   }'
 ```
 
@@ -94,32 +169,137 @@ curl -X POST "http://localhost:8080/api/v1/customers/onboard" \
 
 ```json
 {
-  "tenant_id": "acmeinc_23xv2",
-  "api_key": "acmeinc_23xv2_api_xK9mPqWz7LnR4vYt",
+  "tenant_id": "acme_corp",
+  "api_key": "acme_corp_api_xK9mPqWz7LnR4vYt",
+  "stripe_tenant_id": "cus_stripe123",
   "dataset_created": true,
   "tables_created": [
-    "api_keys",
-    "cloud_credentials",
     "tenants",
-    "pipeline_runs",
-    "step_logs",
-    "dq_results"
+    "users",
+    "x_meta_api_keys",
+    "x_meta_cloud_credentials",
+    "x_meta_pipeline_runs",
+    "x_meta_step_logs",
+    "x_meta_dq_results"
   ],
+  "owner_user_id": "alice_uuid_123",
   "tenant_status": {
     "is_active": true,
-    "subscription_tier": "PROFESSIONAL",
+    "subscription_plan": "professional",
     "max_pipelines_per_month": 1000,
     "max_concurrent_pipelines": 5,
     "pipeline_runs_count": 0,
     "pipeline_runs_this_month": 0,
     "current_running_pipelines": 0
   },
-  "dryrun_status": "SUCCESS",
-  "message": "Customer acmeinc_23xv2 onboarded successfully. Save your API key - it will only be shown once!"
+  "message": "Tenant acme_corp onboarded successfully. Save your API key - it will only be shown once!"
 }
 ```
 
 **⚠️ CRITICAL:** Save the `api_key` immediately! It's shown only once and cannot be retrieved later.
+
+---
+
+## User Management API
+
+### Create User (Add Team Member)
+
+**Endpoint:**
+```
+POST /api/v1/tenants/{tenant_id}/users
+```
+
+**Headers:**
+```
+X-API-Key: {tenant_api_key}
+X-User-ID: {inviter_user_id}
+```
+
+**Request Body:**
+```json
+{
+  "email": "bob@acmecorp.com",
+  "name": "Bob Smith",
+  "role": "ADMIN",
+  "created_by_user_id": "alice_uuid_123"
+}
+```
+
+**Response:**
+```json
+{
+  "user_id": "bob_uuid_456",
+  "tenant_id": "acme_corp",
+  "email": "bob@acmecorp.com",
+  "name": "Bob Smith",
+  "role": "ADMIN",
+  "is_active": true,
+  "created_at": "2025-11-17T10:30:00Z",
+  "created_by_user_id": "alice_uuid_123",
+  "message": "User created successfully"
+}
+```
+
+### List Users in Tenant
+
+**Endpoint:**
+```
+GET /api/v1/tenants/{tenant_id}/users
+```
+
+**Headers:**
+```
+X-API-Key: {tenant_api_key}
+X-User-ID: {requesting_user_id}
+```
+
+**Response:**
+```json
+{
+  "users": [
+    {
+      "user_id": "alice_uuid_123",
+      "email": "alice@acmecorp.com",
+      "name": "Alice Johnson",
+      "role": "OWNER",
+      "is_active": true,
+      "created_at": "2025-11-17T10:00:00Z"
+    },
+    {
+      "user_id": "bob_uuid_456",
+      "email": "bob@acmecorp.com",
+      "name": "Bob Smith",
+      "role": "ADMIN",
+      "is_active": true,
+      "created_at": "2025-11-17T10:30:00Z"
+    }
+  ],
+  "total": 2
+}
+```
+
+### Deactivate User
+
+**Endpoint:**
+```
+POST /api/v1/tenants/{tenant_id}/users/{user_id}/deactivate
+```
+
+**Headers:**
+```
+X-API-Key: {tenant_api_key}
+X-User-ID: {admin_user_id}
+```
+
+**Response:**
+```json
+{
+  "user_id": "bob_uuid_456",
+  "is_active": false,
+  "deactivated_at": "2025-11-17T15:00:00Z",
+  "message": "User deactivated successfully"
+}
+```
 
 ---
 
@@ -129,51 +309,30 @@ curl -X POST "http://localhost:8080/api/v1/customers/onboard" \
 
 ```
 Project: gac-prod-471220
-Dataset: acmeinc_23xv2
+Dataset: acme_corp
 Location: US
-Labels: tenant=acmeinc_23xv2
+Labels: tenant=acme_corp
 ```
 
-### 2. Central Customer Record
+### 2. Tenant & User Tables (Per-Tenant Dataset)
 
-A record is created in the centralized `customers_metadata` dataset:
+The following tables are created in the tenant's dataset from schema files in `config/schemas/`:
 
-#### `customers_metadata.customers` - Core Customer Information
-- Tenant ID (UUID), tenant ID, company name
-- Subscription plan and status
-- Dataset ID for tenant data
+#### `tenants` - Tenant Information
+- tenant_id, company_name, contact_email
+- subscription_plan (starter/professional/enterprise)
+- stripe_tenant_id (for billing)
+- Subscription quotas and usage tracking
+- Schema: `config/schemas/tenants.json`
 
-#### `customers_metadata.tenant_subscriptions` - Subscription & Quotas
-- Subscription plan (starter/professional/enterprise)
-- Monthly pipeline quota, concurrent pipeline quota, storage quota
-- Stripe subscription ID and customer ID
-- Billing cycle dates
-
-#### `customers_metadata.tenant_api_keys` - API Keys (Centralized)
-- SHA256 hashed and KMS-encrypted API keys
-- Scopes, expiration, last used timestamp
-- Centralized across all customers
-
-#### `customers_metadata.customer_usage` - Usage Tracking
-- Real-time usage counters per month
-- Pipelines run count, currently running count
-- Storage used, compute hours
-
-### 3. Metadata Tables (Per-Customer Dataset)
-
-The following tables are created in the customer's dataset from schema files in `templates/customer/onboarding/schemas/`:
-
-#### `x_meta_api_keys` - Legacy API Keys (for backward compatibility)
-- Stores customer-specific API keys
-- Schema: `templates/customer/onboarding/schemas/x_meta_api_keys.json`
-
-**Tenant Fields:**
+**Example Record:**
 ```json
 {
-  "tenant_id": "acmeinc_23xv2",
+  "tenant_id": "acme_corp",
   "company_name": "ACME Corporation",
   "contact_email": "admin@acmecorp.com",
-  "subscription_tier": "PROFESSIONAL",
+  "subscription_plan": "professional",
+  "stripe_tenant_id": "cus_stripe123",
   "is_active": true,
   "max_pipelines_per_month": 1000,
   "max_concurrent_pipelines": 5,
@@ -181,40 +340,98 @@ The following tables are created in the customer's dataset from schema files in 
   "pipeline_runs_this_month": 0,
   "current_running_pipelines": 0,
   "last_pipeline_run_at": null,
-  "quota_reset_date": "2025-11-01",
-  "created_at": "2025-11-15T10:00:00Z",
-  "updated_at": "2025-11-15T10:00:00Z"
+  "quota_reset_date": "2025-12-01",
+  "created_at": "2025-11-17T10:00:00Z",
+  "updated_at": "2025-11-17T10:00:00Z"
 }
 ```
 
+#### `users` - Team Members
+- user_id, tenant_id, email, name
+- role (OWNER, ADMIN, MEMBER, VIEWER)
+- is_active, created_by_user_id
+- Schema: `config/schemas/users.json`
+
+**Example Records:**
+```json
+[
+  {
+    "user_id": "alice_uuid_123",
+    "tenant_id": "acme_corp",
+    "email": "alice@acmecorp.com",
+    "name": "Alice Johnson",
+    "role": "OWNER",
+    "is_active": true,
+    "created_at": "2025-11-17T10:00:00Z",
+    "created_by_user_id": "alice_uuid_123"
+  },
+  {
+    "user_id": "bob_uuid_456",
+    "tenant_id": "acme_corp",
+    "email": "bob@acmecorp.com",
+    "name": "Bob Smith",
+    "role": "ADMIN",
+    "is_active": true,
+    "created_at": "2025-11-17T10:30:00Z",
+    "created_by_user_id": "alice_uuid_123"
+  }
+]
+```
+
+#### `x_meta_api_keys` - Tenant API Keys
+- Stores tenant-specific API keys
+- SHA256 hashed and KMS-encrypted
+- Schema: `config/schemas/x_meta_api_keys.json`
+
 #### `x_meta_cloud_credentials` - Cloud Provider Credentials
 - Stores encrypted credentials for GCP, AWS, Azure
-- Schema: `templates/customer/onboarding/schemas/x_meta_cloud_credentials.json`
+- tenant_id for isolation
+- Schema: `config/schemas/x_meta_cloud_credentials.json`
 
 #### `x_meta_pipeline_runs` - Pipeline Execution Tracking
 - Tracks all pipeline executions
+- **Includes user_id** to track who triggered each run
 - Stores status, timestamps, parameters
-- Schema: `templates/customer/onboarding/schemas/x_meta_pipeline_runs.json`
+- Schema: `config/schemas/x_meta_pipeline_runs.json`
+
+**Example Record:**
+```json
+{
+  "pipeline_logging_id": "run_uuid_abc123",
+  "pipeline_id": "p_openai_billing",
+  "tenant_id": "acme_corp",
+  "user_id": "alice_uuid_123",
+  "status": "completed",
+  "start_time": "2025-11-17T10:45:00Z",
+  "end_time": "2025-11-17T10:47:32Z",
+  "rows_processed": 1500,
+  "trigger_by": "api_user"
+}
+```
 
 #### `x_meta_step_logs` - Step-by-Step Execution Logs
 - Detailed logs for each pipeline step
+- **Includes user_id** from parent pipeline_run
 - Tracks rows processed, duration, errors
-- Schema: `templates/customer/onboarding/schemas/x_meta_step_logs.json`
+- Schema: `config/schemas/x_meta_step_logs.json`
 
 #### `x_meta_dq_results` - Data Quality Results
 - Stores data quality check results
-- Schema: `templates/customer/onboarding/schemas/x_meta_dq_results.json`
+- **Includes user_id** from parent pipeline_run
+- Schema: `config/schemas/x_meta_dq_results.json`
 
 ### 3. API Key Generation
 
 ```
 Format: {tenant_id}_api_{random_16_chars}
-Example: acmeinc_23xv2_api_xK9mPqWz7LnR4vYt
+Example: acme_corp_api_xK9mPqWz7LnR4vYt
 
 Security Layers:
-  ├─ SHA256 hash → Stored in api_keys.api_key_hash (fast lookup)
-  ├─ KMS encryption → Stored in api_keys.encrypted_api_key
+  ├─ SHA256 hash → Stored in x_meta_api_keys.api_key_hash (fast lookup)
+  ├─ KMS encryption → Stored in x_meta_api_keys.encrypted_api_key
   └─ Show once → Returned only during onboarding
+
+Note: API key is tenant-level, but requires X-User-ID header for all requests
 ```
 
 ---
@@ -296,59 +513,95 @@ WHERE tenant_id = 'acmeinc_23xv2';
 
 ---
 
-## Pipeline Execution with Quota Enforcement
+## Pipeline Execution with User Tracking
 
-### Trigger Pipeline
+### Trigger Pipeline (Requires Both Headers)
 
 ```bash
 curl -X POST \
-  "http://localhost:8080/api/v1/pipelines/run/acmeinc_23xv2/gcp/cost/bill-export" \
-  -H "X-API-Key: acmeinc_23xv2_api_xK9mPqWz7LnR4vYt" \
+  "http://localhost:8080/api/v1/pipelines/run/p_openai_billing" \
+  -H "X-API-Key: acme_corp_api_xK9mPqWz7LnR4vYt" \
+  -H "X-User-ID: alice_uuid_123" \
   -H "Content-Type: application/json" \
   -d '{
-    "date": "2025-11-15",
-    "trigger_by": "scheduler"
+    "date": "2025-11-17",
+    "trigger_by": "api_user"
   }'
 ```
 
-### Execution Flow with Quota Checks
+### Execution Flow with User & Quota Checks
 
 ```
-Step 1: Authenticate API Key
+Step 1: Authenticate API Key (X-API-Key)
+  → Extracts tenant_id from API key
   ↓
-Step 2: Verify Tenant is Active (tenants.is_active = TRUE)
+Step 2: Validate User ID (X-User-ID)
+  → Verifies user exists in users table
+  → Verifies user belongs to tenant
+  → Verifies user is active (is_active = TRUE)
+  → If not found: HTTP 403 "User not in tenant"
+  → If deactivated: HTTP 403 "User account deactivated"
+  ↓
+Step 3: Verify Tenant is Active (tenants.is_active = TRUE)
   → If FALSE: HTTP 403 "Tenant account is inactive"
   ↓
-Step 3: Check Monthly Quota
+Step 4: Check Monthly Quota (tenant-level)
   → If pipeline_runs_this_month >= max_pipelines_per_month:
     HTTP 429 "Monthly pipeline quota exceeded"
   ↓
-Step 4: Check Concurrent Quota
+Step 5: Check Concurrent Quota (tenant-level)
   → If current_running_pipelines >= max_concurrent_pipelines:
     HTTP 429 "Concurrent pipeline limit reached"
   ↓
-Step 5: Validate Tenant ID Match (URL vs API key)
-  → If mismatch: HTTP 403 "Tenant ID mismatch"
-  ↓
 Step 6: Execute Pipeline
   ↓
-Step 7: Increment Usage Counters
+Step 7: Record in x_meta_pipeline_runs
+  - pipeline_logging_id (unique run ID)
+  - tenant_id (from API key)
+  - user_id (from X-User-ID header)
+  - status = "running"
+  - start_time = NOW()
+  ↓
+Step 8: Increment Tenant Usage Counters
   - pipeline_runs_count++
   - pipeline_runs_this_month++
   - current_running_pipelines++
   - last_pipeline_run_at = NOW()
   ↓
-Step 8: On Pipeline Completion
-  - current_running_pipelines--
+Step 9: On Pipeline Completion
+  - Update pipeline_run status = "completed"
+  - Decrement current_running_pipelines--
+  - user_id remains in record for audit
 ```
 
 ### Error Responses
+
+#### User Not in Tenant
+```json
+{
+  "detail": "User does not belong to this tenant",
+  "user_id": "alice_uuid_123",
+  "tenant_id": "acme_corp",
+  "error_code": "USER_NOT_IN_TENANT",
+  "status_code": 403
+}
+```
+
+#### User Deactivated
+```json
+{
+  "detail": "User account is deactivated",
+  "user_id": "bob_uuid_456",
+  "error_code": "USER_DEACTIVATED",
+  "status_code": 403
+}
+```
 
 #### Inactive Tenant
 ```json
 {
   "detail": "Tenant account is inactive. Contact support to reactivate.",
-  "tenant_id": "acmeinc_23xv2",
+  "tenant_id": "acme_corp",
   "status_code": 403
 }
 ```
@@ -357,7 +610,7 @@ Step 8: On Pipeline Completion
 ```json
 {
   "detail": "Monthly pipeline quota exceeded. Used 1000/1000 pipelines this month.",
-  "tenant_id": "acmeinc_23xv2",
+  "tenant_id": "acme_corp",
   "quota_reset_date": "2025-12-01",
   "status_code": 429
 }
@@ -367,7 +620,7 @@ Step 8: On Pipeline Completion
 ```json
 {
   "detail": "Concurrent pipeline limit reached. 5/5 pipelines currently running.",
-  "tenant_id": "acmeinc_23xv2",
+  "tenant_id": "acme_corp",
   "status_code": 429
 }
 ```
@@ -382,7 +635,8 @@ Step 8: On Pipeline Completion
 SELECT
   tenant_id,
   company_name,
-  subscription_tier,
+  subscription_plan,
+  stripe_tenant_id,
   is_active,
   max_pipelines_per_month,
   max_concurrent_pipelines,
@@ -392,57 +646,84 @@ SELECT
   last_pipeline_run_at,
   quota_reset_date,
   created_at
-FROM `gac-prod-471220.acmeinc_23xv2.tenants`
-WHERE tenant_id = 'acmeinc_23xv2';
+FROM `gac-prod-471220.acme_corp.tenants`
+WHERE tenant_id = 'acme_corp';
 ```
 
-### Check Usage This Month
+### Check Users in Tenant
 
 ```sql
 SELECT
+  user_id,
+  email,
+  name,
+  role,
+  is_active,
+  created_at,
+  created_by_user_id,
+  last_login_at
+FROM `gac-prod-471220.acme_corp.users`
+WHERE tenant_id = 'acme_corp'
+ORDER BY created_at;
+```
+
+### Check Usage This Month (with user breakdown)
+
+```sql
+SELECT
+  user_id,
   COUNT(*) as total_runs,
-  SUM(CASE WHEN status = 'COMPLETE' THEN 1 ELSE 0 END) as successful,
-  SUM(CASE WHEN status = 'FAILED' THEN 1 ELSE 0 END) as failed,
-  AVG(duration_ms) as avg_duration_ms
-FROM `gac-prod-471220.acmeinc_23xv2.pipeline_runs`
-WHERE tenant_id = 'acmeinc_23xv2'
-  AND start_time >= DATE_TRUNC(CURRENT_DATE(), MONTH);
+  SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as successful,
+  SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed,
+  AVG(TIMESTAMP_DIFF(end_time, start_time, SECOND)) as avg_duration_seconds
+FROM `gac-prod-471220.acme_corp.x_meta_pipeline_runs`
+WHERE tenant_id = 'acme_corp'
+  AND start_time >= DATE_TRUNC(CURRENT_DATE(), MONTH)
+GROUP BY user_id
+ORDER BY total_runs DESC;
 ```
 
-### Check Currently Running Pipelines
+### Check Currently Running Pipelines (with user info)
 
 ```sql
 SELECT
-  pipeline_logging_id,
-  pipeline_id,
-  start_time,
-  TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), start_time, MINUTE) as running_minutes
-FROM `gac-prod-471220.acmeinc_23xv2.pipeline_runs`
-WHERE tenant_id = 'acmeinc_23xv2'
-  AND status IN ('PENDING', 'RUNNING')
-ORDER BY start_time DESC;
+  pr.pipeline_logging_id,
+  pr.pipeline_id,
+  pr.tenant_id,
+  pr.user_id,
+  u.email as user_email,
+  u.name as user_name,
+  pr.start_time,
+  TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), pr.start_time, MINUTE) as running_minutes
+FROM `gac-prod-471220.acme_corp.x_meta_pipeline_runs` pr
+LEFT JOIN `gac-prod-471220.acme_corp.users` u
+  ON pr.user_id = u.user_id AND pr.tenant_id = u.tenant_id
+WHERE pr.tenant_id = 'acme_corp'
+  AND pr.status IN ('pending', 'running')
+ORDER BY pr.start_time DESC;
 ```
 
 ### Verify Dataset Created
 
 ```bash
-bq ls --project_id=gac-prod-471220 | grep acmeinc_23xv2
+bq ls --project_id=gac-prod-471220 | grep acme_corp
 ```
 
 ### Verify Tables Created
 
 ```bash
-bq ls --project_id=gac-prod-471220 acmeinc_23xv2
+bq ls --project_id=gac-prod-471220 acme_corp
 ```
 
 Expected output:
 ```
-api_keys
-cloud_credentials
 tenants
-pipeline_runs
-step_logs
-dq_results
+users
+x_meta_api_keys
+x_meta_cloud_credentials
+x_meta_pipeline_runs
+x_meta_step_logs
+x_meta_dq_results
 ```
 
 ---
@@ -488,52 +769,62 @@ done
 
 ## Architecture
 
-### Dataset-Per-Tenant Model
+### Dataset-Per-Tenant Model with Multi-User Support
 
 ```
 BigQuery Project (gac-prod-471220)
 │
-├── acmeinc_23xv2/              (Tenant 1 - PROFESSIONAL)
-│   ├── x_meta_api_keys
+├── acme_corp/                  (Tenant 1 - PROFESSIONAL)
+│   ├── tenants                 ← Tenant info & quotas
+│   ├── users                   ← Team members (alice, bob, charlie)
+│   ├── x_meta_api_keys         ← Tenant-level API keys
 │   ├── x_meta_cloud_credentials
-│   ├── x_meta_tenants                 ← Quota & status tracking
-│   ├── x_meta_pipeline_runs
-│   ├── x_meta_step_logs
-│   ├── x_meta_dq_results
-│   └── <pipeline outputs>
+│   ├── x_meta_pipeline_runs    ← Tracks tenant_id + user_id per run
+│   ├── x_meta_step_logs        ← Tracks user_id per step
+│   ├── x_meta_dq_results       ← Tracks user_id per test
+│   └── <pipeline outputs>      ← Raw & processed data
 │
-├── techcorp_99zx4/             (Tenant 2 - ENTERPRISE)
+├── tech_corp/                  (Tenant 2 - ENTERPRISE)
+│   ├── tenants
+│   ├── users                   ← Different team members
 │   ├── x_meta_api_keys
-│   ├── x_meta_tenants
+│   ├── x_meta_pipeline_runs    ← User tracking separate from Tenant 1
 │   └── ...
 │
-└── startupco_55abc/            (Tenant 3 - STARTER)
-    ├── x_meta_api_keys
-    ├── x_meta_tenants
+└── startup_co/                 (Tenant 3 - STARTER)
+    ├── tenants
+    ├── users
     └── ...
 ```
 
 ### Key Design Principles
 
 1. **Complete Tenant Isolation**: Each tenant = separate BigQuery dataset
-2. **No Cross-Tenant Queries**: Zero data leakage between tenants
-3. **Schema-Driven**: All table schemas in `templates/customer/onboarding/schemas/*.json`
-4. **Quota Enforcement**: Checked before every pipeline execution
-5. **Real-Time Tracking**: Usage counters updated atomically
-6. **Production-Ready**: Enterprise security, monitoring, and error handling
+2. **Multi-User Support**: Multiple users per tenant with role-based access
+3. **User-Level Tracking**: All pipeline runs, steps, and DQ tests track user_id
+4. **Tenant-Level Billing**: stripe_tenant_id for organization billing
+5. **Tenant-Level Quotas**: Limits enforced at organization level, not per user
+6. **No Cross-Tenant Queries**: Zero data leakage between tenants
+7. **Schema-Driven**: All table schemas in `config/schemas/*.json`
+8. **Quota Enforcement**: Checked before every pipeline execution
+9. **Real-Time Tracking**: Usage counters updated atomically
+10. **Production-Ready**: Enterprise security, monitoring, and error handling
 
 ---
 
 ## Frontend Integration
 
-### Onboarding Workflow
+### Tenant Onboarding Workflow
 
 1. **Create Tenant** (Frontend → API):
    ```javascript
-   POST /api/v1/customers/onboard
+   POST /api/v1/tenants/onboard
    {
-     tenant_id, company_name, subscription_tier,
-     max_pipelines_per_month, max_concurrent_pipelines
+     tenant_id,
+     company_name,
+     subscription_plan,
+     stripe_tenant_id,
+     created_by_user_id  // User who signs up becomes owner
    }
    ```
 
@@ -541,29 +832,76 @@ BigQuery Project (gac-prod-471220)
    - Display API key in secure modal
    - Force user to copy before dismissing
    - Log onboarding event
+   - Store tenant_id and owner user_id
 
 3. **Update Quotas** (Frontend → API):
    - Re-call onboarding endpoint with new quotas
    - Preserves dataset and tables
 
-4. **Suspend Tenant** (Frontend → BigQuery):
-   ```sql
-   UPDATE tenants SET is_active = FALSE WHERE tenant_id = ?
+4. **Suspend Tenant** (Frontend → API):
+   ```javascript
+   PATCH /api/v1/tenants/{tenant_id}
+   { is_active: false }
    ```
+
+### User Management Workflow
+
+1. **Invite Team Member** (Frontend → API):
+   ```javascript
+   POST /api/v1/tenants/{tenant_id}/users
+   Headers: { X-API-Key, X-User-ID }  // Inviter's user_id
+   {
+     email,
+     name,
+     role,
+     created_by_user_id
+   }
+   ```
+
+2. **List Team Members**:
+   ```javascript
+   GET /api/v1/tenants/{tenant_id}/users
+   Headers: { X-API-Key, X-User-ID }
+   ```
+
+3. **Deactivate User**:
+   ```javascript
+   POST /api/v1/tenants/{tenant_id}/users/{user_id}/deactivate
+   Headers: { X-API-Key, X-User-ID }  // Admin only
+   ```
+
+### Pipeline Execution Workflow
+
+All pipeline requests require **both headers**:
+
+```javascript
+POST /api/v1/pipelines/run/{pipeline_id}
+Headers: {
+  "X-API-Key": "{tenant_api_key}",
+  "X-User-ID": "{current_user_id}"
+}
+Body: { date, trigger_by: "api_user" }
+```
+
+Frontend must:
+1. Store tenant API key (from onboarding)
+2. Track current user's user_id (from auth session)
+3. Send both headers with every authenticated request
 
 ### Scheduler Integration
 
-Scheduler triggers pipelines independently:
+Scheduler triggers pipelines with service user:
 
 ```bash
 # Scheduler cron job
 curl -X POST \
-  "http://localhost:8080/api/v1/pipelines/run/${TENANT_ID}/${PROVIDER}/${DOMAIN}/${PIPELINE}" \
-  -H "X-API-Key: ${API_KEY}" \
-  -d '{"trigger_by": "scheduler"}'
+  "http://localhost:8080/api/v1/pipelines/run/${PIPELINE_ID}" \
+  -H "X-API-Key: ${TENANT_API_KEY}" \
+  -H "X-User-ID: scheduler_service_user_id" \
+  -d '{"trigger_by": "scheduler", "date": "2025-11-17"}'
 ```
 
-Quota checks happen automatically - no scheduler changes needed.
+**Note**: Create a dedicated "scheduler" user in each tenant for automated runs.
 
 ---
 
@@ -657,24 +995,27 @@ WHERE tenant_id = '{tenant_id}';
 
 ## Next Steps
 
-1. **Onboard Your First Tenant**: Use the onboarding API with quota limits
-2. **Test Pipeline Execution**: Trigger a pipeline and verify quota checks
-3. **Monitor Usage**: Query tenants table for real-time usage
-4. **Configure Frontend**: Integrate onboarding into your admin panel
-5. **Set Up Scheduler**: Configure pipeline triggers independently
+1. **Onboard Your First Tenant**: Use the tenant onboarding API
+2. **Create Users**: Add team members to the tenant
+3. **Test Pipeline Execution**: Trigger a pipeline with both X-API-Key and X-User-ID
+4. **Monitor Usage**: Query pipeline_runs for per-user analytics
+5. **Configure Frontend**: Integrate tenant + user management
+6. **Set Up Scheduler**: Create scheduler service user for automated runs
 
 ---
 
 ## Reference Documentation
 
-- **MULTI_TENANCY_IMPROVEMENTS.md** - Design specifications
-- **IMPLEMENTATION_SUMMARY.md** - Implementation guide
-- **templates/customer/onboarding/schemas/x_meta_tenants.json** - Tenant table schema
-- **README.md** - Platform overview
-- **TECHNICAL_IMPLEMENTATION.md** - Technical architecture
+- **[QUICK_START.md](QUICK_START.md)** - Get started in 5 minutes
+- **[TENANT_API_REFERENCE.md](../api/TENANT_API_REFERENCE.md)** - Full API reference
+- **[MULTI_TENANCY_DESIGN.md](../implementation/MULTI_TENANCY_DESIGN.md)** - Architecture design
+- **[IMPLEMENTATION_SUMMARY.md](../implementation/IMPLEMENTATION_SUMMARY.md)** - Implementation guide
+- **[metadata-schema.md](../reference/metadata-schema.md)** - Schema documentation
+- **[TENANT_MANAGEMENT.md](../architecture/TENANT_MANAGEMENT.md)** - Tenant architecture
 
 ---
 
-**Version**: 2.0 (Enterprise Multi-Tenancy)
-**Last Updated**: November 2025
+**Version**: 2.0 (Multi-User Tenant Architecture)
+**Last Updated**: 2025-11-17
+**Breaking Changes**: v2.0.0 requires X-User-ID header for all authenticated endpoints
 **Status**: Production Ready

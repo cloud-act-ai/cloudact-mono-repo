@@ -211,18 +211,19 @@ print(f"Encrypted (for storage): {result['encrypted_api_key'][:20]}...")
 
 ### API Key Storage
 
-**BigQuery Table**: `customers_metadata.tenant_api_keys`
+**BigQuery Table**: `tenants_metadata.tenant_api_keys`
 
 ```sql
-CREATE TABLE customers_metadata.tenant_api_keys (
+CREATE TABLE tenants_metadata.tenant_api_keys (
   api_key_id STRING NOT NULL,
   tenant_id STRING NOT NULL,
-  tenant_id STRING NOT NULL,
+  user_id STRING,                        -- User who created the key
   api_key_hash STRING NOT NULL,          -- SHA256 hash (for fast lookup)
   encrypted_api_key BYTES NOT NULL,      -- KMS-encrypted bytes
   is_active BOOL NOT NULL DEFAULT TRUE,
   expires_at TIMESTAMP,
-  created_at TIMESTAMP NOT NULL
+  created_at TIMESTAMP NOT NULL,
+  created_by_user_id STRING              -- Audit: who created this key
 );
 ```
 
@@ -375,42 +376,54 @@ print(f"Decrypted project_id: {decrypted['project_id']}")
 
 ### Tenant Isolation Policy
 
-**Purpose**: Ensure customers can only access their own data
+**Purpose**: Ensure tenants can only access their own data, and users can only access data within their tenant
 
 **Implementation**:
 ```sql
 -- Apply row-level security on tenant_api_keys
 CREATE ROW ACCESS POLICY tenant_isolation_api_keys
-ON customers_metadata.tenant_api_keys
+ON tenants_metadata.tenant_api_keys
 GRANT TO ('user:*')
 FILTER USING (
   tenant_id IN (
     SELECT tenant_id
-    FROM customers_metadata.customers
+    FROM tenants_metadata.tenants
     WHERE contact_email = SESSION_USER()
   )
 );
 
--- Apply row-level security on customer_credentials
+-- Apply row-level security on tenant_credentials
 CREATE ROW ACCESS POLICY tenant_isolation_credentials
-ON customers_metadata.customer_credentials
+ON tenants_metadata.tenant_credentials
 GRANT TO ('user:*')
 FILTER USING (
   tenant_id IN (
     SELECT tenant_id
-    FROM customers_metadata.customers
+    FROM tenants_metadata.tenants
     WHERE contact_email = SESSION_USER()
   )
 );
 
--- Apply row-level security on customer_usage
+-- Apply row-level security on tenant_usage
 CREATE ROW ACCESS POLICY tenant_isolation_usage
-ON customers_metadata.customer_usage
+ON tenants_metadata.tenant_usage
 GRANT TO ('user:*')
 FILTER USING (
   tenant_id IN (
     SELECT tenant_id
-    FROM customers_metadata.customers
+    FROM tenants_metadata.tenants
+    WHERE contact_email = SESSION_USER()
+  )
+);
+
+-- Apply row-level security on users table
+CREATE ROW ACCESS POLICY tenant_isolation_users
+ON tenants_metadata.users
+GRANT TO ('user:*')
+FILTER USING (
+  tenant_id IN (
+    SELECT tenant_id
+    FROM tenants_metadata.tenants
     WHERE contact_email = SESSION_USER()
   )
 );
@@ -436,8 +449,8 @@ KMS_KEYRING=convergence-customer-keys
 KMS_API_KEY_NAME=api-key-encryption
 KMS_CREDENTIALS_KEY_NAME=credentials-encryption
 
-# Customers Dataset
-CUSTOMERS_DATASET_ID=customers_metadata
+# Tenants Dataset
+TENANTS_DATASET_ID=tenants_metadata
 ```
 
 **Application Configuration**:
@@ -453,8 +466,8 @@ class Settings(BaseSettings):
     kms_api_key_name: str = "api-key-encryption"
     kms_credentials_key_name: str = "credentials-encryption"
 
-    # Customers Dataset
-    customers_dataset_id: str = "customers_metadata"
+    # Tenants Dataset
+    tenants_dataset_id: str = "tenants_metadata"
 
     class Config:
         env_file = ".env"
@@ -512,9 +525,10 @@ settings = Settings()
 ### 4. Data Access Control
 
 **Do's**:
-- ✅ Enforce row-level security on all customer tables
+- ✅ Enforce row-level security on all tenant tables
+- ✅ Enforce user-level access controls within tenants
 - ✅ Use least-privilege IAM roles
-- ✅ Log all data access to audit_logs table
+- ✅ Log all data access to audit_logs table with user_id
 - ✅ Regular security audits
 - ✅ Monitor for anomalous access patterns
 
@@ -529,31 +543,32 @@ settings = Settings()
 
 ### Audit Logs
 
-All security-related events are logged to `customers_metadata.customer_audit_logs`:
+All security-related events are logged to `tenants_metadata.tenant_audit_logs`:
 
 ```sql
--- Query recent API key usage
+-- Query recent API key usage by user
 SELECT
   tenant_id,
-  tenant_id,
+  user_id,
   event_type,
   actor_id,
   created_at
-FROM customers_metadata.customer_audit_logs
+FROM tenants_metadata.tenant_audit_logs
 WHERE event_type LIKE 'api_key.%'
   AND created_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)
 ORDER BY created_at DESC;
 
--- Query failed authentication attempts
+-- Query failed authentication attempts per user
 SELECT
   tenant_id,
+  user_id,
   ip_address,
   user_agent,
   COUNT(*) as failed_attempts
-FROM customers_metadata.customer_audit_logs
+FROM tenants_metadata.tenant_audit_logs
 WHERE event_type = 'authentication.failed'
   AND created_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 HOUR)
-GROUP BY tenant_id, ip_address, user_agent
+GROUP BY tenant_id, user_id, ip_address, user_agent
 HAVING failed_attempts > 5;
 ```
 
@@ -624,13 +639,18 @@ HAVING failed_attempts > 5;
 ```bash
 # Backup encrypted API keys
 bq extract --destination_format=NEWLINE_DELIMITED_JSON \
-  customers_metadata.tenant_api_keys \
+  tenants_metadata.tenant_api_keys \
   gs://convergence-backup/api-keys/backup-$(date +%Y%m%d).json
 
 # Backup encrypted credentials
 bq extract --destination_format=NEWLINE_DELIMITED_JSON \
-  customers_metadata.customer_credentials \
+  tenants_metadata.tenant_credentials \
   gs://convergence-backup/credentials/backup-$(date +%Y%m%d).json
+
+# Backup users data
+bq extract --destination_format=NEWLINE_DELIMITED_JSON \
+  tenants_metadata.users \
+  gs://convergence-backup/users/backup-$(date +%Y%m%d).json
 ```
 
 **Recovery Process**:
@@ -643,13 +663,16 @@ bq extract --destination_format=NEWLINE_DELIMITED_JSON \
 
 ## Related Documentation
 
-- [Customer Management Architecture](../architecture/TENANT_MANAGEMENT.md)
-- [API Reference](../api/CUSTOMER_API_REFERENCE.md)
+- [Tenant Management Architecture](../architecture/TENANT_MANAGEMENT.md)
+- [Tenant API Reference](../api/TENANT_API_REFERENCE.md)
+- [API Reference](../reference/API_REFERENCE.md)
 - [Environment Variables](../reference/ENVIRONMENT_VARIABLES.md)
 - [Migration Guide](../guides/MIGRATION_GUIDE.md)
+- [Multi-Tenancy Design](../implementation/MULTI_TENANCY_DESIGN.md)
 
 ---
 
-**Version**: 1.0.0
+**Version**: 2.0.0
 **Last Updated**: 2025-11-17
 **Security Contact**: security@convergence-pipeline.com
+**Breaking Changes**: v2.0.0 includes user-level access controls and audit logging
