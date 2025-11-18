@@ -29,10 +29,10 @@ curl http://localhost:8080/health
 ```
 
 ### 2. System Bootstrap (One-Time)
-Initialize the central 'tenants' dataset with 8 management tables:
+Initialize via API bootstrap endpoint:
 ```bash
-# Run the Python setup script
-python deployment/setup_bigquery_datasets.py
+# Use API bootstrap endpoint (not manual scripts)
+curl -X POST http://localhost:8080/api/v1/bootstrap/system
 ```
 
 ### 3. Onboard Your First Tenant

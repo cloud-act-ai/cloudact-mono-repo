@@ -25,16 +25,9 @@ steps:
       dataset_id: "{dataset_id}"
       location: "{location}"
 
-      # Metadata tables to create (from schemas in templates/customer/onboarding/schemas/)
+      # Metadata tables to create (ONLY operational tables in tenant dataset)
+      # NOTE: API keys and credentials are stored in central 'tenants' dataset
       metadata_tables:
-        - table_name: "x_meta_api_keys"
-          schema_file: "x_meta_api_keys.json"
-          description: "API keys for tenant authentication"
-
-        - table_name: "x_meta_cloud_credentials"
-          schema_file: "x_meta_cloud_credentials.json"
-          description: "Cloud provider credentials"
-
         - table_name: "x_meta_pipeline_runs"
           schema_file: "x_meta_pipeline_runs.json"
           description: "Pipeline execution history"
@@ -74,8 +67,8 @@ steps:
 
       Infrastructure Created:
       - BigQuery Dataset: {dataset_id}
-      - Metadata Tables: 5 tables (x_meta_*)
-      - API Key: Generated (check onboarding response)
+      - Metadata Tables: 3 operational tables (x_meta_*)
+      - API Key: Generated (stored in central tenants dataset)
 
       Next Steps:
       1. Save your API key securely (shown once during onboarding)
