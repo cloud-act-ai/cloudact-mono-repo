@@ -195,7 +195,7 @@ async def trigger_templated_pipeline(
         pipelines_run_today,
         daily_limit,
         COALESCE(daily_limit - pipelines_run_today, 0) as remaining
-    FROM `{settings.gcp_project_id}.customers.customer_usage_quotas`
+    FROM `{settings.gcp_project_id}.tenants.tenant_usage_quotas`
     WHERE tenant_id = @tenant_id
       AND usage_date = CURRENT_DATE()
     LIMIT 1
