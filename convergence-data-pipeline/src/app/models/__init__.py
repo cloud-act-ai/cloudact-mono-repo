@@ -1,81 +1,79 @@
 """
-Customer management models package.
+Tenant management models package.
 
-Exports all customer-related models, enums, and constants for use throughout the application.
+Exports all tenant-related models, enums, and constants for use throughout the application.
 """
 
-from .customer_models import (
+from .tenant_models import (
     # Enums
     SubscriptionPlan,
-    CustomerStatus,
+    TenantStatus,
     Provider,
     CredentialType,
-    TeamRole,
     Domain,
     SubscriptionStatus,
-    MemberStatus,
     ValidationStatus,
 
     # Constants
     SUBSCRIPTION_LIMITS,
 
     # Request Models
-    OnboardCustomerRequest,
+    OnboardTenantRequest,
     CreateAPIKeyRequest,
     AddCredentialRequest,
     CreateProviderConfigRequest,
-    InviteTeamMemberRequest,
     UpdateSubscriptionRequest,
+    UpgradeSubscriptionRequest,
+    UpdateLimitsRequest,
 
     # Response Models
-    CustomerProfileResponse,
+    TenantProfileResponse,
     APIKeyResponse,
     CredentialResponse,
     SubscriptionResponse,
     UsageQuotaResponse,
-    TeamMemberResponse,
     ValidationResponse,
     ProviderConfigResponse,
-
-    # Helper Functions
-    get_subscription_limits,
-    validate_quota_available,
+    LimitsResponse,
 )
+
+# Backward compatibility aliases
+CustomerStatus = TenantStatus
+OnboardCustomerRequest = OnboardTenantRequest
+CustomerProfileResponse = TenantProfileResponse
 
 __all__ = [
     # Enums
     "SubscriptionPlan",
-    "CustomerStatus",
+    "TenantStatus",
+    "CustomerStatus",  # Backward compat
     "Provider",
     "CredentialType",
-    "TeamRole",
     "Domain",
     "SubscriptionStatus",
-    "MemberStatus",
     "ValidationStatus",
 
     # Constants
     "SUBSCRIPTION_LIMITS",
 
     # Request Models
-    "OnboardCustomerRequest",
+    "OnboardTenantRequest",
+    "OnboardCustomerRequest",  # Backward compat
     "CreateAPIKeyRequest",
     "AddCredentialRequest",
     "CreateProviderConfigRequest",
-    "InviteTeamMemberRequest",
     "UpdateSubscriptionRequest",
+    "UpgradeSubscriptionRequest",
+    "UpdateLimitsRequest",
 
     # Response Models
-    "CustomerProfileResponse",
+    "TenantProfileResponse",
+    "CustomerProfileResponse",  # Backward compat
     "APIKeyResponse",
     "CredentialResponse",
     "SubscriptionResponse",
     "UsageQuotaResponse",
-    "TeamMemberResponse",
     "ValidationResponse",
     "ProviderConfigResponse",
-
-    # Helper Functions
-    "get_subscription_limits",
-    "validate_quota_available",
+    "LimitsResponse",
 ]

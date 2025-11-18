@@ -237,11 +237,13 @@ async def onboard_customer(
 
         insert_subscription_query = f"""
         INSERT INTO `{settings.gcp_project_id}.tenants.tenant_subscriptions`
-        (subscription_id, tenant_id, plan_name, status, max_team_members, max_providers,
-         max_pipelines_per_day, max_concurrent_pipelines, trial_end_date, created_at)
+        (subscription_id, tenant_id, plan_name, status, daily_limit, monthly_limit,
+         concurrent_limit, max_team_members, max_providers, max_pipelines_per_day,
+         max_concurrent_pipelines, trial_end_date, created_at)
         VALUES
-        (@subscription_id, @tenant_id, @plan_name, 'ACTIVE', @max_team_members, @max_providers,
-         @max_pipelines_per_day, @max_concurrent_pipelines, @trial_end_date, CURRENT_TIMESTAMP())
+        (@subscription_id, @tenant_id, @plan_name, 'ACTIVE', @daily_limit, @monthly_limit,
+         @concurrent_limit, @max_team_members, @max_providers, @max_pipelines_per_day,
+         @max_concurrent_pipelines, @trial_end_date, CURRENT_TIMESTAMP())
         """
 
         bq_client.client.query(
@@ -251,6 +253,9 @@ async def onboard_customer(
                     bigquery.ScalarQueryParameter("subscription_id", "STRING", subscription_id),
                     bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
                     bigquery.ScalarQueryParameter("plan_name", "STRING", request.subscription_plan),
+                    bigquery.ScalarQueryParameter("daily_limit", "INT64", plan_limits["max_daily"]),
+                    bigquery.ScalarQueryParameter("monthly_limit", "INT64", plan_limits["max_daily"] * 30),
+                    bigquery.ScalarQueryParameter("concurrent_limit", "INT64", plan_limits["max_concurrent"]),
                     bigquery.ScalarQueryParameter("max_team_members", "INT64", plan_limits["max_team"]),
                     bigquery.ScalarQueryParameter("max_providers", "INT64", plan_limits["max_providers"]),
                     bigquery.ScalarQueryParameter("max_pipelines_per_day", "INT64", plan_limits["max_daily"]),
@@ -280,9 +285,11 @@ async def onboard_customer(
         insert_usage_query = f"""
         INSERT INTO `{settings.gcp_project_id}.tenants.tenant_usage_quotas`
         (usage_id, tenant_id, usage_date, pipelines_run_today, pipelines_succeeded_today,
-         pipelines_failed_today, concurrent_pipelines_running, daily_limit, last_updated)
+         pipelines_failed_today, pipelines_run_month, concurrent_pipelines_running,
+         daily_limit, last_updated, created_at)
         VALUES
-        (@usage_id, @tenant_id, CURRENT_DATE(), 0, 0, 0, 0, @daily_limit, CURRENT_TIMESTAMP())
+        (@usage_id, @tenant_id, CURRENT_DATE(), 0, 0, 0, 0, 0, @daily_limit,
+         CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP())
         """
 
         bq_client.client.query(
