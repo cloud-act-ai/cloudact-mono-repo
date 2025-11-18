@@ -1097,7 +1097,13 @@ async def reset_daily_quotas(
             pipelines_run_today = 0,
             pipelines_succeeded_today = 0,
             pipelines_failed_today = 0,
+            pipelines_cancelled_today = 0,
             concurrent_pipelines_running = 0,
+            max_concurrent_reached = 0,
+            total_api_calls_today = 0,
+            quota_exceeded = FALSE,
+            quota_warning_sent = FALSE,
+            quota_exceeded_at = NULL,
             last_updated = CURRENT_TIMESTAMP()
         WHERE usage_date < CURRENT_DATE()
         """

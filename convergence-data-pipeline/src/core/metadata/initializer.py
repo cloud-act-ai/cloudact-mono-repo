@@ -27,7 +27,12 @@ class MetadataInitializer:
         self.client = bq_client
         self.project_id = settings.gcp_project_id
         self.location = settings.bigquery_location
-        self.metadata_schemas_path = Path(settings.metadata_schemas_path)
+        # Use the correct path to metadata schemas
+        if not Path(settings.metadata_schemas_path).is_absolute():
+            # If relative, make it relative to the project root
+            self.metadata_schemas_path = Path(__file__).parent.parent.parent.parent / settings.metadata_schemas_path
+        else:
+            self.metadata_schemas_path = Path(settings.metadata_schemas_path)
 
     def ensure_tenant_metadata(
         self,

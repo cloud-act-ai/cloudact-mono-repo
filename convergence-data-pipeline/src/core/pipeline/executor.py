@@ -309,6 +309,7 @@ class PipelineExecutor:
             )
 
             # Build execution context
+            # Include both pipeline-level variables and runtime parameters
             context = {
                 'tenant_id': self.tenant_id,
                 'pipeline_id': self.pipeline_id,
@@ -316,7 +317,9 @@ class PipelineExecutor:
                 'step_logging_id': step_logging_id,
                 'step_index': step_index,
                 'pipeline_status': self.status,
-                'parameters': self.config.get('parameters', {})
+                'parameters': self.config.get('parameters', {}),
+                # Add pipeline-level variables for variable substitution in queries
+                **self.config.get('variables', {})
             }
 
             # Load engine dynamically based on ps_type
@@ -378,94 +381,6 @@ class PipelineExecutor:
                 'duration_ms': int((step_end - step_start).total_seconds() * 1000),
                 'rows_processed': rows_processed
             })
-
-    async def _execute_bq_to_bq_step(self, step_config: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Execute BigQuery to BigQuery data transfer step using processor.
-
-        Args:
-            step_config: Step configuration
-
-        Returns:
-            Execution result with rows_written, destination_table, etc.
-        """
-        from src.core.processors.gcp.bq_etl import BigQueryETLEngine
-
-        # Create engine instance
-        engine = BigQueryETLEngine()
-
-        # Execute the BigQuery ETL step
-        result = await engine.execute(
-            step_config=step_config,
-            context={
-                'tenant_id': self.tenant_id,
-                'pipeline_id': self.config.get('pipeline_id'),
-                'execution_id': self.execution_id
-            }
-        )
-
-        self.logger.info(
-            f"BigQuery to BigQuery step completed",
-            extra={
-                "step_id": step_config.get('step_id'),
-                "rows_written": result['rows_written'],
-                "destination": result['destination_table']
-            }
-        )
-
-        return result
-
-    def _execute_dq_step(self, step_config: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Execute data quality validation step.
-
-        Args:
-            step_config: Step configuration
-
-        Returns:
-            DQ validation results with passed/failed counts
-        """
-        source = step_config['source']
-        dq_config_path = step_config['dq_config']
-        fail_on_error = step_config.get('fail_on_error', True)
-
-        # Build table reference
-        dataset_type = source['dataset_type']
-        table_name = source['table']
-        dataset_id = self.bq_client.get_tenant_dataset_id(self.tenant_id, dataset_type)
-        table_id = f"{dataset_id}.{table_name}"
-
-        # Run data quality checks
-        results = self.dq_validator.validate_table(
-            table_id=table_id,
-            dq_config_path=dq_config_path,
-            tenant_id=self.tenant_id,
-            pipeline_logging_id=self.pipeline_logging_id,
-            base_dir=self.pipeline_dir
-        )
-
-        # Check if any expectations failed
-        failed_count = sum(1 for r in results if not r['success'])
-        passed_count = sum(1 for r in results if r['success'])
-
-        if failed_count > 0:
-            self.logger.warning(
-                f"Data quality check found {failed_count} failed expectations",
-                failed_count=failed_count,
-                total_count=len(results)
-            )
-
-            if fail_on_error:
-                raise ValueError(f"Data quality validation failed: {failed_count} expectations failed")
-        else:
-            self.logger.info("Data quality validation passed", total_checks=len(results))
-
-        return {
-            'total_checks': len(results),
-            'passed_count': passed_count,
-            'failed_count': failed_count,
-            'table_id': table_id
-        }
 
     def _render_query(self, query_template: str) -> str:
         """

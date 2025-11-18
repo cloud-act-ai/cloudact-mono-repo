@@ -283,9 +283,9 @@ class PipelineConfig(BaseModel):
         """Validate pipeline_id format."""
         if not v or not v.strip():
             raise ValueError("pipeline_id cannot be empty or whitespace")
-        # Allow alphanumeric, underscores, hyphens
+        # Allow alphanumeric, underscores, hyphens, and template placeholders {tenant_id}
         import re
-        if not re.match(r'^[a-zA-Z0-9_-]+$', v):
+        if not re.match(r'^[a-zA-Z0-9_{}-]+$', v):
             raise ValueError(
                 f"pipeline_id must contain only alphanumeric characters, underscores, and hyphens. Got: {v}"
             )

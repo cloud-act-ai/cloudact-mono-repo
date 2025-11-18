@@ -83,7 +83,12 @@ class BigQueryETLEngine:
         destination = step_config.get("destination", {})
 
         # Get variables for replacement
+        # Combine: context variables + parameters + step-level variables
         variables = context.copy()
+        # Add runtime parameters from context
+        if 'parameters' in context:
+            variables.update(context['parameters'])
+        # Step-level variables have highest priority
         variables.update(step_config.get("variables", {}))
 
         # Replace variables in query
@@ -120,11 +125,10 @@ class BigQueryETLEngine:
         # Get destination details and replace variables
         dest_project = destination.get("bq_project_id", self.settings.gcp_project_id)
         tenant_id = context.get("tenant_id")
-        dataset_type = self._replace_variables(destination.get("dataset_type", "gcp"), variables)
         table = self._replace_variables(destination.get("table", ""), variables)
 
-        # Build dataset name
-        dataset_id = f"{tenant_id}_{dataset_type}" if dataset_type != "tenant" else tenant_id
+        # Build dataset name - always use just tenant_id
+        dataset_id = tenant_id
         table_id = table
 
         full_table_id = f"{dest_project}.{dataset_id}.{table_id}"

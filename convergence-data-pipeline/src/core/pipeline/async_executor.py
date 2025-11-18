@@ -335,7 +335,7 @@ class AsyncPipelineExecutor:
 
         try:
             update_query = f"""
-            UPDATE `{settings.gcp_project_id}.customers.tenant_usage_quotas`
+            UPDATE `{settings.gcp_project_id}.tenants.tenant_usage_quotas`
             SET
                 concurrent_pipelines_running = concurrent_pipelines_running + 1,
                 max_concurrent_reached = GREATEST(max_concurrent_reached, concurrent_pipelines_running + 1),
@@ -366,7 +366,7 @@ class AsyncPipelineExecutor:
             # Query current count for Prometheus metric
             query_count = f"""
             SELECT concurrent_pipelines_running
-            FROM `{settings.gcp_project_id}.customers.tenant_usage_quotas`
+            FROM `{settings.gcp_project_id}.tenants.tenant_usage_quotas`
             WHERE tenant_id = @tenant_id AND usage_date = CURRENT_DATE()
             """
 
@@ -410,7 +410,7 @@ class AsyncPipelineExecutor:
 
             # Update usage quotas directly by tenant_id
             update_query = f"""
-            UPDATE `{settings.gcp_project_id}.customers.tenant_usage_quotas`
+            UPDATE `{settings.gcp_project_id}.tenants.tenant_usage_quotas`
             SET
                 pipelines_run_today = pipelines_run_today + 1,
                 pipelines_succeeded_today = pipelines_succeeded_today + @success_increment,
@@ -801,8 +801,8 @@ class AsyncPipelineExecutor:
         """
         # Execute step using dynamic engine loading
         try:
-            # Convert ps_type (e.g., "customer.onboarding") to module path (e.g., "src.core.engines.customer.onboarding")
-            module_name = f"src.core.engines.{step_type.replace('.', '.')}"
+            # Convert ps_type (e.g., "customer.onboarding") to module path (e.g., "src.core.processors.customer.onboarding")
+            module_name = f"src.core.processors.{step_type.replace('.', '.')}"
 
             # Dynamically import the engine module
             engine_module = importlib.import_module(module_name)
@@ -818,9 +818,11 @@ class AsyncPipelineExecutor:
                 "step_id": step_id
             }
 
-            # Merge pipeline-level variables into context
+            # Merge pipeline-level variables and parameters into context
             if "variables" in self.config:
                 context.update(self.config["variables"])
+            if "parameters" in self.config:
+                context.update(self.config["parameters"])
 
             result = await engine.execute(step_config, context)
 
@@ -836,95 +838,6 @@ class AsyncPipelineExecutor:
 
         return result
 
-    async def _execute_bq_to_bq_step_async(self, step_config: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Execute BigQuery to BigQuery data transfer step asynchronously.
-
-        Args:
-            step_config: Step configuration
-
-        Returns:
-            Execution result with rows_written, destination_table, etc.
-        """
-        from src.core.pipeline.processors.async_bq_to_bq import AsyncBigQueryToBigQueryProcessor
-
-        # Create async processor instance
-        processor = AsyncBigQueryToBigQueryProcessor(
-            step_config=step_config,
-            tenant_id=self.tenant_id,
-            bq_client=self.bq_client,
-            parameters=self.config.get('parameters', {}),
-            pipeline_dir=self.pipeline_dir
-        )
-
-        # Execute the processor asynchronously
-        result = await processor.execute()
-
-        self.logger.info(
-            f"BigQuery to BigQuery step completed",
-            extra={
-                "step_id": step_config.get('step_id'),
-                "rows_written": result['rows_written'],
-                "destination": result['destination_table']
-            }
-        )
-
-        return result
-
-    async def _execute_dq_step_async(self, step_config: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Execute data quality validation step asynchronously.
-
-        Args:
-            step_config: Step configuration
-
-        Returns:
-            DQ validation results with passed/failed counts
-        """
-        source = step_config['source']
-        dq_config_path = step_config['dq_config']
-        fail_on_error = step_config.get('fail_on_error', True)
-
-        # Build table reference
-        dataset_type = source['dataset_type']
-        table_name = source['table']
-        dataset_id = self.bq_client.get_tenant_dataset_id(self.tenant_id, dataset_type)
-        table_id = f"{dataset_id}.{table_name}"
-
-        # Run data quality checks asynchronously
-        loop = asyncio.get_event_loop()
-        results = await loop.run_in_executor(
-            BQ_EXECUTOR,
-            self.dq_validator.validate_table,
-            table_id,
-            dq_config_path,
-            self.tenant_id,
-            self.pipeline_logging_id,
-            self.pipeline_dir
-        )
-
-        # Check if any expectations failed
-        failed_count = sum(1 for r in results if not r['success'])
-        passed_count = sum(1 for r in results if r['success'])
-
-        if failed_count > 0:
-            self.logger.warning(
-                f"Data quality check found {failed_count} failed expectations",
-                failed_count=failed_count,
-                total_count=len(results)
-            )
-
-            if fail_on_error:
-                raise ValueError(f"Data quality validation failed: {failed_count} expectations failed")
-        else:
-            self.logger.info("Data quality validation passed", total_checks=len(results))
-
-        return {
-            'total_checks': len(results),
-            'passed_count': passed_count,
-            'failed_count': failed_count,
-            'table_id': table_id
-        }
 
     def _get_execution_summary(self) -> Dict[str, Any]:
         """

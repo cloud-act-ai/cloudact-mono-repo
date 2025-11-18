@@ -19,7 +19,7 @@ steps:
     timeout_minutes: 30
 
     source:
-      bq_project_id: "your-project-id"
+      bq_project_id: "gac-prod-471220"
       query: |
         SELECT
           'example' AS pipeline_type,
@@ -28,7 +28,7 @@ steps:
         LIMIT 100
 
     destination:
-      bq_project_id: "your-project-id"
+      bq_project_id: "gac-prod-471220"
       dataset_type: "example_dataset"
       table: "processed_data"
       write_mode: "append"

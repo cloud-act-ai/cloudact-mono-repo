@@ -28,6 +28,7 @@ from tenacity import (
     wait_exponential,
     retry_if_exception_type
 )
+from src.core.exceptions import classify_exception
 import google.auth.transport.requests
 
 # Optional circuit breaker dependency (added by linter)
@@ -208,17 +209,10 @@ class BigQueryClient:
                         location=self.location
                     )
 
-                    # Override default HTTP session with our pooled session
-                    # Use default values if constants not available (for compatibility)
-                    refresh_status_codes = getattr(google.auth.transport.requests, 'DEFAULT_REFRESH_STATUS_CODES', (401,))
-                    max_refresh_attempts = getattr(google.auth.transport.requests, 'DEFAULT_MAX_REFRESH_ATTEMPTS', 2)
-
-                    self._client._http = google.auth.transport.requests.AuthorizedSession(
-                        credentials=self._client._credentials,
-                        refresh_status_codes=refresh_status_codes,
-                        max_refresh_attempts=max_refresh_attempts,
-                    )
-                    self._client._http.session = session
+                    # Note: In newer versions of google-cloud-bigquery, _http is read-only
+                    # The client now manages its own connection pooling internally
+                    # Keeping the custom session/adapter setup for potential future use
+                    # but not overriding the client's HTTP session
 
                     logger.info(
                         "Initialized BigQuery client with connection pooling",
