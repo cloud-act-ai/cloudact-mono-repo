@@ -80,7 +80,6 @@ class OnboardCustomerRequest(BaseModel):
 class OnboardCustomerResponse(BaseModel):
     """Response for customer onboarding."""
     tenant_id: str
-    tenant_id: str
     api_key: str  # Unencrypted - show once!
     subscription_plan: str
     dataset_created: bool
@@ -125,7 +124,6 @@ async def onboard_customer(
     - Dataset and table creation status
     """
     tenant_id = request.tenant_id
-    tenant_id = str(uuid.uuid4())  # Generate unique customer ID
 
     logger.info(f"Starting customer onboarding for tenant: {tenant_id}, tenant_id: {tenant_id}")
 
@@ -142,16 +140,16 @@ async def onboard_customer(
     plan_limits = PLAN_LIMITS.get(request.subscription_plan, PLAN_LIMITS["STARTER"])
 
     # ============================================
-    # STEP 1: Create customer profile in tenants.customer_profiles
+    # STEP 1: Create tenant profile in tenants.tenant_profiles
     # ============================================
     try:
-        logger.info(f"Creating customer profile in tenants.customer_profiles")
+        logger.info(f"Creating tenant profile in tenants.tenant_profiles")
 
         insert_profile_query = f"""
-        INSERT INTO `{settings.gcp_project_id}.tenants.customer_profiles`
-        (tenant_id, company_name, admin_email, tenant_id, status, subscription_plan, created_at, updated_at)
+        INSERT INTO `{settings.gcp_project_id}.tenants.tenant_profiles`
+        (tenant_id, company_name, admin_email, tenant_dataset_id, status, subscription_plan, created_at, updated_at)
         VALUES
-        (@tenant_id, @company_name, @admin_email, @tenant_id, 'ACTIVE', @subscription_plan, CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP())
+        (@tenant_id, @company_name, @admin_email, @tenant_dataset_id, 'ACTIVE', @subscription_plan, CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP())
         """
 
         bq_client.client.query(
@@ -161,13 +159,13 @@ async def onboard_customer(
                     bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
                     bigquery.ScalarQueryParameter("company_name", "STRING", request.company_name),
                     bigquery.ScalarQueryParameter("admin_email", "STRING", request.admin_email),
-                    bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
+                    bigquery.ScalarQueryParameter("tenant_dataset_id", "STRING", tenant_id),
                     bigquery.ScalarQueryParameter("subscription_plan", "STRING", request.subscription_plan)
                 ]
             )
         ).result()
 
-        logger.info(f"Customer profile created: {tenant_id}")
+        logger.info(f"Tenant profile created: {tenant_id}")
 
     except Exception as e:
         logger.error(f"Failed to create customer profile: {e}", exc_info=True)
