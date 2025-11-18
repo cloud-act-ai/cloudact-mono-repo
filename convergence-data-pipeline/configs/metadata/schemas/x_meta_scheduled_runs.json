@@ -1,0 +1,74 @@
+[
+  {
+    "name": "run_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Unique identifier (UUID) for this scheduled pipeline run. Used to track scheduled executions and their lifecycle."
+  },
+  {
+    "name": "tenant_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Customer/tenant identifier. Used for multi-tenancy isolation and filtering."
+  },
+  {
+    "name": "config_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Pipeline configuration identifier. Links to the pipeline definition that should be executed."
+  },
+  {
+    "name": "state",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Current state of the scheduled run. Valid values: SCHEDULED (future execution), PENDING (ready to run), RUNNING (executing), COMPLETED (finished successfully), FAILED (execution failed). Used for state machine transitions."
+  },
+  {
+    "name": "scheduled_time",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "UTC timestamp when this pipeline is scheduled to run. Used for determining which pipelines are due for execution."
+  },
+  {
+    "name": "created_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "UTC timestamp when this scheduled run was created. Used for auditing and age calculations."
+  },
+  {
+    "name": "updated_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "UTC timestamp of last state change. Used for tracking state transitions and detecting stuck pipelines."
+  },
+  {
+    "name": "pipeline_logging_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Links to x_meta_pipeline_runs.pipeline_logging_id when execution starts. NULL until pipeline begins running. Used to correlate scheduled runs with actual execution logs."
+  },
+  {
+    "name": "retry_count",
+    "type": "INTEGER",
+    "mode": "REQUIRED",
+    "description": "Number of retry attempts for this run. Incremented on each failure. Used for retry limit enforcement and backoff calculations."
+  },
+  {
+    "name": "error_message",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Error message from most recent failure. NULL if run hasn't failed. Used for debugging and determining if error is retryable."
+  },
+  {
+    "name": "user_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "User UUID from frontend (X-User-ID header). NULL for scheduler-triggered pipelines. Used for user-level analytics and audit trails. Example: 'f47ac10b-58cc-4372-a567-0e02b2c3d479'."
+  },
+  {
+    "name": "metadata",
+    "type": "JSON",
+    "mode": "NULLABLE",
+    "description": "Flexible JSON field for storing additional execution metadata like execution_duration_seconds, retry_config, worker_info, etc. Provides extensibility without schema changes."
+  }
+]

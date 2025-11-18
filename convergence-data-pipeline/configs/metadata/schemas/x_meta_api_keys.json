@@ -1,0 +1,56 @@
+[
+  {
+    "name": "api_key",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "API key for tenant authentication"
+  },
+  {
+    "name": "tenant_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Tenant identifier"
+  },
+  {
+    "name": "created_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "Timestamp when the API key was created"
+  },
+  {
+    "name": "expires_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "Optional expiration timestamp for the API key"
+  },
+  {
+    "name": "is_active",
+    "type": "BOOLEAN",
+    "mode": "REQUIRED",
+    "description": "Whether the API key is active"
+  },
+  {
+    "name": "description",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Optional description of the API key purpose"
+  },
+  {
+    "name": "scopes",
+    "type": "STRING",
+    "mode": "REPEATED",
+    "description": "List of permission scopes for the API key"
+  },
+  {
+    "name": "last_used_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "Timestamp of the last API key usage"
+  },
+  {
+    "name": "created_by",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "User or service that created the API key"
+  }
+]

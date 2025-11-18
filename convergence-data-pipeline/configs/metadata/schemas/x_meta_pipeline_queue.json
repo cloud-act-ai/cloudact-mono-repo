@@ -1,0 +1,62 @@
+[
+  {
+    "name": "queue_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Unique identifier (UUID) for this queue item. Used for atomic dequeue operations and tracking."
+  },
+  {
+    "name": "tenant_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Customer/tenant identifier. Used for tenant-specific queue filtering and isolation."
+  },
+  {
+    "name": "config",
+    "type": "JSON",
+    "mode": "REQUIRED",
+    "description": "Complete pipeline configuration as JSON. Contains all parameters needed to execute the pipeline. Stored here to avoid lookups during execution."
+  },
+  {
+    "name": "priority",
+    "type": "INTEGER",
+    "mode": "REQUIRED",
+    "description": "Priority level for queue ordering (1=highest priority, 10=lowest). Lower numbers are processed first. Used for SLA-based scheduling."
+  },
+  {
+    "name": "status",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Current queue item status. Valid values: QUEUED (waiting for worker), PROCESSING (claimed by worker), COMPLETED (successfully processed), FAILED (processing error). Used for queue management and monitoring."
+  },
+  {
+    "name": "created_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "UTC timestamp when item was added to queue. Used for FIFO ordering and wait time calculations."
+  },
+  {
+    "name": "updated_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "UTC timestamp of last status change. Used for detecting stuck workers and calculating processing time."
+  },
+  {
+    "name": "worker_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Identifier of worker that claimed this queue item. NULL while QUEUED. Used for tracking which worker is processing each item and load balancing analysis."
+  },
+  {
+    "name": "error_message",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Error message if processing failed. NULL unless status is FAILED. Used for debugging and retry decisions."
+  },
+  {
+    "name": "user_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "User UUID from frontend (X-User-ID header). Tracks which specific user queued this pipeline. NULL for scheduler-triggered pipelines. Used for user-level analytics and audit trails. Example: 'f47ac10b-58cc-4372-a567-0e02b2c3d479'."
+  }
+]

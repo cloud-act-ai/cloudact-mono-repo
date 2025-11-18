@@ -1,0 +1,74 @@
+[
+  {
+    "name": "dq_result_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Unique identifier (UUID) for this data quality validation result. Each DQ check execution (even for same table/config) gets unique ID. Used as primary key for tracking individual validation runs and correlating with monitoring/alerting systems."
+  },
+  {
+    "name": "pipeline_logging_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Foreign key linking to pipeline_runs.pipeline_logging_id. Associates this DQ validation with the pipeline execution that triggered it. Used for root cause analysis when pipelines fail due to DQ issues and for aggregating all validation results from a single pipeline run."
+  },
+  {
+    "name": "tenant_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Tenant identifier for multi-tenancy isolation and data segregation. Each tenant's DQ results are tracked separately. Used for tenant-specific DQ reporting, SLA tracking, and compliance auditing. Example: 'acme1281', 'google'."
+  },
+  {
+    "name": "target_table",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Fully qualified BigQuery table that was validated. Format: 'project.dataset.table' or 'dataset.table'. The table whose data quality was checked. Used for table-specific DQ trend analysis, identifying problematic tables, and compliance reporting. Example: 'gac-prod-471220.acme1281_silver_cost.customer_usage'."
+  },
+  {
+    "name": "dq_config_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Identifier of the DQ configuration/expectation suite that was applied. References the Great Expectations suite name or DQ config file. Multiple configs can be applied to same table. Used for tracking which validation rules were executed and comparing results across config versions. Example: 'customer_usage_suite', 'critical_checks_v2'."
+  },
+  {
+    "name": "executed_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "UTC timestamp when the data quality validation was executed. Used for chronological ordering of DQ checks, identifying when data quality degraded, and SLA monitoring. Different from pipeline start_time as DQ checks may run mid-pipeline."
+  },
+  {
+    "name": "expectations_passed",
+    "type": "INTEGER",
+    "mode": "REQUIRED",
+    "description": "Count of Great Expectations validations that passed successfully. A passed expectation means data met the quality criteria (e.g., no nulls in required column, values within range). Used for calculating DQ success rate, identifying improving trends, and compliance metrics. Sum of passed + failed = total expectations."
+  },
+  {
+    "name": "expectations_failed",
+    "type": "INTEGER",
+    "mode": "REQUIRED",
+    "description": "Count of Great Expectations validations that failed. Failed expectations indicate data quality issues that need attention (e.g., unexpected nulls, invalid values, schema mismatches). Used for alerting, quality degradation detection, and prioritizing data fixes. When > 0, check failed_expectations JSON for details."
+  },
+  {
+    "name": "failed_expectations",
+    "type": "JSON",
+    "mode": "NULLABLE",
+    "description": "Detailed information about failed expectations as flexible JSON array. Each failure includes: expectation type, column name, observed value vs expected value, failure count. NULL if all expectations passed (expectations_failed=0). Example: [{'expectation_type': 'expect_column_values_to_not_be_null', 'column': 'tenant_id', 'unexpected_count': 15, 'unexpected_percent': 0.03}]. Used for root cause analysis, data remediation, and detailed failure reporting."
+  },
+  {
+    "name": "overall_status",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "High-level outcome of the DQ validation run. Valid values: 'PASS' (all expectations passed, expectations_failed=0), 'WARNING' (some non-critical expectations failed but within tolerance), 'FAIL' (critical expectations failed or too many failures, pipeline should be stopped). Used for quick DQ health assessment, automated alerting thresholds, and pipeline failure decisions."
+  },
+  {
+    "name": "user_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "User UUID from frontend (X-User-ID header). Tracks which specific user triggered the parent pipeline execution. NULL for scheduler-triggered or system-triggered pipelines. Inherited from parent pipeline run. Used for user-level analytics and audit trails. Example: 'f47ac10b-58cc-4372-a567-0e02b2c3d479'."
+  },
+  {
+    "name": "ingestion_date",
+    "type": "DATE",
+    "mode": "REQUIRED",
+    "description": "Date partition for this DQ result record. Typically the date when validation was executed (DATE(executed_at)). Used for efficient partitioned queries (e.g., last 30 days of DQ results), data retention policies, and cost optimization. Partition key for this table."
+  }
+]
