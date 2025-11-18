@@ -1,0 +1,43 @@
+{
+  "description": "Tenant test configuration for API-based testing",
+  "version": "1.0.0",
+  "api_base": "http://localhost:8080",
+  "project_id": "gac-prod-471220",
+  "test_tenants": [
+    {
+      "tenant_id": "test_config_tenant_001",
+      "company_name": "Config Test Corp",
+      "admin_email": "admin@configtest.com",
+      "subscription_plan": "PROFESSIONAL"
+    },
+    {
+      "tenant_id": "test_config_tenant_002",
+      "company_name": "Config Test Startup",
+      "admin_email": "admin@startup.com",
+      "subscription_plan": "STARTER"
+    },
+    {
+      "tenant_id": "test_config_tenant_003",
+      "company_name": "Config Test Enterprise",
+      "admin_email": "admin@enterprise.com",
+      "subscription_plan": "SCALE"
+    },
+    {
+      "tenant_id": "timpelien_acmered_2343",
+      "company_name": "Timpelien AcmeRed Corporation",
+      "admin_email": "admin@timpelien-acmered.com",
+      "subscription_plan": "PROFESSIONAL"
+    }
+  ],
+  "subscription_plans": {
+    "STARTER": {"daily_limit": 6, "monthly_limit": 180, "concurrent_limit": 1},
+    "PROFESSIONAL": {"daily_limit": 25, "monthly_limit": 750, "concurrent_limit": 3},
+    "SCALE": {"daily_limit": 100, "monthly_limit": 3000, "concurrent_limit": 10}
+  },
+  "test_settings": {
+    "cleanup_after_test": true,
+    "verify_in_bigquery": true,
+    "timeout_seconds": 60,
+    "temp_log_dir": "/tmp/convergence-tests"
+  }
+}

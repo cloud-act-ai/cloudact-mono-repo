@@ -1,0 +1,52 @@
+{
+  "bootstrap": {
+    "enabled": true,
+    "verify_schema": true,
+    "strict_validation": true
+  },
+  "central_dataset": {
+    "dataset_id": "central_tenants",
+    "location": "US",
+    "required_tables": [
+      "tenants",
+      "tenant_subscriptions",
+      "tenant_usage_quotas",
+      "tenant_feature_flags",
+      "tenant_integrations",
+      "tenant_api_keys",
+      "tenant_webhooks",
+      "tenant_audit_logs"
+    ]
+  },
+  "per_tenant_dataset": {
+    "metadata_tables": [
+      "tenant_metadata",
+      "pipeline_runs",
+      "data_sources",
+      "transformations"
+    ]
+  },
+  "schema_validation": {
+    "template_path": "ps_templates/setup/initial/schemas",
+    "required_schema_files": [
+      "tenants.json",
+      "tenant_subscriptions.json",
+      "tenant_usage_quotas.json",
+      "tenant_feature_flags.json",
+      "tenant_integrations.json",
+      "tenant_api_keys.json",
+      "tenant_webhooks.json",
+      "tenant_audit_logs.json"
+    ]
+  },
+  "test_settings": {
+    "temp_log_dir": "tests/logs/bootstrap",
+    "cleanup_on_success": false,
+    "timeout_seconds": 300,
+    "retry_attempts": 3
+  },
+  "bigquery": {
+    "client_timeout": 60,
+    "default_location": "US"
+  }
+}

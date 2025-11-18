@@ -1,0 +1,31 @@
+pipeline:
+  id: "dryrun"
+  name: "Dry Run Validation Pipeline"
+  description: "Validates infrastructure and onboarding setup for new tenants"
+  version: "1.0.0"
+  trigger_type: "manual"
+
+dependencies:
+  level_1:
+    - step: dryrun_test
+
+steps:
+  - id: dryrun_test
+    name: "Dry Run Test"
+    description: "Test basic data operations to validate setup"
+    ps_type: "bq_etl.query"
+    config:
+      source_query: "SELECT 'Dry run successful' as message, CURRENT_TIMESTAMP() as timestamp"
+      target_table: "${tenant_id}.onboarding_validation_test"
+      write_disposition: "WRITE_APPEND"
+      create_table_if_needed: true
+    retry_policy:
+      max_retries: 1
+      retry_delay_seconds: 5
+
+metadata:
+  tags:
+    - "onboarding"
+    - "validation"
+    - "infrastructure"
+  environment: "all"

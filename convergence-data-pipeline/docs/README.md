@@ -36,7 +36,10 @@ Frontend → API → Pipeline Config (YAML) → Processor Engine → BigQuery
 
 - **api/** - API reference documentation
 - **guides/** - Implementation guides
+  - **[TESTING_GUIDE.md](guides/TESTING_GUIDE.md)** - JSON-based parameterized testing
+  - **[QUICK_FIX_GUIDE.md](guides/QUICK_FIX_GUIDE.md)** - Common issue fixes
 - **reference/** - Technical reference
+  - **[TEST_RESULTS_SUMMARY.md](reference/TEST_RESULTS_SUMMARY.md)** - Test execution results
 - **security/** - Security guidelines
 
 ---

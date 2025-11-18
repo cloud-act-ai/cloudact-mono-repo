@@ -1,0 +1,25 @@
+{
+  "description": "Pipeline execution test configuration",
+  "version": "1.0.0",
+  "api_base": "http://localhost:8080",
+  "project_id": "gac-prod-471220",
+  "test_pipelines": [
+    {
+      "pipeline_name": "cost_billing",
+      "provider": "gcp",
+      "domain": "cost",
+      "template": "cost_billing",
+      "test_tenant_id": "timpelien_acmered_2343",
+      "parameters": {
+        "date": "2025-11-17",
+        "admin_email": "admin@timpelien-acmered.com"
+      }
+    }
+  ],
+  "test_settings": {
+    "verify_execution": true,
+    "check_bigquery_logs": true,
+    "timeout_seconds": 300,
+    "temp_log_dir": "/tmp/convergence-tests"
+  }
+}

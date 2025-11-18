@@ -403,7 +403,7 @@ async def onboard_tenant(
     dryrun_message = "Dry-run pipeline skipped (optional)"
 
     try:
-        dryrun_config_path = Path("configs/gcp/example/dryrun.yml")
+        dryrun_config_path = Path("configs/setup/dryrun/dryrun.yml")
 
         if dryrun_config_path.exists():
             logger.info(f"Running dry-run pipeline for tenant: {tenant_id}")

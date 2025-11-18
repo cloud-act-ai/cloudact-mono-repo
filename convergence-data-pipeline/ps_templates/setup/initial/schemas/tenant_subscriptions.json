@@ -42,6 +42,12 @@
     "description": "Maximum concurrent pipeline executions"
   },
   {
+    "name": "max_pipelines_per_day",
+    "type": "INTEGER",
+    "mode": "NULLABLE",
+    "description": "Maximum pipelines allowed per day"
+  },
+  {
     "name": "trial_end_date",
     "type": "DATE",
     "mode": "NULLABLE",

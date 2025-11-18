@@ -66,6 +66,18 @@
     "description": "Concurrent pipeline execution limit"
   },
   {
+    "name": "max_concurrent_reached",
+    "type": "INTEGER",
+    "mode": "NULLABLE",
+    "description": "Maximum concurrent pipelines reached today"
+  },
+  {
+    "name": "last_pipeline_completed_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "Timestamp of last completed pipeline"
+  },
+  {
     "name": "last_updated",
     "type": "TIMESTAMP",
     "mode": "REQUIRED",
