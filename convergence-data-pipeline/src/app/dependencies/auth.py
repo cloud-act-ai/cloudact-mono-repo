@@ -235,12 +235,14 @@ def get_auth_aggregator() -> AuthMetricsAggregator:
 class TenantContext:
     """Container for tenant context extracted from API key."""
 
-    def __init__(self, tenant_id: str, api_key_hash: str):
+    def __init__(self, tenant_id: str, api_key_hash: str, user_id: Optional[str] = None):
         self.tenant_id = tenant_id
         self.api_key_hash = api_key_hash
+        self.user_id = user_id
 
     def __repr__(self) -> str:
-        return f"TenantContext(tenant_id='{self.tenant_id}')"
+        user_info = f", user_id='{self.user_id}'" if self.user_id else ""
+        return f"TenantContext(tenant_id='{self.tenant_id}'{user_info})"
 
 
 def hash_api_key(api_key: str) -> str:
@@ -277,7 +279,7 @@ async def get_current_customer(
 
     Returns:
         Dict containing:
-            - customer_id: Unique customer identifier
+            - tenant_id: Unique customer identifier
             - company_name: Customer company name
             - admin_email: Customer admin email
             - status: Customer status (ACTIVE, SUSPENDED, etc.)
@@ -292,7 +294,7 @@ async def get_current_customer(
         logger.warning(f"Authentication disabled - using default customer '{settings.default_tenant_id}'")
         # Return mock customer for development
         return {
-            "customer_id": settings.default_tenant_id,
+            "tenant_id": settings.default_tenant_id,
             "company_name": "Development Customer",
             "admin_email": "dev@example.com",
             "status": "ACTIVE",
@@ -311,7 +313,7 @@ async def get_current_customer(
     if enable_dev_mode or settings.is_development:
         test_customer = get_test_customer_from_api_key(api_key)
         if test_customer:
-            logger.info(f"[DEV MODE] Using test API key for customer: {test_customer['customer_id']}")
+            logger.info(f"[DEV MODE] Using test API key for customer: {test_customer['tenant_id']}")
             return test_customer
 
     # Hash the API key
@@ -321,7 +323,7 @@ async def get_current_customer(
     query = f"""
     SELECT
         k.api_key_id,
-        k.customer_id,
+        k.tenant_id,
         k.is_active as key_active,
         k.expires_at,
         k.scopes,
@@ -339,9 +341,9 @@ async def get_current_customer(
         s.subscription_end_date
     FROM `{settings.gcp_project_id}.customers.customer_api_keys` k
     INNER JOIN `{settings.gcp_project_id}.customers.customer_profiles` p
-        ON k.customer_id = p.customer_id
+        ON k.tenant_id = p.tenant_id
     INNER JOIN `{settings.gcp_project_id}.customers.customer_subscriptions` s
-        ON p.customer_id = s.customer_id
+        ON p.tenant_id = s.tenant_id
     WHERE k.api_key_hash = @api_key_hash
         AND k.is_active = TRUE
         AND p.status = 'ACTIVE'
@@ -369,7 +371,7 @@ async def get_current_customer(
 
         # Check if API key has expired
         if row.get("expires_at") and row["expires_at"] < datetime.utcnow():
-            logger.warning(f"API key expired for customer: {row['customer_id']}")
+            logger.warning(f"API key expired for customer: {row['tenant_id']}")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="API key has expired",
@@ -384,7 +386,7 @@ async def get_current_customer(
 
         # Build customer object
         customer = {
-            "customer_id": row["customer_id"],
+            "tenant_id": row["tenant_id"],
             "company_name": row["company_name"],
             "admin_email": row["admin_email"],
             "status": row["customer_status"],
@@ -403,7 +405,7 @@ async def get_current_customer(
             }
         }
 
-        logger.info(f"Authenticated customer: {customer['customer_id']} ({customer['company_name']})")
+        logger.info(f"Authenticated customer: {customer['tenant_id']} ({customer['company_name']})")
         return customer
 
     except HTTPException:
@@ -439,7 +441,7 @@ async def validate_subscription(
 
     # Check subscription status
     if subscription.get("status") != "ACTIVE":
-        logger.warning(f"Inactive subscription for customer: {customer['customer_id']}")
+        logger.warning(f"Inactive subscription for customer: {customer['tenant_id']}")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"Subscription is {subscription.get('status')}. Please contact support."
@@ -450,7 +452,7 @@ async def validate_subscription(
     if trial_end and isinstance(trial_end, (datetime, date)):
         trial_end_date = trial_end if isinstance(trial_end, date) else trial_end.date()
         if trial_end_date < date.today():
-            logger.warning(f"Trial expired for customer: {customer['customer_id']}")
+            logger.warning(f"Trial expired for customer: {customer['tenant_id']}")
             raise HTTPException(
                 status_code=status.HTTP_402_PAYMENT_REQUIRED,
                 detail="Trial period has expired. Please upgrade your subscription."
@@ -461,13 +463,13 @@ async def validate_subscription(
     if sub_end and isinstance(sub_end, (datetime, date)):
         sub_end_date = sub_end if isinstance(sub_end, date) else sub_end.date()
         if sub_end_date < date.today():
-            logger.warning(f"Subscription expired for customer: {customer['customer_id']}")
+            logger.warning(f"Subscription expired for customer: {customer['tenant_id']}")
             raise HTTPException(
                 status_code=status.HTTP_402_PAYMENT_REQUIRED,
                 detail="Subscription has expired. Please renew your subscription."
             )
 
-    logger.info(f"Subscription validated for customer: {customer['customer_id']}")
+    logger.info(f"Subscription validated for customer: {customer['tenant_id']}")
     return subscription
 
 
@@ -501,7 +503,7 @@ async def validate_quota(
     Raises:
         HTTPException: 429 if quota exceeded
     """
-    customer_id = customer["customer_id"]
+    tenant_id = customer["tenant_id"]
     today = date.today()
 
     # Get or create today's usage record
@@ -515,7 +517,7 @@ async def validate_quota(
         monthly_limit,
         concurrent_limit
     FROM `{settings.gcp_project_id}.customers.customer_usage_quotas`
-    WHERE customer_id = @customer_id
+    WHERE tenant_id = @tenant_id
         AND usage_date = @usage_date
     LIMIT 1
     """
@@ -524,22 +526,22 @@ async def validate_quota(
         results = list(bq_client.query(
             query,
             parameters=[
-                bigquery.ScalarQueryParameter("customer_id", "STRING", customer_id),
+                bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
                 bigquery.ScalarQueryParameter("usage_date", "DATE", today)
             ]
         ))
 
         if not results:
             # Create today's usage record
-            usage_id = f"{customer_id}_{today.strftime('%Y%m%d')}"
+            usage_id = f"{tenant_id}_{today.strftime('%Y%m%d')}"
             insert_query = f"""
             INSERT INTO `{settings.gcp_project_id}.customers.customer_usage_quotas`
-            (usage_id, customer_id, usage_date, pipelines_run_today, pipelines_failed_today,
+            (usage_id, tenant_id, usage_date, pipelines_run_today, pipelines_failed_today,
              pipelines_succeeded_today, pipelines_run_month, concurrent_pipelines_running,
              daily_limit, monthly_limit, concurrent_limit, created_at)
             VALUES (
                 @usage_id,
-                @customer_id,
+                @tenant_id,
                 @usage_date,
                 0, 0, 0, 0, 0,
                 @daily_limit,
@@ -554,7 +556,7 @@ async def validate_quota(
                 job_config=bigquery.QueryJobConfig(
                     query_parameters=[
                         bigquery.ScalarQueryParameter("usage_id", "STRING", usage_id),
-                        bigquery.ScalarQueryParameter("customer_id", "STRING", customer_id),
+                        bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
                         bigquery.ScalarQueryParameter("usage_date", "DATE", today),
                         bigquery.ScalarQueryParameter("daily_limit", "INT64", subscription["max_pipelines_per_day"]),
                         bigquery.ScalarQueryParameter("monthly_limit", "INT64", subscription["max_pipelines_per_month"]),
@@ -580,7 +582,7 @@ async def validate_quota(
 
         # Check daily limit
         if usage["pipelines_run_today"] >= usage["daily_limit"]:
-            logger.warning(f"Daily quota exceeded for customer: {customer_id}")
+            logger.warning(f"Daily quota exceeded for customer: {tenant_id}")
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail=f"Daily pipeline quota exceeded ({usage['daily_limit']} pipelines/day). Try again tomorrow.",
@@ -589,7 +591,7 @@ async def validate_quota(
 
         # Check monthly limit
         if usage["pipelines_run_month"] >= usage["monthly_limit"]:
-            logger.warning(f"Monthly quota exceeded for customer: {customer_id}")
+            logger.warning(f"Monthly quota exceeded for customer: {tenant_id}")
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail=f"Monthly pipeline quota exceeded ({usage['monthly_limit']} pipelines/month). Upgrade your plan.",
@@ -597,7 +599,7 @@ async def validate_quota(
 
         # Check concurrent limit
         if usage["concurrent_pipelines_running"] >= usage["concurrent_limit"]:
-            logger.warning(f"Concurrent pipeline limit reached for customer: {customer_id}")
+            logger.warning(f"Concurrent pipeline limit reached for customer: {tenant_id}")
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail=f"Concurrent pipeline limit reached ({usage['concurrent_limit']} pipelines). Wait for running pipelines to complete.",
@@ -616,7 +618,7 @@ async def validate_quota(
             "remaining_month": usage["monthly_limit"] - usage["pipelines_run_month"]
         }
 
-        logger.info(f"Quota validated for customer: {customer_id} - {quota_info['remaining_today']} remaining today")
+        logger.info(f"Quota validated for customer: {tenant_id} - {quota_info['remaining_today']} remaining today")
         return quota_info
 
     except HTTPException:
@@ -630,7 +632,7 @@ async def validate_quota(
 
 
 async def increment_pipeline_usage(
-    customer_id: str,
+    tenant_id: str,
     pipeline_status: str,
     bq_client: BigQueryClient
 ):
@@ -640,7 +642,7 @@ async def increment_pipeline_usage(
     Updates customers.customer_usage_quotas.
 
     Args:
-        customer_id: Customer identifier
+        tenant_id: Customer identifier
         pipeline_status: Pipeline execution status (SUCCESS, FAILED, RUNNING)
         bq_client: BigQuery client instance
     """
@@ -652,7 +654,7 @@ async def increment_pipeline_usage(
         update_query = f"""
         UPDATE `{settings.gcp_project_id}.customers.customer_usage_quotas`
         SET concurrent_pipelines_running = concurrent_pipelines_running + 1
-        WHERE customer_id = @customer_id
+        WHERE tenant_id = @tenant_id
             AND usage_date = @usage_date
         """
     elif pipeline_status in ["SUCCESS", "FAILED"]:
@@ -668,7 +670,7 @@ async def increment_pipeline_usage(
             pipelines_succeeded_today = pipelines_succeeded_today + {success_increment},
             pipelines_failed_today = pipelines_failed_today + {failed_increment},
             concurrent_pipelines_running = GREATEST(concurrent_pipelines_running - 1, 0)
-        WHERE customer_id = @customer_id
+        WHERE tenant_id = @tenant_id
             AND usage_date = @usage_date
         """
     else:
@@ -680,20 +682,20 @@ async def increment_pipeline_usage(
             update_query,
             job_config=bigquery.QueryJobConfig(
                 query_parameters=[
-                    bigquery.ScalarQueryParameter("customer_id", "STRING", customer_id),
+                    bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
                     bigquery.ScalarQueryParameter("usage_date", "DATE", today)
                 ]
             )
         ).result()
 
-        logger.info(f"Updated usage for customer {customer_id}: status={pipeline_status}")
+        logger.info(f"Updated usage for customer {tenant_id}: status={pipeline_status}")
 
     except Exception as e:
         logger.error(f"Failed to increment pipeline usage: {e}", exc_info=True)
 
 
 async def get_customer_credentials(
-    customer_id: str,
+    tenant_id: str,
     provider: str,
     bq_client: BigQueryClient
 ) -> Dict[str, Any]:
@@ -703,7 +705,7 @@ async def get_customer_credentials(
     Returns decrypted credentials for pipeline execution.
 
     Args:
-        customer_id: Customer identifier
+        tenant_id: Customer identifier
         provider: Cloud provider (GCP, AWS, AZURE, OPENAI, CLAUDE)
         bq_client: BigQuery client instance
 
@@ -731,7 +733,7 @@ async def get_customer_credentials(
         scopes,
         validation_status
     FROM `{settings.gcp_project_id}.customers.customer_cloud_credentials`
-    WHERE customer_id = @customer_id
+    WHERE tenant_id = @tenant_id
         AND provider = @provider
         AND is_active = TRUE
         AND validation_status = 'VALID'
@@ -742,13 +744,13 @@ async def get_customer_credentials(
         results = list(bq_client.query(
             query,
             parameters=[
-                bigquery.ScalarQueryParameter("customer_id", "STRING", customer_id),
+                bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
                 bigquery.ScalarQueryParameter("provider", "STRING", provider.upper())
             ]
         ))
 
         if not results:
-            logger.warning(f"No active credentials found for customer {customer_id}, provider {provider}")
+            logger.warning(f"No active credentials found for customer {tenant_id}, provider {provider}")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"No active {provider} credentials configured for this customer"
@@ -797,7 +799,7 @@ async def get_customer_credentials(
             "scopes": row.get("scopes", [])
         }
 
-        logger.info(f"Retrieved credentials for customer {customer_id}, provider {provider}")
+        logger.info(f"Retrieved credentials for customer {tenant_id}, provider {provider}")
         return result
 
     except HTTPException:
@@ -811,7 +813,7 @@ async def get_customer_credentials(
 
 
 async def get_provider_config(
-    customer_id: str,
+    tenant_id: str,
     provider: str,
     domain: str,
     bq_client: BigQueryClient
@@ -822,7 +824,7 @@ async def get_provider_config(
     Returns source_project_id, source_dataset, notification_emails, default_parameters.
 
     Args:
-        customer_id: Customer identifier
+        tenant_id: Customer identifier
         provider: Cloud provider (GCP, AWS, etc.)
         domain: Data domain (COST, SECURITY, COMPLIANCE, etc.)
         bq_client: BigQuery client instance
@@ -850,7 +852,7 @@ async def get_provider_config(
         default_parameters,
         is_active
     FROM `{settings.gcp_project_id}.customers.customer_provider_configs`
-    WHERE customer_id = @customer_id
+    WHERE tenant_id = @tenant_id
         AND provider = @provider
         AND domain = @domain
         AND is_active = TRUE
@@ -861,7 +863,7 @@ async def get_provider_config(
         results = list(bq_client.query(
             query,
             parameters=[
-                bigquery.ScalarQueryParameter("customer_id", "STRING", customer_id),
+                bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
                 bigquery.ScalarQueryParameter("provider", "STRING", provider.upper()),
                 bigquery.ScalarQueryParameter("domain", "STRING", domain.upper())
             ]
@@ -869,7 +871,7 @@ async def get_provider_config(
 
         if not results:
             # Return default configuration if not found
-            logger.info(f"No provider config found for customer {customer_id}, provider {provider}, domain {domain} - using defaults")
+            logger.info(f"No provider config found for customer {tenant_id}, provider {provider}, domain {domain} - using defaults")
             return {
                 "provider": provider.upper(),
                 "domain": domain.upper(),
@@ -891,7 +893,7 @@ async def get_provider_config(
             "default_parameters": row.get("default_parameters", {})
         }
 
-        logger.info(f"Retrieved provider config for customer {customer_id}: {provider}/{domain}")
+        logger.info(f"Retrieved provider config for customer {tenant_id}: {provider}/{domain}")
         return config
 
     except Exception as e:
@@ -973,13 +975,13 @@ async def get_tenant_from_api_key(
     query = f"""
     SELECT
         k.tenant_id,
-        k.customer_id,
+        k.tenant_id,
         k.is_active,
         k.expires_at,
         c.status AS customer_status
     FROM `{settings.gcp_project_id}.customers.customer_api_keys` k
     INNER JOIN `{settings.gcp_project_id}.customers.customer_profiles` c
-        ON k.customer_id = c.customer_id
+        ON k.tenant_id = c.tenant_id
     WHERE k.api_key_hash = @api_key_hash
         AND k.is_active = TRUE
         AND c.status = 'ACTIVE'
@@ -1003,15 +1005,15 @@ async def get_tenant_from_api_key(
 
         # Check if API key has expired
         if row.get("expires_at") and row["expires_at"] < datetime.utcnow():
-            logger.warning(f"API key expired for customer: {row['customer_id']}")
+            logger.warning(f"API key expired for customer: {row['tenant_id']}")
             return None
 
         if not row.get("is_active", False):
-            logger.warning(f"API key is inactive for customer: {row.get('customer_id')}")
+            logger.warning(f"API key is inactive for customer: {row.get('tenant_id')}")
             return None
 
         tenant_id = row["tenant_id"]
-        logger.info(f"[AUTH] Authenticated tenant: {tenant_id} (customer: {row['customer_id']})")
+        logger.info(f"[AUTH] Authenticated tenant: {tenant_id} (customer: {row['tenant_id']})")
         return tenant_id
 
     except Exception as e:
@@ -1022,6 +1024,7 @@ async def get_tenant_from_api_key(
 
 async def verify_api_key(
     x_api_key: Optional[str] = Header(None, description="API Key for authentication"),
+    x_user_id: Optional[str] = Header(None, alias="X-User-ID", description="User ID from frontend"),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ) -> TenantContext:
     """
@@ -1029,10 +1032,11 @@ async def verify_api_key(
 
     Args:
         x_api_key: API key from X-API-Key header
+        x_user_id: User ID from X-User-ID header (optional)
         bq_client: BigQuery client (injected)
 
     Returns:
-        TenantContext with tenant_id
+        TenantContext with tenant_id and user_id
 
     Raises:
         HTTPException: If API key is invalid or inactive (when auth is enabled)
@@ -1040,7 +1044,7 @@ async def verify_api_key(
     # Check if authentication is disabled
     if settings.disable_auth:
         logger.warning(f"Authentication is disabled - using default tenant '{settings.default_tenant_id}'")
-        return TenantContext(tenant_id=settings.default_tenant_id, api_key_hash="disabled")
+        return TenantContext(tenant_id=settings.default_tenant_id, api_key_hash="disabled", user_id=x_user_id)
 
     if not x_api_key:
         raise HTTPException(
@@ -1062,13 +1066,14 @@ async def verify_api_key(
             headers={"WWW-Authenticate": "ApiKey"},
         )
 
-    logger.info(f"Authenticated request for tenant: {tenant_id}")
+    logger.info(f"Authenticated request for tenant: {tenant_id}, user: {x_user_id or 'N/A'}")
 
-    return TenantContext(tenant_id=tenant_id, api_key_hash=api_key_hash)
+    return TenantContext(tenant_id=tenant_id, api_key_hash=api_key_hash, user_id=x_user_id)
 
 
 async def verify_api_key_header(
     x_api_key: str = Header(..., description="API Key for authentication"),
+    x_user_id: Optional[str] = Header(None, alias="X-User-ID", description="User ID from frontend"),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ) -> TenantContext:
     """
@@ -1079,10 +1084,11 @@ async def verify_api_key_header(
 
     Args:
         x_api_key: API key from X-API-Key header (required)
+        x_user_id: User ID from X-User-ID header (optional)
         bq_client: BigQuery client (injected)
 
     Returns:
-        TenantContext with tenant_id
+        TenantContext with tenant_id and user_id
 
     Raises:
         HTTPException: If API key is invalid or inactive
@@ -1090,7 +1096,7 @@ async def verify_api_key_header(
     # Check if authentication is disabled
     if settings.disable_auth:
         logger.warning(f"Authentication is disabled - using default tenant '{settings.default_tenant_id}'")
-        return TenantContext(tenant_id=settings.default_tenant_id, api_key_hash="disabled")
+        return TenantContext(tenant_id=settings.default_tenant_id, api_key_hash="disabled", user_id=x_user_id)
 
     # Hash the API key
     api_key_hash = hash_api_key(x_api_key)
@@ -1105,9 +1111,9 @@ async def verify_api_key_header(
             headers={"WWW-Authenticate": "ApiKey"},
         )
 
-    logger.info(f"Authenticated request for tenant: {tenant_id}")
+    logger.info(f"Authenticated request for tenant: {tenant_id}, user: {x_user_id or 'N/A'}")
 
-    return TenantContext(tenant_id=tenant_id, api_key_hash=api_key_hash)
+    return TenantContext(tenant_id=tenant_id, api_key_hash=api_key_hash, user_id=x_user_id)
 
 
 # Optional: Allow unauthenticated access for health checks

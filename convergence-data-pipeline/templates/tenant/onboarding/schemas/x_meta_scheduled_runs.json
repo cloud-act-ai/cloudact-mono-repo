@@ -6,7 +6,7 @@
     "description": "Unique identifier (UUID) for this scheduled pipeline run. Used to track scheduled executions and their lifecycle."
   },
   {
-    "name": "customer_id",
+    "name": "tenant_id",
     "type": "STRING",
     "mode": "REQUIRED",
     "description": "Customer/tenant identifier. Used for multi-tenancy isolation and filtering."

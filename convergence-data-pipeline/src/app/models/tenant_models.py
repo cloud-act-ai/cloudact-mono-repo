@@ -1,5 +1,5 @@
 """
-Comprehensive Pydantic models for customer management entities.
+Comprehensive Pydantic models for tenant management entities.
 
 This module provides:
 - Request models for customer operations
@@ -27,8 +27,8 @@ class SubscriptionPlan(str, Enum):
     SCALE = "SCALE"
 
 
-class CustomerStatus(str, Enum):
-    """Customer account status."""
+class TenantStatus(str, Enum):
+    """Tenant account status."""
     ACTIVE = "ACTIVE"
     TRIAL = "TRIAL"
     SUSPENDED = "SUSPENDED"
@@ -52,7 +52,7 @@ class CredentialType(str, Enum):
 
 
 class TeamRole(str, Enum):
-    """Team member roles with hierarchical permissions."""
+    """User roles with hierarchical permissions."""
     OWNER = "OWNER"
     ADMIN = "ADMIN"
     COLLABORATOR = "COLLABORATOR"
@@ -76,8 +76,8 @@ class SubscriptionStatus(str, Enum):
     CANCELLED = "CANCELLED"
 
 
-class MemberStatus(str, Enum):
-    """Team member invitation/activation status."""
+class UserStatus(str, Enum):
+    """User invitation/activation status."""
     INVITED = "INVITED"
     ACTIVE = "ACTIVE"
     SUSPENDED = "SUSPENDED"
@@ -128,9 +128,9 @@ SUBSCRIPTION_LIMITS = {
 # REQUEST MODELS
 # ============================================================================
 
-class OnboardCustomerRequest(BaseModel):
+class OnboardTenantRequest(BaseModel):
     """Request model for customer onboarding."""
-    customer_id: str = Field(
+    tenant_id: str = Field(
         ...,
         min_length=3,
         max_length=50,
@@ -151,13 +151,13 @@ class OnboardCustomerRequest(BaseModel):
         description="Initial subscription plan"
     )
 
-    @field_validator('customer_id')
+    @field_validator('tenant_id')
     @classmethod
-    def validate_customer_id(cls, v: str) -> str:
-        """Validate customer_id format: alphanumeric + underscore only."""
+    def validate_tenant_id(cls, v: str) -> str:
+        """Validate tenant_id format: alphanumeric + underscore only."""
         if not re.match(r'^[a-zA-Z0-9_]{3,50}$', v):
             raise ValueError(
-                'customer_id must be 3-50 characters containing only '
+                'tenant_id must be 3-50 characters containing only '
                 'alphanumeric characters and underscores'
             )
         return v
@@ -165,7 +165,7 @@ class OnboardCustomerRequest(BaseModel):
     class Config:
         json_schema_extra = {
             "example": {
-                "customer_id": "acme_corp_prod",
+                "tenant_id": "acme_corp_prod",
                 "company_name": "Acme Corporation",
                 "admin_email": "admin@acme.com",
                 "subscription_plan": "STARTER"
@@ -336,20 +336,20 @@ class CreateProviderConfigRequest(BaseModel):
         }
 
 
-class InviteTeamMemberRequest(BaseModel):
-    """Request model for inviting team members."""
+class InviteUserRequest(BaseModel):
+    """Request model for inviting users."""
     email: EmailStr = Field(
         ...,
-        description="Team member email address"
+        description="User email address"
     )
     full_name: Optional[str] = Field(
         default=None,
         max_length=200,
-        description="Team member full name"
+        description="User full name"
     )
     role: TeamRole = Field(
         default=TeamRole.VIEWER,
-        description="Team member role"
+        description="User role"
     )
     permissions: Optional[List[str]] = Field(
         default=None,
@@ -377,7 +377,7 @@ class UpdateSubscriptionRequest(BaseModel):
         ...,
         ge=1,
         le=100,
-        description="Maximum team members allowed"
+        description="Maximum users allowed"
     )
     max_providers: int = Field(
         ...,
@@ -455,7 +455,7 @@ class UpdateLimitsRequest(BaseModel):
         default=None,
         ge=1,
         le=1000,
-        description="Maximum team members allowed"
+        description="Maximum users allowed"
     )
     max_providers: Optional[int] = Field(
         default=None,
@@ -492,11 +492,11 @@ class UpdateLimitsRequest(BaseModel):
         }
 
 
-class UpdateTeamMemberRequest(BaseModel):
-    """Request model for updating team member details."""
+class UpdateUserRequest(BaseModel):
+    """Request model for updating user details."""
     role: Optional[TeamRole] = Field(
         default=None,
-        description="Updated role for team member"
+        description="Updated role for user"
     )
     permissions: Optional[List[str]] = Field(
         default=None,
@@ -521,12 +521,12 @@ class UpdateTeamMemberRequest(BaseModel):
 # RESPONSE MODELS
 # ============================================================================
 
-class CustomerProfileResponse(BaseModel):
+class TenantProfileResponse(BaseModel):
     """Response model for customer profile."""
-    customer_id: str
+    tenant_id: str
     company_name: str
     admin_email: EmailStr
-    status: CustomerStatus
+    status: TenantStatus
     subscription_plan: SubscriptionPlan
     tenant_dataset_id: str
     created_at: datetime
@@ -536,7 +536,7 @@ class CustomerProfileResponse(BaseModel):
         from_attributes = True
         json_schema_extra = {
             "example": {
-                "customer_id": "acme_corp_prod",
+                "tenant_id": "acme_corp_prod",
                 "company_name": "Acme Corporation",
                 "admin_email": "admin@acme.com",
                 "status": "ACTIVE",
@@ -579,7 +579,7 @@ class APIKeyResponse(BaseModel):
 class CredentialResponse(BaseModel):
     """Response model for credentials (excludes sensitive data)."""
     credential_id: str
-    customer_id: str
+    tenant_id: str
     provider: Provider
     credential_type: CredentialType
     credential_name: str
@@ -595,7 +595,7 @@ class CredentialResponse(BaseModel):
         json_schema_extra = {
             "example": {
                 "credential_id": "cred_xyz789",
-                "customer_id": "acme_corp_prod",
+                "tenant_id": "acme_corp_prod",
                 "provider": "GCP",
                 "credential_type": "SERVICE_ACCOUNT",
                 "credential_name": "gcp_production_sa",
@@ -612,7 +612,7 @@ class CredentialResponse(BaseModel):
 class SubscriptionResponse(BaseModel):
     """Response model for subscription details."""
     subscription_id: str
-    customer_id: str
+    tenant_id: str
     plan_name: SubscriptionPlan
     status: SubscriptionStatus
     max_team_members: int
@@ -629,7 +629,7 @@ class SubscriptionResponse(BaseModel):
         json_schema_extra = {
             "example": {
                 "subscription_id": "sub_123abc",
-                "customer_id": "acme_corp_prod",
+                "tenant_id": "acme_corp_prod",
                 "plan_name": "PROFESSIONAL",
                 "status": "ACTIVE",
                 "max_team_members": 6,
@@ -646,7 +646,7 @@ class SubscriptionResponse(BaseModel):
 
 class UsageQuotaResponse(BaseModel):
     """Response model for usage quotas."""
-    customer_id: str
+    tenant_id: str
     usage_date: date
     pipelines_run_today: int
     daily_limit: int
@@ -670,7 +670,7 @@ class UsageQuotaResponse(BaseModel):
         from_attributes = True
         json_schema_extra = {
             "example": {
-                "customer_id": "acme_corp_prod",
+                "tenant_id": "acme_corp_prod",
                 "usage_date": "2025-01-15",
                 "pipelines_run_today": 12,
                 "daily_limit": 25,
@@ -690,7 +690,7 @@ class UsageQuotaResponse(BaseModel):
 
 class LimitsResponse(BaseModel):
     """Response model for subscription limits."""
-    customer_id: str
+    tenant_id: str
     subscription_plan: SubscriptionPlan
     max_team_members: int
     max_providers: int
@@ -703,7 +703,7 @@ class LimitsResponse(BaseModel):
         from_attributes = True
         json_schema_extra = {
             "example": {
-                "customer_id": "acme_corp_prod",
+                "tenant_id": "acme_corp_prod",
                 "subscription_plan": "PROFESSIONAL",
                 "max_team_members": 6,
                 "max_providers": 6,
@@ -721,15 +721,15 @@ class LimitsResponse(BaseModel):
         }
 
 
-class TeamMemberResponse(BaseModel):
-    """Response model for team members."""
-    member_id: str
-    customer_id: str
+class UserResponse(BaseModel):
+    """Response model for users."""
+    user_id: str
+    tenant_id: str
     email: EmailStr
     full_name: Optional[str]
     role: TeamRole
     permissions: Optional[List[str]]
-    status: MemberStatus
+    status: UserStatus
     invited_at: datetime
     joined_at: Optional[datetime]
     last_login_at: Optional[datetime]
@@ -738,8 +738,8 @@ class TeamMemberResponse(BaseModel):
         from_attributes = True
         json_schema_extra = {
             "example": {
-                "member_id": "member_xyz123",
-                "customer_id": "acme_corp_prod",
+                "user_id": "member_xyz123",
+                "tenant_id": "acme_corp_prod",
                 "email": "developer@acme.com",
                 "full_name": "Jane Developer",
                 "role": "COLLABORATOR",
@@ -754,7 +754,7 @@ class TeamMemberResponse(BaseModel):
 
 class ValidationResponse(BaseModel):
     """Response model for customer validation checks."""
-    customer_id: str
+    tenant_id: str
     can_run_pipeline: bool
     subscription_status: SubscriptionStatus
     subscription_valid: bool
@@ -767,7 +767,7 @@ class ValidationResponse(BaseModel):
         from_attributes = True
         json_schema_extra = {
             "example": {
-                "customer_id": "acme_corp_prod",
+                "tenant_id": "acme_corp_prod",
                 "can_run_pipeline": True,
                 "subscription_status": "ACTIVE",
                 "subscription_valid": True,
@@ -778,7 +778,7 @@ class ValidationResponse(BaseModel):
                     "concurrent": 2
                 },
                 "credentials_configured": True,
-                "message": "Customer is valid and can run pipelines"
+                "message": "Tenant is valid and can run pipelines"
             }
         }
 
@@ -786,7 +786,7 @@ class ValidationResponse(BaseModel):
 class ProviderConfigResponse(BaseModel):
     """Response model for provider configurations."""
     config_id: str
-    customer_id: str
+    tenant_id: str
     provider: Provider
     domain: Domain
     source_project_id: str
@@ -802,7 +802,7 @@ class ProviderConfigResponse(BaseModel):
         json_schema_extra = {
             "example": {
                 "config_id": "config_abc123",
-                "customer_id": "acme_corp_prod",
+                "tenant_id": "acme_corp_prod",
                 "provider": "GCP",
                 "domain": "COST",
                 "source_project_id": "billing-project-123",

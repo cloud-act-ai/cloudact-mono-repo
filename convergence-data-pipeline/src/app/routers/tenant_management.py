@@ -20,7 +20,7 @@ from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
 from src.core.security.kms_encryption import encrypt_value_base64, decrypt_value_base64
 from src.core.metadata.initializer import ensure_tenant_metadata
 from src.app.config import settings
-from src.app.models.customer_models import UpgradeSubscriptionRequest, UpdateLimitsRequest, SUBSCRIPTION_LIMITS
+from src.app.models.tenant_models import UpgradeSubscriptionRequest, UpdateLimitsRequest, SUBSCRIPTION_LIMITS
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -72,7 +72,7 @@ class TeamRole(str, Enum):
 
 class OnboardCustomerRequest(BaseModel):
     """Request to onboard a new customer."""
-    customer_id: str = Field(..., description="Unique customer/tenant identifier")
+    tenant_id: str = Field(..., description="Unique customer/tenant identifier")
     company_name: str = Field(..., description="Company name")
     admin_email: EmailStr = Field(..., description="Administrator email address")
     subscription_plan: SubscriptionPlan = Field(default=SubscriptionPlan.FREE)
@@ -80,7 +80,7 @@ class OnboardCustomerRequest(BaseModel):
 
 class OnboardCustomerResponse(BaseModel):
     """Response for customer onboarding."""
-    customer_id: str
+    tenant_id: str
     dataset_id: str
     api_key: str  # Show once!
     status: str
@@ -91,7 +91,7 @@ class OnboardCustomerResponse(BaseModel):
 
 class CustomerProfile(BaseModel):
     """Customer profile information."""
-    customer_id: str
+    tenant_id: str
     company_name: str
     admin_email: str
     subscription_plan: str
@@ -119,7 +119,7 @@ class SubscriptionLimits(BaseModel):
 
 class SubscriptionInfo(BaseModel):
     """Current subscription information."""
-    customer_id: str
+    tenant_id: str
     plan: str
     limits: SubscriptionLimits
     usage: Dict[str, int]
@@ -200,7 +200,7 @@ class CreateProviderConfigRequest(BaseModel):
 class ProviderConfig(BaseModel):
     """Provider configuration."""
     config_id: str
-    customer_id: str
+    tenant_id: str
     provider: str
     domain: str
     source_project_id: Optional[str]
@@ -231,7 +231,7 @@ class InviteTeamMemberRequest(BaseModel):
 class TeamMember(BaseModel):
     """Team member information."""
     member_id: str
-    customer_id: str
+    tenant_id: str
     email: str
     role: str
     permissions: List[str]
@@ -262,7 +262,7 @@ class ValidateCustomerResponse(BaseModel):
 
 class UsageStatistics(BaseModel):
     """Usage statistics."""
-    customer_id: str
+    tenant_id: str
     pipelines_today: int
     pipelines_this_month: int
     quota_limit: int
@@ -319,7 +319,7 @@ def get_subscription_limits(plan: str) -> SubscriptionLimits:
 # ============================================
 
 @router.post(
-    "/api/v1/customers/onboard",
+    "/api/v1/tenants/onboard",
     response_model=OnboardCustomerResponse,
     summary="Onboard new customer",
     description="Create new customer account with dataset, API key, and default subscription"
@@ -333,23 +333,23 @@ async def onboard_customer(
 
     Called by frontend after Stripe signup.
     Creates: customer profile, tenant dataset, default subscription record.
-    Returns: customer_id, dataset_id, API key (save this!), status.
+    Returns: tenant_id, dataset_id, API key (save this!), status.
     """
-    customer_id = request.customer_id
-    logger.info(f"Starting customer onboarding for: {customer_id}")
+    tenant_id = request.tenant_id
+    logger.info(f"Starting customer onboarding for: {tenant_id}")
 
     try:
         # Step 1: Create tenant metadata infrastructure
         ensure_tenant_metadata(
-            tenant_id=customer_id,
+            tenant_id=tenant_id,
             bq_client=bq_client.client
         )
 
-        dataset_id = f"{settings.gcp_project_id}.{customer_id}"
+        dataset_id = f"{settings.gcp_project_id}.{tenant_id}"
 
         # Step 2: Generate API key
         random_suffix = secrets.token_urlsafe(16)[:16]
-        api_key = f"{customer_id}_api_{random_suffix}"
+        api_key = f"{tenant_id}_api_{random_suffix}"
         api_key_hash = hash_api_key(api_key)
 
         # Encrypt API key
@@ -358,7 +358,7 @@ async def onboard_customer(
 
         # Step 3: Store API key
         insert_api_key_query = f"""
-        INSERT INTO `{settings.gcp_project_id}.{customer_id}.x_meta_api_keys`
+        INSERT INTO `{settings.gcp_project_id}.{tenant_id}.x_meta_api_keys`
         (api_key_id, tenant_id, api_key_hash, encrypted_api_key, created_at, is_active)
         VALUES
         (@api_key_id, @tenant_id, @api_key_hash, @encrypted_api_key, CURRENT_TIMESTAMP(), TRUE)
@@ -369,7 +369,7 @@ async def onboard_customer(
             job_config=bigquery.QueryJobConfig(
                 query_parameters=[
                     bigquery.ScalarQueryParameter("api_key_id", "STRING", api_key_id),
-                    bigquery.ScalarQueryParameter("tenant_id", "STRING", customer_id),
+                    bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
                     bigquery.ScalarQueryParameter("api_key_hash", "STRING", api_key_hash),
                     bigquery.ScalarQueryParameter("encrypted_api_key", "STRING", encrypted_api_key),
                 ]
@@ -377,21 +377,21 @@ async def onboard_customer(
         ).result()
 
         # Step 4: Create customer profile record
-        # Note: This would typically be in a separate customers table
+        # Note: This would typically be in a separate tenants table
         # For now, we use the API keys table as proof of customer existence
 
-        logger.info(f"Customer onboarding completed for: {customer_id}")
+        logger.info(f"Customer onboarding completed for: {tenant_id}")
 
         return OnboardCustomerResponse(
-            customer_id=customer_id,
+            tenant_id=tenant_id,
             dataset_id=dataset_id,
             api_key=api_key,
             status="active",
-            message=f"Customer {customer_id} onboarded successfully. Save your API key - it won't be shown again!"
+            message=f"Customer {tenant_id} onboarded successfully. Save your API key - it won't be shown again!"
         )
 
     except Exception as e:
-        logger.error(f"Failed to onboard customer {customer_id}: {e}", exc_info=True)
+        logger.error(f"Failed to onboard customer {tenant_id}: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to onboard customer: {str(e)}"
@@ -399,19 +399,19 @@ async def onboard_customer(
 
 
 @router.get(
-    "/api/v1/customers/{customer_id}",
+    "/api/v1/tenants/{tenant_id}",
     response_model=CustomerProfile,
     summary="Get customer profile",
     description="Retrieve customer profile information"
 )
 async def get_customer_profile(
-    customer_id: str,
+    tenant_id: str,
     tenant: TenantContext = Depends(verify_api_key_header),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """Get customer profile."""
-    # Verify customer_id matches authenticated tenant
-    if customer_id != tenant.tenant_id:
+    # Verify tenant_id matches authenticated tenant
+    if tenant_id != tenant.tenant_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot access other customer's profile"
@@ -420,15 +420,15 @@ async def get_customer_profile(
     # Query customer info from API keys table (simplified)
     query = f"""
     SELECT
-        tenant_id as customer_id,
+        tenant_id as tenant_id,
         tenant_id as company_name,
         'admin@example.com' as admin_email,
         'free' as subscription_plan,
         MIN(created_at) as created_at,
         MAX(created_at) as updated_at,
         TRUE as is_active
-    FROM `{settings.gcp_project_id}.{customer_id}.x_meta_api_keys`
-    WHERE tenant_id = @customer_id
+    FROM `{settings.gcp_project_id}.{tenant_id}.x_meta_api_keys`
+    WHERE tenant_id = @tenant_id
     GROUP BY tenant_id
     LIMIT 1
     """
@@ -437,7 +437,7 @@ async def get_customer_profile(
         query,
         job_config=bigquery.QueryJobConfig(
             query_parameters=[
-                bigquery.ScalarQueryParameter("customer_id", "STRING", customer_id)
+                bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id)
             ]
         )
     ).result())
@@ -445,34 +445,34 @@ async def get_customer_profile(
     if not results:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Customer {customer_id} not found"
+            detail=f"Customer {tenant_id} not found"
         )
 
     return CustomerProfile(**dict(results[0]))
 
 
 @router.put(
-    "/api/v1/customers/{customer_id}",
+    "/api/v1/tenants/{tenant_id}",
     response_model=CustomerProfile,
     summary="Update customer profile",
     description="Update customer profile information"
 )
 async def update_customer_profile(
-    customer_id: str,
+    tenant_id: str,
     request: UpdateCustomerRequest,
     tenant: TenantContext = Depends(verify_api_key_header),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """Update customer profile."""
-    if customer_id != tenant.tenant_id:
+    if tenant_id != tenant.tenant_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot update other customer's profile"
         )
 
-    # In production, this would update a customers table
+    # In production, this would update a tenants table
     # For now, return current profile
-    return await get_customer_profile(customer_id, tenant, bq_client)
+    return await get_customer_profile(tenant_id, tenant, bq_client)
 
 
 # ============================================
@@ -480,31 +480,31 @@ async def update_customer_profile(
 # ============================================
 
 @router.get(
-    "/api/v1/customers/{customer_id}/subscription",
+    "/api/v1/tenants/{tenant_id}/subscription",
     summary="Get subscription info",
-    description="Get current subscription plan, status, and limits from centralized customers dataset"
+    description="Get current subscription plan, status, and limits from centralized tenants dataset"
 )
 async def get_subscription_info(
-    customer_id: str,
+    tenant_id: str,
     tenant: TenantContext = Depends(verify_api_key_header),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """
-    Get customer's current subscription information from customers.customer_subscriptions.
+    Get customer's current subscription information from tenants.customer_subscriptions.
 
     Returns subscription plan, status, limits, trial info, and billing details.
     """
-    if customer_id != tenant.tenant_id:
+    if tenant_id != tenant.tenant_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot access other customer's subscription"
         )
 
-    # Query subscription from centralized customers dataset
+    # Query subscription from centralized tenants dataset
     query = f"""
     SELECT
         s.subscription_id,
-        s.customer_id,
+        s.tenant_id,
         s.plan_name,
         s.status,
         s.max_team_members,
@@ -523,8 +523,8 @@ async def get_subscription_info(
         s.next_billing_date,
         s.created_at,
         s.updated_at
-    FROM `{settings.gcp_project_id}.customers.customer_subscriptions` s
-    WHERE s.customer_id = @customer_id
+    FROM `{settings.gcp_project_id}.tenants.customer_subscriptions` s
+    WHERE s.tenant_id = @tenant_id
         AND s.status = 'ACTIVE'
     LIMIT 1
     """
@@ -534,7 +534,7 @@ async def get_subscription_info(
             query,
             job_config=bigquery.QueryJobConfig(
                 query_parameters=[
-                    bigquery.ScalarQueryParameter("customer_id", "STRING", customer_id)
+                    bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id)
                 ]
             )
         ).result())
@@ -542,14 +542,14 @@ async def get_subscription_info(
         if not results:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"No active subscription found for customer {customer_id}"
+                detail=f"No active subscription found for customer {tenant_id}"
             )
 
         row = results[0]
 
         return {
             "subscription_id": row["subscription_id"],
-            "customer_id": row["customer_id"],
+            "tenant_id": row["tenant_id"],
             "plan_name": row["plan_name"],
             "status": row["status"],
             "limits": {
@@ -579,7 +579,7 @@ async def get_subscription_info(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to retrieve subscription for {customer_id}: {e}", exc_info=True)
+        logger.error(f"Failed to retrieve subscription for {tenant_id}: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve subscription: {str(e)}"
@@ -587,25 +587,25 @@ async def get_subscription_info(
 
 
 @router.put(
-    "/api/v1/customers/{customer_id}/subscription",
+    "/api/v1/tenants/{tenant_id}/subscription",
     summary="Update subscription",
     description="Update subscription plan and limits (typically called by Stripe webhook or admin)"
 )
 async def update_subscription_plan(
-    customer_id: str,
+    tenant_id: str,
     request: UpdateSubscriptionRequest,
     tenant: TenantContext = Depends(verify_api_key_header),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """
-    Update customer subscription in customers.customer_subscriptions.
+    Update customer subscription in tenants.customer_subscriptions.
 
     This endpoint is typically called by:
     1. Stripe webhooks when subscription changes
     2. Frontend when customer upgrades/downgrades
     3. Admin panel for manual adjustments
     """
-    if customer_id != tenant.tenant_id:
+    if tenant_id != tenant.tenant_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot update other customer's subscription"
@@ -613,7 +613,7 @@ async def update_subscription_plan(
 
     # Update subscription in centralized dataset
     update_query = f"""
-    UPDATE `{settings.gcp_project_id}.customers.customer_subscriptions`
+    UPDATE `{settings.gcp_project_id}.tenants.customer_subscriptions`
     SET
         plan_name = @plan_name,
         max_team_members = @max_team_members,
@@ -623,7 +623,7 @@ async def update_subscription_plan(
         subscription_start_date = @subscription_start_date,
         subscription_end_date = @subscription_end_date,
         updated_at = CURRENT_TIMESTAMP()
-    WHERE customer_id = @customer_id
+    WHERE tenant_id = @tenant_id
         AND status = 'ACTIVE'
     """
 
@@ -632,7 +632,7 @@ async def update_subscription_plan(
             update_query,
             job_config=bigquery.QueryJobConfig(
                 query_parameters=[
-                    bigquery.ScalarQueryParameter("customer_id", "STRING", customer_id),
+                    bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
                     bigquery.ScalarQueryParameter("plan_name", "STRING", request.plan_name.value),
                     bigquery.ScalarQueryParameter("max_team_members", "INT64", request.max_team_members),
                     bigquery.ScalarQueryParameter("max_providers", "INT64", request.max_providers),
@@ -648,18 +648,18 @@ async def update_subscription_plan(
         if job.num_dml_affected_rows == 0:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"No active subscription found for customer {customer_id}"
+                detail=f"No active subscription found for customer {tenant_id}"
             )
 
-        logger.info(f"Subscription updated for {customer_id} to {request.plan_name}")
+        logger.info(f"Subscription updated for {tenant_id} to {request.plan_name}")
 
         # Return updated subscription
-        return await get_subscription_info(customer_id, tenant, bq_client)
+        return await get_subscription_info(tenant_id, tenant, bq_client)
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to update subscription for {customer_id}: {e}", exc_info=True)
+        logger.error(f"Failed to update subscription for {tenant_id}: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to update subscription: {str(e)}"
@@ -667,12 +667,12 @@ async def update_subscription_plan(
 
 
 @router.post(
-    "/api/v1/customers/{customer_id}/subscription/upgrade",
+    "/api/v1/tenants/{tenant_id}/subscription/upgrade",
     summary="Upgrade subscription plan",
     description="Upgrade to a higher-tier subscription plan"
 )
 async def upgrade_subscription(
-    customer_id: str,
+    tenant_id: str,
     request: UpgradeSubscriptionRequest,
     tenant: TenantContext = Depends(verify_api_key_header),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
@@ -682,9 +682,9 @@ async def upgrade_subscription(
 
     Automatically applies new limits based on the target plan.
     """
-    from src.app.models.customer_models import SUBSCRIPTION_LIMITS
+    from src.app.models.tenant_models import SUBSCRIPTION_LIMITS
 
-    if customer_id != tenant.tenant_id:
+    if tenant_id != tenant.tenant_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot upgrade other customer's subscription"
@@ -699,7 +699,7 @@ async def upgrade_subscription(
         )
 
     # Get current subscription
-    current_sub = await get_subscription_info(customer_id, tenant, bq_client)
+    current_sub = await get_subscription_info(tenant_id, tenant, bq_client)
 
     # Validate upgrade (can only upgrade, not downgrade)
     plan_order = {"STARTER": 1, "PROFESSIONAL": 2, "SCALE": 3}
@@ -714,7 +714,7 @@ async def upgrade_subscription(
 
     # Update subscription with new plan and limits
     update_query = f"""
-    UPDATE `{settings.gcp_project_id}.customers.customer_subscriptions`
+    UPDATE `{settings.gcp_project_id}.tenants.customer_subscriptions`
     SET
         plan_name = @plan_name,
         max_team_members = @max_team_members,
@@ -723,7 +723,7 @@ async def upgrade_subscription(
         max_pipelines_per_month = @max_pipelines_per_month,
         max_concurrent_pipelines = @max_concurrent_pipelines,
         updated_at = CURRENT_TIMESTAMP()
-    WHERE customer_id = @customer_id
+    WHERE tenant_id = @tenant_id
         AND status = 'ACTIVE'
     """
 
@@ -732,7 +732,7 @@ async def upgrade_subscription(
             update_query,
             job_config=bigquery.QueryJobConfig(
                 query_parameters=[
-                    bigquery.ScalarQueryParameter("customer_id", "STRING", customer_id),
+                    bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
                     bigquery.ScalarQueryParameter("plan_name", "STRING", request.new_plan.value),
                     bigquery.ScalarQueryParameter("max_team_members", "INT64", new_limits["max_team_members"]),
                     bigquery.ScalarQueryParameter("max_providers", "INT64", new_limits["max_providers"]),
@@ -744,15 +744,15 @@ async def upgrade_subscription(
         )
         job.result()
 
-        logger.info(f"Subscription upgraded for {customer_id} from {current_sub['plan_name']} to {request.new_plan}")
+        logger.info(f"Subscription upgraded for {tenant_id} from {current_sub['plan_name']} to {request.new_plan}")
 
         # Return updated subscription
-        return await get_subscription_info(customer_id, tenant, bq_client)
+        return await get_subscription_info(tenant_id, tenant, bq_client)
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to upgrade subscription for {customer_id}: {e}", exc_info=True)
+        logger.error(f"Failed to upgrade subscription for {tenant_id}: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to upgrade subscription: {str(e)}"
@@ -764,27 +764,27 @@ async def upgrade_subscription(
 # ============================================
 
 @router.post(
-    "/api/v1/customers/{customer_id}/api-keys",
+    "/api/v1/tenants/{tenant_id}/api-keys",
     response_model=CreateAPIKeyResponse,
     summary="Generate new API key",
     description="Create a new API key for customer"
 )
 async def create_api_key(
-    customer_id: str,
+    tenant_id: str,
     request: CreateAPIKeyRequest,
     tenant: TenantContext = Depends(verify_api_key_header),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """Generate new API key (returns plaintext key - show once!)."""
-    if customer_id != tenant.tenant_id:
+    if tenant_id != tenant.tenant_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Cannot create API keys for other customers"
+            detail="Cannot create API keys for other tenants"
         )
 
     # Generate API key
     random_suffix = secrets.token_urlsafe(16)[:16]
-    api_key = f"{customer_id}_api_{random_suffix}"
+    api_key = f"{tenant_id}_api_{random_suffix}"
     api_key_hash = hash_api_key(api_key)
     api_key_id = str(uuid.uuid4())
 
@@ -798,7 +798,7 @@ async def create_api_key(
 
     # Store API key
     insert_query = f"""
-    INSERT INTO `{settings.gcp_project_id}.{customer_id}.x_meta_api_keys`
+    INSERT INTO `{settings.gcp_project_id}.{tenant_id}.x_meta_api_keys`
     (api_key_id, tenant_id, api_key_hash, encrypted_api_key, created_at, expires_at, is_active)
     VALUES
     (@api_key_id, @tenant_id, @api_key_hash, @encrypted_api_key, CURRENT_TIMESTAMP(), @expires_at, TRUE)
@@ -809,7 +809,7 @@ async def create_api_key(
         job_config=bigquery.QueryJobConfig(
             query_parameters=[
                 bigquery.ScalarQueryParameter("api_key_id", "STRING", api_key_id),
-                bigquery.ScalarQueryParameter("tenant_id", "STRING", customer_id),
+                bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
                 bigquery.ScalarQueryParameter("api_key_hash", "STRING", api_key_hash),
                 bigquery.ScalarQueryParameter("encrypted_api_key", "STRING", encrypted_api_key),
                 bigquery.ScalarQueryParameter("expires_at", "TIMESTAMP", expires_at),
@@ -817,7 +817,7 @@ async def create_api_key(
         )
     ).result()
 
-    logger.info(f"Created new API key for customer {customer_id}: {api_key_id}")
+    logger.info(f"Created new API key for customer {tenant_id}: {api_key_id}")
 
     return CreateAPIKeyResponse(
         api_key_id=api_key_id,
@@ -832,18 +832,18 @@ async def create_api_key(
 
 
 @router.get(
-    "/api/v1/customers/{customer_id}/api-keys",
+    "/api/v1/tenants/{tenant_id}/api-keys",
     response_model=List[APIKeyResponse],
     summary="List API keys",
     description="List all API keys (hashed only, no plaintext)"
 )
 async def list_api_keys(
-    customer_id: str,
+    tenant_id: str,
     tenant: TenantContext = Depends(verify_api_key_header),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """List all API keys (hashed only)."""
-    if customer_id != tenant.tenant_id:
+    if tenant_id != tenant.tenant_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot list other customer's API keys"
@@ -856,8 +856,8 @@ async def list_api_keys(
         created_at,
         expires_at,
         is_active
-    FROM `{settings.gcp_project_id}.{customer_id}.x_meta_api_keys`
-    WHERE tenant_id = @customer_id
+    FROM `{settings.gcp_project_id}.{tenant_id}.x_meta_api_keys`
+    WHERE tenant_id = @tenant_id
     ORDER BY created_at DESC
     """
 
@@ -865,7 +865,7 @@ async def list_api_keys(
         query,
         job_config=bigquery.QueryJobConfig(
             query_parameters=[
-                bigquery.ScalarQueryParameter("customer_id", "STRING", customer_id)
+                bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id)
             ]
         )
     ).result()
@@ -884,27 +884,27 @@ async def list_api_keys(
 
 
 @router.delete(
-    "/api/v1/customers/{customer_id}/api-keys/{api_key_id}",
+    "/api/v1/tenants/{tenant_id}/api-keys/{api_key_id}",
     summary="Revoke API key",
     description="Revoke/deactivate an API key"
 )
 async def revoke_api_key(
-    customer_id: str,
+    tenant_id: str,
     api_key_id: str,
     tenant: TenantContext = Depends(verify_api_key_header),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """Revoke API key."""
-    if customer_id != tenant.tenant_id:
+    if tenant_id != tenant.tenant_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot revoke other customer's API keys"
         )
 
     update_query = f"""
-    UPDATE `{settings.gcp_project_id}.{customer_id}.x_meta_api_keys`
+    UPDATE `{settings.gcp_project_id}.{tenant_id}.x_meta_api_keys`
     SET is_active = FALSE
-    WHERE tenant_id = @customer_id
+    WHERE tenant_id = @tenant_id
       AND api_key_id = @api_key_id
     """
 
@@ -912,7 +912,7 @@ async def revoke_api_key(
         update_query,
         job_config=bigquery.QueryJobConfig(
             query_parameters=[
-                bigquery.ScalarQueryParameter("customer_id", "STRING", customer_id),
+                bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
                 bigquery.ScalarQueryParameter("api_key_id", "STRING", api_key_id),
             ]
         )
@@ -925,7 +925,7 @@ async def revoke_api_key(
             detail=f"API key {api_key_id} not found"
         )
 
-    logger.info(f"Revoked API key {api_key_id} for customer {customer_id}")
+    logger.info(f"Revoked API key {api_key_id} for customer {tenant_id}")
 
     return {"message": f"API key {api_key_id} revoked successfully"}
 
@@ -935,31 +935,31 @@ async def revoke_api_key(
 # ============================================
 
 @router.post(
-    "/api/v1/customers/{customer_id}/credentials",
+    "/api/v1/tenants/{tenant_id}/credentials",
     response_model=CredentialMetadata,
     summary="Add cloud credentials",
     description="Add cloud provider credentials (encrypted with KMS)"
 )
 async def create_credential(
-    customer_id: str,
+    tenant_id: str,
     request: CreateCredentialRequest,
     tenant: TenantContext = Depends(verify_api_key_header),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """Add cloud provider credentials."""
-    if customer_id != tenant.tenant_id:
+    if tenant_id != tenant.tenant_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Cannot create credentials for other customers"
+            detail="Cannot create credentials for other tenants"
         )
 
     # Check max_providers limit
-    subscription = await get_subscription(customer_id, tenant, bq_client)
+    subscription = await get_subscription(tenant_id, tenant, bq_client)
 
     # Count existing providers
     count_query = f"""
     SELECT COUNT(DISTINCT provider) as provider_count
-    FROM `{settings.gcp_project_id}.{customer_id}.x_meta_cloud_credentials`
+    FROM `{settings.gcp_project_id}.{tenant_id}.x_meta_cloud_credentials`
     WHERE is_active = TRUE
     """
 
@@ -980,7 +980,7 @@ async def create_credential(
 
     # Store credential
     insert_query = f"""
-    INSERT INTO `{settings.gcp_project_id}.{customer_id}.x_meta_cloud_credentials`
+    INSERT INTO `{settings.gcp_project_id}.{tenant_id}.x_meta_cloud_credentials`
     (credential_id, provider, credential_type, encrypted_value, created_at, updated_at, is_active)
     VALUES
     (@credential_id, @provider, @credential_type, @encrypted_value, CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP(), TRUE)
@@ -998,7 +998,7 @@ async def create_credential(
         )
     ).result()
 
-    logger.info(f"Created credential {credential_id} for customer {customer_id}")
+    logger.info(f"Created credential {credential_id} for customer {tenant_id}")
 
     return CredentialMetadata(
         credential_id=credential_id,
@@ -1012,18 +1012,18 @@ async def create_credential(
 
 
 @router.get(
-    "/api/v1/customers/{customer_id}/credentials",
+    "/api/v1/tenants/{tenant_id}/credentials",
     response_model=List[CredentialMetadata],
     summary="List credentials",
     description="List all credentials (metadata only, no secrets)"
 )
 async def list_credentials(
-    customer_id: str,
+    tenant_id: str,
     tenant: TenantContext = Depends(verify_api_key_header),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """List all credentials (metadata only, no secrets)."""
-    if customer_id != tenant.tenant_id:
+    if tenant_id != tenant.tenant_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot list other customer's credentials"
@@ -1037,7 +1037,7 @@ async def list_credentials(
         created_at,
         updated_at,
         is_active
-    FROM `{settings.gcp_project_id}.{customer_id}.x_meta_cloud_credentials`
+    FROM `{settings.gcp_project_id}.{tenant_id}.x_meta_cloud_credentials`
     ORDER BY created_at DESC
     """
 
@@ -1058,19 +1058,19 @@ async def list_credentials(
 
 
 @router.get(
-    "/api/v1/customers/{customer_id}/credentials/{credential_id}",
+    "/api/v1/tenants/{tenant_id}/credentials/{credential_id}",
     response_model=CredentialMetadata,
     summary="Get credential",
     description="Get specific credential metadata"
 )
 async def get_credential(
-    customer_id: str,
+    tenant_id: str,
     credential_id: str,
     tenant: TenantContext = Depends(verify_api_key_header),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """Get specific credential metadata."""
-    if customer_id != tenant.tenant_id:
+    if tenant_id != tenant.tenant_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot access other customer's credentials"
@@ -1084,7 +1084,7 @@ async def get_credential(
         created_at,
         updated_at,
         is_active
-    FROM `{settings.gcp_project_id}.{customer_id}.x_meta_cloud_credentials`
+    FROM `{settings.gcp_project_id}.{tenant_id}.x_meta_cloud_credentials`
     WHERE credential_id = @credential_id
     LIMIT 1
     """
@@ -1117,20 +1117,20 @@ async def get_credential(
 
 
 @router.put(
-    "/api/v1/customers/{customer_id}/credentials/{credential_id}",
+    "/api/v1/tenants/{tenant_id}/credentials/{credential_id}",
     response_model=CredentialMetadata,
     summary="Update credential",
     description="Update credential"
 )
 async def update_credential(
-    customer_id: str,
+    tenant_id: str,
     credential_id: str,
     request: UpdateCredentialRequest,
     tenant: TenantContext = Depends(verify_api_key_header),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """Update credential."""
-    if customer_id != tenant.tenant_id:
+    if tenant_id != tenant.tenant_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot update other customer's credentials"
@@ -1153,7 +1153,7 @@ async def update_credential(
         params.append(bigquery.ScalarQueryParameter("is_active", "BOOL", request.is_active))
 
     update_query = f"""
-    UPDATE `{settings.gcp_project_id}.{customer_id}.x_meta_cloud_credentials`
+    UPDATE `{settings.gcp_project_id}.{tenant_id}.x_meta_cloud_credentials`
     SET {', '.join(updates)}
     WHERE credential_id = @credential_id
     """
@@ -1170,31 +1170,31 @@ async def update_credential(
             detail=f"Credential {credential_id} not found"
         )
 
-    logger.info(f"Updated credential {credential_id} for customer {customer_id}")
+    logger.info(f"Updated credential {credential_id} for customer {tenant_id}")
 
-    return await get_credential(customer_id, credential_id, tenant, bq_client)
+    return await get_credential(tenant_id, credential_id, tenant, bq_client)
 
 
 @router.delete(
-    "/api/v1/customers/{customer_id}/credentials/{credential_id}",
+    "/api/v1/tenants/{tenant_id}/credentials/{credential_id}",
     summary="Delete credential",
     description="Delete credential"
 )
 async def delete_credential(
-    customer_id: str,
+    tenant_id: str,
     credential_id: str,
     tenant: TenantContext = Depends(verify_api_key_header),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """Delete credential."""
-    if customer_id != tenant.tenant_id:
+    if tenant_id != tenant.tenant_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot delete other customer's credentials"
         )
 
     delete_query = f"""
-    DELETE FROM `{settings.gcp_project_id}.{customer_id}.x_meta_cloud_credentials`
+    DELETE FROM `{settings.gcp_project_id}.{tenant_id}.x_meta_cloud_credentials`
     WHERE credential_id = @credential_id
     """
 
@@ -1214,7 +1214,7 @@ async def delete_credential(
             detail=f"Credential {credential_id} not found"
         )
 
-    logger.info(f"Deleted credential {credential_id} for customer {customer_id}")
+    logger.info(f"Deleted credential {credential_id} for customer {tenant_id}")
 
     return {"message": f"Credential {credential_id} deleted successfully"}
 
@@ -1224,28 +1224,28 @@ async def delete_credential(
 # ============================================
 
 @router.post(
-    "/api/v1/customers/{customer_id}/validate",
+    "/api/v1/tenants/{tenant_id}/validate",
     response_model=ValidateCustomerResponse,
     summary="Validate before pipeline run",
     description="Check if customer can run pipeline (quota, subscription, API key)"
 )
 async def validate_customer(
-    customer_id: str,
+    tenant_id: str,
     request: ValidateCustomerRequest,
     tenant: TenantContext = Depends(verify_api_key_header),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """Validate before pipeline run."""
-    if customer_id != tenant.tenant_id:
+    if tenant_id != tenant.tenant_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Cannot validate other customers"
+            detail="Cannot validate other tenants"
         )
 
     errors = []
 
     # Check subscription
-    subscription = await get_subscription(customer_id, tenant, bq_client)
+    subscription = await get_subscription(tenant_id, tenant, bq_client)
 
     if not subscription.is_active:
         errors.append("Subscription is not active")
@@ -1267,21 +1267,21 @@ async def validate_customer(
 
 
 @router.get(
-    "/api/v1/customers/{customer_id}/usage",
+    "/api/v1/tenants/{tenant_id}/usage",
     summary="Get usage statistics",
-    description="Get current usage statistics from customers.customer_usage_quotas"
+    description="Get current usage statistics from tenants.customer_usage_quotas"
 )
 async def get_usage_statistics(
-    customer_id: str,
+    tenant_id: str,
     tenant: TenantContext = Depends(verify_api_key_header),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """
-    Get customer's current usage statistics from customers.customer_usage_quotas.
+    Get customer's current usage statistics from tenants.customer_usage_quotas.
 
     Returns pipelines run today/month, concurrent pipelines, and quota information.
     """
-    if customer_id != tenant.tenant_id:
+    if tenant_id != tenant.tenant_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot access other customer's usage"
@@ -1294,7 +1294,7 @@ async def get_usage_statistics(
     query = f"""
     SELECT
         usage_id,
-        customer_id,
+        tenant_id,
         usage_date,
         pipelines_run_today,
         pipelines_failed_today,
@@ -1307,8 +1307,8 @@ async def get_usage_statistics(
         quota_exceeded,
         last_pipeline_started_at,
         last_pipeline_completed_at
-    FROM `{settings.gcp_project_id}.customers.customer_usage_quotas`
-    WHERE customer_id = @customer_id
+    FROM `{settings.gcp_project_id}.tenants.customer_usage_quotas`
+    WHERE tenant_id = @tenant_id
         AND usage_date = @usage_date
     LIMIT 1
     """
@@ -1318,7 +1318,7 @@ async def get_usage_statistics(
             query,
             job_config=bigquery.QueryJobConfig(
                 query_parameters=[
-                    bigquery.ScalarQueryParameter("customer_id", "STRING", customer_id),
+                    bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
                     bigquery.ScalarQueryParameter("usage_date", "DATE", today)
                 ]
             )
@@ -1326,9 +1326,9 @@ async def get_usage_statistics(
 
         if not results:
             # Return empty usage if no record exists
-            subscription = await get_subscription_info(customer_id, tenant, bq_client)
+            subscription = await get_subscription_info(tenant_id, tenant, bq_client)
             return {
-                "customer_id": customer_id,
+                "tenant_id": tenant_id,
                 "usage_date": today,
                 "pipelines_run_today": 0,
                 "pipelines_failed_today": 0,
@@ -1351,7 +1351,7 @@ async def get_usage_statistics(
         row = results[0]
 
         return {
-            "customer_id": row["customer_id"],
+            "tenant_id": row["tenant_id"],
             "usage_date": row["usage_date"],
             "pipelines_run_today": row["pipelines_run_today"],
             "pipelines_failed_today": row.get("pipelines_failed_today", 0),
@@ -1376,7 +1376,7 @@ async def get_usage_statistics(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to retrieve usage for {customer_id}: {e}", exc_info=True)
+        logger.error(f"Failed to retrieve usage for {tenant_id}: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve usage: {str(e)}"
@@ -1384,12 +1384,12 @@ async def get_usage_statistics(
 
 
 @router.get(
-    "/api/v1/customers/{customer_id}/limits",
+    "/api/v1/tenants/{tenant_id}/limits",
     summary="Get subscription limits",
     description="Get subscription limits and current usage counts"
 )
 async def get_limits(
-    customer_id: str,
+    tenant_id: str,
     tenant: TenantContext = Depends(verify_api_key_header),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
@@ -1398,28 +1398,28 @@ async def get_limits(
 
     Returns limits for team members, providers, and pipeline executions.
     """
-    if customer_id != tenant.tenant_id:
+    if tenant_id != tenant.tenant_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot access other customer's limits"
         )
 
     # Get subscription limits
-    subscription = await get_subscription_info(customer_id, tenant, bq_client)
+    subscription = await get_subscription_info(tenant_id, tenant, bq_client)
 
     # Get current usage counts
     usage_query = f"""
     SELECT
-        (SELECT COUNT(*) FROM `{settings.gcp_project_id}.customers.customer_team_members`
-         WHERE customer_id = @customer_id AND status IN ('ACTIVE', 'INVITED')) as team_members_count,
-        (SELECT COUNT(DISTINCT provider) FROM `{settings.gcp_project_id}.customers.customer_cloud_credentials`
-         WHERE customer_id = @customer_id AND is_active = TRUE) as providers_count,
-        (SELECT pipelines_run_today FROM `{settings.gcp_project_id}.customers.customer_usage_quotas`
-         WHERE customer_id = @customer_id AND usage_date = CURRENT_DATE() LIMIT 1) as pipelines_today,
-        (SELECT pipelines_run_month FROM `{settings.gcp_project_id}.customers.customer_usage_quotas`
-         WHERE customer_id = @customer_id AND usage_date = CURRENT_DATE() LIMIT 1) as pipelines_month,
-        (SELECT concurrent_pipelines_running FROM `{settings.gcp_project_id}.customers.customer_usage_quotas`
-         WHERE customer_id = @customer_id AND usage_date = CURRENT_DATE() LIMIT 1) as concurrent_running
+        (SELECT COUNT(*) FROM `{settings.gcp_project_id}.tenants.customer_team_members`
+         WHERE tenant_id = @tenant_id AND status IN ('ACTIVE', 'INVITED')) as team_members_count,
+        (SELECT COUNT(DISTINCT provider) FROM `{settings.gcp_project_id}.tenants.customer_cloud_credentials`
+         WHERE tenant_id = @tenant_id AND is_active = TRUE) as providers_count,
+        (SELECT pipelines_run_today FROM `{settings.gcp_project_id}.tenants.customer_usage_quotas`
+         WHERE tenant_id = @tenant_id AND usage_date = CURRENT_DATE() LIMIT 1) as pipelines_today,
+        (SELECT pipelines_run_month FROM `{settings.gcp_project_id}.tenants.customer_usage_quotas`
+         WHERE tenant_id = @tenant_id AND usage_date = CURRENT_DATE() LIMIT 1) as pipelines_month,
+        (SELECT concurrent_pipelines_running FROM `{settings.gcp_project_id}.tenants.customer_usage_quotas`
+         WHERE tenant_id = @tenant_id AND usage_date = CURRENT_DATE() LIMIT 1) as concurrent_running
     """
 
     try:
@@ -1427,7 +1427,7 @@ async def get_limits(
             usage_query,
             job_config=bigquery.QueryJobConfig(
                 query_parameters=[
-                    bigquery.ScalarQueryParameter("customer_id", "STRING", customer_id)
+                    bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id)
                 ]
             )
         ).result())
@@ -1435,7 +1435,7 @@ async def get_limits(
         usage = usage_results[0] if usage_results else {}
 
         return {
-            "customer_id": customer_id,
+            "tenant_id": tenant_id,
             "subscription_plan": subscription["plan_name"],
             "limits": subscription["limits"],
             "current_usage": {
@@ -1456,7 +1456,7 @@ async def get_limits(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to retrieve limits for {customer_id}: {e}", exc_info=True)
+        logger.error(f"Failed to retrieve limits for {tenant_id}: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve limits: {str(e)}"
@@ -1464,12 +1464,12 @@ async def get_limits(
 
 
 @router.put(
-    "/api/v1/customers/{customer_id}/limits",
+    "/api/v1/tenants/{tenant_id}/limits",
     summary="Update subscription limits (admin only)",
     description="Update custom limits for customer (requires admin privileges)"
 )
 async def update_limits(
-    customer_id: str,
+    tenant_id: str,
     request: UpdateLimitsRequest,
     tenant: TenantContext = Depends(verify_api_key_header),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
@@ -1479,17 +1479,17 @@ async def update_limits(
 
     This is an admin-only operation for providing custom limits beyond standard plans.
     """
-    from src.app.models.customer_models import UpdateLimitsRequest
+    from src.app.models.tenant_models import UpdateLimitsRequest
 
-    if customer_id != tenant.tenant_id:
+    if tenant_id != tenant.tenant_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Cannot update limits for other customers"
+            detail="Cannot update limits for other tenants"
         )
 
     # Build dynamic update query
     updates = ["updated_at = CURRENT_TIMESTAMP()"]
-    params = [bigquery.ScalarQueryParameter("customer_id", "STRING", customer_id)]
+    params = [bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id)]
 
     if request.max_team_members is not None:
         updates.append("max_team_members = @max_team_members")
@@ -1518,9 +1518,9 @@ async def update_limits(
         )
 
     update_query = f"""
-    UPDATE `{settings.gcp_project_id}.customers.customer_subscriptions`
+    UPDATE `{settings.gcp_project_id}.tenants.customer_subscriptions`
     SET {', '.join(updates)}
-    WHERE customer_id = @customer_id
+    WHERE tenant_id = @tenant_id
         AND status = 'ACTIVE'
     """
 
@@ -1534,18 +1534,18 @@ async def update_limits(
         if job.num_dml_affected_rows == 0:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"No active subscription found for customer {customer_id}"
+                detail=f"No active subscription found for customer {tenant_id}"
             )
 
-        logger.info(f"Custom limits updated for customer {customer_id}")
+        logger.info(f"Custom limits updated for customer {tenant_id}")
 
         # Return updated limits
-        return await get_limits(customer_id, tenant, bq_client)
+        return await get_limits(tenant_id, tenant, bq_client)
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to update limits for {customer_id}: {e}", exc_info=True)
+        logger.error(f"Failed to update limits for {tenant_id}: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to update limits: {str(e)}"
@@ -1559,20 +1559,20 @@ async def update_limits(
 # a separate table. Implement when needed.
 
 @router.post(
-    "/api/v1/customers/{customer_id}/provider-configs",
+    "/api/v1/tenants/{tenant_id}/provider-configs",
     summary="Create provider config (stub)",
     description="Setup provider-specific pipeline config"
 )
 async def create_provider_config(
-    customer_id: str,
+    tenant_id: str,
     request: CreateProviderConfigRequest,
     tenant: TenantContext = Depends(verify_api_key_header)
 ):
     """Create provider config (stub - implement with dedicated table)."""
-    if customer_id != tenant.tenant_id:
+    if tenant_id != tenant.tenant_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Cannot create configs for other customers"
+            detail="Cannot create configs for other tenants"
         )
 
     return {
@@ -1582,16 +1582,16 @@ async def create_provider_config(
 
 
 @router.get(
-    "/api/v1/customers/{customer_id}/provider-configs",
+    "/api/v1/tenants/{tenant_id}/provider-configs",
     summary="List provider configs (stub)",
     description="List all provider configs"
 )
 async def list_provider_configs(
-    customer_id: str,
+    tenant_id: str,
     tenant: TenantContext = Depends(verify_api_key_header)
 ):
     """List provider configs (stub)."""
-    if customer_id != tenant.tenant_id:
+    if tenant_id != tenant.tenant_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot list other customer's configs"
@@ -1601,18 +1601,18 @@ async def list_provider_configs(
 
 
 @router.put(
-    "/api/v1/customers/{customer_id}/provider-configs/{config_id}",
+    "/api/v1/tenants/{tenant_id}/provider-configs/{config_id}",
     summary="Update provider config (stub)",
     description="Update provider config"
 )
 async def update_provider_config(
-    customer_id: str,
+    tenant_id: str,
     config_id: str,
     request: UpdateProviderConfigRequest,
     tenant: TenantContext = Depends(verify_api_key_header)
 ):
     """Update provider config (stub)."""
-    if customer_id != tenant.tenant_id:
+    if tenant_id != tenant.tenant_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot update other customer's configs"
@@ -1626,17 +1626,17 @@ async def update_provider_config(
 # ============================================
 
 @router.get(
-    "/api/v1/customers/{customer_id}/team",
+    "/api/v1/tenants/{tenant_id}/team",
     summary="List team members",
-    description="Get all team members for customer from customers.customer_team_members"
+    description="Get all team members for customer from tenants.customer_team_members"
 )
 async def list_team_members(
-    customer_id: str,
+    tenant_id: str,
     tenant: TenantContext = Depends(verify_api_key_header),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """List all team members for the customer."""
-    if customer_id != tenant.tenant_id:
+    if tenant_id != tenant.tenant_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot list other customer's team"
@@ -1645,7 +1645,7 @@ async def list_team_members(
     query = f"""
     SELECT
         member_id,
-        customer_id,
+        tenant_id,
         email,
         full_name,
         role,
@@ -1656,8 +1656,8 @@ async def list_team_members(
         joined_at,
         last_login_at,
         is_active
-    FROM `{settings.gcp_project_id}.customers.customer_team_members`
-    WHERE customer_id = @customer_id
+    FROM `{settings.gcp_project_id}.tenants.customer_team_members`
+    WHERE tenant_id = @tenant_id
         AND status != 'REMOVED'
     ORDER BY invited_at DESC
     """
@@ -1667,7 +1667,7 @@ async def list_team_members(
             query,
             job_config=bigquery.QueryJobConfig(
                 query_parameters=[
-                    bigquery.ScalarQueryParameter("customer_id", "STRING", customer_id)
+                    bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id)
                 ]
             )
         ).result()
@@ -1676,7 +1676,7 @@ async def list_team_members(
         for row in results:
             members.append({
                 "member_id": row["member_id"],
-                "customer_id": row["customer_id"],
+                "tenant_id": row["tenant_id"],
                 "email": row["email"],
                 "full_name": row.get("full_name"),
                 "role": row["role"],
@@ -1692,7 +1692,7 @@ async def list_team_members(
         return {"team_members": members, "total_count": len(members)}
 
     except Exception as e:
-        logger.error(f"Failed to list team members for {customer_id}: {e}", exc_info=True)
+        logger.error(f"Failed to list team members for {tenant_id}: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to list team members: {str(e)}"
@@ -1700,12 +1700,12 @@ async def list_team_members(
 
 
 @router.post(
-    "/api/v1/customers/{customer_id}/team/invite",
+    "/api/v1/tenants/{tenant_id}/team/invite",
     summary="Invite team member",
     description="Send invitation to new team member"
 )
 async def invite_team_member(
-    customer_id: str,
+    tenant_id: str,
     request: InviteTeamMemberRequest,
     tenant: TenantContext = Depends(verify_api_key_header),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
@@ -1713,21 +1713,21 @@ async def invite_team_member(
     """
     Invite a new team member to the customer account.
 
-    Creates entry in customers.customer_team_members with INVITED status.
+    Creates entry in tenants.customer_team_members with INVITED status.
     """
-    from src.app.models.customer_models import SUBSCRIPTION_LIMITS
+    from src.app.models.tenant_models import SUBSCRIPTION_LIMITS
 
-    if customer_id != tenant.tenant_id:
+    if tenant_id != tenant.tenant_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Cannot invite team members for other customers"
+            detail="Cannot invite team members for other tenants"
         )
 
     # Check if email already exists
     check_query = f"""
     SELECT COUNT(*) as count
-    FROM `{settings.gcp_project_id}.customers.customer_team_members`
-    WHERE customer_id = @customer_id
+    FROM `{settings.gcp_project_id}.tenants.customer_team_members`
+    WHERE tenant_id = @tenant_id
         AND email = @email
         AND status != 'REMOVED'
     """
@@ -1736,7 +1736,7 @@ async def invite_team_member(
         check_query,
         job_config=bigquery.QueryJobConfig(
             query_parameters=[
-                bigquery.ScalarQueryParameter("customer_id", "STRING", customer_id),
+                bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
                 bigquery.ScalarQueryParameter("email", "STRING", request.email)
             ]
         )
@@ -1751,8 +1751,8 @@ async def invite_team_member(
     # Check team member limit
     count_query = f"""
     SELECT COUNT(*) as count
-    FROM `{settings.gcp_project_id}.customers.customer_team_members`
-    WHERE customer_id = @customer_id
+    FROM `{settings.gcp_project_id}.tenants.customer_team_members`
+    WHERE tenant_id = @tenant_id
         AND status IN ('ACTIVE', 'INVITED')
     """
 
@@ -1760,7 +1760,7 @@ async def invite_team_member(
         count_query,
         job_config=bigquery.QueryJobConfig(
             query_parameters=[
-                bigquery.ScalarQueryParameter("customer_id", "STRING", customer_id)
+                bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id)
             ]
         )
     ).result())
@@ -1768,7 +1768,7 @@ async def invite_team_member(
     current_count = count_result[0]["count"] if count_result else 0
 
     # Get subscription limits
-    subscription = await get_subscription_info(customer_id, tenant, bq_client)
+    subscription = await get_subscription_info(tenant_id, tenant, bq_client)
     max_members = subscription["limits"]["max_team_members"]
 
     if current_count >= max_members:
@@ -1783,11 +1783,11 @@ async def invite_team_member(
 
     # Insert team member
     insert_query = f"""
-    INSERT INTO `{settings.gcp_project_id}.customers.customer_team_members`
-    (member_id, customer_id, email, full_name, role, permissions, status,
+    INSERT INTO `{settings.gcp_project_id}.tenants.customer_team_members`
+    (member_id, tenant_id, email, full_name, role, permissions, status,
      invited_by, invited_at, invitation_token, invitation_expires_at, is_active)
     VALUES
-    (@member_id, @customer_id, @email, @full_name, @role, @permissions, 'INVITED',
+    (@member_id, @tenant_id, @email, @full_name, @role, @permissions, 'INVITED',
      @invited_by, CURRENT_TIMESTAMP(), @invitation_token,
      TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL 7 DAY), TRUE)
     """
@@ -1798,7 +1798,7 @@ async def invite_team_member(
             job_config=bigquery.QueryJobConfig(
                 query_parameters=[
                     bigquery.ScalarQueryParameter("member_id", "STRING", member_id),
-                    bigquery.ScalarQueryParameter("customer_id", "STRING", customer_id),
+                    bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
                     bigquery.ScalarQueryParameter("email", "STRING", request.email),
                     bigquery.ScalarQueryParameter("full_name", "STRING", request.full_name),
                     bigquery.ScalarQueryParameter("role", "STRING", request.role.value),
@@ -1809,7 +1809,7 @@ async def invite_team_member(
             )
         ).result()
 
-        logger.info(f"Team member invited: {request.email} to customer {customer_id}")
+        logger.info(f"Team member invited: {request.email} to customer {tenant_id}")
 
         return {
             "member_id": member_id,
@@ -1821,7 +1821,7 @@ async def invite_team_member(
         }
 
     except Exception as e:
-        logger.error(f"Failed to invite team member for {customer_id}: {e}", exc_info=True)
+        logger.error(f"Failed to invite team member for {tenant_id}: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to invite team member: {str(e)}"
@@ -1829,19 +1829,19 @@ async def invite_team_member(
 
 
 @router.put(
-    "/api/v1/customers/{customer_id}/team/{member_id}",
+    "/api/v1/tenants/{tenant_id}/team/{member_id}",
     summary="Update team member",
     description="Update team member role, permissions, or details"
 )
 async def update_team_member(
-    customer_id: str,
+    tenant_id: str,
     member_id: str,
     request: UpdateTeamMemberRequest,
     tenant: TenantContext = Depends(verify_api_key_header),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """Update team member role, permissions, or other details."""
-    if customer_id != tenant.tenant_id:
+    if tenant_id != tenant.tenant_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot update other customer's team"
@@ -1850,7 +1850,7 @@ async def update_team_member(
     # Build dynamic update query
     updates = ["updated_at = CURRENT_TIMESTAMP()"]
     params = [
-        bigquery.ScalarQueryParameter("customer_id", "STRING", customer_id),
+        bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
         bigquery.ScalarQueryParameter("member_id", "STRING", member_id)
     ]
 
@@ -1867,9 +1867,9 @@ async def update_team_member(
         params.append(bigquery.ScalarQueryParameter("full_name", "STRING", request.full_name))
 
     update_query = f"""
-    UPDATE `{settings.gcp_project_id}.customers.customer_team_members`
+    UPDATE `{settings.gcp_project_id}.tenants.customer_team_members`
     SET {', '.join(updates)}
-    WHERE customer_id = @customer_id
+    WHERE tenant_id = @tenant_id
         AND member_id = @member_id
     """
 
@@ -1886,13 +1886,13 @@ async def update_team_member(
                 detail=f"Team member {member_id} not found"
             )
 
-        logger.info(f"Team member {member_id} updated for customer {customer_id}")
+        logger.info(f"Team member {member_id} updated for customer {tenant_id}")
 
         # Return updated member
         get_query = f"""
         SELECT member_id, email, full_name, role, permissions, status
-        FROM `{settings.gcp_project_id}.customers.customer_team_members`
-        WHERE customer_id = @customer_id AND member_id = @member_id
+        FROM `{settings.gcp_project_id}.tenants.customer_team_members`
+        WHERE tenant_id = @tenant_id AND member_id = @member_id
         LIMIT 1
         """
 
@@ -1900,7 +1900,7 @@ async def update_team_member(
             get_query,
             job_config=bigquery.QueryJobConfig(
                 query_parameters=[
-                    bigquery.ScalarQueryParameter("customer_id", "STRING", customer_id),
+                    bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
                     bigquery.ScalarQueryParameter("member_id", "STRING", member_id)
                 ]
             )
@@ -1930,31 +1930,31 @@ async def update_team_member(
 
 
 @router.delete(
-    "/api/v1/customers/{customer_id}/team/{member_id}",
+    "/api/v1/tenants/{tenant_id}/team/{member_id}",
     summary="Remove team member",
     description="Remove team member from customer account"
 )
 async def remove_team_member(
-    customer_id: str,
+    tenant_id: str,
     member_id: str,
     tenant: TenantContext = Depends(verify_api_key_header),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """Remove team member by setting status to REMOVED."""
-    if customer_id != tenant.tenant_id:
+    if tenant_id != tenant.tenant_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Cannot remove team members from other customers"
+            detail="Cannot remove team members from other tenants"
         )
 
     update_query = f"""
-    UPDATE `{settings.gcp_project_id}.customers.customer_team_members`
+    UPDATE `{settings.gcp_project_id}.tenants.customer_team_members`
     SET
         status = 'REMOVED',
         is_active = FALSE,
         removed_at = CURRENT_TIMESTAMP(),
         removed_by = @removed_by
-    WHERE customer_id = @customer_id
+    WHERE tenant_id = @tenant_id
         AND member_id = @member_id
         AND status != 'REMOVED'
     """
@@ -1964,7 +1964,7 @@ async def remove_team_member(
             update_query,
             job_config=bigquery.QueryJobConfig(
                 query_parameters=[
-                    bigquery.ScalarQueryParameter("customer_id", "STRING", customer_id),
+                    bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
                     bigquery.ScalarQueryParameter("member_id", "STRING", member_id),
                     bigquery.ScalarQueryParameter("removed_by", "STRING", "api")  # TODO: Get from auth context
                 ]
@@ -1978,7 +1978,7 @@ async def remove_team_member(
                 detail=f"Team member {member_id} not found or already removed"
             )
 
-        logger.info(f"Team member {member_id} removed from customer {customer_id}")
+        logger.info(f"Team member {member_id} removed from customer {tenant_id}")
 
         return {"message": f"Team member {member_id} removed successfully"}
 

@@ -39,14 +39,14 @@ API_BASE_URL = get_api_base_url()
 
 # Customer configurations
 CUSTOMER_1 = {
-    "customer_id": "acme_corp",
+    "tenant_id": "acme_corp",
     "company_name": "Acme Corporation",
     "admin_email": "admin@acme.com",
     "subscription_plan": "PROFESSIONAL"
 }
 
 CUSTOMER_2 = {
-    "customer_id": "globex_inc",
+    "tenant_id": "globex_inc",
     "company_name": "Globex Industries",
     "admin_email": "admin@globex.com",
     "subscription_plan": "SCALE"
@@ -112,10 +112,10 @@ async def onboard_customer(customer_data: Dict[str, str]) -> Dict[str, Any]:
     Onboard a new customer and return API key and metadata.
 
     Args:
-        customer_data: Customer information (customer_id, company_name, etc.)
+        customer_data: Customer information (tenant_id, company_name, etc.)
 
     Returns:
-        Dict containing customer_id, api_key, dataset_id, status
+        Dict containing tenant_id, api_key, dataset_id, status
     """
     async with httpx.AsyncClient(timeout=30.0) as client:
         response = await client.post(
@@ -200,7 +200,7 @@ async def add_azure_credentials(api_key: str) -> Dict[str, Any]:
 
 
 async def configure_pipeline(
-    customer_id: str,
+    tenant_id: str,
     api_key: str,
     provider: str,
     domain: str,
@@ -214,7 +214,7 @@ async def configure_pipeline(
     to store pipeline configurations with schedule information in BigQuery.
 
     Args:
-        customer_id: Customer identifier
+        tenant_id: Customer identifier
         api_key: API key for authentication
         provider: Cloud provider (GCP, AWS, AZURE, OPENAI)
         domain: Domain category (COST, SECURITY, COMPLIANCE, OBSERVABILITY)
@@ -227,8 +227,8 @@ async def configure_pipeline(
     # Mock configuration - in production this would call an API endpoint
     # POST /api/v1/customers/pipelines/configure
     config = {
-        "config_id": f"cfg_{customer_id}_{provider}_{domain}_{template_name}",
-        "customer_id": customer_id,
+        "config_id": f"cfg_{tenant_id}_{provider}_{domain}_{template_name}",
+        "tenant_id": tenant_id,
         "provider": provider,
         "domain": domain,
         "template_name": template_name,
@@ -332,11 +332,11 @@ async def get_running_pipelines() -> List[Dict[str, Any]]:
     return []
 
 
-async def get_customer_pipeline_status(customer_id: str) -> Dict[str, Any]:
+async def get_customer_pipeline_status(tenant_id: str) -> Dict[str, Any]:
     """Get pipeline status for a customer."""
     # Mock implementation
     return {
-        "customer_id": customer_id,
+        "tenant_id": tenant_id,
         "total_configured": 3,
         "scheduled_today": 2,
         "running": 1,
@@ -367,19 +367,19 @@ async def get_pipeline_config(config_id: str) -> Dict[str, Any]:
     }
 
 
-async def update_subscription_quota(customer_id: str, daily_limit: int) -> None:
+async def update_subscription_quota(tenant_id: str, daily_limit: int) -> None:
     """Update subscription quota for a customer."""
     # Mock implementation
-    print(f"Updated quota for {customer_id}: daily_limit={daily_limit}")
+    print(f"Updated quota for {tenant_id}: daily_limit={daily_limit}")
 
 
-async def get_customer_runs(customer_id: str) -> List[Dict[str, Any]]:
+async def get_customer_runs(tenant_id: str) -> List[Dict[str, Any]]:
     """Get pipeline runs for a customer."""
     # Mock implementation
     return []
 
 
-async def get_skipped_runs(customer_id: str) -> List[Dict[str, Any]]:
+async def get_skipped_runs(tenant_id: str) -> List[Dict[str, Any]]:
     """Get skipped runs due to quota."""
     # Mock implementation
     return []
@@ -397,10 +397,10 @@ async def get_scheduled_retries(run_id: str) -> List[Dict[str, Any]]:
     return []
 
 
-async def delete_customer(customer_id: str) -> None:
+async def delete_customer(tenant_id: str) -> None:
     """Delete a customer and all associated data."""
     # Mock implementation
-    print(f"Deleted customer: {customer_id}")
+    print(f"Deleted customer: {tenant_id}")
 
 
 async def get_customers() -> List[Dict[str, Any]]:
@@ -430,19 +430,19 @@ async def test_1_setup():
     # Onboard Customer 1
     print("\n[1/6] Onboarding acme_corp...")
     customer1_response = await onboard_customer(CUSTOMER_1)
-    assert customer1_response["customer_id"] == "acme_corp"
+    assert customer1_response["tenant_id"] == "acme_corp"
     assert "api_key" in customer1_response
     customer1_api_key = customer1_response["api_key"]
-    print(f"✓ Customer 1 onboarded: {customer1_response['customer_id']}")
+    print(f"✓ Customer 1 onboarded: {customer1_response['tenant_id']}")
     print(f"  API Key: {customer1_api_key[:20]}...")
 
     # Onboard Customer 2
     print("\n[2/6] Onboarding globex_inc...")
     customer2_response = await onboard_customer(CUSTOMER_2)
-    assert customer2_response["customer_id"] == "globex_inc"
+    assert customer2_response["tenant_id"] == "globex_inc"
     assert "api_key" in customer2_response
     customer2_api_key = customer2_response["api_key"]
-    print(f"✓ Customer 2 onboarded: {customer2_response['customer_id']}")
+    print(f"✓ Customer 2 onboarded: {customer2_response['tenant_id']}")
     print(f"  API Key: {customer2_api_key[:20]}...")
 
     # Add credentials for Customer 1
@@ -463,7 +463,7 @@ async def test_1_setup():
     print("\n[5/6] Configuring pipelines for acme_corp...")
     for pipeline in ACME_PIPELINES:
         config = await configure_pipeline(
-            customer_id="acme_corp",
+            tenant_id="acme_corp",
             api_key=customer1_api_key,
             **pipeline
         )
@@ -473,7 +473,7 @@ async def test_1_setup():
     print("\n[6/6] Configuring pipelines for globex_inc...")
     for pipeline in GLOBEX_PIPELINES:
         config = await configure_pipeline(
-            customer_id="globex_inc",
+            tenant_id="globex_inc",
             api_key=customer2_api_key,
             **pipeline
         )
@@ -724,9 +724,9 @@ async def test_8_cleanup():
 
     print("\n[2/3] Verifying cleanup...")
     customers = await get_customers()
-    customer_ids = [c["customer_id"] for c in customers]
-    assert "acme_corp" not in customer_ids
-    assert "globex_inc" not in customer_ids
+    tenant_ids = [c["tenant_id"] for c in customers]
+    assert "acme_corp" not in tenant_ids
+    assert "globex_inc" not in tenant_ids
     print("✓ Customers removed from system")
 
     print("\n[3/3] Cleanup complete!")

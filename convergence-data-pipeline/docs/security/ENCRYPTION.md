@@ -211,12 +211,12 @@ print(f"Encrypted (for storage): {result['encrypted_api_key'][:20]}...")
 
 ### API Key Storage
 
-**BigQuery Table**: `customers_metadata.customer_api_keys`
+**BigQuery Table**: `customers_metadata.tenant_api_keys`
 
 ```sql
-CREATE TABLE customers_metadata.customer_api_keys (
+CREATE TABLE customers_metadata.tenant_api_keys (
   api_key_id STRING NOT NULL,
-  customer_id STRING NOT NULL,
+  tenant_id STRING NOT NULL,
   tenant_id STRING NOT NULL,
   api_key_hash STRING NOT NULL,          -- SHA256 hash (for fast lookup)
   encrypted_api_key BYTES NOT NULL,      -- KMS-encrypted bytes
@@ -379,9 +379,9 @@ print(f"Decrypted project_id: {decrypted['project_id']}")
 
 **Implementation**:
 ```sql
--- Apply row-level security on customer_api_keys
+-- Apply row-level security on tenant_api_keys
 CREATE ROW ACCESS POLICY tenant_isolation_api_keys
-ON customers_metadata.customer_api_keys
+ON customers_metadata.tenant_api_keys
 GRANT TO ('user:*')
 FILTER USING (
   tenant_id IN (
@@ -534,7 +534,7 @@ All security-related events are logged to `customers_metadata.customer_audit_log
 ```sql
 -- Query recent API key usage
 SELECT
-  customer_id,
+  tenant_id,
   tenant_id,
   event_type,
   actor_id,
@@ -624,7 +624,7 @@ HAVING failed_attempts > 5;
 ```bash
 # Backup encrypted API keys
 bq extract --destination_format=NEWLINE_DELIMITED_JSON \
-  customers_metadata.customer_api_keys \
+  customers_metadata.tenant_api_keys \
   gs://convergence-backup/api-keys/backup-$(date +%Y%m%d).json
 
 # Backup encrypted credentials
@@ -643,7 +643,7 @@ bq extract --destination_format=NEWLINE_DELIMITED_JSON \
 
 ## Related Documentation
 
-- [Customer Management Architecture](../architecture/CUSTOMER_MANAGEMENT.md)
+- [Customer Management Architecture](../architecture/TENANT_MANAGEMENT.md)
 - [API Reference](../api/CUSTOMER_API_REFERENCE.md)
 - [Environment Variables](../reference/ENVIRONMENT_VARIABLES.md)
 - [Migration Guide](../guides/MIGRATION_GUIDE.md)

@@ -171,15 +171,15 @@ async def main():
         print()
 
         # Collect API keys
-        customer_api_keys = {}
+        tenant_api_keys = {}
         for tenant_id, response_data, success in onboarding_results:
             if success and 'api_key' in response_data:
-                customer_api_keys[tenant_id] = response_data['api_key']
+                tenant_api_keys[tenant_id] = response_data['api_key']
                 print(f"{Colors.YELLOW}[DEBUG] Stored API key for {tenant_id}: {response_data['api_key'][:30]}...{Colors.NC}")
 
         # Debug: Print all collected API keys
-        print(f"{Colors.YELLOW}[DEBUG] Total API keys collected: {len(customer_api_keys)}{Colors.NC}")
-        for tid, key in customer_api_keys.items():
+        print(f"{Colors.YELLOW}[DEBUG] Total API keys collected: {len(tenant_api_keys)}{Colors.NC}")
+        for tid, key in tenant_api_keys.items():
             print(f"{Colors.YELLOW}[DEBUG] {tid} -> {key[:30]}...{Colors.NC}")
 
         # Small delay to ensure all responses are processed
@@ -193,8 +193,8 @@ async def main():
 
         pipeline_results = []
         for tenant_id in CUSTOMERS:
-            if tenant_id in customer_api_keys:
-                result = await run_sample_pipeline(tenant_id, customer_api_keys[tenant_id])
+            if tenant_id in tenant_api_keys:
+                result = await run_sample_pipeline(tenant_id, tenant_api_keys[tenant_id])
                 pipeline_results.append(result)
             else:
                 print(f"{Colors.RED}[{tenant_id}] ✗ Skipping pipeline test (no API key){Colors.NC}")

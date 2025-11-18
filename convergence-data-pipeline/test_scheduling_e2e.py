@@ -171,7 +171,7 @@ def check_queue_status():
     query = f"""
     SELECT
         queue_id,
-        customer_id,
+        tenant_id,
         pipeline_template,
         priority,
         state,
@@ -187,7 +187,7 @@ def check_queue_status():
 
     print(f"Found {len(items)} queue items:")
     for item in items:
-        print(f"  - {item['customer_id']}: {item['pipeline_template']} [{item['state']}]")
+        print(f"  - {item['tenant_id']}: {item['pipeline_template']} [{item['state']}]")
 
     return items
 
@@ -200,7 +200,7 @@ def check_scheduled_runs():
     query = f"""
     SELECT
         run_id,
-        customer_id,
+        tenant_id,
         pipeline_template,
         state,
         scheduled_time,
@@ -216,7 +216,7 @@ def check_scheduled_runs():
 
     print(f"Found {len(runs)} scheduled runs:")
     for run in runs:
-        print(f"  - {run['customer_id']}: {run['pipeline_template']} [{run['state']}]")
+        print(f"  - {run['tenant_id']}: {run['pipeline_template']} [{run['state']}]")
 
     return runs
 
@@ -229,15 +229,15 @@ def check_pipeline_configs():
     query = f"""
     SELECT
         config_id,
-        customer_id,
+        tenant_id,
         pipeline_name,
         is_active,
         schedule_cron,
         next_run_time,
         last_run_status
-    FROM `{PROJECT_ID}.{DATASET}.customer_pipeline_configs`
+    FROM `{PROJECT_ID}.{DATASET}.tenant_pipeline_configs`
     WHERE is_active = TRUE
-    ORDER BY customer_id, pipeline_name
+    ORDER BY tenant_id, pipeline_name
     """
 
     results = client.query(query).result()
@@ -245,7 +245,7 @@ def check_pipeline_configs():
 
     print(f"Found {len(configs)} active pipeline configs:")
     for config in configs:
-        print(f"  - {config['customer_id']}: {config['pipeline_name']}")
+        print(f"  - {config['tenant_id']}: {config['pipeline_name']}")
         print(f"    Schedule: {config['schedule_cron']}")
         print(f"    Next run: {config['next_run_time']}")
 
@@ -259,19 +259,19 @@ def cleanup_test_data():
 
     # Delete from all tables
     tables = [
-        "customer_pipeline_configs",
+        "tenant_pipeline_configs",
         "scheduled_pipeline_runs",
         "pipeline_execution_queue",
         "customer_usage",
-        "customer_api_keys",
-        "customer_subscriptions",
+        "tenant_api_keys",
+        "tenant_subscriptions",
         "customers"
     ]
 
     for table in tables:
         query = f"""
         DELETE FROM `{PROJECT_ID}.{DATASET}.{table}`
-        WHERE customer_id IN ('acme_test_sched', 'globex_test_sched')
+        WHERE tenant_id IN ('acme_test_sched', 'globex_test_sched')
         """
         try:
             client.query(query).result()

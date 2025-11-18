@@ -99,17 +99,17 @@ class PipelineStateManager:
         self.client = bq_client
         self.project_id = settings.gcp_project_id
 
-    def _get_scheduled_runs_table(self, customer_id: str) -> str:
+    def _get_scheduled_runs_table(self, tenant_id: str) -> str:
         """
         Get fully qualified scheduled runs table name.
 
         Args:
-            customer_id: Customer/tenant identifier
+            tenant_id: Customer/tenant identifier
 
         Returns:
             Fully qualified table name
         """
-        dataset = settings.get_tenant_dataset_name(customer_id)
+        dataset = settings.get_tenant_dataset_name(tenant_id)
         return f"{self.project_id}.{dataset}.x_meta_scheduled_runs"
 
     @tenacity_retry(
@@ -119,7 +119,7 @@ class PipelineStateManager:
     )
     async def create_scheduled_run(
         self,
-        customer_id: str,
+        tenant_id: str,
         config_id: str,
         scheduled_time: datetime
     ) -> str:
@@ -127,7 +127,7 @@ class PipelineStateManager:
         Create a new scheduled pipeline run record.
 
         Args:
-            customer_id: Customer/tenant identifier
+            tenant_id: Customer/tenant identifier
             config_id: Pipeline configuration ID
             scheduled_time: When the pipeline should run
 
@@ -135,11 +135,11 @@ class PipelineStateManager:
             run_id: Unique identifier for this scheduled run
         """
         run_id = str(uuid.uuid4())
-        table_id = self._get_scheduled_runs_table(customer_id)
+        table_id = self._get_scheduled_runs_table(tenant_id)
 
         row = {
             "run_id": run_id,
-            "customer_id": customer_id,
+            "tenant_id": tenant_id,
             "config_id": config_id,
             "state": PipelineState.SCHEDULED.value,
             "scheduled_time": scheduled_time.isoformat(),
@@ -164,14 +164,14 @@ class PipelineStateManager:
 
         if errors:
             error_msg = f"Failed to create scheduled run: {errors}"
-            logger.error(error_msg, extra={"customer_id": customer_id, "config_id": config_id})
+            logger.error(error_msg, extra={"tenant_id": tenant_id, "config_id": config_id})
             raise ValueError(error_msg)
 
         logger.info(
             "Created scheduled pipeline run",
             extra={
                 "run_id": run_id,
-                "customer_id": customer_id,
+                "tenant_id": tenant_id,
                 "config_id": config_id,
                 "scheduled_time": scheduled_time.isoformat()
             }
@@ -271,7 +271,7 @@ class PipelineStateManager:
         self,
         state: str,
         limit: int = 100,
-        customer_id: str = None
+        tenant_id: str = None
     ) -> List[Dict]:
         """
         Get all pipelines in a specific state.
@@ -279,7 +279,7 @@ class PipelineStateManager:
         Args:
             state: Pipeline state to filter by
             limit: Maximum number of results
-            customer_id: Optional customer filter
+            tenant_id: Optional customer filter
 
         Returns:
             List of pipeline run records
@@ -287,9 +287,9 @@ class PipelineStateManager:
         where_clause = "WHERE state = @state"
         params = [bigquery.ScalarQueryParameter("state", "STRING", state)]
 
-        if customer_id:
-            where_clause += " AND customer_id = @customer_id"
-            params.append(bigquery.ScalarQueryParameter("customer_id", "STRING", customer_id))
+        if tenant_id:
+            where_clause += " AND tenant_id = @tenant_id"
+            params.append(bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id))
 
         query = f"""
         SELECT *
@@ -604,14 +604,14 @@ class PipelineStateManager:
     )
     async def get_customer_pipeline_status(
         self,
-        customer_id: str,
+        tenant_id: str,
         date: str = None
     ) -> Dict:
         """
         Get summary of all pipelines for a customer.
 
         Args:
-            customer_id: Customer/tenant identifier
+            tenant_id: Customer/tenant identifier
             date: Optional date filter (YYYY-MM-DD). Defaults to today.
 
         Returns:
@@ -634,14 +634,14 @@ class PipelineStateManager:
                 ) as yet_to_run,
                 COUNTIF(DATE(scheduled_time) = @date AND state = 'FAILED') as failed
             FROM `{self.project_id}.metadata.x_meta_scheduled_runs`
-            WHERE customer_id = @customer_id
+            WHERE tenant_id = @tenant_id
         )
         SELECT * FROM pipeline_stats
         """
 
         job_config = bigquery.QueryJobConfig(
             query_parameters=[
-                bigquery.ScalarQueryParameter("customer_id", "STRING", customer_id),
+                bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
                 bigquery.ScalarQueryParameter("date", "DATE", date)
             ]
         )
@@ -698,7 +698,7 @@ class QueueManager:
     )
     async def enqueue(
         self,
-        customer_id: str,
+        tenant_id: str,
         config: Dict,
         priority: int = 5
     ) -> str:
@@ -706,7 +706,7 @@ class QueueManager:
         Add pipeline to queue.
 
         Args:
-            customer_id: Customer/tenant identifier
+            tenant_id: Customer/tenant identifier
             config: Pipeline configuration
             priority: Priority level (1=highest, 10=lowest)
 
@@ -718,7 +718,7 @@ class QueueManager:
 
         row = {
             "queue_id": queue_id,
-            "customer_id": customer_id,
+            "tenant_id": tenant_id,
             "config": config,
             "priority": priority,
             "status": QueueStatus.QUEUED.value,
@@ -741,12 +741,12 @@ class QueueManager:
 
         if errors:
             error_msg = f"Failed to enqueue pipeline: {errors}"
-            logger.error(error_msg, extra={"customer_id": customer_id})
+            logger.error(error_msg, extra={"tenant_id": tenant_id})
             raise ValueError(error_msg)
 
         logger.info(
             "Enqueued pipeline",
-            extra={"queue_id": queue_id, "customer_id": customer_id, "priority": priority}
+            extra={"queue_id": queue_id, "tenant_id": tenant_id, "priority": priority}
         )
 
         return queue_id

@@ -1,11 +1,12 @@
 -- ============================================================================
--- CUSTOMERS DATASET - Centralized Authentication & Customer Management Schema
+-- TENANTS DATASET - Centralized Authentication & Tenant Management Schema
 -- ============================================================================
 -- Project: gac-prod-471220
--- Dataset: customers
--- Purpose: Multi-tenant customer authentication and authorization with Row-Level Security (RLS)
--- Version: 2.0.0
+-- Dataset: tenants
+-- Purpose: Multi-tenant authentication and authorization with Row-Level Security (RLS)
+-- Version: 3.0.0
 -- Created: 2025-11-17
+-- Updated: 2025-11-17 - Renamed from customers to tenants
 --
 -- Security: Row-Level Security (RLS) enforced at query time
 -- Encryption: KMS-encrypted sensitive fields (API keys, credentials)
@@ -14,21 +15,21 @@
 -- ============================================================================
 -- CREATE DATASET
 -- ============================================================================
-CREATE SCHEMA IF NOT EXISTS `gac-prod-471220.customers`
+CREATE SCHEMA IF NOT EXISTS `gac-prod-471220.tenants`
 OPTIONS(
   location="US",
-  description="Centralized customer authentication and management with Row-Level Security (RLS) for multi-tenant SaaS"
+  description="Centralized tenant authentication and management with Row-Level Security (RLS) for multi-tenant SaaS"
 );
 
 -- ============================================================================
--- TABLE 1: customer_profiles
+-- TABLE 1: tenant_profiles
 -- ============================================================================
--- Purpose: Main customer registry with tenant metadata
--- RLS: Filter by customer_id from JWT token
+-- Purpose: Main tenant registry with organization metadata
+-- RLS: Filter by tenant_id from JWT token
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS `gac-prod-471220.customers.customer_profiles` (
+CREATE TABLE IF NOT EXISTS `gac-prod-471220.tenants.tenant_profiles` (
   -- Primary Identifiers
-  customer_id STRING NOT NULL,                      -- Unique customer identifier (UUID)
+  tenant_id STRING NOT NULL,                        -- Unique tenant identifier (UUID)
   company_name STRING NOT NULL,                     -- Company/organization name
   admin_email STRING NOT NULL,                      -- Primary admin contact email
 
@@ -38,7 +39,7 @@ CREATE TABLE IF NOT EXISTS `gac-prod-471220.customers.customer_profiles` (
 
   -- Subscription Information
   subscription_plan STRING NOT NULL,                -- STARTER, PROFESSIONAL, SCALE
-  stripe_customer_id STRING,                        -- Stripe customer reference
+  stripe_tenant_id STRING,                          -- Stripe tenant reference
 
   -- Metadata
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP(),
@@ -60,23 +61,23 @@ CREATE TABLE IF NOT EXISTS `gac-prod-471220.customers.customer_profiles` (
   notes STRING                                      -- Internal notes/flags
 )
 PARTITION BY DATE(created_at)
-CLUSTER BY customer_id, status
+CLUSTER BY tenant_id, status
 OPTIONS(
-  description="Main customer registry with tenant metadata and subscription details",
-  labels=[("category", "customer_management"), ("tier", "core")]
+  description="Main tenant registry with organization metadata and subscription details",
+  labels=[("category", "tenant_management"), ("tier", "core")]
 );
 
 -- ============================================================================
--- TABLE 2: customer_api_keys
+-- TABLE 2: tenant_api_keys
 -- ============================================================================
 -- Purpose: Centralized API key storage with KMS encryption
--- RLS: Filter by customer_id
+-- RLS: Filter by tenant_id
 -- Security: SHA256 hash for lookup, KMS encryption for storage
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS `gac-prod-471220.customers.customer_api_keys` (
+CREATE TABLE IF NOT EXISTS `gac-prod-471220.tenants.tenant_api_keys` (
   -- Primary Identifiers
   api_key_id STRING NOT NULL,                       -- Unique API key ID (UUID)
-  customer_id STRING NOT NULL,                      -- Foreign key to customer_profiles
+  tenant_id STRING NOT NULL,                        -- Foreign key to tenant_profiles
 
   -- API Key Data
   api_key_hash STRING NOT NULL,                     -- SHA256 hash for fast lookup
@@ -102,23 +103,23 @@ CREATE TABLE IF NOT EXISTS `gac-prod-471220.customers.customer_api_keys` (
   rate_limit_tier STRING DEFAULT 'STANDARD'         -- STANDARD, ELEVATED, UNLIMITED
 )
 PARTITION BY DATE(created_at)
-CLUSTER BY customer_id, api_key_hash
+CLUSTER BY tenant_id, api_key_hash
 OPTIONS(
   description="Centralized API key storage with KMS encryption and SHA256 hashing",
   labels=[("category", "security"), ("encryption", "kms"), ("tier", "critical")]
 );
 
 -- ============================================================================
--- TABLE 3: customer_cloud_credentials
+-- TABLE 3: tenant_cloud_credentials
 -- ============================================================================
 -- Purpose: Multi-cloud provider credentials (GCP, AWS, Azure, OpenAI, Claude)
--- RLS: Filter by customer_id
+-- RLS: Filter by tenant_id
 -- Security: KMS encrypted JSON credentials
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS `gac-prod-471220.customers.customer_cloud_credentials` (
+CREATE TABLE IF NOT EXISTS `gac-prod-471220.tenants.tenant_cloud_credentials` (
   -- Primary Identifiers
   credential_id STRING NOT NULL,                    -- Unique credential ID (UUID)
-  customer_id STRING NOT NULL,                      -- Foreign key to customer_profiles
+  tenant_id STRING NOT NULL,                        -- Foreign key to tenant_profiles
 
   -- Provider Configuration
   provider STRING NOT NULL,                         -- GCP, AWS, AZURE, OPENAI, CLAUDE, ANTHROPIC
@@ -153,25 +154,25 @@ CREATE TABLE IF NOT EXISTS `gac-prod-471220.customers.customer_cloud_credentials
   usage_count INT64 DEFAULT 0                       -- Total usage count
 )
 PARTITION BY DATE(created_at)
-CLUSTER BY customer_id, provider
+CLUSTER BY tenant_id, provider
 OPTIONS(
   description="Multi-cloud provider credentials with KMS encryption",
   labels=[("category", "credentials"), ("encryption", "kms"), ("tier", "critical")]
 );
 
 -- ============================================================================
--- TABLE 4: customer_subscriptions
+-- TABLE 4: tenant_subscriptions
 -- ============================================================================
 -- Purpose: Stripe subscription plans with usage limits
--- RLS: Filter by customer_id
+-- RLS: Filter by tenant_id
 -- Plans: STARTER (2 members, 3 providers, 6 daily),
 --        PROFESSIONAL (6 members, 6 providers, 25 daily),
 --        SCALE (11 members, 10 providers, 100 daily)
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS `gac-prod-471220.customers.customer_subscriptions` (
+CREATE TABLE IF NOT EXISTS `gac-prod-471220.tenants.tenant_subscriptions` (
   -- Primary Identifiers
   subscription_id STRING NOT NULL,                  -- Unique subscription ID (UUID)
-  customer_id STRING NOT NULL,                      -- Foreign key to customer_profiles
+  tenant_id STRING NOT NULL,                        -- Foreign key to tenant_profiles
 
   -- Plan Configuration
   plan_name STRING NOT NULL,                        -- STARTER, PROFESSIONAL, SCALE
@@ -218,23 +219,23 @@ CREATE TABLE IF NOT EXISTS `gac-prod-471220.customers.customer_subscriptions` (
   next_billing_date DATE
 )
 PARTITION BY subscription_start_date
-CLUSTER BY customer_id, status
+CLUSTER BY tenant_id, status
 OPTIONS(
   description="Stripe subscription plans with usage limits and trial management",
   labels=[("category", "billing"), ("tier", "core")]
 );
 
 -- ============================================================================
--- TABLE 5: customer_usage_quotas
+-- TABLE 5: tenant_usage_quotas
 -- ============================================================================
 -- Purpose: Daily/monthly usage tracking with quota enforcement
--- RLS: Filter by customer_id
+-- RLS: Filter by tenant_id
 -- Updated: Real-time on pipeline start/completion
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS `gac-prod-471220.customers.customer_usage_quotas` (
+CREATE TABLE IF NOT EXISTS `gac-prod-471220.tenants.tenant_usage_quotas` (
   -- Primary Identifiers
   usage_id STRING NOT NULL,                         -- Unique usage record ID (UUID)
-  customer_id STRING NOT NULL,                      -- Foreign key to customer_profiles
+  tenant_id STRING NOT NULL,                        -- Foreign key to tenant_profiles
   usage_date DATE NOT NULL,                         -- Date for daily tracking
 
   -- Daily Pipeline Metrics
@@ -270,26 +271,26 @@ CREATE TABLE IF NOT EXISTS `gac-prod-471220.customers.customer_usage_quotas` (
   last_pipeline_completed_at TIMESTAMP              -- Timestamp of last pipeline completion
 )
 PARTITION BY usage_date
-CLUSTER BY customer_id, usage_date
+CLUSTER BY tenant_id, usage_date
 OPTIONS(
   description="Daily/monthly usage tracking with quota enforcement for pipelines",
   labels=[("category", "usage_tracking"), ("tier", "core")]
 );
 
 -- ============================================================================
--- TABLE 6: customer_team_members
+-- TABLE 6: users
 -- ============================================================================
--- Purpose: Team member management with role-based access control (RBAC)
--- RLS: Filter by customer_id
+-- Purpose: User management with role-based access control (RBAC)
+-- RLS: Filter by tenant_id
 -- Roles: OWNER, ADMIN, COLLABORATOR, VIEWER
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS `gac-prod-471220.customers.customer_team_members` (
+CREATE TABLE IF NOT EXISTS `gac-prod-471220.tenants.users` (
   -- Primary Identifiers
-  member_id STRING NOT NULL,                        -- Unique member ID (UUID)
-  customer_id STRING NOT NULL,                      -- Foreign key to customer_profiles
+  user_id STRING NOT NULL,                          -- Unique user ID (UUID) - primary key
+  tenant_id STRING NOT NULL,                        -- Foreign key to tenant_profiles
 
   -- User Information
-  email STRING NOT NULL,                            -- Team member email (unique per customer)
+  email STRING NOT NULL,                            -- User email (unique per tenant)
   full_name STRING,                                 -- Full name
   avatar_url STRING,                                -- Profile picture URL
 
@@ -326,10 +327,10 @@ CREATE TABLE IF NOT EXISTS `gac-prod-471220.customers.customer_team_members` (
   timezone STRING DEFAULT 'UTC'
 )
 PARTITION BY DATE(invited_at)
-CLUSTER BY customer_id, email
+CLUSTER BY tenant_id, user_id, email
 OPTIONS(
-  description="Team member management with RBAC and invitation tracking",
-  labels=[("category", "team_management"), ("tier", "core")]
+  description="User management with RBAC and invitation tracking",
+  labels=[("category", "user_management"), ("tier", "core")]
 );
 
 -- ============================================================================
@@ -338,27 +339,27 @@ OPTIONS(
 -- BigQuery doesn't support traditional indexes, but clustering provides
 -- similar query optimization benefits:
 --
--- 1. customer_profiles: Clustered by (customer_id, status)
---    - Fast lookup by customer_id
+-- 1. tenant_profiles: Clustered by (tenant_id, status)
+--    - Fast lookup by tenant_id
 --    - Efficient filtering by status
 --
--- 2. customer_api_keys: Clustered by (customer_id, api_key_hash)
+-- 2. tenant_api_keys: Clustered by (tenant_id, api_key_hash)
 --    - Fast API key validation (hash lookup)
---    - Efficient customer-scoped queries
+--    - Efficient tenant-scoped queries
 --
--- 3. customer_cloud_credentials: Clustered by (customer_id, provider)
---    - Fast credential lookup by customer and provider
+-- 3. tenant_cloud_credentials: Clustered by (tenant_id, provider)
+--    - Fast credential lookup by tenant and provider
 --
--- 4. customer_subscriptions: Clustered by (customer_id, status)
+-- 4. tenant_subscriptions: Clustered by (tenant_id, status)
 --    - Fast active subscription lookup
 --    - Efficient billing queries
 --
--- 5. customer_usage_quotas: Clustered by (customer_id, usage_date)
+-- 5. tenant_usage_quotas: Clustered by (tenant_id, usage_date)
 --    - Real-time quota checks
 --    - Efficient daily usage queries
 --
--- 6. customer_team_members: Clustered by (customer_id, email)
---    - Fast member lookup
+-- 6. users: Clustered by (tenant_id, user_id, email)
+--    - Fast user lookup by tenant
 --    - Efficient team listing
 -- ============================================================================
 
@@ -368,47 +369,47 @@ OPTIONS(
 -- BigQuery RLS is enforced via authorized views and policy tags:
 --
 -- 1. CREATE POLICY TAG TAXONOMY:
---    - customer_data: Restricted to customer_id scope
+--    - tenant_data: Restricted to tenant_id scope
 --    - sensitive_data: KMS encrypted fields
 --
 -- 2. APPLY POLICY TAGS:
---    ALTER TABLE customer_profiles
---    ALTER COLUMN customer_id
---    SET OPTIONS (policy_tags=["projects/gac-prod-471220/locations/us/taxonomies/customer_data"]);
+--    ALTER TABLE tenant_profiles
+--    ALTER COLUMN tenant_id
+--    SET OPTIONS (policy_tags=["projects/gac-prod-471220/locations/us/taxonomies/tenant_data"]);
 --
 -- 3. CREATE AUTHORIZED VIEWS:
---    - One view per customer with WHERE customer_id = SESSION_USER().customer_id
+--    - One view per tenant with WHERE tenant_id = SESSION_USER().tenant_id
 --
 -- 4. GRANT ACCESS:
 --    - Grant BigQuery User role to service accounts
---    - Use JWT tokens with customer_id claim
+--    - Use JWT tokens with tenant_id claim
 -- ============================================================================
 
 -- ============================================================================
 -- SAMPLE QUERIES
 -- ============================================================================
 
--- Query 1: Get active customers with trial status
--- SELECT customer_id, company_name, status, subscription_plan
--- FROM `gac-prod-471220.customers.customer_profiles`
+-- Query 1: Get active tenants with trial status
+-- SELECT tenant_id, company_name, status, subscription_plan
+-- FROM `gac-prod-471220.tenants.tenant_profiles`
 -- WHERE status IN ('ACTIVE', 'TRIAL')
 -- ORDER BY created_at DESC;
 
--- Query 2: Check daily quota for customer
--- SELECT customer_id, usage_date, pipelines_run_today, daily_limit, quota_exceeded
--- FROM `gac-prod-471220.customers.customer_usage_quotas`
--- WHERE customer_id = 'customer-uuid' AND usage_date = CURRENT_DATE();
+-- Query 2: Check daily quota for tenant
+-- SELECT tenant_id, usage_date, pipelines_run_today, daily_limit, quota_exceeded
+-- FROM `gac-prod-471220.tenants.tenant_usage_quotas`
+-- WHERE tenant_id = 'tenant-uuid' AND usage_date = CURRENT_DATE();
 
--- Query 3: List team members with roles
+-- Query 3: List users with roles
 -- SELECT email, full_name, role, status, last_login_at
--- FROM `gac-prod-471220.customers.customer_team_members`
--- WHERE customer_id = 'customer-uuid' AND status = 'ACTIVE'
+-- FROM `gac-prod-471220.tenants.users`
+-- WHERE tenant_id = 'tenant-uuid' AND status = 'ACTIVE'
 -- ORDER BY role, email;
 
--- Query 4: Get active API keys for customer
+-- Query 4: Get active API keys for tenant
 -- SELECT api_key_id, key_name, scopes, last_used_at
--- FROM `gac-prod-471220.customers.customer_api_keys`
--- WHERE customer_id = 'customer-uuid' AND is_active = TRUE
+-- FROM `gac-prod-471220.tenants.tenant_api_keys`
+-- WHERE tenant_id = 'tenant-uuid' AND is_active = TRUE
 -- ORDER BY created_at DESC;
 
 -- ============================================================================

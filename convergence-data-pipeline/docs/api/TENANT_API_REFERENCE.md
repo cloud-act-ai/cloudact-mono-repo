@@ -20,7 +20,7 @@ All endpoints require authentication unless otherwise specified.
 
 ```bash
 curl -H "X-API-Key: your_api_key_here" \
-  https://api.convergence-pipeline.com/api/v1/customers
+  https://api.convergence-pipeline.com/api/v1/tenants
 ```
 
 ### Admin Token Authentication
@@ -29,7 +29,7 @@ curl -H "X-API-Key: your_api_key_here" \
 
 ```bash
 curl -H "Authorization: Bearer admin_token_here" \
-  https://api.convergence-pipeline.com/api/v1/admin/customers
+  https://api.convergence-pipeline.com/api/v1/admin/tenants
 ```
 
 ---
@@ -40,7 +40,7 @@ curl -H "Authorization: Bearer admin_token_here" \
 
 Create a new customer account with infrastructure provisioning.
 
-**Endpoint**: `POST /api/v1/customers/onboard`
+**Endpoint**: `POST /api/v1/tenants/onboard`
 
 **Authentication**: Admin token or public (for self-service signup)
 
@@ -106,7 +106,7 @@ Create a new customer account with infrastructure provisioning.
 
 **Example**:
 ```bash
-curl -X POST "http://localhost:8080/api/v1/customers/onboard" \
+curl -X POST "http://localhost:8080/api/v1/tenants/onboard" \
   -H "Content-Type: application/json" \
   -d '{
     "tenant_id": "acmeinc_23xv2",
@@ -122,7 +122,7 @@ curl -X POST "http://localhost:8080/api/v1/customers/onboard" \
 
 Retrieve customer information by customer ID or tenant ID.
 
-**Endpoint**: `GET /api/v1/customers/{customer_id}`
+**Endpoint**: `GET /api/v1/tenants/{tenant_id}`
 
 **Authentication**: Admin token or customer API key
 
@@ -130,12 +130,12 @@ Retrieve customer information by customer ID or tenant ID.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `customer_id` | string | Customer UUID or tenant_id |
+| `tenant_id` | string | Customer UUID or tenant_id |
 
 **Response**: `200 OK`
 ```json
 {
-  "customer_id": "cust_abc123",
+  "tenant_id": "cust_abc123",
   "tenant_id": "acmeinc_23xv2",
   "company_name": "ACME Corporation",
   "contact_email": "admin@acmecorp.com",
@@ -167,7 +167,7 @@ Retrieve customer information by customer ID or tenant ID.
 
 **Example**:
 ```bash
-curl -X GET "http://localhost:8080/api/v1/customers/cust_abc123" \
+curl -X GET "http://localhost:8080/api/v1/tenants/cust_abc123" \
   -H "X-API-Key: acmeinc_23xv2_api_xK9mPqWz7LnR4vYt"
 ```
 
@@ -175,9 +175,9 @@ curl -X GET "http://localhost:8080/api/v1/customers/cust_abc123" \
 
 ### List Customers
 
-List all customers (admin only).
+List all tenants (admin only).
 
-**Endpoint**: `GET /api/v1/admin/customers`
+**Endpoint**: `GET /api/v1/admin/tenants`
 
 **Authentication**: Admin token
 
@@ -194,9 +194,9 @@ List all customers (admin only).
 **Response**: `200 OK`
 ```json
 {
-  "customers": [
+  "tenants": [
     {
-      "customer_id": "cust_abc123",
+      "tenant_id": "cust_abc123",
       "tenant_id": "acmeinc_23xv2",
       "company_name": "ACME Corporation",
       "subscription_plan": "professional",
@@ -216,7 +216,7 @@ List all customers (admin only).
 
 **Example**:
 ```bash
-curl -X GET "http://localhost:8080/api/v1/admin/customers?status=active&page=1&page_size=50" \
+curl -X GET "http://localhost:8080/api/v1/admin/tenants?status=active&page=1&page_size=50" \
   -H "Authorization: Bearer admin_token_here"
 ```
 
@@ -226,7 +226,7 @@ curl -X GET "http://localhost:8080/api/v1/admin/customers?status=active&page=1&p
 
 Update customer information.
 
-**Endpoint**: `PATCH /api/v1/customers/{customer_id}`
+**Endpoint**: `PATCH /api/v1/tenants/{tenant_id}`
 
 **Authentication**: Admin token
 
@@ -245,7 +245,7 @@ Update customer information.
 **Response**: `200 OK`
 ```json
 {
-  "customer_id": "cust_abc123",
+  "tenant_id": "cust_abc123",
   "tenant_id": "acmeinc_23xv2",
   "company_name": "ACME Inc.",
   "contact_email": "newadmin@acmecorp.com",
@@ -255,7 +255,7 @@ Update customer information.
 
 **Example**:
 ```bash
-curl -X PATCH "http://localhost:8080/api/v1/customers/cust_abc123" \
+curl -X PATCH "http://localhost:8080/api/v1/tenants/cust_abc123" \
   -H "Authorization: Bearer admin_token_here" \
   -H "Content-Type: application/json" \
   -d '{"company_name": "ACME Inc."}'
@@ -267,7 +267,7 @@ curl -X PATCH "http://localhost:8080/api/v1/customers/cust_abc123" \
 
 Suspend a customer account (disables all pipelines).
 
-**Endpoint**: `POST /api/v1/customers/{customer_id}/suspend`
+**Endpoint**: `POST /api/v1/tenants/{tenant_id}/suspend`
 
 **Authentication**: Admin token
 
@@ -291,7 +291,7 @@ Suspend a customer account (disables all pipelines).
 **Response**: `200 OK`
 ```json
 {
-  "customer_id": "cust_abc123",
+  "tenant_id": "cust_abc123",
   "status": "suspended",
   "suspended_at": "2025-11-17T12:00:00Z",
   "suspension_reason": "payment_failed",
@@ -301,7 +301,7 @@ Suspend a customer account (disables all pipelines).
 
 **Example**:
 ```bash
-curl -X POST "http://localhost:8080/api/v1/customers/cust_abc123/suspend" \
+curl -X POST "http://localhost:8080/api/v1/tenants/cust_abc123/suspend" \
   -H "Authorization: Bearer admin_token_here" \
   -H "Content-Type: application/json" \
   -d '{
@@ -316,7 +316,7 @@ curl -X POST "http://localhost:8080/api/v1/customers/cust_abc123/suspend" \
 
 Reactivate a suspended customer account.
 
-**Endpoint**: `POST /api/v1/customers/{customer_id}/activate`
+**Endpoint**: `POST /api/v1/tenants/{tenant_id}/activate`
 
 **Authentication**: Admin token
 
@@ -331,7 +331,7 @@ Reactivate a suspended customer account.
 **Response**: `200 OK`
 ```json
 {
-  "customer_id": "cust_abc123",
+  "tenant_id": "cust_abc123",
   "status": "active",
   "activated_at": "2025-11-17T13:00:00Z",
   "message": "Customer activated successfully. Pipeline execution enabled."
@@ -340,7 +340,7 @@ Reactivate a suspended customer account.
 
 **Example**:
 ```bash
-curl -X POST "http://localhost:8080/api/v1/customers/cust_abc123/activate" \
+curl -X POST "http://localhost:8080/api/v1/tenants/cust_abc123/activate" \
   -H "Authorization: Bearer admin_token_here" \
   -H "Content-Type: application/json" \
   -d '{"notify_customer": true}'
@@ -354,7 +354,7 @@ curl -X POST "http://localhost:8080/api/v1/customers/cust_abc123/activate" \
 
 Get current subscription information for a customer.
 
-**Endpoint**: `GET /api/v1/customers/{customer_id}/subscription`
+**Endpoint**: `GET /api/v1/tenants/{tenant_id}/subscription`
 
 **Authentication**: Admin token or customer API key
 
@@ -362,7 +362,7 @@ Get current subscription information for a customer.
 ```json
 {
   "subscription_id": "sub_xyz789",
-  "customer_id": "cust_abc123",
+  "tenant_id": "cust_abc123",
   "plan_name": "professional",
   "monthly_pipeline_quota": 5000,
   "concurrent_pipeline_quota": 15,
@@ -378,7 +378,7 @@ Get current subscription information for a customer.
 
 **Example**:
 ```bash
-curl -X GET "http://localhost:8080/api/v1/customers/cust_abc123/subscription" \
+curl -X GET "http://localhost:8080/api/v1/tenants/cust_abc123/subscription" \
   -H "X-API-Key: acmeinc_23xv2_api_xK9mPqWz7LnR4vYt"
 ```
 
@@ -388,7 +388,7 @@ curl -X GET "http://localhost:8080/api/v1/customers/cust_abc123/subscription" \
 
 Upgrade customer to a higher subscription plan.
 
-**Endpoint**: `POST /api/v1/customers/{customer_id}/subscription/upgrade`
+**Endpoint**: `POST /api/v1/tenants/{tenant_id}/subscription/upgrade`
 
 **Authentication**: Admin token
 
@@ -423,7 +423,7 @@ Upgrade customer to a higher subscription plan.
 
 **Example**:
 ```bash
-curl -X POST "http://localhost:8080/api/v1/customers/cust_abc123/subscription/upgrade" \
+curl -X POST "http://localhost:8080/api/v1/tenants/cust_abc123/subscription/upgrade" \
   -H "Authorization: Bearer admin_token_here" \
   -H "Content-Type: application/json" \
   -d '{
@@ -438,7 +438,7 @@ curl -X POST "http://localhost:8080/api/v1/customers/cust_abc123/subscription/up
 
 Cancel customer subscription.
 
-**Endpoint**: `POST /api/v1/customers/{customer_id}/subscription/cancel`
+**Endpoint**: `POST /api/v1/tenants/{tenant_id}/subscription/cancel`
 
 **Authentication**: Admin token
 
@@ -470,7 +470,7 @@ Cancel customer subscription.
 
 Get current usage statistics for a customer.
 
-**Endpoint**: `GET /api/v1/customers/{customer_id}/usage`
+**Endpoint**: `GET /api/v1/tenants/{tenant_id}/usage`
 
 **Authentication**: Customer API key or admin token
 
@@ -483,7 +483,7 @@ Get current usage statistics for a customer.
 **Response**: `200 OK`
 ```json
 {
-  "customer_id": "cust_abc123",
+  "tenant_id": "cust_abc123",
   "tenant_id": "acmeinc_23xv2",
   "usage_month": "2025-11",
   "pipelines_run_count": 450,
@@ -508,7 +508,7 @@ Get current usage statistics for a customer.
 
 **Example**:
 ```bash
-curl -X GET "http://localhost:8080/api/v1/customers/cust_abc123/usage?month=2025-11" \
+curl -X GET "http://localhost:8080/api/v1/tenants/cust_abc123/usage?month=2025-11" \
   -H "X-API-Key: acmeinc_23xv2_api_xK9mPqWz7LnR4vYt"
 ```
 
@@ -518,7 +518,7 @@ curl -X GET "http://localhost:8080/api/v1/customers/cust_abc123/usage?month=2025
 
 Get historical usage data for a customer.
 
-**Endpoint**: `GET /api/v1/customers/{customer_id}/usage/history`
+**Endpoint**: `GET /api/v1/tenants/{tenant_id}/usage/history`
 
 **Authentication**: Customer API key or admin token
 
@@ -532,7 +532,7 @@ Get historical usage data for a customer.
 **Response**: `200 OK`
 ```json
 {
-  "customer_id": "cust_abc123",
+  "tenant_id": "cust_abc123",
   "history": [
     {
       "month": "2025-11",
@@ -552,7 +552,7 @@ Get historical usage data for a customer.
 
 **Example**:
 ```bash
-curl -X GET "http://localhost:8080/api/v1/customers/cust_abc123/usage/history?start_month=2025-06&end_month=2025-11" \
+curl -X GET "http://localhost:8080/api/v1/tenants/cust_abc123/usage/history?start_month=2025-06&end_month=2025-11" \
   -H "X-API-Key: acmeinc_23xv2_api_xK9mPqWz7LnR4vYt"
 ```
 
@@ -564,7 +564,7 @@ curl -X GET "http://localhost:8080/api/v1/customers/cust_abc123/usage/history?st
 
 Generate a new API key for a customer.
 
-**Endpoint**: `POST /api/v1/customers/{customer_id}/api-keys`
+**Endpoint**: `POST /api/v1/tenants/{tenant_id}/api-keys`
 
 **Authentication**: Admin token or customer API key (with admin scope)
 
@@ -608,7 +608,7 @@ Generate a new API key for a customer.
 
 **Example**:
 ```bash
-curl -X POST "http://localhost:8080/api/v1/customers/cust_abc123/api-keys" \
+curl -X POST "http://localhost:8080/api/v1/tenants/cust_abc123/api-keys" \
   -H "Authorization: Bearer admin_token_here" \
   -H "Content-Type: application/json" \
   -d '{
@@ -624,7 +624,7 @@ curl -X POST "http://localhost:8080/api/v1/customers/cust_abc123/api-keys" \
 
 List all API keys for a customer.
 
-**Endpoint**: `GET /api/v1/customers/{customer_id}/api-keys`
+**Endpoint**: `GET /api/v1/tenants/{tenant_id}/api-keys`
 
 **Authentication**: Admin token or customer API key
 
@@ -657,7 +657,7 @@ List all API keys for a customer.
 
 **Example**:
 ```bash
-curl -X GET "http://localhost:8080/api/v1/customers/cust_abc123/api-keys" \
+curl -X GET "http://localhost:8080/api/v1/tenants/cust_abc123/api-keys" \
   -H "X-API-Key: acmeinc_23xv2_api_xK9mPqWz7LnR4vYt"
 ```
 
@@ -667,7 +667,7 @@ curl -X GET "http://localhost:8080/api/v1/customers/cust_abc123/api-keys" \
 
 Revoke (disable) an API key.
 
-**Endpoint**: `POST /api/v1/customers/{customer_id}/api-keys/{key_id}/revoke`
+**Endpoint**: `POST /api/v1/tenants/{tenant_id}/api-keys/{key_id}/revoke`
 
 **Authentication**: Admin token or customer API key (with admin scope)
 
@@ -690,7 +690,7 @@ Revoke (disable) an API key.
 
 **Example**:
 ```bash
-curl -X POST "http://localhost:8080/api/v1/customers/cust_abc123/api-keys/key_xyz789/revoke" \
+curl -X POST "http://localhost:8080/api/v1/tenants/cust_abc123/api-keys/key_xyz789/revoke" \
   -H "Authorization: Bearer admin_token_here" \
   -H "Content-Type: application/json" \
   -d '{"revocation_reason": "Key compromised"}'
@@ -704,7 +704,7 @@ curl -X POST "http://localhost:8080/api/v1/customers/cust_abc123/api-keys/key_xy
 
 Add cloud provider credentials for a customer.
 
-**Endpoint**: `POST /api/v1/customers/{customer_id}/credentials`
+**Endpoint**: `POST /api/v1/tenants/{tenant_id}/credentials`
 
 **Authentication**: Customer API key (with credentials:write scope)
 
@@ -745,7 +745,7 @@ Add cloud provider credentials for a customer.
 ```json
 {
   "credential_id": "cred_def456",
-  "customer_id": "cust_abc123",
+  "tenant_id": "cust_abc123",
   "provider": "gcp",
   "credential_name": "GCP Billing Export",
   "is_active": true,
@@ -766,7 +766,7 @@ Add cloud provider credentials for a customer.
 
 **Example**:
 ```bash
-curl -X POST "http://localhost:8080/api/v1/customers/cust_abc123/credentials" \
+curl -X POST "http://localhost:8080/api/v1/tenants/cust_abc123/credentials" \
   -H "X-API-Key: acmeinc_23xv2_api_xK9mPqWz7LnR4vYt" \
   -H "Content-Type: application/json" \
   -d @gcp_credentials.json
@@ -778,7 +778,7 @@ curl -X POST "http://localhost:8080/api/v1/customers/cust_abc123/credentials" \
 
 List all cloud credentials for a customer.
 
-**Endpoint**: `GET /api/v1/customers/{customer_id}/credentials`
+**Endpoint**: `GET /api/v1/tenants/{tenant_id}/credentials`
 
 **Authentication**: Customer API key (with credentials:read scope)
 
@@ -816,7 +816,7 @@ List all cloud credentials for a customer.
 
 **Example**:
 ```bash
-curl -X GET "http://localhost:8080/api/v1/customers/cust_abc123/credentials?provider=gcp" \
+curl -X GET "http://localhost:8080/api/v1/tenants/cust_abc123/credentials?provider=gcp" \
   -H "X-API-Key: acmeinc_23xv2_api_xK9mPqWz7LnR4vYt"
 ```
 
@@ -826,7 +826,7 @@ curl -X GET "http://localhost:8080/api/v1/customers/cust_abc123/credentials?prov
 
 Delete cloud provider credentials.
 
-**Endpoint**: `DELETE /api/v1/customers/{customer_id}/credentials/{credential_id}`
+**Endpoint**: `DELETE /api/v1/tenants/{tenant_id}/credentials/{credential_id}`
 
 **Authentication**: Customer API key (with credentials:write scope)
 
@@ -840,7 +840,7 @@ Delete cloud provider credentials.
 
 **Example**:
 ```bash
-curl -X DELETE "http://localhost:8080/api/v1/customers/cust_abc123/credentials/cred_def456" \
+curl -X DELETE "http://localhost:8080/api/v1/tenants/cust_abc123/credentials/cred_def456" \
   -H "X-API-Key: acmeinc_23xv2_api_xK9mPqWz7LnR4vYt"
 ```
 
@@ -852,7 +852,7 @@ curl -X DELETE "http://localhost:8080/api/v1/customers/cust_abc123/credentials/c
 
 Invite a user to join customer account.
 
-**Endpoint**: `POST /api/v1/customers/{customer_id}/invitations`
+**Endpoint**: `POST /api/v1/tenants/{tenant_id}/invitations`
 
 **Authentication**: Customer API key (with admin scope)
 
@@ -885,7 +885,7 @@ Invite a user to join customer account.
 
 **Example**:
 ```bash
-curl -X POST "http://localhost:8080/api/v1/customers/cust_abc123/invitations" \
+curl -X POST "http://localhost:8080/api/v1/tenants/cust_abc123/invitations" \
   -H "X-API-Key: acmeinc_23xv2_api_xK9mPqWz7LnR4vYt" \
   -H "Content-Type: application/json" \
   -d '{
@@ -916,7 +916,7 @@ Accept a team invitation (public endpoint).
 ```json
 {
   "invitation_id": "inv_jkl012",
-  "customer_id": "cust_abc123",
+  "tenant_id": "cust_abc123",
   "user_email": "developer@acmecorp.com",
   "role": "developer",
   "message": "Invitation accepted successfully. You can now log in."
@@ -1002,7 +1002,7 @@ List endpoints support pagination using `page` and `page_size` parameters.
 
 **Request**:
 ```
-GET /api/v1/admin/customers?page=2&page_size=50
+GET /api/v1/admin/tenants?page=2&page_size=50
 ```
 
 **Response**:
@@ -1040,7 +1040,7 @@ Configure webhooks to receive real-time notifications.
 {
   "event_id": "evt_abc123",
   "event_type": "quota.approaching_limit",
-  "customer_id": "cust_abc123",
+  "tenant_id": "cust_abc123",
   "tenant_id": "acmeinc_23xv2",
   "timestamp": "2025-11-17T10:00:00Z",
   "data": {
@@ -1067,7 +1067,7 @@ client = ConvergenceClient(
 )
 
 # Get customer details
-customer = client.customers.get("cust_abc123")
+customer = client.tenants.get("cust_abc123")
 print(f"Company: {customer.company_name}")
 
 # Get usage statistics
@@ -1096,7 +1096,7 @@ const client = new ConvergenceClient({
 });
 
 // Get customer details
-const customer = await client.customers.get('cust_abc123');
+const customer = await client.tenants.get('cust_abc123');
 console.log(`Company: ${customer.companyName}`);
 
 // Get usage statistics
@@ -1117,7 +1117,7 @@ console.log(`Pipeline ID: ${pipelineRun.pipelineLoggingId}`);
 
 ## Related Documentation
 
-- [Customer Management Architecture](../architecture/CUSTOMER_MANAGEMENT.md)
+- [Customer Management Architecture](../architecture/TENANT_MANAGEMENT.md)
 - [Migration Guide](../guides/MIGRATION_GUIDE.md)
 - [Onboarding Guide](../guides/ONBOARDING.md)
 - [Encryption Guide](../security/ENCRYPTION.md)

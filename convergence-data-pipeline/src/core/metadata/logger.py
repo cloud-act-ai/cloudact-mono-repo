@@ -563,7 +563,8 @@ class MetadataLogger:
         step_name: str,
         step_type: str,
         step_index: int,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
+        user_id: Optional[str] = None
     ):
         """
         Log step execution start (non-blocking).
@@ -575,6 +576,7 @@ class MetadataLogger:
             step_type: Step type (extract, transform, load)
             step_index: Step index in pipeline
             metadata: Additional step metadata (kept as dict for BigQuery JSON type)
+            user_id: User UUID from frontend (X-User-ID header)
         """
         try:
             # Serialize datetime values in metadata dict then convert to JSON string
@@ -596,6 +598,7 @@ class MetadataLogger:
                     "duration_ms": None,
                     "rows_processed": None,
                     "error_message": None,
+                    "user_id": user_id,
                     "metadata": metadata_json_str
                 }
             }
@@ -647,7 +650,8 @@ class MetadataLogger:
         start_time: datetime,
         rows_processed: Optional[int] = None,
         error_message: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
+        user_id: Optional[str] = None
     ):
         """
         Log step execution end (non-blocking).
@@ -666,6 +670,7 @@ class MetadataLogger:
             rows_processed: Number of rows processed
             error_message: Error message if failed
             metadata: Additional step metadata (kept as dict for BigQuery JSON type)
+            user_id: User UUID from frontend (X-User-ID header)
         """
         try:
             end_time = datetime.utcnow()
@@ -691,6 +696,7 @@ class MetadataLogger:
                     "duration_ms": duration_ms,
                     "rows_processed": rows_processed,
                     "error_message": error_message,
+                    "user_id": user_id,
                     "metadata": metadata_json_str
                 }
             }

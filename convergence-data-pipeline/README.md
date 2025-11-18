@@ -7,7 +7,7 @@
 **Customer-Centric Architecture with Subscription Management**
 
 This platform provides a complete multi-tenant SaaS solution for processing GCP billing, cost, and usage data with:
-- **Customer Management** - Centralized customer dataset with subscription plans
+- **Tenant Management** - Centralized customer dataset with subscription plans
 - **Secure Onboarding** - Automated infrastructure provisioning per customer
 - **Pipeline Execution** - Scalable data processing with quota enforcement
 - **Subscription Plans** - Three tiers (Starter, Professional, Enterprise) with usage limits
@@ -105,7 +105,7 @@ Labels: tenant=acmeinc_23xv2
 ```
 Entry created in: customers_metadata.customers
 Fields:
-  - customer_id: UUID
+  - tenant_id: UUID
   - tenant_id: acmeinc_23xv2
   - company_name: "ACME Corporation"
   - subscription_plan: "professional"

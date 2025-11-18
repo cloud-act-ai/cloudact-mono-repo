@@ -2,7 +2,7 @@
 -- TENANT DATASET - Per-Customer Operational Data Schema
 -- ============================================================================
 -- Project: gac-prod-471220
--- Dataset: {customer_id} (dynamic per tenant, e.g., customer_abc123)
+-- Dataset: {tenant_id} (dynamic per tenant, e.g., customer_abc123)
 -- Purpose: Tenant-isolated operational data for pipeline execution, logs, and data quality
 -- Version: 2.0.0
 -- Created: 2025-11-17
@@ -24,7 +24,7 @@
 -- Purpose: Pipeline execution metadata and logging
 -- Scope: Per-tenant operational data
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS `{project_id}.{customer_id}.x_meta_pipeline_runs` (
+CREATE TABLE IF NOT EXISTS `{project_id}.{tenant_id}.x_meta_pipeline_runs` (
   -- Primary Identifiers
   pipeline_logging_id STRING NOT NULL,              -- Unique pipeline run ID (UUID)
 
@@ -63,7 +63,8 @@ CREATE TABLE IF NOT EXISTS `{project_id}.{customer_id}.x_meta_pipeline_runs` (
 
   -- Trigger Information
   triggered_by STRING NOT NULL,                     -- "scheduled", "manual", "api", "retry"
-  triggered_by_user STRING,                         -- User email if manual trigger
+  triggered_by_user STRING,                         -- User email if manual trigger (DEPRECATED - use user_id)
+  user_id STRING,                                   -- User UUID from frontend (X-User-ID header)
 
   -- Parameters
   pipeline_parameters JSON,                         -- Runtime parameters (JSON)
@@ -85,7 +86,7 @@ OPTIONS(
 -- Purpose: Detailed step-by-step execution logs for pipeline debugging
 -- Scope: Per-tenant operational logs
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS `{project_id}.{customer_id}.x_meta_step_logs` (
+CREATE TABLE IF NOT EXISTS `{project_id}.{tenant_id}.x_meta_step_logs` (
   -- Primary Identifiers
   log_id STRING NOT NULL,                           -- Unique log entry ID (UUID)
   pipeline_logging_id STRING NOT NULL,              -- Foreign key to x_meta_pipeline_runs
@@ -117,6 +118,9 @@ CREATE TABLE IF NOT EXISTS `{project_id}.{customer_id}.x_meta_step_logs` (
   error_message STRING,                             -- Error details if failed
   stack_trace STRING,                               -- Full stack trace for debugging
 
+  -- User Tracking
+  user_id STRING,                                   -- User UUID from frontend (X-User-ID header)
+
   -- Metadata
   metadata JSON,                                    -- Additional step metadata (JSON)
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP()
@@ -134,7 +138,7 @@ OPTIONS(
 -- Purpose: Data quality validation results
 -- Scope: Per-tenant data quality metrics
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS `{project_id}.{customer_id}.x_meta_dq_results` (
+CREATE TABLE IF NOT EXISTS `{project_id}.{tenant_id}.x_meta_dq_results` (
   -- Primary Identifiers
   dq_result_id STRING NOT NULL,                     -- Unique DQ result ID (UUID)
   pipeline_logging_id STRING NOT NULL,              -- Foreign key to x_meta_pipeline_runs
@@ -166,6 +170,9 @@ CREATE TABLE IF NOT EXISTS `{project_id}.{customer_id}.x_meta_dq_results` (
   -- Timing
   executed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP(),
 
+  -- User Tracking
+  user_id STRING,                                   -- User UUID from frontend (X-User-ID header)
+
   -- Metadata
   metadata JSON,                                    -- Additional DQ metadata (JSON)
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP()
@@ -178,12 +185,12 @@ OPTIONS(
 );
 
 -- ============================================================================
--- TABLE 4: customer_pipeline_configs
+-- TABLE 4: tenant_pipeline_configs
 -- ============================================================================
 -- Purpose: Per-tenant pipeline scheduling configurations
 -- Scope: Tenant-specific pipeline settings (copied from centralized config)
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS `{project_id}.{customer_id}.customer_pipeline_configs` (
+CREATE TABLE IF NOT EXISTS `{project_id}.{tenant_id}.tenant_pipeline_configs` (
   -- Primary Identifiers
   config_id STRING NOT NULL,                        -- Unique config ID (UUID)
 
@@ -238,10 +245,10 @@ OPTIONS(
 -- Purpose: Track scheduled pipeline execution history
 -- Scope: Tenant-specific execution history
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS `{project_id}.{customer_id}.scheduled_pipeline_runs` (
+CREATE TABLE IF NOT EXISTS `{project_id}.{tenant_id}.scheduled_pipeline_runs` (
   -- Primary Identifiers
   run_id STRING NOT NULL,                           -- Unique run ID (UUID)
-  config_id STRING NOT NULL,                        -- Foreign key to customer_pipeline_configs
+  config_id STRING NOT NULL,                        -- Foreign key to tenant_pipeline_configs
 
   -- Pipeline Information
   pipeline_template STRING NOT NULL,                -- Template used for execution
@@ -266,6 +273,7 @@ CREATE TABLE IF NOT EXISTS `{project_id}.{customer_id}.scheduled_pipeline_runs` 
 
   -- Trigger Information
   triggered_by STRING NOT NULL,                     -- "cloud_scheduler", "manual", "retry", "api"
+  user_id STRING,                                   -- User UUID from frontend (X-User-ID header)
 
   -- Metadata
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP(),
@@ -296,7 +304,7 @@ OPTIONS(
 --    - Fast DQ result lookup
 --    - Efficient failure queries
 --
--- 4. customer_pipeline_configs: Clustered by (next_run_time, is_active)
+-- 4. tenant_pipeline_configs: Clustered by (next_run_time, is_active)
 --    - Fast "due to run" queries
 --    - Efficient scheduler lookups
 --
@@ -310,7 +318,7 @@ OPTIONS(
 -- ============================================================================
 
 -- View 1: Recent pipeline runs (last 7 days)
-CREATE OR REPLACE VIEW `{project_id}.{customer_id}.recent_pipeline_runs` AS
+CREATE OR REPLACE VIEW `{project_id}.{tenant_id}.recent_pipeline_runs` AS
 SELECT
   pipeline_logging_id,
   pipeline_name,
@@ -324,12 +332,12 @@ SELECT
   total_rows_processed,
   total_bytes_billed,
   error_message
-FROM `{project_id}.{customer_id}.x_meta_pipeline_runs`
+FROM `{project_id}.{tenant_id}.x_meta_pipeline_runs`
 WHERE started_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)
 ORDER BY started_at DESC;
 
 -- View 2: Failed pipelines requiring attention
-CREATE OR REPLACE VIEW `{project_id}.{customer_id}.failed_pipelines` AS
+CREATE OR REPLACE VIEW `{project_id}.{tenant_id}.failed_pipelines` AS
 SELECT
   pipeline_logging_id,
   pipeline_name,
@@ -339,13 +347,13 @@ SELECT
   error_message,
   error_step,
   retry_attempt
-FROM `{project_id}.{customer_id}.x_meta_pipeline_runs`
+FROM `{project_id}.{tenant_id}.x_meta_pipeline_runs`
 WHERE status = 'FAILED'
   AND started_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)
 ORDER BY started_at DESC;
 
 -- View 3: Data quality failures (last 30 days)
-CREATE OR REPLACE VIEW `{project_id}.{customer_id}.dq_failures` AS
+CREATE OR REPLACE VIEW `{project_id}.{tenant_id}.dq_failures` AS
 SELECT
   dq_result_id,
   pipeline_logging_id,
@@ -358,7 +366,7 @@ SELECT
   rows_failed,
   failure_rate,
   executed_at
-FROM `{project_id}.{customer_id}.x_meta_dq_results`
+FROM `{project_id}.{tenant_id}.x_meta_dq_results`
 WHERE check_passed = FALSE
   AND executed_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)
 ORDER BY check_severity DESC, executed_at DESC;
@@ -374,7 +382,7 @@ ORDER BY check_severity DESC, executed_at DESC;
 --   AVG(execution_duration_seconds) AS avg_duration_seconds,
 --   SUM(total_rows_processed) AS total_rows,
 --   SUM(total_bytes_billed) AS total_bytes_billed
--- FROM `{project_id}.{customer_id}.x_meta_pipeline_runs`
+-- FROM `{project_id}.{tenant_id}.x_meta_pipeline_runs`
 -- WHERE DATE(started_at) = CURRENT_DATE()
 -- GROUP BY status;
 
@@ -386,7 +394,7 @@ ORDER BY check_severity DESC, executed_at DESC;
 --   duration_seconds,
 --   rows_processed,
 --   log_message
--- FROM `{project_id}.{customer_id}.x_meta_step_logs`
+-- FROM `{project_id}.{tenant_id}.x_meta_step_logs`
 -- WHERE pipeline_logging_id = 'your-pipeline-id'
 -- ORDER BY step_number;
 
@@ -397,7 +405,7 @@ ORDER BY check_severity DESC, executed_at DESC;
 --   COUNTIF(check_passed) AS passed_checks,
 --   COUNTIF(NOT check_passed) AS failed_checks,
 --   ROUND(AVG(failure_rate), 2) AS avg_failure_rate
--- FROM `{project_id}.{customer_id}.x_meta_dq_results`
+-- FROM `{project_id}.{tenant_id}.x_meta_dq_results`
 -- WHERE executed_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)
 -- GROUP BY check_type;
 

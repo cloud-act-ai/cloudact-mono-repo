@@ -71,7 +71,7 @@ POST /api/v1/customers/onboard
 | `contact_email` | string | ❌ No | Primary contact email for notifications |
 | `subscription_plan` | string | ❌ No | Plan: "starter", "professional", "enterprise" (default: "starter") |
 | `stripe_subscription_id` | string | ❌ No | Stripe subscription ID from webhook |
-| `stripe_customer_id` | string | ❌ No | Stripe customer ID from webhook |
+| `stripe_tenant_id` | string | ❌ No | Stripe customer ID from webhook |
 | `force_recreate_dataset` | boolean | ❌ No | Delete and recreate dataset (⚠️ DESTRUCTIVE) |
 | `force_recreate_tables` | boolean | ❌ No | Delete and recreate tables (⚠️ DESTRUCTIVE) |
 
@@ -139,17 +139,17 @@ Labels: tenant=acmeinc_23xv2
 A record is created in the centralized `customers_metadata` dataset:
 
 #### `customers_metadata.customers` - Core Customer Information
-- Customer ID (UUID), tenant ID, company name
+- Tenant ID (UUID), tenant ID, company name
 - Subscription plan and status
 - Dataset ID for tenant data
 
-#### `customers_metadata.customer_subscriptions` - Subscription & Quotas
+#### `customers_metadata.tenant_subscriptions` - Subscription & Quotas
 - Subscription plan (starter/professional/enterprise)
 - Monthly pipeline quota, concurrent pipeline quota, storage quota
 - Stripe subscription ID and customer ID
 - Billing cycle dates
 
-#### `customers_metadata.customer_api_keys` - API Keys (Centralized)
+#### `customers_metadata.tenant_api_keys` - API Keys (Centralized)
 - SHA256 hashed and KMS-encrypted API keys
 - Scopes, expiration, last used timestamp
 - Centralized across all customers

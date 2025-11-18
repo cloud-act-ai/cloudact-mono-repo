@@ -51,7 +51,7 @@
     "name": "failed_expectations",
     "type": "JSON",
     "mode": "NULLABLE",
-    "description": "Detailed information about failed expectations as flexible JSON array. Each failure includes: expectation type, column name, observed value vs expected value, failure count. NULL if all expectations passed (expectations_failed=0). Example: [{'expectation_type': 'expect_column_values_to_not_be_null', 'column': 'customer_id', 'unexpected_count': 15, 'unexpected_percent': 0.03}]. Used for root cause analysis, data remediation, and detailed failure reporting."
+    "description": "Detailed information about failed expectations as flexible JSON array. Each failure includes: expectation type, column name, observed value vs expected value, failure count. NULL if all expectations passed (expectations_failed=0). Example: [{'expectation_type': 'expect_column_values_to_not_be_null', 'column': 'tenant_id', 'unexpected_count': 15, 'unexpected_percent': 0.03}]. Used for root cause analysis, data remediation, and detailed failure reporting."
   },
   {
     "name": "overall_status",

@@ -91,7 +91,8 @@ class AsyncPipelineExecutor:
         trigger_type: str = "api",
         trigger_by: str = "api_user",
         tracking_pipeline_id: Optional[str] = None,
-        pipeline_logging_id: Optional[str] = None
+        pipeline_logging_id: Optional[str] = None,
+        user_id: Optional[str] = None
     ):
         """
         Initialize async pipeline executor.
@@ -105,6 +106,7 @@ class AsyncPipelineExecutor:
                                   If not provided, defaults to pipeline_id
             pipeline_logging_id: Pre-generated logging ID for this run
                                 If not provided, generates a new UUID
+            user_id: User UUID from frontend (X-User-ID header)
         """
         self.tenant_id = tenant_id
         self.pipeline_id = pipeline_id
@@ -112,6 +114,7 @@ class AsyncPipelineExecutor:
         self.trigger_by = trigger_by
         self.tracking_pipeline_id = tracking_pipeline_id or pipeline_id
         self.pipeline_logging_id = pipeline_logging_id or str(uuid.uuid4())
+        self.user_id = user_id
 
         self.bq_client = get_bigquery_client()
         self.dq_validator = DataQualityValidator()
@@ -332,7 +335,7 @@ class AsyncPipelineExecutor:
 
         try:
             update_query = f"""
-            UPDATE `{settings.gcp_project_id}.customers.customer_usage_quotas`
+            UPDATE `{settings.gcp_project_id}.customers.tenant_usage_quotas`
             SET
                 concurrent_pipelines_running = concurrent_pipelines_running + 1,
                 max_concurrent_reached = GREATEST(max_concurrent_reached, concurrent_pipelines_running + 1),
@@ -363,7 +366,7 @@ class AsyncPipelineExecutor:
             # Query current count for Prometheus metric
             query_count = f"""
             SELECT concurrent_pipelines_running
-            FROM `{settings.gcp_project_id}.customers.customer_usage_quotas`
+            FROM `{settings.gcp_project_id}.customers.tenant_usage_quotas`
             WHERE tenant_id = @tenant_id AND usage_date = CURRENT_DATE()
             """
 
@@ -383,7 +386,7 @@ class AsyncPipelineExecutor:
                 exc_info=True
             )
 
-    async def _update_customer_usage_quotas(self) -> None:
+    async def _update_tenant_usage_quotas(self) -> None:
         """
         Update customer usage quotas after pipeline completion.
 
@@ -407,7 +410,7 @@ class AsyncPipelineExecutor:
 
             # Update usage quotas directly by tenant_id
             update_query = f"""
-            UPDATE `{settings.gcp_project_id}.customers.customer_usage_quotas`
+            UPDATE `{settings.gcp_project_id}.customers.tenant_usage_quotas`
             SET
                 pipelines_run_today = pipelines_run_today + 1,
                 pipelines_succeeded_today = pipelines_succeeded_today + @success_increment,
@@ -569,7 +572,7 @@ class AsyncPipelineExecutor:
 
             # Update customer usage quotas
             try:
-                await self._update_customer_usage_quotas()
+                await self._update_tenant_usage_quotas()
             except Exception as quota_error:
                 self.logger.error(f"Error updating customer usage quotas: {quota_error}", exc_info=True)
 
@@ -701,7 +704,8 @@ class AsyncPipelineExecutor:
                 step_name=step_id,
                 step_type=step_type,
                 step_index=step_index,
-                metadata=step_config.get('metadata', {})
+                metadata=step_config.get('metadata', {}),
+                user_id=self.user_id
             )
 
             # Wrap step execution in timeout and capture result
@@ -767,7 +771,8 @@ class AsyncPipelineExecutor:
                 start_time=step_start,
                 rows_processed=rows_processed,
                 error_message=error_message,
-                metadata=step_metadata
+                metadata=step_metadata,
+                user_id=self.user_id
             )
 
             # Track step results for summary

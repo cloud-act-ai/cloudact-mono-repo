@@ -27,8 +27,8 @@ Per-Tenant Datasets Only:
 Centralized Customers Dataset:
 customers_metadata/
 ├── customers              (Central customer records)
-├── customer_subscriptions
-├── customer_api_keys      (Centralized API key management)
+├── tenant_subscriptions
+├── tenant_api_keys      (Centralized API key management)
 ├── customer_credentials
 ├── customer_usage
 ├── customer_audit_logs
@@ -94,7 +94,7 @@ python scripts/migration/create_customer_tables.py
 ```sql
 -- 1. customers table
 CREATE TABLE customers_metadata.customers (
-  customer_id STRING NOT NULL,
+  tenant_id STRING NOT NULL,
   tenant_id STRING NOT NULL,
   company_name STRING NOT NULL,
   contact_email STRING,
@@ -108,10 +108,10 @@ CREATE TABLE customers_metadata.customers (
 PARTITION BY DATE(created_at)
 CLUSTER BY subscription_plan, status;
 
--- 2. customer_subscriptions table
-CREATE TABLE customers_metadata.customer_subscriptions (
+-- 2. tenant_subscriptions table
+CREATE TABLE customers_metadata.tenant_subscriptions (
   subscription_id STRING NOT NULL,
-  customer_id STRING NOT NULL,
+  tenant_id STRING NOT NULL,
   plan_name STRING NOT NULL,
   monthly_pipeline_quota INT64,
   concurrent_pipeline_quota INT64,
@@ -121,17 +121,17 @@ CREATE TABLE customers_metadata.customer_subscriptions (
   billing_cycle_end DATE,
   auto_renew BOOL NOT NULL DEFAULT TRUE,
   stripe_subscription_id STRING,
-  stripe_customer_id STRING,
+  stripe_tenant_id STRING,
   created_at TIMESTAMP NOT NULL,
   updated_at TIMESTAMP NOT NULL
 )
 PARTITION BY DATE(billing_cycle_start)
-CLUSTER BY customer_id, plan_name;
+CLUSTER BY tenant_id, plan_name;
 
--- 3. customer_api_keys table
-CREATE TABLE customers_metadata.customer_api_keys (
+-- 3. tenant_api_keys table
+CREATE TABLE customers_metadata.tenant_api_keys (
   api_key_id STRING NOT NULL,
-  customer_id STRING NOT NULL,
+  tenant_id STRING NOT NULL,
   tenant_id STRING NOT NULL,
   api_key_hash STRING NOT NULL,
   encrypted_api_key BYTES NOT NULL,
@@ -146,12 +146,12 @@ CREATE TABLE customers_metadata.customer_api_keys (
   revoked_by STRING
 )
 PARTITION BY DATE(created_at)
-CLUSTER BY customer_id, is_active;
+CLUSTER BY tenant_id, is_active;
 
 -- 4. customer_credentials table
 CREATE TABLE customers_metadata.customer_credentials (
   credential_id STRING NOT NULL,
-  customer_id STRING NOT NULL,
+  tenant_id STRING NOT NULL,
   tenant_id STRING NOT NULL,
   provider STRING NOT NULL,
   credential_type STRING NOT NULL,
@@ -166,12 +166,12 @@ CREATE TABLE customers_metadata.customer_credentials (
   metadata JSON
 )
 PARTITION BY DATE(created_at)
-CLUSTER BY customer_id, provider;
+CLUSTER BY tenant_id, provider;
 
 -- 5. customer_usage table
 CREATE TABLE customers_metadata.customer_usage (
   usage_id STRING NOT NULL,
-  customer_id STRING NOT NULL,
+  tenant_id STRING NOT NULL,
   tenant_id STRING NOT NULL,
   usage_month DATE NOT NULL,
   pipelines_run_count INT64 NOT NULL DEFAULT 0,
@@ -185,12 +185,12 @@ CREATE TABLE customers_metadata.customer_usage (
   updated_at TIMESTAMP NOT NULL
 )
 PARTITION BY usage_month
-CLUSTER BY customer_id, usage_month;
+CLUSTER BY tenant_id, usage_month;
 
 -- 6. customer_audit_logs table
 CREATE TABLE customers_metadata.customer_audit_logs (
   log_id STRING NOT NULL,
-  customer_id STRING NOT NULL,
+  tenant_id STRING NOT NULL,
   tenant_id STRING NOT NULL,
   event_type STRING NOT NULL,
   event_category STRING NOT NULL,
@@ -206,12 +206,12 @@ CREATE TABLE customers_metadata.customer_audit_logs (
   created_at TIMESTAMP NOT NULL
 )
 PARTITION BY DATE(created_at)
-CLUSTER BY customer_id, event_type, created_at;
+CLUSTER BY tenant_id, event_type, created_at;
 
 -- 7. customer_invitations table
 CREATE TABLE customers_metadata.customer_invitations (
   invitation_id STRING NOT NULL,
-  customer_id STRING NOT NULL,
+  tenant_id STRING NOT NULL,
   tenant_id STRING NOT NULL,
   invited_email STRING NOT NULL,
   invited_by STRING NOT NULL,
@@ -225,7 +225,7 @@ CREATE TABLE customers_metadata.customer_invitations (
   metadata JSON
 )
 PARTITION BY DATE(created_at)
-CLUSTER BY customer_id, status;
+CLUSTER BY tenant_id, status;
 ```
 
 ---
@@ -273,21 +273,21 @@ def migrate_tenant(tenant_id: str):
     print(f"Migrating tenant: {tenant_id}")
     print(f"{'='*60}")
 
-    customer_id = f"cust_{uuid.uuid4().hex[:12]}"
+    tenant_id = f"cust_{uuid.uuid4().hex[:12]}"
     now = datetime.now(timezone.utc)
 
     # Step 1: Create customer record
     print("1. Creating customer record...")
     customer_insert = f"""
     INSERT INTO `gac-prod-471220.customers_metadata.customers`
-    (customer_id, tenant_id, company_name, subscription_plan, status, dataset_id, created_at, updated_at)
+    (tenant_id, tenant_id, company_name, subscription_plan, status, dataset_id, created_at, updated_at)
     VALUES
-    (@customer_id, @tenant_id, @company_name, @subscription_plan, 'active', @tenant_id, @created_at, @updated_at)
+    (@tenant_id, @tenant_id, @company_name, @subscription_plan, 'active', @tenant_id, @created_at, @updated_at)
     """
 
     job_config = bigquery.QueryJobConfig(
         query_parameters=[
-            bigquery.ScalarQueryParameter("customer_id", "STRING", customer_id),
+            bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
             bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
             bigquery.ScalarQueryParameter("company_name", "STRING", f"{tenant_id} Corporation"),
             bigquery.ScalarQueryParameter("subscription_plan", "STRING", DEFAULT_PLAN),
@@ -296,7 +296,7 @@ def migrate_tenant(tenant_id: str):
         ]
     )
     client.query(customer_insert, job_config=job_config).result()
-    print(f"   ✓ Created customer: {customer_id}")
+    print(f"   ✓ Created customer: {tenant_id}")
 
     # Step 2: Create subscription
     print("2. Creating subscription...")
@@ -304,18 +304,18 @@ def migrate_tenant(tenant_id: str):
     quotas = PLAN_QUOTAS[DEFAULT_PLAN]
 
     subscription_insert = f"""
-    INSERT INTO `gac-prod-471220.customers_metadata.customer_subscriptions`
-    (subscription_id, customer_id, plan_name, monthly_pipeline_quota, concurrent_pipeline_quota,
+    INSERT INTO `gac-prod-471220.customers_metadata.tenant_subscriptions`
+    (subscription_id, tenant_id, plan_name, monthly_pipeline_quota, concurrent_pipeline_quota,
      storage_quota_gb, billing_cycle_start, auto_renew, created_at, updated_at)
     VALUES
-    (@subscription_id, @customer_id, @plan_name, @monthly_quota, @concurrent_quota,
+    (@subscription_id, @tenant_id, @plan_name, @monthly_quota, @concurrent_quota,
      @storage_quota, @billing_start, TRUE, @created_at, @updated_at)
     """
 
     job_config = bigquery.QueryJobConfig(
         query_parameters=[
             bigquery.ScalarQueryParameter("subscription_id", "STRING", subscription_id),
-            bigquery.ScalarQueryParameter("customer_id", "STRING", customer_id),
+            bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
             bigquery.ScalarQueryParameter("plan_name", "STRING", DEFAULT_PLAN),
             bigquery.ScalarQueryParameter("monthly_quota", "INT64", quotas["monthly"]),
             bigquery.ScalarQueryParameter("concurrent_quota", "INT64", quotas["concurrent"]),
@@ -349,18 +349,18 @@ def migrate_tenant(tenant_id: str):
 
         for key in api_keys:
             key_insert = f"""
-            INSERT INTO `gac-prod-471220.customers_metadata.customer_api_keys`
-            (api_key_id, customer_id, tenant_id, api_key_hash, encrypted_api_key,
+            INSERT INTO `gac-prod-471220.customers_metadata.tenant_api_keys`
+            (api_key_id, tenant_id, tenant_id, api_key_hash, encrypted_api_key,
              is_active, expires_at, created_at)
             VALUES
-            (@api_key_id, @customer_id, @tenant_id, @api_key_hash, @encrypted_api_key,
+            (@api_key_id, @tenant_id, @tenant_id, @api_key_hash, @encrypted_api_key,
              @is_active, @expires_at, @created_at)
             """
 
             job_config = bigquery.QueryJobConfig(
                 query_parameters=[
                     bigquery.ScalarQueryParameter("api_key_id", "STRING", key.api_key_id or f"key_{uuid.uuid4().hex[:12]}"),
-                    bigquery.ScalarQueryParameter("customer_id", "STRING", customer_id),
+                    bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
                     bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
                     bigquery.ScalarQueryParameter("api_key_hash", "STRING", key.api_key_hash),
                     bigquery.ScalarQueryParameter("encrypted_api_key", "BYTES", key.encrypted_api_key),
@@ -400,17 +400,17 @@ def migrate_tenant(tenant_id: str):
         for cred in credentials:
             cred_insert = f"""
             INSERT INTO `gac-prod-471220.customers_metadata.customer_credentials`
-            (credential_id, customer_id, tenant_id, provider, credential_type,
+            (credential_id, tenant_id, tenant_id, provider, credential_type,
              encrypted_credentials, credential_name, is_active, created_at, updated_at)
             VALUES
-            (@credential_id, @customer_id, @tenant_id, @provider, @credential_type,
+            (@credential_id, @tenant_id, @tenant_id, @provider, @credential_type,
              @encrypted_credentials, @credential_name, @is_active, @created_at, @updated_at)
             """
 
             job_config = bigquery.QueryJobConfig(
                 query_parameters=[
                     bigquery.ScalarQueryParameter("credential_id", "STRING", cred.credential_id or f"cred_{uuid.uuid4().hex[:12]}"),
-                    bigquery.ScalarQueryParameter("customer_id", "STRING", customer_id),
+                    bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
                     bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
                     bigquery.ScalarQueryParameter("provider", "STRING", cred.provider),
                     bigquery.ScalarQueryParameter("credential_type", "STRING", cred.credential_type),
@@ -458,10 +458,10 @@ def migrate_tenant(tenant_id: str):
 
     usage_insert = f"""
     INSERT INTO `gac-prod-471220.customers_metadata.customer_usage`
-    (usage_id, customer_id, tenant_id, usage_month, pipelines_run_count, pipelines_running_count,
+    (usage_id, tenant_id, tenant_id, usage_month, pipelines_run_count, pipelines_running_count,
      last_pipeline_run_at, quota_reset_at, created_at, updated_at)
     VALUES
-    (@usage_id, @customer_id, @tenant_id, @usage_month, @pipelines_run, @pipelines_running,
+    (@usage_id, @tenant_id, @tenant_id, @usage_month, @pipelines_run, @pipelines_running,
      @last_run, @quota_reset, @created_at, @updated_at)
     """
 
@@ -470,7 +470,7 @@ def migrate_tenant(tenant_id: str):
     job_config = bigquery.QueryJobConfig(
         query_parameters=[
             bigquery.ScalarQueryParameter("usage_id", "STRING", usage_id),
-            bigquery.ScalarQueryParameter("customer_id", "STRING", customer_id),
+            bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
             bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
             bigquery.ScalarQueryParameter("usage_month", "DATE", current_month.date()),
             bigquery.ScalarQueryParameter("pipelines_run", "INT64", pipelines_run),
@@ -489,15 +489,15 @@ def migrate_tenant(tenant_id: str):
     log_id = f"log_{uuid.uuid4().hex[:12]}"
     audit_insert = f"""
     INSERT INTO `gac-prod-471220.customers_metadata.customer_audit_logs`
-    (log_id, customer_id, tenant_id, event_type, event_category, actor_type, action, result, created_at)
+    (log_id, tenant_id, tenant_id, event_type, event_category, actor_type, action, result, created_at)
     VALUES
-    (@log_id, @customer_id, @tenant_id, 'customer.migrated', 'admin', 'system', 'migrate', 'success', @created_at)
+    (@log_id, @tenant_id, @tenant_id, 'customer.migrated', 'admin', 'system', 'migrate', 'success', @created_at)
     """
 
     job_config = bigquery.QueryJobConfig(
         query_parameters=[
             bigquery.ScalarQueryParameter("log_id", "STRING", log_id),
-            bigquery.ScalarQueryParameter("customer_id", "STRING", customer_id),
+            bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
             bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
             bigquery.ScalarQueryParameter("created_at", "TIMESTAMP", now),
         ]
@@ -506,9 +506,9 @@ def migrate_tenant(tenant_id: str):
     print(f"   ✓ Created audit log entry")
 
     print(f"\n✅ Successfully migrated tenant: {tenant_id}")
-    print(f"   Customer ID: {customer_id}")
+    print(f"   Tenant ID: {tenant_id}")
     print(f"   Subscription: {DEFAULT_PLAN}")
-    return customer_id
+    return tenant_id
 
 def main():
     """Main migration function"""
@@ -576,7 +576,7 @@ echo "Verifying migration for tenant: $TENANT_ID"
 # 1. Check customer record exists
 echo "1. Checking customer record..."
 bq query --use_legacy_sql=false \
-  "SELECT customer_id, tenant_id, subscription_plan, status
+  "SELECT tenant_id, tenant_id, subscription_plan, status
    FROM \`gac-prod-471220.customers_metadata.customers\`
    WHERE tenant_id = '$TENANT_ID'"
 
@@ -584,16 +584,16 @@ bq query --use_legacy_sql=false \
 echo "2. Checking subscription..."
 bq query --use_legacy_sql=false \
   "SELECT s.subscription_id, s.plan_name, s.monthly_pipeline_quota
-   FROM \`gac-prod-471220.customers_metadata.customer_subscriptions\` s
+   FROM \`gac-prod-471220.customers_metadata.tenant_subscriptions\` s
    JOIN \`gac-prod-471220.customers_metadata.customers\` c
-     ON s.customer_id = c.customer_id
+     ON s.tenant_id = c.tenant_id
    WHERE c.tenant_id = '$TENANT_ID'"
 
 # 3. Check API keys migrated
 echo "3. Checking API keys..."
 bq query --use_legacy_sql=false \
   "SELECT api_key_id, is_active, created_at
-   FROM \`gac-prod-471220.customers_metadata.customer_api_keys\`
+   FROM \`gac-prod-471220.customers_metadata.tenant_api_keys\`
    WHERE tenant_id = '$TENANT_ID'"
 
 # 4. Check usage record exists
@@ -616,7 +616,7 @@ Update your application to use the new centralized customer management.
 
 **Code Changes**:
 
-1. **Authentication** - Update to query `customer_api_keys` instead of `{tenant_id}.x_meta_api_keys`:
+1. **Authentication** - Update to query `tenant_api_keys` instead of `{tenant_id}.x_meta_api_keys`:
 
 ```python
 # OLD CODE
@@ -630,8 +630,8 @@ def authenticate_api_key(api_key: str):
 # NEW CODE
 def authenticate_api_key(api_key: str):
     query = f"""
-    SELECT customer_id, tenant_id, is_active
-    FROM `{project_id}.customers_metadata.customer_api_keys`
+    SELECT tenant_id, tenant_id, is_active
+    FROM `{project_id}.customers_metadata.tenant_api_keys`
     WHERE api_key_hash = SHA256(@api_key)
       AND is_active = TRUE
       AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP())
@@ -642,7 +642,7 @@ def authenticate_api_key(api_key: str):
 
 ```python
 # NEW CODE
-def check_quotas(customer_id: str):
+def check_quotas(tenant_id: str):
     query = f"""
     SELECT
       u.pipelines_run_count,
@@ -652,9 +652,9 @@ def check_quotas(customer_id: str):
       s.concurrent_pipeline_quota,
       s.storage_quota_gb
     FROM `{project_id}.customers_metadata.customer_usage` u
-    JOIN `{project_id}.customers_metadata.customer_subscriptions` s
-      ON u.customer_id = s.customer_id
-    WHERE u.customer_id = @customer_id
+    JOIN `{project_id}.customers_metadata.tenant_subscriptions` s
+      ON u.tenant_id = s.tenant_id
+    WHERE u.tenant_id = @tenant_id
       AND u.usage_month = DATE_TRUNC(CURRENT_DATE(), MONTH)
     """
 
@@ -707,7 +707,7 @@ bq load --source_format=NEWLINE_DELIMITED_JSON \
 After successful migration:
 
 - [ ] All tenants migrated to `customers_metadata.customers`
-- [ ] API keys migrated to `customers_metadata.customer_api_keys`
+- [ ] API keys migrated to `customers_metadata.tenant_api_keys`
 - [ ] Subscriptions created for all customers
 - [ ] Usage tracking enabled
 - [ ] Application code updated and deployed
@@ -721,24 +721,24 @@ After successful migration:
 
 ## Troubleshooting
 
-### Issue: Duplicate Customer IDs
+### Issue: Duplicate Tenant IDs
 
-**Symptom**: Error inserting customer record - duplicate customer_id
+**Symptom**: Error inserting customer record - duplicate tenant_id
 
 **Solution**:
 ```sql
 -- Check for duplicates
-SELECT customer_id, COUNT(*) as count
+SELECT tenant_id, COUNT(*) as count
 FROM customers_metadata.customers
-GROUP BY customer_id
+GROUP BY tenant_id
 HAVING count > 1;
 
 -- Delete duplicates (keep most recent)
 DELETE FROM customers_metadata.customers
-WHERE customer_id IN (
-  SELECT customer_id
+WHERE tenant_id IN (
+  SELECT tenant_id
   FROM (
-    SELECT customer_id, ROW_NUMBER() OVER (PARTITION BY tenant_id ORDER BY created_at DESC) as rn
+    SELECT tenant_id, ROW_NUMBER() OVER (PARTITION BY tenant_id ORDER BY created_at DESC) as rn
     FROM customers_metadata.customers
   )
   WHERE rn > 1
@@ -752,14 +752,14 @@ WHERE customer_id IN (
 **Solution**:
 1. Check if API key was migrated:
 ```sql
-SELECT * FROM customers_metadata.customer_api_keys
+SELECT * FROM customers_metadata.tenant_api_keys
 WHERE api_key_hash = SHA256('your_api_key_here');
 ```
 
 2. Verify application is querying correct table:
 ```bash
 # Check application logs for SQL queries
-grep "customer_api_keys" /var/log/app.log
+grep "tenant_api_keys" /var/log/app.log
 ```
 
 3. Ensure feature flag is enabled:
@@ -790,7 +790,7 @@ SET
       AND pr.status IN ('PENDING', 'RUNNING')
   ),
   updated_at = CURRENT_TIMESTAMP()
-WHERE u.customer_id = 'cust_abc123';
+WHERE u.tenant_id = 'cust_abc123';
 ```
 
 ---
@@ -813,13 +813,13 @@ A: They remain intact for backward compatibility. You can optionally delete them
 A: By default, existing customers are assigned "professional" plan. You can update later via API.
 
 **Q: Can we customize subscription quotas per customer?**
-A: Yes, quotas can be customized in `customer_subscriptions` table or via API.
+A: Yes, quotas can be customized in `tenant_subscriptions` table or via API.
 
 ---
 
 ## Related Documentation
 
-- [Customer Management Architecture](../architecture/CUSTOMER_MANAGEMENT.md)
+- [Customer Management Architecture](../architecture/TENANT_MANAGEMENT.md)
 - [API Reference](../api/CUSTOMER_API_REFERENCE.md)
 - [Onboarding Guide](ONBOARDING.md)
 - [Encryption Guide](../security/ENCRYPTION.md)

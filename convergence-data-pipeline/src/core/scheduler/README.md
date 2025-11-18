@@ -65,7 +65,7 @@ SCHEDULED → PENDING → RUNNING → COMPLETED
 ```python
 # Create a scheduled run
 run_id = await state_manager.create_scheduled_run(
-    customer_id="acme_corp",
+    tenant_id="acme_corp",
     config_id="daily_sales_pipeline",
     scheduled_time=datetime.utcnow() + timedelta(hours=1)
 )
@@ -94,7 +94,7 @@ yet_to_run = await state_manager.get_yet_to_run_pipelines(date="2025-11-17")
 
 # Get customer status summary
 status = await state_manager.get_customer_pipeline_status(
-    customer_id="acme_corp",
+    tenant_id="acme_corp",
     date="2025-11-17"
 )
 # Returns: {
@@ -122,7 +122,7 @@ Priority-based FIFO queue for pipeline execution.
 ```python
 # Enqueue a pipeline
 queue_id = await queue_manager.enqueue(
-    customer_id="acme_corp",
+    tenant_id="acme_corp",
     config={"pipeline_id": "sales_etl", "params": {...}},
     priority=5  # 1=highest, 10=lowest
 )
@@ -237,7 +237,7 @@ Tracks scheduled pipeline runs and their state lifecycle.
 | Column | Type | Description |
 |--------|------|-------------|
 | run_id | STRING | Unique run identifier (UUID) |
-| customer_id | STRING | Customer/tenant ID |
+| tenant_id | STRING | Customer/tenant ID |
 | config_id | STRING | Pipeline configuration ID |
 | state | STRING | Current state (SCHEDULED, PENDING, RUNNING, COMPLETED, FAILED) |
 | scheduled_time | TIMESTAMP | When pipeline should run |
@@ -255,7 +255,7 @@ Priority-based execution queue for pipeline runs.
 | Column | Type | Description |
 |--------|------|-------------|
 | queue_id | STRING | Unique queue item ID (UUID) |
-| customer_id | STRING | Customer/tenant ID |
+| tenant_id | STRING | Customer/tenant ID |
 | config | JSON | Complete pipeline configuration |
 | priority | INTEGER | Priority level (1=high, 10=low) |
 | status | STRING | Queue status (QUEUED, PROCESSING, COMPLETED, FAILED) |
@@ -290,7 +290,7 @@ next_run = calculator.calculate_next_run(
 
 # 2. Create scheduled run
 run_id = await state_manager.create_scheduled_run(
-    customer_id="acme_corp",
+    tenant_id="acme_corp",
     config_id="daily_sales",
     scheduled_time=next_run
 )
@@ -304,7 +304,7 @@ await state_manager.transition_state(
 
 # 4. Enqueue for execution
 queue_id = await queue_manager.enqueue(
-    customer_id="acme_corp",
+    tenant_id="acme_corp",
     config={"pipeline_id": "daily_sales", "params": {...}},
     priority=5
 )
@@ -365,13 +365,13 @@ yet_to_run = await state_manager.get_yet_to_run_pipelines(
 )
 
 for pipeline in yet_to_run:
-    print(f"Pipeline {pipeline['config_id']} for {pipeline['customer_id']}")
+    print(f"Pipeline {pipeline['config_id']} for {pipeline['tenant_id']}")
     print(f"  Scheduled: {pipeline['scheduled_time']}")
     print(f"  State: {pipeline['state']}")
 
 # Get customer status summary
 status = await state_manager.get_customer_pipeline_status(
-    customer_id="acme_corp",
+    tenant_id="acme_corp",
     date="2025-11-17"
 )
 
@@ -439,7 +439,7 @@ All methods include:
 
 ## Performance Considerations
 
-- **Indexes**: Add indexes on `state`, `scheduled_time`, `customer_id` for faster queries
+- **Indexes**: Add indexes on `state`, `scheduled_time`, `tenant_id` for faster queries
 - **Batch Operations**: Use BigQuery's batch insert when creating multiple runs
 - **Connection Pooling**: BigQuery client uses connection pooling internally
 - **Async Operations**: All I/O operations use `asyncio` for non-blocking execution

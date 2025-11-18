@@ -1,9 +1,9 @@
 """
 Customer Onboarding API Routes
-Endpoint for onboarding new customers/tenants to the platform.
+Endpoint for onboarding new tenants/tenants to the platform.
 
 TWO-DATASET ARCHITECTURE:
-1. customers dataset: Auth data (API keys, subscriptions, profiles, credentials)
+1. tenants dataset: Auth data (API keys, subscriptions, profiles, credentials)
 2. {tenant_id} dataset: Operational data (pipeline_runs, step_logs, dq_results)
 """
 
@@ -79,7 +79,7 @@ class OnboardCustomerRequest(BaseModel):
 
 class OnboardCustomerResponse(BaseModel):
     """Response for customer onboarding."""
-    customer_id: str
+    tenant_id: str
     tenant_id: str
     api_key: str  # Unencrypted - show once!
     subscription_plan: str
@@ -94,7 +94,7 @@ class OnboardCustomerResponse(BaseModel):
 # ============================================
 
 @router.post(
-    "/customers/onboard",
+    "/tenants/onboard",
     response_model=OnboardCustomerResponse,
     summary="Onboard a new customer",
     description="Complete customer onboarding: create customer profile, API key, subscription, and tenant dataset"
@@ -107,10 +107,10 @@ async def onboard_customer(
     Onboard a new customer to the platform.
 
     TWO-DATASET ARCHITECTURE:
-    1. Creates customer record in customers.customer_profiles
-    2. Stores API key in customers.customer_api_keys (centralized auth)
-    3. Creates subscription in customers.customer_subscriptions
-    4. Creates usage tracking in customers.customer_usage_quotas
+    1. Creates customer record in tenants.customer_profiles
+    2. Stores API key in tenants.customer_api_keys (centralized auth)
+    3. Creates subscription in tenants.customer_subscriptions
+    4. Creates usage tracking in tenants.customer_usage_quotas
     5. Creates tenant dataset with ONLY operational tables (no API keys)
     6. Runs dry-run pipeline to validate infrastructure
 
@@ -125,9 +125,9 @@ async def onboard_customer(
     - Dataset and table creation status
     """
     tenant_id = request.tenant_id
-    customer_id = str(uuid.uuid4())  # Generate unique customer ID
+    tenant_id = str(uuid.uuid4())  # Generate unique customer ID
 
-    logger.info(f"Starting customer onboarding for tenant: {tenant_id}, customer_id: {customer_id}")
+    logger.info(f"Starting customer onboarding for tenant: {tenant_id}, tenant_id: {tenant_id}")
 
     # Track tables created
     tables_created = []
@@ -142,23 +142,23 @@ async def onboard_customer(
     plan_limits = PLAN_LIMITS.get(request.subscription_plan, PLAN_LIMITS["STARTER"])
 
     # ============================================
-    # STEP 1: Create customer profile in customers.customer_profiles
+    # STEP 1: Create customer profile in tenants.customer_profiles
     # ============================================
     try:
-        logger.info(f"Creating customer profile in customers.customer_profiles")
+        logger.info(f"Creating customer profile in tenants.customer_profiles")
 
         insert_profile_query = f"""
-        INSERT INTO `{settings.gcp_project_id}.customers.customer_profiles`
-        (customer_id, company_name, admin_email, tenant_id, status, subscription_plan, created_at, updated_at)
+        INSERT INTO `{settings.gcp_project_id}.tenants.customer_profiles`
+        (tenant_id, company_name, admin_email, tenant_id, status, subscription_plan, created_at, updated_at)
         VALUES
-        (@customer_id, @company_name, @admin_email, @tenant_id, 'ACTIVE', @subscription_plan, CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP())
+        (@tenant_id, @company_name, @admin_email, @tenant_id, 'ACTIVE', @subscription_plan, CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP())
         """
 
         bq_client.client.query(
             insert_profile_query,
             job_config=bigquery.QueryJobConfig(
                 query_parameters=[
-                    bigquery.ScalarQueryParameter("customer_id", "STRING", customer_id),
+                    bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
                     bigquery.ScalarQueryParameter("company_name", "STRING", request.company_name),
                     bigquery.ScalarQueryParameter("admin_email", "STRING", request.admin_email),
                     bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
@@ -167,7 +167,7 @@ async def onboard_customer(
             )
         ).result()
 
-        logger.info(f"Customer profile created: {customer_id}")
+        logger.info(f"Customer profile created: {tenant_id}")
 
     except Exception as e:
         logger.error(f"Failed to create customer profile: {e}", exc_info=True)
@@ -177,10 +177,10 @@ async def onboard_customer(
         )
 
     # ============================================
-    # STEP 2: Generate and store API key in customers.customer_api_keys
+    # STEP 2: Generate and store API key in tenants.customer_api_keys
     # ============================================
     try:
-        logger.info(f"Generating API key for customer: {customer_id}")
+        logger.info(f"Generating API key for customer: {tenant_id}")
 
         # Generate secure API key with format: {tenant_id}_api_{random_16_chars}
         random_suffix = secrets.token_urlsafe(16)[:16]
@@ -198,12 +198,12 @@ async def onboard_customer(
 
         api_key_id = str(uuid.uuid4())
 
-        # Store API key in centralized customers.customer_api_keys table
+        # Store API key in centralized tenants.customer_api_keys table
         insert_api_key_query = f"""
-        INSERT INTO `{settings.gcp_project_id}.customers.customer_api_keys`
-        (api_key_id, customer_id, tenant_id, api_key_hash, encrypted_api_key, scopes, is_active, created_at)
+        INSERT INTO `{settings.gcp_project_id}.tenants.customer_api_keys`
+        (api_key_id, tenant_id, tenant_id, api_key_hash, encrypted_api_key, scopes, is_active, created_at)
         VALUES
-        (@api_key_id, @customer_id, @tenant_id, @api_key_hash, @encrypted_api_key, @scopes, TRUE, CURRENT_TIMESTAMP())
+        (@api_key_id, @tenant_id, @tenant_id, @api_key_hash, @encrypted_api_key, @scopes, TRUE, CURRENT_TIMESTAMP())
         """
 
         bq_client.client.query(
@@ -211,7 +211,7 @@ async def onboard_customer(
             job_config=bigquery.QueryJobConfig(
                 query_parameters=[
                     bigquery.ScalarQueryParameter("api_key_id", "STRING", api_key_id),
-                    bigquery.ScalarQueryParameter("customer_id", "STRING", customer_id),
+                    bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
                     bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
                     bigquery.ScalarQueryParameter("api_key_hash", "STRING", api_key_hash),
                     bigquery.ScalarQueryParameter("encrypted_api_key", "BYTES", encrypted_api_key_bytes),
@@ -220,7 +220,7 @@ async def onboard_customer(
             )
         ).result()
 
-        logger.info(f"API key stored in customers.customer_api_keys: {api_key_id}")
+        logger.info(f"API key stored in tenants.customer_api_keys: {api_key_id}")
 
     except Exception as e:
         logger.error(f"Failed to generate/store API key: {e}", exc_info=True)
@@ -230,20 +230,20 @@ async def onboard_customer(
         )
 
     # ============================================
-    # STEP 3: Create subscription in customers.customer_subscriptions
+    # STEP 3: Create subscription in tenants.customer_subscriptions
     # ============================================
     try:
-        logger.info(f"Creating subscription for customer: {customer_id}")
+        logger.info(f"Creating subscription for customer: {tenant_id}")
 
         subscription_id = str(uuid.uuid4())
         trial_end = date.today()  # You can add 14 days for real trial
 
         insert_subscription_query = f"""
-        INSERT INTO `{settings.gcp_project_id}.customers.customer_subscriptions`
-        (subscription_id, customer_id, plan_name, status, max_team_members, max_providers,
+        INSERT INTO `{settings.gcp_project_id}.tenants.customer_subscriptions`
+        (subscription_id, tenant_id, plan_name, status, max_team_members, max_providers,
          max_pipelines_per_day, max_concurrent_pipelines, trial_end_date, created_at)
         VALUES
-        (@subscription_id, @customer_id, @plan_name, 'ACTIVE', @max_team_members, @max_providers,
+        (@subscription_id, @tenant_id, @plan_name, 'ACTIVE', @max_team_members, @max_providers,
          @max_pipelines_per_day, @max_concurrent_pipelines, @trial_end_date, CURRENT_TIMESTAMP())
         """
 
@@ -252,7 +252,7 @@ async def onboard_customer(
             job_config=bigquery.QueryJobConfig(
                 query_parameters=[
                     bigquery.ScalarQueryParameter("subscription_id", "STRING", subscription_id),
-                    bigquery.ScalarQueryParameter("customer_id", "STRING", customer_id),
+                    bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
                     bigquery.ScalarQueryParameter("plan_name", "STRING", request.subscription_plan),
                     bigquery.ScalarQueryParameter("max_team_members", "INT64", plan_limits["max_team"]),
                     bigquery.ScalarQueryParameter("max_providers", "INT64", plan_limits["max_providers"]),
@@ -273,19 +273,19 @@ async def onboard_customer(
         )
 
     # ============================================
-    # STEP 4: Create initial usage quota record in customers.customer_usage_quotas
+    # STEP 4: Create initial usage quota record in tenants.customer_usage_quotas
     # ============================================
     try:
-        logger.info(f"Creating usage quota for customer: {customer_id}")
+        logger.info(f"Creating usage quota for customer: {tenant_id}")
 
-        usage_id = f"{customer_id}_{date.today().strftime('%Y%m%d')}"
+        usage_id = f"{tenant_id}_{date.today().strftime('%Y%m%d')}"
 
         insert_usage_query = f"""
-        INSERT INTO `{settings.gcp_project_id}.customers.customer_usage_quotas`
-        (usage_id, customer_id, tenant_id, usage_date, pipelines_run_today, pipelines_succeeded_today,
+        INSERT INTO `{settings.gcp_project_id}.tenants.customer_usage_quotas`
+        (usage_id, tenant_id, tenant_id, usage_date, pipelines_run_today, pipelines_succeeded_today,
          pipelines_failed_today, concurrent_pipelines_running, daily_limit, last_updated)
         VALUES
-        (@usage_id, @customer_id, @tenant_id, CURRENT_DATE(), 0, 0, 0, 0, @daily_limit, CURRENT_TIMESTAMP())
+        (@usage_id, @tenant_id, @tenant_id, CURRENT_DATE(), 0, 0, 0, 0, @daily_limit, CURRENT_TIMESTAMP())
         """
 
         bq_client.client.query(
@@ -293,7 +293,7 @@ async def onboard_customer(
             job_config=bigquery.QueryJobConfig(
                 query_parameters=[
                     bigquery.ScalarQueryParameter("usage_id", "STRING", usage_id),
-                    bigquery.ScalarQueryParameter("customer_id", "STRING", customer_id),
+                    bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
                     bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
                     bigquery.ScalarQueryParameter("daily_limit", "INT64", plan_limits["max_daily"])
                 ]
@@ -435,10 +435,10 @@ async def onboard_customer(
     # ============================================
     # STEP 7: Return response
     # ============================================
-    logger.info(f"Customer onboarding completed - customer_id: {customer_id}, tenant_id: {tenant_id}")
+    logger.info(f"Customer onboarding completed - tenant_id: {tenant_id}, tenant_id: {tenant_id}")
 
     return OnboardCustomerResponse(
-        customer_id=customer_id,
+        tenant_id=tenant_id,
         tenant_id=tenant_id,
         api_key=api_key,  # SAVE THIS - shown only once!
         subscription_plan=request.subscription_plan,

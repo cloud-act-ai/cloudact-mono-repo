@@ -32,12 +32,12 @@ async def example_state_transitions():
     state_manager = PipelineStateManager(bq_client)
 
     # 1. Create a scheduled run
-    customer_id = "acme_corp"
+    tenant_id = "acme_corp"
     config_id = "daily_sales_pipeline"
     scheduled_time = datetime.utcnow() + timedelta(hours=1)
 
     run_id = await state_manager.create_scheduled_run(
-        customer_id=customer_id,
+        tenant_id=tenant_id,
         config_id=config_id,
         scheduled_time=scheduled_time
     )
@@ -83,9 +83,9 @@ async def example_queue_management():
 
     # 1. Enqueue multiple pipelines with different priorities
     pipelines = [
-        {"customer_id": "customer_a", "pipeline_id": "pipeline_1", "priority": 5},
-        {"customer_id": "customer_b", "pipeline_id": "pipeline_2", "priority": 1},  # High priority
-        {"customer_id": "customer_c", "pipeline_id": "pipeline_3", "priority": 10},  # Low priority
+        {"tenant_id": "customer_a", "pipeline_id": "pipeline_1", "priority": 5},
+        {"tenant_id": "customer_b", "pipeline_id": "pipeline_2", "priority": 1},  # High priority
+        {"tenant_id": "customer_c", "pipeline_id": "pipeline_3", "priority": 10},  # Low priority
     ]
 
     for pipeline in pipelines:
@@ -95,7 +95,7 @@ async def example_queue_management():
         }
 
         queue_id = await queue_manager.enqueue(
-            customer_id=pipeline["customer_id"],
+            tenant_id=pipeline["tenant_id"],
             config=config,
             priority=pipeline["priority"]
         )
@@ -175,12 +175,12 @@ async def example_retry_logic():
     retry_manager = RetryManager()
 
     # 1. Create a scheduled run
-    customer_id = "test_customer"
+    tenant_id = "test_customer"
     config_id = "test_pipeline"
     scheduled_time = datetime.utcnow()
 
     run_id = await state_manager.create_scheduled_run(
-        customer_id=customer_id,
+        tenant_id=tenant_id,
         config_id=config_id,
         scheduled_time=scheduled_time
     )
@@ -242,7 +242,7 @@ async def example_yet_to_run_pipelines():
     print(f"Found {len(yet_to_run)} pipelines yet to run:")
     for pipeline in yet_to_run:
         print(f"  - Run ID: {pipeline['run_id']}")
-        print(f"    Customer: {pipeline['customer_id']}")
+        print(f"    Customer: {pipeline['tenant_id']}")
         print(f"    Config: {pipeline['config_id']}")
         print(f"    Scheduled: {pipeline['scheduled_time']}")
         print(f"    State: {pipeline['state']}")
@@ -258,13 +258,13 @@ async def example_customer_status():
     bq_client = bigquery.Client()
     state_manager = PipelineStateManager(bq_client)
 
-    customer_id = "acme_corp"
+    tenant_id = "acme_corp"
     status = await state_manager.get_customer_pipeline_status(
-        customer_id=customer_id,
+        tenant_id=tenant_id,
         date="2025-11-17"
     )
 
-    print(f"Pipeline status for {customer_id}:")
+    print(f"Pipeline status for {tenant_id}:")
     print(f"  Total configured: {status['total_configured']}")
     print(f"  Scheduled today: {status['scheduled_today']}")
     print(f"  Completed today: {status['completed_today']}")
@@ -293,7 +293,7 @@ async def example_complete_workflow():
 
     # 2. Create scheduled run
     run_id = await state_manager.create_scheduled_run(
-        customer_id="demo_customer",
+        tenant_id="demo_customer",
         config_id="daily_analytics",
         scheduled_time=next_run
     )
@@ -313,7 +313,7 @@ async def example_complete_workflow():
         "parameters": {"date": "2025-11-17"}
     }
     queue_id = await queue_manager.enqueue(
-        customer_id="demo_customer",
+        tenant_id="demo_customer",
         config=config,
         priority=5
     )

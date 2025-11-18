@@ -6,7 +6,7 @@
     "description": "Unique identifier (UUID) for this queue item. Used for atomic dequeue operations and tracking."
   },
   {
-    "name": "customer_id",
+    "name": "tenant_id",
     "type": "STRING",
     "mode": "REQUIRED",
     "description": "Customer/tenant identifier. Used for tenant-specific queue filtering and isolation."

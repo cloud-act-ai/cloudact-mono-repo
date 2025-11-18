@@ -139,7 +139,7 @@
 
 ### x_meta_scheduled_runs
 - Primary key: `run_id` (UUID)
-- Indexes needed: `state`, `scheduled_time`, `customer_id`
+- Indexes needed: `state`, `scheduled_time`, `tenant_id`
 - Partitioning: Consider partitioning by `scheduled_time` (DATE)
 
 ### x_meta_pipeline_queue
@@ -190,14 +190,14 @@ next_run = calculator.calculate_next_run("0 2 * * *", "America/New_York")
 
 # 2. Create scheduled run
 run_id = await state_manager.create_scheduled_run(
-    customer_id, config_id, next_run
+    tenant_id, config_id, next_run
 )
 
 # 3. Transition to pending when due
 await state_manager.transition_state(run_id, "SCHEDULED", "PENDING")
 
 # 4. Enqueue
-queue_id = await queue_manager.enqueue(customer_id, config, priority=5)
+queue_id = await queue_manager.enqueue(tenant_id, config, priority=5)
 
 # 5. Worker dequeues
 item = await queue_manager.dequeue("worker-001")
@@ -279,7 +279,7 @@ This demonstrates:
 1. **Indexes**: Create indexes on frequently queried columns
    ```sql
    CREATE INDEX idx_state ON x_meta_scheduled_runs(state, scheduled_time);
-   CREATE INDEX idx_customer ON x_meta_scheduled_runs(customer_id);
+   CREATE INDEX idx_customer ON x_meta_scheduled_runs(tenant_id);
    CREATE INDEX idx_queue_status ON x_meta_pipeline_queue(status, priority, created_at);
    ```
 
@@ -313,7 +313,7 @@ tenacity==8.2.3                 # Retry logic
 
    bq = BigQueryClient()
    bq.create_table_from_schema_file(
-       tenant_id="customer_id",
+       tenant_id="tenant_id",
        dataset_type="metadata",
        table_name="x_meta_scheduled_runs",
        schema_file="templates/customer/onboarding/schemas/x_meta_scheduled_runs.json"

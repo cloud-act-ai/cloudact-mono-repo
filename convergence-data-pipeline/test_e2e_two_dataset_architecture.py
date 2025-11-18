@@ -68,13 +68,13 @@ def test_customer_onboarding():
         if response.status_code == 200:
             data = response.json()
             print_success(f"Customer {customer['tenant_id']} onboarded successfully")
-            print_info(f"  - Customer ID: {data.get('customer_id')}")
+            print_info(f"  - Tenant ID: {data.get('tenant_id')}")
             print_info(f"  - API Key: {data.get('api_key')[:20]}...")
             print_info(f"  - Dataset Created: {data.get('dataset_created')}")
 
             results.append({
                 "tenant_id": customer['tenant_id'],
-                "customer_id": data.get('customer_id'),
+                "tenant_id": data.get('tenant_id'),
                 "api_key": data.get('api_key')
             })
         else:
@@ -94,50 +94,50 @@ def test_auth_data_in_customers_dataset(onboarded_customers):
     for customer in onboarded_customers:
         tenant_id = customer['tenant_id']
 
-        # Check customer_profiles table
+        # Check tenant_profiles table
         query = f"""
-        SELECT customer_id, tenant_id, company_name, subscription_plan, status
-        FROM `{PROJECT_ID}.customers.customer_profiles`
+        SELECT tenant_id, tenant_id, company_name, subscription_plan, status
+        FROM `{PROJECT_ID}.customers.tenant_profiles`
         WHERE tenant_id = '{tenant_id}'
         """
 
         try:
             results = list(client.query(query).result())
             if results:
-                print_success(f"Customer profile found in customers.customer_profiles for {tenant_id}")
-                print_info(f"  - Customer ID: {results[0].customer_id}")
+                print_success(f"Customer profile found in customers.tenant_profiles for {tenant_id}")
+                print_info(f"  - Tenant ID: {results[0].tenant_id}")
                 print_info(f"  - Plan: {results[0].subscription_plan}")
                 print_info(f"  - Status: {results[0].status}")
             else:
                 print_error(f"No customer profile found for {tenant_id}")
         except Exception as e:
-            print_error(f"Error querying customer_profiles: {e}")
+            print_error(f"Error querying tenant_profiles: {e}")
 
-        # Check customer_api_keys table
+        # Check tenant_api_keys table
         query = f"""
         SELECT api_key_id, tenant_id, is_active, created_at
-        FROM `{PROJECT_ID}.customers.customer_api_keys`
+        FROM `{PROJECT_ID}.customers.tenant_api_keys`
         WHERE tenant_id = '{tenant_id}'
         """
 
         try:
             results = list(client.query(query).result())
             if results:
-                print_success(f"API key found in customers.customer_api_keys for {tenant_id}")
+                print_success(f"API key found in customers.tenant_api_keys for {tenant_id}")
                 print_info(f"  - API Key ID: {results[0].api_key_id}")
                 print_info(f"  - Active: {results[0].is_active}")
                 print_info(f"  - Created: {results[0].created_at}")
             else:
                 print_error(f"No API key found for {tenant_id}")
         except Exception as e:
-            print_error(f"Error querying customer_api_keys: {e}")
+            print_error(f"Error querying tenant_api_keys: {e}")
 
-        # Check customer_subscriptions table
+        # Check tenant_subscriptions table
         query = f"""
         SELECT subscription_id, plan_name, status, max_pipelines_per_day
-        FROM `{PROJECT_ID}.customers.customer_subscriptions`
-        WHERE customer_id = (
-            SELECT customer_id FROM `{PROJECT_ID}.customers.customer_profiles`
+        FROM `{PROJECT_ID}.customers.tenant_subscriptions`
+        WHERE tenant_id = (
+            SELECT tenant_id FROM `{PROJECT_ID}.customers.tenant_profiles`
             WHERE tenant_id = '{tenant_id}'
         )
         """
@@ -145,13 +145,13 @@ def test_auth_data_in_customers_dataset(onboarded_customers):
         try:
             results = list(client.query(query).result())
             if results:
-                print_success(f"Subscription found in customers.customer_subscriptions for {tenant_id}")
+                print_success(f"Subscription found in customers.tenant_subscriptions for {tenant_id}")
                 print_info(f"  - Plan: {results[0].plan_name}")
                 print_info(f"  - Daily Quota: {results[0].max_pipelines_per_day}")
             else:
                 print_error(f"No subscription found for {tenant_id}")
         except Exception as e:
-            print_error(f"Error querying customer_subscriptions: {e}")
+            print_error(f"Error querying tenant_subscriptions: {e}")
 
 # ============================================
 # TEST 3: Verify Tenant Dataset Contains NO Credentials
@@ -184,8 +184,8 @@ def test_tenant_dataset_no_credentials(onboarded_customers):
             dangerous_tables = [
                 'x_meta_api_keys',
                 'x_meta_cloud_credentials',
-                'customer_api_keys',
-                'customer_cloud_credentials',
+                'tenant_api_keys',
+                'tenant_cloud_credentials',
                 'api_keys',
                 'credentials'
             ]
@@ -219,7 +219,7 @@ def test_tenant_dataset_no_credentials(onboarded_customers):
 # TEST 4: Test API Authentication from Centralized Dataset
 # ============================================
 def test_centralized_authentication(onboarded_customers):
-    """Test that API authentication reads from centralized customers.customer_api_keys"""
+    """Test that API authentication reads from centralized customers.tenant_api_keys"""
     print_test_header("Centralized API Authentication")
 
     for customer in onboarded_customers:
@@ -230,7 +230,7 @@ def test_centralized_authentication(onboarded_customers):
 
         # Test with valid API key
         response = requests.get(
-            f"{BASE_URL}/api/v1/customers/{customer['customer_id']}",
+            f"{BASE_URL}/api/v1/customers/{customer['tenant_id']}",
             headers={"X-API-Key": api_key}
         )
 
@@ -244,7 +244,7 @@ def test_centralized_authentication(onboarded_customers):
 
         # Test with invalid API key
         response = requests.get(
-            f"{BASE_URL}/api/v1/customers/{customer['customer_id']}",
+            f"{BASE_URL}/api/v1/customers/{customer['tenant_id']}",
             headers={"X-API-Key": "invalid_key_12345"}
         )
 
@@ -272,7 +272,7 @@ def test_cross_tenant_isolation(onboarded_customers):
 
     # Customer A tries to access Customer B's data
     response = requests.get(
-        f"{BASE_URL}/api/v1/customers/{customer_b['customer_id']}",
+        f"{BASE_URL}/api/v1/customers/{customer_b['tenant_id']}",
         headers={"X-API-Key": customer_a['api_key']}
     )
 
@@ -320,7 +320,7 @@ def test_genai_safe_queries(onboarded_customers):
         # Simulate GenAI trying to access credentials (should fail)
         dangerous_queries = [
             f"SELECT * FROM `{PROJECT_ID}.{tenant_id}.x_meta_api_keys`",
-            f"SELECT * FROM `{PROJECT_ID}.{tenant_id}.customer_api_keys`",
+            f"SELECT * FROM `{PROJECT_ID}.{tenant_id}.tenant_api_keys`",
             f"SELECT * FROM `{PROJECT_ID}.{tenant_id}.x_meta_cloud_credentials`",
         ]
 
@@ -354,7 +354,7 @@ def test_authentication_performance(onboarded_customers):
     for i in range(10):
         start = time.time()
         response = requests.get(
-            f"{BASE_URL}/api/v1/customers/{customer['customer_id']}",
+            f"{BASE_URL}/api/v1/customers/{customer['tenant_id']}",
             headers={"X-API-Key": api_key}
         )
         elapsed = (time.time() - start) * 1000  # Convert to ms

@@ -25,8 +25,8 @@ This centralized dataset contains all customer management tables:
 ```
 customers_metadata/
 ├── customers                  (Core customer information)
-├── customer_subscriptions     (Subscription plans and billing)
-├── customer_api_keys          (Encrypted API keys with KMS)
+├── tenant_subscriptions     (Subscription plans and billing)
+├── tenant_api_keys          (Encrypted API keys with KMS)
 ├── customer_credentials       (Cloud provider credentials)
 ├── customer_usage             (Usage tracking and quotas)
 ├── customer_audit_logs        (Audit trail for compliance)
@@ -60,7 +60,7 @@ Each customer gets an isolated dataset for their pipeline data:
 **Schema**:
 ```sql
 CREATE TABLE customers_metadata.customers (
-  customer_id STRING NOT NULL,              -- UUID, primary key
+  tenant_id STRING NOT NULL,              -- UUID, primary key
   tenant_id STRING NOT NULL,                -- Human-readable identifier (e.g., "acmeinc_23xv2")
   company_name STRING NOT NULL,             -- Company name
   contact_email STRING,                     -- Primary contact email
@@ -76,7 +76,7 @@ CLUSTER BY subscription_plan, status;
 ```
 
 **Indexes**:
-- Primary: `customer_id`
+- Primary: `tenant_id`
 - Unique: `tenant_id`
 - Index: `contact_email`
 
@@ -91,15 +91,15 @@ FILTER USING (tenant_id = SESSION_USER());
 
 ---
 
-### 2. customer_subscriptions
+### 2. tenant_subscriptions
 
 **Purpose**: Subscription plans, billing, and quota management
 
 **Schema**:
 ```sql
-CREATE TABLE customers_metadata.customer_subscriptions (
+CREATE TABLE customers_metadata.tenant_subscriptions (
   subscription_id STRING NOT NULL,          -- UUID, primary key
-  customer_id STRING NOT NULL,              -- FK to customers.customer_id
+  tenant_id STRING NOT NULL,              -- FK to customers.tenant_id
   plan_name STRING NOT NULL,                -- "starter" | "professional" | "enterprise"
   monthly_pipeline_quota INT64,             -- Max pipelines per month (NULL = unlimited)
   concurrent_pipeline_quota INT64,          -- Max concurrent pipelines (NULL = unlimited)
@@ -109,12 +109,12 @@ CREATE TABLE customers_metadata.customer_subscriptions (
   billing_cycle_end DATE,                   -- Billing cycle end date (NULL = active)
   auto_renew BOOL NOT NULL DEFAULT TRUE,    -- Auto-renewal enabled
   stripe_subscription_id STRING,            -- Stripe subscription ID
-  stripe_customer_id STRING,                -- Stripe customer ID
+  stripe_tenant_id STRING,                -- Stripe customer ID
   created_at TIMESTAMP NOT NULL,
   updated_at TIMESTAMP NOT NULL
 )
 PARTITION BY DATE(billing_cycle_start)
-CLUSTER BY customer_id, plan_name;
+CLUSTER BY tenant_id, plan_name;
 ```
 
 **Subscription Plans**:
@@ -127,15 +127,15 @@ CLUSTER BY customer_id, plan_name;
 
 ---
 
-### 3. customer_api_keys
+### 3. tenant_api_keys
 
 **Purpose**: Centralized API key management with KMS encryption
 
 **Schema**:
 ```sql
-CREATE TABLE customers_metadata.customer_api_keys (
+CREATE TABLE customers_metadata.tenant_api_keys (
   api_key_id STRING NOT NULL,               -- UUID, primary key
-  customer_id STRING NOT NULL,              -- FK to customers.customer_id
+  tenant_id STRING NOT NULL,              -- FK to customers.tenant_id
   tenant_id STRING NOT NULL,                -- Redundant for fast lookup
   api_key_hash STRING NOT NULL,             -- SHA256 hash for authentication
   encrypted_api_key BYTES NOT NULL,         -- KMS-encrypted API key
@@ -150,7 +150,7 @@ CREATE TABLE customers_metadata.customer_api_keys (
   revoked_by STRING                         -- User who revoked the key
 )
 PARTITION BY DATE(created_at)
-CLUSTER BY customer_id, is_active;
+CLUSTER BY tenant_id, is_active;
 ```
 
 **Security**:
@@ -170,7 +170,7 @@ CLUSTER BY customer_id, is_active;
 ```sql
 CREATE TABLE customers_metadata.customer_credentials (
   credential_id STRING NOT NULL,            -- UUID, primary key
-  customer_id STRING NOT NULL,              -- FK to customers.customer_id
+  tenant_id STRING NOT NULL,              -- FK to customers.tenant_id
   tenant_id STRING NOT NULL,                -- Redundant for fast lookup
   provider STRING NOT NULL,                 -- "gcp" | "aws" | "azure" | "openai"
   credential_type STRING NOT NULL,          -- "service_account" | "api_key" | "oauth"
@@ -185,7 +185,7 @@ CREATE TABLE customers_metadata.customer_credentials (
   metadata JSON                             -- Provider-specific metadata
 )
 PARTITION BY DATE(created_at)
-CLUSTER BY customer_id, provider;
+CLUSTER BY tenant_id, provider;
 ```
 
 **Supported Providers**:
@@ -204,7 +204,7 @@ CLUSTER BY customer_id, provider;
 ```sql
 CREATE TABLE customers_metadata.customer_usage (
   usage_id STRING NOT NULL,                 -- UUID, primary key
-  customer_id STRING NOT NULL,              -- FK to customers.customer_id
+  tenant_id STRING NOT NULL,              -- FK to customers.tenant_id
   tenant_id STRING NOT NULL,
   usage_month DATE NOT NULL,                -- First day of month (YYYY-MM-01)
   pipelines_run_count INT64 NOT NULL DEFAULT 0,        -- Pipelines run this month
@@ -218,7 +218,7 @@ CREATE TABLE customers_metadata.customer_usage (
   updated_at TIMESTAMP NOT NULL
 )
 PARTITION BY usage_month
-CLUSTER BY customer_id, usage_month;
+CLUSTER BY tenant_id, usage_month;
 ```
 
 **Quota Enforcement Logic**:
@@ -244,7 +244,7 @@ if usage.storage_used_gb >= subscription.storage_quota_gb:
 ```sql
 CREATE TABLE customers_metadata.customer_audit_logs (
   log_id STRING NOT NULL,                   -- UUID, primary key
-  customer_id STRING NOT NULL,              -- FK to customers.customer_id
+  tenant_id STRING NOT NULL,              -- FK to customers.tenant_id
   tenant_id STRING NOT NULL,
   event_type STRING NOT NULL,               -- "customer.created" | "api_key.revoked" | etc.
   event_category STRING NOT NULL,           -- "authentication" | "data_access" | "admin"
@@ -260,7 +260,7 @@ CREATE TABLE customers_metadata.customer_audit_logs (
   created_at TIMESTAMP NOT NULL
 )
 PARTITION BY DATE(created_at)
-CLUSTER BY customer_id, event_type, created_at;
+CLUSTER BY tenant_id, event_type, created_at;
 ```
 
 **Event Types**:
@@ -281,7 +281,7 @@ CLUSTER BY customer_id, event_type, created_at;
 ```sql
 CREATE TABLE customers_metadata.customer_invitations (
   invitation_id STRING NOT NULL,            -- UUID, primary key
-  customer_id STRING NOT NULL,              -- FK to customers.customer_id
+  tenant_id STRING NOT NULL,              -- FK to customers.tenant_id
   tenant_id STRING NOT NULL,
   invited_email STRING NOT NULL,            -- Email of invitee
   invited_by STRING NOT NULL,               -- Email of inviter
@@ -295,7 +295,7 @@ CREATE TABLE customers_metadata.customer_invitations (
   metadata JSON
 )
 PARTITION BY DATE(created_at)
-CLUSTER BY customer_id, status;
+CLUSTER BY tenant_id, status;
 ```
 
 **Roles**:
@@ -324,7 +324,7 @@ Request:
 
 Response:
 {
-  "customer_id": "cust_abc123",
+  "tenant_id": "cust_abc123",
   "tenant_id": "acmeinc_23xv2",
   "api_key": "acmeinc_23xv2_api_xK9mPqWz7LnR4vYt",
   "dataset_created": true,
@@ -334,12 +334,12 @@ Response:
 
 #### Get Customer Details
 ```
-GET /api/v1/customers/{customer_id}
+GET /api/v1/customers/{tenant_id}
 Authorization: Bearer <admin_token>
 
 Response:
 {
-  "customer_id": "cust_abc123",
+  "tenant_id": "cust_abc123",
   "tenant_id": "acmeinc_23xv2",
   "company_name": "ACME Corporation",
   "subscription_plan": "professional",
@@ -350,7 +350,7 @@ Response:
 
 #### Update Customer
 ```
-PATCH /api/v1/customers/{customer_id}
+PATCH /api/v1/customers/{tenant_id}
 Authorization: Bearer <admin_token>
 
 Request:
@@ -362,7 +362,7 @@ Request:
 
 #### Suspend/Activate Customer
 ```
-POST /api/v1/customers/{customer_id}/suspend
+POST /api/v1/customers/{tenant_id}/suspend
 Authorization: Bearer <admin_token>
 
 Request:
@@ -376,7 +376,7 @@ Request:
 
 #### Upgrade Subscription
 ```
-POST /api/v1/customers/{customer_id}/subscription/upgrade
+POST /api/v1/customers/{tenant_id}/subscription/upgrade
 Authorization: Bearer <admin_token>
 
 Request:
@@ -388,12 +388,12 @@ Request:
 
 #### Get Usage Statistics
 ```
-GET /api/v1/customers/{customer_id}/usage
+GET /api/v1/customers/{tenant_id}/usage
 Authorization: X-API-Key: <customer_api_key>
 
 Response:
 {
-  "customer_id": "cust_abc123",
+  "tenant_id": "cust_abc123",
   "current_month": "2025-11",
   "pipelines_run": 450,
   "pipelines_quota": 5000,
@@ -409,7 +409,7 @@ Response:
 
 #### Create API Key
 ```
-POST /api/v1/customers/{customer_id}/api-keys
+POST /api/v1/customers/{tenant_id}/api-keys
 Authorization: Bearer <admin_token>
 
 Request:
@@ -430,7 +430,7 @@ Response:
 
 #### Revoke API Key
 ```
-POST /api/v1/customers/{customer_id}/api-keys/{key_id}/revoke
+POST /api/v1/customers/{tenant_id}/api-keys/{key_id}/revoke
 Authorization: Bearer <admin_token>
 ```
 
@@ -438,7 +438,7 @@ Authorization: Bearer <admin_token>
 
 #### Add Cloud Credentials
 ```
-POST /api/v1/customers/{customer_id}/credentials
+POST /api/v1/customers/{tenant_id}/credentials
 Authorization: X-API-Key: <customer_api_key>
 
 Request:
@@ -471,7 +471,7 @@ Response:
 ### 1. KMS Encryption
 
 **Encrypted Fields**:
-- `customer_api_keys.encrypted_api_key`
+- `tenant_api_keys.encrypted_api_key`
 - `customer_credentials.encrypted_credentials`
 
 **Encryption Flow**:
@@ -520,7 +520,7 @@ gcloud kms keys create api-key-encryption \
 ```sql
 -- Ensure users can only access their own customer data
 CREATE ROW ACCESS POLICY tenant_isolation
-ON customers_metadata.customer_api_keys
+ON customers_metadata.tenant_api_keys
 GRANT TO ('user:*')
 FILTER USING (
   tenant_id IN (
@@ -538,7 +538,7 @@ FILTER USING (
 1. Client sends request with X-API-Key header
 2. Server extracts API key
 3. Server computes SHA256 hash
-4. Server queries customer_api_keys table:
+4. Server queries tenant_api_keys table:
    WHERE api_key_hash = SHA256(provided_key)
      AND is_active = TRUE
      AND (expires_at IS NULL OR expires_at > NOW())
@@ -563,9 +563,9 @@ FILTER USING (
 ┌─────────────────────────────────────────────────────────────┐
 │                    BACKEND API                               │
 │  Step 1: Create customer in customers table                  │
-│  Step 2: Create subscription in customer_subscriptions       │
+│  Step 2: Create subscription in tenant_subscriptions       │
 │  Step 3: Create BigQuery dataset for customer                │
-│  Step 4: Generate API key → customer_api_keys               │
+│  Step 4: Generate API key → tenant_api_keys               │
 │  Step 5: Send welcome email with API key                     │
 │  Step 6: Create initial usage record → customer_usage       │
 └─────────────────────────────────────────────────────────────┘
@@ -589,7 +589,7 @@ FILTER USING (
 ┌─────────────────────────────────────────────────────────────┐
 │  AUTHENTICATION                                              │
 │  1. Hash API key (SHA256)                                    │
-│  2. Query customer_api_keys table                           │
+│  2. Query tenant_api_keys table                           │
 │  3. Verify is_active = TRUE                                  │
 │  4. Check expiration                                         │
 └─────────────────────────────────────────────────────────────┘
@@ -598,7 +598,7 @@ FILTER USING (
 ┌─────────────────────────────────────────────────────────────┐
 │  QUOTA CHECKS                                                │
 │  1. Load customer_usage for current month                    │
-│  2. Load customer_subscriptions                             │
+│  2. Load tenant_subscriptions                             │
 │  3. Verify: pipelines_run < monthly_quota                    │
 │  4. Verify: pipelines_running < concurrent_quota             │
 │  5. Verify: storage_used < storage_quota                     │
@@ -631,7 +631,7 @@ FILTER USING (
 ```
 customers_metadata/
 ├── customers
-├── customer_api_keys      (Centralized API keys)
+├── tenant_api_keys      (Centralized API keys)
 ├── customer_credentials
 └── ...
 
@@ -650,9 +650,9 @@ customers_metadata/
 ### Query Optimization
 
 **Indexes**:
-- `customer_api_keys.api_key_hash` (unique) - Fast authentication
+- `tenant_api_keys.api_key_hash` (unique) - Fast authentication
 - `customers.tenant_id` (unique) - Fast customer lookup
-- `customer_usage.customer_id, usage_month` (clustered) - Fast quota checks
+- `customer_usage.tenant_id, usage_month` (clustered) - Fast quota checks
 
 **Partitioning**:
 - All tables partitioned by DATE(created_at)
@@ -661,8 +661,8 @@ customers_metadata/
 
 **Clustering**:
 - `customers` clustered by `subscription_plan, status`
-- `customer_api_keys` clustered by `customer_id, is_active`
-- `customer_usage` clustered by `customer_id, usage_month`
+- `tenant_api_keys` clustered by `tenant_id, is_active`
+- `customer_usage` clustered by `tenant_id, usage_month`
 
 ### Caching Strategy
 
@@ -678,8 +678,8 @@ if not customer:
 
 **Cache Invalidation**:
 - On customer update: `redis.delete(f"customer:{tenant_id}")`
-- On subscription change: `redis.delete(f"subscription:{customer_id}")`
-- On quota update: `redis.delete(f"usage:{customer_id}:{month}")`
+- On subscription change: `redis.delete(f"subscription:{tenant_id}")`
+- On quota update: `redis.delete(f"usage:{tenant_id}:{month}")`
 
 ---
 
@@ -719,7 +719,7 @@ if not customer:
 
 # Alert: API key expiring soon
 - name: api_key_expiring
-  condition: customer_api_keys.expires_at <= NOW() + INTERVAL 7 DAY
+  condition: tenant_api_keys.expires_at <= NOW() + INTERVAL 7 DAY
   action: send_email_notification
   severity: warning
 ```

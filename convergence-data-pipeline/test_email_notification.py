@@ -129,7 +129,7 @@ async def test_multiple_notifications():
         tenant_id=tenant_id,
         pipeline_id=pipeline_id,
         table_name="raw_customer_data",
-        failed_checks=["null_check_email", "unique_check_customer_id", "format_check_phone"]
+        failed_checks=["null_check_email", "unique_check_tenant_id", "format_check_phone"]
     )
     print("   ✅ Sent\n")
 

@@ -45,7 +45,7 @@ class PipelineConfigRequest(BaseModel):
 class PipelineConfigResponse(BaseModel):
     """Response for pipeline configuration."""
     config_id: str
-    customer_id: str
+    tenant_id: str
     provider: str
     domain: str
     pipeline_template: str
@@ -85,7 +85,7 @@ class QueueProcessResponse(BaseModel):
     """Response for queue processing."""
     processed: bool
     pipeline_logging_id: Optional[str] = None
-    customer_id: Optional[str] = None
+    tenant_id: Optional[str] = None
     pipeline_id: Optional[str] = None
     status: str
     message: str
@@ -174,7 +174,7 @@ async def get_pipelines_due_now(
     WITH due_pipelines AS (
         SELECT
             c.config_id,
-            c.customer_id,
+            c.tenant_id,
             c.provider,
             c.domain,
             c.pipeline_template,
@@ -188,11 +188,11 @@ async def get_pipelines_due_now(
             COALESCE(u.pipelines_run_today, 0) as pipelines_run_today
         FROM `{settings.gcp_project_id}.customers.customer_pipeline_configs` c
         INNER JOIN `{settings.gcp_project_id}.customers.customer_profiles` p
-            ON c.customer_id = p.customer_id
+            ON c.tenant_id = p.tenant_id
         LEFT JOIN `{settings.gcp_project_id}.customers.customer_subscriptions` s
-            ON p.customer_id = s.customer_id AND s.status = 'ACTIVE'
+            ON p.tenant_id = s.tenant_id AND s.status = 'ACTIVE'
         LEFT JOIN `{settings.gcp_project_id}.customers.customer_usage_quotas` u
-            ON p.customer_id = u.customer_id AND u.usage_date = CURRENT_DATE()
+            ON p.tenant_id = u.tenant_id AND u.usage_date = CURRENT_DATE()
         WHERE c.is_active = TRUE
           AND c.next_run_time <= CURRENT_TIMESTAMP()
           AND p.status = 'ACTIVE'
@@ -216,7 +216,7 @@ async def get_pipelines_due_now(
 
 async def enqueue_pipeline(
     bq_client: BigQueryClient,
-    customer_id: str,
+    tenant_id: str,
     config: Dict[str, Any],
     priority: int = 5
 ) -> str:
@@ -227,7 +227,7 @@ async def enqueue_pipeline(
 
     Args:
         bq_client: BigQuery client instance
-        customer_id: Customer identifier
+        tenant_id: Customer identifier
         config: Pipeline configuration dict
         priority: Queue priority (1-10, higher is more urgent)
 
@@ -240,11 +240,11 @@ async def enqueue_pipeline(
     # Insert into scheduled_pipeline_runs
     insert_run_query = f"""
     INSERT INTO `{settings.gcp_project_id}.customers.scheduled_pipeline_runs`
-    (run_id, config_id, customer_id, pipeline_id, state, scheduled_time, priority, parameters)
+    (run_id, config_id, tenant_id, pipeline_id, state, scheduled_time, priority, parameters)
     VALUES (
         @run_id,
         @config_id,
-        @customer_id,
+        @tenant_id,
         @pipeline_id,
         'PENDING',
         @scheduled_time,
@@ -253,13 +253,13 @@ async def enqueue_pipeline(
     )
     """
 
-    pipeline_id = f"{customer_id}-{config['provider']}-{config['domain']}-{config['pipeline_template']}"
+    pipeline_id = f"{tenant_id}-{config['provider']}-{config['domain']}-{config['pipeline_template']}"
 
     job_config = bigquery.QueryJobConfig(
         query_parameters=[
             bigquery.ScalarQueryParameter("run_id", "STRING", run_id),
             bigquery.ScalarQueryParameter("config_id", "STRING", config['config_id']),
-            bigquery.ScalarQueryParameter("customer_id", "STRING", customer_id),
+            bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
             bigquery.ScalarQueryParameter("pipeline_id", "STRING", pipeline_id),
             bigquery.ScalarQueryParameter("scheduled_time", "TIMESTAMP", scheduled_time),
             bigquery.ScalarQueryParameter("priority", "INT64", priority),
@@ -272,10 +272,10 @@ async def enqueue_pipeline(
     # Insert into pipeline_execution_queue
     insert_queue_query = f"""
     INSERT INTO `{settings.gcp_project_id}.customers.pipeline_execution_queue`
-    (run_id, customer_id, pipeline_id, state, scheduled_time, priority, added_at)
+    (run_id, tenant_id, pipeline_id, state, scheduled_time, priority, added_at)
     VALUES (
         @run_id,
-        @customer_id,
+        @tenant_id,
         @pipeline_id,
         'QUEUED',
         @scheduled_time,
@@ -286,7 +286,7 @@ async def enqueue_pipeline(
 
     bq_client.client.query(insert_queue_query, job_config=job_config).result()
 
-    logger.info(f"Enqueued pipeline {pipeline_id} for customer {customer_id} with run_id {run_id}")
+    logger.info(f"Enqueued pipeline {pipeline_id} for customer {tenant_id} with run_id {run_id}")
     return run_id
 
 
@@ -390,7 +390,7 @@ async def trigger_scheduler(
                 # Enqueue pipeline
                 run_id = await enqueue_pipeline(
                     bq_client,
-                    customer_id=pipeline_config['customer_id'],
+                    tenant_id=pipeline_config['tenant_id'],
                     config=pipeline_config,
                     priority=pipeline_config.get('priority', 5)
                 )
@@ -465,7 +465,7 @@ async def process_queue(
     Logic:
     1. Get next pipeline from queue (state = QUEUED, order by priority DESC, scheduled_time ASC)
     2. Update state to PROCESSING
-    3. Call pipeline execution: POST /api/v1/pipelines/run/{customer_id}/{provider}/{domain}/{template}
+    3. Call pipeline execution: POST /api/v1/pipelines/run/{tenant_id}/{provider}/{domain}/{template}
     4. Update scheduled_pipeline_runs state based on result
     5. Update customer_pipeline_configs (last_run_time, last_run_status, next_run_time)
     6. Remove from queue or mark as COMPLETED
@@ -482,7 +482,7 @@ async def process_queue(
         query = f"""
         SELECT
             run_id,
-            customer_id,
+            tenant_id,
             pipeline_id,
             scheduled_time,
             priority
@@ -503,7 +503,7 @@ async def process_queue(
 
         queue_item = dict(results[0])
         run_id = queue_item['run_id']
-        customer_id = queue_item['customer_id']
+        tenant_id = queue_item['tenant_id']
         pipeline_id = queue_item['pipeline_id']
 
         # Update queue state to PROCESSING
@@ -551,10 +551,11 @@ async def process_queue(
         from src.core.pipeline.async_executor import AsyncPipelineExecutor
 
         executor = AsyncPipelineExecutor(
-            tenant_id=customer_id,
+            tenant_id=tenant_id,
             pipeline_id=f"{config['provider']}/{config['domain']}/{config['pipeline_template']}",
             trigger_type="scheduler",
-            trigger_by="cloud_scheduler"
+            trigger_by="cloud_scheduler",
+            user_id=None  # Scheduler-triggered pipelines have no user context
         )
 
         # Parse parameters
@@ -671,10 +672,10 @@ async def process_queue(
         return QueueProcessResponse(
             processed=True,
             pipeline_logging_id=executor.pipeline_logging_id,
-            customer_id=customer_id,
+            tenant_id=tenant_id,
             pipeline_id=pipeline_id,
             status="PROCESSING",
-            message=f"Pipeline {pipeline_id} started processing for customer {customer_id}"
+            message=f"Pipeline {pipeline_id} started processing for customer {tenant_id}"
         )
 
     except Exception as e:
@@ -791,13 +792,13 @@ async def get_scheduler_status(
 # ============================================
 
 @router.get(
-    "/scheduler/customer/{customer_id}/pipelines",
+    "/scheduler/customer/{tenant_id}/pipelines",
     response_model=List[PipelineConfigResponse],
     summary="Get customer pipeline configurations",
     description="Get all configured pipelines for a customer"
 )
 async def get_customer_pipelines(
-    customer_id: str,
+    tenant_id: str,
     is_active: Optional[bool] = Query(None, description="Filter by active status"),
     customer: Dict[str, Any] = Depends(get_current_customer),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
@@ -808,16 +809,16 @@ async def get_customer_pipelines(
     Returns list of customer_pipeline_configs with schedule info.
     """
     # Verify customer has access
-    if customer['customer_id'] != customer_id:
+    if customer['tenant_id'] != tenant_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied to customer pipelines"
         )
 
     try:
-        where_clauses = ["customer_id = @customer_id"]
+        where_clauses = ["tenant_id = @tenant_id"]
         parameters = [
-            bigquery.ScalarQueryParameter("customer_id", "STRING", customer_id)
+            bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id)
         ]
 
         if is_active is not None:
@@ -829,7 +830,7 @@ async def get_customer_pipelines(
         query = f"""
         SELECT
             config_id,
-            customer_id,
+            tenant_id,
             provider,
             domain,
             pipeline_template,
@@ -869,13 +870,13 @@ async def get_customer_pipelines(
 
 
 @router.post(
-    "/scheduler/customer/{customer_id}/pipelines",
+    "/scheduler/customer/{tenant_id}/pipelines",
     response_model=PipelineConfigResponse,
     summary="Add/update pipeline configuration",
     description="Add or update a pipeline configuration for a customer"
 )
 async def create_customer_pipeline(
-    customer_id: str,
+    tenant_id: str,
     request: PipelineConfigRequest,
     customer: Dict[str, Any] = Depends(get_current_customer),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
@@ -893,7 +894,7 @@ async def create_customer_pipeline(
     - parameters: Pipeline parameters
     """
     # Verify customer has access
-    if customer['customer_id'] != customer_id:
+    if customer['tenant_id'] != tenant_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied to customer pipelines"
@@ -921,7 +922,7 @@ async def create_customer_pipeline(
         INSERT INTO `{settings.gcp_project_id}.customers.customer_pipeline_configs`
         (
             config_id,
-            customer_id,
+            tenant_id,
             provider,
             domain,
             pipeline_template,
@@ -935,7 +936,7 @@ async def create_customer_pipeline(
         )
         VALUES (
             @config_id,
-            @customer_id,
+            @tenant_id,
             @provider,
             @domain,
             @pipeline_template,
@@ -952,7 +953,7 @@ async def create_customer_pipeline(
         job_config = bigquery.QueryJobConfig(
             query_parameters=[
                 bigquery.ScalarQueryParameter("config_id", "STRING", config_id),
-                bigquery.ScalarQueryParameter("customer_id", "STRING", customer_id),
+                bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
                 bigquery.ScalarQueryParameter("provider", "STRING", request.provider),
                 bigquery.ScalarQueryParameter("domain", "STRING", request.domain),
                 bigquery.ScalarQueryParameter("pipeline_template", "STRING", request.pipeline_template),
@@ -968,7 +969,7 @@ async def create_customer_pipeline(
 
         return PipelineConfigResponse(
             config_id=config_id,
-            customer_id=customer_id,
+            tenant_id=tenant_id,
             provider=request.provider,
             domain=request.domain,
             pipeline_template=request.pipeline_template,
@@ -989,12 +990,12 @@ async def create_customer_pipeline(
 
 
 @router.delete(
-    "/scheduler/customer/{customer_id}/pipelines/{config_id}",
+    "/scheduler/customer/{tenant_id}/pipelines/{config_id}",
     summary="Disable pipeline configuration",
     description="Disable a pipeline configuration (soft delete)"
 )
 async def delete_customer_pipeline(
-    customer_id: str,
+    tenant_id: str,
     config_id: str,
     customer: Dict[str, Any] = Depends(get_current_customer),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
@@ -1005,7 +1006,7 @@ async def delete_customer_pipeline(
     This is a soft delete - sets is_active = FALSE.
     """
     # Verify customer has access
-    if customer['customer_id'] != customer_id:
+    if customer['tenant_id'] != tenant_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied to customer pipelines"
@@ -1017,13 +1018,13 @@ async def delete_customer_pipeline(
         SET is_active = FALSE,
             updated_at = CURRENT_TIMESTAMP()
         WHERE config_id = @config_id
-          AND customer_id = @customer_id
+          AND tenant_id = @tenant_id
         """
 
         job_config = bigquery.QueryJobConfig(
             query_parameters=[
                 bigquery.ScalarQueryParameter("config_id", "STRING", config_id),
-                bigquery.ScalarQueryParameter("customer_id", "STRING", customer_id)
+                bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id)
             ]
         )
 
@@ -1038,7 +1039,7 @@ async def delete_customer_pipeline(
 
         return {
             "config_id": config_id,
-            "customer_id": customer_id,
+            "tenant_id": tenant_id,
             "message": "Pipeline configuration disabled successfully"
         }
 
@@ -1164,7 +1165,7 @@ async def cleanup_orphaned_pipelines(
 
         # Get all active tenants
         tenants_query = f"""
-        SELECT DISTINCT customer_id, tenant_id
+        SELECT DISTINCT tenant_id, tenant_id
         FROM `{settings.gcp_project_id}.customers.customer_profiles`
         WHERE status = 'ACTIVE'
         """
@@ -1183,8 +1184,8 @@ async def cleanup_orphaned_pipelines(
         # Process each tenant
         for tenant_row in tenants_results:
             tenant = dict(tenant_row)
-            customer_id = tenant['customer_id']
-            tenant_id = tenant.get('tenant_id', customer_id)
+            tenant_id = tenant['tenant_id']
+            tenant_id = tenant.get('tenant_id', tenant_id)
 
             try:
                 # Find and mark orphaned pipelines as FAILED
@@ -1210,14 +1211,14 @@ async def cleanup_orphaned_pipelines(
                     SET
                         concurrent_pipelines_running = GREATEST(concurrent_pipelines_running - @cleaned_count, 0),
                         last_updated = CURRENT_TIMESTAMP()
-                    WHERE customer_id = @customer_id
+                    WHERE tenant_id = @tenant_id
                       AND usage_date = CURRENT_DATE()
                     """
 
                     job_config = bigquery.QueryJobConfig(
                         query_parameters=[
                             bigquery.ScalarQueryParameter("cleaned_count", "INT64", cleaned_count),
-                            bigquery.ScalarQueryParameter("customer_id", "STRING", customer_id)
+                            bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id)
                         ]
                     )
 
@@ -1225,7 +1226,7 @@ async def cleanup_orphaned_pipelines(
 
                     total_cleaned += cleaned_count
                     tenant_details.append({
-                        "customer_id": customer_id,
+                        "tenant_id": tenant_id,
                         "tenant_id": tenant_id,
                         "pipelines_cleaned": cleaned_count
                     })
