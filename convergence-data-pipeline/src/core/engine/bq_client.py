@@ -499,8 +499,7 @@ class BigQueryClient:
         failure_threshold=5,
         recovery_timeout=60,
         expected_exception=Exception,
-        name="BigQueryClient.query",
-        listeners=[circuit_breaker_on_open, circuit_breaker_on_close, circuit_breaker_on_half_open]
+        name="BigQueryClient.query"
     )
     @tenacity_retry(
         stop=stop_after_attempt(settings.bq_max_retry_attempts),
