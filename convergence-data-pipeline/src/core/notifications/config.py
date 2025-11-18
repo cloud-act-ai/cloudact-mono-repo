@@ -9,7 +9,7 @@ Defines the configuration schema for notification providers with support for:
 """
 
 from typing import Optional, List, Dict, Any
-from pydantic import BaseModel, Field, validator, EmailStr
+from pydantic import BaseModel, Field, field_validator, EmailStr
 from enum import Enum
 
 
@@ -54,7 +54,8 @@ class EmailConfig(BaseModel):
     cc_emails: Optional[List[EmailStr]] = Field(default=None, description="CC email addresses")
     subject_prefix: Optional[str] = Field(default="[CloudAct]", description="Email subject prefix")
 
-    @validator('smtp_port')
+    @field_validator('smtp_port')
+    @classmethod
     def validate_smtp_port(cls, v):
         if v not in [25, 465, 587, 2525]:
             raise ValueError('SMTP port must be one of: 25, 465, 587, 2525')
@@ -71,7 +72,8 @@ class SlackConfig(BaseModel):
     mention_users: Optional[List[str]] = Field(default=None, description="User IDs to mention on critical alerts")
     mention_channel: bool = Field(default=False, description="Mention @channel on critical alerts")
 
-    @validator('webhook_url')
+    @field_validator('webhook_url')
+    @classmethod
     def validate_webhook_url(cls, v):
         if not v.startswith('https://hooks.slack.com/'):
             raise ValueError('Invalid Slack webhook URL')
@@ -142,7 +144,8 @@ class NotificationConfig(BaseModel):
     tenant_id: Optional[str] = Field(default=None, description="Tenant ID (if tenant-specific config)")
     description: Optional[str] = Field(default=None, description="Configuration description")
 
-    @validator('event_triggers')
+    @field_validator('event_triggers')
+    @classmethod
     def validate_event_triggers(cls, v):
         """Ensure no duplicate event configurations"""
         events = [trigger.event for trigger in v]

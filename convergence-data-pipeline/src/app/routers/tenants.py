@@ -8,7 +8,7 @@ TWO-DATASET ARCHITECTURE:
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from typing import List, Optional
 from datetime import datetime, date
 import hashlib
@@ -59,7 +59,8 @@ class OnboardCustomerRequest(BaseModel):
         description="If True, delete and recreate all metadata tables (DESTRUCTIVE)"
     )
 
-    @validator('tenant_id')
+    @field_validator('tenant_id')
+    @classmethod
     def validate_tenant_id(cls, v):
         """Validate tenant_id format."""
         if not re.match(r'^[a-zA-Z0-9_]{3,50}$', v):
@@ -68,7 +69,8 @@ class OnboardCustomerRequest(BaseModel):
             )
         return v
 
-    @validator('subscription_plan')
+    @field_validator('subscription_plan')
+    @classmethod
     def validate_subscription_plan(cls, v):
         """Validate subscription plan."""
         allowed = ['STARTER', 'PROFESSIONAL', 'SCALE']

@@ -379,7 +379,7 @@ class PipelineExecutor:
                 'rows_processed': rows_processed
             })
 
-    def _execute_bq_to_bq_step(self, step_config: Dict[str, Any]) -> Dict[str, Any]:
+    async def _execute_bq_to_bq_step(self, step_config: Dict[str, Any]) -> Dict[str, Any]:
         """
         Execute BigQuery to BigQuery data transfer step using processor.
 
