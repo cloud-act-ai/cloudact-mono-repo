@@ -16,7 +16,7 @@ The Cost Billing Pipeline extracts billing data from GCP's billing export, trans
                   ▼
 ┌─────────────────────────────────────┐
 │  Step 1: Extract & Transform        │
-│  Engine: gcp.bigquery_to_bigquery   │
+│  Engine: gcp.bq_etl                 │
 │  - Flatten nested fields            │
 │  - Convert labels to JSON           │
 │  - Aggregate credits                │
@@ -36,7 +36,7 @@ The Cost Billing Pipeline extracts billing data from GCP's billing export, trans
                   ▼
 ┌─────────────────────────────────────┐
 │  Step 2: Data Quality Validation    │
-│  Engine: shared.data_quality        │
+│  Engine: gcp.bq_etl                 │
 │  - 25 validation checks             │
 │  - Critical + Warning + Info levels │
 │  - Results stored in x_meta_dq_     │
@@ -46,7 +46,8 @@ The Cost Billing Pipeline extracts billing data from GCP's billing export, trans
                   ▼ (on_failure)
 ┌─────────────────────────────────────┐
 │  Step 3: Email Notification         │
-│  Engine: shared.email_notification  │
+│  Engine: notify_systems.email_      │
+│          notification               │
 │  - Sends failure alerts             │
 │  - Includes error details           │
 │  - Links to BigQuery console        │
@@ -105,7 +106,7 @@ The pipeline extracts 29 key fields from the standard GCP billing export schema:
 - Labels (user and system)
 
 ### Destination Schema
-See `templates/gcp/bigquery_to_bigquery/schema_template.json` for the complete `billing_cost` schema definition.
+See `ps_templates/gcp/bq_etl/schema_template.json` for the complete `billing_cost` schema definition.
 
 Key fields:
 | Field | Type | Mode | Description |
@@ -248,14 +249,14 @@ WHERE
    - Adjust expectations if billing export schema changed
 
 3. **Schema Errors**
-   - Verify schema template: `templates/gcp/bigquery_to_bigquery/schema_template.json`
+   - Verify schema template: `ps_templates/gcp/bq_etl/schema_template.json`
    - Check for BigQuery schema changes in billing export
    - Validate field type compatibility
 
 4. **Notification Failures**
    - Check notification service configuration
    - Verify email addresses in pipeline config
-   - Review logs: `SELECT * FROM {tenant_id}.x_meta_pipeline_runs WHERE pipeline_id = 'cost_billing_pipeline' ORDER BY start_time DESC`
+   - Review logs: `SELECT * FROM tenants.x_meta_pipeline_runs WHERE tenant_id = '{tenant_id}' AND pipeline_id = 'cost_billing_pipeline' ORDER BY start_time DESC`
 
 ### Common Issues
 
@@ -283,8 +284,9 @@ SELECT
   end_time,
   status,
   TIMESTAMP_DIFF(end_time, start_time, SECOND) AS duration_seconds
-FROM `{tenant_id}.x_meta_pipeline_runs`
-WHERE pipeline_id = 'cost_billing_pipeline'
+FROM `tenants.x_meta_pipeline_runs`
+WHERE tenant_id = '{tenant_id}'
+  AND pipeline_id = 'cost_billing_pipeline'
 ORDER BY start_time DESC
 LIMIT 10;
 ```
@@ -351,15 +353,15 @@ gcloud scheduler jobs create http cost-billing-pipeline-daily \
 
 ## Related Files
 
-- **Pipeline Config**: `configs/gcp/cost/cost_billing_pipeline.yml`
-- **Schema Template**: `templates/gcp/bigquery_to_bigquery/schema_template.json`
+- **Pipeline Config**: `configs/gcp/cost/cost_billing.yml`
+- **Schema Template**: `ps_templates/gcp/bq_etl/schema_template.json`
 - **DQ Suite**: `configs/data_quality/expectations/billing_cost_suite.json`
-- **BQ Engine**: `src/core/engines/gcp/bigquery_to_bigquery.py`
-- **Notification Engine**: `src/core/engines/shared/email_notification.py`
+- **BQ Engine**: `src/core/engine/gcp/bq_etl.py`
+- **Notification Processor**: `src/core/processors/notify_systems/email_notification.py`
 
 ## Support
 
 For issues or questions:
-1. Check pipeline logs: `{tenant_id}.x_meta_pipeline_runs` and `{tenant_id}.x_meta_step_logs`
+1. Check pipeline logs: `tenants.x_meta_pipeline_runs` (filter by tenant_id) and `{tenant_id}.x_meta_step_logs`
 2. Review DQ results: `{tenant_id}.x_meta_dq_results`
 3. Contact: data-ops@company.com

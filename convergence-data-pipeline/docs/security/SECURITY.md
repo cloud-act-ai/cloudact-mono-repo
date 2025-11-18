@@ -15,7 +15,7 @@ Multi-tenant security implementation for Convergence Data Pipeline.
 **How It Works:**
 1. Client sends API key via `X-API-Key` header
 2. SHA256 hash used for database lookup
-3. Query `customers.customer_api_keys` for tenant_id
+3. Query `tenants.tenant_api_keys` for tenant_id
 4. Return authenticated tenant context
 
 **Code Example:**
@@ -25,14 +25,14 @@ api_key_hash = hashlib.sha256(api_key.encode()).hexdigest()
 
 # Query auth table
 SELECT tenant_id, api_key_id, is_active, expires_at
-FROM customers.customer_api_keys
+FROM tenants.tenant_api_keys
 WHERE api_key_hash = @api_key_hash AND is_active = TRUE
 ```
 
-**Storage Schema:** `customers.customer_api_keys`
+**Storage Schema:** `tenants.tenant_api_keys`
 - `api_key_hash` (STRING) - SHA256 hash for lookup
 - `encrypted_api_key` (BYTES) - KMS encrypted full key
-- `tenant_id` (STRING) - Foreign key to customer_profiles
+- `tenant_id` (STRING) - Foreign key to tenant_profiles
 - `is_active` (BOOL) - Key status
 - `expires_at` (TIMESTAMP) - Expiration date
 
@@ -65,7 +65,7 @@ scopes = ["pipelines:read", "pipelines:write", "pipelines:delete", "admin:tenant
 - Concurrent execution limit (e.g., 3 concurrent pipelines)
 - Returns 429 if exceeded
 
-**Quota Table:** `customers.customer_usage_quotas`
+**Quota Table:** `tenants.tenant_usage_quotas`
 
 ---
 
@@ -93,8 +93,10 @@ acme123_gold_analytics   # Analytics
 4. All queries authenticated via API
 
 **Metadata Isolation:**
-- Centralized: `customers` dataset (shared, filtered by tenant_id)
-- Per-tenant: `{tenant_id}_metadata` tables (fully isolated)
+- Centralized: `tenants` dataset (shared, filtered by tenant_id)
+  - Contains: tenant_api_keys, tenant_profiles, tenant_subscriptions, tenant_usage_quotas, tenant_cloud_credentials, x_meta_pipeline_runs (centralized)
+- Per-tenant: `{tenant_id}` dataset (fully isolated)
+  - Contains: x_meta_step_logs, x_meta_dq_results, operational data tables
 
 ---
 
@@ -112,9 +114,9 @@ curl -H "X-API-Key: tenant-key" \
 ```
 
 **Stored In:**
-- `{tenant_id}_metadata.x_meta_pipeline_runs` - User who triggered pipeline
-- `{tenant_id}_metadata.x_meta_step_logs` - User context for logs
-- `{tenant_id}_metadata.x_meta_dq_results` - User who ran DQ checks
+- `tenants.x_meta_pipeline_runs` - User who triggered pipeline (centralized for all tenants)
+- `{tenant_id}.x_meta_step_logs` - User context for logs
+- `{tenant_id}.x_meta_dq_results` - User who ran DQ checks
 
 **Note:** Authentication is via API key only. `user_id` is for logging/auditing.
 
@@ -127,8 +129,8 @@ curl -H "X-API-Key: tenant-key" \
 **Implementation:** `src/core/security/kms_encryption.py`
 
 **What's Encrypted:**
-1. API keys (`customer_api_keys.encrypted_api_key`)
-2. Cloud credentials (`customer_cloud_credentials.encrypted_credentials`)
+1. API keys (`tenant_api_keys.encrypted_api_key`)
+2. Cloud credentials (`tenant_cloud_credentials.encrypted_credentials`)
 3. Sensitive configuration values
 
 **Configuration:**

@@ -426,16 +426,18 @@ async def test_credential_isolation():
         credential_id_a = str(uuid.uuid4())
         encrypted_cred_a = json.dumps(credential_a_data).encode('utf-8')
 
+        # NOTE: Credentials now stored in centralized tenants.tenant_cloud_credentials
         insert_cred_a = f"""
-        INSERT INTO `{settings.gcp_project_id}.{tenant_a}.x_meta_cloud_credentials`
-        (credential_id, provider, credential_type, encrypted_value, created_at, updated_at, is_active)
+        INSERT INTO `{settings.gcp_project_id}.tenants.tenant_cloud_credentials`
+        (credential_id, tenant_id, provider, credential_type, encrypted_value, created_at, updated_at, is_active)
         VALUES
-        (@credential_id, @provider, @credential_type, @encrypted_value, CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP(), TRUE)
+        (@credential_id, @tenant_id, @provider, @credential_type, @encrypted_value, CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP(), TRUE)
         """
 
         job_config_a = bigquery.QueryJobConfig(
             query_parameters=[
                 bigquery.ScalarQueryParameter("credential_id", "STRING", credential_id_a),
+                bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_a),
                 bigquery.ScalarQueryParameter("provider", "STRING", "GCP"),
                 bigquery.ScalarQueryParameter("credential_type", "STRING", "service_account_key"),
                 bigquery.ScalarQueryParameter("encrypted_value", "BYTES", encrypted_cred_a),
@@ -456,15 +458,16 @@ async def test_credential_isolation():
         encrypted_cred_b = json.dumps(credential_b_data).encode('utf-8')
 
         insert_cred_b = f"""
-        INSERT INTO `{settings.gcp_project_id}.{tenant_b}.x_meta_cloud_credentials`
-        (credential_id, provider, credential_type, encrypted_value, created_at, updated_at, is_active)
+        INSERT INTO `{settings.gcp_project_id}.tenants.tenant_cloud_credentials`
+        (credential_id, tenant_id, provider, credential_type, encrypted_value, created_at, updated_at, is_active)
         VALUES
-        (@credential_id, @provider, @credential_type, @encrypted_value, CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP(), TRUE)
+        (@credential_id, @tenant_id, @provider, @credential_type, @encrypted_value, CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP(), TRUE)
         """
 
         job_config_b = bigquery.QueryJobConfig(
             query_parameters=[
                 bigquery.ScalarQueryParameter("credential_id", "STRING", credential_id_b),
+                bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_b),
                 bigquery.ScalarQueryParameter("provider", "STRING", "GCP"),
                 bigquery.ScalarQueryParameter("credential_type", "STRING", "service_account_key"),
                 bigquery.ScalarQueryParameter("encrypted_value", "BYTES", encrypted_cred_b),
@@ -475,16 +478,17 @@ async def test_credential_isolation():
         print(f"[TEST] Stored credentials for Tenant B")
 
         # Verify Tenant A cannot access Tenant B's credentials
-        # (They're in completely separate datasets)
+        # (Centralized table uses tenant_id filtering for isolation)
 
         query_a_creds = f"""
         SELECT credential_id, provider
-        FROM `{settings.gcp_project_id}.{tenant_a}.x_meta_cloud_credentials`
-        WHERE provider = @provider
+        FROM `{settings.gcp_project_id}.tenants.tenant_cloud_credentials`
+        WHERE tenant_id = @tenant_id AND provider = @provider
         """
 
         job_config_query_a = bigquery.QueryJobConfig(
             query_parameters=[
+                bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_a),
                 bigquery.ScalarQueryParameter("provider", "STRING", "GCP")
             ]
         )
@@ -497,12 +501,13 @@ async def test_credential_isolation():
         # Verify Tenant B credentials are isolated
         query_b_creds = f"""
         SELECT credential_id, provider
-        FROM `{settings.gcp_project_id}.{tenant_b}.x_meta_cloud_credentials`
-        WHERE provider = @provider
+        FROM `{settings.gcp_project_id}.tenants.tenant_cloud_credentials`
+        WHERE tenant_id = @tenant_id AND provider = @provider
         """
 
         job_config_query_b = bigquery.QueryJobConfig(
             query_parameters=[
+                bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_b),
                 bigquery.ScalarQueryParameter("provider", "STRING", "GCP")
             ]
         )

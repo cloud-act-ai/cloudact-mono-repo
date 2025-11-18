@@ -183,7 +183,7 @@ result = await engine.execute(step_config, context)
 All pipeline executions are logged to tenant BigQuery tables:
 
 ### Pipeline Runs Table
-**Table:** `{tenant_id}.x_meta_pipeline_runs`
+**Table:** `tenants.x_meta_pipeline_runs`
 
 **Schema:**
 ```sql
@@ -382,7 +382,7 @@ All engines use `async/await` for non-blocking I/O:
 ### Pipeline Not Starting
 
 **Check:**
-1. Is another instance already running? Query `x_meta_pipeline_runs` for `RUNNING` status
+1. Is another instance already running? Query `tenants.x_meta_pipeline_runs` for `RUNNING` status
 2. Are API keys valid? Test authentication endpoint
 3. Does tenant dataset exist? Check BigQuery
 

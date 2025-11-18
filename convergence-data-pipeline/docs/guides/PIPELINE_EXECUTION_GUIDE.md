@@ -257,7 +257,7 @@ curl -X POST http://localhost:8080/api/v1/pipelines/run/guru_232342/gcp/cost/cos
    - ps_type: "notify_systems.email_notification"
    - Load: src/core/processors/notify_systems/email_notification.py
    - Send email to admin@example.com
-5. Log to: guru_232342.x_meta_pipeline_runs
+5. Log to: tenants.x_meta_pipeline_runs
 6. Return: {"pipeline_logging_id": "abc-123", "status": "SUCCESS"}
 ```
 

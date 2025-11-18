@@ -602,16 +602,16 @@ class PipelineStateManager:
         wait=wait_exponential(multiplier=1, min=2, max=30),
         retry=TRANSIENT_RETRY_POLICY
     )
-    async def get_customer_pipeline_status(
+    async def get_tenant_pipeline_status(
         self,
         tenant_id: str,
         date: str = None
     ) -> Dict:
         """
-        Get summary of all pipelines for a customer.
+        Get summary of all pipelines for a tenant.
 
         Args:
-            tenant_id: Customer/tenant identifier
+            tenant_id: Tenant identifier
             date: Optional date filter (YYYY-MM-DD). Defaults to today.
 
         Returns:

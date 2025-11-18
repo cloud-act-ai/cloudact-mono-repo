@@ -269,16 +269,6 @@ class Settings(BaseSettings):
         description="Slack channel override (root configuration)"
     )
 
-    # ============================================
-    # Admin Metadata Configuration (DEPRECATED)
-    # ============================================
-    # NOTE: This is deprecated in the new single-dataset architecture.
-    # API keys and metadata are now stored in per-tenant datasets: {tenant_id}.x_meta_api_keys
-    # Keeping for backward compatibility only.
-    admin_metadata_dataset: str = Field(
-        default="metadata",
-        description="DEPRECATED: Use {tenant_id}.x_meta_api_keys instead"
-    )
 
     # ============================================
     # File Paths
@@ -445,27 +435,6 @@ class Settings(BaseSettings):
         # Single dataset per tenant - dataset_type parameter ignored
         return tenant_id
 
-    def get_admin_metadata_dataset(self) -> str:
-        """
-        Get the admin/global metadata dataset name.
-        This dataset contains unified view of all tenant metadata.
-
-        Returns:
-            Admin metadata dataset name
-        """
-        return self.admin_metadata_dataset
-
-    def get_admin_metadata_table(self, table_name: str) -> str:
-        """
-        Get fully qualified admin metadata table name.
-
-        Args:
-            table_name: Name of the table (e.g., 'x_meta_api_keys', 'x_meta_pipeline_runs')
-
-        Returns:
-            Fully qualified table name: {project_id}.{admin_dataset}.{table_name}
-        """
-        return f"{self.gcp_project_id}.{self.admin_metadata_dataset}.{table_name}"
 
     def load_dataset_types(self) -> List[Dict[str, Any]]:
         """

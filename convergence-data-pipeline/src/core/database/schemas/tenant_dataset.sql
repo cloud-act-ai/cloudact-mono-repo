@@ -19,10 +19,14 @@
 -- ============================================================================
 
 -- ============================================================================
--- TABLE 1: x_meta_pipeline_runs
+-- TABLE 1: x_meta_pipeline_runs (DEPRECATED - MOVED TO CENTRAL TENANTS DATASET)
 -- ============================================================================
 -- Purpose: Pipeline execution metadata and logging
--- Scope: Per-tenant operational data
+-- Scope: NOW CENTRALIZED in tenants.x_meta_pipeline_runs for all tenants
+-- NOTE: This table definition is kept for reference only. In production,
+--       x_meta_pipeline_runs is created in the central 'tenants' dataset,
+--       not in per-tenant datasets. All pipeline runs across all tenants
+--       are logged to tenants.x_meta_pipeline_runs with tenant_id column.
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS `{project_id}.{tenant_id}.x_meta_pipeline_runs` (
   -- Primary Identifiers
@@ -318,6 +322,7 @@ OPTIONS(
 -- ============================================================================
 
 -- View 1: Recent pipeline runs (last 7 days)
+-- NOTE: x_meta_pipeline_runs is now centralized in tenants dataset
 CREATE OR REPLACE VIEW `{project_id}.{tenant_id}.recent_pipeline_runs` AS
 SELECT
   pipeline_logging_id,
@@ -332,11 +337,13 @@ SELECT
   total_rows_processed,
   total_bytes_billed,
   error_message
-FROM `{project_id}.{tenant_id}.x_meta_pipeline_runs`
-WHERE started_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)
+FROM `{project_id}.tenants.x_meta_pipeline_runs`
+WHERE tenant_id = '{tenant_id}'
+  AND started_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)
 ORDER BY started_at DESC;
 
 -- View 2: Failed pipelines requiring attention
+-- NOTE: x_meta_pipeline_runs is now centralized in tenants dataset
 CREATE OR REPLACE VIEW `{project_id}.{tenant_id}.failed_pipelines` AS
 SELECT
   pipeline_logging_id,
@@ -347,8 +354,9 @@ SELECT
   error_message,
   error_step,
   retry_attempt
-FROM `{project_id}.{tenant_id}.x_meta_pipeline_runs`
-WHERE status = 'FAILED'
+FROM `{project_id}.tenants.x_meta_pipeline_runs`
+WHERE tenant_id = '{tenant_id}'
+  AND status = 'FAILED'
   AND started_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)
 ORDER BY started_at DESC;
 
@@ -376,14 +384,16 @@ ORDER BY check_severity DESC, executed_at DESC;
 -- ============================================================================
 
 -- Query 1: Get pipeline execution summary for today
+-- NOTE: x_meta_pipeline_runs is now centralized in tenants dataset
 -- SELECT
 --   status,
 --   COUNT(*) AS count,
 --   AVG(execution_duration_seconds) AS avg_duration_seconds,
 --   SUM(total_rows_processed) AS total_rows,
 --   SUM(total_bytes_billed) AS total_bytes_billed
--- FROM `{project_id}.{tenant_id}.x_meta_pipeline_runs`
--- WHERE DATE(started_at) = CURRENT_DATE()
+-- FROM `{project_id}.tenants.x_meta_pipeline_runs`
+-- WHERE tenant_id = '{tenant_id}'
+--   AND DATE(started_at) = CURRENT_DATE()
 -- GROUP BY status;
 
 -- Query 2: Get detailed logs for a specific pipeline run

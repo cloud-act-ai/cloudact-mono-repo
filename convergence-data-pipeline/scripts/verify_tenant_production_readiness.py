@@ -117,8 +117,6 @@ class ProductionReadinessChecker:
         """Verify all required metadata tables exist"""
         check_name = "Metadata Tables"
         required_tables = [
-            "x_meta_api_keys",
-            "x_meta_cloud_credentials",
             "x_meta_pipeline_runs",
             "x_meta_step_logs",
             "x_meta_dq_results"

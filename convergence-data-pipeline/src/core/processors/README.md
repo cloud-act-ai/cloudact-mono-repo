@@ -61,15 +61,16 @@ destination:
 - **Purpose**: Tenant onboarding and infrastructure validation
 - **Features**:
   - Creates tenant dataset
-  - Initializes metadata tables (x_meta_*)
+  - Initializes per-tenant metadata tables (x_meta_*)
   - Validates BigQuery permissions
-  - Generates API keys
-- **Metadata Tables Created**:
-  - `x_meta_api_keys` - Authentication
-  - `x_meta_cloud_credentials` - Encrypted credentials
+  - Generates API keys (stored in central tenants.tenant_api_keys)
+- **Per-Tenant Metadata Tables Created**:
   - `x_meta_pipeline_runs` - Execution tracking
   - `x_meta_step_logs` - Detailed logs
   - `x_meta_dq_results` - Data quality results
+- **Note**: API keys and cloud credentials are stored in the central `tenants` dataset:
+  - `tenants.tenant_api_keys` - Authentication
+  - `tenants.tenant_cloud_credentials` - Encrypted credentials
 
 ### Shared Engines (`ps_type: shared.*`)
 

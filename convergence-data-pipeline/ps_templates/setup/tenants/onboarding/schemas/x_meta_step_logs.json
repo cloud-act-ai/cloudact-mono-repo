@@ -21,7 +21,7 @@
     "name": "step_type",
     "type": "STRING",
     "mode": "REQUIRED",
-    "description": "Type of operation this step performs. Valid values: 'bigquery_to_bigquery' (BQ data transfer/transformation), 'data_quality' (Great Expectations validation), 'api_call' (external API integration), 'file_upload' (GCS operations), 'custom' (user-defined processor). Used for step-type-specific analytics and identifying common failure patterns by type."
+    "description": "Type of operation this step performs. Valid values: 'gcp.bq_etl' (BQ data transfer/transformation), 'setup.tenants.onboarding' (tenant infrastructure setup), 'notify_systems.email_notification' (email notifications), 'notify_systems.slack_notification' (Slack notifications), 'aws.s3_data_loader' (S3 data operations), 'custom' (user-defined processor). Used for step-type-specific analytics and identifying common failure patterns by type."
   },
   {
     "name": "step_index",
@@ -57,7 +57,7 @@
     "name": "rows_processed",
     "type": "INTEGER",
     "mode": "NULLABLE",
-    "description": "Number of data rows processed/written by this step. For bigquery_to_bigquery steps: rows inserted/updated. For data_quality steps: rows validated. NULL for steps that don't process rows (API calls, file operations). Used for data volume tracking, cost attribution, and identifying large data movement operations."
+    "description": "Number of data rows processed/written by this step. For gcp.bq_etl steps: rows inserted/updated. For data quality steps: rows validated. NULL for steps that don't process rows (notifications, setup operations). Used for data volume tracking, cost attribution, and identifying large data movement operations."
   },
   {
     "name": "error_message",
@@ -75,6 +75,6 @@
     "name": "metadata",
     "type": "JSON",
     "mode": "NULLABLE",
-    "description": "Step-specific execution metadata as flexible JSON object. Schema varies by step_type. Examples: For bigquery_to_bigquery: {'destination_table': 'dataset.table', 'bytes_processed': 12345678, 'query_cost_usd': 0.05}. For data_quality: {'total_checks': 15, 'passed_count': 14, 'failed_count': 1, 'failed_expectations': [...]}. JSON type provides schema flexibility for different step types without table alterations. Used for detailed step analytics, cost tracking, and audit trails."
+    "description": "Step-specific execution metadata as flexible JSON object. Schema varies by step_type. Examples: For gcp.bq_etl: {'destination_table': 'dataset.table', 'bytes_processed': 12345678, 'query_cost_usd': 0.05}. For data_quality: {'total_checks': 15, 'passed_count': 14, 'failed_count': 1, 'failed_expectations': [...]}. For notifications: {'recipients': ['email@example.com'], 'status': 'sent'}. JSON type provides schema flexibility for different step types without table alterations. Used for detailed step analytics, cost tracking, and audit trails."
   }
 ]

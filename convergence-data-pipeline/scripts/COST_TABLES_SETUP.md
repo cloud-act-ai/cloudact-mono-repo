@@ -179,9 +179,10 @@ python scripts/create_cost_tables.py --tenant-id guru_232342 --verify
 
 2. **Monitor Ingestion**: Check pipeline execution logs
    ```sql
-   SELECT * FROM `gac-prod-471220.guru_232342.x_meta_pipeline_runs`
-   WHERE pipeline_id = 'guru_232342_gcp_cost_billing'
-   ORDER BY run_started_at DESC
+   SELECT * FROM `gac-prod-471220.tenants.x_meta_pipeline_runs`
+   WHERE tenant_id = 'guru_232342'
+     AND pipeline_id = 'guru_232342_gcp_cost_billing'
+   ORDER BY start_time DESC
    LIMIT 10
    ```
 

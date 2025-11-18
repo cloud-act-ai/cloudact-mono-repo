@@ -92,7 +92,7 @@ steps:
 | `pipeline_id` | Pipeline | Unique identifier (can use variables) |
 | `steps` | Pipeline | Array of step configurations |
 | `step_id` | Step | Unique identifier within pipeline |
-| `ps_type` | Step | Engine type (e.g., `gcp.bigquery_to_bigquery`) |
+| `ps_type` | Step | Engine type (e.g., `gcp.bq_etl`) |
 
 ### Optional Fields
 
@@ -161,15 +161,15 @@ Control when steps execute based on previous step results:
 ```yaml
 steps:
   - step_id: "extract_data"
-    ps_type: "gcp.bigquery_to_bigquery"
+    ps_type: "gcp.bq_etl"
     trigger: "always"  # Always runs
 
   - step_id: "send_success_email"
-    ps_type: "shared.email_notification"
+    ps_type: "notify_systems.email_notification"
     trigger: "on_success"  # Only if previous steps succeeded
 
   - step_id: "send_failure_alert"
-    ps_type: "shared.email_notification"
+    ps_type: "notify_systems.email_notification"
     trigger: "on_failure"  # Only if any step failed
 ```
 
@@ -196,7 +196,7 @@ variables:
 steps:
   - step_id: "extract_billing_costs"
     name: "Extract GCP Billing Costs"
-    ps_type: "gcp.bigquery_to_bigquery"
+    ps_type: "gcp.bq_etl"
     timeout_minutes: 20
 
     source:
@@ -221,7 +221,7 @@ steps:
 
   - step_id: "notify_on_failure"
     name: "Send Failure Notification"
-    ps_type: "shared.email_notification"
+    ps_type: "notify_systems.email_notification"
     trigger: "on_failure"
     to_emails:
       - "{admin_email}"
@@ -246,21 +246,22 @@ variables:
 steps:
   - step_id: "create_infrastructure"
     name: "Create Tenant Dataset and Metadata Tables"
-    ps_type: "customer.onboarding"
+    ps_type: "setup.tenants.onboarding"
     timeout_minutes: 10
     config:
       gcp_project_id: "{gcp_project_id}"
       dataset_id: "{tenant_id}"
       location: "{location}"
       metadata_tables:
-        - table_name: "x_meta_api_keys"
-          schema_file: "x_meta_api_keys.json"
-        - table_name: "x_meta_pipeline_runs"
-          schema_file: "x_meta_pipeline_runs.json"
+        # Note: x_meta_pipeline_runs is now in central 'tenants' dataset
+        - table_name: "x_meta_step_logs"
+          schema_file: "x_meta_step_logs.json"
+        - table_name: "x_meta_dq_results"
+          schema_file: "x_meta_dq_results.json"
 
   - step_id: "send_welcome_email"
     name: "Send Welcome Email"
-    ps_type: "shared.email_notification"
+    ps_type: "notify_systems.email_notification"
     trigger: "on_success"
     to_emails: ["{admin_email}"]
     subject: "Welcome to Convergence Data Pipeline"
@@ -316,18 +317,18 @@ steps:
 steps:
   # Data Extraction
   - step_id: "extract_gcp_billing"
-    ps_type: "gcp.bigquery_to_bigquery"
+    ps_type: "gcp.bq_etl"
 
   - step_id: "extract_aws_costs"
-    ps_type: "aws.s3_to_bigquery"
+    ps_type: "aws.s3_data_loader"
 
   # Data Quality
   - step_id: "validate_data_quality"
-    ps_type: "shared.data_quality"
+    ps_type: "gcp.bq_etl"
 
   # Notifications
   - step_id: "notify_on_success"
-    ps_type: "shared.email_notification"
+    ps_type: "notify_systems.email_notification"
     trigger: "on_success"
 ```
 
@@ -338,7 +339,7 @@ Always include failure notifications for production pipelines:
 ```yaml
 steps:
   - step_id: "notify_on_failure"
-    ps_type: "shared.email_notification"
+    ps_type: "notify_systems.email_notification"
     trigger: "on_failure"
     to_emails:
       - "{admin_email}"

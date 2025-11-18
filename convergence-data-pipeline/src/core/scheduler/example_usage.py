@@ -175,7 +175,7 @@ async def example_retry_logic():
     retry_manager = RetryManager()
 
     # 1. Create a scheduled run
-    tenant_id = "test_customer"
+    tenant_id = "test_tenant"
     config_id = "test_pipeline"
     scheduled_time = datetime.utcnow()
 
@@ -249,17 +249,17 @@ async def example_yet_to_run_pipelines():
         print()
 
 
-async def example_customer_status():
+async def example_tenant_status():
     """
-    Example 6: Get customer pipeline status summary
+    Example 6: Get tenant pipeline status summary
     """
-    print("\n=== Example 6: Customer Pipeline Status ===")
+    print("\n=== Example 6: Tenant Pipeline Status ===")
 
     bq_client = bigquery.Client()
     state_manager = PipelineStateManager(bq_client)
 
     tenant_id = "acme_corp"
-    status = await state_manager.get_customer_pipeline_status(
+    status = await state_manager.get_tenant_pipeline_status(
         tenant_id=tenant_id,
         date="2025-11-17"
     )

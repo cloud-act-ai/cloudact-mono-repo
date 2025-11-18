@@ -55,28 +55,37 @@ FIRESTORE_LOCK_COLLECTION=pipeline_locks
 
 ## 2. Central Tenants Dataset
 
-**Dataset**: `customers` (centralized multi-tenant management)
+**Dataset**: `tenants` (centralized multi-tenant management)
 
-### customer_profiles
+### tenant_profiles
 tenant_id (STRING), company_name, admin_email, status (ACTIVE/TRIAL/SUSPENDED/CANCELLED), subscription_plan (STARTER/PROFESSIONAL/SCALE), tenant_dataset_id, created_at
 
-### customer_api_keys
+### tenant_api_keys
 api_key_id (STRING), tenant_id, api_key_hash (SHA256), key_name, scopes (ARRAY), is_active (BOOLEAN), expires_at, last_used_at
 
-### customer_subscriptions
+### tenant_subscriptions
 subscription_id, tenant_id, plan_name (STARTER/PROFESSIONAL/SCALE), status, max_team_members, max_providers, max_pipelines_per_day, max_pipelines_per_month, max_concurrent_pipelines, subscription_start_date, subscription_end_date
 
-### customer_usage_quotas
+### tenant_usage_quotas
 usage_id, tenant_id, usage_date (partition key), pipelines_run_today, pipelines_run_month, concurrent_pipelines_running, daily_limit, monthly_limit, concurrent_limit
+
+### tenant_cloud_credentials
+credential_id (STRING), tenant_id, provider (GCP/AWS/AZURE/OPENAI/CLAUDE), encrypted_credentials (BYTES, KMS encrypted), is_active (BOOLEAN), created_at, updated_at
 
 ---
 
-## 3. Tenant Dataset Tables
+## 3. Centralized Pipeline Runs Table
 
-**Dataset**: `{tenant_id}` (per-tenant isolation)
+**Dataset**: `tenants` (centralized for all tenants)
 
 ### x_meta_pipeline_runs
+**Location**: `tenants.x_meta_pipeline_runs` (centralized, not per-tenant)
+
 pipeline_logging_id (UUID), pipeline_id, tenant_id, status (PENDING/RUNNING/COMPLETED/FAILED), trigger_type (api/scheduler/manual), user_id, start_time (partition key), end_time, duration_ms, error_message, parameters (JSON)
+
+## 4. Tenant Dataset Tables
+
+**Dataset**: `{tenant_id}` (per-tenant isolation)
 
 ### x_meta_step_logs
 step_logging_id (UUID), pipeline_logging_id, step_name, step_type (bigquery_to_bigquery/data_quality), step_index, status (PENDING/RUNNING/COMPLETED/FAILED/SKIPPED), start_time (partition key), duration_ms, rows_processed, metadata (JSON)

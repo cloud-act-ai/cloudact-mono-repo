@@ -62,10 +62,10 @@ pytest tests/security/test_multi_tenant_isolation.py::test_team_member_isolation
 ## Test Execution Flow
 
 1. **Setup Phase** (runs once per test session)
-   - Creates two test customers (Customer A and Customer B)
-   - Creates isolated BigQuery datasets for each customer
-   - Generates and stores API keys for each customer
-   - Sets up metadata tables (`x_meta_api_keys`, `x_meta_pipeline_runs`, etc.)
+   - Creates two test tenants (Tenant A and Tenant B)
+   - Creates isolated BigQuery datasets for each tenant
+   - Generates and stores API keys for each tenant in central `tenants.tenant_api_keys` table
+   - Sets up per-tenant metadata tables (`x_meta_pipeline_runs`, `x_meta_step_logs`, `x_meta_dq_results`)
 
 2. **Test Execution** (runs for each test)
    - Simulates attack scenarios (cross-tenant access attempts)
@@ -73,7 +73,7 @@ pytest tests/security/test_multi_tenant_isolation.py::test_team_member_isolation
    - Verifies that unauthorized access is blocked with proper HTTP status codes
 
 3. **Teardown Phase** (runs at end of test session)
-   - Deletes test customer datasets
+   - Deletes test tenant datasets
    - Cleans up all test data
 
 ## Expected Test Results

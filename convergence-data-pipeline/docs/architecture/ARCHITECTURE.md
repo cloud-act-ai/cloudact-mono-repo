@@ -63,6 +63,7 @@ tenants.tenant_provider_configs      # Pipeline settings per provider/domain
 tenants.tenant_pipeline_configs      # Scheduled pipeline configurations (cron)
 tenants.scheduled_pipeline_runs      # Track scheduled executions (PENDING/COMPLETED/FAILED)
 tenants.pipeline_execution_queue     # Active queue for scheduled pipelines
+tenants.x_meta_pipeline_runs         # Centralized pipeline execution logs (all tenants)
 ```
 
 **Access Pattern**: Every API request authenticates against this dataset
@@ -72,10 +73,11 @@ tenants.pipeline_execution_queue     # Active queue for scheduled pipelines
 
 **Metadata Tables** (has tenant_id + user_id):
 ```
-{tenant_id}.x_meta_pipeline_runs     # Pipeline execution logs
 {tenant_id}.x_meta_step_logs         # Step-by-step execution details
 {tenant_id}.x_meta_dq_results        # Data quality validation results
 ```
+
+**Note:** `x_meta_pipeline_runs` is stored centrally in the `tenants` dataset, not per-tenant dataset.
 
 **Data Tables** (provider-specific):
 ```
@@ -198,7 +200,7 @@ Flow:
    - Load: /configs/{provider}/{domain}/{template_name}.yml
    - Replace variables: {tenant_id}, {gcp_project_id}, {date}, etc.
 7. Execute pipeline async (background task) via AsyncPipelineExecutor
-8. Log metadata to {tenant_id}.x_meta_pipeline_runs (tenant_id + user_id)
+8. Log metadata to tenants.x_meta_pipeline_runs (tenant_id + user_id)
 9. On completion:
    - Decrement concurrent counter
    - Increment daily/monthly counters
@@ -315,7 +317,9 @@ YAML Pipeline Step:
          ↓
 [Executes processor with step configuration]
          ↓
-[Logs to x_meta_step_logs in tenant dataset]
+[Logs pipeline run to tenants.x_meta_pipeline_runs]
+         ↓
+[Logs step details to {tenant_id}.x_meta_step_logs]
 ```
 
 ### Complete Flow: API Call to Processor Execution
@@ -1203,8 +1207,8 @@ FRONTEND SYSTEM (Supabase)          CONVERGENCE API (Cloud Run)          DATA (B
                             |
                             └─> [Execute each processor step]
                                 |
-                                └─> [Log execution to x_meta_pipeline_runs]
-                                    [Log steps to x_meta_step_logs]
+                                └─> [Log execution to tenants.x_meta_pipeline_runs]
+                                    [Log steps to {tenant_id}.x_meta_step_logs]
                                     [Write results to {tenant_id}.* tables]
                                     |
                                     └─> [UPDATE pipeline_execution_queue]

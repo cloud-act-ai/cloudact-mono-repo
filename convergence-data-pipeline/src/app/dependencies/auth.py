@@ -961,7 +961,7 @@ async def get_tenant_from_api_key(
     """
     Look up tenant_id from API key hash using centralized tenants dataset.
 
-    UPDATED: Now reads from tenants.tenant_api_keys instead of {tenant_id}.x_meta_api_keys.
+    UPDATED: Now reads from tenants.tenant_api_keys (centralized API keys).
     This is more secure as API keys are stored in a centralized, access-controlled dataset.
 
     Args:

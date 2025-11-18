@@ -498,7 +498,7 @@ CREATE TABLE IF NOT EXISTS `gac-prod-471220.tenants.tenant_scheduled_pipeline_ru
   state STRING NOT NULL,                            -- SCHEDULED, PENDING, RUNNING, COMPLETED, FAILED, SKIPPED
 
   -- Pipeline Execution Reference
-  pipeline_logging_id STRING,                       -- References {tenant_id}.x_meta_pipeline_runs
+  pipeline_logging_id STRING,                       -- References tenants.x_meta_pipeline_runs
 
   -- Performance Metrics
   execution_duration_seconds INT64,                 -- Duration in seconds

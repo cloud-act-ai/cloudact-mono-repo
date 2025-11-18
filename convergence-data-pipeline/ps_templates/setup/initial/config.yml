@@ -38,6 +38,7 @@ tables:
   - tenant_pipeline_configs
   - tenant_scheduled_pipeline_runs
   - tenant_pipeline_execution_queue
+  - x_meta_pipeline_runs
 
 # Notes:
 # - This processor should be run ONCE during initial system setup

@@ -1,0 +1,86 @@
+[
+  {
+    "name": "pipeline_logging_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "UUID for this specific run"
+  },
+  {
+    "name": "tenant_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Tenant identifier"
+  },
+  {
+    "name": "pipeline_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Pipeline identifier (e.g., p_openai_billing)"
+  },
+  {
+    "name": "status",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "PENDING, RUNNING, COMPLETED, FAILED"
+  },
+  {
+    "name": "trigger_type",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "api, scheduler, webhook, manual"
+  },
+  {
+    "name": "trigger_by",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "service-account@project.iam.gserviceaccount.com or user email"
+  },
+  {
+    "name": "user_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "User ID who triggered the pipeline"
+  },
+  {
+    "name": "start_time",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "When the run was created"
+  },
+  {
+    "name": "end_time",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "When the run finished"
+  },
+  {
+    "name": "duration_ms",
+    "type": "INTEGER",
+    "mode": "NULLABLE",
+    "description": "Total run time in milliseconds"
+  },
+  {
+    "name": "run_date",
+    "type": "DATE",
+    "mode": "NULLABLE",
+    "description": "Partition column (DATE of the run)"
+  },
+  {
+    "name": "parameters",
+    "type": "JSON",
+    "mode": "NULLABLE",
+    "description": "Pipeline parameters"
+  },
+  {
+    "name": "run_metadata",
+    "type": "JSON",
+    "mode": "NULLABLE",
+    "description": "Detailed step-by-step execution log"
+  },
+  {
+    "name": "error_message",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Full stack trace if failed"
+  }
+]

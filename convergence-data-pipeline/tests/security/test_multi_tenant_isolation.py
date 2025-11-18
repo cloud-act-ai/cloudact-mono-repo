@@ -72,14 +72,20 @@ class SecurityTestContext:
         return self.customer_a_id, self.api_key_a, self.customer_b_id, self.api_key_b
 
     async def _store_api_key(self, tenant_id: str, api_key: str, api_key_hash: str):
-        """Store API key in tenant's metadata table."""
+        """
+        Store API key in centralized tenants.tenant_api_keys table.
+
+        NOTE: Updated to use centralized API key storage in tenants dataset.
+        Previously: {tenant_id}.x_meta_api_keys (per-tenant)
+        Now: tenants.tenant_api_keys (centralized)
+        """
         import uuid
 
         api_key_id = str(uuid.uuid4())
         encrypted_api_key_bytes = api_key.encode('utf-8')  # Plain storage for testing
 
         insert_query = f"""
-        INSERT INTO `{settings.gcp_project_id}.{tenant_id}.x_meta_api_keys`
+        INSERT INTO `{settings.gcp_project_id}.tenants.tenant_api_keys`
         (api_key_id, tenant_id, api_key_hash, encrypted_api_key, created_at, is_active)
         VALUES
         (@api_key_id, @tenant_id, @api_key_hash, @encrypted_api_key, CURRENT_TIMESTAMP(), TRUE)
@@ -421,7 +427,8 @@ async def test_credentials_security():
     api_key_b = security_context["api_key_b"]
     customer_b_id = security_context["customer_b_id"]
 
-    # Store test credentials for Customer A in their x_meta_cloud_credentials table
+    # Store test credentials in centralized tenants.tenant_cloud_credentials table
+    # NOTE: Credentials are now stored centrally, not in per-tenant datasets
     print(f"[TEST] Storing cloud credentials for Customer A...")
 
     credential_data = {
@@ -438,7 +445,7 @@ async def test_credentials_security():
     encrypted_credentials = json.dumps(credential_data).encode('utf-8')  # Plain for testing
 
     insert_cred_query = f"""
-    INSERT INTO `{settings.gcp_project_id}.{customer_a_id}.x_meta_cloud_credentials`
+    INSERT INTO `{settings.gcp_project_id}.tenants.tenant_cloud_credentials`
     (credential_id, tenant_id, provider, credential_name, encrypted_credentials, created_at, is_active)
     VALUES
     (@credential_id, @tenant_id, @provider, @credential_name, @encrypted_credentials, CURRENT_TIMESTAMP(), TRUE)
@@ -462,7 +469,7 @@ async def test_credentials_security():
 
     query_own_creds = f"""
     SELECT credential_id, tenant_id, provider, credential_name
-    FROM `{settings.gcp_project_id}.{customer_a_id}.x_meta_cloud_credentials`
+    FROM `{settings.gcp_project_id}.tenants.tenant_cloud_credentials`
     WHERE tenant_id = @tenant_id AND is_active = TRUE
     """
 
@@ -509,12 +516,12 @@ async def test_credentials_security():
     else:
         pytest.fail("Credential access was NOT blocked - SECURITY VIOLATION!")
 
-    # Additionally, Customer B's dataset doesn't even have Customer A's credentials
-    print(f"\n[TEST] Verifying Customer B's dataset doesn't contain Customer A's credentials...")
+    # With centralized storage, verify that querying with wrong tenant_id returns no results
+    print(f"\n[TEST] Verifying Customer B cannot see Customer A's credentials in centralized table...")
 
     query_b_creds = f"""
     SELECT credential_id, tenant_id
-    FROM `{settings.gcp_project_id}.{customer_b_id}.x_meta_cloud_credentials`
+    FROM `{settings.gcp_project_id}.tenants.tenant_cloud_credentials`
     WHERE tenant_id = @tenant_id_a
     """
 
@@ -649,7 +656,7 @@ async def _simulate_pipeline_run(context: SecurityTestContext, tenant_id: str, p
     pipeline_logging_id = str(uuid.uuid4())
 
     insert_query = f"""
-    INSERT INTO `{settings.gcp_project_id}.{tenant_id}.x_meta_pipeline_runs`
+    INSERT INTO `{settings.gcp_project_id}.tenants.x_meta_pipeline_runs`
     (pipeline_logging_id, pipeline_id, tenant_id, status, trigger_type, trigger_by, start_time)
     VALUES
     (@pipeline_logging_id, @pipeline_id, @tenant_id, 'COMPLETED', 'test', 'quota_test', CURRENT_TIMESTAMP())
@@ -670,7 +677,7 @@ async def _get_pipeline_count(context: SecurityTestContext, tenant_id: str, run_
     """Get pipeline run count for a tenant on a specific date."""
     query = f"""
     SELECT COUNT(*) as run_count
-    FROM `{settings.gcp_project_id}.{tenant_id}.x_meta_pipeline_runs`
+    FROM `{settings.gcp_project_id}.tenants.x_meta_pipeline_runs`
     WHERE tenant_id = @tenant_id
       AND DATE(start_time) = @run_date
     """

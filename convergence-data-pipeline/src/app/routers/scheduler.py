@@ -155,11 +155,11 @@ async def get_pipelines_due_now(
     """
     Get pipelines that should run now.
 
-    Queries customer_pipeline_configs for pipelines where:
+    Queries tenant_pipeline_configs for pipelines where:
     - is_active = TRUE
     - next_run_time <= NOW()
-    - Customer status = ACTIVE
-    - Customer quota not exceeded
+    - Tenant status = ACTIVE
+    - Tenant quota not exceeded
 
     Args:
         bq_client: BigQuery client instance
@@ -168,7 +168,7 @@ async def get_pipelines_due_now(
     Returns:
         List of pipeline configurations ready to run
     """
-    # Note: This assumes customer_pipeline_configs table exists in customers dataset
+    # Note: This assumes tenant_pipeline_configs table exists in tenants dataset
     # Schema should be created as part of scheduler setup
     query = f"""
     WITH due_pipelines AS (
@@ -183,7 +183,7 @@ async def get_pipelines_due_now(
             c.parameters,
             c.next_run_time,
             c.priority,
-            p.status as customer_status,
+            p.status as tenant_status,
             s.max_pipelines_per_day,
             COALESCE(u.pipelines_run_today, 0) as pipelines_run_today
         FROM `{settings.gcp_project_id}.tenants.tenant_pipeline_configs` c
@@ -227,7 +227,7 @@ async def enqueue_pipeline(
 
     Args:
         bq_client: BigQuery client instance
-        tenant_id: Customer identifier
+        tenant_id: Tenant identifier
         config: Pipeline configuration dict
         priority: Queue priority (1-10, higher is more urgent)
 
@@ -358,11 +358,11 @@ async def trigger_scheduler(
     It queries for due pipelines and adds them to the execution queue.
 
     Logic:
-    1. Query customer_pipeline_configs for pipelines where:
+    1. Query tenant_pipeline_configs for pipelines where:
        - is_active = TRUE
        - next_run_time <= NOW()
-       - Customer status = ACTIVE
-       - Customer quota not exceeded
+       - Tenant status = ACTIVE
+       - Tenant quota not exceeded
 
     2. For each due pipeline:
        - Create record in scheduled_pipeline_runs with state = PENDING
@@ -373,12 +373,12 @@ async def trigger_scheduler(
 
     Security:
     - Requires admin API key
-    - Validates customer quotas before enqueuing
+    - Validates tenant quotas before enqueuing
     - Prevents duplicate runs (idempotency check)
 
     Performance:
     - Batch processes in chunks of 100 pipelines
-    - Uses pagination for 10k+ customers
+    - Uses pagination for 10k+ tenants
     """
     try:
         # Get pipelines due now
@@ -471,7 +471,7 @@ async def process_queue(
     2. Update state to PROCESSING
     3. Call pipeline execution: POST /api/v1/pipelines/run/{tenant_id}/{provider}/{domain}/{template}
     4. Update scheduled_pipeline_runs state based on result
-    5. Update customer_pipeline_configs (last_run_time, last_run_status, next_run_time)
+    5. Update tenant_pipeline_configs (last_run_time, last_run_status, next_run_time)
     6. Remove from queue or mark as COMPLETED
 
     Security:
@@ -588,7 +588,7 @@ async def process_queue(
 
                 bq_client.client.query(update_run_query, job_config=run_job_config).result()
 
-                # Update customer_pipeline_configs
+                # Update tenant_pipeline_configs
                 update_config_query = f"""
                 UPDATE `{settings.gcp_project_id}.tenants.tenant_pipeline_configs`
                 SET last_run_time = CURRENT_TIMESTAMP(),
@@ -634,7 +634,7 @@ async def process_queue(
 
                 bq_client.client.query(update_run_query, job_config=run_job_config).result()
 
-                # Update customer_pipeline_configs
+                # Update tenant_pipeline_configs
                 update_config_query = f"""
                 UPDATE `{settings.gcp_project_id}.tenants.tenant_pipeline_configs`
                 SET last_run_time = CURRENT_TIMESTAMP(),
@@ -796,27 +796,27 @@ async def get_scheduler_status(
 # ============================================
 
 @router.get(
-    "/scheduler/customer/{tenant_id}/pipelines",
+    "/scheduler/tenant/{tenant_id}/pipelines",
     response_model=List[PipelineConfigResponse],
-    summary="Get customer pipeline configurations",
-    description="Get all configured pipelines for a customer"
+    summary="Get tenant pipeline configurations",
+    description="Get all configured pipelines for a tenant"
 )
-async def get_customer_pipelines(
+async def get_tenant_pipelines(
     tenant_id: str,
     is_active: Optional[bool] = Query(None, description="Filter by active status"),
-    customer: Dict[str, Any] = Depends(get_current_tenant),
+    tenant: Dict[str, Any] = Depends(get_current_tenant),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """
-    Get all pipeline configurations for a customer.
+    Get all pipeline configurations for a tenant.
 
-    Returns list of customer_pipeline_configs with schedule info.
+    Returns list of tenant_pipeline_configs with schedule info.
     """
-    # Verify customer has access
-    if customer['tenant_id'] != tenant_id:
+    # Verify tenant has access
+    if tenant['tenant_id'] != tenant_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied to customer pipelines"
+            detail="Access denied to tenant pipelines"
         )
 
     try:
@@ -866,27 +866,27 @@ async def get_customer_pipelines(
         return configs
 
     except Exception as e:
-        logger.error(f"Failed to get customer pipelines: {e}", exc_info=True)
+        logger.error(f"Failed to get tenant pipelines: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get customer pipelines: {str(e)}"
+            detail=f"Failed to get tenant pipelines: {str(e)}"
         )
 
 
 @router.post(
-    "/scheduler/customer/{tenant_id}/pipelines",
+    "/scheduler/tenant/{tenant_id}/pipelines",
     response_model=PipelineConfigResponse,
     summary="Add/update pipeline configuration",
-    description="Add or update a pipeline configuration for a customer"
+    description="Add or update a pipeline configuration for a tenant"
 )
-async def create_customer_pipeline(
+async def create_tenant_pipeline(
     tenant_id: str,
     request: PipelineConfigRequest,
-    customer: Dict[str, Any] = Depends(get_current_tenant),
+    tenant: Dict[str, Any] = Depends(get_current_tenant),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """
-    Add/update pipeline configuration for a customer.
+    Add/update pipeline configuration for a tenant.
 
     Request:
     - provider: Cloud provider (GCP, AWS, AZURE)
@@ -897,11 +897,11 @@ async def create_customer_pipeline(
     - is_active: Enable/disable pipeline
     - parameters: Pipeline parameters
     """
-    # Verify customer has access
-    if customer['tenant_id'] != tenant_id:
+    # Verify tenant has access
+    if tenant['tenant_id'] != tenant_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied to customer pipelines"
+            detail="Access denied to tenant pipelines"
         )
 
     # Validate cron expression
@@ -994,14 +994,14 @@ async def create_customer_pipeline(
 
 
 @router.delete(
-    "/scheduler/customer/{tenant_id}/pipelines/{config_id}",
+    "/scheduler/tenant/{tenant_id}/pipelines/{config_id}",
     summary="Disable pipeline configuration",
     description="Disable a pipeline configuration (soft delete)"
 )
-async def delete_customer_pipeline(
+async def delete_tenant_pipeline(
     tenant_id: str,
     config_id: str,
-    customer: Dict[str, Any] = Depends(get_current_tenant),
+    tenant: Dict[str, Any] = Depends(get_current_tenant),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """
@@ -1009,11 +1009,11 @@ async def delete_customer_pipeline(
 
     This is a soft delete - sets is_active = FALSE.
     """
-    # Verify customer has access
-    if customer['tenant_id'] != tenant_id:
+    # Verify tenant has access
+    if tenant['tenant_id'] != tenant_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied to customer pipelines"
+            detail="Access denied to tenant pipelines"
         )
 
     try:
@@ -1074,7 +1074,7 @@ async def reset_daily_quotas(
     Reset daily quota counters and archive old records.
 
     Logic:
-    1. UPDATE customer_usage_quotas SET all daily counters to 0 WHERE usage_date < CURRENT_DATE()
+    1. UPDATE tenant_usage_quotas SET all daily counters to 0 WHERE usage_date < CURRENT_DATE()
     2. Archive/DELETE records older than 90 days
     3. Return count of records updated/archived
 
@@ -1083,7 +1083,7 @@ async def reset_daily_quotas(
     - Validates before executing destructive operations
 
     Performance:
-    - Batch processes all customers in single UPDATE
+    - Batch processes all tenants in single UPDATE
     - Archives old data to prevent table bloat
     """
     try:
@@ -1155,8 +1155,8 @@ async def cleanup_orphaned_pipelines(
     Cleanup orphaned and stuck pipelines.
 
     Logic:
-    1. Get all active tenants from customer_profiles
-    2. For each tenant, UPDATE x_meta_pipeline_runs SET status='FAILED'
+    1. Get all active tenants from tenant_profiles
+    2. For each tenant, UPDATE tenants.x_meta_pipeline_runs SET status='FAILED'
        WHERE status IN ('PENDING','RUNNING') AND start_time > 60 minutes ago
     3. Decrement concurrent_pipelines_running counter for each cleaned pipeline
     4. Return count of pipelines cleaned per tenant
@@ -1200,13 +1200,14 @@ async def cleanup_orphaned_pipelines(
             try:
                 # Find and mark orphaned pipelines as FAILED
                 cleanup_query = f"""
-                UPDATE `{settings.gcp_project_id}.{tenant_id}.x_meta_pipeline_runs`
+                UPDATE `{settings.gcp_project_id}.tenants.x_meta_pipeline_runs`
                 SET
                     status = 'FAILED',
                     end_time = CURRENT_TIMESTAMP(),
                     error_message = 'Pipeline marked as FAILED due to timeout (>60 minutes)',
                     duration_ms = TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), start_time, MILLISECOND)
-                WHERE status IN ('PENDING', 'RUNNING')
+                WHERE tenant_id = '{tenant_id}'
+                  AND status IN ('PENDING', 'RUNNING')
                   AND TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), start_time, MINUTE) > 60
                 """
 
@@ -1236,7 +1237,6 @@ async def cleanup_orphaned_pipelines(
 
                     total_cleaned += cleaned_count
                     tenant_details.append({
-                        "tenant_id": tenant_id,
                         "tenant_id": tenant_id,
                         "pipelines_cleaned": cleaned_count
                     })

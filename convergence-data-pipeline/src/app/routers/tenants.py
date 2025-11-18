@@ -79,7 +79,7 @@ class OnboardTenantRequest(BaseModel):
         return v.upper()
 
 
-class OnboardCustomerResponse(BaseModel):
+class OnboardTenantResponse(BaseModel):
     """Response for tenant onboarding."""
     tenant_id: str
     api_key: str  # Unencrypted - show once!
@@ -96,7 +96,7 @@ class OnboardCustomerResponse(BaseModel):
 
 @router.post(
     "/tenants/onboard",
-    response_model=OnboardCustomerResponse,
+    response_model=OnboardTenantResponse,
     summary="Onboard a new tenant",
     description="Complete tenant onboarding: create tenant profile, API key, subscription, and tenant dataset"
 )
@@ -240,12 +240,10 @@ async def onboard_tenant(
         insert_subscription_query = f"""
         INSERT INTO `{settings.gcp_project_id}.tenants.tenant_subscriptions`
         (subscription_id, tenant_id, plan_name, status, daily_limit, monthly_limit,
-         concurrent_limit, max_team_members, max_providers, max_pipelines_per_day,
-         max_concurrent_pipelines, trial_end_date, created_at)
+         concurrent_limit, trial_end_date, created_at)
         VALUES
         (@subscription_id, @tenant_id, @plan_name, 'ACTIVE', @daily_limit, @monthly_limit,
-         @concurrent_limit, @max_team_members, @max_providers, @max_pipelines_per_day,
-         @max_concurrent_pipelines, @trial_end_date, CURRENT_TIMESTAMP())
+         @concurrent_limit, @trial_end_date, CURRENT_TIMESTAMP())
         """
 
         bq_client.client.query(
@@ -258,10 +256,6 @@ async def onboard_tenant(
                     bigquery.ScalarQueryParameter("daily_limit", "INT64", plan_limits["max_daily"]),
                     bigquery.ScalarQueryParameter("monthly_limit", "INT64", plan_limits["max_daily"] * 30),
                     bigquery.ScalarQueryParameter("concurrent_limit", "INT64", plan_limits["max_concurrent"]),
-                    bigquery.ScalarQueryParameter("max_team_members", "INT64", plan_limits["max_team"]),
-                    bigquery.ScalarQueryParameter("max_providers", "INT64", plan_limits["max_providers"]),
-                    bigquery.ScalarQueryParameter("max_pipelines_per_day", "INT64", plan_limits["max_daily"]),
-                    bigquery.ScalarQueryParameter("max_concurrent_pipelines", "INT64", plan_limits["max_concurrent"]),
                     bigquery.ScalarQueryParameter("trial_end_date", "DATE", trial_end)
                 ]
             )
@@ -442,7 +436,7 @@ async def onboard_tenant(
     # ============================================
     logger.info(f"Tenant onboarding completed - tenant_id: {tenant_id}")
 
-    return OnboardCustomerResponse(
+    return OnboardTenantResponse(
         tenant_id=tenant_id,
         api_key=api_key,  # SAVE THIS - shown only once!
         subscription_plan=request.subscription_plan,

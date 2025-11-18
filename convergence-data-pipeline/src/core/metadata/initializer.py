@@ -59,8 +59,7 @@ class MetadataInitializer:
         self._ensure_dataset(dataset_name, force_recreate=force_recreate_dataset)
 
         # Create metadata tables in the tenant dataset
-        self._ensure_x_meta_api_keys_table(dataset_name, recreate=force_recreate_tables)
-        self._ensure_x_meta_cloud_credentials_table(dataset_name, recreate=force_recreate_tables)
+        # Note: API keys and credentials are now centralized in tenants dataset
         self._ensure_x_meta_pipeline_runs_table(dataset_name, recreate=force_recreate_tables)
         self._ensure_x_meta_step_logs_table(dataset_name, recreate=force_recreate_tables)
         self._ensure_x_meta_dq_results_table(dataset_name, recreate=force_recreate_tables)
@@ -128,62 +127,6 @@ class MetadataInitializer:
             dataset.description = f"Metadata tracking for tenant"
             self.client.create_dataset(dataset, timeout=30)
             logger.info(f"Created dataset: {dataset_id}")
-
-    def _ensure_x_meta_api_keys_table(self, dataset_name: str, recreate: bool = False) -> None:
-        """
-        Create x_meta_api_keys table if it doesn't exist.
-
-        Args:
-            dataset_name: Dataset name
-            recreate: If True, delete and recreate table even if it exists
-        """
-        table_id = f"{self.project_id}.{dataset_name}.x_meta_api_keys"
-
-        # Load schema from JSON configuration file
-        schema = self._load_schema_from_json("x_meta_api_keys")
-
-        if recreate:
-            logger.info(f"Recreating table (delete + create): {table_id}")
-            self.client.delete_table(table_id, not_found_ok=True)
-
-        try:
-            self.client.get_table(table_id)
-            logger.debug(f"Table {table_id} already exists")
-        except exceptions.NotFound:
-            logger.info(f"Creating table: {table_id}")
-
-            table = bigquery.Table(table_id, schema=schema)
-            table.description = "API keys for tenant authentication"
-            self.client.create_table(table)
-            logger.info(f"Created table: {table_id}")
-
-    def _ensure_x_meta_cloud_credentials_table(self, dataset_name: str, recreate: bool = False) -> None:
-        """
-        Create x_meta_cloud_credentials table if it doesn't exist.
-
-        Args:
-            dataset_name: Dataset name
-            recreate: If True, delete and recreate table even if it exists
-        """
-        table_id = f"{self.project_id}.{dataset_name}.x_meta_cloud_credentials"
-
-        # Load schema from JSON configuration file
-        schema = self._load_schema_from_json("x_meta_cloud_credentials")
-
-        if recreate:
-            logger.info(f"Recreating table (delete + create): {table_id}")
-            self.client.delete_table(table_id, not_found_ok=True)
-
-        try:
-            self.client.get_table(table_id)
-            logger.debug(f"Table {table_id} already exists")
-        except exceptions.NotFound:
-            logger.info(f"Creating table: {table_id}")
-
-            table = bigquery.Table(table_id, schema=schema)
-            table.description = "Encrypted cloud provider credentials for tenant"
-            self.client.create_table(table)
-            logger.info(f"Created table: {table_id}")
 
     def _ensure_x_meta_pipeline_runs_table(self, dataset_name: str, recreate: bool = False) -> None:
         """
