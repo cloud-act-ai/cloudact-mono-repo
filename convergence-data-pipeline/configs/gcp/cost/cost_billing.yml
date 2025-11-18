@@ -79,7 +79,7 @@ steps:
   # Step 2: Notification on failure
   - step_id: "notify_on_failure"
     name: "Send Failure Notification"
-    ps_type: "shared.email_notification"
+    ps_type: "notify_systems.email_notification"
     trigger: "on_failure"
     to_emails:
       - "{admin_email}"

@@ -1,0 +1,118 @@
+# Example Pipeline with Combined Email & Slack Notifications
+# Demonstrates how to use both notify_systems.email_notification
+# and notify_systems.slack_notification in the same pipeline
+# Usage: This pipeline serves as a reference for other pipelines
+
+pipeline_id: "{tenant_id}-example-combined-notifications"
+description: "Example pipeline demonstrating combined email and Slack notifications"
+
+# Pipeline-level variables that can be overridden
+variables:
+  admin_email: "admin@example.com"
+  data_ops_email: "data-ops@example.com"
+  slack_webhook_url: "https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
+  slack_channel: "#data-alerts"
+
+steps:
+  # Step 1: Example data processing step
+  - step_id: "process_data"
+    name: "Process Sample Data"
+    ps_type: "gcp.bigquery_to_bigquery"
+    timeout_minutes: 30
+
+    source:
+      bq_project_id: "your-project-id"
+      query: |
+        SELECT
+          'example' AS pipeline_type,
+          CURRENT_TIMESTAMP() AS processed_at,
+          'demo_data' AS data_source
+        LIMIT 100
+
+    destination:
+      bq_project_id: "your-project-id"
+      dataset_type: "example_dataset"
+      table: "processed_data"
+      write_mode: "append"
+
+  # Step 2: Send Email notification on failure
+  - step_id: "notify_failure_email"
+    name: "Email Alert on Failure"
+    ps_type: "notify_systems.email_notification"
+    trigger: "on_failure"
+
+    to_emails:
+      - "{admin_email}"
+      - "{data_ops_email}"
+
+    subject_template: "[ALERT] Pipeline Failed: {pipeline_id}"
+    body_template: |
+      PIPELINE FAILURE - EMAIL NOTIFICATION
+
+      Pipeline ID: {pipeline_id}
+      Tenant ID: {tenant_id}
+      Status: FAILED
+      Failure Time: {execution_timestamp}
+
+      Please check the logs at: {tenant_id}.x_meta_step_logs
+
+      Regards,
+      CloudAct Data Platform
+
+  # Step 3: Send Slack notification on failure (same trigger)
+  - step_id: "notify_failure_slack"
+    name: "Slack Alert on Failure"
+    ps_type: "notify_systems.slack_notification"
+    trigger: "on_failure"
+
+    webhook_url: "{slack_webhook_url}"
+    channel: "{slack_channel}"
+    username: "CloudAct Bot"
+    icon_emoji: ":warning:"
+    mention_users:
+      - "U1234567890"  # Replace with actual Slack user ID
+
+  # Step 4: Send Email notification on success
+  - step_id: "notify_success_email"
+    name: "Email Confirmation on Success"
+    ps_type: "notify_systems.email_notification"
+    trigger: "on_success"
+
+    to_emails:
+      - "{admin_email}"
+
+    subject_template: "[SUCCESS] Pipeline Completed: {pipeline_id}"
+    body_template: |
+      PIPELINE SUCCESS - EMAIL NOTIFICATION
+
+      Pipeline ID: {pipeline_id}
+      Tenant ID: {tenant_id}
+      Status: COMPLETED SUCCESSFULLY
+      Completion Time: {execution_timestamp}
+
+      Data has been successfully processed and loaded.
+
+      Regards,
+      CloudAct Data Platform
+
+  # Step 5: Send Slack notification on success (same trigger)
+  - step_id: "notify_success_slack"
+    name: "Slack Confirmation on Success"
+    ps_type: "notify_systems.slack_notification"
+    trigger: "on_success"
+
+    webhook_url: "{slack_webhook_url}"
+    channel: "{slack_channel}"
+    username: "CloudAct Bot"
+    icon_emoji: ":white_check_mark:"
+
+# Pipeline settings
+timeout_minutes: 60
+max_retries: 1
+on_failure_action: "alert"  # Send alerts on failure
+
+# Notes:
+# - Both email and Slack notifications are sent for the same trigger event (on_failure, on_success)
+# - This provides comprehensive alerting across multiple channels
+# - You can customize the messages for each channel differently
+# - Notifications are sent sequentially after their trigger event

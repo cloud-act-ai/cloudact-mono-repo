@@ -16,17 +16,15 @@ templates/
 │   └── s3_to_bigquery/
 │       ├── config.yml
 │       └── schema_template.json
-├── customer/                      # Customer/tenant templates
-│   └── onboarding/
-│       ├── config.yml
-│       ├── schema.json
-│       └── schemas/               # Metadata table schemas
-│           ├── x_meta_api_keys.json
-│           ├── x_meta_cloud_credentials.json
-│           ├── x_meta_pipeline_runs.json
-│           ├── x_meta_step_logs.json
-│           └── x_meta_dq_results.json
-└── shared/                        # Shared utility templates
+├── setup/                         # Setup & initialization templates
+│   ├── initial/
+│   │   ├── config.yml
+│   │   └── schemas/
+│   └── tenants/
+│       └── onboarding/
+│           ├── config.yml
+│           └── schemas/
+└── notify_systems/                # Notification & messaging templates
     ├── email_notification/
     │   └── config.yml
     └── slack_notification/

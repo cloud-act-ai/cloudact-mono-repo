@@ -54,7 +54,7 @@ steps:
   # Step 2: Send welcome email notification
   - step_id: "send_welcome_email"
     name: "Send Welcome Email to Admin"
-    ps_type: "shared.email_notification"
+    ps_type: "notify_systems.email_notification"
     trigger: "on_success"  # Only send on successful onboarding
 
     to_emails:
@@ -90,7 +90,7 @@ steps:
   # Step 3: Notification on failure
   - step_id: "notify_on_failure"
     name: "Send Failure Notification"
-    ps_type: "shared.email_notification"
+    ps_type: "notify_systems.email_notification"
     trigger: "on_failure"
 
     to_emails:

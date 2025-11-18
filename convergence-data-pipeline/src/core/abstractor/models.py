@@ -197,7 +197,7 @@ class PipelineStepConfig(BaseModel):
     step_id: str = Field(..., description="Unique step identifier")
     name: Optional[str] = Field(None, description="Human-readable step name")
     description: Optional[str] = Field(None, description="Step description")
-    ps_type: str = Field(..., description="Pipeline step type with provider prefix (e.g., 'gcp.bigquery_to_bigquery', 'shared.email_notification')")
+    ps_type: str = Field(..., description="Pipeline step type with provider prefix (e.g., 'gcp.bigquery_to_bigquery', 'notify_systems.email_notification')")
 
     # Additional fields for any ps_type
     trigger: Optional[str] = Field(None, description="Notification trigger (on_failure, on_success, etc.)")

@@ -1,0 +1,81 @@
+# Example Pipeline with Slack Notifications
+# Demonstrates how to use notify_systems.slack_notification processor
+# Usage: This pipeline serves as a reference for other pipelines
+
+pipeline_id: "{tenant_id}-example-slack-notification"
+description: "Example pipeline demonstrating Slack notifications on pipeline events"
+
+# Pipeline-level variables that can be overridden
+variables:
+  slack_webhook_url: "https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
+  slack_channel: "#data-alerts"
+  slack_username: "CloudAct Bot"
+
+steps:
+  # Step 1: Example data processing step
+  - step_id: "process_data"
+    name: "Process Sample Data"
+    ps_type: "gcp.bigquery_to_bigquery"
+    timeout_minutes: 30
+
+    source:
+      bq_project_id: "your-project-id"
+      query: |
+        SELECT
+          'example' AS pipeline_type,
+          CURRENT_TIMESTAMP() AS processed_at,
+          'demo_data' AS data_source
+        LIMIT 100
+
+    destination:
+      bq_project_id: "your-project-id"
+      dataset_type: "example_dataset"
+      table: "processed_data"
+      write_mode: "append"
+
+  # Step 2: Send Slack notification on pipeline failure
+  - step_id: "notify_failure_slack"
+    name: "Slack Alert on Failure"
+    ps_type: "notify_systems.slack_notification"
+    trigger: "on_failure"
+
+    # Slack webhook configuration
+    webhook_url: "{slack_webhook_url}"
+    channel: "{slack_channel}"
+    username: "{slack_username}"
+    icon_emoji: ":warning:"
+
+    # Optional: Mention specific users on failure
+    mention_users:
+      - "U1234567890"  # Replace with actual Slack user ID
+      - "U0987654321"  # Replace with actual Slack user ID
+
+    # Optional: Mention the entire channel for critical alerts
+    mention_channels: false
+
+  # Step 3: Send Slack notification on successful completion
+  - step_id: "notify_success_slack"
+    name: "Slack Confirmation on Success"
+    ps_type: "notify_systems.slack_notification"
+    trigger: "on_success"
+
+    webhook_url: "{slack_webhook_url}"
+    channel: "{slack_channel}"
+    username: "{slack_username}"
+    icon_emoji: ":white_check_mark:"
+
+  # Step 4: Send Slack notification on completion (success or failure)
+  - step_id: "notify_completion_slack"
+    name: "Slack Completion Status"
+    ps_type: "notify_systems.slack_notification"
+    trigger: "on_completion"
+
+    webhook_url: "{slack_webhook_url}"
+    channel: "{slack_channel}"
+    username: "{slack_username}"
+    icon_emoji: ":package:"
+
+# Pipeline settings
+timeout_minutes: 60
+max_retries: 1
+on_failure_action: "alert"  # Send alerts on failure

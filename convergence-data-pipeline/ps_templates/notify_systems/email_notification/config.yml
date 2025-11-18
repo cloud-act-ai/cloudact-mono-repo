@@ -1,11 +1,11 @@
-ps_type: "shared.email_notification"
+ps_type: "notify_systems.email_notification"
 name: "Email Notification"
 description: "Send email notifications for pipeline events (supports Gmail SMTP, AWS SES, SendGrid)"
 version: "1.0.0"
-provider: "shared"
+provider: "notify_systems"
 
 # Engine to process this template
-engine: "src.core.engines.shared.email_notification"
+engine: "src.core.engines.notify_systems.email_notification"
 
 # Required parameters
 required_params:

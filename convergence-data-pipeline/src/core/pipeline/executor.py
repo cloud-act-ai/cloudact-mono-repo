@@ -93,7 +93,7 @@ class PipelineExecutor:
         Dynamically load engine for given ps_type.
 
         Args:
-            ps_type: Pipeline step type with provider prefix (e.g., "gcp.bigquery_to_bigquery", "shared.email_notification")
+            ps_type: Pipeline step type with provider prefix (e.g., "gcp.bigquery_to_bigquery", "notify_systems.email_notification")
 
         Returns:
             Engine instance with execute() method
@@ -104,7 +104,7 @@ class PipelineExecutor:
         """
         # Convert ps_type to module path
         # "gcp.bigquery_to_bigquery" -> "src.core.engines.gcp.bigquery_to_bigquery"
-        # "shared.email_notification" -> "src.core.engines.shared.email_notification"
+        # "notify_systems.email_notification" -> "src.core.engines.notify_systems.email_notification"
         module_name = f"src.core.engines.{ps_type}"
 
         try:
