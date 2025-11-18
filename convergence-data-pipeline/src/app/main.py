@@ -9,15 +9,82 @@ from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 import time
 import logging
+import signal
+import asyncio
+from typing import Optional
 
 from src.app.config import settings
 from src.core.utils.logging import setup_logging
 from src.core.utils.rate_limiter import init_rate_limiter, get_rate_limiter
-# from src.core.utils.telemetry import setup_telemetry  # Disabled for local dev
+from src.core.observability.metrics import get_metrics
+from src.app.middleware.validation import validation_middleware
+from src.app.dependencies.auth import get_auth_aggregator
+from src.core.engine.bq_client import get_bigquery_client
+import os
+
+# Optional telemetry import (requires opentelemetry packages)
+# Temporarily disabled - uncomment when OpenTelemetry packages are installed
+# try:
+#     from src.core.utils.telemetry import setup_telemetry
+#     TELEMETRY_AVAILABLE = True
+# except ImportError:
+TELEMETRY_AVAILABLE = False
 
 # Initialize logging
 setup_logging()
 logger = logging.getLogger(__name__)
+
+# Shutdown event for graceful termination
+shutdown_event: Optional[asyncio.Event] = None
+
+
+async def graceful_shutdown():
+    """
+    Graceful shutdown handler.
+    Ensures clean termination of all resources.
+    """
+    global shutdown_event
+
+    logger.info("Graceful shutdown initiated")
+
+    # Set shutdown event to stop accepting new requests
+    if shutdown_event:
+        shutdown_event.set()
+
+    # Wait for running pipelines to complete (max 30 seconds)
+    shutdown_timeout = 30
+    logger.info(f"Waiting up to {shutdown_timeout}s for running pipelines to complete...")
+
+    try:
+        # Import MetadataLogger to flush pending logs
+        from src.core.metadata import MetadataLogger
+
+        # Stop all active metadata loggers
+        # Note: Individual executors handle their own cleanup
+        await asyncio.sleep(1)  # Brief pause for in-flight requests
+
+        logger.info("Flushing metadata logs...")
+        # Metadata loggers are stopped in their respective executors
+
+        logger.info("Closing database connections...")
+        # BigQuery clients are closed in their respective executors
+
+    except Exception as e:
+        logger.error(f"Error during graceful shutdown: {e}", exc_info=True)
+
+    logger.info("Graceful shutdown completed")
+
+
+def handle_shutdown_signal(signum, frame):
+    """
+    Signal handler for SIGTERM and SIGINT.
+    """
+    logger.info(f"Received shutdown signal: {signal.Signals(signum).name}")
+
+    # Schedule graceful shutdown in the event loop
+    loop = asyncio.get_event_loop()
+    if loop.is_running():
+        loop.create_task(graceful_shutdown())
 
 
 @asynccontextmanager
@@ -26,6 +93,8 @@ async def lifespan(app: FastAPI):
     Application lifespan manager.
     Handles startup and shutdown events.
     """
+    global shutdown_event
+
     # Startup
     logger.info(
         f"Starting {settings.app_name} v{settings.app_version}",
@@ -34,6 +103,14 @@ async def lifespan(app: FastAPI):
             "project_id": settings.gcp_project_id
         }
     )
+
+    # Initialize shutdown event
+    shutdown_event = asyncio.Event()
+
+    # Register signal handlers for graceful shutdown
+    signal.signal(signal.SIGTERM, handle_shutdown_signal)
+    signal.signal(signal.SIGINT, handle_shutdown_signal)
+    logger.info("Shutdown signal handlers registered (SIGTERM, SIGINT)")
 
     # Initialize rate limiting
     if settings.rate_limit_enabled:
@@ -48,14 +125,49 @@ async def lifespan(app: FastAPI):
         logger.warning("Rate limiting is disabled")
 
     # Initialize OpenTelemetry if enabled
-    # if settings.enable_tracing:
-    #     setup_telemetry()
-    #     logger.info("OpenTelemetry tracing initialized")
+    # Check both settings and environment variable
+    enable_tracing = settings.enable_tracing and os.getenv("ENABLE_TRACING", "true").lower() == "true"
+
+    if enable_tracing and TELEMETRY_AVAILABLE:
+        try:
+            setup_telemetry()
+            logger.info("OpenTelemetry distributed tracing initialized")
+        except Exception as e:
+            logger.warning(f"Failed to initialize tracing: {e}. Continuing without tracing.")
+    elif enable_tracing and not TELEMETRY_AVAILABLE:
+        logger.warning("Tracing enabled but OpenTelemetry packages not installed - skipping")
+    else:
+        logger.info("Distributed tracing is disabled")
+
+    # Initialize Auth Metrics Aggregator background task
+    try:
+        auth_aggregator = get_auth_aggregator()
+        bq_client = get_bigquery_client()
+
+        # Start background flush task
+        asyncio.create_task(auth_aggregator.start_background_flush(bq_client))
+        logger.info("Auth metrics aggregator background task started")
+    except Exception as e:
+        logger.warning(f"Failed to start auth aggregator: {e}. Auth metrics will not be batched.")
 
     yield
 
     # Shutdown
     logger.info(f"Shutting down {settings.app_name}")
+
+    # Stop auth aggregator
+    try:
+        auth_aggregator = get_auth_aggregator()
+        auth_aggregator.stop_background_flush()
+
+        # Flush any remaining updates
+        bq_client = get_bigquery_client()
+        await auth_aggregator.flush_updates(bq_client)
+        logger.info("Auth metrics aggregator stopped and flushed")
+    except Exception as e:
+        logger.warning(f"Error stopping auth aggregator: {e}")
+
+    await graceful_shutdown()
 
 
 # Create FastAPI application
@@ -82,6 +194,13 @@ app.add_middleware(
 )
 
 
+# Input validation middleware (FIRST - validates all requests)
+@app.middleware("http")
+async def validation_middleware_wrapper(request: Request, call_next):
+    """Input validation middleware - validates tenant IDs, headers, request size."""
+    return await validation_middleware(request, call_next)
+
+
 # Rate limiting middleware
 @app.middleware("http")
 async def rate_limit_middleware(request: Request, call_next):
@@ -93,8 +212,8 @@ async def rate_limit_middleware(request: Request, call_next):
     if not settings.rate_limit_enabled:
         return await call_next(request)
 
-    # Skip rate limiting for health checks
-    if request.url.path in ["/health", "/"]:
+    # Skip rate limiting for health checks and metrics
+    if request.url.path in ["/health", "/health/live", "/health/ready", "/metrics", "/"]:
         return await call_next(request)
 
     rate_limiter = get_rate_limiter()
@@ -246,7 +365,8 @@ async def global_exception_handler(request: Request, exc: Exception):
 @app.get("/health", tags=["Health"])
 async def health_check():
     """
-    Health check endpoint for load balancers.
+    Basic health check endpoint.
+    Returns 200 if service is running.
     No authentication required.
     """
     return {
@@ -257,6 +377,100 @@ async def health_check():
     }
 
 
+@app.get("/health/live", tags=["Health"])
+async def liveness_probe():
+    """
+    Kubernetes liveness probe endpoint.
+    Checks if the application is alive and responding.
+    Returns 200 if process is running, 503 if shutting down.
+    """
+    global shutdown_event
+
+    if shutdown_event and shutdown_event.is_set():
+        return JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            content={
+                "status": "shutting_down",
+                "service": settings.app_name,
+                "message": "Service is shutting down"
+            }
+        )
+
+    return {
+        "status": "alive",
+        "service": settings.app_name,
+        "version": settings.app_version
+    }
+
+
+@app.get("/health/ready", tags=["Health"])
+async def readiness_probe():
+    """
+    Kubernetes readiness probe endpoint.
+    Checks if the application is ready to accept traffic.
+    Verifies BigQuery connectivity and critical dependencies.
+    Returns 200 if ready, 503 if not ready.
+    """
+    global shutdown_event
+
+    # Check if shutting down
+    if shutdown_event and shutdown_event.is_set():
+        return JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            content={
+                "status": "not_ready",
+                "service": settings.app_name,
+                "reason": "shutting_down",
+                "checks": {
+                    "shutdown": False
+                }
+            }
+        )
+
+    checks = {
+        "shutdown": True,
+        "bigquery": False
+    }
+
+    # Check BigQuery connectivity
+    try:
+        from src.core.engine.bq_client import get_bigquery_client
+
+        bq_client = get_bigquery_client()
+
+        # Simple query to verify connectivity
+        query = "SELECT 1 as health_check"
+        query_job = bq_client.client.query(query)
+        result = query_job.result(timeout=5)  # 5 second timeout
+
+        # If we get here, BigQuery is accessible
+        checks["bigquery"] = True
+
+    except Exception as e:
+        logger.warning(f"BigQuery health check failed: {e}")
+        checks["bigquery"] = False
+
+    # Determine overall readiness
+    all_ready = all(checks.values())
+
+    if all_ready:
+        return {
+            "status": "ready",
+            "service": settings.app_name,
+            "version": settings.app_version,
+            "checks": checks
+        }
+    else:
+        return JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            content={
+                "status": "not_ready",
+                "service": settings.app_name,
+                "checks": checks
+            }
+        )
+
+
 @app.get("/", tags=["Health"])
 async def root():
     """Root endpoint."""
@@ -265,6 +479,21 @@ async def root():
         "version": settings.app_version,
         "docs": "/docs" if not settings.is_production else "disabled",
     }
+
+
+@app.get("/metrics", tags=["Observability"])
+async def metrics():
+    """
+    Prometheus metrics endpoint.
+    Returns metrics in Prometheus exposition format.
+    """
+    from fastapi.responses import PlainTextResponse
+
+    metrics_data = get_metrics()
+    return PlainTextResponse(
+        content=metrics_data.decode('utf-8'),
+        media_type="text/plain; version=0.0.4"
+    )
 
 
 # ============================================

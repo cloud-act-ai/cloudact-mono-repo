@@ -431,9 +431,14 @@ class MetadataLogger:
                 }
             }
 
-            # Non-blocking queue put with backpressure handling
+            # Queue put with 5s timeout for backpressure handling
+            # CRITICAL: Use wait_for to fail pipeline if queue is full
+            # This prevents silent log drops and ensures pipeline failures are visible
             try:
-                self._pipeline_queue.put_nowait(log_entry)
+                await asyncio.wait_for(
+                    self._pipeline_queue.put(log_entry),
+                    timeout=5.0
+                )
 
                 logger.debug(
                     f"Queued pipeline start log",
@@ -442,15 +447,17 @@ class MetadataLogger:
                         "queue_size": self._pipeline_queue.qsize()
                     }
                 )
-            except asyncio.QueueFull:
-                # Queue is full - apply backpressure
-                logger.warning(
-                    f"Pipeline log queue full ({self.queue_size}), dropping log entry",
+            except asyncio.TimeoutError:
+                # Queue is full after 5s timeout - FAIL the pipeline
+                error_msg = f"Pipeline log queue full ({self.queue_size}) - cannot queue log entry after 5s timeout"
+                logger.error(
+                    error_msg,
                     extra={
                         "pipeline_logging_id": pipeline_logging_id,
                         "queue_size": self.queue_size
                     }
                 )
+                raise ValueError(error_msg)
 
         except Exception as e:
             logger.error(
@@ -593,9 +600,14 @@ class MetadataLogger:
                 }
             }
 
-            # Non-blocking queue put with backpressure handling
+            # Queue put with 5s timeout for backpressure handling
+            # CRITICAL: Use wait_for to fail pipeline if queue is full
+            # This prevents silent log drops and ensures pipeline failures are visible
             try:
-                self._step_queue.put_nowait(log_entry)
+                await asyncio.wait_for(
+                    self._step_queue.put(log_entry),
+                    timeout=5.0
+                )
 
                 logger.debug(
                     f"Queued step start log",
@@ -605,15 +617,17 @@ class MetadataLogger:
                         "queue_size": self._step_queue.qsize()
                     }
                 )
-            except asyncio.QueueFull:
-                # Queue is full - apply backpressure
-                logger.warning(
-                    f"Step log queue full ({self.queue_size}), dropping log entry",
+            except asyncio.TimeoutError:
+                # Queue is full after 5s timeout - FAIL the pipeline
+                error_msg = f"Step log queue full ({self.queue_size}) - cannot queue log entry after 5s timeout"
+                logger.error(
+                    error_msg,
                     extra={
                         "step_logging_id": step_logging_id,
                         "queue_size": self.queue_size
                     }
                 )
+                raise ValueError(error_msg)
 
         except Exception as e:
             logger.error(
@@ -681,9 +695,14 @@ class MetadataLogger:
                 }
             }
 
-            # Non-blocking queue put with backpressure handling
+            # Queue put with 5s timeout for backpressure handling
+            # CRITICAL: Use wait_for to fail pipeline if queue is full
+            # This prevents silent log drops and ensures pipeline failures are visible
             try:
-                self._step_queue.put_nowait(log_entry)
+                await asyncio.wait_for(
+                    self._step_queue.put(log_entry),
+                    timeout=5.0
+                )
 
                 logger.debug(
                     f"Queued step end log",
@@ -695,15 +714,17 @@ class MetadataLogger:
                         "queue_size": self._step_queue.qsize()
                     }
                 )
-            except asyncio.QueueFull:
-                # Queue is full - apply backpressure
-                logger.warning(
-                    f"Step log queue full ({self.queue_size}), dropping log entry",
+            except asyncio.TimeoutError:
+                # Queue is full after 5s timeout - FAIL the pipeline
+                error_msg = f"Step log queue full ({self.queue_size}) - cannot queue log entry after 5s timeout"
+                logger.error(
+                    error_msg,
                     extra={
                         "step_logging_id": step_logging_id,
                         "queue_size": self.queue_size
                     }
                 )
+                raise ValueError(error_msg)
 
         except Exception as e:
             logger.error(
@@ -711,6 +732,26 @@ class MetadataLogger:
                 extra={"step_logging_id": step_logging_id},
                 exc_info=True
             )
+
+    def get_queue_depths(self) -> Dict[str, int]:
+        """
+        Get current queue depths for monitoring.
+
+        Returns:
+            Dictionary with pipeline_queue_size and step_queue_size
+        """
+        return {
+            "pipeline_queue_size": self._pipeline_queue.qsize(),
+            "step_queue_size": self._step_queue.qsize(),
+            "pipeline_queue_capacity": self.queue_size,
+            "step_queue_capacity": self.queue_size,
+            "pipeline_queue_utilization_pct": round(
+                (self._pipeline_queue.qsize() / self.queue_size) * 100, 2
+            ),
+            "step_queue_utilization_pct": round(
+                (self._step_queue.qsize() / self.queue_size) * 100, 2
+            )
+        }
 
     async def flush(self):
         """
@@ -725,6 +766,14 @@ class MetadataLogger:
                 extra={"failure_count": self._circuit_breaker.failure_count}
             )
             return
+
+        # Monitor queue depths for backpressure detection
+        queue_depths = self.get_queue_depths()
+        if queue_depths["pipeline_queue_utilization_pct"] > 80 or queue_depths["step_queue_utilization_pct"] > 80:
+            logger.warning(
+                "Queue depth high - potential backpressure",
+                extra=queue_depths
+            )
 
         # Collect pipeline logs from queue (non-blocking, batch-sized)
         pipeline_logs = []
@@ -751,19 +800,14 @@ class MetadataLogger:
                 self._circuit_breaker.record_success()
             except Exception as e:
                 logger.error(
-                    f"Failed to flush pipeline logs: {e}",
+                    f"CRITICAL: Failed to flush pipeline logs - logs will be lost",
                     extra={"log_count": len(pipeline_logs)},
                     exc_info=True
                 )
                 self._circuit_breaker.record_failure()
-
-                # Re-queue logs for retry (up to batch_size to prevent memory leak)
-                for log_entry in pipeline_logs[:self.batch_size]:
-                    try:
-                        self._pipeline_queue.put_nowait(log_entry)
-                    except asyncio.QueueFull:
-                        logger.warning("Failed to re-queue pipeline log - queue full")
-                        break
+                # REMOVED: Re-queue logic that can cause infinite loops
+                # Instead, logs are lost and error is visible in monitoring
+                # This prevents memory exhaustion and queue backpressure issues
 
         # Flush step logs
         if step_logs:
@@ -772,19 +816,14 @@ class MetadataLogger:
                 self._circuit_breaker.record_success()
             except Exception as e:
                 logger.error(
-                    f"Failed to flush step logs: {e}",
+                    f"CRITICAL: Failed to flush step logs - logs will be lost",
                     extra={"log_count": len(step_logs)},
                     exc_info=True
                 )
                 self._circuit_breaker.record_failure()
-
-                # Re-queue logs for retry (up to batch_size to prevent memory leak)
-                for log_entry in step_logs[:self.batch_size]:
-                    try:
-                        self._step_queue.put_nowait(log_entry)
-                    except asyncio.QueueFull:
-                        logger.warning("Failed to re-queue step log - queue full")
-                        break
+                # REMOVED: Re-queue logic that can cause infinite loops
+                # Instead, logs are lost and error is visible in monitoring
+                # This prevents memory exhaustion and queue backpressure issues
 
     @tenacity_retry(
         stop=stop_after_attempt(3),

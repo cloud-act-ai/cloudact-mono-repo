@@ -1,0 +1,277 @@
+# Cloud Scheduler Jobs Configuration
+# Deploy using: gcloud scheduler jobs create http <job-name> --schedule="..." --uri="..." --http-method=POST --headers="X-Admin-Key=<key>"
+
+# =============================================================================
+# MAINTENANCE SCHEDULER JOBS - CRITICAL FOR SYSTEM HEALTH
+# =============================================================================
+# These jobs maintain system health by cleaning up stale data and resetting quotas.
+# Both jobs require ADMIN API key authentication for security.
+#
+# Setup Instructions:
+# 1. Set your admin API key: export ADMIN_API_KEY="your-admin-key-here"
+# 2. Set your API base URL: export API_BASE_URL="https://your-api.com"
+# 3. Deploy jobs using the commands below
+# =============================================================================
+
+---
+# Job 1: Daily Quota Reset
+# Purpose: Reset daily pipeline quotas at midnight UTC
+# Schedule: Daily at 00:00 UTC
+# Endpoint: POST /api/v1/scheduler/reset-daily-quotas
+# Impact: Prevents quota accumulation, enables fresh daily limits
+apiVersion: v1
+kind: CloudSchedulerJob
+metadata:
+  name: reset-daily-quotas
+  description: "Reset all tenant daily pipeline quotas at midnight UTC"
+  labels:
+    app: convergence-data-pipeline
+    component: scheduler
+    criticality: high
+spec:
+  schedule: "0 0 * * *"  # Midnight UTC daily (cron format)
+  timeZone: "UTC"
+  httpTarget:
+    uri: "${API_BASE_URL}/api/v1/scheduler/reset-daily-quotas"
+    httpMethod: POST
+    headers:
+      X-Admin-Key: "${ADMIN_API_KEY}"
+      Content-Type: "application/json"
+    body: ""
+  retryConfig:
+    retryCount: 3
+    maxRetryDuration: 300s
+    minBackoffDuration: 5s
+    maxBackoffDuration: 60s
+    maxDoublings: 5
+  attemptDeadline: 180s  # 3 minutes timeout
+
+# Deployment Command:
+# gcloud scheduler jobs create http reset-daily-quotas \
+#   --schedule="0 0 * * *" \
+#   --time-zone="UTC" \
+#   --uri="${API_BASE_URL}/api/v1/scheduler/reset-daily-quotas" \
+#   --http-method=POST \
+#   --headers="X-Admin-Key=${ADMIN_API_KEY},Content-Type=application/json" \
+#   --attempt-deadline=180s \
+#   --max-retry-attempts=3 \
+#   --location=us-central1 \
+#   --description="Reset daily pipeline quotas at midnight UTC"
+
+---
+# Job 2: Orphaned Pipeline Cleanup
+# Purpose: Clean up stuck/orphaned pipelines that are blocking tenant resources
+# Schedule: Every 30 minutes
+# Endpoint: POST /api/v1/scheduler/cleanup-orphaned-pipelines
+# Impact: Prevents tenant lockout from crashed pipelines
+apiVersion: v1
+kind: CloudSchedulerJob
+metadata:
+  name: cleanup-orphaned-pipelines
+  description: "Clean up pipelines stuck in PENDING/RUNNING state for >60 minutes"
+  labels:
+    app: convergence-data-pipeline
+    component: scheduler
+    criticality: high
+spec:
+  schedule: "*/30 * * * *"  # Every 30 minutes (can be adjusted to */15 for more frequent cleanup)
+  timeZone: "UTC"
+  httpTarget:
+    uri: "${API_BASE_URL}/api/v1/scheduler/cleanup-orphaned-pipelines"
+    httpMethod: POST
+    headers:
+      X-Admin-Key: "${ADMIN_API_KEY}"
+      Content-Type: "application/json"
+    body: ""
+  retryConfig:
+    retryCount: 2
+    maxRetryDuration: 180s
+    minBackoffDuration: 3s
+    maxBackoffDuration: 30s
+    maxDoublings: 4
+  attemptDeadline: 300s  # 5 minutes timeout (processes all tenants)
+
+# Deployment Command:
+# gcloud scheduler jobs create http cleanup-orphaned-pipelines \
+#   --schedule="*/30 * * * *" \
+#   --time-zone="UTC" \
+#   --uri="${API_BASE_URL}/api/v1/scheduler/cleanup-orphaned-pipelines" \
+#   --http-method=POST \
+#   --headers="X-Admin-Key=${ADMIN_API_KEY},Content-Type=application/json" \
+#   --attempt-deadline=300s \
+#   --max-retry-attempts=2 \
+#   --location=us-central1 \
+#   --description="Clean up orphaned pipelines every 30 minutes"
+
+---
+# =============================================================================
+# DEPLOYMENT SCRIPT
+# =============================================================================
+# Save this as: deployment/deploy-scheduler-jobs.sh
+# Make executable: chmod +x deployment/deploy-scheduler-jobs.sh
+# Run: ./deployment/deploy-scheduler-jobs.sh
+# =============================================================================
+
+# #!/bin/bash
+# set -e
+#
+# # Configuration
+# PROJECT_ID="${GCP_PROJECT_ID:-gac-prod-471220}"
+# REGION="${GCP_REGION:-us-central1}"
+# API_BASE_URL="${API_BASE_URL:-https://your-api.run.app}"
+# ADMIN_API_KEY="${ADMIN_API_KEY}"
+#
+# if [ -z "$ADMIN_API_KEY" ]; then
+#   echo "Error: ADMIN_API_KEY environment variable not set"
+#   exit 1
+# fi
+#
+# echo "Deploying Cloud Scheduler jobs to project: $PROJECT_ID"
+# echo "Region: $REGION"
+# echo "API Base URL: $API_BASE_URL"
+#
+# # Job 1: Daily Quota Reset
+# echo ""
+# echo "Creating job: reset-daily-quotas"
+# gcloud scheduler jobs create http reset-daily-quotas \
+#   --project="$PROJECT_ID" \
+#   --location="$REGION" \
+#   --schedule="0 0 * * *" \
+#   --time-zone="UTC" \
+#   --uri="${API_BASE_URL}/api/v1/scheduler/reset-daily-quotas" \
+#   --http-method=POST \
+#   --headers="X-Admin-Key=${ADMIN_API_KEY},Content-Type=application/json" \
+#   --attempt-deadline=180s \
+#   --max-retry-attempts=3 \
+#   --description="Reset daily pipeline quotas at midnight UTC" \
+#   || echo "Job already exists, updating..."
+#
+# # If job exists, update it
+# gcloud scheduler jobs update http reset-daily-quotas \
+#   --project="$PROJECT_ID" \
+#   --location="$REGION" \
+#   --schedule="0 0 * * *" \
+#   --time-zone="UTC" \
+#   --uri="${API_BASE_URL}/api/v1/scheduler/reset-daily-quotas" \
+#   --http-method=POST \
+#   --headers="X-Admin-Key=${ADMIN_API_KEY},Content-Type=application/json" \
+#   --attempt-deadline=180s \
+#   --max-retry-attempts=3 \
+#   --description="Reset daily pipeline quotas at midnight UTC" \
+#   2>/dev/null || true
+#
+# # Job 2: Orphaned Pipeline Cleanup
+# echo ""
+# echo "Creating job: cleanup-orphaned-pipelines"
+# gcloud scheduler jobs create http cleanup-orphaned-pipelines \
+#   --project="$PROJECT_ID" \
+#   --location="$REGION" \
+#   --schedule="*/30 * * * *" \
+#   --time-zone="UTC" \
+#   --uri="${API_BASE_URL}/api/v1/scheduler/cleanup-orphaned-pipelines" \
+#   --http-method=POST \
+#   --headers="X-Admin-Key=${ADMIN_API_KEY},Content-Type=application/json" \
+#   --attempt-deadline=300s \
+#   --max-retry-attempts=2 \
+#   --description="Clean up orphaned pipelines every 30 minutes" \
+#   || echo "Job already exists, updating..."
+#
+# # If job exists, update it
+# gcloud scheduler jobs update http cleanup-orphaned-pipelines \
+#   --project="$PROJECT_ID" \
+#   --location="$REGION" \
+#   --schedule="*/30 * * * *" \
+#   --time-zone="UTC" \
+#   --uri="${API_BASE_URL}/api/v1/scheduler/cleanup-orphaned-pipelines" \
+#   --http-method=POST \
+#   --headers="X-Admin-Key=${ADMIN_API_KEY},Content-Type=application/json" \
+#   --attempt-deadline=300s \
+#   --max-retry-attempts=2 \
+#   --description="Clean up orphaned pipelines every 30 minutes" \
+#   2>/dev/null || true
+#
+# echo ""
+# echo "✅ Cloud Scheduler jobs deployed successfully!"
+# echo ""
+# echo "Verify jobs:"
+# gcloud scheduler jobs list --location="$REGION" --project="$PROJECT_ID"
+#
+# echo ""
+# echo "Test jobs manually:"
+# echo "  gcloud scheduler jobs run reset-daily-quotas --location=$REGION --project=$PROJECT_ID"
+# echo "  gcloud scheduler jobs run cleanup-orphaned-pipelines --location=$REGION --project=$PROJECT_ID"
+
+---
+# =============================================================================
+# MONITORING & ALERTING
+# =============================================================================
+# Set up monitoring for these critical jobs:
+#
+# 1. Cloud Monitoring Metrics:
+#    - scheduler.googleapis.com/job/execution_count
+#    - scheduler.googleapis.com/job/attempt_count
+#    - scheduler.googleapis.com/job/execution_latencies
+#
+# 2. Recommended Alerts:
+#    - Alert if reset-daily-quotas fails (email/PagerDuty)
+#    - Alert if cleanup-orphaned-pipelines fails 3 consecutive times
+#    - Alert if job execution latency > 2 minutes
+#
+# 3. Log-based Alerts:
+#    - Alert on "Failed to reset daily quotas" in logs
+#    - Alert on "Failed to cleanup orphaned pipelines" in logs
+#
+# Example Alert Policy (Cloud Monitoring):
+# resource.type="cloud_scheduler_job"
+# resource.labels.job_id="reset-daily-quotas"
+# metric.type="scheduler.googleapis.com/job/execution_count"
+# metric.labels.status="FAILURE"
+# =============================================================================
+
+---
+# =============================================================================
+# TESTING LOCALLY
+# =============================================================================
+# Before deploying to Cloud Scheduler, test the endpoints locally:
+#
+# 1. Start local server:
+#    python -m uvicorn src.app.main:app --host 0.0.0.0 --port 8080
+#
+# 2. Test quota reset:
+#    curl -X POST http://localhost:8080/api/v1/scheduler/reset-daily-quotas \
+#      -H "X-Admin-Key: your-local-admin-key" \
+#      -H "Content-Type: application/json"
+#
+# 3. Test orphaned cleanup:
+#    curl -X POST http://localhost:8080/api/v1/scheduler/cleanup-orphaned-pipelines \
+#      -H "X-Admin-Key: your-local-admin-key" \
+#      -H "Content-Type: application/json"
+#
+# 4. Verify responses:
+#    - Status: 200 OK
+#    - Body: {"status": "success", "records_updated": N, ...}
+# =============================================================================
+
+---
+# =============================================================================
+# TROUBLESHOOTING
+# =============================================================================
+# Common issues and solutions:
+#
+# Issue: "Permission denied" errors
+# Solution: Ensure Cloud Scheduler service account has permissions:
+#   gcloud projects add-iam-policy-binding $PROJECT_ID \
+#     --member=serviceAccount:cloud-scheduler@$PROJECT_ID.iam.gserviceaccount.com \
+#     --role=roles/cloudscheduler.jobRunner
+#
+# Issue: "Job not found" errors
+# Solution: Check job exists in correct region:
+#   gcloud scheduler jobs list --location=us-central1
+#
+# Issue: Jobs timing out
+# Solution: Increase attempt-deadline or optimize endpoint performance
+#
+# Issue: Admin API key not working
+# Solution: Verify key is correct and has admin privileges:
+#   SELECT * FROM `gac-prod-471220.customers.api_keys` WHERE is_admin = TRUE;
+# =============================================================================

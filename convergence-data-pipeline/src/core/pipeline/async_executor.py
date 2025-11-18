@@ -8,10 +8,12 @@ import uuid
 import asyncio
 import importlib
 import traceback
+import atexit
 from typing import Dict, Any, List, Optional, Set
 from datetime import datetime
 from pathlib import Path
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 
 from src.core.engine.bq_client import BigQueryClient, get_bigquery_client
 from src.core.pipeline.data_quality import DataQualityValidator
@@ -20,7 +22,39 @@ from src.core.metadata import MetadataLogger
 from src.app.config import settings
 from src.core.abstractor.config_loader import get_config_loader
 from src.core.abstractor.models import PipelineConfig
+from src.core.observability.metrics import (
+    increment_pipeline_execution,
+    observe_pipeline_duration,
+    set_active_pipelines
+)
 from pydantic import ValidationError
+
+# Import OpenTelemetry for distributed tracing
+try:
+    from opentelemetry import trace
+    from src.core.utils.telemetry import get_tracer
+    TRACING_ENABLED = True
+except ImportError:
+    TRACING_ENABLED = False
+    trace = None
+    get_tracer = None
+
+# ============================================
+# Dedicated Thread Pool for BigQuery Operations
+# ============================================
+# Create module-level thread pool with 200 workers for 10k tenant scale
+# This prevents thread exhaustion when running 100+ concurrent pipelines
+BQ_EXECUTOR = ThreadPoolExecutor(
+    max_workers=200,
+    thread_name_prefix="bq_worker"
+)
+
+def _shutdown_bq_executor():
+    """Shutdown thread pool on application exit."""
+    BQ_EXECUTOR.shutdown(wait=True)
+
+# Register cleanup handler
+atexit.register(_shutdown_bq_executor)
 
 
 class StepNode:
@@ -133,7 +167,7 @@ class AsyncPipelineExecutor:
 
             # Load and validate config asynchronously
             validated_config: PipelineConfig = await loop.run_in_executor(
-                None,
+                BQ_EXECUTOR,
                 config_loader.load_pipeline_config,
                 self.tenant_id,
                 self.pipeline_id
@@ -263,7 +297,7 @@ class AsyncPipelineExecutor:
             # Run update asynchronously
             loop = asyncio.get_event_loop()
             await loop.run_in_executor(
-                None,
+                BQ_EXECUTOR,
                 lambda: self.bq_client.client.query(update_query, job_config=job_config).result()
             )
 
@@ -317,7 +351,7 @@ class AsyncPipelineExecutor:
 
             loop = asyncio.get_event_loop()
             await loop.run_in_executor(
-                None,
+                BQ_EXECUTOR,
                 lambda: self.bq_client.client.query(update_query, job_config=job_config).result()
             )
 
@@ -325,6 +359,22 @@ class AsyncPipelineExecutor:
                 f"Incremented concurrent pipelines counter",
                 tenant_id=self.tenant_id
             )
+
+            # Query current count for Prometheus metric
+            query_count = f"""
+            SELECT concurrent_pipelines_running
+            FROM `{settings.gcp_project_id}.customers.customer_usage_quotas`
+            WHERE tenant_id = @tenant_id AND usage_date = CURRENT_DATE()
+            """
+
+            count_result = await loop.run_in_executor(
+                BQ_EXECUTOR,
+                lambda: self.bq_client.client.query(query_count, job_config=job_config).result()
+            )
+
+            for row in count_result:
+                set_active_pipelines(self.tenant_id, row.concurrent_pipelines_running)
+                break
 
         except Exception as e:
             self.logger.warning(
@@ -380,7 +430,7 @@ class AsyncPipelineExecutor:
 
             loop = asyncio.get_event_loop()
             await loop.run_in_executor(
-                None,
+                BQ_EXECUTOR,
                 lambda: self.bq_client.client.query(update_query, job_config=job_config).result()
             )
 
@@ -411,6 +461,20 @@ class AsyncPipelineExecutor:
         Returns:
             Execution summary
         """
+        # Create distributed tracing span
+        tracer = get_tracer(__name__) if TRACING_ENABLED else None
+        span = None
+
+        if tracer:
+            span = tracer.start_span(
+                f"pipeline.execute",
+                attributes={
+                    "pipeline.id": self.tracking_pipeline_id,
+                    "pipeline.tenant_id": self.tenant_id,
+                    "pipeline.trigger_type": self.trigger_type
+                }
+            )
+
         self.start_time = datetime.utcnow()
         self.status = "RUNNING"
         error_message = None
@@ -459,6 +523,32 @@ class AsyncPipelineExecutor:
 
         finally:
             try:
+                # End distributed tracing span
+                if span:
+                    span.set_attribute("pipeline.status", self.status)
+                    if error_message:
+                        span.set_attribute("pipeline.error", error_message)
+                    span.end()
+
+                # Record Prometheus metrics
+                if self.end_time and self.start_time:
+                    duration_seconds = (self.end_time - self.start_time).total_seconds()
+
+                    # Increment execution counter
+                    increment_pipeline_execution(
+                        tenant_id=self.tenant_id,
+                        pipeline_id=self.tracking_pipeline_id,
+                        status=self.status
+                    )
+
+                    # Observe duration
+                    observe_pipeline_duration(
+                        tenant_id=self.tenant_id,
+                        pipeline_id=self.tracking_pipeline_id,
+                        status=self.status,
+                        duration_seconds=duration_seconds
+                    )
+
                 # Log pipeline completion
                 if self.end_time:
                     await self.metadata_logger.log_pipeline_end(
@@ -488,7 +578,7 @@ class AsyncPipelineExecutor:
                 if hasattr(self, 'bq_client') and self.bq_client:
                     if hasattr(self.bq_client, 'client') and self.bq_client.client:
                         loop = asyncio.get_event_loop()
-                        await loop.run_in_executor(None, self.bq_client.client.close)
+                        await loop.run_in_executor(BQ_EXECUTOR, self.bq_client.client.close)
                         self.logger.debug("BigQuery client closed successfully")
             except Exception as cleanup_error:
                 self.logger.error(f"Error closing BigQuery client: {cleanup_error}", exc_info=True)
@@ -567,6 +657,22 @@ class AsyncPipelineExecutor:
         step_id = step_config['step_id']
         step_type = step_config.get('ps_type', step_config.get('type', 'unknown'))
 
+        # Create distributed tracing span for step
+        tracer = get_tracer(__name__) if TRACING_ENABLED else None
+        step_span = None
+
+        if tracer:
+            step_span = tracer.start_span(
+                f"pipeline.step.{step_id}",
+                attributes={
+                    "step.id": step_id,
+                    "step.type": step_type,
+                    "step.index": step_index,
+                    "pipeline.id": self.tracking_pipeline_id,
+                    "tenant.id": self.tenant_id
+                }
+            )
+
         # Create unique step logging ID
         step_logging_id = str(uuid.uuid4())
 
@@ -640,6 +746,15 @@ class AsyncPipelineExecutor:
 
         finally:
             step_end = datetime.utcnow()
+
+            # End distributed tracing span for step
+            if step_span:
+                step_span.set_attribute("step.status", step_status)
+                if rows_processed:
+                    step_span.set_attribute("step.rows_processed", rows_processed)
+                if error_message:
+                    step_span.set_attribute("step.error", error_message)
+                step_span.end()
 
             # Log step completion
             await self.metadata_logger.log_step_end(
@@ -774,7 +889,7 @@ class AsyncPipelineExecutor:
         # Run data quality checks asynchronously
         loop = asyncio.get_event_loop()
         results = await loop.run_in_executor(
-            None,
+            BQ_EXECUTOR,
             self.dq_validator.validate_table,
             table_id,
             dq_config_path,
