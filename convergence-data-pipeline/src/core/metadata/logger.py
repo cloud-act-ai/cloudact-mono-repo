@@ -394,7 +394,9 @@ class MetadataLogger:
         pipeline_id: str,
         trigger_type: str,
         trigger_by: str,
-        parameters: Optional[Dict[str, Any]] = None
+        parameters: Optional[Dict[str, Any]] = None,
+        tenant_api_key_id: Optional[str] = None,
+        user_id: Optional[str] = None
     ):
         """
         Log pipeline execution start (non-blocking).
@@ -405,6 +407,8 @@ class MetadataLogger:
             trigger_type: How pipeline was triggered (manual, scheduled, api)
             trigger_by: User or system that triggered the pipeline
             parameters: Pipeline parameters (kept as dict for BigQuery JSON type)
+            tenant_api_key_id: API key ID used for authentication (for audit trail)
+            user_id: User ID who triggered the pipeline
         """
         try:
             # Serialize datetime values in parameters dict then convert to JSON string
@@ -418,6 +422,8 @@ class MetadataLogger:
                     "pipeline_logging_id": pipeline_logging_id,
                     "pipeline_id": pipeline_id,
                     "tenant_id": self.tenant_id,
+                    "tenant_api_key_id": tenant_api_key_id,
+                    "user_id": user_id,
                     "status": PipelineStatus.RUNNING.value,
                     "trigger_type": trigger_type,
                     "trigger_by": trigger_by,

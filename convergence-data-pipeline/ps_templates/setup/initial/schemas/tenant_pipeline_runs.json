@@ -42,6 +42,12 @@
     "description": "User ID who triggered the pipeline"
   },
   {
+    "name": "tenant_api_key_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "API key ID used to authenticate this pipeline run for audit trail"
+  },
+  {
     "name": "start_time",
     "type": "TIMESTAMP",
     "mode": "REQUIRED",

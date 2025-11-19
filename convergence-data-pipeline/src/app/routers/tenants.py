@@ -305,10 +305,29 @@ async def onboard_tenant(
             )
         ).result()
 
-        logger.info(f"Tenant profile created: {tenant_id}")
+        logger.info(
+            f"Tenant profile created successfully",
+            extra={
+                "event_type": "tenant_created",
+                "tenant_id": tenant_id,
+                "company_name": request.company_name,
+                "admin_email": request.admin_email,
+                "subscription_plan": request.subscription_plan,
+                "dataset_id": tenant_id
+            }
+        )
 
     except Exception as e:
-        logger.error(f"Failed to create tenant profile: {e}", exc_info=True)
+        logger.error(
+            f"Failed to create tenant profile",
+            extra={
+                "event_type": "tenant_creation_failed",
+                "tenant_id": tenant_id,
+                "company_name": request.company_name,
+                "error": str(e)
+            },
+            exc_info=True
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create tenant profile: {str(e)}"
@@ -330,9 +349,19 @@ async def onboard_tenant(
         # Encrypt API key using KMS
         try:
             encrypted_api_key_bytes = encrypt_value(api_key)
+            logger.info(f"API key encrypted successfully using KMS for tenant: {tenant_id}")
         except Exception as kms_error:
-            logger.warning(f"KMS encryption failed, storing plain API key (DEV ONLY): {kms_error}")
-            encrypted_api_key_bytes = api_key.encode('utf-8')
+            logger.error(f"KMS encryption failed for tenant {tenant_id}: {kms_error}", exc_info=True)
+            # Fail hard in production - never store plain text API keys
+            if settings.environment == "production":
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="KMS encryption is required in production but failed. Please check KMS configuration."
+                )
+            else:
+                # Only allow fallback in development/staging environments
+                logger.warning(f"KMS encryption failed, storing plain API key (DEV/STAGING ONLY): {kms_error}")
+                encrypted_api_key_bytes = api_key.encode('utf-8')
 
         api_key_id = str(uuid.uuid4())
 
@@ -357,10 +386,27 @@ async def onboard_tenant(
             )
         ).result()
 
-        logger.info(f"API key stored in tenants.tenant_api_keys: {api_key_id}")
+        logger.info(
+            f"API key created and stored successfully",
+            extra={
+                "event_type": "api_key_created",
+                "tenant_id": tenant_id,
+                "api_key_id": api_key_id,
+                "scopes": ["pipelines:read", "pipelines:write", "pipelines:execute"],
+                "encrypted": True
+            }
+        )
 
     except Exception as e:
-        logger.error(f"Failed to generate/store API key: {e}", exc_info=True)
+        logger.error(
+            f"Failed to generate/store API key",
+            extra={
+                "event_type": "api_key_creation_failed",
+                "tenant_id": tenant_id,
+                "error": str(e)
+            },
+            exc_info=True
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to generate API key: {str(e)}"

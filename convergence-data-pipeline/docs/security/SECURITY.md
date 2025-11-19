@@ -30,11 +30,19 @@ WHERE api_key_hash = @api_key_hash AND is_active = TRUE
 ```
 
 **Storage Schema:** `tenants.tenant_api_keys`
-- `api_key_hash` (STRING) - SHA256 hash for lookup
-- `encrypted_api_key` (BYTES) - KMS encrypted full key
+- `api_key_id` (STRING) - Unique identifier for the API key (UUID)
+- `api_key_hash` (STRING) - SHA256 hash for fast lookup
+- `encrypted_api_key` (BYTES) - KMS encrypted full key for recovery
 - `tenant_id` (STRING) - Foreign key to tenant_profiles
-- `is_active` (BOOL) - Key status
-- `expires_at` (TIMESTAMP) - Expiration date
+- `is_active` (BOOL) - Key status (active/inactive)
+- `expires_at` (TIMESTAMP) - Optional expiration date
+- `last_used_at` (TIMESTAMP) - Last authentication timestamp
+- `scopes` (ARRAY<STRING>) - Permissions assigned to this key
+
+**Audit Trail:** The `tenant_api_key_id` field is now logged in all pipeline executions (`tenant_pipeline_runs.tenant_api_key_id`) to track which API key was used for each operation. This enables:
+- API key rotation without losing audit history
+- Access revocation tracking
+- Security compliance and forensics
 
 **Performance:** Batched `last_used_at` updates reduce auth latency from 50-100ms to <5ms
 
@@ -155,6 +163,13 @@ encrypted_bytes = encrypt_value("plaintext-secret")
 # Decrypt
 plaintext = decrypt_value(encrypted_bytes)
 ```
+
+**Security Features:**
+- ✅ **Startup Validation:** KMS configuration is validated on application startup (production requires valid KMS)
+- ✅ **Fail-Safe:** Production environment fails hard if KMS encryption fails (no plain-text fallback)
+- ✅ **IAM Permissions:** Service account automatically granted `roles/cloudkms.cryptoKeyEncrypterDecrypter`
+- ✅ **Centralized Client:** All KMS operations use centralized utilities for consistent error handling
+- ✅ **Structured Logging:** KMS operations logged with full context for audit trail
 
 **Key Rotation:** Manual process (create new key version, re-encrypt data, deactivate old key)
 

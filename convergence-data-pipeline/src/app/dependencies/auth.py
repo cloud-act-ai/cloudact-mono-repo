@@ -23,6 +23,7 @@ import threading
 from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
 from src.app.config import settings
 from src.core.exceptions import classify_exception
+from src.core.security.kms_encryption import decrypt_value
 
 logger = logging.getLogger(__name__)
 
@@ -360,7 +361,14 @@ async def get_current_tenant(
         ))
 
         if not results:
-            logger.warning(f"Authentication failed - invalid or inactive API key")
+            logger.warning(
+                f"Authentication failed - invalid or inactive API key",
+                extra={
+                    "event_type": "auth_failed_invalid_key",
+                    "api_key_hash": api_key_hash[:16] + "...",  # Log partial hash for security
+                    "reason": "key_not_found_or_inactive"
+                }
+            )
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid or inactive API key",
@@ -371,7 +379,16 @@ async def get_current_tenant(
 
         # Check if API key has expired
         if row.get("expires_at") and row["expires_at"] < datetime.utcnow():
-            logger.warning(f"API key expired for tenant: {row['tenant_id']}")
+            logger.warning(
+                f"Authentication failed - API key expired",
+                extra={
+                    "event_type": "auth_failed_key_expired",
+                    "tenant_id": row['tenant_id'],
+                    "api_key_id": row.get('api_key_id'),
+                    "expired_at": row.get("expires_at").isoformat() if row.get("expires_at") else None,
+                    "reason": "key_expired"
+                }
+            )
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="API key has expired",
@@ -405,7 +422,17 @@ async def get_current_tenant(
             }
         }
 
-        logger.info(f"Authenticated tenant: {tenant['tenant_id']} ({tenant['company_name']})")
+        logger.info(
+            f"Authentication successful",
+            extra={
+                "event_type": "auth_success",
+                "tenant_id": tenant['tenant_id'],
+                "company_name": tenant['company_name'],
+                "subscription_plan": tenant['subscription']['plan_name'],
+                "api_key_id": tenant.get('api_key_id'),
+                "admin_email": tenant.get('admin_email')
+            }
+        )
         return tenant
 
     except HTTPException:
@@ -758,26 +785,12 @@ async def get_tenant_credentials(
 
         row = results[0]
 
-        # Decrypt credentials using KMS
+        # Decrypt credentials using KMS (centralized utility)
         encrypted_bytes = row["encrypted_credentials"]
 
         try:
-            # Initialize KMS client
-            kms_client = kms.KeyManagementServiceClient()
-
-            # Get KMS key name
-            if settings.kms_key_name:
-                key_name = settings.kms_key_name
-            else:
-                kms_project = settings.kms_project_id or settings.gcp_project_id
-                key_name = f"projects/{kms_project}/locations/{settings.kms_location}/keyRings/{settings.kms_keyring}/cryptoKeys/{settings.kms_key}"
-
-            # Decrypt
-            decrypt_response = kms_client.decrypt(
-                request={"name": key_name, "ciphertext": encrypted_bytes}
-            )
-
-            decrypted_data = decrypt_response.plaintext.decode("utf-8")
+            # Use centralized KMS decryption utility for consistent error handling
+            decrypted_data = decrypt_value(encrypted_bytes)
             credentials_json = json.loads(decrypted_data)
 
         except Exception as e:

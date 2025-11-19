@@ -92,7 +92,8 @@ class AsyncPipelineExecutor:
         trigger_by: str = "api_user",
         tracking_pipeline_id: Optional[str] = None,
         pipeline_logging_id: Optional[str] = None,
-        user_id: Optional[str] = None
+        user_id: Optional[str] = None,
+        tenant_api_key_id: Optional[str] = None
     ):
         """
         Initialize async pipeline executor.
@@ -107,6 +108,7 @@ class AsyncPipelineExecutor:
             pipeline_logging_id: Pre-generated logging ID for this run
                                 If not provided, generates a new UUID
             user_id: User UUID from frontend (X-User-ID header)
+            tenant_api_key_id: API key ID used for authentication (for audit trail)
         """
         self.tenant_id = tenant_id
         self.pipeline_id = pipeline_id
@@ -115,6 +117,7 @@ class AsyncPipelineExecutor:
         self.tracking_pipeline_id = tracking_pipeline_id or pipeline_id
         self.pipeline_logging_id = pipeline_logging_id or str(uuid.uuid4())
         self.user_id = user_id
+        self.tenant_api_key_id = tenant_api_key_id
 
         self.bq_client = get_bigquery_client()
         self.dq_validator = DataQualityValidator()

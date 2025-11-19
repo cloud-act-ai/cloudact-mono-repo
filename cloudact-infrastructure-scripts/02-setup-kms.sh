@@ -55,15 +55,28 @@ gcloud kms keyrings create $KEYRING_NAME \
     2>/dev/null || echo "Key ring already exists"
 
 # Create encryption key (ignore if already exists)
-echo -e "${GREEN}[2/2] Creating encryption key...${NC}"
+echo -e "${GREEN}[2/3] Creating encryption key...${NC}"
 gcloud kms keys create $KEY_NAME \
     --location=$LOCATION \
     --keyring=$KEYRING_NAME \
     --purpose=encryption \
     2>/dev/null || echo "Key already exists"
 
+# Grant IAM permissions to service account
+echo -e "${GREEN}[3/3] Granting KMS permissions to service account...${NC}"
+SERVICE_ACCOUNT="convergence-api@${PROJECT_ID}.iam.gserviceaccount.com"
+
+# Grant encrypter/decrypter role to the service account
+gcloud kms keys add-iam-policy-binding $KEY_NAME \
+    --location=$LOCATION \
+    --keyring=$KEYRING_NAME \
+    --member="serviceAccount:${SERVICE_ACCOUNT}" \
+    --role="roles/cloudkms.cryptoKeyEncrypterDecrypter" \
+    --quiet || echo "IAM binding already exists or service account not found"
+
 echo ""
 echo -e "${GREEN}✓ KMS setup complete for $ENV!${NC}"
+echo "✓ Service account ${SERVICE_ACCOUNT} granted KMS permissions"
 echo ""
 echo "Key Ring: projects/$PROJECT_ID/locations/$LOCATION/keyRings/$KEYRING_NAME"
 echo "Key: projects/$PROJECT_ID/locations/$LOCATION/keyRings/$KEYRING_NAME/cryptoKeys/$KEY_NAME"
