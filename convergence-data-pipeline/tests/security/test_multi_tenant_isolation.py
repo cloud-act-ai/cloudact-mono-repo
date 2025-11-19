@@ -34,8 +34,8 @@ class SecurityTestContext:
         self.customer_b_id = f"security_test_b_{secrets.token_hex(4)}"
         self.api_key_a = None
         self.api_key_b = None
-        self.api_key_hash_a = None
-        self.api_key_hash_b = None
+        self.tenant_api_key_hash_a = None
+        self.tenant_api_key_hash_b = None
 
     async def setup(self) -> Tuple[str, str, str, str]:
         """
@@ -58,12 +58,12 @@ class SecurityTestContext:
         self.api_key_a = f"{self.customer_a_id}_api_{secrets.token_urlsafe(16)[:16]}"
         self.api_key_b = f"{self.customer_b_id}_api_{secrets.token_urlsafe(16)[:16]}"
 
-        self.api_key_hash_a = hashlib.sha256(self.api_key_a.encode()).hexdigest()
-        self.api_key_hash_b = hashlib.sha256(self.api_key_b.encode()).hexdigest()
+        self.tenant_api_key_hash_a = hashlib.sha256(self.api_key_a.encode()).hexdigest()
+        self.tenant_api_key_hash_b = hashlib.sha256(self.api_key_b.encode()).hexdigest()
 
         # Store API keys in their respective tenant datasets
-        await self._store_api_key(self.customer_a_id, self.api_key_a, self.api_key_hash_a)
-        await self._store_api_key(self.customer_b_id, self.api_key_b, self.api_key_hash_b)
+        await self._store_api_key(self.customer_a_id, self.api_key_a, self.tenant_api_key_hash_a)
+        await self._store_api_key(self.customer_b_id, self.api_key_b, self.tenant_api_key_hash_b)
 
         print(f"[SETUP] Customer A: {self.customer_a_id}")
         print(f"[SETUP] Customer B: {self.customer_b_id}")
@@ -71,7 +71,7 @@ class SecurityTestContext:
 
         return self.customer_a_id, self.api_key_a, self.customer_b_id, self.api_key_b
 
-    async def _store_api_key(self, tenant_id: str, api_key: str, api_key_hash: str):
+    async def _store_api_key(self, tenant_id: str, api_key: str, tenant_api_key_hash: str):
         """
         Store API key in centralized tenants.tenant_api_keys table.
 
@@ -81,22 +81,22 @@ class SecurityTestContext:
         """
         import uuid
 
-        api_key_id = str(uuid.uuid4())
-        encrypted_api_key_bytes = api_key.encode('utf-8')  # Plain storage for testing
+        tenant_api_key_id = str(uuid.uuid4())
+        encrypted_tenant_api_key_bytes = api_key.encode('utf-8')  # Plain storage for testing
 
         insert_query = f"""
         INSERT INTO `{settings.gcp_project_id}.tenants.tenant_api_keys`
-        (api_key_id, tenant_id, api_key_hash, encrypted_api_key, created_at, is_active)
+        (tenant_api_key_id, tenant_id, tenant_api_key_hash, encrypted_tenant_api_key, created_at, is_active)
         VALUES
-        (@api_key_id, @tenant_id, @api_key_hash, @encrypted_api_key, CURRENT_TIMESTAMP(), TRUE)
+        (@tenant_api_key_id, @tenant_id, @tenant_api_key_hash, @encrypted_tenant_api_key, CURRENT_TIMESTAMP(), TRUE)
         """
 
         job_config = bigquery.QueryJobConfig(
             query_parameters=[
-                bigquery.ScalarQueryParameter("api_key_id", "STRING", api_key_id),
+                bigquery.ScalarQueryParameter("tenant_api_key_id", "STRING", tenant_api_key_id),
                 bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
-                bigquery.ScalarQueryParameter("api_key_hash", "STRING", api_key_hash),
-                bigquery.ScalarQueryParameter("encrypted_api_key", "BYTES", encrypted_api_key_bytes),
+                bigquery.ScalarQueryParameter("tenant_api_key_hash", "STRING", tenant_api_key_hash),
+                bigquery.ScalarQueryParameter("encrypted_tenant_api_key", "BYTES", encrypted_tenant_api_key_bytes),
             ]
         )
 

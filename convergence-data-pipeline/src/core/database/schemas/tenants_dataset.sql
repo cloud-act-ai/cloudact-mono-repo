@@ -76,34 +76,34 @@ OPTIONS(
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS `gac-prod-471220.tenants.tenant_api_keys` (
   -- Primary Identifiers
-  api_key_id STRING NOT NULL,                       -- Unique API key ID (UUID)
-  tenant_id STRING NOT NULL,                      -- Foreign key to tenant_profiles
+  tenant_api_key_id STRING NOT NULL,                -- Unique API key ID (UUID)
+  tenant_id STRING NOT NULL,                         -- Foreign key to tenant_profiles
 
   -- API Key Data
-  api_key_hash STRING NOT NULL,                     -- SHA256 hash for fast lookup
-  encrypted_api_key BYTES NOT NULL,                 -- KMS encrypted full API key
-  key_name STRING NOT NULL,                         -- Human-readable key name
+  tenant_api_key_hash STRING NOT NULL,               -- SHA256 hash for fast lookup
+  encrypted_tenant_api_key BYTES NOT NULL,           -- KMS encrypted full API key
+  key_name STRING NOT NULL,                          -- Human-readable key name
 
   -- Permissions & Scopes
-  scopes ARRAY<STRING> NOT NULL,                    -- e.g., ['pipelines:read', 'pipelines:write']
+  scopes ARRAY<STRING> NOT NULL,                     -- e.g., ['pipelines:read', 'pipelines:write']
 
   -- Lifecycle Management
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP(),
-  expires_at TIMESTAMP,                             -- NULL = never expires
-  last_used_at TIMESTAMP,                           -- Updated on each use
+  expires_at TIMESTAMP,                              -- NULL = never expires
+  last_used_at TIMESTAMP,                            -- Updated on each use
   is_active BOOL NOT NULL DEFAULT TRUE,
 
   -- Audit Trail
-  created_by STRING NOT NULL,                       -- Email of creator
-  deactivated_by STRING,                            -- Email of deactivator
+  created_by STRING NOT NULL,                        -- Email of creator
+  deactivated_by STRING,                             -- Email of deactivator
   deactivated_at TIMESTAMP,
   deactivation_reason STRING,
 
   -- Rate Limiting Metadata
-  rate_limit_tier STRING DEFAULT 'STANDARD'         -- STANDARD, ELEVATED, UNLIMITED
+  rate_limit_tier STRING DEFAULT 'STANDARD'          -- STANDARD, ELEVATED, UNLIMITED
 )
 PARTITION BY DATE(created_at)
-CLUSTER BY tenant_id, api_key_hash
+CLUSTER BY tenant_id, tenant_api_key_hash
 OPTIONS(
   description="Centralized API key storage with KMS encryption and SHA256 hashing",
   labels=[("category", "security"), ("encryption", "kms"), ("tier", "critical")]
@@ -358,7 +358,7 @@ OPTIONS(
 --    - Fast lookup by tenant_id
 --    - Efficient filtering by status
 --
--- 2. tenant_api_keys: Clustered by (tenant_id, api_key_hash)
+-- 2. tenant_api_keys: Clustered by (tenant_id, tenant_api_key_hash)
 --    - Fast API key validation (hash lookup)
 --    - Efficient customer-scoped queries
 --
@@ -680,7 +680,7 @@ ORDER BY q.priority DESC, q.scheduled_time ASC;
 -- Query 3: List team members - REMOVED (managed by Supabase frontend)
 
 -- Query 4: Get active API keys for customer
--- SELECT api_key_id, key_name, scopes, last_used_at
+-- SELECT tenant_api_key_id, key_name, scopes, last_used_at
 -- FROM `gac-prod-471220.tenants.tenant_api_keys`
 -- WHERE tenant_id = 'customer-uuid' AND is_active = TRUE
 -- ORDER BY created_at DESC;

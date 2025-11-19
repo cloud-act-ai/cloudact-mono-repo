@@ -21,25 +21,25 @@ Multi-tenant security implementation for Convergence Data Pipeline.
 **Code Example:**
 ```python
 # Hash API key
-api_key_hash = hashlib.sha256(api_key.encode()).hexdigest()
+tenant_api_key_hash = hashlib.sha256(api_key.encode()).hexdigest()
 
 # Query auth table
-SELECT tenant_id, api_key_id, is_active, expires_at
+SELECT tenant_id, tenant_api_key_id, is_active, expires_at
 FROM tenants.tenant_api_keys
-WHERE api_key_hash = @api_key_hash AND is_active = TRUE
+WHERE tenant_api_key_hash = @tenant_api_key_hash AND is_active = TRUE
 ```
 
 **Storage Schema:** `tenants.tenant_api_keys`
-- `api_key_id` (STRING) - Unique identifier for the API key (UUID)
-- `api_key_hash` (STRING) - SHA256 hash for fast lookup
-- `encrypted_api_key` (BYTES) - KMS encrypted full key for recovery
+- `tenant_api_key_id` (STRING) - Unique identifier for the API key (UUID)
+- `tenant_api_key_hash` (STRING) - SHA256 hash for fast lookup
+- `encrypted_tenant_api_key` (BYTES) - KMS encrypted full key for recovery
 - `tenant_id` (STRING) - Foreign key to tenant_profiles
 - `is_active` (BOOL) - Key status (active/inactive)
 - `expires_at` (TIMESTAMP) - Optional expiration date
 - `last_used_at` (TIMESTAMP) - Last authentication timestamp
 - `scopes` (ARRAY<STRING>) - Permissions assigned to this key
 
-**Audit Trail:** The `tenant_api_key_id` field is now logged in all pipeline executions (`tenant_pipeline_runs.tenant_api_key_id`) to track which API key was used for each operation. This enables:
+**Audit Trail:** The `tenant_tenant_api_key_id` field is now logged in all pipeline executions (`tenant_pipeline_runs.tenant_tenant_api_key_id`) to track which API key was used for each operation. This enables:
 - API key rotation without losing audit history
 - Access revocation tracking
 - Security compliance and forensics
@@ -137,7 +137,7 @@ curl -H "X-API-Key: tenant-key" \
 **Implementation:** `src/core/security/kms_encryption.py`
 
 **What's Encrypted:**
-1. API keys (`tenant_api_keys.encrypted_api_key`)
+1. API keys (`tenant_api_keys.encrypted_tenant_api_key`)
 2. Cloud credentials (`tenant_cloud_credentials.encrypted_credentials`)
 3. Sensitive configuration values
 

@@ -106,13 +106,13 @@ Content-Type: application/json
 │    Example: "acmeinc_23xv2_api_7xK2pLqR9sM4vN8w"                            │
 │                                                                              │
 │ 2. Hash with SHA256:                                                         │
-│    api_key_hash = SHA256(api_key)                                           │
+│    tenant_api_key_hash = SHA256(api_key)                                           │
 │                                                                              │
 │ 3. Encrypt with KMS:                                                         │
-│    encrypted_api_key = KMS.encrypt(api_key)                                 │
+│    encrypted_tenant_api_key = KMS.encrypt(api_key)                                 │
 │                                                                              │
 │ 4. INSERT INTO tenants.tenant_api_keys                                      │
-│    (api_key_id, tenant_id, api_key_hash, encrypted_api_key,                │
+│    (tenant_api_key_id, tenant_id, tenant_api_key_hash, encrypted_tenant_api_key,                │
 │     scopes=['pipelines:read','pipelines:write','pipelines:execute'],       │
 │     is_active=TRUE, created_at)                                             │
 │                                                                              │
@@ -240,7 +240,7 @@ Content-Type: application/json
 ├──────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
 │ tenants.tenant_profiles:           1 row (tenant_id='acmeinc_23xv2')        │
-│ tenants.tenant_api_keys:           1 row (api_key_hash, encrypted)          │
+│ tenants.tenant_api_keys:           1 row (tenant_api_key_hash, encrypted)          │
 │ tenants.tenant_subscriptions:      1 row (PROFESSIONAL, 25 daily limit)     │
 │ tenants.tenant_usage_quotas:       1 row (0/25 pipelines used today)        │
 │                                                                              │
@@ -291,12 +291,12 @@ Content-Type: application/json
 │ STEP 1: Authenticate API Key                                                │
 ├──────────────────────────────────────────────────────────────────────────────┤
 │ 1. Hash incoming API key:                                                    │
-│    api_key_hash = SHA256("acmeinc_23xv2_api_7xK2pLqR9sM4vN8w")             │
+│    tenant_api_key_hash = SHA256("acmeinc_23xv2_api_7xK2pLqR9sM4vN8w")             │
 │                                                                              │
 │ 2. Query tenants.tenant_api_keys:                                           │
 │    SELECT tenant_id, scopes, is_active                                      │
 │    FROM tenants.tenant_api_keys                                             │
-│    WHERE api_key_hash = '{hash}' AND is_active = TRUE                      │
+│    WHERE tenant_api_key_hash = '{hash}' AND is_active = TRUE                      │
 │                                                                              │
 │ 3. Verify scopes include 'pipelines:execute'                                │
 │                                                                              │

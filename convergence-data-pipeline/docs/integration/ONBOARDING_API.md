@@ -358,7 +358,7 @@ SELECT * FROM `your-project.tenants.tenant_profiles`
 WHERE tenant_id = 'customer_id_123';
 
 -- Verify API key exists
-SELECT api_key_id, tenant_id, scopes, is_active, created_at
+SELECT tenant_api_key_id, tenant_id, scopes, is_active, created_at
 FROM `your-project.tenants.tenant_api_keys`
 WHERE tenant_id = 'customer_id_123';
 

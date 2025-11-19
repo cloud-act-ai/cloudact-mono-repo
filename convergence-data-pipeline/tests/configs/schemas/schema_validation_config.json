@@ -58,7 +58,7 @@
       "description": "API keys for tenant authentication",
       "required_fields": [
         {
-          "name": "api_key_id",
+          "name": "tenant_api_key_id",
           "type": "STRING",
           "mode": "REQUIRED"
         },
@@ -68,12 +68,12 @@
           "mode": "REQUIRED"
         },
         {
-          "name": "api_key_hash",
+          "name": "tenant_api_key_hash",
           "type": "STRING",
           "mode": "REQUIRED"
         },
         {
-          "name": "encrypted_api_key",
+          "name": "encrypted_tenant_api_key",
           "type": "BYTES",
           "mode": "NULLABLE"
         },

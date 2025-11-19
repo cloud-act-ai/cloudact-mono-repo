@@ -344,11 +344,11 @@ async def onboard_tenant(
         api_key = f"{tenant_id}_api_{random_suffix}"
 
         # Hash API key with SHA256 for lookup
-        api_key_hash = hashlib.sha256(api_key.encode()).hexdigest()
+        tenant_api_key_hash = hashlib.sha256(api_key.encode()).hexdigest()
 
         # Encrypt API key using KMS
         try:
-            encrypted_api_key_bytes = encrypt_value(api_key)
+            encrypted_tenant_api_key_bytes = encrypt_value(api_key)
             logger.info(f"API key encrypted successfully using KMS for tenant: {tenant_id}")
         except Exception as kms_error:
             logger.error(f"KMS encryption failed for tenant {tenant_id}: {kms_error}", exc_info=True)
@@ -361,26 +361,26 @@ async def onboard_tenant(
             else:
                 # Only allow fallback in development/staging environments
                 logger.warning(f"KMS encryption failed, storing plain API key (DEV/STAGING ONLY): {kms_error}")
-                encrypted_api_key_bytes = api_key.encode('utf-8')
+                encrypted_tenant_api_key_bytes = api_key.encode('utf-8')
 
-        api_key_id = str(uuid.uuid4())
+        tenant_api_key_id = str(uuid.uuid4())
 
         # Store API key in centralized tenants.tenant_api_keys table
         insert_api_key_query = f"""
         INSERT INTO `{settings.gcp_project_id}.tenants.tenant_api_keys`
-        (api_key_id, tenant_id, api_key_hash, encrypted_api_key, scopes, is_active, created_at)
+        (tenant_api_key_id, tenant_id, tenant_api_key_hash, encrypted_tenant_api_key, scopes, is_active, created_at)
         VALUES
-        (@api_key_id, @tenant_id, @api_key_hash, @encrypted_api_key, @scopes, TRUE, CURRENT_TIMESTAMP())
+        (@tenant_api_key_id, @tenant_id, @tenant_api_key_hash, @encrypted_tenant_api_key, @scopes, TRUE, CURRENT_TIMESTAMP())
         """
 
         bq_client.client.query(
             insert_api_key_query,
             job_config=bigquery.QueryJobConfig(
                 query_parameters=[
-                    bigquery.ScalarQueryParameter("api_key_id", "STRING", api_key_id),
+                    bigquery.ScalarQueryParameter("tenant_api_key_id", "STRING", tenant_api_key_id),
                     bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
-                    bigquery.ScalarQueryParameter("api_key_hash", "STRING", api_key_hash),
-                    bigquery.ScalarQueryParameter("encrypted_api_key", "BYTES", encrypted_api_key_bytes),
+                    bigquery.ScalarQueryParameter("tenant_api_key_hash", "STRING", tenant_api_key_hash),
+                    bigquery.ScalarQueryParameter("encrypted_tenant_api_key", "BYTES", encrypted_tenant_api_key_bytes),
                     bigquery.ArrayQueryParameter("scopes", "STRING", ["pipelines:read", "pipelines:write", "pipelines:execute"])
                 ]
             )
@@ -391,7 +391,7 @@ async def onboard_tenant(
             extra={
                 "event_type": "api_key_created",
                 "tenant_id": tenant_id,
-                "api_key_id": api_key_id,
+                "tenant_api_key_id": tenant_api_key_id,
                 "scopes": ["pipelines:read", "pipelines:write", "pipelines:execute"],
                 "encrypted": True
             }

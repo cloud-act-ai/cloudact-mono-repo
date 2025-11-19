@@ -62,7 +62,7 @@ curl -X POST "http://your-host:8090/api/v1/tenants/onboard" \
 | Table | Purpose | Key Fields |
 |-------|---------|------------|
 | tenant_profiles | Tenant metadata | tenant_id, company_name, status |
-| tenant_api_keys | API authentication | api_key_hash, tenant_id, is_active |
+| tenant_api_keys | API authentication | tenant_api_key_hash, tenant_id, is_active |
 | tenant_subscriptions | Plan limits | tenant_id, plan_name, daily_limit |
 | tenant_usage_quotas | Usage tracking | tenant_id, pipelines_run_today |
 | tenant_pipeline_configs | Pipeline definitions | config_id, tenant_id, pipeline_yaml |
@@ -93,7 +93,7 @@ POST /admin/bootstrap                  # Initialize system
 POST /admin/tenants                    # Create tenant (admin)
 POST /admin/api-keys                   # Generate API key
 GET  /admin/tenants/{tenant_id}       # Get tenant status
-DELETE /admin/api-keys/{api_key_hash} # Revoke API key
+DELETE /admin/api-keys/{tenant_api_key_hash} # Revoke API key
 ```
 
 ### Tenant Endpoints

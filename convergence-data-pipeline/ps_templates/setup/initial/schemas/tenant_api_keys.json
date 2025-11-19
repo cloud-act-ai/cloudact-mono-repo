@@ -1,6 +1,6 @@
 [
   {
-    "name": "api_key_id",
+    "name": "tenant_api_key_id",
     "type": "STRING",
     "mode": "REQUIRED",
     "description": "Unique identifier for the API key"
@@ -12,13 +12,13 @@
     "description": "Tenant that owns this API key"
   },
   {
-    "name": "api_key_hash",
+    "name": "tenant_api_key_hash",
     "type": "STRING",
     "mode": "REQUIRED",
     "description": "Hashed API key for secure verification"
   },
   {
-    "name": "encrypted_api_key",
+    "name": "encrypted_tenant_api_key",
     "type": "BYTES",
     "mode": "NULLABLE",
     "description": "Encrypted API key (if recovery is needed)"

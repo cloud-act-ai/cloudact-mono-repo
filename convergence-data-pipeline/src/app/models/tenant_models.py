@@ -491,7 +491,7 @@ class TenantProfileResponse(BaseModel):
 
 class APIKeyResponse(BaseModel):
     """Response model for API keys."""
-    api_key_id: str
+    tenant_api_key_id: str
     api_key: Optional[str] = Field(
         default=None,
         description="Full API key (only returned on creation)"
@@ -506,7 +506,7 @@ class APIKeyResponse(BaseModel):
         from_attributes = True
         json_schema_extra = {
             "example": {
-                "api_key_id": "key_abc123xyz",
+                "tenant_api_key_id": "key_abc123xyz",
                 "api_key": "ck_live_abc123xyz...",  # Only on creation
                 "key_name": "production_api_key",
                 "scopes": ["pipelines:run", "pipelines:read"],
