@@ -271,6 +271,30 @@ python tests/test_config_pipeline_execution.py
 
 ---
 
+## 🚀 Deployment Environments
+
+### Staging Environment
+- **Project**: `gac-stage-471220` (GCP project for staging resources)
+- **Service**: `convergence-pipeline-stage` (Cloud Run service in `gac-prod-471220`)
+- **URL**: `https://convergence-pipeline-stage-820784027009.us-central1.run.app`
+- **Deploy**: Push to `main` branch triggers GitHub Actions auto-deployment
+
+### Production Environment
+- **Project**: `gac-prod-471220` (GCP project for production resources)
+- **Service**: `convergence-pipeline-prod` (Cloud Run service in `gac-prod-471220`)
+- **URL**: `https://convergence-pipeline-prod-820784027009.us-central1.run.app`
+- **Deploy**: Manual workflow dispatch or use `./deployment/deploy.sh production --cloud-build`
+
+### Bootstrap Requirements
+- **Staging ADMIN_API_KEY**: `cloudact_admin_1234` (testing only!)
+- **Production ADMIN_API_KEY**: Generate secure key using `openssl rand -base64 32`
+- **Bootstrap**: Run ONCE per environment via `POST /api/v1/admin/bootstrap` with `x-admin-key` header
+- **Verify**: Check `bq ls <project>:tenants` shows 11 management tables
+
+**See**: `docs/integration/DEPLOYMENT_INSTRUCTIONS.md` for complete deployment steps performed.
+
+---
+
 ## ❌ Common Mistakes
 
 ### WRONG: tenant_pipeline_runs in per-tenant dataset

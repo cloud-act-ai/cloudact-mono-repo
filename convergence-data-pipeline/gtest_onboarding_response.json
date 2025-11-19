@@ -1,3 +1,0 @@
-{
-  "detail": "Failed to create subscription: 400 Column max_team_members is not present in table gac-prod-471220.tenants.tenant_subscriptions at [4:28]; reason: invalidQuery, location: query, message: Column max_team_members is not present in table gac-prod-471220.tenants.tenant_subscriptions at [4:28]\n\nLocation: US\nJob ID: 65cad594-1f5c-4fcf-85e2-08a025e6bdd5\n"
-}
