@@ -100,7 +100,7 @@ def main():
             api_key = result.get("api_key")
             print(f"  ✅ API key generated!")
             print(f"     Key (save this): {api_key[:20]}...")
-            print(f"     Hash: {result.get('api_key_hash', 'N/A')[:20]}...")
+            print(f"     Hash: {result.get('tenant_api_key_hash', 'N/A')[:20]}...")
         else:
             print(f"  ❌ Failed to generate API key: {response.status_code if response else 'No response'}")
             if response:

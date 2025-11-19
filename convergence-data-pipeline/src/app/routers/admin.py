@@ -294,7 +294,8 @@ async def get_tenant(
 )
 async def create_api_key(
     request: CreateAPIKeyRequest,
-    bq_client: BigQueryClient = Depends(get_bigquery_client)
+    bq_client: BigQueryClient = Depends(get_bigquery_client),
+    _admin: None = Depends(verify_admin_key)
 ):
     """
     Generate a new API key for a tenant.
@@ -347,7 +348,8 @@ async def create_api_key(
 )
 async def revoke_api_key(
     tenant_api_key_hash: str,
-    bq_client: BigQueryClient = Depends(get_bigquery_client)
+    bq_client: BigQueryClient = Depends(get_bigquery_client),
+    _admin: None = Depends(verify_admin_key)
 ):
     """
     Revoke (deactivate) an API key.
