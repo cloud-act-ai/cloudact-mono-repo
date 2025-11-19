@@ -2,6 +2,17 @@
 
 **Configuration-driven** multi-tenant data pipeline backend for GCP, AWS, and Azure cloud cost and compliance data processing.
 
+[![Production Ready](https://img.shields.io/badge/status-production--ready-success)](docs/DEPLOYMENT.md)
+[![Security](https://img.shields.io/badge/security-KMS%20encrypted-blue)](docs/SECURITY.md)
+[![Tests](https://img.shields.io/badge/tests-30%20test%20cases-brightgreen)](docs/TESTING.md)
+
+## 📚 Documentation
+
+- **[Deployment Guide](docs/DEPLOYMENT.md)** - Local, staging, and production deployment
+- **[Testing Guide](docs/TESTING.md)** - Comprehensive test suites (local, staging, production)
+- **[Admin Scripts](../scripts/README.md)** - Admin API key management
+- **[Security Overview](../docs/security/SECURITY.md)** - Multi-tenant security architecture
+
 ## 🔑 Key Architecture: Configuration-Driven Pipelines
 
 **All pipelines execute as YAML configurations** stored in `/configs/` directory. No hardcoded pipeline logic!
@@ -19,54 +30,79 @@ Frontend → API → Pipeline Config (YAML) → Processor Engine → BigQuery
 
 ## ⚡ Quick Start
 
-### 1. Start API Server
+### 1. Generate Admin API Key
 ```bash
+# Generate secure admin key (256-bit entropy)
+python3 scripts/generate_admin_key.py
+
+# Export for use
+export ADMIN_API_KEY='admin_...'
+```
+
+### 2. Start API Server
+```bash
+# Configure environment
+export GCP_PROJECT_ID=your-project-id
+export GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
+export ADMIN_API_KEY='admin_...'
+
 # Start server
-python -m uvicorn src.app.main:app --host 0.0.0.0 --port 8080 --reload
+python3 -m uvicorn src.app.main:app --host 0.0.0.0 --port 8000 --reload
 
 # Check health
-curl http://localhost:8080/health
+curl http://localhost:8000/health
 ```
 
-### 2. System Bootstrap (One-Time)
+### 3. System Bootstrap (One-Time)
 
-**PRODUCTION**:
 ```bash
-# Initialize via API bootstrap endpoint
-curl -X POST http://localhost:8080/admin/bootstrap
+# Initialize central tenants dataset and management tables
+curl -X POST http://localhost:8000/api/v1/admin/bootstrap \
+  -H "X-Admin-Key: $ADMIN_API_KEY" \
+  -H 'Content-Type: application/json' \
+  -d '{"force_recreate_dataset": false, "force_recreate_tables": false}'
 ```
 
-**TESTING** (to validate bootstrap processor):
+### 4. Create Your First Tenant
+
 ```bash
-python tests/test_bootstrap_setup.py
+# Create tenant with BigQuery datasets
+curl -X POST http://localhost:8000/api/v1/admin/tenants \
+  -H "X-Admin-Key: $ADMIN_API_KEY" \
+  -H 'Content-Type: application/json' \
+  -d '{"tenant_id": "acmecorp", "description": "Acme Corporation"}'
+
+# Generate tenant API key
+curl -X POST http://localhost:8000/api/v1/admin/api-keys \
+  -H "X-Admin-Key: $ADMIN_API_KEY" \
+  -H 'Content-Type: application/json' \
+  -d '{"tenant_id": "acmecorp", "description": "Production API key"}'
 ```
 
-### 3. Onboard Your First Tenant
-
-**PRODUCTION**:
-```bash
-curl -X POST http://localhost:8080/api/v1/tenants/onboard \
-  -H "Content-Type: application/json" \
-  -d '{
-    "tenant_id": "guru_232342",
-    "company_name": "Guru Corp",
-    "admin_email": "admin@guru.com",
-    "subscription_plan": "PROFESSIONAL"
-  }'
-```
-
-**TESTING** (to validate onboarding processor):
-```bash
-python tests/test_config_tenant_onboarding.py
-```
-
-### 4. Execute Your First Pipeline
+### 5. Execute Your First Pipeline
 Run a pipeline for the onboarded tenant:
 ```bash
-curl -X POST http://localhost:8080/api/v1/pipelines/run/guru_232342/gcp/cost/cost_billing \
+curl -X POST http://localhost:8000/api/v1/pipelines/run/acmecorp/gcp/cost/cost_billing \
   -H "Content-Type: application/json" \
-  -H "X-API-Key: sk_guru_232342_xxxxx" \
-  -d '{"date": "2025-11-17"}'
+  -H "X-API-Key: sk_acmecorp_xxxxx" \
+  -d '{"date": "2025-11-19"}'
+```
+
+### 6. Run Tests
+
+```bash
+# Local development tests (10 test cases)
+export ADMIN_API_KEY='your-admin-key'
+export API_URL='http://localhost:8000'
+./tests/local_test_suite.sh
+
+# Staging tests (10 integration tests)
+export STAGING_URL='https://your-staging-url.com'
+./tests/staging_test_suite.sh
+
+# Production health checks (10 non-destructive tests)
+export PROD_URL='https://your-production-url.com'
+./tests/production_test_suite.sh
 ```
 
 ---
