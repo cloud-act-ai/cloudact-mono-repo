@@ -61,7 +61,7 @@ FIRESTORE_LOCK_COLLECTION=pipeline_locks
 tenant_id (STRING), company_name, admin_email, status (ACTIVE/TRIAL/SUSPENDED/CANCELLED), subscription_plan (STARTER/PROFESSIONAL/SCALE), tenant_dataset_id, created_at
 
 ### tenant_api_keys
-api_key_id (STRING), tenant_id, api_key_hash (SHA256), key_name, scopes (ARRAY), is_active (BOOLEAN), expires_at, last_used_at
+tenant_api_key_id (STRING), tenant_id, tenant_api_key_hash (SHA256), key_name, scopes (ARRAY), is_active (BOOLEAN), expires_at, last_used_at
 
 ### tenant_subscriptions
 subscription_id, tenant_id, plan_name (STARTER/PROFESSIONAL/SCALE), status, max_team_members, max_providers, max_pipelines_per_day, max_pipelines_per_month, max_concurrent_pipelines, subscription_start_date, subscription_end_date

@@ -124,6 +124,27 @@ async def lifespan(app: FastAPI):
     else:
         logger.warning("Rate limiting is disabled")
 
+    # Validate KMS configuration on startup
+    try:
+        from src.core.security.kms_encryption import _get_key_name, _get_kms_client
+        key_name = _get_key_name()
+        _get_kms_client()  # Ensure KMS client can be created
+        logger.info(f"✓ KMS configuration validated: {key_name}")
+    except ValueError as e:
+        logger.error(f"❌ KMS configuration invalid: {e}")
+        if settings.environment == "production":
+            logger.critical("KMS is required in production. Application startup failed.")
+            raise RuntimeError(f"KMS configuration required in production: {e}")
+        else:
+            logger.warning("KMS configuration invalid - encryption will be disabled (DEV/STAGING only)")
+    except Exception as e:
+        logger.error(f"❌ KMS validation failed: {e}", exc_info=True)
+        if settings.environment == "production":
+            logger.critical("KMS validation failed in production. Application startup failed.")
+            raise RuntimeError(f"KMS validation failed: {e}")
+        else:
+            logger.warning("KMS validation failed - encryption may not work properly (DEV/STAGING only)")
+
     # Initialize OpenTelemetry if enabled
     # Check both settings and environment variable
     enable_tracing = settings.enable_tracing and os.getenv("ENABLE_TRACING", "true").lower() == "true"

@@ -31,7 +31,9 @@ class PipelineExecutor:
         tenant_id: str,
         pipeline_id: str,
         trigger_type: str = "api",
-        trigger_by: str = "api_user"
+        trigger_by: str = "api_user",
+        user_id: Optional[str] = None,
+        tenant_api_key_id: Optional[str] = None
     ):
         """
         Initialize pipeline executor.
@@ -41,11 +43,15 @@ class PipelineExecutor:
             pipeline_id: Pipeline identifier (matches YAML filename)
             trigger_type: How pipeline was triggered (api, scheduler, manual)
             trigger_by: Who triggered the pipeline
+            user_id: User UUID from frontend (X-User-ID header)
+            tenant_api_key_id: API key ID used for authentication (for audit trail)
         """
         self.tenant_id = tenant_id
         self.pipeline_id = pipeline_id
         self.trigger_type = trigger_type
         self.trigger_by = trigger_by
+        self.user_id = user_id
+        self.tenant_api_key_id = tenant_api_key_id
         self.pipeline_logging_id = str(uuid.uuid4())
 
         self.bq_client = get_bigquery_client()
@@ -215,7 +221,9 @@ class PipelineExecutor:
                     pipeline_id=self.pipeline_id,
                     trigger_type=self.trigger_type,
                     trigger_by=self.trigger_by,
-                    parameters=self.config.get('parameters', {})
+                    parameters=self.config.get('parameters', {}),
+                    tenant_api_key_id=self.tenant_api_key_id,
+                    user_id=self.user_id
                 )
             )
 

@@ -205,7 +205,7 @@ class OnetimeBootstrapProcessor:
                 f"Dataset already exists: {dataset_id}",
                 extra={
                     "dataset_id": dataset_id,
-                    "created": dataset.created,
+                    "dataset_created_at": dataset.created,
                     "location": dataset.location
                 }
             )

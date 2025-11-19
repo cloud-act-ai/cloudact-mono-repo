@@ -908,11 +908,11 @@ Cloud Scheduler job (`reset-daily-quotas`) resets `pipelines_run_today` at midni
    - Header: X-User-ID: {user_uuid} (optional)
 
 2. Backend Processing:
-   - Hash API key: api_key_hash = SHA256(api_key)
+   - Hash API key: tenant_api_key_hash = SHA256(api_key)
    - Lookup tenant:
      SELECT tenant_id, scopes, expires_at
      FROM tenants.tenant_api_keys
-     WHERE api_key_hash = ? AND is_active = TRUE
+     WHERE tenant_api_key_hash = ? AND is_active = TRUE
 
 3. Extract tenant_id from result
 
@@ -965,8 +965,8 @@ verify_api_key()             # Returns tenant_id only
 ## 9. Security
 
 ### API Key Security
-- **Hash storage**: SHA256 in `tenant_api_keys.api_key_hash`
-- **Full key**: KMS-encrypted in `encrypted_api_key` (BYTES)
+- **Hash storage**: SHA256 in `tenant_api_keys.tenant_api_key_hash`
+- **Full key**: KMS-encrypted in `encrypted_tenant_api_key` (BYTES)
 - **Lookup**: Hash-based (no decryption needed)
 
 ### Cloud Credentials

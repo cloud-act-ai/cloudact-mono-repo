@@ -40,7 +40,7 @@ class CreateAPIKeyRequest(BaseModel):
 class APIKeyResponse(BaseModel):
     """Response containing API key."""
     api_key: str
-    api_key_hash: str
+    tenant_api_key_hash: str
     tenant_id: str
     created_at: datetime
     description: Optional[str]
@@ -294,7 +294,8 @@ async def get_tenant(
 )
 async def create_api_key(
     request: CreateAPIKeyRequest,
-    bq_client: BigQueryClient = Depends(get_bigquery_client)
+    bq_client: BigQueryClient = Depends(get_bigquery_client),
+    _admin: None = Depends(verify_admin_key)
 ):
     """
     Generate a new API key for a tenant.
@@ -308,21 +309,21 @@ async def create_api_key(
     api_key = f"sk_{request.tenant_id}_{secrets.token_urlsafe(32)}"
 
     # Hash the API key
-    api_key_hash = hashlib.sha256(api_key.encode()).hexdigest()
+    tenant_api_key_hash = hashlib.sha256(api_key.encode()).hexdigest()
 
     # Insert into BigQuery
     insert_query = f"""
     INSERT INTO `{settings.gcp_project_id}.tenants.tenant_api_keys`
-    (api_key_hash, tenant_id, created_at, created_by, is_active, description)
+    (tenant_api_key_hash, tenant_id, created_at, created_by, is_active, description)
     VALUES
-    (@api_key_hash, @tenant_id, CURRENT_TIMESTAMP(), @created_by, TRUE, @description)
+    (@tenant_api_key_hash, @tenant_id, CURRENT_TIMESTAMP(), @created_by, TRUE, @description)
     """
 
     from google.cloud import bigquery
 
     job_config = bigquery.QueryJobConfig(
         query_parameters=[
-            bigquery.ScalarQueryParameter("api_key_hash", "STRING", api_key_hash),
+            bigquery.ScalarQueryParameter("tenant_api_key_hash", "STRING", tenant_api_key_hash),
             bigquery.ScalarQueryParameter("tenant_id", "STRING", request.tenant_id),
             bigquery.ScalarQueryParameter("created_by", "STRING", "admin_api"),
             bigquery.ScalarQueryParameter("description", "STRING", request.description),
@@ -333,7 +334,7 @@ async def create_api_key(
 
     return APIKeyResponse(
         api_key=api_key,
-        api_key_hash=api_key_hash,
+        tenant_api_key_hash=tenant_api_key_hash,
         tenant_id=request.tenant_id,
         created_at=datetime.utcnow(),
         description=request.description
@@ -341,38 +342,39 @@ async def create_api_key(
 
 
 @router.delete(
-    "/admin/api-keys/{api_key_hash}",
+    "/admin/api-keys/{tenant_api_key_hash}",
     summary="Revoke API key",
     description="Deactivate an API key"
 )
 async def revoke_api_key(
-    api_key_hash: str,
-    bq_client: BigQueryClient = Depends(get_bigquery_client)
+    tenant_api_key_hash: str,
+    bq_client: BigQueryClient = Depends(get_bigquery_client),
+    _admin: None = Depends(verify_admin_key)
 ):
     """
     Revoke (deactivate) an API key.
 
-    - **api_key_hash**: SHA256 hash of the API key
+    - **tenant_api_key_hash**: SHA256 hash of the API key
 
     The API key will be marked as inactive and can no longer be used.
     """
     update_query = f"""
     UPDATE `{settings.gcp_project_id}.tenants.tenant_api_keys`
     SET is_active = FALSE
-    WHERE api_key_hash = @api_key_hash
+    WHERE tenant_api_key_hash = @tenant_api_key_hash
     """
 
     from google.cloud import bigquery
 
     job_config = bigquery.QueryJobConfig(
         query_parameters=[
-            bigquery.ScalarQueryParameter("api_key_hash", "STRING", api_key_hash)
+            bigquery.ScalarQueryParameter("tenant_api_key_hash", "STRING", tenant_api_key_hash)
         ]
     )
 
     bq_client.client.query(update_query, job_config=job_config).result()
 
     return {
-        "api_key_hash": api_key_hash,
+        "tenant_api_key_hash": tenant_api_key_hash,
         "message": "API key revoked successfully"
     }

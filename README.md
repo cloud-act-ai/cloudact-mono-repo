@@ -1,137 +1,248 @@
-# CloudAct Backend Systems
+# Convergence Data Pipeline - Complete Guide
 
-Multi-tenant data pipeline infrastructure with automated CI/CD deployment to Google Cloud Run.
+**Production-ready multi-tenant data pipeline for cloud cost and compliance analytics**
 
-## Live Deployment URLs
+## 🚀 Quick Start (5 Minutes)
 
-| Environment | URL | Purpose |
-|-------------|-----|---------|
-| **Staging** | https://convergence-pipeline-stage-7c6pogsrka-uc.a.run.app | Testing and validation |
-| **Production** | https://convergence-pipeline-prod-7c6pogsrka-uc.a.run.app | Live customer service |
+### Step 1: Generate Admin Key
+```bash
+cd /path/to/cloudact-backend-systems
+python3 scripts/generate_admin_key.py
+export ADMIN_API_KEY='admin_<your-generated-key>'
+```
 
-## Quick Start
+### Step 2: Configure Environment
+```bash
+export GCP_PROJECT_ID='gac-prod-471220'
+export GOOGLE_APPLICATION_CREDENTIALS='/path/to/service-account.json'
+export ENVIRONMENT='development'
+```
 
-### Test the APIs
+### Step 3: Start Server
+```bash
+cd convergence-data-pipeline
+python3 -m uvicorn src.app.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+### Step 4: Bootstrap System (One-Time)
+```bash
+curl -X POST http://localhost:8000/api/v1/admin/bootstrap \
+  -H "X-Admin-Key: $ADMIN_API_KEY" \
+  -H 'Content-Type: application/json' \
+  -d '{"force_recreate_dataset": false, "force_recreate_tables": false}'
+```
+
+### Step 5: Create Tenant & API Key
+```bash
+# Create tenant
+curl -X POST http://localhost:8000/api/v1/admin/tenants \
+  -H "X-Admin-Key: $ADMIN_API_KEY" \
+  -H 'Content-Type: application/json' \
+  -d '{"tenant_id": "sri_482433", "description": "Sri Corp"}'
+
+# Generate tenant API key
+curl -X POST http://localhost:8000/api/v1/admin/api-keys \
+  -H "X-Admin-Key: $ADMIN_API_KEY" \
+  -H 'Content-Type: application/json' \
+  -d '{"tenant_id": "sri_482433", "description": "Production key"}'
+```
+
+### Step 6: Test
+```bash
+export API_URL='http://localhost:8000'
+./tests/local_test_suite.sh
+```
+
+---
+
+## 📋 Complete Infrastructure & Deployment Guide
+
+### 🛠️ Infrastructure Setup (One-Time)
+
+#### Prerequisites
+- GCP Project: `gac-prod-471220`
+- APIs enabled: BigQuery, Cloud KMS, Secret Manager
+- Service Account: `convergence-api@gac-prod-471220.iam.gserviceaccount.com`
+
+#### Setup KMS
+```bash
+cd cloudact-infrastructure-scripts
+./02-setup-kms.sh
+
+# Creates:
+# - Keyring: convergence-keyring-prod (us-central1)
+# - Key: api-key-encryption
+# - Grants permissions to service account
+```
+
+### 💻 Local Development
 
 ```bash
-# Health check - Staging
-curl https://convergence-pipeline-stage-7c6pogsrka-uc.a.run.app/health
+# Install dependencies
+cd convergence-data-pipeline
+pip install -r requirements.txt
 
-# Onboard a customer - Staging
-curl -X POST https://convergence-pipeline-stage-7c6pogsrka-uc.a.run.app/api/v1/customers/onboard \
-  -H "Content-Type: application/json" \
-  -d '{"tenant_id": "test_company_001", "company_name": "Test Company", "subscription_tier": "FREE"}'
+# Configure .env
+cat > .env <<EOF
+GCP_PROJECT_ID=gac-prod-471220
+GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
+KMS_PROJECT_ID=gac-prod-471220
+KMS_LOCATION=us-central1
+KMS_KEYRING=convergence-keyring-prod
+KMS_KEY=api-key-encryption
+ENVIRONMENT=development
+LOG_LEVEL=DEBUG
+ADMIN_API_KEY=$(python3 ../scripts/generate_admin_key.py --no-prompt)
+EOF
+
+# Start server
+python3 -m uvicorn src.app.main:app --reload --port 8000
 ```
 
-### Deploy to Environments
+### 🚢 Deployment
+
+#### Staging Deployment
+```bash
+# Build and deploy
+gcloud builds submit --tag gcr.io/gac-prod-471220/convergence-api:staging
+gcloud run deploy convergence-api-staging \
+    --image gcr.io/gac-prod-471220/convergence-api:staging \
+    --region us-central1 \
+    --set-env-vars="ENVIRONMENT=staging,GCP_PROJECT_ID=gac-prod-471220" \
+    --update-secrets=ADMIN_API_KEY=admin-api-key-staging:latest \
+    --service-account=convergence-api@gac-prod-471220.iam.gserviceaccount.com \
+    --memory=2Gi --min-instances=1 --max-instances=10
+
+# Bootstrap
+STAGING_URL=$(gcloud run services describe convergence-api-staging --region=us-central1 --format='value(status.url)')
+curl -X POST "$STAGING_URL/api/v1/admin/bootstrap" \
+  -H "X-Admin-Key: $(gcloud secrets versions access latest --secret=admin-api-key-staging)" \
+  -H 'Content-Type: application/json' \
+  -d '{"force_recreate_dataset": false, "force_recreate_tables": false}'
+
+# Test
+export STAGING_URL="$STAGING_URL"
+export ADMIN_API_KEY=$(gcloud secrets versions access latest --secret=admin-api-key-staging)
+./tests/staging_test_suite.sh
+```
+
+#### Production Deployment
+```bash
+# Build and deploy
+gcloud builds submit --tag gcr.io/gac-prod-471220/convergence-api:v1.0.0
+gcloud run deploy convergence-api-prod \
+    --image gcr.io/gac-prod-471220/convergence-api:v1.0.0 \
+    --region us-central1 \
+    --set-env-vars="ENVIRONMENT=production,GCP_PROJECT_ID=gac-prod-471220,LOG_LEVEL=INFO" \
+    --update-secrets=ADMIN_API_KEY=admin-api-key-prod:latest \
+    --service-account=convergence-api@gac-prod-471220.iam.gserviceaccount.com \
+    --memory=4Gi --min-instances=2 --max-instances=50
+
+# Test
+PROD_URL=$(gcloud run services describe convergence-api-prod --region=us-central1 --format='value(status.url)')
+export PROD_URL="$PROD_URL"
+./tests/production_test_suite.sh
+```
+
+### 🧪 Testing (30 Tests)
 
 ```bash
-# Deploy to staging (automatic on push to main)
-git push origin main
+# Local (10 tests)
+export ADMIN_API_KEY='your-key'
+export API_URL='http://localhost:8000'
+./tests/local_test_suite.sh
 
-# Deploy to production (manual)
-gh workflow run deploy.yml -f environment=production
+# Staging (10 tests)
+export STAGING_URL='https://your-staging-url'
+./tests/staging_test_suite.sh
+
+# Production (10 tests - non-destructive)
+export PROD_URL='https://your-production-url'
+./tests/production_test_suite.sh
 ```
 
-## Project Structure
+---
 
-```
-cloudact-backend-systems/
-├── convergence-data-pipeline/     # Main application
-│   ├── src/                       # Application source code
-│   ├── configs/                   # Pipeline and metadata configurations
-│   ├── deployment/                # Docker and deployment files
-│   ├── docs/                      # Comprehensive documentation
-│   └── tests/                     # Test suites
-│
-├── cloudact-infrastructure-scripts/  # Infrastructure automation
-│   ├── 00-auto-deploy-and-test.sh   # Automated deployment script
-│   ├── 01-04-setup-*.sh             # GCP setup scripts
-│   └── 06-update-github-secrets.sh  # GitHub secrets configuration
-│
-├── .github/workflows/
-│   └── deploy.yml                 # CI/CD workflow
-│
-└── docs/
-    ├── API_REFERENCE.md           # Complete API documentation
-    └── CICD_GUIDE.md              # CI/CD and deployment guide
-```
+## 📡 API Reference
 
-## Key Features
+### Admin Endpoints (Require `X-Admin-Key`)
 
-- Multi-tenant BigQuery architecture
-- Automated customer onboarding
-- Environment-specific deployments (staging/production)
-- GitHub Actions CI/CD pipeline
-- Docker containerization
-- Health monitoring and logging
-- Metadata-driven pipeline configuration
-
-## Environments
-
-### Staging
-- **Project**: gac-stage-471220
-- **Deployment**: Automatic on push to `main`
-- **Purpose**: Testing and validation
-
-### Production
-- **Project**: gac-prod-471220
-- **Deployment**: Manual workflow dispatch
-- **Purpose**: Live customer service
-
-## Documentation
-
-| Document | Description |
-|----------|-------------|
-| [API Reference](./docs/API_REFERENCE.md) | Complete API endpoint documentation |
-| [CI/CD Guide](./docs/CICD_GUIDE.md) | Deployment and infrastructure guide |
-| [Application README](./convergence-data-pipeline/README.md) | Application details |
-| [Infrastructure Scripts](./cloudact-infrastructure-scripts/README.md) | Setup and deployment scripts |
-
-## CI/CD Pipeline
-
-### Automatic Staging Deployment
-```
-Push to main → GitHub Actions → Build Docker → Deploy to Staging
-```
-
-### Manual Production Deployment
-```
-Workflow Dispatch → GitHub Actions → Build Docker → Deploy to Production
-```
-
-### Monitoring Deployments
 ```bash
-# List workflow runs
-gh run list --workflow=deploy.yml
+# Bootstrap
+POST /api/v1/admin/bootstrap
+X-Admin-Key: admin_...
+Body: {"force_recreate_dataset": false, "force_recreate_tables": false}
 
-# Watch specific run
-gh run watch <RUN_ID>
+# Create Tenant
+POST /api/v1/admin/tenants
+X-Admin-Key: admin_...
+Body: {"tenant_id": "sri_482433", "description": "Sri Corp"}
 
-# View logs
-gh run view <RUN_ID> --log
+# Generate API Key
+POST /api/v1/admin/api-keys
+X-Admin-Key: admin_...
+Body: {"tenant_id": "sri_482433", "description": "Production key"}
+Response: {"api_key": "sk_sri_482433_...", "tenant_api_key_hash": "..."}
+
+# Get Tenant
+GET /api/v1/admin/tenants/{tenant_id}
+X-Admin-Key: admin_...
+
+# Revoke API Key
+DELETE /api/v1/admin/api-keys/{hash}
+X-Admin-Key: admin_...
 ```
 
-## Development Workflow
+### Tenant Endpoints (Require `X-API-Key`)
 
-1. **Make changes** in `convergence-data-pipeline/`
-2. **Test locally** with docker compose or uvicorn
-3. **Commit and push** to `main` branch
-4. **Automatic deployment** to staging
-5. **Verify** staging deployment
-6. **Manual trigger** production deployment
-7. **Monitor** and verify production
+```bash
+# Execute Pipeline
+POST /api/v1/pipelines/run/{tenant_id}/{provider}/{domain}/{pipeline_id}
+X-API-Key: sk_tenant_...
+Body: {"date": "2025-11-19", "parameters": {}}
 
-## Support
+# Onboard (Self-Service)
+POST /api/v1/tenants/onboard
+Body: {"tenant_id": "sri_482433", "company_name": "Sri Corp", "admin_email": "admin@sri.com"}
+```
 
-- GitHub Issues: Report bugs and feature requests
-- Documentation: See `docs/` directory
-- Infrastructure: See `cloudact-infrastructure-scripts/`
+---
 
-## Latest Updates
+## 🔧 Troubleshooting
 
-- ✅ Deployed to Staging and Production
-- ✅ Onboarding API tested and working
-- ✅ CI/CD pipeline fully automated
-- ✅ Comprehensive documentation added
-- ✅ Multi-environment support configured
+### KMS Timeout
+```bash
+# Check permissions
+gcloud kms keys get-iam-policy api-key-encryption \
+    --location=us-central1 --keyring=convergence-keyring-prod
+```
+
+### Bootstrap Error
+```bash
+# Force recreate if needed
+curl -X POST http://localhost:8000/api/v1/admin/bootstrap \
+  -H "X-Admin-Key: $ADMIN_API_KEY" \
+  -H 'Content-Type: application/json' \
+  -d '{"force_recreate_dataset": false, "force_recreate_tables": true}'
+```
+
+### View Logs
+```bash
+# Cloud Run logs
+gcloud run services logs read convergence-api-prod \
+    --region=us-central1 --limit=100 --filter='severity>=ERROR'
+```
+
+---
+
+## 📝 Recent Changes (v1.0.0)
+
+- ✅ Fixed critical security (admin endpoints)
+- ✅ Consistent field naming (`tenant_api_key_*`)
+- ✅ Fixed bootstrap logging error
+- ✅ Added 30 test cases
+- ✅ Production ready
+
+---
+
+**Version**: 1.0.0 | **Project**: gac-prod-471220 | **Status**: Production Ready ✅

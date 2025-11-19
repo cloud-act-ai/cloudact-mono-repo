@@ -307,12 +307,13 @@ async def trigger_templated_pipeline(
 
     insert_query = f"""
     INSERT INTO `{tenant_pipeline_runs_table}`
-    (pipeline_logging_id, pipeline_id, tenant_id, status, trigger_type, trigger_by, user_id, start_time, run_date, parameters)
+    (pipeline_logging_id, pipeline_id, tenant_id, tenant_api_key_id, status, trigger_type, trigger_by, user_id, start_time, run_date, parameters)
     SELECT * FROM (
         SELECT
             @pipeline_logging_id AS pipeline_logging_id,
             @pipeline_id AS pipeline_id,
             @tenant_id AS tenant_id,
+            @tenant_api_key_id AS tenant_api_key_id,
             'PENDING' AS status,
             @trigger_type AS trigger_type,
             @trigger_by AS trigger_by,
@@ -336,6 +337,7 @@ async def trigger_templated_pipeline(
             bigquery.ScalarQueryParameter("pipeline_logging_id", "STRING", pipeline_logging_id),
             bigquery.ScalarQueryParameter("pipeline_id", "STRING", pipeline_id),
             bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant.tenant_id),
+            bigquery.ScalarQueryParameter("tenant_api_key_id", "STRING", tenant.tenant_api_key_id),
             bigquery.ScalarQueryParameter("trigger_type", "STRING", "api"),
             bigquery.ScalarQueryParameter("trigger_by", "STRING", request.trigger_by or "api_user"),
             bigquery.ScalarQueryParameter("user_id", "STRING", tenant.user_id),
@@ -359,7 +361,8 @@ async def trigger_templated_pipeline(
             trigger_by=request.trigger_by or "api_user",
             tracking_pipeline_id=pipeline_id,  # Full tracking ID for database logging
             pipeline_logging_id=pipeline_logging_id,  # Pre-generated UUID from atomic INSERT
-            user_id=tenant.user_id
+            user_id=tenant.user_id,
+            tenant_api_key_id=tenant.tenant_api_key_id
         )
 
         # Execute pipeline in background
@@ -464,12 +467,13 @@ async def trigger_pipeline(
     # This single DML operation prevents race conditions by being atomic
     insert_query = f"""
     INSERT INTO `{settings.gcp_project_id}.tenants.tenant_pipeline_runs`
-    (pipeline_logging_id, pipeline_id, tenant_id, status, trigger_type, trigger_by, user_id, start_time, run_date, parameters)
+    (pipeline_logging_id, pipeline_id, tenant_id, tenant_api_key_id, status, trigger_type, trigger_by, user_id, start_time, run_date, parameters)
     SELECT * FROM (
         SELECT
             @pipeline_logging_id AS pipeline_logging_id,
             @pipeline_id AS pipeline_id,
             @tenant_id AS tenant_id,
+            @tenant_api_key_id AS tenant_api_key_id,
             'PENDING' AS status,
             @trigger_type AS trigger_type,
             @trigger_by AS trigger_by,
@@ -493,6 +497,7 @@ async def trigger_pipeline(
             bigquery.ScalarQueryParameter("pipeline_logging_id", "STRING", pipeline_logging_id),
             bigquery.ScalarQueryParameter("pipeline_id", "STRING", pipeline_id),
             bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant.tenant_id),
+            bigquery.ScalarQueryParameter("tenant_api_key_id", "STRING", tenant.tenant_api_key_id),
             bigquery.ScalarQueryParameter("trigger_type", "STRING", "api"),
             bigquery.ScalarQueryParameter("trigger_by", "STRING", request.trigger_by or "api_user"),
             bigquery.ScalarQueryParameter("user_id", "STRING", tenant.user_id),
@@ -514,7 +519,8 @@ async def trigger_pipeline(
             pipeline_id=pipeline_id,
             trigger_type="api",
             trigger_by=request.trigger_by or "api_user",
-            user_id=tenant.user_id
+            user_id=tenant.user_id,
+            tenant_api_key_id=tenant.tenant_api_key_id
         )
         # Override the executor's pipeline_logging_id with our pre-generated one
         executor.pipeline_logging_id = pipeline_logging_id

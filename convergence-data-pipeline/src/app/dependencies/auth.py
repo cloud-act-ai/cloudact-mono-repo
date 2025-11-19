@@ -23,6 +23,7 @@ import threading
 from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
 from src.app.config import settings
 from src.core.exceptions import classify_exception
+from src.core.security.kms_encryption import decrypt_value
 
 logger = logging.getLogger(__name__)
 
@@ -127,7 +128,7 @@ class AuthMetricsAggregator:
         if self._initialized:
             return
 
-        self.pending_updates: Set[str] = set()  # Set of api_key_ids to update
+        self.pending_updates: Set[str] = set()  # Set of tenant_api_key_ids to update
         self.batch_lock = threading.Lock()
         self.flush_interval = 60  # Flush every 60 seconds
         self.is_running = False
@@ -136,16 +137,16 @@ class AuthMetricsAggregator:
 
         logger.info("AuthMetricsAggregator initialized with 60s flush interval")
 
-    def add_update(self, api_key_id: str) -> None:
+    def add_update(self, tenant_api_key_id: str) -> None:
         """
         Add API key to pending updates batch (non-blocking, <1ms).
 
         Args:
-            api_key_id: API key ID to update last_used_at
+            tenant_api_key_id: API key ID to update last_used_at
         """
         with self.batch_lock:
-            self.pending_updates.add(api_key_id)
-            logger.debug(f"Added {api_key_id} to batch ({len(self.pending_updates)} pending)")
+            self.pending_updates.add(tenant_api_key_id)
+            logger.debug(f"Added {tenant_api_key_id} to batch ({len(self.pending_updates)} pending)")
 
     async def flush_updates(self, bq_client: BigQueryClient) -> None:
         """
@@ -159,35 +160,35 @@ class AuthMetricsAggregator:
             if not self.pending_updates:
                 return
 
-            api_key_ids = list(self.pending_updates)
+            tenant_api_key_ids = list(self.pending_updates)
             self.pending_updates.clear()
 
-        if not api_key_ids:
+        if not tenant_api_key_ids:
             return
 
-        logger.info(f"Flushing {len(api_key_ids)} auth metric updates to BigQuery")
+        logger.info(f"Flushing {len(tenant_api_key_ids)} auth metric updates to BigQuery")
 
         try:
             # Batch UPDATE using IN clause (much faster than individual UPDATEs)
             # Formats: ['key1', 'key2'] -> "('key1', 'key2')"
-            key_list = ", ".join(f"'{key_id}'" for key_id in api_key_ids)
+            key_list = ", ".join(f"'{key_id}'" for key_id in tenant_api_key_ids)
 
             update_query = f"""
             UPDATE `{settings.gcp_project_id}.tenants.tenant_api_keys`
             SET last_used_at = CURRENT_TIMESTAMP()
-            WHERE api_key_id IN ({key_list})
+            WHERE tenant_api_key_id IN ({key_list})
             """
 
             # Execute in background (non-blocking)
             bq_client.client.query(update_query).result()
 
-            logger.info(f"Successfully flushed {len(api_key_ids)} auth metric updates")
+            logger.info(f"Successfully flushed {len(tenant_api_key_ids)} auth metric updates")
 
         except Exception as e:
             logger.error(f"Failed to flush auth metrics: {e}", exc_info=True)
             # Re-add failed updates to retry on next flush
             with self.batch_lock:
-                self.pending_updates.update(api_key_ids)
+                self.pending_updates.update(tenant_api_key_ids)
 
     async def start_background_flush(self, bq_client: BigQueryClient) -> None:
         """
@@ -235,9 +236,9 @@ def get_auth_aggregator() -> AuthMetricsAggregator:
 class TenantContext:
     """Container for tenant context extracted from API key."""
 
-    def __init__(self, tenant_id: str, api_key_hash: str, user_id: Optional[str] = None):
+    def __init__(self, tenant_id: str, tenant_api_key_hash: str, user_id: Optional[str] = None):
         self.tenant_id = tenant_id
-        self.api_key_hash = api_key_hash
+        self.tenant_api_key_hash = tenant_api_key_hash
         self.user_id = user_id
 
     def __repr__(self) -> str:
@@ -284,7 +285,7 @@ async def get_current_tenant(
             - admin_email: Tenant admin email
             - status: Tenant status (ACTIVE, SUSPENDED, etc.)
             - subscription: Subscription details with limits
-            - api_key_id: ID of the API key used
+            - tenant_api_key_id: ID of the API key used
 
     Raises:
         HTTPException: If API key invalid, inactive, or tenant suspended
@@ -305,7 +306,7 @@ async def get_current_tenant(
                 "max_pipelines_per_month": 999999,
                 "max_concurrent_pipelines": 999999
             },
-            "api_key_id": "dev-key"
+            "tenant_api_key_id": "dev-key"
         }
 
     # Check for test API keys (development/QA mode)
@@ -317,12 +318,12 @@ async def get_current_tenant(
             return test_tenant
 
     # Hash the API key
-    api_key_hash = hash_api_key(api_key)
+    tenant_api_key_hash = hash_api_key(api_key)
 
     # Query tenants.tenant_api_keys for authentication
     query = f"""
     SELECT
-        k.api_key_id,
+        k.tenant_api_key_id,
         k.tenant_id,
         k.is_active as key_active,
         k.expires_at,
@@ -344,7 +345,7 @@ async def get_current_tenant(
         ON k.tenant_id = p.tenant_id
     INNER JOIN `{settings.gcp_project_id}.tenants.tenant_subscriptions` s
         ON p.tenant_id = s.tenant_id
-    WHERE k.api_key_hash = @api_key_hash
+    WHERE k.tenant_api_key_hash = @tenant_api_key_hash
         AND k.is_active = TRUE
         AND p.status = 'ACTIVE'
         AND s.status = 'ACTIVE'
@@ -355,12 +356,19 @@ async def get_current_tenant(
         results = list(bq_client.query(
             query,
             parameters=[
-                bigquery.ScalarQueryParameter("api_key_hash", "STRING", api_key_hash)
+                bigquery.ScalarQueryParameter("tenant_api_key_hash", "STRING", tenant_api_key_hash)
             ]
         ))
 
         if not results:
-            logger.warning(f"Authentication failed - invalid or inactive API key")
+            logger.warning(
+                f"Authentication failed - invalid or inactive API key",
+                extra={
+                    "event_type": "auth_failed_invalid_key",
+                    "tenant_api_key_hash": tenant_api_key_hash[:16] + "...",  # Log partial hash for security
+                    "reason": "key_not_found_or_inactive"
+                }
+            )
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid or inactive API key",
@@ -371,7 +379,16 @@ async def get_current_tenant(
 
         # Check if API key has expired
         if row.get("expires_at") and row["expires_at"] < datetime.utcnow():
-            logger.warning(f"API key expired for tenant: {row['tenant_id']}")
+            logger.warning(
+                f"Authentication failed - API key expired",
+                extra={
+                    "event_type": "auth_failed_key_expired",
+                    "tenant_id": row['tenant_id'],
+                    "tenant_api_key_id": row.get('tenant_api_key_id'),
+                    "expired_at": row.get("expires_at").isoformat() if row.get("expires_at") else None,
+                    "reason": "key_expired"
+                }
+            )
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="API key has expired",
@@ -381,8 +398,8 @@ async def get_current_tenant(
         # Update last_used_at timestamp (batched in background for performance)
         # This reduces auth latency from 50-100ms to <5ms by batching updates
         aggregator = get_auth_aggregator()
-        aggregator.add_update(row["api_key_id"])
-        logger.debug(f"Queued last_used_at update for API key: {row['api_key_id']}")
+        aggregator.add_update(row["tenant_api_key_id"])
+        logger.debug(f"Queued last_used_at update for API key: {row['tenant_api_key_id']}")
 
         # Build tenant object
         tenant = {
@@ -391,7 +408,7 @@ async def get_current_tenant(
             "admin_email": row["admin_email"],
             "status": row["tenant_status"],
             "tenant_dataset_id": row["tenant_dataset_id"],
-            "api_key_id": row["api_key_id"],
+            "tenant_api_key_id": row["tenant_api_key_id"],
             "scopes": row.get("scopes", []),
             "subscription": {
                 "subscription_id": row["subscription_id"],
@@ -405,7 +422,17 @@ async def get_current_tenant(
             }
         }
 
-        logger.info(f"Authenticated tenant: {tenant['tenant_id']} ({tenant['company_name']})")
+        logger.info(
+            f"Authentication successful",
+            extra={
+                "event_type": "auth_success",
+                "tenant_id": tenant['tenant_id'],
+                "company_name": tenant['company_name'],
+                "subscription_plan": tenant['subscription']['plan_name'],
+                "tenant_api_key_id": tenant.get('tenant_api_key_id'),
+                "admin_email": tenant.get('admin_email')
+            }
+        )
         return tenant
 
     except HTTPException:
@@ -758,26 +785,12 @@ async def get_tenant_credentials(
 
         row = results[0]
 
-        # Decrypt credentials using KMS
+        # Decrypt credentials using KMS (centralized utility)
         encrypted_bytes = row["encrypted_credentials"]
 
         try:
-            # Initialize KMS client
-            kms_client = kms.KeyManagementServiceClient()
-
-            # Get KMS key name
-            if settings.kms_key_name:
-                key_name = settings.kms_key_name
-            else:
-                kms_project = settings.kms_project_id or settings.gcp_project_id
-                key_name = f"projects/{kms_project}/locations/{settings.kms_location}/keyRings/{settings.kms_keyring}/cryptoKeys/{settings.kms_key}"
-
-            # Decrypt
-            decrypt_response = kms_client.decrypt(
-                request={"name": key_name, "ciphertext": encrypted_bytes}
-            )
-
-            decrypted_data = decrypt_response.plaintext.decode("utf-8")
+            # Use centralized KMS decryption utility for consistent error handling
+            decrypted_data = decrypt_value(encrypted_bytes)
             credentials_json = json.loads(decrypted_data)
 
         except Exception as e:
@@ -909,7 +922,7 @@ async def get_provider_config(
 # ============================================
 
 
-async def get_tenant_from_local_file(api_key_hash: str) -> Optional[str]:
+async def get_tenant_from_local_file(tenant_api_key_hash: str) -> Optional[str]:
     """
     Look up tenant_id from local file-based API keys (development fallback).
 
@@ -917,7 +930,7 @@ async def get_tenant_from_local_file(api_key_hash: str) -> Optional[str]:
     Production should use get_current_tenant() which reads from tenants dataset.
 
     Args:
-        api_key_hash: SHA256 hash of API key
+        tenant_api_key_hash: SHA256 hash of API key
 
     Returns:
         tenant_id if found, None otherwise
@@ -942,7 +955,7 @@ async def get_tenant_from_local_file(api_key_hash: str) -> Optional[str]:
             with open(metadata_file, 'r') as f:
                 metadata = json.load(f)
 
-            if metadata.get("api_key_hash") == api_key_hash:
+            if metadata.get("tenant_api_key_hash") == tenant_api_key_hash:
                 tenant_id = metadata.get("tenant_id")
                 logger.info(f"Found API key in local file for tenant: {tenant_id}")
                 return tenant_id
@@ -955,7 +968,7 @@ async def get_tenant_from_local_file(api_key_hash: str) -> Optional[str]:
 
 
 async def get_tenant_from_api_key(
-    api_key_hash: str,
+    tenant_api_key_hash: str,
     bq_client: BigQueryClient
 ) -> Optional[str]:
     """
@@ -965,7 +978,7 @@ async def get_tenant_from_api_key(
     This is more secure as API keys are stored in a centralized, access-controlled dataset.
 
     Args:
-        api_key_hash: SHA256 hash of API key
+        tenant_api_key_hash: SHA256 hash of API key
         bq_client: BigQuery client instance
 
     Returns:
@@ -982,7 +995,7 @@ async def get_tenant_from_api_key(
     FROM `{settings.gcp_project_id}.tenants.tenant_api_keys` k
     INNER JOIN `{settings.gcp_project_id}.tenants.tenant_profiles` c
         ON k.tenant_id = c.tenant_id
-    WHERE k.api_key_hash = @api_key_hash
+    WHERE k.tenant_api_key_hash = @tenant_api_key_hash
         AND k.is_active = TRUE
         AND c.status = 'ACTIVE'
     LIMIT 1
@@ -993,13 +1006,13 @@ async def get_tenant_from_api_key(
         results = list(bq_client.query(
             query,
             parameters=[
-                bigquery.ScalarQueryParameter("api_key_hash", "STRING", api_key_hash)
+                bigquery.ScalarQueryParameter("tenant_api_key_hash", "STRING", tenant_api_key_hash)
             ]
         ))
 
         if not results:
             logger.warning(f"API key not found in tenants dataset, trying local files")
-            return await get_tenant_from_local_file(api_key_hash)
+            return await get_tenant_from_local_file(tenant_api_key_hash)
 
         row = results[0]
 
@@ -1019,7 +1032,7 @@ async def get_tenant_from_api_key(
     except Exception as e:
         logger.warning(f"Centralized auth lookup failed: {e}, trying local files")
         # Fallback to local file lookup for development
-        return await get_tenant_from_local_file(api_key_hash)
+        return await get_tenant_from_local_file(tenant_api_key_hash)
 
 
 async def verify_api_key(
@@ -1044,7 +1057,7 @@ async def verify_api_key(
     # Check if authentication is disabled
     if settings.disable_auth:
         logger.warning(f"Authentication is disabled - using default tenant '{settings.default_tenant_id}'")
-        return TenantContext(tenant_id=settings.default_tenant_id, api_key_hash="disabled", user_id=x_user_id)
+        return TenantContext(tenant_id=settings.default_tenant_id, tenant_api_key_hash="disabled", user_id=x_user_id)
 
     if not x_api_key:
         raise HTTPException(
@@ -1054,10 +1067,10 @@ async def verify_api_key(
         )
 
     # Hash the API key
-    api_key_hash = hash_api_key(x_api_key)
+    tenant_api_key_hash = hash_api_key(x_api_key)
 
     # Look up tenant
-    tenant_id = await get_tenant_from_api_key(api_key_hash, bq_client)
+    tenant_id = await get_tenant_from_api_key(tenant_api_key_hash, bq_client)
 
     if not tenant_id:
         raise HTTPException(
@@ -1068,7 +1081,7 @@ async def verify_api_key(
 
     logger.info(f"Authenticated request for tenant: {tenant_id}, user: {x_user_id or 'N/A'}")
 
-    return TenantContext(tenant_id=tenant_id, api_key_hash=api_key_hash, user_id=x_user_id)
+    return TenantContext(tenant_id=tenant_id, tenant_api_key_hash=tenant_api_key_hash, user_id=x_user_id)
 
 
 async def verify_api_key_header(
@@ -1096,13 +1109,13 @@ async def verify_api_key_header(
     # Check if authentication is disabled
     if settings.disable_auth:
         logger.warning(f"Authentication is disabled - using default tenant '{settings.default_tenant_id}'")
-        return TenantContext(tenant_id=settings.default_tenant_id, api_key_hash="disabled", user_id=x_user_id)
+        return TenantContext(tenant_id=settings.default_tenant_id, tenant_api_key_hash="disabled", user_id=x_user_id)
 
     # Hash the API key
-    api_key_hash = hash_api_key(x_api_key)
+    tenant_api_key_hash = hash_api_key(x_api_key)
 
     # Look up tenant
-    tenant_id = await get_tenant_from_api_key(api_key_hash, bq_client)
+    tenant_id = await get_tenant_from_api_key(tenant_api_key_hash, bq_client)
 
     if not tenant_id:
         raise HTTPException(
@@ -1113,7 +1126,7 @@ async def verify_api_key_header(
 
     logger.info(f"Authenticated request for tenant: {tenant_id}, user: {x_user_id or 'N/A'}")
 
-    return TenantContext(tenant_id=tenant_id, api_key_hash=api_key_hash, user_id=x_user_id)
+    return TenantContext(tenant_id=tenant_id, tenant_api_key_hash=tenant_api_key_hash, user_id=x_user_id)
 
 
 # Optional: Allow unauthenticated access for health checks
