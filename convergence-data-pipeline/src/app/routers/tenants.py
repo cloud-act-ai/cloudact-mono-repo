@@ -9,7 +9,7 @@ TWO-DATASET ARCHITECTURE:
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field, field_validator
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from datetime import datetime, date
 import hashlib
 import secrets
@@ -88,6 +88,144 @@ class OnboardTenantResponse(BaseModel):
     tables_created: List[str]
     dryrun_status: str  # "SUCCESS" or "FAILED"
     message: str
+
+
+class DryRunRequest(BaseModel):
+    """Request to perform dry-run validation for tenant onboarding."""
+    tenant_id: str = Field(
+        ...,
+        description="Tenant identifier (alphanumeric + underscore, 3-50 chars)"
+    )
+    company_name: str = Field(
+        ...,
+        description="Company or organization name"
+    )
+    admin_email: str = Field(
+        ...,
+        description="Primary admin contact email"
+    )
+    subscription_plan: str = Field(
+        default="STARTER",
+        description="Subscription plan: STARTER, PROFESSIONAL, SCALE"
+    )
+
+    @field_validator('tenant_id')
+    @classmethod
+    def validate_tenant_id(cls, v):
+        """Validate tenant_id format."""
+        if not re.match(r'^[a-zA-Z0-9_]{3,50}$', v):
+            raise ValueError(
+                'tenant_id must be alphanumeric with underscores, 3-50 characters'
+            )
+        return v
+
+    @field_validator('subscription_plan')
+    @classmethod
+    def validate_subscription_plan(cls, v):
+        """Validate subscription plan."""
+        allowed = ['STARTER', 'PROFESSIONAL', 'SCALE']
+        if v.upper() not in allowed:
+            raise ValueError(f'subscription_plan must be one of {allowed}')
+        return v.upper()
+
+
+class DryRunResponse(BaseModel):
+    """Response for dry-run validation."""
+    status: str  # "SUCCESS" or "FAILED"
+    tenant_id: str
+    subscription_plan: str
+    company_name: str
+    admin_email: str
+    validation_summary: Dict[str, Any]
+    validation_results: List[Dict[str, Any]]
+    message: str
+    ready_for_onboarding: bool
+
+
+# ============================================
+# Tenant Dry-Run Validation Endpoint
+# ============================================
+
+@router.post(
+    "/tenants/dryrun",
+    response_model=DryRunResponse,
+    summary="Dry-run validation for tenant onboarding",
+    description="Validates tenant configuration and infrastructure before actual onboarding (no resources created)"
+)
+async def dryrun_tenant_onboarding(
+    request: DryRunRequest,
+    bq_client: BigQueryClient = Depends(get_bigquery_client)
+):
+    """
+    Perform dry-run validation for tenant onboarding.
+
+    VALIDATION CHECKS (NO RESOURCES CREATED):
+    1. Tenant ID format and uniqueness
+    2. Email format validation
+    3. GCP credentials verification
+    4. BigQuery connectivity test
+    5. Subscription plan validation
+    6. Central tables existence check
+    7. Dryrun config availability
+
+    This endpoint MUST be called before /tenants/onboard to ensure:
+    - All prerequisites are met
+    - Configuration is valid
+    - Infrastructure is ready
+    - No resource conflicts
+
+    - **tenant_id**: Unique tenant identifier (alphanumeric + underscore, 3-50 chars)
+    - **company_name**: Company or organization name
+    - **admin_email**: Primary admin contact email
+    - **subscription_plan**: STARTER, PROFESSIONAL, or SCALE
+
+    Returns:
+    - Validation status (SUCCESS/FAILED)
+    - Detailed validation results for each check
+    - Ready-for-onboarding flag
+    - Actionable error messages if validation fails
+    """
+    tenant_id = request.tenant_id
+
+    logger.info(f"Starting dry-run validation for tenant: {tenant_id}")
+
+    try:
+        # Import and call the TenantDryRunProcessor
+        from src.core.processors.setup.tenants.dryrun import TenantDryRunProcessor
+
+        processor = TenantDryRunProcessor()
+
+        # Execute dry-run validation
+        result = await processor.execute(
+            step_config={
+                "config": {
+                    "validate_all": True
+                }
+            },
+            context={
+                "tenant_id": tenant_id,
+                "company_name": request.company_name,
+                "admin_email": request.admin_email,
+                "subscription_plan": request.subscription_plan
+            }
+        )
+
+        logger.info(
+            f"Dry-run validation completed for {tenant_id}",
+            extra={
+                "status": result["status"],
+                "ready_for_onboarding": result["ready_for_onboarding"]
+            }
+        )
+
+        return DryRunResponse(**result)
+
+    except Exception as e:
+        logger.error(f"Dry-run validation error for {tenant_id}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Dry-run validation failed: {str(e)}"
+        )
 
 
 # ============================================
@@ -309,85 +447,43 @@ async def onboard_tenant(
         )
 
     # ============================================
-    # STEP 5: Create tenant dataset with ONLY operational tables
+    # STEP 5: Create tenant dataset and comprehensive view via processor
     # ============================================
     try:
-        logger.info(f"Creating tenant dataset: {tenant_id}")
+        logger.info(f"Creating tenant dataset via onboarding processor: {tenant_id}")
 
-        # Create tenant dataset
-        dataset_id = f"{settings.gcp_project_id}.{tenant_id}"
+        # Import and call the TenantOnboardingProcessor
+        from src.core.processors.setup.tenants.onboarding import TenantOnboardingProcessor
 
-        if request.force_recreate_dataset:
-            logger.warning(f"Force recreating dataset: {dataset_id}")
-            bq_client.client.delete_dataset(dataset_id, delete_contents=True, not_found_ok=True)
+        processor = TenantOnboardingProcessor()
 
-        try:
-            bq_client.client.get_dataset(dataset_id)
-            logger.info(f"Dataset already exists: {dataset_id}")
-        except Exception:
-            dataset = bigquery.Dataset(dataset_id)
-            dataset.location = settings.bigquery_location
-            dataset.description = f"Operational data for tenant {tenant_id}"
-            bq_client.client.create_dataset(dataset, timeout=30)
-            logger.info(f"Created dataset: {dataset_id}")
+        # Execute onboarding processor to create dataset and comprehensive view
+        # NOTE: Processor creates:
+        # - Per-tenant dataset
+        # - tenant_comprehensive_view (queries central tables, filters by tenant_id)
+        # - Optional validation table
+        processor_result = await processor.execute(
+            step_config={
+                "config": {
+                    "dataset_id": tenant_id,
+                    "location": settings.bigquery_location,
+                    "metadata_tables": [],  # NO metadata tables in per-tenant dataset
+                    "create_validation_table": True,
+                    "validation_table_name": "onboarding_validation_test",
+                    "default_daily_limit": plan_limits["max_daily"],
+                    "default_monthly_limit": plan_limits["max_daily"] * 30,
+                    "default_concurrent_limit": plan_limits["max_concurrent"]
+                }
+            },
+            context={
+                "tenant_id": tenant_id
+            }
+        )
 
-        dataset_created = True
+        dataset_created = processor_result.get("dataset_created", False)
+        tables_created = processor_result.get("tables_created", [])
 
-        # Create ONLY operational tables (NO API keys or credentials)
-        operational_tables = [
-            "tenant_pipeline_runs",
-            "tenant_step_logs",
-            "tenant_dq_results"
-        ]
-
-        for table_name in operational_tables:
-            table_id = f"{dataset_id}.{table_name}"
-
-            if request.force_recreate_tables:
-                bq_client.client.delete_table(table_id, not_found_ok=True)
-
-            try:
-                bq_client.client.get_table(table_id)
-                logger.debug(f"Table already exists: {table_id}")
-            except Exception:
-                # Load schema from JSON
-                schema_file = Path(__file__).parent.parent.parent.parent / "ps_templates" / "setup" / "tenants" / "onboarding" / "schemas" / f"{table_name}.json"
-                if not schema_file.exists():
-                    logger.error(f"Schema file not found: {schema_file}")
-                    continue
-
-                with open(schema_file, 'r') as f:
-                    import json
-                    schema_json = json.load(f)
-                    schema = [bigquery.SchemaField.from_api_repr(field) for field in schema_json]
-
-                table = bigquery.Table(table_id, schema=schema)
-
-                # Add partitioning and clustering based on table type
-                if table_name == "tenant_pipeline_runs":
-                    table.time_partitioning = bigquery.TimePartitioning(
-                        type_=bigquery.TimePartitioningType.DAY,
-                        field="start_time"
-                    )
-                    table.clustering_fields = ["tenant_id", "pipeline_id", "status"]
-                elif table_name == "tenant_step_logs":
-                    table.time_partitioning = bigquery.TimePartitioning(
-                        type_=bigquery.TimePartitioningType.DAY,
-                        field="start_time"
-                    )
-                    table.clustering_fields = ["pipeline_logging_id", "status"]
-                elif table_name == "tenant_dq_results":
-                    table.time_partitioning = bigquery.TimePartitioning(
-                        type_=bigquery.TimePartitioningType.DAY,
-                        field="ingestion_date"
-                    )
-                    table.clustering_fields = ["tenant_id", "target_table", "overall_status"]
-
-                bq_client.client.create_table(table)
-                logger.info(f"Created table: {table_id}")
-                tables_created.append(table_name)
-
-        logger.info(f"Tenant dataset created with {len(tables_created)} operational tables")
+        logger.info(f"Onboarding processor completed: {processor_result}")
 
     except Exception as e:
         logger.error(f"Failed to create tenant dataset: {e}", exc_info=True)
@@ -397,39 +493,14 @@ async def onboard_tenant(
         )
 
     # ============================================
-    # STEP 6: Run dry-run pipeline (optional validation)
+    # STEP 6: Post-onboarding validation (DISABLED - Use pre-onboarding dry-run instead)
     # ============================================
+    # Note: Comprehensive dry-run validation via POST /api/v1/tenants/dryrun is MANDATORY before onboarding
+    # Post-onboarding pipeline validation is redundant and has been disabled
     dryrun_status = "SKIPPED"
-    dryrun_message = "Dry-run pipeline skipped (optional)"
+    dryrun_message = "Post-onboarding validation skipped (pre-onboarding dry-run validation already passed)"
 
-    try:
-        dryrun_config_path = Path("configs/setup/dryrun/dryrun.yml")
-
-        if dryrun_config_path.exists():
-            logger.info(f"Running dry-run pipeline for tenant: {tenant_id}")
-
-            executor = AsyncPipelineExecutor(
-                tenant_id=tenant_id,
-                pipeline_id="dryrun",
-                trigger_type="onboarding",
-                trigger_by="onboarding_api"
-            )
-
-            result = await executor.execute(parameters={})
-
-            if result and result.get('status') in ['COMPLETED', 'COMPLETE', 'SUCCESS']:
-                dryrun_status = "SUCCESS"
-                dryrun_message = "Dryrun pipeline completed successfully"
-            else:
-                dryrun_status = "FAILED"
-                dryrun_message = f"Dryrun pipeline failed: {result.get('error', 'Unknown error')}"
-        else:
-            logger.info("Dryrun config not found, skipping validation pipeline")
-
-    except Exception as e:
-        logger.error(f"Error running dryrun pipeline: {e}", exc_info=True)
-        dryrun_status = "FAILED"
-        dryrun_message = f"Dryrun error: {str(e)}"
+    logger.info(f"Skipping post-onboarding dry-run (comprehensive pre-onboarding validation sufficient)")
 
     # ============================================
     # STEP 7: Return response

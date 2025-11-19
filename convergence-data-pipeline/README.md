@@ -29,14 +29,21 @@ curl http://localhost:8080/health
 ```
 
 ### 2. System Bootstrap (One-Time)
-Initialize via API bootstrap endpoint:
+
+**PRODUCTION**:
 ```bash
-# Use API bootstrap endpoint (not manual scripts)
-curl -X POST http://localhost:8080/api/v1/bootstrap/system
+# Initialize via API bootstrap endpoint
+curl -X POST http://localhost:8080/admin/bootstrap
+```
+
+**TESTING** (to validate bootstrap processor):
+```bash
+python tests/test_bootstrap_setup.py
 ```
 
 ### 3. Onboard Your First Tenant
-Create a tenant dataset and metadata tables:
+
+**PRODUCTION**:
 ```bash
 curl -X POST http://localhost:8080/api/v1/tenants/onboard \
   -H "Content-Type: application/json" \
@@ -46,6 +53,11 @@ curl -X POST http://localhost:8080/api/v1/tenants/onboard \
     "admin_email": "admin@guru.com",
     "subscription_plan": "PROFESSIONAL"
   }'
+```
+
+**TESTING** (to validate onboarding processor):
+```bash
+python tests/test_config_tenant_onboarding.py
 ```
 
 ### 4. Execute Your First Pipeline
@@ -186,22 +198,31 @@ POST /api/v1/scheduler/reset-daily-quotas
 
 ### Bootstrap Approach
 
-The system uses **API-based bootstrap** instead of manual SQL files:
+The system uses **API-based bootstrap** and **pipeline-driven execution**:
 
+**PRODUCTION**:
 1. **System Bootstrap** (one-time):
-   - Run `python deployment/setup_bigquery_datasets.py`
-   - Creates central `tenants` dataset with 8 management tables
+   - `POST /admin/bootstrap`
+   - Creates central `tenants` dataset with 11 management tables
+   - Executes pipeline: `configs/setup/bootstrap_system.yml`
 
 2. **Tenant Onboarding** (per-tenant):
-   - POST `/api/v1/tenants/onboard`
-   - Creates tenant profile, API key, subscription, and tenant-specific dataset
+   - `POST /api/v1/tenants/onboard`
+   - Creates tenant profile, API key, subscription, quotas, and tenant-specific dataset
+   - Executes pipeline: `configs/setup/tenants/onboarding.yml`
    - Full end-to-end via API
 
-**Manual SQL files** in `src/core/database/schemas/` are reference implementations only. All infrastructure is created programmatically via the Python API.
+**TESTING** (to validate processors):
+- Bootstrap: `python tests/test_bootstrap_setup.py`
+- Onboarding: `python tests/test_config_tenant_onboarding.py`
+
+**Note**: SQL files in `src/core/database/schemas/` are reference implementations only. All infrastructure is created programmatically via pipeline processors.
 
 ### Two-Dataset Model
 
 **1. Central `tenants` Dataset** (shared across all tenants)
+
+*Management Tables (tenant_* prefix):*
 - tenant_profiles
 - tenant_api_keys (SHA256-hashed)
 - tenant_subscriptions (plan limits)
@@ -211,12 +232,17 @@ The system uses **API-based bootstrap** instead of manual SQL files:
 - tenant_scheduled_pipeline_runs
 - tenant_pipeline_execution_queue
 
-**2. Per-Tenant Datasets** (`{tenant_id}`)
-- tenant_step_logs
-- tenant_dq_results
-- Data tables (gcp_cost_billing, aws_cost_billing, etc.)
+*Execution Logs (tenant_* prefix - centralized):*
+- **tenant_pipeline_runs** - Pipeline execution logs (ALL tenants)
+- **tenant_step_logs** - Step execution logs (ALL tenants)
+- **tenant_dq_results** - Data quality results (ALL tenants)
 
-**Note:** `tenant_pipeline_runs` is stored centrally in the `tenants` dataset for tracking all pipeline executions across all tenants.
+**2. Per-Tenant Datasets** (`{tenant_id}`)
+- **tenant_comprehensive_view** - Comprehensive view (queries central tables, filters by tenant_id)
+- Data tables (gcp_cost_billing, aws_cost_billing, etc.)
+- Optional validation/test tables
+
+**KEY**: ALL metadata tables (`tenant_*`) are in central dataset for centralized logging/monitoring. Each tenant gets a comprehensive VIEW in their dataset that queries central tables.
 
 ### Tenant vs User
 
@@ -262,8 +288,8 @@ The system uses **API-based bootstrap** instead of manual SQL files:
 ## 🚨 Production Checklist
 
 ### 1. BigQuery Setup (CRITICAL)
-- [ ] Create `tenants` dataset: `python deployment/setup_bigquery_datasets.py`
-- [ ] Verify 8 management tables created successfully
+- [ ] Bootstrap system: `POST /admin/bootstrap`
+- [ ] Verify 11 management tables created successfully in `tenants` dataset
 - [ ] Grant service account permissions:
   - `bigquery.datasets.create`
   - `bigquery.tables.create`
@@ -295,8 +321,15 @@ Create 3 jobs with target URLs pointing to Cloud Run service:
 
 ## 🧪 Testing
 
-### Manual API Test
-Test tenant onboarding with the guru_232342 example:
+### Production API Testing
+Test the production endpoints with real API calls:
+
+**1. Test Bootstrap**:
+```bash
+curl -X POST http://localhost:8080/admin/bootstrap
+```
+
+**2. Test Tenant Onboarding**:
 ```bash
 curl -X POST http://localhost:8080/api/v1/tenants/onboard \
   -H "Content-Type: application/json" \
@@ -308,14 +341,33 @@ curl -X POST http://localhost:8080/api/v1/tenants/onboard \
   }'
 ```
 
-### Test Pipeline Execution
-After onboarding, execute a test pipeline:
+**3. Test Pipeline Execution**:
 ```bash
 curl -X POST http://localhost:8080/api/v1/pipelines/run/guru_232342/gcp/cost/cost_billing \
   -H "Content-Type: application/json" \
   -H "X-API-Key: sk_guru_232342_xxxxx" \
   -d '{"date": "2025-11-17"}'
 ```
+
+### Processor Testing (Development Only)
+Test individual processors in isolation:
+
+**1. Test Bootstrap Processor**:
+```bash
+python tests/test_bootstrap_setup.py
+```
+
+**2. Test Onboarding Processor**:
+```bash
+python tests/test_config_tenant_onboarding.py
+```
+
+**3. Test Pipeline Execution**:
+```bash
+python tests/test_config_pipeline_execution.py
+```
+
+**Note**: Test scripts validate processor logic only. Production deployments should use API endpoints.
 
 ---
 

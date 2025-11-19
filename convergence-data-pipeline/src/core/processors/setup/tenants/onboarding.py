@@ -190,67 +190,74 @@ class TenantOnboardingProcessor:
             else:
                 tables_failed.append(table_name)
 
-        # Step 3: Create initial quota record for the new tenant
-        # This ensures the tenant can run pipelines immediately after onboarding
-        self.logger.info(f"Creating initial quota record for tenant {tenant_id}")
-        try:
-            import uuid
-            from datetime import datetime
+        # Step 3: Initial quota record (SKIPPED - handled by API endpoint)
+        # NOTE: When called from /api/v1/tenants/onboard, quota record is already created
+        # This step is only for standalone processor execution (testing)
+        create_quota = config.get("create_quota_record", False)
+        if create_quota:
+            self.logger.info(f"Creating initial quota record for tenant {tenant_id}")
+            try:
+                import uuid
+                from datetime import datetime
 
-            quota_table = f"{self.settings.gcp_project_id}.tenants.tenant_usage_quotas"
-            usage_id = str(uuid.uuid4())
+                quota_table = f"{self.settings.gcp_project_id}.tenants.tenant_usage_quotas"
+                usage_id = str(uuid.uuid4())
 
-            # Default quotas for new tenants
-            default_daily_limit = config.get("default_daily_limit", 50)
-            default_monthly_limit = config.get("default_monthly_limit", 1000)
-            default_concurrent_limit = config.get("default_concurrent_limit", 5)
+                # Default quotas for new tenants
+                default_daily_limit = config.get("default_daily_limit", 50)
+                default_monthly_limit = config.get("default_monthly_limit", 1000)
+                default_concurrent_limit = config.get("default_concurrent_limit", 5)
 
-            quota_insert_query = f"""
-            INSERT INTO `{quota_table}` (
-                usage_id,
-                tenant_id,
-                usage_date,
-                pipelines_run_today,
-                pipelines_succeeded_today,
-                pipelines_failed_today,
-                pipelines_run_month,
-                concurrent_pipelines_running,
-                daily_limit,
-                monthly_limit,
-                concurrent_limit,
-                last_updated,
-                created_at
-            )
-            VALUES (
-                '{usage_id}',
-                '{tenant_id}',
-                CURRENT_DATE(),
-                0,
-                0,
-                0,
-                0,
-                0,
-                {default_daily_limit},
-                {default_monthly_limit},
-                {default_concurrent_limit},
-                CURRENT_TIMESTAMP(),
-                CURRENT_TIMESTAMP()
-            )
-            """
+                quota_insert_query = f"""
+                INSERT INTO `{quota_table}` (
+                    usage_id,
+                    tenant_id,
+                    usage_date,
+                    pipelines_run_today,
+                    pipelines_succeeded_today,
+                    pipelines_failed_today,
+                    pipelines_run_month,
+                    concurrent_pipelines_running,
+                    daily_limit,
+                    monthly_limit,
+                    concurrent_limit,
+                    last_updated,
+                    created_at
+                )
+                VALUES (
+                    '{usage_id}',
+                    '{tenant_id}',
+                    CURRENT_DATE(),
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    {default_daily_limit},
+                    {default_monthly_limit},
+                    {default_concurrent_limit},
+                    CURRENT_TIMESTAMP(),
+                    CURRENT_TIMESTAMP()
+                )
+                """
 
-            await bq_client.query(quota_insert_query)
-            self.logger.info(
-                f"Created initial quota record for tenant {tenant_id}",
-                extra={
-                    "daily_limit": default_daily_limit,
-                    "monthly_limit": default_monthly_limit,
-                    "concurrent_limit": default_concurrent_limit
-                }
-            )
-        except Exception as e:
-            self.logger.error(f"Failed to create initial quota record: {e}", exc_info=True)
-            # Don't fail onboarding if quota record creation fails
-            # Admin can manually add it later
+                # Execute query and consume results (query returns an iterator)
+                list(bq_client.query(quota_insert_query))
+                self.logger.info(
+                    f"Created initial quota record for tenant {tenant_id}",
+                    extra={
+                        "tenant_id": tenant_id,
+                        "daily_limit": default_daily_limit,
+                        "monthly_limit": default_monthly_limit,
+                        "concurrent_limit": default_concurrent_limit
+                    }
+                )
+            except Exception as e:
+                self.logger.error(f"Failed to create initial quota record: {e}", exc_info=True)
+                # Don't fail onboarding if quota record creation fails
+                # Admin can manually add it later
+        else:
+            self.logger.info(f"Skipping quota creation (handled by API endpoint)")
 
         # Step 4: Create validation test table if configured
         if config.get("create_validation_table", False):
@@ -288,7 +295,8 @@ class TenantOnboardingProcessor:
                     VALUES ('{test_row["id"]}', '{test_row["test_message"]}', {test_row["created_at"]})
                     """
 
-                    await bq_client.query(query)
+                    # Execute query and consume results (query returns an iterator)
+                    list(bq_client.query(query))
                     self.logger.info(f"Inserted test record into {validation_table}")
                 except Exception as e:
                     self.logger.warning(f"Failed to insert test record: {e}")
@@ -310,9 +318,19 @@ class TenantOnboardingProcessor:
         if tables_failed:
             result["error"] = f"Failed to create tables: {', '.join(tables_failed)}"
 
+        # Log onboarding completion without using 'message' in extra dict
+        # 'message' is a reserved field in Python's LogRecord
+        log_context = {
+            "tenant_id": tenant_id,
+            "dataset_id": dataset_id,
+            "dataset_created": dataset_created,
+            "tables_created_count": len(tables_created),
+            "tables_failed_count": len(tables_failed),
+            "status": result["status"]
+        }
         self.logger.info(
-            f"Onboarding completed for {tenant_id}",
-            extra=result
+            f"Onboarding completed for {tenant_id}: Created {len(tables_created)} tables",
+            extra=log_context
         )
 
         return result

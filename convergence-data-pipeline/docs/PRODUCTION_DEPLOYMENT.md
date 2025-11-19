@@ -7,8 +7,12 @@ The Convergence Data Pipeline is a production-ready multi-tenant data processing
 ### Architecture
 
 **Two-Dataset Architecture:**
-1. **Central `tenants` dataset**: Authentication, management, and quotas
-2. **Per-tenant datasets**: Operational data (pipelines, logs, DQ results)
+1. **Central `tenants` dataset**:
+   - Management tables (profiles, API keys, subscriptions, quotas, configs)
+   - **Centralized logging** (ALL pipeline runs, step logs, DQ results from ALL tenants)
+2. **Per-tenant datasets (`{tenant_id}`)**:
+   - tenant_comprehensive_view (queries central tables, filters by tenant_id)
+   - Data tables (gcp_cost_billing, etc.)
 
 ## Quick Start
 
@@ -54,6 +58,7 @@ curl -X POST "http://your-host:8090/api/v1/tenants/onboard" \
 
 ### Central Tables (tenants dataset)
 
+**Management Tables:**
 | Table | Purpose | Key Fields |
 |-------|---------|------------|
 | tenant_profiles | Tenant metadata | tenant_id, company_name, status |
@@ -61,15 +66,23 @@ curl -X POST "http://your-host:8090/api/v1/tenants/onboard" \
 | tenant_subscriptions | Plan limits | tenant_id, plan_name, daily_limit |
 | tenant_usage_quotas | Usage tracking | tenant_id, pipelines_run_today |
 | tenant_pipeline_configs | Pipeline definitions | config_id, tenant_id, pipeline_yaml |
-| tenant_pipeline_runs | Centralized monitoring | pipeline_logging_id, status |
+| tenant_scheduled_pipeline_runs | Scheduler state | scheduled_run_id, status |
+| tenant_pipeline_execution_queue | Execution queue | queue_id, priority |
+| tenant_cloud_credentials | Encrypted credentials | credential_id, provider |
 
-### Tenant Tables (per-tenant dataset)
-
+**Centralized Logging (ALL tenants):**
 | Table | Purpose | Key Fields |
 |-------|---------|------------|
-| tenant_pipeline_runs | Pipeline execution logs | pipeline_id, status, duration_ms |
-| tenant_step_logs | Step-level logs | step_id, status, error_message |
-| tenant_dq_results | Data quality results | check_name, status, row_count |
+| tenant_pipeline_runs | Pipeline execution logs (ALL tenants) | pipeline_logging_id, tenant_id, status |
+| tenant_step_logs | Step-level logs (ALL tenants) | step_id, tenant_id, status, error_message |
+| tenant_dq_results | Data quality results (ALL tenants) | check_name, tenant_id, status, row_count |
+
+### Per-Tenant Dataset (`{tenant_id}`)
+
+| Object | Type | Purpose |
+|--------|------|---------|
+| tenant_comprehensive_view | VIEW | Comprehensive view (queries central tables, filters by tenant_id) |
+| gcp_cost_billing, etc. | TABLE | Data tables specific to tenant |
 
 ## API Endpoints
 

@@ -1,31 +1,26 @@
-pipeline:
-  id: "dryrun"
-  name: "Dry Run Validation Pipeline"
-  description: "Validates infrastructure and onboarding setup for new tenants"
-  version: "1.0.0"
-  trigger_type: "manual"
-
-dependencies:
-  level_1:
-    - step: dryrun_test
+pipeline_id: "dryrun"
+description: "Dry Run Validation Pipeline - Simple validation query"
 
 steps:
-  - id: dryrun_test
+  - step_id: "dryrun_test"
     name: "Dry Run Test"
-    description: "Test basic data operations to validate setup"
-    ps_type: "bq_etl.query"
-    config:
-      source_query: "SELECT 'Dry run successful' as message, CURRENT_TIMESTAMP() as timestamp"
-      target_table: "${tenant_id}.onboarding_validation_test"
-      write_disposition: "WRITE_APPEND"
-      create_table_if_needed: true
+    description: "Test basic BigQuery connectivity"
+    ps_type: "gcp.bq_etl"
+    timeout_minutes: 5
+
+    source:
+      query: |
+        SELECT
+          'Dry run successful' as status,
+          CURRENT_TIMESTAMP() as validated_at
+
+    destination:
+      bq_project_id: "{project_id}"
+      dataset_type: "genai_demo_test_db"
+      table: "dryrun_validation_log"
+      write_mode: "append"
+      create_disposition: "CREATE_IF_NEEDED"
+
     retry_policy:
       max_retries: 1
       retry_delay_seconds: 5
-
-metadata:
-  tags:
-    - "onboarding"
-    - "validation"
-    - "infrastructure"
-  environment: "all"

@@ -11,11 +11,13 @@
 
 **Pipeline**: `configs/setup/bootstrap_system.yml`
 **Processor**: `setup.initial.onetime_bootstrap`
-**Execution**: Via `python tests/test_bootstrap_setup.py`
+
+**Production Execution**: `POST /admin/bootstrap`
+**Testing Only**: `python tests/test_bootstrap_setup.py`
 
 **Created:**
 - Central dataset: `gac-prod-471220.tenants`
-- 9 management tables:
+- 11 management tables:
   1. tenant_profiles
   2. tenant_api_keys
   3. tenant_subscriptions
@@ -25,6 +27,8 @@
   7. tenant_scheduled_pipeline_runs
   8. tenant_pipeline_execution_queue
   9. tenant_pipeline_runs (centralized logging)
+  10. tenant_step_logs (centralized logging)
+  11. tenant_dq_results (centralized logging)
 
 ---
 
@@ -42,6 +46,9 @@
 **Pipeline**: `configs/setup/tenants/onboarding.yml`
 **Processor**: `setup.tenants.onboarding`
 
+**Production Execution**: `POST /api/v1/tenants/onboard`
+**Testing Only**: `python tests/test_config_tenant_onboarding.py`
+
 **Created:**
 
 *In Central Dataset (`tenants`):*
@@ -52,9 +59,8 @@
 
 *Per-Tenant Dataset (`timpelien_acmered_2343`):*
 - Dataset: `gac-prod-471220.timpelien_acmered_2343`
-- Table: `tenant_step_logs` (partitioned by start_time)
-- Table: `tenant_dq_results` (partitioned by ingestion_date)
-- Table: `onboarding_validation_test` (dryrun results)
+- View: `tenant_comprehensive_view` (queries central tables, filters by tenant_id)
+- Table: `onboarding_validation_test` (dryrun validation results)
 
 ---
 
@@ -75,17 +81,20 @@
 
 ## Architecture Corrections Made
 
-### 1. Fixed `tenant_pipeline_runs` Location
+### 1. Centralized Metadata Architecture
 
-**Issue**: Pipeline config incorrectly created `tenant_pipeline_runs` in per-tenant datasets
+**Change**: ALL metadata tables moved to central `tenants` dataset
 
-**Fixed**: Removed from onboarding.yml
-- `tenant_pipeline_runs` is ONLY in central `tenants` dataset
-- Per-tenant datasets have only: `tenant_step_logs`, `tenant_dq_results`
+**Implementation**:
+- `tenant_pipeline_runs` - ONLY in central dataset (ALL tenants)
+- `tenant_step_logs` - ONLY in central dataset (ALL tenants)
+- `tenant_dq_results` - ONLY in central dataset (ALL tenants)
+- Per-tenant datasets have: `tenant_comprehensive_view` (queries central, filters by tenant_id)
 
 **Files Updated**:
-- `configs/setup/tenants/onboarding.yml` (line 34-43)
-- `CLAUDE.md` (line 206-212)
+- `configs/setup/tenants/onboarding.yml` - Removed metadata tables list
+- `CLAUDE.md` - Updated architecture section
+- `README.md` - Updated two-dataset model
 
 ### 2. Added Missing BigQuery Client Methods
 
@@ -180,7 +189,8 @@ bq query --use_legacy_sql=false \
 
 2. **Monitor Execution**:
    - Check `tenants.tenant_pipeline_runs` for execution logs
-   - Check `timpelien_acmered_2343.tenant_step_logs` for step details
+   - Check `tenants.tenant_step_logs` for step details (filtered by tenant_id)
+   - Or use `timpelien_acmered_2343.tenant_comprehensive_view` for filtered view
 
 3. **Verify Quotas**:
    - Query `tenants.tenant_usage_quotas` for current usage
