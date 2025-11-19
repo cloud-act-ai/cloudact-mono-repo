@@ -225,24 +225,34 @@ class TenantOnboardingProcessor:
                     created_at
                 )
                 VALUES (
-                    '{usage_id}',
-                    '{tenant_id}',
+                    @usage_id,
+                    @tenant_id,
                     CURRENT_DATE(),
                     0,
                     0,
                     0,
                     0,
                     0,
-                    {default_daily_limit},
-                    {default_monthly_limit},
-                    {default_concurrent_limit},
+                    @default_daily_limit,
+                    @default_monthly_limit,
+                    @default_concurrent_limit,
                     CURRENT_TIMESTAMP(),
                     CURRENT_TIMESTAMP()
                 )
                 """
 
-                # Execute query and consume results (query returns an iterator)
-                list(bq_client.query(quota_insert_query))
+                # Execute query with parameterized values (prevents SQL injection)
+                from google.cloud import bigquery
+                job_config = bigquery.QueryJobConfig(
+                    query_parameters=[
+                        bigquery.ScalarQueryParameter("usage_id", "STRING", usage_id),
+                        bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
+                        bigquery.ScalarQueryParameter("default_daily_limit", "INT64", default_daily_limit),
+                        bigquery.ScalarQueryParameter("default_monthly_limit", "INT64", default_monthly_limit),
+                        bigquery.ScalarQueryParameter("default_concurrent_limit", "INT64", default_concurrent_limit),
+                    ]
+                )
+                list(bq_client.query(quota_insert_query, job_config=job_config))
                 self.logger.info(
                     f"Created initial quota record for tenant {tenant_id}",
                     extra={
@@ -292,11 +302,18 @@ class TenantOnboardingProcessor:
 
                     query = f"""
                     INSERT INTO `{full_table_id}` (id, test_message, created_at)
-                    VALUES ('{test_row["id"]}', '{test_row["test_message"]}', {test_row["created_at"]})
+                    VALUES (@test_id, @test_message, CURRENT_TIMESTAMP())
                     """
 
-                    # Execute query and consume results (query returns an iterator)
-                    list(bq_client.query(query))
+                    # Execute query with parameterized values (prevents SQL injection)
+                    from google.cloud import bigquery
+                    job_config = bigquery.QueryJobConfig(
+                        query_parameters=[
+                            bigquery.ScalarQueryParameter("test_id", "STRING", test_row["id"]),
+                            bigquery.ScalarQueryParameter("test_message", "STRING", test_row["test_message"]),
+                        ]
+                    )
+                    list(bq_client.query(query, job_config=job_config))
                     self.logger.info(f"Inserted test record into {validation_table}")
                 except Exception as e:
                     self.logger.warning(f"Failed to insert test record: {e}")

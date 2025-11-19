@@ -204,6 +204,7 @@ async def create_tenant(
     ]
 
     datasets_created = 0
+    dataset_errors = []
     for dataset_type, description in datasets_to_create:
         try:
             bq_client.create_dataset(
@@ -213,9 +214,17 @@ async def create_tenant(
             )
             datasets_created += 1
         except Exception as e:
-            # Log error but continue
-            import logging
-            logging.error(f"Failed to create dataset {dataset_type} for {tenant_id}: {e}")
+            # Log error and track failures
+            error_msg = f"Failed to create dataset {dataset_type}: {str(e)}"
+            logger.error(error_msg, extra={"tenant_id": tenant_id, "dataset_type": dataset_type})
+            dataset_errors.append(error_msg)
+
+    # If all datasets failed, raise error
+    if datasets_created == 0 and dataset_errors:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create any datasets for tenant {tenant_id}: {'; '.join(dataset_errors)}"
+        )
 
     return TenantResponse(
         tenant_id=tenant_id,
@@ -305,6 +314,32 @@ async def create_api_key(
 
     Returns the generated API key (SAVE THIS - it won't be shown again).
     """
+    # VALIDATION: Check if tenant already has an active API key
+    from google.cloud import bigquery
+
+    check_query = f"""
+    SELECT tenant_api_key_hash, created_at
+    FROM `{settings.gcp_project_id}.tenants.tenant_api_keys`
+    WHERE tenant_id = @tenant_id AND is_active = TRUE
+    LIMIT 1
+    """
+
+    check_config = bigquery.QueryJobConfig(
+        query_parameters=[
+            bigquery.ScalarQueryParameter("tenant_id", "STRING", request.tenant_id)
+        ]
+    )
+
+    existing_keys = list(bq_client.client.query(check_query, job_config=check_config).result())
+
+    if existing_keys:
+        existing_hash = existing_keys[0]["tenant_api_key_hash"]
+        logger.warning(f"Tenant {request.tenant_id} already has an active API key: {existing_hash[:16]}...")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Tenant '{request.tenant_id}' already has an active API key. Revoke the existing key first or contact support."
+        )
+
     # Generate secure random API key
     api_key = f"sk_{request.tenant_id}_{secrets.token_urlsafe(32)}"
 

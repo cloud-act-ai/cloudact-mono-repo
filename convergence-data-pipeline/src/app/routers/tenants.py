@@ -279,6 +279,69 @@ async def onboard_tenant(
 
     plan_limits = PLAN_LIMITS.get(request.subscription_plan, PLAN_LIMITS["STARTER"])
 
+    # Helper function to cleanup partial tenant data on failure
+    async def cleanup_partial_tenant(tenant_id: str, step_failed: str):
+        """
+        Cleanup partial tenant data if onboarding fails.
+        Removes tenant profile, API keys, subscription, and usage quota.
+        """
+        logger.warning(f"Cleaning up partial tenant data after failure at {step_failed}: {tenant_id}")
+
+        cleanup_queries = [
+            f"DELETE FROM `{settings.gcp_project_id}.tenants.tenant_profiles` WHERE tenant_id = @tenant_id",
+            f"DELETE FROM `{settings.gcp_project_id}.tenants.tenant_api_keys` WHERE tenant_id = @tenant_id",
+            f"DELETE FROM `{settings.gcp_project_id}.tenants.tenant_subscriptions` WHERE tenant_id = @tenant_id",
+            f"DELETE FROM `{settings.gcp_project_id}.tenants.tenant_usage_quotas` WHERE tenant_id = @tenant_id",
+        ]
+
+        for query in cleanup_queries:
+            try:
+                bq_client.client.query(
+                    query,
+                    job_config=bigquery.QueryJobConfig(
+                        query_parameters=[
+                            bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id)
+                        ]
+                    )
+                ).result()
+            except Exception as cleanup_error:
+                logger.error(f"Cleanup failed for query: {query[:50]}... Error: {cleanup_error}")
+
+        logger.info(f"Partial tenant cleanup completed for: {tenant_id}")
+
+    # ============================================
+    # VALIDATION: Check if tenant already exists
+    # ============================================
+    try:
+        check_tenant_query = f"""
+        SELECT tenant_id, status
+        FROM `{settings.gcp_project_id}.tenants.tenant_profiles`
+        WHERE tenant_id = @tenant_id
+        LIMIT 1
+        """
+
+        check_result = list(bq_client.client.query(
+            check_tenant_query,
+            job_config=bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id)
+                ]
+            )
+        ).result())
+
+        if check_result:
+            existing_status = check_result[0]["status"]
+            logger.warning(f"Tenant {tenant_id} already exists with status: {existing_status}")
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Tenant '{tenant_id}' already exists with status '{existing_status}'. Use a different tenant_id or contact support to reactivate."
+            )
+    except HTTPException:
+        raise  # Re-raise HTTP exceptions
+    except Exception as e:
+        logger.error(f"Error checking for existing tenant: {e}")
+        # Continue if check fails - let database constraint handle it
+
     # ============================================
     # STEP 1: Create tenant profile in tenants.tenant_profiles
     # ============================================
@@ -352,16 +415,11 @@ async def onboard_tenant(
             logger.info(f"API key encrypted successfully using KMS for tenant: {tenant_id}")
         except Exception as kms_error:
             logger.error(f"KMS encryption failed for tenant {tenant_id}: {kms_error}", exc_info=True)
-            # Fail hard in production - never store plain text API keys
-            if settings.environment == "production":
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="KMS encryption is required in production but failed. Please check KMS configuration."
-                )
-            else:
-                # Only allow fallback in development/staging environments
-                logger.warning(f"KMS encryption failed, storing plain API key (DEV/STAGING ONLY): {kms_error}")
-                encrypted_tenant_api_key_bytes = api_key.encode('utf-8')
+            # CRITICAL SECURITY: Always fail hard - NEVER store plaintext API keys in ANY environment
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"KMS encryption is required but failed: {str(kms_error)}. Please check KMS configuration and permissions."
+            )
 
         tenant_api_key_id = str(uuid.uuid4())
 
@@ -407,6 +465,8 @@ async def onboard_tenant(
             },
             exc_info=True
         )
+        # Cleanup partial tenant data
+        await cleanup_partial_tenant(tenant_id, "STEP 2: API Key Generation")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to generate API key: {str(e)}"
@@ -449,6 +509,8 @@ async def onboard_tenant(
 
     except Exception as e:
         logger.error(f"Failed to create subscription: {e}", exc_info=True)
+        # Cleanup partial tenant data
+        await cleanup_partial_tenant(tenant_id, "STEP 3: Subscription Creation")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create subscription: {str(e)}"
@@ -487,6 +549,8 @@ async def onboard_tenant(
 
     except Exception as e:
         logger.error(f"Failed to create usage quota: {e}", exc_info=True)
+        # Cleanup partial tenant data
+        await cleanup_partial_tenant(tenant_id, "STEP 4: Usage Quota Creation")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create usage quota: {str(e)}"
@@ -533,6 +597,9 @@ async def onboard_tenant(
 
     except Exception as e:
         logger.error(f"Failed to create tenant dataset: {e}", exc_info=True)
+        # Cleanup partial tenant data (including BigQuery datasets)
+        await cleanup_partial_tenant(tenant_id, "STEP 5: Dataset Creation")
+        # Note: Dataset deletion is handled by TenantOnboardingProcessor cleanup internally
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create tenant dataset: {str(e)}"
