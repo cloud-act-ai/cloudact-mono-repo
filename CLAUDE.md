@@ -9,6 +9,120 @@
 
 ---
 
+## 🏗️ Core Architecture Philosophy
+
+### ⚠️ CRITICAL: This is NOT a Real-Time API
+
+**Convergence is a Pipeline-as-Code System** - ALL operations are scheduled jobs, NOT real-time requests.
+
+### Pipeline Execution Model
+
+**Scheduler-Driven Architecture**:
+- **Primary Execution**: Scheduler checks `tenant_scheduled_pipeline_runs` table for due pipelines
+- **Authentication**: Scheduler uses **Admin API Key** to trigger pipeline runs
+- **Manual Triggers**: Tenants (users) can trigger pipelines manually from frontend by passing:
+  - `X-API-Key` (tenant API key)
+  - Pipeline configuration details
+  - Execution parameters
+
+**Pipeline Run Flow**:
+```
+┌─────────────────────────────────────────────────────────┐
+│ Scheduler (Cron/Cloud Scheduler)                        │
+│ → Queries: tenant_scheduled_pipeline_runs               │
+│ → Auth: X-Admin-Key                                     │
+│ → Triggers: Due pipeline runs                           │
+└─────────────────────────────────────────────────────────┘
+                         ↓
+┌─────────────────────────────────────────────────────────┐
+│ Pipeline Execution Queue                                │
+│ → Table: tenant_pipeline_execution_queue                │
+│ → Status: pending → running → completed/failed          │
+└─────────────────────────────────────────────────────────┘
+                         ↓
+┌─────────────────────────────────────────────────────────┐
+│ Processors (Core Logic)                                 │
+│ → Configs: configs/                                     │
+│ → Templates: ps_templates/                              │
+│ → Code: src/core/processors/                            │
+└─────────────────────────────────────────────────────────┘
+                         ↓
+┌─────────────────────────────────────────────────────────┐
+│ Results Storage                                         │
+│ → Logs: tenant_step_logs                                │
+│ → Runs: tenant_pipeline_runs                            │
+│ → DQ: tenant_dq_results                                 │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Everything is Pipeline-as-Code
+
+**ALL operations are pipelines** managed via `configs/`, `ps_templates/`, and `processors/`:
+
+| Operation | Type | Pipeline Config | Processor |
+|-----------|------|-----------------|-----------|
+| **Bootstrap** | System setup | `configs/system/dataset_types.yml` | `src/core/processors/setup/initial/onetime_bootstrap_processor.py` |
+| **Tenant Onboarding** | Tenant creation | `configs/tenant/onboarding.yml` | `src/core/processors/setup/tenants/onboarding.py` |
+| **Cost Pipeline** | Provider data | `ps_templates/gcp/cost/cost_export.yml` | `src/core/processors/providers/gcp/cost_processor.py` |
+| **Billing Pipeline** | Provider data | `ps_templates/gcp/billing/billing_export.yml` | `src/core/processors/providers/gcp/billing_processor.py` |
+| **KMS Management** | Security | `ps_templates/gcp/kms/manage_kms_keys.yml` | `src/core/processors/security/kms_processor.py` |
+
+### Core Components (Heart of the System)
+
+**DO NOT DEVIATE FROM THIS ARCHITECTURE**:
+
+1. **`configs/`** - Pipeline configuration files (YAML)
+   - System configs: `configs/system/*.yml`
+   - Tenant configs: `configs/tenant/*.yml`
+   - Provider configs: `configs/providers/{gcp,aws,azure}/*.yml`
+
+2. **`ps_templates/`** - Pipeline step templates (YAML)
+   - GCP pipelines: `ps_templates/gcp/{cost,billing,kms}/`
+   - AWS pipelines: `ps_templates/aws/`
+   - Azure pipelines: `ps_templates/azure/`
+   - Custom pipelines: `ps_templates/custom/`
+
+3. **`src/core/processors/`** - Pipeline execution logic (Python)
+   - Setup processors: `processors/setup/{initial,tenants}/`
+   - Provider processors: `processors/providers/{gcp,aws,azure}/`
+   - Security processors: `processors/security/`
+   - Custom processors: `processors/custom/`
+
+### Development Guidelines
+
+**When adding new functionality**:
+1. ✅ **DO**: Create a new processor in `src/core/processors/`
+2. ✅ **DO**: Define pipeline config in `configs/`
+3. ✅ **DO**: Add step templates in `ps_templates/`
+4. ❌ **DON'T**: Add real-time API endpoints for data processing
+5. ❌ **DON'T**: Bypass the pipeline execution model
+6. ❌ **DON'T**: Add custom logic outside processors
+
+**Example - Adding New Provider Pipeline**:
+```yaml
+# 1. Config: configs/providers/custom/new_provider.yml
+pipeline_name: "custom_provider_pipeline"
+schedule: "0 2 * * *"  # Daily at 2 AM
+processor: "custom.new_provider_processor"
+
+# 2. Template: ps_templates/custom/new_provider.yml
+steps:
+  - name: "extract_data"
+    type: "extract"
+  - name: "transform_data"
+    type: "transform"
+  - name: "load_data"
+    type: "load"
+
+# 3. Processor: src/core/processors/custom/new_provider_processor.py
+class NewProviderProcessor(BaseProcessor):
+    def execute(self):
+        # Implementation
+        pass
+```
+
+---
+
 ## 📋 What Was Accomplished
 
 ### 🔒 Critical Security Fixes (Session 1 - Earlier Fixes)

@@ -93,6 +93,68 @@ The Convergence Data Pipeline is a production-ready multi-tenant data processing
 
 ---
 
+## 🏗️ Core Architecture Philosophy
+
+### ⚠️ CRITICAL: This is NOT a Real-Time API
+
+**Convergence is a Pipeline-as-Code System** - ALL operations are scheduled jobs, NOT real-time requests.
+
+### Deployment Considerations for Pipeline-Based Architecture
+
+**Scheduler-Driven Execution**:
+- **Primary Execution**: Cloud Scheduler triggers pipeline runs (uses Admin API Key)
+- **Manual Triggers**: Frontend can trigger pipelines via tenant API key (optional/rare)
+- **Core Components**: `configs/`, `ps_templates/`, `src/core/processors/`
+
+**Key Deployment Requirements**:
+1. **Cloud Scheduler Setup** (Mandatory)
+   - Hourly trigger to check scheduled pipelines
+   - Queue processor (every 5 minutes)
+   - Daily quota reset (midnight UTC)
+   - All scheduler jobs use Admin API Key for authentication
+
+2. **Admin API Key Configuration** (Critical)
+   - Required for scheduler authentication
+   - Stored in GCP Secret Manager
+   - Used by ALL scheduler-triggered pipelines
+   - Format: `admin_<random_token>`
+
+3. **Pipeline Configuration Deployment**
+   - ALL pipeline logic is in YAML configs (`configs/`, `ps_templates/`)
+   - Processors in `src/core/processors/` execute pipeline steps
+   - NO hardcoded pipeline logic in routers/API endpoints
+   - Config changes require service redeployment
+
+4. **BigQuery Infrastructure**
+   - Central `tenants` dataset for management tables
+   - Per-tenant datasets for isolated data storage
+   - All pipeline execution logs in central dataset
+
+**What Gets Deployed**:
+```
+Cloud Run Service:
+├── FastAPI Application (routers, dependencies)
+├── Pipeline Processors (src/core/processors/)
+├── Pipeline Configs (configs/, ps_templates/)
+└── Environment Variables:
+    ├── ADMIN_API_KEY (from Secret Manager)
+    ├── GCP_PROJECT_ID
+    ├── GCP_KMS_KEY_NAME
+    └── ENVIRONMENT
+```
+
+**Deployment Flow**:
+```
+1. Build Docker image with all configs/processors
+2. Deploy to Cloud Run
+3. Configure Admin API Key in Secret Manager
+4. Set up Cloud Scheduler jobs (use Admin API Key)
+5. Bootstrap system (creates central dataset)
+6. Scheduler starts triggering pipelines automatically
+```
+
+---
+
 ## 1. Infrastructure Setup (One-Time)
 
 ### Prerequisites

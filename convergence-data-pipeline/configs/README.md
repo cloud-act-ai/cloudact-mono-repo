@@ -4,6 +4,126 @@
 
 Pipeline configurations define the workflow steps, data sources, transformations, and destinations for each data processing pipeline. Configurations support multi-tenant architecture with template variables for reusability.
 
+---
+
+## 🏗️ Core Architecture Philosophy
+
+### ⚠️ CRITICAL: Configs Are the Heart of the System
+
+**Convergence is a Pipeline-as-Code System** - ALL pipeline logic is defined in YAML configurations, NOT hardcoded in Python.
+
+### Config-Driven Architecture
+
+**Everything is defined in `configs/`**:
+- Bootstrap operations (`configs/setup/bootstrap_system.yml`)
+- Tenant onboarding (`configs/setup/tenants/onboarding.yml`)
+- Provider pipelines (`configs/gcp/cost/`, `configs/aws/cost/`, etc.)
+- Custom pipelines (`configs/custom/`)
+
+**How Configs Work**:
+```
+1. API receives pipeline trigger request
+2. System loads YAML config from configs/{provider}/{domain}/{pipeline}.yml
+3. Resolves variables ({tenant_id}, {date}, etc.)
+4. Passes config to appropriate processor
+5. Processor executes steps defined in config
+6. Results logged to tenant_pipeline_runs
+```
+
+### Core Components Working Together
+
+**1. `configs/` (THIS DIRECTORY)** - Pipeline definitions (YAML)
+   - What to execute
+   - What data to process
+   - Where to store results
+   - What variables to use
+
+**2. `ps_templates/`** - Reusable step templates (YAML)
+   - Common step patterns
+   - Provider-specific templates
+   - Shared across multiple pipelines
+
+**3. `src/core/processors/`** - Execution logic (Python)
+   - How to execute config steps
+   - Provider-specific implementations
+   - Business logic for each ps_type
+
+### Development Rules
+
+**When adding new pipelines**:
+1. ✅ **DO**: Create YAML config in appropriate `configs/` subdirectory
+2. ✅ **DO**: Use template variables for reusability
+3. ✅ **DO**: Define all business logic in processor, reference via `ps_type`
+4. ✅ **DO**: Test with dry-run before production use
+5. ❌ **DON'T**: Hardcode tenant-specific values in shared configs
+6. ❌ **DON'T**: Add business logic to configs (belongs in processors)
+7. ❌ **DON'T**: Store sensitive data (API keys, passwords) in configs
+
+**Example - Adding New Pipeline**:
+```yaml
+# 1. Create config: configs/gcp/security/iam_audit.yml
+pipeline_id: "{tenant_id}_gcp_iam_audit"
+description: "Audit GCP IAM permissions for {tenant_id}"
+
+variables:
+  source_project: "gac-prod-471220"
+  destination_dataset_type: "tenant_dataset"
+
+steps:
+  - step_id: "extract_iam_policy"
+    ps_type: "gcp.iam_extractor"  # References processor
+    source:
+      project_id: "{source_project}"
+    destination:
+      dataset_type: "{destination_dataset_type}"
+      table: "iam_audit_log"
+
+# 2. Processor already exists: src/core/processors/providers/gcp/iam_extractor.py
+# 3. Template exists: ps_templates/gcp/security/iam_audit.yml
+# 4. Ready to use!
+```
+
+### Config Best Practices
+
+**1. Always Use Template Variables**:
+```yaml
+# ✅ CORRECT - Reusable
+pipeline_id: "{tenant_id}_gcp_cost_billing"
+query: "SELECT * FROM `{source_table}` WHERE date = '{date}'"
+
+# ❌ WRONG - Hardcoded
+pipeline_id: "acme_corp_gcp_cost_billing"
+query: "SELECT * FROM table WHERE date = '2025-11-15'"
+```
+
+**2. Define Variables Section**:
+```yaml
+variables:
+  source_table: "project.dataset.table"
+  destination_dataset: "tenant_dataset"
+  admin_email: "admin@example.com"
+# All referenced in steps below
+```
+
+**3. Use Descriptive IDs**:
+```yaml
+steps:
+  - step_id: "extract_billing_from_gcp_export"  # ✅ Clear
+    name: "Extract GCP Billing Data"
+
+  - step_id: "step1"  # ❌ Unclear
+    name: "Process"
+```
+
+**4. Reference Processors via ps_type**:
+```yaml
+steps:
+  - step_id: "extract_data"
+    ps_type: "gcp.bq_etl"  # References: src/core/processors/providers/gcp/bq_etl.py
+```
+
+---
+
 ## Directory Structure
 
 ```

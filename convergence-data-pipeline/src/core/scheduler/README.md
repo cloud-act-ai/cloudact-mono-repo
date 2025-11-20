@@ -1,4 +1,4 @@
-# Pipeline State Management System
+# Pipeline Scheduler System
 
 Comprehensive state tracking and management for scheduled pipeline execution.
 
@@ -11,6 +11,159 @@ This module provides a complete state management system for automated pipeline e
 - **Schedule Calculation**: Cron-based scheduling with timezone support
 - **Retry Logic**: Exponential backoff with configurable retry policies
 - **Status Tracking**: Real-time pipeline execution monitoring
+
+---
+
+## 🏗️ Core Architecture Philosophy
+
+### ⚠️ CRITICAL: Scheduler Uses Admin API Key
+
+**Convergence is a Pipeline-as-Code System** - Scheduler triggers pipeline runs using Admin API Key, NOT tenant keys.
+
+### Scheduler-Driven Execution
+
+**How Scheduler Works**:
+```
+1. Cloud Scheduler triggers hourly check (uses Admin API Key)
+2. Scheduler queries tenant_scheduled_pipeline_runs for due pipelines
+3. Finds all pipelines where next_run_time <= NOW() AND is_active=TRUE
+4. For each due pipeline:
+   a. Create pipeline run entry
+   b. Queue pipeline for execution
+   c. Update next_run_time based on cron expression
+5. Workers pick up queued pipelines and execute them
+6. Results logged to tenant_pipeline_runs (central dataset)
+```
+
+**Authentication Flow**:
+```
+┌─────────────────────────────────────────────────────────┐
+│ Cloud Scheduler (Cron: 0 * * * *)                      │
+│ → POST /api/v1/scheduler/trigger                       │
+│ → Header: X-Admin-Key: admin_<token>                   │
+└─────────────────────────────────────────────────────────┘
+                         ↓
+┌─────────────────────────────────────────────────────────┐
+│ Scheduler Service (THIS COMPONENT)                     │
+│ → Uses Admin API Key for authentication                │
+│ → Queries: tenant_scheduled_pipeline_runs               │
+│ → Finds: Due pipelines for ALL tenants                 │
+└─────────────────────────────────────────────────────────┘
+                         ↓
+┌─────────────────────────────────────────────────────────┐
+│ Pipeline Execution Queue                                │
+│ → Queues pipelines with tenant context                 │
+│ → Workers execute pipelines as tenant                  │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Scheduler Components
+
+**1. Schedule Management**:
+- Cron expression parsing (`0 2 * * *` = daily at 2 AM)
+- Timezone support (UTC, America/New_York, etc.)
+- Next run time calculation
+- Due pipeline detection
+
+**2. Queue Management**:
+- Priority-based execution queue
+- FIFO ordering within priority
+- Atomic dequeue operations
+- Worker assignment
+
+**3. State Management**:
+- Pipeline run lifecycle (SCHEDULED → PENDING → RUNNING → COMPLETED)
+- Atomic state transitions
+- Retry logic with exponential backoff
+- Status monitoring
+
+**4. Authentication**:
+- **Scheduler**: Uses Admin API Key to trigger checks
+- **Pipeline Execution**: Runs in tenant context (tenant_id from config)
+- **Logging**: All runs logged to central tenant_pipeline_runs table
+
+### Development Rules
+
+**When working with scheduler**:
+1. ✅ **DO**: Use Admin API Key for all scheduler operations
+2. ✅ **DO**: Query tenant_scheduled_pipeline_runs for due pipelines
+3. ✅ **DO**: Update next_run_time after scheduling each pipeline
+4. ✅ **DO**: Log all execution to central tenant_pipeline_runs table
+5. ✅ **DO**: Use atomic state transitions to prevent race conditions
+6. ❌ **DON'T**: Use tenant API keys for scheduler operations
+7. ❌ **DON'T**: Skip updating next_run_time (causes duplicate runs)
+8. ❌ **DON'T**: Allow concurrent execution of same pipeline
+
+**Example - Scheduler Trigger**:
+```python
+# Cloud Scheduler hits this endpoint hourly
+@router.post("/api/v1/scheduler/trigger")
+async def trigger_scheduled_pipelines(
+    admin_key: str = Header(..., alias="X-Admin-Key")
+):
+    """
+    Check for due pipelines and queue them for execution.
+    Authentication: Admin API Key (used by Cloud Scheduler)
+    """
+    # 1. Verify admin key
+    verify_admin_key(admin_key)
+
+    # 2. Get due pipelines
+    due_pipelines = await scheduler.get_due_pipelines()
+
+    # 3. Queue each pipeline
+    for pipeline in due_pipelines:
+        await queue_manager.enqueue(
+            tenant_id=pipeline["tenant_id"],
+            config=pipeline["config"],
+            priority=pipeline.get("priority", 5)
+        )
+
+        # 4. Update next run time
+        next_run = calculate_next_run(pipeline["cron_expression"])
+        await scheduler.update_next_run_time(
+            pipeline["id"],
+            next_run
+        )
+
+    return {"queued": len(due_pipelines)}
+```
+
+### Cloud Scheduler Configuration
+
+**Required Jobs**:
+
+1. **Hourly Trigger** (Check for due pipelines):
+```bash
+gcloud scheduler jobs create http trigger-pipelines \
+  --schedule="0 * * * *" \
+  --uri="https://your-service.run.app/api/v1/scheduler/trigger" \
+  --http-method=POST \
+  --headers="X-Admin-Key=admin_<your_key>" \
+  --time-zone="UTC"
+```
+
+2. **Queue Processor** (Process queued pipelines):
+```bash
+gcloud scheduler jobs create http process-queue \
+  --schedule="*/5 * * * *" \
+  --uri="https://your-service.run.app/api/v1/scheduler/process-queue" \
+  --http-method=POST \
+  --headers="X-Admin-Key=admin_<your_key>" \
+  --time-zone="UTC"
+```
+
+3. **Daily Reset** (Reset quotas):
+```bash
+gcloud scheduler jobs create http reset-quotas \
+  --schedule="0 0 * * *" \
+  --uri="https://your-service.run.app/api/v1/scheduler/reset-daily-quotas" \
+  --http-method=POST \
+  --headers="X-Admin-Key=admin_<your_key>" \
+  --time-zone="UTC"
+```
+
+---
 
 ## Architecture
 

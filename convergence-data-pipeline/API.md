@@ -48,6 +48,52 @@ The Convergence Data Pipeline API provides a RESTful interface for:
 
 ---
 
+## 🏗️ Core Architecture Philosophy
+
+### ⚠️ CRITICAL: This is NOT a Real-Time API
+
+**Convergence is a Pipeline-as-Code System** - ALL operations are scheduled jobs, NOT real-time requests.
+
+### Pipeline Execution Model
+
+**Scheduler-Driven Architecture**:
+- **Primary Execution**: Cloud Scheduler checks `tenant_scheduled_pipeline_runs` table for due pipelines
+- **Authentication**: Scheduler uses **Admin API Key** to trigger pipeline runs
+- **Manual Triggers**: Tenants (users) can trigger pipelines manually via API by passing:
+  - `X-API-Key` (tenant API key)
+  - Pipeline configuration details
+  - Execution parameters
+
+**API Endpoint Usage**:
+```
+┌─────────────────────────────────────────────────────────┐
+│ PRIMARY: Cloud Scheduler (Automated)                    │
+│ → POST /api/v1/scheduler/trigger (Admin API Key)       │
+│ → Checks tenant_scheduled_pipeline_runs for due runs   │
+│ → Executes pipelines automatically                      │
+└─────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────┐
+│ SECONDARY: Manual Triggers (Frontend/Users)             │
+│ → POST /api/v1/pipelines/run/{pipeline_id}             │
+│ → Uses Tenant API Key (X-API-Key)                      │
+│ → Used for ad-hoc/manual pipeline execution            │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Everything is Pipeline-as-Code**:
+- ALL operations are defined in `configs/` and `ps_templates/`
+- Processors in `src/core/processors/` execute pipeline steps
+- API endpoints trigger pipelines, NOT execute business logic directly
+
+**Key API Patterns**:
+1. **Admin Endpoints** (`/api/v1/admin/*`): System management, use Admin API Key
+2. **Tenant Endpoints** (`/api/v1/tenants/*`): Tenant operations, use Tenant API Key
+3. **Pipeline Endpoints** (`/api/v1/pipelines/*`): Pipeline triggers, use Tenant API Key
+4. **Scheduler Endpoints** (`/api/v1/scheduler/*`): Automated execution, use Admin API Key
+
+---
+
 ## Authentication
 
 ### Admin Authentication
