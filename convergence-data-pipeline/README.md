@@ -300,15 +300,22 @@ export API_URL='http://localhost:8000'
 
               ↓ Complete Isolation ↓
 
-┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐
-│ Dataset: tenant1 │  │ Dataset: tenant2 │  │ Dataset: tenant3 │
-├──────────────────┤  ├──────────────────┤  ├──────────────────┤
-│ • gcp_cost_*     │  │ • gcp_cost_*     │  │ • gcp_cost_*     │
-│ • aws_cost_*     │  │ • aws_cost_*     │  │ • aws_cost_*     │
-│ • azure_cost_*   │  │ • azure_cost_*   │  │ • azure_cost_*   │
-│ • custom views   │  │ • custom views   │  │ • custom views   │
-└──────────────────┘  └──────────────────┘  └──────────────────┘
+┌──────────────────────────┐  ┌──────────────────────────┐  ┌──────────────────────────┐
+│ Dataset: tenant1_local   │  │ Dataset: tenant2_stage   │  │ Dataset: tenant3_prod    │
+├──────────────────────────┤  ├──────────────────────────┤  ├──────────────────────────┤
+│ • gcp_cost_*             │  │ • gcp_cost_*             │  │ • gcp_cost_*             │
+│ • aws_cost_*             │  │ • aws_cost_*             │  │ • aws_cost_*             │
+│ • azure_cost_*           │  │ • azure_cost_*           │  │ • azure_cost_*           │
+│ • custom views           │  │ • custom views           │  │ • custom views           │
+└──────────────────────────┘  └──────────────────────────┘  └──────────────────────────┘
 ```
+
+**DATASET NAMING STANDARD**:
+- Format: `{tenant_id}_{environment}`
+- Environment mapping: `development`→`local`, `staging`→`stage`, `production`→`prod`
+- Examples: `sri_482433_local`, `sri_482433_stage`, `sri_482433_prod`
+- **Purpose**: Enable multi-environment deployments in same GCP project
+- **Scope**: BigQuery datasets ONLY (not file paths or API endpoints)
 
 ### Configuration-Driven Pipeline Execution
 

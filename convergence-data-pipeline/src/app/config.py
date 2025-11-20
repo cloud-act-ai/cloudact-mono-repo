@@ -418,22 +418,46 @@ class Settings(BaseSettings):
 
         return str(matches[0])
 
+    def get_environment_suffix(self) -> str:
+        """
+        Get standardized environment suffix for dataset naming.
+
+        Maps environment values to short suffixes:
+        - development -> local
+        - staging -> stage
+        - production -> prod
+
+        Returns:
+            Environment suffix (local, stage, or prod)
+        """
+        env_map = {
+            "development": "local",
+            "staging": "stage",
+            "production": "prod"
+        }
+        return env_map.get(self.environment, "local")
+
     def get_tenant_dataset_name(self, tenant_id: str, dataset_type: str = None) -> str:
         """
-        Generate tenant-specific dataset name.
+        Generate tenant-specific dataset name with environment suffix.
 
-        Single-dataset-per-tenant architecture: All data and metadata tables
-        are stored in a single dataset named after the tenant_id.
+        New standard: All tenant datasets are named {tenant_id}_{environment}
+        to enable multi-environment deployments in the same GCP project.
 
         Args:
             tenant_id: The tenant identifier
             dataset_type: DEPRECATED - kept for backward compatibility, ignored
 
         Returns:
-            Dataset name: {tenant_id}
+            Dataset name: {tenant_id}_{environment}
+            Examples:
+                - sri_482433_local (development)
+                - sri_482433_stage (staging)
+                - sri_482433_prod (production)
         """
-        # Single dataset per tenant - dataset_type parameter ignored
-        return tenant_id
+        # Append environment suffix to tenant_id
+        env_suffix = self.get_environment_suffix()
+        return f"{tenant_id}_{env_suffix}"
 
 
     def load_dataset_types(self) -> List[Dict[str, Any]]:

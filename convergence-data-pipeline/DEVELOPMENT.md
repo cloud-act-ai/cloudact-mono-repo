@@ -144,17 +144,30 @@ tenants.tenant_dq_results            # Data quality results (centralized)
 
 **Access Pattern**: Every API request authenticates against this dataset.
 
-#### Per-Tenant Datasets (`{tenant_id}`)
+#### Per-Tenant Datasets (`{tenant_id}_{environment}`)
 
 **Purpose**: Isolated operational data per tenant
 
+**DATASET NAMING STANDARD**:
+- Format: `{tenant_id}_{environment}`
+- Environment mapping:
+  - `development` → `local`
+  - `staging` → `stage`
+  - `production` → `prod`
+- Examples:
+  - Development: `sri_482433_local`
+  - Staging: `sri_482433_stage`
+  - Production: `sri_482433_prod`
+- **Purpose**: Enable multi-environment deployments in same GCP project
+- **Scope**: BigQuery datasets ONLY (not file paths or API endpoints)
+
 **Tables**:
 ```
-{tenant_id}.tenant_comprehensive_view    # View showing all pipeline details (filters central tables)
-{tenant_id}.onboarding_validation_test   # Validation table created during onboarding
-{tenant_id}.gcp_cost_billing             # GCP billing data (example)
-{tenant_id}.aws_cost_cur                 # AWS Cost and Usage Reports (example)
-{tenant_id}.azure_cost_exports           # Azure cost exports (example)
+{tenant_id}_{env}.tenant_comprehensive_view    # View showing all pipeline details (filters central tables)
+{tenant_id}_{env}.onboarding_validation_test   # Validation table created during onboarding
+{tenant_id}_{env}.gcp_cost_billing             # GCP billing data (example)
+{tenant_id}_{env}.aws_cost_cur                 # AWS Cost and Usage Reports (example)
+{tenant_id}_{env}.azure_cost_exports           # Azure cost exports (example)
 ```
 
 **Isolation**: No cross-tenant queries possible (dataset-level separation)

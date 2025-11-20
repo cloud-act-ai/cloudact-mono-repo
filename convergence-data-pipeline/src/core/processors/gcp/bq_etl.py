@@ -127,8 +127,9 @@ class BigQueryETLEngine:
         tenant_id = context.get("tenant_id")
         table = self._replace_variables(destination.get("table", ""), variables)
 
-        # Build dataset name - always use just tenant_id
-        dataset_id = tenant_id
+        # Build dataset name with environment suffix
+        # Format: {tenant_id}_{environment} (e.g., sri_482433_local, sri_482433_prod)
+        dataset_id = self.settings.get_tenant_dataset_name(tenant_id)
         table_id = table
 
         full_table_id = f"{dest_project}.{dataset_id}.{table_id}"

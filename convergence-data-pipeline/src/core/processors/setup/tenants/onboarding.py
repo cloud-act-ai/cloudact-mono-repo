@@ -133,7 +133,9 @@ class TenantOnboardingProcessor:
         config = step_config.get("config", {})
 
         # Get configuration values
-        dataset_id = config.get("dataset_id", tenant_id)
+        # IMPORTANT: Use get_tenant_dataset_name to append environment suffix
+        # Format: {tenant_id}_{environment} (e.g., sri_482433_local, sri_482433_prod)
+        dataset_id = self.settings.get_tenant_dataset_name(tenant_id)
         location = config.get("location", "US")
         metadata_tables = config.get("metadata_tables", [])
 
@@ -242,7 +244,6 @@ class TenantOnboardingProcessor:
                 """
 
                 # Execute query with parameterized values (prevents SQL injection)
-                from google.cloud import bigquery
                 job_config = bigquery.QueryJobConfig(
                     query_parameters=[
                         bigquery.ScalarQueryParameter("usage_id", "STRING", usage_id),
@@ -306,7 +307,6 @@ class TenantOnboardingProcessor:
                     """
 
                     # Execute query with parameterized values (prevents SQL injection)
-                    from google.cloud import bigquery
                     job_config = bigquery.QueryJobConfig(
                         query_parameters=[
                             bigquery.ScalarQueryParameter("test_id", "STRING", test_row["id"]),
@@ -372,7 +372,6 @@ class TenantOnboardingProcessor:
             view_sql = view_sql.replace('{tenant_id}', tenant_id)
 
             # Execute view creation
-            from google.cloud import bigquery
             client = bigquery.Client(project=self.settings.gcp_project_id)
             query_job = client.query(view_sql)
             query_job.result()  # Wait for completion
