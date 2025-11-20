@@ -1,248 +1,561 @@
-# Convergence Data Pipeline - Complete Guide
+# Convergence Data Pipeline
 
-**Production-ready multi-tenant data pipeline for cloud cost and compliance analytics**
+**Multi-tenant data pipeline backend for cloud cost and compliance analytics**
+
+[![Production Ready](https://img.shields.io/badge/status-production--ready-success)]()
+[![Security](https://img.shields.io/badge/security-KMS%20encrypted-blue)]()
+[![Tests](https://img.shields.io/badge/tests-30%20test%20cases-brightgreen)]()
+
+**Version**: 1.1.0 | **Status**: Production Ready ✅
+
+---
+
+## 📖 Overview
+
+Convergence Data Pipeline is an enterprise-grade, configuration-driven multi-tenant backend service for processing cloud cost, security, and compliance data across GCP, AWS, and Azure. Built on FastAPI and BigQuery, it provides complete tenant isolation, automated pipeline execution, and comprehensive audit trails.
+
+### Key Features
+
+- **🔒 Multi-Tenant Architecture** - Complete data isolation with per-tenant BigQuery datasets
+- **⚙️ Configuration-Driven Pipelines** - All pipelines defined as YAML configurations (no hardcoded logic)
+- **🔐 Enterprise Security** - KMS encryption, SHA256 hashed API keys, role-based access control
+- **📊 Subscription Management** - Flexible plans with quota enforcement (STARTER, PROFESSIONAL, SCALE)
+- **🚀 Dual Execution Modes** - Real-time (API-triggered) and scheduled (Cloud Scheduler) pipeline runs
+- **📈 Complete Audit Trail** - Centralized logging with user_id tracking for compliance
+
+### Architecture Components
+
+```
+Frontend → API Gateway → FastAPI Backend → BigQuery
+                            ↓
+                    Pipeline Engine (YAML configs)
+                            ↓
+                Cloud KMS (encryption) + Secret Manager (credentials)
+                            ↓
+                    GCP/AWS/Azure Data Sources
+```
+
+---
 
 ## 🚀 Quick Start (5 Minutes)
 
-### Step 1: Generate Admin Key
+### Prerequisites
+
+- Python 3.11+
+- GCP Project with BigQuery and Cloud KMS enabled
+- Service account with necessary permissions
+- GCP credentials JSON file
+
+### Step 1: Generate Admin API Key
+
 ```bash
-cd /path/to/cloudact-backend-systems
+cd cloudact-backend-systems
 python3 scripts/generate_admin_key.py
+
+# Export the generated key
 export ADMIN_API_KEY='admin_<your-generated-key>'
 ```
 
 ### Step 2: Configure Environment
+
 ```bash
+# Set GCP credentials
 export GCP_PROJECT_ID='gac-prod-471220'
 export GOOGLE_APPLICATION_CREDENTIALS='/path/to/service-account.json'
 export ENVIRONMENT='development'
+
+# Optional: KMS configuration (for API key encryption)
+export GCP_KMS_KEY_NAME='projects/gac-prod-471220/locations/us-central1/keyRings/convergence-keyring-dev/cryptoKeys/api-key-encryption'
 ```
 
-### Step 3: Start Server
+### Step 3: Install Dependencies & Start Server
+
 ```bash
 cd convergence-data-pipeline
+pip install -r requirements.txt
+
+# Start FastAPI server
 python3 -m uvicorn src.app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 ### Step 4: Bootstrap System (One-Time)
+
 ```bash
+# Initialize central tenants dataset and management tables
 curl -X POST http://localhost:8000/api/v1/admin/bootstrap \
   -H "X-Admin-Key: $ADMIN_API_KEY" \
   -H 'Content-Type: application/json' \
   -d '{"force_recreate_dataset": false, "force_recreate_tables": false}'
 ```
 
-### Step 5: Create Tenant & API Key
+**Expected Response:**
+```json
+{
+  "status": "SUCCESS",
+  "dataset_created": true,
+  "tables_created": 11,
+  "message": "Bootstrap completed successfully"
+}
+```
+
+### Step 5: Create Your First Tenant
+
 ```bash
 # Create tenant
 curl -X POST http://localhost:8000/api/v1/admin/tenants \
   -H "X-Admin-Key: $ADMIN_API_KEY" \
   -H 'Content-Type: application/json' \
-  -d '{"tenant_id": "sri_482433", "description": "Sri Corp"}'
+  -d '{
+    "tenant_id": "acmecorp",
+    "description": "Acme Corporation"
+  }'
 
-# Generate tenant API key
+# Generate tenant API key (SAVE THIS - shown only once!)
 curl -X POST http://localhost:8000/api/v1/admin/api-keys \
   -H "X-Admin-Key: $ADMIN_API_KEY" \
   -H 'Content-Type: application/json' \
-  -d '{"tenant_id": "sri_482433", "description": "Production key"}'
+  -d '{
+    "tenant_id": "acmecorp",
+    "description": "Production API key"
+  }'
 ```
 
-### Step 6: Test
+**Response (save the `api_key`):**
+```json
+{
+  "api_key": "sk_acmecorp_xY9kL2mP4qR8vT...",
+  "tenant_api_key_hash": "8f3e2d1c...",
+  "tenant_id": "acmecorp",
+  "created_at": "2025-11-19T00:00:00Z"
+}
+```
+
+### Step 6: Execute Your First Pipeline
+
 ```bash
+export TENANT_API_KEY='sk_acmecorp_...'
+
+curl -X POST http://localhost:8000/api/v1/pipelines/run/acmecorp/gcp/cost/cost_billing \
+  -H 'Content-Type: application/json' \
+  -H "X-API-Key: $TENANT_API_KEY" \
+  -d '{"date": "2025-11-19"}'
+```
+
+### Step 7: Run Tests
+
+```bash
+# Local development tests (10 test cases)
 export API_URL='http://localhost:8000'
 ./tests/local_test_suite.sh
+
+# Expected: ✅ 10/10 tests passed
 ```
 
 ---
 
-## 📋 Complete Infrastructure & Deployment Guide
+## 📚 Documentation
 
-### 🛠️ Infrastructure Setup (One-Time)
+| Document | Description |
+|----------|-------------|
+| **[DEVELOPMENT.md](./DEVELOPMENT.md)** | Architecture, local setup, testing, troubleshooting |
+| **[DEPLOYMENT.md](./DEPLOYMENT.md)** | Infrastructure setup, staging/production deployment |
+| **[API.md](./API.md)** | Complete API reference and integration guide |
+| **[SECURITY.md](./convergence-data-pipeline/docs/security/SECURITY.md)** | Security architecture and best practices |
+| **[CLAUDE.md](./CLAUDE.md)** | Development session history and context |
 
-#### Prerequisites
-- GCP Project: `gac-prod-471220`
-- APIs enabled: BigQuery, Cloud KMS, Secret Manager
-- Service Account: `convergence-api@gac-prod-471220.iam.gserviceaccount.com`
+---
 
-#### Setup KMS
-```bash
-cd cloudact-infrastructure-scripts
-./02-setup-kms.sh
+## 🏗️ System Architecture
 
-# Creates:
-# - Keyring: convergence-keyring-prod (us-central1)
-# - Key: api-key-encryption
-# - Grants permissions to service account
+### Multi-Tenancy Model
+
+```
+┌─────────────────────────────────────────────────────────┐
+│           Central "tenants" Dataset (Shared)             │
+├─────────────────────────────────────────────────────────┤
+│  • tenant_profiles         (company metadata)            │
+│  • tenant_api_keys         (SHA256 hashed, KMS encrypted)│
+│  • tenant_subscriptions    (plan limits & quotas)        │
+│  • tenant_usage_quotas     (real-time tracking)          │
+│  • tenant_cloud_credentials (KMS encrypted)              │
+│  • tenant_pipeline_configs  (scheduled cron jobs)        │
+│  • tenant_pipeline_runs     (centralized execution logs) │
+│  • tenant_step_logs         (detailed step logs)         │
+│  • tenant_dq_results        (data quality results)       │
+└─────────────────────────────────────────────────────────┘
+
+              ↓ Complete Isolation ↓
+
+┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐
+│ Dataset: tenant1 │  │ Dataset: tenant2 │  │ Dataset: tenant3 │
+├──────────────────┤  ├──────────────────┤  ├──────────────────┤
+│ • gcp_cost_*     │  │ • gcp_cost_*     │  │ • gcp_cost_*     │
+│ • aws_cost_*     │  │ • aws_cost_*     │  │ • aws_cost_*     │
+│ • azure_cost_*   │  │ • azure_cost_*   │  │ • azure_cost_*   │
+│ • custom views   │  │ • custom views   │  │ • custom views   │
+└──────────────────┘  └──────────────────┘  └──────────────────┘
 ```
 
-### 💻 Local Development
+### Configuration-Driven Pipeline Execution
 
-```bash
-# Install dependencies
-cd convergence-data-pipeline
-pip install -r requirements.txt
+**All pipelines are YAML configurations** - no hardcoded pipeline logic!
 
-# Configure .env
-cat > .env <<EOF
-GCP_PROJECT_ID=gac-prod-471220
-GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
-KMS_PROJECT_ID=gac-prod-471220
-KMS_LOCATION=us-central1
-KMS_KEYRING=convergence-keyring-prod
-KMS_KEY=api-key-encryption
-ENVIRONMENT=development
-LOG_LEVEL=DEBUG
-ADMIN_API_KEY=$(python3 ../scripts/generate_admin_key.py --no-prompt)
-EOF
+```yaml
+# Example: configs/gcp/cost/cost_billing.yml
+pipeline_id: "{tenant_id}_gcp_cost_billing"
+description: "Extract GCP billing costs"
 
-# Start server
-python3 -m uvicorn src.app.main:app --reload --port 8000
+variables:
+  source_billing_table: "project.dataset.gcp_billing_export"
+  destination_dataset_type: "tenant_dataset"
+  destination_table: "gcp_cost_billing"
+
+steps:
+  - step_id: "extract_billing_costs"
+    ps_type: "gcp.bq_etl"
+    source:
+      query: "SELECT * FROM `{source_billing_table}` WHERE date='{date}'"
+    destination:
+      dataset_type: "{destination_dataset_type}"
+      table: "{destination_table}"
+      write_mode: "append"
 ```
 
-### 🚢 Deployment
+### Tenant vs User
 
-#### Staging Deployment
+| Concept | Definition | Scope | Quotas |
+|---------|------------|-------|--------|
+| **tenant_id** | Organization identifier | Business entity, subscription, datasets | ✅ Enforced |
+| **user_id** | Individual user UUID | Audit logging only | ❌ Not enforced |
+
+**Key**: Quotas and limits are enforced at **tenant level**. User IDs are for audit trails only.
+
+---
+
+## 🔑 Authentication & Authorization
+
+### Admin Authentication
+
+**Used for**: System bootstrap, tenant management, API key generation
+
 ```bash
-# Build and deploy
-gcloud builds submit --tag gcr.io/gac-prod-471220/convergence-api:staging
-gcloud run deploy convergence-api-staging \
-    --image gcr.io/gac-prod-471220/convergence-api:staging \
-    --region us-central1 \
-    --set-env-vars="ENVIRONMENT=staging,GCP_PROJECT_ID=gac-prod-471220" \
-    --update-secrets=ADMIN_API_KEY=admin-api-key-staging:latest \
-    --service-account=convergence-api@gac-prod-471220.iam.gserviceaccount.com \
-    --memory=2Gi --min-instances=1 --max-instances=10
+# All admin endpoints require X-Admin-Key header
+curl -X POST http://localhost:8000/api/v1/admin/tenants \
+  -H "X-Admin-Key: admin_..." \
+  -H 'Content-Type: application/json'
+```
 
-# Bootstrap
-STAGING_URL=$(gcloud run services describe convergence-api-staging --region=us-central1 --format='value(status.url)')
-curl -X POST "$STAGING_URL/api/v1/admin/bootstrap" \
-  -H "X-Admin-Key: $(gcloud secrets versions access latest --secret=admin-api-key-staging)" \
-  -H 'Content-Type: application/json' \
-  -d '{"force_recreate_dataset": false, "force_recreate_tables": false}'
+**Admin Endpoints:**
+- `POST /api/v1/admin/bootstrap` - Initialize system
+- `POST /api/v1/admin/tenants` - Create tenant
+- `POST /api/v1/admin/api-keys` - Generate tenant API key
+- `GET /api/v1/admin/tenants/{tenant_id}` - Get tenant details
+- `DELETE /api/v1/admin/api-keys/{hash}` - Revoke API key
 
-# Test
-export STAGING_URL="$STAGING_URL"
+### Tenant Authentication
+
+**Used for**: Pipeline execution, tenant operations
+
+```bash
+# Tenant endpoints require X-API-Key header
+curl -X POST http://localhost:8000/api/v1/pipelines/run/{tenant_id}/gcp/cost/billing \
+  -H "X-API-Key: sk_{tenant_id}_..." \
+  -H 'Content-Type: application/json'
+```
+
+**How It Works:**
+1. Client sends `X-API-Key: sk_acmecorp_xY9k...`
+2. Backend creates SHA256 hash: `hashlib.sha256(api_key.encode()).hexdigest()`
+3. Query `tenants.tenant_api_keys` for matching hash
+4. Verify `is_active = TRUE` and `expires_at > NOW()`
+5. Return authenticated tenant context
+
+**API Key Format:**
+```
+sk_{tenant_id}_{32_random_chars}
+```
+
+**Storage:**
+- `tenant_api_key_hash` (STRING) - SHA256 hash for fast lookup
+- `encrypted_tenant_api_key` (BYTES) - KMS encrypted for recovery
+- `is_active` (BOOL) - Active/revoked status
+- `expires_at` (TIMESTAMP) - Optional expiration
+
+---
+
+## 📊 Subscription Plans
+
+| Plan | Daily Pipelines | Monthly Pipelines | Concurrent Runs |
+|------|----------------|-------------------|-----------------|
+| **STARTER** | 6 | 180 | 1 |
+| **PROFESSIONAL** | 25 | 750 | 3 |
+| **SCALE** | 100 | 3000 | 10 |
+
+**Quota Enforcement:**
+- Checked before every pipeline execution
+- Returns `429 Too Many Requests` if exceeded
+- Daily quotas reset at midnight UTC
+- Monthly quotas reset on subscription anniversary
+
+---
+
+## 🔄 Data Flows
+
+### Flow 1: Manual Pipeline Execution (Real-Time Sync)
+
+```
+User/Frontend → API Request
+        ↓
+    Authenticate (X-API-Key → tenant_id)
+        ↓
+    Check Subscription Status (ACTIVE/TRIAL)
+        ↓
+    Check Quotas (daily/monthly/concurrent limits)
+        ↓
+    Load Pipeline Config (/configs/{provider}/{domain}/{pipeline}.yml)
+        ↓
+    Execute Pipeline Steps (processors)
+        ↓
+    Log Execution (tenant_pipeline_runs)
+        ↓
+    Update Quotas (increment pipelines_run_today)
+        ↓
+    Return pipeline_logging_id
+```
+
+### Flow 2: Scheduled Pipeline Execution (Offline/Batch Sync)
+
+**Cloud Scheduler Jobs:**
+
+1. **Hourly Trigger** (`0 * * * *`)
+   - `POST /api/v1/scheduler/trigger`
+   - Query `tenant_pipeline_configs` for due pipelines
+   - Insert into `tenant_pipeline_execution_queue`
+   - Update `next_run_time` based on cron expression
+
+2. **Queue Processor** (`*/5 * * * *`)
+   - `POST /api/v1/scheduler/process-queue`
+   - Get next QUEUED pipeline (priority order)
+   - Execute pipeline asynchronously
+   - Update status: COMPLETED/FAILED
+   - Remove from queue on success
+
+3. **Daily Quota Reset** (`0 0 * * *`)
+   - `POST /api/v1/scheduler/reset-daily-quotas`
+   - Reset `pipelines_run_today = 0` for all tenants
+   - Cleanup old records (>90 days)
+
+---
+
+## 🧪 Testing Strategy
+
+### Test Suites (30 Tests Total)
+
+**1. Local Test Suite** (`tests/local_test_suite.sh`) - 10 tests
+```bash
+export ADMIN_API_KEY='your-admin-key'
+export API_URL='http://localhost:8000'
+./tests/local_test_suite.sh
+```
+
+**Tests:**
+- Health endpoint
+- Bootstrap system
+- Tenant CRUD operations
+- API key generation/revocation
+- Pipeline execution
+- Quota enforcement
+- Error handling
+
+**2. Staging Test Suite** (`tests/staging_test_suite.sh`) - 10 tests
+```bash
+export STAGING_URL='https://staging-url.run.app'
 export ADMIN_API_KEY=$(gcloud secrets versions access latest --secret=admin-api-key-staging)
 ./tests/staging_test_suite.sh
 ```
 
-#### Production Deployment
-```bash
-# Build and deploy
-gcloud builds submit --tag gcr.io/gac-prod-471220/convergence-api:v1.0.0
-gcloud run deploy convergence-api-prod \
-    --image gcr.io/gac-prod-471220/convergence-api:v1.0.0 \
-    --region us-central1 \
-    --set-env-vars="ENVIRONMENT=production,GCP_PROJECT_ID=gac-prod-471220,LOG_LEVEL=INFO" \
-    --update-secrets=ADMIN_API_KEY=admin-api-key-prod:latest \
-    --service-account=convergence-api@gac-prod-471220.iam.gserviceaccount.com \
-    --memory=4Gi --min-instances=2 --max-instances=50
+**Tests:**
+- TLS/HTTPS validation
+- KMS encryption/decryption
+- Multi-tenant isolation
+- Performance benchmarks
+- Cloud Scheduler integration
 
-# Test
-PROD_URL=$(gcloud run services describe convergence-api-prod --region=us-central1 --format='value(status.url)')
-export PROD_URL="$PROD_URL"
+**3. Production Test Suite** (`tests/production_test_suite.sh`) - 10 tests
+```bash
+export PROD_URL='https://prod-url.run.app'
+export ADMIN_API_KEY=$(gcloud secrets versions access latest --secret=admin-api-key-prod)
 ./tests/production_test_suite.sh
 ```
 
-### 🧪 Testing (30 Tests)
-
-```bash
-# Local (10 tests)
-export ADMIN_API_KEY='your-key'
-export API_URL='http://localhost:8000'
-./tests/local_test_suite.sh
-
-# Staging (10 tests)
-export STAGING_URL='https://your-staging-url'
-./tests/staging_test_suite.sh
-
-# Production (10 tests - non-destructive)
-export PROD_URL='https://your-production-url'
-./tests/production_test_suite.sh
-```
+**Tests (non-destructive):**
+- Health checks
+- API availability
+- Rate limiting
+- Security validation
+- SLA monitoring
 
 ---
 
-## 📡 API Reference
+## 🐛 Troubleshooting
 
-### Admin Endpoints (Require `X-Admin-Key`)
+### Common Issues
 
+**1. Bootstrap Error: Dataset Already Exists**
 ```bash
-# Bootstrap
-POST /api/v1/admin/bootstrap
-X-Admin-Key: admin_...
-Body: {"force_recreate_dataset": false, "force_recreate_tables": false}
-
-# Create Tenant
-POST /api/v1/admin/tenants
-X-Admin-Key: admin_...
-Body: {"tenant_id": "sri_482433", "description": "Sri Corp"}
-
-# Generate API Key
-POST /api/v1/admin/api-keys
-X-Admin-Key: admin_...
-Body: {"tenant_id": "sri_482433", "description": "Production key"}
-Response: {"api_key": "sk_sri_482433_...", "tenant_api_key_hash": "..."}
-
-# Get Tenant
-GET /api/v1/admin/tenants/{tenant_id}
-X-Admin-Key: admin_...
-
-# Revoke API Key
-DELETE /api/v1/admin/api-keys/{hash}
-X-Admin-Key: admin_...
-```
-
-### Tenant Endpoints (Require `X-API-Key`)
-
-```bash
-# Execute Pipeline
-POST /api/v1/pipelines/run/{tenant_id}/{provider}/{domain}/{pipeline_id}
-X-API-Key: sk_tenant_...
-Body: {"date": "2025-11-19", "parameters": {}}
-
-# Onboard (Self-Service)
-POST /api/v1/tenants/onboard
-Body: {"tenant_id": "sri_482433", "company_name": "Sri Corp", "admin_email": "admin@sri.com"}
-```
-
----
-
-## 🔧 Troubleshooting
-
-### KMS Timeout
-```bash
-# Check permissions
-gcloud kms keys get-iam-policy api-key-encryption \
-    --location=us-central1 --keyring=convergence-keyring-prod
-```
-
-### Bootstrap Error
-```bash
-# Force recreate if needed
+# Force recreate tables only (keeps dataset)
 curl -X POST http://localhost:8000/api/v1/admin/bootstrap \
   -H "X-Admin-Key: $ADMIN_API_KEY" \
   -H 'Content-Type: application/json' \
   -d '{"force_recreate_dataset": false, "force_recreate_tables": true}'
 ```
 
-### View Logs
+**2. KMS Encryption Timeout**
 ```bash
-# Cloud Run logs
+# Check KMS permissions
+gcloud kms keys get-iam-policy api-key-encryption \
+  --location=us-central1 \
+  --keyring=convergence-keyring-dev \
+  --project=gac-prod-471220
+
+# Expected: Service account should have cloudkms.cryptoKeyEncrypterDecrypter role
+```
+
+**3. API Key Authentication Fails**
+```bash
+# Verify API key exists and is active
+SELECT tenant_id, is_active, expires_at, last_used_at
+FROM `gac-prod-471220.tenants.tenant_api_keys`
+WHERE tenant_id = 'acmecorp'
+AND is_active = TRUE;
+```
+
+**4. Permission Denied in BigQuery**
+```bash
+# Grant service account necessary roles
+gcloud projects add-iam-policy-binding gac-prod-471220 \
+  --member="serviceAccount:convergence-api@gac-prod-471220.iam.gserviceaccount.com" \
+  --role="roles/bigquery.dataEditor"
+```
+
+**5. View Logs for Debugging**
+```bash
+# Local development
+tail -f logs/convergence-data-pipeline.log
+
+# Cloud Run (production)
 gcloud run services logs read convergence-api-prod \
-    --region=us-central1 --limit=100 --filter='severity>=ERROR'
+  --region=us-central1 \
+  --limit=100 \
+  --filter='severity>=ERROR'
 ```
 
 ---
 
-## 📝 Recent Changes (v1.0.0)
+## 📁 Project Structure
 
-- ✅ Fixed critical security (admin endpoints)
-- ✅ Consistent field naming (`tenant_api_key_*`)
-- ✅ Fixed bootstrap logging error
-- ✅ Added 30 test cases
-- ✅ Production ready
+```
+cloudact-backend-systems/
+├── convergence-data-pipeline/
+│   ├── src/
+│   │   ├── app/
+│   │   │   ├── main.py                 # FastAPI app entry point
+│   │   │   ├── routers/
+│   │   │   │   ├── admin.py            # Admin endpoints
+│   │   │   │   ├── tenants.py          # Tenant onboarding
+│   │   │   │   ├── pipelines.py        # Pipeline execution
+│   │   │   │   └── scheduler.py        # Cloud Scheduler integration
+│   │   │   └── dependencies/
+│   │   │       └── auth.py             # Authentication logic
+│   │   ├── core/
+│   │   │   ├── processors/             # Pipeline processors
+│   │   │   │   ├── setup/initial/      # Bootstrap processor
+│   │   │   │   ├── setup/tenants/      # Onboarding processor
+│   │   │   │   └── gcp/cost/           # GCP cost processors
+│   │   │   ├── pipeline/               # Pipeline engine
+│   │   │   ├── scheduler/              # Scheduler logic
+│   │   │   └── security/               # KMS encryption
+│   │   └── configs/
+│   │       ├── setup/                  # Bootstrap configs
+│   │       ├── gcp/cost/               # GCP pipeline configs
+│   │       ├── aws/cost/               # AWS pipeline configs
+│   │       └── azure/cost/             # Azure pipeline configs
+│   ├── tests/
+│   │   ├── local_test_suite.sh         # 10 local tests
+│   │   ├── staging_test_suite.sh       # 10 staging tests
+│   │   └── production_test_suite.sh    # 10 production tests
+│   └── deployment/
+│       └── cloudbuild.yaml             # Cloud Build config
+├── scripts/
+│   ├── generate_admin_key.py           # Admin key generator
+│   └── setup_kms_infrastructure.py     # KMS setup automation
+├── cloudact-infrastructure-scripts/
+│   ├── 01-setup-project.sh
+│   ├── 02-setup-kms.sh
+│   ├── 03-setup-cloud-build.sh
+│   └── 04-setup-cloud-run.sh
+├── README.md                            # This file
+├── DEVELOPMENT.md                       # Development guide
+├── DEPLOYMENT.md                        # Deployment guide
+├── API.md                               # API reference
+└── CLAUDE.md                            # AI development context
+```
 
 ---
 
-**Version**: 1.0.0 | **Project**: gac-prod-471220 | **Status**: Production Ready ✅
+## 📈 Recent Changes
+
+### Version 1.1.0 (2025-11-19)
+
+**Security Fixes:**
+- ✅ Fixed 7 critical/high security vulnerabilities (SQL injection, plaintext storage, etc.)
+- ✅ Added transaction cleanup for failed onboarding
+- ✅ Implemented graceful error handling for dataset creation failures
+
+**Schema Updates:**
+- ✅ Renamed all API key fields with `tenant_` prefix for consistency
+- ✅ Added `tenant_api_key_id` to audit logs for key rotation support
+
+**Infrastructure:**
+- ✅ Created KMS setup automation scripts for all environments
+- ✅ Added comprehensive deployment documentation
+
+**Testing:**
+- ✅ Created 30-test suite across local/staging/production
+- ✅ Validated bootstrap, onboarding, and cleanup logic
+
+---
+
+## 🎯 Next Steps
+
+1. **Deploy KMS Infrastructure** (15 min)
+   - Run `python3 scripts/setup_kms_infrastructure.py local` from Cloud Shell
+   - Configure environment variables with KMS key paths
+
+2. **Deploy to Staging** (30 min)
+   - See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed instructions
+   - Run staging test suite for validation
+
+3. **Production Deployment** (1 hour)
+   - Review security checklist
+   - Deploy with monitoring and alerting
+   - Run non-destructive production tests
+
+---
+
+## 📞 Support & Contributing
+
+**Documentation:**
+- [Development Guide](./DEVELOPMENT.md) - Local setup and architecture
+- [Deployment Guide](./DEPLOYMENT.md) - Infrastructure and deployment
+- [API Reference](./API.md) - Complete API documentation
+- [Security](./convergence-data-pipeline/docs/security/SECURITY.md) - Security architecture
+
+**Getting Help:**
+- Check troubleshooting section above
+- Review logs for error messages
+- Consult architecture documentation
+
+---
+
+**License**: Proprietary | **Maintainer**: CloudAct Team | **Status**: Production Ready ✅
