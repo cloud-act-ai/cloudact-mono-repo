@@ -11,6 +11,7 @@ import hashlib
 import secrets
 import logging
 
+from google.cloud import bigquery
 from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
 from src.app.config import settings
 from src.app.dependencies.auth import verify_admin_key
@@ -167,7 +168,7 @@ async def bootstrap_system(
     "/admin/tenants",
     response_model=TenantResponse,
     summary="Create a new tenant",
-    description="Initialize a new tenant with BigQuery datasets. Rate limited: 10 requests/minute (expensive operation)"
+    description="Initialize a new tenant with BigQuery datasets, profile, and subscription. Rate limited: 10 requests/minute (expensive operation)"
 )
 async def create_tenant(
     request: CreateTenantRequest,
@@ -179,9 +180,10 @@ async def create_tenant(
     Create a new tenant.
 
     This will:
-    1. Create tenant-specific BigQuery datasets
-    2. Set up initial directory structure
-    3. Return tenant details
+    1. Create tenant profile in tenants.tenant_profiles
+    2. Create subscription in tenants.tenant_subscriptions
+    3. Create tenant-specific BigQuery datasets
+    4. Return tenant details
 
     - **tenant_id**: Unique tenant identifier (lowercase, alphanumeric, underscores only)
     - **description**: Optional description
@@ -196,7 +198,100 @@ async def create_tenant(
     )
 
     tenant_id = request.tenant_id
+    
+    # Default subscription plan limits
+    PLAN_LIMITS = {
+        "STARTER": {"max_daily": 10, "max_monthly": 300, "max_concurrent": 3},
+        "PROFESSIONAL": {"max_daily": 50, "max_monthly": 1500, "max_concurrent": 5},
+        "ENTERPRISE": {"max_daily": 200, "max_monthly": 6000, "max_concurrent": 10}
+    }
+    plan_limits = PLAN_LIMITS["STARTER"]  # Default to STARTER plan
 
+    # Step 1: Create tenant profile
+    try:
+        logger.info(f"Creating tenant profile for: {tenant_id}")
+        
+        insert_profile_query = f"""
+        INSERT INTO `{settings.gcp_project_id}.tenants.tenant_profiles`
+        (tenant_id, company_name, admin_email, tenant_dataset_id, status, subscription_plan, created_at, updated_at)
+        VALUES
+        (@tenant_id, @company_name, @admin_email, @tenant_dataset_id, 'ACTIVE', 'STARTER', CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP())
+        """
+
+        bq_client.client.query(
+            insert_profile_query,
+            job_config=bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
+                    bigquery.ScalarQueryParameter("company_name", "STRING", request.description or tenant_id),
+                    bigquery.ScalarQueryParameter("admin_email", "STRING", "admin@example.com"),  # Placeholder
+                    bigquery.ScalarQueryParameter("tenant_dataset_id", "STRING", tenant_id)
+                ]
+            )
+        ).result()
+
+        logger.info(f"Tenant profile created for: {tenant_id}")
+
+    except Exception as e:
+        logger.error(f"Failed to create tenant profile: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create tenant profile: {str(e)}"
+        )
+
+    # Step 2: Create subscription
+    try:
+        import uuid
+        from datetime import date
+        
+        logger.info(f"Creating subscription for: {tenant_id}")
+        
+        subscription_id = str(uuid.uuid4())
+        trial_end = date.today()  # No trial for admin-created tenants
+
+        insert_subscription_query = f"""
+        INSERT INTO `{settings.gcp_project_id}.tenants.tenant_subscriptions`
+        (subscription_id, tenant_id, plan_name, status, daily_limit, monthly_limit,
+         concurrent_limit, trial_end_date, created_at)
+        VALUES
+        (@subscription_id, @tenant_id, 'STARTER', 'ACTIVE', @daily_limit, @monthly_limit,
+         @concurrent_limit, @trial_end_date, CURRENT_TIMESTAMP())
+        """
+
+        bq_client.client.query(
+            insert_subscription_query,
+            job_config=bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("subscription_id", "STRING", subscription_id),
+                    bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
+                    bigquery.ScalarQueryParameter("daily_limit", "INT64", plan_limits["max_daily"]),
+                    bigquery.ScalarQueryParameter("monthly_limit", "INT64", plan_limits["max_monthly"]),
+                    bigquery.ScalarQueryParameter("concurrent_limit", "INT64", plan_limits["max_concurrent"]),
+                    bigquery.ScalarQueryParameter("trial_end_date", "DATE", trial_end)
+                ]
+            )
+        ).result()
+
+        logger.info(f"Subscription created for: {tenant_id}")
+
+    except Exception as e:
+        logger.error(f"Failed to create subscription: {e}", exc_info=True)
+        # Cleanup tenant profile
+        try:
+            bq_client.client.query(
+                f"DELETE FROM `{settings.gcp_project_id}.tenants.tenant_profiles` WHERE tenant_id = @tenant_id",
+                job_config=bigquery.QueryJobConfig(
+                    query_parameters=[bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id)]
+                )
+            ).result()
+        except:
+            pass
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create subscription: {str(e)}"
+        )
+
+    # Step 3: Create BigQuery datasets
     # Load dataset types from configuration
     datasets_to_create = [
         (dataset_type, f"{description} for {tenant_id}")
@@ -219,8 +314,24 @@ async def create_tenant(
             logger.error(error_msg, extra={"tenant_id": tenant_id, "dataset_type": dataset_type})
             dataset_errors.append(error_msg)
 
-    # If all datasets failed, raise error
+    # If all datasets failed, cleanup and raise error
     if datasets_created == 0 and dataset_errors:
+        # Cleanup tenant profile and subscription
+        try:
+            bq_client.client.query(
+                f"DELETE FROM `{settings.gcp_project_id}.tenants.tenant_profiles` WHERE tenant_id = @tenant_id",
+                job_config=bigquery.QueryJobConfig(
+                    query_parameters=[bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id)]
+                )
+            ).result()
+            bq_client.client.query(
+                f"DELETE FROM `{settings.gcp_project_id}.tenants.tenant_subscriptions` WHERE tenant_id = @tenant_id",
+                job_config=bigquery.QueryJobConfig(
+                    query_parameters=[bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id)]
+                )
+            ).result()
+        except:
+            pass
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create any datasets for tenant {tenant_id}: {'; '.join(dataset_errors)}"
@@ -346,22 +457,25 @@ async def create_api_key(
     # Hash the API key
     tenant_api_key_hash = hashlib.sha256(api_key.encode()).hexdigest()
 
+    # Generate unique API key ID
+    import uuid
+    tenant_api_key_id = str(uuid.uuid4())
+    
     # Insert into BigQuery
     insert_query = f"""
     INSERT INTO `{settings.gcp_project_id}.tenants.tenant_api_keys`
-    (tenant_api_key_hash, tenant_id, created_at, created_by, is_active, description)
+    (tenant_api_key_id, tenant_id, tenant_api_key_hash, is_active, created_at)
     VALUES
-    (@tenant_api_key_hash, @tenant_id, CURRENT_TIMESTAMP(), @created_by, TRUE, @description)
+    (@tenant_api_key_id, @tenant_id, @tenant_api_key_hash, TRUE, CURRENT_TIMESTAMP())
     """
 
     from google.cloud import bigquery
 
     job_config = bigquery.QueryJobConfig(
         query_parameters=[
+            bigquery.ScalarQueryParameter("tenant_api_key_id", "STRING", tenant_api_key_id),
             bigquery.ScalarQueryParameter("tenant_api_key_hash", "STRING", tenant_api_key_hash),
             bigquery.ScalarQueryParameter("tenant_id", "STRING", request.tenant_id),
-            bigquery.ScalarQueryParameter("created_by", "STRING", "admin_api"),
-            bigquery.ScalarQueryParameter("description", "STRING", request.description),
         ]
     )
 
