@@ -273,19 +273,17 @@ curl -X POST http://localhost:8000/api/v1/admin/api-keys \
 export TENANT_API_KEY='sk_acmecorp_...'
 
 curl -X POST http://localhost:8000/api/v1/pipelines/run/acmecorp/gcp/cost/cost_billing \
+```
   -H 'Content-Type: application/json' \
   -H "X-API-Key: $TENANT_API_KEY" \
   -d '{"date": "2025-11-19"}'
 ```
 
-### Step 7: Run Tests
-
+### Step 7: Run Verification
+ 
 ```bash
-# Local development tests (10 test cases)
-export API_URL='http://localhost:8000'
-./tests/local_test_suite.sh
-
-# Expected: ✅ 10/10 tests passed
+cd cloudact-backend-systems
+./simple_test.sh local
 ```
 
 ---
@@ -492,52 +490,42 @@ User/Frontend → API Request
 ---
 
 ## 🧪 Testing Strategy
-
-### Test Suites (30 Tests Total)
-
-**1. Local Test Suite** (`tests/local_test_suite.sh`) - 10 tests
+ 
+We use a single simplified script to verify the core end-to-end flow (Bootstrap -> Onboard -> Pipeline) across all environments.
+ 
+### Run Verification
+ 
+**Syntax:**
 ```bash
-export ADMIN_API_KEY='your-admin-key'
-export API_URL='http://localhost:8000'
-./tests/local_test_suite.sh
+cd cloudact-backend-systems
+./simple_test.sh [local|stage|prod]
 ```
-
-**Tests:**
-- Health endpoint
-- Bootstrap system
-- Tenant CRUD operations
-- API key generation/revocation
-- Pipeline execution
-- Quota enforcement
-- Error handling
-
-**2. Staging Test Suite** (`tests/staging_test_suite.sh`) - 10 tests
-```bash
-export STAGING_URL='https://staging-url.run.app'
-export ADMIN_API_KEY=$(gcloud secrets versions access latest --secret=admin-api-key-staging)
-./tests/staging_test_suite.sh
-```
-
-**Tests:**
-- TLS/HTTPS validation
-- KMS encryption/decryption
-- Multi-tenant isolation
-- Performance benchmarks
-- Cloud Scheduler integration
-
-**3. Production Test Suite** (`tests/production_test_suite.sh`) - 10 tests
-```bash
-export PROD_URL='https://prod-url.run.app'
-export ADMIN_API_KEY=$(gcloud secrets versions access latest --secret=admin-api-key-prod)
-./tests/production_test_suite.sh
-```
-
-**Tests (non-destructive):**
-- Health checks
-- API availability
-- Rate limiting
-- Security validation
-- SLA monitoring
+ 
+**Examples:**
+ 
+1. **Local Verification** (requires local server running):
+   ```bash
+   export ADMIN_API_KEY='admin_...'
+   ./simple_test.sh local
+   ```
+ 
+2. **Staging Verification**:
+   ```bash
+   # Admin key is fetched automatically from Secret Manager
+   ./simple_test.sh stage
+   ```
+ 
+3. **Production Verification**:
+   ```bash
+   # Admin key is fetched automatically from Secret Manager
+   ./simple_test.sh prod
+   ```
+ 
+**What it tests:**
+1.  **Bootstrap**: Ensures system tables and datasets exist.
+2.  **Onboarding**: Creates a test tenant (`test_{timestamp}`).
+3.  **API Key**: Generates a new API key for the tenant.
+4.  **Pipeline**: Triggers the `gcp/cost/cost_billing` pipeline and verifies acceptance.
 
 ---
 

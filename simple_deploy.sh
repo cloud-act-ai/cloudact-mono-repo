@@ -28,14 +28,19 @@ ENV=$1
 if [ "$ENV" = "stage" ]; then
     PROJECT_ID="gac-stage-471220"
     SERVICE_NAME="convergence-pipeline-stage"
-    SERVICE_ACCOUNT="cloudact-common@gac-prod-471220.iam.gserviceaccount.com"
+    SERVICE_ACCOUNT="convergence-sa-stage@gac-stage-471220.iam.gserviceaccount.com"
     DEPLOY_ENV="staging"
     echo -e "${YELLOW}Deploying to STAGING${NC}"
 elif [ "$ENV" = "prod" ]; then
     PROJECT_ID="gac-prod-471220"
     SERVICE_NAME="convergence-pipeline-prod"
-    SERVICE_ACCOUNT="cloudact-common@gac-prod-471220.iam.gserviceaccount.com"
+    SERVICE_ACCOUNT="convergence-sa-prod@gac-prod-471220.iam.gserviceaccount.com"
     DEPLOY_ENV="production"
+    # KMS Config for Production
+    KMS_PROJECT_ID="gac-prod-471220"
+    KMS_LOCATION="us-central1"
+    KMS_KEYRING="convergence-keyring-prod"
+    KMS_KEY="api-key-encryption"
     echo -e "${YELLOW}Deploying to PRODUCTION${NC}"
 else
     echo -e "${RED}Error: Environment must be 'stage' or 'prod'${NC}"
@@ -82,7 +87,7 @@ gcloud run deploy $SERVICE_NAME \
     --cpu=2 \
     --timeout=300 \
     --max-instances=10 \
-    --set-env-vars="GCP_PROJECT_ID=${PROJECT_ID},BIGQUERY_LOCATION=US,ENVIRONMENT=${DEPLOY_ENV}"
+    --set-env-vars="GCP_PROJECT_ID=${PROJECT_ID},BIGQUERY_LOCATION=US,ENVIRONMENT=${DEPLOY_ENV},KMS_PROJECT_ID=${KMS_PROJECT_ID},KMS_LOCATION=${KMS_LOCATION},KMS_KEYRING=${KMS_KEYRING},KMS_KEY=${KMS_KEY}"
 
 # Get service URL
 echo -e "${GREEN}Getting service URL...${NC}"
