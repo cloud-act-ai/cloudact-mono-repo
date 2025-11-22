@@ -1,11 +1,11 @@
 #!/bin/bash
 
 ################################################################################
-# 05-deploy.sh
+# simple_deploy.sh
 #
-# Main deployment script - Build and deploy to Cloud Run
+# Simple deployment script - Build locally and deploy to Cloud Run
 #
-# Usage: ./05-deploy.sh [stage|prod]
+# Usage: ./simple_deploy.sh [stage|prod]
 ################################################################################
 
 set -e
@@ -18,7 +18,7 @@ NC='\033[0m'
 
 if [ "$#" -ne 1 ]; then
     echo -e "${RED}Error: Environment required${NC}"
-    echo "Usage: ./05-deploy.sh [stage|prod]"
+    echo "Usage: ./simple_deploy.sh [stage|prod]"
     exit 1
 fi
 
@@ -28,12 +28,14 @@ ENV=$1
 if [ "$ENV" = "stage" ]; then
     PROJECT_ID="gac-stage-471220"
     SERVICE_NAME="convergence-pipeline-stage"
-    SERVICE_ACCOUNT="convergence-sa-stage@gac-stage-471220.iam.gserviceaccount.com"
+    SERVICE_ACCOUNT="cloudact-common@gac-prod-471220.iam.gserviceaccount.com"
+    DEPLOY_ENV="staging"
     echo -e "${YELLOW}Deploying to STAGING${NC}"
 elif [ "$ENV" = "prod" ]; then
     PROJECT_ID="gac-prod-471220"
     SERVICE_NAME="convergence-pipeline-prod"
-    SERVICE_ACCOUNT="convergence-sa-prod@gac-prod-471220.iam.gserviceaccount.com"
+    SERVICE_ACCOUNT="cloudact-common@gac-prod-471220.iam.gserviceaccount.com"
+    DEPLOY_ENV="production"
     echo -e "${YELLOW}Deploying to PRODUCTION${NC}"
 else
     echo -e "${RED}Error: Environment must be 'stage' or 'prod'${NC}"
@@ -42,7 +44,7 @@ fi
 
 REGION="us-central1"
 IMAGE_NAME="gcr.io/${PROJECT_ID}/${SERVICE_NAME}"
-SOURCE_DIR="../convergence-data-pipeline"
+SOURCE_DIR="convergence-data-pipeline"
 
 echo "Project: $PROJECT_ID"
 echo "Service: $SERVICE_NAME"
@@ -57,16 +59,19 @@ if [ ! -d "$SOURCE_DIR" ]; then
 fi
 
 # Set active project
+echo -e "${GREEN}[1/4] Setting active project to $PROJECT_ID...${NC}"
 gcloud config set project $PROJECT_ID
 
-# Build with Cloud Build
-echo -e "${GREEN}[1/3] Building Docker image with Cloud Build...${NC}"
-gcloud builds submit $SOURCE_DIR \
-    --tag=$IMAGE_NAME \
-    --timeout=20m
+# Build Docker image locally
+echo -e "${GREEN}[2/4] Building Docker image locally...${NC}"
+docker build --platform linux/amd64 -t $IMAGE_NAME -f $SOURCE_DIR/Dockerfile $SOURCE_DIR
+
+# Push Docker image to GCR
+echo -e "${GREEN}[3/4] Pushing Docker image to GCR...${NC}"
+docker push $IMAGE_NAME
 
 # Deploy to Cloud Run
-echo -e "${GREEN}[2/3] Deploying to Cloud Run...${NC}"
+echo -e "${GREEN}[4/4] Deploying to Cloud Run...${NC}"
 gcloud run deploy $SERVICE_NAME \
     --image=$IMAGE_NAME \
     --platform=managed \
@@ -77,10 +82,10 @@ gcloud run deploy $SERVICE_NAME \
     --cpu=2 \
     --timeout=300 \
     --max-instances=10 \
-    --set-env-vars="GCP_PROJECT_ID=${PROJECT_ID},BIGQUERY_LOCATION=US,ENVIRONMENT=${ENV}"
+    --set-env-vars="GCP_PROJECT_ID=${PROJECT_ID},BIGQUERY_LOCATION=US,ENVIRONMENT=${DEPLOY_ENV}"
 
 # Get service URL
-echo -e "${GREEN}[3/3] Getting service URL...${NC}"
+echo -e "${GREEN}Getting service URL...${NC}"
 SERVICE_URL=$(gcloud run services describe $SERVICE_NAME \
     --platform=managed \
     --region=$REGION \
@@ -91,12 +96,3 @@ echo -e "${GREEN}✓ Deployment complete!${NC}"
 echo ""
 echo -e "${BLUE}Service URL: $SERVICE_URL${NC}"
 echo ""
-echo "Testing health endpoint..."
-curl -s "${SERVICE_URL}/health" | jq '.' || echo "Health check endpoint not responding"
-echo ""
-echo "Deployment summary:"
-echo "  Environment: $ENV"
-echo "  Project: $PROJECT_ID"
-echo "  Service: $SERVICE_NAME"
-echo "  Region: $REGION"
-echo "  URL: $SERVICE_URL"

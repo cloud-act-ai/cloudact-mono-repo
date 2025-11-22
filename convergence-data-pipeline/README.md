@@ -156,9 +156,10 @@ class NewProviderProcessor(BaseProcessor):
 ### Prerequisites
 
 - Python 3.11+
+- Docker installed and running
+- Google Cloud SDK (gcloud) installed and authenticated
 - GCP Project with BigQuery and Cloud KMS enabled
 - Service account with necessary permissions
-- GCP credentials JSON file
 
 ### Step 1: Generate Admin API Key
 
@@ -190,6 +191,28 @@ pip install -r requirements.txt
 
 # Start FastAPI server
 python3 -m uvicorn src.app.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+### Step 4: Deployment
+
+We use a simple script to build locally and deploy to Cloud Run.
+
+**Deploy to Staging:**
+```bash
+cd cloudact-backend-systems
+./simple_deploy.sh stage
+```
+
+**Deploy to Production:**
+```bash
+cd cloudact-backend-systems
+./simple_deploy.sh prod
+```
+
+**Monitor Deployment:**
+```bash
+cd cloudact-backend-systems
+./monitor_deploy.sh stage  # or prod
 ```
 
 ### Step 4: Bootstrap System (One-Time)
