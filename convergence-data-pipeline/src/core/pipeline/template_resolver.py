@@ -63,7 +63,7 @@ class TemplateResolver:
             String with variables replaced
 
         Examples:
-            "{tenant_id}.raw_data" with {"tenant_id": "acme123"} -> "acme123.raw_data"
+            "{org_slug}.raw_data" with {"org_slug": "acme123"} -> "acme123.raw_data"
             "{pipeline_id}-{provider}" with {"pipeline_id": "billing", "provider": "gcp"}
                 -> "billing-gcp"
         """
@@ -119,7 +119,7 @@ def resolve_template(template_path: str, variables: Dict[str, str]) -> Dict[str,
 
     Example:
         >>> variables = {
-        ...     "tenant_id": "acmeinc_23xv2",
+        ...     "org_slug": "acmeinc_23xv2",
         ...     "provider": "gcp",
         ...     "domain": "cost",
         ...     "template_name": "bill-sample-export-template",

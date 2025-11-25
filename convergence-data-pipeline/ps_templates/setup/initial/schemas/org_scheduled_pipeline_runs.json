@@ -1,0 +1,92 @@
+[
+  {
+    "name": "run_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Unique identifier for this scheduled run"
+  },
+  {
+    "name": "config_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Pipeline configuration that generated this run"
+  },
+  {
+    "name": "org_slug",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Organization for this scheduled run"
+  },
+  {
+    "name": "pipeline_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Pipeline identifier"
+  },
+  {
+    "name": "state",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Run state: PENDING, QUEUED, RUNNING, COMPLETED, FAILED, CANCELLED"
+  },
+  {
+    "name": "scheduled_time",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "When this run was scheduled to execute"
+  },
+  {
+    "name": "priority",
+    "type": "INTEGER",
+    "mode": "REQUIRED",
+    "description": "Execution priority (1=highest, 10=lowest)"
+  },
+  {
+    "name": "parameters",
+    "type": "JSON",
+    "mode": "NULLABLE",
+    "description": "Runtime parameters as JSON object"
+  },
+  {
+    "name": "pipeline_logging_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Actual pipeline execution ID (links to org_meta_pipeline_runs)"
+  },
+  {
+    "name": "retry_count",
+    "type": "INTEGER",
+    "mode": "REQUIRED",
+    "description": "Number of retry attempts"
+  },
+  {
+    "name": "max_retries",
+    "type": "INTEGER",
+    "mode": "REQUIRED",
+    "description": "Maximum allowed retry attempts"
+  },
+  {
+    "name": "completed_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "Timestamp when run completed successfully"
+  },
+  {
+    "name": "failed_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "Timestamp when run failed"
+  },
+  {
+    "name": "error_message",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Error message if run failed"
+  },
+  {
+    "name": "created_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "Timestamp when scheduled run was created"
+  }
+]

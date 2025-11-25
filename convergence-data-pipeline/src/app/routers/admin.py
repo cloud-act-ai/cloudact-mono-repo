@@ -1,6 +1,6 @@
 """
 Admin API Routes
-Endpoints for tenant and API key management.
+Endpoints for organization and API key management.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status, Request
@@ -26,30 +26,30 @@ router = APIRouter()
 # Request/Response Models
 # ============================================
 
-class CreateTenantRequest(BaseModel):
-    """Request to create a new tenant."""
-    tenant_id: str = Field(..., pattern="^[a-z0-9_]+$", description="Tenant identifier (lowercase, alphanumeric, underscores)")
-    description: Optional[str] = Field(None, description="Tenant description")
+class CreateOrgRequest(BaseModel):
+    """Request to create a new organization."""
+    org_slug: str = Field(..., pattern="^[a-z0-9_]+$", description="Organization identifier (lowercase, alphanumeric, underscores)")
+    description: Optional[str] = Field(None, description="Organization description")
 
 
 class CreateAPIKeyRequest(BaseModel):
     """Request to create an API key."""
-    tenant_id: str
+    org_slug: str
     description: Optional[str] = None
 
 
 class APIKeyResponse(BaseModel):
     """Response containing API key."""
     api_key: str
-    tenant_api_key_hash: str
-    tenant_id: str
+    org_api_key_hash: str
+    org_slug: str
     created_at: datetime
     description: Optional[str]
 
 
-class TenantResponse(BaseModel):
-    """Response for tenant info."""
-    tenant_id: str
+class OrgResponse(BaseModel):
+    """Response for organization info."""
+    org_slug: str
     datasets_created: int
     api_keys_count: int
     total_pipeline_runs: int
@@ -59,12 +59,14 @@ class BootstrapRequest(BaseModel):
     """Request to bootstrap system."""
     force_recreate_dataset: bool = Field(
         False,
-        description="Force delete and recreate central tenants dataset"
+        description="Force delete and recreate central organizations dataset"
     )
     force_recreate_tables: bool = Field(
         False,
-        description="Force delete and recreate all tenant management tables"
+        description="Force delete and recreate all org management tables"
     )
+
+
 
 
 class BootstrapResponse(BaseModel):
@@ -85,7 +87,7 @@ class BootstrapResponse(BaseModel):
     "/admin/bootstrap",
     response_model=BootstrapResponse,
     summary="Bootstrap system",
-    description="One-time system bootstrap to create central tenants dataset and management tables"
+    description="One-time system bootstrap to create central organizations dataset and management tables"
 )
 async def bootstrap_system(
     request: BootstrapRequest,
@@ -95,8 +97,8 @@ async def bootstrap_system(
     Bootstrap the system for first-time setup.
 
     Creates:
-    - Central 'tenants' dataset
-    - All tenant management tables with proper schemas
+    - Central 'organizations' dataset
+    - All organization management tables with proper schemas
 
     This endpoint requires admin authentication via X-Admin-Key header.
 
@@ -161,43 +163,43 @@ async def bootstrap_system(
 
 
 # ============================================
-# Tenant Management
+# Organization Management
 # ============================================
 
 @router.post(
-    "/admin/tenants",
-    response_model=TenantResponse,
-    summary="Create a new tenant",
-    description="Initialize a new tenant with BigQuery datasets, profile, and subscription. Rate limited: 10 requests/minute (expensive operation)"
+    "/admin/organizations",
+    response_model=OrgResponse,
+    summary="Create a new organization",
+    description="Initialize a new organization with BigQuery datasets, profile, and subscription. Rate limited: 10 requests/minute (expensive operation)"
 )
-async def create_tenant(
-    request: CreateTenantRequest,
+async def create_org(
+    request: CreateOrgRequest,
     http_request: Request,
     bq_client: BigQueryClient = Depends(get_bigquery_client),
     _admin: None = Depends(verify_admin_key)
 ):
     """
-    Create a new tenant.
+    Create a new organization.
 
     This will:
-    1. Create tenant profile in tenants.tenant_profiles
-    2. Create subscription in tenants.tenant_subscriptions
-    3. Create tenant-specific BigQuery datasets
-    4. Return tenant details
+    1. Create org profile in organizations.org_profiles
+    2. Create subscription in organizations.org_subscriptions
+    3. Create org-specific BigQuery datasets
+    4. Return org details
 
-    - **tenant_id**: Unique tenant identifier (lowercase, alphanumeric, underscores only)
+    - **org_slug**: Unique organization identifier (lowercase, alphanumeric, underscores only)
     - **description**: Optional description
 
     RATE LIMITED: 10 requests/minute per admin (protects expensive BigQuery operations)
     """
-    # Apply rate limiting for expensive tenant creation
+    # Apply rate limiting for expensive org creation
     await rate_limit_global(
         http_request,
-        endpoint_name="admin_create_tenant",
-        limit_per_minute=settings.rate_limit_admin_tenants_per_minute
+        endpoint_name="admin_create_org",
+        limit_per_minute=settings.rate_limit_admin_orgs_per_minute
     )
 
-    tenant_id = request.tenant_id
+    org_slug = request.org_slug
     
     # Default subscription plan limits
     PLAN_LIMITS = {
@@ -207,54 +209,54 @@ async def create_tenant(
     }
     plan_limits = PLAN_LIMITS["STARTER"]  # Default to STARTER plan
 
-    # Step 1: Create tenant profile
+    # Step 1: Create org profile
     try:
-        logger.info(f"Creating tenant profile for: {tenant_id}")
-        
+        logger.info(f"Creating org profile for: {org_slug}")
+
         insert_profile_query = f"""
-        INSERT INTO `{settings.gcp_project_id}.tenants.tenant_profiles`
-        (tenant_id, company_name, admin_email, tenant_dataset_id, status, subscription_plan, created_at, updated_at)
+        INSERT INTO `{settings.gcp_project_id}.organizations.org_profiles`
+        (org_slug, company_name, admin_email, org_dataset_id, status, subscription_plan, created_at, updated_at)
         VALUES
-        (@tenant_id, @company_name, @admin_email, @tenant_dataset_id, 'ACTIVE', 'STARTER', CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP())
+        (@org_slug, @company_name, @admin_email, @org_dataset_id, 'ACTIVE', 'STARTER', CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP())
         """
 
         bq_client.client.query(
             insert_profile_query,
             job_config=bigquery.QueryJobConfig(
                 query_parameters=[
-                    bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
-                    bigquery.ScalarQueryParameter("company_name", "STRING", request.description or tenant_id),
+                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                    bigquery.ScalarQueryParameter("company_name", "STRING", request.description or org_slug),
                     bigquery.ScalarQueryParameter("admin_email", "STRING", "admin@example.com"),  # Placeholder
-                    bigquery.ScalarQueryParameter("tenant_dataset_id", "STRING", tenant_id)
+                    bigquery.ScalarQueryParameter("org_dataset_id", "STRING", org_slug)
                 ]
             )
         ).result()
 
-        logger.info(f"Tenant profile created for: {tenant_id}")
+        logger.info(f"Organization profile created for: {org_slug}")
 
     except Exception as e:
-        logger.error(f"Failed to create tenant profile: {e}", exc_info=True)
+        logger.error(f"Failed to create org profile: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create tenant profile: {str(e)}"
+            detail=f"Failed to create organization profile: {str(e)}"
         )
 
     # Step 2: Create subscription
     try:
         import uuid
         from datetime import date
-        
-        logger.info(f"Creating subscription for: {tenant_id}")
-        
+
+        logger.info(f"Creating subscription for: {org_slug}")
+
         subscription_id = str(uuid.uuid4())
-        trial_end = date.today()  # No trial for admin-created tenants
+        trial_end = date.today()  # No trial for admin-created orgs
 
         insert_subscription_query = f"""
-        INSERT INTO `{settings.gcp_project_id}.tenants.tenant_subscriptions`
-        (subscription_id, tenant_id, plan_name, status, daily_limit, monthly_limit,
+        INSERT INTO `{settings.gcp_project_id}.organizations.org_subscriptions`
+        (subscription_id, org_slug, plan_name, status, daily_limit, monthly_limit,
          concurrent_limit, trial_end_date, created_at)
         VALUES
-        (@subscription_id, @tenant_id, 'STARTER', 'ACTIVE', @daily_limit, @monthly_limit,
+        (@subscription_id, @org_slug, 'STARTER', 'ACTIVE', @daily_limit, @monthly_limit,
          @concurrent_limit, @trial_end_date, CURRENT_TIMESTAMP())
         """
 
@@ -263,7 +265,7 @@ async def create_tenant(
             job_config=bigquery.QueryJobConfig(
                 query_parameters=[
                     bigquery.ScalarQueryParameter("subscription_id", "STRING", subscription_id),
-                    bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
+                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
                     bigquery.ScalarQueryParameter("daily_limit", "INT64", plan_limits["max_daily"]),
                     bigquery.ScalarQueryParameter("monthly_limit", "INT64", plan_limits["max_monthly"]),
                     bigquery.ScalarQueryParameter("concurrent_limit", "INT64", plan_limits["max_concurrent"]),
@@ -272,16 +274,16 @@ async def create_tenant(
             )
         ).result()
 
-        logger.info(f"Subscription created for: {tenant_id}")
+        logger.info(f"Subscription created for: {org_slug}")
 
     except Exception as e:
         logger.error(f"Failed to create subscription: {e}", exc_info=True)
-        # Cleanup tenant profile
+        # Cleanup org profile
         try:
             bq_client.client.query(
-                f"DELETE FROM `{settings.gcp_project_id}.tenants.tenant_profiles` WHERE tenant_id = @tenant_id",
+                f"DELETE FROM `{settings.gcp_project_id}.organizations.org_profiles` WHERE org_slug = @org_slug",
                 job_config=bigquery.QueryJobConfig(
-                    query_parameters=[bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id)]
+                    query_parameters=[bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)]
                 )
             ).result()
         except:
@@ -291,10 +293,66 @@ async def create_tenant(
             detail=f"Failed to create subscription: {str(e)}"
         )
 
-    # Step 3: Create BigQuery datasets
+    # Step 3: Create initial usage quota record
+    try:
+        from datetime import date
+
+        logger.info(f"Creating usage quota for: {org_slug}")
+
+        usage_id = f"{org_slug}_{date.today().strftime('%Y%m%d')}"
+
+        insert_usage_query = f"""
+        INSERT INTO `{settings.gcp_project_id}.organizations.org_usage_quotas`
+        (usage_id, org_slug, usage_date, pipelines_run_today, pipelines_succeeded_today,
+         pipelines_failed_today, pipelines_run_month, concurrent_pipelines_running,
+         daily_limit, monthly_limit, concurrent_limit, created_at)
+        VALUES
+        (@usage_id, @org_slug, CURRENT_DATE(), 0, 0, 0, 0, 0, @daily_limit, @monthly_limit,
+         @concurrent_limit, CURRENT_TIMESTAMP())
+        """
+
+        bq_client.client.query(
+            insert_usage_query,
+            job_config=bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("usage_id", "STRING", usage_id),
+                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                    bigquery.ScalarQueryParameter("daily_limit", "INT64", plan_limits["max_daily"]),
+                    bigquery.ScalarQueryParameter("monthly_limit", "INT64", plan_limits["max_monthly"]),
+                    bigquery.ScalarQueryParameter("concurrent_limit", "INT64", plan_limits["max_concurrent"])
+                ]
+            )
+        ).result()
+
+        logger.info(f"Usage quota created for: {org_slug}")
+
+    except Exception as e:
+        logger.error(f"Failed to create usage quota: {e}", exc_info=True)
+        # Cleanup org profile and subscription
+        try:
+            bq_client.client.query(
+                f"DELETE FROM `{settings.gcp_project_id}.organizations.org_profiles` WHERE org_slug = @org_slug",
+                job_config=bigquery.QueryJobConfig(
+                    query_parameters=[bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)]
+                )
+            ).result()
+            bq_client.client.query(
+                f"DELETE FROM `{settings.gcp_project_id}.organizations.org_subscriptions` WHERE org_slug = @org_slug",
+                job_config=bigquery.QueryJobConfig(
+                    query_parameters=[bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)]
+                )
+            ).result()
+        except:
+            pass
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create usage quota: {str(e)}"
+        )
+
+    # Step 4: Create BigQuery datasets
     # Load dataset types from configuration
     datasets_to_create = [
-        (dataset_type, f"{description} for {tenant_id}")
+        (dataset_type, f"{description} for {org_slug}")
         for dataset_type, description in settings.get_dataset_types_with_descriptions()
     ]
 
@@ -303,7 +361,7 @@ async def create_tenant(
     for dataset_type, description in datasets_to_create:
         try:
             bq_client.create_dataset(
-                tenant_id=tenant_id,
+                org_slug=org_slug,
                 dataset_type=dataset_type,
                 description=description
             )
@@ -311,70 +369,72 @@ async def create_tenant(
         except Exception as e:
             # Log error and track failures
             error_msg = f"Failed to create dataset {dataset_type}: {str(e)}"
-            logger.error(error_msg, extra={"tenant_id": tenant_id, "dataset_type": dataset_type})
+            logger.error(error_msg, extra={"org_slug": org_slug, "dataset_type": dataset_type})
             dataset_errors.append(error_msg)
 
     # If all datasets failed, cleanup and raise error
     if datasets_created == 0 and dataset_errors:
-        # Cleanup tenant profile and subscription
+        # Cleanup org profile and subscription
         try:
             bq_client.client.query(
-                f"DELETE FROM `{settings.gcp_project_id}.tenants.tenant_profiles` WHERE tenant_id = @tenant_id",
+                f"DELETE FROM `{settings.gcp_project_id}.organizations.org_profiles` WHERE org_slug = @org_slug",
                 job_config=bigquery.QueryJobConfig(
-                    query_parameters=[bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id)]
+                    query_parameters=[bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)]
                 )
             ).result()
             bq_client.client.query(
-                f"DELETE FROM `{settings.gcp_project_id}.tenants.tenant_subscriptions` WHERE tenant_id = @tenant_id",
+                f"DELETE FROM `{settings.gcp_project_id}.organizations.org_subscriptions` WHERE org_slug = @org_slug",
                 job_config=bigquery.QueryJobConfig(
-                    query_parameters=[bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id)]
+                    query_parameters=[bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)]
                 )
             ).result()
         except:
             pass
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create any datasets for tenant {tenant_id}: {'; '.join(dataset_errors)}"
+            detail=f"Failed to create any datasets for org {org_slug}: {'; '.join(dataset_errors)}"
         )
 
-    return TenantResponse(
-        tenant_id=tenant_id,
+    return OrgResponse(
+        org_slug=org_slug,
         datasets_created=datasets_created,
         api_keys_count=0,
         total_pipeline_runs=0
     )
 
 
+
+
 @router.get(
-    "/admin/tenants/{tenant_id}",
-    response_model=TenantResponse,
-    summary="Get tenant status",
-    description="Get tenant information and statistics"
+    "/admin/organizations/{org_slug}",
+    response_model=OrgResponse,
+    summary="Get organization status",
+    description="Get organization information and statistics"
 )
-async def get_tenant(
-    tenant_id: str,
+async def get_org(
+    org_slug: str,
     bq_client: BigQueryClient = Depends(get_bigquery_client),
     _admin: None = Depends(verify_admin_key)
 ):
     """
-    Get tenant details and statistics.
+    Get organization details and statistics.
 
-    - **tenant_id**: Tenant identifier
+    - **org_slug**: Organization identifier
 
-    Returns tenant information including dataset count, API keys, and pipeline runs.
+    Returns org information including dataset count, API keys, and pipeline runs.
     """
     # Count API keys
     api_keys_query = f"""
     SELECT COUNT(*) as count
-    FROM `{settings.gcp_project_id}.tenants.tenant_api_keys`
-    WHERE tenant_id = @tenant_id
+    FROM `{settings.gcp_project_id}.organizations.org_api_keys`
+    WHERE org_slug = @org_slug
     """
 
     from google.cloud import bigquery
 
     job_config = bigquery.QueryJobConfig(
         query_parameters=[
-            bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id)
+            bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
         ]
     )
 
@@ -384,8 +444,8 @@ async def get_tenant(
     # Count pipeline runs
     runs_query = f"""
     SELECT COUNT(*) as count
-    FROM `{settings.gcp_project_id}.tenants.tenant_pipeline_runs`
-    WHERE tenant_id = @tenant_id
+    FROM `{settings.gcp_project_id}.organizations.org_pipeline_runs`
+    WHERE org_slug = @org_slug
     """
 
     runs_result = list(bq_client.client.query(runs_query, job_config=job_config).result())
@@ -394,12 +454,14 @@ async def get_tenant(
     # Get dataset count from configuration
     datasets_created = len(settings.get_dataset_type_names())
 
-    return TenantResponse(
-        tenant_id=tenant_id,
+    return OrgResponse(
+        org_slug=org_slug,
         datasets_created=datasets_created,
         api_keys_count=api_keys_count,
         total_pipeline_runs=runs_count
     )
+
+
 
 
 # ============================================
@@ -410,7 +472,7 @@ async def get_tenant(
     "/admin/api-keys",
     response_model=APIKeyResponse,
     summary="Generate API key",
-    description="Generate a new API key for a tenant"
+    description="Generate a new API key for an organization"
 )
 async def create_api_key(
     request: CreateAPIKeyRequest,
@@ -418,64 +480,64 @@ async def create_api_key(
     _admin: None = Depends(verify_admin_key)
 ):
     """
-    Generate a new API key for a tenant.
+    Generate a new API key for an organization.
 
-    - **tenant_id**: Tenant identifier
+    - **org_slug**: Organization identifier
     - **description**: Optional description for the API key
 
     Returns the generated API key (SAVE THIS - it won't be shown again).
     """
-    # VALIDATION: Check if tenant already has an active API key
+    # VALIDATION: Check if org already has an active API key
     from google.cloud import bigquery
 
     check_query = f"""
-    SELECT tenant_api_key_hash, created_at
-    FROM `{settings.gcp_project_id}.tenants.tenant_api_keys`
-    WHERE tenant_id = @tenant_id AND is_active = TRUE
+    SELECT org_api_key_hash, created_at
+    FROM `{settings.gcp_project_id}.organizations.org_api_keys`
+    WHERE org_slug = @org_slug AND is_active = TRUE
     LIMIT 1
     """
 
     check_config = bigquery.QueryJobConfig(
         query_parameters=[
-            bigquery.ScalarQueryParameter("tenant_id", "STRING", request.tenant_id)
+            bigquery.ScalarQueryParameter("org_slug", "STRING", request.org_slug)
         ]
     )
 
     existing_keys = list(bq_client.client.query(check_query, job_config=check_config).result())
 
     if existing_keys:
-        existing_hash = existing_keys[0]["tenant_api_key_hash"]
-        logger.warning(f"Tenant {request.tenant_id} already has an active API key: {existing_hash[:16]}...")
+        existing_hash = existing_keys[0]["org_api_key_hash"]
+        logger.warning(f"Organization {request.org_slug} already has an active API key: {existing_hash[:16]}...")
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"Tenant '{request.tenant_id}' already has an active API key. Revoke the existing key first or contact support."
+            detail=f"Organization '{request.org_slug}' already has an active API key. Revoke the existing key first or contact support."
         )
 
     # Generate secure random API key
-    api_key = f"sk_{request.tenant_id}_{secrets.token_urlsafe(32)}"
+    api_key = f"sk_{request.org_slug}_{secrets.token_urlsafe(32)}"
 
     # Hash the API key
-    tenant_api_key_hash = hashlib.sha256(api_key.encode()).hexdigest()
+    org_api_key_hash = hashlib.sha256(api_key.encode()).hexdigest()
 
     # Generate unique API key ID
     import uuid
-    tenant_api_key_id = str(uuid.uuid4())
-    
+    org_api_key_id = str(uuid.uuid4())
+
     # Insert into BigQuery
     insert_query = f"""
-    INSERT INTO `{settings.gcp_project_id}.tenants.tenant_api_keys`
-    (tenant_api_key_id, tenant_id, tenant_api_key_hash, is_active, created_at)
+    INSERT INTO `{settings.gcp_project_id}.organizations.org_api_keys`
+    (org_api_key_id, org_slug, org_api_key_hash, is_active, created_at)
     VALUES
-    (@tenant_api_key_id, @tenant_id, @tenant_api_key_hash, TRUE, CURRENT_TIMESTAMP())
+    (@org_api_key_id, @org_slug, @org_api_key_hash, TRUE, CURRENT_TIMESTAMP())
     """
 
     from google.cloud import bigquery
 
     job_config = bigquery.QueryJobConfig(
         query_parameters=[
-            bigquery.ScalarQueryParameter("tenant_api_key_id", "STRING", tenant_api_key_id),
-            bigquery.ScalarQueryParameter("tenant_api_key_hash", "STRING", tenant_api_key_hash),
-            bigquery.ScalarQueryParameter("tenant_id", "STRING", request.tenant_id),
+            bigquery.ScalarQueryParameter("org_api_key_id", "STRING", org_api_key_id),
+            bigquery.ScalarQueryParameter("org_api_key_hash", "STRING", org_api_key_hash),
+            bigquery.ScalarQueryParameter("org_slug", "STRING", request.org_slug),
         ]
     )
 
@@ -483,47 +545,47 @@ async def create_api_key(
 
     return APIKeyResponse(
         api_key=api_key,
-        tenant_api_key_hash=tenant_api_key_hash,
-        tenant_id=request.tenant_id,
+        org_api_key_hash=org_api_key_hash,
+        org_slug=request.org_slug,
         created_at=datetime.utcnow(),
         description=request.description
     )
 
 
 @router.delete(
-    "/admin/api-keys/{tenant_api_key_hash}",
+    "/admin/api-keys/{org_api_key_hash}",
     summary="Revoke API key",
     description="Deactivate an API key"
 )
 async def revoke_api_key(
-    tenant_api_key_hash: str,
+    org_api_key_hash: str,
     bq_client: BigQueryClient = Depends(get_bigquery_client),
     _admin: None = Depends(verify_admin_key)
 ):
     """
     Revoke (deactivate) an API key.
 
-    - **tenant_api_key_hash**: SHA256 hash of the API key
+    - **org_api_key_hash**: SHA256 hash of the API key
 
     The API key will be marked as inactive and can no longer be used.
     """
     update_query = f"""
-    UPDATE `{settings.gcp_project_id}.tenants.tenant_api_keys`
+    UPDATE `{settings.gcp_project_id}.organizations.org_api_keys`
     SET is_active = FALSE
-    WHERE tenant_api_key_hash = @tenant_api_key_hash
+    WHERE org_api_key_hash = @org_api_key_hash
     """
 
     from google.cloud import bigquery
 
     job_config = bigquery.QueryJobConfig(
         query_parameters=[
-            bigquery.ScalarQueryParameter("tenant_api_key_hash", "STRING", tenant_api_key_hash)
+            bigquery.ScalarQueryParameter("org_api_key_hash", "STRING", org_api_key_hash)
         ]
     )
 
     bq_client.client.query(update_query, job_config=job_config).result()
 
     return {
-        "tenant_api_key_hash": tenant_api_key_hash,
+        "org_api_key_hash": org_api_key_hash,
         "message": "API key revoked successfully"
     }

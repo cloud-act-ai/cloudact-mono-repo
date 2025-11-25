@@ -68,9 +68,9 @@
         "column": "billing_account_id"
       },
       "meta": {
-        "description": "Billing account ID is required for tenant mapping",
+        "description": "Billing account ID is required for organization mapping",
         "severity": "critical",
-        "notes": "Primary key for multi-tenant cost allocation"
+        "notes": "Primary key for multi-organization cost allocation"
       }
     },
     {

@@ -30,6 +30,11 @@ if [ "$ENV" = "stage" ]; then
     SERVICE_NAME="convergence-pipeline-stage"
     SERVICE_ACCOUNT="convergence-sa-stage@gac-stage-471220.iam.gserviceaccount.com"
     DEPLOY_ENV="staging"
+    # KMS Config for Staging (uses production KMS for shared encryption)
+    KMS_PROJECT_ID="gac-prod-471220"
+    KMS_LOCATION="us-central1"
+    KMS_KEYRING="convergence-keyring-prod"
+    KMS_KEY="api-key-encryption"
     echo -e "${YELLOW}Deploying to STAGING${NC}"
 elif [ "$ENV" = "prod" ]; then
     PROJECT_ID="gac-prod-471220"
@@ -78,6 +83,7 @@ docker push $IMAGE_NAME
 # Deploy to Cloud Run
 echo -e "${GREEN}[4/4] Deploying to Cloud Run...${NC}"
 gcloud run deploy $SERVICE_NAME \
+    --project=$PROJECT_ID \
     --image=$IMAGE_NAME \
     --platform=managed \
     --region=$REGION \
@@ -93,6 +99,7 @@ gcloud run deploy $SERVICE_NAME \
 # Get service URL
 echo -e "${GREEN}Getting service URL...${NC}"
 SERVICE_URL=$(gcloud run services describe $SERVICE_NAME \
+    --project=$PROJECT_ID \
     --platform=managed \
     --region=$REGION \
     --format="value(status.url)")

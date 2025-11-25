@@ -1,6 +1,6 @@
 """
 Rate Limiting Module
-Provides tenant-aware and global rate limiting for multi-tenant systems.
+Provides organization-aware and global rate limiting for multi-organization systems.
 Supports in-memory store for development and Redis for production.
 """
 
@@ -29,7 +29,7 @@ class RateLimitStore(ABC):
         Check if request is within rate limit and increment counter.
 
         Args:
-            key: Rate limit key (e.g., tenant_id, endpoint)
+            key: Rate limit key (e.g., org_slug, endpoint)
             limit: Maximum requests allowed in window
             window_seconds: Time window in seconds
 
@@ -117,10 +117,10 @@ class InMemoryRateLimitStore(RateLimitStore):
 
 class RateLimiter:
     """
-    Tenant-aware and global rate limiter for FastAPI.
+    Organization-aware and global rate limiter for FastAPI.
 
     Features:
-    - Per-tenant rate limiting (identified by tenant_id)
+    - Per-organization rate limiting (identified by org_slug)
     - Global rate limiting for unauthenticated endpoints
     - Configurable limits and time windows
     - In-memory store for development, Redis for production
@@ -140,10 +140,10 @@ class RateLimiter:
 
         Args:
             store: Rate limit store backend (defaults to in-memory)
-            default_limit_per_minute: Default per-tenant limit per minute
-            default_limit_per_hour: Default per-tenant limit per hour
-            global_limit_per_minute: Global limit per minute (all tenants)
-            global_limit_per_hour: Global limit per hour (all tenants)
+            default_limit_per_minute: Default per-organization limit per minute
+            default_limit_per_hour: Default per-organization limit per hour
+            global_limit_per_minute: Global limit per minute (all organizations)
+            global_limit_per_hour: Global limit per hour (all organizations)
         """
         self.store = store or InMemoryRateLimitStore()
         self.default_limit_per_minute = default_limit_per_minute
@@ -151,17 +151,17 @@ class RateLimiter:
         self.global_limit_per_minute = global_limit_per_minute
         self.global_limit_per_hour = global_limit_per_hour
 
-    async def check_tenant_limit(
+    async def check_org_limit(
         self,
-        tenant_id: str,
+        org_slug: str,
         limit_per_minute: Optional[int] = None,
         limit_per_hour: Optional[int] = None
     ) -> Tuple[bool, Dict]:
         """
-        Check if tenant is within rate limits.
+        Check if organization is within rate limits.
 
         Args:
-            tenant_id: Tenant identifier
+            org_slug: Organization identifier
             limit_per_minute: Per-minute limit (uses default if not provided)
             limit_per_hour: Per-hour limit (uses default if not provided)
 
@@ -173,13 +173,13 @@ class RateLimiter:
         limit_per_hour = limit_per_hour or self.default_limit_per_hour
 
         # Check minute limit
-        minute_key = f"tenant:{tenant_id}:minute"
+        minute_key = f"org:{org_slug}:minute"
         minute_allowed, minute_meta = await self.store.check_and_increment(
             minute_key, limit_per_minute, 60
         )
 
         # Check hour limit
-        hour_key = f"tenant:{tenant_id}:hour"
+        hour_key = f"org:{org_slug}:hour"
         hour_allowed, hour_meta = await self.store.check_and_increment(
             hour_key, limit_per_hour, 3600
         )
@@ -187,7 +187,7 @@ class RateLimiter:
         is_allowed = minute_allowed and hour_allowed
 
         metadata = {
-            "tenant_id": tenant_id,
+            "org_slug": org_slug,
             "minute": minute_meta,
             "hour": hour_meta,
             "is_allowed": is_allowed
@@ -205,7 +205,7 @@ class RateLimiter:
         Check if global rate limit is exceeded.
 
         Args:
-            endpoint: Endpoint identifier (e.g., "admin_tenants")
+            endpoint: Endpoint identifier (e.g., "admin_orgs")
             limit_per_minute: Per-minute limit (uses global default if not provided)
             limit_per_hour: Per-hour limit (uses global default if not provided)
 
@@ -266,8 +266,8 @@ def init_rate_limiter(
     Initialize global rate limiter with custom settings.
 
     Args:
-        default_limit_per_minute: Default per-tenant limit per minute
-        default_limit_per_hour: Default per-tenant limit per hour
+        default_limit_per_minute: Default per-organization limit per minute
+        default_limit_per_hour: Default per-organization limit per hour
         global_limit_per_minute: Global limit per minute
         global_limit_per_hour: Global limit per hour
 
@@ -283,8 +283,8 @@ def init_rate_limiter(
     )
     logger.info(
         f"Rate limiter initialized: "
-        f"{default_limit_per_minute} req/min per tenant, "
-        f"{default_limit_per_hour} req/hour per tenant, "
+        f"{default_limit_per_minute} req/min per organization, "
+        f"{default_limit_per_hour} req/hour per organization, "
         f"{global_limit_per_minute} req/min global, "
         f"{global_limit_per_hour} req/hour global"
     )

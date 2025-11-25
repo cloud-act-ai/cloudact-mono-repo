@@ -2,7 +2,7 @@
 # Demonstrates how to use notify_systems.slack_notification processor
 # Usage: This pipeline serves as a reference for other pipelines
 
-pipeline_id: "{tenant_id}-example-slack-notification"
+pipeline_id: "{org_slug}-example-slack-notification"
 description: "Example pipeline demonstrating Slack notifications on pipeline events"
 
 # Pipeline-level variables that can be overridden

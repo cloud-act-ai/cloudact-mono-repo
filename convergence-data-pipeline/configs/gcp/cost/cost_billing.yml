@@ -1,9 +1,9 @@
 # GCP Cost Billing Pipeline
-# Extracts billing data from GCP billing export and loads into tenant cost dataset
-# Usage: POST /api/v1/pipelines/run/{tenant_id}/gcp/cost/cost_billing
+# Extracts billing data from GCP billing export and loads into organization cost dataset
+# Usage: POST /api/v1/pipelines/run/{org_slug}/gcp/cost/cost_billing
 
-pipeline_id: "{tenant_id}-gcp-cost-billing"
-description: "Extract GCP billing costs for tenant {tenant_id} - date {date}"
+pipeline_id: "{org_slug}-gcp-cost-billing"
+description: "Extract GCP billing costs for organization {org_slug} - date {date}"
 
 # Pipeline-level variables
 # These can be overridden via API request body
@@ -84,11 +84,11 @@ steps:
     to_emails:
       - "{admin_email}"
       - "data-ops@example.com"  # System admin email
-    subject: "[ALERT] Cost Billing Pipeline Failed - {tenant_id}"
+    subject: "[ALERT] Cost Billing Pipeline Failed - {org_slug}"
     message: |
       ALERT: The GCP cost billing pipeline has failed!
 
-      Tenant ID: {tenant_id}
+      Organization: {org_slug}
       Pipeline: {pipeline_id}
       Run Date: {date}
       Trigger By: {trigger_by}
@@ -96,5 +96,5 @@ steps:
       Destination: {destination_dataset_type}.{destination_table}
 
       Please investigate the logs in:
-      {tenant_id}.x_meta_step_logs
-      {tenant_id}.x_meta_pipeline_runs
+      organizations.org_meta_step_logs (filter by org_slug={org_slug})
+      organizations.org_meta_pipeline_runs (filter by org_slug={org_slug})

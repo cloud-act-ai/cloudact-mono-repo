@@ -1,6 +1,6 @@
 """
 Input Validation Middleware for Production Security
-Validates tenant_id format, request size limits, and header safety.
+Validates org_slug format, request size limits, and header safety.
 """
 
 import re
@@ -11,7 +11,7 @@ from fastapi.responses import JSONResponse
 import logging
 
 from src.core.exceptions import (
-    InvalidTenantIdError,
+    InvalidOrgSlugError,
     PayloadTooLargeError,
     ValidationError
 )
@@ -22,9 +22,9 @@ logger = logging.getLogger(__name__)
 # Validation Rules Configuration
 # ============================================
 
-# Tenant ID validation: alphanumeric, underscores, hyphens only (3-64 chars)
+# Organization slug validation: alphanumeric, underscores, hyphens only (3-64 chars)
 # Prevents SQL injection, path traversal, and invalid dataset names
-TENANT_ID_PATTERN = re.compile(r'^[a-zA-Z0-9_-]{3,64}$')
+ORG_SLUG_PATTERN = re.compile(r'^[a-zA-Z0-9_-]{3,64}$')
 
 # Date format validation: YYYY-MM-DD
 DATE_PATTERN = re.compile(r'^\d{4}-\d{2}-\d{2}$')
@@ -47,9 +47,9 @@ DANGEROUS_HEADER_PATTERNS = [
 # Validation Functions
 # ============================================
 
-def validate_tenant_id(tenant_id: str) -> bool:
+def validate_org_slug(org_slug: str) -> bool:
     """
-    Validate tenant ID format for security and BigQuery compatibility.
+    Validate organization slug format for security and BigQuery compatibility.
 
     Rules:
     - 3-64 characters
@@ -57,21 +57,21 @@ def validate_tenant_id(tenant_id: str) -> bool:
     - No spaces, special chars, or path traversal patterns
 
     Args:
-        tenant_id: Tenant identifier to validate
+        org_slug: Organization identifier to validate
 
     Returns:
         True if valid, False otherwise
     """
-    if not tenant_id:
+    if not org_slug:
         return False
 
     # Check pattern match
-    if not TENANT_ID_PATTERN.match(tenant_id):
+    if not ORG_SLUG_PATTERN.match(org_slug):
         return False
 
     # Additional checks for dangerous patterns
     dangerous_patterns = ['..', '//', '\\', '<', '>', ';', '"', "'", '`']
-    if any(pattern in tenant_id for pattern in dangerous_patterns):
+    if any(pattern in org_slug for pattern in dangerous_patterns):
         return False
 
     return True
@@ -167,30 +167,30 @@ def contains_null_bytes(value: str) -> bool:
     return '\x00' in value if isinstance(value, str) else False
 
 
-def get_tenant_id_from_request(request: Request) -> Optional[str]:
+def get_org_slug_from_request(request: Request) -> Optional[str]:
     """
-    Extract tenant_id from request (path params, query params, or headers).
+    Extract org_slug from request (path params, query params, or headers).
 
     Args:
         request: FastAPI request object
 
     Returns:
-        tenant_id if found, None otherwise
+        org_slug if found, None otherwise
     """
     # Check path parameters
-    tenant_id = request.path_params.get("tenant_id")
-    if tenant_id:
-        return tenant_id
+    org_slug = request.path_params.get("org_slug")
+    if org_slug:
+        return org_slug
 
     # Check query parameters
-    tenant_id = request.query_params.get("tenant_id")
-    if tenant_id:
-        return tenant_id
+    org_slug = request.query_params.get("org_slug")
+    if org_slug:
+        return org_slug
 
-    # Check headers (some APIs use X-Tenant-ID header)
-    tenant_id = request.headers.get("x-tenant-id")
-    if tenant_id:
-        return tenant_id
+    # Check headers (some APIs use X-Org-Slug header)
+    org_slug = request.headers.get("x-org-slug")
+    if org_slug:
+        return org_slug
 
     return None
 
@@ -206,7 +206,7 @@ async def validation_middleware(request: Request, call_next):
     Validates:
     1. Headers safety and size
     2. Request payload size
-    3. Tenant ID format (if present in request) - BEFORE auth
+    3. Organization slug format (if present in request) - BEFORE auth
     4. Path parameters for NULL bytes and path traversal
     5. Request body for date format and required fields
 
@@ -266,33 +266,33 @@ async def validation_middleware(request: Request, call_next):
                 pass  # Invalid content-length, let it through for other validation
 
         # ============================================
-        # 3. Validate Tenant ID (if present) - BEFORE AUTH
+        # 3. Validate Organization Slug (if present) - BEFORE AUTH
         # ============================================
-        tenant_id = get_tenant_id_from_request(request)
-        if tenant_id:
+        org_slug = get_org_slug_from_request(request)
+        if org_slug:
             # Check for NULL bytes first
-            if contains_null_bytes(tenant_id):
+            if contains_null_bytes(org_slug):
                 logger.warning(
-                    f"NULL bytes detected in tenant_id",
-                    extra={"path": request.url.path, "tenant_id_repr": repr(tenant_id)}
+                    f"NULL bytes detected in org_slug",
+                    extra={"path": request.url.path, "org_slug_repr": repr(org_slug)}
                 )
                 return JSONResponse(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     content={
-                        "error": "INVALID_TENANT_ID",
-                        "message": "Tenant ID contains invalid characters (NULL bytes)",
+                        "error": "INVALID_ORG_SLUG",
+                        "message": "Organization slug contains invalid characters (NULL bytes)",
                         "category": "VALIDATION"
                     }
                 )
 
-            # Validate tenant_id format
-            if not validate_tenant_id(tenant_id):
+            # Validate org_slug format
+            if not validate_org_slug(org_slug):
                 logger.warning(
-                    f"Invalid tenant_id format: {tenant_id}",
-                    extra={"path": request.url.path, "tenant_id": tenant_id}
+                    f"Invalid org_slug format: {org_slug}",
+                    extra={"path": request.url.path, "org_slug": org_slug}
                 )
 
-                exc = InvalidTenantIdError(tenant_id=tenant_id)
+                exc = InvalidOrgSlugError(org_slug=org_slug)
 
                 return JSONResponse(
                     status_code=exc.http_status,

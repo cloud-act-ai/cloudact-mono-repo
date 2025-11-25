@@ -1,12 +1,12 @@
 #  Dataset Types Configuration
-# Defines the types of BigQuery datasets created for each tenant
+# Defines the types of BigQuery datasets created for each organization
 #
-# Note: In the current architecture, each tenant uses a single dataset
+# Note: In the current architecture, each organization uses a single dataset
 # that contains all their data and metadata tables.
 
 dataset_types:
-  - name: "tenant_dataset"
-    description: "Primary dataset for tenant data and metadata"
+  - name: "organization_dataset"
+    description: "Primary dataset for organization data and metadata"
     layer: "unified"
     retention_days: null  # No automatic expiration
     labels:

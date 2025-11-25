@@ -44,17 +44,17 @@ class PipelinePublisher:
 
     async def publish_pipeline_batch(
         self,
-        tenant_ids: List[str],
+        org_slugs: List[str],
         pipeline_id: str,
         parameters: Dict[str, Any] = None,
         randomize_delay: bool = True,
         max_jitter_seconds: int = 3600
     ) -> Dict[str, Any]:
         """
-        Publish pipeline tasks for multiple tenants to Pub/Sub.
+        Publish pipeline tasks for multiple orgs to Pub/Sub.
 
         Args:
-            tenant_ids: List of tenant IDs (can be 10k+)
+            org_slugs: List of org slugs (can be 10k+)
             pipeline_id: Pipeline to execute
             parameters: Pipeline parameters (e.g., date, trigger_by)
             randomize_delay: Add random delay attribute (Cloud Pub/Sub will distribute)
@@ -70,11 +70,11 @@ class PipelinePublisher:
         failed_count = 0
         message_ids = []
 
-        for tenant_id in tenant_ids:
+        for org_slug in org_slugs:
             try:
                 # Create task message
                 task = {
-                    "tenant_id": tenant_id,
+                    "org_slug": org_slug,
                     "pipeline_id": pipeline_id,
                     "parameters": parameters
                 }
@@ -83,7 +83,7 @@ class PipelinePublisher:
 
                 # Add random delay attribute for distributed execution
                 attributes = {
-                    "tenant_id": tenant_id,
+                    "org_slug": org_slug,
                     "pipeline_id": pipeline_id
                 }
 
@@ -108,14 +108,14 @@ class PipelinePublisher:
                     logger.info(f"Published {published_count} tasks...")
 
             except Exception as e:
-                logger.error(f"Failed to publish task for tenant {tenant_id}: {e}")
+                logger.error(f"Failed to publish task for org {org_slug}: {e}")
                 failed_count += 1
 
         logger.info(
             f"Batch publish complete: {published_count} published, {failed_count} failed",
             extra={
                 "pipeline_id": pipeline_id,
-                "total_tenants": len(tenant_ids),
+                "total_orgs": len(org_slugs),
                 "published": published_count,
                 "failed": failed_count
             }
@@ -124,6 +124,6 @@ class PipelinePublisher:
         return {
             "published_count": published_count,
             "failed_count": failed_count,
-            "total_tenants": len(tenant_ids),
+            "total_orgs": len(org_slugs),
             "message_ids": message_ids[:100]  # Return first 100 for verification
         }

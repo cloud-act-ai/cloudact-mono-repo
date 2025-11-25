@@ -1,0 +1,24 @@
+{
+  "description": "Onboarding test table schema",
+  "table_name": "org_meta_onboarding_dryrun_test",
+  "fields": [
+    {
+      "name": "test_timestamp",
+      "type": "TIMESTAMP",
+      "mode": "NULLABLE",
+      "description": "Timestamp of onboarding test"
+    },
+    {
+      "name": "org_slug",
+      "type": "STRING",
+      "mode": "NULLABLE",
+      "description": "Organization identifier"
+    },
+    {
+      "name": "message",
+      "type": "STRING",
+      "mode": "NULLABLE",
+      "description": "Onboarding status message"
+    }
+  ]
+}

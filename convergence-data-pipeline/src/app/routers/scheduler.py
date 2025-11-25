@@ -1,7 +1,7 @@
 """
 Cloud Scheduler Integration API Routes
 Endpoints for automated pipeline scheduling and queue management.
-Supports hourly triggers, queue processing, and customer pipeline configurations.
+Supports hourly triggers, queue processing, and org pipeline configurations.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks, Request
@@ -13,7 +13,7 @@ import logging
 from croniter import croniter
 import pytz
 
-from src.app.dependencies.auth import verify_api_key_header, verify_admin_key, TenantContext, get_current_tenant
+from src.app.dependencies.auth import verify_api_key_header, verify_admin_key, OrgContext, get_current_org
 from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
 from src.app.config import settings
 from google.cloud import bigquery
@@ -45,7 +45,7 @@ class PipelineConfigRequest(BaseModel):
 class PipelineConfigResponse(BaseModel):
     """Response for pipeline configuration."""
     config_id: str
-    tenant_id: str
+    org_slug: str
     provider: str
     domain: str
     pipeline_template: str
@@ -85,7 +85,7 @@ class QueueProcessResponse(BaseModel):
     """Response for queue processing."""
     processed: bool
     pipeline_logging_id: Optional[str] = None
-    tenant_id: Optional[str] = None
+    org_slug: Optional[str] = None
     pipeline_id: Optional[str] = None
     status: str
     message: str
@@ -155,11 +155,11 @@ async def get_pipelines_due_now(
     """
     Get pipelines that should run now.
 
-    Queries tenant_pipeline_configs for pipelines where:
+    Queries org_pipeline_configs for pipelines where:
     - is_active = TRUE
     - next_run_time <= NOW()
-    - Tenant status = ACTIVE
-    - Tenant quota not exceeded
+    - Org status = ACTIVE
+    - Org quota not exceeded
 
     Args:
         bq_client: BigQuery client instance
@@ -168,13 +168,13 @@ async def get_pipelines_due_now(
     Returns:
         List of pipeline configurations ready to run
     """
-    # Note: This assumes tenant_pipeline_configs table exists in tenants dataset
+    # Note: This assumes org_pipeline_configs table exists in organizations dataset
     # Schema should be created as part of scheduler setup
     query = f"""
     WITH due_pipelines AS (
         SELECT
             c.config_id,
-            c.tenant_id,
+            c.org_slug,
             c.provider,
             c.domain,
             c.pipeline_template,
@@ -183,16 +183,16 @@ async def get_pipelines_due_now(
             c.parameters,
             c.next_run_time,
             c.priority,
-            p.status as tenant_status,
+            p.status as org_status,
             s.max_pipelines_per_day,
             COALESCE(u.pipelines_run_today, 0) as pipelines_run_today
-        FROM `{settings.gcp_project_id}.tenants.tenant_pipeline_configs` c
-        INNER JOIN `{settings.gcp_project_id}.tenants.tenant_profiles` p
-            ON c.tenant_id = p.tenant_id
-        LEFT JOIN `{settings.gcp_project_id}.tenants.tenant_subscriptions` s
-            ON p.tenant_id = s.tenant_id AND s.status = 'ACTIVE'
-        LEFT JOIN `{settings.gcp_project_id}.tenants.tenant_usage_quotas` u
-            ON p.tenant_id = u.tenant_id AND u.usage_date = CURRENT_DATE()
+        FROM `{settings.gcp_project_id}.organizations.org_pipeline_configs` c
+        INNER JOIN `{settings.gcp_project_id}.organizations.org_profiles` p
+            ON c.org_slug = p.org_slug
+        LEFT JOIN `{settings.gcp_project_id}.organizations.org_subscriptions` s
+            ON p.org_slug = s.org_slug AND s.status = 'ACTIVE'
+        LEFT JOIN `{settings.gcp_project_id}.organizations.org_usage_quotas` u
+            ON p.org_slug = u.org_slug AND u.usage_date = CURRENT_DATE()
         WHERE c.is_active = TRUE
           AND c.next_run_time <= CURRENT_TIMESTAMP()
           AND p.status = 'ACTIVE'
@@ -216,18 +216,18 @@ async def get_pipelines_due_now(
 
 async def enqueue_pipeline(
     bq_client: BigQueryClient,
-    tenant_id: str,
+    org_slug: str,
     config: Dict[str, Any],
     priority: int = 5
 ) -> str:
     """
     Add pipeline to execution queue.
 
-    Creates record in tenant_pipeline_execution_queue and tenant_scheduled_pipeline_runs tables.
+    Creates record in org_pipeline_execution_queue and org_scheduled_pipeline_runs tables.
 
     Args:
         bq_client: BigQuery client instance
-        tenant_id: Tenant identifier
+        org_slug: Organization identifier
         config: Pipeline configuration dict
         priority: Queue priority (1-10, higher is more urgent)
 
@@ -239,13 +239,13 @@ async def enqueue_pipeline(
 
     # Insert into scheduled_pipeline_runs
     insert_run_query = f"""
-    INSERT INTO `{settings.gcp_project_id}.tenants.tenant_scheduled_pipeline_runs`
-    (run_id, config_id, tenant_id, pipeline_id, state, scheduled_time, priority,
+    INSERT INTO `{settings.gcp_project_id}.organizations.org_scheduled_pipeline_runs`
+    (run_id, config_id, org_slug, pipeline_id, state, scheduled_time, priority,
      parameters, retry_count, max_retries, created_at)
     VALUES (
         @run_id,
         @config_id,
-        @tenant_id,
+        @org_slug,
         @pipeline_id,
         'PENDING',
         @scheduled_time,
@@ -257,13 +257,13 @@ async def enqueue_pipeline(
     )
     """
 
-    pipeline_id = f"{tenant_id}-{config['provider']}-{config['domain']}-{config['pipeline_template']}"
+    pipeline_id = f"{org_slug}-{config['provider']}-{config['domain']}-{config['pipeline_template']}"
 
     job_config = bigquery.QueryJobConfig(
         query_parameters=[
             bigquery.ScalarQueryParameter("run_id", "STRING", run_id),
             bigquery.ScalarQueryParameter("config_id", "STRING", config['config_id']),
-            bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
+            bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
             bigquery.ScalarQueryParameter("pipeline_id", "STRING", pipeline_id),
             bigquery.ScalarQueryParameter("scheduled_time", "TIMESTAMP", scheduled_time),
             bigquery.ScalarQueryParameter("priority", "INT64", priority),
@@ -275,11 +275,11 @@ async def enqueue_pipeline(
 
     # Insert into pipeline_execution_queue
     insert_queue_query = f"""
-    INSERT INTO `{settings.gcp_project_id}.tenants.tenant_pipeline_execution_queue`
-    (run_id, tenant_id, pipeline_id, state, scheduled_time, priority, added_at)
+    INSERT INTO `{settings.gcp_project_id}.organizations.org_pipeline_execution_queue`
+    (run_id, org_slug, pipeline_id, state, scheduled_time, priority, added_at)
     VALUES (
         @run_id,
-        @tenant_id,
+        @org_slug,
         @pipeline_id,
         'QUEUED',
         @scheduled_time,
@@ -290,7 +290,7 @@ async def enqueue_pipeline(
 
     bq_client.client.query(insert_queue_query, job_config=job_config).result()
 
-    logger.info(f"Enqueued pipeline {pipeline_id} for customer {tenant_id} with run_id {run_id}")
+    logger.info(f"Enqueued pipeline {pipeline_id} for org {org_slug} with run_id {run_id}")
     return run_id
 
 
@@ -312,7 +312,7 @@ async def should_retry_failed_run(
     SELECT
         retry_count,
         max_retries
-    FROM `{settings.gcp_project_id}.tenants.tenant_scheduled_pipeline_runs`
+    FROM `{settings.gcp_project_id}.organizations.org_scheduled_pipeline_runs`
     WHERE run_id = @run_id
     LIMIT 1
     """
@@ -358,11 +358,11 @@ async def trigger_scheduler(
     It queries for due pipelines and adds them to the execution queue.
 
     Logic:
-    1. Query tenant_pipeline_configs for pipelines where:
+    1. Query org_pipeline_configs for pipelines where:
        - is_active = TRUE
        - next_run_time <= NOW()
-       - Tenant status = ACTIVE
-       - Tenant quota not exceeded
+       - Org status = ACTIVE
+       - Org quota not exceeded
 
     2. For each due pipeline:
        - Create record in scheduled_pipeline_runs with state = PENDING
@@ -373,12 +373,12 @@ async def trigger_scheduler(
 
     Security:
     - Requires admin API key
-    - Validates tenant quotas before enqueuing
+    - Validates org quotas before enqueuing
     - Prevents duplicate runs (idempotency check)
 
     Performance:
     - Batch processes in chunks of 100 pipelines
-    - Uses pagination for 10k+ tenants
+    - Uses pagination for 10k+ orgs
     """
     try:
         # Get pipelines due now
@@ -394,7 +394,7 @@ async def trigger_scheduler(
                 # Enqueue pipeline
                 run_id = await enqueue_pipeline(
                     bq_client,
-                    tenant_id=pipeline_config['tenant_id'],
+                    org_slug=pipeline_config['org_slug'],
                     config=pipeline_config,
                     priority=pipeline_config.get('priority', 5)
                 )
@@ -410,7 +410,7 @@ async def trigger_scheduler(
                 )
 
                 update_query = f"""
-                UPDATE `{settings.gcp_project_id}.tenants.tenant_pipeline_configs`
+                UPDATE `{settings.gcp_project_id}.organizations.org_pipeline_configs`
                 SET next_run_time = @next_run_time,
                     updated_at = CURRENT_TIMESTAMP()
                 WHERE config_id = @config_id
@@ -469,9 +469,9 @@ async def process_queue(
     Logic:
     1. Get next pipeline from queue (state = QUEUED, order by priority DESC, scheduled_time ASC)
     2. Update state to PROCESSING
-    3. Call pipeline execution: POST /api/v1/pipelines/run/{tenant_id}/{provider}/{domain}/{template}
+    3. Call pipeline execution: POST /api/v1/pipelines/run/{org_slug}/{provider}/{domain}/{template}
     4. Update scheduled_pipeline_runs state based on result
-    5. Update tenant_pipeline_configs (last_run_time, last_run_status, next_run_time)
+    5. Update org_pipeline_configs (last_run_time, last_run_status, next_run_time)
     6. Remove from queue or mark as COMPLETED
 
     Security:
@@ -486,11 +486,11 @@ async def process_queue(
         query = f"""
         SELECT
             run_id,
-            tenant_id,
+            org_slug,
             pipeline_id,
             scheduled_time,
             priority
-        FROM `{settings.gcp_project_id}.tenants.tenant_pipeline_execution_queue`
+        FROM `{settings.gcp_project_id}.organizations.org_pipeline_execution_queue`
         WHERE state = 'QUEUED'
         ORDER BY priority DESC, scheduled_time ASC
         LIMIT 1
@@ -507,12 +507,12 @@ async def process_queue(
 
         queue_item = dict(results[0])
         run_id = queue_item['run_id']
-        tenant_id = queue_item['tenant_id']
+        org_slug = queue_item['org_slug']
         pipeline_id = queue_item['pipeline_id']
 
         # Update queue state to PROCESSING
         update_query = f"""
-        UPDATE `{settings.gcp_project_id}.tenants.tenant_pipeline_execution_queue`
+        UPDATE `{settings.gcp_project_id}.organizations.org_pipeline_execution_queue`
         SET state = 'PROCESSING',
             processing_started_at = CURRENT_TIMESTAMP()
         WHERE run_id = @run_id
@@ -534,8 +534,8 @@ async def process_queue(
             c.provider,
             c.domain,
             c.pipeline_template
-        FROM `{settings.gcp_project_id}.tenants.tenant_scheduled_pipeline_runs` r
-        INNER JOIN `{settings.gcp_project_id}.tenants.tenant_pipeline_configs` c
+        FROM `{settings.gcp_project_id}.organizations.org_scheduled_pipeline_runs` r
+        INNER JOIN `{settings.gcp_project_id}.organizations.org_pipeline_configs` c
             ON r.config_id = c.config_id
         WHERE r.run_id = @run_id
         LIMIT 1
@@ -555,7 +555,7 @@ async def process_queue(
         from src.core.pipeline.async_executor import AsyncPipelineExecutor
 
         executor = AsyncPipelineExecutor(
-            tenant_id=tenant_id,
+            org_slug=org_slug,
             pipeline_id=f"{config['provider']}/{config['domain']}/{config['pipeline_template']}",
             trigger_type="scheduler",
             trigger_by="cloud_scheduler",
@@ -570,9 +570,9 @@ async def process_queue(
             try:
                 result = await executor.execute(parameters)
 
-                # Update tenant_scheduled_pipeline_runs
+                # Update org_scheduled_pipeline_runs
                 update_run_query = f"""
-                UPDATE `{settings.gcp_project_id}.tenants.tenant_scheduled_pipeline_runs`
+                UPDATE `{settings.gcp_project_id}.organizations.org_scheduled_pipeline_runs`
                 SET state = 'COMPLETED',
                     completed_at = CURRENT_TIMESTAMP(),
                     pipeline_logging_id = @pipeline_logging_id
@@ -588,9 +588,9 @@ async def process_queue(
 
                 bq_client.client.query(update_run_query, job_config=run_job_config).result()
 
-                # Update tenant_pipeline_configs
+                # Update org_pipeline_configs
                 update_config_query = f"""
-                UPDATE `{settings.gcp_project_id}.tenants.tenant_pipeline_configs`
+                UPDATE `{settings.gcp_project_id}.organizations.org_pipeline_configs`
                 SET last_run_time = CURRENT_TIMESTAMP(),
                     last_run_status = 'SUCCESS'
                 WHERE config_id = @config_id
@@ -606,7 +606,7 @@ async def process_queue(
 
                 # Remove from queue
                 delete_queue_query = f"""
-                DELETE FROM `{settings.gcp_project_id}.tenants.tenant_pipeline_execution_queue`
+                DELETE FROM `{settings.gcp_project_id}.organizations.org_pipeline_execution_queue`
                 WHERE run_id = @run_id
                 """
 
@@ -615,9 +615,9 @@ async def process_queue(
             except Exception as e:
                 logger.error(f"Pipeline execution failed for run_id {run_id}: {e}", exc_info=True)
 
-                # Update tenant_scheduled_pipeline_runs to FAILED
+                # Update org_scheduled_pipeline_runs to FAILED
                 update_run_query = f"""
-                UPDATE `{settings.gcp_project_id}.tenants.tenant_scheduled_pipeline_runs`
+                UPDATE `{settings.gcp_project_id}.organizations.org_scheduled_pipeline_runs`
                 SET state = 'FAILED',
                     failed_at = CURRENT_TIMESTAMP(),
                     error_message = @error_message,
@@ -634,9 +634,9 @@ async def process_queue(
 
                 bq_client.client.query(update_run_query, job_config=run_job_config).result()
 
-                # Update tenant_pipeline_configs
+                # Update org_pipeline_configs
                 update_config_query = f"""
-                UPDATE `{settings.gcp_project_id}.tenants.tenant_pipeline_configs`
+                UPDATE `{settings.gcp_project_id}.organizations.org_pipeline_configs`
                 SET last_run_time = CURRENT_TIMESTAMP(),
                     last_run_status = 'FAILED'
                 WHERE config_id = @config_id
@@ -656,7 +656,7 @@ async def process_queue(
                 if should_retry:
                     # Re-queue with lower priority
                     update_queue_query = f"""
-                    UPDATE `{settings.gcp_project_id}.tenants.tenant_pipeline_execution_queue`
+                    UPDATE `{settings.gcp_project_id}.organizations.org_pipeline_execution_queue`
                     SET state = 'QUEUED',
                         priority = GREATEST(priority - 1, 1),
                         processing_started_at = NULL
@@ -666,7 +666,7 @@ async def process_queue(
                 else:
                     # Remove from queue
                     delete_queue_query = f"""
-                    DELETE FROM `{settings.gcp_project_id}.tenants.tenant_pipeline_execution_queue`
+                    DELETE FROM `{settings.gcp_project_id}.organizations.org_pipeline_execution_queue`
                     WHERE run_id = @run_id
                     """
                     bq_client.client.query(delete_queue_query, job_config=run_job_config).result()
@@ -676,10 +676,10 @@ async def process_queue(
         return QueueProcessResponse(
             processed=True,
             pipeline_logging_id=executor.pipeline_logging_id,
-            tenant_id=tenant_id,
+            org_slug=org_slug,
             pipeline_id=pipeline_id,
             status="PROCESSING",
-            message=f"Pipeline {pipeline_id} started processing for tenant {tenant_id}"
+            message=f"Pipeline {pipeline_id} started processing for org {org_slug}"
         )
 
     except Exception as e:
@@ -717,12 +717,12 @@ async def get_scheduler_status(
         query = f"""
         WITH active_configs AS (
             SELECT COUNT(*) as total_active
-            FROM `{settings.gcp_project_id}.tenants.tenant_pipeline_configs`
+            FROM `{settings.gcp_project_id}.organizations.org_pipeline_configs`
             WHERE is_active = TRUE
         ),
         due_now AS (
             SELECT COUNT(*) as due_count
-            FROM `{settings.gcp_project_id}.tenants.tenant_pipeline_configs`
+            FROM `{settings.gcp_project_id}.organizations.org_pipeline_configs`
             WHERE is_active = TRUE
               AND next_run_time <= CURRENT_TIMESTAMP()
         ),
@@ -731,18 +731,18 @@ async def get_scheduler_status(
                 COUNT(*) as total_queued,
                 COUNTIF(state = 'QUEUED') as queued,
                 COUNTIF(state = 'PROCESSING') as processing
-            FROM `{settings.gcp_project_id}.tenants.tenant_pipeline_execution_queue`
+            FROM `{settings.gcp_project_id}.organizations.org_pipeline_execution_queue`
         ),
         today_runs AS (
             SELECT
                 COUNTIF(state = 'COMPLETED') as completed_today,
                 COUNTIF(state = 'FAILED') as failed_today
-            FROM `{settings.gcp_project_id}.tenants.tenant_scheduled_pipeline_runs`
+            FROM `{settings.gcp_project_id}.organizations.org_scheduled_pipeline_runs`
             WHERE DATE(scheduled_time) = CURRENT_DATE()
         ),
         avg_time AS (
             SELECT AVG(duration_ms) / 1000.0 as avg_seconds
-            FROM `{settings.gcp_project_id}.tenants.tenant_pipeline_runs`
+            FROM `{settings.gcp_project_id}.organizations.org_meta_pipeline_runs`
             WHERE DATE(start_time) >= DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY)
               AND duration_ms IS NOT NULL
         )
@@ -792,37 +792,37 @@ async def get_scheduler_status(
 
 
 # ============================================
-# Customer Pipeline Configuration Endpoints
+# Org Pipeline Configuration Endpoints
 # ============================================
 
 @router.get(
-    "/scheduler/tenant/{tenant_id}/pipelines",
+    "/scheduler/org/{org_slug}/pipelines",
     response_model=List[PipelineConfigResponse],
-    summary="Get tenant pipeline configurations",
-    description="Get all configured pipelines for a tenant"
+    summary="Get org pipeline configurations",
+    description="Get all configured pipelines for an org"
 )
-async def get_tenant_pipelines(
-    tenant_id: str,
+async def get_org_pipelines(
+    org_slug: str,
     is_active: Optional[bool] = Query(None, description="Filter by active status"),
-    tenant: Dict[str, Any] = Depends(get_current_tenant),
+    org: Dict[str, Any] = Depends(get_current_org),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """
-    Get all pipeline configurations for a tenant.
+    Get all pipeline configurations for an org.
 
-    Returns list of tenant_pipeline_configs with schedule info.
+    Returns list of org_pipeline_configs with schedule info.
     """
-    # Verify tenant has access
-    if tenant['tenant_id'] != tenant_id:
+    # Verify org has access
+    if org['org_slug'] != org_slug:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied to tenant pipelines"
+            detail="Access denied to org pipelines"
         )
 
     try:
-        where_clauses = ["tenant_id = @tenant_id"]
+        where_clauses = ["org_slug = @org_slug"]
         parameters = [
-            bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id)
+            bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
         ]
 
         if is_active is not None:
@@ -834,7 +834,7 @@ async def get_tenant_pipelines(
         query = f"""
         SELECT
             config_id,
-            tenant_id,
+            org_slug,
             provider,
             domain,
             pipeline_template,
@@ -847,7 +847,7 @@ async def get_tenant_pipelines(
             parameters,
             created_at,
             updated_at
-        FROM `{settings.gcp_project_id}.tenants.tenant_pipeline_configs`
+        FROM `{settings.gcp_project_id}.organizations.org_pipeline_configs`
         WHERE {where_sql}
         ORDER BY created_at DESC
         """
@@ -866,27 +866,27 @@ async def get_tenant_pipelines(
         return configs
 
     except Exception as e:
-        logger.error(f"Failed to get tenant pipelines: {e}", exc_info=True)
+        logger.error(f"Failed to get org pipelines: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get tenant pipelines: {str(e)}"
+            detail=f"Failed to get org pipelines: {str(e)}"
         )
 
 
 @router.post(
-    "/scheduler/tenant/{tenant_id}/pipelines",
+    "/scheduler/org/{org_slug}/pipelines",
     response_model=PipelineConfigResponse,
     summary="Add/update pipeline configuration",
-    description="Add or update a pipeline configuration for a tenant"
+    description="Add or update a pipeline configuration for an org"
 )
-async def create_tenant_pipeline(
-    tenant_id: str,
+async def create_org_pipeline(
+    org_slug: str,
     request: PipelineConfigRequest,
-    tenant: Dict[str, Any] = Depends(get_current_tenant),
+    org: Dict[str, Any] = Depends(get_current_org),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """
-    Add/update pipeline configuration for a tenant.
+    Add/update pipeline configuration for an org.
 
     Request:
     - provider: Cloud provider (GCP, AWS, AZURE)
@@ -897,11 +897,11 @@ async def create_tenant_pipeline(
     - is_active: Enable/disable pipeline
     - parameters: Pipeline parameters
     """
-    # Verify tenant has access
-    if tenant['tenant_id'] != tenant_id:
+    # Verify org has access
+    if org['org_slug'] != org_slug:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied to tenant pipelines"
+            detail="Access denied to org pipelines"
         )
 
     # Validate cron expression
@@ -923,10 +923,10 @@ async def create_tenant_pipeline(
 
         # Insert configuration
         insert_query = f"""
-        INSERT INTO `{settings.gcp_project_id}.tenants.tenant_pipeline_configs`
+        INSERT INTO `{settings.gcp_project_id}.organizations.org_pipeline_configs`
         (
             config_id,
-            tenant_id,
+            org_slug,
             provider,
             domain,
             pipeline_template,
@@ -940,7 +940,7 @@ async def create_tenant_pipeline(
         )
         VALUES (
             @config_id,
-            @tenant_id,
+            @org_slug,
             @provider,
             @domain,
             @pipeline_template,
@@ -957,7 +957,7 @@ async def create_tenant_pipeline(
         job_config = bigquery.QueryJobConfig(
             query_parameters=[
                 bigquery.ScalarQueryParameter("config_id", "STRING", config_id),
-                bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
+                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
                 bigquery.ScalarQueryParameter("provider", "STRING", request.provider),
                 bigquery.ScalarQueryParameter("domain", "STRING", request.domain),
                 bigquery.ScalarQueryParameter("pipeline_template", "STRING", request.pipeline_template),
@@ -973,7 +973,7 @@ async def create_tenant_pipeline(
 
         return PipelineConfigResponse(
             config_id=config_id,
-            tenant_id=tenant_id,
+            org_slug=org_slug,
             provider=request.provider,
             domain=request.domain,
             pipeline_template=request.pipeline_template,
@@ -994,14 +994,14 @@ async def create_tenant_pipeline(
 
 
 @router.delete(
-    "/scheduler/tenant/{tenant_id}/pipelines/{config_id}",
+    "/scheduler/org/{org_slug}/pipelines/{config_id}",
     summary="Disable pipeline configuration",
     description="Disable a pipeline configuration (soft delete)"
 )
-async def delete_tenant_pipeline(
-    tenant_id: str,
+async def delete_org_pipeline(
+    org_slug: str,
     config_id: str,
-    tenant: Dict[str, Any] = Depends(get_current_tenant),
+    org: Dict[str, Any] = Depends(get_current_org),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """
@@ -1009,26 +1009,26 @@ async def delete_tenant_pipeline(
 
     This is a soft delete - sets is_active = FALSE.
     """
-    # Verify tenant has access
-    if tenant['tenant_id'] != tenant_id:
+    # Verify org has access
+    if org['org_slug'] != org_slug:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied to tenant pipelines"
+            detail="Access denied to org pipelines"
         )
 
     try:
         update_query = f"""
-        UPDATE `{settings.gcp_project_id}.tenants.tenant_pipeline_configs`
+        UPDATE `{settings.gcp_project_id}.organizations.org_pipeline_configs`
         SET is_active = FALSE,
             updated_at = CURRENT_TIMESTAMP()
         WHERE config_id = @config_id
-          AND tenant_id = @tenant_id
+          AND org_slug = @org_slug
         """
 
         job_config = bigquery.QueryJobConfig(
             query_parameters=[
                 bigquery.ScalarQueryParameter("config_id", "STRING", config_id),
-                bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id)
+                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
             ]
         )
 
@@ -1043,7 +1043,7 @@ async def delete_tenant_pipeline(
 
         return {
             "config_id": config_id,
-            "tenant_id": tenant_id,
+            "org_slug": org_slug,
             "message": "Pipeline configuration disabled successfully"
         }
 
@@ -1074,7 +1074,7 @@ async def reset_daily_quotas(
     Reset daily quota counters and archive old records.
 
     Logic:
-    1. UPDATE tenant_usage_quotas SET all daily counters to 0 WHERE usage_date < CURRENT_DATE()
+    1. UPDATE org_usage_quotas SET all daily counters to 0 WHERE usage_date < CURRENT_DATE()
     2. Archive/DELETE records older than 90 days
     3. Return count of records updated/archived
 
@@ -1083,7 +1083,7 @@ async def reset_daily_quotas(
     - Validates before executing destructive operations
 
     Performance:
-    - Batch processes all tenants in single UPDATE
+    - Batch processes all orgs in single UPDATE
     - Archives old data to prevent table bloat
     """
     try:
@@ -1092,7 +1092,7 @@ async def reset_daily_quotas(
 
         # Reset daily counters for previous days
         reset_query = f"""
-        UPDATE `{settings.gcp_project_id}.tenants.tenant_usage_quotas`
+        UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
         SET
             pipelines_run_today = 0,
             pipelines_succeeded_today = 0,
@@ -1116,7 +1116,7 @@ async def reset_daily_quotas(
 
         # Archive/delete records older than 90 days
         archive_query = f"""
-        DELETE FROM `{settings.gcp_project_id}.tenants.tenant_usage_quotas`
+        DELETE FROM `{settings.gcp_project_id}.organizations.org_usage_quotas`
         WHERE usage_date < DATE_SUB(CURRENT_DATE(), INTERVAL 90 DAY)
         """
 
@@ -1155,58 +1155,58 @@ async def cleanup_orphaned_pipelines(
     Cleanup orphaned and stuck pipelines.
 
     Logic:
-    1. Get all active tenants from tenant_profiles
-    2. For each tenant, UPDATE tenants.tenant_pipeline_runs SET status='FAILED'
+    1. Get all active orgs from org_profiles
+    2. For each org, UPDATE organizations.org_meta_pipeline_runs SET status='FAILED'
        WHERE status IN ('PENDING','RUNNING') AND start_time > 60 minutes ago
     3. Decrement concurrent_pipelines_running counter for each cleaned pipeline
-    4. Return count of pipelines cleaned per tenant
+    4. Return count of pipelines cleaned per org
 
     Security:
     - Requires admin API key
     - Only affects genuinely stuck pipelines (>60 min)
 
     Performance:
-    - Processes all tenants in batch queries
+    - Processes all orgs in batch queries
     - Uses TIMESTAMP_DIFF for accurate timeout calculation
     """
     try:
         total_cleaned = 0
-        tenant_details = []
+        org_details = []
 
-        # Get all active tenants
-        tenants_query = f"""
-        SELECT DISTINCT tenant_id, tenant_id
-        FROM `{settings.gcp_project_id}.tenants.tenant_profiles`
+        # Get all active orgs
+        orgs_query = f"""
+        SELECT DISTINCT org_slug, org_slug
+        FROM `{settings.gcp_project_id}.organizations.org_profiles`
         WHERE status = 'ACTIVE'
         """
 
-        tenants_results = list(bq_client.client.query(tenants_query).result())
+        orgs_results = list(bq_client.client.query(orgs_query).result())
 
-        if not tenants_results:
+        if not orgs_results:
             return {
                 "status": "success",
                 "total_pipelines_cleaned": 0,
-                "tenants_processed": 0,
-                "message": "No active tenants found",
+                "orgs_processed": 0,
+                "message": "No active orgs found",
                 "executed_at": datetime.now(timezone.utc).isoformat()
             }
 
-        # Process each tenant
-        for tenant_row in tenants_results:
-            tenant = dict(tenant_row)
-            tenant_id = tenant['tenant_id']
-            tenant_id = tenant.get('tenant_id', tenant_id)
+        # Process each org
+        for org_row in orgs_results:
+            org = dict(org_row)
+            org_slug = org['org_slug']
+            org_slug = org.get('org_slug', org_slug)
 
             try:
                 # Find and mark orphaned pipelines as FAILED
                 cleanup_query = f"""
-                UPDATE `{settings.gcp_project_id}.tenants.tenant_pipeline_runs`
+                UPDATE `{settings.gcp_project_id}.organizations.org_meta_pipeline_runs`
                 SET
                     status = 'FAILED',
                     end_time = CURRENT_TIMESTAMP(),
                     error_message = 'Pipeline marked as FAILED due to timeout (>60 minutes)',
                     duration_ms = TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), start_time, MILLISECOND)
-                WHERE tenant_id = '{tenant_id}'
+                WHERE org_slug = '{org_slug}'
                   AND status IN ('PENDING', 'RUNNING')
                   AND TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), start_time, MINUTE) > 60
                 """
@@ -1218,43 +1218,43 @@ async def cleanup_orphaned_pipelines(
                 if cleaned_count > 0:
                     # Decrement concurrent_pipelines_running counter
                     decrement_query = f"""
-                    UPDATE `{settings.gcp_project_id}.tenants.tenant_usage_quotas`
+                    UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
                     SET
                         concurrent_pipelines_running = GREATEST(concurrent_pipelines_running - @cleaned_count, 0),
                         last_updated = CURRENT_TIMESTAMP()
-                    WHERE tenant_id = @tenant_id
+                    WHERE org_slug = @org_slug
                       AND usage_date = CURRENT_DATE()
                     """
 
                     job_config = bigquery.QueryJobConfig(
                         query_parameters=[
                             bigquery.ScalarQueryParameter("cleaned_count", "INT64", cleaned_count),
-                            bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id)
+                            bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
                         ]
                     )
 
                     bq_client.client.query(decrement_query, job_config=job_config).result()
 
                     total_cleaned += cleaned_count
-                    tenant_details.append({
-                        "tenant_id": tenant_id,
+                    org_details.append({
+                        "org_slug": org_slug,
                         "pipelines_cleaned": cleaned_count
                     })
 
-                    logger.info(f"Cleaned {cleaned_count} orphaned pipelines for tenant {tenant_id}")
+                    logger.info(f"Cleaned {cleaned_count} orphaned pipelines for org {org_slug}")
 
-            except Exception as tenant_error:
-                logger.warning(f"Failed to cleanup orphaned pipelines for tenant {tenant_id}: {tenant_error}")
-                # Continue processing other tenants
+            except Exception as org_error:
+                logger.warning(f"Failed to cleanup orphaned pipelines for org {org_slug}: {org_error}")
+                # Continue processing other orgs
                 continue
 
         return {
             "status": "success",
             "total_pipelines_cleaned": total_cleaned,
-            "tenants_processed": len(tenants_results),
-            "tenants_with_cleanup": len(tenant_details),
-            "details": tenant_details,
-            "message": f"Cleaned {total_cleaned} orphaned pipelines across {len(tenant_details)} tenants",
+            "orgs_processed": len(orgs_results),
+            "orgs_with_cleanup": len(org_details),
+            "details": org_details,
+            "message": f"Cleaned {total_cleaned} orphaned pipelines across {len(org_details)} orgs",
             "executed_at": datetime.now(timezone.utc).isoformat()
         }
 

@@ -60,7 +60,7 @@ env/
 secrets/
 credentials/
 
-# Tenant-specific secrets
+# Organization-specific secrets
 configs/**/secrets/
 configs/**/*secret*.json
 configs/**/*key*.json
@@ -72,7 +72,7 @@ configs/**/*credential*.json
 **/api_keys*.json
 !configs/metadata/schemas/api_keys.json
 !ps_templates/**/schemas/*api_keys*.json
-!ps_templates/**/schemas/x_meta_api_keys.json
+!ps_templates/**/schemas/org_meta_api_keys.json
 **/api_keys*.yaml
 **/api_keys*.yml
 

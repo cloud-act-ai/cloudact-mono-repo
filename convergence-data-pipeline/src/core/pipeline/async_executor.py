@@ -42,7 +42,7 @@ except ImportError:
 # ============================================
 # Dedicated Thread Pool for BigQuery Operations
 # ============================================
-# Create module-level thread pool with 200 workers for 10k tenant scale
+# Create module-level thread pool with 200 workers for 10k org scale
 # This prevents thread exhaustion when running 100+ concurrent pipelines
 BQ_EXECUTOR = ThreadPoolExecutor(
     max_workers=200,
@@ -86,44 +86,44 @@ class AsyncPipelineExecutor:
 
     def __init__(
         self,
-        tenant_id: str,
+        org_slug: str,
         pipeline_id: str,
         trigger_type: str = "api",
         trigger_by: str = "api_user",
         tracking_pipeline_id: Optional[str] = None,
         pipeline_logging_id: Optional[str] = None,
         user_id: Optional[str] = None,
-        tenant_api_key_id: Optional[str] = None
+        org_api_key_id: Optional[str] = None
     ):
         """
         Initialize async pipeline executor.
 
         Args:
-            tenant_id: Tenant identifier
+            org_slug: Organization identifier
             pipeline_id: Pipeline identifier (matches YAML filename for config lookup)
             trigger_type: How pipeline was triggered (api, scheduler, manual)
             trigger_by: Who triggered the pipeline
-            tracking_pipeline_id: Full tracking ID for database logging (e.g., tenant-provider-domain-template)
+            tracking_pipeline_id: Full tracking ID for database logging (e.g., org-provider-domain-template)
                                   If not provided, defaults to pipeline_id
             pipeline_logging_id: Pre-generated logging ID for this run
                                 If not provided, generates a new UUID
             user_id: User UUID from frontend (X-User-ID header)
-            tenant_api_key_id: API key ID used for authentication (for audit trail)
+            org_api_key_id: API key ID used for authentication (for audit trail)
         """
-        self.tenant_id = tenant_id
+        self.org_slug = org_slug
         self.pipeline_id = pipeline_id
         self.trigger_type = trigger_type
         self.trigger_by = trigger_by
         self.tracking_pipeline_id = tracking_pipeline_id or pipeline_id
         self.pipeline_logging_id = pipeline_logging_id or str(uuid.uuid4())
         self.user_id = user_id
-        self.tenant_api_key_id = tenant_api_key_id
+        self.org_api_key_id = org_api_key_id
 
         self.bq_client = get_bigquery_client()
         self.dq_validator = DataQualityValidator()
         self.logger = create_structured_logger(
             __name__,
-            tenant_id=tenant_id,
+            org_slug=org_slug,
             pipeline_id=pipeline_id,
             pipeline_logging_id=self.pipeline_logging_id
         )
@@ -131,7 +131,7 @@ class AsyncPipelineExecutor:
         # Initialize metadata logger (already async)
         self.metadata_logger = MetadataLogger(
             bq_client=self.bq_client.client,
-            tenant_id=tenant_id
+            org_slug=org_slug
         )
 
         self.config: Optional[Dict[str, Any]] = None
@@ -153,7 +153,7 @@ class AsyncPipelineExecutor:
         Load pipeline configuration from YAML file with Pydantic validation (async).
 
         Searches recursively for pipeline in cloud-provider/domain structure:
-        configs/{tenant_id}/{provider}/{domain}/{pipeline_id}.yml
+        configs/{org_slug}/{provider}/{domain}/{pipeline_id}.yml
 
         Args:
             parameters: Runtime parameters to inject into config
@@ -175,12 +175,12 @@ class AsyncPipelineExecutor:
             validated_config: PipelineConfig = await loop.run_in_executor(
                 BQ_EXECUTOR,
                 config_loader.load_pipeline_config,
-                self.tenant_id,
+                self.org_slug,
                 self.pipeline_id
             )
 
             # Get pipeline directory for resolving relative paths
-            config_path_str = settings.find_pipeline_path(self.tenant_id, self.pipeline_id)
+            config_path_str = settings.find_pipeline_path(self.org_slug, self.pipeline_id)
             self.pipeline_dir = Path(config_path_str).parent
 
             # Convert Pydantic model to dict for backward compatibility
@@ -283,21 +283,21 @@ class AsyncPipelineExecutor:
         from src.app.config import settings
 
         try:
-            # NOTE: tenant_pipeline_runs is in CENTRAL tenants dataset, not per-tenant dataset
-            tenant_pipeline_runs_table = f"{settings.gcp_project_id}.tenants.tenant_pipeline_runs"
+            # NOTE: org_pipeline_runs is in CENTRAL orgs dataset, not per-org dataset
+            org_pipeline_runs_table = f"{settings.gcp_project_id}.orgs.org_pipeline_runs"
 
             update_query = f"""
-            UPDATE `{tenant_pipeline_runs_table}`
+            UPDATE `{org_pipeline_runs_table}`
             SET status = 'RUNNING'
             WHERE pipeline_logging_id = @pipeline_logging_id
-              AND tenant_id = @tenant_id
+              AND org_slug = @org_slug
               AND status = 'PENDING'
             """
 
             job_config = bigquery.QueryJobConfig(
                 query_parameters=[
                     bigquery.ScalarQueryParameter("pipeline_logging_id", "STRING", self.pipeline_logging_id),
-                    bigquery.ScalarQueryParameter("tenant_id", "STRING", self.tenant_id),
+                    bigquery.ScalarQueryParameter("org_slug", "STRING", self.org_slug),
                 ]
             )
 
@@ -339,20 +339,20 @@ class AsyncPipelineExecutor:
 
         try:
             update_query = f"""
-            UPDATE `{settings.gcp_project_id}.tenants.tenant_usage_quotas`
+            UPDATE `{settings.gcp_project_id}.orgs.org_usage_quotas`
             SET
                 concurrent_pipelines_running = concurrent_pipelines_running + 1,
                 max_concurrent_reached = GREATEST(max_concurrent_reached, concurrent_pipelines_running + 1),
                 last_pipeline_started_at = CURRENT_TIMESTAMP(),
                 last_updated = CURRENT_TIMESTAMP()
             WHERE
-                tenant_id = @tenant_id
+                org_slug = @org_slug
                 AND usage_date = CURRENT_DATE()
             """
 
             job_config = bigquery.QueryJobConfig(
                 query_parameters=[
-                    bigquery.ScalarQueryParameter("tenant_id", "STRING", self.tenant_id),
+                    bigquery.ScalarQueryParameter("org_slug", "STRING", self.org_slug),
                 ]
             )
 
@@ -364,14 +364,14 @@ class AsyncPipelineExecutor:
 
             self.logger.info(
                 f"Incremented concurrent pipelines counter",
-                tenant_id=self.tenant_id
+                org_slug=self.org_slug
             )
 
             # Query current count for Prometheus metric
             query_count = f"""
             SELECT concurrent_pipelines_running
-            FROM `{settings.gcp_project_id}.tenants.tenant_usage_quotas`
-            WHERE tenant_id = @tenant_id AND usage_date = CURRENT_DATE()
+            FROM `{settings.gcp_project_id}.orgs.org_usage_quotas`
+            WHERE org_slug = @org_slug AND usage_date = CURRENT_DATE()
             """
 
             count_result = await loop.run_in_executor(
@@ -380,22 +380,22 @@ class AsyncPipelineExecutor:
             )
 
             for row in count_result:
-                set_active_pipelines(self.tenant_id, row.concurrent_pipelines_running)
+                set_active_pipelines(self.org_slug, row.concurrent_pipelines_running)
                 break
 
         except Exception as e:
             self.logger.warning(
                 f"Failed to increment concurrent pipelines counter: {e}",
-                tenant_id=self.tenant_id,
+                org_slug=self.org_slug,
                 exc_info=True
             )
 
-    async def _update_tenant_usage_quotas(self) -> None:
+    async def _update_org_usage_quotas(self) -> None:
         """
         Update customer usage quotas after pipeline completion.
 
-        Quotas are tracked at TENANT level (not customer/user level).
-        All users in a tenant share the same quota.
+        Quotas are tracked at ORG level (not customer/user level).
+        All users in an org share the same quota.
         """
         from google.cloud import bigquery
         from src.app.config import settings
@@ -412,9 +412,9 @@ class AsyncPipelineExecutor:
                 success_increment = 0
                 failed_increment = 0
 
-            # Update usage quotas directly by tenant_id
+            # Update usage quotas directly by org_slug
             update_query = f"""
-            UPDATE `{settings.gcp_project_id}.tenants.tenant_usage_quotas`
+            UPDATE `{settings.gcp_project_id}.orgs.org_usage_quotas`
             SET
                 pipelines_run_today = pipelines_run_today + 1,
                 pipelines_succeeded_today = pipelines_succeeded_today + @success_increment,
@@ -423,13 +423,13 @@ class AsyncPipelineExecutor:
                 last_pipeline_completed_at = CURRENT_TIMESTAMP(),
                 last_updated = CURRENT_TIMESTAMP()
             WHERE
-                tenant_id = @tenant_id
+                org_slug = @org_slug
                 AND usage_date = CURRENT_DATE()
             """
 
             job_config = bigquery.QueryJobConfig(
                 query_parameters=[
-                    bigquery.ScalarQueryParameter("tenant_id", "STRING", self.tenant_id),
+                    bigquery.ScalarQueryParameter("org_slug", "STRING", self.org_slug),
                     bigquery.ScalarQueryParameter("success_increment", "INT64", success_increment),
                     bigquery.ScalarQueryParameter("failed_increment", "INT64", failed_increment),
                 ]
@@ -443,7 +443,7 @@ class AsyncPipelineExecutor:
 
             self.logger.info(
                 f"Updated customer usage quotas",
-                tenant_id=self.tenant_id,
+                org_slug=self.org_slug,
                 status=self.status,
                 pipelines_run=1,
                 pipelines_succeeded=success_increment,
@@ -453,7 +453,7 @@ class AsyncPipelineExecutor:
         except Exception as e:
             self.logger.warning(
                 f"Failed to update customer usage quotas: {e}",
-                tenant_id=self.tenant_id,
+                org_slug=self.org_slug,
                 status=self.status,
                 exc_info=True
             )
@@ -477,7 +477,7 @@ class AsyncPipelineExecutor:
                 f"pipeline.execute",
                 attributes={
                     "pipeline.id": self.tracking_pipeline_id,
-                    "pipeline.tenant_id": self.tenant_id,
+                    "pipeline.org_slug": self.org_slug,
                     "pipeline.trigger_type": self.trigger_type
                 }
             )
@@ -543,14 +543,14 @@ class AsyncPipelineExecutor:
 
                     # Increment execution counter
                     increment_pipeline_execution(
-                        tenant_id=self.tenant_id,
+                        org_slug=self.org_slug,
                         pipeline_id=self.tracking_pipeline_id,
                         status=self.status
                     )
 
                     # Observe duration
                     observe_pipeline_duration(
-                        tenant_id=self.tenant_id,
+                        org_slug=self.org_slug,
                         pipeline_id=self.tracking_pipeline_id,
                         status=self.status,
                         duration_seconds=duration_seconds
@@ -576,7 +576,7 @@ class AsyncPipelineExecutor:
 
             # Update customer usage quotas
             try:
-                await self._update_tenant_usage_quotas()
+                await self._update_org_usage_quotas()
             except Exception as quota_error:
                 self.logger.error(f"Error updating customer usage quotas: {quota_error}", exc_info=True)
 
@@ -676,7 +676,7 @@ class AsyncPipelineExecutor:
                     "step.type": step_type,
                     "step.index": step_index,
                     "pipeline.id": self.tracking_pipeline_id,
-                    "tenant.id": self.tenant_id
+                    "org.slug": self.org_slug
                 }
             )
 
@@ -798,7 +798,7 @@ class AsyncPipelineExecutor:
         Args:
             step_config: Step configuration from YAML
             step_id: Step identifier
-            step_type: Step type (e.g., "gcp.bq_etl", "setup.tenants.onboarding")
+            step_type: Step type (e.g., "gcp.bq_etl", "setup.organizations.onboarding")
 
         Returns:
             Step execution result dictionary
@@ -817,7 +817,7 @@ class AsyncPipelineExecutor:
             # Execute the engine with step config and context
             # Include pipeline-level variables in context for template replacement
             context = {
-                "tenant_id": self.tenant_id,
+                "org_slug": self.org_slug,
                 "pipeline_id": self.pipeline_id,
                 "step_id": step_id
             }
@@ -855,7 +855,7 @@ class AsyncPipelineExecutor:
         return {
             'pipeline_logging_id': self.pipeline_logging_id,
             'pipeline_id': self.tracking_pipeline_id,  # Use tracking ID for consistency with DB
-            'tenant_id': self.tenant_id,
+            'org_slug': self.org_slug,
             'status': self.status,
             'start_time': self.start_time,
             'end_time': self.end_time,

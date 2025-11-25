@@ -2,7 +2,7 @@
 # Demonstrates how to use notify_systems.email_notification processor
 # Usage: This pipeline serves as a reference for other pipelines
 
-pipeline_id: "{tenant_id}-example-email-notification"
+pipeline_id: "{org_slug}-example-email-notification"
 description: "Example pipeline demonstrating email notifications on pipeline events"
 
 # Pipeline-level variables that can be overridden
@@ -54,11 +54,11 @@ steps:
       PIPELINE FAILURE ALERT
 
       Pipeline ID: {pipeline_id}
-      Tenant ID: {tenant_id}
+      Organization: {org_slug}
       Triggered By: {trigger_by}
       Failure Time: {execution_timestamp}
 
-      Please check the logs at: {tenant_id}.x_meta_step_logs
+      Please check the logs at: {org_slug}.org_meta_step_logs
 
       Regards,
       CloudAct Data Platform
@@ -77,7 +77,7 @@ steps:
       PIPELINE SUCCESS NOTIFICATION
 
       Pipeline ID: {pipeline_id}
-      Tenant ID: {tenant_id}
+      Organization: {org_slug}
       Completed At: {execution_timestamp}
 
       Data has been successfully processed and loaded.

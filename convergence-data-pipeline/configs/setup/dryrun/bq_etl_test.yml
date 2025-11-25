@@ -1,7 +1,7 @@
 pipeline:
   id: "bq_etl_test"
   name: "BQ ETL Test Pipeline"
-  description: "Tests BigQuery ETL operations for tenant onboarding validation"
+  description: "Tests BigQuery ETL operations for organization onboarding validation"
   version: "1.0.0"
   trigger_type: "manual"
 
@@ -33,7 +33,7 @@ steps:
           'Onboarding Test' as source,
           CURRENT_TIMESTAMP() as created_at,
           'PENDING' as status
-      target_table: "${tenant_id}.test_sample_data"
+      target_table: "${org_slug}.test_sample_data"
       write_disposition: "WRITE_TRUNCATE"
       create_table_if_needed: true
 
@@ -53,8 +53,8 @@ steps:
             ELSE status
           END as updated_status,
           CURRENT_TIMESTAMP() as processed_at
-        FROM ${tenant_id}.test_sample_data
-      target_table: "${tenant_id}.test_transformed_data"
+        FROM ${org_slug}.test_sample_data
+      target_table: "${org_slug}.test_transformed_data"
       write_disposition: "WRITE_TRUNCATE"
       create_table_if_needed: true
 
@@ -71,7 +71,7 @@ steps:
             COUNT(CASE WHEN updated_status = 'ACTIVE' THEN 1 END) as active_records,
             MIN(processed_at) as first_processed,
             MAX(processed_at) as last_processed
-          FROM ${tenant_id}.test_transformed_data
+          FROM ${org_slug}.test_transformed_data
         )
         SELECT
           'Validation Complete' as status,
@@ -81,7 +81,7 @@ steps:
           TIMESTAMP_DIFF(last_processed, first_processed, SECOND) as processing_time_seconds,
           CURRENT_TIMESTAMP() as validation_timestamp
         FROM validation
-      target_table: "${tenant_id}.test_validation_results"
+      target_table: "${org_slug}.test_validation_results"
       write_disposition: "WRITE_APPEND"
       create_table_if_needed: true
 

@@ -59,7 +59,7 @@ class BaseNotificationProvider(ABC):
         Initialize notification provider
 
         Args:
-            config: Notification configuration (root or tenant-specific)
+            config: Notification configuration (root or org-specific)
         """
         self.config = config
         self.retry_config = config.retry_config
@@ -118,7 +118,7 @@ class BaseNotificationProvider(ABC):
         if not event_config or not event_config.cooldown_seconds:
             return True
 
-        cooldown_key = f"{message.tenant_id}:{message.event.value}"
+        cooldown_key = f"{message.org_slug}:{message.event.value}"
         last_time = self._last_notification_time.get(cooldown_key)
 
         if last_time:
@@ -134,7 +134,7 @@ class BaseNotificationProvider(ABC):
 
     def _update_cooldown(self, message: NotificationMessage):
         """Update last notification time for cooldown tracking"""
-        cooldown_key = f"{message.tenant_id}:{message.event.value}"
+        cooldown_key = f"{message.org_slug}:{message.event.value}"
         self._last_notification_time[cooldown_key] = datetime.utcnow()
 
     async def send(self, message: NotificationMessage) -> bool:
@@ -151,7 +151,7 @@ class BaseNotificationProvider(ABC):
         if not self._check_cooldown(message):
             logger.info(
                 f"Skipping {self.provider_name} notification for {message.event.value} "
-                f"(tenant: {message.tenant_id}) - cooldown active"
+                f"(org: {message.org_slug}) - cooldown active"
             )
             return False
 
@@ -170,7 +170,7 @@ class BaseNotificationProvider(ABC):
         try:
             logger.info(
                 f"Sending {self.provider_name} notification for {message.event.value} "
-                f"(tenant: {message.tenant_id}, severity: {message.severity.value})"
+                f"(org: {message.org_slug}, severity: {message.severity.value})"
             )
 
             success = await send_with_retry(message)
@@ -179,12 +179,12 @@ class BaseNotificationProvider(ABC):
                 self._update_cooldown(message)
                 logger.info(
                     f"Successfully sent {self.provider_name} notification for {message.event.value} "
-                    f"(tenant: {message.tenant_id})"
+                    f"(org: {message.org_slug})"
                 )
             else:
                 logger.warning(
                     f"Failed to send {self.provider_name} notification for {message.event.value} "
-                    f"(tenant: {message.tenant_id})"
+                    f"(org: {message.org_slug})"
                 )
 
             return success
@@ -192,14 +192,14 @@ class BaseNotificationProvider(ABC):
         except asyncio.TimeoutError:
             logger.error(
                 f"{self.provider_name} notification timed out after {self.timeout_seconds}s "
-                f"for {message.event.value} (tenant: {message.tenant_id})"
+                f"for {message.event.value} (org: {message.org_slug})"
             )
             return False
 
         except Exception as e:
             logger.error(
                 f"Failed to send {self.provider_name} notification for {message.event.value} "
-                f"(tenant: {message.tenant_id}): {str(e)}",
+                f"(org: {message.org_slug}): {str(e)}",
                 exc_info=True
             )
             return False

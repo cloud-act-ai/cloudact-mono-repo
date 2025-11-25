@@ -11,14 +11,14 @@ import uuid
 import asyncio
 import logging
 
-from src.app.dependencies.auth import verify_api_key, verify_api_key_header, verify_admin_key, TenantContext
-from src.app.dependencies.rate_limit_decorator import rate_limit_by_tenant
+from src.app.dependencies.auth import verify_api_key, verify_api_key_header, verify_admin_key, OrgContext
+from src.app.dependencies.rate_limit_decorator import rate_limit_by_org
 from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
 from src.core.pipeline.executor import PipelineExecutor
 from src.core.pipeline.async_executor import AsyncPipelineExecutor
 from src.core.pipeline.template_resolver import resolve_template, get_template_path
-# Removed: ensure_tenant_metadata - tenant datasets created during onboarding
-# from src.core.metadata.initializer import ensure_tenant_metadata
+# Removed: ensure_org_metadata - org datasets created during onboarding
+# from src.core.metadata.initializer import ensure_org_metadata
 from src.app.config import settings
 from google.cloud import bigquery
 
@@ -49,7 +49,7 @@ class PipelineRunResponse(BaseModel):
     """Response for pipeline run."""
     pipeline_logging_id: str
     pipeline_id: str
-    tenant_id: str
+    org_slug: str
     status: str
     trigger_type: str
     trigger_by: str
@@ -62,7 +62,7 @@ class TriggerPipelineResponse(BaseModel):
     """Response for triggering a pipeline."""
     pipeline_logging_id: str
     pipeline_id: str
-    tenant_id: str
+    org_slug: str
     status: str
     message: str
 
@@ -110,20 +110,20 @@ def run_pipeline_task(executor: PipelineExecutor, parameters: dict):
 
 
 @router.post(
-    "/pipelines/run/{tenant_id}/{provider}/{domain}/{template_name}",
+    "/pipelines/run/{org_slug}/{provider}/{domain}/{template_name}",
     response_model=TriggerPipelineResponse,
     summary="Trigger a templated pipeline",
-    description="Start execution of a pipeline from a template with automatic variable substitution. Rate limited: 50 requests/minute per tenant"
+    description="Start execution of a pipeline from a template with automatic variable substitution. Rate limited: 50 requests/minute per org"
 )
 async def trigger_templated_pipeline(
-    tenant_id: str,
+    org_slug: str,
     provider: str,
     domain: str,
     template_name: str,
     background_tasks: BackgroundTasks,
     http_request: Request,
     request: TriggerPipelineRequest = TriggerPipelineRequest(),
-    tenant: TenantContext = Depends(verify_api_key_header),
+    org: OrgContext = Depends(verify_api_key_header),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """
@@ -133,11 +133,11 @@ async def trigger_templated_pipeline(
     and replaces all template variables before execution.
 
     Template Variables:
-    - {tenant_id} - Replaced with tenant_id from path
+    - {org_slug} - Replaced with org_slug from path
     - {provider} - Replaced with provider from path (e.g., 'gcp', 'aws')
     - {domain} - Replaced with domain from path (e.g., 'cost', 'security')
     - {template_name} - Replaced with template_name from path
-    - {pipeline_id} - Auto-generated: {tenant_id}-{provider}-{domain}-{template_name}
+    - {pipeline_id} - Auto-generated: {org_slug}-{provider}-{domain}-{template_name}
 
     Example:
     ```
@@ -148,12 +148,12 @@ async def trigger_templated_pipeline(
 
     This will:
     1. Load template from: configs/gcp/cost/bill-sample-export-template.yml
-    2. Replace {tenant_id} with 'acmeinc_23xv2'
+    2. Replace {org_slug} with 'acmeinc_23xv2'
     3. Replace {pipeline_id} with 'acmeinc_23xv2-gcp-cost-bill-sample-export-template'
     4. Execute the resolved pipeline
 
     Args:
-        tenant_id: Tenant identifier (must match authenticated tenant)
+        org_slug: Organization identifier (must match authenticated org)
         provider: Cloud provider (gcp, aws, azure)
         domain: Domain category (cost, security, compute)
         template_name: Template name (without .yml extension)
@@ -163,46 +163,46 @@ async def trigger_templated_pipeline(
         TriggerPipelineResponse with pipeline_logging_id for tracking
 
     Features:
-    - Template-based configuration (one template, many tenants)
+    - Template-based configuration (one template, many orgs)
     - Automatic variable substitution
     - Async/await architecture for non-blocking operations
     - Parallel execution of independent pipeline steps
     - DAG-based dependency resolution
     - Built-in concurrency control - prevents duplicate pipeline execution
-    - Rate limited: 50 requests/minute per tenant (prevents resource exhaustion)
+    - Rate limited: 50 requests/minute per org (prevents resource exhaustion)
     """
     # Apply rate limiting for expensive pipeline execution
-    await rate_limit_by_tenant(
+    await rate_limit_by_org(
         http_request,
-        tenant_id=tenant.tenant_id,
+        org_slug=org.org_slug,
         limit_per_minute=settings.rate_limit_pipeline_run_per_minute,
         endpoint_name="trigger_templated_pipeline"
     )
 
-    # Verify tenant_id matches authenticated tenant
-    if tenant_id != tenant.tenant_id:
+    # Verify org_slug matches authenticated org
+    if org_slug != org.org_slug:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Tenant ID mismatch: authenticated as '{tenant.tenant_id}' but requested '{tenant_id}'"
+            detail=f"Org slug mismatch: authenticated as '{org.org_slug}' but requested '{org_slug}'"
         )
 
     # ============================================
-    # QUOTA ENFORCEMENT (Tenant-Level)
+    # QUOTA ENFORCEMENT (Org-Level)
     # ============================================
-    # Check if tenant has exceeded daily pipeline quota
+    # Check if org has exceeded daily pipeline quota
     quota_query = f"""
     SELECT
         pipelines_run_today,
         daily_limit,
         COALESCE(daily_limit - pipelines_run_today, 0) as remaining
-    FROM `{settings.gcp_project_id}.tenants.tenant_usage_quotas`
-    WHERE tenant_id = @tenant_id
+    FROM `{settings.gcp_project_id}.organizations.org_usage_quotas`
+    WHERE org_slug = @org_slug
       AND usage_date = CURRENT_DATE()
     LIMIT 1
     """
 
     quota_params = [
-        bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id)
+        bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
     ]
 
     quota_config = bigquery.QueryJobConfig(query_parameters=quota_params)
@@ -211,10 +211,10 @@ async def trigger_templated_pipeline(
         quota_result = list(bq_client.client.query(quota_query, job_config=quota_config).result())
 
         if not quota_result:
-            logger.warning(f"No quota record found for tenant: {tenant_id}")
+            logger.warning(f"No quota record found for org: {org_slug}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Quota record not found for tenant {tenant_id}. Please contact support."
+                detail=f"Quota record not found for org {org_slug}. Please contact support."
             )
 
         quota = quota_result[0]
@@ -225,9 +225,9 @@ async def trigger_templated_pipeline(
         # Enforce quota limit
         if pipelines_run_today >= daily_limit:
             logger.warning(
-                f"Quota exceeded for tenant: {tenant_id}",
+                f"Quota exceeded for org: {org_slug}",
                 extra={
-                    "tenant_id": tenant_id,
+                    "org_slug": org_slug,
                     "pipelines_run_today": pipelines_run_today,
                     "daily_limit": daily_limit,
                     "remaining": remaining
@@ -239,9 +239,9 @@ async def trigger_templated_pipeline(
             )
 
         logger.info(
-            f"Quota check passed for tenant: {tenant_id}",
+            f"Quota check passed for org: {org_slug}",
             extra={
-                "tenant_id": tenant_id,
+                "org_slug": org_slug,
                 "pipelines_run_today": pipelines_run_today,
                 "daily_limit": daily_limit,
                 "remaining": remaining
@@ -251,14 +251,14 @@ async def trigger_templated_pipeline(
     except HTTPException:
         raise  # Re-raise HTTP exceptions
     except Exception as e:
-        logger.error(f"Failed to check quota for tenant {tenant_id}: {str(e)}")
+        logger.error(f"Failed to check quota for org {org_slug}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to check quota: {str(e)}"
         )
 
-    # Generate pipeline_id for tracking (includes tenant prefix)
-    pipeline_id = f"{tenant_id}-{provider}-{domain}-{template_name}"
+    # Generate pipeline_id for tracking (includes org prefix)
+    pipeline_id = f"{org_slug}-{provider}-{domain}-{template_name}"
 
     # File identifier for config lookup (just the template name for glob search)
     file_identifier = template_name  # e.g., "billing_cost"
@@ -268,7 +268,7 @@ async def trigger_templated_pipeline(
 
     # Prepare template variables
     template_variables = {
-        "tenant_id": tenant_id,
+        "org_slug": org_slug,
         "provider": provider,
         "domain": domain,
         "template_name": template_name,
@@ -289,8 +289,8 @@ async def trigger_templated_pipeline(
             detail=f"Failed to resolve template: {str(e)}"
         )
 
-    # Note: Tenant dataset and operational tables created during onboarding
-    # No need to ensure_tenant_metadata here - it would try to create API key tables
+    # Note: Org dataset and operational tables created during onboarding
+    # No need to ensure_org_metadata here - it would try to create API key tables
 
     # Extract parameters from request
     parameters = request.model_dump(exclude={'trigger_by'}, exclude_none=True)
@@ -302,18 +302,18 @@ async def trigger_templated_pipeline(
     pipeline_logging_id = str(uuid.uuid4())
 
     # ATOMIC: Insert pipeline run ONLY IF no RUNNING/PENDING pipeline exists
-    # Use centralized metadata table: tenants.tenant_pipeline_runs
-    tenant_pipeline_runs_table = f"{settings.gcp_project_id}.tenants.tenant_pipeline_runs"
+    # Use centralized metadata table: organizations.org_meta_pipeline_runs
+    org_pipeline_runs_table = f"{settings.gcp_project_id}.organizations.org_meta_pipeline_runs"
 
     insert_query = f"""
-    INSERT INTO `{tenant_pipeline_runs_table}`
-    (pipeline_logging_id, pipeline_id, tenant_id, tenant_api_key_id, status, trigger_type, trigger_by, user_id, start_time, run_date, parameters)
+    INSERT INTO `{org_pipeline_runs_table}`
+    (pipeline_logging_id, pipeline_id, org_slug, org_api_key_id, status, trigger_type, trigger_by, user_id, start_time, run_date, parameters)
     SELECT * FROM (
         SELECT
             @pipeline_logging_id AS pipeline_logging_id,
             @pipeline_id AS pipeline_id,
-            @tenant_id AS tenant_id,
-            @tenant_api_key_id AS tenant_api_key_id,
+            @org_slug AS org_slug,
+            @org_api_key_id AS org_api_key_id,
             'PENDING' AS status,
             @trigger_type AS trigger_type,
             @trigger_by AS trigger_by,
@@ -324,8 +324,8 @@ async def trigger_templated_pipeline(
     ) AS new_run
     WHERE NOT EXISTS (
         SELECT 1
-        FROM `{tenant_pipeline_runs_table}`
-        WHERE tenant_id = @tenant_id
+        FROM `{org_pipeline_runs_table}`
+        WHERE org_slug = @org_slug
           AND pipeline_id = @pipeline_id
           AND status IN ('RUNNING', 'PENDING')
     )
@@ -336,11 +336,11 @@ async def trigger_templated_pipeline(
         query_parameters=[
             bigquery.ScalarQueryParameter("pipeline_logging_id", "STRING", pipeline_logging_id),
             bigquery.ScalarQueryParameter("pipeline_id", "STRING", pipeline_id),
-            bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant.tenant_id),
-            bigquery.ScalarQueryParameter("tenant_api_key_id", "STRING", tenant.tenant_api_key_id),
+            bigquery.ScalarQueryParameter("org_slug", "STRING", org.org_slug),
+            bigquery.ScalarQueryParameter("org_api_key_id", "STRING", org.org_api_key_id),
             bigquery.ScalarQueryParameter("trigger_type", "STRING", "api"),
             bigquery.ScalarQueryParameter("trigger_by", "STRING", request.trigger_by or "api_user"),
-            bigquery.ScalarQueryParameter("user_id", "STRING", tenant.user_id),
+            bigquery.ScalarQueryParameter("user_id", "STRING", org.user_id),
             bigquery.ScalarQueryParameter("run_date", "DATE", run_date),
             bigquery.ScalarQueryParameter("parameters", "STRING", json.dumps(parameters) if parameters else "{}"),
         ]
@@ -355,14 +355,14 @@ async def trigger_templated_pipeline(
         # Successfully inserted - create executor with file identifier for config lookup
         # pipeline_id is used for YAML file lookup, tracking_pipeline_id is the full tracking ID for DB
         executor = AsyncPipelineExecutor(
-            tenant_id=tenant.tenant_id,
+            org_slug=org.org_slug,
             pipeline_id=file_identifier,  # Use file identifier for config lookup
             trigger_type="api",
             trigger_by=request.trigger_by or "api_user",
             tracking_pipeline_id=pipeline_id,  # Full tracking ID for database logging
             pipeline_logging_id=pipeline_logging_id,  # Pre-generated UUID from atomic INSERT
-            user_id=tenant.user_id,
-            tenant_api_key_id=tenant.tenant_api_key_id
+            user_id=org.user_id,
+            org_api_key_id=org.org_api_key_id
         )
 
         # Execute pipeline in background
@@ -371,19 +371,19 @@ async def trigger_templated_pipeline(
         return TriggerPipelineResponse(
             pipeline_logging_id=pipeline_logging_id,
             pipeline_id=pipeline_id,
-            tenant_id=tenant.tenant_id,
+            org_slug=org.org_slug,
             status="PENDING",
-            message=f"Templated pipeline {template_name} triggered successfully for {tenant_id} (async mode)"
+            message=f"Templated pipeline {template_name} triggered successfully for {org_slug} (async mode)"
         )
     else:
-        # Pipeline already running/pending - use tenant-specific metadata table
-        # Use CENTRAL tenants dataset for all metadata (not per-tenant)
-        tenant_pipeline_runs_table = f"{settings.gcp_project_id}.tenants.tenant_pipeline_runs"
+        # Pipeline already running/pending - use org-specific metadata table
+        # Use CENTRAL organizations dataset for all metadata (not per-org)
+        org_pipeline_runs_table = f"{settings.gcp_project_id}.organizations.org_meta_pipeline_runs"
 
         check_query = f"""
         SELECT pipeline_logging_id
-        FROM `{tenant_pipeline_runs_table}`
-        WHERE tenant_id = @tenant_id
+        FROM `{org_pipeline_runs_table}`
+        WHERE org_slug = @org_slug
           AND pipeline_id = @pipeline_id
           AND status IN ('RUNNING', 'PENDING')
         ORDER BY start_time DESC
@@ -392,7 +392,7 @@ async def trigger_templated_pipeline(
 
         check_job_config = bigquery.QueryJobConfig(
             query_parameters=[
-                bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant.tenant_id),
+                bigquery.ScalarQueryParameter("org_slug", "STRING", org.org_slug),
                 bigquery.ScalarQueryParameter("pipeline_id", "STRING", pipeline_id),
             ]
         )
@@ -403,7 +403,7 @@ async def trigger_templated_pipeline(
         return TriggerPipelineResponse(
             pipeline_logging_id=existing_pipeline_logging_id,
             pipeline_id=pipeline_id,
-            tenant_id=tenant.tenant_id,
+            org_slug=org.org_slug,
             status="RUNNING",
             message=f"Pipeline {pipeline_id} already running or pending - returning existing execution {existing_pipeline_logging_id}"
         )
@@ -413,7 +413,7 @@ async def trigger_templated_pipeline(
     "/pipelines/run/{pipeline_id}",
     response_model=TriggerPipelineResponse,
     summary="Trigger a pipeline (DEPRECATED)",
-    description="Start execution of a pipeline for the authenticated tenant with async parallel processing. DEPRECATED: Use /pipelines/run/{tenant_id}/{provider}/{domain}/{template_name} instead. Rate limited: 50 requests/minute per tenant",
+    description="Start execution of a pipeline for the authenticated org with async parallel processing. DEPRECATED: Use /pipelines/run/{org_slug}/{provider}/{domain}/{template_name} instead. Rate limited: 50 requests/minute per org",
     deprecated=True
 )
 async def trigger_pipeline(
@@ -421,7 +421,7 @@ async def trigger_pipeline(
     background_tasks: BackgroundTasks,
     http_request: Request,
     request: TriggerPipelineRequest = TriggerPipelineRequest(),
-    tenant: TenantContext = Depends(verify_api_key),
+    org: OrgContext = Depends(verify_api_key),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """
@@ -440,18 +440,18 @@ async def trigger_pipeline(
     - Support for 100+ concurrent pipelines
     - Petabyte-scale data processing via partitioning
     - Built-in concurrency control - prevents duplicate pipeline execution
-    - Rate limited: 50 requests/minute per tenant (prevents resource exhaustion)
+    - Rate limited: 50 requests/minute per org (prevents resource exhaustion)
     """
     # Apply rate limiting for expensive pipeline execution
-    await rate_limit_by_tenant(
+    await rate_limit_by_org(
         http_request,
-        tenant_id=tenant.tenant_id,
+        org_slug=org.org_slug,
         limit_per_minute=settings.rate_limit_pipeline_run_per_minute,
         endpoint_name="trigger_pipeline_deprecated"
     )
 
-    # Note: Tenant dataset and operational tables created during onboarding
-    # No need to ensure_tenant_metadata here - it would try to create API key tables
+    # Note: Org dataset and operational tables created during onboarding
+    # No need to ensure_org_metadata here - it would try to create API key tables
 
     # Extract parameters from request
     parameters = request.model_dump(exclude={'trigger_by'}, exclude_none=True)
@@ -466,14 +466,14 @@ async def trigger_pipeline(
     # ATOMIC: Insert pipeline run ONLY IF no RUNNING/PENDING pipeline exists
     # This single DML operation prevents race conditions by being atomic
     insert_query = f"""
-    INSERT INTO `{settings.gcp_project_id}.tenants.tenant_pipeline_runs`
-    (pipeline_logging_id, pipeline_id, tenant_id, tenant_api_key_id, status, trigger_type, trigger_by, user_id, start_time, run_date, parameters)
+    INSERT INTO `{settings.gcp_project_id}.organizations.org_meta_pipeline_runs`
+    (pipeline_logging_id, pipeline_id, org_slug, org_api_key_id, status, trigger_type, trigger_by, user_id, start_time, run_date, parameters)
     SELECT * FROM (
         SELECT
             @pipeline_logging_id AS pipeline_logging_id,
             @pipeline_id AS pipeline_id,
-            @tenant_id AS tenant_id,
-            @tenant_api_key_id AS tenant_api_key_id,
+            @org_slug AS org_slug,
+            @org_api_key_id AS org_api_key_id,
             'PENDING' AS status,
             @trigger_type AS trigger_type,
             @trigger_by AS trigger_by,
@@ -484,8 +484,8 @@ async def trigger_pipeline(
     ) AS new_run
     WHERE NOT EXISTS (
         SELECT 1
-        FROM `{settings.gcp_project_id}.tenants.tenant_pipeline_runs`
-        WHERE tenant_id = @tenant_id
+        FROM `{settings.gcp_project_id}.organizations.org_meta_pipeline_runs`
+        WHERE org_slug = @org_slug
           AND pipeline_id = @pipeline_id
           AND status IN ('RUNNING', 'PENDING')
     )
@@ -496,11 +496,11 @@ async def trigger_pipeline(
         query_parameters=[
             bigquery.ScalarQueryParameter("pipeline_logging_id", "STRING", pipeline_logging_id),
             bigquery.ScalarQueryParameter("pipeline_id", "STRING", pipeline_id),
-            bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant.tenant_id),
-            bigquery.ScalarQueryParameter("tenant_api_key_id", "STRING", tenant.tenant_api_key_id),
+            bigquery.ScalarQueryParameter("org_slug", "STRING", org.org_slug),
+            bigquery.ScalarQueryParameter("org_api_key_id", "STRING", org.org_api_key_id),
             bigquery.ScalarQueryParameter("trigger_type", "STRING", "api"),
             bigquery.ScalarQueryParameter("trigger_by", "STRING", request.trigger_by or "api_user"),
-            bigquery.ScalarQueryParameter("user_id", "STRING", tenant.user_id),
+            bigquery.ScalarQueryParameter("user_id", "STRING", org.user_id),
             bigquery.ScalarQueryParameter("run_date", "DATE", run_date),
             bigquery.ScalarQueryParameter("parameters", "STRING", json.dumps(parameters) if parameters else "{}"),
         ]
@@ -515,12 +515,12 @@ async def trigger_pipeline(
         # Successfully inserted - this is a new pipeline execution
         # Create ASYNC pipeline executor
         executor = AsyncPipelineExecutor(
-            tenant_id=tenant.tenant_id,
+            org_slug=org.org_slug,
             pipeline_id=pipeline_id,
             trigger_type="api",
             trigger_by=request.trigger_by or "api_user",
-            user_id=tenant.user_id,
-            tenant_api_key_id=tenant.tenant_api_key_id
+            user_id=org.user_id,
+            org_api_key_id=org.org_api_key_id
         )
         # Override the executor's pipeline_logging_id with our pre-generated one
         executor.pipeline_logging_id = pipeline_logging_id
@@ -531,7 +531,7 @@ async def trigger_pipeline(
         return TriggerPipelineResponse(
             pipeline_logging_id=pipeline_logging_id,
             pipeline_id=pipeline_id,
-            tenant_id=tenant.tenant_id,
+            org_slug=org.org_slug,
             status="PENDING",
             message=f"Pipeline {pipeline_id} triggered successfully (async mode)"
         )
@@ -540,8 +540,8 @@ async def trigger_pipeline(
         # Query to get the existing pipeline_logging_id
         check_query = f"""
         SELECT pipeline_logging_id
-        FROM `{settings.gcp_project_id}.tenants.tenant_pipeline_runs`
-        WHERE tenant_id = @tenant_id
+        FROM `{settings.gcp_project_id}.organizations.org_meta_pipeline_runs`
+        WHERE org_slug = @org_slug
           AND pipeline_id = @pipeline_id
           AND status IN ('RUNNING', 'PENDING')
         ORDER BY start_time DESC
@@ -550,7 +550,7 @@ async def trigger_pipeline(
 
         check_job_config = bigquery.QueryJobConfig(
             query_parameters=[
-                bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant.tenant_id),
+                bigquery.ScalarQueryParameter("org_slug", "STRING", org.org_slug),
                 bigquery.ScalarQueryParameter("pipeline_id", "STRING", pipeline_id),
             ]
         )
@@ -561,7 +561,7 @@ async def trigger_pipeline(
         return TriggerPipelineResponse(
             pipeline_logging_id=existing_pipeline_logging_id,
             pipeline_id=pipeline_id,
-            tenant_id=tenant.tenant_id,
+            org_slug=org.org_slug,
             status="RUNNING",
             message=f"Pipeline {pipeline_id} already running or pending - returning existing execution {existing_pipeline_logging_id}"
         )
@@ -575,7 +575,7 @@ async def trigger_pipeline(
 )
 async def get_pipeline_run(
     pipeline_logging_id: str,
-    tenant: TenantContext = Depends(verify_api_key),
+    org: OrgContext = Depends(verify_api_key),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """
@@ -590,16 +590,16 @@ async def get_pipeline_run(
     SELECT
         pipeline_logging_id,
         pipeline_id,
-        tenant_id,
+        org_slug,
         status,
         trigger_type,
         trigger_by,
         start_time,
         end_time,
         duration_ms
-    FROM `{settings.gcp_project_id}.tenants.tenant_pipeline_runs`
+    FROM `{settings.gcp_project_id}.organizations.org_meta_pipeline_runs`
     WHERE pipeline_logging_id = @pipeline_logging_id
-      AND tenant_id = @tenant_id
+      AND org_slug = @org_slug
     LIMIT 1
     """
 
@@ -608,7 +608,7 @@ async def get_pipeline_run(
     job_config = bigquery.QueryJobConfig(
         query_parameters=[
             bigquery.ScalarQueryParameter("pipeline_logging_id", "STRING", pipeline_logging_id),
-            bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant.tenant_id),
+            bigquery.ScalarQueryParameter("org_slug", "STRING", org.org_slug),
         ]
     )
 
@@ -617,7 +617,7 @@ async def get_pipeline_run(
     if not results:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Pipeline run {pipeline_logging_id} not found for tenant {tenant.tenant_id}"
+            detail=f"Pipeline run {pipeline_logging_id} not found for org {org.org_slug}"
         )
 
     row = dict(results[0])
@@ -629,13 +629,13 @@ async def get_pipeline_run(
     "/pipelines/runs",
     response_model=List[PipelineRunResponse],
     summary="List pipeline runs",
-    description="List recent pipeline runs for the authenticated tenant"
+    description="List recent pipeline runs for the authenticated org"
 )
 async def list_pipeline_runs(
     pipeline_id: Optional[str] = Query(None, description="Filter by pipeline ID"),
     status: Optional[str] = Query(None, description="Filter by status"),
     limit: int = Query(20, ge=1, le=100, description="Maximum results to return"),
-    tenant: TenantContext = Depends(verify_api_key),
+    org: OrgContext = Depends(verify_api_key),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """
@@ -648,9 +648,9 @@ async def list_pipeline_runs(
     Returns list of pipeline runs ordered by start time (most recent first).
     """
     # Build query with filters
-    where_clauses = [f"tenant_id = @tenant_id"]
+    where_clauses = [f"org_slug = @org_slug"]
     parameters = [
-        ("tenant_id", "STRING", tenant.tenant_id),
+        ("org_slug", "STRING", org.org_slug),
     ]
 
     if pipeline_id:
@@ -667,14 +667,14 @@ async def list_pipeline_runs(
     SELECT
         pipeline_logging_id,
         pipeline_id,
-        tenant_id,
+        org_slug,
         status,
         trigger_type,
         trigger_by,
         start_time,
         end_time,
         duration_ms
-    FROM `{settings.gcp_project_id}.tenants.tenant_pipeline_runs`
+    FROM `{settings.gcp_project_id}.organizations.org_meta_pipeline_runs`
     WHERE {where_sql}
     ORDER BY start_time DESC
     LIMIT @limit
@@ -705,7 +705,7 @@ async def list_pipeline_runs(
 )
 async def cancel_pipeline_run(
     pipeline_logging_id: str,
-    tenant: TenantContext = Depends(verify_api_key)
+    org: OrgContext = Depends(verify_api_key)
 ):
     """
     Cancel a running pipeline.
@@ -727,7 +727,7 @@ async def cancel_pipeline_run(
 
 class BatchPipelinePublishRequest(BaseModel):
     """Request to publish batch pipeline tasks to Pub/Sub."""
-    tenant_ids: List[str] = Field(..., description="List of tenant IDs (can be 10k+)")
+    org_slugs: List[str] = Field(..., description="List of org slugs (can be 10k+)")
     pipeline_id: str = Field(..., description="Pipeline to execute")
     parameters: Optional[dict] = Field(
         default_factory=dict,
@@ -746,21 +746,21 @@ class BatchPipelinePublishRequest(BaseModel):
 @router.post(
     "/pipelines/batch/publish",
     summary="Publish batch pipeline tasks to Pub/Sub",
-    description="Publish pipeline tasks for multiple tenants to Pub/Sub for distributed execution (ADMIN ONLY)"
+    description="Publish pipeline tasks for multiple orgs to Pub/Sub for distributed execution (ADMIN ONLY)"
 )
 async def publish_batch_pipeline(
     request: BatchPipelinePublishRequest,
     admin_context: None = Depends(verify_admin_key)
 ):
     """
-    Publish pipeline tasks for multiple tenants to Pub/Sub.
+    Publish pipeline tasks for multiple orgs to Pub/Sub.
 
     This endpoint is for ADMIN use only. It publishes tasks that will be
     executed asynchronously by worker instances.
 
     Use Cases:
-    - Daily batch processing for all 10k tenants
-    - Backfill pipelines for multiple tenants
+    - Daily batch processing for all 10k orgs
+    - Backfill pipelines for multiple orgs
     - Distributed execution with load leveling
     """
     from src.core.pubsub.publisher import PipelinePublisher
@@ -768,7 +768,7 @@ async def publish_batch_pipeline(
     publisher = PipelinePublisher()
 
     result = await publisher.publish_pipeline_batch(
-        tenant_ids=request.tenant_ids,
+        org_slugs=request.org_slugs,
         pipeline_id=request.pipeline_id,
         parameters=request.parameters,
         randomize_delay=request.randomize_delay,

@@ -2,7 +2,7 @@
 Notification Configuration Models
 
 Defines the configuration schema for notification providers with support for:
-- Tenant-specific configurations
+- Org-specific configurations
 - Root/global fallback configurations
 - Multiple notification providers (Email, Slack)
 - Event-based notification triggers
@@ -110,9 +110,9 @@ class NotificationConfig(BaseModel):
 
     This configuration can exist at two levels:
     1. Root level: ./configs/notifications.json (global fallback)
-    2. Tenant level: ./configs/{tenant_id}/notifications.json (tenant-specific)
+    2. Org level: ./configs/{org_slug}/notifications.json (org-specific)
 
-    Tenant-specific configurations take precedence over root configurations.
+    Org-specific configurations take precedence over root configurations.
     """
 
     # Global settings
@@ -141,7 +141,7 @@ class NotificationConfig(BaseModel):
     timeout_seconds: int = Field(default=30, ge=5, le=120, description="Notification timeout")
 
     # Additional metadata
-    tenant_id: Optional[str] = Field(default=None, description="Tenant ID (if tenant-specific config)")
+    org_slug: Optional[str] = Field(default=None, description="Organization slug (if org-specific config)")
     description: Optional[str] = Field(default=None, description="Configuration description")
 
     @field_validator('event_triggers')
@@ -184,7 +184,7 @@ class NotificationMessage(BaseModel):
     """Notification message data"""
     event: NotificationEvent
     severity: NotificationSeverity
-    tenant_id: str
+    org_slug: str
     title: str
     message: str
     details: Optional[Dict[str, Any]] = Field(default=None, description="Additional contextual details")

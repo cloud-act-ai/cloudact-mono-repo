@@ -132,12 +132,12 @@ def circuit_breaker_on_half_open(name: str, previous_state: str, remaining: int)
 
 class BigQueryClient:
     """
-    Enterprise BigQuery client with multi-tenancy support.
+    Enterprise BigQuery client with multi-organization support.
 
     Features:
-    - Thread-safe connection pooling with 500 max connections for 10k tenant scale
+    - Thread-safe connection pooling with 500 max connections for 10k org scale
     - Automatic retries with exponential backoff
-    - Tenant-specific dataset isolation
+    - Organization-specific dataset isolation
     - Schema management from JSON files
     - Streaming and batch insert support
     - Connection keepalive and timeout configuration
@@ -147,7 +147,7 @@ class BigQueryClient:
         """
         Initialize BigQuery client with connection pool configuration.
 
-        Connection Pool Settings (optimized for 10k tenant scale):
+        Connection Pool Settings (optimized for 10k org scale):
         - max_connections: 500 (supports 100+ concurrent pipelines)
         - connection_timeout: 60s (prevents hanging connections)
         - keepalive_interval: 30s (keeps connections alive)
@@ -229,18 +229,18 @@ class BigQueryClient:
     # Dataset Management
     # ============================================
 
-    def get_tenant_dataset_id(self, tenant_id: str, dataset_type: str) -> str:
+    def get_org_dataset_id(self, org_slug: str, dataset_type: str) -> str:
         """
-        Generate fully qualified dataset ID for a tenant.
+        Generate fully qualified dataset ID for an org.
 
         Args:
-            tenant_id: Tenant identifier
+            org_slug: Organization identifier
             dataset_type: Type of dataset (e.g., 'raw_openai', 'silver_cost')
 
         Returns:
-            Fully qualified dataset ID: {project}.{tenant_id}_{dataset_type}
+            Fully qualified dataset ID: {project}.{org_slug}_{dataset_type}
         """
-        dataset_name = settings.get_tenant_dataset_name(tenant_id, dataset_type)
+        dataset_name = settings.get_org_dataset_name(org_slug, dataset_type)
         return f"{self.project_id}.{dataset_name}"
 
     @tenacity_retry(
@@ -266,16 +266,16 @@ class BigQueryClient:
 
     def create_dataset(
         self,
-        tenant_id: str,
+        org_slug: str,
         dataset_type: str,
         description: Optional[str] = None,
         labels: Optional[Dict[str, str]] = None
     ) -> Dataset:
         """
-        Create a BigQuery dataset for a tenant (idempotent).
+        Create a BigQuery dataset for an org (idempotent).
 
         Args:
-            tenant_id: Tenant identifier
+            org_slug: Organization identifier
             dataset_type: Type of dataset
             description: Dataset description
             labels: Dataset labels for organization
@@ -283,7 +283,7 @@ class BigQueryClient:
         Returns:
             Dataset object
         """
-        dataset_name = settings.get_tenant_dataset_name(tenant_id, dataset_type)
+        dataset_name = settings.get_org_dataset_name(org_slug, dataset_type)
         dataset_id = f"{self.project_id}.{dataset_name}"
 
         dataset = bigquery.Dataset(dataset_id)
@@ -296,7 +296,7 @@ class BigQueryClient:
             dataset.labels = labels
         else:
             dataset.labels = {
-                "tenant_id": tenant_id.replace("_", "-"),  # Labels can't have underscores
+                "org_slug": org_slug.replace("_", "-"),  # Labels can't have underscores
                 "dataset_type": dataset_type.replace("_", "-"),
                 "managed_by": "convergence-pipeline"
             }
@@ -305,13 +305,13 @@ class BigQueryClient:
             dataset = self.client.create_dataset(dataset, exists_ok=True)
             logger.info(
                 f"Created/verified dataset: {dataset_id}",
-                extra={"tenant_id": tenant_id, "dataset_type": dataset_type})
+                extra={"org_slug": org_slug, "dataset_type": dataset_type})
             return dataset
 
         except Exception as e:
             logger.error(
                 f"Error creating dataset {dataset_id}: {e}",
-                extra={"tenant_id": tenant_id}, exc_info=True)
+                extra={"org_slug": org_slug}, exc_info=True)
             raise
 
     # ============================================
@@ -363,7 +363,7 @@ class BigQueryClient:
     )
     def create_table(
         self,
-        tenant_id: str,
+        org_slug: str,
         dataset_type: str,
         table_name: str,
         schema: List[SchemaField],
@@ -375,7 +375,7 @@ class BigQueryClient:
         Create a BigQuery table (idempotent).
 
         Args:
-            tenant_id: Tenant identifier
+            org_slug: Organization identifier
             dataset_type: Type of dataset
             table_name: Table name
             schema: List of SchemaField objects
@@ -386,7 +386,7 @@ class BigQueryClient:
         Returns:
             Table object
         """
-        dataset_id = self.get_tenant_dataset_id(tenant_id, dataset_type)
+        dataset_id = self.get_org_dataset_id(org_slug, dataset_type)
         table_id = f"{dataset_id}.{table_name}"
 
         table = bigquery.Table(table_id, schema=schema)
@@ -409,19 +409,19 @@ class BigQueryClient:
             table = self.client.create_table(table, exists_ok=True)
             logger.info(
                 f"Created/verified table: {table_id}",
-                extra={"tenant_id": tenant_id, "table_name": table_name, "num_fields": len(schema)}
+                extra={"org_slug": org_slug, "table_name": table_name, "num_fields": len(schema)}
             )
             return table
 
         except Exception as e:
             logger.error(
                 f"Error creating table {table_id}: {e}",
-                extra={"tenant_id": tenant_id}, exc_info=True)
+                extra={"org_slug": org_slug}, exc_info=True)
             raise
 
     def create_table_from_schema_file(
         self,
-        tenant_id: str,
+        org_slug: str,
         dataset_type: str,
         table_name: str,
         schema_file: str,
@@ -433,7 +433,7 @@ class BigQueryClient:
         Create table from schema JSON file.
 
         Args:
-            tenant_id: Tenant identifier
+            org_slug: Organization identifier
             dataset_type: Type of dataset
             table_name: Table name
             schema_file: Path to schema JSON file
@@ -447,7 +447,7 @@ class BigQueryClient:
         schema = self.load_schema_from_file(schema_file)
 
         return self.create_table(
-            tenant_id=tenant_id,
+            org_slug=org_slug,
             dataset_type=dataset_type,
             table_name=table_name,
             schema=schema,
@@ -467,7 +467,7 @@ class BigQueryClient:
     )
     def insert_rows(
         self,
-        tenant_id: str,
+        org_slug: str,
         dataset_type: str,
         table_name: str,
         rows: List[Dict[str, Any]],
@@ -477,7 +477,7 @@ class BigQueryClient:
         Insert rows into BigQuery table (streaming insert).
 
         Args:
-            tenant_id: Tenant identifier
+            org_slug: Organization identifier
             dataset_type: Type of dataset
             table_name: Table name
             rows: List of row dictionaries
@@ -486,7 +486,7 @@ class BigQueryClient:
         Raises:
             ValueError: If insert fails
         """
-        dataset_id = self.get_tenant_dataset_id(tenant_id, dataset_type)
+        dataset_id = self.get_org_dataset_id(org_slug, dataset_type)
         table_id = f"{dataset_id}.{table_name}"
 
         table = self.client.get_table(table_id)
@@ -499,12 +499,12 @@ class BigQueryClient:
 
         if errors:
             error_msg = f"Failed to insert rows into {table_id}: {errors}"
-            logger.error(error_msg, extra={"tenant_id": tenant_id, "errors": errors})
+            logger.error(error_msg, extra={"org_slug": org_slug, "errors": errors})
             raise ValueError(error_msg)
 
         logger.info(
             f"Inserted {len(rows)} rows into {table_id}",
-            extra={"tenant_id": tenant_id, "table_name": table_name, "row_count": len(rows)}
+            extra={"org_slug": org_slug, "table_name": table_name, "row_count": len(rows)}
         )
 
     # ============================================
@@ -606,7 +606,7 @@ class BigQueryClient:
 
     def table_exists(
         self,
-        tenant_id: str,
+        org_slug: str,
         dataset_type: str,
         table_name: str
     ) -> bool:
@@ -614,14 +614,14 @@ class BigQueryClient:
         Check if a table exists.
 
         Args:
-            tenant_id: Tenant identifier
+            org_slug: Organization identifier
             dataset_type: Type of dataset
             table_name: Table name
 
         Returns:
             True if table exists, False otherwise
         """
-        dataset_id = self.get_tenant_dataset_id(tenant_id, dataset_type)
+        dataset_id = self.get_org_dataset_id(org_slug, dataset_type)
         table_id = f"{dataset_id}.{table_name}"
 
         try:
@@ -632,7 +632,7 @@ class BigQueryClient:
 
     def delete_table(
         self,
-        tenant_id: str,
+        org_slug: str,
         dataset_type: str,
         table_name: str,
         not_found_ok: bool = True
@@ -641,19 +641,19 @@ class BigQueryClient:
         Delete a BigQuery table.
 
         Args:
-            tenant_id: Tenant identifier
+            org_slug: Organization identifier
             dataset_type: Type of dataset
             table_name: Table name
             not_found_ok: Whether to ignore if table doesn't exist
         """
-        dataset_id = self.get_tenant_dataset_id(tenant_id, dataset_type)
+        dataset_id = self.get_org_dataset_id(org_slug, dataset_type)
         table_id = f"{dataset_id}.{table_name}"
 
         self.client.delete_table(table_id, not_found_ok=not_found_ok)
 
         logger.info(
             f"Deleted table: {table_id}",
-            extra={"tenant_id": tenant_id, "table_name": table_name})
+            extra={"org_slug": org_slug, "table_name": table_name})
 
 
 @lru_cache()

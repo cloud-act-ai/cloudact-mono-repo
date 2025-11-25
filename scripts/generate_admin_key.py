@@ -11,8 +11,8 @@ The generated key should be set as ADMIN_API_KEY environment variable:
     export ADMIN_API_KEY="admin_..."
 
 Admin API keys are used for:
-- Creating/managing tenants
-- Creating/revoking tenant API keys
+- Creating/managing organizations
+- Creating/revoking organization API keys
 - System bootstrap operations
 - Platform-level administration
 
@@ -87,17 +87,11 @@ def main():
     print("       -H 'Content-Type: application/json' \\")
     print("       -d '{\"force_recreate_dataset\": false}'")
     print()
-    print("  # Create tenant")
-    print("  curl -X POST http://localhost:8000/api/v1/admin/tenants \\")
+    print("  # Onboard organization")
+    print("  curl -X POST http://localhost:8000/api/v1/organizations/onboard \\")
     print(f"       -H 'X-Admin-Key: {admin_key}' \\")
     print("       -H 'Content-Type: application/json' \\")
-    print("       -d '{\"tenant_id\": \"acmecorp\", \"description\": \"Acme Corp\"}'")
-    print()
-    print("  # Generate tenant API key")
-    print("  curl -X POST http://localhost:8000/api/v1/admin/api-keys \\")
-    print(f"       -H 'X-Admin-Key: {admin_key}' \\")
-    print("       -H 'Content-Type: application/json' \\")
-    print("       -d '{\"tenant_id\": \"acmecorp\", \"description\": \"Production API key\"}'")
+    print("       -d '{\"org_slug\": \"acmecorp\", \"company_name\": \"Acme Corp\", \"admin_email\": \"admin@acme.com\"}'")
     print()
     print("=" * 70)
     print("SECURITY NOTES")

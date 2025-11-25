@@ -1,6 +1,6 @@
 """
 Enterprise Secrets Management
-Handles tenant-specific secrets from filesystem with fallback to Cloud Secret Manager.
+Handles org-specific secrets from filesystem with fallback to Cloud Secret Manager.
 """
 
 import os
@@ -19,11 +19,11 @@ logger = logging.getLogger(__name__)
 
 class SecretsManager:
     """
-    Multi-tenant secrets manager with filesystem-first approach.
+    Multi-org secrets manager with filesystem-first approach.
 
     Hierarchy:
-    1. Check filesystem: configs/{tenant_id}/secrets/{secret_name}.txt
-    2. Fallback to Cloud Secret Manager: {tenant_id}/{secret_name}
+    1. Check filesystem: configs/{org_slug}/secrets/{secret_name}.txt
+    2. Fallback to Cloud Secret Manager: {org_slug}/{secret_name}
     """
 
     def __init__(self):
@@ -40,15 +40,15 @@ class SecretsManager:
 
     def get_secret(
         self,
-        tenant_id: str,
+        org_slug: str,
         secret_name: str,
         use_cache: bool = True
     ) -> Optional[str]:
         """
-        Get secret for a tenant.
+        Get secret for an org.
 
         Args:
-            tenant_id: Tenant identifier
+            org_slug: Org identifier
             secret_name: Name of the secret (e.g., 'openai_api_key')
             use_cache: Whether to use cached values
 
@@ -58,7 +58,7 @@ class SecretsManager:
         Raises:
             ValueError: If secret not found in either location
         """
-        cache_key = f"{tenant_id}:{secret_name}"
+        cache_key = f"{org_slug}:{secret_name}"
 
         # Check cache first
         if use_cache and cache_key in self._cache:
@@ -66,19 +66,19 @@ class SecretsManager:
             return self._cache[cache_key]
 
         # Try filesystem first
-        secret_value = self._get_secret_from_filesystem(tenant_id, secret_name)
+        secret_value = self._get_secret_from_filesystem(org_slug, secret_name)
 
         if secret_value is None:
             # Fallback to Cloud Secret Manager
             logger.info(
-                f"Secret not found in filesystem for {tenant_id}/{secret_name}, "
+                f"Secret not found in filesystem for {org_slug}/{secret_name}, "
                 "trying Cloud Secret Manager"
             )
-            secret_value = self._get_secret_from_cloud(tenant_id, secret_name)
+            secret_value = self._get_secret_from_cloud(org_slug, secret_name)
 
         if secret_value is None:
             raise ValueError(
-                f"Secret '{secret_name}' not found for tenant '{tenant_id}' "
+                f"Secret '{secret_name}' not found for org '{org_slug}' "
                 "in filesystem or Cloud Secret Manager"
             )
 
@@ -90,22 +90,22 @@ class SecretsManager:
 
     def _get_secret_from_filesystem(
         self,
-        tenant_id: str,
+        org_slug: str,
         secret_name: str
     ) -> Optional[str]:
         """
         Load secret from filesystem.
 
-        Path: configs/{tenant_id}/secrets/{secret_name}.txt
+        Path: configs/{org_slug}/secrets/{secret_name}.txt
 
         Args:
-            tenant_id: Tenant identifier
+            org_slug: Org identifier
             secret_name: Name of the secret
 
         Returns:
             Secret value or None if file doesn't exist
         """
-        secrets_path = settings.get_tenant_secrets_path(tenant_id)
+        secrets_path = settings.get_org_secrets_path(org_slug)
         secret_file = Path(secrets_path) / f"{secret_name}.txt"
 
         if not secret_file.exists():
@@ -116,7 +116,7 @@ class SecretsManager:
             with open(secret_file, "r", encoding="utf-8") as f:
                 secret_value = f.read().strip()
 
-            logger.info(f"Loaded secret from filesystem: {tenant_id}/{secret_name}")
+            logger.info(f"Loaded secret from filesystem: {org_slug}/{secret_name}")
             return secret_value
 
         except Exception as e:
@@ -132,26 +132,26 @@ class SecretsManager:
     )
     def _get_secret_from_cloud(
         self,
-        tenant_id: str,
+        org_slug: str,
         secret_name: str
     ) -> Optional[str]:
         """
         Load secret from Cloud Secret Manager.
 
-        Secret naming: projects/{project_id}/secrets/{tenant_id}_{secret_name}/versions/latest
+        Secret naming: projects/{project_id}/secrets/{org_slug}_{secret_name}/versions/latest
 
         Args:
-            tenant_id: Tenant identifier
+            org_slug: Org identifier
             secret_name: Name of the secret
 
         Returns:
             Secret value or None if not found
         """
         try:
-            # Build secret path: {tenant_id}/{secret_name}
+            # Build secret path: {org_slug}/{secret_name}
             secret_path = (
                 f"projects/{settings.gcp_project_id}/secrets/"
-                f"{tenant_id}_{secret_name}/versions/latest"
+                f"{org_slug}_{secret_name}/versions/latest"
             )
 
             logger.debug(f"Fetching secret from Cloud Secret Manager: {secret_path}")
@@ -161,20 +161,20 @@ class SecretsManager:
             )
 
             secret_value = response.payload.data.decode("UTF-8")
-            logger.info(f"Loaded secret from Cloud Secret Manager: {tenant_id}/{secret_name}")
+            logger.info(f"Loaded secret from Cloud Secret Manager: {org_slug}/{secret_name}")
 
             return secret_value
 
         except Exception as e:
             logger.warning(
                 f"Failed to fetch secret from Cloud Secret Manager: "
-                f"{tenant_id}/{secret_name}: {e}"
+                f"{org_slug}/{secret_name}: {e}"
             )
             return None
 
     def set_secret_filesystem(
         self,
-        tenant_id: str,
+        org_slug: str,
         secret_name: str,
         secret_value: str
     ) -> bool:
@@ -182,14 +182,14 @@ class SecretsManager:
         Write secret to filesystem (for development/testing).
 
         Args:
-            tenant_id: Tenant identifier
+            org_slug: Org identifier
             secret_name: Name of the secret
             secret_value: Value to write
 
         Returns:
             True if successful, False otherwise
         """
-        secrets_path = Path(settings.get_tenant_secrets_path(tenant_id))
+        secrets_path = Path(settings.get_org_secrets_path(org_slug))
 
         try:
             # Create directory if it doesn't exist
@@ -203,10 +203,10 @@ class SecretsManager:
             # Set restrictive permissions (owner read/write only)
             os.chmod(secret_file, 0o600)
 
-            logger.info(f"Wrote secret to filesystem: {tenant_id}/{secret_name}")
+            logger.info(f"Wrote secret to filesystem: {org_slug}/{secret_name}")
 
             # Invalidate cache
-            cache_key = f"{tenant_id}:{secret_name}"
+            cache_key = f"{org_slug}:{secret_name}"
             if cache_key in self._cache:
                 del self._cache[cache_key]
 
@@ -214,27 +214,27 @@ class SecretsManager:
 
         except Exception as e:
             logger.error(
-                f"Error writing secret to filesystem: {tenant_id}/{secret_name}: {e}",
+                f"Error writing secret to filesystem: {org_slug}/{secret_name}: {e}",
                 exc_info=True
             )
             return False
 
-    def clear_cache(self, tenant_id: Optional[str] = None):
+    def clear_cache(self, org_slug: Optional[str] = None):
         """
         Clear secrets cache.
 
         Args:
-            tenant_id: If provided, only clear secrets for this tenant.
+            org_slug: If provided, only clear secrets for this org.
                       If None, clear entire cache.
         """
-        if tenant_id is None:
+        if org_slug is None:
             self._cache.clear()
             logger.info("Cleared entire secrets cache")
         else:
-            keys_to_delete = [k for k in self._cache.keys() if k.startswith(f"{tenant_id}:")]
+            keys_to_delete = [k for k in self._cache.keys() if k.startswith(f"{org_slug}:")]
             for key in keys_to_delete:
                 del self._cache[key]
-            logger.info(f"Cleared secrets cache for tenant: {tenant_id}")
+            logger.info(f"Cleared secrets cache for org: {org_slug}")
 
 
 # Global singleton instance
@@ -245,16 +245,16 @@ def get_secrets_manager() -> SecretsManager:
 
 
 # Convenience function
-def get_secret(tenant_id: str, secret_name: str) -> Optional[str]:
+def get_secret(org_slug: str, secret_name: str) -> Optional[str]:
     """
     Convenience function to get a secret.
 
     Args:
-        tenant_id: Tenant identifier
+        org_slug: Org identifier
         secret_name: Name of the secret
 
     Returns:
         Secret value or None
     """
     manager = get_secrets_manager()
-    return manager.get_secret(tenant_id, secret_name)
+    return manager.get_secret(org_slug, secret_name)

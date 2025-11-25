@@ -69,9 +69,9 @@ class Settings(BaseSettings):
     # Security Configuration
     # ============================================
     disable_auth: bool = Field(default=False, description="Disable API key authentication (for development)")
-    default_tenant_id: str = Field(
+    default_org_slug: str = Field(
         default="acmeinc_23xv2",
-        description="Default tenant ID when authentication is disabled (new architecture)"
+        description="Default organization slug when authentication is disabled"
     )
     api_key_hash_algorithm: str = Field(default="HS256")
     api_key_secret_key: str = Field(
@@ -79,11 +79,11 @@ class Settings(BaseSettings):
     )
     admin_api_key: Optional[str] = Field(
         default=None,
-        description="Admin API key for platform-level operations (tenant creation, etc). REQUIRED in production!"
+        description="Admin API key for platform-level operations (organization creation, etc). REQUIRED in production!"
     )
     secrets_base_path: str = Field(
         default="~/.cloudact-secrets",
-        description="Base path for tenant secrets directory"
+        description="Base path for organization secrets directory"
     )
 
     # ============================================
@@ -116,36 +116,36 @@ class Settings(BaseSettings):
     rate_limit_requests_per_minute: int = Field(
         default=100,
         ge=1,
-        description="Per-tenant requests per minute limit"
+        description="Per-organization requests per minute limit"
     )
     rate_limit_requests_per_hour: int = Field(
         default=1000,
         ge=1,
-        description="Per-tenant requests per hour limit"
+        description="Per-organization requests per hour limit"
     )
     rate_limit_global_requests_per_minute: int = Field(
         default=10000,
         ge=1,
-        description="Global requests per minute limit (all tenants combined)"
+        description="Global requests per minute limit (all organizations combined)"
     )
     rate_limit_global_requests_per_hour: int = Field(
         default=100000,
         ge=1,
-        description="Global requests per hour limit (all tenants combined)"
+        description="Global requests per hour limit (all organizations combined)"
     )
     rate_limit_enabled: bool = Field(
         default=True,
         description="Enable rate limiting globally"
     )
-    rate_limit_admin_tenants_per_minute: int = Field(
+    rate_limit_admin_orgs_per_minute: int = Field(
         default=10,
         ge=1,
-        description="Rate limit for expensive /admin/tenants endpoint (per-tenant per minute)"
+        description="Rate limit for expensive /admin/organizations endpoint (per-org per minute)"
     )
     rate_limit_pipeline_run_per_minute: int = Field(
         default=50,
         ge=1,
-        description="Rate limit for expensive /pipelines/run/* endpoints (per-tenant per minute)"
+        description="Rate limit for expensive /pipelines/run/* endpoints (per-org per minute)"
     )
     rate_limit_pipeline_concurrency: int = Field(default=5, ge=1, le=50)
 
@@ -277,7 +277,7 @@ class Settings(BaseSettings):
     system_configs_path: str = Field(default="./configs/system")
     dataset_types_config: str = Field(default="./configs/system/dataset_types.yml")
     metadata_schemas_path: str = Field(
-        default="ps_templates/setup/tenants/onboarding/schemas",
+        default="ps_templates/setup/organizations/onboarding/schemas",
         description="Path to metadata table schema definitions"
     )
 
@@ -292,25 +292,25 @@ class Settings(BaseSettings):
         """Check if running in development environment."""
         return self.environment == "development"
 
-    def get_tenant_config_path(self, tenant_id: str) -> str:
-        """Get the base configuration path for a tenant."""
-        return os.path.join(self.configs_base_path, tenant_id)
+    def get_org_config_path(self, org_slug: str) -> str:
+        """Get the base configuration path for an organization."""
+        return os.path.join(self.configs_base_path, org_slug)
 
-    def get_tenant_secrets_path(self, tenant_id: str) -> str:
-        """Get the secrets directory path for a tenant."""
-        return os.path.join(self.get_tenant_config_path(tenant_id), "secrets")
+    def get_org_secrets_path(self, org_slug: str) -> str:
+        """Get the secrets directory path for an organization."""
+        return os.path.join(self.get_org_config_path(org_slug), "secrets")
 
-    def get_tenant_schemas_path(self, tenant_id: str) -> str:
-        """Get the schemas directory path for a tenant."""
-        return os.path.join(self.get_tenant_config_path(tenant_id), "schemas")
+    def get_org_schemas_path(self, org_slug: str) -> str:
+        """Get the schemas directory path for an organization."""
+        return os.path.join(self.get_org_config_path(org_slug), "schemas")
 
-    def get_tenant_sources_path(self, tenant_id: str) -> str:
-        """Get the sources directory path for a tenant."""
-        return os.path.join(self.get_tenant_config_path(tenant_id), "sources")
+    def get_org_sources_path(self, org_slug: str) -> str:
+        """Get the sources directory path for an organization."""
+        return os.path.join(self.get_org_config_path(org_slug), "sources")
 
-    def get_tenant_pipelines_path(self, tenant_id: str) -> str:
-        """Get the pipelines directory path for a tenant."""
-        return os.path.join(self.get_tenant_config_path(tenant_id), "pipelines")
+    def get_org_pipelines_path(self, org_slug: str) -> str:
+        """Get the pipelines directory path for an organization."""
+        return os.path.join(self.get_org_config_path(org_slug), "pipelines")
 
     def _validate_safe_identifier(self, value: str, param_name: str) -> None:
         """
@@ -320,7 +320,7 @@ class Settings(BaseSettings):
         Only allows alphanumeric characters, underscores, and hyphens.
 
         Args:
-            value: The identifier to validate (pipeline_id, provider, domain, tenant_id)
+            value: The identifier to validate (pipeline_id, provider, domain, org_slug)
             param_name: Name of parameter for error messages
 
         Raises:
@@ -338,16 +338,16 @@ class Settings(BaseSettings):
                 f"Must match pattern {safe_pattern}, got: {value}"
             )
 
-    def find_pipeline_path(self, tenant_id: str, pipeline_id: str) -> str:
+    def find_pipeline_path(self, org_slug: str, pipeline_id: str) -> str:
         """
-        Find pipeline file recursively in tenant config directory with path traversal protection.
+        Find pipeline file recursively in organization config directory with path traversal protection.
 
         Searches for pipeline in new cloud-provider/domain structure:
-        1. First tries: configs/{tenant_id}/{provider}/{domain}/{pipeline_id}.yml
+        1. First tries: configs/{org_slug}/{provider}/{domain}/{pipeline_id}.yml
         2. Falls back to shared templates: configs/{provider}/{domain}/{pipeline_id}.yml
 
         Args:
-            tenant_id: The tenant identifier
+            org_slug: The organization identifier
             pipeline_id: The pipeline identifier (filename without .yml)
 
         Returns:
@@ -358,36 +358,36 @@ class Settings(BaseSettings):
             ValueError: If path traversal detected or multiple pipelines found
         """
         # SECURITY: Validate inputs to prevent path traversal attacks (CWE-22: Improper Limitation of Pathname)
-        self._validate_safe_identifier(tenant_id, "tenant_id")
+        self._validate_safe_identifier(org_slug, "org_slug")
         self._validate_safe_identifier(pipeline_id, "pipeline_id")
 
         # Resolve base paths to absolute paths for comparison
         configs_base_abs = Path(self.configs_base_path).resolve()
-        tenant_base_path = Path(self.get_tenant_config_path(tenant_id)).resolve()
+        org_base_path = Path(self.get_org_config_path(org_slug)).resolve()
 
-        # Verify tenant path is within configs directory (prevent escape)
+        # Verify org path is within configs directory (prevent escape)
         try:
-            tenant_base_path.relative_to(configs_base_abs)
+            org_base_path.relative_to(configs_base_abs)
         except ValueError:
             raise ValueError(
-                f"Tenant path {tenant_base_path} escapes base configs directory {configs_base_abs}"
+                f"Organization path {org_base_path} escapes base configs directory {configs_base_abs}"
             )
 
-        # First try tenant-specific config
-        matches = list(tenant_base_path.glob(f"**/{pipeline_id}.yml"))
+        # First try organization-specific config
+        matches = list(org_base_path.glob(f"**/{pipeline_id}.yml"))
 
-        # SECURITY: Verify all matched paths are within tenant directory
+        # SECURITY: Verify all matched paths are within org directory
         safe_matches = []
         for match in matches:
             try:
-                match.relative_to(tenant_base_path)
+                match.relative_to(org_base_path)
                 safe_matches.append(match)
             except ValueError:
-                # Path escaped tenant directory - reject it
+                # Path escaped org directory - reject it
                 continue
         matches = safe_matches
 
-        # If not found in tenant directory, try shared templates
+        # If not found in org directory, try shared templates
         if not matches:
             shared_base_path = configs_base_abs
             all_matches = list(shared_base_path.glob(f"**/{pipeline_id}.yml"))
@@ -402,12 +402,12 @@ class Settings(BaseSettings):
                     # Path escaped configs directory - reject it
                     continue
 
-            # Filter out tenant-specific paths from shared search
-            matches = [m for m in safe_shared_matches if not str(m).startswith(str(tenant_base_path))]
+            # Filter out org-specific paths from shared search
+            matches = [m for m in safe_shared_matches if not str(m).startswith(str(org_base_path))]
 
         if not matches:
             raise FileNotFoundError(
-                f"Pipeline '{pipeline_id}' not found for tenant '{tenant_id}' in {tenant_base_path} or shared configs"
+                f"Pipeline '{pipeline_id}' not found for organization '{org_slug}' in {org_base_path} or shared configs"
             )
 
         if len(matches) > 1:
@@ -437,28 +437,27 @@ class Settings(BaseSettings):
         }
         return env_map.get(self.environment, "local")
 
-    def get_tenant_dataset_name(self, tenant_id: str, dataset_type: str = None) -> str:
+    def get_org_dataset_name(self, org_slug: str, dataset_type: str = None) -> str:
         """
-        Generate tenant-specific dataset name with environment suffix.
+        Generate organization-specific dataset name with environment suffix.
 
-        New standard: All tenant datasets are named {tenant_id}_{environment}
+        New standard: All organization datasets are named {org_slug}_{environment}
         to enable multi-environment deployments in the same GCP project.
 
         Args:
-            tenant_id: The tenant identifier
+            org_slug: The organization identifier
             dataset_type: DEPRECATED - kept for backward compatibility, ignored
 
         Returns:
-            Dataset name: {tenant_id}_{environment}
+            Dataset name: {org_slug}_{environment}
             Examples:
-                - sri_482433_local (development)
-                - sri_482433_stage (staging)
-                - sri_482433_prod (production)
+                - acme_corp_local (development)
+                - acme_corp_stage (staging)
+                - acme_corp_prod (production)
         """
-        # Append environment suffix to tenant_id
+        # Append environment suffix to org_slug
         env_suffix = self.get_environment_suffix()
-        return f"{tenant_id}_{env_suffix}"
-
+        return f"{org_slug}_{env_suffix}"
 
     def load_dataset_types(self) -> List[Dict[str, Any]]:
         """

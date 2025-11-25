@@ -1,0 +1,50 @@
+[
+  {
+    "name": "org_slug",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Unique identifier for the organization"
+  },
+  {
+    "name": "company_name",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Company or organization name"
+  },
+  {
+    "name": "admin_email",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Primary administrator email address"
+  },
+  {
+    "name": "org_dataset_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "BigQuery dataset ID for this organization's data"
+  },
+  {
+    "name": "status",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Organization status: ACTIVE, SUSPENDED, DELETED"
+  },
+  {
+    "name": "subscription_plan",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Current subscription plan tier"
+  },
+  {
+    "name": "created_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "Timestamp when organization was created"
+  },
+  {
+    "name": "updated_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "Timestamp of last update"
+  }
+]

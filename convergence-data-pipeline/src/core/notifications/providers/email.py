@@ -136,8 +136,8 @@ class EmailNotificationProvider(BaseNotificationProvider):
                     <td class="value">{message.event.value.replace('_', ' ').title()}</td>
                 </tr>
                 <tr>
-                    <td class="label">Tenant ID:</td>
-                    <td class="value">{message.tenant_id}</td>
+                    <td class="label">Org Slug:</td>
+                    <td class="value">{message.org_slug}</td>
                 </tr>
                 <tr>
                     <td class="label">Timestamp:</td>
@@ -216,7 +216,7 @@ class EmailNotificationProvider(BaseNotificationProvider):
             "=" * 60,
             "",
             f"Event: {message.event.value.replace('_', ' ').title()}",
-            f"Tenant ID: {message.tenant_id}",
+            f"Org Slug: {message.org_slug}",
             f"Timestamp: {message.timestamp or datetime.utcnow().isoformat()}",
         ]
 

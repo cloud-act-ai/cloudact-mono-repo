@@ -46,9 +46,9 @@ class SQLParameterInjector:
             ValueError: If parameter type is unsupported or invalid
 
         Example:
-            >>> params = {'tenant_id': 'abc123', 'start_date': '2024-01-01'}
+            >>> params = {'org_slug': 'abc123', 'start_date': '2024-01-01'}
             >>> config = SQLParameterInjector.create_query_config(params)
-            >>> query = "SELECT * FROM table WHERE tenant_id = @tenant_id AND date >= @start_date"
+            >>> query = "SELECT * FROM table WHERE org_slug = @org_slug AND date >= @start_date"
             >>> job = client.query(query, job_config=config)
         """
         if base_config is None:
@@ -340,7 +340,7 @@ def create_parameterized_query_config(
         Configured QueryJobConfig
 
     Example:
-        >>> params = {'tenant': 'abc123', 'min_date': '2024-01-01'}
+        >>> params = {'org': 'abc123', 'min_date': '2024-01-01'}
         >>> config = create_parameterized_query_config(
         ...     parameters=params,
         ...     destination='project.dataset.table',

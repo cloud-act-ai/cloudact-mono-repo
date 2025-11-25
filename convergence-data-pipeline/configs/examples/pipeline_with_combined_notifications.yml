@@ -3,7 +3,7 @@
 # and notify_systems.slack_notification in the same pipeline
 # Usage: This pipeline serves as a reference for other pipelines
 
-pipeline_id: "{tenant_id}-example-combined-notifications"
+pipeline_id: "{org_slug}-example-combined-notifications"
 description: "Example pipeline demonstrating combined email and Slack notifications"
 
 # Pipeline-level variables that can be overridden
@@ -50,11 +50,11 @@ steps:
       PIPELINE FAILURE - EMAIL NOTIFICATION
 
       Pipeline ID: {pipeline_id}
-      Tenant ID: {tenant_id}
+      Organization: {org_slug}
       Status: FAILED
       Failure Time: {execution_timestamp}
 
-      Please check the logs at: {tenant_id}.x_meta_step_logs
+      Please check the logs at: {org_slug}.org_meta_step_logs
 
       Regards,
       CloudAct Data Platform
@@ -86,7 +86,7 @@ steps:
       PIPELINE SUCCESS - EMAIL NOTIFICATION
 
       Pipeline ID: {pipeline_id}
-      Tenant ID: {tenant_id}
+      Organization: {org_slug}
       Status: COMPLETED SUCCESSFULLY
       Completion Time: {execution_timestamp}
 

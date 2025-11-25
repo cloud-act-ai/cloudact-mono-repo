@@ -36,7 +36,7 @@ class DataQualityValidator:
         self,
         table_id: str,
         dq_config_path: str,
-        tenant_id: str,
+        org_slug: str,
         pipeline_logging_id: str,
         base_dir: Optional[Path] = None
     ) -> List[Dict[str, Any]]:
@@ -46,7 +46,7 @@ class DataQualityValidator:
         Args:
             table_id: Fully qualified table ID (project.dataset.table)
             dq_config_path: Path to DQ rules YAML file
-            tenant_id: Tenant identifier
+            org_slug: Organization identifier
             pipeline_logging_id: Pipeline run ID
             base_dir: Base directory for resolving relative paths (optional for backward compatibility)
 
@@ -97,7 +97,7 @@ class DataQualityValidator:
                 )
 
         # Store results in BigQuery
-        self._store_results(results, table_id, tenant_id, pipeline_logging_id, dq_config_path)
+        self._store_results(results, table_id, org_slug, pipeline_logging_id, dq_config_path)
 
         return results
 
@@ -257,7 +257,7 @@ class DataQualityValidator:
         self,
         results: List[Dict[str, Any]],
         table_id: str,
-        tenant_id: str,
+        org_slug: str,
         pipeline_logging_id: str,
         dq_config_path: str
     ) -> None:
@@ -268,7 +268,7 @@ class DataQualityValidator:
         Args:
             results: List of validation results
             table_id: Table that was validated
-            tenant_id: Tenant identifier
+            org_slug: Organization identifier
             pipeline_logging_id: Pipeline run ID
             dq_config_path: Path to DQ config file
         """
@@ -306,7 +306,7 @@ class DataQualityValidator:
         row = {
             'dq_result_id': str(uuid.uuid4()),
             'pipeline_logging_id': pipeline_logging_id,
-            'tenant_id': tenant_id,
+            'org_slug': org_slug,
             'target_table': table_id,
             'dq_config_id': dq_config_id,
             'executed_at': executed_at.isoformat(),
@@ -318,9 +318,9 @@ class DataQualityValidator:
         }
 
         try:
-            # Use tenant-specific metadata dataset
-            metadata_dataset = settings.get_tenant_dataset_name(tenant_id, "metadata")
-            metadata_table = f"{settings.gcp_project_id}.{metadata_dataset}.tenant_dq_results"
+            # Use org-specific metadata dataset
+            metadata_dataset = settings.get_org_dataset_name(org_slug, "metadata")
+            metadata_table = f"{settings.gcp_project_id}.{metadata_dataset}.org_meta_dq_results"
 
             errors = self.bq_client.client.insert_rows_json(metadata_table, [row])
 

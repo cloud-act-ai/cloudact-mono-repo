@@ -114,7 +114,7 @@ class StructuredLogger:
     def __init__(
         self,
         logger: logging.Logger,
-        tenant_id: Optional[str] = None,
+        org_slug: Optional[str] = None,
         pipeline_id: Optional[str] = None,
         pipeline_logging_id: Optional[str] = None
     ):
@@ -123,15 +123,15 @@ class StructuredLogger:
 
         Args:
             logger: Base logger instance
-            tenant_id: Tenant identifier
+            org_slug: Org identifier
             pipeline_id: Pipeline identifier
             pipeline_logging_id: Unique pipeline run ID
         """
         self.logger = logger
         self.context = {}
 
-        if tenant_id:
-            self.context["tenant_id"] = tenant_id
+        if org_slug:
+            self.context["org_slug"] = org_slug
         if pipeline_id:
             self.context["pipeline_id"] = pipeline_id
         if pipeline_logging_id:
@@ -183,7 +183,7 @@ class StructuredLogger:
 
 def create_structured_logger(
     name: str,
-    tenant_id: Optional[str] = None,
+    org_slug: Optional[str] = None,
     pipeline_id: Optional[str] = None,
     pipeline_logging_id: Optional[str] = None
 ) -> StructuredLogger:
@@ -192,7 +192,7 @@ def create_structured_logger(
 
     Args:
         name: Logger name
-        tenant_id: Tenant identifier
+        org_slug: Org identifier
         pipeline_id: Pipeline identifier
         pipeline_logging_id: Unique pipeline run ID
 
@@ -202,7 +202,7 @@ def create_structured_logger(
     logger = get_logger(name)
     return StructuredLogger(
         logger=logger,
-        tenant_id=tenant_id,
+        org_slug=org_slug,
         pipeline_id=pipeline_id,
         pipeline_logging_id=pipeline_logging_id
     )

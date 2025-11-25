@@ -1,14 +1,14 @@
 # GCP KMS Key Management Pipeline
-# Manages KMS encryption/decryption for tenant API keys and admin keys
-# Usage: POST /api/v1/pipelines/run/{tenant_id}/gcp/kms/manage_kms_keys
+# Manages KMS encryption/decryption for organization API keys and admin keys
+# Usage: POST /api/v1/pipelines/run/{org_slug}/gcp/kms/manage_kms_keys
 
-pipeline_id: "{tenant_id}-gcp-kms-key-management"
-description: "Manage KMS encryption for {tenant_id} - operation: {operation}"
+pipeline_id: "{org_slug}-gcp-kms-key-management"
+description: "Manage KMS encryption for {org_slug} - operation: {operation}"
 
 # Pipeline-level variables
 variables:
   operation: "validate"  # validate, encrypt, decrypt, rotate, bootstrap
-  key_type: "tenant_api_key"  # tenant_api_key, admin_api_key
+  key_type: "org_api_key"  # org_api_key, admin_api_key
   kms_project_id: "gac-prod-471220"
   kms_location: "us-central1"
   kms_keyring: "convergence-keyring-prod"
@@ -67,11 +67,11 @@ steps:
       # Query to get keys to encrypt
       source_query: |
         SELECT
-          tenant_api_key_id,
-          tenant_id,
-          encrypted_tenant_api_key
-        FROM `{kms_project_id}.tenants.tenant_api_keys`
-        WHERE tenant_id = @tenant_id
+          org_api_key_id,
+          org_slug,
+          encrypted_org_api_key
+        FROM `{kms_project_id}.organizations.org_api_keys`
+        WHERE org_slug = @org_slug
         AND is_active = TRUE
 
     # Only run if operation is encrypt
@@ -90,7 +90,7 @@ steps:
       kms_location: "{kms_location}"
       kms_keyring: "{kms_keyring}"
       kms_key: "{kms_key}"
-      tenant_api_key_id: "{tenant_api_key_id}"  # Specific key to decrypt
+      org_api_key_id: "{org_api_key_id}"  # Specific key to decrypt
 
     # Only run if operation is decrypt
     condition: "{operation} == 'decrypt'"

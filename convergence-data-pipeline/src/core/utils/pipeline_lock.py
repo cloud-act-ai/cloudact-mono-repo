@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 class PipelineLock:
     """Represents an active pipeline execution lock."""
     pipeline_logging_id: str
-    tenant_id: str
+    org_slug: str
     pipeline_id: str
     locked_at: float
     locked_by: str
@@ -29,7 +29,7 @@ class PipelineLockManager:
     Thread-safe in-memory lock manager for pipeline concurrency control.
 
     Features:
-    - Prevents duplicate execution of same pipeline for same tenant
+    - Prevents duplicate execution of same pipeline for same org
     - Automatic lock expiration (stale lock cleanup)
     - No external dependencies (Redis/Firestore)
     - Works across multiple uvicorn workers via shared memory
@@ -50,9 +50,9 @@ class PipelineLockManager:
         self._lock_timeout = lock_timeout_seconds
         self._asyncio_lock = asyncio.Lock()
 
-    def _get_lock_key(self, tenant_id: str, pipeline_id: str) -> str:
-        """Generate unique lock key for tenant + pipeline combination."""
-        return f"{tenant_id}:{pipeline_id}"
+    def _get_lock_key(self, org_slug: str, pipeline_id: str) -> str:
+        """Generate unique lock key for org + pipeline combination."""
+        return f"{org_slug}:{pipeline_id}"
 
     def _is_lock_expired(self, lock: PipelineLock) -> bool:
         """Check if a lock has expired."""
@@ -73,7 +73,7 @@ class PipelineLockManager:
                 logger.warning(
                     f"Removed expired lock",
                     extra={
-                        "tenant_id": expired_lock.tenant_id,
+                        "org_slug": expired_lock.org_slug,
                         "pipeline_id": expired_lock.pipeline_id,
                         "pipeline_logging_id": expired_lock.pipeline_logging_id,
                         "lock_age_seconds": int(current_time - expired_lock.locked_at)
@@ -82,7 +82,7 @@ class PipelineLockManager:
 
     async def acquire_lock(
         self,
-        tenant_id: str,
+        org_slug: str,
         pipeline_id: str,
         pipeline_logging_id: str,
         locked_by: str
@@ -91,7 +91,7 @@ class PipelineLockManager:
         Try to acquire a lock for pipeline execution.
 
         Args:
-            tenant_id: Tenant identifier
+            org_slug: Org identifier
             pipeline_id: Pipeline identifier
             pipeline_logging_id: Current execution ID
             locked_by: Who is requesting the lock (for audit)
@@ -105,7 +105,7 @@ class PipelineLockManager:
             # Cleanup expired locks first
             await self._cleanup_expired_locks()
 
-            lock_key = self._get_lock_key(tenant_id, pipeline_id)
+            lock_key = self._get_lock_key(org_slug, pipeline_id)
 
             # Check if lock already exists
             existing_lock = self._locks.get(lock_key)
@@ -116,7 +116,7 @@ class PipelineLockManager:
                     logger.info(
                         f"Pipeline already running - returning existing execution",
                         extra={
-                            "tenant_id": tenant_id,
+                            "org_slug": org_slug,
                             "pipeline_id": pipeline_id,
                             "existing_pipeline_logging_id": existing_lock.pipeline_logging_id,
                             "requested_pipeline_logging_id": pipeline_logging_id,
@@ -129,7 +129,7 @@ class PipelineLockManager:
                 logger.warning(
                     f"Replacing expired lock",
                     extra={
-                        "tenant_id": tenant_id,
+                        "org_slug": org_slug,
                         "pipeline_id": pipeline_id,
                         "expired_pipeline_logging_id": existing_lock.pipeline_logging_id
                     }
@@ -138,7 +138,7 @@ class PipelineLockManager:
             # Acquire new lock
             new_lock = PipelineLock(
                 pipeline_logging_id=pipeline_logging_id,
-                tenant_id=tenant_id,
+                org_slug=org_slug,
                 pipeline_id=pipeline_id,
                 locked_at=time.time(),
                 locked_by=locked_by
@@ -149,7 +149,7 @@ class PipelineLockManager:
             logger.info(
                 f"Lock acquired",
                 extra={
-                    "tenant_id": tenant_id,
+                    "org_slug": org_slug,
                     "pipeline_id": pipeline_id,
                     "pipeline_logging_id": pipeline_logging_id,
                     "locked_by": locked_by
@@ -160,7 +160,7 @@ class PipelineLockManager:
 
     async def release_lock(
         self,
-        tenant_id: str,
+        org_slug: str,
         pipeline_id: str,
         pipeline_logging_id: str
     ) -> bool:
@@ -168,7 +168,7 @@ class PipelineLockManager:
         Release a lock after pipeline execution completes.
 
         Args:
-            tenant_id: Tenant identifier
+            org_slug: Org identifier
             pipeline_id: Pipeline identifier
             pipeline_logging_id: Execution ID that holds the lock
 
@@ -176,14 +176,14 @@ class PipelineLockManager:
             True if lock was released, False if lock not found or held by different execution
         """
         async with self._asyncio_lock:
-            lock_key = self._get_lock_key(tenant_id, pipeline_id)
+            lock_key = self._get_lock_key(org_slug, pipeline_id)
             existing_lock = self._locks.get(lock_key)
 
             if not existing_lock:
                 logger.warning(
                     f"Attempted to release non-existent lock",
                     extra={
-                        "tenant_id": tenant_id,
+                        "org_slug": org_slug,
                         "pipeline_id": pipeline_id,
                         "pipeline_logging_id": pipeline_logging_id
                     }
@@ -195,7 +195,7 @@ class PipelineLockManager:
                 logger.warning(
                     f"Attempted to release lock held by different execution",
                     extra={
-                        "tenant_id": tenant_id,
+                        "org_slug": org_slug,
                         "pipeline_id": pipeline_id,
                         "requested_id": pipeline_logging_id,
                         "actual_holder_id": existing_lock.pipeline_logging_id
@@ -209,7 +209,7 @@ class PipelineLockManager:
             logger.info(
                 f"Lock released",
                 extra={
-                    "tenant_id": tenant_id,
+                    "org_slug": org_slug,
                     "pipeline_id": pipeline_id,
                     "pipeline_logging_id": pipeline_logging_id,
                     "lock_duration_seconds": int(time.time() - existing_lock.locked_at)
@@ -226,7 +226,7 @@ class PipelineLockManager:
 
     async def get_lock_status(
         self,
-        tenant_id: str,
+        org_slug: str,
         pipeline_id: str
     ) -> Optional[PipelineLock]:
         """
@@ -236,7 +236,7 @@ class PipelineLockManager:
             PipelineLock if locked, None if not locked
         """
         async with self._asyncio_lock:
-            lock_key = self._get_lock_key(tenant_id, pipeline_id)
+            lock_key = self._get_lock_key(org_slug, pipeline_id)
             lock = self._locks.get(lock_key)
 
             if lock and self._is_lock_expired(lock):

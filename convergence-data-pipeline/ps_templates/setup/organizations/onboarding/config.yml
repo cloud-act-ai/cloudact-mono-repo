@@ -1,0 +1,18 @@
+ps_type: "setup.organizations.onboarding"
+name: "Organization Onboarding Validation"
+description: "Validates organization BigQuery infrastructure during onboarding"
+version: "1.0.0"
+provider: "setup"
+
+# Processor to execute this template
+processor: "src.core.processors.setup.organizations.onboarding"
+
+# Required parameters
+required_params:
+  - org_slug
+
+# Features
+features:
+  infrastructure_validation: true
+  schema_creation: true
+  test_query_execution: true

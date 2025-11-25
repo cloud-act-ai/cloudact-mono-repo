@@ -40,7 +40,7 @@ class ErrorCode(str, Enum):
     CONCURRENT_LIMIT_EXCEEDED = "CONCURRENT_LIMIT_EXCEEDED"
 
     # Validation errors (400 equivalent)
-    INVALID_TENANT_ID = "INVALID_TENANT_ID"
+    INVALID_ORG_SLUG = "INVALID_ORG_SLUG"
     INVALID_API_KEY = "INVALID_API_KEY"
     INVALID_PARAMETER = "INVALID_PARAMETER"
     INVALID_PAYLOAD = "INVALID_PAYLOAD"
@@ -82,7 +82,7 @@ class ConvergenceException(Exception):
             category: Error category for classification
             error_code: Standardized error code
             http_status: HTTP status code to return
-            context: Additional context (tenant_id, query, etc.)
+            context: Additional context (org_slug, query, etc.)
             retry_after: Seconds to wait before retry (for transient/quota errors)
             original_error: Original exception if wrapped
         """
@@ -416,21 +416,21 @@ class ValidationError(ConvergenceException):
         )
 
 
-class InvalidTenantIdError(ValidationError):
-    """Invalid tenant ID format."""
+class InvalidOrgSlugError(ValidationError):
+    """Invalid org slug format."""
 
     def __init__(
         self,
-        tenant_id: str,
+        org_slug: str,
         message: Optional[str] = None,
         context: Optional[Dict[str, Any]] = None
     ):
         context = context or {}
-        context["tenant_id"] = tenant_id
+        context["org_slug"] = org_slug
 
         super().__init__(
-            message=message or f"Invalid tenant ID format: {tenant_id}",
-            error_code=ErrorCode.INVALID_TENANT_ID,
+            message=message or f"Invalid org slug format: {org_slug}",
+            error_code=ErrorCode.INVALID_ORG_SLUG,
             context=context
         )
 

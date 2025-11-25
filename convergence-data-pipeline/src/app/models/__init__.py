@@ -1,13 +1,13 @@
 """
-Tenant management models package.
+Organization management models package.
 
-Exports all tenant-related models, enums, and constants for use throughout the application.
+Exports all organization-related models, enums, and constants for use throughout the application.
 """
 
-from .tenant_models import (
+from .org_models import (
     # Enums
     SubscriptionPlan,
-    TenantStatus,
+    OrgStatus,
     Provider,
     CredentialType,
     Domain,
@@ -18,7 +18,7 @@ from .tenant_models import (
     SUBSCRIPTION_LIMITS,
 
     # Request Models
-    OnboardTenantRequest,
+    OnboardOrgRequest,
     CreateAPIKeyRequest,
     AddCredentialRequest,
     CreateProviderConfigRequest,
@@ -27,7 +27,7 @@ from .tenant_models import (
     UpdateLimitsRequest,
 
     # Response Models
-    TenantProfileResponse,
+    OrgProfileResponse,
     APIKeyResponse,
     CredentialResponse,
     SubscriptionResponse,
@@ -40,7 +40,7 @@ from .tenant_models import (
 __all__ = [
     # Enums
     "SubscriptionPlan",
-    "TenantStatus",
+    "OrgStatus",
     "Provider",
     "CredentialType",
     "Domain",
@@ -51,7 +51,7 @@ __all__ = [
     "SUBSCRIPTION_LIMITS",
 
     # Request Models
-    "OnboardTenantRequest",
+    "OnboardOrgRequest",
     "CreateAPIKeyRequest",
     "AddCredentialRequest",
     "CreateProviderConfigRequest",
@@ -60,7 +60,7 @@ __all__ = [
     "UpdateLimitsRequest",
 
     # Response Models
-    "TenantProfileResponse",
+    "OrgProfileResponse",
     "APIKeyResponse",
     "CredentialResponse",
     "SubscriptionResponse",

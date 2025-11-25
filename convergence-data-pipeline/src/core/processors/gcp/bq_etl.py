@@ -73,7 +73,7 @@ class BigQueryETLEngine:
 
         Args:
             step_config: Step configuration from pipeline YAML
-            context: Execution context (tenant_id, pipeline_id, etc.)
+            context: Execution context (org_slug, pipeline_id, etc.)
 
         Returns:
             Execution result with metrics
@@ -91,6 +91,10 @@ class BigQueryETLEngine:
         # Step-level variables have highest priority
         variables.update(step_config.get("variables", {}))
 
+        # Add default date if not provided (critical for cost_billing pipeline)
+        if 'date' not in variables:
+            variables['date'] = date.today().isoformat()
+
         # Replace variables in query
         query = source.get("query", "")
         query = self._replace_variables(query, variables)
@@ -105,7 +109,7 @@ class BigQueryETLEngine:
             "Executing BigQuery query",
             extra={
                 "query_preview": query[:100],
-                "tenant_id": context.get("tenant_id"),
+                "org_slug": context.get("org_slug"),
                 "pipeline_id": context.get("pipeline_id"),
                 "step_id": context.get("step_id")
             }
@@ -117,19 +121,19 @@ class BigQueryETLEngine:
             "Query execution completed",
             extra={
                 "row_count": row_count,
-                "tenant_id": context.get("tenant_id"),
+                "org_slug": context.get("org_slug"),
                 "pipeline_id": context.get("pipeline_id")
             }
         )
 
         # Get destination details and replace variables
         dest_project = destination.get("bq_project_id", self.settings.gcp_project_id)
-        tenant_id = context.get("tenant_id")
+        org_slug = context.get("org_slug")
         table = self._replace_variables(destination.get("table", ""), variables)
 
         # Build dataset name with environment suffix
-        # Format: {tenant_id}_{environment} (e.g., sri_482433_local, sri_482433_prod)
-        dataset_id = self.settings.get_tenant_dataset_name(tenant_id)
+        # Format: {org_slug}_{environment} (e.g., sri_482433_local, sri_482433_prod)
+        dataset_id = self.settings.get_org_dataset_name(org_slug)
         table_id = table
 
         full_table_id = f"{dest_project}.{dataset_id}.{table_id}"
@@ -144,7 +148,7 @@ class BigQueryETLEngine:
                 extra={
                     "schema_template": schema_template_name,
                     "field_count": len(schema) if schema else 0,
-                    "tenant_id": context.get("tenant_id"),
+                    "org_slug": context.get("org_slug"),
                     "pipeline_id": context.get("pipeline_id")
                 }
             )
@@ -167,7 +171,7 @@ class BigQueryETLEngine:
                 "row_count": row_count,
                 "destination_table": full_table_id,
                 "write_mode": write_mode,
-                "tenant_id": context.get("tenant_id"),
+                "org_slug": context.get("org_slug"),
                 "pipeline_id": context.get("pipeline_id")
             }
         )

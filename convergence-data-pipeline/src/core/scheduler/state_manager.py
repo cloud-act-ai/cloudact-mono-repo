@@ -99,18 +99,18 @@ class PipelineStateManager:
         self.client = bq_client
         self.project_id = settings.gcp_project_id
 
-    def _get_scheduled_runs_table(self, tenant_id: str) -> str:
+    def _get_scheduled_runs_table(self, org_slug: str) -> str:
         """
         Get fully qualified scheduled runs table name.
 
         Args:
-            tenant_id: Customer/tenant identifier
+            org_slug: Customer/org identifier
 
         Returns:
             Fully qualified table name
         """
-        dataset = settings.get_tenant_dataset_name(tenant_id)
-        return f"{self.project_id}.{dataset}.x_meta_scheduled_runs"
+        dataset = settings.get_org_dataset_name(org_slug)
+        return f"{self.project_id}.{dataset}.org_meta_scheduled_runs"
 
     @tenacity_retry(
         stop=stop_after_attempt(settings.bq_max_retry_attempts),
@@ -119,7 +119,7 @@ class PipelineStateManager:
     )
     async def create_scheduled_run(
         self,
-        tenant_id: str,
+        org_slug: str,
         config_id: str,
         scheduled_time: datetime
     ) -> str:
@@ -127,7 +127,7 @@ class PipelineStateManager:
         Create a new scheduled pipeline run record.
 
         Args:
-            tenant_id: Customer/tenant identifier
+            org_slug: Customer/org identifier
             config_id: Pipeline configuration ID
             scheduled_time: When the pipeline should run
 
@@ -135,11 +135,11 @@ class PipelineStateManager:
             run_id: Unique identifier for this scheduled run
         """
         run_id = str(uuid.uuid4())
-        table_id = self._get_scheduled_runs_table(tenant_id)
+        table_id = self._get_scheduled_runs_table(org_slug)
 
         row = {
             "run_id": run_id,
-            "tenant_id": tenant_id,
+            "org_slug": org_slug,
             "config_id": config_id,
             "state": PipelineState.SCHEDULED.value,
             "scheduled_time": scheduled_time.isoformat(),
@@ -164,14 +164,14 @@ class PipelineStateManager:
 
         if errors:
             error_msg = f"Failed to create scheduled run: {errors}"
-            logger.error(error_msg, extra={"tenant_id": tenant_id, "config_id": config_id})
+            logger.error(error_msg, extra={"org_slug": org_slug, "config_id": config_id})
             raise ValueError(error_msg)
 
         logger.info(
             "Created scheduled pipeline run",
             extra={
                 "run_id": run_id,
-                "tenant_id": tenant_id,
+                "org_slug": org_slug,
                 "config_id": config_id,
                 "scheduled_time": scheduled_time.isoformat()
             }
@@ -215,7 +215,7 @@ class PipelineStateManager:
 
         # Build UPDATE query with WHERE clause to ensure atomic transition
         query = f"""
-        UPDATE `{self.project_id}.metadata.x_meta_scheduled_runs`
+        UPDATE `{self.project_id}.metadata.org_meta_scheduled_runs`
         SET
             state = @to_state,
             updated_at = @updated_at,
@@ -271,7 +271,7 @@ class PipelineStateManager:
         self,
         state: str,
         limit: int = 100,
-        tenant_id: str = None
+        org_slug: str = None
     ) -> List[Dict]:
         """
         Get all pipelines in a specific state.
@@ -279,7 +279,7 @@ class PipelineStateManager:
         Args:
             state: Pipeline state to filter by
             limit: Maximum number of results
-            tenant_id: Optional customer filter
+            org_slug: Optional customer filter
 
         Returns:
             List of pipeline run records
@@ -287,13 +287,13 @@ class PipelineStateManager:
         where_clause = "WHERE state = @state"
         params = [bigquery.ScalarQueryParameter("state", "STRING", state)]
 
-        if tenant_id:
-            where_clause += " AND tenant_id = @tenant_id"
-            params.append(bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id))
+        if org_slug:
+            where_clause += " AND org_slug = @org_slug"
+            params.append(bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug))
 
         query = f"""
         SELECT *
-        FROM `{self.project_id}.metadata.x_meta_scheduled_runs`
+        FROM `{self.project_id}.metadata.org_meta_scheduled_runs`
         {where_clause}
         ORDER BY scheduled_time ASC
         LIMIT @limit
@@ -337,7 +337,7 @@ class PipelineStateManager:
 
         query = f"""
         SELECT *
-        FROM `{self.project_id}.metadata.x_meta_scheduled_runs`
+        FROM `{self.project_id}.metadata.org_meta_scheduled_runs`
         WHERE
             state IN ('SCHEDULED', 'PENDING')
             AND scheduled_time <= CURRENT_TIMESTAMP()
@@ -390,7 +390,7 @@ class PipelineStateManager:
             True if update successful
         """
         query = f"""
-        UPDATE `{self.project_id}.metadata.x_meta_scheduled_runs`
+        UPDATE `{self.project_id}.metadata.org_meta_scheduled_runs`
         SET
             state = @state,
             pipeline_logging_id = @pipeline_logging_id,
@@ -449,7 +449,7 @@ class PipelineStateManager:
             True if update successful
         """
         query = f"""
-        UPDATE `{self.project_id}.metadata.x_meta_scheduled_runs`
+        UPDATE `{self.project_id}.metadata.org_meta_scheduled_runs`
         SET
             state = @state,
             updated_at = @updated_at,
@@ -516,7 +516,7 @@ class PipelineStateManager:
         new_state = PipelineState.PENDING.value if should_retry else PipelineState.FAILED.value
 
         query = f"""
-        UPDATE `{self.project_id}.metadata.x_meta_scheduled_runs`
+        UPDATE `{self.project_id}.metadata.org_meta_scheduled_runs`
         SET
             state = @state,
             error_message = @error_message,
@@ -572,7 +572,7 @@ class PipelineStateManager:
         """
         query = f"""
         SELECT *
-        FROM `{self.project_id}.metadata.x_meta_scheduled_runs`
+        FROM `{self.project_id}.metadata.org_meta_scheduled_runs`
         WHERE run_id = @run_id
         """
 
@@ -602,16 +602,16 @@ class PipelineStateManager:
         wait=wait_exponential(multiplier=1, min=2, max=30),
         retry=TRANSIENT_RETRY_POLICY
     )
-    async def get_tenant_pipeline_status(
+    async def get_org_pipeline_status(
         self,
-        tenant_id: str,
+        org_slug: str,
         date: str = None
     ) -> Dict:
         """
-        Get summary of all pipelines for a tenant.
+        Get summary of all pipelines for an org.
 
         Args:
-            tenant_id: Tenant identifier
+            org_slug: Org identifier
             date: Optional date filter (YYYY-MM-DD). Defaults to today.
 
         Returns:
@@ -633,15 +633,15 @@ class PipelineStateManager:
                     AND DATE(scheduled_time) = @date
                 ) as yet_to_run,
                 COUNTIF(DATE(scheduled_time) = @date AND state = 'FAILED') as failed
-            FROM `{self.project_id}.metadata.x_meta_scheduled_runs`
-            WHERE tenant_id = @tenant_id
+            FROM `{self.project_id}.metadata.org_meta_scheduled_runs`
+            WHERE org_slug = @org_slug
         )
         SELECT * FROM pipeline_stats
         """
 
         job_config = bigquery.QueryJobConfig(
             query_parameters=[
-                bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
+                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
                 bigquery.ScalarQueryParameter("date", "DATE", date)
             ]
         )
@@ -698,7 +698,7 @@ class QueueManager:
     )
     async def enqueue(
         self,
-        tenant_id: str,
+        org_slug: str,
         config: Dict,
         priority: int = 5
     ) -> str:
@@ -706,7 +706,7 @@ class QueueManager:
         Add pipeline to queue.
 
         Args:
-            tenant_id: Customer/tenant identifier
+            org_slug: Customer/org identifier
             config: Pipeline configuration
             priority: Priority level (1=highest, 10=lowest)
 
@@ -714,11 +714,11 @@ class QueueManager:
             queue_id: Unique queue item identifier
         """
         queue_id = str(uuid.uuid4())
-        table_id = f"{self.project_id}.metadata.x_meta_pipeline_queue"
+        table_id = f"{self.project_id}.metadata.org_meta_pipeline_queue"
 
         row = {
             "queue_id": queue_id,
-            "tenant_id": tenant_id,
+            "org_slug": org_slug,
             "config": config,
             "priority": priority,
             "status": QueueStatus.QUEUED.value,
@@ -741,12 +741,12 @@ class QueueManager:
 
         if errors:
             error_msg = f"Failed to enqueue pipeline: {errors}"
-            logger.error(error_msg, extra={"tenant_id": tenant_id})
+            logger.error(error_msg, extra={"org_slug": org_slug})
             raise ValueError(error_msg)
 
         logger.info(
             "Enqueued pipeline",
-            extra={"queue_id": queue_id, "tenant_id": tenant_id, "priority": priority}
+            extra={"queue_id": queue_id, "org_slug": org_slug, "priority": priority}
         )
 
         return queue_id
@@ -769,10 +769,10 @@ class QueueManager:
         """
         # Use MERGE statement for atomic read-and-update
         query = f"""
-        MERGE `{self.project_id}.metadata.x_meta_pipeline_queue` AS target
+        MERGE `{self.project_id}.metadata.org_meta_pipeline_queue` AS target
         USING (
             SELECT queue_id
-            FROM `{self.project_id}.metadata.x_meta_pipeline_queue`
+            FROM `{self.project_id}.metadata.org_meta_pipeline_queue`
             WHERE status = 'QUEUED'
             ORDER BY priority ASC, created_at ASC
             LIMIT 1
@@ -804,7 +804,7 @@ class QueueManager:
         # Now fetch the item that was just claimed
         fetch_query = f"""
         SELECT *
-        FROM `{self.project_id}.metadata.x_meta_pipeline_queue`
+        FROM `{self.project_id}.metadata.org_meta_pipeline_queue`
         WHERE worker_id = @worker_id AND status = 'PROCESSING'
         ORDER BY updated_at DESC
         LIMIT 1
@@ -849,7 +849,7 @@ class QueueManager:
             queue_id: Queue item identifier
         """
         query = f"""
-        UPDATE `{self.project_id}.metadata.x_meta_pipeline_queue`
+        UPDATE `{self.project_id}.metadata.org_meta_pipeline_queue`
         SET
             status = 'COMPLETED',
             updated_at = @updated_at
@@ -888,7 +888,7 @@ class QueueManager:
             error: Error message
         """
         query = f"""
-        UPDATE `{self.project_id}.metadata.x_meta_pipeline_queue`
+        UPDATE `{self.project_id}.metadata.org_meta_pipeline_queue`
         SET
             status = 'FAILED',
             error_message = @error,
@@ -929,7 +929,7 @@ class QueueManager:
         """
         query = f"""
         SELECT COUNT(*) as count
-        FROM `{self.project_id}.metadata.x_meta_pipeline_queue`
+        FROM `{self.project_id}.metadata.org_meta_pipeline_queue`
         WHERE status = 'QUEUED'
         """
 
@@ -969,7 +969,7 @@ class QueueManager:
                         ELSE NULL
                     END
                 ) as avg_wait_time_seconds
-            FROM `{self.project_id}.metadata.x_meta_pipeline_queue`
+            FROM `{self.project_id}.metadata.org_meta_pipeline_queue`
             WHERE created_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 HOUR)
         )
         SELECT * FROM queue_stats
@@ -1148,7 +1148,7 @@ class RetryManager:
         # Get run details
         query = f"""
         SELECT retry_count, error_message
-        FROM `{settings.gcp_project_id}.metadata.x_meta_scheduled_runs`
+        FROM `{settings.gcp_project_id}.metadata.org_meta_scheduled_runs`
         WHERE run_id = @run_id
         """
 
@@ -1264,7 +1264,7 @@ class RetryManager:
             bq_client: BigQuery client
         """
         query = f"""
-        UPDATE `{settings.gcp_project_id}.metadata.x_meta_scheduled_runs`
+        UPDATE `{settings.gcp_project_id}.metadata.org_meta_scheduled_runs`
         SET
             state = 'PENDING',
             scheduled_time = @retry_time,

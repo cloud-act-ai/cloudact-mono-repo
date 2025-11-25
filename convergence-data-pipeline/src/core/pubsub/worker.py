@@ -76,24 +76,24 @@ class PipelineWorker:
         Execute a single pipeline task.
 
         Args:
-            task: Task dict with tenant_id, pipeline_id, parameters
+            task: Task dict with org_slug, pipeline_id, parameters
 
         Returns:
             True if successful, False otherwise
         """
-        tenant_id = task["tenant_id"]
+        org_slug = task["org_slug"]
         pipeline_id = task["pipeline_id"]
         parameters = task.get("parameters", {})
 
         try:
             logger.info(
                 f"Executing pipeline task",
-                extra={"tenant_id": tenant_id, "pipeline_id": pipeline_id}
+                extra={"org_slug": org_slug, "pipeline_id": pipeline_id}
             )
 
             # Use existing AsyncPipelineExecutor
             executor = AsyncPipelineExecutor(
-                tenant_id=tenant_id,
+                org_slug=org_slug,
                 pipeline_id=pipeline_id,
                 trigger_type="pubsub",
                 trigger_by="pubsub_worker"
@@ -104,7 +104,7 @@ class PipelineWorker:
             logger.info(
                 f"Pipeline completed successfully",
                 extra={
-                    "tenant_id": tenant_id,
+                    "org_slug": org_slug,
                     "pipeline_id": pipeline_id,
                     "pipeline_logging_id": result.get("pipeline_logging_id")
                 }
@@ -116,7 +116,7 @@ class PipelineWorker:
             logger.error(
                 f"Pipeline execution failed",
                 extra={
-                    "tenant_id": tenant_id,
+                    "org_slug": org_slug,
                     "pipeline_id": pipeline_id,
                     "error": str(e)
                 },

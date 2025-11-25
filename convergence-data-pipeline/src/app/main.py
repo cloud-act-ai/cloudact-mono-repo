@@ -1,6 +1,6 @@
 """
 Convergence Data Pipeline - Enterprise FastAPI Application
-Main application entry point with multi-tenant support.
+Main application entry point with multi-organization support.
 """
 
 from fastapi import FastAPI, Request, status
@@ -218,7 +218,7 @@ app.add_middleware(
 # Input validation middleware (FIRST - validates all requests)
 @app.middleware("http")
 async def validation_middleware_wrapper(request: Request, call_next):
-    """Input validation middleware - validates tenant IDs, headers, request size."""
+    """Input validation middleware - validates org slugs, headers, request size."""
     return await validation_middleware(request, call_next)
 
 
@@ -227,8 +227,8 @@ async def validation_middleware_wrapper(request: Request, call_next):
 async def rate_limit_middleware(request: Request, call_next):
     """
     Global rate limiting middleware.
-    Checks both per-tenant and global rate limits.
-    Sets tenant_id in request.state for downstream use.
+    Checks both per-organization and global rate limits.
+    Sets org_slug in request.state for downstream use.
     """
     if not settings.rate_limit_enabled:
         return await call_next(request)
@@ -239,26 +239,26 @@ async def rate_limit_middleware(request: Request, call_next):
 
     rate_limiter = get_rate_limiter()
 
-    # Extract tenant from authentication or path
-    tenant_id = None
-    if hasattr(request.state, "tenant_id"):
-        tenant_id = request.state.tenant_id
-    elif "tenant_id" in request.path_params:
-        tenant_id = request.path_params.get("tenant_id")
+    # Extract org from authentication or path
+    org_slug = None
+    if hasattr(request.state, "org_slug"):
+        org_slug = request.state.org_slug
+    elif "org_slug" in request.path_params:
+        org_slug = request.path_params.get("org_slug")
 
-    # Check per-tenant limit if tenant identified
-    if tenant_id:
-        is_allowed, metadata = await rate_limiter.check_tenant_limit(
-            tenant_id,
+    # Check per-organization limit if org identified
+    if org_slug:
+        is_allowed, metadata = await rate_limiter.check_org_limit(
+            org_slug,
             limit_per_minute=settings.rate_limit_requests_per_minute,
             limit_per_hour=settings.rate_limit_requests_per_hour
         )
 
         if not is_allowed:
             logger.warning(
-                f"Rate limit exceeded for tenant {tenant_id}",
+                f"Rate limit exceeded for org {org_slug}",
                 extra={
-                    "tenant_id": tenant_id,
+                    "org_slug": org_slug,
                     "path": request.url.path,
                     "remaining": metadata["minute"]["remaining"]
                 }
@@ -268,7 +268,7 @@ async def rate_limit_middleware(request: Request, call_next):
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 content={
                     "error": "Rate limit exceeded",
-                    "message": f"Too many requests for tenant {tenant_id}",
+                    "message": f"Too many requests for org {org_slug}",
                     "retry_after": metadata["minute"]["reset"]
                 }
             )
@@ -304,9 +304,9 @@ async def rate_limit_middleware(request: Request, call_next):
     response = await call_next(request)
 
     # Add rate limit headers if limits were checked
-    if tenant_id:
-        response.headers["X-RateLimit-Tenant-Limit"] = str(settings.rate_limit_requests_per_minute)
-        response.headers["X-RateLimit-Tenant-Remaining"] = str(metadata.get("minute", {}).get("remaining", 0))
+    if org_slug:
+        response.headers["X-RateLimit-Org-Limit"] = str(settings.rate_limit_requests_per_minute)
+        response.headers["X-RateLimit-Org-Remaining"] = str(metadata.get("minute", {}).get("remaining", 0))
 
     return response
 
@@ -317,16 +317,16 @@ async def log_requests(request: Request, call_next):
     """Log all HTTP requests with timing."""
     start_time = time.time()
 
-    # Extract tenant from header if present
+    # Extract org from header if present
     api_key = request.headers.get("x-api-key")
-    tenant_id = "unknown"  # Will be set by auth dependency
+    org_slug = "unknown"  # Will be set by auth dependency
 
     logger.info(
         f"Request started",
         extra={
             "method": request.method,
             "path": request.url.path,
-            "tenant_id": tenant_id
+            "org_slug": org_slug
         }
     )
 
@@ -341,7 +341,7 @@ async def log_requests(request: Request, call_next):
             "path": request.url.path,
             "status_code": response.status_code,
             "duration_ms": round(duration * 1000, 2),
-            "tenant_id": tenant_id
+            "org_slug": org_slug
         }
     )
 
@@ -521,11 +521,11 @@ async def metrics():
 # API Routers
 # ============================================
 
-from src.app.routers import pipelines, admin, tenants, scheduler
+from src.app.routers import pipelines, admin, organizations, scheduler
 
 app.include_router(pipelines.router, prefix="/api/v1", tags=["Pipelines"])
 app.include_router(admin.router, prefix="/api/v1", tags=["Admin"])
-app.include_router(tenants.router, prefix="/api/v1", tags=["Tenants"])
+app.include_router(organizations.router, prefix="/api/v1", tags=["Organizations"])
 app.include_router(scheduler.router, prefix="/api/v1", tags=["Scheduler"])
 
 

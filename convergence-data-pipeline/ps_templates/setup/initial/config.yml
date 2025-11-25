@@ -1,49 +1,68 @@
 ps_type: "setup.initial.onetime_bootstrap"
 name: "One-Time Bootstrap Setup"
-description: "Creates central tenants dataset and all tenant management tables during initial system setup"
-version: "1.0.0"
-provider: "setup"
+description: "Creates central organizations dataset and all management tables"
+version: "1.1.0"
 
-# Processor to execute this template
-processor: "src.core.processors.setup.initial.onetime_bootstrap"
-
-# Required parameters
-required_params: []
-
-# Optional parameters with defaults
-optional_params:
-  force_recreate_dataset: false  # If true, delete and recreate entire tenants dataset
-  force_recreate_tables: false   # If true, delete and recreate all tables
-
-# Features
-features:
-  central_dataset_creation: true
-  tenant_management_tables: true
-  infrastructure_validation: true
-  idempotent_execution: true
-
-# Dataset configuration
 dataset:
-  name: "tenants"
-  description: "Central dataset for tenant management, authentication, quotas, and centralized logging"
+  name: "organizations"
+  description: "Central dataset for organization management"
   location: "US"
 
-# Tables to create (in order)
+# Table configs - schema from schemas/{name}.json, partitioning/clustering defined here
 tables:
-  - tenant_profiles
-  - tenant_api_keys
-  - tenant_subscriptions
-  - tenant_usage_quotas
-  - tenant_cloud_credentials
-  - tenant_pipeline_configs
-  - tenant_scheduled_pipeline_runs
-  - tenant_pipeline_execution_queue
-  - tenant_pipeline_runs
-  - tenant_step_logs
-  - tenant_dq_results
+  org_profiles:
+    description: "Organization profiles"
 
-# Notes:
-# - This processor should be run ONCE during initial system setup
-# - Can be re-run with force_recreate flags if schema changes are needed
-# - All table schemas are versioned in ps_templates/setup/initial/schemas/
-# - Schemas use BigQuery JSON schema format
+  org_api_keys:
+    description: "API keys (SHA256 hashed)"
+
+  org_subscriptions:
+    description: "Subscription plans and limits"
+
+  org_usage_quotas:
+    description: "Usage tracking"
+    partition:
+      type: "DAY"
+      field: "usage_date"
+    clustering: ["org_slug", "usage_date"]
+
+  org_cloud_credentials:
+    description: "Cloud credentials (KMS encrypted)"
+
+  org_pipeline_configs:
+    description: "Pipeline configurations"
+
+  org_scheduled_pipeline_runs:
+    description: "Scheduled pipeline runs"
+    partition:
+      type: "DAY"
+      field: "scheduled_time"
+    clustering: ["org_slug", "state", "config_id"]
+
+  org_pipeline_execution_queue:
+    description: "Execution queue"
+    partition:
+      type: "DAY"
+      field: "scheduled_time"
+    clustering: ["state", "priority", "org_slug"]
+
+  org_meta_pipeline_runs:
+    description: "Pipeline execution logs"
+    partition:
+      type: "DAY"
+      field: "start_time"
+    clustering: ["org_slug", "status"]
+
+  org_meta_step_logs:
+    description: "Step execution logs"
+    partition:
+      type: "DAY"
+      field: "start_time"
+    clustering: ["org_slug", "pipeline_logging_id"]
+
+  org_meta_dq_results:
+    description: "Data quality results"
+    partition:
+      type: "DAY"
+      field: "ingestion_date"
+    clustering: ["org_slug", "overall_status"]

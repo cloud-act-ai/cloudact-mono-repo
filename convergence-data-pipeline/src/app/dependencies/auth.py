@@ -1,6 +1,6 @@
 """
-API Key Authentication with Tenant-Centric Architecture
-Secure multi-tenant authentication using centralized tenants dataset.
+API Key Authentication with Organization-Centric Architecture
+Secure multi-org authentication using centralized organizations dataset.
 Supports subscription validation, quota management, and credential retrieval.
 Fallback to local file-based API keys for development.
 """
@@ -39,11 +39,11 @@ def load_test_api_keys() -> Dict[str, Dict[str, Any]]:
     """
     Load test API keys from test_api_keys.json for development/QA testing.
 
-    Returns a dict mapping api_key -> tenant data.
+    Returns a dict mapping api_key -> org data.
     Only loaded when ENABLE_DEV_MODE=true or DISABLE_AUTH=true.
 
     Returns:
-        Dict mapping API key to tenant profile
+        Dict mapping API key to org profile
     """
     global _test_api_keys
 
@@ -61,7 +61,7 @@ def load_test_api_keys() -> Dict[str, Dict[str, Any]]:
         with open(test_keys_file, 'r') as f:
             data = json.load(f)
 
-        # Build lookup dict: api_key -> tenant data
+        # Build lookup dict: api_key -> org data
         _test_api_keys = {}
         for key_data in data.get("test_keys", []):
             api_key = key_data.get("api_key")
@@ -78,15 +78,15 @@ def load_test_api_keys() -> Dict[str, Dict[str, Any]]:
         return _test_api_keys
 
 
-def get_test_tenant_from_api_key(api_key: str) -> Optional[Dict[str, Any]]:
+def get_test_org_from_api_key(api_key: str) -> Optional[Dict[str, Any]]:
     """
-    Look up test tenant data from test API key.
+    Look up test org data from test API key.
 
     Args:
         api_key: Plain text API key
 
     Returns:
-        Tenant dict if found, None otherwise
+        Org dict if found, None otherwise
     """
     test_keys = load_test_api_keys()
     return test_keys.get(api_key)
@@ -128,7 +128,7 @@ class AuthMetricsAggregator:
         if self._initialized:
             return
 
-        self.pending_updates: Set[str] = set()  # Set of tenant_api_key_ids to update
+        self.pending_updates: Set[str] = set()  # Set of org_api_key_ids to update
         self.batch_lock = threading.Lock()
         self.flush_interval = 60  # Flush every 60 seconds
         self.is_running = False
@@ -137,16 +137,16 @@ class AuthMetricsAggregator:
 
         logger.info("AuthMetricsAggregator initialized with 60s flush interval")
 
-    def add_update(self, tenant_api_key_id: str) -> None:
+    def add_update(self, org_api_key_id: str) -> None:
         """
         Add API key to pending updates batch (non-blocking, <1ms).
 
         Args:
-            tenant_api_key_id: API key ID to update last_used_at
+            org_api_key_id: API key ID to update last_used_at
         """
         with self.batch_lock:
-            self.pending_updates.add(tenant_api_key_id)
-            logger.debug(f"Added {tenant_api_key_id} to batch ({len(self.pending_updates)} pending)")
+            self.pending_updates.add(org_api_key_id)
+            logger.debug(f"Added {org_api_key_id} to batch ({len(self.pending_updates)} pending)")
 
     async def flush_updates(self, bq_client: BigQueryClient) -> None:
         """
@@ -160,35 +160,35 @@ class AuthMetricsAggregator:
             if not self.pending_updates:
                 return
 
-            tenant_api_key_ids = list(self.pending_updates)
+            org_api_key_ids = list(self.pending_updates)
             self.pending_updates.clear()
 
-        if not tenant_api_key_ids:
+        if not org_api_key_ids:
             return
 
-        logger.info(f"Flushing {len(tenant_api_key_ids)} auth metric updates to BigQuery")
+        logger.info(f"Flushing {len(org_api_key_ids)} auth metric updates to BigQuery")
 
         try:
             # Batch UPDATE using IN clause (much faster than individual UPDATEs)
             # Formats: ['key1', 'key2'] -> "('key1', 'key2')"
-            key_list = ", ".join(f"'{key_id}'" for key_id in tenant_api_key_ids)
+            key_list = ", ".join(f"'{key_id}'" for key_id in org_api_key_ids)
 
             update_query = f"""
-            UPDATE `{settings.gcp_project_id}.tenants.tenant_api_keys`
+            UPDATE `{settings.gcp_project_id}.organizations.org_api_keys`
             SET last_used_at = CURRENT_TIMESTAMP()
-            WHERE tenant_api_key_id IN ({key_list})
+            WHERE org_api_key_id IN ({key_list})
             """
 
             # Execute in background (non-blocking)
             bq_client.client.query(update_query).result()
 
-            logger.info(f"Successfully flushed {len(tenant_api_key_ids)} auth metric updates")
+            logger.info(f"Successfully flushed {len(org_api_key_ids)} auth metric updates")
 
         except Exception as e:
             logger.error(f"Failed to flush auth metrics: {e}", exc_info=True)
             # Re-add failed updates to retry on next flush
             with self.batch_lock:
-                self.pending_updates.update(tenant_api_key_ids)
+                self.pending_updates.update(org_api_key_ids)
 
     async def start_background_flush(self, bq_client: BigQueryClient) -> None:
         """
@@ -233,17 +233,19 @@ def get_auth_aggregator() -> AuthMetricsAggregator:
     return _auth_aggregator
 
 
-class TenantContext:
-    """Container for tenant context extracted from API key."""
+class OrgContext:
+    """Container for organization context extracted from API key."""
 
-    def __init__(self, tenant_id: str, tenant_api_key_hash: str, user_id: Optional[str] = None):
-        self.tenant_id = tenant_id
-        self.tenant_api_key_hash = tenant_api_key_hash
+    def __init__(self, org_slug: str, org_api_key_hash: str, user_id: Optional[str] = None, org_api_key_id: Optional[str] = None):
+        self.org_slug = org_slug
+        self.org_api_key_hash = org_api_key_hash
         self.user_id = user_id
+        self.org_api_key_id = org_api_key_id
 
     def __repr__(self) -> str:
         user_info = f", user_id='{self.user_id}'" if self.user_id else ""
-        return f"TenantContext(tenant_id='{self.tenant_id}'{user_info})"
+        key_info = f", key_id='{self.org_api_key_id}'" if self.org_api_key_id else ""
+        return f"OrgContext(org_slug='{self.org_slug}'{user_info}{key_info})"
 
 
 def hash_api_key(api_key: str) -> str:
@@ -260,19 +262,19 @@ def hash_api_key(api_key: str) -> str:
 
 
 # ============================================
-# Tenant-Centric Authentication Functions
+# Organization-Centric Authentication Functions
 # ============================================
 
 
-async def get_current_tenant(
+async def get_current_org(
     api_key: str = Header(..., alias="X-API-Key"),
     bq_client: BigQueryClient = Depends(get_bigquery_client),
     background_tasks: BackgroundTasks = BackgroundTasks()
 ) -> Dict[str, Any]:
     """
-    Authenticate tenant using API key from centralized tenants.tenant_api_keys table.
+    Authenticate organization using API key from centralized organizations.org_api_keys table.
 
-    Returns tenant profile with subscription info.
+    Returns org profile with subscription info.
 
     Args:
         api_key: API key from X-API-Key header
@@ -280,23 +282,23 @@ async def get_current_tenant(
 
     Returns:
         Dict containing:
-            - tenant_id: Unique tenant identifier
-            - company_name: Tenant company name
-            - admin_email: Tenant admin email
-            - status: Tenant status (ACTIVE, SUSPENDED, etc.)
+            - org_slug: Unique organization identifier
+            - company_name: Org company name
+            - admin_email: Org admin email
+            - status: Org status (ACTIVE, SUSPENDED, etc.)
             - subscription: Subscription details with limits
-            - tenant_api_key_id: ID of the API key used
+            - org_api_key_id: ID of the API key used
 
     Raises:
-        HTTPException: If API key invalid, inactive, or tenant suspended
+        HTTPException: If API key invalid, inactive, or org suspended
     """
     # Check if authentication is disabled (development mode)
     if settings.disable_auth:
-        logger.warning(f"Authentication disabled - using default tenant '{settings.default_tenant_id}'")
-        # Return mock tenant for development
+        logger.warning(f"Authentication disabled - using default org '{settings.default_org_slug}'")
+        # Return mock org for development
         return {
-            "tenant_id": settings.default_tenant_id,
-            "company_name": "Development Tenant",
+            "org_slug": settings.default_org_slug,
+            "company_name": "Development Organization",
             "admin_email": "dev@example.com",
             "status": "ACTIVE",
             "subscription": {
@@ -306,46 +308,46 @@ async def get_current_tenant(
                 "max_pipelines_per_month": 999999,
                 "max_concurrent_pipelines": 999999
             },
-            "tenant_api_key_id": "dev-key"
+            "org_api_key_id": "dev-key"
         }
 
     # Check for test API keys (development/QA mode)
     enable_dev_mode = os.getenv("ENABLE_DEV_MODE", "false").lower() == "true"
     if enable_dev_mode or settings.is_development:
-        test_tenant = get_test_tenant_from_api_key(api_key)
-        if test_tenant:
-            logger.info(f"[DEV MODE] Using test API key for tenant: {test_tenant['tenant_id']}")
-            return test_tenant
+        test_org = get_test_org_from_api_key(api_key)
+        if test_org:
+            logger.info(f"[DEV MODE] Using test API key for org: {test_org['org_slug']}")
+            return test_org
 
     # Hash the API key
-    tenant_api_key_hash = hash_api_key(api_key)
+    org_api_key_hash = hash_api_key(api_key)
 
-    # Query tenants.tenant_api_keys for authentication
+    # Query organizations.org_api_keys for authentication
     query = f"""
     SELECT
-        k.tenant_api_key_id,
-        k.tenant_id,
+        k.org_api_key_id,
+        k.org_slug,
         k.is_active as key_active,
         k.expires_at,
         k.scopes,
         p.company_name,
         p.admin_email,
-        p.status as tenant_status,
-        p.tenant_dataset_id,
+        p.status as org_status,
+        p.org_dataset_id,
         s.subscription_id,
         s.plan_name,
         s.status as subscription_status,
-        s.max_pipelines_per_day,
-        s.max_pipelines_per_month,
-        s.max_concurrent_pipelines,
+        s.daily_limit as max_pipelines_per_day,
+        s.monthly_limit as max_pipelines_per_month,
+        s.concurrent_limit as max_concurrent_pipelines,
         s.trial_end_date,
         s.subscription_end_date
-    FROM `{settings.gcp_project_id}.tenants.tenant_api_keys` k
-    INNER JOIN `{settings.gcp_project_id}.tenants.tenant_profiles` p
-        ON k.tenant_id = p.tenant_id
-    INNER JOIN `{settings.gcp_project_id}.tenants.tenant_subscriptions` s
-        ON p.tenant_id = s.tenant_id
-    WHERE k.tenant_api_key_hash = @tenant_api_key_hash
+    FROM `{settings.gcp_project_id}.organizations.org_api_keys` k
+    INNER JOIN `{settings.gcp_project_id}.organizations.org_profiles` p
+        ON k.org_slug = p.org_slug
+    INNER JOIN `{settings.gcp_project_id}.organizations.org_subscriptions` s
+        ON p.org_slug = s.org_slug
+    WHERE k.org_api_key_hash = @org_api_key_hash
         AND k.is_active = TRUE
         AND p.status = 'ACTIVE'
         AND s.status = 'ACTIVE'
@@ -356,7 +358,7 @@ async def get_current_tenant(
         results = list(bq_client.query(
             query,
             parameters=[
-                bigquery.ScalarQueryParameter("tenant_api_key_hash", "STRING", tenant_api_key_hash)
+                bigquery.ScalarQueryParameter("org_api_key_hash", "STRING", org_api_key_hash)
             ]
         ))
 
@@ -365,7 +367,7 @@ async def get_current_tenant(
                 f"Authentication failed - invalid or inactive API key",
                 extra={
                     "event_type": "auth_failed_invalid_key",
-                    "tenant_api_key_hash": tenant_api_key_hash[:16] + "...",  # Log partial hash for security
+                    "org_api_key_hash": org_api_key_hash[:16] + "...",  # Log partial hash for security
                     "reason": "key_not_found_or_inactive"
                 }
             )
@@ -383,8 +385,8 @@ async def get_current_tenant(
                 f"Authentication failed - API key expired",
                 extra={
                     "event_type": "auth_failed_key_expired",
-                    "tenant_id": row['tenant_id'],
-                    "tenant_api_key_id": row.get('tenant_api_key_id'),
+                    "org_slug": row['org_slug'],
+                    "org_api_key_id": row.get('org_api_key_id'),
                     "expired_at": row.get("expires_at").isoformat() if row.get("expires_at") else None,
                     "reason": "key_expired"
                 }
@@ -398,17 +400,17 @@ async def get_current_tenant(
         # Update last_used_at timestamp (batched in background for performance)
         # This reduces auth latency from 50-100ms to <5ms by batching updates
         aggregator = get_auth_aggregator()
-        aggregator.add_update(row["tenant_api_key_id"])
-        logger.debug(f"Queued last_used_at update for API key: {row['tenant_api_key_id']}")
+        aggregator.add_update(row["org_api_key_id"])
+        logger.debug(f"Queued last_used_at update for API key: {row['org_api_key_id']}")
 
-        # Build tenant object
-        tenant = {
-            "tenant_id": row["tenant_id"],
+        # Build org object
+        org = {
+            "org_slug": row["org_slug"],
             "company_name": row["company_name"],
             "admin_email": row["admin_email"],
-            "status": row["tenant_status"],
-            "tenant_dataset_id": row["tenant_dataset_id"],
-            "tenant_api_key_id": row["tenant_api_key_id"],
+            "status": row["org_status"],
+            "org_dataset_id": row["org_dataset_id"],
+            "org_api_key_id": row["org_api_key_id"],
             "scopes": row.get("scopes", []),
             "subscription": {
                 "subscription_id": row["subscription_id"],
@@ -426,19 +428,19 @@ async def get_current_tenant(
             f"Authentication successful",
             extra={
                 "event_type": "auth_success",
-                "tenant_id": tenant['tenant_id'],
-                "company_name": tenant['company_name'],
-                "subscription_plan": tenant['subscription']['plan_name'],
-                "tenant_api_key_id": tenant.get('tenant_api_key_id'),
-                "admin_email": tenant.get('admin_email')
+                "org_slug": org['org_slug'],
+                "company_name": org['company_name'],
+                "subscription_plan": org['subscription']['plan_name'],
+                "org_api_key_id": org.get('org_api_key_id'),
+                "admin_email": org.get('admin_email')
             }
         )
-        return tenant
+        return org
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error during tenant authentication: {e}", exc_info=True)
+        logger.error(f"Error during org authentication: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Authentication service error"
@@ -446,16 +448,16 @@ async def get_current_tenant(
 
 
 async def validate_subscription(
-    tenant: Dict = Depends(get_current_tenant),
+    org: Dict = Depends(get_current_org),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ) -> Dict[str, Any]:
     """
-    Validate tenant subscription is active and not expired.
+    Validate org subscription is active and not expired.
 
     Raises HTTPException if subscription invalid.
 
     Args:
-        tenant: Customer object from get_current_tenant
+        org: Organization object from get_current_org
         bq_client: BigQuery client instance
 
     Returns:
@@ -464,11 +466,11 @@ async def validate_subscription(
     Raises:
         HTTPException: If subscription expired or inactive
     """
-    subscription = tenant.get("subscription", {})
+    subscription = org.get("subscription", {})
 
     # Check subscription status
     if subscription.get("status") != "ACTIVE":
-        logger.warning(f"Inactive subscription for tenant: {tenant['tenant_id']}")
+        logger.warning(f"Inactive subscription for org: {org['org_slug']}")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"Subscription is {subscription.get('status')}. Please contact support."
@@ -479,7 +481,7 @@ async def validate_subscription(
     if trial_end and isinstance(trial_end, (datetime, date)):
         trial_end_date = trial_end if isinstance(trial_end, date) else trial_end.date()
         if trial_end_date < date.today():
-            logger.warning(f"Trial expired for tenant: {tenant['tenant_id']}")
+            logger.warning(f"Trial expired for org: {org['org_slug']}")
             raise HTTPException(
                 status_code=status.HTTP_402_PAYMENT_REQUIRED,
                 detail="Trial period has expired. Please upgrade your subscription."
@@ -490,29 +492,29 @@ async def validate_subscription(
     if sub_end and isinstance(sub_end, (datetime, date)):
         sub_end_date = sub_end if isinstance(sub_end, date) else sub_end.date()
         if sub_end_date < date.today():
-            logger.warning(f"Subscription expired for tenant: {tenant['tenant_id']}")
+            logger.warning(f"Subscription expired for org: {org['org_slug']}")
             raise HTTPException(
                 status_code=status.HTTP_402_PAYMENT_REQUIRED,
                 detail="Subscription has expired. Please renew your subscription."
             )
 
-    logger.info(f"Subscription validated for tenant: {tenant['tenant_id']}")
+    logger.info(f"Subscription validated for org: {org['org_slug']}")
     return subscription
 
 
 async def validate_quota(
-    tenant: Dict = Depends(get_current_tenant),
+    org: Dict = Depends(get_current_org),
     subscription: Dict = Depends(validate_subscription),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ) -> Dict[str, Any]:
     """
-    Validate tenant has not exceeded daily/monthly pipeline quotas.
+    Validate org has not exceeded daily/monthly pipeline quotas.
 
-    Checks tenants.tenant_usage_quotas table.
+    Checks organizations.org_usage_quotas table.
     Returns quota info or raises HTTPException if exceeded.
 
     Args:
-        tenant: Customer object from get_current_tenant
+        org: Organization object from get_current_org
         subscription: Subscription info from validate_subscription
         bq_client: BigQuery client instance
 
@@ -530,7 +532,7 @@ async def validate_quota(
     Raises:
         HTTPException: 429 if quota exceeded
     """
-    tenant_id = tenant["tenant_id"]
+    org_slug = org["org_slug"]
     today = date.today()
 
     # Get or create today's usage record
@@ -543,8 +545,8 @@ async def validate_quota(
         daily_limit,
         monthly_limit,
         concurrent_limit
-    FROM `{settings.gcp_project_id}.tenants.tenant_usage_quotas`
-    WHERE tenant_id = @tenant_id
+    FROM `{settings.gcp_project_id}.organizations.org_usage_quotas`
+    WHERE org_slug = @org_slug
         AND usage_date = @usage_date
     LIMIT 1
     """
@@ -553,22 +555,22 @@ async def validate_quota(
         results = list(bq_client.query(
             query,
             parameters=[
-                bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
+                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
                 bigquery.ScalarQueryParameter("usage_date", "DATE", today)
             ]
         ))
 
         if not results:
             # Create today's usage record
-            usage_id = f"{tenant_id}_{today.strftime('%Y%m%d')}"
+            usage_id = f"{org_slug}_{today.strftime('%Y%m%d')}"
             insert_query = f"""
-            INSERT INTO `{settings.gcp_project_id}.tenants.tenant_usage_quotas`
-            (usage_id, tenant_id, usage_date, pipelines_run_today, pipelines_failed_today,
+            INSERT INTO `{settings.gcp_project_id}.organizations.org_usage_quotas`
+            (usage_id, org_slug, usage_date, pipelines_run_today, pipelines_failed_today,
              pipelines_succeeded_today, pipelines_run_month, concurrent_pipelines_running,
              daily_limit, monthly_limit, concurrent_limit, created_at)
             VALUES (
                 @usage_id,
-                @tenant_id,
+                @org_slug,
                 @usage_date,
                 0, 0, 0, 0, 0,
                 @daily_limit,
@@ -583,7 +585,7 @@ async def validate_quota(
                 job_config=bigquery.QueryJobConfig(
                     query_parameters=[
                         bigquery.ScalarQueryParameter("usage_id", "STRING", usage_id),
-                        bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
+                        bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
                         bigquery.ScalarQueryParameter("usage_date", "DATE", today),
                         bigquery.ScalarQueryParameter("daily_limit", "INT64", subscription["max_pipelines_per_day"]),
                         bigquery.ScalarQueryParameter("monthly_limit", "INT64", subscription["max_pipelines_per_month"]),
@@ -609,7 +611,7 @@ async def validate_quota(
 
         # Check daily limit
         if usage["pipelines_run_today"] >= usage["daily_limit"]:
-            logger.warning(f"Daily quota exceeded for tenant: {tenant_id}")
+            logger.warning(f"Daily quota exceeded for org: {org_slug}")
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail=f"Daily pipeline quota exceeded ({usage['daily_limit']} pipelines/day). Try again tomorrow.",
@@ -618,7 +620,7 @@ async def validate_quota(
 
         # Check monthly limit
         if usage["pipelines_run_month"] >= usage["monthly_limit"]:
-            logger.warning(f"Monthly quota exceeded for tenant: {tenant_id}")
+            logger.warning(f"Monthly quota exceeded for org: {org_slug}")
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail=f"Monthly pipeline quota exceeded ({usage['monthly_limit']} pipelines/month). Upgrade your plan.",
@@ -626,7 +628,7 @@ async def validate_quota(
 
         # Check concurrent limit
         if usage["concurrent_pipelines_running"] >= usage["concurrent_limit"]:
-            logger.warning(f"Concurrent pipeline limit reached for tenant: {tenant_id}")
+            logger.warning(f"Concurrent pipeline limit reached for org: {org_slug}")
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail=f"Concurrent pipeline limit reached ({usage['concurrent_limit']} pipelines). Wait for running pipelines to complete.",
@@ -645,7 +647,7 @@ async def validate_quota(
             "remaining_month": usage["monthly_limit"] - usage["pipelines_run_month"]
         }
 
-        logger.info(f"Quota validated for tenant: {tenant_id} - {quota_info['remaining_today']} remaining today")
+        logger.info(f"Quota validated for org: {org_slug} - {quota_info['remaining_today']} remaining today")
         return quota_info
 
     except HTTPException:
@@ -659,17 +661,17 @@ async def validate_quota(
 
 
 async def increment_pipeline_usage(
-    tenant_id: str,
+    org_slug: str,
     pipeline_status: str,
     bq_client: BigQueryClient
 ):
     """
     Increment usage counters after pipeline execution.
 
-    Updates tenants.tenant_usage_quotas.
+    Updates organizations.org_usage_quotas.
 
     Args:
-        tenant_id: Customer identifier
+        org_slug: Organization identifier
         pipeline_status: Pipeline execution status (SUCCESS, FAILED, RUNNING)
         bq_client: BigQuery client instance
     """
@@ -679,9 +681,9 @@ async def increment_pipeline_usage(
     if pipeline_status == "RUNNING":
         # Increment concurrent counter
         update_query = f"""
-        UPDATE `{settings.gcp_project_id}.tenants.tenant_usage_quotas`
+        UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
         SET concurrent_pipelines_running = concurrent_pipelines_running + 1
-        WHERE tenant_id = @tenant_id
+        WHERE org_slug = @org_slug
             AND usage_date = @usage_date
         """
     elif pipeline_status in ["SUCCESS", "FAILED"]:
@@ -690,14 +692,14 @@ async def increment_pipeline_usage(
         failed_increment = "1" if pipeline_status == "FAILED" else "0"
 
         update_query = f"""
-        UPDATE `{settings.gcp_project_id}.tenants.tenant_usage_quotas`
+        UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
         SET
             pipelines_run_today = pipelines_run_today + 1,
             pipelines_run_month = pipelines_run_month + 1,
             pipelines_succeeded_today = pipelines_succeeded_today + {success_increment},
             pipelines_failed_today = pipelines_failed_today + {failed_increment},
             concurrent_pipelines_running = GREATEST(concurrent_pipelines_running - 1, 0)
-        WHERE tenant_id = @tenant_id
+        WHERE org_slug = @org_slug
             AND usage_date = @usage_date
         """
     else:
@@ -709,30 +711,30 @@ async def increment_pipeline_usage(
             update_query,
             job_config=bigquery.QueryJobConfig(
                 query_parameters=[
-                    bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
+                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
                     bigquery.ScalarQueryParameter("usage_date", "DATE", today)
                 ]
             )
         ).result()
 
-        logger.info(f"Updated usage for tenant {tenant_id}: status={pipeline_status}")
+        logger.info(f"Updated usage for org {org_slug}: status={pipeline_status}")
 
     except Exception as e:
         logger.error(f"Failed to increment pipeline usage: {e}", exc_info=True)
 
 
-async def get_tenant_credentials(
-    tenant_id: str,
+async def get_org_credentials(
+    org_slug: str,
     provider: str,
     bq_client: BigQueryClient
 ) -> Dict[str, Any]:
     """
-    Retrieve and decrypt tenant cloud credentials for a specific provider.
+    Retrieve and decrypt org cloud credentials for a specific provider.
 
     Returns decrypted credentials for pipeline execution.
 
     Args:
-        tenant_id: Tenant identifier
+        org_slug: Organization identifier
         provider: Cloud provider (GCP, AWS, AZURE, OPENAI, CLAUDE)
         bq_client: BigQuery client instance
 
@@ -759,8 +761,8 @@ async def get_tenant_credentials(
         region,
         scopes,
         validation_status
-    FROM `{settings.gcp_project_id}.tenants.tenant_cloud_credentials`
-    WHERE tenant_id = @tenant_id
+    FROM `{settings.gcp_project_id}.organizations.org_cloud_credentials`
+    WHERE org_slug = @org_slug
         AND provider = @provider
         AND is_active = TRUE
         AND validation_status = 'VALID'
@@ -771,16 +773,16 @@ async def get_tenant_credentials(
         results = list(bq_client.query(
             query,
             parameters=[
-                bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
+                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
                 bigquery.ScalarQueryParameter("provider", "STRING", provider.upper())
             ]
         ))
 
         if not results:
-            logger.warning(f"No active credentials found for tenant {tenant_id}, provider {provider}")
+            logger.warning(f"No active credentials found for org {org_slug}, provider {provider}")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"No active {provider} credentials configured for this tenant"
+                detail=f"No active {provider} credentials configured for this organization"
             )
 
         row = results[0]
@@ -812,13 +814,13 @@ async def get_tenant_credentials(
             "scopes": row.get("scopes", [])
         }
 
-        logger.info(f"Retrieved credentials for tenant {tenant_id}, provider {provider}")
+        logger.info(f"Retrieved credentials for org {org_slug}, provider {provider}")
         return result
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error retrieving tenant credentials: {e}", exc_info=True)
+        logger.error(f"Error retrieving org credentials: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Credential retrieval service error"
@@ -826,18 +828,18 @@ async def get_tenant_credentials(
 
 
 async def get_provider_config(
-    tenant_id: str,
+    org_slug: str,
     provider: str,
     domain: str,
     bq_client: BigQueryClient
 ) -> Dict[str, Any]:
     """
-    Get tenant's provider-specific configuration.
+    Get org's provider-specific configuration.
 
     Returns source_project_id, source_dataset, notification_emails, default_parameters.
 
     Args:
-        tenant_id: Customer identifier
+        org_slug: Organization identifier
         provider: Cloud provider (GCP, AWS, etc.)
         domain: Data domain (COST, SECURITY, COMPLIANCE, etc.)
         bq_client: BigQuery client instance
@@ -864,8 +866,8 @@ async def get_provider_config(
         notification_emails,
         default_parameters,
         is_active
-    FROM `{settings.gcp_project_id}.tenants.tenant_provider_configs`
-    WHERE tenant_id = @tenant_id
+    FROM `{settings.gcp_project_id}.organizations.org_provider_configs`
+    WHERE org_slug = @org_slug
         AND provider = @provider
         AND domain = @domain
         AND is_active = TRUE
@@ -876,7 +878,7 @@ async def get_provider_config(
         results = list(bq_client.query(
             query,
             parameters=[
-                bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
+                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
                 bigquery.ScalarQueryParameter("provider", "STRING", provider.upper()),
                 bigquery.ScalarQueryParameter("domain", "STRING", domain.upper())
             ]
@@ -884,7 +886,7 @@ async def get_provider_config(
 
         if not results:
             # Return default configuration if not found
-            logger.info(f"No provider config found for tenant {tenant_id}, provider {provider}, domain {domain} - using defaults")
+            logger.info(f"No provider config found for org {org_slug}, provider {provider}, domain {domain} - using defaults")
             return {
                 "provider": provider.upper(),
                 "domain": domain.upper(),
@@ -906,7 +908,7 @@ async def get_provider_config(
             "default_parameters": row.get("default_parameters", {})
         }
 
-        logger.info(f"Retrieved provider config for tenant {tenant_id}: {provider}/{domain}")
+        logger.info(f"Retrieved provider config for org {org_slug}: {provider}/{domain}")
         return config
 
     except Exception as e:
@@ -918,22 +920,22 @@ async def get_provider_config(
 
 
 # ============================================
-# Legacy Tenant-Based Authentication (DEPRECATED - Use get_current_tenant)
+# Legacy Organization-Based Authentication (DEPRECATED - Use get_current_org)
 # ============================================
 
 
-async def get_tenant_from_local_file(tenant_api_key_hash: str) -> Optional[str]:
+async def get_org_from_local_file(org_api_key_hash: str) -> Optional[str]:
     """
-    Look up tenant_id from local file-based API keys (development fallback).
+    Look up org_slug from local file-based API keys (development fallback).
 
     DEPRECATED: This is a legacy fallback for development only.
-    Production should use get_current_tenant() which reads from tenants dataset.
+    Production should use get_current_org() which reads from organizations dataset.
 
     Args:
-        tenant_api_key_hash: SHA256 hash of API key
+        org_api_key_hash: SHA256 hash of API key
 
     Returns:
-        tenant_id if found, None otherwise
+        org_slug if found, None otherwise
     """
     # Expand ~ to home directory if present
     secrets_base_str = os.path.expanduser(settings.secrets_base_path)
@@ -942,12 +944,12 @@ async def get_tenant_from_local_file(tenant_api_key_hash: str) -> Optional[str]:
     if not secrets_base.exists():
         return None
 
-    # Search through tenant directories
-    for tenant_dir in secrets_base.iterdir():
-        if not tenant_dir.is_dir():
+    # Search through org directories
+    for org_dir in secrets_base.iterdir():
+        if not org_dir.is_dir():
             continue
 
-        metadata_file = tenant_dir / "api_key_metadata.json"
+        metadata_file = org_dir / "api_key_metadata.json"
         if not metadata_file.exists():
             continue
 
@@ -955,10 +957,10 @@ async def get_tenant_from_local_file(tenant_api_key_hash: str) -> Optional[str]:
             with open(metadata_file, 'r') as f:
                 metadata = json.load(f)
 
-            if metadata.get("tenant_api_key_hash") == tenant_api_key_hash:
-                tenant_id = metadata.get("tenant_id")
-                logger.info(f"Found API key in local file for tenant: {tenant_id}")
-                return tenant_id
+            if metadata.get("org_api_key_hash") == org_api_key_hash:
+                org_slug = metadata.get("org_slug")
+                logger.info(f"Found API key in local file for org: {org_slug}")
+                return org_slug
 
         except Exception as e:
             logger.warning(f"Error reading {metadata_file}: {e}")
@@ -967,81 +969,89 @@ async def get_tenant_from_local_file(tenant_api_key_hash: str) -> Optional[str]:
     return None
 
 
-async def get_tenant_from_api_key(
-    tenant_api_key_hash: str,
+async def get_org_from_api_key(
+    org_api_key_hash: str,
     bq_client: BigQueryClient
-) -> Optional[str]:
+) -> Optional[Dict[str, Any]]:
     """
-    Look up tenant_id from API key hash using centralized tenants dataset.
+    Look up org data from API key hash using centralized organizations dataset.
 
-    UPDATED: Now reads from tenants.tenant_api_keys (centralized API keys).
+    UPDATED: Now reads from organizations.org_api_keys (centralized API keys).
     This is more secure as API keys are stored in a centralized, access-controlled dataset.
 
     Args:
-        tenant_api_key_hash: SHA256 hash of API key
+        org_api_key_hash: SHA256 hash of API key
         bq_client: BigQuery client instance
 
     Returns:
-        tenant_id if found and active, None otherwise
+        Dict with org_slug and org_api_key_id if found and active, None otherwise
     """
-    # Query centralized tenants.tenant_api_keys table
+    # Query centralized organizations.org_api_keys table
     query = f"""
     SELECT
-        k.tenant_id,
-        k.tenant_id,
+        k.org_slug,
+        k.org_api_key_id,
         k.is_active,
         k.expires_at,
-        c.status AS tenant_status
-    FROM `{settings.gcp_project_id}.tenants.tenant_api_keys` k
-    INNER JOIN `{settings.gcp_project_id}.tenants.tenant_profiles` c
-        ON k.tenant_id = c.tenant_id
-    WHERE k.tenant_api_key_hash = @tenant_api_key_hash
+        p.status AS org_profile_status,
+        c.status AS org_subscription_status
+    FROM `{settings.gcp_project_id}.organizations.org_api_keys` k
+    JOIN `{settings.gcp_project_id}.organizations.org_profiles` p ON k.org_slug = p.org_slug
+    JOIN `{settings.gcp_project_id}.organizations.org_subscriptions` c ON k.org_slug = c.org_slug
+    WHERE k.org_api_key_hash = @org_api_key_hash
         AND k.is_active = TRUE
+        AND p.status = 'ACTIVE'
         AND c.status = 'ACTIVE'
     LIMIT 1
     """
 
     try:
-        logger.info(f"[AUTH] Looking up API key in centralized tenants dataset")
+        logger.info(f"[AUTH] Looking up API key in centralized organizations dataset")
         results = list(bq_client.query(
             query,
             parameters=[
-                bigquery.ScalarQueryParameter("tenant_api_key_hash", "STRING", tenant_api_key_hash)
+                bigquery.ScalarQueryParameter("org_api_key_hash", "STRING", org_api_key_hash)
             ]
         ))
 
         if not results:
-            logger.warning(f"API key not found in tenants dataset, trying local files")
-            return await get_tenant_from_local_file(tenant_api_key_hash)
+            logger.warning(f"API key not found in organizations dataset, trying local files")
+            return await get_org_from_local_file(org_api_key_hash)
 
         row = results[0]
 
         # Check if API key has expired
         if row.get("expires_at") and row["expires_at"] < datetime.utcnow():
-            logger.warning(f"API key expired for tenant: {row['tenant_id']}")
+            logger.warning(f"API key expired for org: {row['org_slug']}")
             return None
 
         if not row.get("is_active", False):
-            logger.warning(f"API key is inactive for tenant: {row.get('tenant_id')}")
+            logger.warning(f"API key is inactive for org: {row.get('org_slug')}")
             return None
 
-        tenant_id = row["tenant_id"]
-        logger.info(f"[AUTH] Authenticated tenant: {tenant_id} (tenant: {row['tenant_id']})")
-        return tenant_id
+        result = {
+            "org_slug": row["org_slug"],
+            "org_api_key_id": row.get("org_api_key_id")
+        }
+        logger.info(f"[AUTH] Authenticated org: {result['org_slug']} (key: {result['org_api_key_id']})")
+        return result
 
     except Exception as e:
         logger.warning(f"Centralized auth lookup failed: {e}, trying local files")
         # Fallback to local file lookup for development
-        return await get_tenant_from_local_file(tenant_api_key_hash)
+        org_slug = await get_org_from_local_file(org_api_key_hash)
+        if org_slug:
+            return {"org_slug": org_slug, "org_api_key_id": "local-dev-key"}
+        return None
 
 
 async def verify_api_key(
     x_api_key: Optional[str] = Header(None, description="API Key for authentication"),
     x_user_id: Optional[str] = Header(None, alias="X-User-ID", description="User ID from frontend"),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
-) -> TenantContext:
+) -> OrgContext:
     """
-    FastAPI dependency to verify API key and extract tenant context.
+    FastAPI dependency to verify API key and extract org context.
 
     Args:
         x_api_key: API key from X-API-Key header
@@ -1049,15 +1059,15 @@ async def verify_api_key(
         bq_client: BigQuery client (injected)
 
     Returns:
-        TenantContext with tenant_id and user_id
+        OrgContext with org_slug and user_id
 
     Raises:
         HTTPException: If API key is invalid or inactive (when auth is enabled)
     """
     # Check if authentication is disabled
     if settings.disable_auth:
-        logger.warning(f"Authentication is disabled - using default tenant '{settings.default_tenant_id}'")
-        return TenantContext(tenant_id=settings.default_tenant_id, tenant_api_key_hash="disabled", user_id=x_user_id)
+        logger.warning(f"Authentication is disabled - using default org '{settings.default_org_slug}'")
+        return OrgContext(org_slug=settings.default_org_slug, org_api_key_hash="disabled", user_id=x_user_id)
 
     if not x_api_key:
         raise HTTPException(
@@ -1067,28 +1077,36 @@ async def verify_api_key(
         )
 
     # Hash the API key
-    tenant_api_key_hash = hash_api_key(x_api_key)
+    org_api_key_hash = hash_api_key(x_api_key)
 
-    # Look up tenant
-    tenant_id = await get_tenant_from_api_key(tenant_api_key_hash, bq_client)
+    # Look up org
+    org_data = await get_org_from_api_key(org_api_key_hash, bq_client)
 
-    if not tenant_id:
+    if not org_data:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or inactive API key",
             headers={"WWW-Authenticate": "ApiKey"},
         )
 
-    logger.info(f"Authenticated request for tenant: {tenant_id}, user: {x_user_id or 'N/A'}")
+    org_slug = org_data["org_slug"]
+    org_api_key_id = org_data.get("org_api_key_id")
 
-    return TenantContext(tenant_id=tenant_id, tenant_api_key_hash=tenant_api_key_hash, user_id=x_user_id)
+    logger.info(f"Authenticated request for org: {org_slug}, user: {x_user_id or 'N/A'}")
+
+    return OrgContext(
+        org_slug=org_slug,
+        org_api_key_hash=org_api_key_hash,
+        user_id=x_user_id,
+        org_api_key_id=org_api_key_id
+    )
 
 
 async def verify_api_key_header(
     x_api_key: str = Header(..., description="API Key for authentication"),
     x_user_id: Optional[str] = Header(None, alias="X-User-ID", description="User ID from frontend"),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
-) -> TenantContext:
+) -> OrgContext:
     """
     FastAPI dependency to verify API key from X-API-Key header (required).
 
@@ -1101,44 +1119,52 @@ async def verify_api_key_header(
         bq_client: BigQuery client (injected)
 
     Returns:
-        TenantContext with tenant_id and user_id
+        OrgContext with org_slug and user_id
 
     Raises:
         HTTPException: If API key is invalid or inactive
     """
     # Check if authentication is disabled
     if settings.disable_auth:
-        logger.warning(f"Authentication is disabled - using default tenant '{settings.default_tenant_id}'")
-        return TenantContext(tenant_id=settings.default_tenant_id, tenant_api_key_hash="disabled", user_id=x_user_id)
+        logger.warning(f"Authentication is disabled - using default org '{settings.default_org_slug}'")
+        return OrgContext(org_slug=settings.default_org_slug, org_api_key_hash="disabled", user_id=x_user_id)
 
     # Hash the API key
-    tenant_api_key_hash = hash_api_key(x_api_key)
+    org_api_key_hash = hash_api_key(x_api_key)
 
-    # Look up tenant
-    tenant_id = await get_tenant_from_api_key(tenant_api_key_hash, bq_client)
+    # Look up org
+    org_data = await get_org_from_api_key(org_api_key_hash, bq_client)
 
-    if not tenant_id:
+    if not org_data:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or inactive API key",
             headers={"WWW-Authenticate": "ApiKey"},
         )
 
-    logger.info(f"Authenticated request for tenant: {tenant_id}, user: {x_user_id or 'N/A'}")
+    org_slug = org_data["org_slug"]
+    org_api_key_id = org_data.get("org_api_key_id")
 
-    return TenantContext(tenant_id=tenant_id, tenant_api_key_hash=tenant_api_key_hash, user_id=x_user_id)
+    logger.info(f"Authenticated request for org: {org_slug}, user: {x_user_id or 'N/A'}")
+
+    return OrgContext(
+        org_slug=org_slug,
+        org_api_key_hash=org_api_key_hash,
+        user_id=x_user_id,
+        org_api_key_id=org_api_key_id
+    )
 
 
 # Optional: Allow unauthenticated access for health checks
 async def optional_auth(
     x_api_key: Optional[str] = Header(None),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
-) -> Optional[TenantContext]:
+) -> Optional[OrgContext]:
     """
     Optional authentication dependency.
 
     Returns:
-        TenantContext if API key provided and valid, None otherwise
+        OrgContext if API key provided and valid, None otherwise
     """
     if not x_api_key:
         return None
@@ -1155,8 +1181,8 @@ async def verify_admin_key(
     """
     FastAPI dependency to verify admin API key for platform-level operations.
 
-    This is used for endpoints that manage tenants, API keys, and other platform
-    operations that exist outside the tenant scope.
+    This is used for endpoints that manage organizations, API keys, and other platform
+    operations that exist outside the organization scope.
 
     Args:
         x_admin_key: Admin API key from X-Admin-Key header (required)

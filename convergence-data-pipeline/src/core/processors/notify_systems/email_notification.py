@@ -51,7 +51,7 @@ class EmailNotificationEngine:
         Returns:
             Execution result
         """
-        tenant_id = context.get("tenant_id")
+        org_slug = context.get("org_slug")
         pipeline_id = context.get("pipeline_id")
         trigger = step_config.get("trigger", "on_failure")
 
@@ -80,7 +80,7 @@ class EmailNotificationEngine:
         # Build notification details
         details = {
             "pipeline_id": pipeline_id,
-            "tenant_id": tenant_id,
+            "org_slug": org_slug,
             "status": pipeline_status,
             "trigger": trigger
         }
@@ -97,7 +97,7 @@ class EmailNotificationEngine:
             extra={
                 "trigger": trigger,
                 "recipients": to_emails,
-                "tenant_id": tenant_id,
+                "org_slug": org_slug,
                 "pipeline_id": pipeline_id,
                 "severity": severity.value,
                 "event": event.value
@@ -107,7 +107,7 @@ class EmailNotificationEngine:
         if trigger == "on_failure" and context.get("error_message"):
             # Use convenience method for failures
             success = await self.notification_service.notify_pipeline_failure(
-                tenant_id=tenant_id,
+                org_slug=org_slug,
                 pipeline_id=pipeline_id,
                 pipeline_logging_id=context.get("pipeline_logging_id", "unknown"),
                 error_message=context["error_message"],
@@ -116,7 +116,7 @@ class EmailNotificationEngine:
         elif trigger == "on_success":
             # Use convenience method for success
             success = await self.notification_service.notify_pipeline_success(
-                tenant_id=tenant_id,
+                org_slug=org_slug,
                 pipeline_id=pipeline_id,
                 pipeline_logging_id=context.get("pipeline_logging_id", "unknown"),
                 details=details
@@ -131,7 +131,7 @@ class EmailNotificationEngine:
                 details=details
             )
             success = await self.notification_service.notify(
-                tenant_id=tenant_id,
+                org_slug=org_slug,
                 message=message
             )
 

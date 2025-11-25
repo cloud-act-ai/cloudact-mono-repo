@@ -2,7 +2,7 @@
 Notification Service
 
 Main notification service with:
-- Tenant-specific configuration lookup with root fallback
+- Org-specific configuration lookup with root fallback
 - Multi-provider support (Email, Slack)
 - Async batch notifications
 - Configuration caching
@@ -33,7 +33,7 @@ class NotificationService:
     Main notification service
 
     Features:
-    - Loads tenant-specific configurations with root fallback
+    - Loads org-specific configurations with root fallback
     - Manages multiple notification providers
     - Supports async batch notifications
     - Caches configurations for performance
@@ -79,110 +79,110 @@ class NotificationService:
             logger.error(f"Failed to load root notification configuration: {str(e)}", exc_info=True)
             self._root_config = NotificationConfig(enabled=False)
 
-    def _load_tenant_config(self, tenant_id: str) -> Optional[NotificationConfig]:
+    def _load_org_config(self, org_slug: str) -> Optional[NotificationConfig]:
         """
-        Load tenant-specific notification configuration
+        Load org-specific notification configuration
 
         Args:
-            tenant_id: Tenant identifier
+            org_slug: Organization slug identifier
 
         Returns:
             NotificationConfig or None if not found
         """
-        tenant_config_path = self.config_base_path / tenant_id / "notifications.json"
+        org_config_path = self.config_base_path / org_slug / "notifications.json"
 
         try:
-            if tenant_config_path.exists():
-                with open(tenant_config_path, "r") as f:
+            if org_config_path.exists():
+                with open(org_config_path, "r") as f:
                     config_data = json.load(f)
-                    config = NotificationConfig(**config_data, tenant_id=tenant_id)
+                    config = NotificationConfig(**config_data, org_slug=org_slug)
                     logger.info(
-                        f"Loaded tenant-specific notification configuration for {tenant_id} "
-                        f"from {tenant_config_path}"
+                        f"Loaded org-specific notification configuration for {org_slug} "
+                        f"from {org_config_path}"
                     )
                     return config
             else:
                 logger.debug(
-                    f"Tenant-specific notification configuration not found for {tenant_id} "
-                    f"at {tenant_config_path}"
+                    f"Org-specific notification configuration not found for {org_slug} "
+                    f"at {org_config_path}"
                 )
                 return None
         except Exception as e:
             logger.error(
-                f"Failed to load tenant notification configuration for {tenant_id}: {str(e)}",
+                f"Failed to load org notification configuration for {org_slug}: {str(e)}",
                 exc_info=True
             )
             return None
 
-    def get_config(self, tenant_id: str) -> NotificationConfig:
+    def get_config(self, org_slug: str) -> NotificationConfig:
         """
-        Get notification configuration for tenant with fallback to root
+        Get notification configuration for organization with fallback to root
 
         Resolution order:
-        1. Tenant-specific configuration (./configs/{tenant_id}/notifications.json)
+        1. Org-specific configuration (./configs/{org_slug}/notifications.json)
         2. Root configuration (./configs/notifications/config.json)
 
         Args:
-            tenant_id: Tenant identifier
+            org_slug: Organization slug identifier
 
         Returns:
-            NotificationConfig: Tenant-specific or root configuration
+            NotificationConfig: Org-specific or root configuration
         """
         # Check cache first
-        if tenant_id in self._config_cache:
-            logger.debug(f"Using cached notification configuration for tenant: {tenant_id}")
-            return self._config_cache[tenant_id]
+        if org_slug in self._config_cache:
+            logger.debug(f"Using cached notification configuration for org: {org_slug}")
+            return self._config_cache[org_slug]
 
-        # Try to load tenant-specific configuration
-        tenant_config = self._load_tenant_config(tenant_id)
+        # Try to load org-specific configuration
+        org_config = self._load_org_config(org_slug)
 
-        if tenant_config and tenant_config.enabled:
-            logger.info(f"Using tenant-specific notification configuration for: {tenant_id}")
-            self._config_cache[tenant_id] = tenant_config
-            return tenant_config
+        if org_config and org_config.enabled:
+            logger.info(f"Using org-specific notification configuration for: {org_slug}")
+            self._config_cache[org_slug] = org_config
+            return org_config
 
         # Fall back to root configuration
         if self._root_config:
             logger.info(
-                f"Using root notification configuration (fallback) for tenant: {tenant_id}"
+                f"Using root notification configuration (fallback) for org: {org_slug}"
             )
-            self._config_cache[tenant_id] = self._root_config
+            self._config_cache[org_slug] = self._root_config
             return self._root_config
 
         # Return disabled configuration as last resort
         logger.warning(
-            f"No notification configuration found for tenant {tenant_id}. "
+            f"No notification configuration found for org {org_slug}. "
             "Notifications disabled."
         )
-        disabled_config = NotificationConfig(enabled=False, tenant_id=tenant_id)
-        self._config_cache[tenant_id] = disabled_config
+        disabled_config = NotificationConfig(enabled=False, org_slug=org_slug)
+        self._config_cache[org_slug] = disabled_config
         return disabled_config
 
     def _get_provider(
         self,
-        tenant_id: str,
+        org_slug: str,
         provider_type: NotificationProvider
     ) -> Optional[BaseNotificationProvider]:
         """
-        Get notification provider instance for tenant
+        Get notification provider instance for organization
 
         Args:
-            tenant_id: Tenant identifier
+            org_slug: Organization slug identifier
             provider_type: Type of notification provider
 
         Returns:
             BaseNotificationProvider instance or None
         """
         # Check provider cache
-        cache_key = f"{tenant_id}:{provider_type.value}"
+        cache_key = f"{org_slug}:{provider_type.value}"
         if cache_key in self._provider_cache:
             return self._provider_cache[cache_key]
 
         # Get configuration
-        config = self.get_config(tenant_id)
+        config = self.get_config(org_slug)
 
         if not config.enabled:
-            logger.debug(f"Notifications disabled for tenant: {tenant_id}")
+            logger.debug(f"Notifications disabled for org: {org_slug}")
             return None
 
         # Create provider instance
@@ -193,32 +193,32 @@ class NotificationService:
                 if config.email and config.email.enabled:
                     provider = EmailNotificationProvider(config)
                 else:
-                    logger.debug(f"Email notifications disabled for tenant: {tenant_id}")
+                    logger.debug(f"Email notifications disabled for org: {org_slug}")
 
             elif provider_type == NotificationProvider.SLACK:
                 if config.slack and config.slack.enabled:
                     provider = SlackNotificationProvider(config)
                 else:
-                    logger.debug(f"Slack notifications disabled for tenant: {tenant_id}")
+                    logger.debug(f"Slack notifications disabled for org: {org_slug}")
 
             # Cache provider
             if provider:
-                if tenant_id not in self._provider_cache:
-                    self._provider_cache[tenant_id] = {}
-                self._provider_cache[tenant_id][provider_type.value] = provider
+                if org_slug not in self._provider_cache:
+                    self._provider_cache[org_slug] = {}
+                self._provider_cache[org_slug][provider_type.value] = provider
 
             return provider
 
         except Exception as e:
             logger.error(
-                f"Failed to create {provider_type.value} provider for tenant {tenant_id}: {str(e)}",
+                f"Failed to create {provider_type.value} provider for org {org_slug}: {str(e)}",
                 exc_info=True
             )
             return None
 
     async def notify(
         self,
-        tenant_id: str,
+        org_slug: str,
         event: NotificationEvent,
         severity: NotificationSeverity,
         title: str,
@@ -232,7 +232,7 @@ class NotificationService:
         Send notification to configured providers
 
         Args:
-            tenant_id: Tenant identifier
+            org_slug: Organization slug identifier
             event: Notification event type
             severity: Notification severity
             title: Notification title
@@ -247,10 +247,10 @@ class NotificationService:
             Dict mapping provider name to success status
         """
         # Get configuration
-        config = self.get_config(tenant_id)
+        config = self.get_config(org_slug)
 
         if not config.enabled:
-            logger.debug(f"Notifications disabled for tenant: {tenant_id}")
+            logger.debug(f"Notifications disabled for org: {org_slug}")
             return {}
 
         # Get event configuration
@@ -258,7 +258,7 @@ class NotificationService:
         if not event_config:
             logger.debug(
                 f"No configuration found for event {event.value} "
-                f"(tenant: {tenant_id})"
+                f"(org: {org_slug})"
             )
             return {}
 
@@ -269,7 +269,7 @@ class NotificationService:
         notification_message = NotificationMessage(
             event=event,
             severity=severity,
-            tenant_id=tenant_id,
+            org_slug=org_slug,
             title=title,
             message=message,
             pipeline_id=pipeline_id,
@@ -287,11 +287,11 @@ class NotificationService:
             if provider_type == NotificationProvider.BOTH:
                 # Send to both email and slack
                 for actual_provider in [NotificationProvider.EMAIL, NotificationProvider.SLACK]:
-                    provider = self._get_provider(tenant_id, actual_provider)
+                    provider = self._get_provider(org_slug, actual_provider)
                     if provider:
                         tasks.append(self._send_to_provider(provider, notification_message))
             else:
-                provider = self._get_provider(tenant_id, provider_type)
+                provider = self._get_provider(org_slug, provider_type)
                 if provider:
                     tasks.append(self._send_to_provider(provider, notification_message))
 
@@ -333,18 +333,18 @@ class NotificationService:
             )
             return False
 
-    def clear_cache(self, tenant_id: Optional[str] = None):
+    def clear_cache(self, org_slug: Optional[str] = None):
         """
         Clear configuration cache
 
         Args:
-            tenant_id: Optional tenant ID to clear specific cache
-                      If None, clears all caches
+            org_slug: Optional organization slug to clear specific cache
+                     If None, clears all caches
         """
-        if tenant_id:
-            self._config_cache.pop(tenant_id, None)
-            self._provider_cache.pop(tenant_id, None)
-            logger.info(f"Cleared notification cache for tenant: {tenant_id}")
+        if org_slug:
+            self._config_cache.pop(org_slug, None)
+            self._provider_cache.pop(org_slug, None)
+            logger.info(f"Cleared notification cache for org: {org_slug}")
         else:
             self._config_cache.clear()
             self._provider_cache.clear()
@@ -353,14 +353,14 @@ class NotificationService:
 
     async def notify_pipeline_started(
         self,
-        tenant_id: str,
+        org_slug: str,
         pipeline_id: str,
         pipeline_logging_id: str,
         **kwargs
     ):
         """Convenience method for pipeline started event"""
         return await self.notify(
-            tenant_id=tenant_id,
+            org_slug=org_slug,
             event=NotificationEvent.PIPELINE_STARTED,
             severity=NotificationSeverity.INFO,
             title=f"Pipeline Started: {pipeline_id}",
@@ -372,7 +372,7 @@ class NotificationService:
 
     async def notify_pipeline_success(
         self,
-        tenant_id: str,
+        org_slug: str,
         pipeline_id: str,
         pipeline_logging_id: str,
         duration_ms: Optional[int] = None,
@@ -390,7 +390,7 @@ class NotificationService:
             details.update(kwargs.pop("details"))
 
         return await self.notify(
-            tenant_id=tenant_id,
+            org_slug=org_slug,
             event=NotificationEvent.PIPELINE_SUCCESS,
             severity=NotificationSeverity.INFO,
             title=f"Pipeline Completed: {pipeline_id}",
@@ -403,7 +403,7 @@ class NotificationService:
 
     async def notify_pipeline_failure(
         self,
-        tenant_id: str,
+        org_slug: str,
         pipeline_id: str,
         pipeline_logging_id: str,
         error_message: str,
@@ -418,7 +418,7 @@ class NotificationService:
             details.update(kwargs.pop("details"))
 
         return await self.notify(
-            tenant_id=tenant_id,
+            org_slug=org_slug,
             event=NotificationEvent.PIPELINE_FAILURE,
             severity=NotificationSeverity.ERROR,
             title=f"Pipeline Failed: {pipeline_id}",
@@ -431,7 +431,7 @@ class NotificationService:
 
     async def notify_data_quality_failure(
         self,
-        tenant_id: str,
+        org_slug: str,
         pipeline_id: str,
         table_name: str,
         failed_checks: List[str],
@@ -450,7 +450,7 @@ class NotificationService:
             details.update(kwargs.pop("details"))
 
         return await self.notify(
-            tenant_id=tenant_id,
+            org_slug=org_slug,
             event=NotificationEvent.DATA_QUALITY_FAILURE,
             severity=NotificationSeverity.WARNING,
             title=f"Data Quality Check Failed: {table_name}",

@@ -176,20 +176,20 @@ class APIConnector:
     def __init__(
         self,
         config: RestAPIConnectorConfig,
-        tenant_id: str
+        org_slug: str
     ):
         """
         Initialize API connector.
 
         Args:
             config: REST API connector configuration
-            tenant_id: Tenant identifier for secret management
+            org_slug: Organization identifier for secret management
 
         Raises:
             SSRFValidationError: If base_url fails SSRF validation
         """
         self.config = config
-        self.tenant_id = tenant_id
+        self.org_slug = org_slug
 
         # SECURITY: Validate base_url to prevent SSRF attacks
         validate_url(config.base_url)
@@ -247,9 +247,9 @@ class APIConnector:
         auth = self.config.auth
 
         # Get secret value
-        secret_value = get_secret(self.tenant_id, auth.secret_key)
+        secret_value = get_secret(self.org_slug, auth.secret_key)
         if not secret_value:
-            raise ValueError(f"Secret not found: {auth.secret_key} for tenant {self.tenant_id}")
+            raise ValueError(f"Secret not found: {auth.secret_key} for org {self.org_slug}")
 
         if auth.type == AuthType.BEARER:
             return {"Authorization": f"Bearer {secret_value}"}
@@ -307,7 +307,7 @@ class APIConnector:
             f"API request",
             url=url,
             params=params,
-            tenant_id=self.tenant_id
+            org_slug=self.org_slug
         )
 
         response = await client.get(url, params=params)
@@ -318,7 +318,7 @@ class APIConnector:
             url=url,
             status_code=response.status_code,
             response_time_ms=response.elapsed.total_seconds() * 1000,
-            tenant_id=self.tenant_id
+            org_slug=self.org_slug
         )
 
         return response
@@ -363,7 +363,7 @@ class APIConnector:
                     f"No more records",
                     page=page,
                     total_fetched=total_fetched,
-                    tenant_id=self.tenant_id
+                    org_slug=self.org_slug
                 )
                 break
 
@@ -377,7 +377,7 @@ class APIConnector:
                 page=page,
                 records_in_page=len(records),
                 total_fetched=total_fetched,
-                tenant_id=self.tenant_id
+                org_slug=self.org_slug
             )
 
             # Check for next page
@@ -397,7 +397,7 @@ class APIConnector:
             f"Completed fetch",
             total_records=total_fetched,
             total_pages=page,
-            tenant_id=self.tenant_id
+            org_slug=self.org_slug
         )
 
     def _extract_records(self, response_data: Any) -> List[Dict[str, Any]]:
@@ -438,19 +438,19 @@ class APIConnector:
 
 async def fetch_from_api(
     config: RestAPIConnectorConfig,
-    tenant_id: str
+    org_slug: str
 ) -> List[Dict[str, Any]]:
     """
     Convenience function to fetch all data from API.
 
     Args:
         config: REST API connector configuration
-        tenant_id: Tenant identifier
+        org_slug: Organization identifier
 
     Returns:
         List of all fetched records
     """
-    connector = APIConnector(config, tenant_id)
+    connector = APIConnector(config, org_slug)
     try:
         records = []
         async for record in connector.fetch_all():

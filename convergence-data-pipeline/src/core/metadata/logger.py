@@ -26,10 +26,10 @@ Usage Example:
     async def main():
         # Initialize BigQuery client
         bq_client = bigquery.Client()
-        tenant_id = "acme_corp"
+        org_slug = "acme_corp"
 
         # Create logger (automatically starts background flush worker)
-        logger = await create_metadata_logger(bq_client, tenant_id)
+        logger = await create_metadata_logger(bq_client, org_slug)
 
         try:
             # Generate unique IDs
@@ -232,20 +232,20 @@ class MetadataLogger:
     - JSON serialization of dict fields (parameters, metadata)
     """
 
-    def __init__(self, bq_client: bigquery.Client, tenant_id: str):
+    def __init__(self, bq_client: bigquery.Client, org_slug: str):
         """
         Initialize metadata logger.
 
         Args:
             bq_client: BigQuery client instance
-            tenant_id: Tenant identifier
+            org_slug: Organization identifier (slug)
         """
         self.client = bq_client
-        self.tenant_id = tenant_id
+        self.org_slug = org_slug
         self.project_id = settings.gcp_project_id
 
-        # Use CENTRAL tenants dataset for ALL metadata (not per-tenant)
-        self.metadata_dataset = "tenants"
+        # Use CENTRAL organizations dataset for ALL metadata (not per-org)
+        self.metadata_dataset = "organizations"
 
         # Batch configuration from settings
         self.batch_size = settings.metadata_log_batch_size
@@ -272,7 +272,7 @@ class MetadataLogger:
         logger.info(
             "Initialized MetadataLogger",
             extra={
-                "tenant_id": tenant_id,
+                "org_slug": org_slug,
                 "batch_size": self.batch_size,
                 "flush_interval": self.flush_interval,
                 "num_workers": self.num_workers,
@@ -395,7 +395,7 @@ class MetadataLogger:
         trigger_type: str,
         trigger_by: str,
         parameters: Optional[Dict[str, Any]] = None,
-        tenant_api_key_id: Optional[str] = None,
+        org_api_key_id: Optional[str] = None,
         user_id: Optional[str] = None
     ):
         """
@@ -407,7 +407,7 @@ class MetadataLogger:
             trigger_type: How pipeline was triggered (manual, scheduled, api)
             trigger_by: User or system that triggered the pipeline
             parameters: Pipeline parameters (kept as dict for BigQuery JSON type)
-            tenant_api_key_id: API key ID used for authentication (for audit trail)
+            org_api_key_id: API key ID used for authentication (for audit trail)
             user_id: User ID who triggered the pipeline
         """
         try:
@@ -421,8 +421,8 @@ class MetadataLogger:
                 "json": {
                     "pipeline_logging_id": pipeline_logging_id,
                     "pipeline_id": pipeline_id,
-                    "tenant_id": self.tenant_id,
-                    "tenant_api_key_id": tenant_api_key_id,
+                    "org_slug": self.org_slug,
+                    "org_api_key_id": org_api_key_id,
                     "user_id": user_id,
                     "status": PipelineStatus.RUNNING.value,
                     "trigger_type": trigger_type,
@@ -508,8 +508,8 @@ class MetadataLogger:
             parameters_json_str = json.dumps(parameters_serialized) if parameters_serialized is not None else None
 
             # Use UPDATE query to update existing row instead of INSERT
-            # NOTE: tenant_pipeline_runs is in CENTRAL tenants dataset, not per-tenant dataset
-            table_id = f"{self.project_id}.tenants.tenant_pipeline_runs"
+            # NOTE: org_meta_pipeline_runs is in CENTRAL organizations dataset, not per-org dataset
+            table_id = f"{self.project_id}.organizations.org_meta_pipeline_runs"
 
             update_query = f"""
             UPDATE `{table_id}`
@@ -521,7 +521,7 @@ class MetadataLogger:
                 parameters = PARSE_JSON(@parameters)
             WHERE
                 pipeline_logging_id = @pipeline_logging_id
-                AND tenant_id = @tenant_id
+                AND org_slug = @org_slug
             """
 
             job_config = bigquery.QueryJobConfig(
@@ -532,7 +532,7 @@ class MetadataLogger:
                     bigquery.ScalarQueryParameter("error_message", "STRING", error_message),
                     bigquery.ScalarQueryParameter("parameters", "STRING", parameters_json_str),
                     bigquery.ScalarQueryParameter("pipeline_logging_id", "STRING", pipeline_logging_id),
-                    bigquery.ScalarQueryParameter("tenant_id", "STRING", self.tenant_id)
+                    bigquery.ScalarQueryParameter("org_slug", "STRING", self.org_slug)
                 ]
             )
 
@@ -595,6 +595,7 @@ class MetadataLogger:
                 "insertId": f"{step_logging_id}_start",  # Idempotency
                 "json": {
                     "step_logging_id": step_logging_id,
+                    "org_slug": self.org_slug,
                     "pipeline_logging_id": pipeline_logging_id,
                     "step_name": step_name,
                     "step_type": step_type,
@@ -693,6 +694,7 @@ class MetadataLogger:
                 "insertId": f"{step_logging_id}_end",  # Idempotency
                 "json": {
                     "step_logging_id": step_logging_id,
+                    "org_slug": self.org_slug,
                     "pipeline_logging_id": pipeline_logging_id,
                     "step_name": step_name,
                     "step_type": step_type,
@@ -853,8 +855,8 @@ class MetadataLogger:
         Raises:
             Exception: If insert fails after retries
         """
-        # NOTE: tenant_pipeline_runs is in CENTRAL tenants dataset, not per-tenant dataset
-        table_id = f"{self.project_id}.tenants.tenant_pipeline_runs"
+        # NOTE: org_meta_pipeline_runs is in CENTRAL organizations dataset, not per-org dataset
+        table_id = f"{self.project_id}.organizations.org_meta_pipeline_runs"
 
         # Use streaming inserts with insertId for idempotency
         rows_to_insert = [log["json"] for log in logs]
@@ -905,8 +907,8 @@ class MetadataLogger:
         Raises:
             Exception: If insert fails after retries
         """
-        # NOTE: tenant_step_logs is in CENTRAL tenants dataset
-        table_id = f"{self.project_id}.tenants.tenant_step_logs"
+        # NOTE: org_meta_step_logs is in CENTRAL organizations dataset
+        table_id = f"{self.project_id}.organizations.org_meta_step_logs"
 
         # Use streaming inserts with insertId for idempotency
         rows_to_insert = [log["json"] for log in logs]
@@ -955,7 +957,7 @@ def generate_logging_id() -> str:
 
 async def create_metadata_logger(
     bq_client: bigquery.Client,
-    tenant_id: str,
+    org_slug: str,
     auto_start: bool = True
 ) -> MetadataLogger:
     """
@@ -963,13 +965,13 @@ async def create_metadata_logger(
 
     Args:
         bq_client: BigQuery client instance
-        tenant_id: Tenant identifier
+        org_slug: Organization identifier (slug)
         auto_start: Whether to automatically start background flush worker
 
     Returns:
         MetadataLogger instance
     """
-    logger_instance = MetadataLogger(bq_client, tenant_id)
+    logger_instance = MetadataLogger(bq_client, org_slug)
 
     if auto_start:
         await logger_instance.start()

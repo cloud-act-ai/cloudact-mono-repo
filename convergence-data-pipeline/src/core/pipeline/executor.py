@@ -28,37 +28,37 @@ class PipelineExecutor:
 
     def __init__(
         self,
-        tenant_id: str,
+        org_slug: str,
         pipeline_id: str,
         trigger_type: str = "api",
         trigger_by: str = "api_user",
         user_id: Optional[str] = None,
-        tenant_api_key_id: Optional[str] = None
+        org_api_key_id: Optional[str] = None
     ):
         """
         Initialize pipeline executor.
 
         Args:
-            tenant_id: Tenant identifier
+            org_slug: Organization identifier
             pipeline_id: Pipeline identifier (matches YAML filename)
             trigger_type: How pipeline was triggered (api, scheduler, manual)
             trigger_by: Who triggered the pipeline
             user_id: User UUID from frontend (X-User-ID header)
-            tenant_api_key_id: API key ID used for authentication (for audit trail)
+            org_api_key_id: API key ID used for authentication (for audit trail)
         """
-        self.tenant_id = tenant_id
+        self.org_slug = org_slug
         self.pipeline_id = pipeline_id
         self.trigger_type = trigger_type
         self.trigger_by = trigger_by
         self.user_id = user_id
-        self.tenant_api_key_id = tenant_api_key_id
+        self.org_api_key_id = org_api_key_id
         self.pipeline_logging_id = str(uuid.uuid4())
 
         self.bq_client = get_bigquery_client()
         self.dq_validator = DataQualityValidator()
         self.logger = create_structured_logger(
             __name__,
-            tenant_id=tenant_id,
+            org_slug=org_slug,
             pipeline_id=pipeline_id,
             pipeline_logging_id=self.pipeline_logging_id
         )
@@ -66,7 +66,7 @@ class PipelineExecutor:
         # Initialize metadata logger
         self.metadata_logger = MetadataLogger(
             bq_client=self.bq_client.client,
-            tenant_id=tenant_id
+            org_slug=org_slug
         )
 
         self.config: Optional[Dict[str, Any]] = None
@@ -136,7 +136,7 @@ class PipelineExecutor:
         Load pipeline configuration from YAML file with Pydantic validation.
 
         Searches recursively for pipeline in cloud-provider/domain structure:
-        configs/{tenant_id}/{provider}/{domain}/{pipeline_id}.yml
+        configs/{org_slug}/{provider}/{domain}/{pipeline_id}.yml
 
         Args:
             parameters: Runtime parameters to inject into config
@@ -155,12 +155,12 @@ class PipelineExecutor:
 
             # Load and validate config
             validated_config: PipelineConfig = config_loader.load_pipeline_config(
-                self.tenant_id,
+                self.org_slug,
                 self.pipeline_id
             )
 
             # Get pipeline directory for resolving relative paths
-            config_path_str = settings.find_pipeline_path(self.tenant_id, self.pipeline_id)
+            config_path_str = settings.find_pipeline_path(self.org_slug, self.pipeline_id)
             self.pipeline_dir = Path(config_path_str).parent
 
             # Convert Pydantic model to dict for backward compatibility
@@ -222,7 +222,7 @@ class PipelineExecutor:
                     trigger_type=self.trigger_type,
                     trigger_by=self.trigger_by,
                     parameters=self.config.get('parameters', {}),
-                    tenant_api_key_id=self.tenant_api_key_id,
+                    org_api_key_id=self.org_api_key_id,
                     user_id=self.user_id
                 )
             )
@@ -319,7 +319,7 @@ class PipelineExecutor:
             # Build execution context
             # Include both pipeline-level variables and runtime parameters
             context = {
-                'tenant_id': self.tenant_id,
+                'org_slug': self.org_slug,
                 'pipeline_id': self.pipeline_id,
                 'pipeline_logging_id': self.pipeline_logging_id,
                 'step_logging_id': step_logging_id,
@@ -414,13 +414,13 @@ class PipelineExecutor:
 
         # Replace dataset references dynamically for all configured dataset types
         for dataset_type in settings.get_dataset_type_names():
-            dataset_name = settings.get_tenant_dataset_name(self.tenant_id, dataset_type)
+            dataset_name = settings.get_org_dataset_name(self.org_slug, dataset_type)
             query = query.replace(f"{{dataset_{dataset_type}}}", dataset_name)
 
         # Generic replacement for {dataset} placeholder (use first match if any)
         if "{dataset}" in query and settings.get_dataset_type_names():
             first_dataset = settings.get_dataset_type_names()[0]
-            dataset_name = settings.get_tenant_dataset_name(self.tenant_id, first_dataset)
+            dataset_name = settings.get_org_dataset_name(self.org_slug, first_dataset)
             query = query.replace(f"{{dataset}}", dataset_name)
 
         return query
@@ -438,7 +438,7 @@ class PipelineExecutor:
         return {
             'pipeline_logging_id': self.pipeline_logging_id,
             'pipeline_id': self.pipeline_id,
-            'tenant_id': self.tenant_id,
+            'org_slug': self.org_slug,
             'status': self.status,
             'start_time': self.start_time,
             'end_time': self.end_time,

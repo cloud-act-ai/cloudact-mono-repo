@@ -1,6 +1,6 @@
 """
 Metadata Initialization Service
-Automatically creates tenant-specific metadata infrastructure.
+Automatically creates org-specific metadata infrastructure.
 """
 
 import logging
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 class MetadataInitializer:
-    """Handles initialization of tenant-specific metadata infrastructure."""
+    """Handles initialization of org-specific metadata infrastructure."""
 
     def __init__(self, bq_client: bigquery.Client):
         """
@@ -34,44 +34,44 @@ class MetadataInitializer:
         else:
             self.metadata_schemas_path = Path(settings.metadata_schemas_path)
 
-    def ensure_tenant_metadata(
+    def ensure_org_metadata(
         self,
-        tenant_id: str,
+        org_slug: str,
         force_recreate_dataset: bool = False,
         force_recreate_tables: bool = False
     ) -> None:
         """
-        Ensure tenant-specific dataset and metadata tables exist.
+        Ensure org-specific dataset and metadata tables exist.
         Creates them if they don't exist.
 
-        Single-dataset-per-tenant architecture: All tables (metadata + data)
-        are stored in a single dataset named after the tenant_id.
+        Single-dataset-per-org architecture: All tables (metadata + data)
+        are stored in a single dataset named after the org_slug.
 
         Args:
-            tenant_id: The tenant identifier
+            org_slug: The org identifier
             force_recreate_dataset: If True, delete and recreate the entire dataset (default: False)
             force_recreate_tables: If True, delete and recreate all metadata tables (default: False)
         """
-        logger.info(f"Ensuring metadata infrastructure for tenant: {tenant_id}")
+        logger.info(f"Ensuring metadata infrastructure for org: {org_slug}")
 
-        # Create single tenant dataset (not tenant_id_metadata)
-        dataset_name = tenant_id
+        # Create single org dataset (not org_slug_metadata)
+        dataset_name = org_slug
         self._ensure_dataset(dataset_name, force_recreate=force_recreate_dataset)
 
-        # Create metadata tables in the tenant dataset
-        # Note: API keys and credentials are now centralized in tenants dataset
-        self._ensure_tenant_pipeline_runs_table(dataset_name, recreate=force_recreate_tables)
-        self._ensure_tenant_step_logs_table(dataset_name, recreate=force_recreate_tables)
-        self._ensure_tenant_dq_results_table(dataset_name, recreate=force_recreate_tables)
+        # Create metadata tables in the org dataset
+        # Note: API keys and credentials are now centralized in orgs dataset
+        self._ensure_org_pipeline_runs_table(dataset_name, recreate=force_recreate_tables)
+        self._ensure_org_step_logs_table(dataset_name, recreate=force_recreate_tables)
+        self._ensure_org_dq_results_table(dataset_name, recreate=force_recreate_tables)
 
-        logger.info(f"Metadata infrastructure ready for tenant: {tenant_id}")
+        logger.info(f"Metadata infrastructure ready for org: {org_slug}")
 
     def _load_schema_from_json(self, table_name: str) -> List[bigquery.SchemaField]:
         """
         Load BigQuery schema from JSON file in configs/metadata/schemas/.
 
         Args:
-            table_name: Name of the table (e.g., 'tenant_pipeline_runs', 'tenant_step_logs')
+            table_name: Name of the table (e.g., 'org_pipeline_runs', 'org_step_logs')
 
         Returns:
             List of SchemaField objects
@@ -124,22 +124,22 @@ class MetadataInitializer:
             logger.info(f"Creating dataset: {dataset_id}")
             dataset = bigquery.Dataset(dataset_id)
             dataset.location = self.location
-            dataset.description = f"Metadata tracking for tenant"
+            dataset.description = f"Metadata tracking for org"
             self.client.create_dataset(dataset, timeout=30)
             logger.info(f"Created dataset: {dataset_id}")
 
-    def _ensure_tenant_pipeline_runs_table(self, dataset_name: str, recreate: bool = False) -> None:
+    def _ensure_org_pipeline_runs_table(self, dataset_name: str, recreate: bool = False) -> None:
         """
-        Create tenant_pipeline_runs table if it doesn't exist.
+        Create org_pipeline_runs table if it doesn't exist.
 
         Args:
             dataset_name: Dataset name
             recreate: If True, delete and recreate table even if it exists
         """
-        table_id = f"{self.project_id}.{dataset_name}.tenant_pipeline_runs"
+        table_id = f"{self.project_id}.{dataset_name}.org_pipeline_runs"
 
         # Load schema from JSON configuration file
-        schema = self._load_schema_from_json("tenant_pipeline_runs")
+        schema = self._load_schema_from_json("org_pipeline_runs")
 
         if recreate:
             logger.info(f"Recreating table (delete + create): {table_id}")
@@ -160,24 +160,24 @@ class MetadataInitializer:
                 field="start_time"
             )
 
-            # Cluster by tenant_id, pipeline_id, and status for query optimization
-            table.clustering_fields = ["tenant_id", "pipeline_id", "status"]
+            # Cluster by org_slug, pipeline_id, and status for query optimization
+            table.clustering_fields = ["org_slug", "pipeline_id", "status"]
 
             self.client.create_table(table)
             logger.info(f"Created table: {table_id}")
 
-    def _ensure_tenant_step_logs_table(self, dataset_name: str, recreate: bool = False) -> None:
+    def _ensure_org_step_logs_table(self, dataset_name: str, recreate: bool = False) -> None:
         """
-        Create tenant_step_logs table if it doesn't exist.
+        Create org_step_logs table if it doesn't exist.
 
         Args:
             dataset_name: Dataset name
             recreate: If True, delete and recreate table even if it exists
         """
-        table_id = f"{self.project_id}.{dataset_name}.tenant_step_logs"
+        table_id = f"{self.project_id}.{dataset_name}.org_step_logs"
 
         # Load schema from JSON configuration file
-        schema = self._load_schema_from_json("tenant_step_logs")
+        schema = self._load_schema_from_json("org_step_logs")
 
         if recreate:
             logger.info(f"Recreating table (delete + create): {table_id}")
@@ -204,18 +204,18 @@ class MetadataInitializer:
             self.client.create_table(table)
             logger.info(f"Created table: {table_id}")
 
-    def _ensure_tenant_dq_results_table(self, dataset_name: str, recreate: bool = False) -> None:
+    def _ensure_org_dq_results_table(self, dataset_name: str, recreate: bool = False) -> None:
         """
-        Create tenant_dq_results table if it doesn't exist.
+        Create org_dq_results table if it doesn't exist.
 
         Args:
             dataset_name: Dataset name
             recreate: If True, delete and recreate table even if it exists
         """
-        table_id = f"{self.project_id}.{dataset_name}.tenant_dq_results"
+        table_id = f"{self.project_id}.{dataset_name}.org_dq_results"
 
         # Load schema from JSON configuration file
-        schema = self._load_schema_from_json("tenant_dq_results")
+        schema = self._load_schema_from_json("org_dq_results")
 
         if recreate:
             logger.info(f"Recreating table (delete + create): {table_id}")
@@ -236,31 +236,31 @@ class MetadataInitializer:
                 field="ingestion_date"
             )
 
-            # Cluster by tenant_id, target_table, and overall_status for query optimization
-            table.clustering_fields = ["tenant_id", "target_table", "overall_status"]
+            # Cluster by org_slug, target_table, and overall_status for query optimization
+            table.clustering_fields = ["org_slug", "target_table", "overall_status"]
 
             self.client.create_table(table)
             logger.info(f"Created table: {table_id}")
 
 
-def ensure_tenant_metadata(
-    tenant_id: str,
+def ensure_org_metadata(
+    org_slug: str,
     bq_client: bigquery.Client,
     force_recreate_dataset: bool = False,
     force_recreate_tables: bool = False
 ) -> None:
     """
-    Convenience function to ensure tenant metadata exists.
+    Convenience function to ensure org metadata exists.
 
     Args:
-        tenant_id: The tenant identifier
+        org_slug: The org identifier
         bq_client: BigQuery client instance
         force_recreate_dataset: If True, delete and recreate the entire dataset (default: False)
         force_recreate_tables: If True, delete and recreate all metadata tables (default: False)
     """
     initializer = MetadataInitializer(bq_client)
-    initializer.ensure_tenant_metadata(
-        tenant_id=tenant_id,
+    initializer.ensure_org_metadata(
+        org_slug=org_slug,
         force_recreate_dataset=force_recreate_dataset,
         force_recreate_tables=force_recreate_tables
     )

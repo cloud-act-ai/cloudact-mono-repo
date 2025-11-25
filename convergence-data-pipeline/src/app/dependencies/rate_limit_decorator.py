@@ -15,49 +15,49 @@ from src.app.config import settings
 logger = logging.getLogger(__name__)
 
 
-async def get_tenant_from_request(request: Request) -> Optional[str]:
+async def get_org_from_request(request: Request) -> Optional[str]:
     """
-    Extract tenant_id from request context.
+    Extract org_slug from request context.
 
     Priority:
-    1. From request.state.tenant_id (set by auth middleware)
+    1. From request.state.org_slug (set by auth middleware)
     2. From path parameters (if available)
-    3. From X-Tenant-ID header
+    3. From X-Org-Slug header
 
     Args:
         request: FastAPI request object
 
     Returns:
-        tenant_id if found, None otherwise
+        org_slug if found, None otherwise
     """
     # Check if set by auth middleware
-    if hasattr(request.state, "tenant_id"):
-        return request.state.tenant_id
+    if hasattr(request.state, "org_slug"):
+        return request.state.org_slug
 
-    # Check path parameters for tenant_id
-    if "tenant_id" in request.path_params:
-        return request.path_params["tenant_id"]
+    # Check path parameters for org_slug
+    if "org_slug" in request.path_params:
+        return request.path_params["org_slug"]
 
     # Check headers
-    tenant_id = request.headers.get("x-tenant-id")
-    if tenant_id:
-        return tenant_id
+    org_slug = request.headers.get("x-org-slug")
+    if org_slug:
+        return org_slug
 
     return None
 
 
-async def rate_limit_by_tenant(
+async def rate_limit_by_org(
     request: Request,
-    tenant_id: str,
+    org_slug: str,
     limit_per_minute: Optional[int] = None,
     endpoint_name: str = "unknown"
 ) -> tuple[bool, dict]:
     """
-    Check tenant-level rate limit.
+    Check org-level rate limit.
 
     Args:
         request: FastAPI request object
-        tenant_id: Tenant identifier
+        org_slug: Organization identifier
         limit_per_minute: Custom per-minute limit (uses default if None)
         endpoint_name: Name of endpoint for logging
 
@@ -76,17 +76,17 @@ async def rate_limit_by_tenant(
     limit_minute = limit_per_minute or settings.rate_limit_requests_per_minute
     limit_hour = settings.rate_limit_requests_per_hour
 
-    is_allowed, metadata = await rate_limiter.check_tenant_limit(
-        tenant_id,
+    is_allowed, metadata = await rate_limiter.check_org_limit(
+        org_slug,
         limit_per_minute=limit_minute,
         limit_per_hour=limit_hour
     )
 
     if not is_allowed:
         logger.warning(
-            f"Rate limit exceeded for tenant {tenant_id} on {endpoint_name}",
+            f"Rate limit exceeded for org {org_slug} on {endpoint_name}",
             extra={
-                "tenant_id": tenant_id,
+                "org_slug": org_slug,
                 "endpoint": endpoint_name,
                 "remaining_minute": metadata["minute"]["remaining"],
                 "reset_minute": metadata["minute"]["reset"]
@@ -97,7 +97,7 @@ async def rate_limit_by_tenant(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail={
                 "error": "Rate limit exceeded",
-                "message": f"Too many requests for tenant {tenant_id}",
+                "message": f"Too many requests for org {org_slug}",
                 "retry_after": metadata["minute"]["reset"]
             }
         )

@@ -129,7 +129,7 @@ class SlackNotificationProvider(BaseNotificationProvider):
             },
             {
                 "type": "mrkdwn",
-                "text": f"*Tenant:* `{message.tenant_id}`"
+                "text": f"*Org:* `{message.org_slug}`"
             },
             {
                 "type": "mrkdwn",
@@ -267,7 +267,7 @@ class SlackNotificationProvider(BaseNotificationProvider):
                     if response.status == 200 and response_text == "ok":
                         logger.info(
                             f"Slack notification sent successfully "
-                            f"(event: {message.event.value}, tenant: {message.tenant_id})"
+                            f"(event: {message.event.value}, org: {message.org_slug})"
                         )
                         return True
                     else:

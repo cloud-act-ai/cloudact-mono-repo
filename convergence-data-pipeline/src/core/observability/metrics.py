@@ -13,11 +13,11 @@ metrics_registry = CollectorRegistry()
 # Metrics Definitions
 # ====================
 
-# Counter: Total pipeline executions by tenant, pipeline, and status
+# Counter: Total pipeline executions by org, pipeline, and status
 pipeline_executions_total = Counter(
     'pipeline_executions_total',
     'Total number of pipeline executions',
-    ['tenant_id', 'pipeline_id', 'status'],
+    ['org_slug', 'pipeline_id', 'status'],
     registry=metrics_registry
 )
 
@@ -25,7 +25,7 @@ pipeline_executions_total = Counter(
 pipeline_duration_seconds = Histogram(
     'pipeline_duration_seconds',
     'Pipeline execution duration in seconds',
-    ['tenant_id', 'pipeline_id', 'status'],
+    ['org_slug', 'pipeline_id', 'status'],
     buckets=(1, 5, 10, 30, 60, 120, 300, 600, 1800, 3600),  # 1s to 1h
     registry=metrics_registry
 )
@@ -34,7 +34,7 @@ pipeline_duration_seconds = Histogram(
 active_pipelines = Gauge(
     'active_pipelines',
     'Number of currently running pipelines',
-    ['tenant_id'],
+    ['org_slug'],
     registry=metrics_registry
 )
 
@@ -42,7 +42,7 @@ active_pipelines = Gauge(
 quota_utilization = Gauge(
     'quota_utilization',
     'Percentage of quota utilized',
-    ['tenant_id', 'quota_type'],
+    ['org_slug', 'quota_type'],
     registry=metrics_registry
 )
 
@@ -51,7 +51,7 @@ quota_utilization = Gauge(
 # ====================
 
 def increment_pipeline_execution(
-    tenant_id: str,
+    org_slug: str,
     pipeline_id: str,
     status: str
 ) -> None:
@@ -59,19 +59,19 @@ def increment_pipeline_execution(
     Increment pipeline execution counter.
 
     Args:
-        tenant_id: Tenant identifier
+        org_slug: Organization identifier
         pipeline_id: Pipeline identifier
         status: Execution status (COMPLETED, FAILED, TIMEOUT)
     """
     pipeline_executions_total.labels(
-        tenant_id=tenant_id,
+        org_slug=org_slug,
         pipeline_id=pipeline_id,
         status=status
     ).inc()
 
 
 def observe_pipeline_duration(
-    tenant_id: str,
+    org_slug: str,
     pipeline_id: str,
     status: str,
     duration_seconds: float
@@ -80,31 +80,31 @@ def observe_pipeline_duration(
     Record pipeline execution duration.
 
     Args:
-        tenant_id: Tenant identifier
+        org_slug: Organization identifier
         pipeline_id: Pipeline identifier
         status: Execution status (COMPLETED, FAILED, TIMEOUT)
         duration_seconds: Duration in seconds
     """
     pipeline_duration_seconds.labels(
-        tenant_id=tenant_id,
+        org_slug=org_slug,
         pipeline_id=pipeline_id,
         status=status
     ).observe(duration_seconds)
 
 
-def set_active_pipelines(tenant_id: str, count: int) -> None:
+def set_active_pipelines(org_slug: str, count: int) -> None:
     """
-    Set the number of active pipelines for a tenant.
+    Set the number of active pipelines for an org.
 
     Args:
-        tenant_id: Tenant identifier
+        org_slug: Organization identifier
         count: Number of active pipelines
     """
-    active_pipelines.labels(tenant_id=tenant_id).set(count)
+    active_pipelines.labels(org_slug=org_slug).set(count)
 
 
 def set_quota_utilization(
-    tenant_id: str,
+    org_slug: str,
     quota_type: str,
     percentage: float
 ) -> None:
@@ -112,12 +112,12 @@ def set_quota_utilization(
     Set quota utilization percentage.
 
     Args:
-        tenant_id: Tenant identifier
+        org_slug: Organization identifier
         quota_type: Type of quota (pipelines_daily, concurrent, storage)
         percentage: Utilization percentage (0-100)
     """
     quota_utilization.labels(
-        tenant_id=tenant_id,
+        org_slug=org_slug,
         quota_type=quota_type
     ).set(percentage)
 

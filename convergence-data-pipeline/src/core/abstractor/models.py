@@ -283,7 +283,7 @@ class PipelineConfig(BaseModel):
         """Validate pipeline_id format."""
         if not v or not v.strip():
             raise ValueError("pipeline_id cannot be empty or whitespace")
-        # Allow alphanumeric, underscores, hyphens, and template placeholders {tenant_id}
+        # Allow alphanumeric, underscores, hyphens, and template placeholders {org_slug}
         import re
         if not re.match(r'^[a-zA-Z0-9_{}-]+$', v):
             raise ValueError(
@@ -358,7 +358,7 @@ class PipelineRunMetadata(BaseModel):
     """Metadata for a pipeline run."""
     pipeline_logging_id: str
     pipeline_id: str
-    tenant_id: str
+    org_slug: str
     status: Literal["PENDING", "RUNNING", "COMPLETE", "FAILED"]
     trigger_type: Literal["api", "scheduler", "manual"]
     trigger_by: str

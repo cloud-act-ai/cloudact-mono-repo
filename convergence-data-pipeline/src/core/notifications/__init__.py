@@ -1,12 +1,12 @@
 """
 Notification System
 
-Multi-provider notification system with tenant-specific configuration support.
+Multi-provider notification system with org-specific configuration support.
 
 Features:
 - Email notifications (SMTP)
 - Slack notifications (Webhooks)
-- Tenant-specific configuration with root fallback
+- Org-specific configuration with root fallback
 - Event-based notification triggers
 - Retry logic with exponential backoff
 - Cooldown periods to prevent notification spam
@@ -23,7 +23,7 @@ Usage:
 
     # Send notification
     await service.notify(
-        tenant_id="acme_corp",
+        org_slug="acme_corp",
         event=NotificationEvent.PIPELINE_FAILURE,
         severity=NotificationSeverity.ERROR,
         title="Pipeline Failed",
@@ -34,7 +34,7 @@ Usage:
 
     # Or use convenience methods
     await service.notify_pipeline_failure(
-        tenant_id="acme_corp",
+        org_slug="acme_corp",
         pipeline_id="daily_ingestion",
         pipeline_logging_id="abc123",
         error_message="Connection timeout"
@@ -42,7 +42,7 @@ Usage:
 
 Configuration:
     Root configuration: ./configs/notifications/config.json
-    Tenant configuration: ./configs/{tenant_id}/notifications.json
+    Org configuration: ./configs/{org_slug}/notifications.json
 """
 
 from .config import (

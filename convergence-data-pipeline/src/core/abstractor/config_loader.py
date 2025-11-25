@@ -2,7 +2,7 @@
 Configuration Loader
 Loads and validates YAML configuration files using Pydantic models.
 
-Memory-efficient LRU caching for multi-tenant environments.
+Memory-efficient LRU caching for multi-org environments.
 """
 
 import yaml
@@ -30,22 +30,22 @@ def _get_dataset_types_cache() -> Dict[str, Any]:
 
 class ConfigLoader:
     """
-    Loads and caches configuration files for tenants.
+    Loads and caches configuration files for orgs.
 
     Features:
     - YAML parsing with Pydantic validation
-    - Tenant-scoped config loading
+    - Org-scoped config loading
     - LRU (Least Recently Used) caching with bounded size limit
     - Type-safe config models
-    - Memory-efficient for multi-tenant scale (10k+ tenants)
+    - Memory-efficient for multi-org scale (10k+ orgs)
 
     Cache Strategy:
-    - maxsize=1000: Maintains cache for ~10% of 10k tenants
+    - maxsize=1000: Maintains cache for ~10% of 10k orgs
     - LRU eviction: Automatically removes least recently used entries
     - Prevents unbounded memory growth
     """
 
-    # Cache size limit: 1000 entries supports 10k tenants with 10% hit rate
+    # Cache size limit: 1000 entries supports 10k orgs with 10% hit rate
     # Typical config object size: ~5-50KB, so max cache ~50-500MB
     CACHE_MAXSIZE = 1000
 
@@ -103,14 +103,14 @@ class ConfigLoader:
 
     def load_source_config(
         self,
-        tenant_id: str,
+        org_slug: str,
         config_file: str
     ) -> SourceConfig:
         """
         Load source configuration from YAML file.
 
         Args:
-            tenant_id: Tenant identifier
+            org_slug: Org identifier
             config_file: Relative path to config file (e.g., "sources/openai_billing.yml")
 
         Returns:
@@ -120,7 +120,7 @@ class ConfigLoader:
             FileNotFoundError: If config file doesn't exist
             ValueError: If config validation fails
         """
-        cache_key = f"{tenant_id}:source:{config_file}"
+        cache_key = f"{org_slug}:source:{config_file}"
 
         # Check cache with LRU tracking
         cached_config = self._access_cache(cache_key)
@@ -129,11 +129,11 @@ class ConfigLoader:
             return cached_config
 
         # Build full path
-        config_path = Path(settings.get_tenant_config_path(tenant_id)) / config_file
+        config_path = Path(settings.get_org_config_path(org_slug)) / config_file
 
         if not config_path.exists():
             raise FileNotFoundError(
-                f"Source config not found: {config_path} for tenant {tenant_id}"
+                f"Source config not found: {config_path} for org {org_slug}"
             )
 
         # Load and parse YAML
@@ -149,7 +149,7 @@ class ConfigLoader:
 
             logger.info(
                 f"Loaded source config: {config.source_id}",
-                extra={"tenant_id": tenant_id, "config_file": config_file}
+                extra={"org_slug": org_slug, "config_file": config_file}
             )
 
             return config
@@ -161,20 +161,20 @@ class ConfigLoader:
 
     def load_dq_config(
         self,
-        tenant_id: str,
+        org_slug: str,
         config_file: str
     ) -> DQConfig:
         """
         Load data quality configuration from YAML file.
 
         Args:
-            tenant_id: Tenant identifier
+            org_slug: Org identifier
             config_file: Relative path to config file (e.g., "dq_rules/billing_dq.yml")
 
         Returns:
             Validated DQConfig object
         """
-        cache_key = f"{tenant_id}:dq:{config_file}"
+        cache_key = f"{org_slug}:dq:{config_file}"
 
         # Check cache with LRU tracking
         cached_config = self._access_cache(cache_key)
@@ -182,11 +182,11 @@ class ConfigLoader:
             logger.debug(f"Config cache hit: {cache_key}")
             return cached_config
 
-        config_path = Path(settings.get_tenant_config_path(tenant_id)) / config_file
+        config_path = Path(settings.get_org_config_path(org_slug)) / config_file
 
         if not config_path.exists():
             raise FileNotFoundError(
-                f"DQ config not found: {config_path} for tenant {tenant_id}"
+                f"DQ config not found: {config_path} for org {org_slug}"
             )
 
         try:
@@ -198,7 +198,7 @@ class ConfigLoader:
 
             logger.info(
                 f"Loaded DQ config: {config.dq_id}",
-                extra={"tenant_id": tenant_id, "config_file": config_file}
+                extra={"org_slug": org_slug, "config_file": config_file}
             )
 
             return config
@@ -210,23 +210,23 @@ class ConfigLoader:
 
     def load_pipeline_config(
         self,
-        tenant_id: str,
+        org_slug: str,
         pipeline_id: str
     ) -> PipelineConfig:
         """
         Load pipeline configuration from YAML file.
 
         Searches recursively for pipeline in cloud-provider/domain structure:
-        configs/{tenant_id}/{provider}/{domain}/{pipeline_id}.yml
+        configs/{org_slug}/{provider}/{domain}/{pipeline_id}.yml
 
         Args:
-            tenant_id: Tenant identifier
+            org_slug: Org identifier
             pipeline_id: Pipeline identifier (e.g., "p_openai_billing")
 
         Returns:
             Validated PipelineConfig object
         """
-        cache_key = f"{tenant_id}:pipeline:{pipeline_id}"
+        cache_key = f"{org_slug}:pipeline:{pipeline_id}"
 
         # Check cache with LRU tracking
         cached_config = self._access_cache(cache_key)
@@ -236,11 +236,11 @@ class ConfigLoader:
 
         # Use new recursive search method to find pipeline
         try:
-            config_path_str = settings.find_pipeline_path(tenant_id, pipeline_id)
+            config_path_str = settings.find_pipeline_path(org_slug, pipeline_id)
             config_path = Path(config_path_str)
         except (FileNotFoundError, ValueError) as e:
             raise FileNotFoundError(
-                f"Pipeline config not found: {pipeline_id} for tenant {tenant_id}. {e}"
+                f"Pipeline config not found: {pipeline_id} for org {org_slug}. {e}"
             )
 
         try:
@@ -252,7 +252,7 @@ class ConfigLoader:
 
             logger.info(
                 f"Loaded pipeline config: {config.pipeline_id}",
-                extra={"tenant_id": tenant_id, "num_steps": len(config.steps)}
+                extra={"org_slug": org_slug, "num_steps": len(config.steps)}
             )
 
             return config
@@ -262,26 +262,26 @@ class ConfigLoader:
         except Exception as e:
             raise ValueError(f"Error loading pipeline config {config_path}: {e}")
 
-    def clear_cache(self, tenant_id: Optional[str] = None):
+    def clear_cache(self, org_slug: Optional[str] = None):
         """
         Clear configuration cache.
 
         Args:
-            tenant_id: If provided, only clear configs for this tenant.
+            org_slug: If provided, only clear configs for this org.
                       If None, clear entire cache.
         """
-        if tenant_id is None:
+        if org_slug is None:
             cache_size = len(self._cache)
             self._cache.clear()
             self._cache_hits = 0
             self._cache_misses = 0
             logger.info(f"Cleared entire config cache (removed {cache_size} entries)")
         else:
-            keys_to_delete = [k for k in self._cache.keys() if k.startswith(f"{tenant_id}:")]
+            keys_to_delete = [k for k in self._cache.keys() if k.startswith(f"{org_slug}:")]
             for key in keys_to_delete:
                 del self._cache[key]
             logger.info(
-                f"Cleared config cache for tenant: {tenant_id} (removed {len(keys_to_delete)} entries)"
+                f"Cleared config cache for org: {org_slug} (removed {len(keys_to_delete)} entries)"
             )
 
     def get_cache_stats(self) -> Dict[str, Any]:

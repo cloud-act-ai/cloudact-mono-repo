@@ -32,12 +32,12 @@ async def example_state_transitions():
     state_manager = PipelineStateManager(bq_client)
 
     # 1. Create a scheduled run
-    tenant_id = "acme_corp"
+    org_slug = "acme_corp"
     config_id = "daily_sales_pipeline"
     scheduled_time = datetime.utcnow() + timedelta(hours=1)
 
     run_id = await state_manager.create_scheduled_run(
-        tenant_id=tenant_id,
+        org_slug=org_slug,
         config_id=config_id,
         scheduled_time=scheduled_time
     )
@@ -83,9 +83,9 @@ async def example_queue_management():
 
     # 1. Enqueue multiple pipelines with different priorities
     pipelines = [
-        {"tenant_id": "customer_a", "pipeline_id": "pipeline_1", "priority": 5},
-        {"tenant_id": "customer_b", "pipeline_id": "pipeline_2", "priority": 1},  # High priority
-        {"tenant_id": "customer_c", "pipeline_id": "pipeline_3", "priority": 10},  # Low priority
+        {"org_slug": "customer_a", "pipeline_id": "pipeline_1", "priority": 5},
+        {"org_slug": "customer_b", "pipeline_id": "pipeline_2", "priority": 1},  # High priority
+        {"org_slug": "customer_c", "pipeline_id": "pipeline_3", "priority": 10},  # Low priority
     ]
 
     for pipeline in pipelines:
@@ -95,7 +95,7 @@ async def example_queue_management():
         }
 
         queue_id = await queue_manager.enqueue(
-            tenant_id=pipeline["tenant_id"],
+            org_slug=pipeline["org_slug"],
             config=config,
             priority=pipeline["priority"]
         )
@@ -175,12 +175,12 @@ async def example_retry_logic():
     retry_manager = RetryManager()
 
     # 1. Create a scheduled run
-    tenant_id = "test_tenant"
+    org_slug = "test_org"
     config_id = "test_pipeline"
     scheduled_time = datetime.utcnow()
 
     run_id = await state_manager.create_scheduled_run(
-        tenant_id=tenant_id,
+        org_slug=org_slug,
         config_id=config_id,
         scheduled_time=scheduled_time
     )
@@ -242,29 +242,29 @@ async def example_yet_to_run_pipelines():
     print(f"Found {len(yet_to_run)} pipelines yet to run:")
     for pipeline in yet_to_run:
         print(f"  - Run ID: {pipeline['run_id']}")
-        print(f"    Customer: {pipeline['tenant_id']}")
+        print(f"    Customer: {pipeline['org_slug']}")
         print(f"    Config: {pipeline['config_id']}")
         print(f"    Scheduled: {pipeline['scheduled_time']}")
         print(f"    State: {pipeline['state']}")
         print()
 
 
-async def example_tenant_status():
+async def example_org_status():
     """
-    Example 6: Get tenant pipeline status summary
+    Example 6: Get org pipeline status summary
     """
-    print("\n=== Example 6: Tenant Pipeline Status ===")
+    print("\n=== Example 6: Org Pipeline Status ===")
 
     bq_client = bigquery.Client()
     state_manager = PipelineStateManager(bq_client)
 
-    tenant_id = "acme_corp"
-    status = await state_manager.get_tenant_pipeline_status(
-        tenant_id=tenant_id,
+    org_slug = "acme_corp"
+    status = await state_manager.get_org_pipeline_status(
+        org_slug=org_slug,
         date="2025-11-17"
     )
 
-    print(f"Pipeline status for {tenant_id}:")
+    print(f"Pipeline status for {org_slug}:")
     print(f"  Total configured: {status['total_configured']}")
     print(f"  Scheduled today: {status['scheduled_today']}")
     print(f"  Completed today: {status['completed_today']}")
@@ -293,7 +293,7 @@ async def example_complete_workflow():
 
     # 2. Create scheduled run
     run_id = await state_manager.create_scheduled_run(
-        tenant_id="demo_customer",
+        org_slug="demo_customer",
         config_id="daily_analytics",
         scheduled_time=next_run
     )
@@ -313,7 +313,7 @@ async def example_complete_workflow():
         "parameters": {"date": "2025-11-17"}
     }
     queue_id = await queue_manager.enqueue(
-        tenant_id="demo_customer",
+        org_slug="demo_customer",
         config=config,
         priority=5
     )
@@ -359,7 +359,7 @@ async def main():
         await example_schedule_calculation()
         # await example_retry_logic()
         # await example_yet_to_run_pipelines()
-        # await example_customer_status()
+        # await example_org_status()
         # await example_complete_workflow()
 
         print("\n" + "=" * 60)
