@@ -618,12 +618,13 @@ async def metrics():
 # API Routers
 # ============================================
 
-from src.app.routers import pipelines, admin, organizations, scheduler
+from src.app.routers import pipelines, admin, organizations, scheduler, integrations
 
 app.include_router(pipelines.router, prefix="/api/v1", tags=["Pipelines"])
 app.include_router(admin.router, prefix="/api/v1", tags=["Admin"])
 app.include_router(organizations.router, prefix="/api/v1", tags=["Organizations"])
 app.include_router(scheduler.router, prefix="/api/v1", tags=["Scheduler"])
+app.include_router(integrations.router, prefix="/api/v1", tags=["Integrations"])
 
 
 if __name__ == "__main__":

@@ -1,0 +1,26 @@
+# Anthropic Integration Validation Pipeline
+# Re-validates existing Anthropic (Claude) API key
+
+pipeline_id: "{org_slug}-anthropic-auth-validate"
+name: "Anthropic Integration Validation"
+description: "Re-validates stored Anthropic API key"
+version: "1.0.0"
+
+variables:
+  org_slug: "{org_slug}"
+  provider: "ANTHROPIC"
+
+steps:
+  - step_id: "validate_anthropic_credential"
+    ps_type: "anthropic.validation"
+    description: "Validate Anthropic API key connectivity"
+
+requires_auth: true
+auth_type: "org_api_key"
+
+tags:
+  - integrations
+  - anthropic
+  - claude
+  - validation
+category: "integrations"

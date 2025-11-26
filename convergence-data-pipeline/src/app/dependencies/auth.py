@@ -9,6 +9,7 @@ import hashlib
 import json
 import os
 import asyncio
+from dataclasses import dataclass
 from typing import Optional, Dict, Any, Set
 from pathlib import Path
 from datetime import datetime, date
@@ -1207,3 +1208,99 @@ async def verify_admin_key(
         )
 
     logger.info("Admin authentication successful")
+
+
+@dataclass
+class AuthResult:
+    """Result of authentication check - either org key or admin key."""
+    is_admin: bool
+    org_slug: Optional[str] = None  # Set when authenticated via org API key
+    org_data: Optional[Dict[str, Any]] = None  # Full org data when authenticated via org key
+
+
+async def get_org_or_admin_auth(
+    x_api_key: Optional[str] = Header(None, description="Organization API Key"),
+    x_admin_key: Optional[str] = Header(None, description="Admin API Key"),
+    bq_client: BigQueryClient = Depends(get_bigquery_client),
+) -> AuthResult:
+    """
+    FastAPI dependency that accepts EITHER an org API key OR admin API key.
+
+    Use this for endpoints that can be called by:
+    - Organization users (self-service) using their org API key
+    - Platform admins using the admin API key
+
+    Returns:
+        AuthResult with is_admin=True if admin key used, or org data if org key used
+
+    Raises:
+        HTTPException: If neither key is valid or both are missing
+    """
+    # Check if auth is disabled (dev mode)
+    if settings.disable_auth:
+        logger.warning("Authentication disabled - allowing access")
+        return AuthResult(is_admin=True, org_slug=None)
+
+    # Try admin key first (if provided)
+    if x_admin_key:
+        if settings.admin_api_key and x_admin_key == settings.admin_api_key:
+            logger.info("Admin authentication successful for org/admin endpoint")
+            return AuthResult(is_admin=True, org_slug=None)
+        else:
+            logger.warning("Invalid admin API key provided")
+            # Don't fail yet - maybe they also provided a valid org key
+
+    # Try org API key
+    if x_api_key:
+        try:
+            # Validate org API key using direct BigQuery query (same logic as get_current_org)
+            org_api_key_hash = hash_api_key(x_api_key)
+
+            query = f"""
+            SELECT
+                k.org_api_key_id,
+                k.org_slug,
+                k.is_active as key_active,
+                p.company_name,
+                p.admin_email,
+                p.status as org_status
+            FROM `{settings.gcp_project_id}.organizations.org_api_keys` k
+            INNER JOIN `{settings.gcp_project_id}.organizations.org_profiles` p
+                ON k.org_slug = p.org_slug
+            WHERE k.org_api_key_hash = @org_api_key_hash
+                AND k.is_active = TRUE
+                AND p.status = 'ACTIVE'
+            LIMIT 1
+            """
+
+            results = list(bq_client.query(
+                query,
+                parameters=[
+                    bigquery.ScalarQueryParameter("org_api_key_hash", "STRING", org_api_key_hash)
+                ]
+            ))
+
+            if results:
+                row = results[0]
+                logger.info(f"Org API key authentication successful for org: {row['org_slug']}")
+                return AuthResult(
+                    is_admin=False,
+                    org_slug=row["org_slug"],
+                    org_data={
+                        "org_slug": row["org_slug"],
+                        "company_name": row["company_name"],
+                        "admin_email": row["admin_email"],
+                        "status": row["org_status"],
+                        "org_api_key_id": row["org_api_key_id"],
+                    }
+                )
+        except Exception as e:
+            logger.warning(f"Org API key validation error: {e}")
+            # Org key validation failed - fall through to error
+
+    # Neither key worked
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Valid X-API-Key (org) or X-Admin-Key (admin) header required",
+        headers={"WWW-Authenticate": "ApiKey or AdminKey"},
+    )

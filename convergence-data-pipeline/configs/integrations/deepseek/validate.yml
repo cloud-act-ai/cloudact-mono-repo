@@ -1,0 +1,34 @@
+# DeepSeek Integration Validation Pipeline
+
+pipeline_id: "{org_slug}-integrations-deepseek-validate"
+name: "DeepSeek Integration Validation"
+description: "Re-validates stored DeepSeek API key"
+version: "1.0.0"
+
+variables:
+  org_slug: "{org_slug}"
+  provider: "DEEPSEEK"
+
+steps:
+  - step_id: "decrypt_deepseek_credential"
+    ps_type: "integrations.kms_decrypt"
+    description: "Decrypt DeepSeek API key from storage"
+    config:
+      provider: "DEEPSEEK"
+      require_valid: false
+      context_key: "deepseek_api_key"
+
+  - step_id: "validate_deepseek_credential"
+    ps_type: "integrations.validate_deepseek"
+    description: "Validate DeepSeek API key connectivity"
+    depends_on:
+      - "decrypt_deepseek_credential"
+
+requires_auth: true
+auth_type: "org_api_key"
+
+tags:
+  - integrations
+  - deepseek
+  - validation
+category: "integrations"

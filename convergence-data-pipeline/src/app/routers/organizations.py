@@ -21,6 +21,7 @@ from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
 from src.core.security.kms_encryption import encrypt_value
 from src.core.pipeline import AsyncPipelineExecutor
 from src.app.config import settings
+from src.app.dependencies.auth import get_current_org, get_org_or_admin_auth, AuthResult
 from google.cloud import bigquery
 import uuid
 
@@ -629,3 +630,278 @@ async def onboard_org(
         dryrun_status=dryrun_status,
         message=f"Organization {request.company_name} onboarded successfully. API key generated. {dryrun_message}"
     )
+
+
+# ============================================
+# API Key Rotation Endpoint
+# ============================================
+
+class RotateApiKeyResponse(BaseModel):
+    """Response for API key rotation."""
+    org_slug: str
+    api_key: str  # New API key - show once!
+    api_key_fingerprint: str  # Last 4 chars for display
+    previous_key_revoked: bool
+    message: str
+
+
+@router.post(
+    "/organizations/{org_slug}/api-key/rotate",
+    response_model=RotateApiKeyResponse,
+    summary="Rotate organization API key",
+    description="Generate a new API key and revoke the old one. Accepts either Organization API Key (self-service) or Admin API Key."
+)
+async def rotate_api_key(
+    org_slug: str,
+    auth: AuthResult = Depends(get_org_or_admin_auth),
+    bq_client: BigQueryClient = Depends(get_bigquery_client)
+):
+    """
+    Rotate the API key for an organization.
+
+    This endpoint accepts EITHER:
+    - Organization API Key (X-API-Key header) - self-service rotation
+    - Admin API Key (X-Admin-Key header) - admin can rotate any org's key
+
+    Flow:
+    1. Validates authentication (org key must match org_slug, or admin key)
+    2. Generates a new secure API key
+    3. Revokes all existing API keys for the organization
+    4. Stores the new API key (encrypted with KMS)
+    5. Returns the new API key (shown ONCE - save immediately!)
+    """
+    # Security check: if using org key, must match the org in URL
+    if not auth.is_admin and auth.org_slug != org_slug:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Cannot rotate API key for another organization"
+        )
+
+    logger.info(f"Starting API key rotation for organization: {org_slug}")
+
+    # ============================================
+    # STEP 1: Validate organization exists and is active
+    # ============================================
+    try:
+        check_org_query = f"""
+        SELECT org_slug, status, company_name
+        FROM `{settings.gcp_project_id}.organizations.org_profiles`
+        WHERE org_slug = @org_slug
+        LIMIT 1
+        """
+
+        check_result = list(bq_client.client.query(
+            check_org_query,
+            job_config=bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
+                ]
+            )
+        ).result())
+
+        if not check_result:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Organization '{org_slug}' not found"
+            )
+
+        org_status = check_result[0]["status"]
+        if org_status != "ACTIVE":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Organization '{org_slug}' is not active (status: {org_status})"
+            )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error checking organization: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to validate organization: {str(e)}"
+        )
+
+    # ============================================
+    # STEP 2: Revoke existing API keys
+    # ============================================
+    try:
+        revoke_query = f"""
+        UPDATE `{settings.gcp_project_id}.organizations.org_api_keys`
+        SET is_active = FALSE
+        WHERE org_slug = @org_slug AND is_active = TRUE
+        """
+
+        bq_client.client.query(
+            revoke_query,
+            job_config=bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
+                ]
+            )
+        ).result()
+
+        logger.info(f"Revoked existing API keys for organization: {org_slug}")
+
+    except Exception as e:
+        logger.error(f"Failed to revoke existing API keys: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to revoke existing API keys: {str(e)}"
+        )
+
+    # ============================================
+    # STEP 3: Generate and store new API key
+    # ============================================
+    try:
+        # Generate secure API key with format: {org_slug}_api_{random_16_chars}
+        random_suffix = secrets.token_urlsafe(16)[:16]
+        api_key = f"{org_slug}_api_{random_suffix}"
+        api_key_fingerprint = api_key[-4:]
+
+        # Hash API key with SHA256 for lookup
+        org_api_key_hash = hashlib.sha256(api_key.encode()).hexdigest()
+
+        # Encrypt API key using KMS
+        try:
+            encrypted_org_api_key_bytes = encrypt_value(api_key)
+            logger.info(f"New API key encrypted successfully using KMS for organization: {org_slug}")
+        except Exception as kms_error:
+            logger.error(f"KMS encryption failed for organization {org_slug}: {kms_error}", exc_info=True)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"KMS encryption is required but failed: {str(kms_error)}"
+            )
+
+        org_api_key_id = str(uuid.uuid4())
+
+        # Store new API key
+        insert_api_key_query = f"""
+        INSERT INTO `{settings.gcp_project_id}.organizations.org_api_keys`
+        (org_api_key_id, org_slug, org_api_key_hash, encrypted_org_api_key, scopes, is_active, created_at)
+        VALUES
+        (@org_api_key_id, @org_slug, @org_api_key_hash, @encrypted_org_api_key, @scopes, TRUE, CURRENT_TIMESTAMP())
+        """
+
+        bq_client.client.query(
+            insert_api_key_query,
+            job_config=bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("org_api_key_id", "STRING", org_api_key_id),
+                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                    bigquery.ScalarQueryParameter("org_api_key_hash", "STRING", org_api_key_hash),
+                    bigquery.ScalarQueryParameter("encrypted_org_api_key", "BYTES", encrypted_org_api_key_bytes),
+                    bigquery.ArrayQueryParameter("scopes", "STRING", ["pipelines:read", "pipelines:write", "pipelines:execute"])
+                ]
+            )
+        ).result()
+
+        logger.info(
+            f"New API key created successfully",
+            extra={
+                "event_type": "api_key_rotated",
+                "org_slug": org_slug,
+                "org_api_key_id": org_api_key_id,
+                "fingerprint": api_key_fingerprint
+            }
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to generate/store new API key: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate new API key: {str(e)}"
+        )
+
+    return RotateApiKeyResponse(
+        org_slug=org_slug,
+        api_key=api_key,  # SAVE THIS - shown only once!
+        api_key_fingerprint=api_key_fingerprint,
+        previous_key_revoked=True,
+        message=f"API key rotated successfully for organization '{org_slug}'. Save the new key - it won't be shown again!"
+    )
+
+
+# ============================================
+# Get API Key Info Endpoint (fingerprint only)
+# ============================================
+
+class ApiKeyInfoResponse(BaseModel):
+    """Response for API key info."""
+    org_slug: str
+    api_key_fingerprint: str  # Last 4 chars
+    is_active: bool
+    created_at: str
+    scopes: List[str]
+
+
+@router.get(
+    "/organizations/{org_slug}/api-key",
+    response_model=ApiKeyInfoResponse,
+    summary="Get API key info (fingerprint only)",
+    description="Get information about the organization's active API key without revealing the full key"
+)
+async def get_api_key_info(
+    org_slug: str,
+    bq_client: BigQueryClient = Depends(get_bigquery_client)
+):
+    """
+    Get information about the organization's active API key.
+
+    Returns fingerprint (last 4 chars), creation date, and scopes.
+    Does NOT return the full API key - that's only shown once during creation/rotation.
+    """
+    logger.info(f"Getting API key info for organization: {org_slug}")
+
+    try:
+        query = f"""
+        SELECT
+            org_slug,
+            org_api_key_hash,
+            is_active,
+            scopes,
+            created_at
+        FROM `{settings.gcp_project_id}.organizations.org_api_keys`
+        WHERE org_slug = @org_slug AND is_active = TRUE
+        ORDER BY created_at DESC
+        LIMIT 1
+        """
+
+        result = list(bq_client.client.query(
+            query,
+            job_config=bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
+                ]
+            )
+        ).result())
+
+        if not result:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"No active API key found for organization '{org_slug}'"
+            )
+
+        row = result[0]
+
+        # Fingerprint: Use last 4 chars of the hash (not the actual key)
+        # This is safe since we can't reveal the actual key
+        api_key_fingerprint = row["org_api_key_hash"][-4:]
+
+        return ApiKeyInfoResponse(
+            org_slug=row["org_slug"],
+            api_key_fingerprint=api_key_fingerprint,
+            is_active=row["is_active"],
+            created_at=row["created_at"].isoformat() if row["created_at"] else "",
+            scopes=row["scopes"] or []
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get API key info: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get API key info: {str(e)}"
+        )

@@ -1,0 +1,25 @@
+# DeepSeek Integration Validation Pipeline
+# Re-validates existing DeepSeek API key
+
+pipeline_id: "{org_slug}-deepseek-auth-validate"
+name: "DeepSeek Integration Validation"
+description: "Re-validates stored DeepSeek API key"
+version: "1.0.0"
+
+variables:
+  org_slug: "{org_slug}"
+  provider: "DEEPSEEK"
+
+steps:
+  - step_id: "validate_deepseek_credential"
+    ps_type: "deepseek.validation"
+    description: "Validate DeepSeek API key connectivity"
+
+requires_auth: true
+auth_type: "org_api_key"
+
+tags:
+  - integrations
+  - deepseek
+  - validation
+category: "integrations"

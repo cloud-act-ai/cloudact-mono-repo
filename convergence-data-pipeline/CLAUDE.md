@@ -1,5 +1,7 @@
 # CLAUDE.md - Convergence Data Pipeline
 
+**Full Platform Architecture:** `../../ARCHITECTURE.md`
+
 ## Core Principle
 
 **Everything is a Pipeline** - No raw SQL, no Alembic, no direct DDL.
@@ -9,6 +11,30 @@ API Request → configs/ → Processor → BigQuery API
 ```
 
 **Single Source of Truth:** All configs, schemas, and pipeline definitions live in `configs/`
+
+---
+
+## Quick Reference: Frontend ↔ Backend Flow
+
+```
+Frontend (Supabase)                    Backend (BigQuery)
+─────────────────                      ──────────────────
+1. User signup
+2. Org created in Supabase
+3. Stripe subscription
+                    ────────────────►
+4. Call /organizations/onboard         5. Create dataset + API key
+                    ◄────────────────
+6. Save fingerprint to Supabase        (returns api_key - shown once!)
+                    ────────────────►
+7. User adds credentials               8. Validate → KMS encrypt → Store
+   (via integration pages)
+                    ◄────────────────
+9. Save status to Supabase columns     (returns validation_status)
+
+                                       10. Daily scheduler runs pipelines
+                                       11. User can trigger ad-hoc runs
+```
 
 ---
 
@@ -92,6 +118,161 @@ API Request → configs/ → Processor → BigQuery API
          │                                       │    Header: X-API-Key
          │                                       │
          ▼                                       ▼
+```
+
+---
+
+## MUST FOLLOW: Complete Customer Lifecycle (Frontend → Backend)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    COMPLETE CUSTOMER LIFECYCLE                              │
+│                    Frontend (Supabase) ↔ Backend (BigQuery)                 │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │ PHASE 1: USER SIGNUP & ORG CREATION (Frontend Only)                 │    │
+│  ├─────────────────────────────────────────────────────────────────────┤    │
+│  │ 1. User signs up via Supabase Auth                                  │    │
+│  │ 2. User creates organization in Supabase                            │    │
+│  │ 3. User subscribes to plan via Stripe                               │    │
+│  │ ↓                                                                   │    │
+│  │ Supabase stores: org_slug, user_id, subscription status             │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │ PHASE 2: BACKEND ONBOARDING (One-time per org)                      │    │
+│  ├─────────────────────────────────────────────────────────────────────┤    │
+│  │ Frontend calls: POST /api/v1/organizations/onboard                  │    │
+│  │ Backend creates:                                                    │    │
+│  │   - org_profile in BigQuery                                         │    │
+│  │   - org_api_key (hashed + KMS encrypted)                            │    │
+│  │   - org_subscription record                                         │    │
+│  │   - Customer dataset: {org_slug}_{env}                              │    │
+│  │                                                                     │    │
+│  │ Returns: { api_key: "org_xxx_api_xxxxxxxx" } ← SHOWN ONCE!          │    │
+│  │                                                                     │    │
+│  │ Frontend saves to Supabase:                                         │    │
+│  │   - backend_onboarded: true                                         │    │
+│  │   - backend_api_key_fingerprint: "xxxx" (last 4 chars for display)  │    │
+│  │   - backend_onboarded_at: timestamp                                 │    │
+│  │   ❌ NEVER stores actual API key                                    │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │ PHASE 3: INTEGRATIONS SETUP (User provides credentials)             │    │
+│  ├─────────────────────────────────────────────────────────────────────┤    │
+│  │ User adds LLM/Cloud provider credentials via frontend UI            │    │
+│  │ Frontend calls backend with Org API Key:                            │    │
+│  │                                                                     │    │
+│  │   POST /organizations/{org}/integrations/openai                     │    │
+│  │   POST /organizations/{org}/integrations/anthropic                  │    │
+│  │   POST /organizations/{org}/integrations/deepseek                   │    │
+│  │   POST /organizations/{org}/integrations/gcp_service_account        │    │
+│  │                                                                     │    │
+│  │ Backend for each:                                                   │    │
+│  │   1. Validates credential (calls provider API)                      │    │
+│  │   2. KMS encrypts credential                                        │    │
+│  │   3. Stores in org_integration_credentials (BigQuery)               │    │
+│  │   4. Returns: { success: true, validation_status: "VALID" }         │    │
+│  │                                                                     │    │
+│  │ Frontend saves to Supabase (reference only):                        │    │
+│  │   - integration_{provider}_status: "VALID"                          │    │
+│  │   - integration_{provider}_configured_at: timestamp                 │    │
+│  │   ❌ NEVER stores actual credentials                                │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │ PHASE 4: PIPELINE EXECUTION (Data Processing)                       │    │
+│  ├─────────────────────────────────────────────────────────────────────┤    │
+│  │                                                                     │    │
+│  │ TWO MODES:                                                          │    │
+│  │                                                                     │    │
+│  │ A) SCHEDULED (Daily Automatic) - Offline batch processing           │    │
+│  │    - Runs daily via Cloud Scheduler / cron                          │    │
+│  │    - Processes all orgs with valid integrations                     │    │
+│  │    - No user intervention needed                                    │    │
+│  │                                                                     │    │
+│  │ B) AD-HOC (User Triggered) - On-demand                              │    │
+│  │    - User clicks "Run Now" in frontend                              │    │
+│  │    - Frontend calls: POST /pipelines/run/{org}/{provider}/{domain}  │    │
+│  │    - Useful for: backfills, immediate data refresh, testing         │    │
+│  │                                                                     │    │
+│  │ Pipeline Flow:                                                      │    │
+│  │   1. Decrypt stored credentials from BigQuery                       │    │
+│  │   2. Fetch data from provider (GCP billing, LLM usage, etc.)        │    │
+│  │   3. Transform and load into org's dataset                          │    │
+│  │   4. Log execution to org_meta_pipeline_runs                        │    │
+│  │                                                                     │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Data Storage Split
+
+| Data Type | Stored In | Why |
+|-----------|-----------|-----|
+| User accounts, auth | Supabase | Auth system |
+| Org metadata (name, slug) | Supabase | Frontend queries |
+| Subscription/billing | Supabase + Stripe | Billing system |
+| Integration status reference | Supabase | Fast frontend reads |
+| Org API Key | BigQuery (hashed + KMS) | Security |
+| Provider credentials | BigQuery (KMS encrypted) | Security |
+| Pipeline data (billing, usage) | BigQuery | Analytics |
+| Execution logs | BigQuery | Audit trail |
+
+### Integration API Endpoints
+
+| Method | Endpoint | Auth | Purpose |
+|--------|----------|------|---------|
+| POST | `/organizations/{org}/integrations/openai` | Org Key | Setup OpenAI API key |
+| POST | `/organizations/{org}/integrations/claude` | Org Key | Setup Claude API key |
+| POST | `/organizations/{org}/integrations/deepseek` | Org Key | Setup DeepSeek API key |
+| POST | `/organizations/{org}/integrations/gcp_service_account` | Org Key | Setup GCP SA JSON |
+| GET | `/organizations/{org}/integrations` | Org Key | Get all integration statuses |
+| POST | `/organizations/{org}/integrations/{provider}/validate` | Org Key | Re-validate credential |
+| DELETE | `/organizations/{org}/integrations/{provider}` | Org Key | Remove integration |
+
+### Example: bfnd_23423 Complete Flow
+
+```bash
+# Step 1: Admin onboards organization
+curl -X POST $BASE_URL/api/v1/organizations/onboard \
+  -H "X-Admin-Key: $ADMIN_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"org_slug": "bfnd_23423", "company_name": "BFND Inc", "admin_email": "admin@bfnd.com"}'
+
+# Response: {"api_key": "bfnd_23423_api_xxxxxxxxxxxxxxxx", "org_slug": "bfnd_23423", ...}
+# SAVE THIS API KEY!
+
+export ORG_API_KEY="bfnd_23423_api_xxxxxxxxxxxxxxxx"
+
+# Step 2: Customer configures OpenAI integration
+curl -X POST $BASE_URL/api/v1/organizations/bfnd_23423/integrations/openai \
+  -H "X-API-Key: $ORG_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"credential": "sk-...", "credential_name": "Production Key"}'
+
+# Response: {"success": true, "validation_status": "VALID", ...}
+
+# Step 3: Customer configures GCP Service Account
+curl -X POST $BASE_URL/api/v1/organizations/bfnd_23423/integrations/gcp_service_account \
+  -H "X-API-Key: $ORG_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"credential": "{\"type\":\"service_account\",\"project_id\":\"my-project\",...}"}'
+
+# Step 4: Check all integration statuses
+curl $BASE_URL/api/v1/organizations/bfnd_23423/integrations \
+  -H "X-API-Key: $ORG_API_KEY"
+
+# Response: {"integrations": {"OPENAI": {"status": "VALID"}, "GCP_SA": {"status": "VALID"}, ...}}
+
+# Step 5: Run cost billing pipeline
+curl -X POST $BASE_URL/api/v1/pipelines/run/bfnd_23423/gcp/cost/cost_billing \
+  -H "X-API-Key: $ORG_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"date": "2025-11-25"}'
 ```
 
 ---
@@ -264,10 +445,12 @@ configs/                                    # SINGLE SOURCE OF TRUTH
 
 | Type | Config | Processor | Auth | Purpose |
 |------|--------|-----------|------|---------|
-| Bootstrap | `configs/setup/bootstrap/pipeline.yml` | `setup.initial.onetime_bootstrap` | Admin | Create central dataset + 11 tables |
+| Bootstrap | `configs/setup/bootstrap/pipeline.yml` | `setup.initial.onetime_bootstrap` | Admin | Create central dataset + 12 tables |
 | Dry-run | `configs/setup/organizations/dryrun/pipeline.yml` | `setup.organizations.dryrun` | Admin | Validate before onboarding |
 | Onboarding | `configs/setup/organizations/onboarding/pipeline.yml` | `setup.organizations.onboarding` | Admin | Create org + API key + dataset |
 | Cost Billing | `configs/gcp/cost/cost_billing.yml` | `gcp.bq_etl` | Org Key | Extract GCP billing data |
+| **Integration Setup** | `configs/integrations/{provider}/setup.yml` | `integrations.kms_store` | Org Key | Store encrypted credentials |
+| **Integration Validate** | `configs/integrations/{provider}/validate.yml` | `integrations.kms_decrypt` + `integrations.validate_*` | Org Key | Re-validate credentials |
 | Email Notify | (step in pipeline) | `notify_systems.email_notification` | - | Send pipeline notifications |
 
 ---
@@ -327,6 +510,13 @@ src/core/processors/
 │       └── dryrun.py                         # Pre-onboard validation
 ├── gcp/
 │   └── bq_etl.py                             # BigQuery ETL (extract/load)
+├── integrations/                             # ⭐ NEW: Integration processors
+│   ├── kms_store.py                          # Encrypt & store credentials
+│   ├── kms_decrypt.py                        # Decrypt credentials for use
+│   ├── validate_openai.py                    # Validate OpenAI API key
+│   ├── validate_claude.py                    # Validate Claude/Anthropic key
+│   ├── validate_deepseek.py                  # Validate DeepSeek key
+│   └── validate_gcp.py                       # Validate GCP Service Account
 ├── notify_systems/
 │   └── email_notification.py                 # Email notifications
 └── aws/
@@ -471,17 +661,18 @@ class EmailNotificationEngine:
 
 ```
 Central: organizations
-├── org_profiles              # Organization metadata
-├── org_api_keys              # API keys (SHA256 hash + KMS encrypted)
-├── org_subscriptions         # Subscription tiers (STARTER, PROFESSIONAL, SCALE)
-├── org_usage_quotas          # Usage limits per org
-├── org_cloud_credentials     # Cloud provider credentials (KMS encrypted)
-├── org_pipeline_configs      # Pipeline configurations
+├── org_profiles                    # Organization metadata
+├── org_api_keys                    # API keys (SHA256 hash + KMS encrypted)
+├── org_subscriptions               # Subscription tiers (STARTER, PROFESSIONAL, SCALE)
+├── org_usage_quotas                # Usage limits per org
+├── org_cloud_credentials           # Cloud provider credentials (KMS encrypted)
+├── org_integration_credentials     # ⭐ NEW: LLM & cloud integration credentials (KMS encrypted)
+├── org_pipeline_configs            # Pipeline configurations
 ├── org_scheduled_pipeline_runs
 ├── org_pipeline_execution_queue
-├── org_meta_pipeline_runs    # Execution logs
-├── org_meta_step_logs        # Step-level logs
-└── org_meta_dq_results       # Data quality results
+├── org_meta_pipeline_runs          # Execution logs
+├── org_meta_step_logs              # Step-level logs
+└── org_meta_dq_results             # Data quality results
 
 Per-Organization: {org_slug}_{env}
 └── billing_cost_daily, etc.  # Data tables only
@@ -499,6 +690,7 @@ convergence-data-pipeline/
 │   ├── routers/
 │   │   ├── admin.py                   # POST /api/v1/admin/bootstrap
 │   │   ├── organizations.py           # POST /api/v1/organizations/onboard, /dryrun
+│   │   ├── integrations.py            # ⭐ NEW: Integration management endpoints
 │   │   └── pipelines.py               # POST /api/v1/pipelines/run/...
 │   └── dependencies/
 │       └── auth.py                    # verify_admin_key(), get_current_org()
@@ -506,12 +698,21 @@ convergence-data-pipeline/
 │   ├── setup/initial/                 #    Bootstrap processor
 │   ├── setup/organizations/           #    Onboarding + dryrun processors
 │   ├── gcp/bq_etl.py                  #    BigQuery ETL engine
+│   ├── integrations/                  # ⭐ NEW: Integration processors
+│   │   ├── kms_store.py               #    Encrypt & store credentials
+│   │   ├── kms_decrypt.py             #    Decrypt credentials
+│   │   └── validate_*.py              #    Provider-specific validators
 │   └── notify_systems/                #    Email notification engine
 └── configs/                           # ⭐ SINGLE SOURCE OF TRUTH
-    ├── setup/bootstrap/               #    Bootstrap pipeline + schemas
+    ├── setup/bootstrap/               #    Bootstrap pipeline + schemas (12 tables)
     ├── setup/organizations/           #    Onboarding + dryrun pipelines
     ├── gcp/cost/                      #    GCP cost pipelines
-    └── gcp/bq_etl/                    #    BQ ETL schema templates
+    ├── gcp/bq_etl/                    #    BQ ETL schema templates
+    └── integrations/                  # ⭐ NEW: Integration pipelines
+        ├── openai/                    #    OpenAI setup & validate
+        ├── claude/                    #    Claude/Anthropic setup & validate
+        ├── deepseek/                  #    DeepSeek setup & validate
+        └── gcp_sa/                    #    GCP Service Account setup & validate
 ```
 
 ---

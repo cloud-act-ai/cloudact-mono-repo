@@ -1,0 +1,37 @@
+# GCP Service Account Integration Validation Pipeline
+
+pipeline_id: "{org_slug}-integrations-gcp-sa-validate"
+name: "GCP Service Account Validation"
+description: "Re-validates stored GCP Service Account"
+version: "1.0.0"
+
+variables:
+  org_slug: "{org_slug}"
+  provider: "GCP_SA"
+
+steps:
+  - step_id: "decrypt_gcp_credential"
+    ps_type: "integrations.kms_decrypt"
+    description: "Decrypt GCP Service Account from storage"
+    config:
+      provider: "GCP_SA"
+      require_valid: false
+      context_key: "gcp_sa_json"
+
+  - step_id: "validate_gcp_credential"
+    ps_type: "integrations.validate_gcp"
+    description: "Validate GCP Service Account connectivity"
+    config:
+      check_bigquery: true
+      check_billing: false
+    depends_on:
+      - "decrypt_gcp_credential"
+
+requires_auth: true
+auth_type: "org_api_key"
+
+tags:
+  - integrations
+  - gcp
+  - validation
+category: "integrations"

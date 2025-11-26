@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     """
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=(".env", ".env.local"),
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore"
@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     # ============================================
     # GCP Configuration
     # ============================================
-    gcp_project_id: str = Field(..., description="Google Cloud Project ID")
+    gcp_project_id: str = Field(default="local-dev-project", description="Google Cloud Project ID")
     bigquery_location: str = Field(default="US", description="BigQuery dataset location")
     google_application_credentials: Optional[str] = Field(
         default=None,

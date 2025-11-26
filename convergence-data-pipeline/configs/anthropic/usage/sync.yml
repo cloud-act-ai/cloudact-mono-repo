@@ -1,0 +1,31 @@
+# Anthropic Usage Sync Pipeline
+# Fetches usage data from Anthropic and stores in BigQuery
+
+pipeline_id: "{org_slug}-anthropic-usage-sync"
+name: "Anthropic Usage Sync"
+description: "Fetches Anthropic API usage data and stores in BigQuery"
+version: "1.0.0"
+
+variables:
+  org_slug: "{org_slug}"
+  provider: "ANTHROPIC"
+
+steps:
+  - step_id: "fetch_anthropic_usage"
+    ps_type: "anthropic.usage"
+    description: "Fetch usage data from Anthropic API"
+    config:
+      start_date: "{start_date}"  # Optional: defaults to yesterday
+      end_date: "{end_date}"      # Optional: defaults to today
+      store_to_bq: true
+
+requires_auth: true
+auth_type: "org_api_key"
+
+tags:
+  - usage
+  - anthropic
+  - claude
+  - llm
+  - billing
+category: "usage"

@@ -1,0 +1,35 @@
+# OpenAI Integration Validation Pipeline
+# Re-validates existing OpenAI API key
+
+pipeline_id: "{org_slug}-integrations-openai-validate"
+name: "OpenAI Integration Validation"
+description: "Re-validates stored OpenAI API key"
+version: "1.0.0"
+
+variables:
+  org_slug: "{org_slug}"
+  provider: "OPENAI"
+
+steps:
+  - step_id: "decrypt_openai_credential"
+    ps_type: "integrations.kms_decrypt"
+    description: "Decrypt OpenAI API key from storage"
+    config:
+      provider: "OPENAI"
+      require_valid: false  # Allow revalidation of invalid keys
+      context_key: "openai_api_key"
+
+  - step_id: "validate_openai_credential"
+    ps_type: "integrations.validate_openai"
+    description: "Validate OpenAI API key connectivity"
+    depends_on:
+      - "decrypt_openai_credential"
+
+requires_auth: true
+auth_type: "org_api_key"
+
+tags:
+  - integrations
+  - openai
+  - validation
+category: "integrations"

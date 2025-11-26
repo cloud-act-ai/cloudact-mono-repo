@@ -1,0 +1,34 @@
+# Claude/Anthropic Integration Validation Pipeline
+
+pipeline_id: "{org_slug}-integrations-claude-validate"
+name: "Claude Integration Validation"
+description: "Re-validates stored Claude API key"
+version: "1.0.0"
+
+variables:
+  org_slug: "{org_slug}"
+  provider: "CLAUDE"
+
+steps:
+  - step_id: "decrypt_claude_credential"
+    ps_type: "integrations.kms_decrypt"
+    description: "Decrypt Claude API key from storage"
+    config:
+      provider: "CLAUDE"
+      require_valid: false
+      context_key: "claude_api_key"
+
+  - step_id: "validate_claude_credential"
+    ps_type: "integrations.validate_claude"
+    description: "Validate Claude API key connectivity"
+    depends_on:
+      - "decrypt_claude_credential"
+
+requires_auth: true
+auth_type: "org_api_key"
+
+tags:
+  - integrations
+  - claude
+  - validation
+category: "integrations"

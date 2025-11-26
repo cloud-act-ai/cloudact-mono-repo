@@ -1,6 +1,15 @@
 # GCP Cost Billing Pipeline
 # Extracts billing data from GCP billing export and loads into organization cost dataset
 # Usage: POST /api/v1/pipelines/run/{org_slug}/gcp/cost/cost_billing
+#
+# PREREQUISITES:
+# 1. Organization must have a valid GCP_SA integration configured
+# 2. The GCP Service Account must have BigQuery read access to the billing export table
+#
+# The pipeline will:
+# 1. Decrypt the organization's GCP Service Account credentials
+# 2. Use those credentials to query the billing export table
+# 3. Load the data into the organization's cost dataset
 
 pipeline_id: "{org_slug}-gcp-cost-billing"
 description: "Extract GCP billing costs for organization {org_slug} - date {date}"
@@ -12,8 +21,21 @@ variables:
   destination_dataset_type: "gcp_silver_cost"
   destination_table: "billing_cost_daily"
   admin_email: "admin@example.com"  # Override via API request body
+  use_org_credentials: "false"  # Set to "true" to use org's GCP credentials
 
 steps:
+  # Step 0 (Optional): Decrypt GCP credentials for customer's billing data
+  # Skip this step if use_org_credentials is false
+  - step_id: "decrypt_gcp_credentials"
+    name: "Load Organization GCP Credentials"
+    ps_type: "integrations.kms_decrypt"
+    enabled: "{use_org_credentials}"
+    config:
+      provider: "GCP_SA"
+      require_valid: true
+      context_key: "gcp_sa_json"
+    on_failure: "skip"  # Pipeline can continue with default credentials
+
   # Step 1: Extract billing data from GCP billing export
   - step_id: "extract_billing_costs"
     name: "Extract GCP Billing Costs"

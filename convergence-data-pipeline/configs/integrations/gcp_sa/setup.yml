@@ -1,0 +1,30 @@
+# GCP Service Account Integration Setup Pipeline
+# Validates and stores GCP SA JSON with KMS encryption
+
+pipeline_id: "{org_slug}-integrations-gcp-sa-setup"
+name: "GCP Service Account Setup"
+description: "Validates and stores GCP Service Account JSON encrypted via KMS"
+version: "1.0.0"
+
+variables:
+  org_slug: "{org_slug}"
+  provider: "GCP_SA"
+
+steps:
+  - step_id: "store_gcp_credential"
+    ps_type: "integrations.kms_store"
+    description: "Validate and store GCP Service Account"
+    config:
+      provider: "GCP_SA"
+      skip_validation: false
+      credential_name: "GCP Service Account"
+
+requires_auth: true
+auth_type: "org_api_key"
+
+tags:
+  - integrations
+  - gcp
+  - service_account
+  - cloud
+category: "integrations"

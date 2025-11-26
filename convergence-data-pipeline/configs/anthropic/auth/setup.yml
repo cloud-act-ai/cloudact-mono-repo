@@ -1,0 +1,34 @@
+# Anthropic Integration Setup Pipeline
+# Validates and stores Anthropic (Claude) API key with KMS encryption
+
+pipeline_id: "{org_slug}-anthropic-auth-setup"
+name: "Anthropic Integration Setup"
+description: "Validates and stores Anthropic API key encrypted via KMS"
+version: "1.0.0"
+
+# Variables injected at runtime
+variables:
+  org_slug: "{org_slug}"
+  provider: "ANTHROPIC"
+
+steps:
+  - step_id: "store_anthropic_credential"
+    ps_type: "integrations.kms_store"
+    description: "Validate and store Anthropic API key"
+    config:
+      provider: "ANTHROPIC"
+      skip_validation: false
+      credential_name: "Anthropic API Key"
+    # Context must contain: org_slug, plaintext_credential
+
+# Authentication
+requires_auth: true
+auth_type: "org_api_key"  # Uses X-API-Key header
+
+# Metadata
+tags:
+  - integrations
+  - anthropic
+  - claude
+  - llm
+category: "integrations"

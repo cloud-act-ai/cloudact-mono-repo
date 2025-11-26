@@ -29,6 +29,10 @@ tables:
   org_cloud_credentials:
     description: "Cloud credentials (KMS encrypted)"
 
+  org_integration_credentials:
+    description: "Integration credentials for LLM providers and cloud accounts (KMS encrypted)"
+    clustering: ["org_slug", "provider", "validation_status"]
+
   org_pipeline_configs:
     description: "Pipeline configurations"
 
