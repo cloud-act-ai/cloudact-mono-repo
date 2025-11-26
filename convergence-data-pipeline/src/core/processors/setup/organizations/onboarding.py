@@ -22,8 +22,8 @@ class OrgOnboardingProcessor:
     def __init__(self):
         self.settings = get_settings()
         self.logger = logging.getLogger(__name__)
-        # Path to schema files
-        self.template_dir = Path(__file__).parent.parent.parent.parent.parent.parent / "ps_templates" / "setup" / "organizations" / "onboarding"
+        # Path to configs/setup/organizations/onboarding/
+        self.template_dir = Path(__file__).parent.parent.parent.parent.parent.parent / "configs" / "setup" / "organizations" / "onboarding"
         self.schema_dir = self.template_dir / "schemas"
 
     def _load_schema_file(self, schema_filename: str) -> List[bigquery.SchemaField]:
@@ -357,7 +357,7 @@ class OrgOnboardingProcessor:
         from pathlib import Path
 
         # Navigate to view template
-        view_file = Path(__file__).parent.parent.parent.parent.parent.parent / "ps_templates" / "setup" / "initial" / "views" / "org_comprehensive_view.sql"
+        view_file = Path(__file__).parent.parent.parent.parent.parent.parent / "configs" / "setup" / "bootstrap" / "views" / "org_comprehensive_view.sql"
 
         if not view_file.exists():
             self.logger.warning(f"View SQL file not found: {view_file}")

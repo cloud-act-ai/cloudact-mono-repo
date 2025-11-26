@@ -24,10 +24,10 @@ class OnetimeBootstrapProcessor:
         self.settings = get_settings()
         self.logger = logging.getLogger(__name__)
 
-        # Path to ps_templates/setup/initial/
+        # Path to configs/setup/bootstrap/
         self.template_dir = (
             Path(__file__).parent.parent.parent.parent.parent.parent
-            / "ps_templates" / "setup" / "initial"
+            / "configs" / "setup" / "bootstrap"
         )
 
         self.config = self._load_config()

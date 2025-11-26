@@ -277,7 +277,7 @@ class Settings(BaseSettings):
     system_configs_path: str = Field(default="./configs/system")
     dataset_types_config: str = Field(default="./configs/system/dataset_types.yml")
     metadata_schemas_path: str = Field(
-        default="ps_templates/setup/organizations/onboarding/schemas",
+        default="configs/setup/organizations/onboarding/schemas",
         description="Path to metadata table schema definitions"
     )
 

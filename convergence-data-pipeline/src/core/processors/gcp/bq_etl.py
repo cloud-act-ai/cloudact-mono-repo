@@ -24,8 +24,8 @@ class BigQueryETLEngine:
     def __init__(self):
         self.settings = get_settings()
         self.logger = logging.getLogger(__name__)
-        # Templates are now at project root level, same as configs/
-        self.template_dir = Path(__file__).parent.parent.parent.parent.parent / "ps_templates" / "gcp" / "bq_etl"
+        # Templates now in configs/gcp/bq_etl/
+        self.template_dir = Path(__file__).parent.parent.parent.parent.parent / "configs" / "gcp" / "bq_etl"
         self.schema_templates = self._load_schema_templates()
 
     def _load_schema_templates(self) -> Dict[str, Any]:
