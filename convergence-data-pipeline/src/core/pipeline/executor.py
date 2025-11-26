@@ -1,12 +1,28 @@
 """
-Pipeline Executor
+Pipeline Executor (DEPRECATED - Use AsyncPipelineExecutor)
 Orchestrates multi-step pipelines with data quality validation.
+
+DEPRECATION WARNING:
+This synchronous executor is deprecated. Please use AsyncPipelineExecutor instead.
+AsyncPipelineExecutor provides:
+- True async/await architecture for non-blocking operations
+- Parallel execution of independent pipeline steps
+- DAG-based dependency resolution
+- Better resource utilization and throughput
+- Support for 100+ concurrent pipelines
+
+Migration Guide:
+    OLD: from src.core.pipeline.executor import PipelineExecutor
+    NEW: from src.core.pipeline.async_executor import AsyncPipelineExecutor
+
+    OR: from src.core.pipeline import AsyncPipelineExecutor  # Recommended
 """
 
 import yaml
 import uuid
 import asyncio
 import importlib
+import warnings
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 from pathlib import Path
@@ -38,6 +54,8 @@ class PipelineExecutor:
         """
         Initialize pipeline executor.
 
+        DEPRECATED: Use AsyncPipelineExecutor instead for better performance and scalability.
+
         Args:
             org_slug: Organization identifier
             pipeline_id: Pipeline identifier (matches YAML filename)
@@ -46,6 +64,14 @@ class PipelineExecutor:
             user_id: User UUID from frontend (X-User-ID header)
             org_api_key_id: API key ID used for authentication (for audit trail)
         """
+        # Issue deprecation warning
+        warnings.warn(
+            "PipelineExecutor is deprecated. Use AsyncPipelineExecutor instead for better "
+            "performance, parallel execution, and support for 100+ concurrent pipelines. "
+            "See migration guide in module docstring.",
+            DeprecationWarning,
+            stacklevel=2
+        )
         self.org_slug = org_slug
         self.pipeline_id = pipeline_id
         self.trigger_type = trigger_type

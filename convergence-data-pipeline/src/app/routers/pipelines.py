@@ -14,8 +14,7 @@ import logging
 from src.app.dependencies.auth import verify_api_key, verify_api_key_header, verify_admin_key, OrgContext
 from src.app.dependencies.rate_limit_decorator import rate_limit_by_org
 from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
-from src.core.pipeline.executor import PipelineExecutor
-from src.core.pipeline.async_executor import AsyncPipelineExecutor
+from src.core.pipeline import AsyncPipelineExecutor  # Standardized on AsyncPipelineExecutor
 from src.core.pipeline.template_resolver import resolve_template, get_template_path
 # Removed: ensure_org_metadata - org datasets created during onboarding
 # from src.core.metadata.initializer import ensure_org_metadata
@@ -72,10 +71,12 @@ class TriggerPipelineResponse(BaseModel):
 # ============================================
 
 async def run_async_pipeline_task(executor: AsyncPipelineExecutor, parameters: dict):
-    """Async wrapper function to execute pipeline with proper error handling."""
-    import logging
-    logger = logging.getLogger(__name__)
+    """
+    Execute pipeline in background with proper error handling.
 
+    This is the standardized pipeline execution wrapper.
+    All pipeline executions now use AsyncPipelineExecutor for better performance and scalability.
+    """
     try:
         logger.info(f"Starting background async pipeline execution: {executor.pipeline_logging_id}")
         result = await executor.execute(parameters)
@@ -84,25 +85,6 @@ async def run_async_pipeline_task(executor: AsyncPipelineExecutor, parameters: d
     except Exception as e:
         logger.error(
             f"Async pipeline execution failed: {executor.pipeline_logging_id}",
-            exc_info=True,
-            extra={"error": str(e)}
-        )
-        raise
-
-
-def run_pipeline_task(executor: PipelineExecutor, parameters: dict):
-    """Legacy sync wrapper function (fallback for old executor)."""
-    import logging
-    logger = logging.getLogger(__name__)
-
-    try:
-        logger.info(f"Starting background pipeline execution: {executor.pipeline_logging_id}")
-        result = executor.execute(parameters)
-        logger.info(f"Pipeline execution completed: {executor.pipeline_logging_id}")
-        return result
-    except Exception as e:
-        logger.error(
-            f"Pipeline execution failed: {executor.pipeline_logging_id}",
             exc_info=True,
             extra={"error": str(e)}
         )

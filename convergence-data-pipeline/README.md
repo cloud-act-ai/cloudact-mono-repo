@@ -56,7 +56,13 @@ export GCP_PROJECT_ID="gac-prod-471220"
 export ADMIN_API_KEY="your-secure-admin-key"
 export ENVIRONMENT="production"
 export KMS_KEY_NAME="projects/{project}/locations/{loc}/keyRings/{ring}/cryptoKeys/{key}"
+export ENABLE_API_DOCS="true"  # Enable OpenAPI docs (default: true)
 ```
+
+**API Documentation:**
+- When `ENABLE_API_DOCS=true`: Access Swagger UI at `/docs` and ReDoc at `/redoc`
+- When `ENABLE_API_DOCS=false`: Documentation endpoints are disabled
+- Default: Enabled in all environments (can be disabled for production security)
 
 ### 2. Start Server
 

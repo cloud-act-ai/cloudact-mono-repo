@@ -19,7 +19,7 @@ from pathlib import Path
 
 from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
 from src.core.security.kms_encryption import encrypt_value
-from src.core.pipeline.async_executor import AsyncPipelineExecutor
+from src.core.pipeline import AsyncPipelineExecutor
 from src.app.config import settings
 from google.cloud import bigquery
 import uuid

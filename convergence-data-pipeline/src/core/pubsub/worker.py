@@ -10,7 +10,7 @@ from typing import Dict, Any
 from concurrent.futures import ThreadPoolExecutor
 from google.cloud import pubsub_v1
 from src.app.config import settings
-from src.core.pipeline.async_executor import AsyncPipelineExecutor
+from src.core.pipeline import AsyncPipelineExecutor
 from src.core.utils.logging import get_logger
 
 logger = get_logger(__name__)

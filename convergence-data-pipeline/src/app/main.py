@@ -191,13 +191,107 @@ async def lifespan(app: FastAPI):
     await graceful_shutdown()
 
 
-# Create FastAPI application
+# OpenAPI metadata and tags
+api_description = """
+## Convergence Data Pipeline API
+
+Enterprise-grade data ingestion and pipeline orchestration platform for multi-cloud cost analytics.
+
+### Key Features
+
+* **Pipeline-Based Architecture** - Everything is a pipeline (no raw SQL, no Alembic)
+* **Multi-Organization Support** - Secure tenant isolation with per-org datasets
+* **BigQuery-Powered** - Petabyte-scale data processing with automatic partitioning
+* **Async Execution** - Non-blocking pipeline execution with parallel step processing
+* **KMS Encryption** - Enterprise security with Google Cloud KMS for sensitive data
+* **Rate Limiting** - Per-org and global rate limits to prevent resource exhaustion
+* **Quota Management** - Subscription-based usage limits (STARTER/PROFESSIONAL/SCALE)
+
+### Authentication
+
+Two authentication methods:
+
+1. **Admin API Key** (`X-Admin-Key` header)
+   - Platform-level operations (bootstrap, onboarding)
+   - Set via `ADMIN_API_KEY` environment variable
+
+2. **Organization API Key** (`X-API-Key` header)
+   - Organization-specific operations (run pipelines, view runs)
+   - Generated during organization onboarding
+   - Format: `{org_slug}_api_{random_16_chars}`
+
+### Architecture
+
+```
+API Request → configs/ → Processor → BigQuery API
+```
+
+**Central Dataset**: `organizations` (11 management tables)
+**Per-Org Datasets**: `{org_slug}_{env}` (operational data tables)
+
+### Deployment Environments
+
+* **Stage**: `https://convergence-pipeline-stage-526075321773.us-central1.run.app`
+* **Production**: `https://convergence-pipeline-prod-820784027009.us-central1.run.app`
+"""
+
+# API tags metadata
+tags_metadata = [
+    {
+        "name": "Health",
+        "description": "Health check and readiness probe endpoints for Kubernetes/Cloud Run deployments. No authentication required."
+    },
+    {
+        "name": "Observability",
+        "description": "Prometheus metrics and monitoring endpoints for system observability."
+    },
+    {
+        "name": "Admin",
+        "description": "Platform administration endpoints requiring Admin API Key. Use for system bootstrap, organization management, and API key operations."
+    },
+    {
+        "name": "Organizations",
+        "description": "Organization onboarding and management endpoints. Includes dry-run validation and full onboarding workflows."
+    },
+    {
+        "name": "Pipelines",
+        "description": "Pipeline execution and monitoring endpoints requiring Organization API Key. Supports templated pipelines with variable substitution, async execution, and quota enforcement."
+    },
+    {
+        "name": "Scheduler",
+        "description": "Pipeline scheduling and cron job management endpoints for automated pipeline execution."
+    }
+]
+
+# Create FastAPI application with comprehensive metadata
 app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
-    description="Enterprise data ingestion pipeline for multi-cloud cost data",
-    docs_url="/docs" if not settings.is_production else None,
-    redoc_url="/redoc" if not settings.is_production else None,
+    description=api_description,
+    docs_url="/docs" if settings.enable_api_docs else None,
+    redoc_url="/redoc" if settings.enable_api_docs else None,
+    openapi_tags=tags_metadata,
+    contact={
+        "name": "CloudAct Platform Team",
+        "email": "support@cloudact.io"
+    },
+    license_info={
+        "name": "Proprietary"
+    },
+    servers=[
+        {
+            "url": "https://convergence-pipeline-prod-820784027009.us-central1.run.app",
+            "description": "Production environment"
+        },
+        {
+            "url": "https://convergence-pipeline-stage-526075321773.us-central1.run.app",
+            "description": "Staging environment"
+        },
+        {
+            "url": "http://localhost:8080",
+            "description": "Local development"
+        }
+    ],
     lifespan=lifespan
 )
 
@@ -494,11 +588,14 @@ async def readiness_probe():
 
 @app.get("/", tags=["Health"])
 async def root():
-    """Root endpoint."""
+    """Root endpoint with API information and documentation links."""
     return {
         "message": f"Welcome to {settings.app_name}",
         "version": settings.app_version,
-        "docs": "/docs" if not settings.is_production else "disabled",
+        "environment": settings.environment,
+        "docs": "/docs" if settings.enable_api_docs else "disabled",
+        "redoc": "/redoc" if settings.enable_api_docs else "disabled",
+        "openapi": "/openapi.json" if settings.enable_api_docs else "disabled"
     }
 
 

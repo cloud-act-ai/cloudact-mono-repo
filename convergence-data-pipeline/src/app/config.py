@@ -56,6 +56,10 @@ class Settings(BaseSettings):
     api_port: int = Field(default=8080, ge=1024, le=65535)
     api_workers: int = Field(default=4, ge=1, le=16)
     api_reload: bool = Field(default=False)
+    enable_api_docs: bool = Field(
+        default=True,
+        description="Enable OpenAPI documentation (/docs and /redoc endpoints)"
+    )
 
     # CORS settings
     cors_origins: List[str] = Field(

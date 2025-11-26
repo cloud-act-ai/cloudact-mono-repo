@@ -552,7 +552,7 @@ async def process_queue(
         config = dict(config_results[0])
 
         # Execute pipeline via internal call
-        from src.core.pipeline.async_executor import AsyncPipelineExecutor
+        from src.core.pipeline import AsyncPipelineExecutor
 
         executor = AsyncPipelineExecutor(
             org_slug=org_slug,

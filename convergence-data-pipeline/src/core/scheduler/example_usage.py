@@ -9,7 +9,7 @@ import asyncio
 from datetime import datetime, timedelta
 from google.cloud import bigquery
 
-from src.core.scheduler.state_manager import (
+from src.core.scheduler import (
     PipelineStateManager,
     QueueManager,
     ScheduleCalculator,
