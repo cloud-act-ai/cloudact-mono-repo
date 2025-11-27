@@ -22,6 +22,7 @@ from src.core.security.kms_encryption import encrypt_value
 from src.core.pipeline import AsyncPipelineExecutor
 from src.app.config import settings
 from src.app.dependencies.auth import get_current_org, get_org_or_admin_auth, AuthResult
+from src.app.models.org_models import SUBSCRIPTION_LIMITS, SubscriptionPlan
 from google.cloud import bigquery
 import uuid
 
@@ -58,6 +59,10 @@ class OnboardOrgRequest(BaseModel):
     force_recreate_tables: bool = Field(
         default=False,
         description="If True, delete and recreate all metadata tables (DESTRUCTIVE)"
+    )
+    regenerate_api_key_if_exists: bool = Field(
+        default=False,
+        description="If True and org already exists, regenerate API key instead of returning 409"
     )
 
     @field_validator('org_slug')
@@ -271,14 +276,17 @@ async def onboard_org(
     # Track tables created
     tables_created = []
 
-    # Subscription plan limits
-    PLAN_LIMITS = {
-        "STARTER": {"max_team": 2, "max_providers": 3, "max_daily": 6, "max_concurrent": 3},
-        "PROFESSIONAL": {"max_team": 6, "max_providers": 6, "max_daily": 25, "max_concurrent": 5},
-        "SCALE": {"max_team": 11, "max_providers": 10, "max_daily": 100, "max_concurrent": 10}
-    }
+    # Use centralized subscription limits from org_models.py (single source of truth)
+    plan_enum = SubscriptionPlan(request.subscription_plan)
+    central_limits = SUBSCRIPTION_LIMITS.get(plan_enum, SUBSCRIPTION_LIMITS[SubscriptionPlan.STARTER])
 
-    plan_limits = PLAN_LIMITS.get(request.subscription_plan, PLAN_LIMITS["STARTER"])
+    # Map to expected format for this function
+    plan_limits = {
+        "max_team": central_limits["max_team_members"],
+        "max_providers": central_limits["max_providers"],
+        "max_daily": central_limits["max_pipelines_per_day"],
+        "max_concurrent": central_limits["max_concurrent_pipelines"]
+    }
 
     # Helper function to cleanup partial org data on failure
     async def cleanup_partial_org(org_slug: str, step_failed: str):
@@ -313,6 +321,7 @@ async def onboard_org(
     # ============================================
     # VALIDATION: Check if org already exists
     # ============================================
+    org_already_exists = False
     try:
         check_org_query = f"""
         SELECT org_slug, status
@@ -333,15 +342,195 @@ async def onboard_org(
         if check_result:
             existing_status = check_result[0]["status"]
             logger.warning(f"Organization {org_slug} already exists with status: {existing_status}")
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Organization '{org_slug}' already exists with status '{existing_status}'. Use a different org_slug or contact support to reactivate."
-            )
+
+            # If regenerate_api_key_if_exists is True, skip to API key regeneration
+            if request.regenerate_api_key_if_exists:
+                if existing_status != "ACTIVE":
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Organization '{org_slug}' exists but is not active (status: {existing_status}). Contact support to reactivate."
+                    )
+                org_already_exists = True
+                logger.info(f"Organization {org_slug} exists, regenerating API key as requested")
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"Organization '{org_slug}' already exists with status '{existing_status}'. Use a different org_slug or contact support to reactivate."
+                )
     except HTTPException:
         raise  # Re-raise HTTP exceptions
     except Exception as e:
         logger.error(f"Error checking for existing organization: {e}")
         # Continue if check fails - let database constraint handle it
+
+    # ============================================
+    # FAST PATH: Re-sync existing org (update plan, details, regenerate API key)
+    # ============================================
+    if org_already_exists:
+        logger.info(f"Re-sync path: Updating org details and regenerating API key for: {org_slug}")
+
+        # STEP 1: Update org profile (company name, admin email, subscription plan)
+        try:
+            update_profile_query = f"""
+            UPDATE `{settings.gcp_project_id}.organizations.org_profiles`
+            SET
+                company_name = @company_name,
+                admin_email = @admin_email,
+                subscription_plan = @subscription_plan,
+                updated_at = CURRENT_TIMESTAMP()
+            WHERE org_slug = @org_slug
+            """
+
+            bq_client.client.query(
+                update_profile_query,
+                job_config=bigquery.QueryJobConfig(
+                    query_parameters=[
+                        bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                        bigquery.ScalarQueryParameter("company_name", "STRING", request.company_name),
+                        bigquery.ScalarQueryParameter("admin_email", "STRING", request.admin_email),
+                        bigquery.ScalarQueryParameter("subscription_plan", "STRING", request.subscription_plan)
+                    ]
+                )
+            ).result()
+
+            logger.info(f"Updated org profile for: {org_slug} (plan: {request.subscription_plan})")
+        except Exception as e:
+            logger.error(f"Failed to update org profile: {e}", exc_info=True)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to update organization profile: {str(e)}"
+            )
+
+        # STEP 2: Update subscription with new plan limits
+        try:
+            update_subscription_query = f"""
+            UPDATE `{settings.gcp_project_id}.organizations.org_subscriptions`
+            SET
+                plan_name = @plan_name,
+                daily_limit = @daily_limit,
+                monthly_limit = @monthly_limit,
+                concurrent_limit = @concurrent_limit,
+                updated_at = CURRENT_TIMESTAMP()
+            WHERE org_slug = @org_slug
+            """
+
+            bq_client.client.query(
+                update_subscription_query,
+                job_config=bigquery.QueryJobConfig(
+                    query_parameters=[
+                        bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                        bigquery.ScalarQueryParameter("plan_name", "STRING", request.subscription_plan),
+                        bigquery.ScalarQueryParameter("daily_limit", "INT64", plan_limits["max_daily"]),
+                        bigquery.ScalarQueryParameter("monthly_limit", "INT64", plan_limits["max_daily"] * 30),
+                        bigquery.ScalarQueryParameter("concurrent_limit", "INT64", plan_limits["max_concurrent"])
+                    ]
+                )
+            ).result()
+
+            logger.info(f"Updated subscription for: {org_slug} (daily: {plan_limits['max_daily']}, concurrent: {plan_limits['max_concurrent']})")
+        except Exception as e:
+            logger.error(f"Failed to update subscription: {e}", exc_info=True)
+            # Non-fatal - continue with API key regeneration
+
+        # STEP 3: Update usage quota limits (keep current usage, update limits)
+        try:
+            update_quota_query = f"""
+            UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
+            SET
+                daily_limit = @daily_limit,
+                last_updated = CURRENT_TIMESTAMP()
+            WHERE org_slug = @org_slug
+            """
+
+            bq_client.client.query(
+                update_quota_query,
+                job_config=bigquery.QueryJobConfig(
+                    query_parameters=[
+                        bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                        bigquery.ScalarQueryParameter("daily_limit", "INT64", plan_limits["max_daily"])
+                    ]
+                )
+            ).result()
+
+            logger.info(f"Updated usage quota limits for: {org_slug}")
+        except Exception as e:
+            logger.error(f"Failed to update usage quota: {e}", exc_info=True)
+            # Non-fatal - continue with API key regeneration
+
+        # STEP 4: Revoke existing API keys
+        try:
+            revoke_query = f"""
+            UPDATE `{settings.gcp_project_id}.organizations.org_api_keys`
+            SET is_active = FALSE
+            WHERE org_slug = @org_slug AND is_active = TRUE
+            """
+
+            bq_client.client.query(
+                revoke_query,
+                job_config=bigquery.QueryJobConfig(
+                    query_parameters=[
+                        bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
+                    ]
+                )
+            ).result()
+
+            logger.info(f"Revoked existing API keys for org: {org_slug}")
+        except Exception as e:
+            logger.error(f"Failed to revoke existing API keys: {e}", exc_info=True)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to revoke existing API keys: {str(e)}"
+            )
+
+        # STEP 5: Generate and store new API key
+        try:
+            random_suffix = secrets.token_urlsafe(16)[:16]
+            api_key = f"{org_slug}_api_{random_suffix}"
+            org_api_key_hash = hashlib.sha256(api_key.encode()).hexdigest()
+
+            # Encrypt API key using KMS
+            encrypted_org_api_key_bytes = encrypt_value(api_key)
+            org_api_key_id = str(uuid.uuid4())
+
+            insert_api_key_query = f"""
+            INSERT INTO `{settings.gcp_project_id}.organizations.org_api_keys`
+            (org_api_key_id, org_slug, org_api_key_hash, encrypted_org_api_key, scopes, is_active, created_at)
+            VALUES
+            (@org_api_key_id, @org_slug, @org_api_key_hash, @encrypted_org_api_key, @scopes, TRUE, CURRENT_TIMESTAMP())
+            """
+
+            bq_client.client.query(
+                insert_api_key_query,
+                job_config=bigquery.QueryJobConfig(
+                    query_parameters=[
+                        bigquery.ScalarQueryParameter("org_api_key_id", "STRING", org_api_key_id),
+                        bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                        bigquery.ScalarQueryParameter("org_api_key_hash", "STRING", org_api_key_hash),
+                        bigquery.ScalarQueryParameter("encrypted_org_api_key", "BYTES", encrypted_org_api_key_bytes),
+                        bigquery.ArrayQueryParameter("scopes", "STRING", ["pipelines:read", "pipelines:write", "pipelines:execute"])
+                    ]
+                )
+            ).result()
+
+            logger.info(f"New API key generated for existing org: {org_slug}")
+
+            # Return with all updated details
+            return OnboardOrgResponse(
+                org_slug=org_slug,
+                api_key=api_key,
+                subscription_plan=request.subscription_plan,
+                dataset_created=False,  # Already exists
+                tables_created=[],
+                dryrun_status="SKIPPED",
+                message=f"Organization {org_slug} re-synced successfully. Plan: {request.subscription_plan}, API key regenerated."
+            )
+
+        except Exception as e:
+            logger.error(f"Failed to regenerate API key: {e}", exc_info=True)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to regenerate API key: {str(e)}"
+            )
 
     # ============================================
     # STEP 1: Create org profile in organizations.org_profiles
@@ -649,7 +838,7 @@ class RotateApiKeyResponse(BaseModel):
     "/organizations/{org_slug}/api-key/rotate",
     response_model=RotateApiKeyResponse,
     summary="Rotate organization API key",
-    description="Generate a new API key and revoke the old one. Accepts either Organization API Key (self-service) or Admin API Key."
+    description="Generate a new API key and revoke the old one. Accepts either Organization API Key (self-service) or Root API Key (X-CA-Root-Key)."
 )
 async def rotate_api_key(
     org_slug: str,
@@ -661,10 +850,10 @@ async def rotate_api_key(
 
     This endpoint accepts EITHER:
     - Organization API Key (X-API-Key header) - self-service rotation
-    - Admin API Key (X-Admin-Key header) - admin can rotate any org's key
+    - Root API Key (X-CA-Root-Key header) - admin can rotate any org's key
 
     Flow:
-    1. Validates authentication (org key must match org_slug, or admin key)
+    1. Validates authentication (org key must match org_slug, or root key)
     2. Generates a new secure API key
     3. Revokes all existing API keys for the organization
     4. Stores the new API key (encrypted with KMS)

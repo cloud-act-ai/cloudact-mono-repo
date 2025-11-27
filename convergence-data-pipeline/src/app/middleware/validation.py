@@ -5,6 +5,7 @@ Validates org_slug format, request size limits, and header safety.
 
 import re
 import json
+import uuid
 from typing import Optional
 from fastapi import Request, status
 from fastapi.responses import JSONResponse
@@ -17,6 +18,11 @@ from src.core.exceptions import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def generate_request_id() -> str:
+    """Generate a unique request ID for tracing."""
+    return str(uuid.uuid4())
 
 # ============================================
 # Validation Rules Configuration
@@ -210,6 +216,9 @@ async def validation_middleware(request: Request, call_next):
     4. Path parameters for NULL bytes and path traversal
     5. Request body for date format and required fields
 
+    Also handles:
+    - Request ID generation/extraction for distributed tracing
+
     Args:
         request: Incoming HTTP request
         call_next: Next middleware/handler in chain
@@ -217,9 +226,17 @@ async def validation_middleware(request: Request, call_next):
     Returns:
         Response from next handler or error response
     """
+    # Generate or extract request ID for tracing
+    request_id = request.headers.get("x-request-id") or generate_request_id()
+
+    # Store request ID in request state for use by other middleware/handlers
+    request.state.request_id = request_id
+
     # Skip validation for health check endpoints
     if request.url.path in ["/health", "/", "/docs", "/redoc", "/openapi.json"]:
-        return await call_next(request)
+        response = await call_next(request)
+        response.headers["X-Request-ID"] = request_id
+        return response
 
     try:
         # ============================================
@@ -346,13 +363,20 @@ async def validation_middleware(request: Request, call_next):
         # All validations passed - proceed with request
         # ============================================
         response = await call_next(request)
+        # Add request ID to response headers for tracing
+        response.headers["X-Request-ID"] = request_id
         return response
 
     except Exception as e:
         logger.error(
             f"Error in validation middleware: {e}",
             exc_info=True,
-            extra={"path": request.url.path}
+            extra={
+                "path": request.url.path,
+                "request_id": request_id
+            }
         )
-        # Don't block request on middleware errors
-        return await call_next(request)
+        # Don't block request on middleware errors, but still add request ID
+        response = await call_next(request)
+        response.headers["X-Request-ID"] = request_id
+        return response

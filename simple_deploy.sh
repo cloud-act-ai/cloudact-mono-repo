@@ -94,7 +94,7 @@ gcloud run deploy $SERVICE_NAME \
     --timeout=300 \
     --max-instances=10 \
     --set-env-vars="GCP_PROJECT_ID=${PROJECT_ID},BIGQUERY_LOCATION=US,ENVIRONMENT=${DEPLOY_ENV},KMS_PROJECT_ID=${KMS_PROJECT_ID},KMS_LOCATION=${KMS_LOCATION},KMS_KEYRING=${KMS_KEYRING},KMS_KEY=${KMS_KEY}" \
-    --set-secrets="ADMIN_API_KEY=admin-api-key-${ENV}:latest"
+    --set-secrets="CA_ROOT_API_KEY=ca-root-api-key-${ENV}:latest"
 
 # Get service URL
 echo -e "${GREEN}Getting service URL...${NC}"

@@ -256,7 +256,7 @@ python3 -m uvicorn src.app.main:app --host 0.0.0.0 --port 8080
 |----------|------|---------|-------------|
 | `ENABLE_API_DOCS` | bool | `true` | Enable/disable OpenAPI documentation endpoints |
 | `GCP_PROJECT_ID` | string | (required) | Google Cloud Project ID |
-| `ADMIN_API_KEY` | string | (required) | Admin API key for platform operations |
+| `CA_ROOT_API_KEY` | string | (required) | CA Root API key for platform operations |
 | `ENVIRONMENT` | string | `development` | Environment: development, staging, or production |
 
 ---

@@ -66,24 +66,40 @@ class Settings(BaseSettings):
         default=["http://localhost:3000", "http://localhost:8080"]
     )
     cors_allow_credentials: bool = Field(default=True)
-    cors_allow_methods: List[str] = Field(default=["*"])
-    cors_allow_headers: List[str] = Field(default=["*"])
+    cors_allow_methods: List[str] = Field(
+        default=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+        description="Allowed HTTP methods for CORS. Explicit list is safer than wildcard."
+    )
+    cors_allow_headers: List[str] = Field(
+        default=["Content-Type", "Authorization", "X-API-Key", "X-CA-Root-Key", "X-User-ID", "X-Request-ID"],
+        description="Allowed HTTP headers for CORS. Explicit list is safer than wildcard."
+    )
 
     # ============================================
     # Security Configuration
     # ============================================
-    disable_auth: bool = Field(default=False, description="Disable API key authentication (for development)")
+    # SECURITY NOTE: These settings are validated at startup in production.
+    # See src/app/main.py:validate_production_config() for validation rules.
+    # See SECURITY.md for full security documentation.
+    #
+    # CRITICAL: In production:
+    #   - disable_auth MUST be false (startup fails otherwise)
+    #   - ca_root_api_key MUST be set (startup fails otherwise)
+    #   - rate_limit_enabled MUST be true (startup fails otherwise)
+    # ============================================
+    disable_auth: bool = Field(default=False, description="Disable API key authentication (for development). MUST be false in production!")
     default_org_slug: str = Field(
         default="acmeinc_23xv2",
         description="Default organization slug when authentication is disabled"
     )
     api_key_hash_algorithm: str = Field(default="HS256")
-    api_key_secret_key: str = Field(
-        default="change-this-in-production-to-a-secure-random-key"
-    )
-    admin_api_key: Optional[str] = Field(
+    api_key_secret_key: Optional[str] = Field(
         default=None,
-        description="Admin API key for platform-level operations (organization creation, etc). REQUIRED in production!"
+        description="Secret key for API key signing. REQUIRED in production - set via API_KEY_SECRET_KEY env var"
+    )
+    ca_root_api_key: Optional[str] = Field(
+        default=None,
+        description="CloudAct Root API key for platform-level operations (organization creation, etc). REQUIRED in production!"
     )
     secrets_base_path: str = Field(
         default="~/.cloudact-secrets",

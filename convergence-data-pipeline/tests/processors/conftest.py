@@ -10,7 +10,7 @@ import os
 os.environ.setdefault("GCP_PROJECT_ID", "test-project")
 os.environ.setdefault("ENVIRONMENT", "development")
 os.environ.setdefault("KMS_KEY_NAME", "projects/test/locations/global/keyRings/test/cryptoKeys/test")
-os.environ.setdefault("ADMIN_API_KEY", "test-admin-key")
+os.environ.setdefault("CA_ROOT_API_KEY", "test-ca-root-key")
 os.environ.setdefault("DISABLE_AUTH", "true")
 
 import pytest

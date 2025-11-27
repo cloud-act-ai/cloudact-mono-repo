@@ -16,6 +16,7 @@ from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
 from src.app.config import settings
 from src.app.dependencies.auth import verify_admin_key
 from src.app.dependencies.rate_limit_decorator import rate_limit_global
+from src.app.models.org_models import SUBSCRIPTION_LIMITS, SubscriptionPlan
 
 logger = logging.getLogger(__name__)
 
@@ -100,7 +101,7 @@ async def bootstrap_system(
     - Central 'organizations' dataset
     - All organization management tables with proper schemas
 
-    This endpoint requires admin authentication via X-Admin-Key header.
+    This endpoint requires root authentication via X-CA-Root-Key header.
 
     Parameters:
     - **force_recreate_dataset**: If true, delete and recreate the central dataset (DANGEROUS)
@@ -200,14 +201,14 @@ async def create_org(
     )
 
     org_slug = request.org_slug
-    
-    # Default subscription plan limits
-    PLAN_LIMITS = {
-        "STARTER": {"max_daily": 10, "max_monthly": 300, "max_concurrent": 3},
-        "PROFESSIONAL": {"max_daily": 50, "max_monthly": 1500, "max_concurrent": 5},
-        "ENTERPRISE": {"max_daily": 200, "max_monthly": 6000, "max_concurrent": 10}
+
+    # Use centralized subscription limits from org_models.py (single source of truth)
+    central_limits = SUBSCRIPTION_LIMITS[SubscriptionPlan.STARTER]
+    plan_limits = {
+        "max_daily": central_limits["max_pipelines_per_day"],
+        "max_monthly": central_limits["max_pipelines_per_month"],
+        "max_concurrent": central_limits["max_concurrent_pipelines"]
     }
-    plan_limits = PLAN_LIMITS["STARTER"]  # Default to STARTER plan
 
     # Step 1: Create org profile
     try:
@@ -589,3 +590,108 @@ async def revoke_api_key(
         "org_api_key_hash": org_api_key_hash,
         "message": "API key revoked successfully"
     }
+
+
+@router.post(
+    "/admin/organizations/{org_slug}/regenerate-api-key",
+    response_model=APIKeyResponse,
+    summary="Regenerate API key for existing org",
+    description="Revoke existing API key(s) and generate a new one. Used for 409 recovery when frontend and backend are out of sync."
+)
+async def regenerate_api_key(
+    org_slug: str,
+    bq_client: BigQueryClient = Depends(get_bigquery_client),
+    _admin: None = Depends(verify_admin_key)
+):
+    """
+    Regenerate API key for an existing organization.
+
+    Use case: When frontend onboarding gets 409 (org already exists in backend),
+    call this endpoint to get a new API key without requiring customer interaction.
+
+    Flow:
+    1. Verify org exists in backend
+    2. Revoke all existing API keys for this org
+    3. Generate new API key
+    4. Return new key (frontend stores in user metadata automatically)
+
+    - **org_slug**: Organization identifier
+
+    Returns the generated API key (SAVE THIS - it won't be shown again).
+    """
+    from google.cloud import bigquery
+
+    # Step 1: Verify org exists
+    check_org_query = f"""
+    SELECT org_slug, status
+    FROM `{settings.gcp_project_id}.organizations.org_profiles`
+    WHERE org_slug = @org_slug
+    LIMIT 1
+    """
+
+    job_config = bigquery.QueryJobConfig(
+        query_parameters=[
+            bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
+        ]
+    )
+
+    org_results = list(bq_client.client.query(check_org_query, job_config=job_config).result())
+
+    if not org_results:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Organization '{org_slug}' not found in backend. Use /organizations/onboard first."
+        )
+
+    org_status = org_results[0]["status"]
+    if org_status != "ACTIVE":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Organization '{org_slug}' is not active (status: {org_status}). Contact support."
+        )
+
+    # Step 2: Revoke all existing API keys for this org
+    logger.info(f"Revoking existing API keys for org: {org_slug}")
+
+    revoke_query = f"""
+    UPDATE `{settings.gcp_project_id}.organizations.org_api_keys`
+    SET is_active = FALSE
+    WHERE org_slug = @org_slug AND is_active = TRUE
+    """
+
+    bq_client.client.query(revoke_query, job_config=job_config).result()
+
+    # Step 3: Generate new API key
+    api_key = f"{org_slug}_api_{secrets.token_urlsafe(16)}"
+    org_api_key_hash = hashlib.sha256(api_key.encode()).hexdigest()
+
+    import uuid
+    org_api_key_id = str(uuid.uuid4())
+
+    # Step 4: Insert new API key
+    insert_query = f"""
+    INSERT INTO `{settings.gcp_project_id}.organizations.org_api_keys`
+    (org_api_key_id, org_slug, org_api_key_hash, is_active, created_at)
+    VALUES
+    (@org_api_key_id, @org_slug, @org_api_key_hash, TRUE, CURRENT_TIMESTAMP())
+    """
+
+    insert_config = bigquery.QueryJobConfig(
+        query_parameters=[
+            bigquery.ScalarQueryParameter("org_api_key_id", "STRING", org_api_key_id),
+            bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+            bigquery.ScalarQueryParameter("org_api_key_hash", "STRING", org_api_key_hash),
+        ]
+    )
+
+    bq_client.client.query(insert_query, job_config=insert_config).result()
+
+    logger.info(f"API key regenerated for org: {org_slug}")
+
+    return APIKeyResponse(
+        api_key=api_key,
+        org_api_key_hash=org_api_key_hash,
+        org_slug=org_slug,
+        created_at=datetime.utcnow(),
+        description="Regenerated API key"
+    )

@@ -77,9 +77,11 @@ class OrgOnboardingProcessor:
         dataset_id: str,
         table_name: str,
         schema: List[bigquery.SchemaField],
-        description: str = None
+        description: str = None,
+        partition_field: str = None,
+        clustering_fields: List[str] = None
     ) -> bool:
-        """Create a single table with schema"""
+        """Create a single table with schema, optional partitioning and clustering"""
         full_table_id = f"{self.settings.gcp_project_id}.{dataset_id}.{table_name}"
 
         try:
@@ -93,9 +95,14 @@ class OrgOnboardingProcessor:
             if description:
                 table.description = description
 
-            # Add partitioning for tables that need it
-            # NOTE: org_meta_pipeline_runs is in central dataset, not created here
-            if table_name == "org_meta_step_logs":
+            # Add partitioning if specified in table config
+            if partition_field:
+                table.time_partitioning = bigquery.TimePartitioning(
+                    type_=bigquery.TimePartitioningType.DAY,
+                    field=partition_field
+                )
+            # Fallback for known table names (backwards compatibility)
+            elif table_name == "org_meta_step_logs":
                 table.time_partitioning = bigquery.TimePartitioning(
                     type_=bigquery.TimePartitioningType.DAY,
                     field="start_time"
@@ -105,6 +112,10 @@ class OrgOnboardingProcessor:
                     type_=bigquery.TimePartitioningType.DAY,
                     field="ingestion_date"
                 )
+
+            # Add clustering if specified
+            if clustering_fields:
+                table.clustering_fields = clustering_fields
 
             try:
                 await bq_client.create_table_raw(table)
@@ -168,6 +179,8 @@ class OrgOnboardingProcessor:
             table_name = table_config.get("table_name")
             schema_file = table_config.get("schema_file")
             description = table_config.get("description")
+            partition_field = table_config.get("partition_field")
+            clustering_fields = table_config.get("clustering_fields")
 
             self.logger.info(f"Creating table {table_name} from schema {schema_file}")
 
@@ -178,13 +191,15 @@ class OrgOnboardingProcessor:
                 tables_failed.append(table_name)
                 continue
 
-            # Create the table
+            # Create the table with optional partitioning and clustering
             success = await self._create_table(
                 bq_client=bq_client,
                 dataset_id=dataset_id,
                 table_name=table_name,
                 schema=schema,
-                description=description
+                description=description,
+                partition_field=partition_field,
+                clustering_fields=clustering_fields
             )
 
             if success:
@@ -318,22 +333,26 @@ class OrgOnboardingProcessor:
                 except Exception as e:
                     self.logger.warning(f"Failed to insert test record: {e}")
 
-        # Step 5: Create organization-specific comprehensive view
-        self._create_org_comprehensive_view(org_slug, dataset_id)
+        # Step 5: Create organization-specific views (pipeline_logs, step_logs)
+        # These views filter central metadata tables for this org's data only
+        views_created, views_failed = self._create_org_views(org_slug, dataset_id)
 
         # Prepare result
+        all_tables_failed = tables_failed + views_failed
         result = {
-            "status": "SUCCESS" if not tables_failed else "PARTIAL",
+            "status": "SUCCESS" if not all_tables_failed else "PARTIAL",
             "org_slug": org_slug,
             "dataset_id": dataset_id,
             "dataset_created": dataset_created,
             "tables_created": tables_created,
+            "views_created": views_created,
             "tables_failed": tables_failed,
-            "message": f"Created {len(tables_created)} tables for organization {org_slug}"
+            "views_failed": views_failed,
+            "message": f"Created {len(tables_created)} tables and {len(views_created)} views for organization {org_slug}"
         }
 
-        if tables_failed:
-            result["error"] = f"Failed to create tables: {', '.join(tables_failed)}"
+        if all_tables_failed:
+            result["error"] = f"Failed to create: {', '.join(all_tables_failed)}"
 
         # Log onboarding completion without using 'message' in extra dict
         # 'message' is a reserved field in Python's LogRecord
@@ -342,46 +361,73 @@ class OrgOnboardingProcessor:
             "dataset_id": dataset_id,
             "dataset_created": dataset_created,
             "tables_created_count": len(tables_created),
+            "views_created_count": len(views_created),
             "tables_failed_count": len(tables_failed),
+            "views_failed_count": len(views_failed),
             "status": result["status"]
         }
         self.logger.info(
-            f"Onboarding completed for {org_slug}: Created {len(tables_created)} tables",
+            f"Onboarding completed for {org_slug}: Created {len(tables_created)} tables, {len(views_created)} views",
             extra=log_context
         )
 
         return result
 
-    def _create_org_comprehensive_view(self, org_slug: str, dataset_id: str):
-        """Create organization-specific comprehensive view in organization's dataset."""
+    def _create_org_views(self, org_slug: str, dataset_id: str):
+        """Create organization-specific views in organization's dataset.
+
+        Creates views that filter central metadata tables for this org's data:
+        - pipeline_logs: View of org_meta_pipeline_runs filtered by org_slug
+        - step_logs: View of org_meta_step_logs filtered by org_slug
+        """
         from pathlib import Path
 
-        # Navigate to view template
-        view_file = Path(__file__).parent.parent.parent.parent.parent.parent / "configs" / "setup" / "bootstrap" / "views" / "org_comprehensive_view.sql"
+        views_dir = Path(__file__).parent.parent.parent.parent.parent.parent / "configs" / "setup" / "bootstrap" / "views"
+        client = bigquery.Client(project=self.settings.gcp_project_id)
 
-        if not view_file.exists():
-            self.logger.warning(f"View SQL file not found: {view_file}")
-            return
+        # List of view files to create
+        # Order matters: consolidated view depends on pipeline_logs and step_logs existing in central dataset
+        view_files = [
+            "pipeline_logs_view.sql",      # Filtered view of org_meta_pipeline_runs
+            "step_logs_view.sql",          # Filtered view of org_meta_step_logs
+            "org_consolidated_view.sql",   # Consolidated view joining pipelines + steps
+        ]
 
-        try:
-            with open(view_file, 'r') as f:
-                view_sql = f.read()
+        views_created = []
+        views_failed = []
 
-            # Replace placeholders
-            view_sql = view_sql.replace('{project_id}', self.settings.gcp_project_id)
-            view_sql = view_sql.replace('{org_slug}', org_slug)
+        for view_filename in view_files:
+            view_file = views_dir / view_filename
+            view_name = view_filename.replace("_view.sql", "")
 
-            # Execute view creation
-            client = bigquery.Client(project=self.settings.gcp_project_id)
-            query_job = client.query(view_sql)
-            query_job.result()  # Wait for completion
+            if not view_file.exists():
+                self.logger.warning(f"View SQL file not found: {view_file}")
+                views_failed.append(view_name)
+                continue
 
-            self.logger.info(
-                f"Created comprehensive view: {self.settings.gcp_project_id}.{dataset_id}.org_comprehensive_view"
-            )
+            try:
+                with open(view_file, 'r') as f:
+                    view_sql = f.read()
 
-        except Exception as e:
-            self.logger.error(f"Failed to create organization comprehensive view: {e}", exc_info=True)
+                # Replace placeholders
+                view_sql = view_sql.replace('{project_id}', self.settings.gcp_project_id)
+                view_sql = view_sql.replace('{dataset_id}', dataset_id)
+                view_sql = view_sql.replace('{org_slug}', org_slug)
+
+                # Execute view creation
+                query_job = client.query(view_sql)
+                query_job.result()  # Wait for completion
+
+                views_created.append(view_name)
+                self.logger.info(
+                    f"Created view: {self.settings.gcp_project_id}.{dataset_id}.{view_name}"
+                )
+
+            except Exception as e:
+                views_failed.append(view_name)
+                self.logger.error(f"Failed to create view {view_name}: {e}", exc_info=True)
+
+        return views_created, views_failed
 
 
 # Function for pipeline executor to call

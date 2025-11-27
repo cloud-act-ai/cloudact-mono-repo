@@ -8,7 +8,7 @@ description: "Manage KMS encryption for {org_slug} - operation: {operation}"
 # Pipeline-level variables
 variables:
   operation: "validate"  # validate, encrypt, decrypt, rotate, bootstrap
-  key_type: "org_api_key"  # org_api_key, admin_api_key
+  key_type: "org_api_key"  # org_api_key or ca_root_api_key
   kms_project_id: "gac-prod-471220"
   kms_location: "us-central1"
   kms_keyring: "convergence-keyring-prod"

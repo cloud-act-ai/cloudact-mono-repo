@@ -295,10 +295,13 @@ async def get_current_org(
     """
     # Check if authentication is disabled (development mode)
     if settings.disable_auth:
-        logger.warning(f"Authentication disabled - using default org '{settings.default_org_slug}'")
+        # In dev mode, extract org_slug from URL path if present, else use default
+        # This allows testing any org without real auth
+        dev_org_slug = settings.default_org_slug
+        logger.warning(f"Authentication disabled - using default org '{dev_org_slug}'")
         # Return mock org for development
         return {
-            "org_slug": settings.default_org_slug,
+            "org_slug": dev_org_slug,
             "company_name": "Development Organization",
             "admin_email": "dev@example.com",
             "status": "ACTIVE",
@@ -762,7 +765,7 @@ async def get_org_credentials(
         region,
         scopes,
         validation_status
-    FROM `{settings.gcp_project_id}.organizations.org_cloud_credentials`
+    FROM `{settings.gcp_project_id}.organizations.org_integration_credentials`
     WHERE org_slug = @org_slug
         AND provider = @provider
         AND is_active = TRUE
@@ -1176,38 +1179,75 @@ async def optional_auth(
         return None
 
 
+def _constant_time_compare(val1: str, val2: str) -> bool:
+    """
+    Compare two strings in constant time to prevent timing attacks.
+
+    This prevents attackers from using timing differences to guess
+    the correct admin API key character by character.
+
+    Args:
+        val1: First string to compare
+        val2: Second string to compare
+
+    Returns:
+        True if strings are equal, False otherwise
+    """
+    import hmac
+    return hmac.compare_digest(val1.encode(), val2.encode())
+
+
 async def verify_admin_key(
-    x_admin_key: str = Header(..., description="Admin API Key for platform operations")
+    x_ca_root_key: Optional[str] = Header(None, alias="X-CA-Root-Key", description="CloudAct Root API Key for platform operations")
 ) -> None:
     """
-    FastAPI dependency to verify admin API key for platform-level operations.
+    FastAPI dependency to verify root API key for platform-level operations.
 
     This is used for endpoints that manage organizations, API keys, and other platform
     operations that exist outside the organization scope.
 
+    SECURITY: Uses constant-time comparison and hashing to prevent timing attacks.
+
     Args:
-        x_admin_key: Admin API key from X-Admin-Key header (required)
+        x_ca_root_key: CloudAct Root API key from X-CA-Root-Key header
 
     Raises:
-        HTTPException: If admin key is invalid or not configured
+        HTTPException: If root key is invalid or not configured
     """
-    # Check if admin key is configured
-    if not settings.admin_api_key:
+    if not x_ca_root_key:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Root API key required. Provide X-CA-Root-Key header.",
+            headers={"WWW-Authenticate": "RootKey"},
+        )
+
+    # Check if root API key is configured
+    if not settings.ca_root_api_key:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Admin API key not configured. Set ADMIN_API_KEY environment variable.",
+            detail="Root API key not configured. Set CA_ROOT_API_KEY environment variable.",
         )
 
-    # Verify the admin key
-    if x_admin_key != settings.admin_api_key:
-        logger.warning("Invalid admin API key attempt")
+    # Use constant-time comparison to prevent timing attacks
+    # Hash both keys before comparison for additional security
+    provided_hash = hash_api_key(x_ca_root_key)
+    expected_hash = hash_api_key(settings.ca_root_api_key)
+
+    if not _constant_time_compare(provided_hash, expected_hash):
+        logger.warning(
+            "Invalid root API key attempt",
+            extra={
+                "event_type": "root_auth_failed",
+                "provided_hash_prefix": provided_hash[:8] + "..."
+            }
+        )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Invalid admin API key",
-            headers={"WWW-Authenticate": "AdminKey"},
+            detail="Invalid root API key",
+            headers={"WWW-Authenticate": "RootKey"},
         )
 
-    logger.info("Admin authentication successful")
+    logger.info("Root API key authentication successful")
 
 
 @dataclass
@@ -1220,18 +1260,18 @@ class AuthResult:
 
 async def get_org_or_admin_auth(
     x_api_key: Optional[str] = Header(None, description="Organization API Key"),
-    x_admin_key: Optional[str] = Header(None, description="Admin API Key"),
+    x_ca_root_key: Optional[str] = Header(None, alias="X-CA-Root-Key", description="CloudAct Root API Key"),
     bq_client: BigQueryClient = Depends(get_bigquery_client),
 ) -> AuthResult:
     """
-    FastAPI dependency that accepts EITHER an org API key OR admin API key.
+    FastAPI dependency that accepts EITHER an org API key OR root API key.
 
     Use this for endpoints that can be called by:
     - Organization users (self-service) using their org API key
-    - Platform admins using the admin API key
+    - Platform admins using the root API key
 
     Returns:
-        AuthResult with is_admin=True if admin key used, or org data if org key used
+        AuthResult with is_admin=True if root key used, or org data if org key used
 
     Raises:
         HTTPException: If neither key is valid or both are missing
@@ -1241,14 +1281,17 @@ async def get_org_or_admin_auth(
         logger.warning("Authentication disabled - allowing access")
         return AuthResult(is_admin=True, org_slug=None)
 
-    # Try admin key first (if provided)
-    if x_admin_key:
-        if settings.admin_api_key and x_admin_key == settings.admin_api_key:
-            logger.info("Admin authentication successful for org/admin endpoint")
-            return AuthResult(is_admin=True, org_slug=None)
-        else:
-            logger.warning("Invalid admin API key provided")
-            # Don't fail yet - maybe they also provided a valid org key
+    # Try root key first (if provided)
+    if x_ca_root_key:
+        if settings.ca_root_api_key:
+            # Use constant-time comparison to prevent timing attacks
+            provided_hash = hash_api_key(x_ca_root_key)
+            expected_hash = hash_api_key(settings.ca_root_api_key)
+            if _constant_time_compare(provided_hash, expected_hash):
+                logger.info("Root authentication successful for org/admin endpoint")
+                return AuthResult(is_admin=True, org_slug=None)
+        logger.warning("Invalid root API key provided")
+        # Don't fail yet - maybe they also provided a valid org key
 
     # Try org API key
     if x_api_key:
@@ -1301,6 +1344,6 @@ async def get_org_or_admin_auth(
     # Neither key worked
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Valid X-API-Key (org) or X-Admin-Key (admin) header required",
-        headers={"WWW-Authenticate": "ApiKey or AdminKey"},
+        detail="Valid X-API-Key (org) or X-CA-Root-Key (root) header required.",
+        headers={"WWW-Authenticate": "ApiKey or RootKey"},
     )

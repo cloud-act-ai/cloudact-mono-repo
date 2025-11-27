@@ -87,6 +87,46 @@ def handle_shutdown_signal(signum, frame):
         loop.create_task(graceful_shutdown())
 
 
+def validate_production_config() -> None:
+    """
+    Validate configuration for production readiness.
+
+    CRITICAL: These checks ensure the application is securely configured
+    before accepting traffic in production.
+
+    Raises:
+        RuntimeError: If production configuration is invalid
+    """
+    if settings.environment != "production":
+        logger.info("Skipping production config validation (non-production environment)")
+        return
+
+    errors = []
+
+    # Check root API key
+    if not settings.ca_root_api_key:
+        errors.append("CA_ROOT_API_KEY environment variable is required in production")
+
+    # Check authentication is enabled
+    if settings.disable_auth:
+        errors.append("DISABLE_AUTH must be false in production (authentication cannot be disabled)")
+
+    # Check rate limiting is enabled
+    if not settings.rate_limit_enabled:
+        errors.append("RATE_LIMIT_ENABLED must be true in production")
+
+    # Check CORS origins are configured
+    if not settings.cors_origins or settings.cors_origins == ["http://localhost:3000", "http://localhost:8080"]:
+        logger.warning("CORS origins appear to be using default values - ensure these are correct for production")
+
+    if errors:
+        for error in errors:
+            logger.critical(f"Production config error: {error}")
+        raise RuntimeError(f"Production configuration invalid: {'; '.join(errors)}")
+
+    logger.info("✓ Production configuration validation passed")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
@@ -103,6 +143,9 @@ async def lifespan(app: FastAPI):
             "project_id": settings.gcp_project_id
         }
     )
+
+    # Validate production configuration FIRST
+    validate_production_config()
 
     # Initialize shutdown event
     shutdown_event = asyncio.Event()
@@ -176,17 +219,30 @@ async def lifespan(app: FastAPI):
     # Shutdown
     logger.info(f"Shutting down {settings.app_name}")
 
-    # Stop auth aggregator
+    # Stop auth aggregator with timeout
     try:
         auth_aggregator = get_auth_aggregator()
         auth_aggregator.stop_background_flush()
 
-        # Flush any remaining updates
+        # Flush any remaining updates with timeout to prevent hanging
         bq_client = get_bigquery_client()
-        await auth_aggregator.flush_updates(bq_client)
+        await asyncio.wait_for(
+            auth_aggregator.flush_updates(bq_client),
+            timeout=10.0  # 10 seconds max for final flush
+        )
         logger.info("Auth metrics aggregator stopped and flushed")
+    except asyncio.TimeoutError:
+        logger.warning("Auth metrics flush timed out during shutdown (10s)")
     except Exception as e:
         logger.warning(f"Error stopping auth aggregator: {e}")
+
+    # Shutdown BigQuery thread pool executor
+    try:
+        from src.core.pipeline.async_executor import BQ_EXECUTOR
+        BQ_EXECUTOR.shutdown(wait=False)  # Don't wait to avoid blocking shutdown
+        logger.info("BigQuery thread pool executor shutdown initiated")
+    except Exception as e:
+        logger.warning(f"Error shutting down BigQuery executor: {e}")
 
     await graceful_shutdown()
 
@@ -211,9 +267,9 @@ Enterprise-grade data ingestion and pipeline orchestration platform for multi-cl
 
 Two authentication methods:
 
-1. **Admin API Key** (`X-Admin-Key` header)
+1. **Root API Key** (`X-CA-Root-Key` header)
    - Platform-level operations (bootstrap, onboarding)
-   - Set via `ADMIN_API_KEY` environment variable
+   - Set via `CA_ROOT_API_KEY` environment variable
 
 2. **Organization API Key** (`X-API-Key` header)
    - Organization-specific operations (run pipelines, view runs)
@@ -247,7 +303,7 @@ tags_metadata = [
     },
     {
         "name": "Admin",
-        "description": "Platform administration endpoints requiring Admin API Key. Use for system bootstrap, organization management, and API key operations."
+        "description": "Platform administration endpoints requiring Root API Key (X-CA-Root-Key header). Use for system bootstrap, organization management, and API key operations."
     },
     {
         "name": "Organizations",

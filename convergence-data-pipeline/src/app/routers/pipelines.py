@@ -40,8 +40,22 @@ class TriggerPipelineRequest(BaseModel):
         default=None,
         description="Date parameter for the pipeline (e.g., '2025-11-14')"
     )
+    # Additional known pipeline parameters
+    start_date: Optional[str] = Field(
+        default=None,
+        description="Start date for date range pipelines (YYYY-MM-DD)"
+    )
+    end_date: Optional[str] = Field(
+        default=None,
+        description="End date for date range pipelines (YYYY-MM-DD)"
+    )
+    force_refresh: Optional[bool] = Field(
+        default=False,
+        description="Force refresh even if data already exists"
+    )
 
-    model_config = ConfigDict(extra="allow")  # Allow additional parameters
+    # SECURITY: Forbid unknown fields to prevent injection of unexpected parameters
+    model_config = ConfigDict(extra="forbid")
 
 
 class PipelineRunResponse(BaseModel):
@@ -70,25 +84,64 @@ class TriggerPipelineResponse(BaseModel):
 # Pipeline Execution Endpoints
 # ============================================
 
-async def run_async_pipeline_task(executor: AsyncPipelineExecutor, parameters: dict):
+async def run_async_pipeline_task(executor: AsyncPipelineExecutor, parameters: dict) -> Optional[dict]:
     """
     Execute pipeline in background with proper error handling.
 
     This is the standardized pipeline execution wrapper.
     All pipeline executions now use AsyncPipelineExecutor for better performance and scalability.
+
+    NOTE: Since this runs in a background task, exceptions are absorbed by FastAPI.
+    We update the pipeline status to FAILED in BigQuery to ensure clients can track failures.
     """
+    from google.cloud import bigquery as bq
+
     try:
         logger.info(f"Starting background async pipeline execution: {executor.pipeline_logging_id}")
         result = await executor.execute(parameters)
         logger.info(f"Async pipeline execution completed: {executor.pipeline_logging_id}")
         return result
     except Exception as e:
+        error_msg = str(e)[:1000]  # Truncate long error messages
         logger.error(
             f"Async pipeline execution failed: {executor.pipeline_logging_id}",
             exc_info=True,
-            extra={"error": str(e)}
+            extra={
+                "error": error_msg,
+                "org_slug": executor.org_slug,
+                "pipeline_id": executor.pipeline_id
+            }
         )
-        raise
+
+        # Update pipeline status to FAILED in BigQuery so clients can track the failure
+        try:
+            bq_client = get_bigquery_client()
+            update_query = f"""
+            UPDATE `{settings.gcp_project_id}.organizations.org_meta_pipeline_runs`
+            SET status = 'FAILED',
+                end_time = CURRENT_TIMESTAMP(),
+                error_message = @error_message
+            WHERE pipeline_logging_id = @pipeline_logging_id
+            """
+
+            job_config = bq.QueryJobConfig(
+                query_parameters=[
+                    bq.ScalarQueryParameter("pipeline_logging_id", "STRING", executor.pipeline_logging_id),
+                    bq.ScalarQueryParameter("error_message", "STRING", error_msg),
+                ]
+            )
+
+            bq_client.client.query(update_query, job_config=job_config).result()
+            logger.info(f"Updated pipeline status to FAILED: {executor.pipeline_logging_id}")
+        except Exception as update_error:
+            logger.error(
+                f"Failed to update pipeline status to FAILED: {executor.pipeline_logging_id}",
+                exc_info=True,
+                extra={"update_error": str(update_error)}
+            )
+
+        # Don't re-raise - background tasks should handle their own errors
+        return None
 
 
 @router.post(
@@ -169,14 +222,20 @@ async def trigger_templated_pipeline(
         )
 
     # ============================================
-    # QUOTA ENFORCEMENT (Org-Level)
+    # QUOTA ENFORCEMENT (ALL LIMITS: Daily, Monthly, Concurrent)
     # ============================================
-    # Check if org has exceeded daily pipeline quota
+    # Check if org has exceeded ANY pipeline quota
     quota_query = f"""
     SELECT
         pipelines_run_today,
         daily_limit,
-        COALESCE(daily_limit - pipelines_run_today, 0) as remaining
+        pipelines_run_month,
+        monthly_limit,
+        concurrent_pipelines_running,
+        concurrent_limit,
+        COALESCE(daily_limit - pipelines_run_today, 0) as daily_remaining,
+        COALESCE(monthly_limit - pipelines_run_month, 0) as monthly_remaining,
+        COALESCE(concurrent_limit - concurrent_pipelines_running, 0) as concurrent_remaining
     FROM `{settings.gcp_project_id}.organizations.org_usage_quotas`
     WHERE org_slug = @org_slug
       AND usage_date = CURRENT_DATE()
@@ -193,26 +252,95 @@ async def trigger_templated_pipeline(
         quota_result = list(bq_client.client.query(quota_query, job_config=quota_config).result())
 
         if not quota_result:
-            logger.warning(f"No quota record found for org: {org_slug}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Quota record not found for org {org_slug}. Please contact support."
+            # Auto-create quota record for today if not exists
+            logger.info(f"Creating quota record for org: {org_slug}")
+
+            # Get subscription limits from org_subscriptions
+            sub_query = f"""
+            SELECT daily_limit, monthly_limit, concurrent_limit
+            FROM `{settings.gcp_project_id}.organizations.org_subscriptions`
+            WHERE org_slug = @org_slug AND status = 'ACTIVE'
+            LIMIT 1
+            """
+            sub_result = list(bq_client.client.query(
+                sub_query,
+                job_config=bigquery.QueryJobConfig(query_parameters=[
+                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
+                ])
+            ).result())
+
+            # Default limits if subscription not found (use STARTER plan defaults)
+            daily_limit = 6
+            monthly_limit = 180
+            concurrent_limit = 1
+            if sub_result:
+                daily_limit = sub_result[0].get("daily_limit", 6) or 6
+                monthly_limit = sub_result[0].get("monthly_limit", 180) or 180
+                concurrent_limit = sub_result[0].get("concurrent_limit", 1) or 1
+
+            # Insert quota record
+            insert_query = f"""
+            INSERT INTO `{settings.gcp_project_id}.organizations.org_usage_quotas`
+            (usage_id, org_slug, usage_date, pipelines_run_today, pipelines_failed_today,
+             pipelines_succeeded_today, pipelines_run_month, concurrent_pipelines_running,
+             daily_limit, monthly_limit, concurrent_limit, created_at, last_updated)
+            VALUES (
+                CONCAT(@org_slug, '_', FORMAT_DATE('%Y%m%d', CURRENT_DATE())),
+                @org_slug,
+                CURRENT_DATE(),
+                0, 0, 0, 0, 0,
+                @daily_limit,
+                @monthly_limit,
+                @concurrent_limit,
+                CURRENT_TIMESTAMP(),
+                CURRENT_TIMESTAMP()
             )
+            """
+            bq_client.client.query(
+                insert_query,
+                job_config=bigquery.QueryJobConfig(query_parameters=[
+                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                    bigquery.ScalarQueryParameter("daily_limit", "INT64", daily_limit),
+                    bigquery.ScalarQueryParameter("monthly_limit", "INT64", monthly_limit),
+                    bigquery.ScalarQueryParameter("concurrent_limit", "INT64", concurrent_limit),
+                ])
+            ).result()
+
+            logger.info(f"Created quota record for org: {org_slug} with limits: daily={daily_limit}, monthly={monthly_limit}, concurrent={concurrent_limit}")
+
+            # Use the newly created values (all usage at 0)
+            quota_result = [{
+                "pipelines_run_today": 0,
+                "daily_limit": daily_limit,
+                "pipelines_run_month": 0,
+                "monthly_limit": monthly_limit,
+                "concurrent_pipelines_running": 0,
+                "concurrent_limit": concurrent_limit,
+                "daily_remaining": daily_limit,
+                "monthly_remaining": monthly_limit,
+                "concurrent_remaining": concurrent_limit
+            }]
 
         quota = quota_result[0]
         pipelines_run_today = quota["pipelines_run_today"]
         daily_limit = quota["daily_limit"]
-        remaining = quota["remaining"]
+        pipelines_run_month = quota["pipelines_run_month"]
+        monthly_limit = quota["monthly_limit"]
+        concurrent_running = quota["concurrent_pipelines_running"]
+        concurrent_limit = quota["concurrent_limit"]
 
-        # Enforce quota limit
+        # ============================================
+        # ENFORCE ALL THREE LIMITS (Hard Stop)
+        # ============================================
+
+        # 1. DAILY LIMIT CHECK
         if pipelines_run_today >= daily_limit:
             logger.warning(
-                f"Quota exceeded for org: {org_slug}",
+                f"DAILY quota exceeded for org: {org_slug}",
                 extra={
                     "org_slug": org_slug,
                     "pipelines_run_today": pipelines_run_today,
-                    "daily_limit": daily_limit,
-                    "remaining": remaining
+                    "daily_limit": daily_limit
                 }
             )
             raise HTTPException(
@@ -220,13 +348,60 @@ async def trigger_templated_pipeline(
                 detail=f"Daily pipeline quota exceeded. You have run {pipelines_run_today} pipelines today (limit: {daily_limit}). Please upgrade your subscription or wait until tomorrow."
             )
 
+        # 2. MONTHLY LIMIT CHECK
+        if pipelines_run_month >= monthly_limit:
+            logger.warning(
+                f"MONTHLY quota exceeded for org: {org_slug}",
+                extra={
+                    "org_slug": org_slug,
+                    "pipelines_run_month": pipelines_run_month,
+                    "monthly_limit": monthly_limit
+                }
+            )
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Monthly pipeline quota exceeded. You have run {pipelines_run_month} pipelines this month (limit: {monthly_limit}). Please upgrade your subscription or wait until next month."
+            )
+
+        # 3. CONCURRENT LIMIT CHECK (Most critical for resource protection)
+        if concurrent_running >= concurrent_limit:
+            logger.warning(
+                f"CONCURRENT quota exceeded for org: {org_slug}",
+                extra={
+                    "org_slug": org_slug,
+                    "concurrent_running": concurrent_running,
+                    "concurrent_limit": concurrent_limit
+                }
+            )
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Concurrent pipeline limit exceeded. You have {concurrent_running} pipelines running (limit: {concurrent_limit}). Please wait for a pipeline to complete before starting a new one."
+            )
+
+        # Increment concurrent count BEFORE starting pipeline (atomic)
+        increment_concurrent_query = f"""
+        UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
+        SET concurrent_pipelines_running = concurrent_pipelines_running + 1,
+            last_updated = CURRENT_TIMESTAMP()
+        WHERE org_slug = @org_slug AND usage_date = CURRENT_DATE()
+        """
+        bq_client.client.query(
+            increment_concurrent_query,
+            job_config=bigquery.QueryJobConfig(query_parameters=[
+                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
+            ])
+        ).result()
+
         logger.info(
             f"Quota check passed for org: {org_slug}",
             extra={
                 "org_slug": org_slug,
                 "pipelines_run_today": pipelines_run_today,
                 "daily_limit": daily_limit,
-                "remaining": remaining
+                "pipelines_run_month": pipelines_run_month,
+                "monthly_limit": monthly_limit,
+                "concurrent_running": concurrent_running + 1,  # After increment
+                "concurrent_limit": concurrent_limit
             }
         )
 
@@ -431,6 +606,126 @@ async def trigger_pipeline(
         limit_per_minute=settings.rate_limit_pipeline_run_per_minute,
         endpoint_name="trigger_pipeline_deprecated"
     )
+
+    # ============================================
+    # QUOTA ENFORCEMENT (ALL LIMITS: Daily, Monthly, Concurrent)
+    # ============================================
+    org_slug = org.org_slug
+    quota_query = f"""
+    SELECT
+        pipelines_run_today,
+        daily_limit,
+        pipelines_run_month,
+        monthly_limit,
+        concurrent_pipelines_running,
+        concurrent_limit
+    FROM `{settings.gcp_project_id}.organizations.org_usage_quotas`
+    WHERE org_slug = @org_slug
+      AND usage_date = CURRENT_DATE()
+    LIMIT 1
+    """
+
+    try:
+        quota_result = list(bq_client.client.query(
+            quota_query,
+            job_config=bigquery.QueryJobConfig(query_parameters=[
+                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
+            ])
+        ).result())
+
+        if not quota_result:
+            # Auto-create quota record for today
+            sub_query = f"""
+            SELECT daily_limit, monthly_limit, concurrent_limit
+            FROM `{settings.gcp_project_id}.organizations.org_subscriptions`
+            WHERE org_slug = @org_slug AND status = 'ACTIVE'
+            LIMIT 1
+            """
+            sub_result = list(bq_client.client.query(
+                sub_query,
+                job_config=bigquery.QueryJobConfig(query_parameters=[
+                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
+                ])
+            ).result())
+
+            daily_limit = 6
+            monthly_limit = 180
+            concurrent_limit = 1
+            if sub_result:
+                daily_limit = sub_result[0].get("daily_limit", 6) or 6
+                monthly_limit = sub_result[0].get("monthly_limit", 180) or 180
+                concurrent_limit = sub_result[0].get("concurrent_limit", 1) or 1
+
+            insert_query = f"""
+            INSERT INTO `{settings.gcp_project_id}.organizations.org_usage_quotas`
+            (usage_id, org_slug, usage_date, pipelines_run_today, pipelines_failed_today,
+             pipelines_succeeded_today, pipelines_run_month, concurrent_pipelines_running,
+             daily_limit, monthly_limit, concurrent_limit, created_at, last_updated)
+            VALUES (
+                CONCAT(@org_slug, '_', FORMAT_DATE('%Y%m%d', CURRENT_DATE())),
+                @org_slug, CURRENT_DATE(),
+                0, 0, 0, 0, 0, @daily_limit, @monthly_limit, @concurrent_limit,
+                CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP()
+            )
+            """
+            bq_client.client.query(
+                insert_query,
+                job_config=bigquery.QueryJobConfig(query_parameters=[
+                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                    bigquery.ScalarQueryParameter("daily_limit", "INT64", daily_limit),
+                    bigquery.ScalarQueryParameter("monthly_limit", "INT64", monthly_limit),
+                    bigquery.ScalarQueryParameter("concurrent_limit", "INT64", concurrent_limit),
+                ])
+            ).result()
+
+            quota_result = [{
+                "pipelines_run_today": 0, "daily_limit": daily_limit,
+                "pipelines_run_month": 0, "monthly_limit": monthly_limit,
+                "concurrent_pipelines_running": 0, "concurrent_limit": concurrent_limit
+            }]
+
+        quota = quota_result[0]
+
+        # ENFORCE ALL THREE LIMITS
+        if quota["pipelines_run_today"] >= quota["daily_limit"]:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Daily pipeline quota exceeded. Limit: {quota['daily_limit']}. Please upgrade or wait until tomorrow."
+            )
+
+        if quota["pipelines_run_month"] >= quota["monthly_limit"]:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Monthly pipeline quota exceeded. Limit: {quota['monthly_limit']}. Please upgrade or wait until next month."
+            )
+
+        if quota["concurrent_pipelines_running"] >= quota["concurrent_limit"]:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Concurrent pipeline limit exceeded. You have {quota['concurrent_pipelines_running']} pipelines running (limit: {quota['concurrent_limit']}). Please wait for a pipeline to complete."
+            )
+
+        # Increment concurrent count BEFORE starting pipeline
+        bq_client.client.query(
+            f"""UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
+            SET concurrent_pipelines_running = concurrent_pipelines_running + 1,
+                last_updated = CURRENT_TIMESTAMP()
+            WHERE org_slug = @org_slug AND usage_date = CURRENT_DATE()""",
+            job_config=bigquery.QueryJobConfig(query_parameters=[
+                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
+            ])
+        ).result()
+
+        logger.info(f"Quota check passed for org: {org_slug}")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to check quota for org {org_slug}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to check quota: {str(e)}"
+        )
 
     # Note: Org dataset and operational tables created during onboarding
     # No need to ensure_org_metadata here - it would try to create API key tables

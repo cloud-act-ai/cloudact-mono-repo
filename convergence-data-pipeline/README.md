@@ -14,36 +14,94 @@ API Request → configs/ → Processor → BigQuery API
 
 ## Authentication
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    TWO API KEY TYPES                            │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ADMIN API KEY (X-Admin-Key header)                             │
-│  ─────────────────────────────────                              │
-│  Source: Environment variable ADMIN_API_KEY                     │
-│  Purpose: Bootstrap, onboarding, platform operations            │
-│                                                                 │
-│  ORGANIZATION API KEY (X-API-Key header)                        │
-│  ────────────────────────────────────────                       │
-│  Source: Generated during onboarding                            │
-│  Purpose: Run pipelines for that organization                   │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+### API Key Architecture
 
+| Key | Header | Used For |
+|-----|--------|----------|
+| `CA_ROOT_API_KEY` | `X-CA-Root-Key` | Bootstrap, Org Onboarding |
+| Org API Key | `X-API-Key` | Integrations, Pipelines, Data |
+
+### Complete Flow
+
+```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    WHO USES WHAT                                │
-├─────────────────────────────────────────────────────────────────┤
+│  1. BOOTSTRAP (One-time system setup)                           │
+│  POST /api/v1/admin/bootstrap                                   │
+│  Header: X-CA-Root-Key: {CA_ROOT_API_KEY}                       │
 │                                                                 │
-│  PLATFORM ADMIN (You)                                           │
-│  Key: ADMIN_API_KEY - Bootstrap, onboard orgs                   │
-│  NEVER share with customers!                                    │
+│  Creates centralized "organizations" dataset with meta tables:  │
+│  └── org_api_keys, org_profiles, org_subscriptions, etc.        │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  2. ONBOARD ORGANIZATION                                        │
+│  POST /api/v1/organizations/onboard                             │
+│  Header: X-CA-Root-Key: {CA_ROOT_API_KEY}                       │
 │                                                                 │
-│  CUSTOMER (e.g., acmecorp)                                      │
-│  Key: acmecorp_api_xxxxxxxx - Run pipelines only                │
+│  Creates:                                                       │
+│  ├── org_api_keys row (SHA256 hash + KMS encrypted key)        │
+│  ├── org_profiles row (company info)                            │
+│  ├── org_subscriptions row (plan limits)                        │
+│  ├── org_usage_quotas row (initialized to 0)                    │
+│  └── Dataset: {org_slug} (per-org data isolation)               │
 │                                                                 │
+│  Returns: api_key (shown ONCE, stored in frontend user metadata)│
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  3. SETUP INTEGRATIONS                                          │
+│  POST /api/v1/integrations/{org}/{provider}/setup               │
+│  Header: X-API-Key: {org_api_key}                               │
+│                                                                 │
+│  Stores credentials (KMS encrypted) per org:                    │
+│  ├── GCP Service Account JSON                                   │
+│  ├── OpenAI API Key                                             │
+│  ├── Anthropic API Key                                          │
+│  └── DeepSeek API Key                                           │
+│                                                                 │
+│  Isolation: WHERE org_slug = @org_slug                          │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  4. RUN PIPELINES                                               │
+│  POST /api/v1/pipelines/run/{org}/{provider}/{domain}/{pipeline}│
+│  Header: X-API-Key: {org_api_key}                               │
+│                                                                 │
+│  Execution:                                                     │
+│  1. Validate org API key → get org_slug                         │
+│  2. Check quota: WHERE org_slug = @org_slug                     │
+│  3. Get credentials: WHERE org_slug = @org_slug AND provider=X  │
+│  4. KMS decrypt org's credentials                               │
+│  5. Create BigQuery client with org's credentials               │
+│  6. Execute pipeline                                            │
+│  7. Write results to {project}.{org_slug}.{table}               │
+│  8. Log execution: INSERT ... (org_slug, pipeline_id, ...)      │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+### Multi-Tenant Isolation
+
+**Single KMS Key for All Orgs** - Isolation is at DATA layer:
+
+```sql
+-- Credentials encrypted with shared KMS key
+-- Isolation via org_slug filter in every query
+SELECT encrypted_credential
+FROM organizations.org_integration_credentials
+WHERE org_slug = @org_slug  -- ← THIS provides isolation
+  AND provider = 'GCP_SA'
+```
+
+**Concurrent Pipeline Execution (Org A + Org B):**
+- Each request authenticated by unique org API key
+- org_slug extracted from API key lookup
+- Credentials fetched: WHERE org_slug = @org_slug
+- Separate BigQuery client per execution
+- Data writes to separate datasets: {org_slug}.*
+- NO shared state between executions
 
 ---
 
@@ -53,7 +111,7 @@ API Request → configs/ → Processor → BigQuery API
 
 ```bash
 export GCP_PROJECT_ID="gac-prod-471220"
-export ADMIN_API_KEY="your-secure-admin-key"
+export CA_ROOT_API_KEY="your-secure-admin-key"
 export ENVIRONMENT="production"
 export KMS_KEY_NAME="projects/{project}/locations/{loc}/keyRings/{ring}/cryptoKeys/{key}"
 export ENABLE_API_DOCS="true"  # Enable OpenAPI docs (default: true)
@@ -76,7 +134,7 @@ python3 -m uvicorn src.app.main:app --host 0.0.0.0 --port 8000
 
 ```bash
 curl -X POST $BASE_URL/api/v1/admin/bootstrap \
-  -H "X-Admin-Key: $ADMIN_API_KEY" \
+  -H "X-CA-Root-Key: $CA_ROOT_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"force_recreate_dataset": false}'
 ```
@@ -85,7 +143,7 @@ curl -X POST $BASE_URL/api/v1/admin/bootstrap \
 
 ```bash
 curl -X POST $BASE_URL/api/v1/organizations/dryrun \
-  -H "X-Admin-Key: $ADMIN_API_KEY" \
+  -H "X-CA-Root-Key: $CA_ROOT_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"org_slug": "acmecorp", "company_name": "Acme Corp", "admin_email": "admin@acme.com"}'
 ```
@@ -94,7 +152,7 @@ curl -X POST $BASE_URL/api/v1/organizations/dryrun \
 
 ```bash
 curl -X POST $BASE_URL/api/v1/organizations/onboard \
-  -H "X-Admin-Key: $ADMIN_API_KEY" \
+  -H "X-CA-Root-Key: $CA_ROOT_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"org_slug": "acmecorp", "company_name": "Acme Corp", "admin_email": "admin@acme.com"}'
 

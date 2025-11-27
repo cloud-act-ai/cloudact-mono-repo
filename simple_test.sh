@@ -29,49 +29,49 @@ echo -e "${BLUE}----------------------------------------------------------------
 # Set Environment Variables
 if [ "$ENV" = "local" ]; then
     API_URL="http://localhost:8000"
-    
-    if [ -z "$ADMIN_API_KEY" ]; then
-        echo -e "${RED}Error: ADMIN_API_KEY not set.${NC}"
-        echo "Please export ADMIN_API_KEY='admin_...' before running local test."
+
+    if [ -z "$CA_ROOT_API_KEY" ]; then
+        echo -e "${RED}Error: CA_ROOT_API_KEY not set.${NC}"
+        echo "Please export CA_ROOT_API_KEY='ca_root_...' before running local test."
         exit 1
     fi
 elif [ "$ENV" = "stage" ]; then
     API_URL="https://convergence-pipeline-stage-526075321773.us-central1.run.app"
     PROJECT_ID="gac-stage-471220"
-    
-    if [ -z "$ADMIN_API_KEY" ]; then
-        echo "Fetching Admin API Key from Secret Manager (stage)..."
-        ADMIN_API_KEY=$(gcloud secrets versions access latest --secret=admin-api-key-stage --project=$PROJECT_ID 2>/dev/null || echo "")
-        
-        if [ -z "$ADMIN_API_KEY" ]; then
+
+    if [ -z "$CA_ROOT_API_KEY" ]; then
+        echo "Fetching CA Root API Key from Secret Manager (stage)..."
+        CA_ROOT_API_KEY=$(gcloud secrets versions access latest --secret=ca-root-api-key-stage --project=$PROJECT_ID 2>/dev/null || echo "")
+
+        if [ -z "$CA_ROOT_API_KEY" ]; then
              # Fallback name check
-             ADMIN_API_KEY=$(gcloud secrets versions access latest --secret=admin-api-key --project=$PROJECT_ID 2>/dev/null || echo "")
+             CA_ROOT_API_KEY=$(gcloud secrets versions access latest --secret=ca-root-api-key --project=$PROJECT_ID 2>/dev/null || echo "")
         fi
 
-        if [ -z "$ADMIN_API_KEY" ]; then
-             echo -e "${RED}Could not fetch admin-api-key. Please export ADMIN_API_KEY manually.${NC}"
+        if [ -z "$CA_ROOT_API_KEY" ]; then
+             echo -e "${RED}Could not fetch ca-root-api-key. Please export CA_ROOT_API_KEY manually.${NC}"
              exit 1
         fi
-        echo "Admin Key fetched successfully."
+        echo "CA Root Key fetched successfully."
     fi
 elif [ "$ENV" = "prod" ]; then
     API_URL="https://convergence-pipeline-prod-820784027009.us-central1.run.app"
     PROJECT_ID="gac-prod-471220"
-    
-    if [ -z "$ADMIN_API_KEY" ]; then
-        echo "Fetching Admin API Key from Secret Manager (prod)..."
-        ADMIN_API_KEY=$(gcloud secrets versions access latest --secret=admin-api-key-prod --project=$PROJECT_ID 2>/dev/null || echo "")
-        
-        if [ -z "$ADMIN_API_KEY" ]; then
+
+    if [ -z "$CA_ROOT_API_KEY" ]; then
+        echo "Fetching CA Root API Key from Secret Manager (prod)..."
+        CA_ROOT_API_KEY=$(gcloud secrets versions access latest --secret=ca-root-api-key-prod --project=$PROJECT_ID 2>/dev/null || echo "")
+
+        if [ -z "$CA_ROOT_API_KEY" ]; then
              # Fallback name check
-             ADMIN_API_KEY=$(gcloud secrets versions access latest --secret=admin-api-key --project=$PROJECT_ID 2>/dev/null || echo "")
+             CA_ROOT_API_KEY=$(gcloud secrets versions access latest --secret=ca-root-api-key --project=$PROJECT_ID 2>/dev/null || echo "")
         fi
 
-        if [ -z "$ADMIN_API_KEY" ]; then
-             echo -e "${RED}Could not fetch admin-api-key. Please export ADMIN_API_KEY manually.${NC}"
+        if [ -z "$CA_ROOT_API_KEY" ]; then
+             echo -e "${RED}Could not fetch ca-root-api-key. Please export CA_ROOT_API_KEY manually.${NC}"
              exit 1
         fi
-        echo "Admin Key fetched successfully."
+        echo "CA Root Key fetched successfully."
     fi
 else
     echo -e "${RED}Invalid environment. Use local, stage, or prod.${NC}"
@@ -88,9 +88,9 @@ run_curl() {
     local endpoint=$2
     local data=$3
     local header=$4
-    
+
     echo -e "${GREEN}Request: $method $endpoint${NC}"
-    
+
     if [ -n "$data" ]; then
         response=$(curl -s -X $method "$API_URL$endpoint" \
             -H "Content-Type: application/json" \
@@ -101,7 +101,7 @@ run_curl() {
             -H "Content-Type: application/json" \
             -H "$header")
     fi
-    
+
     # Check for curl errors or empty response
     if [ -z "$response" ]; then
         echo -e "${RED}Error: Empty response from server.${NC}"
@@ -115,14 +115,14 @@ run_curl() {
 
 # 1. Bootstrap
 echo "Step 1: Bootstrapping System..."
-run_curl "POST" "/api/v1/admin/bootstrap" '{"force_recreate_dataset": false, "force_recreate_tables": false}' "X-Admin-Key: $ADMIN_API_KEY"
+run_curl "POST" "/api/v1/admin/bootstrap" '{"force_recreate_dataset": false, "force_recreate_tables": false}' "X-CA-Root-Key: $CA_ROOT_API_KEY"
 
 # 2. Onboard Organization (creates dataset + API key in one step)
 echo "Step 2: Onboarding Organization..."
 echo -e "${GREEN}Request: POST /api/v1/organizations/onboard${NC}"
 onboard_response=$(curl -s -X POST "$API_URL/api/v1/organizations/onboard" \
     -H "Content-Type: application/json" \
-    -H "X-Admin-Key: $ADMIN_API_KEY" \
+    -H "X-CA-Root-Key: $CA_ROOT_API_KEY" \
     -d "{\"org_slug\": \"$ORG_SLUG\", \"company_name\": \"$DESCRIPTION\", \"admin_email\": \"test@test.com\", \"plan_name\": \"PROFESSIONAL\"}")
 echo "Response: $onboard_response"
 echo "----------------------------------------------------------------"

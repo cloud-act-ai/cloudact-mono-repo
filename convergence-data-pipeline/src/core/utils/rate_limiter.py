@@ -15,6 +15,20 @@ from abc import ABC, abstractmethod
 logger = logging.getLogger(__name__)
 
 
+# ============================================
+# Time Constants
+# ============================================
+SECONDS_PER_MINUTE = 60
+SECONDS_PER_HOUR = 3600
+
+# Rate limit window sizes
+MINUTE_WINDOW_SECONDS = SECONDS_PER_MINUTE
+HOUR_WINDOW_SECONDS = SECONDS_PER_HOUR
+
+# Entry coalescing threshold (requests within this time window are merged)
+ENTRY_COALESCE_SECONDS = 1
+
+
 class RateLimitStore(ABC):
     """Abstract base class for rate limit storage backends."""
 
@@ -91,9 +105,9 @@ class InMemoryRateLimitStore(RateLimitStore):
             if is_allowed:
                 # Increment counter
                 if self._store[key]:
-                    # Update last entry if within a second
+                    # Update last entry if within coalesce window to reduce storage
                     last_ts, last_count = self._store[key][-1]
-                    if now - last_ts < 1:
+                    if now - last_ts < ENTRY_COALESCE_SECONDS:
                         self._store[key][-1] = (last_ts, last_count + 1)
                     else:
                         self._store[key].append((now, 1))
@@ -175,13 +189,13 @@ class RateLimiter:
         # Check minute limit
         minute_key = f"org:{org_slug}:minute"
         minute_allowed, minute_meta = await self.store.check_and_increment(
-            minute_key, limit_per_minute, 60
+            minute_key, limit_per_minute, MINUTE_WINDOW_SECONDS
         )
 
         # Check hour limit
         hour_key = f"org:{org_slug}:hour"
         hour_allowed, hour_meta = await self.store.check_and_increment(
-            hour_key, limit_per_hour, 3600
+            hour_key, limit_per_hour, HOUR_WINDOW_SECONDS
         )
 
         is_allowed = minute_allowed and hour_allowed
@@ -218,13 +232,13 @@ class RateLimiter:
         # Check minute limit
         minute_key = f"global:{endpoint}:minute"
         minute_allowed, minute_meta = await self.store.check_and_increment(
-            minute_key, limit_per_minute, 60
+            minute_key, limit_per_minute, MINUTE_WINDOW_SECONDS
         )
 
         # Check hour limit
         hour_key = f"global:{endpoint}:hour"
         hour_allowed, hour_meta = await self.store.check_and_increment(
-            hour_key, limit_per_hour, 3600
+            hour_key, limit_per_hour, HOUR_WINDOW_SECONDS
         )
 
         is_allowed = minute_allowed and hour_allowed

@@ -26,9 +26,6 @@ tables:
       field: "usage_date"
     clustering: ["org_slug", "usage_date"]
 
-  org_cloud_credentials:
-    description: "Cloud credentials (KMS encrypted)"
-
   org_integration_credentials:
     description: "Integration credentials for LLM providers and cloud accounts (KMS encrypted)"
     clustering: ["org_slug", "provider", "validation_status"]

@@ -12,5 +12,5 @@ import os
 os.environ["GCP_PROJECT_ID"] = "test-project"
 os.environ["ENVIRONMENT"] = "development"
 os.environ["KMS_KEY_NAME"] = "projects/test/locations/global/keyRings/test/cryptoKeys/test"
-os.environ["ADMIN_API_KEY"] = "test-admin-key"
+os.environ["CA_ROOT_API_KEY"] = "test-ca-root-key"
 os.environ["DISABLE_AUTH"] = "true"

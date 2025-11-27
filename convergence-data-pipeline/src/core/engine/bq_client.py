@@ -192,6 +192,10 @@ class BigQueryClient:
                     # Create HTTP session with connection pooling
                     session = requests.Session()
 
+                    # Connection timeout settings
+                    CONNECTION_TIMEOUT_SECONDS = 60  # Time to establish connection
+                    READ_TIMEOUT_SECONDS = 300  # Time to read response (5 minutes for large queries)
+
                     # Configure adapter with connection pool settings
                     adapter = requests.adapters.HTTPAdapter(
                         pool_connections=500,  # Number of connection pools to cache
@@ -202,6 +206,10 @@ class BigQueryClient:
 
                     session.mount('https://', adapter)
                     session.mount('http://', adapter)
+
+                    # Set default timeouts for all requests
+                    # Format: (connect_timeout, read_timeout)
+                    session.timeout = (CONNECTION_TIMEOUT_SECONDS, READ_TIMEOUT_SECONDS)
 
                     # Create BigQuery client with custom HTTP session
                     self._client = bigquery.Client(
@@ -220,7 +228,8 @@ class BigQueryClient:
                             "project_id": self.project_id,
                             "location": self.location,
                             "max_connections": 500,
-                            "connection_timeout": 60
+                            "connection_timeout_seconds": CONNECTION_TIMEOUT_SECONDS,
+                            "read_timeout_seconds": READ_TIMEOUT_SECONDS
                         }
                     )
         return self._client

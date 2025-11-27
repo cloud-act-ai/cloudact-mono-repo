@@ -34,7 +34,7 @@ steps:
       provider: "GCP_SA"
       require_valid: true
       context_key: "gcp_sa_json"
-    on_failure: "skip"  # Pipeline can continue with default credentials
+    on_failure: "continue"  # Pipeline can continue with default credentials
 
   # Step 1: Extract billing data from GCP billing export
   - step_id: "extract_billing_costs"

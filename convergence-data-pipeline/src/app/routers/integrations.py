@@ -136,21 +136,51 @@ async def setup_gcp_integration(
 
     The credential should be the full Service Account JSON.
     """
-    if org["org_slug"] != org_slug:
+    # Skip org validation when auth is disabled (dev mode)
+    if not settings.disable_auth and org["org_slug"] != org_slug:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot configure integrations for another organization"
         )
 
-    # Validate JSON format
+    # Validate JSON format with specific error messages
     try:
         sa_data = json.loads(request.credential)
-        if sa_data.get("type") != "service_account":
-            raise ValueError("Not a service account JSON")
-    except (json.JSONDecodeError, ValueError) as e:
+    except json.JSONDecodeError as e:
+        logger.warning(
+            f"Invalid JSON in GCP credential for {org_slug}",
+            extra={"error": str(e), "error_type": "json_decode"}
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid Service Account JSON: {str(e)}"
+            detail="Invalid JSON format: The credential must be valid JSON. Please copy the entire contents of your Service Account JSON file."
+        )
+
+    # Validate required fields
+    if not isinstance(sa_data, dict):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid credential format: Expected a JSON object, not an array or primitive value."
+        )
+
+    if sa_data.get("type") != "service_account":
+        actual_type = sa_data.get("type", "missing")
+        logger.warning(
+            f"Invalid credential type for {org_slug}",
+            extra={"expected": "service_account", "actual": actual_type}
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid credential type: Expected 'service_account' but got '{actual_type}'. Please ensure you're using a Service Account JSON key file."
+        )
+
+    # Validate other required SA fields
+    required_fields = ["project_id", "private_key", "client_email"]
+    missing_fields = [f for f in required_fields if not sa_data.get(f)]
+    if missing_fields:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid Service Account JSON: Missing required fields: {', '.join(missing_fields)}"
         )
 
     # Extract metadata from SA JSON
@@ -182,7 +212,8 @@ async def setup_openai_integration(
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """Setup OpenAI integration for an organization."""
-    if org["org_slug"] != org_slug:
+    # Skip org validation when auth is disabled (dev mode)
+    if not settings.disable_auth and org["org_slug"] != org_slug:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot configure integrations for another organization"
@@ -212,7 +243,8 @@ async def setup_anthropic_integration(
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """Setup Anthropic/Claude integration."""
-    if org["org_slug"] != org_slug:
+    # Skip org validation when auth is disabled (dev mode)
+    if not settings.disable_auth and org["org_slug"] != org_slug:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot configure integrations for another organization"
@@ -242,7 +274,8 @@ async def setup_deepseek_integration(
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """Setup DeepSeek integration."""
-    if org["org_slug"] != org_slug:
+    # Skip org validation when auth is disabled (dev mode)
+    if not settings.disable_auth and org["org_slug"] != org_slug:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot configure integrations for another organization"
@@ -335,7 +368,8 @@ async def get_all_integrations(
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """Get status of all integrations for an organization."""
-    if org["org_slug"] != org_slug:
+    # Skip org validation when auth is disabled (dev mode)
+    if not settings.disable_auth and org["org_slug"] != org_slug:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot view integrations for another organization"
@@ -410,7 +444,8 @@ async def get_integration_status(
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """Get status of a specific integration."""
-    if org["org_slug"] != org_slug:
+    # Skip org validation when auth is disabled (dev mode)
+    if not settings.disable_auth and org["org_slug"] != org_slug:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot view integrations for another organization"
@@ -440,7 +475,8 @@ async def delete_integration(
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """Delete (deactivate) an integration."""
-    if org["org_slug"] != org_slug:
+    # Skip org validation when auth is disabled (dev mode)
+    if not settings.disable_auth and org["org_slug"] != org_slug:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot delete integrations for another organization"
@@ -517,21 +553,38 @@ async def _setup_integration(
         )
 
         if result["status"] == "SUCCESS":
+            validation_status = result.get("validation_status", "PENDING")
+            validation_error = result.get("validation_error")
+
+            # Determine success based on validation status
+            is_valid = validation_status == "VALID"
+
+            # Generate appropriate message based on validation status
+            if is_valid:
+                message = f"{provider} integration configured and validated successfully"
+            elif validation_status == "INVALID":
+                message = f"{provider} credential validation failed: {validation_error or 'Invalid API key'}"
+            elif validation_status == "PENDING":
+                message = f"{provider} integration configured (validation pending)"
+            else:
+                message = f"{provider} integration configured with status: {validation_status}"
+
             logger.info(
-                f"Integration setup successful",
+                f"Integration setup completed",
                 extra={
                     "org_slug": org_slug,
                     "provider": provider,
-                    "validation_status": result.get("validation_status")
+                    "validation_status": validation_status,
+                    "is_valid": is_valid
                 }
             )
             return SetupIntegrationResponse(
-                success=True,
+                success=is_valid,
                 provider=provider,
                 credential_id=result.get("credential_id"),
-                validation_status=result.get("validation_status", "PENDING"),
-                validation_error=result.get("validation_error"),
-                message=result.get("message", f"{provider} integration configured")
+                validation_status=validation_status,
+                validation_error=validation_error,
+                message=message
             )
         else:
             return SetupIntegrationResponse(
@@ -540,7 +593,7 @@ async def _setup_integration(
                 credential_id=None,
                 validation_status="FAILED",
                 validation_error=result.get("error"),
-                message=f"Failed to setup {provider} integration"
+                message=f"Failed to setup {provider} integration: {result.get('error', 'Unknown error')}"
             )
 
     except Exception as e:
@@ -557,7 +610,8 @@ async def _validate_integration(
     org: Dict
 ) -> SetupIntegrationResponse:
     """Common logic for validating any integration using authenticators."""
-    if org["org_slug"] != org_slug:
+    # Skip org validation when auth is disabled (dev mode)
+    if not settings.disable_auth and org["org_slug"] != org_slug:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot validate integrations for another organization"

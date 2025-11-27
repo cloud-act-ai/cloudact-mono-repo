@@ -283,8 +283,8 @@ class AsyncPipelineExecutor:
         from src.app.config import settings
 
         try:
-            # NOTE: org_pipeline_runs is in CENTRAL orgs dataset, not per-org dataset
-            org_pipeline_runs_table = f"{settings.gcp_project_id}.orgs.org_pipeline_runs"
+            # NOTE: org_meta_pipeline_runs is in CENTRAL organizations dataset, not per-org dataset
+            org_pipeline_runs_table = f"{settings.gcp_project_id}.organizations.org_meta_pipeline_runs"
 
             update_query = f"""
             UPDATE `{org_pipeline_runs_table}`
@@ -339,7 +339,7 @@ class AsyncPipelineExecutor:
 
         try:
             update_query = f"""
-            UPDATE `{settings.gcp_project_id}.orgs.org_usage_quotas`
+            UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
             SET
                 concurrent_pipelines_running = concurrent_pipelines_running + 1,
                 max_concurrent_reached = GREATEST(max_concurrent_reached, concurrent_pipelines_running + 1),
@@ -370,7 +370,7 @@ class AsyncPipelineExecutor:
             # Query current count for Prometheus metric
             query_count = f"""
             SELECT concurrent_pipelines_running
-            FROM `{settings.gcp_project_id}.orgs.org_usage_quotas`
+            FROM `{settings.gcp_project_id}.organizations.org_usage_quotas`
             WHERE org_slug = @org_slug AND usage_date = CURRENT_DATE()
             """
 
@@ -414,7 +414,7 @@ class AsyncPipelineExecutor:
 
             # Update usage quotas directly by org_slug
             update_query = f"""
-            UPDATE `{settings.gcp_project_id}.orgs.org_usage_quotas`
+            UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
             SET
                 pipelines_run_today = pipelines_run_today + 1,
                 pipelines_succeeded_today = pipelines_succeeded_today + @success_increment,
