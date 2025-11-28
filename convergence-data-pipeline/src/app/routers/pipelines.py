@@ -84,7 +84,12 @@ class TriggerPipelineResponse(BaseModel):
 # Pipeline Execution Endpoints
 # ============================================
 
-async def run_async_pipeline_task(executor: AsyncPipelineExecutor, parameters: dict) -> Optional[dict]:
+async def run_async_pipeline_task(
+    executor: AsyncPipelineExecutor,
+    parameters: dict,
+    org_slug: str,
+    bq_client: BigQueryClient
+) -> Optional[dict]:
     """
     Execute pipeline in background with proper error handling.
 
@@ -93,9 +98,42 @@ async def run_async_pipeline_task(executor: AsyncPipelineExecutor, parameters: d
 
     NOTE: Since this runs in a background task, exceptions are absorbed by FastAPI.
     We update the pipeline status to FAILED in BigQuery to ensure clients can track failures.
+
+    IMPORTANT: The concurrent counter is incremented HERE (inside the background task),
+    not in the HTTP handler. This ensures that if the HTTP handler fails before starting
+    the task (e.g., template resolution fails), no increment happens and no decrement is needed.
+    The executor's finally block will always decrement the counter when the pipeline completes.
     """
     from google.cloud import bigquery as bq
 
+    # Increment concurrent count at the START of background task execution
+    # This happens AFTER all HTTP handler validation passes
+    # If the task starts, the executor's finally block will ALWAYS decrement it
+    try:
+        increment_concurrent_query = f"""
+        UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
+        SET concurrent_pipelines_running = concurrent_pipelines_running + 1,
+            last_updated = CURRENT_TIMESTAMP()
+        WHERE org_slug = @org_slug AND usage_date = CURRENT_DATE()
+        """
+        bq_client.client.query(
+            increment_concurrent_query,
+            job_config=bigquery.QueryJobConfig(query_parameters=[
+                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
+            ])
+        ).result()
+
+        logger.info(
+            f"Incremented concurrent counter for org: {org_slug} (pipeline: {executor.pipeline_logging_id})"
+        )
+    except Exception as inc_error:
+        logger.error(
+            f"Failed to increment concurrent counter for org {org_slug}: {inc_error}",
+            exc_info=True
+        )
+        # Continue execution - the counter is a soft limit, pipeline should still run
+
+    # Now execute the actual pipeline
     try:
         logger.info(f"Starting background async pipeline execution: {executor.pipeline_logging_id}")
         result = await executor.execute(parameters)
@@ -378,19 +416,11 @@ async def trigger_templated_pipeline(
                 detail=f"Concurrent pipeline limit exceeded. You have {concurrent_running} pipelines running (limit: {concurrent_limit}). Please wait for a pipeline to complete before starting a new one."
             )
 
-        # Increment concurrent count BEFORE starting pipeline (atomic)
-        increment_concurrent_query = f"""
-        UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
-        SET concurrent_pipelines_running = concurrent_pipelines_running + 1,
-            last_updated = CURRENT_TIMESTAMP()
-        WHERE org_slug = @org_slug AND usage_date = CURRENT_DATE()
-        """
-        bq_client.client.query(
-            increment_concurrent_query,
-            job_config=bigquery.QueryJobConfig(query_parameters=[
-                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
-            ])
-        ).result()
+        # NOTE: Concurrent counter increment moved to background task wrapper (run_async_pipeline_task)
+        # This ensures increment only happens if:
+        # 1. All validation passes (quotas, template resolution, etc.)
+        # 2. Background task actually starts
+        # 3. Executor's finally block will ALWAYS decrement when task completes
 
         logger.info(
             f"Quota check passed for org: {org_slug}",
@@ -400,7 +430,7 @@ async def trigger_templated_pipeline(
                 "daily_limit": daily_limit,
                 "pipelines_run_month": pipelines_run_month,
                 "monthly_limit": monthly_limit,
-                "concurrent_running": concurrent_running + 1,  # After increment
+                "concurrent_running": concurrent_running,
                 "concurrent_limit": concurrent_limit
             }
         )
@@ -411,7 +441,7 @@ async def trigger_templated_pipeline(
         logger.error(f"Failed to check quota for org {org_slug}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to check quota: {str(e)}"
+            detail="Operation failed. Please check server logs for details."
         )
 
     # Generate pipeline_id for tracking (includes org prefix)
@@ -443,7 +473,7 @@ async def trigger_templated_pipeline(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Failed to resolve template: {str(e)}"
+            detail="Operation failed. Please check server logs for details."
         )
 
     # Note: Org dataset and operational tables created during onboarding
@@ -523,7 +553,9 @@ async def trigger_templated_pipeline(
         )
 
         # Execute pipeline in background
-        background_tasks.add_task(run_async_pipeline_task, executor, parameters)
+        # NOTE: Concurrent counter increment now happens INSIDE run_async_pipeline_task
+        # This ensures increment only happens if background task actually starts
+        background_tasks.add_task(run_async_pipeline_task, executor, parameters, org_slug, bq_client)
 
         return TriggerPipelineResponse(
             pipeline_logging_id=pipeline_logging_id,
@@ -705,16 +737,8 @@ async def trigger_pipeline(
                 detail=f"Concurrent pipeline limit exceeded. You have {quota['concurrent_pipelines_running']} pipelines running (limit: {quota['concurrent_limit']}). Please wait for a pipeline to complete."
             )
 
-        # Increment concurrent count BEFORE starting pipeline
-        bq_client.client.query(
-            f"""UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
-            SET concurrent_pipelines_running = concurrent_pipelines_running + 1,
-                last_updated = CURRENT_TIMESTAMP()
-            WHERE org_slug = @org_slug AND usage_date = CURRENT_DATE()""",
-            job_config=bigquery.QueryJobConfig(query_parameters=[
-                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
-            ])
-        ).result()
+        # NOTE: Concurrent counter increment moved to background task wrapper (run_async_pipeline_task)
+        # This ensures increment only happens if background task actually starts
 
         logger.info(f"Quota check passed for org: {org_slug}")
 
@@ -724,7 +748,7 @@ async def trigger_pipeline(
         logger.error(f"Failed to check quota for org {org_slug}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to check quota: {str(e)}"
+            detail="Operation failed. Please check server logs for details."
         )
 
     # Note: Org dataset and operational tables created during onboarding
@@ -803,7 +827,8 @@ async def trigger_pipeline(
         executor.pipeline_logging_id = pipeline_logging_id
 
         # Execute pipeline in background with async error handling
-        background_tasks.add_task(run_async_pipeline_task, executor, parameters)
+        # NOTE: Concurrent counter increment now happens INSIDE run_async_pipeline_task
+        background_tasks.add_task(run_async_pipeline_task, executor, parameters, org_slug, bq_client)
 
         return TriggerPipelineResponse(
             pipeline_logging_id=pipeline_logging_id,

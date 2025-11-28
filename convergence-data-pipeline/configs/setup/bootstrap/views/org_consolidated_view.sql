@@ -1,4 +1,4 @@
--- Organization Consolidated Pipeline & Logs Materialized View
+-- Organization Consolidated Pipeline & Logs View
 -- Created during org onboarding in the org's dataset
 -- Joins pipeline runs with step logs for a complete execution picture
 --
@@ -12,15 +12,11 @@
 --   {project_id} - GCP project ID
 --   {dataset_id} - Organization dataset (e.g., acmecorp_prod)
 --   {org_slug}   - Organization slug for filtering
+--
+-- Note: Using regular VIEW instead of MATERIALIZED VIEW because BigQuery
+-- materialized views have restrictions on JSON columns in GROUP BY
 
-CREATE MATERIALIZED VIEW IF NOT EXISTS `{project_id}.{dataset_id}.consolidated_pipeline_logs`
-CLUSTER BY status, pipeline_id, run_date
-OPTIONS (
-  enable_refresh = true,
-  refresh_interval_minutes = 30,
-  max_staleness = INTERVAL "4" HOUR
-)
-AS
+CREATE OR REPLACE VIEW `{project_id}.{dataset_id}.org_consolidated` AS
 SELECT
   -- Pipeline Run Info
   p.pipeline_logging_id,
@@ -34,7 +30,7 @@ SELECT
   p.end_time AS pipeline_end_time,
   p.duration_ms AS pipeline_duration_ms,
   p.run_date,
-  p.parameters,
+  TO_JSON_STRING(p.parameters) AS parameters,
   p.error_message AS pipeline_error,
 
   -- Step Aggregations

@@ -8,7 +8,7 @@ TWO-DATASET ARCHITECTURE:
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, EmailStr, ConfigDict
 from typing import List, Optional, Dict, Any, Union
 from datetime import datetime, date
 import hashlib
@@ -21,7 +21,7 @@ from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
 from src.core.security.kms_encryption import encrypt_value
 from src.core.pipeline import AsyncPipelineExecutor
 from src.app.config import settings
-from src.app.dependencies.auth import get_current_org, get_org_or_admin_auth, AuthResult
+from src.app.dependencies.auth import get_current_org, get_org_or_admin_auth, AuthResult, verify_admin_key
 from src.app.models.org_models import SUBSCRIPTION_LIMITS, SubscriptionPlan, UpdateLimitsRequest
 from google.cloud import bigquery
 import uuid
@@ -42,9 +42,11 @@ class OnboardOrgRequest(BaseModel):
     )
     company_name: str = Field(
         ...,
+        min_length=2,
+        max_length=200,
         description="Company or organization name"
     )
-    admin_email: str = Field(
+    admin_email: EmailStr = Field(
         ...,
         description="Primary admin contact email"
     )
@@ -64,6 +66,8 @@ class OnboardOrgRequest(BaseModel):
         default=False,
         description="If True and org already exists, regenerate API key instead of returning 409"
     )
+
+    model_config = ConfigDict(extra="forbid")
 
     @field_validator('org_slug')
     @classmethod
@@ -104,9 +108,11 @@ class DryRunRequest(BaseModel):
     )
     company_name: str = Field(
         ...,
+        min_length=2,
+        max_length=200,
         description="Company or organization name"
     )
-    admin_email: str = Field(
+    admin_email: EmailStr = Field(
         ...,
         description="Primary admin contact email"
     )
@@ -114,6 +120,8 @@ class DryRunRequest(BaseModel):
         default="STARTER",
         description="Subscription plan: STARTER, PROFESSIONAL, SCALE"
     )
+
+    model_config = ConfigDict(extra="forbid")
 
     @field_validator('org_slug')
     @classmethod
@@ -160,6 +168,7 @@ class DryRunResponse(BaseModel):
 )
 async def dryrun_org_onboarding(
     request: DryRunRequest,
+    _: None = Depends(verify_admin_key),  # SECURITY: Require admin key for dry-run
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """
@@ -230,7 +239,7 @@ async def dryrun_org_onboarding(
         logger.error(f"Dry-run validation error for {org_slug}: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Dry-run validation failed: {str(e)}"
+            detail="Dry-run validation failed. Please check server logs for details."
         )
 
 
@@ -246,6 +255,7 @@ async def dryrun_org_onboarding(
 )
 async def onboard_org(
     request: OnboardOrgRequest,
+    _: None = Depends(verify_admin_key),  # SECURITY: Require admin key for onboarding
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """
@@ -398,7 +408,7 @@ async def onboard_org(
             logger.error(f"Failed to update org profile: {e}", exc_info=True)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to update organization profile: {str(e)}"
+                detail="Failed to update organization profile. Please check server logs for details."
             )
 
         # STEP 2: Update subscription with new plan limits
@@ -479,7 +489,7 @@ async def onboard_org(
             logger.error(f"Failed to revoke existing API keys: {e}", exc_info=True)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to revoke existing API keys: {str(e)}"
+                detail="Failed to revoke existing API keys. Please check server logs for details."
             )
 
         # STEP 5: Generate and store new API key
@@ -529,7 +539,7 @@ async def onboard_org(
             logger.error(f"Failed to regenerate API key: {e}", exc_info=True)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to regenerate API key: {str(e)}"
+                detail="Failed to regenerate API key. Please check server logs for details."
             )
 
     # ============================================
@@ -583,7 +593,7 @@ async def onboard_org(
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create organization profile: {str(e)}"
+            detail="Failed to create organization profile. Please check server logs for details."
         )
 
     # ============================================
@@ -659,7 +669,7 @@ async def onboard_org(
         await cleanup_partial_org(org_slug, "STEP 2: API Key Generation")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to generate API key: {str(e)}"
+            detail="Failed to generate API key. Please check server logs for details."
         )
 
     # ============================================
@@ -703,7 +713,7 @@ async def onboard_org(
         await cleanup_partial_org(org_slug, "STEP 3: Subscription Creation")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create subscription: {str(e)}"
+            detail="Failed to create subscription. Please check server logs for details."
         )
 
     # ============================================
@@ -743,7 +753,7 @@ async def onboard_org(
         await cleanup_partial_org(org_slug, "STEP 4: Usage Quota Creation")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create usage quota: {str(e)}"
+            detail="Failed to create usage quota. Please check server logs for details."
         )
 
     # ============================================
@@ -792,7 +802,7 @@ async def onboard_org(
         # Note: Dataset deletion is handled by OrgOnboardingProcessor cleanup internally
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create organization dataset: {str(e)}"
+            detail="Failed to create organization dataset. Please check server logs for details."
         )
 
     # ============================================
@@ -907,7 +917,7 @@ async def rotate_api_key(
         logger.error(f"Error checking organization: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to validate organization: {str(e)}"
+            detail="Failed to validate organization. Please check server logs for details."
         )
 
     # ============================================
@@ -935,7 +945,7 @@ async def rotate_api_key(
         logger.error(f"Failed to revoke existing API keys: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to revoke existing API keys: {str(e)}"
+            detail="Failed to revoke existing API keys. Please check server logs for details."
         )
 
     # ============================================
@@ -1000,7 +1010,7 @@ async def rotate_api_key(
         logger.error(f"Failed to generate/store new API key: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to generate new API key: {str(e)}"
+            detail="Failed to generate new API key. Please check server logs for details."
         )
 
     return RotateApiKeyResponse(
@@ -1033,6 +1043,7 @@ class ApiKeyInfoResponse(BaseModel):
 )
 async def get_api_key_info(
     org_slug: str,
+    auth: AuthResult = Depends(get_org_or_admin_auth),  # SECURITY: Require org or admin auth
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """
@@ -1040,7 +1051,16 @@ async def get_api_key_info(
 
     Returns fingerprint (last 4 chars), creation date, and scopes.
     Does NOT return the full API key - that's only shown once during creation/rotation.
+
+    SECURITY: Requires either org API key (self-service) or admin key.
+    Org users can only access their own org's API key info.
     """
+    # Security check: if using org key, must match the org in URL
+    if not auth.is_admin and auth.org_slug != org_slug:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cannot access API key info for another organization"
+        )
     logger.info(f"Getting API key info for organization: {org_slug}")
 
     try:
@@ -1092,7 +1112,7 @@ async def get_api_key_info(
         logger.error(f"Failed to get API key info: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get API key info: {str(e)}"
+            detail="Failed to get API key info. Please check server logs for details."
         )
 
 
@@ -1137,6 +1157,8 @@ class UpdateSubscriptionLimitsRequest(BaseModel):
         description="Provider integration limit"
     )
 
+    model_config = ConfigDict(extra="forbid")
+
     @field_validator('plan_name')
     @classmethod
     def validate_plan_name(cls, v):
@@ -1169,6 +1191,7 @@ class UpdateSubscriptionLimitsResponse(BaseModel):
 async def update_subscription_limits(
     org_slug: str,
     request: UpdateSubscriptionLimitsRequest,
+    _: None = Depends(verify_admin_key),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """
@@ -1221,7 +1244,7 @@ async def update_subscription_limits(
         logger.error(f"Error checking organization: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to validate organization: {str(e)}"
+            detail="Failed to validate organization. Please check server logs for details."
         )
 
     # ============================================
@@ -1278,7 +1301,7 @@ async def update_subscription_limits(
         logger.error(f"Failed to update org_subscriptions: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to update subscription: {str(e)}"
+            detail="Failed to update subscription. Please check server logs for details."
         )
 
     # ============================================

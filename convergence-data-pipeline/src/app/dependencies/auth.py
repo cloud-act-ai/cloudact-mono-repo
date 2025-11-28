@@ -170,18 +170,37 @@ class AuthMetricsAggregator:
         logger.info(f"Flushing {len(org_api_key_ids)} auth metric updates to BigQuery")
 
         try:
-            # Batch UPDATE using IN clause (much faster than individual UPDATEs)
-            # Formats: ['key1', 'key2'] -> "('key1', 'key2')"
-            key_list = ", ".join(f"'{key_id}'" for key_id in org_api_key_ids)
+            # SECURITY: Use parameterized query to prevent SQL injection
+            # BigQuery doesn't support IN with array parameter directly, so we use UNNEST
+            # This is safer than string interpolation as UUIDs are validated by BigQuery
+
+            # Validate all org_api_key_ids are valid UUIDs to prevent injection
+            import re
+            uuid_pattern = re.compile(r'^[a-f0-9-]{36}$', re.IGNORECASE)
+            valid_key_ids = [key_id for key_id in org_api_key_ids if uuid_pattern.match(key_id)]
+
+            if not valid_key_ids:
+                logger.warning("No valid UUIDs in auth metrics batch - skipping flush")
+                return
+
+            if len(valid_key_ids) != len(org_api_key_ids):
+                logger.warning(f"Filtered out {len(org_api_key_ids) - len(valid_key_ids)} invalid key IDs from auth metrics batch")
 
             update_query = f"""
             UPDATE `{settings.gcp_project_id}.organizations.org_api_keys`
             SET last_used_at = CURRENT_TIMESTAMP()
-            WHERE org_api_key_id IN ({key_list})
+            WHERE org_api_key_id IN UNNEST(@key_ids)
             """
 
-            # Execute in background (non-blocking)
-            bq_client.client.query(update_query).result()
+            # Execute with parameterized query (prevents SQL injection)
+            bq_client.client.query(
+                update_query,
+                job_config=bigquery.QueryJobConfig(
+                    query_parameters=[
+                        bigquery.ArrayQueryParameter("key_ids", "STRING", valid_key_ids)
+                    ]
+                )
+            ).result()
 
             logger.info(f"Successfully flushed {len(org_api_key_ids)} auth metric updates")
 
@@ -690,41 +709,61 @@ async def increment_pipeline_usage(
         WHERE org_slug = @org_slug
             AND usage_date = @usage_date
         """
+
+        try:
+            bq_client.client.query(
+                update_query,
+                job_config=bigquery.QueryJobConfig(
+                    query_parameters=[
+                        bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                        bigquery.ScalarQueryParameter("usage_date", "DATE", today)
+                    ]
+                )
+            ).result()
+
+            logger.info(f"Updated usage for org {org_slug}: status={pipeline_status}")
+
+        except Exception as e:
+            logger.error(f"Failed to increment pipeline usage: {e}", exc_info=True)
+
     elif pipeline_status in ["SUCCESS", "FAILED"]:
         # Increment completion counters and decrement concurrent
-        success_increment = "1" if pipeline_status == "SUCCESS" else "0"
-        failed_increment = "1" if pipeline_status == "FAILED" else "0"
+        # SECURITY: Use parameterized query parameters instead of f-string interpolation
+        success_increment = 1 if pipeline_status == "SUCCESS" else 0
+        failed_increment = 1 if pipeline_status == "FAILED" else 0
 
         update_query = f"""
         UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
         SET
             pipelines_run_today = pipelines_run_today + 1,
             pipelines_run_month = pipelines_run_month + 1,
-            pipelines_succeeded_today = pipelines_succeeded_today + {success_increment},
-            pipelines_failed_today = pipelines_failed_today + {failed_increment},
+            pipelines_succeeded_today = pipelines_succeeded_today + @success_increment,
+            pipelines_failed_today = pipelines_failed_today + @failed_increment,
             concurrent_pipelines_running = GREATEST(concurrent_pipelines_running - 1, 0)
         WHERE org_slug = @org_slug
             AND usage_date = @usage_date
         """
+
+        try:
+            bq_client.client.query(
+                update_query,
+                job_config=bigquery.QueryJobConfig(
+                    query_parameters=[
+                        bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                        bigquery.ScalarQueryParameter("usage_date", "DATE", today),
+                        bigquery.ScalarQueryParameter("success_increment", "INT64", success_increment),
+                        bigquery.ScalarQueryParameter("failed_increment", "INT64", failed_increment)
+                    ]
+                )
+            ).result()
+
+            logger.info(f"Updated usage for org {org_slug}: status={pipeline_status}")
+
+        except Exception as e:
+            logger.error(f"Failed to increment pipeline usage: {e}", exc_info=True)
     else:
         logger.warning(f"Unknown pipeline status: {pipeline_status}")
         return
-
-    try:
-        bq_client.client.query(
-            update_query,
-            job_config=bigquery.QueryJobConfig(
-                query_parameters=[
-                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
-                    bigquery.ScalarQueryParameter("usage_date", "DATE", today)
-                ]
-            )
-        ).result()
-
-        logger.info(f"Updated usage for org {org_slug}: status={pipeline_status}")
-
-    except Exception as e:
-        logger.error(f"Failed to increment pipeline usage: {e}", exc_info=True)
 
 
 async def get_org_credentials(

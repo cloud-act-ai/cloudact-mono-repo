@@ -4,7 +4,7 @@ Endpoints for organization and API key management.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status, Request
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional
 from datetime import datetime
 import hashlib
@@ -29,8 +29,16 @@ router = APIRouter()
 
 class CreateOrgRequest(BaseModel):
     """Request to create a new organization."""
-    org_slug: str = Field(..., pattern="^[a-z0-9_]+$", description="Organization identifier (lowercase, alphanumeric, underscores)")
+    org_slug: str = Field(
+        ...,
+        min_length=3,
+        max_length=50,
+        pattern="^[a-z0-9_]+$",
+        description="Organization identifier (lowercase, alphanumeric, underscores)"
+    )
     description: Optional[str] = Field(None, description="Organization description")
+
+    model_config = ConfigDict(extra="forbid")
 
 
 class CreateAPIKeyRequest(BaseModel):
@@ -156,10 +164,10 @@ async def bootstrap_system(
         )
 
     except Exception as e:
-        logger.error(f"Bootstrap failed: {e}", exc_info=True)
+        logger.error(f"Bootstrap failed: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Bootstrap failed: {str(e)}"
+            detail="Operation failed. Please check server logs for details."
         )
 
 
@@ -236,10 +244,10 @@ async def create_org(
         logger.info(f"Organization profile created for: {org_slug}")
 
     except Exception as e:
-        logger.error(f"Failed to create org profile: {e}", exc_info=True)
+        logger.error(f"Failed to create org profile: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create organization profile: {str(e)}"
+            detail="Operation failed. Please check server logs for details."
         )
 
     # Step 2: Create subscription
@@ -278,7 +286,7 @@ async def create_org(
         logger.info(f"Subscription created for: {org_slug}")
 
     except Exception as e:
-        logger.error(f"Failed to create subscription: {e}", exc_info=True)
+        logger.error(f"Failed to create subscription: {str(e)}", exc_info=True)
         # Cleanup org profile
         try:
             bq_client.client.query(
@@ -291,7 +299,7 @@ async def create_org(
             pass
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create subscription: {str(e)}"
+            detail="Operation failed. Please check server logs for details."
         )
 
     # Step 3: Create initial usage quota record
@@ -328,7 +336,7 @@ async def create_org(
         logger.info(f"Usage quota created for: {org_slug}")
 
     except Exception as e:
-        logger.error(f"Failed to create usage quota: {e}", exc_info=True)
+        logger.error(f"Failed to create usage quota: {str(e)}", exc_info=True)
         # Cleanup org profile and subscription
         try:
             bq_client.client.query(
@@ -347,7 +355,7 @@ async def create_org(
             pass
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create usage quota: {str(e)}"
+            detail="Operation failed. Please check server logs for details."
         )
 
     # Step 4: Create BigQuery datasets

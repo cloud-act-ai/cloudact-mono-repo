@@ -11,7 +11,7 @@ URL Structure: /api/v1/integrations/{org_slug}/{provider}/setup|validate
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional, Dict, Any, Literal
 from datetime import datetime
 import logging
@@ -35,11 +35,14 @@ class SetupIntegrationRequest(BaseModel):
     credential: str = Field(
         ...,
         description="The credential (API key or Service Account JSON)",
-        min_length=10
+        min_length=10,
+        max_length=50000
     )
     credential_name: Optional[str] = Field(
         None,
-        description="Human-readable name for this credential"
+        description="Human-readable name for this credential",
+        min_length=3,
+        max_length=200
     )
     metadata: Optional[Dict[str, Any]] = Field(
         None,
@@ -49,6 +52,8 @@ class SetupIntegrationRequest(BaseModel):
         False,
         description="Skip credential validation (not recommended)"
     )
+
+    model_config = ConfigDict(extra="forbid")
 
 
 class IntegrationStatusResponse(BaseModel):
@@ -428,7 +433,7 @@ async def get_all_integrations(
         logger.error(f"Error getting integrations for {org_slug}: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve integrations: {str(e)}"
+            detail="Operation failed. Please check server logs for details."
         )
 
 
@@ -513,7 +518,7 @@ async def delete_integration(
         logger.error(f"Error deleting integration: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to delete integration: {str(e)}"
+            detail="Operation failed. Please check server logs for details."
         )
 
 
@@ -600,7 +605,7 @@ async def _setup_integration(
         logger.error(f"Integration setup error: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Integration setup failed: {str(e)}"
+            detail="Operation failed. Please check server logs for details."
         )
 
 
@@ -669,5 +674,5 @@ async def _validate_integration(
         logger.error(f"Validation error for {org_slug}/{provider}: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Validation failed: {str(e)}"
+            detail="Operation failed. Please check server logs for details."
         )

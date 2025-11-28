@@ -30,16 +30,18 @@ router = APIRouter()
 
 class PipelineConfigRequest(BaseModel):
     """Request to add/update pipeline configuration."""
-    provider: str = Field(..., description="Cloud provider (GCP, AWS, AZURE)")
-    domain: str = Field(..., description="Domain category (COST, SECURITY, COMPUTE)")
-    pipeline_template: str = Field(..., description="Pipeline template name")
-    schedule_cron: str = Field(..., description="Cron expression (e.g., '0 2 * * *')")
+    provider: str = Field(..., min_length=1, max_length=50, description="Cloud provider (GCP, AWS, AZURE)")
+    domain: str = Field(..., min_length=1, max_length=50, description="Domain category (COST, SECURITY, COMPUTE)")
+    pipeline_template: str = Field(..., min_length=1, max_length=100, description="Pipeline template name")
+    schedule_cron: str = Field(..., max_length=100, description="Cron expression (e.g., '0 2 * * *')")
     timezone: str = Field(default="UTC", description="Timezone for schedule")
     is_active: bool = Field(default=True, description="Enable/disable pipeline")
     parameters: Optional[Dict[str, Any]] = Field(
         default_factory=dict,
         description="Pipeline parameters (e.g., {'filter_date': '{date}'})"
     )
+
+    model_config = ConfigDict(extra="forbid")
 
 
 class PipelineConfigResponse(BaseModel):
@@ -448,7 +450,7 @@ async def trigger_scheduler(
         logger.error(f"Scheduler trigger failed: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Scheduler trigger failed: {str(e)}"
+            detail="Operation failed. Please check server logs for details."
         )
 
 
@@ -686,7 +688,7 @@ async def process_queue(
         logger.error(f"Queue processing failed: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Queue processing failed: {str(e)}"
+            detail="Operation failed. Please check server logs for details."
         )
 
 
@@ -787,7 +789,7 @@ async def get_scheduler_status(
         logger.error(f"Failed to get scheduler status: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get scheduler status: {str(e)}"
+            detail="Operation failed. Please check server logs for details."
         )
 
 
@@ -869,7 +871,7 @@ async def get_org_pipelines(
         logger.error(f"Failed to get org pipelines: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get org pipelines: {str(e)}"
+            detail="Operation failed. Please check server logs for details."
         )
 
 
@@ -989,7 +991,7 @@ async def create_org_pipeline(
         logger.error(f"Failed to create pipeline configuration: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create pipeline configuration: {str(e)}"
+            detail="Operation failed. Please check server logs for details."
         )
 
 
@@ -1053,7 +1055,7 @@ async def delete_org_pipeline(
         logger.error(f"Failed to delete pipeline configuration: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to delete pipeline configuration: {str(e)}"
+            detail="Operation failed. Please check server logs for details."
         )
 
 
@@ -1138,7 +1140,7 @@ async def reset_daily_quotas(
         logger.error(f"Failed to reset daily quotas: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to reset daily quotas: {str(e)}"
+            detail="Operation failed. Please check server logs for details."
         )
 
 
@@ -1262,5 +1264,5 @@ async def cleanup_orphaned_pipelines(
         logger.error(f"Failed to cleanup orphaned pipelines: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to cleanup orphaned pipelines: {str(e)}"
+            detail="Operation failed. Please check server logs for details."
         )

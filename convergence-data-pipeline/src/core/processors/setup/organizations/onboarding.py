@@ -259,16 +259,14 @@ class OrgOnboardingProcessor:
                 """
 
                 # Execute query with parameterized values (prevents SQL injection)
-                job_config = bigquery.QueryJobConfig(
-                    query_parameters=[
-                        bigquery.ScalarQueryParameter("usage_id", "STRING", usage_id),
-                        bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
-                        bigquery.ScalarQueryParameter("default_daily_limit", "INT64", default_daily_limit),
-                        bigquery.ScalarQueryParameter("default_monthly_limit", "INT64", default_monthly_limit),
-                        bigquery.ScalarQueryParameter("default_concurrent_limit", "INT64", default_concurrent_limit),
-                    ]
-                )
-                list(bq_client.query(quota_insert_query, job_config=job_config))
+                query_params = [
+                    bigquery.ScalarQueryParameter("usage_id", "STRING", usage_id),
+                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                    bigquery.ScalarQueryParameter("default_daily_limit", "INT64", default_daily_limit),
+                    bigquery.ScalarQueryParameter("default_monthly_limit", "INT64", default_monthly_limit),
+                    bigquery.ScalarQueryParameter("default_concurrent_limit", "INT64", default_concurrent_limit),
+                ]
+                list(bq_client.query(quota_insert_query, parameters=query_params))
                 self.logger.info(
                     f"Created initial quota record for organization {org_slug}",
                     extra={
@@ -322,13 +320,11 @@ class OrgOnboardingProcessor:
                     """
 
                     # Execute query with parameterized values (prevents SQL injection)
-                    job_config = bigquery.QueryJobConfig(
-                        query_parameters=[
-                            bigquery.ScalarQueryParameter("test_id", "STRING", test_row["id"]),
-                            bigquery.ScalarQueryParameter("test_message", "STRING", test_row["test_message"]),
-                        ]
-                    )
-                    list(bq_client.query(query, job_config=job_config))
+                    query_params = [
+                        bigquery.ScalarQueryParameter("test_id", "STRING", test_row["id"]),
+                        bigquery.ScalarQueryParameter("test_message", "STRING", test_row["test_message"]),
+                    ]
+                    list(bq_client.query(query, parameters=query_params))
                     self.logger.info(f"Inserted test record into {validation_table}")
                 except Exception as e:
                     self.logger.warning(f"Failed to insert test record: {e}")
