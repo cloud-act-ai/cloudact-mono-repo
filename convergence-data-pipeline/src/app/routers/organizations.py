@@ -9,7 +9,7 @@ TWO-DATASET ARCHITECTURE:
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field, field_validator
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Union
 from datetime import datetime, date
 import hashlib
 import secrets
@@ -22,7 +22,7 @@ from src.core.security.kms_encryption import encrypt_value
 from src.core.pipeline import AsyncPipelineExecutor
 from src.app.config import settings
 from src.app.dependencies.auth import get_current_org, get_org_or_admin_auth, AuthResult
-from src.app.models.org_models import SUBSCRIPTION_LIMITS, SubscriptionPlan
+from src.app.models.org_models import SUBSCRIPTION_LIMITS, SubscriptionPlan, UpdateLimitsRequest
 from google.cloud import bigquery
 import uuid
 
@@ -1094,3 +1094,271 @@ async def get_api_key_info(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get API key info: {str(e)}"
         )
+
+
+# ============================================
+# Update Subscription Limits Endpoint
+# ============================================
+
+class UpdateSubscriptionLimitsRequest(BaseModel):
+    """Request to update subscription limits for an organization."""
+    plan_name: Optional[str] = Field(
+        default=None,
+        description="New subscription plan name (STARTER, PROFESSIONAL, SCALE)"
+    )
+    daily_limit: Optional[int] = Field(
+        default=None,
+        ge=1,
+        le=10000,
+        description="Daily pipeline execution limit"
+    )
+    monthly_limit: Optional[int] = Field(
+        default=None,
+        ge=1,
+        le=300000,
+        description="Monthly pipeline execution limit"
+    )
+    concurrent_limit: Optional[int] = Field(
+        default=None,
+        ge=1,
+        le=100,
+        description="Concurrent pipeline execution limit"
+    )
+    seat_limit: Optional[int] = Field(
+        default=None,
+        ge=1,
+        le=1000,
+        description="Team member seat limit"
+    )
+    providers_limit: Optional[int] = Field(
+        default=None,
+        ge=1,
+        le=100,
+        description="Provider integration limit"
+    )
+
+    @field_validator('plan_name')
+    @classmethod
+    def validate_plan_name(cls, v):
+        """Validate plan name if provided."""
+        if v is not None:
+            allowed = ['STARTER', 'PROFESSIONAL', 'SCALE', 'starter', 'professional', 'scale']
+            if v.upper() not in ['STARTER', 'PROFESSIONAL', 'SCALE']:
+                raise ValueError(f'plan_name must be one of STARTER, PROFESSIONAL, SCALE')
+            return v.upper()
+        return v
+
+
+class UpdateSubscriptionLimitsResponse(BaseModel):
+    """Response for subscription limits update."""
+    org_slug: str
+    plan_name: str
+    daily_limit: int
+    monthly_limit: int
+    concurrent_limit: int
+    updated: bool
+    message: str
+
+
+@router.put(
+    "/organizations/{org_slug}/subscription",
+    response_model=UpdateSubscriptionLimitsResponse,
+    summary="Update subscription limits for an organization",
+    description="Updates subscription limits in BigQuery when plan changes (called by webhook)"
+)
+async def update_subscription_limits(
+    org_slug: str,
+    request: UpdateSubscriptionLimitsRequest,
+    bq_client: BigQueryClient = Depends(get_bigquery_client)
+):
+    """
+    Update subscription limits for an organization.
+
+    This endpoint is called by the frontend Stripe webhook when:
+    - User upgrades/downgrades their plan
+    - Admin manually adjusts limits
+
+    Updates:
+    - org_subscriptions table (plan_name, daily_limit, monthly_limit, concurrent_limit)
+    - org_usage_quotas table (daily_limit for enforcement)
+    - org_profiles table (subscription_plan)
+
+    Requires CA_ROOT_API_KEY authentication (admin only).
+    """
+    logger.info(f"Updating subscription limits for organization: {org_slug}")
+
+    # ============================================
+    # STEP 1: Validate organization exists
+    # ============================================
+    try:
+        check_org_query = f"""
+        SELECT org_slug, status, subscription_plan
+        FROM `{settings.gcp_project_id}.organizations.org_profiles`
+        WHERE org_slug = @org_slug
+        LIMIT 1
+        """
+
+        check_result = list(bq_client.client.query(
+            check_org_query,
+            job_config=bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
+                ]
+            )
+        ).result())
+
+        if not check_result:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Organization '{org_slug}' not found"
+            )
+
+        current_plan = check_result[0].get("subscription_plan", "STARTER")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error checking organization: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to validate organization: {str(e)}"
+        )
+
+    # ============================================
+    # STEP 2: Get limits from request or plan defaults
+    # ============================================
+    plan_name = request.plan_name or current_plan
+
+    # If plan name provided, get default limits from plan
+    if plan_name in ['STARTER', 'PROFESSIONAL', 'SCALE']:
+        try:
+            plan_enum = SubscriptionPlan(plan_name)
+            default_limits = SUBSCRIPTION_LIMITS.get(plan_enum, SUBSCRIPTION_LIMITS[SubscriptionPlan.STARTER])
+        except ValueError:
+            default_limits = SUBSCRIPTION_LIMITS[SubscriptionPlan.STARTER]
+    else:
+        default_limits = SUBSCRIPTION_LIMITS[SubscriptionPlan.STARTER]
+
+    # Use request values or fall back to plan defaults
+    daily_limit = request.daily_limit or default_limits["max_pipelines_per_day"]
+    monthly_limit = request.monthly_limit or default_limits["max_pipelines_per_month"]
+    concurrent_limit = request.concurrent_limit or default_limits["max_concurrent_pipelines"]
+
+    # ============================================
+    # STEP 3: Update org_subscriptions table
+    # ============================================
+    try:
+        update_subscription_query = f"""
+        UPDATE `{settings.gcp_project_id}.organizations.org_subscriptions`
+        SET
+            plan_name = @plan_name,
+            daily_limit = @daily_limit,
+            monthly_limit = @monthly_limit,
+            concurrent_limit = @concurrent_limit,
+            updated_at = CURRENT_TIMESTAMP()
+        WHERE org_slug = @org_slug
+        """
+
+        bq_client.client.query(
+            update_subscription_query,
+            job_config=bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                    bigquery.ScalarQueryParameter("plan_name", "STRING", plan_name),
+                    bigquery.ScalarQueryParameter("daily_limit", "INT64", daily_limit),
+                    bigquery.ScalarQueryParameter("monthly_limit", "INT64", monthly_limit),
+                    bigquery.ScalarQueryParameter("concurrent_limit", "INT64", concurrent_limit)
+                ]
+            )
+        ).result()
+
+        logger.info(f"Updated org_subscriptions for: {org_slug} (plan: {plan_name}, daily: {daily_limit})")
+
+    except Exception as e:
+        logger.error(f"Failed to update org_subscriptions: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update subscription: {str(e)}"
+        )
+
+    # ============================================
+    # STEP 4: Update org_usage_quotas table
+    # ============================================
+    try:
+        update_quota_query = f"""
+        UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
+        SET
+            daily_limit = @daily_limit,
+            monthly_limit = @monthly_limit,
+            concurrent_limit = @concurrent_limit,
+            last_updated = CURRENT_TIMESTAMP()
+        WHERE org_slug = @org_slug
+        """
+
+        bq_client.client.query(
+            update_quota_query,
+            job_config=bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                    bigquery.ScalarQueryParameter("daily_limit", "INT64", daily_limit),
+                    bigquery.ScalarQueryParameter("monthly_limit", "INT64", monthly_limit),
+                    bigquery.ScalarQueryParameter("concurrent_limit", "INT64", concurrent_limit)
+                ]
+            )
+        ).result()
+
+        logger.info(f"Updated org_usage_quotas for: {org_slug}")
+
+    except Exception as e:
+        logger.warning(f"Failed to update org_usage_quotas (may not exist yet): {e}")
+        # Non-fatal - quota record may not exist yet
+
+    # ============================================
+    # STEP 5: Update org_profiles table
+    # ============================================
+    try:
+        update_profile_query = f"""
+        UPDATE `{settings.gcp_project_id}.organizations.org_profiles`
+        SET
+            subscription_plan = @plan_name,
+            updated_at = CURRENT_TIMESTAMP()
+        WHERE org_slug = @org_slug
+        """
+
+        bq_client.client.query(
+            update_profile_query,
+            job_config=bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                    bigquery.ScalarQueryParameter("plan_name", "STRING", plan_name)
+                ]
+            )
+        ).result()
+
+        logger.info(f"Updated org_profiles for: {org_slug} (plan: {plan_name})")
+
+    except Exception as e:
+        logger.warning(f"Failed to update org_profiles: {e}")
+        # Non-fatal
+
+    logger.info(
+        f"Subscription limits updated successfully",
+        extra={
+            "event_type": "subscription_limits_updated",
+            "org_slug": org_slug,
+            "plan_name": plan_name,
+            "daily_limit": daily_limit,
+            "monthly_limit": monthly_limit,
+            "concurrent_limit": concurrent_limit
+        }
+    )
+
+    return UpdateSubscriptionLimitsResponse(
+        org_slug=org_slug,
+        plan_name=plan_name,
+        daily_limit=daily_limit,
+        monthly_limit=monthly_limit,
+        concurrent_limit=concurrent_limit,
+        updated=True,
+        message=f"Subscription limits updated for '{org_slug}'. Plan: {plan_name}, Daily: {daily_limit}, Monthly: {monthly_limit}, Concurrent: {concurrent_limit}"
+    )

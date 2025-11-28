@@ -1,0 +1,86 @@
+[
+  {
+    "name": "audit_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Unique audit log entry ID"
+  },
+  {
+    "name": "org_slug",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Organization identifier"
+  },
+  {
+    "name": "user_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "User who performed the action (NULL for system actions)"
+  },
+  {
+    "name": "api_key_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "API key used for the action"
+  },
+  {
+    "name": "action",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Action performed: CREATE, READ, UPDATE, DELETE, EXECUTE, LOGIN, LOGOUT"
+  },
+  {
+    "name": "resource_type",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Type of resource: PIPELINE, INTEGRATION, API_KEY, USER, CREDENTIAL, ORG"
+  },
+  {
+    "name": "resource_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "ID of the affected resource"
+  },
+  {
+    "name": "details",
+    "type": "JSON",
+    "mode": "NULLABLE",
+    "description": "Additional details about the action (changes, parameters)"
+  },
+  {
+    "name": "ip_address",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "IP address of the request"
+  },
+  {
+    "name": "user_agent",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "User agent string"
+  },
+  {
+    "name": "request_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Request tracking ID for correlation"
+  },
+  {
+    "name": "status",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Result status: SUCCESS, FAILURE, DENIED"
+  },
+  {
+    "name": "error_message",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Error message if action failed"
+  },
+  {
+    "name": "created_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "When the action occurred"
+  }
+]

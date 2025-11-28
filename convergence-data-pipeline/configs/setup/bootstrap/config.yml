@@ -67,3 +67,27 @@ tables:
       type: "DAY"
       field: "ingestion_date"
     clustering: ["org_slug", "overall_status"]
+
+  # ============================================
+  # Enterprise Multi-Tenancy Tables (P0 Fixes)
+  # Note: User management, roles, and frontend rate limiting handled by Supabase
+  # These tables are BigQuery-specific for backend operations
+  # ============================================
+
+  org_audit_logs:
+    description: "Comprehensive audit logging for compliance (SOC2/HIPAA)"
+    partition:
+      type: "DAY"
+      field: "created_at"
+    clustering: ["org_slug", "action", "resource_type"]
+
+  org_cost_tracking:
+    description: "Cost tracking and usage metering for billing"
+    partition:
+      type: "DAY"
+      field: "usage_date"
+    clustering: ["org_slug", "resource_type", "provider"]
+
+  org_kms_keys:
+    description: "Per-organization KMS key mappings for envelope encryption"
+    clustering: ["org_slug", "key_type", "is_active"]

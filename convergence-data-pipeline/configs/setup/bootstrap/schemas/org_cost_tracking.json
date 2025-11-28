@@ -1,0 +1,86 @@
+[
+  {
+    "name": "cost_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Unique cost tracking entry ID"
+  },
+  {
+    "name": "org_slug",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Organization identifier"
+  },
+  {
+    "name": "usage_date",
+    "type": "DATE",
+    "mode": "REQUIRED",
+    "description": "Date of the usage"
+  },
+  {
+    "name": "resource_type",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Type: PIPELINE_RUN, BQ_QUERY, KMS_OPERATION, API_CALL"
+  },
+  {
+    "name": "provider",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Provider: GCP, OPENAI, ANTHROPIC, DEEPSEEK"
+  },
+  {
+    "name": "pipeline_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Associated pipeline ID"
+  },
+  {
+    "name": "quantity",
+    "type": "INT64",
+    "mode": "REQUIRED",
+    "description": "Number of units consumed"
+  },
+  {
+    "name": "unit",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Unit of measurement: COUNT, BYTES, MS, TOKENS"
+  },
+  {
+    "name": "bytes_processed",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "BigQuery bytes processed"
+  },
+  {
+    "name": "bytes_billed",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "BigQuery bytes billed"
+  },
+  {
+    "name": "duration_ms",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "Duration in milliseconds"
+  },
+  {
+    "name": "estimated_cost_usd",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Estimated cost in USD"
+  },
+  {
+    "name": "cost_breakdown",
+    "type": "JSON",
+    "mode": "NULLABLE",
+    "description": "Detailed cost breakdown by component"
+  },
+  {
+    "name": "created_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "When the cost was recorded"
+  }
+]
