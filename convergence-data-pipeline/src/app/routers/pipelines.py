@@ -20,6 +20,7 @@ from src.core.pipeline.template_resolver import resolve_template, get_template_p
 # from src.core.metadata.initializer import ensure_org_metadata
 from src.app.config import settings
 from google.cloud import bigquery
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -252,11 +253,102 @@ async def trigger_templated_pipeline(
         endpoint_name="trigger_templated_pipeline"
     )
 
+    # ============================================
+    # FIX 1: VALIDATE ORG_SLUG FORMAT (Security)
+    # ============================================
+    # Prevents path traversal and injection attacks
+    if not re.match(r'^[a-zA-Z0-9_]{3,50}$', org_slug):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid org_slug format. Must be 3-50 alphanumeric characters with underscores."
+        )
+
     # Verify org_slug matches authenticated org
     if org_slug != org.org_slug:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"Org slug mismatch: authenticated as '{org.org_slug}' but requested '{org_slug}'"
+        )
+
+    # ============================================
+    # FIX 2: VERIFY SUBSCRIPTION IS ACTIVE (Customer-specific)
+    # ============================================
+    # Suspended/cancelled orgs cannot run pipelines
+    sub_status_query = f"""
+    SELECT status, plan_name
+    FROM `{settings.gcp_project_id}.organizations.org_subscriptions`
+    WHERE org_slug = @org_slug
+    LIMIT 1
+    """
+    try:
+        sub_status_result = list(bq_client.client.query(
+            sub_status_query,
+            job_config=bigquery.QueryJobConfig(query_parameters=[
+                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
+            ])
+        ).result())
+
+        if not sub_status_result:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="No active subscription found. Please subscribe to a plan."
+            )
+
+        sub_status = sub_status_result[0].get("status", "UNKNOWN")
+        if sub_status not in ["ACTIVE", "TRIAL"]:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Subscription status is '{sub_status}'. Only ACTIVE or TRIAL subscriptions can run pipelines."
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to check subscription status for {org_slug}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Operation failed. Please check server logs for details."
+        )
+
+    # ============================================
+    # FIX 3: VERIFY PROVIDER CREDENTIALS EXIST (Customer-specific)
+    # ============================================
+    # Pipeline requires customer's credentials for the specific provider
+    cred_check_query = f"""
+    SELECT credential_id, validation_status, is_active
+    FROM `{settings.gcp_project_id}.organizations.org_integration_credentials`
+    WHERE org_slug = @org_slug
+      AND UPPER(provider) = UPPER(@provider)
+      AND is_active = TRUE
+    LIMIT 1
+    """
+    try:
+        cred_result = list(bq_client.client.query(
+            cred_check_query,
+            job_config=bigquery.QueryJobConfig(query_parameters=[
+                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                bigquery.ScalarQueryParameter("provider", "STRING", provider)
+            ])
+        ).result())
+
+        if not cred_result:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"No active {provider.upper()} credentials configured. Please setup the integration first."
+            )
+
+        cred_status = cred_result[0].get("validation_status", "UNKNOWN")
+        if cred_status != "VALID":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"{provider.upper()} credentials status is '{cred_status}'. Please re-validate or update credentials."
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to check credentials for {org_slug}/{provider}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Operation failed. Please check server logs for details."
         )
 
     # ============================================
@@ -416,12 +508,6 @@ async def trigger_templated_pipeline(
                 detail=f"Concurrent pipeline limit exceeded. You have {concurrent_running} pipelines running (limit: {concurrent_limit}). Please wait for a pipeline to complete before starting a new one."
             )
 
-        # NOTE: Concurrent counter increment moved to background task wrapper (run_async_pipeline_task)
-        # This ensures increment only happens if:
-        # 1. All validation passes (quotas, template resolution, etc.)
-        # 2. Background task actually starts
-        # 3. Executor's finally block will ALWAYS decrement when task completes
-
         logger.info(
             f"Quota check passed for org: {org_slug}",
             extra={
@@ -434,6 +520,33 @@ async def trigger_templated_pipeline(
                 "concurrent_limit": concurrent_limit
             }
         )
+
+        # ============================================
+        # FIX 4: INCREMENT QUOTA COUNTERS IMMEDIATELY (Race condition fix)
+        # ============================================
+        # Increment daily/monthly counters BEFORE pipeline execution to prevent race condition
+        # where multiple requests pass quota check before any increments happen.
+        # Concurrent counter is still managed in background task (increment at start, decrement at end)
+        increment_quota_query = f"""
+        UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
+        SET
+            pipelines_run_today = pipelines_run_today + 1,
+            pipelines_run_month = pipelines_run_month + 1,
+            last_updated = CURRENT_TIMESTAMP()
+        WHERE org_slug = @org_slug
+          AND usage_date = CURRENT_DATE()
+        """
+        try:
+            bq_client.client.query(
+                increment_quota_query,
+                job_config=bigquery.QueryJobConfig(query_parameters=[
+                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
+                ])
+            ).result()
+            logger.info(f"Incremented quota counters for org: {org_slug}")
+        except Exception as inc_error:
+            logger.error(f"Failed to increment quota for {org_slug}: {inc_error}")
+            # Continue - quota enforcement is best-effort, don't block pipeline
 
     except HTTPException:
         raise  # Re-raise HTTP exceptions

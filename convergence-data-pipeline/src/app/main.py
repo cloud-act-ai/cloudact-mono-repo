@@ -103,9 +103,12 @@ def validate_production_config() -> None:
 
     errors = []
 
-    # Check root API key
+    # Check root API key presence and minimum length
+    MIN_API_KEY_LENGTH = 32
     if not settings.ca_root_api_key:
         errors.append("CA_ROOT_API_KEY environment variable is required in production")
+    elif len(settings.ca_root_api_key) < MIN_API_KEY_LENGTH:
+        errors.append(f"CA_ROOT_API_KEY must be at least {MIN_API_KEY_LENGTH} characters for production security")
 
     # Check authentication is enabled
     if settings.disable_auth:

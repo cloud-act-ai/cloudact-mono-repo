@@ -45,6 +45,7 @@ class OrgKMSEncryption:
         self._kms_client: Optional[kms.KeyManagementServiceClient] = None
         self._dek_cache: Dict[str, Tuple[Fernet, float]] = {}  # org_slug -> (Fernet, expiry)
         self._cache_ttl_seconds = 300  # 5 minutes
+        self._kms_timeout_seconds = 30  # Timeout for KMS operations
 
     @property
     def kms_client(self) -> kms.KeyManagementServiceClient:
@@ -90,7 +91,8 @@ class OrgKMSEncryption:
             request={
                 "name": self._get_kek_name(),
                 "plaintext": dek
-            }
+            },
+            timeout=self._kms_timeout_seconds
         )
 
         logger.info(
@@ -114,7 +116,8 @@ class OrgKMSEncryption:
             request={
                 "name": self._get_kek_name(),
                 "ciphertext": wrapped_dek
-            }
+            },
+            timeout=self._kms_timeout_seconds
         )
 
         return response.plaintext

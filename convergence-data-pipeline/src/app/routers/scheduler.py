@@ -852,6 +852,7 @@ async def get_org_pipelines(
         FROM `{settings.gcp_project_id}.organizations.org_pipeline_configs`
         WHERE {where_sql}
         ORDER BY created_at DESC
+        LIMIT 1000
         """
 
         job_config = bigquery.QueryJobConfig(query_parameters=parameters)
@@ -1175,11 +1176,12 @@ async def cleanup_orphaned_pipelines(
         total_cleaned = 0
         org_details = []
 
-        # Get all active orgs
+        # Get all active orgs (with limit to prevent unbounded results)
         orgs_query = f"""
         SELECT DISTINCT org_slug, org_slug
         FROM `{settings.gcp_project_id}.organizations.org_profiles`
         WHERE status = 'ACTIVE'
+        LIMIT 10000
         """
 
         orgs_results = list(bq_client.client.query(orgs_query).result())

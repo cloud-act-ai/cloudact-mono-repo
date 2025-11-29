@@ -70,5 +70,5 @@ GROUP BY
   p.end_time,
   p.duration_ms,
   p.run_date,
-  p.parameters,
+  TO_JSON_STRING(p.parameters),  -- BigQuery doesn't allow GROUP BY on JSON columns
   p.error_message;

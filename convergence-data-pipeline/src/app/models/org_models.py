@@ -12,7 +12,7 @@ This module provides:
 from datetime import datetime, date
 from enum import Enum
 from typing import Optional, List, Dict, Any
-from pydantic import BaseModel, Field, EmailStr, field_validator, computed_field
+from pydantic import BaseModel, Field, EmailStr, field_validator, computed_field, ConfigDict
 import re
 
 
@@ -153,15 +153,14 @@ class OnboardOrgRequest(BaseModel):
             )
         return v
 
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "org_slug": "acme_corp_prod",
-                "company_name": "Acme Corporation",
-                "admin_email": "admin@acme.com",
-                "subscription_plan": "STARTER"
-            }
+    model_config = ConfigDict(extra="forbid", json_schema_extra={
+        "example": {
+            "org_slug": "acme_corp_prod",
+            "company_name": "Acme Corporation",
+            "admin_email": "admin@acme.com",
+            "subscription_plan": "STARTER"
         }
+    })
 
 
 class CreateAPIKeyRequest(BaseModel):
@@ -198,14 +197,13 @@ class CreateAPIKeyRequest(BaseModel):
                 )
         return v
 
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "key_name": "production_api_key",
-                "scopes": ["pipelines:run", "pipelines:read", "credentials:read"],
-                "expires_in_days": 365
-            }
+    model_config = ConfigDict(extra="forbid", json_schema_extra={
+        "example": {
+            "key_name": "production_api_key",
+            "scopes": ["pipelines:run", "pipelines:read", "credentials:read"],
+            "expires_in_days": 365
         }
+    })
 
 
 class AddCredentialRequest(BaseModel):
@@ -251,24 +249,23 @@ class AddCredentialRequest(BaseModel):
             raise ValueError('Credentials dictionary cannot be empty')
         return v
 
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "provider": "GCP",
-                "credential_type": "SERVICE_ACCOUNT",
-                "credential_name": "gcp_production_sa",
-                "credentials": {
-                    "type": "service_account",
-                    "project_id": "my-project",
-                    "private_key_id": "key123",
-                    "private_key": "-----BEGIN PRIVATE KEY-----\n...",
-                    "client_email": "sa@project.iam.gserviceaccount.com"
-                },
-                "project_id": "my-gcp-project",
-                "region": "us-central1",
-                "scopes": ["https://www.googleapis.com/auth/cloud-platform"]
-            }
+    model_config = ConfigDict(extra="forbid", json_schema_extra={
+        "example": {
+            "provider": "GCP",
+            "credential_type": "SERVICE_ACCOUNT",
+            "credential_name": "gcp_production_sa",
+            "credentials": {
+                "type": "service_account",
+                "project_id": "my-project",
+                "private_key_id": "key123",
+                "private_key": "-----BEGIN PRIVATE KEY-----\n...",
+                "client_email": "sa@project.iam.gserviceaccount.com"
+            },
+            "project_id": "my-gcp-project",
+            "region": "us-central1",
+            "scopes": ["https://www.googleapis.com/auth/cloud-platform"]
         }
+    })
 
 
 class CreateProviderConfigRequest(BaseModel):
@@ -311,20 +308,19 @@ class CreateProviderConfigRequest(BaseModel):
             raise ValueError('Maximum 10 notification emails allowed')
         return v
 
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "provider": "GCP",
-                "domain": "COST",
-                "source_project_id": "billing-project-123",
-                "source_dataset": "billing_export",
-                "notification_emails": ["team@acme.com", "alerts@acme.com"],
-                "default_parameters": {
-                    "lookback_days": 30,
-                    "currency": "USD"
-                }
+    model_config = ConfigDict(extra="forbid", json_schema_extra={
+        "example": {
+            "provider": "GCP",
+            "domain": "COST",
+            "source_project_id": "billing-project-123",
+            "source_dataset": "billing_export",
+            "notification_emails": ["team@acme.com", "alerts@acme.com"],
+            "default_parameters": {
+                "lookback_days": 30,
+                "currency": "USD"
             }
         }
+    })
 
 
 # InviteUserRequest removed - User management is now handled by Supabase frontend
@@ -378,18 +374,17 @@ class UpdateSubscriptionRequest(BaseModel):
                 raise ValueError('subscription_end_date must be after subscription_start_date')
         return v
 
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "plan_name": "PROFESSIONAL",
-                "max_team_members": 6,
-                "max_providers": 6,
-                "max_pipelines_per_day": 25,
-                "max_pipelines_per_month": 750,
-                "subscription_start_date": "2025-01-01",
-                "subscription_end_date": "2025-12-31"
-            }
+    model_config = ConfigDict(extra="forbid", json_schema_extra={
+        "example": {
+            "plan_name": "PROFESSIONAL",
+            "max_team_members": 6,
+            "max_providers": 6,
+            "max_pipelines_per_day": 25,
+            "max_pipelines_per_month": 750,
+            "subscription_start_date": "2025-01-01",
+            "subscription_end_date": "2025-12-31"
         }
+    })
 
 
 class UpgradeSubscriptionRequest(BaseModel):
@@ -403,13 +398,12 @@ class UpgradeSubscriptionRequest(BaseModel):
         description="Whether upgrade takes effect immediately or at next billing cycle"
     )
 
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "new_plan": "SCALE",
-                "effective_immediately": True
-            }
+    model_config = ConfigDict(extra="forbid", json_schema_extra={
+        "example": {
+            "new_plan": "SCALE",
+            "effective_immediately": True
         }
+    })
 
 
 class UpdateLimitsRequest(BaseModel):
@@ -445,14 +439,13 @@ class UpdateLimitsRequest(BaseModel):
         description="Concurrent pipeline execution limit"
     )
 
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "max_team_members": 15,
-                "max_pipelines_per_day": 150,
-                "max_pipelines_per_month": 4500
-            }
+    model_config = ConfigDict(extra="forbid", json_schema_extra={
+        "example": {
+            "max_team_members": 15,
+            "max_pipelines_per_day": 150,
+            "max_pipelines_per_month": 4500
         }
+    })
 
 
 # UpdateUserRequest removed - User management is now handled by Supabase frontend
@@ -473,20 +466,18 @@ class OrgProfileResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
-        json_schema_extra = {
-            "example": {
-                "org_slug": "acme_corp_prod",
-                "company_name": "Acme Corporation",
-                "admin_email": "admin@acme.com",
-                "status": "ACTIVE",
-                "subscription_plan": "PROFESSIONAL",
-                "org_dataset_id": "org_acme_corp_prod",
-                "created_at": "2025-01-15T10:00:00Z",
-                "updated_at": "2025-01-15T10:00:00Z"
-            }
+    model_config = ConfigDict(from_attributes=True, json_schema_extra={
+        "example": {
+            "org_slug": "acme_corp_prod",
+            "company_name": "Acme Corporation",
+            "admin_email": "admin@acme.com",
+            "status": "ACTIVE",
+            "subscription_plan": "PROFESSIONAL",
+            "org_dataset_id": "org_acme_corp_prod",
+            "created_at": "2025-01-15T10:00:00Z",
+            "updated_at": "2025-01-15T10:00:00Z"
         }
+    })
 
 
 class APIKeyResponse(BaseModel):
@@ -502,19 +493,17 @@ class APIKeyResponse(BaseModel):
     expires_at: datetime
     is_active: bool
 
-    class Config:
-        from_attributes = True
-        json_schema_extra = {
-            "example": {
-                "org_api_key_id": "key_abc123xyz",
-                "api_key": "ck_live_abc123xyz...",  # Only on creation
-                "key_name": "production_api_key",
-                "scopes": ["pipelines:run", "pipelines:read"],
-                "created_at": "2025-01-15T10:00:00Z",
-                "expires_at": "2026-01-15T10:00:00Z",
-                "is_active": True
-            }
+    model_config = ConfigDict(from_attributes=True, json_schema_extra={
+        "example": {
+            "org_api_key_id": "key_abc123xyz",
+            "api_key": "ck_live_abc123xyz...",
+            "key_name": "production_api_key",
+            "scopes": ["pipelines:run", "pipelines:read"],
+            "created_at": "2025-01-15T10:00:00Z",
+            "expires_at": "2026-01-15T10:00:00Z",
+            "is_active": True
         }
+    })
 
 
 class CredentialResponse(BaseModel):
@@ -531,23 +520,21 @@ class CredentialResponse(BaseModel):
     is_active: bool
     validation_status: ValidationStatus
 
-    class Config:
-        from_attributes = True
-        json_schema_extra = {
-            "example": {
-                "credential_id": "cred_xyz789",
-                "org_slug": "acme_corp_prod",
-                "provider": "GCP",
-                "credential_type": "SERVICE_ACCOUNT",
-                "credential_name": "gcp_production_sa",
-                "project_id": "my-gcp-project",
-                "region": "us-central1",
-                "created_at": "2025-01-15T10:00:00Z",
-                "last_validated_at": "2025-01-16T08:30:00Z",
-                "is_active": True,
-                "validation_status": "VALID"
-            }
+    model_config = ConfigDict(from_attributes=True, json_schema_extra={
+        "example": {
+            "credential_id": "cred_xyz789",
+            "org_slug": "acme_corp_prod",
+            "provider": "GCP",
+            "credential_type": "SERVICE_ACCOUNT",
+            "credential_name": "gcp_production_sa",
+            "project_id": "my-gcp-project",
+            "region": "us-central1",
+            "created_at": "2025-01-15T10:00:00Z",
+            "last_validated_at": "2025-01-16T08:30:00Z",
+            "is_active": True,
+            "validation_status": "VALID"
         }
+    })
 
 
 class SubscriptionResponse(BaseModel):
@@ -565,24 +552,22 @@ class SubscriptionResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
-        json_schema_extra = {
-            "example": {
-                "subscription_id": "sub_123abc",
-                "org_slug": "acme_corp_prod",
-                "plan_name": "PROFESSIONAL",
-                "status": "ACTIVE",
-                "max_team_members": 6,
-                "max_providers": 6,
-                "max_pipelines_per_day": 25,
-                "max_pipelines_per_month": 750,
-                "trial_end_date": None,
-                "subscription_end_date": "2025-12-31",
-                "created_at": "2025-01-15T10:00:00Z",
-                "updated_at": "2025-01-15T10:00:00Z"
-            }
+    model_config = ConfigDict(from_attributes=True, json_schema_extra={
+        "example": {
+            "subscription_id": "sub_123abc",
+            "org_slug": "acme_corp_prod",
+            "plan_name": "PROFESSIONAL",
+            "status": "ACTIVE",
+            "max_team_members": 6,
+            "max_providers": 6,
+            "max_pipelines_per_day": 25,
+            "max_pipelines_per_month": 750,
+            "trial_end_date": None,
+            "subscription_end_date": "2025-12-31",
+            "created_at": "2025-01-15T10:00:00Z",
+            "updated_at": "2025-01-15T10:00:00Z"
         }
+    })
 
 
 class UsageQuotaResponse(BaseModel):
@@ -607,26 +592,24 @@ class UsageQuotaResponse(BaseModel):
             "concurrent": max(0, self.concurrent_limit - self.concurrent_pipelines_running)
         }
 
-    class Config:
-        from_attributes = True
-        json_schema_extra = {
-            "example": {
-                "org_slug": "acme_corp_prod",
-                "usage_date": "2025-01-15",
-                "pipelines_run_today": 12,
-                "daily_limit": 25,
-                "pipelines_run_month": 180,
-                "monthly_limit": 750,
-                "concurrent_pipelines_running": 1,
-                "concurrent_limit": 3,
-                "quota_exceeded": False,
-                "quota_remaining": {
-                    "daily": 13,
-                    "monthly": 570,
-                    "concurrent": 2
-                }
+    model_config = ConfigDict(from_attributes=True, json_schema_extra={
+        "example": {
+            "org_slug": "acme_corp_prod",
+            "usage_date": "2025-01-15",
+            "pipelines_run_today": 12,
+            "daily_limit": 25,
+            "pipelines_run_month": 180,
+            "monthly_limit": 750,
+            "concurrent_pipelines_running": 1,
+            "concurrent_limit": 3,
+            "quota_exceeded": False,
+            "quota_remaining": {
+                "daily": 13,
+                "monthly": 570,
+                "concurrent": 2
             }
         }
+    })
 
 
 class LimitsResponse(BaseModel):
@@ -640,26 +623,24 @@ class LimitsResponse(BaseModel):
     max_concurrent_pipelines: int
     current_usage: Dict[str, int]
 
-    class Config:
-        from_attributes = True
-        json_schema_extra = {
-            "example": {
-                "org_slug": "acme_corp_prod",
-                "subscription_plan": "PROFESSIONAL",
-                "max_team_members": 6,
-                "max_providers": 6,
-                "max_pipelines_per_day": 25,
-                "max_pipelines_per_month": 750,
-                "max_concurrent_pipelines": 3,
-                "current_usage": {
-                    "team_members": 3,
-                    "providers": 2,
-                    "pipelines_today": 12,
-                    "pipelines_month": 180,
-                    "concurrent_running": 1
-                }
+    model_config = ConfigDict(from_attributes=True, json_schema_extra={
+        "example": {
+            "org_slug": "acme_corp_prod",
+            "subscription_plan": "PROFESSIONAL",
+            "max_team_members": 6,
+            "max_providers": 6,
+            "max_pipelines_per_day": 25,
+            "max_pipelines_per_month": 750,
+            "max_concurrent_pipelines": 3,
+            "current_usage": {
+                "team_members": 3,
+                "providers": 2,
+                "pipelines_today": 12,
+                "pipelines_month": 180,
+                "concurrent_running": 1
             }
         }
+    })
 
 
 # UserResponse removed - User management is now handled by Supabase frontend
@@ -676,24 +657,22 @@ class ValidationResponse(BaseModel):
     credentials_configured: bool
     message: str
 
-    class Config:
-        from_attributes = True
-        json_schema_extra = {
-            "example": {
-                "org_slug": "acme_corp_prod",
-                "can_run_pipeline": True,
-                "subscription_status": "ACTIVE",
-                "subscription_valid": True,
-                "quota_available": True,
-                "quota_remaining": {
-                    "daily": 13,
-                    "monthly": 570,
-                    "concurrent": 2
-                },
-                "credentials_configured": True,
-                "message": "Organization is valid and can run pipelines"
-            }
+    model_config = ConfigDict(from_attributes=True, json_schema_extra={
+        "example": {
+            "org_slug": "acme_corp_prod",
+            "can_run_pipeline": True,
+            "subscription_status": "ACTIVE",
+            "subscription_valid": True,
+            "quota_available": True,
+            "quota_remaining": {
+                "daily": 13,
+                "monthly": 570,
+                "concurrent": 2
+            },
+            "credentials_configured": True,
+            "message": "Organization is valid and can run pipelines"
         }
+    })
 
 
 class ProviderConfigResponse(BaseModel):
@@ -710,23 +689,21 @@ class ProviderConfigResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
-        json_schema_extra = {
-            "example": {
-                "config_id": "config_abc123",
-                "org_slug": "acme_corp_prod",
-                "provider": "GCP",
-                "domain": "COST",
-                "source_project_id": "billing-project-123",
-                "source_dataset": "billing_export",
-                "notification_emails": ["team@acme.com"],
-                "default_parameters": {"lookback_days": 30},
-                "is_active": True,
-                "created_at": "2025-01-15T10:00:00Z",
-                "updated_at": "2025-01-15T10:00:00Z"
-            }
+    model_config = ConfigDict(from_attributes=True, json_schema_extra={
+        "example": {
+            "config_id": "config_abc123",
+            "org_slug": "acme_corp_prod",
+            "provider": "GCP",
+            "domain": "COST",
+            "source_project_id": "billing-project-123",
+            "source_dataset": "billing_export",
+            "notification_emails": ["team@acme.com"],
+            "default_parameters": {"lookback_days": 30},
+            "is_active": True,
+            "created_at": "2025-01-15T10:00:00Z",
+            "updated_at": "2025-01-15T10:00:00Z"
         }
+    })
 
 
 # ============================================================================

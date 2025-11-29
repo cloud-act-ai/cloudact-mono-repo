@@ -16,6 +16,7 @@ from typing import List, Optional, Dict, Any, Literal
 from datetime import datetime
 import logging
 import json
+import re
 
 from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
 from src.app.dependencies.auth import get_current_org
@@ -24,6 +25,22 @@ from google.cloud import bigquery
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+
+# ============================================
+# Input Validation (Multi-Tenancy Security)
+# ============================================
+
+def validate_org_slug(org_slug: str) -> None:
+    """
+    Validate org_slug format to prevent path traversal and injection.
+    Must match backend requirements: 3-50 alphanumeric characters with underscores.
+    """
+    if not org_slug or not re.match(r'^[a-zA-Z0-9_]{3,50}$', org_slug):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid org_slug format. Must be 3-50 alphanumeric characters with underscores."
+        )
 
 
 # ============================================
@@ -141,6 +158,9 @@ async def setup_gcp_integration(
 
     The credential should be the full Service Account JSON.
     """
+    # SECURITY: Validate org_slug format first
+    validate_org_slug(org_slug)
+
     # Skip org validation when auth is disabled (dev mode)
     if not settings.disable_auth and org["org_slug"] != org_slug:
         raise HTTPException(
@@ -217,6 +237,9 @@ async def setup_openai_integration(
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """Setup OpenAI integration for an organization."""
+    # SECURITY: Validate org_slug format first
+    validate_org_slug(org_slug)
+
     # Skip org validation when auth is disabled (dev mode)
     if not settings.disable_auth and org["org_slug"] != org_slug:
         raise HTTPException(
@@ -248,6 +271,9 @@ async def setup_anthropic_integration(
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """Setup Anthropic/Claude integration."""
+    # SECURITY: Validate org_slug format first
+    validate_org_slug(org_slug)
+
     # Skip org validation when auth is disabled (dev mode)
     if not settings.disable_auth and org["org_slug"] != org_slug:
         raise HTTPException(
@@ -279,6 +305,9 @@ async def setup_deepseek_integration(
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """Setup DeepSeek integration."""
+    # SECURITY: Validate org_slug format first
+    validate_org_slug(org_slug)
+
     # Skip org validation when auth is disabled (dev mode)
     if not settings.disable_auth and org["org_slug"] != org_slug:
         raise HTTPException(
@@ -373,6 +402,9 @@ async def get_all_integrations(
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """Get status of all integrations for an organization."""
+    # SECURITY: Validate org_slug format first
+    validate_org_slug(org_slug)
+
     # Skip org validation when auth is disabled (dev mode)
     if not settings.disable_auth and org["org_slug"] != org_slug:
         raise HTTPException(
@@ -449,6 +481,9 @@ async def get_integration_status(
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """Get status of a specific integration."""
+    # SECURITY: Validate org_slug format first
+    validate_org_slug(org_slug)
+
     # Skip org validation when auth is disabled (dev mode)
     if not settings.disable_auth and org["org_slug"] != org_slug:
         raise HTTPException(
@@ -480,6 +515,9 @@ async def delete_integration(
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """Delete (deactivate) an integration."""
+    # SECURITY: Validate org_slug format first
+    validate_org_slug(org_slug)
+
     # Skip org validation when auth is disabled (dev mode)
     if not settings.disable_auth and org["org_slug"] != org_slug:
         raise HTTPException(
@@ -659,13 +697,14 @@ async def _validate_integration(
         )
 
     except ValueError as e:
-        # No credentials found
+        # No credentials found - log details but return generic message
+        logger.warning(f"Validation lookup failed for {org_slug}/{provider}: {e}")
         return SetupIntegrationResponse(
             success=False,
             provider=provider,
             credential_id=None,
             validation_status="NOT_CONFIGURED",
-            validation_error=str(e),
+            validation_error="Integration not configured",
             message=f"No {provider} integration found"
         )
     except HTTPException:
