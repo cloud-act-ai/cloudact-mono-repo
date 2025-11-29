@@ -3,6 +3,7 @@ Async Pipeline Executor - Petabyte-Scale Parallel Processing
 Orchestrates multi-step pipelines with async/await and parallel execution.
 """
 
+import re
 import yaml
 import uuid
 import asyncio
@@ -40,10 +41,12 @@ except ImportError:
     get_tracer = None
 
 # ============================================
-# Dedicated Thread Pool for BigQuery Operations
+# Shared Thread Pool for BigQuery Operations
 # ============================================
-# Create module-level thread pool with 200 workers for 10k org scale
-# This prevents thread exhaustion when running 100+ concurrent pipelines
+# Single shared pool is fine because:
+# - BigQuery SERVICE handles query scheduling and concurrency (100 concurrent per project)
+# - Thread pool just wraps sync calls to not block async event loop
+# - Tenant isolation is at DATA level (datasets), not thread level
 BQ_EXECUTOR = ThreadPoolExecutor(
     max_workers=200,
     thread_name_prefix="bq_worker"
@@ -84,6 +87,35 @@ class AsyncPipelineExecutor:
     - Support for 100+ concurrent pipelines
     """
 
+    # org_slug validation pattern: alphanumeric, underscore, 3-50 chars
+    ORG_SLUG_PATTERN = re.compile(r'^[a-z0-9_]{3,50}$')
+
+    @staticmethod
+    def _validate_org_slug(org_slug: str) -> None:
+        """
+        Validate org_slug format (defense-in-depth).
+
+        Auth layer should validate org_slug matches API key, but this provides
+        additional validation at execution time.
+
+        Args:
+            org_slug: Organization identifier
+
+        Raises:
+            ValueError: If org_slug is invalid
+        """
+        if not org_slug:
+            raise ValueError("org_slug is required and cannot be empty")
+
+        if not isinstance(org_slug, str):
+            raise ValueError(f"org_slug must be a string, got {type(org_slug).__name__}")
+
+        if not AsyncPipelineExecutor.ORG_SLUG_PATTERN.match(org_slug):
+            raise ValueError(
+                f"Invalid org_slug format: '{org_slug}'. "
+                "Must be 3-50 lowercase alphanumeric characters or underscores."
+            )
+
     def __init__(
         self,
         org_slug: str,
@@ -110,6 +142,9 @@ class AsyncPipelineExecutor:
             user_id: User UUID from frontend (X-User-ID header)
             org_api_key_id: API key ID used for authentication (for audit trail)
         """
+        # Validate org_slug (defense-in-depth - auth layer should have validated already)
+        self._validate_org_slug(org_slug)
+
         self.org_slug = org_slug
         self.pipeline_id = pipeline_id
         self.trigger_type = trigger_type
@@ -580,12 +615,11 @@ class AsyncPipelineExecutor:
             except Exception as quota_error:
                 self.logger.error(f"Error updating customer usage quotas: {quota_error}", exc_info=True)
 
-            # Clean up BigQuery client resources
+            # Clean up BigQuery client resources (thread pool cleaned up at app exit via atexit)
             try:
                 if hasattr(self, 'bq_client') and self.bq_client:
                     if hasattr(self.bq_client, 'client') and self.bq_client.client:
-                        loop = asyncio.get_event_loop()
-                        await loop.run_in_executor(BQ_EXECUTOR, self.bq_client.client.close)
+                        self.bq_client.client.close()
                         self.logger.debug("BigQuery client closed successfully")
             except Exception as cleanup_error:
                 self.logger.error(f"Error closing BigQuery client: {cleanup_error}", exc_info=True)

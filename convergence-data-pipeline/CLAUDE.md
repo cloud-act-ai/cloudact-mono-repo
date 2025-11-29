@@ -79,14 +79,14 @@ Frontend (Supabase)                    Backend (BigQuery)
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │  3. SETUP INTEGRATIONS                                          │
-│  POST /api/v1/integrations/{org}/{provider}/setup               │
+│  POST /api/v1/integrations/{org_slug}/{provider}/setup          │
 │  Header: X-API-Key: {org_api_key}                               │
 │                                                                 │
 │  Stores credentials (KMS encrypted) per org:                    │
-│  ├── GCP Service Account JSON                                   │
-│  ├── OpenAI API Key                                             │
-│  ├── Anthropic API Key                                          │
-│  └── DeepSeek API Key                                           │
+│  ├── GCP Service Account JSON (gcp/setup)                       │
+│  ├── OpenAI API Key (openai/setup) + init pricing/subscriptions │
+│  ├── Anthropic API Key (anthropic/setup)                        │
+│  └── DeepSeek API Key (deepseek/setup)                          │
 │                                                                 │
 │  Isolation: WHERE org_slug = @org_slug                          │
 └─────────────────────────────────────────────────────────────────┘
@@ -257,10 +257,10 @@ WHERE org_slug = @org_slug  -- ← THIS provides isolation
 │  │ User adds LLM/Cloud provider credentials via frontend UI            │    │
 │  │ Frontend calls backend with Org API Key:                            │    │
 │  │                                                                     │    │
-│  │   POST /organizations/{org}/integrations/openai                     │    │
-│  │   POST /organizations/{org}/integrations/anthropic                  │    │
-│  │   POST /organizations/{org}/integrations/deepseek                   │    │
-│  │   POST /organizations/{org}/integrations/gcp_service_account        │    │
+│  │   POST /integrations/{org_slug}/openai/setup                        │    │
+│  │   POST /integrations/{org_slug}/anthropic/setup                     │    │
+│  │   POST /integrations/{org_slug}/deepseek/setup                      │    │
+│  │   POST /integrations/{org_slug}/gcp/setup                           │    │
 │  │                                                                     │    │
 │  │ Backend for each:                                                   │    │
 │  │   1. Validates credential (calls provider API)                      │    │
@@ -318,13 +318,40 @@ WHERE org_slug = @org_slug  -- ← THIS provides isolation
 
 | Method | Endpoint | Auth | Purpose |
 |--------|----------|------|---------|
-| POST | `/organizations/{org}/integrations/openai` | Org Key | Setup OpenAI API key |
-| POST | `/organizations/{org}/integrations/claude` | Org Key | Setup Claude API key |
-| POST | `/organizations/{org}/integrations/deepseek` | Org Key | Setup DeepSeek API key |
-| POST | `/organizations/{org}/integrations/gcp_service_account` | Org Key | Setup GCP SA JSON |
-| GET | `/organizations/{org}/integrations` | Org Key | Get all integration statuses |
-| POST | `/organizations/{org}/integrations/{provider}/validate` | Org Key | Re-validate credential |
-| DELETE | `/organizations/{org}/integrations/{provider}` | Org Key | Remove integration |
+| POST | `/integrations/{org_slug}/gcp/setup` | Org Key | Setup GCP Service Account |
+| POST | `/integrations/{org_slug}/openai/setup` | Org Key | Setup OpenAI API key + init pricing/subscriptions |
+| POST | `/integrations/{org_slug}/anthropic/setup` | Org Key | Setup Anthropic API key |
+| POST | `/integrations/{org_slug}/deepseek/setup` | Org Key | Setup DeepSeek API key |
+| POST | `/integrations/{org_slug}/gcp/validate` | Org Key | Re-validate GCP credential |
+| POST | `/integrations/{org_slug}/openai/validate` | Org Key | Re-validate OpenAI credential |
+| POST | `/integrations/{org_slug}/anthropic/validate` | Org Key | Re-validate Anthropic credential |
+| POST | `/integrations/{org_slug}/deepseek/validate` | Org Key | Re-validate DeepSeek credential |
+| GET | `/integrations/{org_slug}` | Org Key | Get all integration statuses |
+| GET | `/integrations/{org_slug}/{provider}` | Org Key | Get specific integration status |
+| DELETE | `/integrations/{org_slug}/{provider}` | Org Key | Remove integration |
+
+### OpenAI Data API Endpoints (CRUD)
+
+When OpenAI integration is set up, pricing and subscription tables are auto-initialized with default data from `configs/openai/seed/data/`.
+
+| Method | Endpoint | Auth | Purpose |
+|--------|----------|------|---------|
+| GET | `/integrations/{org_slug}/openai/pricing` | Org Key | List all pricing models |
+| POST | `/integrations/{org_slug}/openai/pricing` | Org Key | Add new pricing model |
+| PUT | `/integrations/{org_slug}/openai/pricing/{model_id}` | Org Key | Update pricing model |
+| DELETE | `/integrations/{org_slug}/openai/pricing/{model_id}` | Org Key | Delete pricing model |
+| POST | `/integrations/{org_slug}/openai/pricing/reset` | Org Key | Reset to default pricing from CSV |
+| GET | `/integrations/{org_slug}/openai/subscriptions` | Org Key | List all subscriptions |
+| POST | `/integrations/{org_slug}/openai/subscriptions` | Org Key | Add new subscription |
+| PUT | `/integrations/{org_slug}/openai/subscriptions/{plan_name}` | Org Key | Update subscription |
+| DELETE | `/integrations/{org_slug}/openai/subscriptions/{plan_name}` | Org Key | Delete subscription |
+| POST | `/integrations/{org_slug}/openai/subscriptions/reset` | Org Key | Reset to default subscriptions from CSV |
+
+**Default Data Files:**
+- `configs/openai/seed/data/default_pricing.csv` - GPT-4o, GPT-4, GPT-3.5, o1 pricing
+- `configs/openai/seed/data/default_subscriptions.csv` - FREE, TIER1, TIER2, TIER3, PAY_AS_YOU_GO plans (quantity=0)
+
+**Auto-Initialization:** Tables are created and populated when OpenAI integration is set up via `/integrations/{org_slug}/openai/setup`.
 
 ### Example: bfnd_23423 Complete Flow
 
@@ -340,22 +367,22 @@ curl -X POST $BASE_URL/api/v1/organizations/onboard \
 
 export ORG_API_KEY="bfnd_23423_api_xxxxxxxxxxxxxxxx"
 
-# Step 2: Customer configures OpenAI integration
-curl -X POST $BASE_URL/api/v1/organizations/bfnd_23423/integrations/openai \
+# Step 2: Customer configures OpenAI integration (auto-creates pricing + subscriptions tables)
+curl -X POST $BASE_URL/api/v1/integrations/bfnd_23423/openai/setup \
   -H "X-API-Key: $ORG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"credential": "sk-...", "credential_name": "Production Key"}'
 
-# Response: {"success": true, "validation_status": "VALID", ...}
+# Response: {"success": true, "validation_status": "VALID", "pricing_initialized": true, "subscriptions_initialized": true}
 
 # Step 3: Customer configures GCP Service Account
-curl -X POST $BASE_URL/api/v1/organizations/bfnd_23423/integrations/gcp_service_account \
+curl -X POST $BASE_URL/api/v1/integrations/bfnd_23423/gcp/setup \
   -H "X-API-Key: $ORG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"credential": "{\"type\":\"service_account\",\"project_id\":\"my-project\",...}"}'
 
 # Step 4: Check all integration statuses
-curl $BASE_URL/api/v1/organizations/bfnd_23423/integrations \
+curl $BASE_URL/api/v1/integrations/bfnd_23423 \
   -H "X-API-Key: $ORG_API_KEY"
 
 # Response: {"integrations": {"OPENAI": {"status": "VALID"}, "GCP_SA": {"status": "VALID"}, ...}}
@@ -470,18 +497,23 @@ curl -X POST $BASE_URL/api/v1/organizations/onboard \
 **Use the API key returned from Step 3.**
 
 ```bash
-curl -X POST $BASE_URL/api/v1/pipelines/run/guruinc_234234/gcp/cost/cost_billing \
+# Run GCP Billing pipeline
+curl -X POST $BASE_URL/api/v1/pipelines/run/guruinc_234234/gcp/billing \
   -H "X-API-Key: guruinc_234234_api_xxxxxxxxxxxxxxxx" \
   -H "Content-Type: application/json" \
   -d '{"date": "2025-11-25"}'
+
+# Run OpenAI Usage & Cost pipeline
+curl -X POST $BASE_URL/api/v1/pipelines/run/guruinc_234234/openai/usage_cost \
+  -H "X-API-Key: guruinc_234234_api_xxxxxxxxxxxxxxxx" \
+  -H "Content-Type: application/json" \
+  -d '{"start_date": "2025-11-25", "end_date": "2025-11-25"}'
 ```
 
-| Field | Value |
-|-------|-------|
-| Config | `configs/gcp/cost/cost_billing.yml` |
-| Processor | `gcp.bq_etl` |
-| Extracts | GCP billing data for specified date |
-| Loads to | `guruinc_234234_{env}.billing_cost_daily` |
+| Pipeline | Config | Processor(s) | Output Table |
+|----------|--------|--------------|--------------|
+| GCP Billing | `configs/gcp/billing.yml` | `gcp.bq_etl` | `gcp_billing_daily_raw` |
+| OpenAI Usage+Cost | `configs/openai/usage_cost.yml` | `openai.usage` → `openai.cost` | `openai_usage_daily_raw`, `openai_cost_daily` |
 
 ---
 
@@ -491,37 +523,52 @@ curl -X POST $BASE_URL/api/v1/pipelines/run/guruinc_234234/gcp/cost/cost_billing
 
 ```
 configs/                                    # SINGLE SOURCE OF TRUTH
+├── openai/                                 # LLM Provider: OpenAI
+│   ├── seed/                               # Seed data loaded on integration setup
+│   │   ├── schemas/                        # openai_pricing.json, openai_subscriptions.json
+│   │   └── data/                           # default_pricing.csv, default_subscriptions.csv
+│   ├── usage_cost.yml                      # Daily: extract usage → transform cost
+│   └── subscriptions.yml                   # Monthly: subscription data
+├── anthropic/                              # LLM Provider: Anthropic
+│   ├── auth/
+│   │   ├── setup.yml
+│   │   └── validate.yml
+│   └── usage_cost.yml                      # Daily: usage + cost
+├── deepseek/                               # LLM Provider: DeepSeek
+│   ├── auth/
+│   │   ├── setup.yml
+│   │   └── validate.yml
+│   └── usage_cost.yml                      # Daily: usage + cost
+├── gcp/                                    # Cloud Provider: GCP
+│   ├── auth/
+│   │   ├── setup.yml
+│   │   └── validate.yml
+│   ├── billing.yml                         # Daily: GCP billing data
+│   └── bq_etl/
+│       └── schema_template.json
+├── integrations/                           # Integration setup pipelines
+│   ├── openai/
+│   │   ├── setup.yml
+│   │   └── validate.yml
+│   ├── claude/
+│   │   ├── setup.yml
+│   │   └── validate.yml
+│   ├── deepseek/
+│   │   ├── setup.yml
+│   │   └── validate.yml
+│   └── gcp_sa/
+│       ├── setup.yml
+│       └── validate.yml
 ├── setup/                                  # System setup pipelines
 │   ├── bootstrap/
-│   │   ├── pipeline.yml                    # Bootstrap pipeline config
-│   │   ├── config.yml                      # Table definitions (partitioning, clustering)
-│   │   └── schemas/                        # JSON schemas (11 tables)
-│   │       ├── org_profiles.json
-│   │       ├── org_api_keys.json
-│   │       ├── org_subscriptions.json
-│   │       ├── org_usage_quotas.json
-│   │       ├── org_integration_credentials.json
-│   │       ├── org_pipeline_configs.json
-│   │       ├── org_scheduled_pipeline_runs.json
-│   │       ├── org_pipeline_execution_queue.json
-│   │       ├── org_meta_pipeline_runs.json
-│   │       ├── org_meta_step_logs.json
-│   │       └── org_meta_dq_results.json
+│   │   ├── pipeline.yml
+│   │   ├── config.yml
+│   │   └── schemas/*.json                  # 14 table schemas
 │   └── organizations/
 │       ├── onboarding/
-│       │   ├── pipeline.yml                # Onboarding pipeline
-│       │   ├── config.yml
-│       │   └── schema.json
+│       │   └── pipeline.yml
 │       └── dryrun/
-│           └── pipeline.yml                # Dry-run validation
-├── gcp/
-│   ├── cost/
-│   │   └── cost_billing.yml                # Cost billing pipeline
-│   └── bq_etl/
-│       └── schema_template.json            # BQ ETL schema templates
-├── aws/
-│   └── s3_data_loader/
-│       └── config.yml
+│           └── pipeline.yml
 ├── notify_systems/
 │   ├── email_notification/
 │   │   └── config.yml
@@ -535,15 +582,80 @@ configs/                                    # SINGLE SOURCE OF TRUTH
 
 ## Pipeline Types
 
-| Type | Config | Processor | Auth | Purpose |
-|------|--------|-----------|------|---------|
-| Bootstrap | `configs/setup/bootstrap/pipeline.yml` | `setup.initial.onetime_bootstrap` | Admin | Create central dataset + 12 tables |
-| Dry-run | `configs/setup/organizations/dryrun/pipeline.yml` | `setup.organizations.dryrun` | Admin | Validate before onboarding |
-| Onboarding | `configs/setup/organizations/onboarding/pipeline.yml` | `setup.organizations.onboarding` | Admin | Create org + API key + dataset |
-| Cost Billing | `configs/gcp/cost/cost_billing.yml` | `gcp.bq_etl` | Org Key | Extract GCP billing data |
-| **Integration Setup** | `configs/integrations/{provider}/setup.yml` | `integrations.kms_store` | Org Key | Store encrypted credentials |
-| **Integration Validate** | `configs/integrations/{provider}/validate.yml` | `integrations.kms_decrypt` + `integrations.validate_*` | Org Key | Re-validate credentials |
-| Email Notify | (step in pipeline) | `notify_systems.email_notification` | - | Send pipeline notifications |
+### LLM Provider Pipelines (Daily/Monthly)
+
+| Config | Schedule | Steps (ps_type) | Output Tables |
+|--------|----------|-----------------|---------------|
+| `openai/usage_cost.yml` | Daily | `openai.usage` → `openai.cost` | `openai_usage_daily_raw`, `openai_cost_daily` |
+| `openai/subscriptions.yml` | Monthly | `openai.subscriptions` | `openai_subscriptions_monthly` |
+| `anthropic/usage_cost.yml` | Daily | `anthropic.usage` → `anthropic.cost` | `anthropic_usage_daily_raw`, `anthropic_cost_daily` |
+| `deepseek/usage_cost.yml` | Daily | `deepseek.usage` → `deepseek.cost` | `deepseek_usage_daily_raw`, `deepseek_cost_daily` |
+
+### Cloud Provider Pipelines
+
+| Config | Schedule | Steps (ps_type) | Output Tables |
+|--------|----------|-----------------|---------------|
+| `gcp/billing.yml` | Daily | `gcp.bq_etl` | `gcp_billing_daily_raw` |
+
+### System Pipelines (Admin)
+
+| Type | Config | Processor | Purpose |
+|------|--------|-----------|---------|
+| Bootstrap | `setup/bootstrap/pipeline.yml` | `setup.initial.onetime_bootstrap` | Create central dataset + 14 tables |
+| Dry-run | `setup/organizations/dryrun/pipeline.yml` | `setup.organizations.dryrun` | Validate before onboarding |
+| Onboarding | `setup/organizations/onboarding/pipeline.yml` | `setup.organizations.onboarding` | Create org + API key + dataset |
+
+### Integration Pipelines
+
+| Config | Processor | Purpose |
+|--------|-----------|---------|
+| `integrations/{provider}/setup.yml` | `integrations.kms_store` | Store KMS-encrypted credentials |
+| `integrations/{provider}/validate.yml` | `integrations.kms_decrypt` + `integrations.validate_*` | Re-validate credentials |
+
+---
+
+## Naming Conventions
+
+### File & Folder Naming
+| Item | Convention | Example |
+|------|------------|---------|
+| Config folder | `snake_case` | `openai/`, `gcp/` |
+| Config file | `snake_case.yml` | `usage_cost.yml`, `billing.yml` |
+| Processor file | `snake_case.py` | `cost.py`, `usage.py` |
+
+### Pipeline & Step Naming
+| Item | Convention | Pattern | Example |
+|------|------------|---------|---------|
+| Pipeline ID | `kebab-case` | `{org}-{provider}-{domain}` | `acme-openai-usage-cost` |
+| Step ID | `snake_case` | `{action}_{target}` | `extract_usage`, `transform_cost` |
+| ps_type | `dot.notation` | `{provider}.{domain}` | `openai.usage`, `gcp.bq_etl` |
+
+### BigQuery Table Naming
+| Item | Convention | Pattern | Example |
+|------|------------|---------|---------|
+| Dataset | `snake_case` | `{org}_{env}` | `acme_prod` |
+| Table | `snake_case` | `{provider}_{domain}_{granularity}_{state}` | `openai_usage_daily_raw` |
+
+### Table Name Components
+```
+{provider}_{domain}_{granularity}_{state}
+
+Components:
+├── provider:    openai, anthropic, deepseek, gcp
+├── domain:      usage, cost, billing, subscriptions
+├── granularity: daily, monthly, hourly
+└── state:       raw, staging, (none = final)
+```
+
+### Step ID Actions
+| Prefix | Use Case | Examples |
+|--------|----------|----------|
+| `extract_` | Pull data from external API | `extract_usage`, `extract_billing` |
+| `transform_` | Transform/derive data | `transform_cost` |
+| `load_` | Write to destination | `load_to_bq` |
+| `validate_` | Validate data/credentials | `validate_credential` |
+| `notify_` | Send notifications | `notify_on_failure` |
+| `decrypt_` | Decrypt credentials | `decrypt_credentials` |
 
 ---
 
@@ -781,8 +893,11 @@ convergence-data-pipeline/
 │   ├── routers/
 │   │   ├── admin.py                   # POST /api/v1/admin/bootstrap
 │   │   ├── organizations.py           # POST /api/v1/organizations/onboard, /dryrun
-│   │   ├── integrations.py            # ⭐ NEW: Integration management endpoints
+│   │   ├── integrations.py            # Integration management endpoints
+│   │   ├── openai_data.py             # OpenAI pricing/subscriptions CRUD
 │   │   └── pipelines.py               # POST /api/v1/pipelines/run/...
+│   ├── models/
+│   │   └── openai_data_models.py      # Pydantic models for OpenAI CRUD
 │   └── dependencies/
 │       └── auth.py                    # verify_admin_key(), get_current_org()
 ├── src/core/processors/               # ⭐ PROCESSORS - Heart of the system
@@ -799,7 +914,10 @@ convergence-data-pipeline/
     ├── setup/organizations/           #    Onboarding + dryrun pipelines
     ├── gcp/cost/                      #    GCP cost pipelines
     ├── gcp/bq_etl/                    #    BQ ETL schema templates
-    └── integrations/                  # ⭐ NEW: Integration pipelines
+    ├── openai/seed/                   #    OpenAI seed data (auto-loaded on integration)
+    │   ├── schemas/                   #    openai_pricing.json, openai_subscriptions.json
+    │   └── data/                      #    default_pricing.csv, default_subscriptions.csv
+    └── integrations/                  #    Integration pipelines
         ├── openai/                    #    OpenAI setup & validate
         ├── claude/                    #    Claude/Anthropic setup & validate
         ├── deepseek/                  #    DeepSeek setup & validate

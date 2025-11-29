@@ -1,0 +1,4 @@
+model_id,model_name,input_price_per_1k,output_price_per_1k,effective_date,notes
+deepseek-chat,DeepSeek Chat,0.00014,0.00028,2024-11-01,General chat model
+deepseek-coder,DeepSeek Coder,0.00014,0.00028,2024-11-01,Code generation model
+deepseek-reasoner,DeepSeek Reasoner,0.00055,0.00219,2024-11-01,Advanced reasoning model (R1)

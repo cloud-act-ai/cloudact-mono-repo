@@ -602,9 +602,39 @@ async def _setup_integration(
             # Determine success based on validation status
             is_valid = validation_status == "VALID"
 
+            # Initialize pricing and subscriptions tables for LLM providers if validation succeeded
+            pricing_initialized = False
+            pricing_rows_seeded = 0
+            subscriptions_initialized = False
+            subscriptions_rows_seeded = 0
+
+            llm_providers = ["OPENAI", "ANTHROPIC", "DEEPSEEK"]
+            if provider in llm_providers and is_valid:
+                try:
+                    pricing_result = await _initialize_llm_pricing(org_slug, provider.lower())
+                    pricing_initialized = pricing_result.get("status") == "SUCCESS"
+                    pricing_rows_seeded = pricing_result.get("rows_seeded", 0)
+
+                    subs_result = await _initialize_llm_subscriptions(org_slug, provider.lower())
+                    subscriptions_initialized = subs_result.get("status") == "SUCCESS"
+                    subscriptions_rows_seeded = subs_result.get("rows_seeded", 0)
+
+                    logger.info(
+                        f"{provider} data tables initialized for {org_slug}",
+                        extra={
+                            "pricing_rows": pricing_rows_seeded,
+                            "subscription_rows": subscriptions_rows_seeded
+                        }
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to initialize {provider} data tables: {e}")
+                    # Don't fail the integration setup if data init fails
+
             # Generate appropriate message based on validation status
             if is_valid:
                 message = f"{provider} integration configured and validated successfully"
+                if provider in llm_providers:
+                    message += f" (pricing: {pricing_rows_seeded} rows, subscriptions: {subscriptions_rows_seeded} rows)"
             elif validation_status == "INVALID":
                 message = f"{provider} credential validation failed: {validation_error or 'Invalid API key'}"
             elif validation_status == "PENDING":
@@ -618,7 +648,9 @@ async def _setup_integration(
                     "org_slug": org_slug,
                     "provider": provider,
                     "validation_status": validation_status,
-                    "is_valid": is_valid
+                    "is_valid": is_valid,
+                    "pricing_initialized": pricing_initialized,
+                    "subscriptions_initialized": subscriptions_initialized
                 }
             )
             return SetupIntegrationResponse(
@@ -715,3 +747,439 @@ async def _validate_integration(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Operation failed. Please check server logs for details."
         )
+
+
+# ============================================
+# OpenAI Data Initialization Helpers
+# ============================================
+
+async def _initialize_openai_pricing(org_slug: str, force: bool = False) -> Dict:
+    """
+    Create openai_model_pricing table and seed from CSV.
+
+    Args:
+        org_slug: Organization identifier
+        force: If True, delete existing data and re-insert defaults
+
+    Returns:
+        Dict with status and rows_seeded count
+    """
+    import csv
+    from pathlib import Path
+    from datetime import datetime
+
+    try:
+        env = settings.environment or "dev"
+        dataset_id = f"{org_slug}_{env}"
+        project_id = settings.gcp_project_id
+        table_id = f"{project_id}.{dataset_id}.openai_model_pricing"
+
+        bq_client = bigquery.Client(project=project_id)
+
+        # Load schema
+        schema_path = Path(__file__).parent.parent.parent.parent / "configs" / "openai" / "seed" / "schemas" / "openai_model_pricing.json"
+
+        if not schema_path.exists():
+            logger.error(f"Schema file not found: {schema_path}")
+            return {"status": "FAILED", "error": f"Schema file not found: {schema_path}"}
+
+        import json
+        with open(schema_path, 'r') as f:
+            schema_data = json.load(f)
+
+        # Handle both formats: direct array or {"schema": [...]}
+        if isinstance(schema_data, dict) and "schema" in schema_data:
+            schema_json = schema_data["schema"]
+        else:
+            schema_json = schema_data
+
+        schema = [bigquery.SchemaField.from_api_repr(field) for field in schema_json]
+
+        # Create table if not exists
+        table = bigquery.Table(table_id, schema=schema)
+        try:
+            bq_client.get_table(table_id)
+            logger.info(f"Table already exists: {table_id}")
+        except Exception:
+            table = bq_client.create_table(table)
+            logger.info(f"Created table: {table_id}")
+
+        # Check if table has data (and force is False)
+        if not force:
+            count_query = f"SELECT COUNT(*) as cnt FROM `{table_id}`"
+            result = bq_client.query(count_query).result()
+            count = list(result)[0].cnt
+            if count > 0:
+                logger.info(f"Pricing table already has {count} rows, skipping seed")
+                return {"status": "SUCCESS", "message": "Pricing table already has data", "rows_seeded": 0}
+
+        # If force=True, delete existing data
+        if force:
+            delete_query = f"DELETE FROM `{table_id}` WHERE 1=1"
+            bq_client.query(delete_query).result()
+            logger.info(f"Deleted existing pricing data from {table_id}")
+
+        # Load CSV data
+        csv_path = Path(__file__).parent.parent.parent.parent / "configs" / "openai" / "seed" / "data" / "default_pricing.csv"
+
+        if not csv_path.exists():
+            logger.warning(f"Default pricing CSV not found: {csv_path}")
+            return {"status": "SUCCESS", "message": "No default pricing CSV found", "rows_seeded": 0}
+
+        rows = []
+        now = datetime.utcnow().isoformat()
+
+        with open(csv_path, 'r') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                rows.append({
+                    "model_id": row["model_id"],
+                    "model_name": row.get("model_name"),
+                    "input_price_per_1k": float(row["input_price_per_1k"]),
+                    "output_price_per_1k": float(row["output_price_per_1k"]),
+                    "effective_date": row["effective_date"],
+                    "notes": row.get("notes"),
+                    "created_at": now,
+                    "updated_at": now,
+                })
+
+        if rows:
+            errors = bq_client.insert_rows_json(table_id, rows)
+            if errors:
+                logger.error(f"Failed to insert pricing rows: {errors}")
+                return {"status": "FAILED", "error": str(errors)}
+
+        logger.info(f"Seeded {len(rows)} pricing rows for {org_slug}")
+        return {"status": "SUCCESS", "rows_seeded": len(rows)}
+
+    except Exception as e:
+        logger.error(f"Error initializing OpenAI pricing: {e}", exc_info=True)
+        return {"status": "FAILED", "error": str(e)}
+
+
+async def _initialize_openai_subscriptions(org_slug: str, force: bool = False) -> Dict:
+    """
+    Create openai_subscriptions table and seed from CSV.
+
+    Args:
+        org_slug: Organization identifier
+        force: If True, delete existing data and re-insert defaults
+
+    Returns:
+        Dict with status and rows_seeded count
+    """
+    import csv
+    from pathlib import Path
+    from datetime import datetime
+
+    try:
+        env = settings.environment or "dev"
+        dataset_id = f"{org_slug}_{env}"
+        project_id = settings.gcp_project_id
+        table_id = f"{project_id}.{dataset_id}.openai_subscriptions"
+
+        bq_client = bigquery.Client(project=project_id)
+
+        # Load schema
+        schema_path = Path(__file__).parent.parent.parent.parent / "configs" / "openai" / "seed" / "schemas" / "openai_subscriptions.json"
+
+        if not schema_path.exists():
+            logger.error(f"Schema file not found: {schema_path}")
+            return {"status": "FAILED", "error": f"Schema file not found: {schema_path}"}
+
+        import json
+        with open(schema_path, 'r') as f:
+            schema_data = json.load(f)
+
+        # Handle both formats: direct array or {"schema": [...]}
+        if isinstance(schema_data, dict) and "schema" in schema_data:
+            schema_json = schema_data["schema"]
+        else:
+            schema_json = schema_data
+
+        schema = [bigquery.SchemaField.from_api_repr(field) for field in schema_json]
+
+        # Create table if not exists
+        table = bigquery.Table(table_id, schema=schema)
+        try:
+            bq_client.get_table(table_id)
+            logger.info(f"Table already exists: {table_id}")
+        except Exception:
+            table = bq_client.create_table(table)
+            logger.info(f"Created table: {table_id}")
+
+        # Check if table has data (and force is False)
+        if not force:
+            count_query = f"SELECT COUNT(*) as cnt FROM `{table_id}`"
+            result = bq_client.query(count_query).result()
+            count = list(result)[0].cnt
+            if count > 0:
+                logger.info(f"Subscriptions table already has {count} rows, skipping seed")
+                return {"status": "SUCCESS", "message": "Subscriptions table already has data", "rows_seeded": 0}
+
+        # If force=True, delete existing data
+        if force:
+            delete_query = f"DELETE FROM `{table_id}` WHERE 1=1"
+            bq_client.query(delete_query).result()
+            logger.info(f"Deleted existing subscriptions data from {table_id}")
+
+        # Load CSV data
+        csv_path = Path(__file__).parent.parent.parent.parent / "configs" / "openai" / "seed" / "data" / "default_subscriptions.csv"
+
+        if not csv_path.exists():
+            logger.warning(f"Default subscriptions CSV not found: {csv_path}")
+            return {"status": "SUCCESS", "message": "No default subscriptions CSV found", "rows_seeded": 0}
+
+        rows = []
+        now = datetime.utcnow().isoformat()
+
+        with open(csv_path, 'r') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                rows.append({
+                    "subscription_id": row["subscription_id"],
+                    "plan_name": row["plan_name"],
+                    "quantity": int(row["quantity"]),
+                    "unit_price_usd": float(row["unit_price_usd"]),
+                    "effective_date": row["effective_date"],
+                    "notes": row.get("notes"),
+                    "created_at": now,
+                    "updated_at": now,
+                })
+
+        if rows:
+            errors = bq_client.insert_rows_json(table_id, rows)
+            if errors:
+                logger.error(f"Failed to insert subscription rows: {errors}")
+                return {"status": "FAILED", "error": str(errors)}
+
+        logger.info(f"Seeded {len(rows)} subscription rows for {org_slug}")
+        return {"status": "SUCCESS", "rows_seeded": len(rows)}
+
+    except Exception as e:
+        logger.error(f"Error initializing OpenAI subscriptions: {e}", exc_info=True)
+        return {"status": "FAILED", "error": str(e)}
+
+
+# ============================================
+# Generic LLM Provider Initialization
+# ============================================
+
+# Provider configuration mapping
+LLM_PROVIDER_CONFIG = {
+    "openai": {
+        "pricing_table": "openai_model_pricing",
+        "subscriptions_table": "openai_subscriptions",
+        "seed_path": "configs/openai/seed",
+        "pricing_schema": "openai_pricing.json",
+        "subscriptions_schema": "openai_subscriptions.json",
+    },
+    "anthropic": {
+        "pricing_table": "anthropic_model_pricing",
+        "subscriptions_table": "anthropic_subscriptions",
+        "seed_path": "configs/anthropic/seed",
+        "pricing_schema": "anthropic_pricing.json",
+        "subscriptions_schema": "anthropic_subscriptions.json",
+    },
+    "deepseek": {
+        "pricing_table": "deepseek_model_pricing",
+        "subscriptions_table": "deepseek_subscriptions",
+        "seed_path": "configs/deepseek/seed",
+        "pricing_schema": "deepseek_pricing.json",
+        "subscriptions_schema": "deepseek_subscriptions.json",
+    },
+}
+
+
+async def _initialize_llm_pricing(org_slug: str, provider: str, force: bool = False) -> Dict[str, Any]:
+    """
+    Initialize LLM provider pricing table with default data.
+
+    Args:
+        org_slug: Organization slug
+        provider: LLM provider name (openai, anthropic, deepseek)
+        force: If True, delete existing data and re-seed
+
+    Returns:
+        Dict with status and rows_seeded count
+    """
+    provider_lower = provider.lower()
+    if provider_lower not in LLM_PROVIDER_CONFIG:
+        return {"status": "FAILED", "error": f"Unknown LLM provider: {provider}"}
+
+    config = LLM_PROVIDER_CONFIG[provider_lower]
+
+    try:
+        bq_client = get_bigquery_client()
+        env = settings.environment or "dev"
+        dataset_id = f"{org_slug}_{env}"
+        table_id = f"{settings.gcp_project_id}.{dataset_id}.{config['pricing_table']}"
+
+        # Load schema
+        schema_path = Path(__file__).parent.parent.parent.parent / config["seed_path"] / "schemas" / config["pricing_schema"]
+        if not schema_path.exists():
+            logger.warning(f"Pricing schema not found: {schema_path}")
+            return {"status": "FAILED", "error": f"Schema file not found: {schema_path}"}
+
+        with open(schema_path, 'r') as f:
+            schema_json = json.load(f)["schema"]
+
+        schema = [bigquery.SchemaField.from_api_repr(field) for field in schema_json]
+
+        # Create table if not exists
+        table = bigquery.Table(table_id, schema=schema)
+        try:
+            bq_client.client.get_table(table_id)
+            logger.info(f"Table already exists: {table_id}")
+        except Exception:
+            table = bq_client.client.create_table(table)
+            logger.info(f"Created table: {table_id}")
+
+        # Check if table has data (and force is False)
+        if not force:
+            count_query = f"SELECT COUNT(*) as cnt FROM `{table_id}`"
+            result = bq_client.client.query(count_query).result()
+            count = list(result)[0].cnt
+            if count > 0:
+                logger.info(f"{provider.upper()} pricing table already has {count} rows, skipping seed")
+                return {"status": "SUCCESS", "message": "Pricing table already has data", "rows_seeded": 0}
+
+        # If force=True, delete existing data
+        if force:
+            delete_query = f"DELETE FROM `{table_id}` WHERE 1=1"
+            bq_client.client.query(delete_query).result()
+            logger.info(f"Deleted existing pricing data from {table_id}")
+
+        # Load CSV data
+        csv_path = Path(__file__).parent.parent.parent.parent / config["seed_path"] / "data" / "default_pricing.csv"
+
+        if not csv_path.exists():
+            logger.warning(f"Default pricing CSV not found: {csv_path}")
+            return {"status": "SUCCESS", "message": "No default pricing CSV found", "rows_seeded": 0}
+
+        rows = []
+        now = datetime.utcnow().isoformat()
+
+        with open(csv_path, 'r') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                rows.append({
+                    "model_id": row["model_id"],
+                    "model_name": row["model_name"],
+                    "input_price_per_1k": float(row["input_price_per_1k"]),
+                    "output_price_per_1k": float(row["output_price_per_1k"]),
+                    "effective_date": row["effective_date"],
+                    "notes": row.get("notes"),
+                    "created_at": now,
+                    "updated_at": now,
+                })
+
+        if rows:
+            errors = bq_client.client.insert_rows_json(table_id, rows)
+            if errors:
+                logger.error(f"Failed to insert {provider} pricing rows: {errors}")
+                return {"status": "FAILED", "error": str(errors)}
+
+        logger.info(f"Seeded {len(rows)} {provider.upper()} pricing rows for {org_slug}")
+        return {"status": "SUCCESS", "rows_seeded": len(rows)}
+
+    except Exception as e:
+        logger.error(f"Error initializing {provider.upper()} pricing: {e}", exc_info=True)
+        return {"status": "FAILED", "error": str(e)}
+
+
+async def _initialize_llm_subscriptions(org_slug: str, provider: str, force: bool = False) -> Dict[str, Any]:
+    """
+    Initialize LLM provider subscriptions table with default data.
+
+    Args:
+        org_slug: Organization slug
+        provider: LLM provider name (openai, anthropic, deepseek)
+        force: If True, delete existing data and re-seed
+
+    Returns:
+        Dict with status and rows_seeded count
+    """
+    provider_lower = provider.lower()
+    if provider_lower not in LLM_PROVIDER_CONFIG:
+        return {"status": "FAILED", "error": f"Unknown LLM provider: {provider}"}
+
+    config = LLM_PROVIDER_CONFIG[provider_lower]
+
+    try:
+        bq_client = get_bigquery_client()
+        env = settings.environment or "dev"
+        dataset_id = f"{org_slug}_{env}"
+        table_id = f"{settings.gcp_project_id}.{dataset_id}.{config['subscriptions_table']}"
+
+        # Load schema
+        schema_path = Path(__file__).parent.parent.parent.parent / config["seed_path"] / "schemas" / config["subscriptions_schema"]
+        if not schema_path.exists():
+            logger.warning(f"Subscriptions schema not found: {schema_path}")
+            return {"status": "FAILED", "error": f"Schema file not found: {schema_path}"}
+
+        with open(schema_path, 'r') as f:
+            schema_json = json.load(f)["schema"]
+
+        schema = [bigquery.SchemaField.from_api_repr(field) for field in schema_json]
+
+        # Create table if not exists
+        table = bigquery.Table(table_id, schema=schema)
+        try:
+            bq_client.client.get_table(table_id)
+            logger.info(f"Table already exists: {table_id}")
+        except Exception:
+            table = bq_client.client.create_table(table)
+            logger.info(f"Created table: {table_id}")
+
+        # Check if table has data (and force is False)
+        if not force:
+            count_query = f"SELECT COUNT(*) as cnt FROM `{table_id}`"
+            result = bq_client.client.query(count_query).result()
+            count = list(result)[0].cnt
+            if count > 0:
+                logger.info(f"{provider.upper()} subscriptions table already has {count} rows, skipping seed")
+                return {"status": "SUCCESS", "message": "Subscriptions table already has data", "rows_seeded": 0}
+
+        # If force=True, delete existing data
+        if force:
+            delete_query = f"DELETE FROM `{table_id}` WHERE 1=1"
+            bq_client.client.query(delete_query).result()
+            logger.info(f"Deleted existing subscriptions data from {table_id}")
+
+        # Load CSV data
+        csv_path = Path(__file__).parent.parent.parent.parent / config["seed_path"] / "data" / "default_subscriptions.csv"
+
+        if not csv_path.exists():
+            logger.warning(f"Default subscriptions CSV not found: {csv_path}")
+            return {"status": "SUCCESS", "message": "No default subscriptions CSV found", "rows_seeded": 0}
+
+        rows = []
+        now = datetime.utcnow().isoformat()
+
+        with open(csv_path, 'r') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                rows.append({
+                    "subscription_id": row["subscription_id"],
+                    "plan_name": row["plan_name"],
+                    "quantity": int(row["quantity"]),
+                    "unit_price_usd": float(row["unit_price_usd"]),
+                    "effective_date": row["effective_date"],
+                    "notes": row.get("notes"),
+                    "created_at": now,
+                    "updated_at": now,
+                })
+
+        if rows:
+            errors = bq_client.client.insert_rows_json(table_id, rows)
+            if errors:
+                logger.error(f"Failed to insert {provider} subscription rows: {errors}")
+                return {"status": "FAILED", "error": str(errors)}
+
+        logger.info(f"Seeded {len(rows)} {provider.upper()} subscription rows for {org_slug}")
+        return {"status": "SUCCESS", "rows_seeded": len(rows)}
+
+    except Exception as e:
+        logger.error(f"Error initializing {provider.upper()} subscriptions: {e}", exc_info=True)
+        return {"status": "FAILED", "error": str(e)}

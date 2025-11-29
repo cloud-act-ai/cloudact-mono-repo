@@ -7,7 +7,6 @@ import json
 import threading
 from typing import Optional, List, Dict, Any, Iterator
 from pathlib import Path
-from functools import lru_cache
 import logging
 
 from google.cloud import bigquery
@@ -665,7 +664,11 @@ class BigQueryClient:
             extra={"org_slug": org_slug, "table_name": table_name})
 
 
-@lru_cache()
 def get_bigquery_client() -> BigQueryClient:
-    """Get cached BigQuery client instance."""
+    """
+    Get new BigQuery client instance.
+
+    Each executor creates its own client for tenant isolation.
+    Client should be closed when done (executor handles cleanup in finally block).
+    """
     return BigQueryClient()

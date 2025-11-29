@@ -44,6 +44,7 @@ class OpenAIUsageProcessor:
                 - config.start_date: Start date (YYYY-MM-DD), default: yesterday
                 - config.end_date: End date (YYYY-MM-DD), default: today
                 - config.store_to_bq: Store results in BigQuery (default: True)
+                - config.destination_table: Table name (default: openai_usage_daily_raw)
             context: Execution context containing:
                 - org_slug: Organization identifier (REQUIRED)
 
@@ -66,6 +67,7 @@ class OpenAIUsageProcessor:
             datetime.utcnow() - timedelta(days=1)
         ).strftime("%Y-%m-%d")
         store_to_bq = config.get("store_to_bq", True)
+        destination_table = config.get("destination_table", "openai_usage_daily_raw")
 
         self.logger.info(
             f"Fetching OpenAI usage for {org_slug}",
@@ -110,7 +112,7 @@ class OpenAIUsageProcessor:
 
                     # Store to BigQuery if enabled
                     if store_to_bq and usage_data:
-                        await self._store_usage_data(org_slug, usage_data, start_date)
+                        await self._store_usage_data(org_slug, usage_data, start_date, destination_table)
 
                     return {
                         "status": "SUCCESS",
@@ -160,12 +162,13 @@ class OpenAIUsageProcessor:
         self,
         org_slug: str,
         usage_data: List[Dict],
-        date: str
+        date: str,
+        destination_table: str
     ) -> None:
         """Store usage data in BigQuery."""
         env = self.settings.environment or "dev"
         dataset_id = f"{org_slug}_{env}"
-        table_id = f"{self.settings.gcp_project_id}.{dataset_id}.llm_usage_openai"
+        table_id = f"{self.settings.gcp_project_id}.{dataset_id}.{destination_table}"
 
         bq_client = BigQueryClient(project_id=self.settings.gcp_project_id)
 

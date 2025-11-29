@@ -1,0 +1,52 @@
+# Anthropic Usage & Cost Pipeline
+# Extracts usage from Anthropic API, calculates cost, stores in BigQuery
+#
+# Schedule: Daily at 02:00 UTC
+# Tables: anthropic_usage_raw, anthropic_cost
+
+pipeline_id: "{org_slug}-anthropic-usage-cost"
+name: "Anthropic Usage & Cost Sync"
+description: "Extract usage from Anthropic API, calculate costs, store in BigQuery"
+version: "1.0.0"
+
+# Schedule configuration
+schedule:
+  type: daily
+  time: "02:00"
+  timezone: UTC
+
+variables:
+  org_slug: "{org_slug}"
+  provider: "anthropic"
+
+steps:
+  # Step 1: Extract raw usage from Anthropic API
+  - step_id: "extract_usage"
+    ps_type: "anthropic.usage"
+    description: "Fetch usage data from Anthropic API"
+    config:
+      start_date: "{start_date}"
+      end_date: "{end_date}"
+      destination_table: "anthropic_usage_daily_raw"
+
+  # Step 2: Transform usage to cost
+  - step_id: "transform_cost"
+    ps_type: "anthropic.cost"
+    depends_on: "extract_usage"
+    description: "Calculate cost from usage data using model pricing"
+    config:
+      source_table: "anthropic_usage_daily_raw"
+      destination_table: "anthropic_cost_daily"
+      pricing_source: "anthropic_model_pricing"
+
+requires_auth: true
+auth_type: "org_api_key"
+
+tags:
+  - usage
+  - cost
+  - anthropic
+  - claude
+  - llm
+  - daily
+category: "llm_analytics"

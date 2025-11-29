@@ -1210,12 +1210,17 @@ async def cleanup_orphaned_pipelines(
                     end_time = CURRENT_TIMESTAMP(),
                     error_message = 'Pipeline marked as FAILED due to timeout (>60 minutes)',
                     duration_ms = TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), start_time, MILLISECOND)
-                WHERE org_slug = '{org_slug}'
+                WHERE org_slug = @org_slug
                   AND status IN ('PENDING', 'RUNNING')
                   AND TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), start_time, MINUTE) > 60
                 """
 
-                cleanup_job = bq_client.client.query(cleanup_query)
+                cleanup_job_config = bigquery.QueryJobConfig(
+                    query_parameters=[
+                        bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                    ]
+                )
+                cleanup_job = bq_client.client.query(cleanup_query, job_config=cleanup_job_config)
                 cleanup_job.result()
                 cleaned_count = cleanup_job.num_dml_affected_rows
 

@@ -1,0 +1,128 @@
+# GCP Billing Pipeline
+# Extracts billing data from GCP billing export, stores in BigQuery
+#
+# Schedule: Daily at 04:00 UTC
+# Tables: gcp_billing_daily_raw
+#
+# Usage: POST /api/v1/pipelines/run/{org_slug}/gcp/billing
+#
+# PREREQUISITES:
+# 1. Organization must have a valid GCP_SA integration configured
+# 2. The GCP Service Account must have BigQuery read access to billing export
+
+pipeline_id: "{org_slug}-gcp-billing"
+name: "GCP Billing Sync"
+description: "Extract GCP billing costs and store in BigQuery"
+version: "1.0.0"
+
+# Schedule configuration
+schedule:
+  type: daily
+  time: "04:00"
+  timezone: UTC
+
+variables:
+  org_slug: "{org_slug}"
+  provider: "gcp"
+  source_billing_table: "gac-prod-471220.cloudact_cost_usage.gcp_billing_export_resource_v1_01ECB7_6EE0BA_7357F1"
+  use_org_credentials: "false"
+
+steps:
+  # Step 1 (Optional): Decrypt GCP credentials for customer's billing data
+  - step_id: "decrypt_credentials"
+    ps_type: "integrations.kms_decrypt"
+    description: "Load organization GCP credentials"
+    enabled: "{use_org_credentials}"
+    config:
+      provider: "GCP_SA"
+      require_valid: true
+      context_key: "gcp_sa_json"
+    on_failure: "continue"
+
+  # Step 2: Extract billing data from GCP billing export
+  - step_id: "extract_billing"
+    ps_type: "gcp.bq_etl"
+    description: "Extract GCP billing costs for date range"
+    depends_on: "decrypt_credentials"
+    timeout_minutes: 20
+
+    source:
+      bq_project_id: "gac-prod-471220"
+      query: |
+        SELECT
+          billing_account_id,
+          service.id AS service_id,
+          service.description AS service_description,
+          sku.id AS sku_id,
+          sku.description AS sku_description,
+          usage_start_time,
+          usage_end_time,
+          project.id AS project_id,
+          project.name AS project_name,
+          project.number AS project_number,
+          location.location AS location_location,
+          location.region AS location_region,
+          location.zone AS location_zone,
+          resource.name AS resource_name,
+          resource.global_name AS resource_global_name,
+          cost,
+          currency,
+          currency_conversion_rate,
+          usage.amount AS usage_amount,
+          usage.unit AS usage_unit,
+          usage.amount_in_pricing_units AS usage_amount_in_pricing_units,
+          usage.pricing_unit AS usage_pricing_unit,
+          cost_type,
+          (SELECT IFNULL(SUM(amount), 0.0) FROM UNNEST(credits)) AS credits_total,
+          cost_at_list,
+          invoice.month AS invoice_month,
+          CURRENT_DATE() AS ingestion_date,
+          TO_JSON_STRING(ARRAY(SELECT AS STRUCT key, value FROM UNNEST(labels))) AS labels_json,
+          TO_JSON_STRING(ARRAY(SELECT AS STRUCT key, value FROM UNNEST(system_labels))) AS system_labels_json
+        FROM `{source_billing_table}`
+        WHERE DATE(usage_start_time) = '{date}'
+        LIMIT 1000
+
+    destination:
+      bq_project_id: "gac-prod-471220"
+      dataset_type: "gcp_silver_cost"
+      table: "gcp_billing_daily_raw"
+      write_mode: "append"
+      schema_template: "billing_cost"
+      table_config:
+        time_partitioning:
+          field: "ingestion_date"
+          type: "DAY"
+          expiration_days: 730
+        clustering_fields:
+          - "billing_account_id"
+          - "service_id"
+          - "project_id"
+          - "location_region"
+
+  # Step 3: Notification on failure
+  - step_id: "notify_on_failure"
+    ps_type: "notify_systems.email_notification"
+    description: "Send failure notification"
+    trigger: "on_failure"
+    config:
+      to_emails:
+        - "{admin_email}"
+        - "data-ops@example.com"
+      subject: "[ALERT] GCP Billing Pipeline Failed - {org_slug}"
+      message: |
+        ALERT: The GCP billing pipeline has failed!
+
+        Organization: {org_slug}
+        Pipeline: {pipeline_id}
+        Run Date: {date}
+
+requires_auth: true
+auth_type: "org_api_key"
+
+tags:
+  - billing
+  - gcp
+  - cost
+  - daily
+category: "cloud_cost"

@@ -319,6 +319,10 @@ tags_metadata = [
     {
         "name": "Scheduler",
         "description": "Pipeline scheduling and cron job management endpoints for automated pipeline execution."
+    },
+    {
+        "name": "LLM Data",
+        "description": "LLM provider pricing and subscription CRUD endpoints under /integrations/{org_slug}/{provider}/. Supports OpenAI, Anthropic, and DeepSeek. Manage pricing models and subscription plans for usage-based cost calculations."
     }
 ]
 
@@ -677,13 +681,14 @@ async def metrics():
 # API Routers
 # ============================================
 
-from src.app.routers import pipelines, admin, organizations, scheduler, integrations
+from src.app.routers import pipelines, admin, organizations, scheduler, integrations, llm_data
 
 app.include_router(pipelines.router, prefix="/api/v1", tags=["Pipelines"])
 app.include_router(admin.router, prefix="/api/v1", tags=["Admin"])
 app.include_router(organizations.router, prefix="/api/v1", tags=["Organizations"])
 app.include_router(scheduler.router, prefix="/api/v1", tags=["Scheduler"])
 app.include_router(integrations.router, prefix="/api/v1", tags=["Integrations"])
+app.include_router(llm_data.router, prefix="/api/v1", tags=["LLM Data"])
 
 
 if __name__ == "__main__":

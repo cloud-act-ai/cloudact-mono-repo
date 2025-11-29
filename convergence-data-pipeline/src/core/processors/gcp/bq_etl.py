@@ -1,6 +1,14 @@
 """
 BigQuery ETL Engine (GCP)
-Processes gcp.bq_etl ps_type for extract-transform-load operations with schema template support
+Processes gcp.bq_etl ps_type for extract-transform-load operations with schema template support.
+
+Supports TWO modes:
+1. CloudAct internal ETL: Uses CloudAct's default credentials
+2. Customer GCP reads: Uses customer's Service Account credentials (via GCPAuthenticator)
+
+For customer GCP billing data:
+  - Source: Customer's GCP project (uses customer's SA credentials)
+  - Destination: CloudAct's BigQuery (uses CloudAct's credentials)
 """
 import json
 import logging
@@ -11,6 +19,7 @@ from google.cloud import bigquery
 from google.cloud.exceptions import NotFound
 
 from src.core.engine.bq_client import BigQueryClient
+from src.core.processors.gcp.authenticator import GCPAuthenticator
 from src.app.config import get_settings
 
 
@@ -69,10 +78,17 @@ class BigQueryETLEngine:
         context: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
-        Execute BigQuery to BigQuery transfer
+        Execute BigQuery to BigQuery transfer.
+
+        Supports two credential modes:
+        1. use_org_credentials: true → Use customer's GCP Service Account
+        2. use_org_credentials: false/missing → Use CloudAct's default credentials
 
         Args:
-            step_config: Step configuration from pipeline YAML
+            step_config: Step configuration from pipeline YAML containing:
+                - source.use_org_credentials: If true, use customer's SA credentials
+                - source.query: SQL query to execute
+                - destination.table: Target table name
             context: Execution context (org_slug, pipeline_id, etc.)
 
         Returns:
@@ -81,6 +97,7 @@ class BigQueryETLEngine:
         # Extract configuration
         source = step_config.get("source", {})
         destination = step_config.get("destination", {})
+        org_slug = context.get("org_slug")
 
         # Get variables for replacement
         # Combine: context variables + parameters + step-level variables
@@ -99,36 +116,62 @@ class BigQueryETLEngine:
         query = source.get("query", "")
         query = self._replace_variables(query, variables)
 
-        # Initialize BigQuery client
-        bq_client = BigQueryClient(
-            project_id=source.get("bq_project_id", self.settings.gcp_project_id)
-        )
+        # Initialize SOURCE BigQuery client (customer's GCP or CloudAct's)
+        use_org_credentials = source.get("use_org_credentials", False)
 
-        # Execute query
+        if use_org_credentials:
+            # Use customer's GCP Service Account credentials
+            if not org_slug:
+                raise ValueError("org_slug required when use_org_credentials is true")
+
+            self.logger.info(
+                "Using customer GCP credentials for source",
+                extra={
+                    "org_slug": org_slug,
+                    "use_org_credentials": True
+                }
+            )
+
+            auth = GCPAuthenticator(org_slug)
+            source_bq_client = await auth.get_bigquery_client()
+            source_project_id = auth.project_id  # Customer's project from SA
+        else:
+            # Use CloudAct's default credentials
+            source_project_id = source.get("bq_project_id", self.settings.gcp_project_id)
+            source_bq_client = BigQueryClient(project_id=source_project_id).client
+
+        # Execute query on SOURCE (customer's GCP or CloudAct)
         self.logger.info(
             "Executing BigQuery query",
             extra={
                 "query_preview": query[:100],
-                "org_slug": context.get("org_slug"),
+                "source_project": source_project_id,
+                "use_org_credentials": use_org_credentials,
+                "org_slug": org_slug,
                 "pipeline_id": context.get("pipeline_id"),
                 "step_id": context.get("step_id")
             }
         )
-        result_rows = bq_client.query_to_list(query)
+
+        # Execute query using source client
+        query_job = source_bq_client.query(query)
+        results = query_job.result()
+        result_rows = [dict(row) for row in results]
 
         row_count = len(result_rows)
         self.logger.info(
             "Query execution completed",
             extra={
                 "row_count": row_count,
-                "org_slug": context.get("org_slug"),
+                "source_project": source_project_id,
+                "org_slug": org_slug,
                 "pipeline_id": context.get("pipeline_id")
             }
         )
 
-        # Get destination details and replace variables
+        # Initialize DESTINATION BigQuery client (always CloudAct's credentials)
         dest_project = destination.get("bq_project_id", self.settings.gcp_project_id)
-        org_slug = context.get("org_slug")
+        dest_bq_client = BigQueryClient(project_id=dest_project)
         table = self._replace_variables(destination.get("table", ""), variables)
 
         # Build dataset name with environment suffix
@@ -148,30 +191,31 @@ class BigQueryETLEngine:
                 extra={
                     "schema_template": schema_template_name,
                     "field_count": len(schema) if schema else 0,
-                    "org_slug": context.get("org_slug"),
+                    "org_slug": org_slug,
                     "pipeline_id": context.get("pipeline_id")
                 }
             )
 
-        # Ensure table exists with schema
+        # Ensure table exists with schema (using CloudAct credentials)
         self._ensure_table_exists(
-            bq_client=bq_client,
+            bq_client=dest_bq_client,
             project_id=dest_project,
             dataset_id=dataset_id,
             table_id=table_id,
             schema=schema
         )
 
-        # Write data
+        # Write data to DESTINATION (CloudAct's BQ)
         write_mode = destination.get("write_mode", "append")
 
         self.logger.info(
-            "Writing data to BigQuery table",
+            "Writing data to CloudAct BigQuery",
             extra={
                 "row_count": row_count,
+                "source_project": source_project_id,
                 "destination_table": full_table_id,
                 "write_mode": write_mode,
-                "org_slug": context.get("org_slug"),
+                "org_slug": org_slug,
                 "pipeline_id": context.get("pipeline_id")
             }
         )
@@ -201,7 +245,8 @@ class BigQueryETLEngine:
             json_file.write(json_module.dumps(row) + '\n')
         json_file.seek(0)
 
-        load_job = bq_client.client.load_table_from_file(
+        # Write using CloudAct's credentials (dest_bq_client)
+        load_job = dest_bq_client.client.load_table_from_file(
             json_file,
             full_table_id,
             job_config=job_config
@@ -216,10 +261,12 @@ class BigQueryETLEngine:
         return {
             "status": "SUCCESS",
             "rows_processed": row_count,
+            "source_project": source_project_id,
             "source_query": query[:200],
             "destination_table": full_table_id,
             "write_mode": write_mode,
-            "schema_template": schema_template_name
+            "schema_template": schema_template_name,
+            "use_org_credentials": use_org_credentials
         }
 
     def _ensure_table_exists(
