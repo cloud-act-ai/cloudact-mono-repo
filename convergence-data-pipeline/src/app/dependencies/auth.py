@@ -287,7 +287,7 @@ def hash_api_key(api_key: str) -> str:
 
 
 async def get_current_org(
-    api_key: str = Header(..., alias="X-API-Key"),
+    api_key: Optional[str] = Header(None, alias="X-API-Key"),
     bq_client: BigQueryClient = Depends(get_bigquery_client),
     background_tasks: BackgroundTasks = BackgroundTasks()
 ) -> Dict[str, Any]:
@@ -297,7 +297,7 @@ async def get_current_org(
     Returns org profile with subscription info.
 
     Args:
-        api_key: API key from X-API-Key header
+        api_key: API key from X-API-Key header (optional when DISABLE_AUTH=true)
         bq_client: BigQuery client instance
 
     Returns:
@@ -333,6 +333,13 @@ async def get_current_org(
             },
             "org_api_key_id": "dev-key"
         }
+
+    # When auth is NOT disabled, api_key is required
+    if not api_key:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="X-API-Key header is required"
+        )
 
     # Check for test API keys (development/QA mode)
     enable_dev_mode = os.getenv("ENABLE_DEV_MODE", "false").lower() == "true"

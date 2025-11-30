@@ -322,7 +322,7 @@ tags_metadata = [
     },
     {
         "name": "LLM Data",
-        "description": "LLM provider pricing and subscription CRUD endpoints under /integrations/{org_slug}/{provider}/. Supports OpenAI, Anthropic, and DeepSeek. Manage pricing models and subscription plans for usage-based cost calculations."
+        "description": "LLM provider pricing and subscription CRUD endpoints under /integrations/{org_slug}/{provider}/. Supports OpenAI and Anthropic. Manage pricing models and subscription plans for usage-based cost calculations."
     }
 ]
 

@@ -1,10 +1,9 @@
 """
 LLM Provider Data CRUD API Routes
 
-Generic endpoints for managing pricing and subscription data for all LLM providers:
-- OpenAI
-- Anthropic
-- DeepSeek
+Generic endpoints for managing pricing and subscription data for all LLM providers.
+Provider configuration is loaded from configs/system/providers.yml.
+To add a new LLM provider: just update providers.yml with data_tables config.
 
 URL Structure: /api/v1/integrations/{org_slug}/{provider}/pricing|subscriptions
 """
@@ -21,6 +20,7 @@ from google.cloud import bigquery
 from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
 from src.app.dependencies.auth import get_current_org
 from src.app.config import get_settings
+from src.core.providers import provider_registry
 from src.app.models.openai_data_models import (
     OpenAIPricingCreate,
     OpenAIPricingUpdate,
@@ -38,43 +38,42 @@ settings = get_settings()
 
 
 # ============================================
-# Provider Configuration
+# Provider Configuration (from providers.yml)
 # ============================================
 
-class LLMProvider(str, Enum):
-    OPENAI = "openai"
-    ANTHROPIC = "anthropic"
-    DEEPSEEK = "deepseek"
+def _get_llm_providers_enum():
+    """Dynamically build LLMProvider enum from registry."""
+    llm_providers = provider_registry.get_llm_providers()
+    return Enum('LLMProvider', {p.lower(): p.lower() for p in llm_providers}, type=str)
 
-
-PROVIDER_CONFIG = {
-    "openai": {
-        "pricing_table": "openai_model_pricing",
-        "subscriptions_table": "openai_subscriptions",
-        "seed_path": "configs/openai/seed",
-    },
-    "anthropic": {
-        "pricing_table": "anthropic_model_pricing",
-        "subscriptions_table": "anthropic_subscriptions",
-        "seed_path": "configs/anthropic/seed",
-    },
-    "deepseek": {
-        "pricing_table": "deepseek_model_pricing",
-        "subscriptions_table": "deepseek_subscriptions",
-        "seed_path": "configs/deepseek/seed",
-    },
-}
+# Create dynamic enum from config
+LLMProvider = _get_llm_providers_enum()
 
 
 def get_provider_config(provider: str) -> Dict:
-    """Get configuration for a provider."""
-    provider_lower = provider.lower()
-    if provider_lower not in PROVIDER_CONFIG:
+    """Get configuration for a provider from registry."""
+    provider_upper = provider.upper()
+
+    # Check if it's a valid LLM provider with data tables
+    if not provider_registry.is_llm_provider(provider_upper):
+        supported = provider_registry.get_llm_providers()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Unsupported LLM provider: {provider}. Supported: openai, anthropic, deepseek"
+            detail=f"Unsupported LLM provider: {provider}. Supported: {[p.lower() for p in supported]}"
         )
-    return PROVIDER_CONFIG[provider_lower]
+
+    if not provider_registry.has_data_tables(provider_upper):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Provider {provider} does not have data tables configured"
+        )
+
+    # Build config from registry
+    return {
+        "pricing_table": provider_registry.get_pricing_table(provider_upper),
+        "subscriptions_table": provider_registry.get_subscriptions_table(provider_upper),
+        "seed_path": provider_registry.get_seed_path(provider_upper),
+    }
 
 
 # ============================================

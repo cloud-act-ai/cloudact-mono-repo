@@ -1,6 +1,0 @@
-model_id,model_name,input_price_per_1k,output_price_per_1k,effective_date,notes
-gpt-4o,GPT-4o,0.005,0.015,2024-01-01,Latest multimodal model
-gpt-4o-mini,GPT-4o Mini,0.00015,0.0006,2024-01-01,Cost-effective option
-gpt-4-turbo,GPT-4 Turbo,0.01,0.03,2024-01-01,High performance
-gpt-4,GPT-4,0.03,0.06,2024-01-01,Original GPT-4
-gpt-3.5-turbo,GPT-3.5 Turbo,0.0005,0.0015,2024-01-01,Fast and affordable

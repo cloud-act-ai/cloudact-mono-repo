@@ -291,6 +291,122 @@ class Settings(BaseSettings):
 
 
     # ============================================
+    # Central Dataset and Table Configuration
+    # ============================================
+    central_metadata_dataset: str = Field(
+        default="organizations",
+        description="Name of central dataset for organization management tables"
+    )
+
+    # ============================================
+    # Subscription and Plan Configuration
+    # ============================================
+    valid_subscription_plans: List[str] = Field(
+        default=["STARTER", "PROFESSIONAL", "SCALE"],
+        description="Valid subscription plan names"
+    )
+    default_subscription_plan: str = Field(
+        default="STARTER",
+        description="Default subscription plan for new organizations"
+    )
+    active_subscription_statuses: List[str] = Field(
+        default=["ACTIVE", "TRIAL"],
+        description="Subscription statuses that allow pipeline execution"
+    )
+
+    # ============================================
+    # Default Quota Limits
+    # ============================================
+    default_daily_pipeline_limit: int = Field(
+        default=50,
+        ge=1,
+        description="Default daily pipeline run limit for new organizations"
+    )
+    default_monthly_pipeline_limit: int = Field(
+        default=1000,
+        ge=1,
+        description="Default monthly pipeline run limit for new organizations"
+    )
+    default_concurrent_pipeline_limit: int = Field(
+        default=5,
+        ge=1,
+        description="Default concurrent pipeline limit for new organizations"
+    )
+    # Fallback limits when subscription not found (STARTER defaults)
+    fallback_daily_limit: int = Field(default=6, description="Fallback daily limit if subscription not found")
+    fallback_monthly_limit: int = Field(default=180, description="Fallback monthly limit if subscription not found")
+    fallback_concurrent_limit: int = Field(default=1, description="Fallback concurrent limit if subscription not found")
+
+    # ============================================
+    # API Key Configuration
+    # ============================================
+    default_api_key_scopes: List[str] = Field(
+        default=["pipelines:read", "pipelines:write", "pipelines:execute"],
+        description="Default scopes assigned to new organization API keys"
+    )
+
+    # ============================================
+    # Provider Configuration
+    # ============================================
+    valid_providers: List[str] = Field(
+        default=["OPENAI", "ANTHROPIC", "GCP_SA"],
+        description="Valid integration provider names"
+    )
+    llm_providers: List[str] = Field(
+        default=["OPENAI", "ANTHROPIC"],
+        description="LLM providers (subset of valid_providers)"
+    )
+    provider_credential_names: Dict[str, str] = Field(
+        default={
+            "OPENAI": "OpenAI API Key",
+            "ANTHROPIC": "Anthropic API Key",
+            "GCP_SA": "GCP Service Account"
+        },
+        description="Display names for provider credentials"
+    )
+    provider_credential_types: Dict[str, str] = Field(
+        default={
+            "OPENAI": "API_KEY",
+            "CLAUDE": "API_KEY",
+            "ANTHROPIC": "API_KEY",
+            "GCP_SA": "SERVICE_ACCOUNT_JSON"
+        },
+        description="Credential type for each provider"
+    )
+    provider_context_keys: Dict[str, str] = Field(
+        default={
+            "OPENAI": "openai_api_key",
+            "CLAUDE": "claude_api_key",
+            "ANTHROPIC": "anthropic_api_key",
+            "GCP_SA": "gcp_sa_json"
+        },
+        description="Context key names for decrypted credentials"
+    )
+
+    # ============================================
+    # Integration Status Configuration
+    # ============================================
+    valid_integration_statuses: List[str] = Field(
+        default=["VALID", "INVALID", "PENDING", "NOT_CONFIGURED"],
+        description="Valid integration validation statuses"
+    )
+
+    # ============================================
+    # HTTP Timeout Configuration
+    # ============================================
+    http_timeout_default: float = Field(default=30.0, description="Default HTTP timeout in seconds")
+    http_timeout_validation: float = Field(default=15.0, description="HTTP timeout for validation requests")
+    http_timeout_kms: float = Field(default=10.0, description="HTTP timeout for KMS operations")
+
+    # ============================================
+    # Provider API URLs (can be overridden for testing)
+    # ============================================
+    openai_api_base_url: str = Field(default="https://api.openai.com/v1", description="OpenAI API base URL")
+    anthropic_api_base_url: str = Field(default="https://api.anthropic.com/v1", description="Anthropic API base URL")
+    anthropic_api_version: str = Field(default="2023-06-01", description="Anthropic API version header")
+    anthropic_validation_model: str = Field(default="claude-3-haiku-20240307", description="Model for Anthropic validation")
+
+    # ============================================
     # File Paths
     # ============================================
     configs_base_path: str = Field(default="./configs")

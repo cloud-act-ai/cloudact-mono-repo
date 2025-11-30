@@ -96,21 +96,11 @@ class OrgOnboardingProcessor:
                 table.description = description
 
             # Add partitioning if specified in table config
+            # Note: Partitioning must be configured in pipeline.yml, not hardcoded
             if partition_field:
                 table.time_partitioning = bigquery.TimePartitioning(
                     type_=bigquery.TimePartitioningType.DAY,
                     field=partition_field
-                )
-            # Fallback for known table names (backwards compatibility)
-            elif table_name == "org_meta_step_logs":
-                table.time_partitioning = bigquery.TimePartitioning(
-                    type_=bigquery.TimePartitioningType.DAY,
-                    field="start_time"
-                )
-            elif table_name == "org_meta_dq_results":
-                table.time_partitioning = bigquery.TimePartitioning(
-                    type_=bigquery.TimePartitioningType.DAY,
-                    field="ingestion_date"
                 )
 
             # Add clustering if specified
@@ -286,48 +276,48 @@ class OrgOnboardingProcessor:
         # Step 4: Create validation test table if configured
         if config.get("create_validation_table", False):
             validation_table = config.get("validation_table_name", "onboarding_validation_test")
+            validation_schema_file = config.get("validation_table_schema_file", "onboarding_validation_test.json")
 
-            # Simple test schema
-            test_schema = [
-                bigquery.SchemaField("id", "STRING", mode="REQUIRED"),
-                bigquery.SchemaField("test_message", "STRING"),
-                bigquery.SchemaField("created_at", "TIMESTAMP", mode="REQUIRED"),
-            ]
+            # Load test schema from config file (not hardcoded)
+            test_schema = self._load_schema_file(validation_schema_file)
+            if not test_schema:
+                self.logger.error(f"Failed to load validation schema from {validation_schema_file}")
+                tables_failed.append(validation_table)
+            else:
+                success = await self._create_table(
+                    bq_client=bq_client,
+                    dataset_id=dataset_id,
+                    table_name=validation_table,
+                    schema=test_schema,
+                    description="Onboarding validation test table"
+                )
 
-            success = await self._create_table(
-                bq_client=bq_client,
-                dataset_id=dataset_id,
-                table_name=validation_table,
-                schema=test_schema,
-                description="Onboarding validation test table"
-            )
+                if success:
+                    tables_created.append(validation_table)
 
-            if success:
-                tables_created.append(validation_table)
+                    # Insert test record
+                    try:
+                        full_table_id = f"{self.settings.gcp_project_id}.{dataset_id}.{validation_table}"
+                        test_row = {
+                            "id": f"onboarding_test_{org_slug}",
+                            "test_message": f"Onboarding successful for {org_slug}",
+                            "created_at": "CURRENT_TIMESTAMP()"
+                        }
 
-                # Insert test record
-                try:
-                    full_table_id = f"{self.settings.gcp_project_id}.{dataset_id}.{validation_table}"
-                    test_row = {
-                        "id": f"onboarding_test_{org_slug}",
-                        "test_message": f"Onboarding successful for {org_slug}",
-                        "created_at": "CURRENT_TIMESTAMP()"
-                    }
+                        query = f"""
+                        INSERT INTO `{full_table_id}` (id, test_message, created_at)
+                        VALUES (@test_id, @test_message, CURRENT_TIMESTAMP())
+                        """
 
-                    query = f"""
-                    INSERT INTO `{full_table_id}` (id, test_message, created_at)
-                    VALUES (@test_id, @test_message, CURRENT_TIMESTAMP())
-                    """
-
-                    # Execute query with parameterized values (prevents SQL injection)
-                    query_params = [
-                        bigquery.ScalarQueryParameter("test_id", "STRING", test_row["id"]),
-                        bigquery.ScalarQueryParameter("test_message", "STRING", test_row["test_message"]),
-                    ]
-                    list(bq_client.query(query, parameters=query_params))
-                    self.logger.info(f"Inserted test record into {validation_table}")
-                except Exception as e:
-                    self.logger.warning(f"Failed to insert test record: {e}")
+                        # Execute query with parameterized values (prevents SQL injection)
+                        query_params = [
+                            bigquery.ScalarQueryParameter("test_id", "STRING", test_row["id"]),
+                            bigquery.ScalarQueryParameter("test_message", "STRING", test_row["test_message"]),
+                        ]
+                        list(bq_client.query(query, parameters=query_params))
+                        self.logger.info(f"Inserted test record into {validation_table}")
+                    except Exception as e:
+                        self.logger.warning(f"Failed to insert test record: {e}")
 
         # Step 5: Create organization-specific views (pipeline_logs, step_logs)
         # These views filter central metadata tables for this org's data only

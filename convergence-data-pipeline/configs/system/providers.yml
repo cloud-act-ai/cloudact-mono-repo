@@ -1,0 +1,85 @@
+# Provider Configuration
+# Single source of truth for all integration providers
+# To add a new provider: just add an entry here - no code changes needed
+
+providers:
+  # LLM Providers
+  OPENAI:
+    type: llm
+    credential_type: API_KEY
+    display_name: "OpenAI API Key"
+    context_key: openai_api_key
+    api_base_url: "https://api.openai.com/v1"
+    validation_endpoint: "/models"
+    auth_header: "Authorization"
+    auth_prefix: "Bearer "
+    key_prefix: "sk-"  # Used for format validation
+    # LLM data tables config (for pricing/subscriptions initialization)
+    data_tables:
+      pricing_table: openai_model_pricing
+      subscriptions_table: openai_subscriptions
+      seed_path: configs/openai/seed
+      pricing_schema: openai_model_pricing.json
+      subscriptions_schema: openai_subscriptions.json
+
+  ANTHROPIC:
+    type: llm
+    credential_type: API_KEY
+    display_name: "Anthropic API Key"
+    context_key: anthropic_api_key
+    api_base_url: "https://api.anthropic.com/v1"
+    validation_endpoint: "/models"
+    auth_header: "x-api-key"
+    auth_prefix: ""
+    extra_headers:
+      anthropic-version: "2023-06-01"
+    # LLM data tables config
+    data_tables:
+      pricing_table: anthropic_model_pricing
+      subscriptions_table: anthropic_subscriptions
+      seed_path: configs/anthropic/seed
+      pricing_schema: anthropic_pricing.json
+      subscriptions_schema: anthropic_subscriptions.json
+
+  CLAUDE:
+    # Alias for ANTHROPIC (for backward compatibility)
+    type: llm
+    credential_type: API_KEY
+    display_name: "Claude API Key"
+    context_key: claude_api_key
+    api_base_url: "https://api.anthropic.com/v1"
+    validation_endpoint: "/models"
+    auth_header: "x-api-key"
+    auth_prefix: ""
+    extra_headers:
+      anthropic-version: "2023-06-01"
+
+  # Cloud Providers
+  GCP_SA:
+    type: cloud
+    credential_type: SERVICE_ACCOUNT_JSON
+    display_name: "GCP Service Account"
+    context_key: gcp_sa_json
+    required_fields:
+      - type
+      - project_id
+      - private_key
+      - client_email
+    expected_type: "service_account"
+
+# Provider groups for easy lookup
+provider_groups:
+  llm:
+    - OPENAI
+    - ANTHROPIC
+  cloud:
+    - GCP_SA
+  all:
+    - OPENAI
+    - ANTHROPIC
+    - GCP_SA
+
+# Default settings
+defaults:
+  http_timeout: 15.0
+  validation_timeout: 10.0

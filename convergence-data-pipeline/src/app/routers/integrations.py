@@ -1,9 +1,9 @@
 """
 Integration Management API Routes
 
-Endpoints for managing external integrations:
-- LLM providers (OpenAI, Anthropic, DeepSeek)
-- Cloud providers (GCP Service Account)
+Endpoints for managing external integrations.
+Provider configuration is loaded from configs/system/providers.yml.
+To add a new provider: just update providers.yml - no code changes needed.
 
 All credentials are encrypted via GCP KMS.
 
@@ -23,6 +23,7 @@ import csv
 from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
 from src.app.dependencies.auth import get_current_org
 from src.app.config import settings
+from src.core.providers import provider_registry
 from google.cloud import bigquery
 
 router = APIRouter()
@@ -104,39 +105,37 @@ class AllIntegrationsResponse(BaseModel):
 
 
 # ============================================
-# Provider Constants
+# Provider Constants (from providers.yml)
 # ============================================
 
-# Provider name normalization map
-PROVIDER_MAP = {
-    "gcp": "GCP_SA",
-    "gcp_sa": "GCP_SA",
-    "gcp_service_account": "GCP_SA",
-    "openai": "OPENAI",
-    "anthropic": "ANTHROPIC",
-    "claude": "ANTHROPIC",  # Alias: claude -> ANTHROPIC
-    "deepseek": "DEEPSEEK",
-}
+def get_valid_providers() -> list:
+    """Get list of valid providers from registry."""
+    return provider_registry.get_all_providers()
 
-VALID_PROVIDERS = ["OPENAI", "ANTHROPIC", "DEEPSEEK", "GCP_SA"]
 
-DEFAULT_CREDENTIAL_NAMES = {
-    "OPENAI": "OpenAI API Key",
-    "ANTHROPIC": "Anthropic API Key",
-    "DEEPSEEK": "DeepSeek API Key",
-    "GCP_SA": "GCP Service Account",
-}
+def get_default_credential_name(provider: str) -> str:
+    """Get default credential name for a provider."""
+    return provider_registry.get_display_name(provider.upper()) or f"{provider} Credential"
 
 
 def normalize_provider(provider: str) -> str:
-    """Normalize provider name to internal format."""
-    normalized = PROVIDER_MAP.get(provider.lower())
-    if not normalized:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid provider: {provider}. Valid providers: {list(PROVIDER_MAP.keys())}"
-        )
-    return normalized
+    """Normalize provider name to internal format using registry."""
+    # First try direct lookup
+    provider_upper = provider.upper()
+    if provider_registry.is_valid_provider(provider_upper):
+        return provider_upper
+
+    # Then try aliases
+    aliases = provider_registry.get_provider_aliases()
+    normalized = aliases.get(provider.lower())
+    if normalized:
+        return normalized
+
+    # Not found
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail=f"Invalid provider: {provider}. Valid providers: {list(aliases.keys())}"
+    )
 
 
 # ============================================
@@ -294,40 +293,6 @@ async def setup_anthropic_integration(
     )
 
 
-@router.post(
-    "/integrations/{org_slug}/deepseek/setup",
-    response_model=SetupIntegrationResponse,
-    summary="Setup DeepSeek integration",
-    description="Validates and stores DeepSeek API key encrypted via KMS"
-)
-async def setup_deepseek_integration(
-    org_slug: str,
-    request: SetupIntegrationRequest,
-    org: Dict = Depends(get_current_org),
-    bq_client: BigQueryClient = Depends(get_bigquery_client)
-):
-    """Setup DeepSeek integration."""
-    # SECURITY: Validate org_slug format first
-    validate_org_slug(org_slug)
-
-    # Skip org validation when auth is disabled (dev mode)
-    if not settings.disable_auth and org["org_slug"] != org_slug:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Cannot configure integrations for another organization"
-        )
-
-    return await _setup_integration(
-        org_slug=org_slug,
-        provider="DEEPSEEK",
-        credential=request.credential,
-        credential_name=request.credential_name or "DeepSeek API Key",
-        metadata=request.metadata,
-        skip_validation=request.skip_validation,
-        user_id=org.get("user_id")
-    )
-
-
 # ============================================
 # Integration Validation Endpoints (Provider-Based)
 # ============================================
@@ -372,20 +337,6 @@ async def validate_anthropic_integration(
 ):
     """Re-validate Anthropic API key using authenticator."""
     return await _validate_integration(org_slug, "ANTHROPIC", org)
-
-
-@router.post(
-    "/integrations/{org_slug}/deepseek/validate",
-    response_model=SetupIntegrationResponse,
-    summary="Validate DeepSeek integration"
-)
-async def validate_deepseek_integration(
-    org_slug: str,
-    org: Dict = Depends(get_current_org),
-    bq_client: BigQueryClient = Depends(get_bigquery_client)
-):
-    """Re-validate DeepSeek API key using authenticator."""
-    return await _validate_integration(org_slug, "DEEPSEEK", org)
 
 
 # ============================================
@@ -433,7 +384,7 @@ async def get_all_integrations(
         integrations_data = result.get("integrations", {})
 
         integrations = {}
-        for provider in VALID_PROVIDERS:
+        for provider in get_valid_providers():
             if provider in integrations_data:
                 data = integrations_data[provider]
                 integrations[provider] = IntegrationStatusResponse(
@@ -610,8 +561,8 @@ async def _setup_integration(
             subscriptions_initialized = False
             subscriptions_rows_seeded = 0
 
-            llm_providers = ["OPENAI", "ANTHROPIC", "DEEPSEEK"]
-            if provider in llm_providers and is_valid:
+            # Check if provider is LLM and has data tables configured (from providers.yml)
+            if provider_registry.is_llm_provider(provider) and provider_registry.has_data_tables(provider) and is_valid:
                 try:
                     pricing_result = await _initialize_llm_pricing(org_slug, provider.lower())
                     pricing_initialized = pricing_result.get("status") == "SUCCESS"
@@ -635,7 +586,7 @@ async def _setup_integration(
             # Generate appropriate message based on validation status
             if is_valid:
                 message = f"{provider} integration configured and validated successfully"
-                if provider in llm_providers:
+                if provider_registry.has_data_tables(provider):
                     message += f" (pricing: {pricing_rows_seeded} rows, subscriptions: {subscriptions_rows_seeded} rows)"
             elif validation_status == "INVALID":
                 message = f"{provider} credential validation failed: {validation_error or 'Invalid API key'}"
@@ -705,9 +656,6 @@ async def _validate_integration(
         elif provider == "ANTHROPIC":
             from src.core.processors.anthropic.authenticator import AnthropicAuthenticator
             auth = AnthropicAuthenticator(org_slug)
-        elif provider == "DEEPSEEK":
-            from src.core.processors.deepseek.authenticator import DeepSeekAuthenticator
-            auth = DeepSeekAuthenticator(org_slug)
         else:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -966,52 +914,40 @@ async def _initialize_openai_subscriptions(org_slug: str, force: bool = False) -
 
 
 # ============================================
-# Generic LLM Provider Initialization
+# Generic LLM Provider Initialization (from providers.yml)
 # ============================================
 
-# Provider configuration mapping
-LLM_PROVIDER_CONFIG = {
-    "openai": {
-        "pricing_table": "openai_model_pricing",
-        "subscriptions_table": "openai_subscriptions",
-        "seed_path": "configs/openai/seed",
-        "pricing_schema": "openai_model_pricing.json",
-        "subscriptions_schema": "openai_subscriptions.json",
-    },
-    "anthropic": {
-        "pricing_table": "anthropic_model_pricing",
-        "subscriptions_table": "anthropic_subscriptions",
-        "seed_path": "configs/anthropic/seed",
-        "pricing_schema": "anthropic_pricing.json",
-        "subscriptions_schema": "anthropic_subscriptions.json",
-    },
-    "deepseek": {
-        "pricing_table": "deepseek_model_pricing",
-        "subscriptions_table": "deepseek_subscriptions",
-        "seed_path": "configs/deepseek/seed",
-        "pricing_schema": "deepseek_pricing.json",
-        "subscriptions_schema": "deepseek_subscriptions.json",
-    },
-}
+def _get_llm_provider_config(provider: str) -> Optional[Dict[str, str]]:
+    """Get LLM provider data tables config from registry."""
+    provider_upper = provider.upper()
+    if not provider_registry.has_data_tables(provider_upper):
+        return None
+
+    return {
+        "pricing_table": provider_registry.get_pricing_table(provider_upper),
+        "subscriptions_table": provider_registry.get_subscriptions_table(provider_upper),
+        "seed_path": provider_registry.get_seed_path(provider_upper),
+        "pricing_schema": provider_registry.get_pricing_schema(provider_upper),
+        "subscriptions_schema": provider_registry.get_subscriptions_schema(provider_upper),
+    }
 
 
 async def _initialize_llm_pricing(org_slug: str, provider: str, force: bool = False) -> Dict[str, Any]:
     """
     Initialize LLM provider pricing table with default data.
+    Configuration is loaded from providers.yml.
 
     Args:
         org_slug: Organization slug
-        provider: LLM provider name (openai, anthropic, deepseek)
+        provider: LLM provider name (openai, anthropic)
         force: If True, delete existing data and re-seed
 
     Returns:
         Dict with status and rows_seeded count
     """
-    provider_lower = provider.lower()
-    if provider_lower not in LLM_PROVIDER_CONFIG:
-        return {"status": "FAILED", "error": f"Unknown LLM provider: {provider}"}
-
-    config = LLM_PROVIDER_CONFIG[provider_lower]
+    config = _get_llm_provider_config(provider)
+    if not config:
+        return {"status": "FAILED", "error": f"Unknown LLM provider or no data tables configured: {provider}"}
 
     try:
         bq_client = get_bigquery_client()
@@ -1095,20 +1031,19 @@ async def _initialize_llm_pricing(org_slug: str, provider: str, force: bool = Fa
 async def _initialize_llm_subscriptions(org_slug: str, provider: str, force: bool = False) -> Dict[str, Any]:
     """
     Initialize LLM provider subscriptions table with default data.
+    Configuration is loaded from providers.yml.
 
     Args:
         org_slug: Organization slug
-        provider: LLM provider name (openai, anthropic, deepseek)
+        provider: LLM provider name (openai, anthropic)
         force: If True, delete existing data and re-seed
 
     Returns:
         Dict with status and rows_seeded count
     """
-    provider_lower = provider.lower()
-    if provider_lower not in LLM_PROVIDER_CONFIG:
-        return {"status": "FAILED", "error": f"Unknown LLM provider: {provider}"}
-
-    config = LLM_PROVIDER_CONFIG[provider_lower]
+    config = _get_llm_provider_config(provider)
+    if not config:
+        return {"status": "FAILED", "error": f"Unknown LLM provider or no data tables configured: {provider}"}
 
     try:
         bq_client = get_bigquery_client()

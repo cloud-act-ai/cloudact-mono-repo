@@ -113,7 +113,8 @@ class OrgDryRunProcessor:
                 return False
 
             # Check if dataset already exists
-            dataset_id = f"{self.settings.gcp_project_id}.{org_slug}"
+            # Use get_org_dataset_name() for consistency with onboarding
+            dataset_id = f"{self.settings.gcp_project_id}.{self.settings.get_org_dataset_name(org_slug)}"
             try:
                 await bq_client.get_dataset(dataset_id)
                 self._add_validation(
@@ -299,42 +300,6 @@ class OrgDryRunProcessor:
             )
             return False
 
-    async def _validate_dryrun_config_exists(self) -> bool:
-        """Check if dryrun.yml config exists"""
-        try:
-            dryrun_config_path = Path("configs/setup/dryrun/dryrun.yml")
-
-            if not dryrun_config_path.exists():
-                self._add_validation(
-                    check_name="dryrun_config",
-                    passed=False,
-                    message="Dryrun config not found",
-                    details={
-                        "expected_path": str(dryrun_config_path),
-                        "hint": "Dryrun pipeline will be skipped during onboarding"
-                    }
-                )
-                return False
-
-            self._add_validation(
-                check_name="dryrun_config",
-                passed=True,
-                message="Dryrun config exists and will be executed during onboarding",
-                details={
-                    "config_path": str(dryrun_config_path)
-                }
-            )
-            return True
-
-        except Exception as e:
-            self._add_validation(
-                check_name="dryrun_config",
-                passed=False,
-                message=f"Error checking dryrun config: {str(e)}",
-                details={"error": str(e)}
-            )
-            return False
-
     async def _validate_email_format(self, email: str) -> bool:
         """Validate email format"""
         import re
@@ -427,8 +392,8 @@ class OrgDryRunProcessor:
         # 7. Validate central tables exist
         checks.append(await self._validate_central_tables_exist(bq_client))
 
-        # 8. Check dryrun config exists (non-critical)
-        await self._validate_dryrun_config_exists()  # Don't add to critical checks
+        # Note: Dryrun is now a direct API endpoint, not a pipeline
+        # No separate config file needed - configuration comes via API request
 
         # Calculate overall status
         all_passed = all(checks)

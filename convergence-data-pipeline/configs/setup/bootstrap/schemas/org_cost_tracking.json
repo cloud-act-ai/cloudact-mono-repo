@@ -27,7 +27,7 @@
     "name": "provider",
     "type": "STRING",
     "mode": "NULLABLE",
-    "description": "Provider: GCP, OPENAI, ANTHROPIC, DEEPSEEK"
+    "description": "Provider: GCP, OPENAI, ANTHROPIC"
   },
   {
     "name": "pipeline_id",

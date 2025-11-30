@@ -2,7 +2,9 @@
 KMS Store Integration Processor
 
 Validates and stores integration credentials encrypted via GCP KMS.
-Supports: OpenAI, Claude/Anthropic, DeepSeek API keys, and GCP Service Account JSON.
+Supports all providers defined in configs/system/providers.yml.
+
+To add a new provider: just update providers.yml - no code changes needed.
 """
 
 import json
@@ -14,6 +16,7 @@ from google.cloud import bigquery
 
 from src.core.engine.bq_client import BigQueryClient
 from src.core.security.kms_encryption import encrypt_value
+from src.core.providers import provider_registry, validate_credential, validate_credential_format
 from src.app.config import get_settings
 
 
@@ -23,24 +26,27 @@ class KMSStoreIntegrationProcessor:
 
     Flow:
     1. Receives plaintext credential from context
-    2. Validates credential format and connectivity (via provider-specific validator)
+    2. Validates credential format and connectivity (via generic validator)
     3. Encrypts credential using GCP KMS
     4. Stores encrypted credential in org_integration_credentials table
     5. Returns credential_id and validation status
-    """
 
-    SUPPORTED_PROVIDERS = ["OPENAI", "CLAUDE", "ANTHROPIC", "DEEPSEEK", "GCP_SA"]
-    CREDENTIAL_TYPES = {
-        "OPENAI": "API_KEY",
-        "CLAUDE": "API_KEY",
-        "ANTHROPIC": "API_KEY",  # Anthropic/Claude
-        "DEEPSEEK": "API_KEY",
-        "GCP_SA": "SERVICE_ACCOUNT_JSON",
-    }
+    Provider configuration is loaded from configs/system/providers.yml.
+    Adding a new provider requires NO code changes - just update the YAML.
+    """
 
     def __init__(self):
         self.settings = get_settings()
         self.logger = logging.getLogger(__name__)
+
+    @property
+    def supported_providers(self) -> list:
+        """Get supported providers from registry (loaded from YAML)."""
+        return provider_registry.get_all_providers()
+
+    def get_credential_type(self, provider: str) -> str:
+        """Get credential type from registry."""
+        return provider_registry.get_credential_type(provider) or "API_KEY"
 
     async def execute(
         self,
@@ -52,7 +58,7 @@ class KMSStoreIntegrationProcessor:
 
         Args:
             step_config: Step configuration containing:
-                - config.provider: Provider name (OPENAI, CLAUDE, DEEPSEEK, GCP_SA)
+                - config.provider: Provider name from providers.yml
                 - config.skip_validation: Skip credential validation (default: False)
                 - config.credential_name: Optional human-readable name
             context: Execution context containing:
@@ -93,10 +99,11 @@ class KMSStoreIntegrationProcessor:
                 "error": "plaintext_credential is required in context"
             }
 
-        if provider not in self.SUPPORTED_PROVIDERS:
+        # Use registry to check valid providers
+        if not provider_registry.is_valid_provider(provider):
             return {
                 "status": "FAILED",
-                "error": f"Unsupported provider: {provider}. Supported: {self.SUPPORTED_PROVIDERS}"
+                "error": f"Unsupported provider: {provider}. Supported: {self.supported_providers}"
             }
 
         self.logger.info(
@@ -111,12 +118,12 @@ class KMSStoreIntegrationProcessor:
         # Initialize BigQuery client
         bq_client = BigQueryClient(project_id=self.settings.gcp_project_id)
 
-        # Step 1: Validate credential format
-        validation_result = self._validate_credential_format(provider, plaintext_credential)
-        if not validation_result["valid"]:
+        # Step 1: Validate credential format using generic validator
+        format_result = validate_credential_format(provider, plaintext_credential)
+        if not format_result["valid"]:
             return {
                 "status": "FAILED",
-                "error": validation_result["error"],
+                "error": format_result["error"],
                 "provider": provider
             }
 
@@ -127,7 +134,8 @@ class KMSStoreIntegrationProcessor:
 
         if not skip_validation:
             try:
-                connectivity_result = await self._validate_credential_connectivity(
+                # Use generic validator from providers package
+                connectivity_result = await validate_credential(
                     provider, plaintext_credential, metadata
                 )
                 if connectivity_result["valid"]:
@@ -155,7 +163,7 @@ class KMSStoreIntegrationProcessor:
 
         # Step 4: Check for existing credential and deactivate it
         credential_id = str(uuid.uuid4())
-        credential_type = self.CREDENTIAL_TYPES[provider]
+        credential_type = self.get_credential_type(provider)
 
         try:
             # Deactivate existing credential for this org/provider
@@ -237,142 +245,6 @@ class KMSStoreIntegrationProcessor:
                 "error": f"Failed to store credential: {str(e)}",
                 "provider": provider
             }
-
-    def _validate_credential_format(self, provider: str, credential: str) -> Dict[str, Any]:
-        """Validate credential format based on provider."""
-        if provider in ["OPENAI", "CLAUDE", "ANTHROPIC", "DEEPSEEK"]:
-            # API keys should be non-empty strings
-            if not credential or len(credential) < 10:
-                return {"valid": False, "error": "API key is too short"}
-
-            # OpenAI keys typically start with sk-
-            if provider == "OPENAI" and not credential.startswith("sk-"):
-                return {"valid": False, "error": "OpenAI API keys should start with 'sk-'"}
-
-            return {"valid": True}
-
-        elif provider == "GCP_SA":
-            # GCP Service Account should be valid JSON
-            try:
-                sa_json = json.loads(credential)
-                required_fields = ["type", "project_id", "private_key", "client_email"]
-                missing = [f for f in required_fields if f not in sa_json]
-                if missing:
-                    return {"valid": False, "error": f"Missing required fields: {missing}"}
-                if sa_json.get("type") != "service_account":
-                    return {"valid": False, "error": "Invalid service account type"}
-                return {"valid": True}
-            except json.JSONDecodeError:
-                return {"valid": False, "error": "Invalid JSON format for service account"}
-
-        return {"valid": False, "error": f"Unknown provider: {provider}"}
-
-    async def _validate_credential_connectivity(
-        self,
-        provider: str,
-        credential: str,
-        metadata: Optional[Dict] = None
-    ) -> Dict[str, Any]:
-        """
-        Validate credential can connect to the service.
-        Uses provider-specific validation logic.
-        """
-        try:
-            if provider == "OPENAI":
-                return await self._validate_openai_key(credential)
-            elif provider in ["CLAUDE", "ANTHROPIC"]:
-                return await self._validate_claude_key(credential)
-            elif provider == "DEEPSEEK":
-                return await self._validate_deepseek_key(credential)
-            elif provider == "GCP_SA":
-                return await self._validate_gcp_sa(credential, metadata)
-            else:
-                return {"valid": False, "error": f"No validator for provider: {provider}"}
-        except Exception as e:
-            return {"valid": False, "error": str(e)}
-
-    async def _validate_openai_key(self, api_key: str) -> Dict[str, Any]:
-        """Validate OpenAI API key by listing models."""
-        import httpx
-
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.get(
-                "https://api.openai.com/v1/models",
-                headers={"Authorization": f"Bearer {api_key}"}
-            )
-
-            if response.status_code == 200:
-                return {"valid": True}
-            elif response.status_code == 401:
-                return {"valid": False, "error": "Invalid API key"}
-            else:
-                return {"valid": False, "error": f"API error: {response.status_code}"}
-
-    async def _validate_claude_key(self, api_key: str) -> Dict[str, Any]:
-        """Validate Anthropic/Claude API key by listing models."""
-        import httpx
-
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.get(
-                "https://api.anthropic.com/v1/models",
-                headers={
-                    "x-api-key": api_key,
-                    "anthropic-version": "2023-06-01"
-                }
-            )
-
-            if response.status_code == 200:
-                return {"valid": True}
-            elif response.status_code == 401:
-                return {"valid": False, "error": "Invalid API key"}
-            else:
-                return {"valid": False, "error": f"API error: {response.status_code}"}
-
-    async def _validate_deepseek_key(self, api_key: str) -> Dict[str, Any]:
-        """Validate DeepSeek API key."""
-        import httpx
-
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.get(
-                "https://api.deepseek.com/v1/models",
-                headers={"Authorization": f"Bearer {api_key}"}
-            )
-
-            if response.status_code == 200:
-                return {"valid": True}
-            elif response.status_code == 401:
-                return {"valid": False, "error": "Invalid API key"}
-            else:
-                return {"valid": False, "error": f"API error: {response.status_code}"}
-
-    async def _validate_gcp_sa(
-        self,
-        sa_json_str: str,
-        metadata: Optional[Dict] = None
-    ) -> Dict[str, Any]:
-        """Validate GCP Service Account by making a simple API call."""
-        import tempfile
-        import os
-        from google.oauth2 import service_account
-        from google.cloud import bigquery as bq
-
-        try:
-            sa_info = json.loads(sa_json_str)
-            project_id = sa_info.get("project_id")
-
-            # Create credentials from service account info
-            credentials = service_account.Credentials.from_service_account_info(sa_info)
-
-            # Try to list datasets (minimal permission check)
-            client = bq.Client(credentials=credentials, project=project_id)
-
-            # Just check we can connect - list 1 dataset
-            list(client.list_datasets(max_results=1))
-
-            return {"valid": True, "project_id": project_id}
-
-        except Exception as e:
-            return {"valid": False, "error": str(e)}
 
 
 # Factory function for pipeline executor

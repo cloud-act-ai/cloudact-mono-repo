@@ -3,6 +3,9 @@ KMS Decrypt Integration Processor
 
 Retrieves and decrypts integration credentials from storage.
 Used by pipelines that need access to external services.
+
+Supports all providers defined in configs/system/providers.yml.
+To add a new provider: just update providers.yml - no code changes needed.
 """
 
 import json
@@ -12,6 +15,7 @@ from google.cloud import bigquery
 
 from src.core.engine.bq_client import BigQueryClient
 from src.core.security.kms_encryption import decrypt_value
+from src.core.providers import provider_registry
 from src.app.config import get_settings
 
 
@@ -24,6 +28,9 @@ class KMSDecryptIntegrationProcessor:
     2. Decrypts credential using GCP KMS
     3. Puts decrypted credential into context for downstream processors
     4. Returns success/failure status
+
+    Provider configuration is loaded from configs/system/providers.yml.
+    Context keys are defined in the YAML - no code changes needed for new providers.
     """
 
     def __init__(self):
@@ -40,9 +47,9 @@ class KMSDecryptIntegrationProcessor:
 
         Args:
             step_config: Step configuration containing:
-                - config.provider: Provider name (OPENAI, CLAUDE, DEEPSEEK, GCP_SA)
+                - config.provider: Provider name from providers.yml
                 - config.require_valid: Only return VALID credentials (default: True)
-                - config.context_key: Key to store decrypted credential in context
+                - config.context_key: Override key to store decrypted credential in context
             context: Execution context containing:
                 - org_slug: Organization identifier (REQUIRED)
                 - secrets: Dict to store decrypted credentials (will be created if missing)
@@ -158,18 +165,15 @@ class KMSDecryptIntegrationProcessor:
             if "secrets" not in context:
                 context["secrets"] = {}
 
-            # Determine context key
+            # Determine context key - use provider registry if not overridden
             if context_key:
                 key = context_key
             else:
-                # Default keys based on provider
-                key_map = {
-                    "OPENAI": "openai_api_key",
-                    "CLAUDE": "claude_api_key",
-                    "DEEPSEEK": "deepseek_api_key",
-                    "GCP_SA": "gcp_sa_json",
-                }
-                key = key_map.get(provider, f"{provider.lower()}_credential")
+                # Get key from provider registry (loaded from providers.yml)
+                key = provider_registry.get_context_key(provider)
+                if not key:
+                    # Fallback if provider not in registry
+                    key = f"{provider.lower()}_credential"
 
             context["secrets"][key] = decrypted_credential
 
