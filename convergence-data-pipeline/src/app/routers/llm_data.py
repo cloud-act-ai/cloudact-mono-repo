@@ -109,9 +109,10 @@ def validate_plan_name(plan_name: str) -> None:
 
 
 def get_org_dataset(org_slug: str) -> str:
-    """Get the organization's dataset ID."""
-    env = settings.environment or "dev"
-    return f"{org_slug}_{env}"
+    """Get the organization's dataset ID using consistent naming with onboarding."""
+    # Use settings.get_org_dataset_name() for consistency with onboarding processor
+    # Maps: development -> local, staging -> stage, production -> prod
+    return settings.get_org_dataset_name(org_slug)
 
 
 def check_org_access(org: Dict, org_slug: str) -> None:

@@ -14,9 +14,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional, Dict, Any, Literal
 from datetime import datetime
+from pathlib import Path
 import logging
 import json
 import re
+import csv
 
 from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
 from src.app.dependencies.auth import get_current_org
@@ -769,8 +771,9 @@ async def _initialize_openai_pricing(org_slug: str, force: bool = False) -> Dict
     from datetime import datetime
 
     try:
-        env = settings.environment or "dev"
-        dataset_id = f"{org_slug}_{env}"
+        # Use settings.get_org_dataset_name() for consistency with onboarding
+        # Maps: development -> local, staging -> stage, production -> prod
+        dataset_id = settings.get_org_dataset_name(org_slug)
         project_id = settings.gcp_project_id
         table_id = f"{project_id}.{dataset_id}.openai_model_pricing"
 
@@ -873,8 +876,9 @@ async def _initialize_openai_subscriptions(org_slug: str, force: bool = False) -
     from datetime import datetime
 
     try:
-        env = settings.environment or "dev"
-        dataset_id = f"{org_slug}_{env}"
+        # Use settings.get_org_dataset_name() for consistency with onboarding
+        # Maps: development -> local, staging -> stage, production -> prod
+        dataset_id = settings.get_org_dataset_name(org_slug)
         project_id = settings.gcp_project_id
         table_id = f"{project_id}.{dataset_id}.openai_subscriptions"
 
@@ -971,7 +975,7 @@ LLM_PROVIDER_CONFIG = {
         "pricing_table": "openai_model_pricing",
         "subscriptions_table": "openai_subscriptions",
         "seed_path": "configs/openai/seed",
-        "pricing_schema": "openai_pricing.json",
+        "pricing_schema": "openai_model_pricing.json",
         "subscriptions_schema": "openai_subscriptions.json",
     },
     "anthropic": {
@@ -1011,8 +1015,8 @@ async def _initialize_llm_pricing(org_slug: str, provider: str, force: bool = Fa
 
     try:
         bq_client = get_bigquery_client()
-        env = settings.environment or "dev"
-        dataset_id = f"{org_slug}_{env}"
+        # Use settings.get_org_dataset_name() for consistency with onboarding
+        dataset_id = settings.get_org_dataset_name(org_slug)
         table_id = f"{settings.gcp_project_id}.{dataset_id}.{config['pricing_table']}"
 
         # Load schema
@@ -1108,8 +1112,8 @@ async def _initialize_llm_subscriptions(org_slug: str, provider: str, force: boo
 
     try:
         bq_client = get_bigquery_client()
-        env = settings.environment or "dev"
-        dataset_id = f"{org_slug}_{env}"
+        # Use settings.get_org_dataset_name() for consistency with onboarding
+        dataset_id = settings.get_org_dataset_name(org_slug)
         table_id = f"{settings.gcp_project_id}.{dataset_id}.{config['subscriptions_table']}"
 
         # Load schema

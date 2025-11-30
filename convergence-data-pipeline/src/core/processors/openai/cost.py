@@ -65,8 +65,9 @@ class CostProcessor:
         pricing_table = config.get("pricing_table", "openai_model_pricing")
         process_date = config.get("date") or context.get("start_date")
 
-        env = self.settings.environment or "dev"
-        dataset_id = f"{org_slug}_{env}"
+        # Use settings.get_org_dataset_name() for consistency with onboarding
+        # Maps: development -> local, staging -> stage, production -> prod
+        dataset_id = self.settings.get_org_dataset_name(org_slug)
         project_id = self.settings.gcp_project_id
 
         self.logger.info(

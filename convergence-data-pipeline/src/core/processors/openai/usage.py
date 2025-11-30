@@ -166,8 +166,8 @@ class OpenAIUsageProcessor:
         destination_table: str
     ) -> None:
         """Store usage data in BigQuery."""
-        env = self.settings.environment or "dev"
-        dataset_id = f"{org_slug}_{env}"
+        # Use settings.get_org_dataset_name() for consistency with onboarding
+        dataset_id = self.settings.get_org_dataset_name(org_slug)
         table_id = f"{self.settings.gcp_project_id}.{dataset_id}.{destination_table}"
 
         bq_client = BigQueryClient(project_id=self.settings.gcp_project_id)

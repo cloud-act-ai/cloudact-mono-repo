@@ -144,8 +144,8 @@ class SubscriptionsProcessor:
         subscription_data: Dict
     ) -> None:
         """Store subscription data in BigQuery."""
-        env = self.settings.environment or "dev"
-        dataset_id = f"{org_slug}_{env}"
+        # Use settings.get_org_dataset_name() for consistency with onboarding
+        dataset_id = self.settings.get_org_dataset_name(org_slug)
         project_id = self.settings.gcp_project_id
         table_id = f"{project_id}.{dataset_id}.{table_name}"
 
