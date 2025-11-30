@@ -47,8 +47,9 @@ except ImportError:
 # - BigQuery SERVICE handles query scheduling and concurrency (100 concurrent per project)
 # - Thread pool just wraps sync calls to not block async event loop
 # - Tenant isolation is at DATA level (datasets), not thread level
+# - Worker count is configurable via settings for scalability tuning
 BQ_EXECUTOR = ThreadPoolExecutor(
-    max_workers=200,
+    max_workers=settings.pipeline_max_parallel_steps * 20,  # Scale with parallel steps (default: 200)
     thread_name_prefix="bq_worker"
 )
 
@@ -58,6 +59,33 @@ def _shutdown_bq_executor():
 
 # Register cleanup handler
 atexit.register(_shutdown_bq_executor)
+
+
+# ============================================
+# Global Pipeline Concurrency Semaphore
+# ============================================
+# Limits total concurrent pipelines across ALL organizations
+# Prevents resource exhaustion at platform level (10k+ users)
+# Uses asyncio.Semaphore for proper async backpressure
+_GLOBAL_PIPELINE_SEMAPHORE: asyncio.Semaphore = None
+
+
+def get_global_pipeline_semaphore() -> asyncio.Semaphore:
+    """
+    Get or create the global pipeline concurrency semaphore.
+
+    Uses lazy initialization to ensure the semaphore is created
+    in the correct event loop context.
+
+    Returns:
+        asyncio.Semaphore for limiting concurrent pipelines
+    """
+    global _GLOBAL_PIPELINE_SEMAPHORE
+    if _GLOBAL_PIPELINE_SEMAPHORE is None:
+        _GLOBAL_PIPELINE_SEMAPHORE = asyncio.Semaphore(
+            settings.pipeline_global_concurrent_limit
+        )
+    return _GLOBAL_PIPELINE_SEMAPHORE
 
 
 class StepNode:
@@ -497,11 +525,23 @@ class AsyncPipelineExecutor:
         """
         Execute the complete pipeline asynchronously with parallel step execution.
 
+        Uses global semaphore to limit concurrent pipelines across ALL organizations
+        for platform-level resource protection (10k+ users).
+
         Args:
             parameters: Runtime parameters (e.g., date, filters)
 
         Returns:
             Execution summary
+        """
+        # Acquire global pipeline semaphore for platform-level concurrency control
+        global_semaphore = get_global_pipeline_semaphore()
+        async with global_semaphore:
+            return await self._execute_with_semaphore(parameters)
+
+    async def _execute_with_semaphore(self, parameters: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        Internal execute method wrapped by global semaphore.
         """
         # Create distributed tracing span
         tracer = get_tracer(__name__) if TRACING_ENABLED else None

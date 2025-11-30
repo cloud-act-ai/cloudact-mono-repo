@@ -14,6 +14,12 @@ providers:
     auth_header: "Authorization"
     auth_prefix: "Bearer "
     key_prefix: "sk-"  # Used for format validation
+    # Validation configuration
+    validation_model: "gpt-3.5-turbo"  # Model used for lightweight validation calls
+    # Retry and rate limiting
+    max_retries: 3
+    retry_backoff_seconds: 2
+    rate_limit_per_minute: 60  # Per-org rate limit for this provider
     # LLM data tables config (for pricing/subscriptions initialization)
     data_tables:
       pricing_table: openai_model_pricing
@@ -33,6 +39,12 @@ providers:
     auth_prefix: ""
     extra_headers:
       anthropic-version: "2023-06-01"
+    # Validation configuration
+    validation_model: "claude-3-haiku-20240307"  # Model used for lightweight validation calls
+    # Retry and rate limiting
+    max_retries: 3
+    retry_backoff_seconds: 2
+    rate_limit_per_minute: 60  # Per-org rate limit for this provider
     # LLM data tables config
     data_tables:
       pricing_table: anthropic_model_pricing
@@ -43,6 +55,7 @@ providers:
 
   CLAUDE:
     # Alias for ANTHROPIC (for backward compatibility)
+    alias_for: ANTHROPIC  # Indicates this is an alias
     type: llm
     credential_type: API_KEY
     display_name: "Claude API Key"
@@ -53,6 +66,11 @@ providers:
     auth_prefix: ""
     extra_headers:
       anthropic-version: "2023-06-01"
+    # Inherits from ANTHROPIC
+    validation_model: "claude-3-haiku-20240307"
+    max_retries: 3
+    retry_backoff_seconds: 2
+    rate_limit_per_minute: 60
 
   # Cloud Providers
   GCP_SA:
@@ -66,20 +84,46 @@ providers:
       - private_key
       - client_email
     expected_type: "service_account"
+    # Retry and rate limiting
+    max_retries: 3
+    retry_backoff_seconds: 2
+    rate_limit_per_minute: 100  # Higher limit for cloud operations
+    # Gemini AI data tables (created when GCP integration is setup)
+    # Usage data comes from GCP billing export, subscriptions for tracking
+    gemini_data_tables:
+      pricing_table: gemini_model_pricing
+      subscriptions_table: gemini_subscriptions
+      seed_path: configs/gemini/seed
+      pricing_schema: gemini_model_pricing.json
+      subscriptions_schema: gemini_subscriptions.json
 
 # Provider groups for easy lookup
 provider_groups:
   llm:
     - OPENAI
     - ANTHROPIC
+    - CLAUDE  # Include CLAUDE alias in LLM group
   cloud:
     - GCP_SA
   all:
     - OPENAI
     - ANTHROPIC
+    - CLAUDE
     - GCP_SA
+
+# Provider aliases (for normalization)
+# Maps user-friendly names to canonical provider names
+aliases:
+  openai: OPENAI
+  anthropic: ANTHROPIC
+  claude: CLAUDE
+  gcp: GCP_SA
+  gcp_sa: GCP_SA
 
 # Default settings
 defaults:
   http_timeout: 15.0
   validation_timeout: 10.0
+  max_retries: 3
+  retry_backoff_seconds: 2
+  rate_limit_per_minute: 60

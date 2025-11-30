@@ -71,44 +71,43 @@ CA_ROOT_API_KEY (system admin)
 
 | Method | Endpoint | Purpose |
 |--------|----------|---------|
-| POST | `/integrations/{org}/gcp/setup` | Setup GCP Service Account |
-| POST | `/integrations/{org}/openai/setup` | Setup OpenAI API key + init pricing/subscriptions |
-| POST | `/integrations/{org}/anthropic/setup` | Setup Anthropic API key |
-| POST | `/integrations/{org}/{provider}/validate` | Re-validate integration credential |
-| GET | `/integrations/{org}` | Get all integration statuses |
-| GET | `/integrations/{org}/{provider}` | Get specific integration status |
-| DELETE | `/integrations/{org}/{provider}` | Remove integration |
+| POST | `/api/v1/integrations/{org}/gcp/setup` | Setup GCP Service Account |
+| POST | `/api/v1/integrations/{org}/openai/setup` | Setup OpenAI API key + init pricing/subscriptions |
+| POST | `/api/v1/integrations/{org}/anthropic/setup` | Setup Anthropic API key |
+| POST | `/api/v1/integrations/{org}/gcp/validate` | Re-validate GCP integration |
+| POST | `/api/v1/integrations/{org}/openai/validate` | Re-validate OpenAI integration |
+| POST | `/api/v1/integrations/{org}/anthropic/validate` | Re-validate Anthropic integration |
+| GET | `/api/v1/integrations/{org}` | Get all integration statuses |
+| GET | `/api/v1/integrations/{org}/{provider}` | Get specific integration status |
+| DELETE | `/api/v1/integrations/{org}/{provider}` | Remove integration |
 
 #### LLM Data Management (X-API-Key)
 
 Auto-initialized when LLM integration is set up via default data from `configs/{provider}/seed/data/`.
 
-**OpenAI Endpoints:**
+**Generic LLM Endpoints (works for all providers):**
 | Method | Endpoint | Purpose |
 |--------|----------|---------|
-| GET | `/integrations/{org}/openai/pricing` | List all pricing models |
-| POST | `/integrations/{org}/openai/pricing` | Add new pricing model |
-| PUT | `/integrations/{org}/openai/pricing/{model_id}` | Update pricing model |
-| DELETE | `/integrations/{org}/openai/pricing/{model_id}` | Delete pricing model |
-| POST | `/integrations/{org}/openai/pricing/reset` | Reset to default pricing from CSV |
-| GET | `/integrations/{org}/openai/subscriptions` | List all subscriptions |
-| POST | `/integrations/{org}/openai/subscriptions` | Add new subscription |
-| PUT | `/integrations/{org}/openai/subscriptions/{plan_name}` | Update subscription |
-| DELETE | `/integrations/{org}/openai/subscriptions/{plan_name}` | Delete subscription |
-| POST | `/integrations/{org}/openai/subscriptions/reset` | Reset to default subscriptions from CSV |
+| GET | `/api/v1/integrations/{org}/{provider}/pricing` | List all pricing models |
+| POST | `/api/v1/integrations/{org}/{provider}/pricing` | Add new pricing model |
+| PUT | `/api/v1/integrations/{org}/{provider}/pricing/{model_id}` | Update pricing model |
+| DELETE | `/api/v1/integrations/{org}/{provider}/pricing/{model_id}` | Delete pricing model |
+| POST | `/api/v1/integrations/{org}/{provider}/pricing/reset` | Reset to default pricing from CSV |
+| GET | `/api/v1/integrations/{org}/{provider}/subscriptions` | List all subscriptions |
+| POST | `/api/v1/integrations/{org}/{provider}/subscriptions` | Add new subscription |
+| PUT | `/api/v1/integrations/{org}/{provider}/subscriptions/{plan_name}` | Update subscription |
+| DELETE | `/api/v1/integrations/{org}/{provider}/subscriptions/{plan_name}` | Delete subscription |
+| POST | `/api/v1/integrations/{org}/{provider}/subscriptions/reset` | Reset to default subscriptions from CSV |
 
-**Anthropic Endpoints:**
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| GET | `/integrations/{org}/anthropic/pricing` | List all pricing models |
-| POST | `/integrations/{org}/anthropic/pricing` | Add new pricing model |
-| PUT | `/integrations/{org}/anthropic/pricing/{model_id}` | Update pricing model |
-| DELETE | `/integrations/{org}/anthropic/pricing/{model_id}` | Delete pricing model |
-| POST | `/integrations/{org}/anthropic/pricing/reset` | Reset to default pricing from CSV |
+**Supported Providers:**
+- OpenAI: `/api/v1/integrations/{org}/openai/pricing`, `/api/v1/integrations/{org}/openai/subscriptions`
+- Anthropic: `/api/v1/integrations/{org}/anthropic/pricing`, `/api/v1/integrations/{org}/anthropic/subscriptions`
 
 **Default Seed Data Files:**
 - OpenAI: `configs/openai/seed/data/default_pricing.csv`, `default_subscriptions.csv`
 - Anthropic: `configs/anthropic/seed/data/default_pricing.csv`, `default_subscriptions.csv`
+
+**Note:** Anthropic subscriptions endpoints exist but Anthropic doesn't have subscription tiers like OpenAI.
 
 ---
 
@@ -143,11 +142,32 @@ Frontend (Supabase)                    Backend (BigQuery)
 | User accounts, auth | Supabase | Auth system |
 | Org metadata (name, slug) | Supabase | Frontend queries |
 | Subscription/billing | Supabase + Stripe | Billing system |
+| Billing status | Supabase (lowercase) + BigQuery (UPPERCASE) | Synced via webhook |
 | Integration status reference | Supabase | Fast frontend reads |
 | Org API Key | BigQuery (hashed + KMS) | Security |
 | Provider credentials | BigQuery (KMS encrypted) | Security |
 | Pipeline data (billing, usage) | BigQuery | Analytics |
 | Execution logs | BigQuery | Audit trail |
+
+### Billing Status Mapping
+
+Frontend → Backend status mapping (via `syncSubscriptionToBackend()`):
+
+| Frontend (Supabase) | Backend (BigQuery) | Pipeline Access |
+|---------------------|--------------------| ----------------|
+| `trialing` | `TRIAL` | ✅ Allowed |
+| `active` | `ACTIVE` | ✅ Allowed |
+| `past_due` | `SUSPENDED` | ❌ Blocked |
+| `canceled` | `CANCELLED` | ❌ Blocked |
+| `paused` | `SUSPENDED` | ❌ Blocked |
+| `incomplete` | `SUSPENDED` | ❌ Blocked |
+
+**Sync Flow:**
+1. Stripe webhook updates Supabase `organizations.billing_status`
+2. Webhook calls frontend action `syncSubscriptionToBackend(orgSlug, billingStatus, trialEndsAt)`
+3. Frontend maps status and calls `PUT /api/v1/organizations/{org}/subscription`
+4. Backend updates `org_subscriptions.status` and `org_subscriptions.trial_end_date`
+5. Pipeline execution checks `org_subscriptions.status IN ('ACTIVE', 'TRIAL')` before running
 
 ### Complete Lifecycle Phases
 
@@ -417,7 +437,7 @@ API Request
 
 | Config | Schedule | Processor | Output Tables |
 |--------|----------|-----------|---------------|
-| `gcp/billing.yml` | Daily | `gcp.bq_etl` | `gcp_billing_daily_raw` |
+| `gcp/cost/billing.yml` | Daily | `gcp.bq_etl` | `gcp_billing_daily_raw` |
 
 #### System Pipelines (Admin)
 
@@ -560,8 +580,7 @@ convergence-data-pipeline/
 │   │   ├── kms_decrypt.py
 │   │   ├── validate_openai.py
 │   │   ├── validate_claude.py
-│   │   ├── validate_gcp.py
-│   │   └── (validate_deepseek.py)     # DeepSeek validation (if enabled)
+│   │   └── validate_gcp.py
 │   └── notify_systems/                # Notification processors
 │       └── email_notification.py
 └── configs/                           # SINGLE SOURCE OF TRUTH
@@ -736,7 +755,7 @@ curl $BASE_URL/api/v1/integrations/guruinc_234234 \
 
 ```bash
 # Run GCP Billing pipeline
-curl -X POST $BASE_URL/api/v1/pipelines/run/guruinc_234234/gcp/billing \
+curl -X POST $BASE_URL/api/v1/pipelines/run/guruinc_234234/gcp/cost/billing \
   -H "X-API-Key: $ORG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"date": "2025-11-25"}'
