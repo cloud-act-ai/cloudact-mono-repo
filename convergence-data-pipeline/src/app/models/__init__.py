@@ -18,7 +18,6 @@ from .org_models import (
     SUBSCRIPTION_LIMITS,
 
     # Request Models
-    OnboardOrgRequest,
     CreateAPIKeyRequest,
     AddCredentialRequest,
     CreateProviderConfigRequest,
@@ -51,7 +50,6 @@ __all__ = [
     "SUBSCRIPTION_LIMITS",
 
     # Request Models
-    "OnboardOrgRequest",
     "CreateAPIKeyRequest",
     "AddCredentialRequest",
     "CreateProviderConfigRequest",

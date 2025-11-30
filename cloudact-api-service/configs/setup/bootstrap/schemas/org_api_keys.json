@@ -1,0 +1,56 @@
+[
+  {
+    "name": "org_api_key_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Unique identifier for the API key"
+  },
+  {
+    "name": "org_slug",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Organization that owns this API key"
+  },
+  {
+    "name": "org_api_key_hash",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Hashed API key for secure verification"
+  },
+  {
+    "name": "encrypted_org_api_key",
+    "type": "BYTES",
+    "mode": "NULLABLE",
+    "description": "Encrypted API key (if recovery is needed)"
+  },
+  {
+    "name": "scopes",
+    "type": "STRING",
+    "mode": "REPEATED",
+    "description": "List of permission scopes for this API key"
+  },
+  {
+    "name": "is_active",
+    "type": "BOOLEAN",
+    "mode": "REQUIRED",
+    "description": "Whether this API key is currently active"
+  },
+  {
+    "name": "expires_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "Expiration timestamp (NULL = no expiration)"
+  },
+  {
+    "name": "created_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "Timestamp when API key was created"
+  },
+  {
+    "name": "last_used_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "Timestamp of last API key usage"
+  }
+]

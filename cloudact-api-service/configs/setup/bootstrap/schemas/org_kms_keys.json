@@ -1,0 +1,68 @@
+[
+  {
+    "name": "_schema_note",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "PLACEHOLDER TABLE: Reserved for future per-org KMS key rotation. Currently using shared KMS key with org_slug isolation. See CLAUDE.md for architecture details."
+  },
+  {
+    "name": "kms_key_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Unique identifier for the org KMS key mapping"
+  },
+  {
+    "name": "org_slug",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Organization identifier"
+  },
+  {
+    "name": "key_type",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Type of key: DATA_ENCRYPTION, CREDENTIAL_ENCRYPTION"
+  },
+  {
+    "name": "kms_key_name",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Full GCP KMS key resource name"
+  },
+  {
+    "name": "key_version",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "KMS key version (NULL for latest)"
+  },
+  {
+    "name": "is_active",
+    "type": "BOOLEAN",
+    "mode": "REQUIRED",
+    "description": "Whether this key is currently active"
+  },
+  {
+    "name": "rotation_schedule",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Key rotation schedule (e.g., '90d')"
+  },
+  {
+    "name": "last_rotated_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "When key was last rotated"
+  },
+  {
+    "name": "created_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "When this mapping was created"
+  },
+  {
+    "name": "created_by",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "User who created this mapping"
+  }
+]

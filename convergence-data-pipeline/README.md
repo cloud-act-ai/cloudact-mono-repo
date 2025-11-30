@@ -1,169 +1,55 @@
 # Convergence Data Pipeline
 
-Multi-organization data pipeline for cloud cost analytics. Built on FastAPI + BigQuery.
+Pipeline execution engine for ETL jobs. Port 8001.
 
-**Everything is a Pipeline** - No raw SQL, no Alembic, no direct DDL.
-
-```
-API Request → configs/ → Processor → BigQuery API
-```
-
-**Single Source of Truth:** All configs, schemas, and pipelines live in `configs/`
+**Bootstrap/Onboarding:** Use `cloudact-api-service` (port 8000) - NOT this service.
 
 ---
 
-## Authentication
+## What This Service Does
 
-### API Key Architecture
+- Run scheduled pipelines (daily GCP billing, OpenAI usage)
+- Execute ad-hoc pipeline runs via API
+- Process usage data and calculate costs
+- Decrypt credentials from BigQuery using KMS
 
-| Key | Header | Used For |
-|-----|--------|----------|
-| `CA_ROOT_API_KEY` | `X-CA-Root-Key` | Bootstrap, Org Onboarding |
-| Org API Key | `X-API-Key` | Integrations, Pipelines, Data |
+## What This Service Does NOT Do
 
-### Complete Flow
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  1. BOOTSTRAP (One-time system setup)                           │
-│  POST /api/v1/admin/bootstrap                                   │
-│  Header: X-CA-Root-Key: {CA_ROOT_API_KEY}                       │
-│                                                                 │
-│  Creates centralized "organizations" dataset with meta tables:  │
-│  └── org_api_keys, org_profiles, org_subscriptions, etc.        │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│  2. ONBOARD ORGANIZATION                                        │
-│  POST /api/v1/organizations/onboard                             │
-│  Header: X-CA-Root-Key: {CA_ROOT_API_KEY}                       │
-│                                                                 │
-│  Creates:                                                       │
-│  ├── org_api_keys row (SHA256 hash + KMS encrypted key)        │
-│  ├── org_profiles row (company info)                            │
-│  ├── org_subscriptions row (plan limits)                        │
-│  ├── org_usage_quotas row (initialized to 0)                    │
-│  └── Dataset: {org_slug} (per-org data isolation)               │
-│                                                                 │
-│  Returns: api_key (shown ONCE, stored in frontend user metadata)│
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│  3. SETUP INTEGRATIONS                                          │
-│  POST /api/v1/integrations/{org}/{provider}/setup               │
-│  Header: X-API-Key: {org_api_key}                               │
-│                                                                 │
-│  Stores credentials (KMS encrypted) per org:                    │
-│  ├── GCP Service Account JSON                                   │
-│  ├── OpenAI API Key                                             │
-│  ├── Anthropic API Key                                          │
-│  └── DeepSeek API Key                                           │
-│                                                                 │
-│  Isolation: WHERE org_slug = @org_slug                          │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│  4. RUN PIPELINES                                               │
-│  POST /api/v1/pipelines/run/{org}/{provider}/{domain}/{pipeline}│
-│  Header: X-API-Key: {org_api_key}                               │
-│                                                                 │
-│  Execution:                                                     │
-│  1. Validate org API key → get org_slug                         │
-│  2. Check quota: WHERE org_slug = @org_slug                     │
-│  3. Get credentials: WHERE org_slug = @org_slug AND provider=X  │
-│  4. KMS decrypt org's credentials                               │
-│  5. Create BigQuery client with org's credentials               │
-│  6. Execute pipeline                                            │
-│  7. Write results to {project}.{org_slug}.{table}               │
-│  8. Log execution: INSERT ... (org_slug, pipeline_id, ...)      │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### Multi-Tenant Isolation
-
-**Single KMS Key for All Orgs** - Isolation is at DATA layer:
-
-```sql
--- Credentials encrypted with shared KMS key
--- Isolation via org_slug filter in every query
-SELECT encrypted_credential
-FROM organizations.org_integration_credentials
-WHERE org_slug = @org_slug  -- ← THIS provides isolation
-  AND provider = 'GCP_SA'
-```
-
-**Concurrent Pipeline Execution (Org A + Org B):**
-- Each request authenticated by unique org API key
-- org_slug extracted from API key lookup
-- Credentials fetched: WHERE org_slug = @org_slug
-- Separate BigQuery client per execution
-- Data writes to separate datasets: {org_slug}.*
-- NO shared state between executions
+- Bootstrap (use cloudact-api-service)
+- Organization onboarding (use cloudact-api-service)
+- Integration setup (use cloudact-api-service)
 
 ---
 
 ## Quick Start
 
-### 1. Set Environment Variables
+### Prerequisites
+
+Organization must be onboarded via `cloudact-api-service` first.
+
+### Environment Variables
 
 ```bash
 export GCP_PROJECT_ID="gac-prod-471220"
 export CA_ROOT_API_KEY="your-secure-admin-key"
-export ENVIRONMENT="production"
+export ENVIRONMENT="development"
 export KMS_KEY_NAME="projects/{project}/locations/{loc}/keyRings/{ring}/cryptoKeys/{key}"
-export ENABLE_API_DOCS="true"  # Enable OpenAPI docs (default: true)
 ```
 
-**API Documentation:**
-- When `ENABLE_API_DOCS=true`: Access Swagger UI at `/docs` and ReDoc at `/redoc`
-- When `ENABLE_API_DOCS=false`: Documentation endpoints are disabled
-- Default: Enabled in all environments (can be disabled for production security)
-
-### 2. Start Server
+### Start Server
 
 ```bash
 cd convergence-data-pipeline
 pip install -r requirements.txt
-python3 -m uvicorn src.app.main:app --host 0.0.0.0 --port 8000
+python3 -m uvicorn src.app.main:app --host 0.0.0.0 --port 8001
 ```
 
-### 3. Bootstrap (ONE-TIME)
+### Run Pipeline
 
 ```bash
-curl -X POST $BASE_URL/api/v1/admin/bootstrap \
-  -H "X-CA-Root-Key: $CA_ROOT_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"force_recreate_dataset": false}'
-```
-
-### 4. Dry-Run (RECOMMENDED)
-
-```bash
-curl -X POST $BASE_URL/api/v1/organizations/dryrun \
-  -H "X-CA-Root-Key: $CA_ROOT_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"org_slug": "acmecorp", "company_name": "Acme Corp", "admin_email": "admin@acme.com"}'
-```
-
-### 5. Onboard Organization
-
-```bash
-curl -X POST $BASE_URL/api/v1/organizations/onboard \
-  -H "X-CA-Root-Key: $CA_ROOT_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"org_slug": "acmecorp", "company_name": "Acme Corp", "admin_email": "admin@acme.com"}'
-
-# Response: { "api_key": "acmecorp_api_xxxxx", ... }  <-- SAVE THIS!
-```
-
-### 6. Run Pipeline
-
-```bash
-curl -X POST $BASE_URL/api/v1/pipelines/run/acmecorp/gcp/cost/cost_billing \
-  -H "X-API-Key: acmecorp_api_xxxxx" \
+# Run GCP Billing pipeline
+curl -X POST http://localhost:8001/api/v1/pipelines/run/acmecorp/gcp/cost/billing \
+  -H "X-API-Key: $ORG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"date": "2025-11-25"}'
 ```
@@ -172,13 +58,29 @@ curl -X POST $BASE_URL/api/v1/pipelines/run/acmecorp/gcp/cost/cost_billing \
 
 ## API Endpoints
 
-| Endpoint | Auth | Config |
-|----------|------|--------|
-| `POST /api/v1/admin/bootstrap` | Admin Key | `configs/setup/bootstrap/pipeline.yml` |
-| `POST /api/v1/organizations/dryrun` | Admin Key | `configs/setup/organizations/dryrun/pipeline.yml` |
-| `POST /api/v1/organizations/onboard` | Admin Key | `configs/setup/organizations/onboarding/pipeline.yml` |
-| `POST /api/v1/pipelines/run/{org}/...` | Org API Key | `configs/gcp/cost/cost_billing.yml` |
-| `GET /health` | None | - |
+| Endpoint | Auth | Purpose |
+|----------|------|---------|
+| `POST /api/v1/pipelines/run/{org}/{provider}/{domain}/{pipeline}` | Org API Key | Run pipeline |
+| `GET /api/v1/pipelines/runs/{pipeline_logging_id}` | Org API Key | Get pipeline status |
+| `GET /api/v1/pipelines/runs` | Org API Key | List pipeline runs |
+| `POST /api/v1/scheduler/trigger` | Admin Key | Trigger due pipelines |
+| `POST /api/v1/scheduler/process-queue` | Admin Key | Process queue |
+| `GET /health` | None | Health check |
+
+---
+
+## Authentication
+
+| Key | Header | Used For |
+|-----|--------|----------|
+| Org API Key | `X-API-Key` | Pipeline execution |
+| Admin Key | `X-CA-Root-Key` | Scheduler operations |
+
+Pipeline execution validates:
+1. Org API key is valid and active
+2. Subscription status is ACTIVE or TRIAL
+3. Provider credentials exist
+4. Quotas not exceeded (daily, monthly, concurrent)
 
 ---
 
@@ -186,7 +88,6 @@ curl -X POST $BASE_URL/api/v1/pipelines/run/acmecorp/gcp/cost/cost_billing \
 
 ```bash
 ./simple_deploy.sh stage|prod
-./simple_test.sh stage|prod
 ```
 
 | Environment | URL |
@@ -200,37 +101,28 @@ curl -X POST $BASE_URL/api/v1/pipelines/run/acmecorp/gcp/cost/cost_billing \
 
 ```
 convergence-data-pipeline/
-├── src/app/                              # FastAPI application
+├── src/app/
 │   ├── main.py
 │   ├── config.py
 │   ├── routers/
+│   │   ├── pipelines.py          # Pipeline execution
+│   │   └── scheduler.py          # Scheduled runs
 │   └── dependencies/auth.py
-├── src/core/processors/                  # ⭐ PROCESSORS - Heart of the system
-│   ├── setup/initial/                    #    Bootstrap processor
-│   ├── setup/organizations/              #    Onboarding + dryrun processors
-│   ├── gcp/bq_etl.py                     #    BigQuery ETL engine
-│   └── notify_systems/                   #    Email notification engine
-└── configs/                              # ⭐ SINGLE SOURCE OF TRUTH
-    ├── setup/bootstrap/                  #    Pipeline + schemas (11 JSON files)
-    ├── setup/organizations/              #    Onboarding + dryrun configs
-    ├── gcp/cost/                         #    GCP cost pipelines
-    └── gcp/bq_etl/                       #    BQ ETL schema templates
+├── src/core/processors/          # ETL processors
+│   ├── openai/
+│   ├── anthropic/
+│   ├── gcp/
+│   └── integrations/
+└── configs/                      # Pipeline configs
+    ├── openai/
+    ├── anthropic/
+    ├── gcp/
+    └── system/
 ```
-
----
-
-## Processors (The Core)
-
-| Processor | File | Config | Purpose |
-|-----------|------|--------|---------|
-| `setup.initial.onetime_bootstrap` | `onetime_bootstrap_processor.py` | `configs/setup/bootstrap/` | Create central dataset + tables |
-| `setup.organizations.dryrun` | `dryrun.py` | `configs/setup/organizations/dryrun/` | Validate before onboarding |
-| `setup.organizations.onboarding` | `onboarding.py` | `configs/setup/organizations/onboarding/` | Create org dataset + metadata |
-| `gcp.bq_etl` | `bq_etl.py` | `configs/gcp/bq_etl/` | BigQuery extract/transform/load |
-| `notify_systems.email_notification` | `email_notification.py` | `configs/notify_systems/email_notification/` | Pipeline notifications |
 
 ---
 
 ## See Also
 
-- **CLAUDE.md** - Detailed architecture, MUST FOLLOW steps, Processors documentation
+- **CLAUDE.md** - Detailed architecture and processor documentation
+- **cloudact-api-service** - Bootstrap, onboarding, integration setup (port 8000)

@@ -16,8 +16,6 @@ from src.app.dependencies.rate_limit_decorator import rate_limit_by_org
 from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
 from src.core.pipeline import AsyncPipelineExecutor  # Standardized on AsyncPipelineExecutor
 from src.core.pipeline.template_resolver import resolve_template, get_template_path
-# Removed: ensure_org_metadata - org datasets created during onboarding
-# from src.core.metadata.initializer import ensure_org_metadata
 from src.app.config import settings
 from google.cloud import bigquery
 import re

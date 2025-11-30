@@ -424,10 +424,6 @@ class Settings(BaseSettings):
     configs_base_path: str = Field(default="./configs")
     system_configs_path: str = Field(default="./configs/system")
     dataset_types_config: str = Field(default="./configs/system/dataset_types.yml")
-    metadata_schemas_path: str = Field(
-        default="configs/setup/organizations/onboarding/schemas",
-        description="Path to metadata table schema definitions"
-    )
 
 
     @property

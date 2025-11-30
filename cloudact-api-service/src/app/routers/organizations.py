@@ -19,7 +19,6 @@ from pathlib import Path
 
 from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
 from src.core.security.kms_encryption import encrypt_value
-from src.core.pipeline import AsyncPipelineExecutor
 from src.app.config import settings
 from src.app.dependencies.auth import get_current_org, get_org_or_admin_auth, AuthResult, verify_admin_key
 from src.app.models.org_models import SUBSCRIPTION_LIMITS, SubscriptionPlan, UpdateLimitsRequest

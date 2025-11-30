@@ -1,6 +1,13 @@
 """
-Convergence Data Pipeline - Enterprise FastAPI Application
-Main application entry point with multi-organization support.
+CloudAct API Service - Enterprise FastAPI Application
+API service entry point with multi-organization support.
+
+This service handles:
+- Organization bootstrap and onboarding
+- Integration management (credentials, validation)
+- LLM pricing and subscription data management
+
+Pipeline execution is handled by the separate convergence-data-pipeline service.
 """
 
 from fastapi import FastAPI, Request, status
@@ -21,14 +28,6 @@ from src.app.middleware.validation import validation_middleware
 from src.app.dependencies.auth import get_auth_aggregator
 from src.core.engine.bq_client import get_bigquery_client
 import os
-
-# Optional telemetry import (requires opentelemetry packages)
-# Temporarily disabled - uncomment when OpenTelemetry packages are installed
-# try:
-#     from src.core.utils.telemetry import setup_telemetry
-#     TELEMETRY_AVAILABLE = True
-# except ImportError:
-TELEMETRY_AVAILABLE = False
 
 # Initialize logging
 setup_logging()
@@ -51,26 +50,8 @@ async def graceful_shutdown():
     if shutdown_event:
         shutdown_event.set()
 
-    # Wait for running pipelines to complete (max 30 seconds)
-    shutdown_timeout = 30
-    logger.info(f"Waiting up to {shutdown_timeout}s for running pipelines to complete...")
-
-    try:
-        # Import MetadataLogger to flush pending logs
-        from src.core.metadata import MetadataLogger
-
-        # Stop all active metadata loggers
-        # Note: Individual executors handle their own cleanup
-        await asyncio.sleep(1)  # Brief pause for in-flight requests
-
-        logger.info("Flushing metadata logs...")
-        # Metadata loggers are stopped in their respective executors
-
-        logger.info("Closing database connections...")
-        # BigQuery clients are closed in their respective executors
-
-    except Exception as e:
-        logger.error(f"Error during graceful shutdown: {e}", exc_info=True)
+    # Brief pause for in-flight requests
+    await asyncio.sleep(1)
 
     logger.info("Graceful shutdown completed")
 
@@ -127,7 +108,7 @@ def validate_production_config() -> None:
             logger.critical(f"Production config error: {error}")
         raise RuntimeError(f"Production configuration invalid: {'; '.join(errors)}")
 
-    logger.info("✓ Production configuration validation passed")
+    logger.info("Production configuration validation passed")
 
 
 @asynccontextmanager
@@ -175,36 +156,21 @@ async def lifespan(app: FastAPI):
         from src.core.security.kms_encryption import _get_key_name, _get_kms_client
         key_name = _get_key_name()
         _get_kms_client()  # Ensure KMS client can be created
-        logger.info(f"✓ KMS configuration validated: {key_name}")
+        logger.info(f"KMS configuration validated: {key_name}")
     except ValueError as e:
-        logger.error(f"❌ KMS configuration invalid: {e}")
+        logger.error(f"KMS configuration invalid: {e}")
         if settings.environment == "production":
             logger.critical("KMS is required in production. Application startup failed.")
             raise RuntimeError(f"KMS configuration required in production: {e}")
         else:
             logger.warning("KMS configuration invalid - encryption will be disabled (DEV/STAGING only)")
     except Exception as e:
-        logger.error(f"❌ KMS validation failed: {e}", exc_info=True)
+        logger.error(f"KMS validation failed: {e}", exc_info=True)
         if settings.environment == "production":
             logger.critical("KMS validation failed in production. Application startup failed.")
             raise RuntimeError(f"KMS validation failed: {e}")
         else:
             logger.warning("KMS validation failed - encryption may not work properly (DEV/STAGING only)")
-
-    # Initialize OpenTelemetry if enabled
-    # Check both settings and environment variable
-    enable_tracing = settings.enable_tracing and os.getenv("ENABLE_TRACING", "true").lower() == "true"
-
-    if enable_tracing and TELEMETRY_AVAILABLE:
-        try:
-            setup_telemetry()
-            logger.info("OpenTelemetry distributed tracing initialized")
-        except Exception as e:
-            logger.warning(f"Failed to initialize tracing: {e}. Continuing without tracing.")
-    elif enable_tracing and not TELEMETRY_AVAILABLE:
-        logger.warning("Tracing enabled but OpenTelemetry packages not installed - skipping")
-    else:
-        logger.info("Distributed tracing is disabled")
 
     # Initialize Auth Metrics Aggregator background task
     try:
@@ -239,66 +205,50 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Error stopping auth aggregator: {e}")
 
-    # Shutdown BigQuery thread pool executor
-    try:
-        from src.core.pipeline.async_executor import BQ_EXECUTOR
-        BQ_EXECUTOR.shutdown(wait=False)  # Don't wait to avoid blocking shutdown
-        logger.info("BigQuery thread pool executor shutdown initiated")
-    except Exception as e:
-        logger.warning(f"Error shutting down BigQuery executor: {e}")
-
     await graceful_shutdown()
 
 
 # OpenAPI metadata and tags
 api_description = """
-## Convergence Data Pipeline API
+## CloudAct API Service
 
-**Pure Pipeline Execution Engine** - Handles ETL jobs, usage data processing, and scheduled pipelines.
-
-**Note**: Bootstrap, onboarding, and organization management are handled by `cloudact-api-service` (port 8000).
+Enterprise-grade API service for multi-cloud cost analytics platform.
 
 ### Key Features
 
-* **Pipeline-Based Architecture** - Everything is a pipeline (no raw SQL, no Alembic)
+* **Organization Management** - Bootstrap and onboard new organizations
+* **Integration Management** - Secure credential storage with KMS encryption
+* **LLM Data Management** - Pricing and subscription CRUD for OpenAI/Anthropic/Gemini
 * **Multi-Organization Support** - Secure tenant isolation with per-org datasets
 * **BigQuery-Powered** - Petabyte-scale data processing with automatic partitioning
-* **Async Execution** - Non-blocking pipeline execution with parallel step processing
 * **KMS Encryption** - Enterprise security with Google Cloud KMS for sensitive data
 * **Rate Limiting** - Per-org and global rate limits to prevent resource exhaustion
-* **Quota Management** - Subscription-based usage limits (STARTER/PROFESSIONAL/SCALE)
 
 ### Authentication
 
-**Organization API Key** (`X-API-Key` header)
-- Organization-specific operations (run pipelines, view runs, manage integrations)
-- Generated during organization onboarding via cloudact-api-service
-- Format: `{org_slug}_api_{random_16_chars}`
+Two authentication methods:
 
-**Note**: Root API Key operations (bootstrap, onboarding) are handled by cloudact-api-service (port 8000).
+1. **Root API Key** (`X-CA-Root-Key` header)
+   - Platform-level operations (bootstrap, onboarding)
+   - Set via `CA_ROOT_API_KEY` environment variable
+
+2. **Organization API Key** (`X-API-Key` header)
+   - Organization-specific operations (integrations, data management)
+   - Generated during organization onboarding
+   - Format: `{org_slug}_api_{random_16_chars}`
 
 ### Architecture
 
 ```
-API Request → configs/ → Processor → BigQuery API
+Frontend (Next.js) --> CloudAct API Service --> BigQuery
+                                            --> convergence-data-pipeline (for pipelines)
 ```
 
-**Central Dataset**: `organizations` (11 management tables)
+**Central Dataset**: `organizations` (14 management tables)
 **Per-Org Datasets**: `{org_slug}_{env}` (operational data tables)
-
-### Service Separation
-
-* **cloudact-api-service (port 8000)**: Bootstrap, onboarding, organizations, user management
-* **convergence-data-pipeline (port 8001)**: Pipeline execution, ETL jobs, integrations, scheduled runs
-
-### Deployment Environments
-
-* **Stage**: `https://convergence-pipeline-stage-526075321773.us-central1.run.app`
-* **Production**: `https://convergence-pipeline-prod-820784027009.us-central1.run.app`
 """
 
 # API tags metadata
-# NOTE: Admin and Organizations tags removed - handled by cloudact-api-service (port 8000)
 tags_metadata = [
     {
         "name": "Health",
@@ -309,26 +259,26 @@ tags_metadata = [
         "description": "Prometheus metrics and monitoring endpoints for system observability."
     },
     {
-        "name": "Pipelines",
-        "description": "Pipeline execution and monitoring endpoints requiring Organization API Key. Supports templated pipelines with variable substitution, async execution, and quota enforcement."
+        "name": "Admin",
+        "description": "Platform administration endpoints requiring Root API Key (X-CA-Root-Key header). Use for system bootstrap and API key operations."
     },
     {
-        "name": "Scheduler",
-        "description": "Pipeline scheduling and cron job management endpoints for automated pipeline execution."
+        "name": "Organizations",
+        "description": "Organization onboarding and management endpoints. Includes dry-run validation and full onboarding workflows."
     },
     {
         "name": "Integrations",
-        "description": "Provider integration management endpoints for setting up and validating cloud provider and LLM credentials."
+        "description": "Integration setup and management endpoints. Configure LLM providers (OpenAI, Anthropic) and cloud providers (GCP)."
     },
     {
         "name": "LLM Data",
-        "description": "LLM provider pricing and subscription CRUD endpoints under /integrations/{org_slug}/{provider}/. Supports OpenAI and Anthropic. Manage pricing models and subscription plans for usage-based cost calculations."
+        "description": "LLM provider pricing and subscription CRUD endpoints. Manage pricing models and subscription plans for usage-based cost calculations."
     }
 ]
 
 # Create FastAPI application with comprehensive metadata
 app = FastAPI(
-    title=settings.app_name,
+    title="CloudAct API Service",
     version=settings.app_version,
     description=api_description,
     docs_url="/docs" if settings.enable_api_docs else None,
@@ -343,15 +293,15 @@ app = FastAPI(
     },
     servers=[
         {
-            "url": "https://convergence-pipeline-prod-820784027009.us-central1.run.app",
+            "url": "https://cloudact-api-prod-820784027009.us-central1.run.app",
             "description": "Production environment"
         },
         {
-            "url": "https://convergence-pipeline-stage-526075321773.us-central1.run.app",
+            "url": "https://cloudact-api-stage-526075321773.us-central1.run.app",
             "description": "Staging environment"
         },
         {
-            "url": "http://localhost:8080",
+            "url": "http://localhost:8000",
             "description": "Local development"
         }
     ],
@@ -549,7 +499,7 @@ async def health_check():
     """
     return {
         "status": "healthy",
-        "service": settings.app_name,
+        "service": "cloudact-api-service",
         "version": settings.app_version,
         "environment": settings.environment
     }
@@ -569,14 +519,14 @@ async def liveness_probe():
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             content={
                 "status": "shutting_down",
-                "service": settings.app_name,
+                "service": "cloudact-api-service",
                 "message": "Service is shutting down"
             }
         )
 
     return {
         "status": "alive",
-        "service": settings.app_name,
+        "service": "cloudact-api-service",
         "version": settings.app_version
     }
 
@@ -597,7 +547,7 @@ async def readiness_probe():
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             content={
                 "status": "not_ready",
-                "service": settings.app_name,
+                "service": "cloudact-api-service",
                 "reason": "shutting_down",
                 "checks": {
                     "shutdown": False
@@ -634,7 +584,7 @@ async def readiness_probe():
     if all_ready:
         return {
             "status": "ready",
-            "service": settings.app_name,
+            "service": "cloudact-api-service",
             "version": settings.app_version,
             "checks": checks
         }
@@ -643,7 +593,7 @@ async def readiness_probe():
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             content={
                 "status": "not_ready",
-                "service": settings.app_name,
+                "service": "cloudact-api-service",
                 "checks": checks
             }
         )
@@ -653,7 +603,7 @@ async def readiness_probe():
 async def root():
     """Root endpoint with API information and documentation links."""
     return {
-        "message": f"Welcome to {settings.app_name}",
+        "message": "Welcome to CloudAct API Service",
         "version": settings.app_version,
         "environment": settings.environment,
         "docs": "/docs" if settings.enable_api_docs else "disabled",
@@ -678,13 +628,13 @@ async def metrics():
 
 
 # ============================================
-# API Routers
+# API Routers (NO PIPELINES OR SCHEDULER)
 # ============================================
 
-from src.app.routers import pipelines, scheduler, integrations, llm_data
+from src.app.routers import admin, organizations, integrations, llm_data
 
-app.include_router(pipelines.router, prefix="/api/v1", tags=["Pipelines"])
-app.include_router(scheduler.router, prefix="/api/v1", tags=["Scheduler"])
+app.include_router(admin.router, prefix="/api/v1", tags=["Admin"])
+app.include_router(organizations.router, prefix="/api/v1", tags=["Organizations"])
 app.include_router(integrations.router, prefix="/api/v1", tags=["Integrations"])
 app.include_router(llm_data.router, prefix="/api/v1", tags=["LLM Data"])
 

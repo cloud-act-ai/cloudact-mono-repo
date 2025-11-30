@@ -1,0 +1,7 @@
+model_id,model_name,input_price_per_1k,output_price_per_1k,effective_date,notes
+claude-3-5-sonnet,Claude 3.5 Sonnet,0.003,0.015,2024-11-01,Latest Claude 3.5 model
+claude-3-opus,Claude 3 Opus,0.015,0.075,2024-11-01,Most powerful Claude model
+claude-3-sonnet,Claude 3 Sonnet,0.003,0.015,2024-11-01,Balanced performance
+claude-3-haiku,Claude 3 Haiku,0.00025,0.00125,2024-11-01,Fast and efficient
+claude-2.1,Claude 2.1,0.008,0.024,2024-11-01,Previous generation
+claude-instant,Claude Instant,0.0008,0.0024,2024-11-01,Legacy instant model

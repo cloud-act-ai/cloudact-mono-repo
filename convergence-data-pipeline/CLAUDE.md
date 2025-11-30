@@ -1,8 +1,54 @@
 # Backend: Convergence Data Pipeline
 
+## Gist
+
+Pipeline execution engine for ETL jobs. Port 8001. Runs scheduled pipelines, processes usage data, calculates costs.
+
+**Bootstrap/Onboarding:** Handled by `cloudact-api-service` (port 8000) - NOT this service.
+
 **Full Platform Architecture:** `../../ARCHITECTURE.md`
 
 **Security Documentation:** `SECURITY.md`
+
+## Pipeline Flow
+
+```
+API Request (X-API-Key)
+    │
+    ├─ POST /api/v1/pipelines/run/{org}/{provider}/{domain}/{pipeline}
+    │   │
+    │   ├─ Validate subscription status (ACTIVE or TRIAL)
+    │   ├─ Load config: configs/{provider}/{domain}/{pipeline}.yml
+    │   ├─ Decrypt credentials from BigQuery (KMS)
+    │   ├─ Execute processor: src/core/processors/{provider}/{domain}.py
+    │   │   └─ Extract → Transform → Load to BigQuery
+    │   └─ Log to org_meta_pipeline_runs
+    │
+    └─ Scheduled Jobs (Cloud Scheduler)
+        └─ Daily/Monthly: Run pipelines for all orgs
+```
+
+## DO's and DON'Ts
+
+### DO
+- Run scheduled pipelines (daily GCP billing, OpenAI usage)
+- Execute ad-hoc pipeline runs via API
+- Process usage data and calculate costs
+- Decrypt credentials from BigQuery using KMS
+- Validate subscription status before execution
+- Load all schemas from configs/
+- Log execution to org_meta_pipeline_runs
+- Use processors for ALL BigQuery operations
+
+### DON'T
+- Never handle bootstrap or org onboarding (use cloudact-api-service port 8000)
+- Never create organizations or API keys (use cloudact-api-service port 8000)
+- Never setup integrations (use cloudact-api-service port 8000)
+- Never write raw SQL or use Alembic
+- Never hardcode schemas in Python
+- Never run pipelines for SUSPENDED/CANCELLED orgs
+- Never skip credential decryption
+- Never execute without valid org API key
 
 ## Core Principle
 
@@ -23,6 +69,7 @@ See `SECURITY.md` for production security requirements, API key handling, and cr
 - CA Root API key uses constant-time comparison with SHA256 hashing
 - All credentials encrypted with KMS
 - Rate limiting and request tracing enabled by default
+- Subscription status checked before pipeline execution
 
 ---
 
@@ -32,34 +79,20 @@ See `SECURITY.md` for production security requirements, API key handling, and cr
 
 | Key | Header | Used For | Scope |
 |-----|--------|----------|-------|
-| `CA_ROOT_API_KEY` | `X-CA-Root-Key` | Bootstrap, Org Onboarding | System-wide admin operations |
-| Org API Key | `X-API-Key` | Integrations, Pipelines, Data | Per-organization operations |
+| Org API Key | `X-API-Key` | Pipelines, Data | Per-organization operations |
+
+**Note:** Bootstrap and onboarding handled by `cloudact-api-service` (port 8000).
 
 ### Authentication Flow
 
 ```
-CA_ROOT_API_KEY (system admin)
+Org API Key (created by cloudact-api-service)
     │
-    ├── Bootstrap: POST /api/v1/admin/bootstrap
-    │   └── One-time system initialization (creates 14 meta tables)
-    │
-    └── Onboard: POST /api/v1/organizations/onboard
-        └── Creates Org API Key (per-organization)
-                    │
-                    ├── Setup Integrations: POST /api/v1/integrations/{org}/{provider}/setup
-                    ├── Run Pipelines: POST /api/v1/pipelines/run/{org}/...
-                    └── Query Data: org-specific BigQuery datasets
+    ├── Run Pipelines: POST /api/v1/pipelines/run/{org}/...
+    └── Query Data: org-specific BigQuery datasets
 ```
 
 ### API Endpoints
-
-#### Admin Endpoints (X-CA-Root-Key)
-
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| POST | `/api/v1/admin/bootstrap` | Create central dataset + 14 meta tables (one-time) |
-| POST | `/api/v1/organizations/onboard` | Create organization + API key + dataset |
-| POST | `/api/v1/organizations/dryrun` | Validate org before onboarding (no resources created) |
 
 #### Organization Endpoints (X-API-Key)
 
@@ -67,57 +100,21 @@ CA_ROOT_API_KEY (system admin)
 |--------|----------|---------|
 | POST | `/api/v1/pipelines/run/{org}/{provider}/{domain}/{pipeline}` | Run specific pipeline |
 
-#### Integration Management (X-API-Key)
+**Note:** Integration management endpoints (setup, validate, delete) are handled by `cloudact-api-service` (port 8000).
 
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| POST | `/api/v1/integrations/{org}/gcp/setup` | Setup GCP Service Account |
-| POST | `/api/v1/integrations/{org}/openai/setup` | Setup OpenAI API key + init pricing/subscriptions |
-| POST | `/api/v1/integrations/{org}/anthropic/setup` | Setup Anthropic API key |
-| POST | `/api/v1/integrations/{org}/gcp/validate` | Re-validate GCP integration |
-| POST | `/api/v1/integrations/{org}/openai/validate` | Re-validate OpenAI integration |
-| POST | `/api/v1/integrations/{org}/anthropic/validate` | Re-validate Anthropic integration |
-| GET | `/api/v1/integrations/{org}` | Get all integration statuses |
-| GET | `/api/v1/integrations/{org}/{provider}` | Get specific integration status |
-| DELETE | `/api/v1/integrations/{org}/{provider}` | Remove integration |
-
-#### LLM Data Management (X-API-Key)
-
-Auto-initialized when LLM integration is set up via default data from `configs/{provider}/seed/data/`.
-
-**Generic LLM Endpoints (works for all providers):**
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| GET | `/api/v1/integrations/{org}/{provider}/pricing` | List all pricing models |
-| POST | `/api/v1/integrations/{org}/{provider}/pricing` | Add new pricing model |
-| PUT | `/api/v1/integrations/{org}/{provider}/pricing/{model_id}` | Update pricing model |
-| DELETE | `/api/v1/integrations/{org}/{provider}/pricing/{model_id}` | Delete pricing model |
-| POST | `/api/v1/integrations/{org}/{provider}/pricing/reset` | Reset to default pricing from CSV |
-| GET | `/api/v1/integrations/{org}/{provider}/subscriptions` | List all subscriptions |
-| POST | `/api/v1/integrations/{org}/{provider}/subscriptions` | Add new subscription |
-| PUT | `/api/v1/integrations/{org}/{provider}/subscriptions/{plan_name}` | Update subscription |
-| DELETE | `/api/v1/integrations/{org}/{provider}/subscriptions/{plan_name}` | Delete subscription |
-| POST | `/api/v1/integrations/{org}/{provider}/subscriptions/reset` | Reset to default subscriptions from CSV |
-
-**Supported Providers:**
-- OpenAI: `/api/v1/integrations/{org}/openai/pricing`, `/api/v1/integrations/{org}/openai/subscriptions`
-- Anthropic: `/api/v1/integrations/{org}/anthropic/pricing`, `/api/v1/integrations/{org}/anthropic/subscriptions`
-
-**Default Seed Data Files:**
-- OpenAI: `configs/openai/seed/data/default_pricing.csv`, `default_subscriptions.csv`
-- Anthropic: `configs/anthropic/seed/data/default_pricing.csv`, `default_subscriptions.csv`
-
-**Note:** Anthropic subscriptions endpoints exist but Anthropic doesn't have subscription tiers like OpenAI.
+**Note:** LLM data management endpoints (pricing, subscriptions) are handled by `cloudact-api-service` (port 8000).
 
 ---
 
 ## Customer Lifecycle
 
+**Note:** Bootstrap and onboarding handled by `cloudact-api-service` (port 8000).
+
 ### Frontend ↔ Backend Flow
 
 ```
-Frontend (Supabase)                    Backend (BigQuery)
-─────────────────                      ──────────────────
+Frontend (Supabase)                    cloudact-api-service (8000)          convergence-pipeline (8001)
+─────────────────                      ───────────────────────────          ───────────────────────
 1. User signup
 2. Org created in Supabase
 3. Stripe subscription
@@ -129,10 +126,9 @@ Frontend (Supabase)                    Backend (BigQuery)
 7. User adds credentials               8. Validate → KMS encrypt → Store
    (via integration pages)
                     ◄────────────────
-9. Save status to Supabase columns     (returns validation_status)
-
-                                       10. Daily scheduler runs pipelines
-                                       11. User can trigger ad-hoc runs
+9. Save status to Supabase             (returns validation_status)
+                                                                              10. Daily scheduler runs pipelines
+                                                                              11. User can trigger ad-hoc runs
 ```
 
 ### Data Storage Split
@@ -177,6 +173,7 @@ Frontend → Backend status mapping (via `syncSubscriptionToBackend()`):
 3. User subscribes to plan via Stripe
 
 #### Phase 2: Backend Onboarding (One-time per org)
+**Handled by cloudact-api-service (port 8000):**
 - Frontend calls: `POST /api/v1/organizations/onboard`
 - Backend creates: org_profile, org_api_key (hashed + KMS), org_subscription, dataset
 - Returns: `{ api_key: "org_xxx_api_xxxxxxxx" }` (SHOWN ONCE!)
@@ -184,6 +181,8 @@ Frontend → Backend status mapping (via `syncSubscriptionToBackend()`):
 - **NEVER stores actual API key**
 
 #### Phase 3: Integrations Setup
+**Handled by cloudact-api-service (port 8000):**
+
 User adds LLM/Cloud provider credentials via frontend UI:
 - `POST /integrations/{org}/openai/setup`
 - `POST /integrations/{org}/anthropic/setup`
@@ -193,6 +192,8 @@ Backend validates, KMS encrypts, stores credentials. Returns validation status.
 Frontend saves status reference (not credentials) to Supabase.
 
 #### Phase 4: Pipeline Execution
+
+**Handled by convergence-data-pipeline (port 8001):**
 
 **Two Modes:**
 
@@ -259,15 +260,6 @@ configs/
 │   └── bq_etl/
 │       ├── config.yml                      # BigQuery ETL configuration
 │       └── schema_template.json            # BQ table schema template
-├── setup/
-│   ├── bootstrap/
-│   │   ├── config.yml                      # Bootstrap configuration
-│   │   ├── schemas/                        # 14 table schemas
-│   │   └── views/                          # BigQuery view definitions
-│   └── organizations/
-│       └── onboarding/
-│           ├── config.yml                  # Onboarding configuration
-│           └── schemas/                    # onboarding_validation_test.json
 ├── notify_systems/
 │   ├── email_notification/
 │   │   └── config.yml
@@ -281,6 +273,8 @@ configs/
     └── providers.yml                       # Provider configurations
 ```
 
+**Note:** `configs/setup/` removed - bootstrap/onboarding configs now in `cloudact-api-service`.
+
 ### Processors (Execution Engines)
 
 Processors are the **execution engines** that do the actual work:
@@ -290,12 +284,6 @@ Processors are the **execution engines** that do the actual work:
 
 ```
 src/core/processors/
-├── setup/
-│   ├── initial/
-│   │   └── onetime_bootstrap_processor.py    # Bootstrap system
-│   └── organizations/
-│       ├── onboarding.py                     # Onboard new org
-│       └── dryrun.py                         # Pre-onboard validation
 ├── openai/
 │   ├── authenticator.py                      # OpenAI authentication
 │   ├── usage.py                              # Extract usage data
@@ -321,6 +309,8 @@ src/core/processors/
 └── notify_systems/
     └── email_notification.py                 # Email notifications
 ```
+
+**Note:** `setup/` processors removed - bootstrap/onboarding now in `cloudact-api-service`.
 
 #### Processor Execution Flow
 
@@ -354,35 +344,22 @@ API Request
 
 #### Key Processors
 
-**1. Bootstrap Processor (`setup.initial.onetime_bootstrap`)**
-- File: `src/core/processors/setup/initial/onetime_bootstrap_processor.py`
-- Creates central `organizations` dataset + 14 management tables
-- Loads schemas from `configs/setup/bootstrap/schemas/*.json`
-
-**2. Dry-Run Processor (`setup.organizations.dryrun`)**
-- File: `src/core/processors/setup/organizations/dryrun.py`
-- Validates org before onboarding (NO resources created)
-- Checks: org_slug format, email, GCP connectivity, central tables exist
-
-**3. Onboarding Processor (`setup.organizations.onboarding`)**
-- File: `src/core/processors/setup/organizations/onboarding.py`
-- Creates org dataset and metadata
-- Generates and stores API key (hashed + KMS encrypted)
-
-**4. BigQuery ETL Processor (`gcp.bq_etl`)**
+**1. BigQuery ETL Processor (`gcp.bq_etl`)**
 - File: `src/core/processors/gcp/bq_etl.py`
 - Extract-Transform-Load for BigQuery
 - Loads schema templates from `configs/gcp/bq_etl/schema_template.json`
 
-**5. Integration Processors**
+**2. Integration Processors**
 - `kms_store.py` - Encrypt & store credentials via KMS
 - `kms_decrypt.py` - Decrypt credentials for pipeline use
 - `validate_*.py` - Provider-specific credential validation
 
-**6. Email Notification Processor (`notify_systems.email_notification`)**
+**3. Email Notification Processor (`notify_systems.email_notification`)**
 - File: `src/core/processors/notify_systems/email_notification.py`
 - Send email notifications for pipeline events
 - Triggers: on_failure, on_success, on_completion, always
+
+**Note:** Bootstrap, dry-run, and onboarding processors moved to `cloudact-api-service`.
 
 #### Creating a New Processor
 
@@ -439,13 +416,7 @@ API Request
 |--------|----------|-----------|---------------|
 | `gcp/cost/billing.yml` | Daily | `gcp.bq_etl` | `gcp_billing_daily_raw` |
 
-#### System Pipelines (Admin)
-
-| Type | Config | Processor | Purpose |
-|------|--------|-----------|---------|
-| Bootstrap | `setup/bootstrap/config.yml` | `setup.initial.onetime_bootstrap` | Create central dataset + 14 tables |
-| Dry-run | N/A (processor only) | `setup.organizations.dryrun` | Validate before onboarding |
-| Onboarding | `setup/organizations/onboarding/config.yml` | `setup.organizations.onboarding` | Create org + API key + dataset |
+**Note:** System pipelines (bootstrap, onboarding) moved to `cloudact-api-service` (port 8000).
 
 #### Integration Processors
 
@@ -529,7 +500,7 @@ Per-Organization: {org_slug}_{env} (e.g., acme_prod)
 └── billing_cost_daily, openai_usage_daily_raw, etc.  # Data tables only
 ```
 
-**Note:** Bootstrap creates 14 tables in the central `organizations` dataset.
+**Note:** Central dataset and 14 meta tables created by `cloudact-api-service` bootstrap.
 
 ---
 
@@ -541,24 +512,13 @@ convergence-data-pipeline/
 │   ├── main.py                        # FastAPI entry
 │   ├── config.py                      # Settings (env vars)
 │   ├── routers/
-│   │   ├── admin.py                   # POST /api/v1/admin/bootstrap
-│   │   ├── organizations.py           # POST /api/v1/organizations/onboard, /dryrun
-│   │   ├── integrations.py            # Integration management endpoints
-│   │   ├── openai_data.py             # OpenAI pricing/subscriptions CRUD
-│   │   ├── llm_data.py                # LLM data management endpoints
 │   │   ├── pipelines.py               # POST /api/v1/pipelines/run/...
 │   │   └── scheduler.py               # Scheduled pipeline execution
 │   ├── models/
 │   │   └── openai_data_models.py      # Pydantic models for OpenAI CRUD
 │   └── dependencies/
-│       └── auth.py                    # verify_admin_key(), get_current_org()
+│       └── auth.py                    # get_current_org()
 ├── src/core/processors/               # PROCESSORS - Heart of the system
-│   ├── setup/
-│   │   ├── initial/                   # Bootstrap processor
-│   │   │   └── onetime_bootstrap_processor.py
-│   │   └── organizations/             # Onboarding + dryrun processors
-│   │       ├── onboarding.py
-│   │       └── dryrun.py
 │   ├── openai/                        # OpenAI processors
 │   │   ├── authenticator.py
 │   │   ├── usage.py
@@ -584,15 +544,6 @@ convergence-data-pipeline/
 │   └── notify_systems/                # Notification processors
 │       └── email_notification.py
 └── configs/                           # SINGLE SOURCE OF TRUTH
-    ├── setup/
-    │   ├── bootstrap/                 # Bootstrap configs + schemas (14 tables)
-    │   │   ├── config.yml
-    │   │   ├── schemas/
-    │   │   └── views/
-    │   └── organizations/             # Onboarding configs
-    │       └── onboarding/
-    │           ├── config.yml
-    │           └── schemas/
     ├── openai/                        # OpenAI configs + seed data
     │   ├── seed/
     │   │   ├── schemas/               # openai_model_pricing.json, openai_subscriptions.json
@@ -621,6 +572,15 @@ convergence-data-pipeline/
         ├── dataset_types.yml
         └── providers.yml
 ```
+
+**Note:** Removed from this service (now in `cloudact-api-service`):
+- `routers/admin.py` - Bootstrap endpoint
+- `routers/organizations.py` - Onboarding endpoints
+- `routers/integrations.py` - Integration management endpoints
+- `routers/openai_data.py` - OpenAI pricing/subscriptions CRUD
+- `routers/llm_data.py` - LLM data management endpoints
+- `src/core/processors/setup/` - Bootstrap and onboarding processors
+- `configs/setup/` - Bootstrap and onboarding configs
 
 ---
 
@@ -658,100 +618,11 @@ python3 -m uvicorn src.app.main:app --host 0.0.0.0 --port 8000
 curl http://localhost:8000/health
 ```
 
-### New Organization Onboarding
+### Running Pipelines
 
-#### Step 1: Bootstrap (ONE-TIME per environment)
+**Note:** Organization onboarding and integration setup handled by `cloudact-api-service` (port 8000).
 
-Run ONCE when setting up a new environment. Skip if already done.
-
-```bash
-curl -X POST $BASE_URL/api/v1/admin/bootstrap \
-  -H "X-CA-Root-Key: $CA_ROOT_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"force_recreate_dataset": false}'
-```
-
-| Field | Value |
-|-------|-------|
-| Config | `configs/setup/bootstrap/config.yml` |
-| Schemas | `configs/setup/bootstrap/schemas/*.json` (14 files) |
-| Processor | `setup.initial.onetime_bootstrap` |
-| Creates | `organizations` dataset + 14 management tables |
-
-#### Step 2: Dry-Run Validation (RECOMMENDED)
-
-Validates org_slug, email, GCP connectivity before onboarding.
-
-```bash
-curl -X POST $BASE_URL/api/v1/organizations/dryrun \
-  -H "X-CA-Root-Key: $CA_ROOT_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "org_slug": "guruinc_234234",
-    "company_name": "Guru Inc",
-    "admin_email": "admin@guru.com",
-    "subscription_plan": "STARTER"
-  }'
-```
-
-| Field | Value |
-|-------|-------|
-| Processor | `setup.organizations.dryrun` |
-| Validates | org_slug format, uniqueness, GCP connectivity, central tables exist |
-
-#### Step 3: Onboard Organization
-
-Creates org profile, API key, subscription, dataset.
-
-```bash
-curl -X POST $BASE_URL/api/v1/organizations/onboard \
-  -H "X-CA-Root-Key: $CA_ROOT_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "org_slug": "guruinc_234234",
-    "company_name": "Guru Inc",
-    "admin_email": "admin@guru.com",
-    "subscription_plan": "STARTER"
-  }'
-```
-
-**Response (SAVE THE API KEY!):**
-```json
-{
-  "api_key": "guruinc_234234_api_xxxxxxxxxxxxxxxx",
-  "org_slug": "guruinc_234234",
-  "dataset_created": true
-}
-```
-
-| Field | Value |
-|-------|-------|
-| Config | `configs/setup/organizations/onboarding/config.yml` |
-| Processor | `setup.organizations.onboarding` |
-| Creates | `org_profiles`, `org_api_keys`, `org_subscriptions`, `org_usage_quotas` rows |
-| Creates | Dataset `guruinc_234234_{env}` (e.g., `guruinc_234234_prod`) |
-
-#### Step 4: Setup Integrations
-
-```bash
-# Setup OpenAI (auto-creates pricing + subscriptions tables)
-curl -X POST $BASE_URL/api/v1/integrations/guruinc_234234/openai/setup \
-  -H "X-API-Key: $ORG_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"credential": "sk-...", "credential_name": "Production Key"}'
-
-# Setup GCP Service Account
-curl -X POST $BASE_URL/api/v1/integrations/guruinc_234234/gcp/setup \
-  -H "X-API-Key: $ORG_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"credential": "{\"type\":\"service_account\",...}"}'
-
-# Check integration statuses
-curl $BASE_URL/api/v1/integrations/guruinc_234234 \
-  -H "X-API-Key: $ORG_API_KEY"
-```
-
-#### Step 5: Run Pipelines
+Once organization is onboarded and integrations are set up, you can run pipelines:
 
 ```bash
 # Run GCP Billing pipeline
@@ -804,13 +675,10 @@ See `SECURITY.md` for detailed security configuration requirements.
 
 ## Verified Processor & Config Mapping
 
-**Last verified: 2025-11-29**
+**Last verified: 2025-11-30**
 
 | Processor | Config Path | Status |
 |-----------|-------------|--------|
-| `setup.initial.onetime_bootstrap` | `configs/setup/bootstrap/` | ✓ Verified |
-| `setup.organizations.dryrun` | N/A (processor only) | ✓ Verified |
-| `setup.organizations.onboarding` | `configs/setup/organizations/onboarding/` | ✓ Verified |
 | `openai.usage` | `configs/openai/usage_cost.yml` | ✓ Verified |
 | `openai.cost` | `configs/openai/usage_cost.yml` | ✓ Verified |
 | `openai.subscriptions` | `configs/openai/subscriptions.yml` | ✓ Verified |
@@ -820,37 +688,4 @@ See `SECURITY.md` for detailed security configuration requirements.
 | `gcp.bq_etl` | `configs/gcp/bq_etl/` | ✓ Verified |
 | `notify_systems.email_notification` | `configs/notify_systems/email_notification/` | ✓ Verified |
 
-### Bootstrap Schema Files (14 tables)
-
-All schemas located in: `configs/setup/bootstrap/schemas/`
-
-```
-org_api_keys.json
-org_audit_logs.json
-org_cost_tracking.json
-org_integration_credentials.json
-org_kms_keys.json
-org_meta_dq_results.json
-org_meta_pipeline_runs.json
-org_meta_step_logs.json
-org_pipeline_configs.json
-org_pipeline_execution_queue.json
-org_profiles.json
-org_scheduled_pipeline_runs.json
-org_subscriptions.json
-org_usage_quotas.json
-```
-
-**Note:** These 14 tables are created in the central `organizations` dataset during bootstrap.
-
-### Bootstrap View Definitions
-
-BigQuery views located in: `configs/setup/bootstrap/views/`
-
-```
-org_consolidated_view.sql    # Consolidated view of organization data
-pipeline_logs_view.sql        # Pipeline execution logs view
-step_logs_view.sql            # Step-level logs view
-```
-
-These SQL views are created during bootstrap to provide convenient access to joined/aggregated data.
+**Note:** Bootstrap, onboarding, and integration processors moved to `cloudact-api-service`.

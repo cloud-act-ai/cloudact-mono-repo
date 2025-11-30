@@ -1,0 +1,56 @@
+#  Dataset Types Configuration
+# Defines the types of BigQuery datasets created for each organization
+#
+# Note: In the current architecture, each organization uses a single dataset
+# that contains all their data and metadata tables.
+
+dataset_types:
+  - name: "organization_dataset"
+    description: "Primary dataset for organization data and metadata"
+    layer: "unified"
+    retention_days: null  # No automatic expiration
+    labels:
+      managed_by: "convergence-platform"
+      layer: "unified"
+    # Table configuration for high-volume tables
+    table_defaults:
+      partition_field: null  # Use table-specific settings
+      cluster_fields: []
+    # Supported tables and their configurations
+    supported_tables:
+      # LLM Usage Tables (high volume - partitioned)
+      openai_usage_daily_raw:
+        partition_field: usage_date
+        cluster_fields: [model_id, user_id]
+      openai_cost_daily:
+        partition_field: cost_date
+        cluster_fields: [model_id]
+      anthropic_usage_daily_raw:
+        partition_field: usage_date
+        cluster_fields: [model_id, user_id]
+      anthropic_cost_daily:
+        partition_field: cost_date
+        cluster_fields: [model_id]
+      # Pricing tables (low volume - no partitioning)
+      openai_model_pricing:
+        partition_field: null
+        cluster_fields: []
+      anthropic_model_pricing:
+        partition_field: null
+        cluster_fields: []
+      # Subscription tables
+      openai_subscriptions:
+        partition_field: null
+        cluster_fields: [plan_name]
+      anthropic_subscriptions:
+        partition_field: null
+        cluster_fields: [plan_name]
+      # GCP Billing (high volume - partitioned)
+      gcp_billing_daily_raw:
+        partition_field: usage_start_time
+        cluster_fields: [project_id, service_id]
+
+# Scalability notes:
+# - High-volume tables (usage, cost, billing) are partitioned by date
+# - Cluster fields optimize queries on common filter columns
+# - Low-volume tables (pricing, subscriptions) don't need partitioning

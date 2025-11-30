@@ -135,49 +135,6 @@ SUBSCRIPTION_LIMITS = {
 # REQUEST MODELS
 # ============================================================================
 
-class OnboardOrgRequest(BaseModel):
-    """Request model for organization onboarding."""
-    org_slug: str = Field(
-        ...,
-        min_length=3,
-        max_length=50,
-        description="Unique organization identifier (3-50 alphanumeric + underscore)"
-    )
-    company_name: str = Field(
-        ...,
-        min_length=2,
-        max_length=200,
-        description="Company or organization name"
-    )
-    admin_email: EmailStr = Field(
-        ...,
-        description="Primary admin email address"
-    )
-    subscription_plan: SubscriptionPlan = Field(
-        default=SubscriptionPlan.STARTER,
-        description="Initial subscription plan"
-    )
-
-    @field_validator('org_slug')
-    @classmethod
-    def validate_org_slug(cls, v: str) -> str:
-        """Validate org_slug format: alphanumeric + underscore only."""
-        if not re.match(r'^[a-zA-Z0-9_]{3,50}$', v):
-            raise ValueError(
-                'org_slug must be 3-50 characters containing only '
-                'alphanumeric characters and underscores'
-            )
-        return v
-
-    model_config = ConfigDict(extra="forbid", json_schema_extra={
-        "example": {
-            "org_slug": "acme_corp_prod",
-            "company_name": "Acme Corporation",
-            "admin_email": "admin@acme.com",
-            "subscription_plan": "STARTER"
-        }
-    })
-
 
 class CreateAPIKeyRequest(BaseModel):
     """Request model for creating API keys."""
