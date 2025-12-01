@@ -273,6 +273,10 @@ tags_metadata = [
     {
         "name": "LLM Data",
         "description": "LLM provider pricing and subscription CRUD endpoints. Manage pricing models and subscription plans for usage-based cost calculations."
+    },
+    {
+        "name": "Pipelines",
+        "description": "Pipeline configuration endpoints. List available pipelines and their required integrations. No authentication required."
     }
 ]
 
@@ -631,12 +635,13 @@ async def metrics():
 # API Routers (NO PIPELINES OR SCHEDULER)
 # ============================================
 
-from src.app.routers import admin, organizations, integrations, llm_data
+from src.app.routers import admin, organizations, integrations, llm_data, pipelines
 
 app.include_router(admin.router, prefix="/api/v1", tags=["Admin"])
 app.include_router(organizations.router, prefix="/api/v1", tags=["Organizations"])
 app.include_router(integrations.router, prefix="/api/v1", tags=["Integrations"])
 app.include_router(llm_data.router, prefix="/api/v1", tags=["LLM Data"])
+app.include_router(pipelines.router, prefix="/api/v1", tags=["Pipelines"])
 
 
 if __name__ == "__main__":
