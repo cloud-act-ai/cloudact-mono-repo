@@ -54,9 +54,9 @@ class SetupIntegrationRequest(BaseModel):
     """Request to setup an integration."""
     credential: str = Field(
         ...,
-        description="The credential (API key or Service Account JSON)",
+        description="The credential (API key or Service Account JSON). Max size configurable via MAX_CREDENTIAL_SIZE_BYTES env var (default 100KB)",
         min_length=10,
-        max_length=50000
+        max_length=100000  # 100KB default, validated against settings.max_credential_size_bytes in endpoint
     )
     credential_name: Optional[str] = Field(
         None,
@@ -455,6 +455,161 @@ async def get_integration_status(
         )
 
     return integration
+
+
+class UpdateIntegrationRequest(BaseModel):
+    """Request to update an integration."""
+    credential: Optional[str] = Field(
+        None,
+        description="New credential (API key or Service Account JSON)",
+        min_length=10,
+        max_length=50000
+    )
+    credential_name: Optional[str] = Field(
+        None,
+        description="Updated human-readable name for this credential",
+        min_length=3,
+        max_length=200
+    )
+    metadata: Optional[Dict[str, Any]] = Field(
+        None,
+        description="Updated additional metadata"
+    )
+    skip_validation: bool = Field(
+        False,
+        description="Skip credential validation"
+    )
+
+    model_config = ConfigDict(extra="forbid")
+
+
+@router.put(
+    "/integrations/{org_slug}/{provider}",
+    response_model=SetupIntegrationResponse,
+    summary="Update an integration",
+    description="Update an existing integration's credential or metadata"
+)
+async def update_integration(
+    org_slug: str,
+    provider: str,
+    request: UpdateIntegrationRequest,
+    org: Dict = Depends(get_current_org),
+    bq_client: BigQueryClient = Depends(get_bigquery_client)
+):
+    """
+    Update an existing integration.
+
+    If credential is provided, it will be re-encrypted and validated.
+    If only credential_name or metadata is provided, only those fields are updated.
+    """
+    # SECURITY: Validate org_slug format first
+    validate_org_slug(org_slug)
+
+    # Skip org validation when auth is disabled (dev mode)
+    if not settings.disable_auth and org["org_slug"] != org_slug:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cannot update integrations for another organization"
+        )
+
+    provider_upper = normalize_provider(provider)
+
+    # Check if integration exists
+    try:
+        check_query = f"""
+        SELECT credential_id, credential_name
+        FROM `{settings.gcp_project_id}.organizations.org_integration_credentials`
+        WHERE org_slug = @org_slug AND provider = @provider AND is_active = TRUE
+        LIMIT 1
+        """
+
+        check_result = list(bq_client.client.query(
+            check_query,
+            job_config=bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                    bigquery.ScalarQueryParameter("provider", "STRING", provider_upper),
+                ]
+            )
+        ).result())
+
+        if not check_result:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"No active {provider_upper} integration found for {org_slug}"
+            )
+
+        existing_credential_id = check_result[0]["credential_id"]
+        existing_name = check_result[0]["credential_name"]
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error checking integration: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to check existing integration"
+        )
+
+    # If new credential is provided, re-setup entirely
+    if request.credential:
+        return await _setup_integration(
+            org_slug=org_slug,
+            provider=provider_upper,
+            credential=request.credential,
+            credential_name=request.credential_name or existing_name,
+            metadata=request.metadata,
+            skip_validation=request.skip_validation,
+            user_id=org.get("user_id")
+        )
+
+    # Otherwise, update metadata/name only
+    try:
+        update_fields = ["updated_at = CURRENT_TIMESTAMP()"]
+        query_params = [
+            bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+            bigquery.ScalarQueryParameter("provider", "STRING", provider_upper),
+        ]
+
+        if request.credential_name:
+            update_fields.append("credential_name = @credential_name")
+            query_params.append(bigquery.ScalarQueryParameter("credential_name", "STRING", request.credential_name))
+
+        if request.metadata:
+            import json
+            update_fields.append("metadata = @metadata")
+            query_params.append(bigquery.ScalarQueryParameter("metadata", "STRING", json.dumps(request.metadata)))
+
+        update_query = f"""
+        UPDATE `{settings.gcp_project_id}.organizations.org_integration_credentials`
+        SET {', '.join(update_fields)}
+        WHERE org_slug = @org_slug AND provider = @provider AND is_active = TRUE
+        """
+
+        bq_client.client.query(
+            update_query,
+            job_config=bigquery.QueryJobConfig(query_parameters=query_params)
+        ).result()
+
+        logger.info(f"Updated {provider_upper} integration metadata for {org_slug}")
+
+        return SetupIntegrationResponse(
+            success=True,
+            provider=provider_upper,
+            credential_id=existing_credential_id,
+            validation_status="VALID",  # No re-validation needed for metadata-only update
+            validation_error=None,
+            message=f"{provider_upper} integration updated successfully"
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating integration: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update integration"
+        )
 
 
 @router.delete(

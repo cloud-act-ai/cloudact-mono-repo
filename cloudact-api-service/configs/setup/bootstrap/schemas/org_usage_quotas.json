@@ -66,6 +66,18 @@
     "description": "Concurrent pipeline execution limit"
   },
   {
+    "name": "seat_limit",
+    "type": "INTEGER",
+    "mode": "NULLABLE",
+    "description": "Maximum team members allowed"
+  },
+  {
+    "name": "providers_limit",
+    "type": "INTEGER",
+    "mode": "NULLABLE",
+    "description": "Maximum provider integrations allowed"
+  },
+  {
     "name": "max_concurrent_reached",
     "type": "INTEGER",
     "mode": "NULLABLE",

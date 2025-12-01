@@ -3,16 +3,17 @@ Admin API Routes
 Endpoints for organization and API key management.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
 from pydantic import BaseModel, Field, ConfigDict
-from typing import Optional
-from datetime import datetime
+from typing import Optional, List, Any
+from datetime import datetime, date
 import hashlib
 import secrets
 import logging
 
 from google.cloud import bigquery
 from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
+from src.core.security.kms_encryption import encrypt_value
 from src.app.config import settings
 from src.app.dependencies.auth import verify_admin_key
 from src.app.dependencies.rate_limit_decorator import rate_limit_global
@@ -248,7 +249,9 @@ async def create_org(
     plan_limits = {
         "max_daily": central_limits["max_pipelines_per_day"],
         "max_monthly": central_limits["max_pipelines_per_month"],
-        "max_concurrent": central_limits["max_concurrent_pipelines"]
+        "max_concurrent": central_limits["max_concurrent_pipelines"],
+        "seat_limit": central_limits["max_team_members"],
+        "providers_limit": central_limits["max_providers"]
     }
 
     # Step 1: Create org profile
@@ -347,10 +350,11 @@ async def create_org(
         INSERT INTO `{settings.gcp_project_id}.organizations.org_usage_quotas`
         (usage_id, org_slug, usage_date, pipelines_run_today, pipelines_succeeded_today,
          pipelines_failed_today, pipelines_run_month, concurrent_pipelines_running,
-         daily_limit, monthly_limit, concurrent_limit, created_at)
+         daily_limit, monthly_limit, concurrent_limit, seat_limit, providers_limit,
+         last_updated, created_at)
         VALUES
         (@usage_id, @org_slug, CURRENT_DATE(), 0, 0, 0, 0, 0, @daily_limit, @monthly_limit,
-         @concurrent_limit, CURRENT_TIMESTAMP())
+         @concurrent_limit, @seat_limit, @providers_limit, CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP())
         """
 
         bq_client.client.query(
@@ -361,7 +365,9 @@ async def create_org(
                     bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
                     bigquery.ScalarQueryParameter("daily_limit", "INT64", plan_limits["max_daily"]),
                     bigquery.ScalarQueryParameter("monthly_limit", "INT64", plan_limits["max_monthly"]),
-                    bigquery.ScalarQueryParameter("concurrent_limit", "INT64", plan_limits["max_concurrent"])
+                    bigquery.ScalarQueryParameter("concurrent_limit", "INT64", plan_limits["max_concurrent"]),
+                    bigquery.ScalarQueryParameter("seat_limit", "INT64", plan_limits["seat_limit"]),
+                    bigquery.ScalarQueryParameter("providers_limit", "INT64", plan_limits["providers_limit"])
                 ]
             )
         ).result()
@@ -567,16 +573,26 @@ async def create_api_key(
     # Hash the API key
     org_api_key_hash = hashlib.sha256(api_key.encode()).hexdigest()
 
+    # Encrypt API key using KMS for recovery purposes
+    try:
+        encrypted_org_api_key_bytes = encrypt_value(api_key)
+    except Exception as kms_error:
+        logger.error(f"KMS encryption failed for org {request.org_slug}: {kms_error}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to encrypt API key. Please check KMS configuration."
+        )
+
     # Generate unique API key ID
     import uuid
     org_api_key_id = str(uuid.uuid4())
 
-    # Insert into BigQuery
+    # Insert into BigQuery with all required columns
     insert_query = f"""
     INSERT INTO `{settings.gcp_project_id}.organizations.org_api_keys`
-    (org_api_key_id, org_slug, org_api_key_hash, is_active, created_at)
+    (org_api_key_id, org_slug, org_api_key_hash, encrypted_org_api_key, scopes, is_active, created_at)
     VALUES
-    (@org_api_key_id, @org_slug, @org_api_key_hash, TRUE, CURRENT_TIMESTAMP())
+    (@org_api_key_id, @org_slug, @org_api_key_hash, @encrypted_org_api_key, @scopes, TRUE, CURRENT_TIMESTAMP())
     """
 
     from google.cloud import bigquery
@@ -586,6 +602,8 @@ async def create_api_key(
             bigquery.ScalarQueryParameter("org_api_key_id", "STRING", org_api_key_id),
             bigquery.ScalarQueryParameter("org_api_key_hash", "STRING", org_api_key_hash),
             bigquery.ScalarQueryParameter("org_slug", "STRING", request.org_slug),
+            bigquery.ScalarQueryParameter("encrypted_org_api_key", "BYTES", encrypted_org_api_key_bytes),
+            bigquery.ArrayQueryParameter("scopes", "STRING", settings.api_key_default_scopes),
         ]
     )
 
@@ -724,15 +742,25 @@ async def regenerate_api_key(
     api_key = f"{org_slug}_api_{secrets.token_urlsafe(16)}"
     org_api_key_hash = hashlib.sha256(api_key.encode()).hexdigest()
 
+    # Encrypt API key using KMS for recovery purposes
+    try:
+        encrypted_org_api_key_bytes = encrypt_value(api_key)
+    except Exception as kms_error:
+        logger.error(f"KMS encryption failed for org {org_slug}: {kms_error}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to encrypt API key. Please check KMS configuration."
+        )
+
     import uuid
     org_api_key_id = str(uuid.uuid4())
 
-    # Step 4: Insert new API key
+    # Step 4: Insert new API key with all required columns
     insert_query = f"""
     INSERT INTO `{settings.gcp_project_id}.organizations.org_api_keys`
-    (org_api_key_id, org_slug, org_api_key_hash, is_active, created_at)
+    (org_api_key_id, org_slug, org_api_key_hash, encrypted_org_api_key, scopes, is_active, created_at)
     VALUES
-    (@org_api_key_id, @org_slug, @org_api_key_hash, TRUE, CURRENT_TIMESTAMP())
+    (@org_api_key_id, @org_slug, @org_api_key_hash, @encrypted_org_api_key, @scopes, TRUE, CURRENT_TIMESTAMP())
     """
 
     insert_config = bigquery.QueryJobConfig(
@@ -740,6 +768,8 @@ async def regenerate_api_key(
             bigquery.ScalarQueryParameter("org_api_key_id", "STRING", org_api_key_id),
             bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
             bigquery.ScalarQueryParameter("org_api_key_hash", "STRING", org_api_key_hash),
+            bigquery.ScalarQueryParameter("encrypted_org_api_key", "BYTES", encrypted_org_api_key_bytes),
+            bigquery.ArrayQueryParameter("scopes", "STRING", settings.api_key_default_scopes),
         ]
     )
 
@@ -754,3 +784,168 @@ async def regenerate_api_key(
         created_at=datetime.utcnow(),
         description="Regenerated API key"
     )
+
+
+# ============================================
+# Audit Logs (#47)
+# ============================================
+
+class AuditLogEntry(BaseModel):
+    """Single audit log entry."""
+    audit_id: str
+    org_slug: str
+    user_id: Optional[str] = None
+    api_key_id: Optional[str] = None
+    action: str
+    resource_type: str
+    resource_id: Optional[str] = None
+    details: Optional[Any] = None
+    ip_address: Optional[str] = None
+    user_agent: Optional[str] = None
+    request_id: Optional[str] = None
+    status: str
+    error_message: Optional[str] = None
+    created_at: datetime
+
+
+class AuditLogsResponse(BaseModel):
+    """Response for audit logs query."""
+    org_slug: str
+    total_count: int
+    logs: List[AuditLogEntry]
+    has_more: bool
+
+
+@router.get(
+    "/admin/audit-logs/{org_slug}",
+    response_model=AuditLogsResponse,
+    summary="Query audit logs for an organization",
+    description="Retrieve audit logs with filtering by action, resource type, date range, and status"
+)
+async def get_audit_logs(
+    org_slug: str,
+    action: Optional[str] = Query(None, description="Filter by action: CREATE, READ, UPDATE, DELETE, EXECUTE"),
+    resource_type: Optional[str] = Query(None, description="Filter by resource: PIPELINE, INTEGRATION, API_KEY, USER, CREDENTIAL, ORG"),
+    status_filter: Optional[str] = Query(None, alias="status", description="Filter by status: SUCCESS, FAILURE, DENIED"),
+    start_date: Optional[date] = Query(None, description="Start date (inclusive)"),
+    end_date: Optional[date] = Query(None, description="End date (inclusive)"),
+    limit: int = Query(100, ge=1, le=1000, description="Max records to return"),
+    offset: int = Query(0, ge=0, description="Records to skip for pagination"),
+    bq_client: BigQueryClient = Depends(get_bigquery_client),
+    _admin: None = Depends(verify_admin_key)
+):
+    """
+    Query audit logs for an organization (Admin only).
+
+    This endpoint supports filtering and pagination for compliance reporting.
+    Useful for SOC2/HIPAA audit trails and security investigations.
+
+    REQUIRES: X-CA-Root-Key header (admin authentication)
+    """
+    logger.info(
+        f"Querying audit logs",
+        extra={
+            "event_type": "audit_logs_query",
+            "org_slug": org_slug,
+            "action": action,
+            "resource_type": resource_type,
+            "status": status_filter,
+            "start_date": str(start_date) if start_date else None,
+            "end_date": str(end_date) if end_date else None
+        }
+    )
+
+    try:
+        # Build dynamic query with filters
+        base_query = f"""
+        SELECT
+            audit_id,
+            org_slug,
+            user_id,
+            api_key_id,
+            action,
+            resource_type,
+            resource_id,
+            details,
+            ip_address,
+            user_agent,
+            request_id,
+            status,
+            error_message,
+            created_at
+        FROM `{settings.gcp_project_id}.organizations.org_audit_logs`
+        WHERE org_slug = @org_slug
+        """
+
+        query_params = [
+            bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
+        ]
+
+        # Add optional filters
+        if action:
+            base_query += " AND action = @action"
+            query_params.append(bigquery.ScalarQueryParameter("action", "STRING", action.upper()))
+
+        if resource_type:
+            base_query += " AND resource_type = @resource_type"
+            query_params.append(bigquery.ScalarQueryParameter("resource_type", "STRING", resource_type.upper()))
+
+        if status_filter:
+            base_query += " AND status = @status"
+            query_params.append(bigquery.ScalarQueryParameter("status", "STRING", status_filter.upper()))
+
+        if start_date:
+            base_query += " AND DATE(created_at) >= @start_date"
+            query_params.append(bigquery.ScalarQueryParameter("start_date", "DATE", start_date))
+
+        if end_date:
+            base_query += " AND DATE(created_at) <= @end_date"
+            query_params.append(bigquery.ScalarQueryParameter("end_date", "DATE", end_date))
+
+        # Add ordering and pagination
+        base_query += " ORDER BY created_at DESC"
+        base_query += f" LIMIT {limit + 1} OFFSET {offset}"  # +1 to check if there are more
+
+        result = list(bq_client.client.query(
+            base_query,
+            job_config=bigquery.QueryJobConfig(query_parameters=query_params)
+        ).result())
+
+        # Check if there are more results
+        has_more = len(result) > limit
+        if has_more:
+            result = result[:limit]  # Remove the extra row
+
+        # Convert to response model
+        logs = []
+        for row in result:
+            logs.append(AuditLogEntry(
+                audit_id=row["audit_id"],
+                org_slug=row["org_slug"],
+                user_id=row.get("user_id"),
+                api_key_id=row.get("api_key_id"),
+                action=row["action"],
+                resource_type=row["resource_type"],
+                resource_id=row.get("resource_id"),
+                details=row.get("details"),
+                ip_address=row.get("ip_address"),
+                user_agent=row.get("user_agent"),
+                request_id=row.get("request_id"),
+                status=row["status"],
+                error_message=row.get("error_message"),
+                created_at=row["created_at"]
+            ))
+
+        return AuditLogsResponse(
+            org_slug=org_slug,
+            total_count=len(logs),
+            logs=logs,
+            has_more=has_more
+        )
+
+    except Exception as e:
+        logger.error(f"Failed to query audit logs: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to query audit logs. Please check server logs."
+        )

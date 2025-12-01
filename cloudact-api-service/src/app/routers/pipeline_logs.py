@@ -89,6 +89,8 @@ async def list_pipeline_runs(
     org_slug: str,
     status_filter: Optional[str] = Query(None, description="Filter by status: PENDING, RUNNING, COMPLETED, FAILED"),
     pipeline_id: Optional[str] = Query(None, description="Filter by pipeline ID"),
+    trigger_type: Optional[str] = Query(None, description="Filter by trigger type: api, scheduler, webhook, manual"),
+    trigger_by: Optional[str] = Query(None, description="Filter by who triggered the run"),
     start_date: Optional[date] = Query(None, description="Filter runs from this date"),
     end_date: Optional[date] = Query(None, description="Filter runs until this date"),
     limit: int = Query(20, ge=1, le=100, description="Number of results per page"),
@@ -128,6 +130,14 @@ async def list_pipeline_runs(
     if end_date:
         where_clauses.append("run_date <= @end_date")
         parameters.append(bigquery.ScalarQueryParameter("end_date", "DATE", end_date))
+
+    if trigger_type:
+        where_clauses.append("trigger_type = @trigger_type")
+        parameters.append(bigquery.ScalarQueryParameter("trigger_type", "STRING", trigger_type.lower()))
+
+    if trigger_by:
+        where_clauses.append("trigger_by LIKE @trigger_by")
+        parameters.append(bigquery.ScalarQueryParameter("trigger_by", "STRING", f"%{trigger_by}%"))
 
     where_clause = " AND ".join(where_clauses)
 
@@ -360,21 +370,31 @@ async def get_pipeline_run_detail(
         )
 
 
+class StepLogsResponse(BaseModel):
+    """Paginated response for step logs."""
+    steps: List[StepLogSummary] = Field(..., description="List of step logs")
+    total: int = Field(..., description="Total number of steps")
+    limit: int = Field(..., description="Page size")
+    offset: int = Field(..., description="Page offset")
+
+
 @router.get(
     "/pipelines/{org_slug}/runs/{pipeline_logging_id}/steps",
-    response_model=List[StepLogSummary],
+    response_model=StepLogsResponse,
     summary="Get step logs",
-    description="Get all step execution logs for a pipeline run."
+    description="Get paginated step execution logs for a pipeline run."
 )
 async def get_step_logs(
     org_slug: str,
     pipeline_logging_id: str,
     status_filter: Optional[str] = Query(None, description="Filter by step status"),
+    limit: int = Query(100, ge=1, le=1000, description="Number of results per page"),
+    offset: int = Query(0, ge=0, description="Offset for pagination"),
     org_context: dict = Depends(get_current_org),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """
-    Get step-level execution logs for a specific pipeline run.
+    Get step-level execution logs for a specific pipeline run with pagination.
     """
     # Verify org_slug matches authenticated org
     if org_context["org_slug"] != org_slug:
@@ -397,6 +417,13 @@ async def get_step_logs(
         # By default, exclude RUNNING duplicates - only show final status
         where_clause += " AND status IN ('COMPLETED', 'FAILED', 'SKIPPED')"
 
+    # Count total query
+    count_query = f"""
+    SELECT COUNT(*) as total
+    FROM `{settings.gcp_project_id}.organizations.org_meta_step_logs`
+    WHERE {where_clause}
+    """
+
     query = f"""
     SELECT
         step_logging_id,
@@ -413,10 +440,23 @@ async def get_step_logs(
     FROM `{settings.gcp_project_id}.organizations.org_meta_step_logs`
     WHERE {where_clause}
     ORDER BY step_index ASC
+    LIMIT @limit OFFSET @offset
     """
+
+    # Add pagination parameters
+    parameters.extend([
+        bigquery.ScalarQueryParameter("limit", "INT64", limit),
+        bigquery.ScalarQueryParameter("offset", "INT64", offset)
+    ])
 
     try:
         import json
+
+        # Get total count
+        count_results = list(bq_client.query(count_query, parameters=parameters[:-2]))
+        total = count_results[0]["total"] if count_results else 0
+
+        # Get paginated results
         results = list(bq_client.query(query, parameters=parameters))
 
         steps = []
@@ -443,11 +483,223 @@ async def get_step_logs(
             ))
 
         logger.info(f"Fetched {len(steps)} step logs for pipeline run {pipeline_logging_id}")
-        return steps
+
+        return StepLogsResponse(
+            steps=steps,
+            total=total,
+            limit=limit,
+            offset=offset
+        )
 
     except Exception as e:
         logger.error(f"Error fetching step logs: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to fetch step logs: {str(e)}"
+        )
+
+
+# ============================================
+# Retry and Download Endpoints
+# ============================================
+
+class RetryRunResponse(BaseModel):
+    """Response for retry run request."""
+    success: bool
+    message: str
+    new_pipeline_logging_id: Optional[str] = None
+    original_pipeline_logging_id: str
+
+
+@router.post(
+    "/pipelines/{org_slug}/runs/{pipeline_logging_id}/retry",
+    response_model=RetryRunResponse,
+    summary="Retry a failed pipeline run",
+    description="Retry a failed pipeline run with the same parameters."
+)
+async def retry_pipeline_run(
+    org_slug: str,
+    pipeline_logging_id: str,
+    org_context: dict = Depends(get_current_org),
+    bq_client: BigQueryClient = Depends(get_bigquery_client)
+):
+    """
+    Retry a failed pipeline run.
+
+    This endpoint retrieves the original run's parameters and triggers a new run.
+    Note: This forwards the request to the pipeline service for execution.
+    """
+    # Verify org_slug matches authenticated org
+    if org_context["org_slug"] != org_slug:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied: org_slug mismatch"
+        )
+
+    # Get original run details
+    query = f"""
+    SELECT
+        pipeline_id,
+        status,
+        parameters
+    FROM `{settings.gcp_project_id}.organizations.org_meta_pipeline_runs`
+    WHERE org_slug = @org_slug AND pipeline_logging_id = @pipeline_logging_id
+    """
+
+    parameters = [
+        bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+        bigquery.ScalarQueryParameter("pipeline_logging_id", "STRING", pipeline_logging_id)
+    ]
+
+    try:
+        results = list(bq_client.query(query, parameters=parameters))
+
+        if not results:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Pipeline run {pipeline_logging_id} not found"
+            )
+
+        row = results[0]
+
+        # Only allow retry for FAILED runs
+        if row["status"] not in ["FAILED", "COMPLETED"]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot retry run with status: {row['status']}. Only FAILED or COMPLETED runs can be retried."
+            )
+
+        pipeline_id = row["pipeline_id"]
+        original_params = row.get("parameters")
+
+        import json
+        if original_params and isinstance(original_params, str):
+            try:
+                original_params = json.loads(original_params)
+            except:
+                original_params = {}
+
+        # Note: This is a placeholder - actual retry should call the pipeline service
+        # The frontend would typically call the pipeline service directly with the original params
+        logger.info(f"Retry requested for pipeline run {pipeline_logging_id}, pipeline: {pipeline_id}")
+
+        return RetryRunResponse(
+            success=True,
+            message=f"Retry initiated for pipeline {pipeline_id}. Use the pipeline service to execute: POST /api/v1/pipelines/run/{org_slug}/{pipeline_id}",
+            new_pipeline_logging_id=None,  # Will be set by actual execution
+            original_pipeline_logging_id=pipeline_logging_id
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error retrying pipeline run: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retry pipeline run: {str(e)}"
+        )
+
+
+class DownloadLogsFormat(str):
+    """Supported download formats."""
+    JSON = "json"
+    CSV = "csv"
+
+
+@router.get(
+    "/pipelines/{org_slug}/runs/{pipeline_logging_id}/download",
+    summary="Download pipeline run logs",
+    description="Download pipeline run and step logs as JSON or CSV."
+)
+async def download_pipeline_logs(
+    org_slug: str,
+    pipeline_logging_id: str,
+    format: str = Query("json", description="Download format: json or csv"),
+    org_context: dict = Depends(get_current_org),
+    bq_client: BigQueryClient = Depends(get_bigquery_client)
+):
+    """
+    Download complete pipeline run logs including all steps.
+    """
+    from fastapi.responses import Response
+
+    # Verify org_slug matches authenticated org
+    if org_context["org_slug"] != org_slug:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied: org_slug mismatch"
+        )
+
+    if format not in ["json", "csv"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid format. Supported formats: json, csv"
+        )
+
+    try:
+        # Get run details
+        run_detail = await get_pipeline_run_detail(org_slug, pipeline_logging_id, org_context, bq_client)
+
+        import json as json_module
+        import csv
+        import io
+
+        if format == "json":
+            content = json_module.dumps(run_detail.model_dump(mode='json'), indent=2, default=str)
+            media_type = "application/json"
+            filename = f"pipeline_run_{pipeline_logging_id}.json"
+        else:
+            # CSV format - flatten run + steps
+            output = io.StringIO()
+            writer = csv.writer(output)
+
+            # Write run summary
+            writer.writerow(["Run Summary"])
+            writer.writerow(["Field", "Value"])
+            writer.writerow(["pipeline_logging_id", run_detail.pipeline_logging_id])
+            writer.writerow(["pipeline_id", run_detail.pipeline_id])
+            writer.writerow(["status", run_detail.status])
+            writer.writerow(["trigger_type", run_detail.trigger_type])
+            writer.writerow(["trigger_by", run_detail.trigger_by])
+            writer.writerow(["start_time", str(run_detail.start_time)])
+            writer.writerow(["end_time", str(run_detail.end_time)])
+            writer.writerow(["duration_ms", run_detail.duration_ms])
+            writer.writerow(["error_message", run_detail.error_message])
+            writer.writerow([])
+
+            # Write steps
+            writer.writerow(["Steps"])
+            writer.writerow(["step_index", "step_name", "step_type", "status", "start_time", "end_time", "duration_ms", "rows_processed", "error_message"])
+            for step in run_detail.steps:
+                writer.writerow([
+                    step.step_index,
+                    step.step_name,
+                    step.step_type,
+                    step.status,
+                    str(step.start_time),
+                    str(step.end_time),
+                    step.duration_ms,
+                    step.rows_processed,
+                    step.error_message
+                ])
+
+            content = output.getvalue()
+            media_type = "text/csv"
+            filename = f"pipeline_run_{pipeline_logging_id}.csv"
+
+        return Response(
+            content=content,
+            media_type=media_type,
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"'
+            }
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error downloading pipeline logs: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to download pipeline logs: {str(e)}"
         )

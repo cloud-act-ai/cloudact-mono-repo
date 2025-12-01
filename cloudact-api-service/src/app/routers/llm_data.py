@@ -186,10 +186,15 @@ async def list_pricing(
         )
 
         result = bq_client.client.query(query, job_config=job_config).result()
-        pricing = [dict(row) for row in result]
+        pricing = []
+        for row in result:
+            row_dict = dict(row)
+            row_dict['provider'] = provider.value  # Add provider to each pricing record
+            pricing.append(row_dict)
 
         return OpenAIPricingListResponse(
             org_slug=org_slug,
+            provider=provider.value,  # Include provider in response
             pricing=pricing,
             count=len(pricing)
         )
@@ -445,6 +450,126 @@ async def reset_pricing(
     except Exception as e:
         logger.error(f"Error resetting {provider} pricing: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to reset pricing")
+
+
+# ============================================
+# Bulk Pricing Update Endpoint
+# ============================================
+
+from pydantic import BaseModel
+from typing import List as ListType
+
+class BulkPricingUpdateItem(BaseModel):
+    """Single item in bulk pricing update."""
+    model_id: str
+    input_price_per_1k: Optional[float] = None
+    output_price_per_1k: Optional[float] = None
+    model_name: Optional[str] = None
+    effective_date: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class BulkPricingUpdateRequest(BaseModel):
+    """Request for bulk pricing update."""
+    updates: ListType[BulkPricingUpdateItem]
+
+
+class BulkPricingUpdateResponse(BaseModel):
+    """Response for bulk pricing update."""
+    org_slug: str
+    provider: str
+    updated_count: int
+    failed_count: int
+    errors: ListType[str]
+
+
+@router.patch(
+    "/integrations/{org_slug}/{provider}/pricing",
+    response_model=BulkPricingUpdateResponse,
+    summary="Bulk update model pricing",
+    tags=["LLM Data"]
+)
+async def bulk_update_pricing(
+    org_slug: str,
+    provider: LLMProvider,
+    request: BulkPricingUpdateRequest,
+    org: Dict = Depends(get_current_org),
+    bq_client: BigQueryClient = Depends(get_bigquery_client)
+):
+    """
+    Update multiple pricing records at once.
+
+    This endpoint allows updating multiple model pricing records in a single request.
+    Each item in the updates list should contain model_id and fields to update.
+    """
+    validate_org_slug(org_slug)
+    check_org_access(org, org_slug)
+    config = get_provider_config(provider.value)
+
+    updated_count = 0
+    failed_count = 0
+    errors = []
+
+    try:
+        dataset_id = get_org_dataset(org_slug)
+        table_id = f"{settings.gcp_project_id}.{dataset_id}.{config['pricing_table']}"
+
+        for item in request.updates:
+            try:
+                validate_model_id(item.model_id)
+
+                update_fields = []
+                query_params = [bigquery.ScalarQueryParameter("model_id", "STRING", item.model_id)]
+
+                if item.model_name is not None:
+                    update_fields.append("model_name = @model_name")
+                    query_params.append(bigquery.ScalarQueryParameter("model_name", "STRING", item.model_name))
+                if item.input_price_per_1k is not None:
+                    update_fields.append("input_price_per_1k = @input_price")
+                    query_params.append(bigquery.ScalarQueryParameter("input_price", "FLOAT64", item.input_price_per_1k))
+                if item.output_price_per_1k is not None:
+                    update_fields.append("output_price_per_1k = @output_price")
+                    query_params.append(bigquery.ScalarQueryParameter("output_price", "FLOAT64", item.output_price_per_1k))
+                if item.effective_date is not None:
+                    update_fields.append("effective_date = @effective_date")
+                    query_params.append(bigquery.ScalarQueryParameter("effective_date", "DATE", item.effective_date))
+                if item.notes is not None:
+                    update_fields.append("notes = @notes")
+                    query_params.append(bigquery.ScalarQueryParameter("notes", "STRING", item.notes))
+
+                if not update_fields:
+                    errors.append(f"No fields to update for model: {item.model_id}")
+                    failed_count += 1
+                    continue
+
+                update_fields.append("updated_at = CURRENT_TIMESTAMP()")
+
+                query = f"UPDATE `{table_id}` SET {', '.join(update_fields)} WHERE model_id = @model_id"
+                job_config = bigquery.QueryJobConfig(query_parameters=query_params)
+                bq_client.client.query(query, job_config=job_config).result()
+
+                updated_count += 1
+
+            except HTTPException as e:
+                errors.append(f"Model {item.model_id}: {e.detail}")
+                failed_count += 1
+            except Exception as e:
+                errors.append(f"Model {item.model_id}: {str(e)}")
+                failed_count += 1
+
+        logger.info(f"Bulk updated {updated_count} {provider} pricing records for {org_slug}, {failed_count} failed")
+
+        return BulkPricingUpdateResponse(
+            org_slug=org_slug,
+            provider=provider.value,
+            updated_count=updated_count,
+            failed_count=failed_count,
+            errors=errors
+        )
+
+    except Exception as e:
+        logger.error(f"Error in bulk pricing update: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to perform bulk pricing update")
 
 
 # ============================================

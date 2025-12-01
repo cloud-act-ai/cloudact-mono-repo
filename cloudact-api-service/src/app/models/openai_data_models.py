@@ -89,11 +89,13 @@ class OpenAIPricingResponse(BaseModel):
     notes: Optional[str]
     created_at: datetime
     updated_at: datetime
+    provider: Optional[str] = None  # Provider name (e.g., 'openai', 'anthropic')
 
 
 class OpenAIPricingListResponse(BaseModel):
     """Response model for listing all pricing records."""
     org_slug: str
+    provider: Optional[str] = None  # Provider name for context
     pricing: List[OpenAIPricingResponse]
     count: int
 

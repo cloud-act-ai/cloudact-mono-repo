@@ -33,6 +33,16 @@ os.environ.setdefault("DISABLE_AUTH", "false")  # Important: Auth must be enable
 # Fixtures
 # ============================================
 
+@pytest.fixture(autouse=True)
+def disable_rate_limiting():
+    """Disable rate limiting for all bootstrap tests."""
+    # Patch where rate_limit_global is imported (in admin.py), not where it's defined
+    with patch("src.app.routers.admin.rate_limit_global", new_callable=AsyncMock) as mock_rate_limit:
+        # Make rate_limit_global always allow requests
+        mock_rate_limit.return_value = (True, {})
+        yield mock_rate_limit
+
+
 @pytest.fixture
 def base_url():
     """Base URL for API requests."""

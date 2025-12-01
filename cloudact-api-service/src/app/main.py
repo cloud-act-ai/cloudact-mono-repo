@@ -333,6 +333,62 @@ app.add_middleware(
 )
 
 
+# Maintenance mode middleware (#44) - checked before any other processing
+@app.middleware("http")
+async def maintenance_mode_middleware(request: Request, call_next):
+    """
+    Maintenance mode middleware.
+    Returns 503 Service Unavailable when maintenance_mode is enabled.
+    Allows health check endpoints to pass through for monitoring.
+    """
+    if settings.maintenance_mode:
+        # Allow health checks during maintenance for monitoring
+        if request.url.path in ["/health", "/health/live", "/health/ready", "/metrics", "/"]:
+            return await call_next(request)
+
+        return JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            content={
+                "error": "Service Unavailable",
+                "message": settings.maintenance_message,
+                "maintenance": True
+            },
+            headers={
+                "Retry-After": "3600",  # Suggest retry in 1 hour
+                "X-Maintenance-Mode": "true"
+            }
+        )
+
+    return await call_next(request)
+
+
+# User context middleware (#48) - extracts X-User-ID for audit logging
+@app.middleware("http")
+async def user_context_middleware(request: Request, call_next):
+    """
+    Extract user context from headers for audit logging.
+    X-User-ID header is set by the frontend from Supabase auth.
+    This enables per-user audit trails even when using org API keys.
+    """
+    # Extract user ID from header (set by authenticated frontend)
+    user_id = request.headers.get("x-user-id")
+    if user_id:
+        request.state.user_id = user_id
+
+    # Also extract request ID for correlation
+    request_id = request.headers.get("x-request-id")
+    if request_id:
+        request.state.request_id = request_id
+
+    response = await call_next(request)
+
+    # Echo back request ID in response for tracing
+    if request_id:
+        response.headers["X-Request-ID"] = request_id
+
+    return response
+
+
 # Input validation middleware (FIRST - validates all requests)
 @app.middleware("http")
 async def validation_middleware_wrapper(request: Request, call_next):
@@ -382,12 +438,19 @@ async def rate_limit_middleware(request: Request, call_next):
                 }
             )
 
+            retry_after_seconds = max(1, int(metadata["minute"]["reset"]))
             return JSONResponse(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 content={
                     "error": "Rate limit exceeded",
                     "message": f"Too many requests for org {org_slug}",
-                    "retry_after": metadata["minute"]["reset"]
+                    "retry_after": retry_after_seconds
+                },
+                headers={
+                    "Retry-After": str(retry_after_seconds),
+                    "X-RateLimit-Limit": str(settings.rate_limit_requests_per_minute),
+                    "X-RateLimit-Remaining": "0",
+                    "X-RateLimit-Reset": str(int(metadata["minute"]["reset"]))
                 }
             )
 
@@ -409,12 +472,19 @@ async def rate_limit_middleware(request: Request, call_next):
             }
         )
 
+        retry_after_seconds = max(1, int(metadata["minute"]["reset"]))
         return JSONResponse(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             content={
                 "error": "Rate limit exceeded",
                 "message": f"Global rate limit exceeded",
-                "retry_after": metadata["minute"]["reset"]
+                "retry_after": retry_after_seconds
+            },
+            headers={
+                "Retry-After": str(retry_after_seconds),
+                "X-RateLimit-Limit": str(settings.rate_limit_global_requests_per_minute),
+                "X-RateLimit-Remaining": "0",
+                "X-RateLimit-Reset": str(int(metadata["minute"]["reset"]))
             }
         )
 
@@ -474,25 +544,70 @@ async def log_requests(request: Request, call_next):
 # Exception Handlers
 # ============================================
 
+def sanitize_error_message(exc: Exception) -> str:
+    """
+    Sanitize error messages to prevent sensitive information leakage (#53).
+    Strips internal paths, credentials, and stack traces from error messages.
+    """
+    error_str = str(exc)
+
+    # List of patterns that indicate sensitive information
+    sensitive_patterns = [
+        "/Users/",       # Local paths
+        "/home/",        # Linux home paths
+        "/var/",         # System paths
+        "password",      # Credential indicators
+        "secret",
+        "api_key",
+        "token",
+        "credential",
+        "sk_",           # API key prefixes
+        "BEGIN PRIVATE", # Private keys
+        "BEGIN RSA",
+        "0x",            # Memory addresses
+        "Traceback",     # Stack traces
+    ]
+
+    for pattern in sensitive_patterns:
+        if pattern.lower() in error_str.lower():
+            return "An internal error occurred. Please contact support if this persists."
+
+    # Truncate long error messages
+    if len(error_str) > 200:
+        return error_str[:200] + "..."
+
+    return error_str
+
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     """Global exception handler for unhandled errors."""
+    # Generate request ID if not provided
+    request_id = request.headers.get("x-request-id") or getattr(request.state, "request_id", None)
+
     logger.error(
         f"Unhandled exception",
         exc_info=True,
         extra={
             "method": request.method,
             "path": request.url.path,
-            "error": str(exc)
+            "error": str(exc),
+            "request_id": request_id
         }
     )
+
+    # Determine error message based on settings (#53)
+    if settings.expose_error_details or settings.debug:
+        error_message = sanitize_error_message(exc)
+    else:
+        error_message = "An unexpected error occurred. Please try again or contact support."
 
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={
             "error": "Internal server error",
-            "message": str(exc) if settings.debug else "An unexpected error occurred",
-            "request_id": request.headers.get("x-request-id")
+            "message": error_message,
+            "request_id": request_id
         }
     )
 

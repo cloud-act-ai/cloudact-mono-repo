@@ -53,6 +53,10 @@ class OnboardOrgRequest(BaseModel):
         default="STARTER",
         description="Subscription plan: STARTER, PROFESSIONAL, SCALE"
     )
+    dataset_location: Optional[str] = Field(
+        default=None,
+        description="BigQuery dataset location (e.g., US, EU, asia-northeast1). Defaults to server config."
+    )
     force_recreate_dataset: bool = Field(
         default=False,
         description="If True, delete and recreate the entire dataset (DESTRUCTIVE)"
@@ -93,6 +97,7 @@ class OnboardOrgResponse(BaseModel):
     org_slug: str
     api_key: str  # Unencrypted - show once!
     subscription_plan: str
+    dataset_location: str  # (#49) Where the dataset was created
     dataset_created: bool
     tables_created: List[str]
     dryrun_status: str  # "SUCCESS" or "FAILED"
@@ -281,12 +286,50 @@ async def onboard_org(
     """
     org_slug = request.org_slug
 
-    # Bug fix #13: Idempotency key support - Header is accepted but not yet implemented.
-    # TODO: Implement idempotency key tracking to prevent duplicate org creation on retry.
-    # Suggested implementation: Store idempotency_key + org_slug in org_idempotency_keys table
-    # with 24-hour TTL, return cached response if key already exists.
+    # Idempotency key support - prevents duplicate org creation on retry
     if idempotency_key:
-        logger.info(f"Idempotency-Key provided: {idempotency_key[:8]}... (not yet enforced)")
+        logger.info(f"Checking idempotency key: {idempotency_key[:8]}...")
+
+        # Check if this idempotency key was already used
+        try:
+            check_query = f"""
+            SELECT org_slug, response_data, created_at
+            FROM `{settings.gcp_project_id}.organizations.org_idempotency_keys`
+            WHERE idempotency_key = @idempotency_key
+            AND created_at > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 24 HOUR)
+            LIMIT 1
+            """
+
+            check_result = list(bq_client.client.query(
+                check_query,
+                job_config=bigquery.QueryJobConfig(
+                    query_parameters=[
+                        bigquery.ScalarQueryParameter("idempotency_key", "STRING", idempotency_key)
+                    ]
+                )
+            ).result())
+
+            if check_result:
+                # Key already used - return cached response
+                cached = check_result[0]
+                logger.info(f"Idempotency key hit - returning cached response for org: {cached['org_slug']}")
+                import json
+                cached_response = json.loads(cached["response_data"]) if cached.get("response_data") else {}
+                return OnboardOrgResponse(
+                    org_slug=cached["org_slug"],
+                    api_key=cached_response.get("api_key", "[cached - key not returned]"),
+                    subscription_plan=cached_response.get("subscription_plan", "STARTER"),
+                    dataset_location=cached_response.get("dataset_location", settings.bigquery_location),  # (#49)
+                    dataset_created=cached_response.get("dataset_created", True),
+                    tables_created=cached_response.get("tables_created", []),
+                    dryrun_status=cached_response.get("dryrun_status", "CACHED"),
+                    message=f"Organization '{cached['org_slug']}' already onboarded (idempotent request)"
+                )
+
+        except Exception as e:
+            # Table may not exist yet - continue with onboarding
+            if "Not found" not in str(e):
+                logger.warning(f"Idempotency check failed: {e}")
 
     logger.info(f"Starting organization onboarding for org: {org_slug}")
 
@@ -302,7 +345,10 @@ async def onboard_org(
         "max_team": central_limits["max_team_members"],
         "max_providers": central_limits["max_providers"],
         "max_daily": central_limits["max_pipelines_per_day"],
-        "max_concurrent": central_limits["max_concurrent_pipelines"]
+        "max_monthly": central_limits["max_pipelines_per_month"],
+        "max_concurrent": central_limits["max_concurrent_pipelines"],
+        "seat_limit": central_limits["max_team_members"],
+        "providers_limit": central_limits["max_providers"]
     }
 
     # Helper function to cleanup partial org data on failure
@@ -525,7 +571,7 @@ async def onboard_org(
                         bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
                         bigquery.ScalarQueryParameter("org_api_key_hash", "STRING", org_api_key_hash),
                         bigquery.ScalarQueryParameter("encrypted_org_api_key", "BYTES", encrypted_org_api_key_bytes),
-                        bigquery.ArrayQueryParameter("scopes", "STRING", ["pipelines:read", "pipelines:write", "pipelines:execute"])
+                        bigquery.ArrayQueryParameter("scopes", "STRING", settings.api_key_default_scopes)
                     ]
                 )
             ).result()
@@ -537,6 +583,7 @@ async def onboard_org(
                 org_slug=org_slug,
                 api_key=api_key,
                 subscription_plan=request.subscription_plan,
+                dataset_location=request.dataset_location or settings.bigquery_location,  # (#49)
                 dataset_created=False,  # Already exists
                 tables_created=[],
                 dryrun_status="SKIPPED",
@@ -647,7 +694,7 @@ async def onboard_org(
                     bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
                     bigquery.ScalarQueryParameter("org_api_key_hash", "STRING", org_api_key_hash),
                     bigquery.ScalarQueryParameter("encrypted_org_api_key", "BYTES", encrypted_org_api_key_bytes),
-                    bigquery.ArrayQueryParameter("scopes", "STRING", ["pipelines:read", "pipelines:write", "pipelines:execute"])
+                    bigquery.ArrayQueryParameter("scopes", "STRING", settings.api_key_default_scopes)
                 ]
             )
         ).result()
@@ -658,7 +705,7 @@ async def onboard_org(
                 "event_type": "api_key_created",
                 "org_slug": org_slug,
                 "org_api_key_id": org_api_key_id,
-                "scopes": ["pipelines:read", "pipelines:write", "pipelines:execute"],
+                "scopes": settings.api_key_default_scopes,
                 "encrypted": True
             }
         )
@@ -736,10 +783,11 @@ async def onboard_org(
         INSERT INTO `{settings.gcp_project_id}.organizations.org_usage_quotas`
         (usage_id, org_slug, usage_date, pipelines_run_today, pipelines_succeeded_today,
          pipelines_failed_today, pipelines_run_month, concurrent_pipelines_running,
-         daily_limit, last_updated, created_at)
+         daily_limit, monthly_limit, concurrent_limit, seat_limit, providers_limit,
+         last_updated, created_at)
         VALUES
-        (@usage_id, @org_slug, CURRENT_DATE(), 0, 0, 0, 0, 0, @daily_limit,
-         CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP())
+        (@usage_id, @org_slug, CURRENT_DATE(), 0, 0, 0, 0, 0, @daily_limit, @monthly_limit,
+         @concurrent_limit, @seat_limit, @providers_limit, CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP())
         """
 
         bq_client.client.query(
@@ -748,7 +796,11 @@ async def onboard_org(
                 query_parameters=[
                     bigquery.ScalarQueryParameter("usage_id", "STRING", usage_id),
                     bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
-                    bigquery.ScalarQueryParameter("daily_limit", "INT64", plan_limits["max_daily"])
+                    bigquery.ScalarQueryParameter("daily_limit", "INT64", plan_limits["max_daily"]),
+                    bigquery.ScalarQueryParameter("monthly_limit", "INT64", plan_limits["max_monthly"]),
+                    bigquery.ScalarQueryParameter("concurrent_limit", "INT64", plan_limits["max_concurrent"]),
+                    bigquery.ScalarQueryParameter("seat_limit", "INT64", plan_limits["seat_limit"]),
+                    bigquery.ScalarQueryParameter("providers_limit", "INT64", plan_limits["providers_limit"])
                 ]
             )
         ).result()
@@ -780,11 +832,14 @@ async def onboard_org(
         # - Per-org dataset
         # - org_comprehensive_view (queries central tables, filters by org_slug)
         # - Optional validation table
+        # Use request-specified location or fall back to server config (#49)
+        dataset_location = request.dataset_location or settings.bigquery_location
+
         processor_result = await processor.execute(
             step_config={
                 "config": {
                     "dataset_id": org_slug,
-                    "location": settings.bigquery_location,
+                    "location": dataset_location,
                     "metadata_tables": [],  # NO metadata tables in per-org dataset
                     "create_validation_table": True,
                     "validation_table_name": "onboarding_validation_test",
@@ -824,7 +879,43 @@ async def onboard_org(
     logger.info(f"Skipping post-onboarding dry-run (comprehensive pre-onboarding validation sufficient)")
 
     # ============================================
-    # STEP 7: Return response
+    # STEP 7: Store idempotency key if provided
+    # ============================================
+    if idempotency_key:
+        try:
+            import json
+            response_data = json.dumps({
+                "api_key": "[redacted]",  # Don't store actual key
+                "api_key_id": api_key_id if 'api_key_id' in dir() else "",
+                "dataset_id": f"{org_slug}_{settings.environment[:4]}",
+                "subscription_id": subscription_id if 'subscription_id' in dir() else "",
+                "tables_created": tables_created
+            })
+
+            insert_idempotency_query = f"""
+            INSERT INTO `{settings.gcp_project_id}.organizations.org_idempotency_keys`
+            (idempotency_key, org_slug, response_data, created_at)
+            VALUES (@idempotency_key, @org_slug, @response_data, CURRENT_TIMESTAMP())
+            """
+
+            bq_client.client.query(
+                insert_idempotency_query,
+                job_config=bigquery.QueryJobConfig(
+                    query_parameters=[
+                        bigquery.ScalarQueryParameter("idempotency_key", "STRING", idempotency_key),
+                        bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                        bigquery.ScalarQueryParameter("response_data", "STRING", response_data)
+                    ]
+                )
+            ).result()
+
+            logger.info(f"Stored idempotency key for org: {org_slug}")
+        except Exception as e:
+            # Non-fatal - idempotency storage failure shouldn't block onboarding
+            logger.warning(f"Failed to store idempotency key: {e}")
+
+    # ============================================
+    # STEP 8: Return response
     # ============================================
     logger.info(f"Organization onboarding completed - org_slug: {org_slug}")
 
@@ -832,6 +923,7 @@ async def onboard_org(
         org_slug=org_slug,
         api_key=api_key,  # SAVE THIS - shown only once!
         subscription_plan=request.subscription_plan,
+        dataset_location=dataset_location,  # (#49) Where the dataset was created
         dataset_created=dataset_created,
         tables_created=tables_created,
         dryrun_status=dryrun_status,
@@ -997,7 +1089,7 @@ async def rotate_api_key(
                     bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
                     bigquery.ScalarQueryParameter("org_api_key_hash", "STRING", org_api_key_hash),
                     bigquery.ScalarQueryParameter("encrypted_org_api_key", "BYTES", encrypted_org_api_key_bytes),
-                    bigquery.ArrayQueryParameter("scopes", "STRING", ["pipelines:read", "pipelines:write", "pipelines:execute"])
+                    bigquery.ArrayQueryParameter("scopes", "STRING", settings.api_key_default_scopes)
                 ]
             )
         ).result()
@@ -1206,6 +1298,8 @@ class UpdateSubscriptionLimitsResponse(BaseModel):
     daily_limit: int
     monthly_limit: int
     concurrent_limit: int
+    seat_limit: Optional[int] = None
+    providers_limit: Optional[int] = None
     updated: bool
     message: str
 
@@ -1294,6 +1388,8 @@ async def update_subscription_limits(
     daily_limit = request.daily_limit or default_limits["max_pipelines_per_day"]
     monthly_limit = request.monthly_limit or default_limits["max_pipelines_per_month"]
     concurrent_limit = request.concurrent_limit or default_limits["max_concurrent_pipelines"]
+    seat_limit = request.seat_limit or default_limits.get("max_team_members", 1)
+    providers_limit = request.providers_limit or default_limits.get("max_providers", 3)
 
     # Get status and trial_end_date from request
     subscription_status = request.status  # Already validated by pydantic
@@ -1301,19 +1397,58 @@ async def update_subscription_limits(
 
     # Convert ISO datetime string to YYYY-MM-DD format if needed
     # Frontend may send '2025-12-15T05:55:56.000Z', but BigQuery DATE expects 'YYYY-MM-DD'
-    if trial_end_date and 'T' in trial_end_date:
-        # Parse ISO datetime and extract just the date part
-        from datetime import datetime
-        try:
-            # Handle ISO format with Z suffix or timezone offset
-            if trial_end_date.endswith('Z'):
-                dt = datetime.fromisoformat(trial_end_date.replace('Z', '+00:00'))
-            else:
-                dt = datetime.fromisoformat(trial_end_date)
-            trial_end_date = dt.strftime('%Y-%m-%d')
-        except ValueError:
-            # If parsing fails, try simple split on 'T'
-            trial_end_date = trial_end_date.split('T')[0]
+    if trial_end_date:
+        from datetime import datetime as dt_module
+        original_trial_end_date = trial_end_date
+
+        # Try multiple parsing strategies
+        parsed_date = None
+
+        # Strategy 1: Already in YYYY-MM-DD format
+        if len(trial_end_date) == 10 and trial_end_date.count('-') == 2:
+            try:
+                dt_module.strptime(trial_end_date, '%Y-%m-%d')
+                parsed_date = trial_end_date
+            except ValueError:
+                pass
+
+        # Strategy 2: ISO format with 'T' separator
+        if not parsed_date and 'T' in trial_end_date:
+            try:
+                # Handle ISO format with Z suffix or timezone offset
+                if trial_end_date.endswith('Z'):
+                    dt = dt_module.fromisoformat(trial_end_date.replace('Z', '+00:00'))
+                else:
+                    dt = dt_module.fromisoformat(trial_end_date)
+                parsed_date = dt.strftime('%Y-%m-%d')
+            except ValueError:
+                pass
+
+        # Strategy 3: Unix timestamp (milliseconds)
+        if not parsed_date:
+            try:
+                timestamp = int(trial_end_date)
+                # Detect if it's milliseconds (> 1e12) or seconds
+                if timestamp > 1e12:
+                    timestamp = timestamp / 1000
+                dt = dt_module.fromtimestamp(timestamp)
+                parsed_date = dt.strftime('%Y-%m-%d')
+            except (ValueError, TypeError, OSError):
+                pass
+
+        # Strategy 4: Fallback - simple split on 'T'
+        if not parsed_date and 'T' in trial_end_date:
+            parsed_date = trial_end_date.split('T')[0]
+
+        if parsed_date:
+            trial_end_date = parsed_date
+            logger.debug(f"Parsed trial_end_date: {original_trial_end_date} -> {trial_end_date}")
+        else:
+            logger.error(f"Failed to parse trial_end_date: {original_trial_end_date}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid trial_end_date format: {original_trial_end_date}. Expected YYYY-MM-DD or ISO 8601 datetime."
+            )
 
     # ============================================
     # STEP 3: Update org_subscriptions table
@@ -1325,6 +1460,8 @@ async def update_subscription_limits(
             "daily_limit = @daily_limit",
             "monthly_limit = @monthly_limit",
             "concurrent_limit = @concurrent_limit",
+            "seat_limit = @seat_limit",
+            "providers_limit = @providers_limit",
             "updated_at = CURRENT_TIMESTAMP()"
         ]
         query_params = [
@@ -1332,7 +1469,9 @@ async def update_subscription_limits(
             bigquery.ScalarQueryParameter("plan_name", "STRING", plan_name),
             bigquery.ScalarQueryParameter("daily_limit", "INT64", daily_limit),
             bigquery.ScalarQueryParameter("monthly_limit", "INT64", monthly_limit),
-            bigquery.ScalarQueryParameter("concurrent_limit", "INT64", concurrent_limit)
+            bigquery.ScalarQueryParameter("concurrent_limit", "INT64", concurrent_limit),
+            bigquery.ScalarQueryParameter("seat_limit", "INT64", seat_limit),
+            bigquery.ScalarQueryParameter("providers_limit", "INT64", providers_limit)
         ]
 
         # Add status if provided
@@ -1376,6 +1515,8 @@ async def update_subscription_limits(
             daily_limit = @daily_limit,
             monthly_limit = @monthly_limit,
             concurrent_limit = @concurrent_limit,
+            seat_limit = @seat_limit,
+            providers_limit = @providers_limit,
             last_updated = CURRENT_TIMESTAMP()
         WHERE org_slug = @org_slug
         """
@@ -1387,7 +1528,9 @@ async def update_subscription_limits(
                     bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
                     bigquery.ScalarQueryParameter("daily_limit", "INT64", daily_limit),
                     bigquery.ScalarQueryParameter("monthly_limit", "INT64", monthly_limit),
-                    bigquery.ScalarQueryParameter("concurrent_limit", "INT64", concurrent_limit)
+                    bigquery.ScalarQueryParameter("concurrent_limit", "INT64", concurrent_limit),
+                    bigquery.ScalarQueryParameter("seat_limit", "INT64", seat_limit),
+                    bigquery.ScalarQueryParameter("providers_limit", "INT64", providers_limit)
                 ]
             )
         ).result()
@@ -1434,7 +1577,9 @@ async def update_subscription_limits(
             "plan_name": plan_name,
             "daily_limit": daily_limit,
             "monthly_limit": monthly_limit,
-            "concurrent_limit": concurrent_limit
+            "concurrent_limit": concurrent_limit,
+            "seat_limit": seat_limit,
+            "providers_limit": providers_limit
         }
     )
 
@@ -1445,6 +1590,274 @@ async def update_subscription_limits(
         daily_limit=daily_limit,
         monthly_limit=monthly_limit,
         concurrent_limit=concurrent_limit,
+        seat_limit=seat_limit,
+        providers_limit=providers_limit,
         updated=True,
-        message=f"Subscription limits updated for '{org_slug}'. Plan: {plan_name}, Status: {subscription_status or 'unchanged'}, Daily: {daily_limit}, Monthly: {monthly_limit}, Concurrent: {concurrent_limit}"
+        message=f"Subscription limits updated for '{org_slug}'. Plan: {plan_name}, Status: {subscription_status or 'unchanged'}, Daily: {daily_limit}, Monthly: {monthly_limit}, Concurrent: {concurrent_limit}, Seats: {seat_limit}, Providers: {providers_limit}"
     )
+
+
+# ============================================
+# Delete/Offboard Organization Endpoint (#43)
+# ============================================
+
+class DeleteOrgRequest(BaseModel):
+    """Request to delete/offboard an organization."""
+    delete_dataset: bool = Field(
+        default=False,
+        description="If True, also delete the org's BigQuery dataset (DESTRUCTIVE, IRREVERSIBLE)"
+    )
+    confirm_org_slug: str = Field(
+        ...,
+        description="Must match org_slug in URL to confirm deletion"
+    )
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class DeleteOrgResponse(BaseModel):
+    """Response for organization deletion."""
+    org_slug: str
+    deleted_from_tables: List[str]
+    dataset_deleted: bool
+    message: str
+
+
+@router.delete(
+    "/organizations/{org_slug}",
+    response_model=DeleteOrgResponse,
+    summary="Delete/offboard an organization",
+    description="Removes organization from all meta tables. Optionally deletes the org's dataset."
+)
+async def delete_organization(
+    org_slug: str,
+    request: DeleteOrgRequest,
+    admin_key: str = Depends(verify_admin_key),
+    bq_client: BigQueryClient = Depends(get_bigquery_client)
+):
+    """
+    Delete/offboard an organization (Admin only).
+
+    This endpoint:
+    1. Removes org from all meta tables (org_profiles, org_api_keys, org_subscriptions, etc.)
+    2. Optionally deletes the org's BigQuery dataset if delete_dataset=True
+
+    REQUIRES: X-CA-Root-Key header (admin authentication)
+
+    WARNING: This is destructive and cannot be undone. The org_slug must be confirmed
+    in the request body to prevent accidental deletions.
+    """
+    # Security: confirm org_slug matches
+    if request.confirm_org_slug != org_slug:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"confirm_org_slug '{request.confirm_org_slug}' does not match URL org_slug '{org_slug}'"
+        )
+
+    logger.info(
+        f"Starting organization deletion",
+        extra={
+            "event_type": "org_deletion_started",
+            "org_slug": org_slug,
+            "delete_dataset": request.delete_dataset
+        }
+    )
+
+    deleted_tables = []
+    dataset_deleted = False
+
+    try:
+        # List of meta tables to clean up
+        meta_tables = [
+            "org_profiles",
+            "org_api_keys",
+            "org_subscriptions",
+            "org_credentials",
+            "integration_status",
+            "audit_logs"
+        ]
+
+        # Delete from each meta table
+        for table in meta_tables:
+            try:
+                delete_query = f"""
+                DELETE FROM `{settings.gcp_project_id}.organizations.{table}`
+                WHERE org_slug = @org_slug
+                """
+                bq_client.client.query(
+                    delete_query,
+                    job_config=bigquery.QueryJobConfig(
+                        query_parameters=[
+                            bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
+                        ]
+                    )
+                ).result()
+                deleted_tables.append(table)
+                logger.info(f"Deleted org data from {table}")
+            except Exception as e:
+                # Table might not exist or have no data - log but continue
+                logger.warning(f"Could not delete from {table}: {e}")
+
+        # Optionally delete the org's dataset
+        if request.delete_dataset:
+            try:
+                dataset_id = f"{settings.gcp_project_id}.{org_slug}"
+                bq_client.client.delete_dataset(
+                    dataset_id,
+                    delete_contents=True,  # Delete all tables in the dataset
+                    not_found_ok=True
+                )
+                dataset_deleted = True
+                logger.info(f"Deleted dataset: {dataset_id}")
+            except Exception as e:
+                logger.error(f"Failed to delete dataset {org_slug}: {e}")
+                # Don't fail the entire operation - meta data is already cleaned
+
+        logger.info(
+            f"Organization deletion completed",
+            extra={
+                "event_type": "org_deletion_completed",
+                "org_slug": org_slug,
+                "deleted_tables": deleted_tables,
+                "dataset_deleted": dataset_deleted
+            }
+        )
+
+        return DeleteOrgResponse(
+            org_slug=org_slug,
+            deleted_from_tables=deleted_tables,
+            dataset_deleted=dataset_deleted,
+            message=f"Organization '{org_slug}' has been offboarded successfully"
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            f"Failed to delete organization",
+            extra={
+                "event_type": "org_deletion_failed",
+                "org_slug": org_slug,
+                "error": str(e)
+            },
+            exc_info=True
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete organization. Please check server logs."
+        )
+
+
+# ============================================
+# Get Subscription Endpoint
+# ============================================
+
+class GetSubscriptionResponse(BaseModel):
+    """Response for getting subscription details."""
+    org_slug: str
+    subscription_id: str
+    plan_name: str
+    status: str
+    daily_limit: int
+    monthly_limit: int
+    concurrent_limit: int
+    seat_limit: Optional[int] = None
+    providers_limit: Optional[int] = None
+    trial_end_date: Optional[str] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+
+@router.get(
+    "/organizations/{org_slug}/subscription",
+    response_model=GetSubscriptionResponse,
+    summary="Get subscription details for an organization",
+    description="Retrieves current subscription details from BigQuery"
+)
+async def get_subscription(
+    org_slug: str,
+    auth: AuthResult = Depends(get_org_or_admin_auth),
+    bq_client: BigQueryClient = Depends(get_bigquery_client)
+):
+    """
+    Get subscription details for an organization.
+
+    This endpoint returns the current subscription state including:
+    - Plan name and status
+    - All limits (daily, monthly, concurrent, seat, providers)
+    - Trial end date
+    - Timestamps
+
+    Accepts EITHER:
+    - Organization API Key (X-API-Key header) - self-service access
+    - Root API Key (X-CA-Root-Key header) - admin can access any org
+    """
+    # Security check: if using org key, must match the org in URL
+    if not auth.is_admin and auth.org_slug != org_slug:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cannot access subscription for another organization"
+        )
+
+    logger.info(f"Getting subscription details for organization: {org_slug}")
+
+    try:
+        query = f"""
+        SELECT
+            subscription_id,
+            org_slug,
+            plan_name,
+            status,
+            daily_limit,
+            monthly_limit,
+            concurrent_limit,
+            seat_limit,
+            providers_limit,
+            trial_end_date,
+            created_at,
+            updated_at
+        FROM `{settings.gcp_project_id}.organizations.org_subscriptions`
+        WHERE org_slug = @org_slug
+        LIMIT 1
+        """
+
+        result = list(bq_client.client.query(
+            query,
+            job_config=bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
+                ]
+            )
+        ).result())
+
+        if not result:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"No subscription found for organization '{org_slug}'"
+            )
+
+        row = result[0]
+
+        return GetSubscriptionResponse(
+            org_slug=row["org_slug"],
+            subscription_id=row["subscription_id"] or "",
+            plan_name=row["plan_name"] or "STARTER",
+            status=row["status"] or "ACTIVE",
+            daily_limit=row["daily_limit"] or 10,
+            monthly_limit=row["monthly_limit"] or 300,
+            concurrent_limit=row["concurrent_limit"] or 1,
+            seat_limit=row.get("seat_limit"),
+            providers_limit=row.get("providers_limit"),
+            trial_end_date=str(row["trial_end_date"]) if row.get("trial_end_date") else None,
+            created_at=row["created_at"].isoformat() if row.get("created_at") else None,
+            updated_at=row["updated_at"].isoformat() if row.get("updated_at") else None
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get subscription: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get subscription. Please check server logs for details."
+        )

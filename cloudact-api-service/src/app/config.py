@@ -1,6 +1,87 @@
 """
 Enterprise Configuration Management
 Centralized settings using Pydantic Settings with environment variable support.
+
+ENVIRONMENT VARIABLES REFERENCE (#52)
+=====================================
+
+All settings can be configured via environment variables (uppercase, underscore-separated).
+Example: `api_host` -> `API_HOST`
+
+REQUIRED IN PRODUCTION:
+-----------------------
+CA_ROOT_API_KEY         - Platform admin API key (min 32 chars). Used for bootstrap and org management.
+API_KEY_SECRET_KEY      - Secret key for API key signing.
+DISABLE_AUTH            - Must be "false" in production.
+RATE_LIMIT_ENABLED      - Must be "true" in production.
+
+GCP CONFIGURATION:
+------------------
+GCP_PROJECT_ID          - Google Cloud Project ID (default: "local-dev-project")
+BIGQUERY_LOCATION       - BigQuery dataset location (default: "US")
+GOOGLE_APPLICATION_CREDENTIALS - Path to GCP service account JSON file
+
+APPLICATION SETTINGS:
+--------------------
+ENVIRONMENT             - Runtime environment: development|staging|production (default: "development")
+DEBUG                   - Enable debug mode (default: false)
+EXPOSE_ERROR_DETAILS    - Expose detailed errors in responses (default: false, MUST be false in prod)
+LOG_LEVEL               - Logging level: DEBUG|INFO|WARNING|ERROR|CRITICAL (default: "INFO")
+
+API CONFIGURATION:
+-----------------
+API_HOST                - API bind host (default: "0.0.0.0")
+API_PORT                - API bind port (default: 8080)
+API_WORKERS             - Number of uvicorn workers (default: 4)
+ENABLE_API_DOCS         - Enable /docs and /redoc endpoints (default: true)
+CORS_ORIGINS            - Allowed CORS origins as JSON array (default: ["http://localhost:3000"])
+
+RATE LIMITING:
+--------------
+RATE_LIMIT_ENABLED                  - Enable rate limiting (default: true)
+RATE_LIMIT_REQUESTS_PER_MINUTE      - Per-org requests/minute (default: 100)
+RATE_LIMIT_REQUESTS_PER_HOUR        - Per-org requests/hour (default: 1000)
+RATE_LIMIT_GLOBAL_REQUESTS_PER_MINUTE - Global requests/minute (default: 10000)
+RATE_LIMIT_ADMIN_ORGS_PER_MINUTE    - Admin org creation rate limit (default: 10)
+
+MAINTENANCE MODE (#44):
+----------------------
+MAINTENANCE_MODE        - Enable maintenance mode, returns 503 (default: false)
+MAINTENANCE_MESSAGE     - Custom message during maintenance
+
+KMS ENCRYPTION:
+--------------
+KMS_KEY_NAME            - Full GCP KMS key resource name (optional)
+KMS_PROJECT_ID          - GCP project for KMS (if KMS_KEY_NAME not set)
+KMS_LOCATION            - KMS location (default: "us-central1")
+KMS_KEYRING             - KMS keyring name (default: "convergence-keyring")
+KMS_KEY                 - KMS key name (default: "convergence-encryption-key")
+
+API KEY CONFIGURATION (#54):
+---------------------------
+API_KEY_DEFAULT_SCOPES  - Default scopes for new API keys as JSON array
+                          (default: ["pipelines:read", "pipelines:write", "pipelines:execute"])
+
+CREDENTIAL LIMITS (#50):
+-----------------------
+MAX_CREDENTIAL_SIZE_BYTES - Max size for credential uploads (default: 100000, range: 10000-1000000)
+
+PROVIDER CONFIGURATION:
+----------------------
+OPENAI_API_BASE_URL     - OpenAI API base URL (default: "https://api.openai.com/v1")
+ANTHROPIC_API_BASE_URL  - Anthropic API base URL (default: "https://api.anthropic.com/v1")
+PROVIDER_TIMEOUT_OPENAI - HTTP timeout for OpenAI calls (default: 30.0s)
+PROVIDER_TIMEOUT_ANTHROPIC - HTTP timeout for Anthropic calls (default: 30.0s)
+PROVIDER_TIMEOUT_GCP    - HTTP timeout for GCP calls (default: 60.0s)
+
+OBSERVABILITY:
+-------------
+ENABLE_TRACING          - Enable distributed tracing (default: true)
+ENABLE_METRICS          - Enable Prometheus metrics (default: true)
+OTEL_SERVICE_NAME       - OpenTelemetry service name (default: "convergence-api")
+OTEL_EXPORTER_OTLP_ENDPOINT - OTLP exporter endpoint (optional)
+
+For complete documentation, see each Field's description attribute below.
 """
 
 import os
@@ -59,6 +140,10 @@ class Settings(BaseSettings):
     debug: bool = Field(
         default=False,
         description="Enable debug mode"
+    )
+    expose_error_details: bool = Field(
+        default=False,
+        description="Expose detailed error messages in API responses (#53). Should be False in production."
     )
     log_level: str = Field(
         default="INFO",
@@ -226,6 +311,36 @@ class Settings(BaseSettings):
         ge=10,
         le=1000,
         description="Maximum concurrent pipelines across ALL organizations (prevents resource exhaustion)"
+    )
+
+    # ============================================
+    # Maintenance Mode (#44)
+    # ============================================
+    maintenance_mode: bool = Field(
+        default=False,
+        description="Enable maintenance mode - blocks all API requests with 503"
+    )
+    maintenance_message: str = Field(
+        default="Service is under maintenance. Please try again later.",
+        description="Message returned during maintenance mode"
+    )
+
+    # ============================================
+    # API Key Scopes (#54)
+    # ============================================
+    api_key_default_scopes: list = Field(
+        default=["pipelines:read", "pipelines:write", "pipelines:execute"],
+        description="Default scopes assigned to new API keys"
+    )
+
+    # ============================================
+    # Credential Limits (#50)
+    # ============================================
+    max_credential_size_bytes: int = Field(
+        default=100000,  # 100KB - larger than 50KB to accommodate complex SA JSONs
+        ge=10000,
+        le=1000000,
+        description="Maximum size for credential uploads (GCP SA JSON, API keys)"
     )
 
     # ============================================
