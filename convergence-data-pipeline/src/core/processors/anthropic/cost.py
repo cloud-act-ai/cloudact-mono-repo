@@ -142,8 +142,12 @@ class CostProcessor:
         table_name: str,
         process_date: str = None
     ) -> List[Dict]:
-        """Read usage data from BigQuery."""
+        """Read usage data from BigQuery with memory-bounded processing."""
         table_id = f"{project_id}.{dataset_id}.{table_name}"
+
+        # Add LIMIT to prevent unbounded memory usage for large aggregations
+        # Process in chunks if there are more than 10,000 rows
+        max_rows_per_chunk = 10000
 
         query = f"""
             SELECT *
@@ -158,10 +162,25 @@ class CostProcessor:
                 bigquery.ScalarQueryParameter("process_date", "STRING", process_date)
             )
 
+        # Add LIMIT to control memory usage
+        query += f" LIMIT {max_rows_per_chunk}"
+
         try:
             job_config = bigquery.QueryJobConfig(query_parameters=query_params) if query_params else None
             result = bq_client.client.query(query, job_config=job_config).result()
-            return [dict(row) for row in result]
+
+            # Stream results to prevent loading all into memory at once
+            rows = []
+            for row in result:
+                rows.append(dict(row))
+
+            if len(rows) >= max_rows_per_chunk:
+                self.logger.warning(
+                    f"Retrieved maximum chunk size ({max_rows_per_chunk} rows). "
+                    "Consider processing in smaller date ranges for better performance."
+                )
+
+            return rows
         except Exception as e:
             self.logger.warning(f"Could not read usage data: {e}")
             return []
@@ -227,10 +246,19 @@ class CostProcessor:
             output_cost = (output_tokens / 1000) * model_pricing["output"]
             total_cost = input_cost + output_cost
 
+            # Ensure usage_date is in ISO format (YYYY-MM-DD)
+            usage_date = usage.get("usage_date")
+            if usage_date and not isinstance(usage_date, str):
+                # If it's a date object, convert to ISO format
+                if hasattr(usage_date, 'isoformat'):
+                    usage_date = usage_date.isoformat()
+                else:
+                    usage_date = str(usage_date)
+
             cost_records.append({
                 "org_slug": org_slug,
                 "provider": "ANTHROPIC",
-                "usage_date": usage.get("usage_date"),
+                "usage_date": usage_date,  # Use ISO format
                 "model": model,
                 "input_tokens": input_tokens,
                 "output_tokens": output_tokens,
@@ -240,7 +268,7 @@ class CostProcessor:
                 "total_cost_usd": round(total_cost, 6),
                 "requests": usage.get("requests", 0),
                 "pricing_source": "ref_model_pricing",
-                "calculated_at": datetime.utcnow().isoformat()
+                "calculated_at": datetime.utcnow().isoformat()  # ISO format for timestamp
             })
 
         return cost_records

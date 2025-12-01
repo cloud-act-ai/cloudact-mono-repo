@@ -175,11 +175,26 @@ class CostProcessor:
             result = bq_client.client.query(query).result()
             pricing = {}
             for row in result:
+                # Null check before accessing pricing data
+                if not row or not hasattr(row, 'model_id'):
+                    continue
+
                 # Only keep the most recent pricing per model
                 if row.model_id not in pricing:
+                    # Check for null pricing values
+                    input_price = row.input_price_per_1k
+                    output_price = row.output_price_per_1k
+
+                    # Skip if pricing is null or invalid
+                    if input_price is None or output_price is None:
+                        self.logger.warning(
+                            f"Skipping model {row.model_id} - null pricing data"
+                        )
+                        continue
+
                     pricing[row.model_id] = {
-                        "input": float(row.input_price_per_1k),
-                        "output": float(row.output_price_per_1k)
+                        "input": float(input_price),
+                        "output": float(output_price)
                     }
 
             if pricing:
@@ -254,8 +269,18 @@ class CostProcessor:
                 continue
 
             # Calculate cost (pricing is per 1K tokens)
-            input_cost = (context_tokens / 1000) * model_pricing["input"]
-            output_cost = (generated_tokens / 1000) * model_pricing["output"]
+            # Add zero check to prevent division by zero issues
+            input_price = model_pricing.get("input", 0)
+            output_price = model_pricing.get("output", 0)
+
+            # Check for null or invalid pricing
+            if input_price is None:
+                input_price = 0
+            if output_price is None:
+                output_price = 0
+
+            input_cost = (context_tokens / 1000.0) * input_price if context_tokens > 0 else 0
+            output_cost = (generated_tokens / 1000.0) * output_price if generated_tokens > 0 else 0
             total_cost = input_cost + output_cost
 
             cost_records.append({

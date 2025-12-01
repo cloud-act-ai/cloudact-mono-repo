@@ -76,6 +76,7 @@ class AnthropicUsageProcessor:
 
         try:
             import httpx
+            import asyncio
 
             # Use authenticator utility
             auth = AnthropicAuthenticator(org_slug)
@@ -85,9 +86,34 @@ class AnthropicUsageProcessor:
             # This is a placeholder for when/if they provide one
             # For now, return a message indicating the limitation
 
+            max_retries = 3
+            retry_count = 0
+            backoff_seconds = 1
+
             async with httpx.AsyncClient(timeout=30.0) as client:
                 # Anthropic doesn't have a public usage API yet
-                # We'll return a status indicating this
+                # When available, implement with rate limiting:
+                # while retry_count < max_retries:
+                #     try:
+                #         response = await client.get(...)
+                #         if response.status_code == 429:
+                #             retry_count += 1
+                #             if retry_count >= max_retries:
+                #                 return {"status": "FAILED", "error": "Rate limit exceeded"}
+                #             retry_after = int(response.headers.get("retry-after", backoff_seconds))
+                #             await asyncio.sleep(min(retry_after, backoff_seconds))
+                #             backoff_seconds *= 2
+                #             continue
+                #         break
+                #     except httpx.TimeoutException:
+                #         retry_count += 1
+                #         if retry_count >= max_retries:
+                #             raise
+                #         await asyncio.sleep(backoff_seconds)
+                #         backoff_seconds *= 2
+                #         continue
+
+                # For now, return placeholder
                 return {
                     "status": "SUCCESS",
                     "provider": "ANTHROPIC",
@@ -120,6 +146,11 @@ class AnthropicUsageProcessor:
         date: str
     ) -> None:
         """Store usage data in BigQuery."""
+        # Null check - ensure usage_data exists and is not empty
+        if not usage_data:
+            self.logger.info(f"No usage data to store for {org_slug}")
+            return
+
         # Use settings.get_org_dataset_name() for consistency with onboarding
         # Maps: development -> local, staging -> stage, production -> prod
         dataset_id = self.settings.get_org_dataset_name(org_slug)
@@ -130,6 +161,10 @@ class AnthropicUsageProcessor:
         # Transform data for storage
         rows = []
         for record in usage_data:
+            # Null check for each record
+            if not record:
+                continue
+
             rows.append({
                 "org_slug": org_slug,
                 "provider": "ANTHROPIC",

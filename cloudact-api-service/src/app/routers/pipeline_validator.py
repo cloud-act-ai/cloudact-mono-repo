@@ -350,13 +350,14 @@ async def validate_pipeline_execution(
     # Validate subscription
     try:
         subscription = org.get("subscription", {})
-        if subscription.get("status") != "ACTIVE":
+        valid_subscription_statuses = ["ACTIVE", "TRIAL"]
+        if subscription.get("status") not in valid_subscription_statuses:
             return PipelineValidationResponse(
                 valid=False,
                 org_slug=org_slug,
                 pipeline_id=pipeline_id,
                 subscription=subscription,
-                error=f"Subscription is {subscription.get('status')}",
+                error=f"Subscription is {subscription.get('status')}. Must be ACTIVE or TRIAL.",
                 error_code="SUBSCRIPTION_INACTIVE"
             )
     except HTTPException as e:

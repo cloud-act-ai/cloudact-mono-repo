@@ -126,17 +126,19 @@ class AuthMetricsAggregator:
 
     def __init__(self):
         """Initialize aggregator with batching state."""
-        if self._initialized:
-            return
+        # Thread-safe check with lock to prevent race condition
+        with self._lock:
+            if self._initialized:
+                return
 
-        self.pending_updates: Set[str] = set()  # Set of org_api_key_ids to update
-        self.batch_lock = threading.Lock()
-        self.flush_interval = 60  # Flush every 60 seconds
-        self.is_running = False
-        self.background_task: Optional[asyncio.Task] = None
-        self._initialized = True
+            self.pending_updates: Set[str] = set()  # Set of org_api_key_ids to update
+            self.batch_lock = threading.Lock()
+            self.flush_interval = 60  # Flush every 60 seconds
+            self.is_running = False
+            self.background_task: Optional[asyncio.Task] = None
+            self._initialized = True
 
-        logger.info("AuthMetricsAggregator initialized with 60s flush interval")
+            logger.info("AuthMetricsAggregator initialized with 60s flush interval")
 
     def add_update(self, org_api_key_id: str) -> None:
         """
@@ -227,9 +229,25 @@ class AuthMetricsAggregator:
         while self.is_running:
             try:
                 await asyncio.sleep(self.flush_interval)
-                await self.flush_updates(bq_client)
+                # Add timeout to flush operation to prevent blocking
+                try:
+                    await asyncio.wait_for(
+                        self.flush_updates(bq_client),
+                        timeout=30.0  # 30 second timeout for flush
+                    )
+                except asyncio.TimeoutError:
+                    logger.warning("Background flush timed out (30s)")
             except asyncio.CancelledError:
                 logger.info("Background flush task cancelled")
+                # Perform cleanup before exiting
+                try:
+                    await asyncio.wait_for(
+                        self.flush_updates(bq_client),
+                        timeout=5.0
+                    )
+                    logger.info("Final flush completed on cancellation")
+                except Exception as cleanup_error:
+                    logger.warning(f"Final flush failed on cancellation: {cleanup_error}")
                 break
             except Exception as e:
                 logger.error(f"Error in background flush task: {e}", exc_info=True)
@@ -380,17 +398,19 @@ async def get_current_org(
     WHERE k.org_api_key_hash = @org_api_key_hash
         AND k.is_active = TRUE
         AND p.status = 'ACTIVE'
-        AND s.status = 'ACTIVE'
+        AND s.status IN ('ACTIVE', 'TRIAL')
     LIMIT 1
     """
 
     try:
-        results = list(bq_client.query(
-            query,
-            parameters=[
+        # Add timeout to BigQuery query to prevent hanging
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=[
                 bigquery.ScalarQueryParameter("org_api_key_hash", "STRING", org_api_key_hash)
-            ]
-        ))
+            ],
+            timeout_ms=10000  # 10 second timeout for auth queries
+        )
+        results = list(bq_client.query(query, job_config=job_config))
 
         if not results:
             logger.warning(
@@ -409,8 +429,9 @@ async def get_current_org(
 
         row = results[0]
 
-        # Check if API key has expired
-        if row.get("expires_at") and row["expires_at"] < datetime.utcnow():
+        # Check if API key has expired (null check before comparison)
+        expires_at = row.get("expires_at")
+        if expires_at is not None and expires_at < datetime.utcnow():
             logger.warning(
                 f"Authentication failed - API key expired",
                 extra={
@@ -498,9 +519,10 @@ async def validate_subscription(
     """
     subscription = org.get("subscription", {})
 
-    # Check subscription status
-    if subscription.get("status") != "ACTIVE":
-        logger.warning(f"Inactive subscription for org: {org['org_slug']}")
+    # Check subscription status (allow both ACTIVE and TRIAL)
+    valid_subscription_statuses = ["ACTIVE", "TRIAL"]
+    if subscription.get("status") not in valid_subscription_statuses:
+        logger.warning(f"Inactive subscription for org: {org['org_slug']}, status: {subscription.get('status')}")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"Subscription is {subscription.get('status')}. Please contact support."
@@ -1059,7 +1081,7 @@ async def get_org_from_api_key(
     WHERE k.org_api_key_hash = @org_api_key_hash
         AND k.is_active = TRUE
         AND p.status = 'ACTIVE'
-        AND c.status = 'ACTIVE'
+        AND c.status IN ('ACTIVE', 'TRIAL')
     LIMIT 1
     """
 

@@ -99,9 +99,16 @@ def validate_production_config() -> None:
     if not settings.rate_limit_enabled:
         errors.append("RATE_LIMIT_ENABLED must be true in production")
 
-    # Check CORS origins are configured
+    # Check CORS origins are configured and valid
     if not settings.cors_origins or settings.cors_origins == ["http://localhost:3000", "http://localhost:8080"]:
         logger.warning("CORS origins appear to be using default values - ensure these are correct for production")
+
+    # Validate CORS origins format
+    import re
+    for origin in settings.cors_origins:
+        # Check for valid URL format (http/https with optional port)
+        if not re.match(r'^https?://[a-zA-Z0-9\-.]+(:[0-9]+)?$', origin) and origin != "*":
+            errors.append(f"Invalid CORS origin format: {origin}. Must be valid URL or '*'")
 
     if errors:
         for error in errors:

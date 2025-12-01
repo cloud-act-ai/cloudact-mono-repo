@@ -103,7 +103,7 @@ def calculate_next_run_time(
     last_run: Optional[datetime] = None
 ) -> datetime:
     """
-    Calculate next run time from cron expression.
+    Calculate next run time from cron expression with DST-aware handling.
 
     Args:
         schedule_cron: Cron expression (e.g., '0 2 * * *')
@@ -111,7 +111,7 @@ def calculate_next_run_time(
         last_run: Last run time (if None, uses current time)
 
     Returns:
-        Next scheduled run time in UTC
+        Next scheduled run time in UTC (timezone-aware)
     """
     try:
         tz = pytz.timezone(timezone_str)
@@ -119,17 +119,25 @@ def calculate_next_run_time(
         logger.warning(f"Unknown timezone '{timezone_str}', using UTC")
         tz = pytz.UTC
 
-    # Use last_run or current time as base
+    # Use last_run or current time as base (ensure timezone-aware)
     if last_run:
-        base_time = last_run.astimezone(tz) if last_run.tzinfo else tz.localize(last_run)
+        # Ensure datetime is timezone-aware
+        if last_run.tzinfo is None:
+            base_time = tz.localize(last_run)
+        else:
+            base_time = last_run.astimezone(tz)
     else:
+        # Use timezone-aware current time
         base_time = datetime.now(tz)
 
-    # Calculate next run time
+    # Calculate next run time (croniter handles DST transitions)
     cron = croniter(schedule_cron, base_time)
     next_run = cron.get_next(datetime)
 
-    # Convert to UTC for storage
+    # Ensure result is timezone-aware and convert to UTC for storage
+    if next_run.tzinfo is None:
+        next_run = tz.localize(next_run)
+
     return next_run.astimezone(timezone.utc)
 
 
@@ -1151,22 +1159,29 @@ async def reset_daily_quotas(
     description="Called by Cloud Scheduler to cleanup stuck/orphaned pipelines (ADMIN ONLY)"
 )
 async def cleanup_orphaned_pipelines(
+    timeout_minutes: int = Query(default=60, ge=10, le=240, description="Pipeline timeout in minutes"),
     admin_context: None = Depends(verify_admin_key),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """
-    Cleanup orphaned and stuck pipelines.
+    Cleanup orphaned and stuck pipelines with configurable timeout and deadlock detection.
 
     Logic:
     1. Get all active orgs from org_profiles
     2. For each org, UPDATE organizations.org_meta_pipeline_runs SET status='FAILED'
-       WHERE status IN ('PENDING','RUNNING') AND start_time > 60 minutes ago
+       WHERE status IN ('PENDING','RUNNING') AND start_time > timeout_minutes ago
     3. Decrement concurrent_pipelines_running counter for each cleaned pipeline
     4. Return count of pipelines cleaned per org
 
+    Deadlock Detection:
+    - Identifies pipelines stuck in PENDING or RUNNING state
+    - Configurable timeout (default: 60 minutes, max: 240 minutes)
+    - Marks as FAILED with timeout error message
+    - Updates quota counters to prevent leaks
+
     Security:
     - Requires admin API key
-    - Only affects genuinely stuck pipelines (>60 min)
+    - Only affects genuinely stuck pipelines (>timeout_minutes)
 
     Performance:
     - Processes all orgs in batch queries
@@ -1202,22 +1217,23 @@ async def cleanup_orphaned_pipelines(
             org_slug = org.get('org_slug', org_slug)
 
             try:
-                # Find and mark orphaned pipelines as FAILED
+                # Find and mark orphaned pipelines as FAILED (deadlock detection)
                 cleanup_query = f"""
                 UPDATE `{settings.gcp_project_id}.organizations.org_meta_pipeline_runs`
                 SET
                     status = 'FAILED',
                     end_time = CURRENT_TIMESTAMP(),
-                    error_message = 'Pipeline marked as FAILED due to timeout (>60 minutes)',
+                    error_message = CONCAT('Pipeline marked as FAILED due to timeout (>', CAST(@timeout_minutes AS STRING), ' minutes)'),
                     duration_ms = TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), start_time, MILLISECOND)
                 WHERE org_slug = @org_slug
                   AND status IN ('PENDING', 'RUNNING')
-                  AND TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), start_time, MINUTE) > 60
+                  AND TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), start_time, MINUTE) > @timeout_minutes
                 """
 
                 cleanup_job_config = bigquery.QueryJobConfig(
                     query_parameters=[
                         bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                        bigquery.ScalarQueryParameter("timeout_minutes", "INT64", timeout_minutes),
                     ]
                 )
                 cleanup_job = bq_client.client.query(cleanup_query, job_config=cleanup_job_config)

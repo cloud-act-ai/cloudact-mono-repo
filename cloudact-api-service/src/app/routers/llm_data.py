@@ -136,6 +136,8 @@ def check_org_access(org: Dict, org_slug: str) -> None:
 async def list_pricing(
     org_slug: str,
     provider: LLMProvider,
+    limit: int = 1000,
+    offset: int = 0,
     org: Dict = Depends(get_current_org),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
@@ -143,6 +145,19 @@ async def list_pricing(
     validate_org_slug(org_slug)
     check_org_access(org, org_slug)
     config = get_provider_config(provider.value)
+
+    # Validate pagination bounds
+    MAX_LIMIT = 10000
+    if limit < 0 or limit > MAX_LIMIT:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Limit must be between 0 and {MAX_LIMIT}"
+        )
+    if offset < 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Offset must be non-negative"
+        )
 
     try:
         dataset_id = get_org_dataset(org_slug)
@@ -160,9 +175,17 @@ async def list_pricing(
             updated_at
         FROM `{table_id}`
         ORDER BY model_id
+        LIMIT @limit OFFSET @offset
         """
 
-        result = bq_client.client.query(query).result()
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("limit", "INT64", limit),
+                bigquery.ScalarQueryParameter("offset", "INT64", offset)
+            ]
+        )
+
+        result = bq_client.client.query(query, job_config=job_config).result()
         pricing = [dict(row) for row in result]
 
         return OpenAIPricingListResponse(
@@ -437,6 +460,8 @@ async def reset_pricing(
 async def list_subscriptions(
     org_slug: str,
     provider: LLMProvider,
+    limit: int = 1000,
+    offset: int = 0,
     org: Dict = Depends(get_current_org),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
@@ -444,6 +469,19 @@ async def list_subscriptions(
     validate_org_slug(org_slug)
     check_org_access(org, org_slug)
     config = get_provider_config(provider.value)
+
+    # Validate pagination bounds
+    MAX_LIMIT = 10000
+    if limit < 0 or limit > MAX_LIMIT:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Limit must be between 0 and {MAX_LIMIT}"
+        )
+    if offset < 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Offset must be non-negative"
+        )
 
     try:
         dataset_id = get_org_dataset(org_slug)
@@ -454,9 +492,17 @@ async def list_subscriptions(
                effective_date, notes, created_at, updated_at
         FROM `{table_id}`
         ORDER BY plan_name
+        LIMIT @limit OFFSET @offset
         """
 
-        result = bq_client.client.query(query).result()
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("limit", "INT64", limit),
+                bigquery.ScalarQueryParameter("offset", "INT64", offset)
+            ]
+        )
+
+        result = bq_client.client.query(query, job_config=job_config).result()
         subscriptions = [dict(row) for row in result]
 
         return OpenAISubscriptionListResponse(

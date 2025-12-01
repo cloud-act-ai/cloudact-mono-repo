@@ -133,6 +133,31 @@ async def bootstrap_system(
             }
         )
 
+        # Idempotency check: verify if already bootstrapped (unless force flags set)
+        if not request.force_recreate_dataset and not request.force_recreate_tables:
+            try:
+                from src.core.engine.bq_client import get_bigquery_client
+                bq_client = get_bigquery_client()
+
+                # Check if organizations dataset exists
+                check_query = f"""
+                SELECT schema_name
+                FROM `{settings.gcp_project_id}.INFORMATION_SCHEMA.SCHEMATA`
+                WHERE schema_name = 'organizations'
+                """
+                result_check = list(bq_client.client.query(check_query).result())
+
+                if result_check:
+                    logger.warning("Bootstrap already completed - organizations dataset exists")
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail="System already bootstrapped. Use force_recreate_dataset=true to recreate (DANGEROUS)."
+                    )
+            except HTTPException:
+                raise
+            except Exception as check_error:
+                logger.warning(f"Idempotency check failed: {check_error}. Proceeding with bootstrap.")
+
         # Initialize bootstrap processor
         processor = OnetimeBootstrapProcessor()
 

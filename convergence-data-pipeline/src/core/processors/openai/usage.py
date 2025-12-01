@@ -76,27 +76,118 @@ class OpenAIUsageProcessor:
 
         try:
             import httpx
+            import asyncio
 
             # Use authenticator utility
             auth = OpenAIAuthenticator(org_slug)
             api_key = await auth.authenticate()
 
-            # Fetch usage data from OpenAI
+            # Fetch usage data from OpenAI with retry logic for rate limits
             # Note: OpenAI's usage API requires organization access
+            max_retries = 3
+            retry_count = 0
+            backoff_seconds = 1
+
             async with httpx.AsyncClient(timeout=30.0) as client:
-                # Get usage for date range
-                # OpenAI usage endpoint: https://api.openai.com/v1/usage
-                response = await client.get(
-                    "https://api.openai.com/v1/usage",
-                    headers={"Authorization": f"Bearer {api_key}"},
-                    params={
-                        "date": start_date,  # OpenAI uses single date param
-                    }
-                )
+                while retry_count < max_retries:
+                    try:
+                        # Get usage for date range
+                        # OpenAI usage endpoint: https://api.openai.com/v1/usage
+                        response = await client.get(
+                            "https://api.openai.com/v1/usage",
+                            headers={"Authorization": f"Bearer {api_key}"},
+                            params={
+                                "date": start_date,  # OpenAI uses single date param
+                            }
+                        )
+
+                        # Handle rate limiting (429) with exponential backoff
+                        if response.status_code == 429:
+                            retry_count += 1
+                            if retry_count >= max_retries:
+                                return {
+                                    "status": "FAILED",
+                                    "provider": "OPENAI",
+                                    "error": f"Rate limit exceeded after {max_retries} retries"
+                                }
+
+                            # Extract retry-after header if available
+                            retry_after = int(response.headers.get("retry-after", backoff_seconds))
+                            wait_time = min(retry_after, backoff_seconds)
+
+                            self.logger.warning(
+                                f"Rate limited by OpenAI, retrying in {wait_time}s (attempt {retry_count}/{max_retries})"
+                            )
+                            await asyncio.sleep(wait_time)
+                            backoff_seconds *= 2  # Exponential backoff
+                            continue
+
+                        # Break retry loop if not rate limited
+                        break
+                    except httpx.TimeoutException:
+                        retry_count += 1
+                        if retry_count >= max_retries:
+                            raise
+                        await asyncio.sleep(backoff_seconds)
+                        backoff_seconds *= 2
+                        continue
 
                 if response.status_code == 200:
                     data = response.json()
+
+                    # Check if response data exists before iteration
+                    if not data or "data" not in data:
+                        return {
+                            "status": "SUCCESS",
+                            "provider": "OPENAI",
+                            "date_range": {"start": start_date, "end": end_date},
+                            "usage_records": 0,
+                            "total_tokens": 0,
+                            "estimated_cost_usd": 0,
+                            "message": "No usage data available"
+                        }
+
                     usage_data = data.get("data", [])
+
+                    # Handle pagination if available
+                    # OpenAI may provide pagination via 'has_more' and cursor/offset
+                    has_more = data.get("has_more", False)
+                    page_count = 1
+                    batch_size = config.get("batch_size", self.settings.pipeline_partition_batch_size)
+
+                    while has_more and page_count < 10:  # Limit to 10 pages to prevent infinite loops
+                        # Get next page cursor
+                        cursor = data.get("next_cursor") or data.get("offset")
+                        if not cursor:
+                            break
+
+                        next_params = {
+                            "date": start_date,
+                            "limit": batch_size
+                        }
+                        if data.get("next_cursor"):
+                            next_params["cursor"] = cursor
+                        else:
+                            next_params["offset"] = cursor
+
+                        next_response = await client.get(
+                            "https://api.openai.com/v1/usage",
+                            headers={"Authorization": f"Bearer {api_key}"},
+                            params=next_params
+                        )
+
+                        if next_response.status_code != 200:
+                            self.logger.warning(f"Failed to fetch page {page_count + 1}: {next_response.status_code}")
+                            break
+
+                        next_data = next_response.json()
+                        if next_data and "data" in next_data:
+                            usage_data.extend(next_data.get("data", []))
+                            has_more = next_data.get("has_more", False)
+                            data = next_data
+                            page_count += 1
+                        else:
+                            break
 
                     # Calculate totals
                     total_tokens = sum(
@@ -110,7 +201,7 @@ class OpenAIUsageProcessor:
                     # GPT-3.5: ~$0.0015/1K input, $0.002/1K output
                     estimated_cost = (total_tokens / 1000) * 0.002  # Simplified estimate
 
-                    # Store to BigQuery if enabled
+                    # Store to BigQuery if enabled (use batch size for chunked inserts)
                     if store_to_bq and usage_data:
                         await self._store_usage_data(org_slug, usage_data, start_date, destination_table)
 
@@ -121,7 +212,8 @@ class OpenAIUsageProcessor:
                         "usage_records": len(usage_data),
                         "total_tokens": total_tokens,
                         "estimated_cost_usd": round(estimated_cost, 4),
-                        "message": f"Fetched {len(usage_data)} usage records"
+                        "pages_fetched": page_count,
+                        "message": f"Fetched {len(usage_data)} usage records across {page_count} page(s)"
                     }
 
                 elif response.status_code == 401:

@@ -807,11 +807,19 @@ async def _initialize_openai_pricing(org_slug: str, force: bool = False) -> Dict
         with open(csv_path, 'r') as f:
             reader = csv.DictReader(f)
             for row in reader:
+                # Validate float parsing with error handling
+                try:
+                    input_price = float(row["input_price_per_1k"])
+                    output_price = float(row["output_price_per_1k"])
+                except (ValueError, KeyError) as e:
+                    logger.warning(f"Invalid pricing data in CSV row {row.get('model_id', 'unknown')}: {e}")
+                    continue
+
                 rows.append({
                     "model_id": row["model_id"],
                     "model_name": row.get("model_name"),
-                    "input_price_per_1k": float(row["input_price_per_1k"]),
-                    "output_price_per_1k": float(row["output_price_per_1k"]),
+                    "input_price_per_1k": input_price,
+                    "output_price_per_1k": output_price,
                     "effective_date": row["effective_date"],
                     "notes": row.get("notes"),
                     "created_at": now,
@@ -1123,11 +1131,19 @@ async def _initialize_llm_subscriptions(org_slug: str, provider: str, force: boo
         with open(csv_path, 'r') as f:
             reader = csv.DictReader(f)
             for row in reader:
+                # Validate int/float parsing with error handling
+                try:
+                    quantity = int(row["quantity"])
+                    unit_price = float(row["unit_price_usd"])
+                except (ValueError, KeyError) as e:
+                    logger.warning(f"Invalid subscription data in CSV row {row.get('subscription_id', 'unknown')}: {e}")
+                    continue
+
                 rows.append({
                     "subscription_id": row["subscription_id"],
                     "plan_name": row["plan_name"],
-                    "quantity": int(row["quantity"]),
-                    "unit_price_usd": float(row["unit_price_usd"]),
+                    "quantity": quantity,
+                    "unit_price_usd": unit_price,
                     "effective_date": row["effective_date"],
                     "notes": row.get("notes"),
                     "created_at": now,

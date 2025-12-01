@@ -43,11 +43,28 @@ class Settings(BaseSettings):
     # ============================================
     # Application Settings
     # ============================================
-    app_name: str = Field(default="cloudact-api-service")
-    app_version: str = Field(default="1.0.0")
-    environment: str = Field(default="development", pattern="^(development|staging|production)$")
-    debug: bool = Field(default=False)
-    log_level: str = Field(default="INFO", pattern="^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$")
+    app_name: str = Field(
+        default="cloudact-api-service",
+        description="Application name"
+    )
+    app_version: str = Field(
+        default="1.0.0",
+        description="Application version"
+    )
+    environment: str = Field(
+        default="development",
+        pattern="^(development|staging|production)$",
+        description="Runtime environment"
+    )
+    debug: bool = Field(
+        default=False,
+        description="Enable debug mode"
+    )
+    log_level: str = Field(
+        default="INFO",
+        pattern="^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$",
+        description="Logging level"
+    )
 
     # ============================================
     # API Configuration
@@ -87,12 +104,18 @@ class Settings(BaseSettings):
     #   - ca_root_api_key MUST be set (startup fails otherwise)
     #   - rate_limit_enabled MUST be true (startup fails otherwise)
     # ============================================
-    disable_auth: bool = Field(default=False, description="Disable API key authentication (for development). MUST be false in production!")
+    disable_auth: bool = Field(
+        default=False,
+        description="Disable API key authentication (for development). MUST be false in production!"
+    )
     default_org_slug: str = Field(
         default="dev_org_local",
         description="Default organization slug when authentication is disabled (used only in development mode)"
     )
-    api_key_hash_algorithm: str = Field(default="HS256")
+    api_key_hash_algorithm: str = Field(
+        default="HS256",
+        description="Algorithm for API key hashing"
+    )
     api_key_secret_key: Optional[str] = Field(
         default=None,
         description="Secret key for API key signing. REQUIRED in production - set via API_KEY_SECRET_KEY env var"
@@ -105,6 +128,35 @@ class Settings(BaseSettings):
         default="~/.cloudact-secrets",
         description="Base path for organization secrets directory"
     )
+
+    def validate_production_security(self) -> None:
+        """
+        Validate required security settings in production environment.
+
+        Raises:
+            ValueError: If required security settings are not configured
+        """
+        if not self.is_production:
+            return
+
+        errors = []
+
+        if self.disable_auth:
+            errors.append("disable_auth must be False in production")
+
+        if not self.ca_root_api_key or len(self.ca_root_api_key) < 32:
+            errors.append("ca_root_api_key must be set and at least 32 characters in production")
+
+        if not self.rate_limit_enabled:
+            errors.append("rate_limit_enabled must be True in production")
+
+        if not self.api_key_secret_key:
+            errors.append("api_key_secret_key must be set in production")
+
+        if errors:
+            raise ValueError(
+                "Production security validation failed:\n" + "\n".join(f"  - {err}" for err in errors)
+            )
 
     # ============================================
     # KMS Encryption Configuration

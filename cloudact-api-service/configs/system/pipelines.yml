@@ -11,6 +11,7 @@
 #   required_integration: Integration required to run (GCP_SA, OPENAI, ANTHROPIC)
 #   schedule: Default schedule (daily, monthly)
 #   enabled: Whether pipeline is available
+#   default_timeout_seconds: Default timeout for pipeline execution (optional, defaults to 600)
 #
 # URL Structure: /api/v1/pipelines/run/{org}/{provider}/{domain}/{pipeline}
 # Config path: configs/{provider}/{domain}/{pipeline}.yml (if domain is empty, configs/{provider}/{pipeline}.yml)
@@ -25,6 +26,7 @@ pipelines:
     required_integration: GCP_SA
     schedule: daily
     enabled: true
+    default_timeout_seconds: 900  # 15 minutes for large billing exports
 
   - id: openai_usage_cost
     name: OpenAI Usage & Cost
@@ -35,6 +37,7 @@ pipelines:
     required_integration: OPENAI
     schedule: daily
     enabled: true
+    default_timeout_seconds: 600  # 10 minutes
 
   - id: anthropic_usage_cost
     name: Anthropic Usage & Cost
@@ -45,3 +48,4 @@ pipelines:
     required_integration: ANTHROPIC
     schedule: daily
     enabled: true
+    default_timeout_seconds: 600  # 10 minutes

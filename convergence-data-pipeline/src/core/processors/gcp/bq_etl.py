@@ -12,15 +12,65 @@ For customer GCP billing data:
 """
 import json
 import logging
+import time
+import asyncio
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 from datetime import datetime, date
 from google.cloud import bigquery
 from google.cloud.exceptions import NotFound
+from google.api_core import exceptions as core_exceptions
 
 from src.core.engine.bq_client import BigQueryClient
 from src.core.processors.gcp.authenticator import GCPAuthenticator
 from src.app.config import get_settings
+
+
+def retry_on_transient_error(max_retries=3, backoff_seconds=1):
+    """
+    Decorator to retry BigQuery operations on transient errors.
+
+    Retries on:
+    - InternalServerError (500)
+    - BadGateway (502)
+    - ServiceUnavailable (503)
+    - GatewayTimeout (504)
+    - TooManyRequests (429)
+    """
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            retries = 0
+            delay = backoff_seconds
+
+            while retries < max_retries:
+                try:
+                    return func(*args, **kwargs)
+                except (
+                    core_exceptions.InternalServerError,
+                    core_exceptions.BadGateway,
+                    core_exceptions.ServiceUnavailable,
+                    core_exceptions.GatewayTimeout,
+                    core_exceptions.TooManyRequests
+                ) as e:
+                    retries += 1
+                    if retries >= max_retries:
+                        raise
+
+                    # Log retry attempt
+                    logging.warning(
+                        f"BigQuery transient error (attempt {retries}/{max_retries}): {e}. "
+                        f"Retrying in {delay}s..."
+                    )
+
+                    time.sleep(delay)
+                    delay *= 2  # Exponential backoff
+                except Exception:
+                    # Non-transient error, raise immediately
+                    raise
+
+            return None  # Should never reach here
+        return wrapper
+    return decorator
 
 
 class BigQueryETLEngine:
@@ -153,10 +203,21 @@ class BigQueryETLEngine:
             }
         )
 
-        # Execute query using source client
-        query_job = source_bq_client.query(query)
-        results = query_job.result()
-        result_rows = [dict(row) for row in results]
+        # Execute query using source client with timeout configuration
+        job_config = bigquery.QueryJobConfig()
+        job_config.use_query_cache = True
+        # Set job timeout and billing limit
+        job_config.maximum_bytes_billed = 10 * 1024 * 1024 * 1024  # 10 GB limit
+
+        query_job = source_bq_client.query(query, job_config=job_config)
+
+        # Wait for query to complete with timeout (10 minutes = 600 seconds)
+        try:
+            results = query_job.result(timeout=600)
+            result_rows = [dict(row) for row in results]
+        except Exception as e:
+            self.logger.error(f"Query execution failed or timed out: {e}", exc_info=True)
+            raise ValueError(f"BigQuery query failed: {str(e)}")
 
         row_count = len(result_rows)
         self.logger.info(
@@ -269,6 +330,7 @@ class BigQueryETLEngine:
             "use_org_credentials": use_org_credentials
         }
 
+    @retry_on_transient_error(max_retries=3, backoff_seconds=1)
     def _ensure_table_exists(
         self,
         bq_client: BigQueryClient,
@@ -277,7 +339,7 @@ class BigQueryETLEngine:
         table_id: str,
         schema: Optional[List[bigquery.SchemaField]] = None
     ):
-        """Ensure destination table exists, create if needed"""
+        """Ensure destination table exists, create if needed (with retry on transient errors)"""
         full_table_id = f"{project_id}.{dataset_id}.{table_id}"
 
         try:

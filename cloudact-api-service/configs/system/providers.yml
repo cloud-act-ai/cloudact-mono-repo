@@ -1,6 +1,16 @@
 # Provider Configuration
 # Single source of truth for all integration providers
 # To add a new provider: just add an entry here - no code changes needed
+#
+# SUBSCRIPTION STATUS MAPPING:
+# Frontend (Supabase) -> Backend (BigQuery)
+#   trialing          -> TRIAL
+#   active            -> ACTIVE
+#   past_due          -> SUSPENDED
+#   canceled          -> CANCELLED
+#   paused            -> SUSPENDED
+#   incomplete        -> SUSPENDED
+# Only ACTIVE and TRIAL statuses allow pipeline execution
 
 providers:
   # LLM Providers

@@ -585,7 +585,7 @@ class AsyncPipelineExecutor:
             )
 
         except asyncio.TimeoutError:
-            self.status = "FAILED"
+            self.status = "TIMEOUT"
             self.end_time = datetime.utcnow()
             timeout_minutes = self.config.get('timeout_minutes', 30) if self.config else 30
             timeout_seconds = timeout_minutes * 60
@@ -595,12 +595,26 @@ class AsyncPipelineExecutor:
                 timeout_minutes=timeout_minutes,
                 timeout_seconds=timeout_seconds
             )
+            # Cleanup partial resources on timeout
+            try:
+                if hasattr(self, 'bq_client') and self.bq_client:
+                    if hasattr(self.bq_client, 'client') and self.bq_client.client:
+                        self.bq_client.client.close()
+            except Exception as cleanup_error:
+                self.logger.error(f"Error during timeout cleanup: {cleanup_error}", exc_info=True)
 
         except Exception as e:
             self.status = "FAILED"
             self.end_time = datetime.utcnow()
             error_message = str(e)
             self.logger.error(f"Pipeline failed: {e}", exc_info=True)
+            # Cleanup partial resources on failure
+            try:
+                if hasattr(self, 'bq_client') and self.bq_client:
+                    if hasattr(self.bq_client, 'client') and self.bq_client.client:
+                        self.bq_client.client.close()
+            except Exception as cleanup_error:
+                self.logger.error(f"Error during failure cleanup: {cleanup_error}", exc_info=True)
             raise
 
         finally:

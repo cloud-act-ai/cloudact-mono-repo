@@ -10,7 +10,7 @@ TWO-DATASET ARCHITECTURE:
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field, field_validator, EmailStr, ConfigDict
 from typing import List, Optional, Dict, Any, Union
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 import hashlib
 import secrets
 import re
@@ -678,7 +678,7 @@ async def onboard_org(
         logger.info(f"Creating subscription for organization: {org_slug}")
 
         subscription_id = str(uuid.uuid4())
-        trial_end = date.today()  # You can add 14 days for real trial
+        trial_end = date.today() + timedelta(days=14)  # 14-day trial period
 
         insert_subscription_query = f"""
         INSERT INTO `{settings.gcp_project_id}.organizations.org_subscriptions`

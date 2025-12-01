@@ -12,6 +12,9 @@ version: "1.0.0"
 # Pipeline-level timeout (minutes)
 timeout_minutes: 10
 
+# Rate limiting (requests per minute for this pipeline)
+rate_limit_per_minute: 60
+
 # Schedule configuration
 schedule:
   type: daily
