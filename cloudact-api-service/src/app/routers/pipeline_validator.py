@@ -123,8 +123,8 @@ class PipelineRegistry:
                     "id": "gcp_billing",
                     "name": "GCP Billing",
                     "description": "Extract daily billing cost data from GCP Cloud Billing export",
-                    "provider": "GCP",
-                    "domain": "Billing",
+                    "provider": "gcp",
+                    "domain": "cost",  # Matches config path: configs/gcp/cost/billing.yml
                     "pipeline": "billing",
                     "required_integration": "GCP_SA",
                     "schedule": "daily",
@@ -134,8 +134,8 @@ class PipelineRegistry:
                     "id": "openai_usage_cost",
                     "name": "OpenAI Usage & Cost",
                     "description": "Extract usage data and calculate costs from OpenAI API",
-                    "provider": "OpenAI",
-                    "domain": "Usage",
+                    "provider": "openai",
+                    "domain": "",  # Matches config path: configs/openai/usage_cost.yml (no subdomain)
                     "pipeline": "usage_cost",
                     "required_integration": "OPENAI",
                     "schedule": "daily",
@@ -145,8 +145,8 @@ class PipelineRegistry:
                     "id": "anthropic_usage_cost",
                     "name": "Anthropic Usage & Cost",
                     "description": "Extract usage data and calculate costs from Anthropic API",
-                    "provider": "Anthropic",
-                    "domain": "Usage",
+                    "provider": "anthropic",
+                    "domain": "",  # Matches config path: configs/anthropic/usage_cost.yml (no subdomain)
                     "pipeline": "usage_cost",
                     "required_integration": "ANTHROPIC",
                     "schedule": "daily",

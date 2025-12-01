@@ -889,18 +889,21 @@ class AsyncPipelineExecutor:
             engine = engine_module.get_engine()
 
             # Execute the engine with step config and context
-            # Include pipeline-level variables in context for template replacement
-            context = {
-                "org_slug": self.org_slug,
-                "pipeline_id": self.pipeline_id,
-                "step_id": step_id
-            }
+            # IMPORTANT: Merge variables/parameters first, then set core context values
+            # This ensures org_slug from authentication always takes precedence over
+            # template placeholders like "{org_slug}" in YAML variables section
+            context = {}
 
-            # Merge pipeline-level variables and parameters into context
+            # Merge pipeline-level variables and parameters first
             if "variables" in self.config:
                 context.update(self.config["variables"])
             if "parameters" in self.config:
                 context.update(self.config["parameters"])
+
+            # Set core context values LAST to ensure they override any template placeholders
+            context["org_slug"] = self.org_slug
+            context["pipeline_id"] = self.pipeline_id
+            context["step_id"] = step_id
 
             result = await engine.execute(step_config, context)
 

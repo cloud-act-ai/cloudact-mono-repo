@@ -15,11 +15,8 @@ name: "GCP Billing Sync"
 description: "Extract GCP billing costs and store in BigQuery"
 version: "1.0.0"
 
-# Schedule configuration
-schedule:
-  type: daily
-  time: "04:00"
-  timezone: UTC
+# Schedule configuration (cron expression: daily at 04:00 UTC)
+schedule: "0 4 * * *"
 
 variables:
   org_slug: "{org_slug}"
@@ -43,7 +40,8 @@ steps:
   - step_id: "extract_billing"
     ps_type: "gcp.bq_etl"
     description: "Extract GCP billing costs for date range"
-    depends_on: "decrypt_credentials"
+    depends_on:
+      - "decrypt_credentials"
     timeout_minutes: 20
 
     source:
@@ -86,6 +84,7 @@ steps:
     # Destination: Always CloudAct project + org dataset ({org_slug}_{env})
     # Processor enforces standard destination via settings.get_org_dataset_name()
     destination:
+      dataset_type: "gcp"
       table: "gcp_billing_daily_raw"
       write_mode: "append"
       schema_template: "billing_cost"

@@ -5,19 +5,22 @@
 #   id: Unique identifier (used in API calls)
 #   name: Human-readable name (displayed in UI)
 #   description: What this pipeline does
-#   provider: Provider (GCP, OpenAI, Anthropic)
-#   domain: Domain (Billing, Usage, Cost)
-#   pipeline: Template name (matches configs/{provider}/{pipeline}.yml)
+#   provider: Provider (lowercase: gcp, openai, anthropic)
+#   domain: Domain that matches config path (e.g., "cost" for configs/gcp/cost/billing.yml)
+#   pipeline: Template name (matches configs/{provider}/{domain}/{pipeline}.yml)
 #   required_integration: Integration required to run (GCP_SA, OPENAI, ANTHROPIC)
 #   schedule: Default schedule (daily, monthly)
 #   enabled: Whether pipeline is available
+#
+# URL Structure: /api/v1/pipelines/run/{org}/{provider}/{domain}/{pipeline}
+# Config path: configs/{provider}/{domain}/{pipeline}.yml (if domain is empty, configs/{provider}/{pipeline}.yml)
 
 pipelines:
   - id: gcp_billing
     name: GCP Billing
     description: Extract daily billing cost data from GCP Cloud Billing export
-    provider: GCP
-    domain: Billing
+    provider: gcp
+    domain: cost
     pipeline: billing
     required_integration: GCP_SA
     schedule: daily
@@ -26,8 +29,8 @@ pipelines:
   - id: openai_usage_cost
     name: OpenAI Usage & Cost
     description: Extract usage data and calculate costs from OpenAI API
-    provider: OpenAI
-    domain: Usage
+    provider: openai
+    domain: ""
     pipeline: usage_cost
     required_integration: OPENAI
     schedule: daily
@@ -36,30 +39,9 @@ pipelines:
   - id: anthropic_usage_cost
     name: Anthropic Usage & Cost
     description: Extract usage data and calculate costs from Anthropic API
-    provider: Anthropic
-    domain: Usage
+    provider: anthropic
+    domain: ""
     pipeline: usage_cost
     required_integration: ANTHROPIC
     schedule: daily
     enabled: true
-
-# Coming soon:
-#  - id: aws_cost_explorer
-#    name: AWS Cost Explorer
-#    description: Extract cost and usage data from AWS Cost Explorer
-#    provider: AWS
-#    domain: Cost
-#    pipeline: cost_explorer
-#    required_integration: AWS_IAM
-#    schedule: daily
-#    enabled: false
-#
-#  - id: azure_cost_management
-#    name: Azure Cost Management
-#    description: Extract cost data from Azure Cost Management
-#    provider: Azure
-#    domain: Cost
-#    pipeline: cost_management
-#    required_integration: AZURE_SP
-#    schedule: daily
-#    enabled: false

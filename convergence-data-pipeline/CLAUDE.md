@@ -41,6 +41,7 @@ API Request (X-API-Key)
 - Use processors for ALL BigQuery operations
 
 ### DON'T
+- **NEVER use DISABLE_AUTH=true** - Always authenticate properly, even in development
 - Never handle bootstrap or org onboarding (use cloudact-api-service port 8000)
 - Never create organizations or API keys (use cloudact-api-service port 8000)
 - Never setup integrations (use cloudact-api-service port 8000)
@@ -637,6 +638,59 @@ curl -X POST $BASE_URL/api/v1/pipelines/run/guruinc_234234/openai/usage_cost \
   -H "Content-Type: application/json" \
   -d '{"start_date": "2025-11-25", "end_date": "2025-11-25"}'
 ```
+
+### Getting Customer API Keys for Local Development
+
+To run pipelines locally for a specific customer, you need their decrypted API key. Customer API keys are stored encrypted with KMS in BigQuery.
+
+**Step 1: Query the encrypted API key from BigQuery**
+
+```sql
+SELECT
+    org_slug,
+    encrypted_api_key
+FROM `gac-prod-471220.organizations.org_api_keys`
+WHERE org_slug = 'your_org_slug'
+  AND is_active = TRUE
+```
+
+**Step 2: Decrypt using Python script**
+
+```python
+from google.cloud import kms_v1
+import base64
+
+# KMS key for decryption
+KMS_KEY = "projects/gac-prod-471220/locations/us-central1/keyRings/convergence-keyring-prod/cryptoKeys/api-key-encryption"
+
+def decrypt_api_key(encrypted_base64: str) -> str:
+    """Decrypt a KMS-encrypted API key."""
+    client = kms_v1.KeyManagementServiceClient()
+    ciphertext = base64.b64decode(encrypted_base64)
+    response = client.decrypt(
+        request={"name": KMS_KEY, "ciphertext": ciphertext}
+    )
+    return response.plaintext.decode("utf-8")
+
+# Usage:
+# decrypted_key = decrypt_api_key("BASE64_ENCRYPTED_STRING_FROM_BQ")
+# print(f"API Key: {decrypted_key}")
+```
+
+**Step 3: Use the decrypted key in pipeline requests**
+
+```bash
+export ORG_API_KEY="decrypted_key_here"
+curl -X POST http://localhost:8001/api/v1/pipelines/run/{org_slug}/gcp/cost/billing \
+  -H "X-API-Key: $ORG_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"date": "2025-11-29"}'
+```
+
+**Security Notes:**
+- Never commit decrypted API keys to version control
+- Use environment variables for local testing
+- Customer API keys grant full access to that org's pipeline operations
 
 ---
 
