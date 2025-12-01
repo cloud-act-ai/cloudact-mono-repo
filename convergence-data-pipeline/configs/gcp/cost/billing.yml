@@ -4,7 +4,7 @@
 # Schedule: Daily at 04:00 UTC
 # Tables: gcp_billing_daily_raw
 #
-# Usage: POST /api/v1/pipelines/run/{org_slug}/gcp/billing
+# Usage: POST /api/v1/pipelines/run/{org_slug}/gcp/cost/billing
 #
 # PREREQUISITES:
 # 1. Organization must have a valid GCP_SA integration configured
@@ -83,9 +83,9 @@ steps:
         WHERE DATE(usage_start_time) = '{date}'
         LIMIT 1000
 
+    # Destination: Always CloudAct project + org dataset ({org_slug}_{env})
+    # Processor enforces standard destination via settings.get_org_dataset_name()
     destination:
-      bq_project_id: "gac-prod-471220"
-      dataset_type: "gcp_silver_cost"
       table: "gcp_billing_daily_raw"
       write_mode: "append"
       schema_template: "billing_cost"

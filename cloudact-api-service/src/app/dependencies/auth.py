@@ -639,42 +639,50 @@ async def validate_quota(
         # Check existing usage
         usage = results[0]
 
+        # Apply default limits if None (for backward compatibility)
+        daily_limit = usage["daily_limit"] if usage["daily_limit"] is not None else 10
+        monthly_limit = usage["monthly_limit"] if usage["monthly_limit"] is not None else 300
+        concurrent_limit = usage["concurrent_limit"] if usage["concurrent_limit"] is not None else 3
+        pipelines_run_today = usage["pipelines_run_today"] or 0
+        pipelines_run_month = usage["pipelines_run_month"] or 0
+        concurrent_pipelines_running = usage["concurrent_pipelines_running"] or 0
+
         # Check daily limit
-        if usage["pipelines_run_today"] >= usage["daily_limit"]:
+        if pipelines_run_today >= daily_limit:
             logger.warning(f"Daily quota exceeded for org: {org_slug}")
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail=f"Daily pipeline quota exceeded ({usage['daily_limit']} pipelines/day). Try again tomorrow.",
+                detail=f"Daily pipeline quota exceeded ({daily_limit} pipelines/day). Try again tomorrow.",
                 headers={"Retry-After": "86400"}  # 24 hours
             )
 
         # Check monthly limit
-        if usage["pipelines_run_month"] >= usage["monthly_limit"]:
+        if pipelines_run_month >= monthly_limit:
             logger.warning(f"Monthly quota exceeded for org: {org_slug}")
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail=f"Monthly pipeline quota exceeded ({usage['monthly_limit']} pipelines/month). Upgrade your plan.",
+                detail=f"Monthly pipeline quota exceeded ({monthly_limit} pipelines/month). Upgrade your plan.",
             )
 
         # Check concurrent limit
-        if usage["concurrent_pipelines_running"] >= usage["concurrent_limit"]:
+        if concurrent_pipelines_running >= concurrent_limit:
             logger.warning(f"Concurrent pipeline limit reached for org: {org_slug}")
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail=f"Concurrent pipeline limit reached ({usage['concurrent_limit']} pipelines). Wait for running pipelines to complete.",
+                detail=f"Concurrent pipeline limit reached ({concurrent_limit} pipelines). Wait for running pipelines to complete.",
                 headers={"Retry-After": "300"}  # 5 minutes
             )
 
         # Return quota info
         quota_info = {
-            "pipelines_run_today": usage["pipelines_run_today"],
-            "pipelines_run_month": usage["pipelines_run_month"],
-            "concurrent_pipelines_running": usage["concurrent_pipelines_running"],
-            "daily_limit": usage["daily_limit"],
-            "monthly_limit": usage["monthly_limit"],
-            "concurrent_limit": usage["concurrent_limit"],
-            "remaining_today": usage["daily_limit"] - usage["pipelines_run_today"],
-            "remaining_month": usage["monthly_limit"] - usage["pipelines_run_month"]
+            "pipelines_run_today": pipelines_run_today,
+            "pipelines_run_month": pipelines_run_month,
+            "concurrent_pipelines_running": concurrent_pipelines_running,
+            "daily_limit": daily_limit,
+            "monthly_limit": monthly_limit,
+            "concurrent_limit": concurrent_limit,
+            "remaining_today": daily_limit - pipelines_run_today,
+            "remaining_month": monthly_limit - pipelines_run_month
         }
 
         logger.info(f"Quota validated for org: {org_slug} - {quota_info['remaining_today']} remaining today")

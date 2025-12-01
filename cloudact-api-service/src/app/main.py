@@ -275,8 +275,8 @@ tags_metadata = [
         "description": "LLM provider pricing and subscription CRUD endpoints. Manage pricing models and subscription plans for usage-based cost calculations."
     },
     {
-        "name": "Pipelines",
-        "description": "Pipeline configuration endpoints. List available pipelines and their required integrations. No authentication required."
+        "name": "Pipeline Validator",
+        "description": "Pipeline validation endpoints for convergence-data-pipeline. Validates org subscription, quota, and credentials before pipeline execution."
     }
 ]
 
@@ -635,13 +635,13 @@ async def metrics():
 # API Routers (NO PIPELINES OR SCHEDULER)
 # ============================================
 
-from src.app.routers import admin, organizations, integrations, llm_data, pipelines
+from src.app.routers import admin, organizations, integrations, llm_data, pipeline_validator
 
 app.include_router(admin.router, prefix="/api/v1", tags=["Admin"])
 app.include_router(organizations.router, prefix="/api/v1", tags=["Organizations"])
 app.include_router(integrations.router, prefix="/api/v1", tags=["Integrations"])
 app.include_router(llm_data.router, prefix="/api/v1", tags=["LLM Data"])
-app.include_router(pipelines.router, prefix="/api/v1", tags=["Pipelines"])
+app.include_router(pipeline_validator.router, prefix="/api/v1", tags=["Pipeline Validator"])
 
 
 if __name__ == "__main__":

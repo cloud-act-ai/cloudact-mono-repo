@@ -411,6 +411,18 @@ class Settings(BaseSettings):
     http_timeout_kms: float = Field(default=10.0, description="HTTP timeout for KMS operations")
 
     # ============================================
+    # CloudAct API Service Configuration (for validation)
+    # ============================================
+    api_service_url: str = Field(
+        default="http://localhost:8000",
+        description="URL of cloudact-api-service for validation and centralized operations"
+    )
+    api_service_timeout: float = Field(
+        default=10.0,
+        description="HTTP timeout for api-service calls in seconds"
+    )
+
+    # ============================================
     # Provider API URLs (can be overridden for testing)
     # ============================================
     openai_api_base_url: str = Field(default="https://api.openai.com/v1", description="OpenAI API base URL")

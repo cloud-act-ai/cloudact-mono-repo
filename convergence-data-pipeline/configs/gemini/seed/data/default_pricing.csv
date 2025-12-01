@@ -1,7 +1,0 @@
-model_id,model_name,input_price_per_1k,output_price_per_1k,context_window,effective_date,notes
-gemini-2.0-flash,Gemini 2.0 Flash,0.0001,0.0004,1M,2024-12-01,Latest multimodal model
-gemini-1.5-pro,Gemini 1.5 Pro,0.00125,0.005,128K,2024-11-01,Standard context pricing
-gemini-1.5-pro-long,Gemini 1.5 Pro Long,0.0025,0.01,1M,2024-11-01,Extended context over 128K
-gemini-1.5-flash,Gemini 1.5 Flash,0.000075,0.0003,128K,2024-11-01,Fast and efficient
-gemini-1.5-flash-long,Gemini 1.5 Flash Long,0.00015,0.0006,1M,2024-11-01,Extended context over 128K
-gemini-1.0-pro,Gemini 1.0 Pro,0.0005,0.0015,32K,2024-11-01,Legacy model

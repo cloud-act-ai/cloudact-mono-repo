@@ -19,10 +19,179 @@ from src.core.pipeline.template_resolver import resolve_template, get_template_p
 from src.app.config import settings
 from google.cloud import bigquery
 import re
+import httpx
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+# ============================================
+# API Service Validation Helper
+# ============================================
+
+async def validate_pipeline_with_api_service(
+    org_slug: str,
+    pipeline_id: str,
+    api_key: str,
+    include_credentials: bool = False
+) -> dict:
+    """
+    Call cloudact-api-service to validate pipeline execution.
+
+    This validates:
+    - API key is valid
+    - Organization is active
+    - Subscription is active
+    - Quota is not exceeded
+    - Required integration is configured
+
+    Args:
+        org_slug: Organization slug
+        pipeline_id: Pipeline ID (e.g., "gcp_billing", "openai_usage_cost")
+        api_key: Organization API key for authentication
+        include_credentials: Whether to include decrypted credentials in response
+
+    Returns:
+        dict with validation result:
+        - valid: bool
+        - org_slug: str
+        - org_dataset_id: Optional[str]
+        - pipeline_id: str
+        - pipeline_config: Optional[dict]
+        - subscription: Optional[dict]
+        - quota: Optional[dict]
+        - credentials: Optional[dict] (if include_credentials=True)
+        - error: Optional[str]
+        - error_code: Optional[str]
+    """
+    api_service_url = settings.api_service_url
+    timeout = settings.api_service_timeout
+
+    url = f"{api_service_url}/api/v1/validator/validate/{org_slug}"
+
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            response = await client.post(
+                url,
+                headers={
+                    "X-API-Key": api_key,
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "pipeline_id": pipeline_id,
+                    "include_credentials": include_credentials
+                }
+            )
+
+            if response.status_code == 200:
+                return response.json()
+            elif response.status_code == 401:
+                return {
+                    "valid": False,
+                    "org_slug": org_slug,
+                    "pipeline_id": pipeline_id,
+                    "error": "Invalid API key",
+                    "error_code": "INVALID_API_KEY"
+                }
+            elif response.status_code == 403:
+                return {
+                    "valid": False,
+                    "org_slug": org_slug,
+                    "pipeline_id": pipeline_id,
+                    "error": "Access forbidden",
+                    "error_code": "ACCESS_FORBIDDEN"
+                }
+            else:
+                # Try to parse error response
+                try:
+                    error_data = response.json()
+                    return {
+                        "valid": False,
+                        "org_slug": org_slug,
+                        "pipeline_id": pipeline_id,
+                        "error": error_data.get("detail", f"Validation failed with status {response.status_code}"),
+                        "error_code": "VALIDATION_FAILED"
+                    }
+                except Exception:
+                    return {
+                        "valid": False,
+                        "org_slug": org_slug,
+                        "pipeline_id": pipeline_id,
+                        "error": f"API service returned status {response.status_code}",
+                        "error_code": "API_SERVICE_ERROR"
+                    }
+
+    except httpx.TimeoutException:
+        logger.error(f"Timeout calling api-service for validation: org={org_slug}, pipeline={pipeline_id}")
+        return {
+            "valid": False,
+            "org_slug": org_slug,
+            "pipeline_id": pipeline_id,
+            "error": "Validation service timeout",
+            "error_code": "VALIDATION_TIMEOUT"
+        }
+    except httpx.ConnectError as e:
+        logger.error(f"Cannot connect to api-service: {e}")
+        return {
+            "valid": False,
+            "org_slug": org_slug,
+            "pipeline_id": pipeline_id,
+            "error": f"Cannot connect to validation service at {api_service_url}",
+            "error_code": "VALIDATION_SERVICE_UNAVAILABLE"
+        }
+    except Exception as e:
+        logger.error(f"Error calling api-service for validation: {e}", exc_info=True)
+        return {
+            "valid": False,
+            "org_slug": org_slug,
+            "pipeline_id": pipeline_id,
+            "error": f"Validation service error: {str(e)}",
+            "error_code": "VALIDATION_ERROR"
+        }
+
+
+async def report_pipeline_completion_to_api_service(
+    org_slug: str,
+    pipeline_status: str,
+    api_key: str
+) -> bool:
+    """
+    Report pipeline completion to api-service to update usage counters.
+
+    Args:
+        org_slug: Organization slug
+        pipeline_status: "SUCCESS" or "FAILED"
+        api_key: Organization API key
+
+    Returns:
+        True if successfully reported, False otherwise
+    """
+    api_service_url = settings.api_service_url
+    timeout = settings.api_service_timeout
+
+    url = f"{api_service_url}/api/v1/validator/complete/{org_slug}?pipeline_status={pipeline_status}"
+
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            response = await client.post(
+                url,
+                headers={
+                    "X-API-Key": api_key,
+                    "Content-Type": "application/json"
+                }
+            )
+
+            if response.status_code == 200:
+                logger.info(f"Pipeline completion reported to api-service: org={org_slug}, status={pipeline_status}")
+                return True
+            else:
+                logger.warning(f"Failed to report pipeline completion: status={response.status_code}")
+                return False
+
+    except Exception as e:
+        logger.error(f"Error reporting pipeline completion to api-service: {e}")
+        return False
 
 
 # ============================================
@@ -87,7 +256,8 @@ async def run_async_pipeline_task(
     executor: AsyncPipelineExecutor,
     parameters: dict,
     org_slug: str,
-    bq_client: BigQueryClient
+    bq_client: BigQueryClient,
+    api_key: str = ""
 ) -> Optional[dict]:
     """
     Execute pipeline in background with proper error handling.
@@ -98,45 +268,20 @@ async def run_async_pipeline_task(
     NOTE: Since this runs in a background task, exceptions are absorbed by FastAPI.
     We update the pipeline status to FAILED in BigQuery to ensure clients can track failures.
 
-    IMPORTANT: The concurrent counter is incremented HERE (inside the background task),
-    not in the HTTP handler. This ensures that if the HTTP handler fails before starting
-    the task (e.g., template resolution fails), no increment happens and no decrement is needed.
-    The executor's finally block will always decrement the counter when the pipeline completes.
+    IMPORTANT: Concurrent counter is now managed by api-service:
+    - Incremented during validation (before this task starts)
+    - Decremented via completion reporting (at the end of this task)
     """
     from google.cloud import bigquery as bq
 
-    # Increment concurrent count at the START of background task execution
-    # This happens AFTER all HTTP handler validation passes
-    # If the task starts, the executor's finally block will ALWAYS decrement it
-    try:
-        increment_concurrent_query = f"""
-        UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
-        SET concurrent_pipelines_running = concurrent_pipelines_running + 1,
-            last_updated = CURRENT_TIMESTAMP()
-        WHERE org_slug = @org_slug AND usage_date = CURRENT_DATE()
-        """
-        bq_client.client.query(
-            increment_concurrent_query,
-            job_config=bigquery.QueryJobConfig(query_parameters=[
-                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
-            ])
-        ).result()
+    pipeline_status = "FAILED"  # Default to FAILED, update to SUCCESS if execution completes
 
-        logger.info(
-            f"Incremented concurrent counter for org: {org_slug} (pipeline: {executor.pipeline_logging_id})"
-        )
-    except Exception as inc_error:
-        logger.error(
-            f"Failed to increment concurrent counter for org {org_slug}: {inc_error}",
-            exc_info=True
-        )
-        # Continue execution - the counter is a soft limit, pipeline should still run
-
-    # Now execute the actual pipeline
+    # Execute the pipeline
     try:
         logger.info(f"Starting background async pipeline execution: {executor.pipeline_logging_id}")
         result = await executor.execute(parameters)
         logger.info(f"Async pipeline execution completed: {executor.pipeline_logging_id}")
+        pipeline_status = "SUCCESS"
         return result
     except Exception as e:
         error_msg = str(e)[:1000]  # Truncate long error messages
@@ -179,6 +324,29 @@ async def run_async_pipeline_task(
 
         # Don't re-raise - background tasks should handle their own errors
         return None
+    finally:
+        # Report pipeline completion to api-service to update concurrent counter
+        # This must run regardless of success/failure
+        if api_key:
+            try:
+                await report_pipeline_completion_to_api_service(
+                    org_slug=org_slug,
+                    pipeline_status=pipeline_status,
+                    api_key=api_key
+                )
+            except Exception as report_error:
+                logger.error(
+                    f"Failed to report pipeline completion to api-service: {report_error}",
+                    extra={
+                        "org_slug": org_slug,
+                        "pipeline_logging_id": executor.pipeline_logging_id,
+                        "pipeline_status": pipeline_status
+                    }
+                )
+        else:
+            logger.warning(
+                f"No API key available to report pipeline completion: {executor.pipeline_logging_id}"
+            )
 
 
 @router.post(
@@ -269,262 +437,74 @@ async def trigger_templated_pipeline(
         )
 
     # ============================================
-    # FIX 2: VERIFY SUBSCRIPTION IS ACTIVE (Customer-specific)
+    # VALIDATE WITH API-SERVICE (Centralized Validation)
     # ============================================
-    # Suspended/cancelled orgs cannot run pipelines
-    sub_status_query = f"""
-    SELECT status, plan_name
-    FROM `{settings.gcp_project_id}.organizations.org_subscriptions`
-    WHERE org_slug = @org_slug
-    LIMIT 1
-    """
-    try:
-        sub_status_result = list(bq_client.client.query(
-            sub_status_query,
-            job_config=bigquery.QueryJobConfig(query_parameters=[
-                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
-            ])
-        ).result())
+    # Call cloudact-api-service to validate:
+    # - Subscription is active
+    # - Quota limits not exceeded
+    # - Required integration is configured
+    # api-service also increments concurrent counter on successful validation
 
-        if not sub_status_result:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="No active subscription found. Please subscribe to a plan."
-            )
+    # Extract API key from request headers for service-to-service call
+    api_key = http_request.headers.get("X-API-Key", "")
 
-        sub_status = sub_status_result[0].get("status", "UNKNOWN")
-        if sub_status not in ["ACTIVE", "TRIAL"]:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Subscription status is '{sub_status}'. Only ACTIVE or TRIAL subscriptions can run pipelines."
-            )
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Failed to check subscription status for {org_slug}: {e}")
+    # Construct pipeline_id for validation (matches registry format)
+    # e.g., "gcp_billing", "openai_usage_cost"
+    validation_pipeline_id = f"{provider}_{template_name}"
+
+    logger.info(f"Calling api-service for validation: org={org_slug}, pipeline={validation_pipeline_id}")
+
+    validation_result = await validate_pipeline_with_api_service(
+        org_slug=org_slug,
+        pipeline_id=validation_pipeline_id,
+        api_key=api_key,
+        include_credentials=False  # Credentials fetched separately during execution
+    )
+
+    if not validation_result.get("valid", False):
+        error_code = validation_result.get("error_code", "UNKNOWN")
+        error_msg = validation_result.get("error", "Validation failed")
+
+        # Map error codes to appropriate HTTP status codes
+        status_code_map = {
+            "INVALID_API_KEY": status.HTTP_401_UNAUTHORIZED,
+            "ACCESS_FORBIDDEN": status.HTTP_403_FORBIDDEN,
+            "ORG_MISMATCH": status.HTTP_403_FORBIDDEN,
+            "SUBSCRIPTION_INACTIVE": status.HTTP_403_FORBIDDEN,
+            "SUBSCRIPTION_ERROR": status.HTTP_403_FORBIDDEN,
+            "QUOTA_EXCEEDED": status.HTTP_429_TOO_MANY_REQUESTS,
+            "INTEGRATION_NOT_CONFIGURED": status.HTTP_400_BAD_REQUEST,
+            "INTEGRATION_ERROR": status.HTTP_400_BAD_REQUEST,
+            "PIPELINE_NOT_FOUND": status.HTTP_404_NOT_FOUND,
+            "PIPELINE_DISABLED": status.HTTP_400_BAD_REQUEST,
+            "VALIDATION_TIMEOUT": status.HTTP_503_SERVICE_UNAVAILABLE,
+            "VALIDATION_SERVICE_UNAVAILABLE": status.HTTP_503_SERVICE_UNAVAILABLE,
+            "VALIDATION_ERROR": status.HTTP_500_INTERNAL_SERVER_ERROR,
+        }
+
+        http_status = status_code_map.get(error_code, status.HTTP_400_BAD_REQUEST)
+
+        logger.warning(
+            f"Pipeline validation failed: org={org_slug}, pipeline={validation_pipeline_id}, "
+            f"error_code={error_code}, error={error_msg}"
+        )
+
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Operation failed. Please check server logs for details."
+            status_code=http_status,
+            detail=error_msg
         )
 
-    # ============================================
-    # FIX 3: VERIFY PROVIDER CREDENTIALS EXIST (Customer-specific)
-    # ============================================
-    # Pipeline requires customer's credentials for the specific provider
-    cred_check_query = f"""
-    SELECT credential_id, validation_status, is_active
-    FROM `{settings.gcp_project_id}.organizations.org_integration_credentials`
-    WHERE org_slug = @org_slug
-      AND UPPER(provider) = UPPER(@provider)
-      AND is_active = TRUE
-    LIMIT 1
-    """
+    logger.info(
+        f"Pipeline validation successful: org={org_slug}, pipeline={validation_pipeline_id}",
+        extra={
+            "subscription": validation_result.get("subscription"),
+            "quota": validation_result.get("quota")
+        }
+    )
+
+    # Increment daily/monthly counters locally after validation passes
+    # (concurrent counter already managed by api-service)
     try:
-        cred_result = list(bq_client.client.query(
-            cred_check_query,
-            job_config=bigquery.QueryJobConfig(query_parameters=[
-                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
-                bigquery.ScalarQueryParameter("provider", "STRING", provider)
-            ])
-        ).result())
-
-        if not cred_result:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"No active {provider.upper()} credentials configured. Please setup the integration first."
-            )
-
-        cred_status = cred_result[0].get("validation_status", "UNKNOWN")
-        if cred_status != "VALID":
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"{provider.upper()} credentials status is '{cred_status}'. Please re-validate or update credentials."
-            )
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Failed to check credentials for {org_slug}/{provider}: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Operation failed. Please check server logs for details."
-        )
-
-    # ============================================
-    # QUOTA ENFORCEMENT (ALL LIMITS: Daily, Monthly, Concurrent)
-    # ============================================
-    # Check if org has exceeded ANY pipeline quota
-    quota_query = f"""
-    SELECT
-        pipelines_run_today,
-        daily_limit,
-        pipelines_run_month,
-        monthly_limit,
-        concurrent_pipelines_running,
-        concurrent_limit,
-        COALESCE(daily_limit - pipelines_run_today, 0) as daily_remaining,
-        COALESCE(monthly_limit - pipelines_run_month, 0) as monthly_remaining,
-        COALESCE(concurrent_limit - concurrent_pipelines_running, 0) as concurrent_remaining
-    FROM `{settings.gcp_project_id}.organizations.org_usage_quotas`
-    WHERE org_slug = @org_slug
-      AND usage_date = CURRENT_DATE()
-    LIMIT 1
-    """
-
-    quota_params = [
-        bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
-    ]
-
-    quota_config = bigquery.QueryJobConfig(query_parameters=quota_params)
-
-    try:
-        quota_result = list(bq_client.client.query(quota_query, job_config=quota_config).result())
-
-        if not quota_result:
-            # Auto-create quota record for today if not exists
-            logger.info(f"Creating quota record for org: {org_slug}")
-
-            # Get subscription limits from org_subscriptions
-            sub_query = f"""
-            SELECT daily_limit, monthly_limit, concurrent_limit
-            FROM `{settings.gcp_project_id}.organizations.org_subscriptions`
-            WHERE org_slug = @org_slug AND status = 'ACTIVE'
-            LIMIT 1
-            """
-            sub_result = list(bq_client.client.query(
-                sub_query,
-                job_config=bigquery.QueryJobConfig(query_parameters=[
-                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
-                ])
-            ).result())
-
-            # Default limits if subscription not found (use STARTER plan defaults)
-            daily_limit = 6
-            monthly_limit = 180
-            concurrent_limit = 1
-            if sub_result:
-                daily_limit = sub_result[0].get("daily_limit", 6) or 6
-                monthly_limit = sub_result[0].get("monthly_limit", 180) or 180
-                concurrent_limit = sub_result[0].get("concurrent_limit", 1) or 1
-
-            # Insert quota record
-            insert_query = f"""
-            INSERT INTO `{settings.gcp_project_id}.organizations.org_usage_quotas`
-            (usage_id, org_slug, usage_date, pipelines_run_today, pipelines_failed_today,
-             pipelines_succeeded_today, pipelines_run_month, concurrent_pipelines_running,
-             daily_limit, monthly_limit, concurrent_limit, created_at, last_updated)
-            VALUES (
-                CONCAT(@org_slug, '_', FORMAT_DATE('%Y%m%d', CURRENT_DATE())),
-                @org_slug,
-                CURRENT_DATE(),
-                0, 0, 0, 0, 0,
-                @daily_limit,
-                @monthly_limit,
-                @concurrent_limit,
-                CURRENT_TIMESTAMP(),
-                CURRENT_TIMESTAMP()
-            )
-            """
-            bq_client.client.query(
-                insert_query,
-                job_config=bigquery.QueryJobConfig(query_parameters=[
-                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
-                    bigquery.ScalarQueryParameter("daily_limit", "INT64", daily_limit),
-                    bigquery.ScalarQueryParameter("monthly_limit", "INT64", monthly_limit),
-                    bigquery.ScalarQueryParameter("concurrent_limit", "INT64", concurrent_limit),
-                ])
-            ).result()
-
-            logger.info(f"Created quota record for org: {org_slug} with limits: daily={daily_limit}, monthly={monthly_limit}, concurrent={concurrent_limit}")
-
-            # Use the newly created values (all usage at 0)
-            quota_result = [{
-                "pipelines_run_today": 0,
-                "daily_limit": daily_limit,
-                "pipelines_run_month": 0,
-                "monthly_limit": monthly_limit,
-                "concurrent_pipelines_running": 0,
-                "concurrent_limit": concurrent_limit,
-                "daily_remaining": daily_limit,
-                "monthly_remaining": monthly_limit,
-                "concurrent_remaining": concurrent_limit
-            }]
-
-        quota = quota_result[0]
-        pipelines_run_today = quota["pipelines_run_today"]
-        daily_limit = quota["daily_limit"]
-        pipelines_run_month = quota["pipelines_run_month"]
-        monthly_limit = quota["monthly_limit"]
-        concurrent_running = quota["concurrent_pipelines_running"]
-        concurrent_limit = quota["concurrent_limit"]
-
-        # ============================================
-        # ENFORCE ALL THREE LIMITS (Hard Stop)
-        # ============================================
-
-        # 1. DAILY LIMIT CHECK
-        if pipelines_run_today >= daily_limit:
-            logger.warning(
-                f"DAILY quota exceeded for org: {org_slug}",
-                extra={
-                    "org_slug": org_slug,
-                    "pipelines_run_today": pipelines_run_today,
-                    "daily_limit": daily_limit
-                }
-            )
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail=f"Daily pipeline quota exceeded. You have run {pipelines_run_today} pipelines today (limit: {daily_limit}). Please upgrade your subscription or wait until tomorrow."
-            )
-
-        # 2. MONTHLY LIMIT CHECK
-        if pipelines_run_month >= monthly_limit:
-            logger.warning(
-                f"MONTHLY quota exceeded for org: {org_slug}",
-                extra={
-                    "org_slug": org_slug,
-                    "pipelines_run_month": pipelines_run_month,
-                    "monthly_limit": monthly_limit
-                }
-            )
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail=f"Monthly pipeline quota exceeded. You have run {pipelines_run_month} pipelines this month (limit: {monthly_limit}). Please upgrade your subscription or wait until next month."
-            )
-
-        # 3. CONCURRENT LIMIT CHECK (Most critical for resource protection)
-        if concurrent_running >= concurrent_limit:
-            logger.warning(
-                f"CONCURRENT quota exceeded for org: {org_slug}",
-                extra={
-                    "org_slug": org_slug,
-                    "concurrent_running": concurrent_running,
-                    "concurrent_limit": concurrent_limit
-                }
-            )
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail=f"Concurrent pipeline limit exceeded. You have {concurrent_running} pipelines running (limit: {concurrent_limit}). Please wait for a pipeline to complete before starting a new one."
-            )
-
-        logger.info(
-            f"Quota check passed for org: {org_slug}",
-            extra={
-                "org_slug": org_slug,
-                "pipelines_run_today": pipelines_run_today,
-                "daily_limit": daily_limit,
-                "pipelines_run_month": pipelines_run_month,
-                "monthly_limit": monthly_limit,
-                "concurrent_running": concurrent_running,
-                "concurrent_limit": concurrent_limit
-            }
-        )
-
-        # ============================================
-        # FIX 4: INCREMENT QUOTA COUNTERS IMMEDIATELY (Race condition fix)
-        # ============================================
-        # Increment daily/monthly counters BEFORE pipeline execution to prevent race condition
-        # where multiple requests pass quota check before any increments happen.
-        # Concurrent counter is still managed in background task (increment at start, decrement at end)
         increment_quota_query = f"""
         UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
         SET
@@ -534,26 +514,16 @@ async def trigger_templated_pipeline(
         WHERE org_slug = @org_slug
           AND usage_date = CURRENT_DATE()
         """
-        try:
-            bq_client.client.query(
-                increment_quota_query,
-                job_config=bigquery.QueryJobConfig(query_parameters=[
-                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
-                ])
-            ).result()
-            logger.info(f"Incremented quota counters for org: {org_slug}")
-        except Exception as inc_error:
-            logger.error(f"Failed to increment quota for {org_slug}: {inc_error}")
-            # Continue - quota enforcement is best-effort, don't block pipeline
-
-    except HTTPException:
-        raise  # Re-raise HTTP exceptions
-    except Exception as e:
-        logger.error(f"Failed to check quota for org {org_slug}: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Operation failed. Please check server logs for details."
-        )
+        bq_client.client.query(
+            increment_quota_query,
+            job_config=bigquery.QueryJobConfig(query_parameters=[
+                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
+            ])
+        ).result()
+        logger.info(f"Incremented daily/monthly quota counters for org: {org_slug}")
+    except Exception as inc_error:
+        logger.error(f"Failed to increment quota for {org_slug}: {inc_error}")
+        # Continue - quota enforcement is best-effort, don't block pipeline
 
     # Generate pipeline_id for tracking (includes org prefix)
     pipeline_id = f"{org_slug}-{provider}-{domain}-{template_name}"
@@ -664,9 +634,10 @@ async def trigger_templated_pipeline(
         )
 
         # Execute pipeline in background
-        # NOTE: Concurrent counter increment now happens INSIDE run_async_pipeline_task
-        # This ensures increment only happens if background task actually starts
-        background_tasks.add_task(run_async_pipeline_task, executor, parameters, org_slug, bq_client)
+        # NOTE: Concurrent counter is managed by api-service:
+        # - Incremented during validation (before this task starts)
+        # - Decremented via completion reporting (at the end of the task)
+        background_tasks.add_task(run_async_pipeline_task, executor, parameters, org_slug, bq_client, api_key)
 
         return TriggerPipelineResponse(
             pipeline_logging_id=pipeline_logging_id,
