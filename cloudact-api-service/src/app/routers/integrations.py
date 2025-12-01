@@ -782,7 +782,11 @@ async def _initialize_openai_pricing(org_slug: str, force: bool = False) -> Dict
         # Check if table has data (and force is False)
         if not force:
             count_query = f"SELECT COUNT(*) as cnt FROM `{table_id}`"
-            result = bq_client.query(count_query).result()
+            # Bug fix #2: Add timeout to prevent hanging queries
+            result = bq_client.query(
+                count_query,
+                job_config=bigquery.QueryJobConfig(timeout_ms=30000)
+            ).result()
             count = list(result)[0].cnt
             if count > 0:
                 logger.info(f"Pricing table already has {count} rows, skipping seed")
@@ -994,7 +998,13 @@ async def _initialize_llm_pricing(org_slug: str, provider: str, force: bool = Fa
             return {"status": "FAILED", "error": f"Schema file not found: {schema_path}"}
 
         with open(schema_path, 'r') as f:
-            schema_json = json.load(f)["schema"]
+            schema_data = json.load(f)
+
+        # SECURITY: Validate schema_data is dict and has "schema" key (Bug fix #1)
+        if isinstance(schema_data, dict) and "schema" in schema_data:
+            schema_json = schema_data["schema"]
+        else:
+            schema_json = schema_data
 
         schema = [bigquery.SchemaField.from_api_repr(field) for field in schema_json]
 
@@ -1035,11 +1045,21 @@ async def _initialize_llm_pricing(org_slug: str, provider: str, force: bool = Fa
         with open(csv_path, 'r') as f:
             reader = csv.DictReader(f)
             for row in reader:
+                # Bug fix #3: Add bounds validation on prices
+                input_price = float(row["input_price_per_1k"])
+                output_price = float(row["output_price_per_1k"])
+                if input_price < 0 or input_price > 1000000:
+                    logger.warning(f"Invalid input_price {input_price} for model {row.get('model_id', 'unknown')}, skipping")
+                    continue
+                if output_price < 0 or output_price > 1000000:
+                    logger.warning(f"Invalid output_price {output_price} for model {row.get('model_id', 'unknown')}, skipping")
+                    continue
+
                 rows.append({
                     "model_id": row["model_id"],
                     "model_name": row["model_name"],
-                    "input_price_per_1k": float(row["input_price_per_1k"]),
-                    "output_price_per_1k": float(row["output_price_per_1k"]),
+                    "input_price_per_1k": input_price,
+                    "output_price_per_1k": output_price,
                     "effective_date": row["effective_date"],
                     "notes": row.get("notes"),
                     "created_at": now,
@@ -1332,11 +1352,19 @@ async def _initialize_gemini_subscriptions(org_slug: str, force: bool = False) -
         with open(csv_path, 'r') as f:
             reader = csv.DictReader(f)
             for row in reader:
+                # Bug fix #6: Wrap int/float conversions in try-except
+                try:
+                    quantity = int(row["quantity"])
+                    unit_price = float(row["unit_price_usd"])
+                except (ValueError, KeyError) as e:
+                    logger.warning(f"Invalid Gemini subscription data in CSV row {row.get('subscription_id', 'unknown')}: {e}")
+                    continue
+
                 rows.append({
                     "subscription_id": row["subscription_id"],
                     "plan_name": row["plan_name"],
-                    "quantity": int(row["quantity"]),
-                    "unit_price_usd": float(row["unit_price_usd"]),
+                    "quantity": quantity,
+                    "unit_price_usd": unit_price,
                     "effective_date": row["effective_date"],
                     "notes": row.get("notes"),
                     "created_at": now,

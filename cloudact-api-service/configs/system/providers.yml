@@ -31,6 +31,7 @@ providers:
     retry_backoff_seconds: 2
     rate_limit_per_minute: 60  # Per-org rate limit for this provider
     # LLM data tables config (for pricing/subscriptions initialization)
+    # NAMING CONVENTION: Schema files follow {provider}_model_pricing.json pattern
     data_tables:
       pricing_table: openai_model_pricing
       subscriptions_table: openai_subscriptions
@@ -60,7 +61,7 @@ providers:
       pricing_table: anthropic_model_pricing
       subscriptions_table: anthropic_subscriptions
       seed_path: configs/anthropic/seed
-      pricing_schema: anthropic_pricing.json
+      pricing_schema: anthropic_model_pricing.json
       subscriptions_schema: anthropic_subscriptions.json
 
   CLAUDE:

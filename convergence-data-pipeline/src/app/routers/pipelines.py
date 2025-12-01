@@ -129,7 +129,7 @@ async def validate_pipeline_with_api_service(
             "org_slug": org_slug,
             "pipeline_id": pipeline_id,
             "error": "Validation service timeout",
-            "error_code": "VALIDATION_TIMEOUT"
+            "error_code": "TIMEOUT"
         }
     except httpx.ConnectError as e:
         logger.error(f"Cannot connect to api-service: {e}")
@@ -322,8 +322,14 @@ async def run_async_pipeline_task(
                 extra={"update_error": str(update_error)}
             )
 
-        # Don't re-raise - background tasks should handle their own errors
-        return None
+        # Return error details instead of None for better debugging
+        return {
+            "status": "FAILED",
+            "error": error_msg,
+            "pipeline_logging_id": executor.pipeline_logging_id,
+            "org_slug": executor.org_slug,
+            "pipeline_id": executor.pipeline_id
+        }
     finally:
         # Report pipeline completion to api-service to update concurrent counter
         # This must run regardless of success/failure
@@ -502,28 +508,11 @@ async def trigger_templated_pipeline(
         }
     )
 
-    # Increment daily/monthly counters locally after validation passes
-    # (concurrent counter already managed by api-service)
-    try:
-        increment_quota_query = f"""
-        UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
-        SET
-            pipelines_run_today = pipelines_run_today + 1,
-            pipelines_run_month = pipelines_run_month + 1,
-            last_updated = CURRENT_TIMESTAMP()
-        WHERE org_slug = @org_slug
-          AND usage_date = CURRENT_DATE()
-        """
-        bq_client.client.query(
-            increment_quota_query,
-            job_config=bigquery.QueryJobConfig(query_parameters=[
-                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
-            ])
-        ).result()
-        logger.info(f"Incremented daily/monthly quota counters for org: {org_slug}")
-    except Exception as inc_error:
-        logger.error(f"Failed to increment quota for {org_slug}: {inc_error}")
-        # Continue - quota enforcement is best-effort, don't block pipeline
+    # NOTE: Daily/monthly quota counters are now incremented atomically in api-service
+    # when increment_pipeline_usage("RUNNING") is called. This prevents race conditions
+    # where multiple concurrent requests could pass quota validation before any increments happen.
+    # The api-service increments: concurrent_pipelines_running, pipelines_run_today, pipelines_run_month
+    # all in one atomic UPDATE query at validation time.
 
     # Generate pipeline_id for tracking (includes org prefix)
     pipeline_id = f"{org_slug}-{provider}-{domain}-{template_name}"
@@ -617,6 +606,20 @@ async def trigger_templated_pipeline(
     # Execute atomic INSERT
     query_job = bq_client.client.query(insert_query, job_config=job_config)
     result = query_job.result()
+
+    # Immediate verification that insert succeeded
+    verify_query = f"""
+    SELECT pipeline_logging_id
+    FROM `{org_pipeline_runs_table}`
+    WHERE pipeline_logging_id = @pipeline_logging_id
+    LIMIT 1
+    """
+    verify_result = list(bq_client.client.query(
+        verify_query,
+        job_config=bigquery.QueryJobConfig(query_parameters=[
+            bigquery.ScalarQueryParameter("pipeline_logging_id", "STRING", pipeline_logging_id)
+        ])
+    ).result())
 
     # Check if row was inserted
     if query_job.num_dml_affected_rows > 0:

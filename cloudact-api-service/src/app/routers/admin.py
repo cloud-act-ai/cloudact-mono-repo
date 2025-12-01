@@ -100,6 +100,7 @@ class BootstrapResponse(BaseModel):
 )
 async def bootstrap_system(
     request: BootstrapRequest,
+    http_request: Request,
     _admin: None = Depends(verify_admin_key)
 ):
     """
@@ -122,6 +123,13 @@ async def bootstrap_system(
     - **tables_existed**: List of tables that already existed
     - **total_tables**: Total number of tables configured
     """
+    # Bug fix #10: Add rate limiting to prevent abuse (2 requests per minute for bootstrap)
+    await rate_limit_global(
+        http_request,
+        endpoint_name="admin_bootstrap",
+        limit_per_minute=2
+    )
+
     try:
         from src.core.processors.setup.initial.onetime_bootstrap_processor import OnetimeBootstrapProcessor
 
@@ -522,6 +530,10 @@ async def create_api_key(
     Returns the generated API key (SAVE THIS - it won't be shown again).
     """
     # VALIDATION: Check if org already has an active API key
+    # Bug fix #4: RACE CONDITION NOTE - There is a potential race condition between this check
+    # and the INSERT below if multiple requests are made simultaneously. A true fix would require
+    # a BigQuery table constraint (UNIQUE on org_slug + is_active), but BigQuery does not support
+    # UNIQUE constraints. Consider using INSERT ... WHERE NOT EXISTS or application-level locking.
     from google.cloud import bigquery
 
     check_query = f"""
@@ -541,7 +553,9 @@ async def create_api_key(
 
     if existing_keys:
         existing_hash = existing_keys[0]["org_api_key_hash"]
-        logger.warning(f"Organization {request.org_slug} already has an active API key: {existing_hash[:16]}...")
+        # Bug fix #11: Add length check before slicing to prevent index errors
+        hash_preview = existing_hash[:16] + "..." if existing_hash and len(existing_hash) >= 16 else (existing_hash or "unknown")
+        logger.warning(f"Organization {request.org_slug} already has an active API key: {hash_preview}")
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Organization '{request.org_slug}' already has an active API key. Revoke the existing key first or contact support."
@@ -576,6 +590,18 @@ async def create_api_key(
     )
 
     bq_client.client.query(insert_query, job_config=job_config).result()
+
+    # Bug fix #9: Add audit log entry after successful API key creation
+    logger.info(
+        f"API key created successfully",
+        extra={
+            "event_type": "admin_api_key_created",
+            "org_slug": request.org_slug,
+            "org_api_key_id": org_api_key_id,
+            "org_api_key_hash": org_api_key_hash[:16] + "...",
+            "description": request.description
+        }
+    )
 
     return APIKeyResponse(
         api_key=api_key,

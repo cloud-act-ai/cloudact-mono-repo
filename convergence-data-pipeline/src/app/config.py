@@ -233,7 +233,7 @@ class Settings(BaseSettings):
     # ============================================
     enable_tracing: bool = Field(default=True)
     enable_metrics: bool = Field(default=True)
-    otel_service_name: str = Field(default="convergence-api")
+    otel_service_name: str = Field(default="convergence-pipeline")
     otel_exporter_otlp_endpoint: Optional[str] = Field(default=None)
 
     # ============================================

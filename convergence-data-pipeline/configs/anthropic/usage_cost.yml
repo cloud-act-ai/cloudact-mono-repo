@@ -2,7 +2,7 @@
 # Extracts usage from Anthropic API, calculates cost, stores in BigQuery
 #
 # Schedule: Daily at 02:00 UTC
-# Tables: anthropic_usage_raw, anthropic_cost
+# Tables: anthropic_usage_daily_raw, anthropic_cost_daily
 
 pipeline_id: "{org_slug}-anthropic-usage-cost"
 name: "Anthropic Usage & Cost Sync"
@@ -30,6 +30,7 @@ steps:
   - step_id: "extract_usage"
     ps_type: "anthropic.usage"
     description: "Fetch usage data from Anthropic API"
+    timeout_minutes: 5
     config:
       start_date: "{start_date}"
       end_date: "{end_date}"
@@ -40,6 +41,7 @@ steps:
     ps_type: "anthropic.cost"
     depends_on: "extract_usage"
     description: "Calculate cost from usage data using model pricing"
+    timeout_minutes: 3
     config:
       source_table: "anthropic_usage_daily_raw"
       destination_table: "anthropic_cost_daily"

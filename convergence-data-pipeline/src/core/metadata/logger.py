@@ -374,7 +374,14 @@ class MetadataLogger:
         try:
             while self._running:
                 await asyncio.sleep(self.flush_interval)
-                await self.flush()
+                # Wrap flush with timeout to prevent hanging
+                try:
+                    await asyncio.wait_for(self.flush(), timeout=30)
+                except asyncio.TimeoutError:
+                    logger.error(
+                        f"Flush operation timed out after 30s in worker {worker_id}",
+                        extra={"worker_id": worker_id}
+                    )
 
         except asyncio.CancelledError:
             logger.info(

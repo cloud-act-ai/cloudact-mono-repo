@@ -29,6 +29,18 @@ from src.core.security.kms_encryption import decrypt_value
 logger = logging.getLogger(__name__)
 
 
+def get_utc_date() -> date:
+    """
+    Get current date in UTC timezone.
+
+    CRITICAL: Must use UTC consistently for quota tracking because:
+    - BigQuery stores dates in UTC
+    - Server may be in different timezone (e.g., PST)
+    - Prevents duplicate usage_id rows for same calendar day
+    """
+    return datetime.utcnow().date()
+
+
 # ============================================
 # Test API Keys for Development/QA
 # ============================================
@@ -403,14 +415,13 @@ async def get_current_org(
     """
 
     try:
-        # Add timeout to BigQuery query to prevent hanging
-        job_config = bigquery.QueryJobConfig(
-            query_parameters=[
+        # Use custom BigQueryClient.query() with parameters
+        results = list(bq_client.query(
+            query,
+            parameters=[
                 bigquery.ScalarQueryParameter("org_api_key_hash", "STRING", org_api_key_hash)
-            ],
-            timeout_ms=10000  # 10 second timeout for auth queries
-        )
-        results = list(bq_client.query(query, job_config=job_config))
+            ]
+        ))
 
         if not results:
             logger.warning(
@@ -585,7 +596,8 @@ async def validate_quota(
         HTTPException: 429 if quota exceeded
     """
     org_slug = org["org_slug"]
-    today = date.today()
+    # CRITICAL: Use UTC date for consistency with BigQuery
+    today = get_utc_date()
 
     # Get or create today's usage record
     query = f"""
@@ -604,6 +616,7 @@ async def validate_quota(
     """
 
     try:
+        # Bug fix #5: Use custom BigQueryClient API (no job_config parameter)
         results = list(bq_client.query(
             query,
             parameters=[
@@ -619,7 +632,7 @@ async def validate_quota(
             INSERT INTO `{settings.gcp_project_id}.organizations.org_usage_quotas`
             (usage_id, org_slug, usage_date, pipelines_run_today, pipelines_failed_today,
              pipelines_succeeded_today, pipelines_run_month, concurrent_pipelines_running,
-             daily_limit, monthly_limit, concurrent_limit, created_at)
+             daily_limit, monthly_limit, concurrent_limit, created_at, last_updated)
             VALUES (
                 @usage_id,
                 @org_slug,
@@ -628,6 +641,7 @@ async def validate_quota(
                 @daily_limit,
                 @monthly_limit,
                 @concurrent_limit,
+                CURRENT_TIMESTAMP(),
                 CURRENT_TIMESTAMP()
             )
             """
@@ -661,10 +675,12 @@ async def validate_quota(
         # Check existing usage
         usage = results[0]
 
-        # Apply default limits if None (for backward compatibility)
-        daily_limit = usage["daily_limit"] if usage["daily_limit"] is not None else 10
-        monthly_limit = usage["monthly_limit"] if usage["monthly_limit"] is not None else 300
-        concurrent_limit = usage["concurrent_limit"] if usage["concurrent_limit"] is not None else 3
+        # IMPORTANT: Use subscription limits (source of truth), NOT usage table limits
+        # The usage table limits can become stale when subscription changes (upgrade/downgrade)
+        # Subscription limits are always fresh from org_subscriptions table
+        daily_limit = subscription["max_pipelines_per_day"]
+        monthly_limit = subscription["max_pipelines_per_month"]
+        concurrent_limit = subscription["max_concurrent_pipelines"]
         pipelines_run_today = usage["pipelines_run_today"] or 0
         pipelines_run_month = usage["pipelines_run_month"] or 0
         concurrent_pipelines_running = usage["concurrent_pipelines_running"] or 0
@@ -735,14 +751,20 @@ async def increment_pipeline_usage(
         pipeline_status: Pipeline execution status (SUCCESS, FAILED, RUNNING)
         bq_client: BigQuery client instance
     """
-    today = date.today()
+    # CRITICAL: Use UTC date for consistency with BigQuery
+    today = get_utc_date()
 
     # Determine which counters to increment
     if pipeline_status == "RUNNING":
-        # Increment concurrent counter
+        # CRITICAL: Increment BOTH concurrent counter AND daily/monthly counters atomically
+        # This prevents race conditions where multiple requests pass quota check before any increments happen
+        # The daily counter is incremented HERE to reserve the quota slot immediately
         update_query = f"""
         UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
-        SET concurrent_pipelines_running = concurrent_pipelines_running + 1
+        SET
+            concurrent_pipelines_running = concurrent_pipelines_running + 1,
+            pipelines_run_today = pipelines_run_today + 1,
+            pipelines_run_month = pipelines_run_month + 1
         WHERE org_slug = @org_slug
             AND usage_date = @usage_date
         """
@@ -764,7 +786,9 @@ async def increment_pipeline_usage(
             logger.error(f"Failed to increment pipeline usage: {e}", exc_info=True)
 
     elif pipeline_status in ["SUCCESS", "FAILED"]:
-        # Increment completion counters and decrement concurrent
+        # Update completion counters and decrement concurrent
+        # NOTE: pipelines_run_today and pipelines_run_month are already incremented when RUNNING
+        # so we only update success/failed counts and decrement concurrent counter here
         # SECURITY: Use parameterized query parameters instead of f-string interpolation
         success_increment = 1 if pipeline_status == "SUCCESS" else 0
         failed_increment = 1 if pipeline_status == "FAILED" else 0
@@ -772,8 +796,6 @@ async def increment_pipeline_usage(
         update_query = f"""
         UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
         SET
-            pipelines_run_today = pipelines_run_today + 1,
-            pipelines_run_month = pipelines_run_month + 1,
             pipelines_succeeded_today = pipelines_succeeded_today + @success_increment,
             pipelines_failed_today = pipelines_failed_today + @failed_increment,
             concurrent_pipelines_running = GREATEST(concurrent_pipelines_running - 1, 0)
@@ -850,6 +872,7 @@ async def get_org_credentials(
     """
 
     try:
+        # Bug fix #5: Use custom BigQueryClient API (no job_config parameter)
         results = list(bq_client.query(
             query,
             parameters=[

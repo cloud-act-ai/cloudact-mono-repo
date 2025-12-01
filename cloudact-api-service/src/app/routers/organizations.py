@@ -7,7 +7,7 @@ TWO-DATASET ARCHITECTURE:
 2. {org_slug} dataset: Operational data (pipeline_runs, step_logs, dq_results)
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Header
 from pydantic import BaseModel, Field, field_validator, EmailStr, ConfigDict
 from typing import List, Optional, Dict, Any, Union
 from datetime import datetime, date, timedelta
@@ -255,7 +255,8 @@ async def dryrun_org_onboarding(
 async def onboard_org(
     request: OnboardOrgRequest,
     _: None = Depends(verify_admin_key),  # SECURITY: Require admin key for onboarding
-    bq_client: BigQueryClient = Depends(get_bigquery_client)
+    bq_client: BigQueryClient = Depends(get_bigquery_client),
+    idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key")  # Bug fix #13: Accept idempotency key header
 ):
     """
     Onboard a new organization to the platform.
@@ -279,6 +280,13 @@ async def onboard_org(
     - Dataset and table creation status
     """
     org_slug = request.org_slug
+
+    # Bug fix #13: Idempotency key support - Header is accepted but not yet implemented.
+    # TODO: Implement idempotency key tracking to prevent duplicate org creation on retry.
+    # Suggested implementation: Store idempotency_key + org_slug in org_idempotency_keys table
+    # with 24-hour TTL, return cached response if key already exists.
+    if idempotency_key:
+        logger.info(f"Idempotency-Key provided: {idempotency_key[:8]}... (not yet enforced)")
 
     logger.info(f"Starting organization onboarding for org: {org_slug}")
 
@@ -430,7 +438,8 @@ async def onboard_org(
                         bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
                         bigquery.ScalarQueryParameter("plan_name", "STRING", request.subscription_plan),
                         bigquery.ScalarQueryParameter("daily_limit", "INT64", plan_limits["max_daily"]),
-                        bigquery.ScalarQueryParameter("monthly_limit", "INT64", plan_limits["max_daily"] * 30),
+                        # Bug fix #12: Add bounds check to prevent integer overflow
+                        bigquery.ScalarQueryParameter("monthly_limit", "INT64", min(plan_limits["max_daily"] * 30, 999999999)),
                         bigquery.ScalarQueryParameter("concurrent_limit", "INT64", plan_limits["max_concurrent"])
                     ]
                 )
@@ -1095,7 +1104,9 @@ async def get_api_key_info(
 
         # Fingerprint: Use last 4 chars of the hash (not the actual key)
         # This is safe since we can't reveal the actual key
-        api_key_fingerprint = row["org_api_key_hash"][-4:]
+        # Bug fix #11: Add null and length check before slicing
+        hash_value = row["org_api_key_hash"]
+        api_key_fingerprint = hash_value[-4:] if hash_value and len(hash_value) >= 4 else "****"
 
         return ApiKeyInfoResponse(
             org_slug=row["org_slug"],
@@ -1286,7 +1297,23 @@ async def update_subscription_limits(
 
     # Get status and trial_end_date from request
     subscription_status = request.status  # Already validated by pydantic
-    trial_end_date = request.trial_end_date  # ISO format string (YYYY-MM-DD)
+    trial_end_date = request.trial_end_date  # ISO format string
+
+    # Convert ISO datetime string to YYYY-MM-DD format if needed
+    # Frontend may send '2025-12-15T05:55:56.000Z', but BigQuery DATE expects 'YYYY-MM-DD'
+    if trial_end_date and 'T' in trial_end_date:
+        # Parse ISO datetime and extract just the date part
+        from datetime import datetime
+        try:
+            # Handle ISO format with Z suffix or timezone offset
+            if trial_end_date.endswith('Z'):
+                dt = datetime.fromisoformat(trial_end_date.replace('Z', '+00:00'))
+            else:
+                dt = datetime.fromisoformat(trial_end_date)
+            trial_end_date = dt.strftime('%Y-%m-%d')
+        except ValueError:
+            # If parsing fails, try simple split on 'T'
+            trial_end_date = trial_end_date.split('T')[0]
 
     # ============================================
     # STEP 3: Update org_subscriptions table

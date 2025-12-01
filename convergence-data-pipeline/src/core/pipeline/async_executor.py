@@ -366,10 +366,17 @@ class AsyncPipelineExecutor:
 
             # Run update asynchronously
             loop = asyncio.get_event_loop()
-            await loop.run_in_executor(
+            query_job = await loop.run_in_executor(
                 BQ_EXECUTOR,
                 lambda: self.bq_client.client.query(update_query, job_config=job_config).result()
             )
+
+            # Check if status update affected any rows
+            if query_job.num_dml_affected_rows == 0:
+                raise Exception(
+                    f"Failed to update pipeline status to RUNNING - no rows affected. "
+                    f"Pipeline {self.pipeline_logging_id} may not exist or status is not PENDING."
+                )
 
             self.logger.info(
                 f"Updated pipeline status to RUNNING",
@@ -469,6 +476,9 @@ class AsyncPipelineExecutor:
                 success_increment = 1
                 failed_increment = 0
             elif self.status == "FAILED":
+                success_increment = 0
+                failed_increment = 1
+            elif self.status == "TIMEOUT":
                 success_increment = 0
                 failed_increment = 1
             else:
@@ -595,6 +605,10 @@ class AsyncPipelineExecutor:
                 timeout_minutes=timeout_minutes,
                 timeout_seconds=timeout_seconds
             )
+            # Cancel all running tasks
+            for task in asyncio.all_tasks():
+                if task is not asyncio.current_task():
+                    task.cancel()
             # Cleanup partial resources on timeout
             try:
                 if hasattr(self, 'bq_client') and self.bq_client:
@@ -807,7 +821,8 @@ class AsyncPipelineExecutor:
             )
 
             if step_type == "gcp.bq_etl":
-                rows_processed = result.get('rows_written', 0)
+                # bq_etl processor returns 'rows_processed', fallback to 'rows_written' for compatibility
+                rows_processed = result.get('rows_processed') or result.get('rows_written', 0)
                 step_metadata = {
                     'destination_table': result.get('destination_table'),
                     'bytes_processed': result.get('bytes_processed'),

@@ -13,6 +13,7 @@ Usage in pipeline:
 import logging
 from datetime import datetime
 from typing import Dict, Any, List
+from google.cloud import bigquery
 
 from src.core.engine.bq_client import BigQueryClient
 from src.app.config import get_settings
@@ -257,8 +258,8 @@ class CostProcessor:
 
         for usage in usage_data:
             model = usage.get("model", "unknown")
-            context_tokens = usage.get("context_tokens", 0) or usage.get("input_tokens", 0)
-            generated_tokens = usage.get("generated_tokens", 0) or usage.get("output_tokens", 0)
+            context_tokens = (usage.get("context_tokens") or usage.get("input_tokens")) or 0
+            generated_tokens = (usage.get("generated_tokens") or usage.get("output_tokens")) or 0
 
             # Get pricing for model
             model_pricing = pricing.get(model)

@@ -102,7 +102,7 @@ class BigQueryETLEngine:
 
         fields_data = self.schema_templates["schemas"][schema_name]["fields"]
         if not fields_data:  # Empty list means auto-detect
-            return None
+            return []
 
         schema = []
         for field in fields_data:
@@ -112,7 +112,7 @@ class BigQueryETLEngine:
                 mode=field.get("mode", "NULLABLE"),
                 description=field.get("description", "")
             ))
-        return schema
+        return schema if schema else []
 
     def _replace_variables(self, text: str, variables: Dict[str, Any]) -> str:
         """Replace {variable} placeholders in text"""
@@ -215,6 +215,10 @@ class BigQueryETLEngine:
         try:
             results = query_job.result(timeout=600)
             result_rows = [dict(row) for row in results]
+
+            # Validate that we got results
+            if not result_rows:
+                return []
         except Exception as e:
             self.logger.error(f"Query execution failed or timed out: {e}", exc_info=True)
             raise ValueError(f"BigQuery query failed: {str(e)}")

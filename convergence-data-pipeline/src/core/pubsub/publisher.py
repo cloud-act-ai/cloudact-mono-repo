@@ -69,6 +69,7 @@ class PipelinePublisher:
         published_count = 0
         failed_count = 0
         message_ids = []
+        futures = []
 
         for org_slug in org_slugs:
             try:
@@ -99,16 +100,24 @@ class PipelinePublisher:
                     **attributes
                 )
 
-                # Get message ID (blocks until published)
-                message_id = future.result(timeout=10)
-                message_ids.append(message_id)
-                published_count += 1
+                # Collect future for batch processing
+                futures.append((future, org_slug))
 
-                if published_count % 1000 == 0:
-                    logger.info(f"Published {published_count} tasks...")
+                if len(futures) % 1000 == 0:
+                    logger.info(f"Queued {len(futures)} tasks...")
 
             except Exception as e:
                 logger.error(f"Failed to publish task for org {org_slug}: {e}")
+                failed_count += 1
+
+        # Batch wait for all futures to complete
+        for future, org_slug in futures:
+            try:
+                message_id = future.result(timeout=10)
+                message_ids.append(message_id)
+                published_count += 1
+            except Exception as e:
+                logger.error(f"Failed to get result for org {org_slug}: {e}")
                 failed_count += 1
 
         logger.info(

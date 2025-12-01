@@ -113,8 +113,8 @@ class Settings(BaseSettings):
         description="Default organization slug when authentication is disabled (used only in development mode)"
     )
     api_key_hash_algorithm: str = Field(
-        default="HS256",
-        description="Algorithm for API key hashing"
+        default="SHA256",
+        description="Hash algorithm for API key storage (SHA256, not JWT HS256)"
     )
     api_key_secret_key: Optional[str] = Field(
         default=None,
@@ -329,9 +329,9 @@ class Settings(BaseSettings):
         default=None,
         description="Email sender address (root configuration)"
     )
-    email_to_addresses: Optional[str] = Field(
+    email_to_addresses: Optional[List[str]] = Field(
         default=None,
-        description="Comma-separated recipient email addresses (root configuration)"
+        description="List of recipient email addresses (root configuration)"
     )
 
     # Slack notification defaults (root fallback)
@@ -427,6 +427,7 @@ class Settings(BaseSettings):
     # Provider-specific timeout configuration (seconds)
     provider_timeout_openai: float = Field(default=30.0, description="HTTP timeout for OpenAI API calls")
     provider_timeout_anthropic: float = Field(default=30.0, description="HTTP timeout for Anthropic API calls")
+    provider_timeout_claude: float = Field(default=30.0, description="HTTP timeout for Claude/Anthropic API calls (alias)")
     provider_timeout_gcp: float = Field(default=60.0, description="HTTP timeout for GCP API calls (higher for BigQuery)")
     provider_credential_types: Dict[str, str] = Field(
         default={

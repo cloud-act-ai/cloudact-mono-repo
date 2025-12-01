@@ -410,7 +410,7 @@ async def get_current_org(
         row = results[0]
 
         # Check if API key has expired
-        if row.get("expires_at") and row["expires_at"] < datetime.utcnow():
+        if row.get("expires_at") and isinstance(row.get("expires_at"), datetime) and row["expires_at"] < datetime.utcnow():
             logger.warning(
                 f"Authentication failed - API key expired",
                 extra={
@@ -509,7 +509,7 @@ async def validate_subscription(
     # Check trial expiration
     trial_end = subscription.get("trial_end_date")
     if trial_end and isinstance(trial_end, (datetime, date)):
-        trial_end_date = trial_end if isinstance(trial_end, date) else trial_end.date()
+        trial_end_date = trial_end.date() if isinstance(trial_end, datetime) else trial_end
         if trial_end_date < date.today():
             logger.warning(f"Trial expired for org: {org['org_slug']}")
             raise HTTPException(
@@ -520,7 +520,7 @@ async def validate_subscription(
     # Check subscription expiration
     sub_end = subscription.get("subscription_end_date")
     if sub_end and isinstance(sub_end, (datetime, date)):
-        sub_end_date = sub_end if isinstance(sub_end, date) else sub_end.date()
+        sub_end_date = sub_end.date() if isinstance(sub_end, datetime) else sub_end
         if sub_end_date < date.today():
             logger.warning(f"Subscription expired for org: {org['org_slug']}")
             raise HTTPException(
@@ -839,6 +839,10 @@ async def get_org_credentials(
 
         # Decrypt credentials using KMS (centralized utility)
         encrypted_bytes = row["encrypted_credentials"]
+
+        # Validate encrypted_bytes before decryption
+        if not encrypted_bytes:
+            raise ValueError(f"No encrypted credentials found for {provider}")
 
         try:
             # Use centralized KMS decryption utility for consistent error handling
