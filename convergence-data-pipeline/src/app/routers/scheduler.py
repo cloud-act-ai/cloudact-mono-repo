@@ -86,6 +86,9 @@ class SchedulerStatusResponse(BaseModel):
 class QueueProcessResponse(BaseModel):
     """Response for queue processing."""
     processed: bool
+    processed_count: int = 0
+    started_pipelines: List[str] = []
+    elapsed_seconds: float = 0.0
     pipeline_logging_id: Optional[str] = None
     org_slug: Optional[str] = None
     pipeline_id: Optional[str] = None
@@ -96,6 +99,17 @@ class QueueProcessResponse(BaseModel):
 # ============================================
 # Helper Functions
 # ============================================
+
+async def get_current_processing_count(bq_client: BigQueryClient) -> int:
+    """Get count of pipelines currently in PROCESSING state."""
+    query = f"""
+    SELECT COUNT(*) as count
+    FROM `{settings.gcp_project_id}.organizations.org_pipeline_execution_queue`
+    WHERE state = 'PROCESSING'
+    """
+    results = list(bq_client.client.query(query).result())
+    return results[0]['count'] if results else 0
+
 
 def calculate_next_run_time(
     schedule_cron: str,
@@ -465,8 +479,8 @@ async def trigger_scheduler(
 @router.post(
     "/scheduler/process-queue",
     response_model=QueueProcessResponse,
-    summary="Process next queued pipeline",
-    description="Worker endpoint to process the next pipeline in the queue (ADMIN ONLY)"
+    summary="Process queued pipelines in batch",
+    description="Worker endpoint to process multiple pipelines from the queue (ADMIN ONLY)"
 )
 async def process_queue(
     background_tasks: BackgroundTasks,
@@ -474,222 +488,258 @@ async def process_queue(
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """
-    Process next pipeline from execution queue.
+    Process multiple pipelines from execution queue in a time-bounded loop.
 
     Logic:
-    1. Get next pipeline from queue (state = QUEUED, order by priority DESC, scheduled_time ASC)
-    2. Update state to PROCESSING
-    3. Call pipeline execution: POST /api/v1/pipelines/run/{org_slug}/{provider}/{domain}/{template}
-    4. Update scheduled_pipeline_runs state based on result
-    5. Update org_pipeline_configs (last_run_time, last_run_status, next_run_time)
-    6. Remove from queue or mark as COMPLETED
+    1. Loop until time limit or queue empty or at concurrency capacity
+    2. For each pipeline: get next QUEUED item, update to PROCESSING, spawn background task
+    3. Return immediately after spawning all tasks (doesn't wait for completion)
+
+    Performance:
+    - Processes up to 100 pipelines per API call (respects global concurrency limit)
+    - Time-bounded loop (default 50 seconds, configurable)
+    - Fast response - spawns background tasks without waiting
 
     Security:
     - Requires admin API key or service account token
-
-    Performance:
-    - Processes one pipeline at a time
-    - Async processing where possible
     """
+    import time as time_module
+
+    start_time = time_module.time()
+    processed_count = 0
+    started_pipelines = []
+    last_pipeline_logging_id = None
+    last_org_slug = None
+    last_pipeline_id = None
+
     try:
-        # Get next pipeline from queue
-        query = f"""
-        SELECT
-            run_id,
-            org_slug,
-            pipeline_id,
-            scheduled_time,
-            priority
-        FROM `{settings.gcp_project_id}.organizations.org_pipeline_execution_queue`
-        WHERE state = 'QUEUED'
-        ORDER BY priority DESC, scheduled_time ASC
-        LIMIT 1
-        """
+        # Time-bounded loop to process multiple pipelines
+        while (time_module.time() - start_time) < settings.queue_process_time_limit_seconds:
+            # Check if at concurrency capacity
+            current_processing = await get_current_processing_count(bq_client)
+            if current_processing >= settings.pipeline_global_concurrent_limit:
+                logger.info(f"At concurrency limit ({current_processing}/{settings.pipeline_global_concurrent_limit}), stopping batch")
+                break
 
-        results = list(bq_client.client.query(query).result())
+            # Get next pipeline from queue
+            query = f"""
+            SELECT
+                run_id,
+                org_slug,
+                pipeline_id,
+                scheduled_time,
+                priority
+            FROM `{settings.gcp_project_id}.organizations.org_pipeline_execution_queue`
+            WHERE state = 'QUEUED'
+            ORDER BY priority DESC, scheduled_time ASC
+            LIMIT 1
+            """
 
-        if not results:
+            results = list(bq_client.client.query(query).result())
+
+            if not results:
+                # Queue is empty
+                break
+
+            queue_item = dict(results[0])
+            run_id = queue_item['run_id']
+            org_slug = queue_item['org_slug']
+            pipeline_id = queue_item['pipeline_id']
+
+            # Update queue state to PROCESSING
+            update_query = f"""
+            UPDATE `{settings.gcp_project_id}.organizations.org_pipeline_execution_queue`
+            SET state = 'PROCESSING',
+                processing_started_at = CURRENT_TIMESTAMP()
+            WHERE run_id = @run_id
+            """
+
+            job_config = bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("run_id", "STRING", run_id)
+                ]
+            )
+
+            bq_client.client.query(update_query, job_config=job_config).result()
+
+            # Get pipeline configuration and parameters
+            config_query = f"""
+            SELECT
+                r.config_id,
+                r.parameters,
+                c.provider,
+                c.domain,
+                c.pipeline_template
+            FROM `{settings.gcp_project_id}.organizations.org_scheduled_pipeline_runs` r
+            INNER JOIN `{settings.gcp_project_id}.organizations.org_pipeline_configs` c
+                ON r.config_id = c.config_id
+            WHERE r.run_id = @run_id
+            LIMIT 1
+            """
+
+            config_results = list(bq_client.client.query(config_query, job_config=job_config).result())
+
+            if not config_results:
+                logger.warning(f"Pipeline configuration not found for run_id {run_id}, skipping")
+                continue
+
+            config = dict(config_results[0])
+
+            # Execute pipeline via internal call
+            from src.core.pipeline import AsyncPipelineExecutor
+
+            executor = AsyncPipelineExecutor(
+                org_slug=org_slug,
+                pipeline_id=f"{config['provider']}/{config['domain']}/{config['pipeline_template']}",
+                trigger_type="scheduler",
+                trigger_by="cloud_scheduler",
+                user_id=None  # Scheduler-triggered pipelines have no user context
+            )
+
+            # Parse parameters
+            parameters = json.loads(config['parameters']) if config['parameters'] else {}
+
+            # Create closure with captured variables for this iteration
+            def make_execute_and_update(exec_instance, rid, cfg, bq):
+                async def execute_and_update():
+                    try:
+                        result = await exec_instance.execute(parameters)
+
+                        # Update org_scheduled_pipeline_runs
+                        update_run_query = f"""
+                        UPDATE `{settings.gcp_project_id}.organizations.org_scheduled_pipeline_runs`
+                        SET state = 'COMPLETED',
+                            completed_at = CURRENT_TIMESTAMP(),
+                            pipeline_logging_id = @pipeline_logging_id
+                        WHERE run_id = @run_id
+                        """
+
+                        run_job_config = bigquery.QueryJobConfig(
+                            query_parameters=[
+                                bigquery.ScalarQueryParameter("pipeline_logging_id", "STRING", exec_instance.pipeline_logging_id),
+                                bigquery.ScalarQueryParameter("run_id", "STRING", rid)
+                            ]
+                        )
+
+                        bq.client.query(update_run_query, job_config=run_job_config).result()
+
+                        # Update org_pipeline_configs
+                        update_config_query = f"""
+                        UPDATE `{settings.gcp_project_id}.organizations.org_pipeline_configs`
+                        SET last_run_time = CURRENT_TIMESTAMP(),
+                            last_run_status = 'SUCCESS'
+                        WHERE config_id = @config_id
+                        """
+
+                        config_job_config = bigquery.QueryJobConfig(
+                            query_parameters=[
+                                bigquery.ScalarQueryParameter("config_id", "STRING", cfg['config_id'])
+                            ]
+                        )
+
+                        bq.client.query(update_config_query, job_config=config_job_config).result()
+
+                        # Remove from queue
+                        delete_queue_query = f"""
+                        DELETE FROM `{settings.gcp_project_id}.organizations.org_pipeline_execution_queue`
+                        WHERE run_id = @run_id
+                        """
+
+                        bq.client.query(delete_queue_query, job_config=run_job_config).result()
+
+                    except Exception as e:
+                        logger.error(f"Pipeline execution failed for run_id {rid}: {e}", exc_info=True)
+
+                        # Update org_scheduled_pipeline_runs to FAILED
+                        update_run_query = f"""
+                        UPDATE `{settings.gcp_project_id}.organizations.org_scheduled_pipeline_runs`
+                        SET state = 'FAILED',
+                            failed_at = CURRENT_TIMESTAMP(),
+                            error_message = @error_message,
+                            retry_count = COALESCE(retry_count, 0) + 1
+                        WHERE run_id = @run_id
+                        """
+
+                        run_job_config = bigquery.QueryJobConfig(
+                            query_parameters=[
+                                bigquery.ScalarQueryParameter("error_message", "STRING", str(e)[:1000]),
+                                bigquery.ScalarQueryParameter("run_id", "STRING", rid)
+                            ]
+                        )
+
+                        bq.client.query(update_run_query, job_config=run_job_config).result()
+
+                        # Update org_pipeline_configs
+                        update_config_query = f"""
+                        UPDATE `{settings.gcp_project_id}.organizations.org_pipeline_configs`
+                        SET last_run_time = CURRENT_TIMESTAMP(),
+                            last_run_status = 'FAILED'
+                        WHERE config_id = @config_id
+                        """
+
+                        config_job_config = bigquery.QueryJobConfig(
+                            query_parameters=[
+                                bigquery.ScalarQueryParameter("config_id", "STRING", cfg['config_id'])
+                            ]
+                        )
+
+                        bq.client.query(update_config_query, job_config=config_job_config).result()
+
+                        # Check if should retry
+                        should_retry_result = await should_retry_failed_run(bq, rid)
+
+                        if should_retry_result:
+                            # Re-queue with lower priority
+                            update_queue_query = f"""
+                            UPDATE `{settings.gcp_project_id}.organizations.org_pipeline_execution_queue`
+                            SET state = 'QUEUED',
+                                priority = GREATEST(priority - 1, 1),
+                                processing_started_at = NULL
+                            WHERE run_id = @run_id
+                            """
+                            bq.client.query(update_queue_query, job_config=run_job_config).result()
+                        else:
+                            # Remove from queue
+                            delete_queue_query = f"""
+                            DELETE FROM `{settings.gcp_project_id}.organizations.org_pipeline_execution_queue`
+                            WHERE run_id = @run_id
+                            """
+                            bq.client.query(delete_queue_query, job_config=run_job_config).result()
+
+                return execute_and_update
+
+            # Spawn background task (returns immediately)
+            background_tasks.add_task(make_execute_and_update(executor, run_id, config, bq_client))
+
+            # Track for response
+            processed_count += 1
+            started_pipelines.append(pipeline_id)
+            last_pipeline_logging_id = executor.pipeline_logging_id
+            last_org_slug = org_slug
+            last_pipeline_id = pipeline_id
+
+        elapsed = time_module.time() - start_time
+
+        if processed_count == 0:
             return QueueProcessResponse(
                 processed=False,
+                processed_count=0,
+                started_pipelines=[],
+                elapsed_seconds=elapsed,
                 status="IDLE",
                 message="No pipelines in queue"
             )
 
-        queue_item = dict(results[0])
-        run_id = queue_item['run_id']
-        org_slug = queue_item['org_slug']
-        pipeline_id = queue_item['pipeline_id']
-
-        # Update queue state to PROCESSING
-        update_query = f"""
-        UPDATE `{settings.gcp_project_id}.organizations.org_pipeline_execution_queue`
-        SET state = 'PROCESSING',
-            processing_started_at = CURRENT_TIMESTAMP()
-        WHERE run_id = @run_id
-        """
-
-        job_config = bigquery.QueryJobConfig(
-            query_parameters=[
-                bigquery.ScalarQueryParameter("run_id", "STRING", run_id)
-            ]
-        )
-
-        bq_client.client.query(update_query, job_config=job_config).result()
-
-        # Get pipeline configuration and parameters
-        config_query = f"""
-        SELECT
-            r.config_id,
-            r.parameters,
-            c.provider,
-            c.domain,
-            c.pipeline_template
-        FROM `{settings.gcp_project_id}.organizations.org_scheduled_pipeline_runs` r
-        INNER JOIN `{settings.gcp_project_id}.organizations.org_pipeline_configs` c
-            ON r.config_id = c.config_id
-        WHERE r.run_id = @run_id
-        LIMIT 1
-        """
-
-        config_results = list(bq_client.client.query(config_query, job_config=job_config).result())
-
-        if not config_results:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Pipeline configuration not found for run_id {run_id}"
-            )
-
-        config = dict(config_results[0])
-
-        # Execute pipeline via internal call
-        from src.core.pipeline import AsyncPipelineExecutor
-
-        executor = AsyncPipelineExecutor(
-            org_slug=org_slug,
-            pipeline_id=f"{config['provider']}/{config['domain']}/{config['pipeline_template']}",
-            trigger_type="scheduler",
-            trigger_by="cloud_scheduler",
-            user_id=None  # Scheduler-triggered pipelines have no user context
-        )
-
-        # Parse parameters
-        parameters = json.loads(config['parameters']) if config['parameters'] else {}
-
-        # Execute pipeline in background
-        async def execute_and_update():
-            try:
-                result = await executor.execute(parameters)
-
-                # Update org_scheduled_pipeline_runs
-                update_run_query = f"""
-                UPDATE `{settings.gcp_project_id}.organizations.org_scheduled_pipeline_runs`
-                SET state = 'COMPLETED',
-                    completed_at = CURRENT_TIMESTAMP(),
-                    pipeline_logging_id = @pipeline_logging_id
-                WHERE run_id = @run_id
-                """
-
-                run_job_config = bigquery.QueryJobConfig(
-                    query_parameters=[
-                        bigquery.ScalarQueryParameter("pipeline_logging_id", "STRING", executor.pipeline_logging_id),
-                        bigquery.ScalarQueryParameter("run_id", "STRING", run_id)
-                    ]
-                )
-
-                bq_client.client.query(update_run_query, job_config=run_job_config).result()
-
-                # Update org_pipeline_configs
-                update_config_query = f"""
-                UPDATE `{settings.gcp_project_id}.organizations.org_pipeline_configs`
-                SET last_run_time = CURRENT_TIMESTAMP(),
-                    last_run_status = 'SUCCESS'
-                WHERE config_id = @config_id
-                """
-
-                config_job_config = bigquery.QueryJobConfig(
-                    query_parameters=[
-                        bigquery.ScalarQueryParameter("config_id", "STRING", config['config_id'])
-                    ]
-                )
-
-                bq_client.client.query(update_config_query, job_config=config_job_config).result()
-
-                # Remove from queue
-                delete_queue_query = f"""
-                DELETE FROM `{settings.gcp_project_id}.organizations.org_pipeline_execution_queue`
-                WHERE run_id = @run_id
-                """
-
-                bq_client.client.query(delete_queue_query, job_config=run_job_config).result()
-
-            except Exception as e:
-                logger.error(f"Pipeline execution failed for run_id {run_id}: {e}", exc_info=True)
-
-                # Update org_scheduled_pipeline_runs to FAILED
-                update_run_query = f"""
-                UPDATE `{settings.gcp_project_id}.organizations.org_scheduled_pipeline_runs`
-                SET state = 'FAILED',
-                    failed_at = CURRENT_TIMESTAMP(),
-                    error_message = @error_message,
-                    retry_count = COALESCE(retry_count, 0) + 1
-                WHERE run_id = @run_id
-                """
-
-                run_job_config = bigquery.QueryJobConfig(
-                    query_parameters=[
-                        bigquery.ScalarQueryParameter("error_message", "STRING", str(e)[:1000]),
-                        bigquery.ScalarQueryParameter("run_id", "STRING", run_id)
-                    ]
-                )
-
-                bq_client.client.query(update_run_query, job_config=run_job_config).result()
-
-                # Update org_pipeline_configs
-                update_config_query = f"""
-                UPDATE `{settings.gcp_project_id}.organizations.org_pipeline_configs`
-                SET last_run_time = CURRENT_TIMESTAMP(),
-                    last_run_status = 'FAILED'
-                WHERE config_id = @config_id
-                """
-
-                config_job_config = bigquery.QueryJobConfig(
-                    query_parameters=[
-                        bigquery.ScalarQueryParameter("config_id", "STRING", config['config_id'])
-                    ]
-                )
-
-                bq_client.client.query(update_config_query, job_config=config_job_config).result()
-
-                # Check if should retry
-                should_retry = await should_retry_failed_run(bq_client, run_id)
-
-                if should_retry:
-                    # Re-queue with lower priority
-                    update_queue_query = f"""
-                    UPDATE `{settings.gcp_project_id}.organizations.org_pipeline_execution_queue`
-                    SET state = 'QUEUED',
-                        priority = GREATEST(priority - 1, 1),
-                        processing_started_at = NULL
-                    WHERE run_id = @run_id
-                    """
-                    bq_client.client.query(update_queue_query, job_config=run_job_config).result()
-                else:
-                    # Remove from queue
-                    delete_queue_query = f"""
-                    DELETE FROM `{settings.gcp_project_id}.organizations.org_pipeline_execution_queue`
-                    WHERE run_id = @run_id
-                    """
-                    bq_client.client.query(delete_queue_query, job_config=run_job_config).result()
-
-        background_tasks.add_task(execute_and_update)
-
         return QueueProcessResponse(
             processed=True,
-            pipeline_logging_id=executor.pipeline_logging_id,
-            org_slug=org_slug,
-            pipeline_id=pipeline_id,
-            status="PROCESSING",
-            message=f"Pipeline {pipeline_id} started processing for org {org_slug}"
+            processed_count=processed_count,
+            started_pipelines=started_pipelines,
+            elapsed_seconds=elapsed,
+            pipeline_logging_id=last_pipeline_logging_id,
+            org_slug=last_org_slug,
+            pipeline_id=last_pipeline_id,
+            status="BATCH_COMPLETE",
+            message=f"Started {processed_count} pipelines in {elapsed:.1f}s"
         )
 
     except Exception as e:

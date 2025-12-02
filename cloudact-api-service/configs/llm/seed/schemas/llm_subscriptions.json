@@ -94,6 +94,84 @@
       "description": "OpenAI-specific: Organization ID"
     },
     {
+      "name": "tier_type",
+      "type": "STRING",
+      "mode": "REQUIRED",
+      "description": "Tier classification: free, trial, paid, enterprise, committed_use"
+    },
+    {
+      "name": "trial_end_date",
+      "type": "DATE",
+      "mode": "NULLABLE",
+      "description": "Trial expiration date (null = not a trial)"
+    },
+    {
+      "name": "trial_credit_usd",
+      "type": "FLOAT64",
+      "mode": "NULLABLE",
+      "description": "Trial credit amount in USD (e.g., GCP $300 trial)"
+    },
+    {
+      "name": "monthly_token_limit",
+      "type": "INTEGER",
+      "mode": "NULLABLE",
+      "description": "Monthly token usage cap (null = unlimited)"
+    },
+    {
+      "name": "daily_token_limit",
+      "type": "INTEGER",
+      "mode": "NULLABLE",
+      "description": "Daily token usage cap (null = unlimited)"
+    },
+    {
+      "name": "rpm_limit",
+      "type": "INTEGER",
+      "mode": "NULLABLE",
+      "description": "Requests per minute rate limit"
+    },
+    {
+      "name": "tpm_limit",
+      "type": "INTEGER",
+      "mode": "NULLABLE",
+      "description": "Tokens per minute rate limit"
+    },
+    {
+      "name": "rpd_limit",
+      "type": "INTEGER",
+      "mode": "NULLABLE",
+      "description": "Requests per day rate limit"
+    },
+    {
+      "name": "tpd_limit",
+      "type": "INTEGER",
+      "mode": "NULLABLE",
+      "description": "Tokens per day rate limit"
+    },
+    {
+      "name": "concurrent_limit",
+      "type": "INTEGER",
+      "mode": "NULLABLE",
+      "description": "Maximum concurrent requests"
+    },
+    {
+      "name": "committed_spend_usd",
+      "type": "FLOAT64",
+      "mode": "NULLABLE",
+      "description": "Committed monthly spend for CUD pricing"
+    },
+    {
+      "name": "commitment_term_months",
+      "type": "INTEGER",
+      "mode": "NULLABLE",
+      "description": "Commitment duration in months (12, 24, 36)"
+    },
+    {
+      "name": "discount_percentage",
+      "type": "FLOAT64",
+      "mode": "NULLABLE",
+      "description": "Discount percentage for this tier (0-100)"
+    },
+    {
       "name": "created_at",
       "type": "TIMESTAMP",
       "mode": "REQUIRED",

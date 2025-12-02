@@ -228,6 +228,14 @@ class Settings(BaseSettings):
         description="Maximum concurrent pipelines across ALL organizations (prevents resource exhaustion)"
     )
 
+    # Queue processing settings for batch throughput
+    queue_process_time_limit_seconds: int = Field(
+        default=50,
+        ge=10,
+        le=300,
+        description="Max time for process-queue loop per API call (leave 10s buffer for Cloud Run 60s timeout)"
+    )
+
     # ============================================
     # Observability
     # ============================================
