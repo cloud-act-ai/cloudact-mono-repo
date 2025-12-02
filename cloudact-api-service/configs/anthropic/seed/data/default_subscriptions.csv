@@ -1,5 +1,0 @@
-subscription_id,plan_name,quantity,unit_price_usd,effective_date,notes
-sub_free,FREE,0,0.00,2024-11-01,Free tier with rate limits
-sub_build,BUILD,0,0.00,2024-11-01,Pay-as-you-go developer plan
-sub_scale,SCALE,0,0.00,2024-11-01,Higher rate limits and priority
-sub_enterprise,ENTERPRISE,0,0.00,2024-11-01,Custom enterprise agreement

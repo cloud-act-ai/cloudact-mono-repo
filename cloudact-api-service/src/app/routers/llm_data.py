@@ -2,25 +2,24 @@
 LLM Provider Data CRUD API Routes
 
 Generic endpoints for managing pricing and subscription data for all LLM providers.
-Provider configuration is loaded from configs/system/providers.yml.
-To add a new LLM provider: just update providers.yml with data_tables config.
+Uses unified tables (llm_subscriptions, llm_model_pricing) with provider column filtering.
 
 URL Structure: /api/v1/integrations/{org_slug}/{provider}/pricing|subscriptions
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from typing import Dict, List, Optional
 from datetime import datetime
 from enum import Enum
 import logging
 import re
+import uuid
 
 from google.cloud import bigquery
 
 from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
 from src.app.dependencies.auth import get_current_org
 from src.app.config import get_settings
-from src.core.providers import provider_registry
 from src.app.models.openai_data_models import (
     OpenAIPricingCreate,
     OpenAIPricingUpdate,
@@ -38,42 +37,34 @@ settings = get_settings()
 
 
 # ============================================
-# Provider Configuration (from providers.yml)
+# Unified Table Names (V7 Architecture)
 # ============================================
+UNIFIED_SUBSCRIPTIONS_TABLE = "llm_subscriptions"
+UNIFIED_PRICING_TABLE = "llm_model_pricing"
+
+# Valid providers for filtering (including 'custom' for user-defined)
+VALID_PROVIDERS = {"openai", "anthropic", "gemini", "custom"}
+
 
 def _get_llm_providers_enum():
-    """Dynamically build LLMProvider enum from registry."""
-    llm_providers = provider_registry.get_llm_providers()
-    return Enum('LLMProvider', {p.lower(): p.lower() for p in llm_providers}, type=str)
+    """Build LLMProvider enum including 'custom' for user-defined entries."""
+    # Include standard providers plus custom
+    providers = list(VALID_PROVIDERS)
+    return Enum('LLMProvider', {p: p for p in providers}, type=str)
 
-# Create dynamic enum from config
+# Create enum for API validation
 LLMProvider = _get_llm_providers_enum()
 
 
-def get_provider_config(provider: str) -> Dict:
-    """Get configuration for a provider from registry."""
-    provider_upper = provider.upper()
-
-    # Check if it's a valid LLM provider with data tables
-    if not provider_registry.is_llm_provider(provider_upper):
-        supported = provider_registry.get_llm_providers()
+def validate_provider(provider: str) -> str:
+    """Validate provider is supported."""
+    provider_lower = provider.lower()
+    if provider_lower not in VALID_PROVIDERS:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Unsupported LLM provider: {provider}. Supported: {[p.lower() for p in supported]}"
+            detail=f"Unsupported provider: {provider}. Supported: {list(VALID_PROVIDERS)}"
         )
-
-    if not provider_registry.has_data_tables(provider_upper):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Provider {provider} does not have data tables configured"
-        )
-
-    # Build config from registry
-    return {
-        "pricing_table": provider_registry.get_pricing_table(provider_upper),
-        "subscriptions_table": provider_registry.get_subscriptions_table(provider_upper),
-        "seed_path": provider_registry.get_seed_path(provider_upper),
-    }
+    return provider_lower
 
 
 # ============================================
@@ -124,7 +115,7 @@ def check_org_access(org: Dict, org_slug: str) -> None:
 
 
 # ============================================
-# Pricing Endpoints (All Providers)
+# Pricing Endpoints (All Providers - Unified Table)
 # ============================================
 
 @router.get(
@@ -136,15 +127,22 @@ def check_org_access(org: Dict, org_slug: str) -> None:
 async def list_pricing(
     org_slug: str,
     provider: LLMProvider,
+    include_custom: bool = Query(True, description="Include custom pricing entries"),
+    is_enabled: Optional[bool] = Query(None, description="Filter by enabled status"),
     limit: int = 1000,
     offset: int = 0,
     org: Dict = Depends(get_current_org),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
-    """List all model pricing for an organization and provider."""
+    """
+    List all model pricing for an organization and provider.
+
+    Uses unified llm_model_pricing table with provider filtering.
+    By default includes both provider-specific and custom entries.
+    """
     validate_org_slug(org_slug)
     check_org_access(org, org_slug)
-    config = get_provider_config(provider.value)
+    provider_value = validate_provider(provider.value)
 
     # Validate pagination bounds
     MAX_LIMIT = 10000
@@ -161,48 +159,68 @@ async def list_pricing(
 
     try:
         dataset_id = get_org_dataset(org_slug)
-        table_id = f"{settings.gcp_project_id}.{dataset_id}.{config['pricing_table']}"
+        table_id = f"{settings.gcp_project_id}.{dataset_id}.{UNIFIED_PRICING_TABLE}"
+
+        # Build WHERE clause for provider filtering
+        where_conditions = []
+        query_params = [
+            bigquery.ScalarQueryParameter("provider", "STRING", provider_value),
+            bigquery.ScalarQueryParameter("limit", "INT64", limit),
+            bigquery.ScalarQueryParameter("offset", "INT64", offset)
+        ]
+
+        if include_custom:
+            where_conditions.append("(provider = @provider OR provider = 'custom')")
+        else:
+            where_conditions.append("provider = @provider")
+
+        if is_enabled is not None:
+            where_conditions.append("is_enabled = @is_enabled")
+            query_params.append(bigquery.ScalarQueryParameter("is_enabled", "BOOL", is_enabled))
+
+        where_clause = " AND ".join(where_conditions)
 
         query = f"""
         SELECT
+            pricing_id,
+            provider,
             model_id,
             model_name,
+            is_custom,
             input_price_per_1k,
             output_price_per_1k,
             effective_date,
+            end_date,
+            is_enabled,
             notes,
+            x_gemini_context_window,
+            x_gemini_region,
+            x_anthropic_tier,
+            x_openai_batch_input_price,
+            x_openai_batch_output_price,
             created_at,
             updated_at
         FROM `{table_id}`
-        ORDER BY model_id
+        WHERE {where_clause}
+        ORDER BY provider, model_id
         LIMIT @limit OFFSET @offset
         """
 
-        job_config = bigquery.QueryJobConfig(
-            query_parameters=[
-                bigquery.ScalarQueryParameter("limit", "INT64", limit),
-                bigquery.ScalarQueryParameter("offset", "INT64", offset)
-            ]
-        )
-
+        job_config = bigquery.QueryJobConfig(query_parameters=query_params)
         result = bq_client.client.query(query, job_config=job_config).result()
-        pricing = []
-        for row in result:
-            row_dict = dict(row)
-            row_dict['provider'] = provider.value  # Add provider to each pricing record
-            pricing.append(row_dict)
+        pricing = [dict(row) for row in result]
 
         return OpenAIPricingListResponse(
             org_slug=org_slug,
-            provider=provider.value,  # Include provider in response
+            provider=provider_value,
             pricing=pricing,
             count=len(pricing)
         )
 
     except Exception as e:
-        logger.error(f"Error listing {provider} pricing for {org_slug}: {e}", exc_info=True)
+        logger.error(f"Error listing {provider_value} pricing for {org_slug}: {e}", exc_info=True)
         if "Not found" in str(e):
-            return OpenAIPricingListResponse(org_slug=org_slug, pricing=[], count=0)
+            return OpenAIPricingListResponse(org_slug=org_slug, provider=provider_value, pricing=[], count=0)
         raise HTTPException(status_code=500, detail="Failed to retrieve pricing data")
 
 
@@ -219,25 +237,32 @@ async def get_pricing(
     org: Dict = Depends(get_current_org),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
-    """Get pricing for a specific model."""
+    """Get pricing for a specific model from unified table."""
     validate_org_slug(org_slug)
     validate_model_id(model_id)
     check_org_access(org, org_slug)
-    config = get_provider_config(provider.value)
+    provider_value = validate_provider(provider.value)
 
     try:
         dataset_id = get_org_dataset(org_slug)
-        table_id = f"{settings.gcp_project_id}.{dataset_id}.{config['pricing_table']}"
+        table_id = f"{settings.gcp_project_id}.{dataset_id}.{UNIFIED_PRICING_TABLE}"
 
         query = f"""
-        SELECT model_id, model_name, input_price_per_1k, output_price_per_1k,
-               effective_date, notes, created_at, updated_at
+        SELECT pricing_id, provider, model_id, model_name, is_custom,
+               input_price_per_1k, output_price_per_1k,
+               effective_date, end_date, is_enabled, notes,
+               x_gemini_context_window, x_gemini_region, x_anthropic_tier,
+               x_openai_batch_input_price, x_openai_batch_output_price,
+               created_at, updated_at
         FROM `{table_id}`
-        WHERE model_id = @model_id
+        WHERE model_id = @model_id AND (provider = @provider OR provider = 'custom')
         """
 
         job_config = bigquery.QueryJobConfig(
-            query_parameters=[bigquery.ScalarQueryParameter("model_id", "STRING", model_id)]
+            query_parameters=[
+                bigquery.ScalarQueryParameter("model_id", "STRING", model_id),
+                bigquery.ScalarQueryParameter("provider", "STRING", provider_value)
+            ]
         )
 
         result = bq_client.client.query(query, job_config=job_config).result()
@@ -269,41 +294,58 @@ async def create_pricing(
     org: Dict = Depends(get_current_org),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
-    """Create a new pricing record for a model."""
+    """Create a new pricing record in the unified table."""
     validate_org_slug(org_slug)
     check_org_access(org, org_slug)
-    config = get_provider_config(provider.value)
+    provider_value = validate_provider(provider.value)
 
     try:
         dataset_id = get_org_dataset(org_slug)
-        table_id = f"{settings.gcp_project_id}.{dataset_id}.{config['pricing_table']}"
-        now = datetime.utcnow().isoformat()
+        table_id = f"{settings.gcp_project_id}.{dataset_id}.{UNIFIED_PRICING_TABLE}"
+        now = datetime.utcnow().isoformat() + "Z"
 
-        # Check if exists
-        check_query = f"SELECT COUNT(*) as cnt FROM `{table_id}` WHERE model_id = @model_id"
+        # Check if exists for this provider
+        check_query = f"SELECT COUNT(*) as cnt FROM `{table_id}` WHERE model_id = @model_id AND provider = @provider"
         job_config = bigquery.QueryJobConfig(
-            query_parameters=[bigquery.ScalarQueryParameter("model_id", "STRING", pricing.model_id)]
+            query_parameters=[
+                bigquery.ScalarQueryParameter("model_id", "STRING", pricing.model_id),
+                bigquery.ScalarQueryParameter("provider", "STRING", provider_value)
+            ]
         )
         result = bq_client.client.query(check_query, job_config=job_config).result()
         if list(result)[0].cnt > 0:
             raise HTTPException(status_code=409, detail=f"Pricing already exists for model: {pricing.model_id}")
 
+        # Generate pricing_id
+        pricing_id = f"price_{provider_value}_{pricing.model_id.replace('-', '_').replace('.', '_')}"
+
         row = {
+            "pricing_id": pricing_id,
+            "provider": provider_value,
             "model_id": pricing.model_id,
             "model_name": pricing.model_name,
+            "is_custom": provider_value == "custom",
             "input_price_per_1k": pricing.input_price_per_1k,
             "output_price_per_1k": pricing.output_price_per_1k,
             "effective_date": str(pricing.effective_date),
+            "end_date": None,
+            "is_enabled": True,
             "notes": pricing.notes,
+            "x_gemini_context_window": None,
+            "x_gemini_region": None,
+            "x_anthropic_tier": None,
+            "x_openai_batch_input_price": None,
+            "x_openai_batch_output_price": None,
             "created_at": now,
             "updated_at": now,
         }
 
         errors = bq_client.client.insert_rows_json(table_id, [row])
         if errors:
+            logger.error(f"Insert errors: {errors}")
             raise HTTPException(status_code=500, detail="Failed to create pricing record")
 
-        logger.info(f"Created {provider} pricing for model {pricing.model_id} in {org_slug}")
+        logger.info(f"Created {provider_value} pricing for model {pricing.model_id} in {org_slug}")
 
         return OpenAIPricingResponse(
             model_id=pricing.model_id,
@@ -312,8 +354,8 @@ async def create_pricing(
             output_price_per_1k=pricing.output_price_per_1k,
             effective_date=pricing.effective_date,
             notes=pricing.notes,
-            created_at=datetime.fromisoformat(now),
-            updated_at=datetime.fromisoformat(now),
+            created_at=datetime.fromisoformat(now.rstrip("Z")),
+            updated_at=datetime.fromisoformat(now.rstrip("Z")),
         )
 
     except HTTPException:
@@ -337,18 +379,21 @@ async def update_pricing(
     org: Dict = Depends(get_current_org),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
-    """Update an existing pricing record."""
+    """Update an existing pricing record in unified table."""
     validate_org_slug(org_slug)
     validate_model_id(model_id)
     check_org_access(org, org_slug)
-    config = get_provider_config(provider.value)
+    provider_value = validate_provider(provider.value)
 
     try:
         dataset_id = get_org_dataset(org_slug)
-        table_id = f"{settings.gcp_project_id}.{dataset_id}.{config['pricing_table']}"
+        table_id = f"{settings.gcp_project_id}.{dataset_id}.{UNIFIED_PRICING_TABLE}"
 
         update_fields = []
-        query_params = [bigquery.ScalarQueryParameter("model_id", "STRING", model_id)]
+        query_params = [
+            bigquery.ScalarQueryParameter("model_id", "STRING", model_id),
+            bigquery.ScalarQueryParameter("provider", "STRING", provider_value)
+        ]
 
         if pricing.model_name is not None:
             update_fields.append("model_name = @model_name")
@@ -371,11 +416,11 @@ async def update_pricing(
 
         update_fields.append("updated_at = CURRENT_TIMESTAMP()")
 
-        query = f"UPDATE `{table_id}` SET {', '.join(update_fields)} WHERE model_id = @model_id"
+        query = f"UPDATE `{table_id}` SET {', '.join(update_fields)} WHERE model_id = @model_id AND provider = @provider"
         job_config = bigquery.QueryJobConfig(query_parameters=query_params)
         bq_client.client.query(query, job_config=job_config).result()
 
-        logger.info(f"Updated {provider} pricing for model {model_id} in {org_slug}")
+        logger.info(f"Updated {provider_value} pricing for model {model_id} in {org_slug}")
         return await get_pricing(org_slug, provider, model_id, org, bq_client)
 
     except HTTPException:
@@ -398,22 +443,25 @@ async def delete_pricing(
     org: Dict = Depends(get_current_org),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
-    """Delete a pricing record."""
+    """Delete a pricing record from unified table."""
     validate_org_slug(org_slug)
     validate_model_id(model_id)
     check_org_access(org, org_slug)
-    config = get_provider_config(provider.value)
+    provider_value = validate_provider(provider.value)
 
     try:
         dataset_id = get_org_dataset(org_slug)
-        table_id = f"{settings.gcp_project_id}.{dataset_id}.{config['pricing_table']}"
+        table_id = f"{settings.gcp_project_id}.{dataset_id}.{UNIFIED_PRICING_TABLE}"
 
-        query = f"DELETE FROM `{table_id}` WHERE model_id = @model_id"
+        query = f"DELETE FROM `{table_id}` WHERE model_id = @model_id AND provider = @provider"
         job_config = bigquery.QueryJobConfig(
-            query_parameters=[bigquery.ScalarQueryParameter("model_id", "STRING", model_id)]
+            query_parameters=[
+                bigquery.ScalarQueryParameter("model_id", "STRING", model_id),
+                bigquery.ScalarQueryParameter("provider", "STRING", provider_value)
+            ]
         )
         bq_client.client.query(query, job_config=job_config).result()
-        logger.info(f"Deleted {provider} pricing for model {model_id} in {org_slug}")
+        logger.info(f"Deleted {provider_value} pricing for model {model_id} in {org_slug}")
 
     except Exception as e:
         logger.error(f"Error deleting pricing: {e}", exc_info=True)
@@ -504,7 +552,7 @@ async def bulk_update_pricing(
     """
     validate_org_slug(org_slug)
     check_org_access(org, org_slug)
-    config = get_provider_config(provider.value)
+    provider_value = validate_provider(provider.value)
 
     updated_count = 0
     failed_count = 0
@@ -512,14 +560,17 @@ async def bulk_update_pricing(
 
     try:
         dataset_id = get_org_dataset(org_slug)
-        table_id = f"{settings.gcp_project_id}.{dataset_id}.{config['pricing_table']}"
+        table_id = f"{settings.gcp_project_id}.{dataset_id}.{UNIFIED_PRICING_TABLE}"
 
         for item in request.updates:
             try:
                 validate_model_id(item.model_id)
 
                 update_fields = []
-                query_params = [bigquery.ScalarQueryParameter("model_id", "STRING", item.model_id)]
+                query_params = [
+                    bigquery.ScalarQueryParameter("model_id", "STRING", item.model_id),
+                    bigquery.ScalarQueryParameter("provider", "STRING", provider_value)
+                ]
 
                 if item.model_name is not None:
                     update_fields.append("model_name = @model_name")
@@ -544,7 +595,7 @@ async def bulk_update_pricing(
 
                 update_fields.append("updated_at = CURRENT_TIMESTAMP()")
 
-                query = f"UPDATE `{table_id}` SET {', '.join(update_fields)} WHERE model_id = @model_id"
+                query = f"UPDATE `{table_id}` SET {', '.join(update_fields)} WHERE model_id = @model_id AND provider = @provider"
                 job_config = bigquery.QueryJobConfig(query_parameters=query_params)
                 bq_client.client.query(query, job_config=job_config).result()
 
@@ -557,7 +608,7 @@ async def bulk_update_pricing(
                 errors.append(f"Model {item.model_id}: {str(e)}")
                 failed_count += 1
 
-        logger.info(f"Bulk updated {updated_count} {provider} pricing records for {org_slug}, {failed_count} failed")
+        logger.info(f"Bulk updated {updated_count} {provider_value} pricing records for {org_slug}, {failed_count} failed")
 
         return BulkPricingUpdateResponse(
             org_slug=org_slug,
@@ -573,7 +624,7 @@ async def bulk_update_pricing(
 
 
 # ============================================
-# Subscription Endpoints (All Providers)
+# Subscription Endpoints (All Providers - Unified Table)
 # ============================================
 
 @router.get(
@@ -585,15 +636,22 @@ async def bulk_update_pricing(
 async def list_subscriptions(
     org_slug: str,
     provider: LLMProvider,
+    include_custom: bool = Query(True, description="Include custom subscription entries"),
+    is_enabled: Optional[bool] = Query(None, description="Filter by enabled status"),
     limit: int = 1000,
     offset: int = 0,
     org: Dict = Depends(get_current_org),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
-    """List all subscription records for an organization and provider."""
+    """
+    List all subscription records for an organization and provider.
+
+    Uses unified llm_subscriptions table with provider filtering.
+    By default includes both provider-specific and custom entries.
+    """
     validate_org_slug(org_slug)
     check_org_access(org, org_slug)
-    config = get_provider_config(provider.value)
+    provider_value = validate_provider(provider.value)
 
     # Validate pagination bounds
     MAX_LIMIT = 10000
@@ -610,36 +668,67 @@ async def list_subscriptions(
 
     try:
         dataset_id = get_org_dataset(org_slug)
-        table_id = f"{settings.gcp_project_id}.{dataset_id}.{config['subscriptions_table']}"
+        table_id = f"{settings.gcp_project_id}.{dataset_id}.{UNIFIED_SUBSCRIPTIONS_TABLE}"
+
+        # Build WHERE clause for provider filtering
+        where_conditions = []
+        query_params = [
+            bigquery.ScalarQueryParameter("provider", "STRING", provider_value),
+            bigquery.ScalarQueryParameter("limit", "INT64", limit),
+            bigquery.ScalarQueryParameter("offset", "INT64", offset)
+        ]
+
+        if include_custom:
+            where_conditions.append("(provider = @provider OR provider = 'custom')")
+        else:
+            where_conditions.append("provider = @provider")
+
+        if is_enabled is not None:
+            where_conditions.append("is_enabled = @is_enabled")
+            query_params.append(bigquery.ScalarQueryParameter("is_enabled", "BOOL", is_enabled))
+
+        where_clause = " AND ".join(where_conditions)
 
         query = f"""
-        SELECT subscription_id, plan_name, quantity, unit_price_usd,
-               effective_date, notes, created_at, updated_at
+        SELECT
+            subscription_id,
+            provider,
+            plan_name,
+            is_custom,
+            quantity,
+            unit_price_usd,
+            effective_date,
+            end_date,
+            is_enabled,
+            auth_type,
+            notes,
+            x_gemini_project_id,
+            x_gemini_region,
+            x_anthropic_workspace_id,
+            x_openai_org_id,
+            created_at,
+            updated_at
         FROM `{table_id}`
-        ORDER BY plan_name
+        WHERE {where_clause}
+        ORDER BY provider, plan_name
         LIMIT @limit OFFSET @offset
         """
 
-        job_config = bigquery.QueryJobConfig(
-            query_parameters=[
-                bigquery.ScalarQueryParameter("limit", "INT64", limit),
-                bigquery.ScalarQueryParameter("offset", "INT64", offset)
-            ]
-        )
-
+        job_config = bigquery.QueryJobConfig(query_parameters=query_params)
         result = bq_client.client.query(query, job_config=job_config).result()
         subscriptions = [dict(row) for row in result]
 
         return OpenAISubscriptionListResponse(
             org_slug=org_slug,
+            provider=provider_value,
             subscriptions=subscriptions,
             count=len(subscriptions)
         )
 
     except Exception as e:
-        logger.error(f"Error listing {provider} subscriptions for {org_slug}: {e}", exc_info=True)
+        logger.error(f"Error listing {provider_value} subscriptions for {org_slug}: {e}", exc_info=True)
         if "Not found" in str(e):
-            return OpenAISubscriptionListResponse(org_slug=org_slug, subscriptions=[], count=0)
+            return OpenAISubscriptionListResponse(org_slug=org_slug, provider=provider_value, subscriptions=[], count=0)
         raise HTTPException(status_code=500, detail="Failed to retrieve subscription data")
 
 
@@ -656,25 +745,30 @@ async def get_subscription(
     org: Dict = Depends(get_current_org),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
-    """Get a specific subscription record."""
+    """Get a specific subscription record from unified table."""
     validate_org_slug(org_slug)
     validate_plan_name(plan_name)
     check_org_access(org, org_slug)
-    config = get_provider_config(provider.value)
+    provider_value = validate_provider(provider.value)
 
     try:
         dataset_id = get_org_dataset(org_slug)
-        table_id = f"{settings.gcp_project_id}.{dataset_id}.{config['subscriptions_table']}"
+        table_id = f"{settings.gcp_project_id}.{dataset_id}.{UNIFIED_SUBSCRIPTIONS_TABLE}"
 
         query = f"""
-        SELECT subscription_id, plan_name, quantity, unit_price_usd,
-               effective_date, notes, created_at, updated_at
+        SELECT subscription_id, provider, plan_name, is_custom, quantity, unit_price_usd,
+               effective_date, end_date, is_enabled, auth_type, notes,
+               x_gemini_project_id, x_gemini_region, x_anthropic_workspace_id, x_openai_org_id,
+               created_at, updated_at
         FROM `{table_id}`
-        WHERE plan_name = @plan_name
+        WHERE plan_name = @plan_name AND (provider = @provider OR provider = 'custom')
         """
 
         job_config = bigquery.QueryJobConfig(
-            query_parameters=[bigquery.ScalarQueryParameter("plan_name", "STRING", plan_name)]
+            query_parameters=[
+                bigquery.ScalarQueryParameter("plan_name", "STRING", plan_name),
+                bigquery.ScalarQueryParameter("provider", "STRING", provider_value)
+            ]
         )
 
         result = bq_client.client.query(query, job_config=job_config).result()
@@ -706,20 +800,23 @@ async def create_subscription(
     org: Dict = Depends(get_current_org),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
-    """Create a new subscription record."""
+    """Create a new subscription record in unified table."""
     validate_org_slug(org_slug)
     check_org_access(org, org_slug)
-    config = get_provider_config(provider.value)
+    provider_value = validate_provider(provider.value)
 
     try:
         dataset_id = get_org_dataset(org_slug)
-        table_id = f"{settings.gcp_project_id}.{dataset_id}.{config['subscriptions_table']}"
-        now = datetime.utcnow().isoformat()
+        table_id = f"{settings.gcp_project_id}.{dataset_id}.{UNIFIED_SUBSCRIPTIONS_TABLE}"
+        now = datetime.utcnow().isoformat() + "Z"
 
-        # Check if exists
-        check_query = f"SELECT COUNT(*) as cnt FROM `{table_id}` WHERE subscription_id = @subscription_id"
+        # Check if exists for this provider
+        check_query = f"SELECT COUNT(*) as cnt FROM `{table_id}` WHERE subscription_id = @subscription_id AND provider = @provider"
         job_config = bigquery.QueryJobConfig(
-            query_parameters=[bigquery.ScalarQueryParameter("subscription_id", "STRING", subscription.subscription_id)]
+            query_parameters=[
+                bigquery.ScalarQueryParameter("subscription_id", "STRING", subscription.subscription_id),
+                bigquery.ScalarQueryParameter("provider", "STRING", provider_value)
+            ]
         )
         result = bq_client.client.query(check_query, job_config=job_config).result()
         if list(result)[0].cnt > 0:
@@ -727,20 +824,30 @@ async def create_subscription(
 
         row = {
             "subscription_id": subscription.subscription_id,
+            "provider": provider_value,
             "plan_name": subscription.plan_name,
+            "is_custom": provider_value == "custom",
             "quantity": subscription.quantity,
             "unit_price_usd": subscription.unit_price_usd,
             "effective_date": str(subscription.effective_date),
+            "end_date": None,
+            "is_enabled": True,
+            "auth_type": None,
             "notes": subscription.notes,
+            "x_gemini_project_id": None,
+            "x_gemini_region": None,
+            "x_anthropic_workspace_id": None,
+            "x_openai_org_id": None,
             "created_at": now,
             "updated_at": now,
         }
 
         errors = bq_client.client.insert_rows_json(table_id, [row])
         if errors:
+            logger.error(f"Insert errors: {errors}")
             raise HTTPException(status_code=500, detail="Failed to create subscription record")
 
-        logger.info(f"Created {provider} subscription {subscription.subscription_id} in {org_slug}")
+        logger.info(f"Created {provider_value} subscription {subscription.subscription_id} in {org_slug}")
 
         return OpenAISubscriptionResponse(
             subscription_id=subscription.subscription_id,
@@ -774,18 +881,21 @@ async def update_subscription(
     org: Dict = Depends(get_current_org),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
-    """Update an existing subscription record."""
+    """Update an existing subscription record in unified table."""
     validate_org_slug(org_slug)
     validate_plan_name(plan_name)
     check_org_access(org, org_slug)
-    config = get_provider_config(provider.value)
+    provider_value = validate_provider(provider.value)
 
     try:
         dataset_id = get_org_dataset(org_slug)
-        table_id = f"{settings.gcp_project_id}.{dataset_id}.{config['subscriptions_table']}"
+        table_id = f"{settings.gcp_project_id}.{dataset_id}.{UNIFIED_SUBSCRIPTIONS_TABLE}"
 
         update_fields = []
-        query_params = [bigquery.ScalarQueryParameter("plan_name", "STRING", plan_name)]
+        query_params = [
+            bigquery.ScalarQueryParameter("plan_name", "STRING", plan_name),
+            bigquery.ScalarQueryParameter("provider", "STRING", provider_value)
+        ]
 
         if subscription.quantity is not None:
             update_fields.append("quantity = @quantity")
@@ -805,11 +915,11 @@ async def update_subscription(
 
         update_fields.append("updated_at = CURRENT_TIMESTAMP()")
 
-        query = f"UPDATE `{table_id}` SET {', '.join(update_fields)} WHERE plan_name = @plan_name"
+        query = f"UPDATE `{table_id}` SET {', '.join(update_fields)} WHERE plan_name = @plan_name AND provider = @provider"
         job_config = bigquery.QueryJobConfig(query_parameters=query_params)
         bq_client.client.query(query, job_config=job_config).result()
 
-        logger.info(f"Updated {provider} subscription {plan_name} in {org_slug}")
+        logger.info(f"Updated {provider_value} subscription {plan_name} in {org_slug}")
         return await get_subscription(org_slug, provider, plan_name, org, bq_client)
 
     except HTTPException:
@@ -832,22 +942,25 @@ async def delete_subscription(
     org: Dict = Depends(get_current_org),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
-    """Delete a subscription record."""
+    """Delete a subscription record from unified table."""
     validate_org_slug(org_slug)
     validate_plan_name(plan_name)
     check_org_access(org, org_slug)
-    config = get_provider_config(provider.value)
+    provider_value = validate_provider(provider.value)
 
     try:
         dataset_id = get_org_dataset(org_slug)
-        table_id = f"{settings.gcp_project_id}.{dataset_id}.{config['subscriptions_table']}"
+        table_id = f"{settings.gcp_project_id}.{dataset_id}.{UNIFIED_SUBSCRIPTIONS_TABLE}"
 
-        query = f"DELETE FROM `{table_id}` WHERE plan_name = @plan_name"
+        query = f"DELETE FROM `{table_id}` WHERE plan_name = @plan_name AND provider = @provider"
         job_config = bigquery.QueryJobConfig(
-            query_parameters=[bigquery.ScalarQueryParameter("plan_name", "STRING", plan_name)]
+            query_parameters=[
+                bigquery.ScalarQueryParameter("plan_name", "STRING", plan_name),
+                bigquery.ScalarQueryParameter("provider", "STRING", provider_value)
+            ]
         )
         bq_client.client.query(query, job_config=job_config).result()
-        logger.info(f"Deleted {provider} subscription {plan_name} in {org_slug}")
+        logger.info(f"Deleted {provider_value} subscription {plan_name} in {org_slug}")
 
     except Exception as e:
         logger.error(f"Error deleting subscription: {e}", exc_info=True)

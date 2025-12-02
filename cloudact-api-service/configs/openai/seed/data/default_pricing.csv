@@ -1,8 +1,0 @@
-model_id,model_name,input_price_per_1k,output_price_per_1k,effective_date,notes
-gpt-4o,GPT-4o,0.0025,0.01,2024-11-01,Latest GPT-4o model
-gpt-4o-mini,GPT-4o Mini,0.00015,0.0006,2024-11-01,Smaller GPT-4o variant
-gpt-4-turbo,GPT-4 Turbo,0.01,0.03,2024-11-01,GPT-4 Turbo with vision
-gpt-4,GPT-4,0.03,0.06,2024-11-01,Original GPT-4
-gpt-3.5-turbo,GPT-3.5 Turbo,0.0005,0.0015,2024-11-01,Fast and efficient
-o1,o1,0.015,0.06,2024-11-01,Reasoning model
-o1-mini,o1 Mini,0.003,0.012,2024-11-01,Smaller reasoning model

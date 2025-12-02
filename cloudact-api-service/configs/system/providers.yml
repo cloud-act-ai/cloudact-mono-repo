@@ -32,14 +32,6 @@ providers:
     max_retries: 3
     retry_backoff_seconds: 2
     rate_limit_per_minute: 60 # Per-org rate limit for this provider
-    # LLM data tables config (for pricing/subscriptions initialization)
-    # NAMING CONVENTION: Schema files follow {provider}_model_pricing.json pattern
-    data_tables:
-      pricing_table: openai_model_pricing
-      subscriptions_table: openai_subscriptions
-      seed_path: configs/openai/seed
-      pricing_schema: openai_model_pricing.json
-      subscriptions_schema: openai_subscriptions.json
 
   ANTHROPIC:
     type: llm
@@ -58,13 +50,6 @@ providers:
     max_retries: 3
     retry_backoff_seconds: 2
     rate_limit_per_minute: 60 # Per-org rate limit for this provider
-    # LLM data tables config
-    data_tables:
-      pricing_table: anthropic_model_pricing
-      subscriptions_table: anthropic_subscriptions
-      seed_path: configs/anthropic/seed
-      pricing_schema: anthropic_model_pricing.json
-      subscriptions_schema: anthropic_subscriptions.json
 
   CLAUDE:
     # Alias for ANTHROPIC (for backward compatibility)
@@ -101,14 +86,6 @@ providers:
     max_retries: 3
     retry_backoff_seconds: 2
     rate_limit_per_minute: 100 # Higher limit for cloud operations
-    # Gemini AI data tables (created when GCP integration is setup)
-    # Usage data comes from GCP billing export, subscriptions for tracking
-    gemini_data_tables:
-      pricing_table: gemini_model_pricing
-      subscriptions_table: gemini_subscriptions
-      seed_path: configs/gemini/seed
-      pricing_schema: gemini_model_pricing.json
-      subscriptions_schema: gemini_subscriptions.json
 
 # Provider groups for easy lookup
 provider_groups:

@@ -101,7 +101,7 @@ SUBSCRIPTION_LIMITS = {
         "max_providers": 3,
         "max_pipelines_per_day": 6,
         "max_pipelines_per_month": 180,
-        "max_concurrent_pipelines": 6,
+        "max_concurrent_pipelines": 20,
         "price_usd": 19
     },
     SubscriptionPlan.PROFESSIONAL: {
@@ -109,7 +109,7 @@ SUBSCRIPTION_LIMITS = {
         "max_providers": 6,
         "max_pipelines_per_day": 25,
         "max_pipelines_per_month": 750,
-        "max_concurrent_pipelines": 3,
+        "max_concurrent_pipelines": 20,
         "price_usd": None  # TBD
     },
     SubscriptionPlan.SCALE: {
@@ -117,7 +117,7 @@ SUBSCRIPTION_LIMITS = {
         "max_providers": 10,
         "max_pipelines_per_day": 100,
         "max_pipelines_per_month": 3000,
-        "max_concurrent_pipelines": 10,
+        "max_concurrent_pipelines": 20,
         "price_usd": 199
     },
     SubscriptionPlan.ENTERPRISE: {

@@ -1,4 +1,0 @@
-subscription_id,plan_name,quantity,unit_price_usd,effective_date,notes
-sub_free,FREE,0,0.00,2024-11-01,Free tier with limited quota
-sub_paygo,PAY_AS_YOU_GO,0,0.00,2024-11-01,Usage-based billing via GCP
-sub_enterprise,ENTERPRISE,0,0.00,2024-11-01,Custom enterprise pricing
