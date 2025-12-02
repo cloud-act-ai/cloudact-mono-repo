@@ -938,10 +938,7 @@ async def _initialize_openai_pricing(org_slug: str, force: bool = False) -> Dict
         if not force:
             count_query = f"SELECT COUNT(*) as cnt FROM `{table_id}`"
             # Bug fix #2: Add timeout to prevent hanging queries
-            result = bq_client.query(
-                count_query,
-                job_config=bigquery.QueryJobConfig(timeout_ms=30000)
-            ).result()
+            result = bq_client.query(count_query).result(timeout=15)
             count = list(result)[0].cnt
             if count > 0:
                 logger.info(f"Pricing table already has {count} rows, skipping seed")
@@ -1054,7 +1051,7 @@ async def _initialize_openai_subscriptions(org_slug: str, force: bool = False) -
         # Check if table has data (and force is False)
         if not force:
             count_query = f"SELECT COUNT(*) as cnt FROM `{table_id}`"
-            result = bq_client.query(count_query).result()
+            result = bq_client.query(count_query).result(timeout=15)
             count = list(result)[0].cnt
             if count > 0:
                 logger.info(f"Subscriptions table already has {count} rows, skipping seed")
@@ -1063,7 +1060,7 @@ async def _initialize_openai_subscriptions(org_slug: str, force: bool = False) -
         # If force=True, delete existing data
         if force:
             delete_query = f"DELETE FROM `{table_id}` WHERE 1=1"
-            bq_client.query(delete_query).result()
+            bq_client.query(delete_query).result(timeout=15)
             logger.info(f"Deleted existing subscriptions data from {table_id}")
 
         # Load CSV data
@@ -1175,7 +1172,7 @@ async def _initialize_llm_pricing(org_slug: str, provider: str, force: bool = Fa
         # Check if table has data (and force is False)
         if not force:
             count_query = f"SELECT COUNT(*) as cnt FROM `{table_id}`"
-            result = bq_client.client.query(count_query).result()
+            result = bq_client.client.query(count_query).result(timeout=15)
             count = list(result)[0].cnt
             if count > 0:
                 logger.info(f"{provider.upper()} pricing table already has {count} rows, skipping seed")
@@ -1281,7 +1278,7 @@ async def _initialize_llm_subscriptions(org_slug: str, provider: str, force: boo
         # Check if table has data (and force is False)
         if not force:
             count_query = f"SELECT COUNT(*) as cnt FROM `{table_id}`"
-            result = bq_client.client.query(count_query).result()
+            result = bq_client.client.query(count_query).result(timeout=15)
             count = list(result)[0].cnt
             if count > 0:
                 logger.info(f"{provider.upper()} subscriptions table already has {count} rows, skipping seed")
@@ -1387,7 +1384,7 @@ async def _initialize_gemini_pricing(org_slug: str, force: bool = False) -> Dict
         # Check if table has data (and force is False)
         if not force:
             count_query = f"SELECT COUNT(*) as cnt FROM `{table_id}`"
-            result = bq_client.client.query(count_query).result()
+            result = bq_client.client.query(count_query).result(timeout=15)
             count = list(result)[0].cnt
             if count > 0:
                 logger.info(f"Gemini pricing table already has {count} rows, skipping seed")
@@ -1482,7 +1479,7 @@ async def _initialize_gemini_subscriptions(org_slug: str, force: bool = False) -
         # Check if table has data (and force is False)
         if not force:
             count_query = f"SELECT COUNT(*) as cnt FROM `{table_id}`"
-            result = bq_client.client.query(count_query).result()
+            result = bq_client.client.query(count_query).result(timeout=15)
             count = list(result)[0].cnt
             if count > 0:
                 logger.info(f"Gemini subscriptions table already has {count} rows, skipping seed")

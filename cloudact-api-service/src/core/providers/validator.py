@@ -40,11 +40,14 @@ def validate_credential_format(provider: str, credential: str) -> Dict[str, Any]
     # API_KEY validation
     if config.credential_type == "API_KEY":
         # Check key prefix if specified in config
-        if config.key_prefix and not credential.startswith(config.key_prefix):
-            return {
-                "valid": False,
-                "error": f"{config.display_name} should start with '{config.key_prefix}'"
-            }
+        # Check key prefix if specified in config
+        if config.key_prefix:
+            prefixes = tuple(config.key_prefix) if isinstance(config.key_prefix, list) else config.key_prefix
+            if not credential.startswith(prefixes):
+                return {
+                    "valid": False,
+                    "error": f"{config.display_name} should start with '{config.key_prefix}'"
+                }
         return {"valid": True}
 
     # SERVICE_ACCOUNT_JSON validation

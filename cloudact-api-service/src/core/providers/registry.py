@@ -22,7 +22,7 @@ Usage:
 import yaml
 import logging
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Union
 from dataclasses import dataclass, field
 from functools import lru_cache
 
@@ -41,7 +41,7 @@ class ProviderConfig:
     validation_endpoint: Optional[str] = None
     auth_header: Optional[str] = None
     auth_prefix: str = ""
-    key_prefix: Optional[str] = None
+    key_prefix: Optional[Union[str, List[str]]] = None
     extra_headers: Dict[str, str] = field(default_factory=dict)
     required_fields: List[str] = field(default_factory=list)
     expected_type: Optional[str] = None

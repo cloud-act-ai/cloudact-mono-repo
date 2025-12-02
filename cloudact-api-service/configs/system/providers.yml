@@ -23,13 +23,15 @@ providers:
     validation_endpoint: "/models"
     auth_header: "Authorization"
     auth_prefix: "Bearer "
-    key_prefix: "sk-"  # Used for format validation
+    key_prefix:
+      - "sk-"
+      - "keisk-" # Support for project keys
     # Validation configuration
-    validation_model: "gpt-3.5-turbo"  # Model used for lightweight validation calls
+    validation_model: "gpt-3.5-turbo" # Model used for lightweight validation calls
     # Retry and rate limiting
     max_retries: 3
     retry_backoff_seconds: 2
-    rate_limit_per_minute: 60  # Per-org rate limit for this provider
+    rate_limit_per_minute: 60 # Per-org rate limit for this provider
     # LLM data tables config (for pricing/subscriptions initialization)
     # NAMING CONVENTION: Schema files follow {provider}_model_pricing.json pattern
     data_tables:
@@ -51,11 +53,11 @@ providers:
     extra_headers:
       anthropic-version: "2023-06-01"
     # Validation configuration
-    validation_model: "claude-3-haiku-20240307"  # Model used for lightweight validation calls
+    validation_model: "claude-3-haiku-20240307" # Model used for lightweight validation calls
     # Retry and rate limiting
     max_retries: 3
     retry_backoff_seconds: 2
-    rate_limit_per_minute: 60  # Per-org rate limit for this provider
+    rate_limit_per_minute: 60 # Per-org rate limit for this provider
     # LLM data tables config
     data_tables:
       pricing_table: anthropic_model_pricing
@@ -66,7 +68,7 @@ providers:
 
   CLAUDE:
     # Alias for ANTHROPIC (for backward compatibility)
-    alias_for: ANTHROPIC  # Indicates this is an alias
+    alias_for: ANTHROPIC # Indicates this is an alias
     type: llm
     credential_type: API_KEY
     display_name: "Claude API Key"
@@ -98,7 +100,7 @@ providers:
     # Retry and rate limiting
     max_retries: 3
     retry_backoff_seconds: 2
-    rate_limit_per_minute: 100  # Higher limit for cloud operations
+    rate_limit_per_minute: 100 # Higher limit for cloud operations
     # Gemini AI data tables (created when GCP integration is setup)
     # Usage data comes from GCP billing export, subscriptions for tracking
     gemini_data_tables:
@@ -113,7 +115,7 @@ provider_groups:
   llm:
     - OPENAI
     - ANTHROPIC
-    - CLAUDE  # Include CLAUDE alias in LLM group
+    - CLAUDE # Include CLAUDE alias in LLM group
   cloud:
     - GCP_SA
   all:
