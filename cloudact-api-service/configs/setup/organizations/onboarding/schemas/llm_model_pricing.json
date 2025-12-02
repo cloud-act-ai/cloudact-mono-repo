@@ -1,0 +1,110 @@
+[
+  {
+    "name": "pricing_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Unique pricing record identifier (UUID)"
+  },
+  {
+    "name": "provider",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "LLM provider: openai, anthropic, gemini, custom"
+  },
+  {
+    "name": "model_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Model identifier (e.g., gpt-4o, claude-3-5-sonnet, gemini-2.0-flash)"
+  },
+  {
+    "name": "model_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Human-readable model display name"
+  },
+  {
+    "name": "is_custom",
+    "type": "BOOLEAN",
+    "mode": "REQUIRED",
+    "description": "True if user-added custom model pricing"
+  },
+  {
+    "name": "input_price_per_1k",
+    "type": "FLOAT64",
+    "mode": "REQUIRED",
+    "description": "Input token price per 1K tokens (USD)"
+  },
+  {
+    "name": "output_price_per_1k",
+    "type": "FLOAT64",
+    "mode": "REQUIRED",
+    "description": "Output token price per 1K tokens (USD)"
+  },
+  {
+    "name": "effective_date",
+    "type": "DATE",
+    "mode": "REQUIRED",
+    "description": "Date when pricing becomes effective"
+  },
+  {
+    "name": "end_date",
+    "type": "DATE",
+    "mode": "NULLABLE",
+    "description": "Pricing end date (null = current pricing)"
+  },
+  {
+    "name": "is_enabled",
+    "type": "BOOLEAN",
+    "mode": "REQUIRED",
+    "description": "User can enable/disable model for cost tracking"
+  },
+  {
+    "name": "notes",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "User notes or comments"
+  },
+  {
+    "name": "x_gemini_context_window",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Gemini-specific: Context window size (e.g., 1M, 2M)"
+  },
+  {
+    "name": "x_gemini_region",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Gemini-specific: Regional pricing variation"
+  },
+  {
+    "name": "x_anthropic_tier",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Anthropic-specific: Pricing tier"
+  },
+  {
+    "name": "x_openai_batch_input_price",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "OpenAI-specific: Batch API input price per 1K"
+  },
+  {
+    "name": "x_openai_batch_output_price",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "OpenAI-specific: Batch API output price per 1K"
+  },
+  {
+    "name": "created_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "Record creation timestamp"
+  },
+  {
+    "name": "updated_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "Last update timestamp"
+  }
+]

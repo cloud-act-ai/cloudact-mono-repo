@@ -840,9 +840,28 @@ async def onboard_org(
                 "config": {
                     "dataset_id": org_slug,
                     "location": dataset_location,
-                    "metadata_tables": [],  # NO metadata tables in per-org dataset
+                    "metadata_tables": [
+                        # LLM Subscriptions table (unified for all providers)
+                        {
+                            "table_name": "llm_subscriptions",
+                            "schema_file": "llm_subscriptions.json",
+                            "description": "Unified LLM provider subscriptions (OpenAI, Anthropic, Gemini)",
+                            "clustering_fields": ["provider", "plan_name"]
+                        },
+                        # LLM Model Pricing table (unified for all providers)
+                        {
+                            "table_name": "llm_model_pricing",
+                            "schema_file": "llm_model_pricing.json",
+                            "description": "Unified LLM model pricing (OpenAI, Anthropic, Gemini)",
+                            "clustering_fields": ["provider", "model_id"]
+                        }
+                    ],
                     "create_validation_table": True,
                     "validation_table_name": "onboarding_validation_test",
+                    # LLM seed data configuration
+                    "seed_llm_data": True,
+                    "llm_subscriptions_csv": "configs/llm/seed/data/default_subscriptions.csv",
+                    "llm_pricing_csv": "configs/llm/seed/data/default_pricing.csv",
                     "default_daily_limit": plan_limits["max_daily"],
                     "default_monthly_limit": plan_limits["max_daily"] * 30,
                     "default_concurrent_limit": plan_limits["max_concurrent"]
@@ -1508,13 +1527,14 @@ async def update_subscription_limits(
     # ============================================
     # STEP 4: Update org_usage_quotas table (MERGE/UPSERT)
     # ============================================
-    # Use MERGE to ensure quota record is created if it doesn't exist
-    # This is critical for subscription upgrades to work seamlessly
+    # Use MERGE to ensure quota limits are updated for current date's record.
+    # The table is partitioned by usage_date with one row per org per day.
+    # This is critical for subscription upgrades to work seamlessly.
     try:
         merge_quota_query = f"""
         MERGE `{settings.gcp_project_id}.organizations.org_usage_quotas` AS target
-        USING (SELECT @org_slug AS org_slug) AS source
-        ON target.org_slug = source.org_slug
+        USING (SELECT @org_slug AS org_slug, CURRENT_DATE() AS usage_date) AS source
+        ON target.org_slug = source.org_slug AND target.usage_date = source.usage_date
         WHEN MATCHED THEN
             UPDATE SET
                 daily_limit = @daily_limit,
@@ -1524,12 +1544,14 @@ async def update_subscription_limits(
                 providers_limit = @providers_limit,
                 last_updated = CURRENT_TIMESTAMP()
         WHEN NOT MATCHED THEN
-            INSERT (org_slug, daily_limit, monthly_limit, concurrent_limit,
-                    seat_limit, providers_limit, daily_count, monthly_count,
-                    concurrent_pipelines_running, last_reset_date, month_start_date, last_updated)
-            VALUES (@org_slug, @daily_limit, @monthly_limit, @concurrent_limit,
-                    @seat_limit, @providers_limit, 0, 0,
-                    0, CURRENT_DATE(), DATE_TRUNC(CURRENT_DATE(), MONTH), CURRENT_TIMESTAMP())
+            INSERT (usage_id, org_slug, usage_date, pipelines_run_today, pipelines_succeeded_today,
+                    pipelines_failed_today, pipelines_run_month, concurrent_pipelines_running,
+                    daily_limit, monthly_limit, concurrent_limit, seat_limit, providers_limit,
+                    max_concurrent_reached, last_updated, created_at)
+            VALUES (GENERATE_UUID(), @org_slug, CURRENT_DATE(), 0, 0,
+                    0, 0, 0,
+                    @daily_limit, @monthly_limit, @concurrent_limit, @seat_limit, @providers_limit,
+                    0, CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP())
         """
 
         job = bq_client.client.query(

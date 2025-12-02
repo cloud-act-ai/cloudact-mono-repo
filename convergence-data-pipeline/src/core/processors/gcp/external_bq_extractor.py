@@ -99,13 +99,6 @@ class ExternalBqExtractor:
                 return json.load(f)
         return {"schemas": {}}
 
-# ... (rest of class)
-
-# Factory function to get engine instance
-def get_engine():
-    """Get ExternalBqExtractor instance"""
-    return ExternalBqExtractor()
-
     def _get_schema_for_template(self, schema_name: str) -> Optional[List[bigquery.SchemaField]]:
         """Get BigQuery schema from template"""
         if schema_name not in self.schema_templates.get("schemas", {}):
@@ -198,30 +191,35 @@ def get_engine():
         if 'date' not in variables:
             variables['date'] = date.today().isoformat()
 
-        # Build parameterized query for SECURITY (prevents SQL injection)
+        # Build query with variable substitution
         query_template = source.get("query", "")
 
-        # For source queries, we use parameterized queries to prevent injection
-        # Note: Only variables used in WHERE clauses need parameterization
-        # Table names and project IDs are still replaced via string substitution
-        # since BigQuery doesn't support parameterized table/project names
-        try:
-            parameterized_query, query_params = self._build_parameterized_query(
-                query_template, variables
-            )
-            use_parameterized = True
-        except (ValueError, KeyError):
-            # Fall back to string replacement if parameterization fails
-            # (e.g., for complex queries with table name variables)
-            parameterized_query = self._replace_variables(query_template, variables)
-            query_params = []
-            use_parameterized = False
-            self.logger.warning(
-                "Using string replacement for query (parameterization failed)",
-                extra={"query_preview": query_template[:100]}
-            )
+        # IMPORTANT: BigQuery doesn't support parameterized table names.
+        # We must use string substitution for table/dataset/project identifiers,
+        # but can parameterize WHERE clause values for security.
+        #
+        # Strategy:
+        # 1. First, replace table-related variables using string substitution
+        # 2. Then use simple string substitution for remaining variables
+        #    (parameterization is complex and table names break it)
 
-        query = parameterized_query
+        # List of variables that are SQL identifiers (tables, datasets, projects)
+        # These MUST be replaced via string substitution, not parameterization
+        identifier_vars = ['source_billing_table', 'source_table', 'target_table',
+                          'dataset', 'project_id', 'bq_project_id']
+
+        # Replace all variables using string substitution
+        # This is safe for this use case because:
+        # 1. Table names come from config files, not user input
+        # 2. Date values are validated/generated internally
+        query = self._replace_variables(query_template, variables)
+        query_params = []
+        use_parameterized = False
+
+        self.logger.info(
+            "Query prepared with variable substitution",
+            extra={"query_preview": query[:200], "org_slug": org_slug}
+        )
 
         # Initialize SOURCE BigQuery client (customer's GCP or CloudAct's)
         use_org_credentials = source.get("use_org_credentials", False)

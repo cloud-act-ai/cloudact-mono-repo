@@ -2,8 +2,11 @@
 Organization Onboarding Processor
 Creates organization dataset and all required metadata tables
 """
+import csv
 import json
 import logging
+import uuid
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, List
 from google.cloud import bigquery
@@ -114,6 +117,163 @@ class OrgOnboardingProcessor:
             except Exception as e:
                 self.logger.error(f"Failed to create table {full_table_id}: {e}")
                 return False
+
+    def _load_csv_file(self, csv_path: str) -> List[Dict[str, Any]]:
+        """Load CSV file and return list of row dictionaries"""
+        # Resolve path relative to project root (cloudact-api-service/)
+        base_dir = Path(__file__).parent.parent.parent.parent.parent.parent
+        full_path = base_dir / csv_path
+
+        if not full_path.exists():
+            self.logger.error(f"CSV file not found: {full_path}")
+            return []
+
+        try:
+            rows = []
+            with open(full_path, 'r', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    # Convert empty strings to None for nullable fields
+                    cleaned_row = {}
+                    for key, value in row.items():
+                        if value == '' or value is None:
+                            cleaned_row[key] = None
+                        elif key in ('is_custom', 'is_enabled'):
+                            # Convert boolean strings
+                            cleaned_row[key] = value.lower() == 'true'
+                        elif key in ('quantity',):
+                            # Convert integer fields
+                            cleaned_row[key] = int(value) if value else 0
+                        elif key in ('input_price_per_1k', 'output_price_per_1k', 'unit_price_usd',
+                                     'x_openai_batch_input_price', 'x_openai_batch_output_price'):
+                            # Convert float fields
+                            cleaned_row[key] = float(value) if value else 0.0
+                        else:
+                            cleaned_row[key] = value
+                    rows.append(cleaned_row)
+            self.logger.info(f"Loaded {len(rows)} rows from {csv_path}")
+            return rows
+        except Exception as e:
+            self.logger.error(f"Error loading CSV {csv_path}: {e}")
+            return []
+
+    async def _seed_llm_data(
+        self,
+        bq_client: BigQueryClient,
+        dataset_id: str,
+        config: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Seed LLM subscription and pricing data from CSV files.
+
+        Args:
+            bq_client: BigQuery client
+            dataset_id: Organization dataset ID
+            config: Configuration containing CSV file paths
+
+        Returns:
+            Dict with seeding results
+        """
+        result = {
+            "subscriptions_seeded": 0,
+            "pricing_seeded": 0,
+            "errors": []
+        }
+
+        subscriptions_csv = config.get("llm_subscriptions_csv")
+        pricing_csv = config.get("llm_pricing_csv")
+        now = datetime.utcnow().isoformat() + "Z"
+
+        # Seed subscriptions
+        if subscriptions_csv:
+            subscriptions = self._load_csv_file(subscriptions_csv)
+            if subscriptions:
+                table_id = f"{self.settings.gcp_project_id}.{dataset_id}.llm_subscriptions"
+                try:
+                    rows_to_insert = []
+                    for sub in subscriptions:
+                        row = {
+                            "subscription_id": sub.get("subscription_id") or str(uuid.uuid4()),
+                            "provider": sub.get("provider"),
+                            "plan_name": sub.get("plan_name"),
+                            "is_custom": sub.get("is_custom", False),
+                            "quantity": sub.get("quantity", 0),
+                            "unit_price_usd": sub.get("unit_price_usd", 0.0),
+                            "effective_date": sub.get("effective_date"),
+                            "end_date": sub.get("end_date"),
+                            "is_enabled": sub.get("is_enabled", True),
+                            "auth_type": sub.get("auth_type"),
+                            "notes": sub.get("notes"),
+                            "x_gemini_project_id": sub.get("x_gemini_project_id"),
+                            "x_gemini_region": sub.get("x_gemini_region"),
+                            "x_anthropic_workspace_id": sub.get("x_anthropic_workspace_id"),
+                            "x_openai_org_id": sub.get("x_openai_org_id"),
+                            "created_at": now,
+                            "updated_at": now
+                        }
+                        rows_to_insert.append(row)
+
+                    # Use BigQuery streaming insert
+                    client = bigquery.Client(project=self.settings.gcp_project_id)
+                    errors = client.insert_rows_json(table_id, rows_to_insert)
+
+                    if errors:
+                        self.logger.error(f"Errors inserting subscriptions: {errors}")
+                        result["errors"].extend([str(e) for e in errors])
+                    else:
+                        result["subscriptions_seeded"] = len(rows_to_insert)
+                        self.logger.info(f"Seeded {len(rows_to_insert)} subscriptions to {table_id}")
+
+                except Exception as e:
+                    self.logger.error(f"Failed to seed subscriptions: {e}")
+                    result["errors"].append(str(e))
+
+        # Seed pricing
+        if pricing_csv:
+            pricing_rows = self._load_csv_file(pricing_csv)
+            if pricing_rows:
+                table_id = f"{self.settings.gcp_project_id}.{dataset_id}.llm_model_pricing"
+                try:
+                    rows_to_insert = []
+                    for price in pricing_rows:
+                        row = {
+                            "pricing_id": price.get("pricing_id") or str(uuid.uuid4()),
+                            "provider": price.get("provider"),
+                            "model_id": price.get("model_id"),
+                            "model_name": price.get("model_name"),
+                            "is_custom": price.get("is_custom", False),
+                            "input_price_per_1k": price.get("input_price_per_1k", 0.0),
+                            "output_price_per_1k": price.get("output_price_per_1k", 0.0),
+                            "effective_date": price.get("effective_date"),
+                            "end_date": price.get("end_date"),
+                            "is_enabled": price.get("is_enabled", True),
+                            "notes": price.get("notes"),
+                            "x_gemini_context_window": price.get("x_gemini_context_window"),
+                            "x_gemini_region": price.get("x_gemini_region"),
+                            "x_anthropic_tier": price.get("x_anthropic_tier"),
+                            "x_openai_batch_input_price": price.get("x_openai_batch_input_price"),
+                            "x_openai_batch_output_price": price.get("x_openai_batch_output_price"),
+                            "created_at": now,
+                            "updated_at": now
+                        }
+                        rows_to_insert.append(row)
+
+                    # Use BigQuery streaming insert
+                    client = bigquery.Client(project=self.settings.gcp_project_id)
+                    errors = client.insert_rows_json(table_id, rows_to_insert)
+
+                    if errors:
+                        self.logger.error(f"Errors inserting pricing: {errors}")
+                        result["errors"].extend([str(e) for e in errors])
+                    else:
+                        result["pricing_seeded"] = len(rows_to_insert)
+                        self.logger.info(f"Seeded {len(rows_to_insert)} pricing records to {table_id}")
+
+                except Exception as e:
+                    self.logger.error(f"Failed to seed pricing: {e}")
+                    result["errors"].append(str(e))
+
+        return result
 
     async def execute(
         self,
@@ -323,6 +483,21 @@ class OrgOnboardingProcessor:
         # These views filter central metadata tables for this org's data only
         views_created, views_failed = self._create_org_views(org_slug, dataset_id)
 
+        # Step 6: Seed LLM subscription and pricing data if configured
+        llm_seed_result = {"subscriptions_seeded": 0, "pricing_seeded": 0, "errors": []}
+        if config.get("seed_llm_data", False):
+            self.logger.info(f"Seeding LLM data for organization {org_slug}")
+            llm_seed_result = await self._seed_llm_data(bq_client, dataset_id, config)
+            if llm_seed_result.get("errors"):
+                self.logger.warning(
+                    f"LLM seeding completed with errors: {llm_seed_result['errors']}"
+                )
+            else:
+                self.logger.info(
+                    f"LLM seeding complete: {llm_seed_result['subscriptions_seeded']} subscriptions, "
+                    f"{llm_seed_result['pricing_seeded']} pricing records"
+                )
+
         # Prepare result
         all_tables_failed = tables_failed + views_failed
         result = {
@@ -334,6 +509,8 @@ class OrgOnboardingProcessor:
             "views_created": views_created,
             "tables_failed": tables_failed,
             "views_failed": views_failed,
+            "llm_subscriptions_seeded": llm_seed_result.get("subscriptions_seeded", 0),
+            "llm_pricing_seeded": llm_seed_result.get("pricing_seeded", 0),
             "message": f"Created {len(tables_created)} tables and {len(views_created)} views for organization {org_slug}"
         }
 

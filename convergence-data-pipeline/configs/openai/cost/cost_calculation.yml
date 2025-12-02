@@ -1,0 +1,70 @@
+# Pipeline: OpenAI Cost Calculation
+# Domain: Finance
+# Action: Transform (Raw Usage -> Calculated Cost)
+
+pipeline_id: "openai-cost-calc"
+name: "OpenAI Cost Calculation"
+description: "Calculate detailed costs from usage data using pricing table"
+version: "1.0.0"
+
+schedule:
+  type: daily
+  time: "03:00"
+  timezone: UTC
+
+variables:
+  org_slug: "{org_slug}"
+
+steps:
+  - step_id: "calc_usage_cost"
+    ps_type: "generic.local_bq_transformer"
+    description: "Calculate cost from completions usage"
+
+    transformation:
+      type: "sql_template"
+      sql: |
+        SELECT
+          TIMESTAMP_SECONDS(CAST(JSON_VALUE(raw_data, '$.start_time') AS INT64)) as usage_time,
+          '{org_slug}' as org_slug,
+          JSON_VALUE(r, '$.model') as model,
+          JSON_VALUE(r, '$.project_id') as project_id,
+          CAST(JSON_VALUE(r, '$.input_tokens') AS INT64) as input_tokens,
+          CAST(JSON_VALUE(r, '$.output_tokens') AS INT64) as output_tokens,
+          CAST(JSON_VALUE(r, '$.input_cached_tokens') AS INT64) as cached_input_tokens,
+          
+          -- Cost Calculation
+          (
+            (CAST(JSON_VALUE(r, '$.input_tokens') AS FLOAT64) - CAST(JSON_VALUE(r, '$.input_cached_tokens') AS FLOAT64)) / 1000 * IFNULL(p.input_rate, 0)
+          ) as input_cost_usd,
+          (
+            CAST(JSON_VALUE(r, '$.input_cached_tokens') AS FLOAT64) / 1000 * IFNULL(p.cached_input_rate, p.input_rate)
+          ) as cached_input_cost_usd,
+          (
+            CAST(JSON_VALUE(r, '$.output_tokens') AS FLOAT64) / 1000 * IFNULL(p.output_rate, 0)
+          ) as output_cost_usd,
+          
+          -- Total Cost
+          (
+            ((CAST(JSON_VALUE(r, '$.input_tokens') AS FLOAT64) - CAST(JSON_VALUE(r, '$.input_cached_tokens') AS FLOAT64)) / 1000 * IFNULL(p.input_rate, 0)) +
+            (CAST(JSON_VALUE(r, '$.input_cached_tokens') AS FLOAT64) / 1000 * IFNULL(p.cached_input_rate, p.input_rate)) +
+            (CAST(JSON_VALUE(r, '$.output_tokens') AS FLOAT64) / 1000 * IFNULL(p.output_rate, 0))
+          ) as total_cost_usd
+
+        FROM `{project}.{dataset}.openai_usage_completions_raw`,
+        UNNEST(JSON_QUERY_ARRAY(raw_data, '$.results')) as r
+        LEFT JOIN `{project}.{dataset}.openai_pricing` p 
+          ON JSON_VALUE(r, '$.model') = p.model
+        WHERE DATE(TIMESTAMP_SECONDS(CAST(JSON_VALUE(raw_data, '$.start_time') AS INT64))) = '{{ start_date }}'
+
+    destination:
+      table: "openai_cost_daily_calculated"
+      mode: "append"
+
+requires_auth: true
+auth_type: "org_api_key"
+
+tags:
+  - openai
+  - cost
+  - transform
+category: "finance"
