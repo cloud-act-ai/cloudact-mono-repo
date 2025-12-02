@@ -326,6 +326,35 @@ class Settings(BaseSettings):
     )
 
     # ============================================
+    # Egress Control - External API Domain Allowlist
+    # ============================================
+    # SECURITY: Only these domains can be contacted for credential validation
+    # Prevents SSRF attacks and credential exfiltration to rogue servers
+    allowed_external_domains: list = Field(
+        default=[
+            "api.openai.com",
+            "api.anthropic.com",
+            "generativelanguage.googleapis.com",
+            "bigquery.googleapis.com",
+            "cloudresourcemanager.googleapis.com",
+            "iam.googleapis.com",
+            "storage.googleapis.com",
+        ],
+        description="Allowed external domains for API credential validation. Wildcard subdomains supported with *."
+    )
+    # Block these domains even if they match allowed patterns (defense-in-depth)
+    blocked_external_domains: list = Field(
+        default=[
+            "metadata.google.internal",  # GCP metadata service - SSRF target
+            "169.254.169.254",           # AWS/GCP metadata IP - SSRF target
+            "localhost",
+            "127.0.0.1",
+            "0.0.0.0",
+        ],
+        description="Blocked domains that override allowed list (SSRF protection)"
+    )
+
+    # ============================================
     # API Key Scopes (#54)
     # ============================================
     api_key_default_scopes: list = Field(
@@ -509,7 +538,7 @@ class Settings(BaseSettings):
     # Fallback limits when subscription not found (STARTER defaults)
     fallback_daily_limit: int = Field(default=6, description="Fallback daily limit if subscription not found")
     fallback_monthly_limit: int = Field(default=180, description="Fallback monthly limit if subscription not found")
-    fallback_concurrent_limit: int = Field(default=1, description="Fallback concurrent limit if subscription not found")
+    fallback_concurrent_limit: int = Field(default=6, description="Fallback concurrent limit if subscription not found")
 
     # ============================================
     # API Key Configuration

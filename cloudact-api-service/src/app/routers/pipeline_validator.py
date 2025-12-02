@@ -21,6 +21,7 @@ from src.app.dependencies.auth import (
     validate_quota,
     get_org_credentials,
     increment_pipeline_usage,
+    reserve_pipeline_quota_atomic,
 )
 from src.core.engine.bq_client import BigQueryClient, get_bigquery_client
 
@@ -369,8 +370,12 @@ async def validate_pipeline_execution(
             error_code="SUBSCRIPTION_ERROR"
         )
 
-    # Validate quota
+    # ATOMIC quota check and reservation
+    # This prevents race conditions where multiple concurrent requests pass quota checks
+    # before any increments happen. The atomic operation checks limits AND increments in one query.
     try:
+        await reserve_pipeline_quota_atomic(org_slug, subscription, bq_client)
+        # Get current quota info for response (after reservation)
         quota = await validate_quota(org, subscription, bq_client)
     except HTTPException as e:
         return PipelineValidationResponse(
@@ -442,8 +447,8 @@ async def validate_pipeline_execution(
                 error_code="INTEGRATION_ERROR"
             )
 
-    # Increment concurrent pipeline counter (mark as RUNNING)
-    await increment_pipeline_usage(org_slug, "RUNNING", bq_client)
+    # NOTE: Pipeline quota already reserved atomically by reserve_pipeline_quota_atomic() above.
+    # No need to call increment_pipeline_usage("RUNNING") - quota is already incremented.
 
     logger.info(f"Pipeline validation successful: org={org_slug}, pipeline={pipeline_id}")
 

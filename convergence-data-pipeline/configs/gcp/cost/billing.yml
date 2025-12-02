@@ -38,7 +38,7 @@ steps:
 
   # Step 2: Extract billing data from GCP billing export
   - step_id: "extract_billing"
-    ps_type: "gcp.bq_etl"
+    ps_type: "gcp.external_bq_extractor"
     description: "Extract GCP billing costs for date range"
     depends_on:
       - "decrypt_credentials"

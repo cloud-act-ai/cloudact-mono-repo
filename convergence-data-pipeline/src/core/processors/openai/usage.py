@@ -16,6 +16,7 @@ from google.cloud import bigquery
 
 from src.core.processors.openai.authenticator import OpenAIAuthenticator
 from src.core.engine.bq_client import BigQueryClient
+from src.core.utils.bq_helpers import insert_rows_smart, InsertResult
 from src.app.config import get_settings
 
 
@@ -203,7 +204,10 @@ class OpenAIUsageProcessor:
 
                     # Store to BigQuery if enabled (use batch size for chunked inserts)
                     if store_to_bq and usage_data:
-                        await self._store_usage_data(org_slug, usage_data, start_date, destination_table)
+                        await self._store_usage_data(
+                            org_slug, usage_data, start_date, destination_table,
+                            pipeline_context=context
+                        )
 
                     return {
                         "status": "SUCCESS",
@@ -255,10 +259,17 @@ class OpenAIUsageProcessor:
         org_slug: str,
         usage_data: List[Dict],
         date: str,
-        destination_table: str
+        destination_table: str,
+        pipeline_context: Optional[Dict[str, Any]] = None
     ) -> None:
-        """Store usage data in BigQuery."""
-        # Use settings.get_org_dataset_name() for consistency with onboarding
+        """
+        Store usage data in BigQuery with idempotent inserts.
+
+        Uses insert_rows_smart which:
+        - Generates insertId for deduplication on retries
+        - Uses batch load for large datasets (>100 rows)
+        - Sends failed rows to Dead Letter Queue
+        """
         dataset_id = self.settings.get_org_dataset_name(org_slug)
         table_id = f"{self.settings.gcp_project_id}.{dataset_id}.{destination_table}"
 
@@ -281,10 +292,31 @@ class OpenAIUsageProcessor:
 
         if rows:
             try:
-                # Ensure table exists (would be better to use schema from config)
-                errors = bq_client.client.insert_rows_json(table_id, rows)
-                if errors:
-                    self.logger.error(f"Failed to insert usage data: {errors}")
+                # Use smart insert with idempotency and DLQ support
+                # Key fields for insertId: org_slug + usage_date + model (ensures unique per day/model)
+                result: InsertResult = await insert_rows_smart(
+                    bq_client=bq_client.client,
+                    table_id=table_id,
+                    rows=rows,
+                    org_slug=org_slug,
+                    key_fields=["org_slug", "usage_date", "model"],
+                    pipeline_context=pipeline_context
+                )
+
+                if not result.success:
+                    self.logger.error(
+                        f"Failed to insert usage data: {result.error}",
+                        extra={
+                            "rows_inserted": result.rows_inserted,
+                            "rows_failed": result.rows_failed,
+                            "dlq_records": result.dlq_records
+                        }
+                    )
+                else:
+                    self.logger.info(
+                        f"Stored {result.rows_inserted} usage records",
+                        extra={"org_slug": org_slug, "table": destination_table}
+                    )
             except Exception as e:
                 self.logger.warning(f"Could not store usage data: {e}")
 

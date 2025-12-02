@@ -767,11 +767,11 @@ async def trigger_pipeline(
 
             daily_limit = 6
             monthly_limit = 180
-            concurrent_limit = 1
+            concurrent_limit = 6
             if sub_result:
                 daily_limit = sub_result[0].get("daily_limit", 6) or 6
                 monthly_limit = sub_result[0].get("monthly_limit", 180) or 180
-                concurrent_limit = sub_result[0].get("concurrent_limit", 1) or 1
+                concurrent_limit = sub_result[0].get("concurrent_limit", 6) or 6
 
             insert_query = f"""
             INSERT INTO `{settings.gcp_project_id}.organizations.org_usage_quotas`

@@ -1,0 +1,60 @@
+# Pipeline: Example API to BigQuery ELT
+# Domain: Usage
+# Pattern: ELT (Extract-Load-Transform)
+
+pipeline_id: "example-api-elt"
+name: "Example API Usage ELT"
+description: "Fetch data from API to Raw BQ, then transform to Final BQ"
+version: "1.0.0"
+
+schedule:
+  type: daily
+  time: "03:00"
+  timezone: UTC
+
+variables:
+  org_slug: "{org_slug}"
+
+steps:
+  # Step 1: Extract from API -> Load to BigQuery (Raw)
+  - step_id: "extract_raw"
+    ps_type: "api_extractor" # Hypothetical generic processor
+    description: "Fetch raw JSON from API"
+    config:
+      url: "https://api.example.com/v1/usage"
+      method: "GET"
+      params:
+        date: "{start_date}"
+      destination:
+        table: "example_usage_raw"
+        schema_ref: "schemas/usage/raw_schema.json"
+
+  # Step 2: Transform Raw -> Final (using BigQuery SQL)
+  - step_id: "transform_final"
+    ps_type: "bq_transformer" # The generic processor we built
+    depends_on: "extract_raw" # Waits for Step 1
+    description: "Parse JSON and aggregate"
+
+    transformation:
+      type: "sql_template"
+      sql: |
+        SELECT 
+          usage_date,
+          org_slug,
+          JSON_VALUE(raw_data, '$.service_name') as service,
+          SUM(CAST(JSON_VALUE(raw_data, '$.units') AS INT64)) as total_units
+        FROM `{project}.{dataset}.example_usage_raw`
+        WHERE usage_date = '{{ start_date }}'
+        GROUP BY 1, 2, 3
+
+    destination:
+      table: "example_usage_final"
+      mode: "append"
+
+requires_auth: true
+auth_type: "org_api_key"
+
+tags:
+  - usage
+  - elt
+category: "usage"

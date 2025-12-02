@@ -394,7 +394,7 @@ class Settings(BaseSettings):
     # Fallback limits when subscription not found (STARTER defaults)
     fallback_daily_limit: int = Field(default=6, description="Fallback daily limit if subscription not found")
     fallback_monthly_limit: int = Field(default=180, description="Fallback monthly limit if subscription not found")
-    fallback_concurrent_limit: int = Field(default=1, description="Fallback concurrent limit if subscription not found")
+    fallback_concurrent_limit: int = Field(default=6, description="Fallback concurrent limit if subscription not found")
 
     # ============================================
     # API Key Configuration

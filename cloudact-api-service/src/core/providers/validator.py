@@ -6,17 +6,93 @@ No code changes needed when adding new providers - just update the YAML.
 
 For API key providers: Uses validation_endpoint, auth_header from config
 For cloud providers: Uses required_fields, expected_type from config
+
+SECURITY: Includes egress control to prevent SSRF attacks.
 """
 
 import json
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
+from urllib.parse import urlparse
 
 import httpx
 
 from src.core.providers.registry import provider_registry
+from src.app.config import settings
 
 logger = logging.getLogger(__name__)
+
+
+# ============================================
+# EGRESS CONTROL - SSRF Prevention
+# ============================================
+
+def validate_external_url(url: str) -> Dict[str, Any]:
+    """
+    Validate that a URL is allowed for external API calls.
+
+    SECURITY: Prevents SSRF attacks by:
+    1. Checking URL is in allowed domain list
+    2. Blocking known dangerous domains (metadata services)
+    3. Requiring HTTPS
+
+    Args:
+        url: The URL to validate
+
+    Returns:
+        {"valid": True} or {"valid": False, "error": "..."}
+    """
+    try:
+        parsed = urlparse(url)
+
+        # Require HTTPS
+        if parsed.scheme not in ("https",):
+            return {
+                "valid": False,
+                "error": f"Only HTTPS URLs allowed, got: {parsed.scheme}"
+            }
+
+        domain = parsed.netloc.lower()
+
+        # Remove port if present
+        if ":" in domain:
+            domain = domain.split(":")[0]
+
+        # Check blocked domains first (defense-in-depth)
+        for blocked in settings.blocked_external_domains:
+            if domain == blocked.lower() or domain.endswith("." + blocked.lower()):
+                logger.warning(f"SSRF attempt blocked: {url} matches blocked domain {blocked}")
+                return {
+                    "valid": False,
+                    "error": f"Domain '{domain}' is blocked for security reasons"
+                }
+
+        # Check against allowed domains
+        allowed = False
+        for allowed_domain in settings.allowed_external_domains:
+            allowed_lower = allowed_domain.lower()
+            if domain == allowed_lower:
+                allowed = True
+                break
+            # Support wildcard subdomains (*.googleapis.com)
+            if allowed_lower.startswith("*."):
+                base_domain = allowed_lower[2:]
+                if domain == base_domain or domain.endswith("." + base_domain):
+                    allowed = True
+                    break
+
+        if not allowed:
+            logger.warning(f"Egress control blocked URL: {url} - domain '{domain}' not in allowlist")
+            return {
+                "valid": False,
+                "error": f"Domain '{domain}' is not in the allowed external domains list"
+            }
+
+        return {"valid": True}
+
+    except Exception as e:
+        logger.error(f"URL validation error for {url}: {e}")
+        return {"valid": False, "error": f"Invalid URL format: {e}"}
 
 
 def validate_credential_format(provider: str, credential: str) -> Dict[str, Any]:
@@ -123,16 +199,28 @@ async def _validate_api_key_provider(config, credential: str) -> Dict[str, Any]:
     - api_base_url
     - validation_endpoint
     - auth_header
+
+    SECURITY: Validates URL against allowed domain list before making HTTP request.
     """
     validation_url = provider_registry.get_validation_url(config.name)
     if not validation_url:
         logger.warning(f"No validation URL for {config.name}, skipping connectivity check")
         return {"valid": True, "message": "Format valid, connectivity check skipped"}
 
+    # SECURITY: Egress control - validate URL is in allowed domain list
+    url_validation = validate_external_url(validation_url)
+    if not url_validation.get("valid"):
+        logger.error(f"Egress control blocked validation URL for {config.name}: {url_validation.get('error')}")
+        return {
+            "valid": False,
+            "error": f"Security error: {url_validation.get('error')}"
+        }
+
     headers = provider_registry.get_auth_headers(config.name, credential)
     timeout = provider_registry.get_validation_timeout()
 
-    async with httpx.AsyncClient(timeout=timeout) as client:
+    # SECURITY: Disable redirects to prevent SSRF via redirect
+    async with httpx.AsyncClient(timeout=timeout, follow_redirects=False) as client:
         response = await client.get(validation_url, headers=headers)
 
         if response.status_code == 200:
@@ -141,6 +229,10 @@ async def _validate_api_key_provider(config, credential: str) -> Dict[str, Any]:
             return {"valid": False, "error": "Invalid API key"}
         elif response.status_code == 403:
             return {"valid": False, "error": "API key lacks required permissions"}
+        elif response.status_code in (301, 302, 303, 307, 308):
+            # Block redirects that could be SSRF attempts
+            logger.warning(f"Blocked redirect during validation for {config.name}: {response.status_code}")
+            return {"valid": False, "error": "API validation failed - unexpected redirect"}
         else:
             return {"valid": False, "error": f"API error: {response.status_code}"}
 

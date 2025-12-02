@@ -283,15 +283,34 @@ class AsyncPipelineExecutor:
         """
         Build DAG from step configurations.
 
+        Sequential by default: If a step has no explicit `depends_on`, it automatically
+        depends on the previous step in the list. This ensures steps run sequentially
+        unless parallel execution is explicitly configured.
+
         Args:
             steps: List of step configurations
         """
-        # Create nodes
+        # Create nodes and track step order for implicit dependencies
+        step_ids_in_order = []
         for idx, step in enumerate(steps):
             node = StepNode(step, idx)
             self.step_dag[node.step_id] = node
+            step_ids_in_order.append(node.step_id)
 
-        # Build dependency relationships
+        # Add implicit sequential dependencies for steps without explicit depends_on
+        for idx, step_id in enumerate(step_ids_in_order):
+            node = self.step_dag[step_id]
+            # If step has no explicit dependencies and is not the first step,
+            # make it depend on the previous step (sequential execution)
+            if not node.dependencies and idx > 0:
+                prev_step_id = step_ids_in_order[idx - 1]
+                node.dependencies.add(prev_step_id)
+                self.logger.debug(
+                    f"Step '{step_id}' has no explicit depends_on, "
+                    f"adding implicit dependency on '{prev_step_id}' for sequential execution"
+                )
+
+        # Build dependency relationships (both explicit and implicit)
         for step_id, node in self.step_dag.items():
             for dep_id in node.dependencies:
                 if dep_id not in self.step_dag:
@@ -299,7 +318,7 @@ class AsyncPipelineExecutor:
                 self.step_dag[dep_id].dependents.add(step_id)
 
         self.logger.info(
-            f"Built DAG with {len(self.step_dag)} steps",
+            f"Built DAG with {len(self.step_dag)} steps (sequential by default)",
             steps=list(self.step_dag.keys())
         )
 

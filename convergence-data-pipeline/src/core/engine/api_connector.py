@@ -26,8 +26,13 @@ from src.core.abstractor.models import (
 )
 from src.core.utils.secrets import get_secret
 from src.core.utils.logging import get_logger
+from src.app.config import get_settings
 
 logger = get_logger(__name__)
+settings = get_settings()
+
+# Maximum pages to fetch before stopping (prevents infinite pagination loops)
+MAX_PAGINATION_PAGES = 100
 
 
 class SSRFValidationError(ValueError):
@@ -323,9 +328,14 @@ class APIConnector:
 
         return response
 
-    async def fetch_all(self) -> Iterator[Dict[str, Any]]:
+    async def fetch_all(self, max_pages: int = MAX_PAGINATION_PAGES) -> Iterator[Dict[str, Any]]:
         """
         Fetch all records with automatic pagination.
+
+        SAFETY: Enforces max_pages limit to prevent infinite pagination loops.
+
+        Args:
+            max_pages: Maximum number of pages to fetch (default: 100)
 
         Yields:
             Individual records as dictionaries
@@ -337,7 +347,7 @@ class APIConnector:
 
         pagination = self.config.pagination
 
-        while True:
+        while page <= max_pages:
             # Add pagination parameters
             if pagination:
                 if pagination.type == "cursor":
@@ -393,10 +403,20 @@ class APIConnector:
 
             page += 1
 
+        # Check if we hit the max_pages limit
+        if page > max_pages:
+            logger.warning(
+                "Pagination limit reached - some records may not have been fetched",
+                max_pages=max_pages,
+                total_fetched=total_fetched,
+                org_slug=self.org_slug
+            )
+
         logger.info(
             f"Completed fetch",
             total_records=total_fetched,
-            total_pages=page,
+            total_pages=page - 1,  # page was incremented at end of loop
+            max_pages_limit=max_pages,
             org_slug=self.org_slug
         )
 

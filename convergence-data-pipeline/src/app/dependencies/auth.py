@@ -353,6 +353,8 @@ async def get_current_org(
     org_api_key_hash = hash_api_key(api_key)
 
     # Query organizations.org_api_keys for authentication
+    # IMPORTANT: Allow both ACTIVE and TRIAL subscription statuses for auth
+    # This prevents auth failures during subscription transitions
     query = f"""
     SELECT
         k.org_api_key_id,
@@ -380,7 +382,7 @@ async def get_current_org(
     WHERE k.org_api_key_hash = @org_api_key_hash
         AND k.is_active = TRUE
         AND p.status = 'ACTIVE'
-        AND s.status = 'ACTIVE'
+        AND s.status IN ('ACTIVE', 'TRIAL')
     LIMIT 1
     """
 
@@ -1041,6 +1043,7 @@ async def get_org_from_api_key(
         Dict with org_slug and org_api_key_id if found and active, None otherwise
     """
     # Query centralized organizations.org_api_keys table
+    # IMPORTANT: Allow both ACTIVE and TRIAL subscription statuses
     query = f"""
     SELECT
         k.org_slug,
@@ -1055,7 +1058,7 @@ async def get_org_from_api_key(
     WHERE k.org_api_key_hash = @org_api_key_hash
         AND k.is_active = TRUE
         AND p.status = 'ACTIVE'
-        AND c.status = 'ACTIVE'
+        AND c.status IN ('ACTIVE', 'TRIAL')
     LIMIT 1
     """
 

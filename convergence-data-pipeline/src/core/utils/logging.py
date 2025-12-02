@@ -106,6 +106,96 @@ def get_logger(name: str) -> logging.Logger:
     return logging.getLogger(name)
 
 
+def should_include_stacktrace() -> bool:
+    """
+    Determine if stack traces should be included in logs.
+
+    SECURITY: In production, stack traces can leak sensitive information
+    (credentials in variables, API keys in call stacks, etc.)
+
+    Returns:
+        True if stack traces should be included (dev/staging), False for production
+    """
+    return settings.environment.lower() in ("development", "dev", "local", "staging")
+
+
+def safe_error_log(
+    logger: logging.Logger,
+    message: str,
+    error: Exception,
+    **extra_context
+) -> None:
+    """
+    Log an error safely, conditionally including stack trace based on environment.
+
+    SECURITY: In production, only logs error type and sanitized message.
+    In development, includes full stack trace for debugging.
+
+    Args:
+        logger: Logger instance
+        message: Error message
+        error: The exception
+        **extra_context: Additional context to include in logs
+    """
+    # Basic error info always logged
+    error_info = {
+        "error_type": type(error).__name__,
+        "error_module": type(error).__module__,
+        **extra_context
+    }
+
+    if should_include_stacktrace():
+        # Development: Include full stack trace
+        logger.error(message, exc_info=True, extra=error_info)
+    else:
+        # Production: Sanitize error message (remove potential secrets)
+        sanitized_msg = _sanitize_error_message(str(error))
+        logger.error(
+            f"{message}: {sanitized_msg}",
+            extra={**error_info, "sanitized": True}
+        )
+
+
+def _sanitize_error_message(error_msg: str) -> str:
+    """
+    Sanitize error message to remove potential secrets.
+
+    Args:
+        error_msg: The original error message
+
+    Returns:
+        Sanitized error message
+    """
+    import re
+
+    # Patterns that might contain secrets
+    sensitive_patterns = [
+        # API keys
+        (r'sk-[a-zA-Z0-9]{20,}', '[REDACTED_API_KEY]'),
+        (r'sk-ant-[a-zA-Z0-9]{20,}', '[REDACTED_ANTHROPIC_KEY]'),
+        (r'Bearer\s+[a-zA-Z0-9\-_.]+', 'Bearer [REDACTED]'),
+        # GCP service account info
+        (r'"private_key":\s*"[^"]+?"', '"private_key": "[REDACTED]"'),
+        (r'"client_email":\s*"[^"]+?"', '"client_email": "[REDACTED]"'),
+        # Generic token patterns
+        (r'token["\']?\s*[:=]\s*["\']?[a-zA-Z0-9\-_.]{20,}', 'token: [REDACTED]'),
+        (r'key["\']?\s*[:=]\s*["\']?[a-zA-Z0-9\-_.]{20,}', 'key: [REDACTED]'),
+        (r'password["\']?\s*[:=]\s*["\']?[^\s"\']+', 'password: [REDACTED]'),
+        (r'secret["\']?\s*[:=]\s*["\']?[^\s"\']+', 'secret: [REDACTED]'),
+    ]
+
+    sanitized = error_msg
+    for pattern, replacement in sensitive_patterns:
+        sanitized = re.sub(pattern, replacement, sanitized, flags=re.IGNORECASE)
+
+    # Truncate very long error messages
+    max_length = 500
+    if len(sanitized) > max_length:
+        sanitized = sanitized[:max_length] + "... [TRUNCATED]"
+
+    return sanitized
+
+
 class StructuredLogger:
     """
     Structured logger wrapper for adding consistent contextual information.
@@ -143,6 +233,12 @@ class StructuredLogger:
         exc_info = kwargs.pop('exc_info', False)
         stack_info = kwargs.pop('stack_info', False)
         stacklevel = kwargs.pop('stacklevel', 1)
+
+        # SECURITY: Only include stack traces in non-production environments
+        # to prevent leaking sensitive information in logs
+        if exc_info and not should_include_stacktrace():
+            exc_info = False
+            kwargs['_stacktrace_omitted'] = True  # Flag for debugging
 
         # Remaining kwargs go into extra
         extra = {**self.context, **kwargs}

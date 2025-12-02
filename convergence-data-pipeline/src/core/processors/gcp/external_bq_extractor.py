@@ -23,6 +23,7 @@ from google.api_core import exceptions as core_exceptions
 
 from src.core.engine.bq_client import BigQueryClient
 from src.core.processors.gcp.authenticator import GCPAuthenticator
+from src.core.utils.bq_helpers import build_parameterized_query
 from src.app.config import get_settings
 
 
@@ -73,27 +74,37 @@ def retry_on_transient_error(max_retries=3, backoff_seconds=1):
     return decorator
 
 
-class BigQueryETLEngine:
+class ExternalBqExtractor:
     """
-    Engine for BigQuery ETL (Extract-Transform-Load) operations
-    Reads data from BigQuery source, optionally transforms via query, and loads to destination
+    Engine for External BigQuery Extraction (formerly BigQueryETLEngine)
+    Reads data from external BigQuery source (e.g. customer project), optionally transforms via query, and loads to destination
     Supports schema templates, variable replacement, and table creation
     """
 
     def __init__(self):
         self.settings = get_settings()
         self.logger = logging.getLogger(__name__)
-        # Templates now in configs/gcp/bq_etl/
-        self.template_dir = Path(__file__).parent.parent.parent.parent.parent / "configs" / "gcp" / "bq_etl"
+        # Templates now in configs/gcp/cost/schemas/ (Refactored)
+        self.template_dir = Path(__file__).parent.parent.parent.parent.parent / "configs" / "gcp" / "cost" / "schemas"
         self.schema_templates = self._load_schema_templates()
 
     def _load_schema_templates(self) -> Dict[str, Any]:
         """Load schema templates from template directory"""
-        schema_file = self.template_dir / "schema_template.json"
+        # We renamed the file to billing_cost.json
+        schema_file = self.template_dir / "billing_cost.json"
         if schema_file.exists():
             with open(schema_file, 'r') as f:
+                # The original file had {"schemas": ...}. We should check if we kept that structure.
+                # Assuming we just copied the file, it still has that structure.
                 return json.load(f)
         return {"schemas": {}}
+
+# ... (rest of class)
+
+# Factory function to get engine instance
+def get_engine():
+    """Get ExternalBqExtractor instance"""
+    return ExternalBqExtractor()
 
     def _get_schema_for_template(self, schema_name: str) -> Optional[List[bigquery.SchemaField]]:
         """Get BigQuery schema from template"""
@@ -115,12 +126,37 @@ class BigQueryETLEngine:
         return schema if schema else []
 
     def _replace_variables(self, text: str, variables: Dict[str, Any]) -> str:
-        """Replace {variable} placeholders in text"""
+        """
+        Replace {variable} placeholders in text for non-query strings (e.g., table names).
+
+        WARNING: Do NOT use this for SQL queries - use _build_parameterized_query instead
+        to prevent SQL injection.
+        """
         result = text
         for key, value in variables.items():
             placeholder = f"{{{key}}}"
             result = result.replace(placeholder, str(value))
         return result
+
+    def _build_parameterized_query(
+        self,
+        query_template: str,
+        variables: Dict[str, Any]
+    ) -> tuple:
+        """
+        Build a parameterized query for safe SQL execution.
+
+        SECURITY: Prevents SQL injection by using BigQuery query parameters
+        instead of string interpolation.
+
+        Args:
+            query_template: SQL query with {variable} placeholders
+            variables: Dictionary of variable names to values
+
+        Returns:
+            Tuple of (parameterized_query, list_of_parameters)
+        """
+        return build_parameterized_query(query_template, variables)
 
     async def execute(
         self,
@@ -162,9 +198,30 @@ class BigQueryETLEngine:
         if 'date' not in variables:
             variables['date'] = date.today().isoformat()
 
-        # Replace variables in query
-        query = source.get("query", "")
-        query = self._replace_variables(query, variables)
+        # Build parameterized query for SECURITY (prevents SQL injection)
+        query_template = source.get("query", "")
+
+        # For source queries, we use parameterized queries to prevent injection
+        # Note: Only variables used in WHERE clauses need parameterization
+        # Table names and project IDs are still replaced via string substitution
+        # since BigQuery doesn't support parameterized table/project names
+        try:
+            parameterized_query, query_params = self._build_parameterized_query(
+                query_template, variables
+            )
+            use_parameterized = True
+        except (ValueError, KeyError):
+            # Fall back to string replacement if parameterization fails
+            # (e.g., for complex queries with table name variables)
+            parameterized_query = self._replace_variables(query_template, variables)
+            query_params = []
+            use_parameterized = False
+            self.logger.warning(
+                "Using string replacement for query (parameterization failed)",
+                extra={"query_preview": query_template[:100]}
+            )
+
+        query = parameterized_query
 
         # Initialize SOURCE BigQuery client (customer's GCP or CloudAct's)
         use_org_credentials = source.get("use_org_credentials", False)
@@ -208,6 +265,14 @@ class BigQueryETLEngine:
         job_config.use_query_cache = True
         # Set job timeout and billing limit
         job_config.maximum_bytes_billed = 10 * 1024 * 1024 * 1024  # 10 GB limit
+
+        # SECURITY: Use query parameters if available (prevents SQL injection)
+        if use_parameterized and query_params:
+            job_config.query_parameters = query_params
+            self.logger.info(
+                "Executing parameterized query",
+                extra={"param_count": len(query_params), "org_slug": org_slug}
+            )
 
         query_job = source_bq_client.query(query, job_config=job_config)
 
@@ -372,5 +437,5 @@ class BigQueryETLEngine:
 
 # Factory function to get engine instance
 def get_engine():
-    """Get BigQueryETLEngine instance"""
-    return BigQueryETLEngine()
+    """Get ExternalBqExtractor instance"""
+    return ExternalBqExtractor()

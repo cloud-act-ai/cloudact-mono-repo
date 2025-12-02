@@ -101,7 +101,7 @@ SUBSCRIPTION_LIMITS = {
         "max_providers": 3,
         "max_pipelines_per_day": 6,
         "max_pipelines_per_month": 180,
-        "max_concurrent_pipelines": 1,
+        "max_concurrent_pipelines": 6,
         "price_usd": 19
     },
     SubscriptionPlan.PROFESSIONAL: {

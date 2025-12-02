@@ -1506,23 +1506,34 @@ async def update_subscription_limits(
         )
 
     # ============================================
-    # STEP 4: Update org_usage_quotas table
+    # STEP 4: Update org_usage_quotas table (MERGE/UPSERT)
     # ============================================
+    # Use MERGE to ensure quota record is created if it doesn't exist
+    # This is critical for subscription upgrades to work seamlessly
     try:
-        update_quota_query = f"""
-        UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
-        SET
-            daily_limit = @daily_limit,
-            monthly_limit = @monthly_limit,
-            concurrent_limit = @concurrent_limit,
-            seat_limit = @seat_limit,
-            providers_limit = @providers_limit,
-            last_updated = CURRENT_TIMESTAMP()
-        WHERE org_slug = @org_slug
+        merge_quota_query = f"""
+        MERGE `{settings.gcp_project_id}.organizations.org_usage_quotas` AS target
+        USING (SELECT @org_slug AS org_slug) AS source
+        ON target.org_slug = source.org_slug
+        WHEN MATCHED THEN
+            UPDATE SET
+                daily_limit = @daily_limit,
+                monthly_limit = @monthly_limit,
+                concurrent_limit = @concurrent_limit,
+                seat_limit = @seat_limit,
+                providers_limit = @providers_limit,
+                last_updated = CURRENT_TIMESTAMP()
+        WHEN NOT MATCHED THEN
+            INSERT (org_slug, daily_limit, monthly_limit, concurrent_limit,
+                    seat_limit, providers_limit, daily_count, monthly_count,
+                    concurrent_pipelines_running, last_reset_date, month_start_date, last_updated)
+            VALUES (@org_slug, @daily_limit, @monthly_limit, @concurrent_limit,
+                    @seat_limit, @providers_limit, 0, 0,
+                    0, CURRENT_DATE(), DATE_TRUNC(CURRENT_DATE(), MONTH), CURRENT_TIMESTAMP())
         """
 
-        bq_client.client.query(
-            update_quota_query,
+        job = bq_client.client.query(
+            merge_quota_query,
             job_config=bigquery.QueryJobConfig(
                 query_parameters=[
                     bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
@@ -1533,13 +1544,22 @@ async def update_subscription_limits(
                     bigquery.ScalarQueryParameter("providers_limit", "INT64", providers_limit)
                 ]
             )
-        ).result()
+        )
+        job.result()
 
-        logger.info(f"Updated org_usage_quotas for: {org_slug}")
+        # Check if the merge actually affected any rows
+        if job.num_dml_affected_rows == 0:
+            logger.warning(f"MERGE affected 0 rows for org_usage_quotas: {org_slug}")
+        else:
+            logger.info(f"Updated org_usage_quotas for: {org_slug} (rows affected: {job.num_dml_affected_rows})")
 
     except Exception as e:
-        logger.warning(f"Failed to update org_usage_quotas (may not exist yet): {e}")
-        # Non-fatal - quota record may not exist yet
+        # This should NOT be silent - quota update is critical for enforcement
+        logger.error(f"Failed to update org_usage_quotas for {org_slug}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update usage quotas. Subscription update incomplete. Please retry or contact support."
+        )
 
     # ============================================
     # STEP 5: Update org_profiles table

@@ -736,6 +736,142 @@ async def validate_quota(
         )
 
 
+async def reserve_pipeline_quota_atomic(
+    org_slug: str,
+    subscription: Dict[str, Any],
+    bq_client: BigQueryClient
+) -> Dict[str, Any]:
+    """
+    Atomically check quotas AND reserve a pipeline slot in a single BigQuery operation.
+
+    This prevents race conditions where multiple concurrent requests pass quota checks
+    before any increments happen. Uses UPDATE with WHERE clause that includes quota limits.
+
+    Args:
+        org_slug: Organization identifier
+        subscription: Subscription info with max_pipelines_per_day, etc.
+        bq_client: BigQuery client instance
+
+    Returns:
+        Dict with:
+            - success: True if quota reserved, False if limit exceeded
+            - quota_type: Which limit was exceeded (if any)
+            - current_usage: Current usage counts after operation
+
+    Raises:
+        HTTPException: 429 if quota exceeded
+    """
+    today = get_utc_date()
+    daily_limit = subscription["max_pipelines_per_day"]
+    monthly_limit = subscription["max_pipelines_per_month"]
+    concurrent_limit = subscription["max_concurrent_pipelines"]
+
+    # ATOMIC check-and-increment: Only increments if ALL limits are not exceeded
+    # The WHERE clause checks all limits BEFORE incrementing
+    atomic_update_query = f"""
+    UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
+    SET
+        concurrent_pipelines_running = concurrent_pipelines_running + 1,
+        pipelines_run_today = pipelines_run_today + 1,
+        pipelines_run_month = pipelines_run_month + 1,
+        last_updated = CURRENT_TIMESTAMP()
+    WHERE org_slug = @org_slug
+        AND usage_date = @usage_date
+        AND pipelines_run_today < @daily_limit
+        AND pipelines_run_month < @monthly_limit
+        AND concurrent_pipelines_running < @concurrent_limit
+    """
+
+    try:
+        job = bq_client.client.query(
+            atomic_update_query,
+            job_config=bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                    bigquery.ScalarQueryParameter("usage_date", "DATE", today),
+                    bigquery.ScalarQueryParameter("daily_limit", "INT64", daily_limit),
+                    bigquery.ScalarQueryParameter("monthly_limit", "INT64", monthly_limit),
+                    bigquery.ScalarQueryParameter("concurrent_limit", "INT64", concurrent_limit)
+                ]
+            )
+        )
+        result = job.result()
+
+        # Check if any rows were updated (quota was available)
+        if job.num_dml_affected_rows == 0:
+            # No rows updated = quota exceeded. Query to determine which limit was hit.
+            check_query = f"""
+            SELECT
+                pipelines_run_today,
+                pipelines_run_month,
+                concurrent_pipelines_running
+            FROM `{settings.gcp_project_id}.organizations.org_usage_quotas`
+            WHERE org_slug = @org_slug
+                AND usage_date = @usage_date
+            LIMIT 1
+            """
+
+            check_results = list(bq_client.client.query(
+                check_query,
+                job_config=bigquery.QueryJobConfig(
+                    query_parameters=[
+                        bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                        bigquery.ScalarQueryParameter("usage_date", "DATE", today)
+                    ]
+                )
+            ).result())
+
+            if check_results:
+                usage = check_results[0]
+                run_today = usage["pipelines_run_today"] or 0
+                run_month = usage["pipelines_run_month"] or 0
+                concurrent = usage["concurrent_pipelines_running"] or 0
+
+                # Determine which limit was exceeded
+                if run_today >= daily_limit:
+                    logger.warning(f"Daily quota exceeded for org: {org_slug} ({run_today}/{daily_limit})")
+                    raise HTTPException(
+                        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                        detail=f"Daily pipeline quota exceeded ({daily_limit} pipelines/day). Try again tomorrow.",
+                        headers={"Retry-After": "86400"}
+                    )
+                elif run_month >= monthly_limit:
+                    logger.warning(f"Monthly quota exceeded for org: {org_slug} ({run_month}/{monthly_limit})")
+                    raise HTTPException(
+                        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                        detail=f"Monthly pipeline quota exceeded ({monthly_limit} pipelines/month). Upgrade your plan.",
+                    )
+                elif concurrent >= concurrent_limit:
+                    logger.warning(f"Concurrent limit reached for org: {org_slug} ({concurrent}/{concurrent_limit})")
+                    raise HTTPException(
+                        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                        detail=f"Concurrent pipeline limit reached ({concurrent_limit} pipelines). Wait for running pipelines to complete.",
+                        headers={"Retry-After": "300"}
+                    )
+
+            # Fallback if we couldn't determine the specific limit
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Pipeline quota exceeded. Please try again later."
+            )
+
+        # Success - quota was reserved
+        logger.info(f"Pipeline quota reserved atomically for org {org_slug}")
+        return {
+            "success": True,
+            "rows_affected": job.num_dml_affected_rows
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to reserve pipeline quota: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Quota reservation service error"
+        )
+
+
 async def increment_pipeline_usage(
     org_slug: str,
     pipeline_status: str,
@@ -745,6 +881,9 @@ async def increment_pipeline_usage(
     Increment usage counters after pipeline execution.
 
     Updates organizations.org_usage_quotas.
+
+    NOTE: For "RUNNING" status, prefer using reserve_pipeline_quota_atomic() instead
+    to prevent race conditions. This function is kept for backward compatibility.
 
     Args:
         org_slug: Organization identifier
@@ -756,6 +895,8 @@ async def increment_pipeline_usage(
 
     # Determine which counters to increment
     if pipeline_status == "RUNNING":
+        # NOTE: This path is deprecated for new code. Use reserve_pipeline_quota_atomic() instead.
+        # Kept for backward compatibility with existing callers.
         # CRITICAL: Increment BOTH concurrent counter AND daily/monthly counters atomically
         # This prevents race conditions where multiple requests pass quota check before any increments happen
         # The daily counter is incremented HERE to reserve the quota slot immediately
