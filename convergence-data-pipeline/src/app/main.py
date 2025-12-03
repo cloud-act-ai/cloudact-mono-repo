@@ -681,12 +681,11 @@ async def metrics():
 # API Routers
 # ============================================
 
-from src.app.routers import pipelines, scheduler, integrations, llm_data
+from src.app.routers import pipelines, scheduler
 
 app.include_router(pipelines.router, prefix="/api/v1", tags=["Pipelines"])
 app.include_router(scheduler.router, prefix="/api/v1", tags=["Scheduler"])
-app.include_router(integrations.router, prefix="/api/v1", tags=["Integrations"])
-app.include_router(llm_data.router, prefix="/api/v1", tags=["LLM Data"])
+# Note: Integration setup/validate and LLM Data CRUD endpoints are in cloudact-api-service (port 8000), not here
 
 
 if __name__ == "__main__":

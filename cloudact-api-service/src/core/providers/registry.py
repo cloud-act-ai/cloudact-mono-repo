@@ -41,6 +41,7 @@ class ProviderConfig:
     validation_endpoint: Optional[str] = None
     auth_header: Optional[str] = None
     auth_prefix: str = ""
+    auth_query_param: Optional[str] = None  # For providers using query param auth (e.g., Gemini ?key=xxx)
     key_prefix: Optional[Union[str, List[str]]] = None
     extra_headers: Dict[str, str] = field(default_factory=dict)
     required_fields: List[str] = field(default_factory=list)
@@ -105,6 +106,7 @@ class ProviderRegistry:
                     validation_endpoint=data.get("validation_endpoint"),
                     auth_header=data.get("auth_header"),
                     auth_prefix=data.get("auth_prefix", ""),
+                    auth_query_param=data.get("auth_query_param"),  # For Gemini ?key=xxx
                     key_prefix=data.get("key_prefix"),
                     extra_headers=data.get("extra_headers", {}),
                     required_fields=data.get("required_fields", []),
@@ -308,12 +310,29 @@ class ProviderRegistry:
     def get_auth_headers(self, name: str, credential: str) -> Dict[str, str]:
         """Get authentication headers for a provider."""
         provider = self.get_provider(name)
-        if not provider or not provider.auth_header:
+        if not provider:
             return {}
 
-        headers = {provider.auth_header: f"{provider.auth_prefix}{credential}"}
+        headers = {}
+        # Add auth header if specified (not for query param auth providers like Gemini)
+        if provider.auth_header:
+            headers[provider.auth_header] = f"{provider.auth_prefix}{credential}"
+
         headers.update(provider.extra_headers or {})
         return headers
+
+    def get_auth_query_params(self, name: str, credential: str) -> Dict[str, str]:
+        """Get authentication query parameters for a provider (e.g., Gemini ?key=xxx)."""
+        provider = self.get_provider(name)
+        if not provider or not provider.auth_query_param:
+            return {}
+
+        return {provider.auth_query_param: credential}
+
+    def uses_query_param_auth(self, name: str) -> bool:
+        """Check if provider uses query param authentication."""
+        provider = self.get_provider(name)
+        return provider is not None and provider.auth_query_param is not None
 
     # =====================================================
     # Data Tables Methods (LLM Pricing/Subscriptions)

@@ -1,2 +1,0 @@
-category,timestamp_utc,model,endpoint,prompt_tokens,completion_tokens,total_tokens,prompt_cached_tokens,prompt_audio_tokens,completion_reasoning_tokens,completion_audio_tokens,request_id,estimated_input_cost_usd,estimated_cached_input_cost_usd,estimated_output_cost_usd,estimated_total_cost_usd
-personal_call,2025-11-30T17:40:11.043597+00:00,gpt-4o-mini-2024-07-18,/chat/completions,15,38,53,0,0,0,0,chatcmpl-Chfh4FFMiw5netppiGAvBM839e7NL,2.25e-06,0.0,2.28e-05,2.505e-05

@@ -32,6 +32,13 @@ providers:
     max_retries: 3
     retry_backoff_seconds: 2
     rate_limit_per_minute: 60 # Per-org rate limit for this provider
+    # Data tables for pricing/subscriptions (unified tables, filter by provider)
+    data_tables:
+      pricing_table: "llm_model_pricing"
+      subscriptions_table: "llm_subscriptions"
+      seed_path: "configs/llm/seed"
+      pricing_schema: "llm_model_pricing.json"
+      subscriptions_schema: "llm_subscriptions.json"
 
   ANTHROPIC:
     type: llm
@@ -50,6 +57,13 @@ providers:
     max_retries: 3
     retry_backoff_seconds: 2
     rate_limit_per_minute: 60 # Per-org rate limit for this provider
+    # Data tables for pricing/subscriptions (unified tables, filter by provider)
+    data_tables:
+      pricing_table: "llm_model_pricing"
+      subscriptions_table: "llm_subscriptions"
+      seed_path: "configs/llm/seed"
+      pricing_schema: "llm_model_pricing.json"
+      subscriptions_schema: "llm_subscriptions.json"
 
   CLAUDE:
     # Alias for ANTHROPIC (for backward compatibility)
@@ -69,6 +83,32 @@ providers:
     max_retries: 3
     retry_backoff_seconds: 2
     rate_limit_per_minute: 60
+
+  GEMINI:
+    type: llm
+    credential_type: API_KEY
+    display_name: "Google Gemini API Key"
+    context_key: gemini_api_key
+    api_base_url: "https://generativelanguage.googleapis.com/v1beta"
+    validation_endpoint: "/models"
+    auth_header: ""  # Gemini uses query param for API key
+    auth_prefix: ""
+    auth_query_param: "key"  # API key passed as ?key=xxx
+    key_prefix:
+      - "AIza"  # Google API keys start with AIza
+    # Validation configuration
+    validation_model: "gemini-1.5-flash"  # Fast model for validation
+    # Retry and rate limiting
+    max_retries: 3
+    retry_backoff_seconds: 2
+    rate_limit_per_minute: 60  # Per-org rate limit for this provider
+    # Data tables for pricing/subscriptions (unified tables, filter by provider)
+    data_tables:
+      pricing_table: "llm_model_pricing"
+      subscriptions_table: "llm_subscriptions"
+      seed_path: "configs/llm/seed"
+      pricing_schema: "llm_model_pricing.json"
+      subscriptions_schema: "llm_subscriptions.json"
 
   # Cloud Providers
   GCP_SA:
@@ -93,12 +133,14 @@ provider_groups:
     - OPENAI
     - ANTHROPIC
     - CLAUDE # Include CLAUDE alias in LLM group
+    - GEMINI
   cloud:
     - GCP_SA
   all:
     - OPENAI
     - ANTHROPIC
     - CLAUDE
+    - GEMINI
     - GCP_SA
 
 # Provider aliases (for normalization)
@@ -107,6 +149,8 @@ aliases:
   openai: OPENAI
   anthropic: ANTHROPIC
   claude: CLAUDE
+  gemini: GEMINI
+  google: GEMINI
   gcp: GCP_SA
   gcp_sa: GCP_SA
 

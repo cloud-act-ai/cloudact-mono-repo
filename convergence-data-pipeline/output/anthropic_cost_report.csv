@@ -1,0 +1,2 @@
+timestamp_utc,model,input_tokens,output_tokens,estimated_cost_usd
+2025-12-03T06:49:01.419052+00:00,claude-3-opus-20240229,16,69,0.005415

@@ -180,26 +180,10 @@ async def list_pricing(
 
         where_clause = " AND ".join(where_conditions)
 
+        # Use SELECT * to get all columns that exist in the table
+        # This avoids schema mismatch errors when table doesn't have all V7 columns yet
         query = f"""
-        SELECT
-            pricing_id,
-            provider,
-            model_id,
-            model_name,
-            is_custom,
-            input_price_per_1k,
-            output_price_per_1k,
-            effective_date,
-            end_date,
-            is_enabled,
-            notes,
-            x_gemini_context_window,
-            x_gemini_region,
-            x_anthropic_tier,
-            x_openai_batch_input_price,
-            x_openai_batch_output_price,
-            created_at,
-            updated_at
+        SELECT *
         FROM `{table_id}`
         WHERE {where_clause}
         ORDER BY provider, model_id
@@ -247,13 +231,9 @@ async def get_pricing(
         dataset_id = get_org_dataset(org_slug)
         table_id = f"{settings.gcp_project_id}.{dataset_id}.{UNIFIED_PRICING_TABLE}"
 
+        # Use SELECT * to get all columns that exist in the table
         query = f"""
-        SELECT pricing_id, provider, model_id, model_name, is_custom,
-               input_price_per_1k, output_price_per_1k,
-               effective_date, end_date, is_enabled, notes,
-               x_gemini_context_window, x_gemini_region, x_anthropic_tier,
-               x_openai_batch_input_price, x_openai_batch_output_price,
-               created_at, updated_at
+        SELECT *
         FROM `{table_id}`
         WHERE model_id = @model_id AND (provider = @provider OR provider = 'custom')
         """
@@ -319,41 +299,79 @@ async def create_pricing(
         # Generate pricing_id
         pricing_id = f"price_{provider_value}_{pricing.model_id.replace('-', '_').replace('.', '_')}"
 
-        row = {
-            "pricing_id": pricing_id,
-            "provider": provider_value,
-            "model_id": pricing.model_id,
-            "model_name": pricing.model_name,
-            "is_custom": provider_value == "custom",
-            "input_price_per_1k": pricing.input_price_per_1k,
-            "output_price_per_1k": pricing.output_price_per_1k,
-            "effective_date": str(pricing.effective_date),
-            "end_date": None,
-            "is_enabled": True,
-            "notes": pricing.notes,
-            "x_gemini_context_window": None,
-            "x_gemini_region": None,
-            "x_anthropic_tier": None,
-            "x_openai_batch_input_price": None,
-            "x_openai_batch_output_price": None,
-            "created_at": now,
-            "updated_at": now,
-        }
+        # Determine is_custom: True if provider is 'custom' or if user-created (API-created entries are custom)
+        is_custom = provider_value == "custom" or True  # All API-created entries are custom
 
-        errors = bq_client.client.insert_rows_json(table_id, [row])
-        if errors:
-            logger.error(f"Insert errors: {errors}")
-            raise HTTPException(status_code=500, detail="Failed to create pricing record")
+        # Use standard INSERT instead of streaming insert to avoid streaming buffer issues
+        # Streaming inserts can't be modified/deleted for ~90 minutes
+        insert_query = f"""
+        INSERT INTO `{table_id}` (
+            pricing_id, provider, model_id, model_name, is_custom,
+            input_price_per_1k, output_price_per_1k, effective_date, end_date,
+            is_enabled, notes, x_gemini_context_window, x_gemini_region,
+            x_anthropic_tier, x_openai_batch_input_price, x_openai_batch_output_price,
+            pricing_type, free_tier_input_tokens, free_tier_output_tokens,
+            free_tier_reset_frequency, discount_percentage, discount_reason,
+            volume_threshold_tokens, base_input_price_per_1k, base_output_price_per_1k,
+            created_at, updated_at
+        ) VALUES (
+            @pricing_id, @provider, @model_id, @model_name, @is_custom,
+            @input_price, @output_price, @effective_date, NULL,
+            TRUE, @notes, NULL, NULL,
+            NULL, NULL, NULL,
+            @pricing_type, @free_tier_input_tokens, @free_tier_output_tokens,
+            @free_tier_reset_frequency, @discount_percentage, @discount_reason,
+            @volume_threshold_tokens, @base_input_price, @base_output_price,
+            @created_at, @updated_at
+        )
+        """
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("pricing_id", "STRING", pricing_id),
+                bigquery.ScalarQueryParameter("provider", "STRING", provider_value),
+                bigquery.ScalarQueryParameter("model_id", "STRING", pricing.model_id),
+                bigquery.ScalarQueryParameter("model_name", "STRING", pricing.model_name),
+                bigquery.ScalarQueryParameter("is_custom", "BOOL", is_custom),
+                bigquery.ScalarQueryParameter("input_price", "FLOAT64", pricing.input_price_per_1k),
+                bigquery.ScalarQueryParameter("output_price", "FLOAT64", pricing.output_price_per_1k),
+                bigquery.ScalarQueryParameter("effective_date", "DATE", str(pricing.effective_date)),
+                bigquery.ScalarQueryParameter("notes", "STRING", pricing.notes),
+                bigquery.ScalarQueryParameter("pricing_type", "STRING", pricing.pricing_type.value if pricing.pricing_type else "standard"),
+                bigquery.ScalarQueryParameter("free_tier_input_tokens", "INT64", pricing.free_tier_input_tokens),
+                bigquery.ScalarQueryParameter("free_tier_output_tokens", "INT64", pricing.free_tier_output_tokens),
+                bigquery.ScalarQueryParameter("free_tier_reset_frequency", "STRING", pricing.free_tier_reset_frequency.value if pricing.free_tier_reset_frequency else None),
+                bigquery.ScalarQueryParameter("discount_percentage", "FLOAT64", pricing.discount_percentage),
+                bigquery.ScalarQueryParameter("discount_reason", "STRING", pricing.discount_reason.value if pricing.discount_reason else None),
+                bigquery.ScalarQueryParameter("volume_threshold_tokens", "INT64", pricing.volume_threshold_tokens),
+                bigquery.ScalarQueryParameter("base_input_price", "FLOAT64", pricing.base_input_price_per_1k),
+                bigquery.ScalarQueryParameter("base_output_price", "FLOAT64", pricing.base_output_price_per_1k),
+                bigquery.ScalarQueryParameter("created_at", "TIMESTAMP", now),
+                bigquery.ScalarQueryParameter("updated_at", "TIMESTAMP", now),
+            ]
+        )
+        bq_client.client.query(insert_query, job_config=job_config).result()
 
         logger.info(f"Created {provider_value} pricing for model {pricing.model_id} in {org_slug}")
 
         return OpenAIPricingResponse(
+            pricing_id=pricing_id,
+            provider=provider_value,
             model_id=pricing.model_id,
             model_name=pricing.model_name,
+            is_custom=is_custom,
             input_price_per_1k=pricing.input_price_per_1k,
             output_price_per_1k=pricing.output_price_per_1k,
             effective_date=pricing.effective_date,
             notes=pricing.notes,
+            pricing_type=pricing.pricing_type.value if pricing.pricing_type else "standard",
+            free_tier_input_tokens=pricing.free_tier_input_tokens,
+            free_tier_output_tokens=pricing.free_tier_output_tokens,
+            free_tier_reset_frequency=pricing.free_tier_reset_frequency.value if pricing.free_tier_reset_frequency else None,
+            discount_percentage=pricing.discount_percentage,
+            discount_reason=pricing.discount_reason.value if pricing.discount_reason else None,
+            volume_threshold_tokens=pricing.volume_threshold_tokens,
+            base_input_price_per_1k=pricing.base_input_price_per_1k,
+            base_output_price_per_1k=pricing.base_output_price_per_1k,
             created_at=datetime.fromisoformat(now.rstrip("Z")),
             updated_at=datetime.fromisoformat(now.rstrip("Z")),
         )
@@ -395,6 +413,7 @@ async def update_pricing(
             bigquery.ScalarQueryParameter("provider", "STRING", provider_value)
         ]
 
+        # Core pricing fields
         if pricing.model_name is not None:
             update_fields.append("model_name = @model_name")
             query_params.append(bigquery.ScalarQueryParameter("model_name", "STRING", pricing.model_name))
@@ -411,6 +430,43 @@ async def update_pricing(
             update_fields.append("notes = @notes")
             query_params.append(bigquery.ScalarQueryParameter("notes", "STRING", pricing.notes))
 
+        # New V7 fields - pricing type and free tier
+        if pricing.pricing_type is not None:
+            update_fields.append("pricing_type = @pricing_type")
+            query_params.append(bigquery.ScalarQueryParameter("pricing_type", "STRING", pricing.pricing_type.value))
+        if pricing.free_tier_input_tokens is not None:
+            update_fields.append("free_tier_input_tokens = @free_tier_input_tokens")
+            query_params.append(bigquery.ScalarQueryParameter("free_tier_input_tokens", "INT64", pricing.free_tier_input_tokens))
+        if pricing.free_tier_output_tokens is not None:
+            update_fields.append("free_tier_output_tokens = @free_tier_output_tokens")
+            query_params.append(bigquery.ScalarQueryParameter("free_tier_output_tokens", "INT64", pricing.free_tier_output_tokens))
+        if pricing.free_tier_reset_frequency is not None:
+            update_fields.append("free_tier_reset_frequency = @free_tier_reset_frequency")
+            query_params.append(bigquery.ScalarQueryParameter("free_tier_reset_frequency", "STRING", pricing.free_tier_reset_frequency.value))
+
+        # New V7 fields - discount and volume
+        if pricing.discount_percentage is not None:
+            update_fields.append("discount_percentage = @discount_percentage")
+            query_params.append(bigquery.ScalarQueryParameter("discount_percentage", "FLOAT64", pricing.discount_percentage))
+        if pricing.discount_reason is not None:
+            update_fields.append("discount_reason = @discount_reason")
+            query_params.append(bigquery.ScalarQueryParameter("discount_reason", "STRING", pricing.discount_reason.value))
+        if pricing.volume_threshold_tokens is not None:
+            update_fields.append("volume_threshold_tokens = @volume_threshold_tokens")
+            query_params.append(bigquery.ScalarQueryParameter("volume_threshold_tokens", "INT64", pricing.volume_threshold_tokens))
+        if pricing.base_input_price_per_1k is not None:
+            update_fields.append("base_input_price_per_1k = @base_input_price")
+            query_params.append(bigquery.ScalarQueryParameter("base_input_price", "FLOAT64", pricing.base_input_price_per_1k))
+        if pricing.base_output_price_per_1k is not None:
+            update_fields.append("base_output_price_per_1k = @base_output_price")
+            query_params.append(bigquery.ScalarQueryParameter("base_output_price", "FLOAT64", pricing.base_output_price_per_1k))
+        if pricing.discounted_input_price_per_1k is not None:
+            update_fields.append("discounted_input_price_per_1k = @discounted_input_price")
+            query_params.append(bigquery.ScalarQueryParameter("discounted_input_price", "FLOAT64", pricing.discounted_input_price_per_1k))
+        if pricing.discounted_output_price_per_1k is not None:
+            update_fields.append("discounted_output_price_per_1k = @discounted_output_price")
+            query_params.append(bigquery.ScalarQueryParameter("discounted_output_price", "FLOAT64", pricing.discounted_output_price_per_1k))
+
         if not update_fields:
             raise HTTPException(status_code=400, detail="No fields to update")
 
@@ -426,7 +482,14 @@ async def update_pricing(
     except HTTPException:
         raise
     except Exception as e:
+        error_msg = str(e)
         logger.error(f"Error updating pricing: {e}", exc_info=True)
+        # Handle BigQuery streaming buffer error with user-friendly message
+        if "streaming buffer" in error_msg.lower():
+            raise HTTPException(
+                status_code=409,
+                detail="Record was recently inserted and cannot be updated for ~90 minutes. Please wait or delete and recreate."
+            )
         raise HTTPException(status_code=500, detail="Failed to update pricing record")
 
 
@@ -464,7 +527,13 @@ async def delete_pricing(
         logger.info(f"Deleted {provider_value} pricing for model {model_id} in {org_slug}")
 
     except Exception as e:
+        error_msg = str(e)
         logger.error(f"Error deleting pricing: {e}", exc_info=True)
+        if "streaming buffer" in error_msg.lower():
+            raise HTTPException(
+                status_code=409,
+                detail="Record was recently inserted and cannot be deleted for ~90 minutes. Please wait."
+            )
         raise HTTPException(status_code=500, detail="Failed to delete pricing record")
 
 
@@ -515,6 +584,18 @@ class BulkPricingUpdateItem(BaseModel):
     model_name: Optional[str] = None
     effective_date: Optional[str] = None
     notes: Optional[str] = None
+    # V7 fields
+    pricing_type: Optional[str] = None
+    free_tier_input_tokens: Optional[int] = None
+    free_tier_output_tokens: Optional[int] = None
+    free_tier_reset_frequency: Optional[str] = None
+    discount_percentage: Optional[float] = None
+    discount_reason: Optional[str] = None
+    volume_threshold_tokens: Optional[int] = None
+    base_input_price_per_1k: Optional[float] = None
+    base_output_price_per_1k: Optional[float] = None
+    discounted_input_price_per_1k: Optional[float] = None
+    discounted_output_price_per_1k: Optional[float] = None
 
 
 class BulkPricingUpdateRequest(BaseModel):
@@ -572,6 +653,7 @@ async def bulk_update_pricing(
                     bigquery.ScalarQueryParameter("provider", "STRING", provider_value)
                 ]
 
+                # Core fields
                 if item.model_name is not None:
                     update_fields.append("model_name = @model_name")
                     query_params.append(bigquery.ScalarQueryParameter("model_name", "STRING", item.model_name))
@@ -587,6 +669,43 @@ async def bulk_update_pricing(
                 if item.notes is not None:
                     update_fields.append("notes = @notes")
                     query_params.append(bigquery.ScalarQueryParameter("notes", "STRING", item.notes))
+
+                # V7 fields - pricing type and free tier
+                if item.pricing_type is not None:
+                    update_fields.append("pricing_type = @pricing_type")
+                    query_params.append(bigquery.ScalarQueryParameter("pricing_type", "STRING", item.pricing_type))
+                if item.free_tier_input_tokens is not None:
+                    update_fields.append("free_tier_input_tokens = @free_tier_input_tokens")
+                    query_params.append(bigquery.ScalarQueryParameter("free_tier_input_tokens", "INT64", item.free_tier_input_tokens))
+                if item.free_tier_output_tokens is not None:
+                    update_fields.append("free_tier_output_tokens = @free_tier_output_tokens")
+                    query_params.append(bigquery.ScalarQueryParameter("free_tier_output_tokens", "INT64", item.free_tier_output_tokens))
+                if item.free_tier_reset_frequency is not None:
+                    update_fields.append("free_tier_reset_frequency = @free_tier_reset_frequency")
+                    query_params.append(bigquery.ScalarQueryParameter("free_tier_reset_frequency", "STRING", item.free_tier_reset_frequency))
+
+                # V7 fields - discount and volume
+                if item.discount_percentage is not None:
+                    update_fields.append("discount_percentage = @discount_percentage")
+                    query_params.append(bigquery.ScalarQueryParameter("discount_percentage", "FLOAT64", item.discount_percentage))
+                if item.discount_reason is not None:
+                    update_fields.append("discount_reason = @discount_reason")
+                    query_params.append(bigquery.ScalarQueryParameter("discount_reason", "STRING", item.discount_reason))
+                if item.volume_threshold_tokens is not None:
+                    update_fields.append("volume_threshold_tokens = @volume_threshold_tokens")
+                    query_params.append(bigquery.ScalarQueryParameter("volume_threshold_tokens", "INT64", item.volume_threshold_tokens))
+                if item.base_input_price_per_1k is not None:
+                    update_fields.append("base_input_price_per_1k = @base_input_price")
+                    query_params.append(bigquery.ScalarQueryParameter("base_input_price", "FLOAT64", item.base_input_price_per_1k))
+                if item.base_output_price_per_1k is not None:
+                    update_fields.append("base_output_price_per_1k = @base_output_price")
+                    query_params.append(bigquery.ScalarQueryParameter("base_output_price", "FLOAT64", item.base_output_price_per_1k))
+                if item.discounted_input_price_per_1k is not None:
+                    update_fields.append("discounted_input_price_per_1k = @discounted_input_price")
+                    query_params.append(bigquery.ScalarQueryParameter("discounted_input_price", "FLOAT64", item.discounted_input_price_per_1k))
+                if item.discounted_output_price_per_1k is not None:
+                    update_fields.append("discounted_output_price_per_1k = @discounted_output_price")
+                    query_params.append(bigquery.ScalarQueryParameter("discounted_output_price", "FLOAT64", item.discounted_output_price_per_1k))
 
                 if not update_fields:
                     errors.append(f"No fields to update for model: {item.model_id}")
@@ -689,25 +808,10 @@ async def list_subscriptions(
 
         where_clause = " AND ".join(where_conditions)
 
+        # Use SELECT * to get all columns that exist in the table
+        # This avoids schema mismatch errors when table doesn't have all V7 columns yet
         query = f"""
-        SELECT
-            subscription_id,
-            provider,
-            plan_name,
-            is_custom,
-            quantity,
-            unit_price_usd,
-            effective_date,
-            end_date,
-            is_enabled,
-            auth_type,
-            notes,
-            x_gemini_project_id,
-            x_gemini_region,
-            x_anthropic_workspace_id,
-            x_openai_org_id,
-            created_at,
-            updated_at
+        SELECT *
         FROM `{table_id}`
         WHERE {where_clause}
         ORDER BY provider, plan_name
@@ -755,11 +859,9 @@ async def get_subscription(
         dataset_id = get_org_dataset(org_slug)
         table_id = f"{settings.gcp_project_id}.{dataset_id}.{UNIFIED_SUBSCRIPTIONS_TABLE}"
 
+        # Use SELECT * to get all columns that exist in the table
         query = f"""
-        SELECT subscription_id, provider, plan_name, is_custom, quantity, unit_price_usd,
-               effective_date, end_date, is_enabled, auth_type, notes,
-               x_gemini_project_id, x_gemini_region, x_anthropic_workspace_id, x_openai_org_id,
-               created_at, updated_at
+        SELECT *
         FROM `{table_id}`
         WHERE plan_name = @plan_name AND (provider = @provider OR provider = 'custom')
         """
@@ -822,42 +924,95 @@ async def create_subscription(
         if list(result)[0].cnt > 0:
             raise HTTPException(status_code=409, detail=f"Subscription already exists: {subscription.subscription_id}")
 
-        row = {
-            "subscription_id": subscription.subscription_id,
-            "provider": provider_value,
-            "plan_name": subscription.plan_name,
-            "is_custom": provider_value == "custom",
-            "quantity": subscription.quantity,
-            "unit_price_usd": subscription.unit_price_usd,
-            "effective_date": str(subscription.effective_date),
-            "end_date": None,
-            "is_enabled": True,
-            "auth_type": None,
-            "notes": subscription.notes,
-            "x_gemini_project_id": None,
-            "x_gemini_region": None,
-            "x_anthropic_workspace_id": None,
-            "x_openai_org_id": None,
-            "created_at": now,
-            "updated_at": now,
-        }
+        # Determine is_custom: True for all API-created entries
+        is_custom = True
 
-        errors = bq_client.client.insert_rows_json(table_id, [row])
-        if errors:
-            logger.error(f"Insert errors: {errors}")
-            raise HTTPException(status_code=500, detail="Failed to create subscription record")
+        # Use standard INSERT instead of streaming insert to avoid streaming buffer issues
+        # Streaming inserts can't be modified/deleted for ~90 minutes
+        insert_query = f"""
+        INSERT INTO `{table_id}` (
+            subscription_id, provider, plan_name, is_custom, quantity, unit_price_usd,
+            effective_date, end_date, is_enabled, auth_type, notes,
+            x_gemini_project_id, x_gemini_region, x_anthropic_workspace_id, x_openai_org_id,
+            tier_type, trial_end_date, trial_credit_usd,
+            monthly_token_limit, daily_token_limit, rpm_limit, tpm_limit,
+            rpd_limit, tpd_limit, concurrent_limit,
+            committed_spend_usd, commitment_term_months, discount_percentage,
+            billing_period, yearly_price_usd, yearly_discount_percentage,
+            created_at, updated_at
+        ) VALUES (
+            @subscription_id, @provider, @plan_name, @is_custom, @quantity, @unit_price_usd,
+            @effective_date, NULL, TRUE, NULL, @notes,
+            NULL, NULL, NULL, NULL,
+            @tier_type, @trial_end_date, @trial_credit_usd,
+            @monthly_token_limit, @daily_token_limit, @rpm_limit, @tpm_limit,
+            @rpd_limit, @tpd_limit, @concurrent_limit,
+            @committed_spend_usd, @commitment_term_months, @discount_percentage,
+            @billing_period, @yearly_price_usd, @yearly_discount_percentage,
+            @created_at, @updated_at
+        )
+        """
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("subscription_id", "STRING", subscription.subscription_id),
+                bigquery.ScalarQueryParameter("provider", "STRING", provider_value),
+                bigquery.ScalarQueryParameter("plan_name", "STRING", subscription.plan_name),
+                bigquery.ScalarQueryParameter("is_custom", "BOOL", is_custom),
+                bigquery.ScalarQueryParameter("quantity", "INT64", subscription.quantity),
+                bigquery.ScalarQueryParameter("unit_price_usd", "FLOAT64", subscription.unit_price_usd),
+                bigquery.ScalarQueryParameter("effective_date", "DATE", str(subscription.effective_date)),
+                bigquery.ScalarQueryParameter("notes", "STRING", subscription.notes),
+                bigquery.ScalarQueryParameter("tier_type", "STRING", subscription.tier_type.value if subscription.tier_type else "paid"),
+                bigquery.ScalarQueryParameter("trial_end_date", "DATE", str(subscription.trial_end_date) if subscription.trial_end_date else None),
+                bigquery.ScalarQueryParameter("trial_credit_usd", "FLOAT64", subscription.trial_credit_usd),
+                bigquery.ScalarQueryParameter("monthly_token_limit", "INT64", subscription.monthly_token_limit),
+                bigquery.ScalarQueryParameter("daily_token_limit", "INT64", subscription.daily_token_limit),
+                bigquery.ScalarQueryParameter("rpm_limit", "INT64", subscription.rpm_limit),
+                bigquery.ScalarQueryParameter("tpm_limit", "INT64", subscription.tpm_limit),
+                bigquery.ScalarQueryParameter("rpd_limit", "INT64", subscription.rpd_limit),
+                bigquery.ScalarQueryParameter("tpd_limit", "INT64", subscription.tpd_limit),
+                bigquery.ScalarQueryParameter("concurrent_limit", "INT64", subscription.concurrent_limit),
+                bigquery.ScalarQueryParameter("committed_spend_usd", "FLOAT64", subscription.committed_spend_usd),
+                bigquery.ScalarQueryParameter("commitment_term_months", "INT64", subscription.commitment_term_months),
+                bigquery.ScalarQueryParameter("discount_percentage", "FLOAT64", subscription.discount_percentage),
+                bigquery.ScalarQueryParameter("billing_period", "STRING", subscription.billing_period.value if subscription.billing_period else "monthly"),
+                bigquery.ScalarQueryParameter("yearly_price_usd", "FLOAT64", subscription.yearly_price_usd),
+                bigquery.ScalarQueryParameter("yearly_discount_percentage", "FLOAT64", subscription.yearly_discount_percentage),
+                bigquery.ScalarQueryParameter("created_at", "TIMESTAMP", now),
+                bigquery.ScalarQueryParameter("updated_at", "TIMESTAMP", now),
+            ]
+        )
+        bq_client.client.query(insert_query, job_config=job_config).result()
 
         logger.info(f"Created {provider_value} subscription {subscription.subscription_id} in {org_slug}")
 
         return OpenAISubscriptionResponse(
             subscription_id=subscription.subscription_id,
+            provider=provider_value,
             plan_name=subscription.plan_name,
+            is_custom=is_custom,
             quantity=subscription.quantity,
             unit_price_usd=subscription.unit_price_usd,
             effective_date=subscription.effective_date,
             notes=subscription.notes,
-            created_at=datetime.fromisoformat(now),
-            updated_at=datetime.fromisoformat(now),
+            tier_type=subscription.tier_type.value if subscription.tier_type else "paid",
+            trial_end_date=subscription.trial_end_date,
+            trial_credit_usd=subscription.trial_credit_usd,
+            monthly_token_limit=subscription.monthly_token_limit,
+            daily_token_limit=subscription.daily_token_limit,
+            rpm_limit=subscription.rpm_limit,
+            tpm_limit=subscription.tpm_limit,
+            rpd_limit=subscription.rpd_limit,
+            tpd_limit=subscription.tpd_limit,
+            concurrent_limit=subscription.concurrent_limit,
+            committed_spend_usd=subscription.committed_spend_usd,
+            commitment_term_months=subscription.commitment_term_months,
+            discount_percentage=subscription.discount_percentage,
+            billing_period=subscription.billing_period.value if subscription.billing_period else "monthly",
+            yearly_price_usd=subscription.yearly_price_usd,
+            yearly_discount_percentage=subscription.yearly_discount_percentage,
+            created_at=datetime.fromisoformat(now.rstrip("Z")),
+            updated_at=datetime.fromisoformat(now.rstrip("Z")),
         )
 
     except HTTPException:
@@ -897,6 +1052,7 @@ async def update_subscription(
             bigquery.ScalarQueryParameter("provider", "STRING", provider_value)
         ]
 
+        # Core subscription fields
         if subscription.quantity is not None:
             update_fields.append("quantity = @quantity")
             query_params.append(bigquery.ScalarQueryParameter("quantity", "INT64", subscription.quantity))
@@ -909,6 +1065,62 @@ async def update_subscription(
         if subscription.notes is not None:
             update_fields.append("notes = @notes")
             query_params.append(bigquery.ScalarQueryParameter("notes", "STRING", subscription.notes))
+
+        # New V7 fields - tier type and trial
+        if subscription.tier_type is not None:
+            update_fields.append("tier_type = @tier_type")
+            query_params.append(bigquery.ScalarQueryParameter("tier_type", "STRING", subscription.tier_type.value))
+        if subscription.trial_end_date is not None:
+            update_fields.append("trial_end_date = @trial_end_date")
+            query_params.append(bigquery.ScalarQueryParameter("trial_end_date", "DATE", str(subscription.trial_end_date)))
+        if subscription.trial_credit_usd is not None:
+            update_fields.append("trial_credit_usd = @trial_credit_usd")
+            query_params.append(bigquery.ScalarQueryParameter("trial_credit_usd", "FLOAT64", subscription.trial_credit_usd))
+
+        # New V7 fields - rate limits
+        if subscription.monthly_token_limit is not None:
+            update_fields.append("monthly_token_limit = @monthly_token_limit")
+            query_params.append(bigquery.ScalarQueryParameter("monthly_token_limit", "INT64", subscription.monthly_token_limit))
+        if subscription.daily_token_limit is not None:
+            update_fields.append("daily_token_limit = @daily_token_limit")
+            query_params.append(bigquery.ScalarQueryParameter("daily_token_limit", "INT64", subscription.daily_token_limit))
+        if subscription.rpm_limit is not None:
+            update_fields.append("rpm_limit = @rpm_limit")
+            query_params.append(bigquery.ScalarQueryParameter("rpm_limit", "INT64", subscription.rpm_limit))
+        if subscription.tpm_limit is not None:
+            update_fields.append("tpm_limit = @tpm_limit")
+            query_params.append(bigquery.ScalarQueryParameter("tpm_limit", "INT64", subscription.tpm_limit))
+        if subscription.rpd_limit is not None:
+            update_fields.append("rpd_limit = @rpd_limit")
+            query_params.append(bigquery.ScalarQueryParameter("rpd_limit", "INT64", subscription.rpd_limit))
+        if subscription.tpd_limit is not None:
+            update_fields.append("tpd_limit = @tpd_limit")
+            query_params.append(bigquery.ScalarQueryParameter("tpd_limit", "INT64", subscription.tpd_limit))
+        if subscription.concurrent_limit is not None:
+            update_fields.append("concurrent_limit = @concurrent_limit")
+            query_params.append(bigquery.ScalarQueryParameter("concurrent_limit", "INT64", subscription.concurrent_limit))
+
+        # New V7 fields - commitment and discount
+        if subscription.committed_spend_usd is not None:
+            update_fields.append("committed_spend_usd = @committed_spend_usd")
+            query_params.append(bigquery.ScalarQueryParameter("committed_spend_usd", "FLOAT64", subscription.committed_spend_usd))
+        if subscription.commitment_term_months is not None:
+            update_fields.append("commitment_term_months = @commitment_term_months")
+            query_params.append(bigquery.ScalarQueryParameter("commitment_term_months", "INT64", subscription.commitment_term_months))
+        if subscription.discount_percentage is not None:
+            update_fields.append("discount_percentage = @discount_percentage")
+            query_params.append(bigquery.ScalarQueryParameter("discount_percentage", "FLOAT64", subscription.discount_percentage))
+
+        # Billing period fields
+        if subscription.billing_period is not None:
+            update_fields.append("billing_period = @billing_period")
+            query_params.append(bigquery.ScalarQueryParameter("billing_period", "STRING", subscription.billing_period.value))
+        if subscription.yearly_price_usd is not None:
+            update_fields.append("yearly_price_usd = @yearly_price_usd")
+            query_params.append(bigquery.ScalarQueryParameter("yearly_price_usd", "FLOAT64", subscription.yearly_price_usd))
+        if subscription.yearly_discount_percentage is not None:
+            update_fields.append("yearly_discount_percentage = @yearly_discount_percentage")
+            query_params.append(bigquery.ScalarQueryParameter("yearly_discount_percentage", "FLOAT64", subscription.yearly_discount_percentage))
 
         if not update_fields:
             raise HTTPException(status_code=400, detail="No fields to update")
@@ -925,7 +1137,14 @@ async def update_subscription(
     except HTTPException:
         raise
     except Exception as e:
+        error_msg = str(e)
         logger.error(f"Error updating subscription: {e}", exc_info=True)
+        # Handle BigQuery streaming buffer error with user-friendly message
+        if "streaming buffer" in error_msg.lower():
+            raise HTTPException(
+                status_code=409,
+                detail="Record was recently inserted and cannot be updated for ~90 minutes. Please wait or delete and recreate."
+            )
         raise HTTPException(status_code=500, detail="Failed to update subscription record")
 
 
@@ -963,7 +1182,14 @@ async def delete_subscription(
         logger.info(f"Deleted {provider_value} subscription {plan_name} in {org_slug}")
 
     except Exception as e:
+        error_msg = str(e)
         logger.error(f"Error deleting subscription: {e}", exc_info=True)
+        # Handle BigQuery streaming buffer error with user-friendly message
+        if "streaming buffer" in error_msg.lower():
+            raise HTTPException(
+                status_code=409,
+                detail="Record was recently inserted and cannot be deleted for ~90 minutes. Please wait."
+            )
         raise HTTPException(status_code=500, detail="Failed to delete subscription record")
 
 

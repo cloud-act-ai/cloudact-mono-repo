@@ -50,6 +50,15 @@ class DiscountReasonEnum(str, Enum):
     TRIAL = "trial"             # Trial discount
 
 
+class BillingPeriodEnum(str, Enum):
+    """Billing period frequency for subscriptions."""
+    WEEKLY = "weekly"           # Billed every week
+    MONTHLY = "monthly"         # Billed every month (most common)
+    QUARTERLY = "quarterly"     # Billed every 3 months
+    YEARLY = "yearly"           # Billed annually (often with discount)
+    PAY_AS_YOU_GO = "pay_as_you_go"  # Usage-based billing, no fixed period
+
+
 # ============================================
 # Pricing Models
 # ============================================
@@ -70,12 +79,14 @@ class OpenAIPricingCreate(BaseModel):
     input_price_per_1k: float = Field(
         ...,
         ge=0,
-        description="Price per 1K input tokens in USD"
+        le=1.0,  # Upper bound: $1/1k tokens is 10x most expensive model
+        description="Price per 1K input tokens in USD (max $1.00)"
     )
     output_price_per_1k: float = Field(
         ...,
         ge=0,
-        description="Price per 1K output tokens in USD"
+        le=1.0,  # Upper bound: $1/1k tokens is 10x most expensive model
+        description="Price per 1K output tokens in USD (max $1.00)"
     )
     effective_date: date = Field(
         ...,
@@ -130,6 +141,16 @@ class OpenAIPricingCreate(BaseModel):
         ge=0,
         description="Reference standard price before discount"
     )
+    discounted_input_price_per_1k: Optional[float] = Field(
+        None,
+        ge=0,
+        description="Discounted input price per 1K tokens (for savings calculation)"
+    )
+    discounted_output_price_per_1k: Optional[float] = Field(
+        None,
+        ge=0,
+        description="Discounted output price per 1K tokens (for savings calculation)"
+    )
 
     model_config = ConfigDict(extra="forbid")
 
@@ -144,12 +165,14 @@ class OpenAIPricingUpdate(BaseModel):
     input_price_per_1k: Optional[float] = Field(
         None,
         ge=0,
-        description="Price per 1K input tokens in USD"
+        le=1.0,  # Upper bound: $1/1k tokens
+        description="Price per 1K input tokens in USD (max $1.00)"
     )
     output_price_per_1k: Optional[float] = Field(
         None,
         ge=0,
-        description="Price per 1K output tokens in USD"
+        le=1.0,  # Upper bound: $1/1k tokens
+        description="Price per 1K output tokens in USD (max $1.00)"
     )
     effective_date: Optional[date] = Field(
         None,
@@ -204,20 +227,41 @@ class OpenAIPricingUpdate(BaseModel):
         ge=0,
         description="Reference standard price before discount"
     )
+    discounted_input_price_per_1k: Optional[float] = Field(
+        None,
+        ge=0,
+        description="Discounted input price per 1K tokens (for savings calculation)"
+    )
+    discounted_output_price_per_1k: Optional[float] = Field(
+        None,
+        ge=0,
+        description="Discounted output price per 1K tokens (for savings calculation)"
+    )
 
     model_config = ConfigDict(extra="forbid")
 
 
 class OpenAIPricingResponse(BaseModel):
     """Response model for pricing records."""
+    pricing_id: str
+    provider: str  # Required - provider name (e.g., 'openai', 'anthropic', 'gemini')
     model_id: str
-    model_name: Optional[str]
+    model_name: Optional[str] = None
+    is_custom: bool = False
     input_price_per_1k: float
     output_price_per_1k: float
     effective_date: date
-    notes: Optional[str]
-    # New fields for pricing type and free tier tracking
-    pricing_type: str
+    end_date: Optional[date] = None
+    is_enabled: bool = True
+    notes: Optional[str] = None
+    # Provider-specific extension fields
+    x_gemini_context_window: Optional[str] = None
+    x_gemini_region: Optional[str] = None
+    x_anthropic_tier: Optional[str] = None
+    x_openai_batch_input_price: Optional[float] = None
+    x_openai_batch_output_price: Optional[float] = None
+    # Pricing type and free tier tracking
+    pricing_type: str = "standard"
     free_tier_input_tokens: Optional[int] = None
     free_tier_output_tokens: Optional[int] = None
     free_tier_reset_frequency: Optional[str] = None
@@ -226,9 +270,10 @@ class OpenAIPricingResponse(BaseModel):
     volume_threshold_tokens: Optional[int] = None
     base_input_price_per_1k: Optional[float] = None
     base_output_price_per_1k: Optional[float] = None
+    discounted_input_price_per_1k: Optional[float] = None
+    discounted_output_price_per_1k: Optional[float] = None
     created_at: datetime
     updated_at: datetime
-    provider: Optional[str] = None  # Provider name (e.g., 'openai', 'anthropic')
 
 
 class OpenAIPricingListResponse(BaseModel):
@@ -341,6 +386,21 @@ class OpenAISubscriptionCreate(BaseModel):
         le=100,
         description="Discount percentage for this tier (0-100)"
     )
+    billing_period: BillingPeriodEnum = Field(
+        default=BillingPeriodEnum.MONTHLY,
+        description="Billing period: weekly, monthly, quarterly, yearly, pay_as_you_go"
+    )
+    yearly_price_usd: Optional[float] = Field(
+        None,
+        ge=0,
+        description="Annual price in USD (typically discounted vs monthly)"
+    )
+    yearly_discount_percentage: Optional[float] = Field(
+        None,
+        ge=0,
+        le=100,
+        description="Percentage discount for annual billing (e.g., 20 for 20% off)"
+    )
 
     model_config = ConfigDict(extra="forbid")
 
@@ -431,6 +491,21 @@ class OpenAISubscriptionUpdate(BaseModel):
         le=100,
         description="Discount percentage for this tier (0-100)"
     )
+    billing_period: Optional[BillingPeriodEnum] = Field(
+        None,
+        description="Billing period: weekly, monthly, quarterly, yearly, pay_as_you_go"
+    )
+    yearly_price_usd: Optional[float] = Field(
+        None,
+        ge=0,
+        description="Annual price in USD (typically discounted vs monthly)"
+    )
+    yearly_discount_percentage: Optional[float] = Field(
+        None,
+        ge=0,
+        le=100,
+        description="Percentage discount for annual billing (e.g., 20 for 20% off)"
+    )
 
     model_config = ConfigDict(extra="forbid")
 
@@ -438,13 +513,23 @@ class OpenAISubscriptionUpdate(BaseModel):
 class OpenAISubscriptionResponse(BaseModel):
     """Response model for subscription records."""
     subscription_id: str
+    provider: str  # Required - provider name (e.g., 'openai', 'anthropic', 'gemini')
     plan_name: str
+    is_custom: bool = False
     quantity: int
     unit_price_usd: float
     effective_date: date
-    notes: Optional[str]
-    # New fields for tier type, rate limits, and commitments
-    tier_type: str
+    end_date: Optional[date] = None
+    is_enabled: bool = True
+    auth_type: Optional[str] = None  # 'api_key' or 'service_account'
+    notes: Optional[str] = None
+    # Provider-specific extension fields
+    x_gemini_project_id: Optional[str] = None
+    x_gemini_region: Optional[str] = None
+    x_anthropic_workspace_id: Optional[str] = None
+    x_openai_org_id: Optional[str] = None
+    # Tier type, rate limits, and commitments
+    tier_type: str = "paid"
     trial_end_date: Optional[date] = None
     trial_credit_usd: Optional[float] = None
     monthly_token_limit: Optional[int] = None
@@ -457,6 +542,9 @@ class OpenAISubscriptionResponse(BaseModel):
     committed_spend_usd: Optional[float] = None
     commitment_term_months: Optional[int] = None
     discount_percentage: Optional[float] = None
+    billing_period: Optional[str] = "monthly"  # weekly, monthly, quarterly, yearly, pay_as_you_go
+    yearly_price_usd: Optional[float] = None
+    yearly_discount_percentage: Optional[float] = None
     created_at: datetime
     updated_at: datetime
 
@@ -464,5 +552,6 @@ class OpenAISubscriptionResponse(BaseModel):
 class OpenAISubscriptionListResponse(BaseModel):
     """Response model for listing all subscription records."""
     org_slug: str
+    provider: Optional[str] = None  # Provider name for context
     subscriptions: List[OpenAISubscriptionResponse]
     count: int

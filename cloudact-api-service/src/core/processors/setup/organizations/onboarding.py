@@ -145,10 +145,17 @@ class OrgOnboardingProcessor:
                             # Convert integer fields
                             cleaned_row[key] = int(value) if value else 0
                         elif key in ('input_price_per_1k', 'output_price_per_1k', 'unit_price_usd',
-                                     'x_openai_batch_input_price', 'x_openai_batch_output_price'):
+                                     'x_openai_batch_input_price', 'x_openai_batch_output_price',
+                                     'base_input_price_per_1k', 'base_output_price_per_1k',
+                                     'discount_percentage'):
                             # Convert float fields
                             cleaned_row[key] = float(value) if value else 0.0
+                        elif key in ('free_tier_input_tokens', 'free_tier_output_tokens',
+                                     'volume_threshold_tokens'):
+                            # Convert large integer fields
+                            cleaned_row[key] = int(value) if value else None
                         else:
+                            # All other fields are strings (pricing_type, free_tier_reset_frequency, etc.)
                             cleaned_row[key] = value
                     rows.append(cleaned_row)
             self.logger.info(f"Loaded {len(rows)} rows from {csv_path}")

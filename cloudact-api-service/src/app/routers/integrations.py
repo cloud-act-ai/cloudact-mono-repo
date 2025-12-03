@@ -293,6 +293,40 @@ async def setup_anthropic_integration(
     )
 
 
+@router.post(
+    "/integrations/{org_slug}/gemini/setup",
+    response_model=SetupIntegrationResponse,
+    summary="Setup Google Gemini integration",
+    description="Validates and stores Gemini API key encrypted via KMS"
+)
+async def setup_gemini_integration(
+    org_slug: str,
+    request: SetupIntegrationRequest,
+    org: Dict = Depends(get_current_org),
+    bq_client: BigQueryClient = Depends(get_bigquery_client)
+):
+    """Setup Google Gemini integration for an organization."""
+    # SECURITY: Validate org_slug format first
+    validate_org_slug(org_slug)
+
+    # Skip org validation when auth is disabled (dev mode)
+    if not settings.disable_auth and org["org_slug"] != org_slug:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cannot configure integrations for another organization"
+        )
+
+    return await _setup_integration(
+        org_slug=org_slug,
+        provider="GEMINI",
+        credential=request.credential,
+        credential_name=request.credential_name or "Gemini API Key",
+        metadata=request.metadata,
+        skip_validation=request.skip_validation,
+        user_id=org.get("user_id")
+    )
+
+
 # ============================================
 # Integration Validation Endpoints (Provider-Based)
 # ============================================
@@ -337,6 +371,20 @@ async def validate_anthropic_integration(
 ):
     """Re-validate Anthropic API key using authenticator."""
     return await _validate_integration(org_slug, "ANTHROPIC", org)
+
+
+@router.post(
+    "/integrations/{org_slug}/gemini/validate",
+    response_model=SetupIntegrationResponse,
+    summary="Validate Gemini integration"
+)
+async def validate_gemini_integration(
+    org_slug: str,
+    org: Dict = Depends(get_current_org),
+    bq_client: BigQueryClient = Depends(get_bigquery_client)
+):
+    """Re-validate Gemini API key using authenticator."""
+    return await _validate_integration(org_slug, "GEMINI", org)
 
 
 # ============================================
@@ -1194,9 +1242,25 @@ async def _initialize_llm_pricing(org_slug: str, provider: str, force: bool = Fa
         rows = []
         now = datetime.utcnow().isoformat()
 
+        # Parse helpers for optional fields
+        def parse_int(val):
+            if val is None or val == "":
+                return None
+            return int(val)
+
+        def parse_float(val):
+            if val is None or val == "":
+                return None
+            return float(val)
+
         with open(csv_path, 'r') as f:
             reader = csv.DictReader(f)
             for row in reader:
+                # Filter by provider - only insert rows matching this provider
+                csv_provider = row.get("provider", "").lower()
+                if csv_provider != provider.lower():
+                    continue
+
                 # Bug fix #3: Add bounds validation on prices
                 input_price = float(row["input_price_per_1k"])
                 output_price = float(row["output_price_per_1k"])
@@ -1207,22 +1271,94 @@ async def _initialize_llm_pricing(org_slug: str, provider: str, force: bool = Fa
                     logger.warning(f"Invalid output_price {output_price} for model {row.get('model_id', 'unknown')}, skipping")
                     continue
 
+                is_custom = row.get("is_custom", "false").lower() == "true"
+                is_enabled = row.get("is_enabled", "true").lower() == "true"
+
                 rows.append({
+                    "pricing_id": row.get("pricing_id", f"price_{csv_provider}_{row['model_id']}"),
+                    "provider": csv_provider,
                     "model_id": row["model_id"],
-                    "model_name": row["model_name"],
+                    "model_name": row.get("model_name"),
+                    "is_custom": is_custom,
                     "input_price_per_1k": input_price,
                     "output_price_per_1k": output_price,
                     "effective_date": row["effective_date"],
-                    "notes": row.get("notes"),
+                    "end_date": row.get("end_date") or None,
+                    "is_enabled": is_enabled,
+                    "notes": row.get("notes") or None,
+                    "x_gemini_context_window": row.get("x_gemini_context_window") or None,
+                    "x_gemini_region": row.get("x_gemini_region") or None,
+                    "x_anthropic_tier": row.get("x_anthropic_tier") or None,
+                    "x_openai_batch_input_price": parse_float(row.get("x_openai_batch_input_price")),
+                    "x_openai_batch_output_price": parse_float(row.get("x_openai_batch_output_price")),
+                    "pricing_type": row.get("pricing_type", "standard"),
+                    "free_tier_input_tokens": parse_int(row.get("free_tier_input_tokens")),
+                    "free_tier_output_tokens": parse_int(row.get("free_tier_output_tokens")),
+                    "free_tier_reset_frequency": row.get("free_tier_reset_frequency") or None,
+                    "discount_percentage": parse_float(row.get("discount_percentage")),
+                    "discount_reason": row.get("discount_reason") or None,
+                    "volume_threshold_tokens": parse_int(row.get("volume_threshold_tokens")),
+                    "base_input_price_per_1k": parse_float(row.get("base_input_price_per_1k")),
+                    "base_output_price_per_1k": parse_float(row.get("base_output_price_per_1k")),
                     "created_at": now,
                     "updated_at": now,
                 })
 
         if rows:
-            errors = bq_client.client.insert_rows_json(table_id, rows)
-            if errors:
-                logger.error(f"Failed to insert {provider} pricing rows: {errors}")
-                return {"status": "FAILED", "error": str(errors)}
+            # Use standard INSERT instead of streaming insert to avoid streaming buffer issues
+            # Streaming inserts can't be modified/deleted for ~90 minutes
+            for row in rows:
+                insert_query = f"""
+                INSERT INTO `{table_id}` (
+                    pricing_id, provider, model_id, model_name, is_custom,
+                    input_price_per_1k, output_price_per_1k, effective_date, end_date, is_enabled,
+                    notes, x_gemini_context_window, x_gemini_region, x_anthropic_tier,
+                    x_openai_batch_input_price, x_openai_batch_output_price, pricing_type,
+                    free_tier_input_tokens, free_tier_output_tokens, free_tier_reset_frequency,
+                    discount_percentage, discount_reason, volume_threshold_tokens,
+                    base_input_price_per_1k, base_output_price_per_1k, created_at, updated_at
+                ) VALUES (
+                    @pricing_id, @provider, @model_id, @model_name, @is_custom,
+                    @input_price, @output_price, @effective_date, @end_date, @is_enabled,
+                    @notes, @x_gemini_context_window, @x_gemini_region, @x_anthropic_tier,
+                    @x_openai_batch_input_price, @x_openai_batch_output_price, @pricing_type,
+                    @free_tier_input_tokens, @free_tier_output_tokens, @free_tier_reset_frequency,
+                    @discount_percentage, @discount_reason, @volume_threshold_tokens,
+                    @base_input_price_per_1k, @base_output_price_per_1k, @created_at, @updated_at
+                )
+                """
+                job_config = bigquery.QueryJobConfig(
+                    query_parameters=[
+                        bigquery.ScalarQueryParameter("pricing_id", "STRING", row["pricing_id"]),
+                        bigquery.ScalarQueryParameter("provider", "STRING", row["provider"]),
+                        bigquery.ScalarQueryParameter("model_id", "STRING", row["model_id"]),
+                        bigquery.ScalarQueryParameter("model_name", "STRING", row.get("model_name")),
+                        bigquery.ScalarQueryParameter("is_custom", "BOOL", row["is_custom"]),
+                        bigquery.ScalarQueryParameter("input_price", "FLOAT64", row["input_price_per_1k"]),
+                        bigquery.ScalarQueryParameter("output_price", "FLOAT64", row["output_price_per_1k"]),
+                        bigquery.ScalarQueryParameter("effective_date", "STRING", row["effective_date"]),
+                        bigquery.ScalarQueryParameter("end_date", "STRING", row.get("end_date")),
+                        bigquery.ScalarQueryParameter("is_enabled", "BOOL", row["is_enabled"]),
+                        bigquery.ScalarQueryParameter("notes", "STRING", row.get("notes")),
+                        bigquery.ScalarQueryParameter("x_gemini_context_window", "STRING", row.get("x_gemini_context_window")),
+                        bigquery.ScalarQueryParameter("x_gemini_region", "STRING", row.get("x_gemini_region")),
+                        bigquery.ScalarQueryParameter("x_anthropic_tier", "STRING", row.get("x_anthropic_tier")),
+                        bigquery.ScalarQueryParameter("x_openai_batch_input_price", "FLOAT64", row.get("x_openai_batch_input_price")),
+                        bigquery.ScalarQueryParameter("x_openai_batch_output_price", "FLOAT64", row.get("x_openai_batch_output_price")),
+                        bigquery.ScalarQueryParameter("pricing_type", "STRING", row["pricing_type"]),
+                        bigquery.ScalarQueryParameter("free_tier_input_tokens", "INT64", row.get("free_tier_input_tokens")),
+                        bigquery.ScalarQueryParameter("free_tier_output_tokens", "INT64", row.get("free_tier_output_tokens")),
+                        bigquery.ScalarQueryParameter("free_tier_reset_frequency", "STRING", row.get("free_tier_reset_frequency")),
+                        bigquery.ScalarQueryParameter("discount_percentage", "FLOAT64", row.get("discount_percentage")),
+                        bigquery.ScalarQueryParameter("discount_reason", "STRING", row.get("discount_reason")),
+                        bigquery.ScalarQueryParameter("volume_threshold_tokens", "INT64", row.get("volume_threshold_tokens")),
+                        bigquery.ScalarQueryParameter("base_input_price_per_1k", "FLOAT64", row.get("base_input_price_per_1k")),
+                        bigquery.ScalarQueryParameter("base_output_price_per_1k", "FLOAT64", row.get("base_output_price_per_1k")),
+                        bigquery.ScalarQueryParameter("created_at", "STRING", row["created_at"]),
+                        bigquery.ScalarQueryParameter("updated_at", "STRING", row["updated_at"]),
+                    ]
+                )
+                bq_client.client.query(insert_query, job_config=job_config).result()
 
         logger.info(f"Seeded {len(rows)} {provider.upper()} pricing rows for {org_slug}")
         return {"status": "SUCCESS", "rows_seeded": len(rows)}
@@ -1262,7 +1398,9 @@ async def _initialize_llm_subscriptions(org_slug: str, provider: str, force: boo
             return {"status": "FAILED", "error": f"Schema file not found: {schema_path}"}
 
         with open(schema_path, 'r') as f:
-            schema_json = json.load(f)["schema"]
+            schema_data = json.load(f)
+            # Support both "schema" and "fields" keys for flexibility
+            schema_json = schema_data.get("schema") or schema_data.get("fields") or schema_data
 
         schema = [bigquery.SchemaField.from_api_repr(field) for field in schema_json]
 
@@ -1303,30 +1441,113 @@ async def _initialize_llm_subscriptions(org_slug: str, provider: str, force: boo
         with open(csv_path, 'r') as f:
             reader = csv.DictReader(f)
             for row in reader:
+                # Filter by provider - only insert rows matching this provider
+                csv_provider = row.get("provider", "").lower()
+                if csv_provider != provider.lower():
+                    continue
+
                 # Validate int/float parsing with error handling
                 try:
                     quantity = int(row["quantity"])
                     unit_price = float(row["unit_price_usd"])
+                    is_custom = row.get("is_custom", "false").lower() == "true"
+                    is_enabled = row.get("is_enabled", "true").lower() == "true"
                 except (ValueError, KeyError) as e:
                     logger.warning(f"Invalid subscription data in CSV row {row.get('subscription_id', 'unknown')}: {e}")
                     continue
 
+                # Parse optional numeric fields
+                def parse_int(val):
+                    if val is None or val == "":
+                        return None
+                    return int(val)
+
+                def parse_float(val):
+                    if val is None or val == "":
+                        return None
+                    return float(val)
+
                 rows.append({
                     "subscription_id": row["subscription_id"],
+                    "provider": csv_provider,
                     "plan_name": row["plan_name"],
+                    "is_custom": is_custom,
                     "quantity": quantity,
                     "unit_price_usd": unit_price,
                     "effective_date": row["effective_date"],
-                    "notes": row.get("notes"),
+                    "end_date": row.get("end_date") or None,
+                    "is_enabled": is_enabled,
+                    "auth_type": row.get("auth_type") or None,
+                    "notes": row.get("notes") or None,
+                    "tier_type": row.get("tier_type", "paid"),
+                    "trial_end_date": row.get("trial_end_date") or None,
+                    "trial_credit_usd": parse_float(row.get("trial_credit_usd")),
+                    "monthly_token_limit": parse_int(row.get("monthly_token_limit")),
+                    "daily_token_limit": parse_int(row.get("daily_token_limit")),
+                    "rpm_limit": parse_int(row.get("rpm_limit")),
+                    "tpm_limit": parse_int(row.get("tpm_limit")),
+                    "rpd_limit": parse_int(row.get("rpd_limit")),
+                    "tpd_limit": parse_int(row.get("tpd_limit")),
+                    "concurrent_limit": parse_int(row.get("concurrent_limit")),
+                    "committed_spend_usd": parse_float(row.get("committed_spend_usd")),
+                    "commitment_term_months": parse_int(row.get("commitment_term_months")),
+                    "discount_percentage": parse_float(row.get("discount_percentage")),
                     "created_at": now,
                     "updated_at": now,
                 })
 
         if rows:
-            errors = bq_client.client.insert_rows_json(table_id, rows)
-            if errors:
-                logger.error(f"Failed to insert {provider} subscription rows: {errors}")
-                return {"status": "FAILED", "error": str(errors)}
+            # Use standard INSERT instead of streaming insert to avoid streaming buffer issues
+            # Streaming inserts can't be modified/deleted for ~90 minutes
+            for row in rows:
+                insert_query = f"""
+                INSERT INTO `{table_id}` (
+                    subscription_id, provider, plan_name, is_custom, quantity, unit_price_usd,
+                    effective_date, end_date, is_enabled, auth_type, notes, tier_type,
+                    trial_end_date, trial_credit_usd, monthly_token_limit, daily_token_limit,
+                    rpm_limit, tpm_limit, rpd_limit, tpd_limit, concurrent_limit,
+                    committed_spend_usd, commitment_term_months, discount_percentage,
+                    created_at, updated_at
+                ) VALUES (
+                    @subscription_id, @provider, @plan_name, @is_custom, @quantity, @unit_price_usd,
+                    @effective_date, @end_date, @is_enabled, @auth_type, @notes, @tier_type,
+                    @trial_end_date, @trial_credit_usd, @monthly_token_limit, @daily_token_limit,
+                    @rpm_limit, @tpm_limit, @rpd_limit, @tpd_limit, @concurrent_limit,
+                    @committed_spend_usd, @commitment_term_months, @discount_percentage,
+                    @created_at, @updated_at
+                )
+                """
+                job_config = bigquery.QueryJobConfig(
+                    query_parameters=[
+                        bigquery.ScalarQueryParameter("subscription_id", "STRING", row["subscription_id"]),
+                        bigquery.ScalarQueryParameter("provider", "STRING", row["provider"]),
+                        bigquery.ScalarQueryParameter("plan_name", "STRING", row["plan_name"]),
+                        bigquery.ScalarQueryParameter("is_custom", "BOOL", row["is_custom"]),
+                        bigquery.ScalarQueryParameter("quantity", "INT64", row["quantity"]),
+                        bigquery.ScalarQueryParameter("unit_price_usd", "FLOAT64", row["unit_price_usd"]),
+                        bigquery.ScalarQueryParameter("effective_date", "STRING", row["effective_date"]),
+                        bigquery.ScalarQueryParameter("end_date", "STRING", row.get("end_date")),
+                        bigquery.ScalarQueryParameter("is_enabled", "BOOL", row["is_enabled"]),
+                        bigquery.ScalarQueryParameter("auth_type", "STRING", row.get("auth_type")),
+                        bigquery.ScalarQueryParameter("notes", "STRING", row.get("notes")),
+                        bigquery.ScalarQueryParameter("tier_type", "STRING", row["tier_type"]),
+                        bigquery.ScalarQueryParameter("trial_end_date", "STRING", row.get("trial_end_date")),
+                        bigquery.ScalarQueryParameter("trial_credit_usd", "FLOAT64", row.get("trial_credit_usd")),
+                        bigquery.ScalarQueryParameter("monthly_token_limit", "INT64", row.get("monthly_token_limit")),
+                        bigquery.ScalarQueryParameter("daily_token_limit", "INT64", row.get("daily_token_limit")),
+                        bigquery.ScalarQueryParameter("rpm_limit", "INT64", row.get("rpm_limit")),
+                        bigquery.ScalarQueryParameter("tpm_limit", "INT64", row.get("tpm_limit")),
+                        bigquery.ScalarQueryParameter("rpd_limit", "INT64", row.get("rpd_limit")),
+                        bigquery.ScalarQueryParameter("tpd_limit", "INT64", row.get("tpd_limit")),
+                        bigquery.ScalarQueryParameter("concurrent_limit", "INT64", row.get("concurrent_limit")),
+                        bigquery.ScalarQueryParameter("committed_spend_usd", "FLOAT64", row.get("committed_spend_usd")),
+                        bigquery.ScalarQueryParameter("commitment_term_months", "INT64", row.get("commitment_term_months")),
+                        bigquery.ScalarQueryParameter("discount_percentage", "FLOAT64", row.get("discount_percentage")),
+                        bigquery.ScalarQueryParameter("created_at", "STRING", row["created_at"]),
+                        bigquery.ScalarQueryParameter("updated_at", "STRING", row["updated_at"]),
+                    ]
+                )
+                bq_client.client.query(insert_query, job_config=job_config).result()
 
         logger.info(f"Seeded {len(rows)} {provider.upper()} subscription rows for {org_slug}")
         return {"status": "SUCCESS", "rows_seeded": len(rows)}
@@ -1368,7 +1589,9 @@ async def _initialize_gemini_pricing(org_slug: str, force: bool = False) -> Dict
             return {"status": "FAILED", "error": f"Schema file not found: {schema_path}"}
 
         with open(schema_path, 'r') as f:
-            schema_json = json.load(f)["schema"]
+            schema_data = json.load(f)
+            # Support both "schema" and "fields" keys for flexibility
+            schema_json = schema_data.get("schema") or schema_data.get("fields") or schema_data
 
         schema = [bigquery.SchemaField.from_api_repr(field) for field in schema_json]
 
@@ -1463,7 +1686,9 @@ async def _initialize_gemini_subscriptions(org_slug: str, force: bool = False) -
             return {"status": "FAILED", "error": f"Schema file not found: {schema_path}"}
 
         with open(schema_path, 'r') as f:
-            schema_json = json.load(f)["schema"]
+            schema_data = json.load(f)
+            # Support both "schema" and "fields" keys for flexibility
+            schema_json = schema_data.get("schema") or schema_data.get("fields") or schema_data
 
         schema = [bigquery.SchemaField.from_api_repr(field) for field in schema_json]
 

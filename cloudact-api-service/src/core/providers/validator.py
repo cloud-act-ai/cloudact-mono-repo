@@ -198,7 +198,7 @@ async def _validate_api_key_provider(config, credential: str) -> Dict[str, Any]:
     Works for any provider that has:
     - api_base_url
     - validation_endpoint
-    - auth_header
+    - auth_header OR auth_query_param
 
     SECURITY: Validates URL against allowed domain list before making HTTP request.
     """
@@ -217,11 +217,13 @@ async def _validate_api_key_provider(config, credential: str) -> Dict[str, Any]:
         }
 
     headers = provider_registry.get_auth_headers(config.name, credential)
+    query_params = provider_registry.get_auth_query_params(config.name, credential)
     timeout = provider_registry.get_validation_timeout()
 
     # SECURITY: Disable redirects to prevent SSRF via redirect
     async with httpx.AsyncClient(timeout=timeout, follow_redirects=False) as client:
-        response = await client.get(validation_url, headers=headers)
+        # Use query params if provider uses query param auth (e.g., Gemini ?key=xxx)
+        response = await client.get(validation_url, headers=headers, params=query_params or None)
 
         if response.status_code == 200:
             return {"valid": True}
@@ -229,6 +231,14 @@ async def _validate_api_key_provider(config, credential: str) -> Dict[str, Any]:
             return {"valid": False, "error": "Invalid API key"}
         elif response.status_code == 403:
             return {"valid": False, "error": "API key lacks required permissions"}
+        elif response.status_code == 400:
+            # Gemini returns 400 for invalid API key
+            try:
+                error_data = response.json()
+                error_msg = error_data.get("error", {}).get("message", "Bad request")
+                return {"valid": False, "error": f"API error: {error_msg}"}
+            except Exception:
+                return {"valid": False, "error": "Invalid API key or bad request"}
         elif response.status_code in (301, 302, 303, 307, 308):
             # Block redirects that could be SSRF attempts
             logger.warning(f"Blocked redirect during validation for {config.name}: {response.status_code}")

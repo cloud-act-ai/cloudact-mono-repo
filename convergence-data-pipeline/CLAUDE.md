@@ -2,11 +2,13 @@
 
 ## Gist
 
-Pipeline execution engine for ETL jobs. Port 8001. Runs scheduled pipelines, processes usage data, calculates costs. Also handles integration management and LLM data CRUD.
+Pipeline execution engine for ETL jobs. Port 8001. Runs scheduled pipelines, processes usage data, calculates costs.
 
 **Full Platform Architecture:** `../../ARCHITECTURE.md`
 
 **Security Documentation:** `SECURITY.md`
+
+**API Service (port 8000):** Bootstrap, onboarding, integrations, and LLM data CRUD are handled by `cloudact-api-service`.
 
 ## Pipeline Flow
 
@@ -37,13 +39,10 @@ API Request (X-API-Key)
 - Load all schemas from configs/
 - Log execution to org_meta_pipeline_runs
 - Use processors for ALL BigQuery operations
-- Manage integrations (setup, validate, delete)
-- Handle LLM data CRUD (pricing, subscriptions)
 
 ### DON'T
 - **NEVER use DISABLE_AUTH=true in production** - Always authenticate properly
-- Never handle bootstrap or org onboarding (use cloudact-api-service port 8000)
-- Never create organizations or API keys (use cloudact-api-service port 8000)
+- Never handle bootstrap, onboarding, or integrations (see API Service above)
 - Never write raw SQL or use Alembic
 - Never hardcode schemas in Python
 - Never run pipelines for SUSPENDED/CANCELLED orgs
@@ -79,18 +78,14 @@ See `SECURITY.md` for production security requirements, API key handling, and cr
 
 | Key | Header | Used For | Scope |
 |-----|--------|----------|-------|
-| Org API Key | `X-API-Key` | Pipelines, Integrations, LLM Data | Per-organization operations |
-
-**Note:** Bootstrap and onboarding handled by `cloudact-api-service` (port 8000).
+| Org API Key | `X-API-Key` | Pipelines | Per-organization operations |
 
 ### Authentication Flow
 
 ```
-Org API Key (created by cloudact-api-service)
+Org API Key (created during onboarding)
     │
     ├── Run Pipelines: POST /api/v1/pipelines/run/{org}/...
-    ├── Manage Integrations: POST /api/v1/integrations/{org}/...
-    ├── LLM Data CRUD: GET/POST /api/v1/integrations/{org}/{provider}/pricing
     └── Query Data: org-specific BigQuery datasets
 ```
 
@@ -102,10 +97,6 @@ Org API Key (created by cloudact-api-service)
 |--------|-----|--------|---------|
 | `pipelines.py` | Pipelines | `/api/v1` | Pipeline execution and monitoring |
 | `scheduler.py` | Scheduler | `/api/v1` | Pipeline scheduling and cron jobs |
-| `integrations.py` | Integrations | `/api/v1` | Provider credential management |
-| `llm_data.py` | LLM Data | `/api/v1` | Pricing and subscription CRUD |
-
-**Note:** `openai_data.py` exists but is NOT registered in main.py (legacy/unused).
 
 #### Pipeline Endpoints (X-API-Key)
 
@@ -121,50 +112,29 @@ Org API Key (created by cloudact-api-service)
 | GET | `/api/v1/scheduler/queue` | Get pipeline queue |
 | POST | `/api/v1/scheduler/queue/process` | Process queued pipelines |
 
-#### Integration Endpoints (X-API-Key)
-
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| POST | `/api/v1/integrations/{org_slug}/{provider}/setup` | Setup provider integration |
-| POST | `/api/v1/integrations/{org_slug}/{provider}/validate` | Validate credentials |
-| GET | `/api/v1/integrations/{org_slug}` | Get all integration statuses |
-| GET | `/api/v1/integrations/{org_slug}/{provider}` | Get specific integration |
-| DELETE | `/api/v1/integrations/{org_slug}/{provider}` | Delete integration |
-
-#### LLM Data Endpoints (X-API-Key)
-
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| GET | `/api/v1/integrations/{org_slug}/{provider}/pricing` | List pricing models |
-| POST | `/api/v1/integrations/{org_slug}/{provider}/pricing` | Add pricing model |
-| GET | `/api/v1/integrations/{org_slug}/{provider}/subscriptions` | List subscriptions |
-| POST | `/api/v1/integrations/{org_slug}/{provider}/subscriptions` | Add subscription |
-
 ---
 
 ## Customer Lifecycle
 
-**Note:** Bootstrap and onboarding handled by `cloudact-api-service` (port 8000).
-
 ### Frontend ↔ Backend Flow
 
 ```
-Frontend (Supabase)                    cloudact-api-service (8000)          convergence-pipeline (8001)
-─────────────────                      ───────────────────────────          ───────────────────────
+Frontend (Supabase)                    api-service (8000)                   pipeline (8001)
+─────────────────                      ──────────────────                   ───────────────
 1. User signup
 2. Org created in Supabase
 3. Stripe subscription
                     ────────────────►
-4. Call /organizations/onboard         5. Create dataset + API key
+4. /organizations/onboard              5. Create dataset + API key
                     ◄────────────────
-6. Save fingerprint to Supabase        (returns api_key - shown once!)
+6. Save API key
+                    ────────────────►
+7. /integrations/{org}/{provider}/setup 8. Validate → KMS encrypt → Store
+                    ◄────────────────
+9. Save status
                                                                            ────────────────►
-7. User adds credentials                                                   8. POST /integrations/{org}/{provider}/setup
-   (via integration pages)                                                    Validate → KMS encrypt → Store
-                                                                           ◄────────────────
-9. Save status to Supabase                                                 (returns validation_status)
                                                                            10. Daily scheduler runs pipelines
-                                                                           11. User can trigger ad-hoc runs
+                                                                           11. User triggers ad-hoc runs
 ```
 
 ### Data Storage Split
@@ -498,8 +468,6 @@ Per-Organization: {org_slug}_{env} (e.g., acme_prod)
 └── billing_cost_daily, openai_usage_daily_raw, etc.  # Data tables only
 ```
 
-**Note:** Central dataset and 14 meta tables created by `cloudact-api-service` bootstrap.
-
 ---
 
 ## Project Structure
@@ -513,12 +481,9 @@ convergence-data-pipeline/
 │   ├── config.py                      # Settings (env vars)
 │   ├── routers/
 │   │   ├── pipelines.py               # POST /api/v1/pipelines/run/...
-│   │   ├── scheduler.py               # Scheduled pipeline execution
-│   │   ├── integrations.py            # Integration setup/validate
-│   │   ├── llm_data.py                # LLM pricing/subscriptions CRUD
-│   │   └── openai_data.py             # (NOT REGISTERED - legacy)
+│   │   └── scheduler.py               # Scheduled pipeline execution
 │   ├── models/
-│   │   ├── openai_data_models.py      # Pydantic models for OpenAI CRUD
+│   │   ├── openai_data_models.py      # Pydantic models for cost calculations
 │   │   └── org_models.py              # Organization models
 │   ├── dependencies/
 │   │   ├── auth.py                    # get_current_org(), AuthMetricsAggregator
@@ -617,17 +582,9 @@ curl http://localhost:8001/health
 
 ### Running Pipelines
 
-**Note:** Organization onboarding handled by `cloudact-api-service` (port 8000).
-
-Once organization is onboarded, you can set up integrations and run pipelines:
+Once organization is onboarded and integrations are set up, run pipelines:
 
 ```bash
-# Setup integration (via this service)
-curl -X POST http://localhost:8001/api/v1/integrations/{org_slug}/openai/setup \
-  -H "X-API-Key: $ORG_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"api_key": "sk-..."}'
-
 # Run GCP Billing pipeline
 curl -X POST http://localhost:8001/api/v1/pipelines/run/{org_slug}/gcp/cost/billing \
   -H "X-API-Key: $ORG_API_KEY" \
