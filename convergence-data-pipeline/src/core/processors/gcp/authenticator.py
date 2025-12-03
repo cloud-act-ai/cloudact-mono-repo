@@ -158,6 +158,50 @@ class GCPAuthenticator:
 
         return self._credentials
 
+    async def get_access_token(self) -> str:
+        """
+        Get a fresh OAuth2 access token for REST API calls.
+
+        Useful for httpx/aiohttp async clients that need Bearer token.
+        Handles automatic token refresh if expired.
+
+        Returns:
+            OAuth2 access token string
+
+        Example:
+            auth = GCPAuthenticator("acme_corp")
+            token = await auth.get_access_token()
+            headers = {"Authorization": f"Bearer {token}"}
+        """
+        credentials = await self.authenticate()
+
+        # Refresh token if needed
+        if not credentials.valid:
+            from google.auth.transport.requests import Request
+            credentials.refresh(Request())
+
+        return credentials.token
+
+    async def get_authorized_session(self):
+        """
+        Get an authorized requests.Session for GCP REST API calls.
+
+        Uses OAuth2 credentials from Service Account.
+        Handles automatic token refresh.
+
+        Returns:
+            google.auth.transport.requests.AuthorizedSession
+
+        Example:
+            auth = GCPAuthenticator("acme_corp")
+            session = await auth.get_authorized_session()
+            response = session.get("https://cloudbilling.googleapis.com/v1/billingAccounts")
+        """
+        from google.auth.transport.requests import AuthorizedSession
+
+        credentials = await self.authenticate()
+        return AuthorizedSession(credentials)
+
     async def get_bigquery_client(self) -> bigquery.Client:
         """
         Return authenticated BigQuery client.

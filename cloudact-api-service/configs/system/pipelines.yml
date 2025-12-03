@@ -49,3 +49,25 @@ pipelines:
     schedule: daily
     enabled: true
     default_timeout_seconds: 600  # 10 minutes
+
+  - id: gcp_billing_accounts
+    name: GCP Billing Accounts
+    description: Extract billing account information from GCP Cloud Billing API
+    provider: gcp
+    domain: api
+    pipeline: billing_accounts
+    required_integration: GCP_SA
+    schedule: daily
+    enabled: true
+    default_timeout_seconds: 600  # 10 minutes
+
+  - id: gcp_compute_instances
+    name: GCP Compute Instances
+    description: Extract compute instance inventory from GCP Compute Engine API
+    provider: gcp
+    domain: api
+    pipeline: compute_instances
+    required_integration: GCP_SA
+    schedule: daily
+    enabled: true
+    default_timeout_seconds: 900  # 15 minutes for large inventories

@@ -10,7 +10,7 @@ This document describes the CRUD API for managing LLM model pricing. These endpo
 Frontend / API Client
     │
     ▼
-convergence-data-pipeline (port 8001)
+cloudact-api-service (port 8000)
     │
     ├── GET    /api/v1/integrations/{org}/{provider}/pricing
     ├── GET    /api/v1/integrations/{org}/{provider}/pricing/{model_id}
@@ -24,7 +24,7 @@ convergence-data-pipeline (port 8001)
 BigQuery: {org_slug}_prod.llm_model_pricing
 ```
 
-**Seed data** is loaded during onboarding by `cloudact-api-service` (port 8000).
+**Note:** Both seed data (onboarding) AND CRUD operations are handled by `cloudact-api-service` (port 8000). The `convergence-data-pipeline` (port 8001) only uses these tables for future cost calculations.
 
 ---
 
@@ -33,7 +33,7 @@ BigQuery: {org_slug}_prod.llm_model_pricing
 All endpoints require org-level API key authentication:
 
 ```bash
-curl -X GET "http://localhost:8001/api/v1/integrations/{org_slug}/openai/pricing" \
+curl -X GET "http://localhost:8000/api/v1/integrations/{org_slug}/openai/pricing" \
   -H "X-API-Key: {org_api_key}"
 ```
 
@@ -424,11 +424,11 @@ curl -X POST ".../pricing" -d '{
 
 ```bash
 # 1. List current pricing
-curl -X GET "http://localhost:8001/api/v1/integrations/acme_corp/openai/pricing" \
+curl -X GET "http://localhost:8000/api/v1/integrations/acme_corp/openai/pricing" \
   -H "X-API-Key: $ORG_API_KEY"
 
 # 2. Add base pricing for custom model
-curl -X POST "http://localhost:8001/api/v1/integrations/acme_corp/openai/pricing" \
+curl -X POST "http://localhost:8000/api/v1/integrations/acme_corp/openai/pricing" \
   -H "X-API-Key: $ORG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -442,7 +442,7 @@ curl -X POST "http://localhost:8001/api/v1/integrations/acme_corp/openai/pricing
   }'
 
 # 3. Add volume discount tier
-curl -X POST "http://localhost:8001/api/v1/integrations/acme_corp/openai/pricing" \
+curl -X POST "http://localhost:8000/api/v1/integrations/acme_corp/openai/pricing" \
   -H "X-API-Key: $ORG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -460,7 +460,7 @@ curl -X POST "http://localhost:8001/api/v1/integrations/acme_corp/openai/pricing
   }'
 
 # 4. Update base model with free tier
-curl -X PUT "http://localhost:8001/api/v1/integrations/acme_corp/openai/pricing/ft:gpt-4o:acme:support:abc123" \
+curl -X PUT "http://localhost:8000/api/v1/integrations/acme_corp/openai/pricing/ft:gpt-4o:acme:support:abc123" \
   -H "X-API-Key: $ORG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -473,7 +473,7 @@ curl -X PUT "http://localhost:8001/api/v1/integrations/acme_corp/openai/pricing/
 ### Bulk Update for Price Changes
 
 ```bash
-curl -X PATCH "http://localhost:8001/api/v1/integrations/acme_corp/openai/pricing" \
+curl -X PATCH "http://localhost:8000/api/v1/integrations/acme_corp/openai/pricing" \
   -H "X-API-Key: $ORG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -519,7 +519,7 @@ class DiscountReasonEnum(str, Enum):
 
 ## Related Documentation
 
-- **Pricing Seed Data**: See `cloudact-api-service/docs/LLM_PRICING_SEED.md`
+- **Pricing Seed Data**: See `LLM_PRICING_SEED.md`
 - **Subscription CRUD**: See `LLM_SUBSCRIPTION_CRUD.md`
 - **Frontend Config**: See `fronted_v0/docs/LLM_PRICING_CONFIG.md`
-- **Pipeline Architecture**: See `CLAUDE.md`
+- **API Service Architecture**: See `CLAUDE.md`

@@ -1,0 +1,95 @@
+# GCP Compute Instances Pipeline
+# Extracts compute instance inventory from GCP Compute Engine API
+#
+# Schedule: Daily at 06:00 UTC
+# Tables: gcp_compute_instances_raw
+#
+# Usage: POST /api/v1/pipelines/run/{org_slug}/gcp/api/compute_instances
+#
+# PREREQUISITES:
+# 1. Organization must have a valid GCP_SA integration configured
+# 2. The GCP Service Account must have compute.instances.list permission
+# 3. Compute Engine API must be enabled in the GCP project
+
+pipeline_id: "{org_slug}-gcp-compute-instances"
+name: "GCP Compute Instances"
+description: "Extract compute instance inventory from GCP Compute Engine API"
+version: "1.0.0"
+
+# Schedule configuration (cron expression: daily at 06:00 UTC)
+schedule: "0 6 * * *"
+
+variables:
+  org_slug: "{org_slug}"
+  provider: "gcp"
+
+steps:
+  # Step 1: Extract compute instances from Compute Engine API
+  - step_id: "extract_compute_instances"
+    ps_type: "gcp.api_extractor"
+    description: "Extract all compute instances across all zones"
+    timeout_minutes: 15
+
+    config:
+      # GCP API configuration - aggregated instances (all zones)
+      api: "compute.googleapis.com"
+      endpoint: "/compute/v1/projects/{project_id}/aggregated/instances"
+      method: "GET"
+
+      # GCP pagination (nextPageToken pattern)
+      pagination:
+        page_size: 500
+        page_size_param: "maxResults"
+        token_param: "pageToken"
+        response_path: "nextPageToken"
+
+      # JSON path to array of records
+      # Note: aggregated/instances returns nested dict by zone
+      data_path: "items"
+
+      # Destination BigQuery table
+      destination:
+        table: "gcp_compute_instances_raw"
+        batch_size: 500
+        key_fields:
+          - "id"
+
+      # Rate limiting (Compute API has lower limits)
+      rate_limit:
+        requests_per_second: 5
+        max_retries: 3
+
+      # ELT pattern: store raw JSON
+      transform:
+        flatten: false
+        add_fields:
+          source_api: "compute"
+          pipeline_version: "1.0.0"
+
+  # Step 2: Notification on failure
+  - step_id: "notify_on_failure"
+    ps_type: "notify_systems.email_notification"
+    description: "Send failure notification"
+    trigger: "on_failure"
+    config:
+      to_emails:
+        - "{admin_email}"
+      subject: "[ALERT] GCP Compute Instances Pipeline Failed - {org_slug}"
+      message: |
+        ALERT: The GCP Compute Instances pipeline has failed!
+
+        Organization: {org_slug}
+        Pipeline: {pipeline_id}
+
+        Please check the pipeline logs for details.
+
+requires_auth: true
+auth_type: "org_api_key"
+
+tags:
+  - compute
+  - gcp
+  - api
+  - inventory
+  - daily
+category: "cloud_inventory"

@@ -1,0 +1,93 @@
+# GCP Billing Accounts Pipeline
+# Extracts billing account information from Cloud Billing API
+#
+# Schedule: Daily at 05:00 UTC
+# Tables: gcp_billing_accounts_raw
+#
+# Usage: POST /api/v1/pipelines/run/{org_slug}/gcp/api/billing_accounts
+#
+# PREREQUISITES:
+# 1. Organization must have a valid GCP_SA integration configured
+# 2. The GCP Service Account must have billing.accounts.list permission
+# 3. Cloud Billing API must be enabled in the GCP project
+
+pipeline_id: "{org_slug}-gcp-billing-accounts"
+name: "GCP Billing Accounts"
+description: "Extract billing account information from GCP Cloud Billing API"
+version: "1.0.0"
+
+# Schedule configuration (cron expression: daily at 05:00 UTC)
+schedule: "0 5 * * *"
+
+variables:
+  org_slug: "{org_slug}"
+  provider: "gcp"
+
+steps:
+  # Step 1: Extract billing accounts from Cloud Billing API
+  - step_id: "extract_billing_accounts"
+    ps_type: "gcp.api_extractor"
+    description: "Extract billing accounts via REST API"
+    timeout_minutes: 10
+
+    config:
+      # GCP API configuration
+      api: "cloudbilling.googleapis.com"
+      endpoint: "/v1/billingAccounts"
+      method: "GET"
+
+      # GCP pagination (nextPageToken pattern)
+      pagination:
+        page_size: 50
+        page_size_param: "pageSize"
+        token_param: "pageToken"
+        response_path: "nextPageToken"
+
+      # JSON path to array of records
+      data_path: "billingAccounts"
+
+      # Destination BigQuery table
+      destination:
+        table: "gcp_billing_accounts_raw"
+        batch_size: 100
+        key_fields:
+          - "name"
+
+      # Rate limiting
+      rate_limit:
+        requests_per_second: 10
+        max_retries: 3
+
+      # ELT pattern: store raw JSON
+      transform:
+        flatten: false
+        add_fields:
+          source_api: "cloudbilling"
+          pipeline_version: "1.0.0"
+
+  # Step 2: Notification on failure
+  - step_id: "notify_on_failure"
+    ps_type: "notify_systems.email_notification"
+    description: "Send failure notification"
+    trigger: "on_failure"
+    config:
+      to_emails:
+        - "{admin_email}"
+      subject: "[ALERT] GCP Billing Accounts Pipeline Failed - {org_slug}"
+      message: |
+        ALERT: The GCP Billing Accounts pipeline has failed!
+
+        Organization: {org_slug}
+        Pipeline: {pipeline_id}
+
+        Please check the pipeline logs for details.
+
+requires_auth: true
+auth_type: "org_api_key"
+
+tags:
+  - billing
+  - gcp
+  - api
+  - daily
+category: "cloud_metadata"

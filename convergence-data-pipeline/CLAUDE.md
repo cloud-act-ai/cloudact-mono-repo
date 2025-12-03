@@ -284,8 +284,9 @@ src/core/processors/
 │   ├── cost.py                             # Calculate costs (ps_type: anthropic.cost)
 │   └── validation.py                       # Validate Anthropic credentials
 ├── gcp/
-│   ├── authenticator.py                    # GCP authentication
+│   ├── authenticator.py                    # GCP authentication (shared OAuth2)
 │   ├── external_bq_extractor.py            # BigQuery ETL (ps_type: gcp.bq_etl)
+│   ├── gcp_api_extractor.py                # GCP REST API extraction (ps_type: gcp.api_extractor)
 │   └── validation.py                       # Validate GCP credentials
 ├── generic/
 │   ├── api_extractor.py                    # Generic API extraction (ps_type: generic.api_extractor)
@@ -337,11 +338,19 @@ API Request
 - Extract data from external BigQuery sources
 - Loads schema from `configs/gcp/cost/schemas/billing_cost.json`
 
-**2. Generic Processors**
+**2. GCP API Extractor (`gcp.api_extractor`)**
+- File: `src/core/processors/gcp/gcp_api_extractor.py`
+- Extract data from any GCP REST API (Billing, Compute, Monitoring, IAM, etc.)
+- Uses shared `GCPAuthenticator` for OAuth2 Service Account auth
+- GCP `nextPageToken` pagination pattern
+- ELT pattern: stores raw JSON, transform via SQL
+- See: `docs/GCP_API_EXTRACTOR.md`
+
+**3. Generic Processors**
 - `generic.api_extractor` - Generic API data extraction
 - `generic.local_bq_transformer` - Local BigQuery transformations
 
-**3. Integration Processors**
+**4. Integration Processors**
 - `kms_store.py` - Encrypt & store credentials via KMS
 - `kms_decrypt.py` - Decrypt credentials for pipeline use
 - `validate_*.py` - Provider-specific credential validation
@@ -405,6 +414,7 @@ API Request
 | Config | Schedule | Processor | Output Tables |
 |--------|----------|-----------|---------------|
 | `gcp/cost/billing.yml` | Daily | `gcp.bq_etl` | `gcp_billing_daily_raw` |
+| `gcp/api/billing_accounts.yml` | Daily | `gcp.api_extractor` | `gcp_billing_accounts_raw` |
 
 #### Integration Processors
 
@@ -735,6 +745,116 @@ See `SECURITY.md` for detailed security configuration requirements.
 
 ---
 
+## Generic API Extractor (ELT Pattern)
+
+The Generic API Extractor implements an ELT (Extract-Load-Transform) pattern for any REST API.
+
+**Full Documentation:** `docs/API_EXTRACTOR.md`
+
+### Architecture: Stream & Batch
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│                    API EXTRACTOR FLOW                                     │
+├──────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│   REST API                                                               │
+│      │                                                                   │
+│      ▼                                                                   │
+│   ┌─────────────────────┐                                                │
+│   │ 1. Resolve Auth     │  Credential sources (priority order):          │
+│   │    (KMS Decrypt)    │  1. context["secrets"][provider]               │
+│   └─────────┬───────────┘  2. org_integration_credentials → KMS decrypt  │
+│             │              3. direct secret_key                          │
+│             ▼                                                            │
+│   ┌─────────────────────┐                                                │
+│   │ 2. Fetch Page       │  Pagination types:                             │
+│   │    (Generator)      │  - cursor: token from response                 │
+│   └─────────┬───────────┘  - offset: page * limit                        │
+│             │              - page: page number                           │
+│             │              - link: next URL from response/header         │
+│             ▼                                                            │
+│   ┌─────────────────────┐                                                │
+│   │ 3. Yield Rows       │  Memory-safe: doesn't hold all data            │
+│   │    (Stream)         │                                                │
+│   └─────────┬───────────┘                                                │
+│             │                                                            │
+│             ▼                                                            │
+│   ┌─────────────────────┐                                                │
+│   │ 4. Accumulate Batch │  Default: 1000 rows per batch                  │
+│   │    (Buffer)         │                                                │
+│   └─────────┬───────────┘                                                │
+│             │                                                            │
+│             ▼                                                            │
+│   ┌─────────────────────┐                                                │
+│   │ 5. Insert to BQ     │  Smart insert:                                 │
+│   │    (Batch/Stream)   │  - <100 rows: streaming insert (idempotent)   │
+│   └─────────┬───────────┘  - ≥100 rows: batch load (efficient)          │
+│             │                                                            │
+│             ▼                                                            │
+│        REPEAT until                                                      │
+│        no more pages                                                     │
+│                                                                          │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+### Key Features
+
+| Feature | Description |
+|---------|-------------|
+| **Memory Safe** | Only holds ~1000 rows in memory at a time |
+| **Resilient** | Partial data saved - if fails at row 9000, rows 1-8000 are in BQ |
+| **Idempotent** | Uses insertId for deduplication (streaming inserts) |
+| **Auth Integration** | Uses existing `org_integration_credentials` via KMS |
+| **Rate Limiting** | Configurable RPS, auto-retry on 429 with exponential backoff |
+
+### Usage Example
+
+```yaml
+# configs/vendor/users_extract.yml
+pipeline_id: vendor-users-extract
+steps:
+  - step: "extract_users"
+    processor: "generic.api_extractor"
+    config:
+      url: "https://api.vendor.com/v1/users"
+      method: "GET"
+      auth:
+        type: "bearer"
+        provider: "VENDOR_API"    # Looks up in org_integration_credentials
+      pagination:
+        type: "cursor"
+        param: "after"
+        response_path: "meta.next_cursor"
+        limit: 100
+      data_path: "data"
+      destination:
+        table: "vendor_users_raw"
+        batch_size: 1000
+      rate_limit:
+        requests_per_second: 10
+        retry_on_429: true
+```
+
+### Authentication Types
+
+| Type | Header/Param | Use Case |
+|------|--------------|----------|
+| `bearer` | `Authorization: Bearer {token}` | OAuth2, API tokens |
+| `header` | `X-API-Key: {key}` | Custom header auth |
+| `query` | `?api_key={key}` | Query param auth |
+| `basic` | `Authorization: Basic {base64}` | Basic auth |
+
+### Credential Resolution
+
+```
+1. context["secrets"][provider]           ← From prior kms_decrypt step
+2. org_integration_credentials → decrypt  ← Direct BQ query + KMS
+3. context["secrets"][secret_key]         ← Direct key reference
+```
+
+---
+
 ## Verified Processor & Config Mapping
 
 **Last verified: 2025-12-02**
@@ -748,8 +868,9 @@ See `SECURITY.md` for detailed security configuration requirements.
 | `anthropic/usage.py` | `anthropic.usage` | `configs/anthropic/usage_cost.yml` | ✓ Verified |
 | `anthropic/cost.py` | `anthropic.cost` | `configs/anthropic/usage_cost.yml` | ✓ Verified |
 | `gcp/external_bq_extractor.py` | `gcp.bq_etl` | `configs/gcp/cost/billing.yml` | ✓ Verified |
-| `generic/api_extractor.py` | `generic.api_extractor` | Example configs | ✓ Verified |
-| `generic/local_bq_transformer.py` | `generic.local_bq_transformer` | Example configs | ✓ Verified |
+| `gcp/gcp_api_extractor.py` | `gcp.api_extractor` | `configs/gcp/api/billing_accounts.yml` | ✓ Verified |
+| `generic/api_extractor.py` | `generic.api_extractor` | Any API pipeline | ✓ Verified |
+| `generic/local_bq_transformer.py` | `generic.local_bq_transformer` | SQL transformations | ✓ Verified |
 | `notify_systems/email_notification.py` | `notify_systems.email_notification` | `configs/notify_systems/email_notification/` | ✓ Verified |
 
 ---
