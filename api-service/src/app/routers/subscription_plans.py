@@ -1,11 +1,16 @@
 """
-SaaS Subscription Provider Management API Routes
+SaaS Subscription Plans Management API Routes
 
-Endpoints for managing subscription providers and their plans.
-Providers are fixed-cost SaaS subscriptions (Canva, ChatGPT Plus, Slack, etc.)
-NOT LLM API tiers (OpenAI TIER1-5, Anthropic BUILD_TIER - those are in llm_data.py)
+Endpoints for managing SaaS subscription plans across multiple providers.
+This handles FIXED-COST subscription plans for each provider (Canva, ChatGPT Plus, Slack, etc.)
+NOT LLM API usage tiers (OpenAI TIER1-5, Anthropic BUILD_TIER - those are in llm_data.py)
 
 URL Structure: /api/v1/subscriptions/{org_slug}/providers/...
+
+Each provider can have multiple plans (FREE, PRO, ENTERPRISE, etc.) with different:
+- Pricing (unit_price_usd, billing_period)
+- Limits (daily_limit, monthly_limit, storage_limit_gb)
+- Seats and quantities
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
@@ -57,8 +62,8 @@ settings = get_settings()
 # Constants
 # ============================================
 
-# Table name for SaaS subscriptions
-SAAS_SUBSCRIPTIONS_TABLE = "saas_subscriptions"
+# Table name for SaaS subscription plans
+SAAS_SUBSCRIPTION_PLANS_TABLE = "saas_subscription_plans"
 
 # Note: LLM_API_PROVIDERS, SAAS_PROVIDERS, PROVIDER_CATEGORIES, and helper functions
 # are now imported from the centralized subscription_schema module
@@ -140,6 +145,7 @@ class PlanCreate(BaseModel):
     notes: Optional[str] = Field(None, max_length=1000, description="Plan description or limits")
     daily_limit: Optional[int] = Field(None, ge=0, description="Daily usage limit")
     monthly_limit: Optional[int] = Field(None, ge=0, description="Monthly usage limit")
+    storage_limit_gb: Optional[float] = Field(None, ge=0, description="Storage limit in GB")
     yearly_price_usd: Optional[float] = Field(None, ge=0, description="Annual price (if different from monthly × 12)")
     yearly_discount_pct: Optional[float] = Field(None, ge=0, le=100, description="Annual discount percentage")
     seats: int = Field(1, ge=1, description="Default number of seats")
@@ -157,6 +163,7 @@ class PlanUpdate(BaseModel):
     notes: Optional[str] = Field(None, max_length=1000)
     daily_limit: Optional[int] = Field(None, ge=0)
     monthly_limit: Optional[int] = Field(None, ge=0)
+    storage_limit_gb: Optional[float] = Field(None, ge=0)
     yearly_price_usd: Optional[float] = Field(None, ge=0)
     yearly_discount_pct: Optional[float] = Field(None, ge=0, le=100)
     seats: Optional[int] = Field(None, ge=1)
@@ -191,15 +198,19 @@ def validate_org_slug(org_slug: str) -> None:
         )
 
 
-def validate_provider(provider: str) -> str:
-    """Validate provider is a supported SaaS provider."""
+def validate_provider(provider: str, allow_custom: bool = True) -> str:
+    """Validate provider format. Allows custom providers by default."""
     provider_lower = provider.lower()
-    if not is_saas_provider(provider_lower):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Unsupported provider: {provider}. For LLM API tiers, use /integrations endpoints."
-        )
-    return provider_lower
+    # Allow known SaaS providers
+    if is_saas_provider(provider_lower):
+        return provider_lower
+    # Allow custom providers (user-defined) if flag is set
+    if allow_custom and re.match(r'^[a-z0-9_]{2,50}$', provider_lower):
+        return provider_lower
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail=f"Invalid provider format: {provider}. Must be 2-50 lowercase alphanumeric characters with underscores."
+    )
 
 
 def validate_plan_name(plan_name: str) -> None:
@@ -290,7 +301,7 @@ async def list_providers(
         provider,
         COUNT(*) as plan_count,
         MAX(is_enabled) as has_enabled
-    FROM `{settings.gcp_project_id}.{dataset_id}.{SAAS_SUBSCRIPTIONS_TABLE}`
+    FROM `{settings.gcp_project_id}.{dataset_id}.{SAAS_SUBSCRIPTION_PLANS_TABLE}`
     WHERE category != 'llm_api'
     GROUP BY provider
     """
@@ -347,17 +358,22 @@ async def enable_provider(
     provider = validate_provider(provider)
 
     dataset_id = get_org_dataset(org_slug)
-    table_ref = f"{settings.gcp_project_id}.{dataset_id}.{SAAS_SUBSCRIPTIONS_TABLE}"
+    table_ref = f"{settings.gcp_project_id}.{dataset_id}.{SAAS_SUBSCRIPTION_PLANS_TABLE}"
 
     # Check if plans already exist
     if not force:
         check_query = f"""
         SELECT COUNT(*) as count
         FROM `{table_ref}`
-        WHERE provider = '{provider}'
+        WHERE provider = @provider
         """
         try:
-            result = bq_client.client.query(check_query).result()
+            job_config = bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("provider", "STRING", provider),
+                ]
+            )
+            result = bq_client.client.query(check_query, job_config=job_config).result()
             for row in result:
                 if row.count > 0:
                     return EnableProviderResponse(
@@ -383,57 +399,127 @@ async def enable_provider(
     if force:
         delete_query = f"""
         DELETE FROM `{table_ref}`
-        WHERE provider = '{provider}'
+        WHERE provider = @provider
         """
         try:
-            bq_client.client.query(delete_query).result()
+            job_config = bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("provider", "STRING", provider),
+                ]
+            )
+            bq_client.client.query(delete_query, job_config=job_config).result()
             logger.info(f"Deleted existing plans for {provider} in {org_slug}")
         except Exception as e:
             logger.warning(f"Could not delete existing plans: {e}")
 
-    # Insert seed data
+    # Insert seed data using parameterized queries (prevents SQL injection)
     rows_inserted = 0
+    insert_errors = []
+
+    # Parse numeric values - handle empty strings properly
+    def parse_int(val, default=1):
+        if val is None or val == "" or str(val).strip() == "":
+            return default
+        try:
+            return int(val)
+        except (ValueError, TypeError):
+            return default
+
+    def parse_float(val, default=None):
+        if val is None or val == "" or str(val).strip() == "":
+            return default
+        try:
+            result = float(val)
+            # Return None if value is 0 and we don't want zeros
+            return result if result > 0 or default == 0.0 else default
+        except (ValueError, TypeError):
+            return default
+
     for plan in seed_data:
         try:
             # Generate new subscription ID
             subscription_id = f"sub_{provider}_{plan.get('plan_name', 'unknown').lower()}_{uuid.uuid4().hex[:8]}"
 
             # Parse values safely
-            quantity = int(plan.get("quantity", 1)) if plan.get("quantity") else 1
-            unit_price = float(plan.get("unit_price_usd", 0)) if plan.get("unit_price_usd") else 0.0
-            seats = int(plan.get("seats", 1)) if plan.get("seats") else 1
+            quantity = parse_int(plan.get("quantity"), 1)
+            unit_price = parse_float(plan.get("unit_price_usd"), 0.0)
+            yearly_price = parse_float(plan.get("yearly_price_usd"))
+            yearly_discount = parse_float(plan.get("yearly_discount_pct"))
+            seats = parse_int(plan.get("seats"), 1)
+            display_name = plan.get("display_name", "") or ""
+            notes = plan.get("notes", "") or ""
+            category = plan.get("category", "other") or "other"
+            billing_period = plan.get("billing_period", "monthly") or "monthly"
+            plan_name = plan.get("plan_name", "DEFAULT") or "DEFAULT"
+            storage_limit = parse_float(plan.get("storage_limit_gb"))
+            # Map CSV column monthly_usage_limit to monthly_limit
+            monthly_limit = parse_int(plan.get("monthly_usage_limit") or plan.get("monthly_limit"), None)
 
+            # Use parameterized query to prevent SQL injection
             insert_query = f"""
             INSERT INTO `{table_ref}` (
                 subscription_id, provider, plan_name, display_name, is_custom,
-                quantity, unit_price_usd, effective_date, is_enabled,
-                billing_period, category, notes, seats
+                quantity, unit_price_usd, yearly_price_usd, yearly_discount_pct,
+                effective_date, is_enabled, billing_period, category, notes, seats,
+                storage_limit_gb, monthly_limit,
+                created_at, updated_at
             ) VALUES (
-                '{subscription_id}',
-                '{provider}',
-                '{plan.get("plan_name", "DEFAULT")}',
-                '{plan.get("notes", "").replace("'", "''")}',
+                @subscription_id,
+                @provider,
+                @plan_name,
+                @display_name,
                 false,
-                {quantity},
-                {unit_price},
+                @quantity,
+                @unit_price,
+                @yearly_price,
+                @yearly_discount,
                 CURRENT_DATE(),
                 true,
-                '{plan.get("billing_period", "monthly")}',
-                '{plan.get("category", "other")}',
-                '{plan.get("notes", "").replace("'", "''")}',
-                {seats}
+                @billing_period,
+                @category,
+                @notes,
+                @seats,
+                @storage_limit,
+                @monthly_limit,
+                CURRENT_TIMESTAMP(),
+                CURRENT_TIMESTAMP()
             )
             """
-            bq_client.client.query(insert_query).result()
+            job_config = bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("subscription_id", "STRING", subscription_id),
+                    bigquery.ScalarQueryParameter("provider", "STRING", provider),
+                    bigquery.ScalarQueryParameter("plan_name", "STRING", plan_name),
+                    bigquery.ScalarQueryParameter("display_name", "STRING", display_name),
+                    bigquery.ScalarQueryParameter("quantity", "INT64", quantity),
+                    bigquery.ScalarQueryParameter("unit_price", "FLOAT64", unit_price),
+                    bigquery.ScalarQueryParameter("yearly_price", "FLOAT64", yearly_price),
+                    bigquery.ScalarQueryParameter("yearly_discount", "FLOAT64", yearly_discount),
+                    bigquery.ScalarQueryParameter("billing_period", "STRING", billing_period),
+                    bigquery.ScalarQueryParameter("category", "STRING", category),
+                    bigquery.ScalarQueryParameter("notes", "STRING", notes),
+                    bigquery.ScalarQueryParameter("seats", "INT64", seats),
+                    bigquery.ScalarQueryParameter("storage_limit", "FLOAT64", storage_limit),
+                    bigquery.ScalarQueryParameter("monthly_limit", "INT64", monthly_limit),
+                ]
+            )
+            bq_client.client.query(insert_query, job_config=job_config).result()
             rows_inserted += 1
         except Exception as e:
-            logger.error(f"Failed to insert plan {plan.get('plan_name')}: {e}")
+            error_msg = f"Failed to insert plan {plan.get('plan_name')}: {e}"
+            logger.error(error_msg)
+            insert_errors.append(error_msg)
+
+    # Build result message with error summary if any
+    message = f"Enabled {provider} with {rows_inserted} default plans"
+    if insert_errors:
+        message += f" ({len(insert_errors)} errors: {'; '.join(insert_errors[:3])}{'...' if len(insert_errors) > 3 else ''})"
 
     return EnableProviderResponse(
         success=True,
         provider=provider,
         plans_seeded=rows_inserted,
-        message=f"Enabled {provider} with {rows_inserted} default plans"
+        message=message
     )
 
 
@@ -460,16 +546,21 @@ async def disable_provider(
     provider = validate_provider(provider)
 
     dataset_id = get_org_dataset(org_slug)
-    table_ref = f"{settings.gcp_project_id}.{dataset_id}.{SAAS_SUBSCRIPTIONS_TABLE}"
+    table_ref = f"{settings.gcp_project_id}.{dataset_id}.{SAAS_SUBSCRIPTION_PLANS_TABLE}"
 
     update_query = f"""
     UPDATE `{table_ref}`
     SET is_enabled = false, updated_at = CURRENT_TIMESTAMP()
-    WHERE provider = '{provider}'
+    WHERE provider = @provider
     """
 
     try:
-        bq_client.client.query(update_query).result()
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("provider", "STRING", provider),
+            ]
+        )
+        bq_client.client.query(update_query, job_config=job_config).result()
         return DisableProviderResponse(
             success=True,
             provider=provider,
@@ -510,9 +601,9 @@ async def list_plans(
     provider = validate_provider(provider)
 
     dataset_id = get_org_dataset(org_slug)
-    table_ref = f"{settings.gcp_project_id}.{dataset_id}.{SAAS_SUBSCRIPTIONS_TABLE}"
+    table_ref = f"{settings.gcp_project_id}.{dataset_id}.{SAAS_SUBSCRIPTION_PLANS_TABLE}"
 
-    where_clause = f"WHERE provider = '{provider}'"
+    where_clause = "WHERE provider = @provider"
     if not include_disabled:
         where_clause += " AND is_enabled = true"
 
@@ -527,13 +618,18 @@ async def list_plans(
     total_monthly_cost = 0.0
 
     try:
-        result = bq_client.client.query(query).result()
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("provider", "STRING", provider),
+            ]
+        )
+        result = bq_client.client.query(query, job_config=job_config).result()
         for row in result:
             plan = SubscriptionPlan(
                 subscription_id=row.subscription_id,
                 provider=row.provider,
                 plan_name=row.plan_name,
-                display_name=row.get("display_name") or row.get("notes"),
+                display_name=row.display_name if hasattr(row, "display_name") and row.display_name else (row.notes if hasattr(row, "notes") else None),
                 is_custom=row.is_custom if hasattr(row, "is_custom") else False,
                 quantity=row.quantity or 1,
                 unit_price_usd=float(row.unit_price_usd or 0),
@@ -545,13 +641,16 @@ async def list_plans(
                 notes=row.notes if hasattr(row, "notes") else None,
                 daily_limit=row.daily_limit if hasattr(row, "daily_limit") else None,
                 monthly_limit=row.monthly_limit if hasattr(row, "monthly_limit") else None,
+                storage_limit_gb=float(row.storage_limit_gb) if hasattr(row, "storage_limit_gb") and row.storage_limit_gb else None,
+                yearly_price_usd=float(row.yearly_price_usd) if hasattr(row, "yearly_price_usd") and row.yearly_price_usd else None,
+                yearly_discount_pct=float(row.yearly_discount_pct) if hasattr(row, "yearly_discount_pct") and row.yearly_discount_pct else None,
                 seats=row.seats if hasattr(row, "seats") else 1,
             )
             plans.append(plan)
 
             # Calculate monthly cost for enabled plans
             if plan.is_enabled:
-                monthly_cost = plan.unit_price_usd * plan.quantity
+                monthly_cost = plan.unit_price_usd * (plan.quantity or 1)
                 if plan.billing_period == "yearly":
                     monthly_cost = monthly_cost / 12
                 elif plan.billing_period == "quarterly":
@@ -595,7 +694,32 @@ async def create_plan(
     validate_plan_name(plan.plan_name)
 
     dataset_id = get_org_dataset(org_slug)
-    table_ref = f"{settings.gcp_project_id}.{dataset_id}.{SAAS_SUBSCRIPTIONS_TABLE}"
+    table_ref = f"{settings.gcp_project_id}.{dataset_id}.{SAAS_SUBSCRIPTION_PLANS_TABLE}"
+
+    # Check for duplicate plan (same provider + plan_name)
+    plan_name_upper = plan.plan_name.upper()
+    check_query = f"""
+    SELECT COUNT(*) as count FROM `{table_ref}`
+    WHERE provider = @provider AND plan_name = @plan_name
+    """
+    try:
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("provider", "STRING", provider),
+                bigquery.ScalarQueryParameter("plan_name", "STRING", plan_name_upper),
+            ]
+        )
+        result = bq_client.client.query(check_query, job_config=job_config).result()
+        for row in result:
+            if row.count > 0:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"Plan '{plan_name_upper}' already exists for provider '{provider}'"
+                )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.debug(f"Could not check for duplicate plan (table may not exist): {e}")
 
     subscription_id = f"sub_{provider}_{plan.plan_name.lower()}_{uuid.uuid4().hex[:8]}"
     category = get_provider_category(provider).value  # Get enum value
@@ -605,30 +729,53 @@ async def create_plan(
         subscription_id, provider, plan_name, display_name, is_custom,
         quantity, unit_price_usd, effective_date, is_enabled,
         billing_period, category, notes, daily_limit, monthly_limit,
-        yearly_price_usd, yearly_discount_percentage, seats
+        storage_limit_gb, yearly_price_usd, yearly_discount_pct, seats,
+        created_at, updated_at
     ) VALUES (
-        '{subscription_id}',
-        '{provider}',
-        '{plan.plan_name.upper()}',
-        '{(plan.display_name or plan.plan_name).replace("'", "''")}',
+        @subscription_id,
+        @provider,
+        @plan_name,
+        @display_name,
         true,
-        {plan.quantity},
-        {plan.unit_price_usd},
+        @quantity,
+        @unit_price_usd,
         CURRENT_DATE(),
         true,
-        '{plan.billing_period}',
-        '{category}',
-        '{(plan.notes or "").replace("'", "''")}',
-        {plan.daily_limit or 'NULL'},
-        {plan.monthly_limit or 'NULL'},
-        {plan.yearly_price_usd or 'NULL'},
-        {plan.yearly_discount_pct or 'NULL'},
-        {plan.seats}
+        @billing_period,
+        @category,
+        @notes,
+        @daily_limit,
+        @monthly_limit,
+        @storage_limit_gb,
+        @yearly_price_usd,
+        @yearly_discount_pct,
+        @seats,
+        CURRENT_TIMESTAMP(),
+        CURRENT_TIMESTAMP()
     )
     """
 
     try:
-        bq_client.client.query(insert_query).result()
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("subscription_id", "STRING", subscription_id),
+                bigquery.ScalarQueryParameter("provider", "STRING", provider),
+                bigquery.ScalarQueryParameter("plan_name", "STRING", plan.plan_name.upper()),
+                bigquery.ScalarQueryParameter("display_name", "STRING", plan.display_name or plan.plan_name),
+                bigquery.ScalarQueryParameter("quantity", "INT64", plan.quantity),
+                bigquery.ScalarQueryParameter("unit_price_usd", "FLOAT64", plan.unit_price_usd),
+                bigquery.ScalarQueryParameter("billing_period", "STRING", plan.billing_period),
+                bigquery.ScalarQueryParameter("category", "STRING", category),
+                bigquery.ScalarQueryParameter("notes", "STRING", plan.notes or ""),
+                bigquery.ScalarQueryParameter("daily_limit", "INT64", plan.daily_limit),
+                bigquery.ScalarQueryParameter("monthly_limit", "INT64", plan.monthly_limit),
+                bigquery.ScalarQueryParameter("storage_limit_gb", "FLOAT64", plan.storage_limit_gb),
+                bigquery.ScalarQueryParameter("yearly_price_usd", "FLOAT64", plan.yearly_price_usd),
+                bigquery.ScalarQueryParameter("yearly_discount_pct", "FLOAT64", plan.yearly_discount_pct),
+                bigquery.ScalarQueryParameter("seats", "INT64", plan.seats),
+            ]
+        )
+        bq_client.client.query(insert_query, job_config=job_config).result()
 
         created_plan = SubscriptionPlan(
             subscription_id=subscription_id,
@@ -644,6 +791,7 @@ async def create_plan(
             notes=plan.notes,
             daily_limit=plan.daily_limit,
             monthly_limit=plan.monthly_limit,
+            storage_limit_gb=plan.storage_limit_gb,
             yearly_price_usd=plan.yearly_price_usd,
             yearly_discount_pct=plan.yearly_discount_pct,
             seats=plan.seats,
@@ -684,20 +832,42 @@ async def update_plan(
     provider = validate_provider(provider)
 
     dataset_id = get_org_dataset(org_slug)
-    table_ref = f"{settings.gcp_project_id}.{dataset_id}.{SAAS_SUBSCRIPTIONS_TABLE}"
+    table_ref = f"{settings.gcp_project_id}.{dataset_id}.{SAAS_SUBSCRIPTION_PLANS_TABLE}"
 
-    # Build SET clause from provided updates
+    # Build SET clause and parameters from provided updates
+    # Allowlist of valid field names to prevent SQL injection via column names
+    ALLOWED_UPDATE_FIELDS = {
+        'display_name', 'quantity', 'unit_price_usd', 'is_enabled', 'billing_period',
+        'notes', 'daily_limit', 'monthly_limit', 'storage_limit_gb', 'yearly_price_usd',
+        'yearly_discount_pct', 'seats'
+    }
+
     set_parts = ["updated_at = CURRENT_TIMESTAMP()"]
+    query_parameters = [
+        bigquery.ScalarQueryParameter("subscription_id", "STRING", subscription_id),
+        bigquery.ScalarQueryParameter("provider", "STRING", provider),
+    ]
     updates_dict = updates.model_dump(exclude_unset=True)
 
+    param_counter = 0
     for field, value in updates_dict.items():
+        # Skip fields not in allowlist (security: prevents SQL injection via column names)
+        if field not in ALLOWED_UPDATE_FIELDS:
+            logger.warning(f"Ignoring unknown field in update: {field}")
+            continue
         if value is not None:
-            if isinstance(value, str):
-                set_parts.append(f"{field} = '{value.replace(chr(39), chr(39)+chr(39))}'")
-            elif isinstance(value, bool):
-                set_parts.append(f"{field} = {str(value).lower()}")
+            param_name = f"p{param_counter}"
+            param_counter += 1
+            set_parts.append(f"{field} = @{param_name}")
+
+            if isinstance(value, bool):
+                query_parameters.append(bigquery.ScalarQueryParameter(param_name, "BOOL", value))
+            elif isinstance(value, int):
+                query_parameters.append(bigquery.ScalarQueryParameter(param_name, "INT64", value))
+            elif isinstance(value, float):
+                query_parameters.append(bigquery.ScalarQueryParameter(param_name, "FLOAT64", value))
             else:
-                set_parts.append(f"{field} = {value}")
+                query_parameters.append(bigquery.ScalarQueryParameter(param_name, "STRING", str(value)))
 
     if len(set_parts) == 1:
         raise HTTPException(
@@ -708,25 +878,31 @@ async def update_plan(
     update_query = f"""
     UPDATE `{table_ref}`
     SET {', '.join(set_parts)}
-    WHERE subscription_id = '{subscription_id}' AND provider = '{provider}'
+    WHERE subscription_id = @subscription_id AND provider = @provider
     """
 
     try:
-        bq_client.client.query(update_query).result()
+        job_config = bigquery.QueryJobConfig(query_parameters=query_parameters)
+        bq_client.client.query(update_query, job_config=job_config).result()
 
         # Fetch updated plan
         select_query = f"""
         SELECT * FROM `{table_ref}`
-        WHERE subscription_id = '{subscription_id}'
+        WHERE subscription_id = @subscription_id
         """
-        result = bq_client.client.query(select_query).result()
+        select_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("subscription_id", "STRING", subscription_id),
+            ]
+        )
+        result = bq_client.client.query(select_query, job_config=select_config).result()
 
         for row in result:
             updated_plan = SubscriptionPlan(
                 subscription_id=row.subscription_id,
                 provider=row.provider,
                 plan_name=row.plan_name,
-                display_name=row.get("display_name"),
+                display_name=row.display_name if hasattr(row, "display_name") and row.display_name else None,
                 is_custom=row.is_custom if hasattr(row, "is_custom") else False,
                 quantity=row.quantity or 1,
                 unit_price_usd=float(row.unit_price_usd or 0),
@@ -734,6 +910,11 @@ async def update_plan(
                 billing_period=row.billing_period or "monthly",
                 category=row.category or "other",
                 notes=row.notes if hasattr(row, "notes") else None,
+                daily_limit=row.daily_limit if hasattr(row, "daily_limit") else None,
+                monthly_limit=row.monthly_limit if hasattr(row, "monthly_limit") else None,
+                storage_limit_gb=float(row.storage_limit_gb) if hasattr(row, "storage_limit_gb") and row.storage_limit_gb else None,
+                yearly_price_usd=float(row.yearly_price_usd) if hasattr(row, "yearly_price_usd") and row.yearly_price_usd else None,
+                yearly_discount_pct=float(row.yearly_discount_pct) if hasattr(row, "yearly_discount_pct") and row.yearly_discount_pct else None,
                 seats=row.seats if hasattr(row, "seats") else 1,
             )
             return PlanResponse(
@@ -777,15 +958,21 @@ async def delete_plan(
     provider = validate_provider(provider)
 
     dataset_id = get_org_dataset(org_slug)
-    table_ref = f"{settings.gcp_project_id}.{dataset_id}.{SAAS_SUBSCRIPTIONS_TABLE}"
+    table_ref = f"{settings.gcp_project_id}.{dataset_id}.{SAAS_SUBSCRIPTION_PLANS_TABLE}"
 
     delete_query = f"""
     DELETE FROM `{table_ref}`
-    WHERE subscription_id = '{subscription_id}' AND provider = '{provider}'
+    WHERE subscription_id = @subscription_id AND provider = @provider
     """
 
     try:
-        bq_client.client.query(delete_query).result()
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("subscription_id", "STRING", subscription_id),
+                bigquery.ScalarQueryParameter("provider", "STRING", provider),
+            ]
+        )
+        bq_client.client.query(delete_query, job_config=job_config).result()
         return DeletePlanResponse(
             success=True,
             subscription_id=subscription_id,
@@ -824,3 +1011,210 @@ async def reset_provider(
         org=org,
         bq_client=bq_client
     )
+
+
+# ============================================
+# Toggle Endpoint
+# ============================================
+
+class ToggleResponse(BaseModel):
+    """Response for toggle endpoint."""
+    success: bool
+    subscription_id: str
+    is_enabled: bool
+    message: str
+
+
+@router.post(
+    "/subscriptions/{org_slug}/providers/{provider}/toggle/{subscription_id}",
+    response_model=ToggleResponse,
+    summary="Toggle plan enabled/disabled",
+    tags=["Subscriptions"]
+)
+async def toggle_plan(
+    org_slug: str,
+    provider: str,
+    subscription_id: str,
+    org: Dict = Depends(get_current_org),
+    bq_client: BigQueryClient = Depends(get_bigquery_client)
+):
+    """
+    Toggle a plan's is_enabled status.
+
+    Returns the new enabled state.
+    """
+    validate_org_slug(org_slug)
+    check_org_access(org, org_slug)
+    provider = validate_provider(provider)
+
+    dataset_id = get_org_dataset(org_slug)
+    table_ref = f"{settings.gcp_project_id}.{dataset_id}.{SAAS_SUBSCRIPTION_PLANS_TABLE}"
+
+    # Get current state
+    check_query = f"""
+    SELECT is_enabled FROM `{table_ref}`
+    WHERE subscription_id = @subscription_id AND provider = @provider
+    """
+
+    try:
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("subscription_id", "STRING", subscription_id),
+                bigquery.ScalarQueryParameter("provider", "STRING", provider),
+            ]
+        )
+        result = bq_client.client.query(check_query, job_config=job_config).result()
+        rows = list(result)
+
+        if not rows:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Plan {subscription_id} not found"
+            )
+
+        current_enabled = rows[0].is_enabled
+        new_enabled = not current_enabled
+
+        # Update state
+        update_query = f"""
+        UPDATE `{table_ref}`
+        SET is_enabled = @new_enabled, updated_at = CURRENT_TIMESTAMP()
+        WHERE subscription_id = @subscription_id AND provider = @provider
+        """
+
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("new_enabled", "BOOL", new_enabled),
+                bigquery.ScalarQueryParameter("subscription_id", "STRING", subscription_id),
+                bigquery.ScalarQueryParameter("provider", "STRING", provider),
+            ]
+        )
+        bq_client.client.query(update_query, job_config=job_config).result()
+
+        return ToggleResponse(
+            success=True,
+            subscription_id=subscription_id,
+            is_enabled=new_enabled,
+            message=f"Plan {subscription_id} {'enabled' if new_enabled else 'disabled'}"
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to toggle plan: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to toggle plan: {e}"
+        )
+
+
+# ============================================
+# All Plans Endpoint (for Costs Dashboard)
+# ============================================
+
+class AllPlansResponse(BaseModel):
+    """Response for all plans endpoint."""
+    success: bool
+    plans: List[SubscriptionPlan]
+    summary: Dict[str, Any]
+    message: Optional[str] = None
+
+
+@router.get(
+    "/subscriptions/{org_slug}/all-plans",
+    response_model=AllPlansResponse,
+    summary="Get all plans across all providers",
+    tags=["Subscriptions"]
+)
+async def get_all_plans(
+    org_slug: str,
+    enabled_only: bool = False,
+    org: Dict = Depends(get_current_org),
+    bq_client: BigQueryClient = Depends(get_bigquery_client)
+):
+    """
+    Get all subscription plans across all providers for the costs dashboard.
+
+    This endpoint reduces N+1 queries by fetching all plans in one call.
+    """
+    validate_org_slug(org_slug)
+    check_org_access(org, org_slug)
+
+    dataset_id = get_org_dataset(org_slug)
+    table_ref = f"{settings.gcp_project_id}.{dataset_id}.{SAAS_SUBSCRIPTION_PLANS_TABLE}"
+
+    # Query all plans
+    where_clause = "WHERE is_enabled = true" if enabled_only else ""
+    query = f"""
+    SELECT
+        subscription_id, provider, plan_name, display_name, is_custom,
+        quantity, unit_price_usd, yearly_price_usd, yearly_discount_pct,
+        billing_period, category, notes, seats, daily_limit, monthly_limit,
+        storage_limit_gb, is_enabled, created_at, updated_at
+    FROM `{table_ref}`
+    {where_clause}
+    ORDER BY provider, plan_name
+    """
+
+    try:
+        result = bq_client.client.query(query).result()
+        plans = []
+        total_monthly_cost = 0.0
+        count_by_category: Dict[str, int] = {}
+        enabled_count = 0
+
+        for row in result:
+            plan = SubscriptionPlan(
+                subscription_id=row.subscription_id,
+                provider=row.provider,
+                plan_name=row.plan_name,
+                display_name=row.display_name if hasattr(row, "display_name") else None,
+                is_custom=row.is_custom if hasattr(row, "is_custom") else False,
+                quantity=row.quantity or 1,
+                unit_price_usd=float(row.unit_price_usd or 0),
+                yearly_price_usd=float(row.yearly_price_usd) if row.yearly_price_usd else None,
+                yearly_discount_pct=float(row.yearly_discount_pct) if hasattr(row, "yearly_discount_pct") and row.yearly_discount_pct else None,
+                is_enabled=row.is_enabled if hasattr(row, "is_enabled") else True,
+                billing_period=row.billing_period or "monthly",
+                category=row.category or "other",
+                notes=row.notes if hasattr(row, "notes") else None,
+                seats=row.seats if hasattr(row, "seats") else 1,
+                daily_limit=row.daily_limit if hasattr(row, "daily_limit") else None,
+                monthly_limit=row.monthly_limit if hasattr(row, "monthly_limit") else None,
+                storage_limit_gb=float(row.storage_limit_gb) if hasattr(row, "storage_limit_gb") and row.storage_limit_gb else None,
+            )
+            plans.append(plan)
+
+            # Aggregate for summary - calculate monthly cost with billing period adjustment
+            if plan.is_enabled:
+                enabled_count += 1
+                monthly_cost = plan.unit_price_usd * (plan.quantity or 1)
+                # Adjust for billing period (unit_price_usd is per period, not per month)
+                if plan.billing_period == "yearly":
+                    monthly_cost = monthly_cost / 12
+                elif plan.billing_period == "quarterly":
+                    monthly_cost = monthly_cost / 3
+                total_monthly_cost += monthly_cost
+
+            cat = plan.category or "other"
+            count_by_category[cat] = count_by_category.get(cat, 0) + 1
+
+        summary = {
+            "total_monthly_cost": round(total_monthly_cost, 2),
+            "total_annual_cost": round(total_monthly_cost * 12, 2),
+            "count_by_category": count_by_category,
+            "enabled_count": enabled_count,
+            "total_count": len(plans),
+        }
+
+        return AllPlansResponse(
+            success=True,
+            plans=plans,
+            summary=summary,
+            message=f"Found {len(plans)} plans"
+        )
+    except Exception as e:
+        logger.error(f"Failed to get all plans: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get all plans: {e}"
+        )

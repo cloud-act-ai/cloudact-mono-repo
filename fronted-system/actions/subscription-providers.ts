@@ -4,12 +4,13 @@
  * Subscription Providers Server Actions
  *
  * Actions for managing SaaS subscription providers:
- * - Supabase: saas_subscription_meta (which providers are enabled)
+ * - Supabase: saas_subscription_providers_meta (which providers are enabled)
  * - API Service: BigQuery plans (seeded + custom plans)
  */
 
 import { createClient, createServiceRoleClient } from "@/lib/supabase/server"
 import { logError } from "@/lib/utils"
+import { getOrgApiKeySecure } from "@/actions/backend-onboarding"
 
 // ============================================
 // API Config
@@ -23,6 +24,22 @@ function getApiServiceUrl(): string {
   return url
 }
 
+/**
+ * Safely parse JSON response with error handling
+ */
+async function safeJsonParse<T>(response: Response, fallback: T): Promise<T> {
+  try {
+    const text = await response.text()
+    if (!text || text.trim() === "") {
+      return fallback
+    }
+    return JSON.parse(text) as T
+  } catch (error) {
+    console.warn("Failed to parse JSON response:", error)
+    return fallback
+  }
+}
+
 // ============================================
 // Auth Helpers
 // ============================================
@@ -31,14 +48,30 @@ const isValidOrgSlug = (slug: string): boolean => {
   return /^[a-zA-Z0-9_]{3,50}$/.test(slug)
 }
 
-type UserMetadata = {
-  org_api_keys?: Record<string, string>
-  [key: string]: unknown
+/**
+ * Validate provider name
+ * - Must be 2-50 characters
+ * - Only lowercase alphanumeric and underscores
+ * - Cannot start or end with underscore
+ */
+const isValidProviderName = (provider: string): boolean => {
+  if (!provider || typeof provider !== "string") return false
+  const normalized = provider.toLowerCase().trim()
+  // Allow 2-50 chars, alphanumeric and underscore, no leading/trailing underscore
+  return /^[a-z0-9][a-z0-9_]{0,48}[a-z0-9]$/.test(normalized) || /^[a-z0-9]{2}$/.test(normalized)
 }
 
-function getOrgApiKey(user: { user_metadata?: unknown }, orgSlug: string): string | undefined {
-  const metadata = user.user_metadata as UserMetadata | undefined
-  return metadata?.org_api_keys?.[orgSlug]
+/**
+ * Sanitize provider name - convert to safe format
+ */
+const sanitizeProviderName = (provider: string): string => {
+  return provider
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9_]/g, "_")  // Replace invalid chars with underscore
+    .replace(/^_+|_+$/g, "")       // Remove leading/trailing underscores
+    .replace(/_+/g, "_")           // Collapse multiple underscores
+    .slice(0, 50)                  // Limit length
 }
 
 interface AuthResult {
@@ -60,23 +93,34 @@ async function requireOrgMembership(orgSlug: string): Promise<AuthResult> {
     throw new Error("Not authenticated")
   }
 
-  const { data: org } = await adminClient
+  const { data: org, error: orgError } = await adminClient
     .from("organizations")
     .select("id")
     .eq("org_slug", orgSlug)
     .single()
 
+  if (orgError) {
+    if (orgError.code === "PGRST116") {
+      throw new Error("Organization not found")
+    }
+    throw new Error(`Database error: ${orgError.message}`)
+  }
+
   if (!org) {
     throw new Error("Organization not found")
   }
 
-  const { data: membership } = await adminClient
+  const { data: membership, error: membershipError } = await adminClient
     .from("organization_members")
     .select("role")
     .eq("org_id", org.id)
     .eq("user_id", user.id)
     .eq("status", "active")
     .single()
+
+  if (membershipError && membershipError.code !== "PGRST116") {
+    throw new Error(`Database error: ${membershipError.message}`)
+  }
 
   if (!membership) {
     throw new Error("Not a member of this organization")
@@ -253,7 +297,7 @@ export async function listEnabledProviders(orgSlug: string): Promise<{
     const supabase = await createClient()
 
     const { data, error } = await supabase
-      .from("saas_subscription_meta")
+      .from("saas_subscription_providers_meta")
       .select("*")
       .eq("org_id", orgId)
       .eq("is_enabled", true)
@@ -285,7 +329,7 @@ export async function getProviderMeta(
     const supabase = await createClient()
 
     const { data, error } = await supabase
-      .from("saas_subscription_meta")
+      .from("saas_subscription_providers_meta")
       .select("*")
       .eq("org_id", orgId)
       .eq("provider_name", provider.toLowerCase())
@@ -313,16 +357,22 @@ export async function enableProvider(
   error?: string
 }> {
   try {
-    const { user, orgId } = await requireRole(orgSlug, "admin")
+    // Validate provider name
+    const sanitizedProvider = sanitizeProviderName(provider)
+    if (!sanitizedProvider || sanitizedProvider.length < 2) {
+      return { success: false, plans_seeded: 0, error: "Invalid provider name" }
+    }
+
+    const { orgId } = await requireRole(orgSlug, "admin")
     const supabase = await createClient()
 
     // 1. Upsert to Supabase meta table
     const { error: metaError } = await supabase
-      .from("saas_subscription_meta")
+      .from("saas_subscription_providers_meta")
       .upsert(
         {
           org_id: orgId,
-          provider_name: provider.toLowerCase(),
+          provider_name: sanitizedProvider,
           is_enabled: true,
           enabled_at: new Date().toISOString(),
         },
@@ -334,7 +384,7 @@ export async function enableProvider(
     }
 
     // 2. Call API to seed default plans
-    const orgApiKey = getOrgApiKey(user, orgSlug)
+    const orgApiKey = await getOrgApiKeySecure(orgSlug)
     if (!orgApiKey) {
       // If no API key, just enable the provider without seeding
       return {
@@ -347,7 +397,7 @@ export async function enableProvider(
     try {
       const apiUrl = getApiServiceUrl()
       const response = await fetch(
-        `${apiUrl}/api/v1/subscriptions/${orgSlug}/providers/${provider.toLowerCase()}/enable`,
+        `${apiUrl}/api/v1/subscriptions/${orgSlug}/providers/${sanitizedProvider}/enable`,
         {
           method: "POST",
           headers: {
@@ -360,23 +410,24 @@ export async function enableProvider(
       if (!response.ok) {
         const errorText = await response.text()
         return {
-          success: true, // Meta table was updated
+          success: false, // API call failed - return failure
           plans_seeded: 0,
-          error: `Provider enabled but seeding failed: ${errorText}`
+          error: `Failed to enable provider: ${errorText}`
         }
       }
 
-      const result = await response.json()
+      const result = await safeJsonParse<{ plans_seeded?: number }>(response, { plans_seeded: 0 })
       return {
         success: true,
         plans_seeded: result.plans_seeded || 0,
       }
     } catch (apiError) {
-      // Meta table was updated, but API call failed
+      // API call failed - return failure
+      const errorMessage = apiError instanceof Error ? apiError.message : String(apiError)
       return {
-        success: true,
+        success: false,
         plans_seeded: 0,
-        error: `Provider enabled but API call failed: ${apiError}`
+        error: `Failed to enable provider: ${errorMessage}`
       }
     }
   } catch (error) {
@@ -395,38 +446,55 @@ export async function disableProvider(
   error?: string
 }> {
   try {
-    const { user, orgId } = await requireRole(orgSlug, "admin")
+    // Validate provider name
+    const sanitizedProvider = sanitizeProviderName(provider)
+    if (!sanitizedProvider || sanitizedProvider.length < 2) {
+      return { success: false, error: "Invalid provider name" }
+    }
+
+    const { orgId } = await requireRole(orgSlug, "admin")
     const supabase = await createClient()
 
     const { error } = await supabase
-      .from("saas_subscription_meta")
+      .from("saas_subscription_providers_meta")
       .update({ is_enabled: false })
       .eq("org_id", orgId)
-      .eq("provider_name", provider.toLowerCase())
+      .eq("provider_name", sanitizedProvider)
 
     if (error) {
       return { success: false, error: error.message }
     }
 
     // Also call API to disable plans in BigQuery
-    const orgApiKey = getOrgApiKey(user, orgSlug)
-    if (orgApiKey) {
-      try {
-        const apiUrl = getApiServiceUrl()
-        await fetch(
-          `${apiUrl}/api/v1/subscriptions/${orgSlug}/providers/${provider.toLowerCase()}/disable`,
-          {
-            method: "POST",
-            headers: {
-              "X-API-Key": orgApiKey,
-              "Content-Type": "application/json",
-            },
-          }
-        )
-      } catch (apiError) {
-        // Ignore API errors - meta table was updated
-        console.warn("API disable call failed:", apiError)
+    const orgApiKey = await getOrgApiKeySecure(orgSlug)
+    if (!orgApiKey) {
+      console.warn("No API key found for org:", orgSlug)
+      return {
+        success: true,
+        error: "Provider disabled in Supabase but no API key found - BigQuery plans not updated"
       }
+    }
+
+    try {
+      const apiUrl = getApiServiceUrl()
+      const response = await fetch(
+        `${apiUrl}/api/v1/subscriptions/${orgSlug}/providers/${sanitizedProvider}/disable`,
+        {
+          method: "POST",
+          headers: {
+            "X-API-Key": orgApiKey,
+            "Content-Type": "application/json",
+          },
+        }
+      )
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.warn("API disable call failed:", errorText)
+      }
+    } catch (apiError) {
+      // Log API errors - meta table was updated
+      console.warn("API disable call failed:", apiError)
     }
 
     return { success: true }
@@ -448,12 +516,12 @@ export async function getAllProviders(orgSlug: string): Promise<{
   error?: string
 }> {
   try {
-    const { user, orgId } = await requireOrgMembership(orgSlug)
+    const { orgId } = await requireOrgMembership(orgSlug)
     const supabase = await createClient()
 
     // Get enabled providers from meta table
     const { data: metaData, error: metaError } = await supabase
-      .from("saas_subscription_meta")
+      .from("saas_subscription_providers_meta")
       .select("provider_name, is_enabled")
       .eq("org_id", orgId)
 
@@ -463,7 +531,7 @@ export async function getAllProviders(orgSlug: string): Promise<{
     }
 
     // Get plan counts from API if available
-    const orgApiKey = getOrgApiKey(user, orgSlug)
+    const orgApiKey = await getOrgApiKeySecure(orgSlug)
     let planCounts = new Map<string, number>()
 
     if (orgApiKey) {
@@ -477,7 +545,7 @@ export async function getAllProviders(orgSlug: string): Promise<{
         )
 
         if (response.ok) {
-          const result = await response.json()
+          const result = await safeJsonParse<{ providers?: ProviderInfo[] }>(response, { providers: [] })
           result.providers?.forEach((p: ProviderInfo) => {
             planCounts.set(p.provider, p.plan_count)
           })
@@ -522,9 +590,15 @@ export async function getProviderPlans(
   error?: string
 }> {
   try {
-    const { user } = await requireOrgMembership(orgSlug)
+    // Validate provider name
+    const sanitizedProvider = sanitizeProviderName(provider)
+    if (!sanitizedProvider || sanitizedProvider.length < 2) {
+      return { success: false, plans: [], total_monthly_cost: 0, error: "Invalid provider name" }
+    }
 
-    const orgApiKey = getOrgApiKey(user, orgSlug)
+    await requireOrgMembership(orgSlug)
+
+    const orgApiKey = await getOrgApiKeySecure(orgSlug)
     if (!orgApiKey) {
       return {
         success: false,
@@ -536,7 +610,7 @@ export async function getProviderPlans(
 
     const apiUrl = getApiServiceUrl()
     const response = await fetch(
-      `${apiUrl}/api/v1/subscriptions/${orgSlug}/providers/${provider.toLowerCase()}/plans`,
+      `${apiUrl}/api/v1/subscriptions/${orgSlug}/providers/${sanitizedProvider}/plans`,
       {
         headers: { "X-API-Key": orgApiKey },
       }
@@ -552,7 +626,10 @@ export async function getProviderPlans(
       }
     }
 
-    const result = await response.json()
+    const result = await safeJsonParse<{ plans?: SubscriptionPlan[]; total_monthly_cost?: number }>(
+      response,
+      { plans: [], total_monthly_cost: 0 }
+    )
     return {
       success: true,
       plans: result.plans || [],
@@ -564,6 +641,125 @@ export async function getProviderPlans(
       plans: [],
       total_monthly_cost: 0,
       error: logError("getProviderPlans", error)
+    }
+  }
+}
+
+/**
+ * Get all plans across all enabled providers for the Costs dashboard
+ * Uses single API call to /all-plans endpoint to avoid N+1 queries
+ */
+export async function getAllPlansForCostDashboard(orgSlug: string): Promise<{
+  success: boolean
+  plans: (SubscriptionPlan & { provider_name: string })[]
+  summary: {
+    total_monthly_cost: number
+    total_annual_cost: number
+    count_by_category: Record<string, number>
+    enabled_count: number
+    total_count: number
+  }
+  error?: string
+}> {
+  try {
+    await requireOrgMembership(orgSlug)
+
+    const orgApiKey = await getOrgApiKeySecure(orgSlug)
+    if (!orgApiKey) {
+      return {
+        success: false,
+        plans: [],
+        summary: {
+          total_monthly_cost: 0,
+          total_annual_cost: 0,
+          count_by_category: {},
+          enabled_count: 0,
+          total_count: 0,
+        },
+        error: "Organization API key not found. Please complete organization onboarding.",
+      }
+    }
+
+    // Use the new all-plans endpoint for a single API call
+    const apiUrl = getApiServiceUrl()
+    const response = await fetch(
+      `${apiUrl}/api/v1/subscriptions/${orgSlug}/all-plans`,
+      {
+        headers: { "X-API-Key": orgApiKey },
+      }
+    )
+
+    if (!response.ok) {
+      // If 404 or table doesn't exist yet, return empty success
+      if (response.status === 404) {
+        return {
+          success: true,
+          plans: [],
+          summary: {
+            total_monthly_cost: 0,
+            total_annual_cost: 0,
+            count_by_category: {},
+            enabled_count: 0,
+            total_count: 0,
+          },
+        }
+      }
+      const errorText = await response.text()
+      return {
+        success: false,
+        plans: [],
+        summary: {
+          total_monthly_cost: 0,
+          total_annual_cost: 0,
+          count_by_category: {},
+          enabled_count: 0,
+          total_count: 0,
+        },
+        error: `Failed to fetch plans: ${errorText}`,
+      }
+    }
+
+    interface AllPlansResult {
+      plans?: SubscriptionPlan[]
+      summary?: {
+        total_monthly_cost: number
+        total_annual_cost: number
+        count_by_category: Record<string, number>
+        enabled_count: number
+        total_count: number
+      }
+    }
+    const result = await safeJsonParse<AllPlansResult>(response, { plans: [], summary: undefined })
+
+    // Add provider_name to each plan (it's in the provider field)
+    const plansWithProviderName = (result.plans || []).map((plan: SubscriptionPlan) => ({
+      ...plan,
+      provider_name: plan.provider,
+    }))
+
+    return {
+      success: true,
+      plans: plansWithProviderName,
+      summary: result.summary || {
+        total_monthly_cost: 0,
+        total_annual_cost: 0,
+        count_by_category: {},
+        enabled_count: 0,
+        total_count: 0,
+      },
+    }
+  } catch (error) {
+    return {
+      success: false,
+      plans: [],
+      summary: {
+        total_monthly_cost: 0,
+        total_annual_cost: 0,
+        count_by_category: {},
+        enabled_count: 0,
+        total_count: 0,
+      },
+      error: logError("getAllPlansForCostDashboard", error),
     }
   }
 }
@@ -581,16 +777,22 @@ export async function createCustomPlan(
   error?: string
 }> {
   try {
-    const { user } = await requireRole(orgSlug, "admin")
+    // Validate provider name
+    const sanitizedProvider = sanitizeProviderName(provider)
+    if (!sanitizedProvider || sanitizedProvider.length < 2) {
+      return { success: false, error: "Invalid provider name" }
+    }
 
-    const orgApiKey = getOrgApiKey(user, orgSlug)
+    await requireRole(orgSlug, "admin")
+
+    const orgApiKey = await getOrgApiKeySecure(orgSlug)
     if (!orgApiKey) {
       return { success: false, error: "Organization API key not found" }
     }
 
     const apiUrl = getApiServiceUrl()
     const response = await fetch(
-      `${apiUrl}/api/v1/subscriptions/${orgSlug}/providers/${provider.toLowerCase()}/plans`,
+      `${apiUrl}/api/v1/subscriptions/${orgSlug}/providers/${sanitizedProvider}/plans`,
       {
         method: "POST",
         headers: {
@@ -606,7 +808,7 @@ export async function createCustomPlan(
       return { success: false, error: `Failed to create plan: ${errorText}` }
     }
 
-    const result = await response.json()
+    const result = await safeJsonParse<{ plan?: SubscriptionPlan }>(response, { plan: undefined })
     return { success: true, plan: result.plan }
   } catch (error) {
     return { success: false, error: logError("createCustomPlan", error) }
@@ -627,16 +829,27 @@ export async function updatePlan(
   error?: string
 }> {
   try {
-    const { user } = await requireRole(orgSlug, "admin")
+    // Validate provider name
+    const sanitizedProvider = sanitizeProviderName(provider)
+    if (!sanitizedProvider || sanitizedProvider.length < 2) {
+      return { success: false, error: "Invalid provider name" }
+    }
 
-    const orgApiKey = getOrgApiKey(user, orgSlug)
+    // Validate subscription ID
+    if (!subscriptionId || typeof subscriptionId !== "string" || subscriptionId.trim().length < 1) {
+      return { success: false, error: "Invalid subscription ID" }
+    }
+
+    await requireRole(orgSlug, "admin")
+
+    const orgApiKey = await getOrgApiKeySecure(orgSlug)
     if (!orgApiKey) {
       return { success: false, error: "Organization API key not found" }
     }
 
     const apiUrl = getApiServiceUrl()
     const response = await fetch(
-      `${apiUrl}/api/v1/subscriptions/${orgSlug}/providers/${provider.toLowerCase()}/plans/${subscriptionId}`,
+      `${apiUrl}/api/v1/subscriptions/${orgSlug}/providers/${sanitizedProvider}/plans/${subscriptionId}`,
       {
         method: "PUT",
         headers: {
@@ -652,7 +865,7 @@ export async function updatePlan(
       return { success: false, error: `Failed to update plan: ${errorText}` }
     }
 
-    const result = await response.json()
+    const result = await safeJsonParse<{ plan?: SubscriptionPlan }>(response, { plan: undefined })
     return { success: true, plan: result.plan }
   } catch (error) {
     return { success: false, error: logError("updatePlan", error) }
@@ -687,16 +900,27 @@ export async function deletePlan(
   error?: string
 }> {
   try {
-    const { user } = await requireRole(orgSlug, "admin")
+    // Validate provider name
+    const sanitizedProvider = sanitizeProviderName(provider)
+    if (!sanitizedProvider || sanitizedProvider.length < 2) {
+      return { success: false, error: "Invalid provider name" }
+    }
 
-    const orgApiKey = getOrgApiKey(user, orgSlug)
+    // Validate subscription ID
+    if (!subscriptionId || typeof subscriptionId !== "string" || subscriptionId.trim().length < 1) {
+      return { success: false, error: "Invalid subscription ID" }
+    }
+
+    await requireRole(orgSlug, "admin")
+
+    const orgApiKey = await getOrgApiKeySecure(orgSlug)
     if (!orgApiKey) {
       return { success: false, error: "Organization API key not found" }
     }
 
     const apiUrl = getApiServiceUrl()
     const response = await fetch(
-      `${apiUrl}/api/v1/subscriptions/${orgSlug}/providers/${provider.toLowerCase()}/plans/${subscriptionId}`,
+      `${apiUrl}/api/v1/subscriptions/${orgSlug}/providers/${sanitizedProvider}/plans/${subscriptionId}`,
       {
         method: "DELETE",
         headers: { "X-API-Key": orgApiKey },
@@ -726,16 +950,22 @@ export async function resetProvider(
   error?: string
 }> {
   try {
-    const { user } = await requireRole(orgSlug, "admin")
+    // Validate provider name
+    const sanitizedProvider = sanitizeProviderName(provider)
+    if (!sanitizedProvider || sanitizedProvider.length < 2) {
+      return { success: false, plans_seeded: 0, error: "Invalid provider name" }
+    }
 
-    const orgApiKey = getOrgApiKey(user, orgSlug)
+    await requireRole(orgSlug, "admin")
+
+    const orgApiKey = await getOrgApiKeySecure(orgSlug)
     if (!orgApiKey) {
       return { success: false, plans_seeded: 0, error: "Organization API key not found" }
     }
 
     const apiUrl = getApiServiceUrl()
     const response = await fetch(
-      `${apiUrl}/api/v1/subscriptions/${orgSlug}/providers/${provider.toLowerCase()}/reset`,
+      `${apiUrl}/api/v1/subscriptions/${orgSlug}/providers/${sanitizedProvider}/reset`,
       {
         method: "POST",
         headers: {
@@ -750,7 +980,7 @@ export async function resetProvider(
       return { success: false, plans_seeded: 0, error: `Failed to reset: ${errorText}` }
     }
 
-    const result = await response.json()
+    const result = await safeJsonParse<{ plans_seeded?: number }>(response, { plans_seeded: 0 })
     return { success: true, plans_seeded: result.plans_seeded || 0 }
   } catch (error) {
     return { success: false, plans_seeded: 0, error: logError("resetProvider", error) }

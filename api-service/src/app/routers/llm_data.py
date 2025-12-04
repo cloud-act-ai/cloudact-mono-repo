@@ -39,7 +39,7 @@ settings = get_settings()
 # ============================================
 # Unified Table Names (V7 Architecture)
 # ============================================
-UNIFIED_SUBSCRIPTIONS_TABLE = "saas_subscriptions"
+UNIFIED_SUBSCRIPTIONS_TABLE = "saas_subscription_plans"
 UNIFIED_PRICING_TABLE = "llm_model_pricing"
 
 # Valid providers for filtering (including 'custom' for user-defined)

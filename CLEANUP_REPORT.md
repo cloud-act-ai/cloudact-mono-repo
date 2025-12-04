@@ -49,7 +49,7 @@ actions/saas-subscriptions.ts
 app/[orgSlug]/subscriptions/page.tsx
 
 // NEW FLOW (target):
-BigQuery {org}_prod.saas_subscriptions
+BigQuery {org}_prod.saas_subscription_plans
   ↓
 actions/subscription-providers.ts
   ↓
@@ -175,7 +175,7 @@ All imports correctly reference the single definition.
 ### Future Migration Tasks (TODO)
 
 1. **Create new subscription providers flow** (per SAAS_SUBSCRIPTION_COSTS.md)
-   - Add Supabase `saas_subscription_meta` table
+   - Add Supabase `saas_subscription_providers_meta` table
    - Create `actions/subscription-providers.ts` server actions
    - Add Section 3 to integrations page (provider toggles)
    - Create provider detail pages (`/{orgSlug}/subscriptions/{provider}`)
@@ -221,10 +221,10 @@ Frontend: app/[orgSlug]/settings/integrations/page.tsx (Section 3)
   ↓
 Server action: enableProvider()
   ↓
-1. Supabase: saas_subscription_meta (is_enabled = true)
+1. Supabase: saas_subscription_providers_meta (is_enabled = true)
 2. API Service: POST /subscriptions/{org}/providers/{p}/enable
   ↓
-BigQuery: {org}_prod.saas_subscriptions (seeded plans)
+BigQuery: {org}_prod.saas_subscription_plans (seeded plans)
   ↓
 Display: Sidebar + Provider detail page
 ```

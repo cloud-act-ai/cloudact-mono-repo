@@ -1,5 +1,5 @@
 /**
- * Middleware for Route Protection
+ * Proxy for Route Protection (Next.js 16+)
  *
  * SECURITY MEASURES IMPLEMENTED:
  * 1. Public Routes: Explicit whitelist of unauthenticated paths
@@ -19,7 +19,7 @@ import { updateSession } from "@/lib/supabase/middleware"
 import type { NextRequest } from "next/server"
 import { NextResponse } from "next/server"
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname
 
   const publicPaths = [

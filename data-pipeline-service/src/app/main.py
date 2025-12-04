@@ -202,7 +202,11 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.warning(f"Failed to initialize tracing: {e}. Continuing without tracing.")
     elif enable_tracing and not TELEMETRY_AVAILABLE:
-        logger.warning("Tracing enabled but OpenTelemetry packages not installed - skipping")
+        # Only warn in production/staging - silently skip in development
+        if settings.environment in ["production", "staging"]:
+            logger.warning("Tracing enabled but OpenTelemetry packages not installed - skipping")
+        else:
+            logger.info("Distributed tracing disabled (OpenTelemetry packages not installed)")
     else:
         logger.info("Distributed tracing is disabled")
 

@@ -18,7 +18,7 @@
  * - Frontend server running on port 3000
  * - API Service running on port 8000 (for plan seeding/management)
  * - Pipeline Service running on port 8001 (for subscription endpoints)
- * - Supabase configured with saas_subscription_meta table
+ * - Supabase configured with saas_subscription_providers_meta table
  * - Test user authenticated with org API key
  *
  * Run: npx vitest tests/14-subscription-providers.test.ts
@@ -165,7 +165,7 @@ describe.skipIf(SKIP_TESTS)('Flow 14: Subscription Providers (Supabase + API)', 
         it('should list all available providers', async () => {
             // This simulates getAllProviders() action
             const { data: metaData, error: metaError } = await supabase
-                .from('saas_subscription_meta')
+                .from('saas_subscription_providers_meta')
                 .select('provider_name, is_enabled')
                 .eq('org_id', testOrgId)
 
@@ -199,7 +199,7 @@ describe.skipIf(SKIP_TESTS)('Flow 14: Subscription Providers (Supabase + API)', 
         it('should enable Canva provider', async () => {
             // Simulate enableProvider() action
             const { error } = await supabase
-                .from('saas_subscription_meta')
+                .from('saas_subscription_providers_meta')
                 .upsert(
                     {
                         org_id: testOrgId,
@@ -224,7 +224,7 @@ describe.skipIf(SKIP_TESTS)('Flow 14: Subscription Providers (Supabase + API)', 
 
         it('should enable ChatGPT Plus provider', async () => {
             const { error } = await supabase
-                .from('saas_subscription_meta')
+                .from('saas_subscription_providers_meta')
                 .upsert(
                     {
                         org_id: testOrgId,
@@ -254,7 +254,7 @@ describe.skipIf(SKIP_TESTS)('Flow 14: Subscription Providers (Supabase + API)', 
             }
 
             const { data, error } = await supabase
-                .from('saas_subscription_meta')
+                .from('saas_subscription_providers_meta')
                 .select('*')
                 .eq('org_id', testOrgId)
                 .eq('is_enabled', true)
@@ -280,7 +280,7 @@ describe.skipIf(SKIP_TESTS)('Flow 14: Subscription Providers (Supabase + API)', 
             }
 
             const { error } = await supabase
-                .from('saas_subscription_meta')
+                .from('saas_subscription_providers_meta')
                 .update({ is_enabled: false })
                 .eq('org_id', testOrgId)
                 .eq('provider_name', TEST_PROVIDERS.canva.name)
@@ -294,7 +294,7 @@ describe.skipIf(SKIP_TESTS)('Flow 14: Subscription Providers (Supabase + API)', 
 
             // Verify disabled
             const { data } = await supabase
-                .from('saas_subscription_meta')
+                .from('saas_subscription_providers_meta')
                 .select('is_enabled')
                 .eq('org_id', testOrgId)
                 .eq('provider_name', TEST_PROVIDERS.canva.name)
@@ -311,7 +311,7 @@ describe.skipIf(SKIP_TESTS)('Flow 14: Subscription Providers (Supabase + API)', 
             }
 
             const { error } = await supabase
-                .from('saas_subscription_meta')
+                .from('saas_subscription_providers_meta')
                 .update({ is_enabled: true })
                 .eq('org_id', testOrgId)
                 .eq('provider_name', TEST_PROVIDERS.canva.name)
@@ -325,7 +325,7 @@ describe.skipIf(SKIP_TESTS)('Flow 14: Subscription Providers (Supabase + API)', 
 
             // Verify re-enabled
             const { data } = await supabase
-                .from('saas_subscription_meta')
+                .from('saas_subscription_providers_meta')
                 .select('is_enabled')
                 .eq('org_id', testOrgId)
                 .eq('provider_name', TEST_PROVIDERS.canva.name)
@@ -343,7 +343,7 @@ describe.skipIf(SKIP_TESTS)('Flow 14: Subscription Providers (Supabase + API)', 
 
             // Verify provider is enabled before navigation
             const { data, error } = await supabase
-                .from('saas_subscription_meta')
+                .from('saas_subscription_providers_meta')
                 .select('*')
                 .eq('org_id', testOrgId)
                 .eq('provider_name', TEST_PROVIDERS.canva.name)
@@ -554,7 +554,7 @@ describe.skipIf(SKIP_TESTS)('Flow 14: Subscription Providers (Supabase + API)', 
 
             // Simulate listEnabledProviders() action
             const { data, error } = await supabase
-                .from('saas_subscription_meta')
+                .from('saas_subscription_providers_meta')
                 .select('*')
                 .eq('org_id', testOrgId)
                 .eq('is_enabled', true)
@@ -583,7 +583,7 @@ describe.skipIf(SKIP_TESTS)('Flow 14: Subscription Providers (Supabase + API)', 
 
             // Get all providers
             const { data: allProviders, error: allError } = await supabase
-                .from('saas_subscription_meta')
+                .from('saas_subscription_providers_meta')
                 .select('*')
                 .eq('org_id', testOrgId)
 
@@ -596,7 +596,7 @@ describe.skipIf(SKIP_TESTS)('Flow 14: Subscription Providers (Supabase + API)', 
 
             // Get enabled providers
             const { data: enabledOnly } = await supabase
-                .from('saas_subscription_meta')
+                .from('saas_subscription_providers_meta')
                 .select('*')
                 .eq('org_id', testOrgId)
                 .eq('is_enabled', true)
@@ -617,7 +617,7 @@ describe.skipIf(SKIP_TESTS)('Flow 14: Subscription Providers (Supabase + API)', 
             }
 
             const { error } = await supabase
-                .from('saas_subscription_meta')
+                .from('saas_subscription_providers_meta')
                 .upsert(
                     {
                         org_id: testOrgId,
@@ -637,7 +637,7 @@ describe.skipIf(SKIP_TESTS)('Flow 14: Subscription Providers (Supabase + API)', 
 
             // Verify custom provider is stored
             const { data } = await supabase
-                .from('saas_subscription_meta')
+                .from('saas_subscription_providers_meta')
                 .select('*')
                 .eq('org_id', testOrgId)
                 .eq('provider_name', customProvider.name)
@@ -675,7 +675,7 @@ describe.skipIf(SKIP_TESTS)('Flow 14: Subscription Providers (Supabase + API)', 
 
             // 1. Enable provider
             const { error: enableError } = await supabase
-                .from('saas_subscription_meta')
+                .from('saas_subscription_providers_meta')
                 .upsert(
                     {
                         org_id: testOrgId,
@@ -695,7 +695,7 @@ describe.skipIf(SKIP_TESTS)('Flow 14: Subscription Providers (Supabase + API)', 
 
             // 2. Verify enabled
             const { data: verifyData } = await supabase
-                .from('saas_subscription_meta')
+                .from('saas_subscription_providers_meta')
                 .select('*')
                 .eq('org_id', testOrgId)
                 .eq('provider_name', testProvider.name)
@@ -718,7 +718,7 @@ describe.skipIf(SKIP_TESTS)('Flow 14: Subscription Providers (Supabase + API)', 
 
             // 5. Disable provider
             const { error: disableError } = await supabase
-                .from('saas_subscription_meta')
+                .from('saas_subscription_providers_meta')
                 .update({ is_enabled: false })
                 .eq('org_id', testOrgId)
                 .eq('provider_name', testProvider.name)
@@ -738,7 +738,7 @@ describe.skipIf(SKIP_TESTS)('Flow 14: Subscription Providers (Supabase + API)', 
 
             // Try to insert duplicate
             const { error } = await supabase
-                .from('saas_subscription_meta')
+                .from('saas_subscription_providers_meta')
                 .insert({
                     org_id: testOrgId,
                     provider_name: TEST_PROVIDERS.canva.name,
@@ -760,7 +760,7 @@ describe.skipIf(SKIP_TESTS)('Flow 14: Subscription Providers (Supabase + API)', 
             const fakeOrgId = '00000000-0000-0000-0000-000000000000'
 
             const { error } = await supabase
-                .from('saas_subscription_meta')
+                .from('saas_subscription_providers_meta')
                 .insert({
                     org_id: fakeOrgId,
                     provider_name: 'test_provider',
@@ -785,7 +785,7 @@ describe.skipIf(SKIP_TESTS)('Flow 14: Subscription Providers (Supabase + API)', 
         try {
             // Delete provider meta records
             await supabase
-                .from('saas_subscription_meta')
+                .from('saas_subscription_providers_meta')
                 .delete()
                 .eq('org_id', testOrgId)
 

@@ -841,11 +841,11 @@ async def onboard_org(
                     "dataset_id": org_slug,
                     "location": dataset_location,
                     "metadata_tables": [
-                        # SaaS Subscriptions table (unified for all providers)
+                        # SaaS Subscription Plans table (unified for all providers)
                         {
-                            "table_name": "saas_subscriptions",
-                            "schema_file": "saas_subscriptions.json",
-                            "description": "Unified SaaS provider subscriptions (OpenAI, Anthropic, Gemini)",
+                            "table_name": "saas_subscription_plans",
+                            "schema_file": "saas_subscription_plans.json",
+                            "description": "Unified SaaS subscription plans (Canva, Slack, ChatGPT Plus, etc.)",
                             "clustering_fields": ["provider", "plan_name"]
                         },
                         # LLM Model Pricing table (unified for all providers)

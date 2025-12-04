@@ -1,0 +1,9 @@
+# Antigravity Rules
+
+## General Guidelines
+- **No Over Engineering**: Avoid unnecessary complexity. Prefer simple, readable, and maintainable solutions. Do not add abstractions unless strictly necessary.
+- **No Mockups**: Do not generate mockups or placeholder code. Always write fully functional, production-ready code.
+
+## Configuration & Credentials
+- **Credentials Directory**: Always look for credentials in `~/.gcp`.
+    - When running scripts or configuring services, ensure they point to this directory for authentication keys.

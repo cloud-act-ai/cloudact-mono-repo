@@ -30,9 +30,10 @@ import {
   getAllProviders,
   enableProvider,
   disableProvider,
+  createCustomPlan,
   type ProviderInfo,
+  type PlanCreate,
 } from "@/actions/subscription-providers"
-import { createSaaSSubscription } from "@/actions/saas-subscriptions"
 
 const INITIAL_PROVIDERS_COUNT = 20
 
@@ -134,9 +135,11 @@ export default function SubscriptionProvidersPage() {
   const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">("monthly")
   const [adding, setAdding] = useState<string | null>(null)
 
-  const loadSubscriptionProviders = useCallback(async () => {
-    setProvidersLoading(true)
+  const loadSubscriptionProviders = useCallback(async (isMounted?: () => boolean) => {
+    if (!isMounted || isMounted()) setProvidersLoading(true)
     const result = await getAllProviders(orgSlug)
+    // Check if component is still mounted before updating state
+    if (isMounted && !isMounted()) return
     if (result.success && result.providers) {
       setSubscriptionProviders(result.providers)
     }
@@ -144,7 +147,9 @@ export default function SubscriptionProvidersPage() {
   }, [orgSlug])
 
   useEffect(() => {
-    loadSubscriptionProviders()
+    let mounted = true
+    loadSubscriptionProviders(() => mounted)
+    return () => { mounted = false }
   }, [loadSubscriptionProviders])
 
   useEffect(() => {
@@ -159,21 +164,26 @@ export default function SubscriptionProvidersPage() {
     setError(null)
     setSuccessMessage(null)
 
-    const result = enabled
-      ? await enableProvider(orgSlug, provider)
-      : await disableProvider(orgSlug, provider)
+    try {
+      const result = enabled
+        ? await enableProvider(orgSlug, provider)
+        : await disableProvider(orgSlug, provider)
 
-    setTogglingSubscriptionProvider(null)
-
-    if (result.success) {
-      setSuccessMessage(
-        enabled
-          ? `${provider.replace(/_/g, ' ')} enabled${result.plans_seeded ? ` (${result.plans_seeded} plans seeded)` : ''}`
-          : `${provider.replace(/_/g, ' ')} disabled`
-      )
-      await loadSubscriptionProviders()
-    } else {
-      setError(result.error || `Failed to ${enabled ? 'enable' : 'disable'} provider`)
+      if (result.success) {
+        setSuccessMessage(
+          enabled
+            ? `${provider.replace(/_/g, ' ')} enabled${result.plans_seeded ? ` (${result.plans_seeded} plans seeded)` : ''}`
+            : `${provider.replace(/_/g, ' ')} disabled`
+        )
+        await loadSubscriptionProviders()
+      } else {
+        setError(result.error || `Failed to ${enabled ? 'enable' : 'disable'} provider`)
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred"
+      setError(errorMessage)
+    } finally {
+      setTogglingSubscriptionProvider(null) // Clear toggle state AFTER reload completes
     }
   }
 
@@ -181,36 +191,87 @@ export default function SubscriptionProvidersPage() {
   const handleAddCustomProvider = async () => {
     if (!customProviderName.trim()) return
 
+    // Validate inputs
+    if (customCost < 0) {
+      setError("Cost cannot be negative")
+      return
+    }
+    if (customSeats < 1) {
+      setError("Seats must be at least 1")
+      return
+    }
+
     const providerId = customProviderName.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')
 
+    // Validate provider ID is not empty after sanitization
+    if (!providerId || providerId.length < 2) {
+      setError("Provider name must contain at least 2 alphanumeric characters")
+      return
+    }
+
     setAdding(providerId)
-    await createSaaSSubscription(orgSlug, {
-      provider_name: providerId,
-      display_name: customProviderName.trim(),
-      billing_cycle: billingCycle,
-      cost_per_cycle: customCost,
-      category: customProviderCategory,
-      seats: customSeats,
-    })
-    setAdding(null)
-    setCustomDialogOpen(false)
+    setError(null)
+
+    try {
+      // First enable the provider in Supabase meta
+      const enableResult = await enableProvider(orgSlug, providerId)
+      if (!enableResult.success) {
+        setError(enableResult.error || "Failed to enable custom provider")
+        return
+      }
+
+      // Then create a custom plan in BigQuery via API service
+      const planResult = await createCustomPlan(orgSlug, providerId, {
+        plan_name: "custom",
+        display_name: customProviderName.trim(),
+        unit_price_usd: customCost,
+        billing_period: billingCycle,
+        seats: customSeats,
+      })
+
+      if (!planResult.success) {
+        // Rollback: disable the provider if plan creation failed
+        await disableProvider(orgSlug, providerId)
+        setError(planResult.error || "Failed to create custom plan")
+        return
+      }
+
+      setCustomDialogOpen(false)
+      resetCustomForm()
+      setSuccessMessage(`${customProviderName.trim()} added successfully`)
+      await loadSubscriptionProviders()
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred"
+      setError(errorMessage)
+    } finally {
+      setAdding(null)
+    }
+  }
+
+  // Reset custom provider form
+  const resetCustomForm = () => {
     setCustomProviderName("")
     setCustomProviderCategory("other")
     setCustomCost(0)
     setCustomSeats(1)
     setBillingCycle("monthly")
-    setSuccessMessage(`${customProviderName.trim()} added successfully`)
-    await loadSubscriptionProviders()
   }
 
   // Open custom provider dialog
   const openCustomDialog = () => {
-    setCustomProviderName("")
-    setCustomProviderCategory("other")
-    setCustomCost(0)
-    setCustomSeats(1)
-    setBillingCycle("monthly")
+    resetCustomForm()
+    setError(null) // Clear any existing error
     setCustomDialogOpen(true)
+  }
+
+  // Handle dialog close - reset form state
+  const handleDialogOpenChange = (open: boolean) => {
+    setCustomDialogOpen(open)
+    if (!open) {
+      // Reset form when dialog is closed
+      resetCustomForm()
+      setError(null)
+    }
   }
 
   const enabledCount = subscriptionProviders.filter(p => p.is_enabled).length
@@ -327,7 +388,7 @@ export default function SubscriptionProvidersPage() {
       )}
 
       {/* Add Custom Provider Dialog */}
-      <Dialog open={customDialogOpen} onOpenChange={setCustomDialogOpen}>
+      <Dialog open={customDialogOpen} onOpenChange={handleDialogOpenChange}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Add Custom Provider</DialogTitle>
@@ -346,6 +407,7 @@ export default function SubscriptionProvidersPage() {
                 value={customProviderName}
                 onChange={(e) => setCustomProviderName(e.target.value)}
                 className="col-span-3"
+                disabled={adding !== null}
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
@@ -355,6 +417,7 @@ export default function SubscriptionProvidersPage() {
               <Select
                 value={customProviderCategory}
                 onValueChange={setCustomProviderCategory}
+                disabled={adding !== null}
               >
                 <SelectTrigger className="col-span-3">
                   <SelectValue />
@@ -383,8 +446,12 @@ export default function SubscriptionProvidersPage() {
                   min="0"
                   placeholder="0.00"
                   value={customCost === 0 ? "" : customCost}
-                  onChange={(e) => setCustomCost(e.target.value === "" ? 0 : parseFloat(e.target.value))}
+                  onChange={(e) => {
+                    const parsed = parseFloat(e.target.value)
+                    setCustomCost(e.target.value === "" ? 0 : (isNaN(parsed) ? 0 : parsed))
+                  }}
                   className="flex-1"
+                  disabled={adding !== null}
                 />
               </div>
             </div>
@@ -395,6 +462,7 @@ export default function SubscriptionProvidersPage() {
               <Select
                 value={billingCycle}
                 onValueChange={(v) => setBillingCycle(v as "monthly" | "annual")}
+                disabled={adding !== null}
               >
                 <SelectTrigger className="col-span-3">
                   <SelectValue />
@@ -415,13 +483,17 @@ export default function SubscriptionProvidersPage() {
                 min="1"
                 placeholder="1"
                 value={customSeats === 1 ? "" : customSeats}
-                onChange={(e) => setCustomSeats(e.target.value === "" ? 1 : parseInt(e.target.value))}
+                onChange={(e) => {
+                  const parsed = parseInt(e.target.value, 10)
+                  setCustomSeats(e.target.value === "" ? 1 : (isNaN(parsed) || parsed < 1 ? 1 : parsed))
+                }}
                 className="col-span-3"
+                disabled={adding !== null}
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCustomDialogOpen(false)}>
+            <Button variant="outline" onClick={() => handleDialogOpenChange(false)} disabled={adding !== null}>
               Cancel
             </Button>
             <Button

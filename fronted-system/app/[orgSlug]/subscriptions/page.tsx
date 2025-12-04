@@ -10,7 +10,6 @@ import {
   DollarSign,
   Calendar,
   Users,
-  Settings,
   ArrowUpRight,
   Brain,
   Palette,
@@ -19,6 +18,7 @@ import {
   Code,
   Cloud,
   Plus,
+  AlertCircle,
 } from "lucide-react"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -34,11 +34,10 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import {
-  listSaaSSubscriptions,
-  toggleSaaSSubscription,
-  getSaaSSubscriptionSummary,
-  SaaSSubscription,
-} from "@/actions/saas-subscriptions"
+  getAllPlansForCostDashboard,
+  togglePlan,
+  type SubscriptionPlan,
+} from "@/actions/subscription-providers"
 
 // Category icon mapping
 const CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -62,13 +61,16 @@ const CATEGORY_COLORS: Record<string, string> = {
   other: "bg-gray-100 text-gray-700 border-gray-200",
 }
 
+type PlanWithProvider = SubscriptionPlan & { provider_name: string }
+
 export default function SubscriptionsPage() {
   const params = useParams()
   const orgSlug = params.orgSlug as string
 
-  const [subscriptions, setSubscriptions] = useState<SaaSSubscription[]>([])
+  const [plans, setPlans] = useState<PlanWithProvider[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [toggling, setToggling] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const [summary, setSummary] = useState<{
     total_monthly_cost: number
     total_annual_cost: number
@@ -79,16 +81,17 @@ export default function SubscriptionsPage() {
 
   const loadData = useCallback(async () => {
     setIsLoading(true)
-    const [subsResult, summaryResult] = await Promise.all([
-      listSaaSSubscriptions(orgSlug),
-      getSaaSSubscriptionSummary(orgSlug),
-    ])
+    setError(null)
 
-    if (subsResult.success && subsResult.subscriptions) {
-      setSubscriptions(subsResult.subscriptions)
-    }
-    if (summaryResult.success && summaryResult.summary) {
-      setSummary(summaryResult.summary)
+    const result = await getAllPlansForCostDashboard(orgSlug)
+
+    if (result.success) {
+      setPlans(result.plans)
+      setSummary(result.summary)
+    } else {
+      setError(result.error || "Failed to load subscription data")
+      setPlans([])
+      setSummary(null)
     }
     setIsLoading(false)
   }, [orgSlug])
@@ -97,10 +100,13 @@ export default function SubscriptionsPage() {
     loadData()
   }, [loadData])
 
-  const handleToggle = async (sub: SaaSSubscription) => {
-    setToggling(sub.id)
-    await toggleSaaSSubscription(orgSlug, sub.id, !sub.is_enabled)
+  const handleToggle = async (plan: PlanWithProvider) => {
+    setToggling(plan.subscription_id)
+    const result = await togglePlan(orgSlug, plan.provider_name, plan.subscription_id, !plan.is_enabled)
     setToggling(null)
+    if (!result.success) {
+      setError(result.error || "Failed to toggle plan")
+    }
     await loadData()
   }
 
@@ -111,14 +117,77 @@ export default function SubscriptionsPage() {
     }).format(amount)
   }
 
-  const formatBillingCycle = (cycle: string) => {
+  const formatBillingCycle = (cycle?: string) => {
+    if (!cycle || cycle.trim() === "") return "Monthly"
     return cycle.charAt(0).toUpperCase() + cycle.slice(1)
+  }
+
+  // Calculate monthly equivalent based on billing period
+  const getMonthlyEquivalent = (plan: PlanWithProvider): number => {
+    const price = plan.unit_price_usd || 0
+    if (!plan.billing_period) return price
+    switch (plan.billing_period.toLowerCase()) {
+      case "annual":
+      case "yearly":
+        return price / 12
+      case "quarterly":
+        return price / 3
+      default:
+        return price
+    }
   }
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Loader2 className="h-8 w-8 animate-spin text-[#007A78]" />
+      </div>
+    )
+  }
+
+  // Show error state if API key is missing or other error
+  if (error) {
+    return (
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-lg bg-gradient-to-br from-[#007A78]/10 to-[#14B8A6]/10">
+                <Wallet className="h-6 w-6 text-[#007A78]" />
+              </div>
+              <h1 className="console-page-title">Subscription Costs</h1>
+            </div>
+            <p className="console-subheading ml-12">
+              View your SaaS subscription costs and usage
+            </p>
+          </div>
+        </div>
+
+        {/* Error Card */}
+        <Card className="border-amber-200 bg-amber-50">
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5" />
+              <div>
+                <h3 className="font-medium text-amber-900">{error}</h3>
+                <p className="text-sm text-amber-700 mt-1">
+                  {error.includes("API key") ? (
+                    <>
+                      Please complete organization onboarding in{" "}
+                      <Link href={`/${orgSlug}/settings/onboarding`} className="underline hover:no-underline">
+                        Settings &gt; Onboarding
+                      </Link>{" "}
+                      to enable subscription tracking.
+                    </>
+                  ) : (
+                    "Please try again later or contact support if the issue persists."
+                  )}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     )
   }
@@ -132,7 +201,7 @@ export default function SubscriptionsPage() {
             <div className="p-2.5 rounded-lg bg-gradient-to-br from-[#007A78]/10 to-[#14B8A6]/10">
               <Wallet className="h-6 w-6 text-[#007A78]" />
             </div>
-            <h1 className="console-page-title">Subscription Reports</h1>
+            <h1 className="console-page-title">Subscription Costs</h1>
           </div>
           <p className="console-subheading ml-12">
             View your SaaS subscription costs and usage
@@ -175,7 +244,7 @@ export default function SubscriptionsPage() {
 
           <Card className="console-stat-card">
             <CardHeader className="pb-2">
-              <CardDescription className="console-small">Active Subscriptions</CardDescription>
+              <CardDescription className="console-small">Active Plans</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-2">
@@ -193,22 +262,26 @@ export default function SubscriptionsPage() {
             </CardHeader>
             <CardContent>
               <div className="flex flex-wrap gap-1">
-                {Object.entries(summary.count_by_category).map(([cat, count]) => (
-                  <Badge
-                    key={cat}
-                    variant="outline"
-                    className={`text-xs capitalize ${CATEGORY_COLORS[cat] || CATEGORY_COLORS.other}`}
-                  >
-                    {cat}: {count}
-                  </Badge>
-                ))}
+                {summary.count_by_category && Object.keys(summary.count_by_category).length > 0 ? (
+                  Object.entries(summary.count_by_category).map(([cat, count]) => (
+                    <Badge
+                      key={cat}
+                      variant="outline"
+                      className={`text-xs capitalize ${CATEGORY_COLORS[cat] || CATEGORY_COLORS.other}`}
+                    >
+                      {cat}: {count}
+                    </Badge>
+                  ))
+                ) : (
+                  <span className="text-sm text-gray-400">No categories</span>
+                )}
               </div>
             </CardContent>
           </Card>
         </div>
       )}
 
-      {/* Subscriptions Table */}
+      {/* Plans Table */}
       <Card className="console-table-card">
         <CardHeader>
           <CardTitle className="console-card-title">All Subscriptions</CardTitle>
@@ -217,7 +290,7 @@ export default function SubscriptionsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {subscriptions.length === 0 ? (
+          {plans.length === 0 ? (
             <div className="text-center py-12">
               <Wallet className="h-12 w-12 mx-auto text-slate-300 mb-4" />
               <h3 className="text-lg font-medium text-slate-900 mb-2">No subscriptions yet</h3>
@@ -236,7 +309,8 @@ export default function SubscriptionsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-12">Active</TableHead>
-                  <TableHead>Service</TableHead>
+                  <TableHead>Plan</TableHead>
+                  <TableHead>Provider</TableHead>
                   <TableHead>Category</TableHead>
                   <TableHead className="text-right">Cost</TableHead>
                   <TableHead>Billing</TableHead>
@@ -245,14 +319,10 @@ export default function SubscriptionsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {subscriptions.map((sub) => {
-                  const CategoryIcon = CATEGORY_ICONS[sub.category || "other"] || Wallet
-                  const monthlyEquiv =
-                    sub.billing_cycle === "annual"
-                      ? sub.cost_per_cycle / 12
-                      : sub.billing_cycle === "quarterly"
-                      ? sub.cost_per_cycle / 3
-                      : sub.cost_per_cycle
+                {plans.map((plan) => {
+                  const category = plan.category && plan.category.trim() !== "" ? plan.category : "other"
+                  const CategoryIcon = CATEGORY_ICONS[category] || Wallet
+                  const monthlyEquiv = getMonthlyEquivalent(plan)
 
                   // Map SaaS provider to integration page (only for LLM providers with API integrations)
                   const providerMapping: Record<string, string> = {
@@ -261,15 +331,15 @@ export default function SubscriptionsPage() {
                     gemini_advanced: "gemini",
                     copilot: "openai", // GitHub Copilot uses OpenAI models
                   }
-                  const integrationPath = providerMapping[sub.provider_name]
+                  const integrationPath = providerMapping[plan.provider_name]
 
                   return (
-                    <TableRow key={sub.id} className={!sub.is_enabled ? "opacity-50" : ""}>
+                    <TableRow key={plan.subscription_id} className={!plan.is_enabled ? "opacity-50" : ""}>
                       <TableCell>
                         <Switch
-                          checked={sub.is_enabled}
-                          onCheckedChange={() => handleToggle(sub)}
-                          disabled={toggling === sub.id}
+                          checked={plan.is_enabled}
+                          onCheckedChange={() => handleToggle(plan)}
+                          disabled={toggling === plan.subscription_id}
                           className="data-[state=checked]:bg-[#007A78]"
                         />
                       </TableCell>
@@ -279,48 +349,56 @@ export default function SubscriptionsPage() {
                             <CategoryIcon className="h-4 w-4 text-[#007A78]" />
                           </div>
                           <div>
-                            {integrationPath ? (
-                              <Link href={`/${orgSlug}/settings/integrations/${integrationPath}`}>
-                                <div className="font-medium hover:text-[#007A78] hover:underline cursor-pointer flex items-center gap-1.5">
-                                  {sub.display_name}
-                                  <ArrowUpRight className="h-3.5 w-3.5" />
-                                </div>
-                              </Link>
-                            ) : (
-                              <div className="font-medium">{sub.display_name}</div>
-                            )}
-                            <div className="text-xs text-gray-500">{sub.provider_name}</div>
+                            <div className="font-medium">{plan.display_name || plan.plan_name}</div>
+                            <div className="text-xs text-gray-500">{plan.plan_name}</div>
                           </div>
                         </div>
                       </TableCell>
                       <TableCell>
+                        {integrationPath ? (
+                          <Link href={`/${orgSlug}/settings/integrations/${integrationPath}`}>
+                            <span className="hover:text-[#007A78] hover:underline cursor-pointer flex items-center gap-1">
+                              {plan.provider_name}
+                              <ArrowUpRight className="h-3.5 w-3.5" />
+                            </span>
+                          </Link>
+                        ) : (
+                          <Link href={`/${orgSlug}/subscriptions/${plan.provider_name}`}>
+                            <span className="hover:text-[#007A78] hover:underline cursor-pointer flex items-center gap-1">
+                              {plan.provider_name}
+                              <ArrowUpRight className="h-3.5 w-3.5" />
+                            </span>
+                          </Link>
+                        )}
+                      </TableCell>
+                      <TableCell>
                         <Badge
                           variant="outline"
-                          className={`capitalize ${CATEGORY_COLORS[sub.category || "other"]}`}
+                          className={`capitalize ${CATEGORY_COLORS[category]}`}
                         >
-                          {sub.category || "other"}
+                          {category}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right font-medium">
-                        {formatCurrency(sub.cost_per_cycle)}
+                        {formatCurrency(plan.unit_price_usd || 0)}
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className="capitalize">
-                          {formatBillingCycle(sub.billing_cycle)}
+                          {formatBillingCycle(plan.billing_period)}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        {sub.seats ? (
+                        {plan.seats ? (
                           <div className="flex items-center justify-end gap-1">
                             <Users className="h-3.5 w-3.5 text-gray-400" />
-                            <span>{sub.seats}</span>
+                            <span>{plan.seats}</span>
                           </div>
                         ) : (
                           <span className="text-gray-400">-</span>
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        <span className={sub.is_enabled ? "text-[#007A78] font-medium" : "text-gray-400"}>
+                        <span className={plan.is_enabled ? "text-[#007A78] font-medium" : "text-gray-400"}>
                           {formatCurrency(monthlyEquiv)}/mo
                         </span>
                       </TableCell>

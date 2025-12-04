@@ -502,7 +502,7 @@ class TestSubscriptionCostPipeline:
         PIPE-01: Run the subscription cost analysis pipeline.
 
         Tests full pipeline execution:
-        1. Read from saas_subscriptions
+        1. Read from saas_subscription_plans
         2. Calculate daily costs
         3. Apply discounts and quantities
         4. Generate projections
@@ -548,16 +548,16 @@ class TestSubscriptionCostPipeline:
             # Log but don't fail - pipeline may fail for various reasons in test
             print(f"Pipeline returned {response.status_code}: {response.text[:200]}")
 
-    def test_pipeline_reads_from_saas_subscriptions(
+    def test_pipeline_reads_from_saas_subscription_plans(
         self,
         pipeline_client,
         setup_test_org,
         org_headers
     ):
         """
-        PIPE-01: Verify pipeline reads from saas_subscriptions table.
+        PIPE-01: Verify pipeline reads from saas_subscription_plans table.
 
-        The pipeline should query {org}_prod.saas_subscriptions as source.
+        The pipeline should query {org}_prod.saas_subscription_plans as source.
         """
         org_slug = setup_test_org["org_slug"]
 
@@ -581,8 +581,8 @@ class TestSubscriptionCostPipeline:
             error_data = response.json()
             error_msg = str(error_data).lower()
 
-            if "saas_subscriptions" in error_msg or "table" in error_msg:
-                print("Pipeline correctly references saas_subscriptions table (table may not exist yet)")
+            if "saas_subscription_plans" in error_msg or "table" in error_msg:
+                print("Pipeline correctly references saas_subscription_plans table (table may not exist yet)")
             else:
                 print(f"Pipeline error (may be unrelated to source table): {error_data}")
 
@@ -955,7 +955,7 @@ def test_summary(setup_test_org):
     print(f"Test org: {setup_test_org['org_slug']}")
     print("=" * 60)
     print("\nTest Coverage:")
-    print("  ✓ PIPE-01: Pipeline reads from saas_subscriptions")
+    print("  ✓ PIPE-01: Pipeline reads from saas_subscription_plans")
     print("  ✓ PIPE-02: Daily rate calculation (yearly/365, monthly/30.4375)")
     print("  ✓ PIPE-03: Discount application (1 - discount%)")
     print("  ✓ PIPE-04: Quantity multiplier")

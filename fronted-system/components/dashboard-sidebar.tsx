@@ -370,21 +370,21 @@ export function DashboardSidebar({
                       </SidebarMenuItem>
                       {/* Show each enabled provider */}
                       {enabledProviders.map((provider) => {
-                        const ProviderIcon = getProviderIcon(provider.provider_name)
-                        const displayName = COMMON_SAAS_PROVIDERS.find(p => p.id === provider.provider_name)?.name ||
-                                          provider.provider_name.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())
+                        const providerDisplayName = provider.provider_name
+                          .replace(/_/g, " ")
+                          .replace(/\b\w/g, (l: string) => l.toUpperCase())
                         return (
                           <SidebarMenuItem key={provider.id}>
                             <SidebarMenuButton
                               asChild
                               className={cn(
                                 "text-gray-500 hover:text-[#007A78] hover:bg-[#007A78]/5 text-sm h-7",
-                                isActive(`/${orgSlug}/subscriptions/${provider.provider_name}`) && "bg-[#007A78]/10 text-[#007A78]",
+                                pathname === `/${orgSlug}/subscriptions/${provider.provider_name}` && "bg-[#007A78]/10 text-[#007A78]",
                               )}
                             >
                               <Link href={`/${orgSlug}/subscriptions/${provider.provider_name}`}>
-                                <ProviderIcon className="h-3 w-3" />
-                                <span className="truncate">{displayName}</span>
+                                <CreditCard className="h-3 w-3" />
+                                <span>{providerDisplayName}</span>
                               </Link>
                             </SidebarMenuButton>
                           </SidebarMenuItem>
@@ -393,24 +393,6 @@ export function DashboardSidebar({
                     </div>
                   )}
                 </div>
-              )}
-
-              {/* Subscriptions Menu - Only show if there are enabled providers */}
-              {enabledProviders.length > 0 && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    className={cn(
-                      "text-gray-600 hover:text-[#007A78] hover:bg-[#007A78]/5",
-                      pathname === `/${orgSlug}/subscriptions` && "bg-[#007A78]/5 text-[#007A78]",
-                    )}
-                  >
-                    <Link href={`/${orgSlug}/subscriptions`}>
-                      <DollarSign className="h-4 w-4" />
-                      <span>Subscription Costs</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
               )}
 
             </SidebarMenu>

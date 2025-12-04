@@ -3,7 +3,7 @@ import type { Metadata } from "next"
 import { DM_Sans, Merriweather } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { Toaster } from "sonner"
-import { RootProvider } from "fumadocs-ui/provider"
+import { RootProvider } from "fumadocs-ui/provider/next"
 import "fumadocs-ui/style.css"
 import "./globals.css"
 
