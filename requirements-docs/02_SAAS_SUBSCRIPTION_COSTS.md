@@ -1,6 +1,6 @@
 # SaaS Subscription Costs
 
-**Status**: IN PROGRESS | **Updated**: 2025-12-03 | **Single Source of Truth**
+**Status**: MOSTLY COMPLETE | **Updated**: 2025-12-04 | **Single Source of Truth**
 
 > Track fixed-cost SaaS subscriptions (Canva, ChatGPT Plus, Slack, etc.)
 > NOT CloudAct platform billing (that's Stripe)
@@ -101,26 +101,26 @@ Frontend (3000)                    API Service (8000)              Pipeline (800
 
 | Step | Feature                                  | Status | Test Ref |
 | ---- | ---------------------------------------- | ------ | -------- |
-| F1   | Section 3: Subscription provider toggles | ❌     | FE-01    |
-| F2   | Enable provider → call API to seed       | ❌     | FE-02    |
-| F3   | Sidebar shows enabled providers          | ❌     | FE-09    |
-| F4   | Provider detail page with plans          | ❌     | FE-04    |
-| F5   | Add custom plan to provider              | ❌     | FE-05    |
-| F6   | Toggle/delete plans                      | ❌     | FE-06,07 |
-| F7   | Cost summary on provider page            | ❌     | FE-08    |
+| F1   | Section 3: Subscription provider toggles | ✅     | FE-01    |
+| F2   | Enable provider → call API to seed       | ✅     | FE-02    |
+| F3   | Sidebar shows enabled providers          | ✅     | FE-09    |
+| F4   | Provider detail page with plans          | ✅     | FE-04    |
+| F5   | Add custom plan to provider              | ✅     | FE-05    |
+| F6   | Toggle/delete plans                      | ✅     | FE-06,07 |
+| F7   | Cost summary on provider page            | ✅     | FE-08    |
 
 ### API Service (B) → BigQuery
 
 | Step | Feature                                         | Status | Test Ref  |
 | ---- | ----------------------------------------------- | ------ | --------- |
-| B1   | GET /subscriptions/{org}/providers              | ❌     | API-01    |
-| B2   | POST /subscriptions/{org}/providers/{p}/enable  | ❌     | API-02    |
-| B3   | POST /subscriptions/{org}/providers/{p}/disable | ❌     | API-03    |
-| B4   | GET /subscriptions/{org}/providers/{p}/plans    | ❌     | API-04    |
-| B5   | POST /subscriptions/{org}/providers/{p}/plans   | ❌     | API-05    |
-| B6   | PUT/DELETE plans                                | ❌     | API-06,07 |
-| B7   | Seed excludes LLM API tiers                     | ❌     | API-08    |
-| B8   | Seed includes FREE tiers with limits            | ❌     | API-09    |
+| B1   | GET /subscriptions/{org}/providers              | ✅     | API-01    |
+| B2   | POST /subscriptions/{org}/providers/{p}/enable  | ✅     | API-02    |
+| B3   | POST /subscriptions/{org}/providers/{p}/disable | ✅     | API-03    |
+| B4   | GET /subscriptions/{org}/providers/{p}/plans    | ✅     | API-04    |
+| B5   | POST /subscriptions/{org}/providers/{p}/plans   | ✅     | API-05    |
+| B6   | PUT/DELETE plans                                | ✅     | API-06,07 |
+| B7   | Seed excludes LLM API tiers                     | ✅     | API-08    |
+| B8   | Seed includes FREE tiers with limits            | ✅     | API-09    |
 
 ### Pipeline Service (P) → Scheduler
 
@@ -369,7 +369,7 @@ deletePlan(orgSlug, provider, planId)  → DELETE /subscriptions/.../plans/{id}
 
 ### Frontend Tests (port 3000) - No Mocks
 
-**File**: `fronted-system/tests/14-subscription-providers.test.ts`
+**File**: `fronted-system/tests/13-saas-subscription-providers.test.ts`
 
 | Test ID | Description                                           | Status |
 | ------- | ----------------------------------------------------- | ------ |
@@ -386,7 +386,7 @@ deletePlan(orgSlug, provider, planId)  → DELETE /subscriptions/.../plans/{id}
 
 ### API Service Tests (port 8000)
 
-**File**: `api-service/tests/test_06_subscription_providers.py`
+**File**: `api-service/tests/test_05_saas_subscription_providers.py`
 
 | Test ID | Description                                          | Status |
 | ------- | ---------------------------------------------------- | ------ |
@@ -405,7 +405,7 @@ deletePlan(orgSlug, provider, planId)  → DELETE /subscriptions/.../plans/{id}
 
 ### Pipeline Service Tests (port 8001)
 
-**File**: `data-pipeline-service/tests/test_06_subscription_cost_pipelines.py`
+**File**: `data-pipeline-service/tests/test_05_subscription_pipelines.py`
 
 | Test ID | Description                                          | Status |
 | ------- | ---------------------------------------------------- | ------ |
@@ -449,7 +449,7 @@ User → Integrations Page → Section 3: Subscription Providers
 
 | Component              | File                                                | Description                              |
 | ---------------------- | --------------------------------------------------- | ---------------------------------------- |
-| Supabase Meta Table    | `scripts/supabase_db/14_saas_subscription_meta.sql` | New table for provider enable/disable    |
+| Supabase Meta Table    | `scripts/supabase_db/13_saas_subscription_meta.sql` | New table for provider enable/disable    |
 | Server Actions         | `actions/subscription-providers.ts`                 | CRUD for meta + API calls for plans      |
 | Integrations Section 3 | `app/[orgSlug]/settings/integrations/page.tsx`      | Replace current with provider toggles    |
 | Provider Detail Page   | `app/[orgSlug]/subscriptions/[provider]/page.tsx`   | New page showing plans from BigQuery     |
@@ -669,40 +669,40 @@ WHERE is_enabled = true AND quantity > 0
 
 ## Implementation Status
 
+### Already Implemented
+
+| Component                       | Service            | Status |
+| ------------------------------- | ------------------ | ------ |
+| Supabase meta table             | Supabase           | ✅     |
+| Subscription provider endpoints | API Service (8000) | ✅     |
+| Provider toggle UI              | Frontend (3000)    | ✅     |
+| Provider detail page            | Frontend (3000)    | ✅     |
+| Sidebar update                  | Frontend (3000)    | ✅     |
+| Update seed CSV (exclude LLM)   | API Service (8000) | ✅     |
+| BigQuery CRUD                   | API Service (8000) | ✅     |
+
 ### To Be Implemented
 
-| Component                       | Service            | Priority |
-| ------------------------------- | ------------------ | -------- |
-| Supabase meta table             | Supabase           | P0       |
-| Subscription provider endpoints | API Service (8000) | P0       |
-| Provider toggle UI              | Frontend (3000)    | P0       |
-| Provider detail page            | Frontend (3000)    | P0       |
-| Sidebar update                  | Frontend (3000)    | P0       |
-| Update seed CSV (exclude LLM)   | API Service (8000) | P1       |
-| Cost analysis pipeline          | Pipeline (8001)    | P2       |
-
-### Already Exists (May Need Updates)
-
-| Component           | Service            | Notes                    |
-| ------------------- | ------------------ | ------------------------ |
-| BigQuery CRUD (LLM) | API Service (8000) | Reuse for SaaS providers |
-| Seed CSV            | API Service        | Remove LLM tiers         |
-| Subscriptions page  | Frontend (3000)    | Replace with new flow    |
+| Component              | Service         | Priority |
+| ---------------------- | --------------- | -------- |
+| Cost analysis pipeline | Pipeline (8001) | P2       |
 
 ---
 
 ## File References
 
-| File                                                                 | Purpose            |
-| -------------------------------------------------------------------- | ------------------ |
-| `fronted-system/scripts/supabase_db/14_saas_subscription_meta.sql`   | New meta table     |
-| `fronted-system/actions/subscription-providers.ts`                   | New server actions |
-| `fronted-system/app/[orgSlug]/settings/integrations/page.tsx`        | Section 3 update   |
-| `fronted-system/app/[orgSlug]/subscriptions/[provider]/page.tsx`     | New detail page    |
-| `fronted-system/components/dashboard-sidebar.tsx`                    | Sidebar update     |
-| `api-service/src/app/routers/subscriptions.py`                       | New API router     |
-| `api-service/configs/saas/seed/data/default_subscriptions.csv`       | Update seed data   |
-| `data-pipeline-service/tests/test_06_subscription_cost_pipelines.py` | Pipeline tests     |
+| File                                                              | Purpose            |
+| ----------------------------------------------------------------- | ------------------ |
+| `fronted-system/scripts/supabase_db/13_saas_subscription_meta.sql`| New meta table     |
+| `fronted-system/actions/subscription-providers.ts`                | New server actions |
+| `fronted-system/app/[orgSlug]/settings/integrations/page.tsx`     | Section 3 update   |
+| `fronted-system/app/[orgSlug]/subscriptions/[provider]/page.tsx`  | New detail page    |
+| `fronted-system/components/dashboard-sidebar.tsx`                 | Sidebar update     |
+| `api-service/src/app/routers/subscriptions.py`                    | New API router     |
+| `api-service/configs/saas/seed/data/default_subscriptions.csv`    | Update seed data   |
+| `fronted-system/tests/13-saas-subscription-providers.test.ts`     | Frontend tests     |
+| `api-service/tests/test_05_saas_subscription_providers.py`        | API tests          |
+| `data-pipeline-service/tests/test_05_subscription_pipelines.py`   | Pipeline tests     |
 
 ---
 

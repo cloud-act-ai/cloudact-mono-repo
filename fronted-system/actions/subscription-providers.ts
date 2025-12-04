@@ -8,10 +8,102 @@
  * - API Service: BigQuery plans (seeded + custom plans)
  */
 
-import { createClient } from "@/lib/supabase/server"
-import { requireOrgMembership, requireRole } from "@/lib/auth"
+import { createClient, createServiceRoleClient } from "@/lib/supabase/server"
 import { logError } from "@/lib/utils"
-import { getPipelineBackendClient } from "@/lib/api/backend"
+
+// ============================================
+// API Config
+// ============================================
+
+function getApiServiceUrl(): string {
+  const url = process.env.API_SERVICE_URL || process.env.NEXT_PUBLIC_API_SERVICE_URL
+  if (!url) {
+    throw new Error("API_SERVICE_URL is not configured")
+  }
+  return url
+}
+
+// ============================================
+// Auth Helpers
+// ============================================
+
+const isValidOrgSlug = (slug: string): boolean => {
+  return /^[a-zA-Z0-9_]{3,50}$/.test(slug)
+}
+
+type UserMetadata = {
+  org_api_keys?: Record<string, string>
+  [key: string]: unknown
+}
+
+function getOrgApiKey(user: { user_metadata?: unknown }, orgSlug: string): string | undefined {
+  const metadata = user.user_metadata as UserMetadata | undefined
+  return metadata?.org_api_keys?.[orgSlug]
+}
+
+interface AuthResult {
+  user: { id: string; user_metadata?: Record<string, unknown> }
+  orgId: string
+  role: string
+}
+
+async function requireOrgMembership(orgSlug: string): Promise<AuthResult> {
+  if (!isValidOrgSlug(orgSlug)) {
+    throw new Error("Invalid organization slug")
+  }
+
+  const supabase = await createClient()
+  const adminClient = createServiceRoleClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    throw new Error("Not authenticated")
+  }
+
+  const { data: org } = await adminClient
+    .from("organizations")
+    .select("id")
+    .eq("org_slug", orgSlug)
+    .single()
+
+  if (!org) {
+    throw new Error("Organization not found")
+  }
+
+  const { data: membership } = await adminClient
+    .from("organization_members")
+    .select("role")
+    .eq("org_id", org.id)
+    .eq("user_id", user.id)
+    .eq("status", "active")
+    .single()
+
+  if (!membership) {
+    throw new Error("Not a member of this organization")
+  }
+
+  return { user, orgId: org.id, role: membership.role }
+}
+
+async function requireRole(orgSlug: string, requiredRole: string): Promise<AuthResult> {
+  const result = await requireOrgMembership(orgSlug)
+
+  const roleHierarchy: Record<string, number> = {
+    owner: 3,
+    admin: 2,
+    collaborator: 1,
+    read_only: 0,
+  }
+
+  const userLevel = roleHierarchy[result.role] ?? 0
+  const requiredLevel = roleHierarchy[requiredRole] ?? 0
+
+  if (userLevel < requiredLevel) {
+    throw new Error(`Requires ${requiredRole} role or higher`)
+  }
+
+  return result
+}
 
 // ============================================
 // Types
@@ -242,7 +334,7 @@ export async function enableProvider(
     }
 
     // 2. Call API to seed default plans
-    const orgApiKey = user.user_metadata?.org_api_keys?.[orgSlug]
+    const orgApiKey = getOrgApiKey(user, orgSlug)
     if (!orgApiKey) {
       // If no API key, just enable the provider without seeding
       return {
@@ -253,9 +345,9 @@ export async function enableProvider(
     }
 
     try {
-      const client = getPipelineBackendClient({ orgApiKey })
+      const apiUrl = getApiServiceUrl()
       const response = await fetch(
-        `${client.baseUrl}/api/v1/subscriptions/${orgSlug}/providers/${provider.toLowerCase()}/enable`,
+        `${apiUrl}/api/v1/subscriptions/${orgSlug}/providers/${provider.toLowerCase()}/enable`,
         {
           method: "POST",
           headers: {
@@ -317,12 +409,12 @@ export async function disableProvider(
     }
 
     // Also call API to disable plans in BigQuery
-    const orgApiKey = user.user_metadata?.org_api_keys?.[orgSlug]
+    const orgApiKey = getOrgApiKey(user, orgSlug)
     if (orgApiKey) {
       try {
-        const client = getPipelineBackendClient({ orgApiKey })
+        const apiUrl = getApiServiceUrl()
         await fetch(
-          `${client.baseUrl}/api/v1/subscriptions/${orgSlug}/providers/${provider.toLowerCase()}/disable`,
+          `${apiUrl}/api/v1/subscriptions/${orgSlug}/providers/${provider.toLowerCase()}/disable`,
           {
             method: "POST",
             headers: {
@@ -371,14 +463,14 @@ export async function getAllProviders(orgSlug: string): Promise<{
     }
 
     // Get plan counts from API if available
-    const orgApiKey = user.user_metadata?.org_api_keys?.[orgSlug]
+    const orgApiKey = getOrgApiKey(user, orgSlug)
     let planCounts = new Map<string, number>()
 
     if (orgApiKey) {
       try {
-        const client = getPipelineBackendClient({ orgApiKey })
+        const apiUrl = getApiServiceUrl()
         const response = await fetch(
-          `${client.baseUrl}/api/v1/subscriptions/${orgSlug}/providers`,
+          `${apiUrl}/api/v1/subscriptions/${orgSlug}/providers`,
           {
             headers: { "X-API-Key": orgApiKey },
           }
@@ -432,7 +524,7 @@ export async function getProviderPlans(
   try {
     const { user } = await requireOrgMembership(orgSlug)
 
-    const orgApiKey = user.user_metadata?.org_api_keys?.[orgSlug]
+    const orgApiKey = getOrgApiKey(user, orgSlug)
     if (!orgApiKey) {
       return {
         success: false,
@@ -442,9 +534,9 @@ export async function getProviderPlans(
       }
     }
 
-    const client = getPipelineBackendClient({ orgApiKey })
+    const apiUrl = getApiServiceUrl()
     const response = await fetch(
-      `${client.baseUrl}/api/v1/subscriptions/${orgSlug}/providers/${provider.toLowerCase()}/plans`,
+      `${apiUrl}/api/v1/subscriptions/${orgSlug}/providers/${provider.toLowerCase()}/plans`,
       {
         headers: { "X-API-Key": orgApiKey },
       }
@@ -491,14 +583,14 @@ export async function createCustomPlan(
   try {
     const { user } = await requireRole(orgSlug, "admin")
 
-    const orgApiKey = user.user_metadata?.org_api_keys?.[orgSlug]
+    const orgApiKey = getOrgApiKey(user, orgSlug)
     if (!orgApiKey) {
       return { success: false, error: "Organization API key not found" }
     }
 
-    const client = getPipelineBackendClient({ orgApiKey })
+    const apiUrl = getApiServiceUrl()
     const response = await fetch(
-      `${client.baseUrl}/api/v1/subscriptions/${orgSlug}/providers/${provider.toLowerCase()}/plans`,
+      `${apiUrl}/api/v1/subscriptions/${orgSlug}/providers/${provider.toLowerCase()}/plans`,
       {
         method: "POST",
         headers: {
@@ -537,14 +629,14 @@ export async function updatePlan(
   try {
     const { user } = await requireRole(orgSlug, "admin")
 
-    const orgApiKey = user.user_metadata?.org_api_keys?.[orgSlug]
+    const orgApiKey = getOrgApiKey(user, orgSlug)
     if (!orgApiKey) {
       return { success: false, error: "Organization API key not found" }
     }
 
-    const client = getPipelineBackendClient({ orgApiKey })
+    const apiUrl = getApiServiceUrl()
     const response = await fetch(
-      `${client.baseUrl}/api/v1/subscriptions/${orgSlug}/providers/${provider.toLowerCase()}/plans/${subscriptionId}`,
+      `${apiUrl}/api/v1/subscriptions/${orgSlug}/providers/${provider.toLowerCase()}/plans/${subscriptionId}`,
       {
         method: "PUT",
         headers: {
@@ -597,14 +689,14 @@ export async function deletePlan(
   try {
     const { user } = await requireRole(orgSlug, "admin")
 
-    const orgApiKey = user.user_metadata?.org_api_keys?.[orgSlug]
+    const orgApiKey = getOrgApiKey(user, orgSlug)
     if (!orgApiKey) {
       return { success: false, error: "Organization API key not found" }
     }
 
-    const client = getPipelineBackendClient({ orgApiKey })
+    const apiUrl = getApiServiceUrl()
     const response = await fetch(
-      `${client.baseUrl}/api/v1/subscriptions/${orgSlug}/providers/${provider.toLowerCase()}/plans/${subscriptionId}`,
+      `${apiUrl}/api/v1/subscriptions/${orgSlug}/providers/${provider.toLowerCase()}/plans/${subscriptionId}`,
       {
         method: "DELETE",
         headers: { "X-API-Key": orgApiKey },
@@ -636,14 +728,14 @@ export async function resetProvider(
   try {
     const { user } = await requireRole(orgSlug, "admin")
 
-    const orgApiKey = user.user_metadata?.org_api_keys?.[orgSlug]
+    const orgApiKey = getOrgApiKey(user, orgSlug)
     if (!orgApiKey) {
       return { success: false, plans_seeded: 0, error: "Organization API key not found" }
     }
 
-    const client = getPipelineBackendClient({ orgApiKey })
+    const apiUrl = getApiServiceUrl()
     const response = await fetch(
-      `${client.baseUrl}/api/v1/subscriptions/${orgSlug}/providers/${provider.toLowerCase()}/reset`,
+      `${apiUrl}/api/v1/subscriptions/${orgSlug}/providers/${provider.toLowerCase()}/reset`,
       {
         method: "POST",
         headers: {

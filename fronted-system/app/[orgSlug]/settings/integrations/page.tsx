@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { Loader2, Check, Cloud, Brain, Sparkles, Cpu, ChevronRight, RefreshCw, AlertCircle, Gem, CreditCard, Plus, Palette, FileText, MessageSquare, Code } from "lucide-react"
+import { Loader2, Check, Cloud, Brain, Sparkles, Cpu, ChevronRight, ChevronDown, ChevronUp, RefreshCw, AlertCircle, Gem, CreditCard, Plus, Palette, FileText, MessageSquare, Code } from "lucide-react"
 import Link from "next/link"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -305,6 +305,8 @@ export default function IntegrationsPage() {
   const [subscriptionProviders, setSubscriptionProviders] = useState<ProviderInfo[]>([])
   const [providersLoading, setProvidersLoading] = useState(false)
   const [togglingSubscriptionProvider, setTogglingSubscriptionProvider] = useState<string | null>(null)
+  const [showAllProviders, setShowAllProviders] = useState(false)
+  const INITIAL_PROVIDERS_COUNT = 6
 
   // Load integrations and check backend status
   const loadIntegrations = useCallback(async () => {
@@ -547,9 +549,17 @@ export default function IntegrationsPage() {
 
       {/* Subscription Providers */}
       <div>
-        <div className="mb-3">
-          <h2 className="console-heading">Subscription Providers</h2>
-          <p className="console-small text-gray-500">Track fixed-cost SaaS subscriptions. Enable providers to manage plans.</p>
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h2 className="console-heading">Subscription Providers</h2>
+            <p className="console-small text-gray-500">Track fixed-cost SaaS subscriptions. Enable providers to manage plans.</p>
+          </div>
+          <Link href={`/${orgSlug}/subscriptions`}>
+            <Button variant="outline" size="sm" className="border-[#007A78] text-[#007A78] hover:bg-[#F0FDFA]">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Provider
+            </Button>
+          </Link>
         </div>
 
         {providersLoading ? (
@@ -566,17 +576,45 @@ export default function IntegrationsPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {subscriptionProviders.map((provider) => (
-              <SubscriptionProviderCard
-                key={provider.provider}
-                provider={provider}
-                orgSlug={orgSlug}
-                onToggle={handleSubscriptionProviderToggle}
-                isToggling={togglingSubscriptionProvider === provider.provider}
-              />
-            ))}
-          </div>
+          <>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {(showAllProviders ? subscriptionProviders : subscriptionProviders.slice(0, INITIAL_PROVIDERS_COUNT)).map((provider) => (
+                <SubscriptionProviderCard
+                  key={provider.provider}
+                  provider={provider}
+                  orgSlug={orgSlug}
+                  onToggle={handleSubscriptionProviderToggle}
+                  isToggling={togglingSubscriptionProvider === provider.provider}
+                />
+              ))}
+            </div>
+            {subscriptionProviders.length > INITIAL_PROVIDERS_COUNT && !showAllProviders && (
+              <div className="mt-4 text-center">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowAllProviders(true)}
+                  className="text-[#007A78] hover:bg-[#F0FDFA]"
+                >
+                  Show {subscriptionProviders.length - INITIAL_PROVIDERS_COUNT} more providers
+                  <ChevronDown className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
+            )}
+            {showAllProviders && subscriptionProviders.length > INITIAL_PROVIDERS_COUNT && (
+              <div className="mt-4 text-center">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowAllProviders(false)}
+                  className="text-gray-500 hover:bg-gray-100"
+                >
+                  Show less
+                  <ChevronUp className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
+            )}
+          </>
         )}
       </div>
 

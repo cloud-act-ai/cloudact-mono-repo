@@ -290,125 +290,60 @@ export function DashboardSidebar({
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
-              {/* Integration Sub-menus - Only show connected providers */}
+              {/* Integration Sub-menus - 3 Categories */}
               {integrationsExpanded && (
                 <div id="integrations-submenu" className="ml-4 pl-2 border-l border-gray-200 space-y-1">
-                  {/* Always show "All Integrations" link */}
+                  {/* Cloud Providers */}
                   <SidebarMenuItem>
                     <SidebarMenuButton
                       asChild
                       className={cn(
                         "text-gray-500 hover:text-[#007A78] hover:bg-[#007A78]/5 text-sm h-8",
-                        pathname === `/${orgSlug}/settings/integrations` && "bg-[#007A78]/10 text-[#007A78]",
+                        isActive(`/${orgSlug}/settings/integrations/cloud`) && "bg-[#007A78]/10 text-[#007A78]",
                       )}
                     >
-                      <Link href={`/${orgSlug}/settings/integrations`}>
-                        <Plug className="h-3.5 w-3.5" />
-                        <span>All Integrations</span>
+                      <Link href={`/${orgSlug}/settings/integrations/cloud`}>
+                        <Cloud className="h-3.5 w-3.5" />
+                        <span>Cloud Providers</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
-                  {/* Dynamically show only connected providers */}
-                  {INTEGRATION_PROVIDERS.filter(p => connectedProviders.has(p.id)).map((provider) => {
-                    const Icon = provider.icon
-                    return (
-                      <SidebarMenuItem key={provider.id}>
-                        <SidebarMenuButton
-                          asChild
-                          className={cn(
-                            "text-gray-500 hover:text-[#007A78] hover:bg-[#007A78]/5 text-sm h-8",
-                            isActive(`/${orgSlug}/settings/integrations/${provider.href}`) && "bg-[#007A78]/10 text-[#007A78]",
-                          )}
-                        >
-                          <Link href={`/${orgSlug}/settings/integrations/${provider.href}`}>
-                            <Icon className="h-3.5 w-3.5" />
-                            <span>{provider.name}</span>
-                          </Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    )
-                  })}
-                  {/* Show message if no integrations connected */}
-                  {connectedProviders.size === 0 && (
-                    <div className="text-xs text-gray-400 px-2 py-1">
-                      No integrations connected
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Subscriptions Menu - Show only if there are enabled providers */}
-              {enabledProviders.length > 0 && (
-                <>
+                  {/* LLM Providers */}
                   <SidebarMenuItem>
                     <SidebarMenuButton
-                      onClick={() => setSubscriptionsExpanded(!subscriptionsExpanded)}
-                      aria-expanded={subscriptionsExpanded}
-                      aria-controls="subscriptions-submenu"
+                      asChild
                       className={cn(
-                        "text-gray-600 hover:text-[#007A78] hover:bg-[#007A78]/5 justify-between",
-                        isActive(`/${orgSlug}/subscriptions`) && "bg-[#007A78]/5 text-[#007A78]",
+                        "text-gray-500 hover:text-[#007A78] hover:bg-[#007A78]/5 text-sm h-8",
+                        isActive(`/${orgSlug}/settings/integrations/llm`) && "bg-[#007A78]/10 text-[#007A78]",
                       )}
                     >
-                      <div className="flex items-center gap-2">
-                        <Wallet className="h-4 w-4" />
-                        <span>Subscriptions</span>
-                        <Badge variant="outline" className="text-xs px-1.5 py-0 h-5 bg-[#007A78]/5 text-[#007A78] border-[#007A78]/20">
-                          {enabledProviders.length}
-                        </Badge>
-                      </div>
-                      <ChevronRight
-                        className={cn(
-                          "h-4 w-4 transition-transform duration-200",
-                          subscriptionsExpanded && "rotate-90"
-                        )}
-                      />
+                      <Link href={`/${orgSlug}/settings/integrations/llm`}>
+                        <Brain className="h-3.5 w-3.5" />
+                        <span>LLM Providers</span>
+                      </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
-
-                  {/* Subscription Provider Sub-menus */}
-                  {subscriptionsExpanded && (
-                    <div id="subscriptions-submenu" className="ml-4 pl-2 border-l border-gray-200 space-y-1">
-                      {/* All Subscriptions overview link */}
-                      <SidebarMenuItem>
-                        <SidebarMenuButton
-                          asChild
-                          className={cn(
-                            "text-gray-500 hover:text-[#007A78] hover:bg-[#007A78]/5 text-sm h-8",
-                            pathname === `/${orgSlug}/settings/integrations` && "bg-[#007A78]/10 text-[#007A78]",
-                          )}
-                        >
-                          <Link href={`/${orgSlug}/settings/integrations`}>
-                            <List className="h-3.5 w-3.5" />
-                            <span>All Subscriptions</span>
-                          </Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                      {/* Show each enabled provider */}
-                      {enabledProviders.map((provider) => {
-                        const ProviderIcon = getProviderIcon(provider.provider_name)
-                        const displayName = COMMON_SAAS_PROVIDERS.find(p => p.id === provider.provider_name)?.name ||
-                                          provider.provider_name.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())
-                        return (
-                          <SidebarMenuItem key={provider.id}>
-                            <SidebarMenuButton
-                              asChild
-                              className={cn(
-                                "text-gray-500 hover:text-[#007A78] hover:bg-[#007A78]/5 text-sm h-8",
-                                isActive(`/${orgSlug}/subscriptions/${provider.provider_name}`) && "bg-[#007A78]/10 text-[#007A78]",
-                              )}
-                            >
-                              <Link href={`/${orgSlug}/subscriptions/${provider.provider_name}`}>
-                                <ProviderIcon className="h-3.5 w-3.5" />
-                                <span className="truncate">{displayName}</span>
-                              </Link>
-                            </SidebarMenuButton>
-                          </SidebarMenuItem>
-                        )
-                      })}
-                    </div>
-                  )}
-                </>
+                  {/* Subscription Providers */}
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      asChild
+                      className={cn(
+                        "text-gray-500 hover:text-[#007A78] hover:bg-[#007A78]/5 text-sm h-8",
+                        isActive(`/${orgSlug}/settings/integrations/subscriptions`) && "bg-[#007A78]/10 text-[#007A78]",
+                      )}
+                    >
+                      <Link href={`/${orgSlug}/settings/integrations/subscriptions`}>
+                        <Wallet className="h-3.5 w-3.5" />
+                        <span>Subscription Providers</span>
+                        {enabledProviders.length > 0 && (
+                          <Badge variant="outline" className="ml-auto text-xs px-1.5 py-0 h-4 bg-[#007A78]/5 text-[#007A78] border-[#007A78]/20">
+                            {enabledProviders.length}
+                          </Badge>
+                        )}
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </div>
               )}
 
             </SidebarMenu>

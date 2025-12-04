@@ -112,6 +112,9 @@ export default function SubscriptionsPage() {
   const [customCost, setCustomCost] = useState<number>(0)
   const [customSeats, setCustomSeats] = useState<number>(1)
   const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">("monthly")
+  const [customProviderName, setCustomProviderName] = useState("")
+  const [customProviderCategory, setCustomProviderCategory] = useState<string>("other")
+  const [customDialogOpen, setCustomDialogOpen] = useState(false)
   const [summary, setSummary] = useState<{
     total_monthly_cost: number
     total_annual_cost: number
@@ -202,6 +205,41 @@ export default function SubscriptionsPage() {
     setAddDialogOpen(true)
   }
 
+  // Add a completely custom provider
+  const handleAddCustomProvider = async () => {
+    if (!customProviderName.trim()) return
+
+    const providerId = customProviderName.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')
+
+    setAdding(providerId)
+    await createSaaSSubscription(orgSlug, {
+      provider_name: providerId,
+      display_name: customProviderName.trim(),
+      billing_cycle: billingCycle,
+      cost_per_cycle: customCost,
+      category: customProviderCategory,
+      seats: customSeats,
+    })
+    setAdding(null)
+    setCustomDialogOpen(false)
+    setCustomProviderName("")
+    setCustomProviderCategory("other")
+    setCustomCost(0)
+    setCustomSeats(1)
+    setBillingCycle("monthly")
+    await loadData()
+  }
+
+  // Open custom provider dialog
+  const openCustomDialog = () => {
+    setCustomProviderName("")
+    setCustomProviderCategory("other")
+    setCustomCost(0)
+    setCustomSeats(1)
+    setBillingCycle("monthly")
+    setCustomDialogOpen(true)
+  }
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
@@ -236,12 +274,18 @@ export default function SubscriptionsPage() {
             Track and manage your SaaS subscription costs
           </p>
         </div>
-        <Link href={`/${orgSlug}/settings/integrations`}>
-          <Button variant="outline" className="console-button-secondary">
-            <Settings className="h-4 w-4 mr-2" />
-            Manage in Integrations
+        <div className="flex items-center gap-2">
+          <Button onClick={openCustomDialog} className="console-button-primary">
+            <Plus className="h-4 w-4 mr-2" />
+            Add Provider
           </Button>
-        </Link>
+          <Link href={`/${orgSlug}/settings/integrations`}>
+            <Button variant="outline" className="console-button-secondary">
+              <Settings className="h-4 w-4 mr-2" />
+              Integrations
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Summary Cards */}
@@ -610,6 +654,123 @@ export default function SubscriptionsPage() {
                 <>
                   <Check className="h-4 w-4 mr-2" />
                   Add Subscription
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Custom Provider Dialog */}
+      <Dialog open={customDialogOpen} onOpenChange={setCustomDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Custom Provider</DialogTitle>
+            <DialogDescription>
+              Add any SaaS service not in our list (e.g., B&Q, internal tools)
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="providerName" className="text-right">
+                Name
+              </Label>
+              <Input
+                id="providerName"
+                placeholder="e.g., B&Q, Jira, Custom Tool"
+                value={customProviderName}
+                onChange={(e) => setCustomProviderName(e.target.value)}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="category" className="text-right">
+                Category
+              </Label>
+              <Select
+                value={customProviderCategory}
+                onValueChange={setCustomProviderCategory}
+              >
+                <SelectTrigger className="col-span-3">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ai">AI Tools</SelectItem>
+                  <SelectItem value="design">Design</SelectItem>
+                  <SelectItem value="productivity">Productivity</SelectItem>
+                  <SelectItem value="communication">Communication</SelectItem>
+                  <SelectItem value="development">Development</SelectItem>
+                  <SelectItem value="cloud">Cloud</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="customCost" className="text-right">
+                Cost
+              </Label>
+              <div className="col-span-3 flex items-center gap-2">
+                <span className="text-muted-foreground">$</span>
+                <Input
+                  id="customCost"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={customCost}
+                  onChange={(e) => setCustomCost(parseFloat(e.target.value) || 0)}
+                  className="flex-1"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="customBilling" className="text-right">
+                Billing
+              </Label>
+              <Select
+                value={billingCycle}
+                onValueChange={(v) => setBillingCycle(v as "monthly" | "annual")}
+              >
+                <SelectTrigger className="col-span-3">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                  <SelectItem value="annual">Annual</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="customSeats" className="text-right">
+                Seats
+              </Label>
+              <Input
+                id="customSeats"
+                type="number"
+                min="1"
+                value={customSeats}
+                onChange={(e) => setCustomSeats(parseInt(e.target.value) || 1)}
+                className="col-span-3"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCustomDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAddCustomProvider}
+              disabled={!customProviderName.trim() || adding !== null}
+              className="console-button-primary"
+            >
+              {adding ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Adding...
+                </>
+              ) : (
+                <>
+                  <Check className="h-4 w-4 mr-2" />
+                  Add Provider
                 </>
               )}
             </Button>
