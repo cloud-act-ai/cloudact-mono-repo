@@ -1,0 +1,109 @@
+# Subscription Costs Pipeline
+# Calculates daily prorated costs for LLM subscriptions
+#
+# Schedule: Daily at 05:00 UTC
+# Tables: tfd_llm_subscription_costs
+#
+# Usage: POST /api/v1/pipelines/run/{org_slug}/subscription/costs/example_subscription_cost_analysis
+
+pipeline_id: "{org_slug}-example-subscription-cost-analysis"
+name: "Example Subscription Cost Analysis"
+description: "Calculate daily run rates and projected costs for LLM subscriptions"
+version: "1.0.0"
+
+# Schedule: Daily at 05:00 UTC
+schedule: "0 5 * * *"
+
+variables:
+  org_slug: "{org_slug}"
+
+steps:
+  - step_id: "calculate_subscription_costs"
+    ps_type: "generic.local_bq_transformer"
+    description: "Transform subscription data into daily cost analysis"
+    timeout_minutes: 10
+
+    transformation:
+      type: "sql_template"
+      sql: |
+        -- Advanced Cost Analysis: Daily Cost Derivation
+        -- Normalizes costs across billing periods (Yearly, Monthly, Weekly, Daily)
+        -- Applies discounts and quantity multipliers
+        -- Calculates Daily Run Rate and Projected Costs
+
+        WITH base_calculations AS (
+          SELECT
+            subscription_id,
+            plan_name,
+            provider,
+            quantity,
+            unit_price_usd,
+            billing_period,
+            effective_date,
+            end_date,
+            -- Normalize Price to Daily Rate
+            CASE
+              WHEN billing_period = 'year' THEN COALESCE(yearly_price_usd, unit_price_usd * 12) / 365.0
+              WHEN billing_period = 'month' THEN unit_price_usd / 30.4375
+              WHEN billing_period = 'week' THEN unit_price_usd / 7.0
+              WHEN billing_period = 'day' THEN unit_price_usd
+              ELSE 0
+            END AS base_daily_price,
+            
+            -- Discount Multiplier
+            (1 - COALESCE(discount_percentage, 0) / 100.0) AS discount_multiplier
+          FROM `{{ project }}.{{ dataset }}.saas_subscriptions`
+        )
+
+        SELECT
+          subscription_id,
+          plan_name,
+          provider,
+          quantity,
+          ROUND(base_daily_price, 4) as base_daily_price,
+          discount_multiplier,
+          
+          -- Final Daily Cost Calculation (Run Rate)
+          ROUND(base_daily_price * discount_multiplier * quantity, 4) AS final_daily_cost_usd,
+          
+          -- Projected Costs
+          ROUND((base_daily_price * discount_multiplier * quantity) * 7, 2) AS projected_weekly_cost_usd,
+          ROUND((base_daily_price * discount_multiplier * quantity) * 30.4375, 2) AS projected_monthly_cost_usd,
+          ROUND((base_daily_price * discount_multiplier * quantity) * 365.0, 2) AS projected_yearly_cost_usd,
+          
+          CURRENT_TIMESTAMP() as calculation_timestamp
+
+        FROM base_calculations
+        WHERE 
+          quantity > 0 
+          OR unit_price_usd > 0
+        ORDER BY final_daily_cost_usd DESC
+
+    destination:
+      table: "tfd_llm_subscription_costs"
+      mode: "overwrite"
+
+  # Notification on failure
+  - step_id: "notify_on_failure"
+    ps_type: "notify_systems.email_notification"
+    description: "Send failure notification"
+    trigger: "on_failure"
+    config:
+      to_emails:
+        - "{admin_email}"
+      subject: "[ALERT] Subscription Cost Pipeline Failed - {org_slug}"
+      message: |
+        ALERT: The Subscription Cost Analysis pipeline has failed!
+
+        Organization: {org_slug}
+        Pipeline: {pipeline_id}
+        Run Date: {date}
+
+requires_auth: true
+auth_type: "org_api_key"
+
+tags:
+  - cost
+  - subscription
+  - daily
+category: "cloud_cost"

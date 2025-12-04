@@ -13,7 +13,7 @@
       "name": "subscription_id",
       "type": "STRING",
       "mode": "REQUIRED",
-      "description": "Reference to llm_subscriptions.subscription_id"
+      "description": "Reference to saas_subscriptions.subscription_id"
     },
     {
       "name": "provider",

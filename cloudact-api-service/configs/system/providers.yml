@@ -35,10 +35,10 @@ providers:
     # Data tables for pricing/subscriptions (unified tables, filter by provider)
     data_tables:
       pricing_table: "llm_model_pricing"
-      subscriptions_table: "llm_subscriptions"
+      subscriptions_table: "saas_subscriptions"
       seed_path: "configs/llm/seed"
       pricing_schema: "llm_model_pricing.json"
-      subscriptions_schema: "llm_subscriptions.json"
+      subscriptions_schema: "saas_subscriptions.json"
 
   ANTHROPIC:
     type: llm
@@ -60,10 +60,10 @@ providers:
     # Data tables for pricing/subscriptions (unified tables, filter by provider)
     data_tables:
       pricing_table: "llm_model_pricing"
-      subscriptions_table: "llm_subscriptions"
+      subscriptions_table: "saas_subscriptions"
       seed_path: "configs/llm/seed"
       pricing_schema: "llm_model_pricing.json"
-      subscriptions_schema: "llm_subscriptions.json"
+      subscriptions_schema: "saas_subscriptions.json"
 
   CLAUDE:
     # Alias for ANTHROPIC (for backward compatibility)
@@ -105,10 +105,10 @@ providers:
     # Data tables for pricing/subscriptions (unified tables, filter by provider)
     data_tables:
       pricing_table: "llm_model_pricing"
-      subscriptions_table: "llm_subscriptions"
+      subscriptions_table: "saas_subscriptions"
       seed_path: "configs/llm/seed"
       pricing_schema: "llm_model_pricing.json"
-      subscriptions_schema: "llm_subscriptions.json"
+      subscriptions_schema: "saas_subscriptions.json"
 
   # Cloud Providers
   GCP_SA:

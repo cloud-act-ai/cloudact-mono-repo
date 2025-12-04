@@ -771,7 +771,7 @@ async def _setup_integration(
                     pricing_initialized = pricing_result.get("status") == "SUCCESS"
                     pricing_rows_seeded = pricing_result.get("rows_seeded", 0)
 
-                    subs_result = await _initialize_llm_subscriptions(org_slug, provider.lower())
+                    subs_result = await _initialize_saas_subscriptions(org_slug, provider.lower())
                     subscriptions_initialized = subs_result.get("status") == "SUCCESS"
                     subscriptions_rows_seeded = subs_result.get("rows_seeded", 0)
 
@@ -1368,14 +1368,14 @@ async def _initialize_llm_pricing(org_slug: str, provider: str, force: bool = Fa
         return {"status": "FAILED", "error": str(e)}
 
 
-async def _initialize_llm_subscriptions(org_slug: str, provider: str, force: bool = False) -> Dict[str, Any]:
+async def _initialize_saas_subscriptions(org_slug: str, provider: str, force: bool = False) -> Dict[str, Any]:
     """
-    Initialize LLM provider subscriptions table with default data.
+    Initialize SaaS provider subscriptions table with default data.
     Configuration is loaded from providers.yml.
 
     Args:
         org_slug: Organization slug
-        provider: LLM provider name (openai, anthropic)
+        provider: SaaS provider name (openai, anthropic)
         force: If True, delete existing data and re-seed
 
     Returns:
@@ -1467,6 +1467,12 @@ async def _initialize_llm_subscriptions(org_slug: str, provider: str, force: boo
                         return None
                     return float(val)
 
+                # Parse date fields - convert empty strings to None
+                def parse_date(val):
+                    if val is None or val == "" or val == "0":
+                        return None
+                    return val  # Keep as string for BigQuery DATE type
+
                 rows.append({
                     "subscription_id": row["subscription_id"],
                     "provider": csv_provider,
@@ -1474,13 +1480,13 @@ async def _initialize_llm_subscriptions(org_slug: str, provider: str, force: boo
                     "is_custom": is_custom,
                     "quantity": quantity,
                     "unit_price_usd": unit_price,
-                    "effective_date": row["effective_date"],
-                    "end_date": row.get("end_date") or None,
+                    "effective_date": parse_date(row["effective_date"]),
+                    "end_date": parse_date(row.get("end_date")),
                     "is_enabled": is_enabled,
                     "auth_type": row.get("auth_type") or None,
                     "notes": row.get("notes") or None,
                     "tier_type": row.get("tier_type", "paid"),
-                    "trial_end_date": row.get("trial_end_date") or None,
+                    "trial_end_date": parse_date(row.get("trial_end_date")),
                     "trial_credit_usd": parse_float(row.get("trial_credit_usd")),
                     "monthly_token_limit": parse_int(row.get("monthly_token_limit")),
                     "daily_token_limit": parse_int(row.get("daily_token_limit")),
@@ -1492,6 +1498,9 @@ async def _initialize_llm_subscriptions(org_slug: str, provider: str, force: boo
                     "committed_spend_usd": parse_float(row.get("committed_spend_usd")),
                     "commitment_term_months": parse_int(row.get("commitment_term_months")),
                     "discount_percentage": parse_float(row.get("discount_percentage")),
+                    "billing_period": row.get("billing_period", "pay_as_you_go"),
+                    "yearly_price_usd": parse_float(row.get("yearly_price_usd")),
+                    "yearly_discount_percentage": parse_float(row.get("yearly_discount_percentage")),
                     "created_at": now,
                     "updated_at": now,
                 })
@@ -1507,6 +1516,7 @@ async def _initialize_llm_subscriptions(org_slug: str, provider: str, force: boo
                     trial_end_date, trial_credit_usd, monthly_token_limit, daily_token_limit,
                     rpm_limit, tpm_limit, rpd_limit, tpd_limit, concurrent_limit,
                     committed_spend_usd, commitment_term_months, discount_percentage,
+                    billing_period, yearly_price_usd, yearly_discount_percentage,
                     created_at, updated_at
                 ) VALUES (
                     @subscription_id, @provider, @plan_name, @is_custom, @quantity, @unit_price_usd,
@@ -1514,6 +1524,7 @@ async def _initialize_llm_subscriptions(org_slug: str, provider: str, force: boo
                     @trial_end_date, @trial_credit_usd, @monthly_token_limit, @daily_token_limit,
                     @rpm_limit, @tpm_limit, @rpd_limit, @tpd_limit, @concurrent_limit,
                     @committed_spend_usd, @commitment_term_months, @discount_percentage,
+                    @billing_period, @yearly_price_usd, @yearly_discount_percentage,
                     @created_at, @updated_at
                 )
                 """
@@ -1525,13 +1536,13 @@ async def _initialize_llm_subscriptions(org_slug: str, provider: str, force: boo
                         bigquery.ScalarQueryParameter("is_custom", "BOOL", row["is_custom"]),
                         bigquery.ScalarQueryParameter("quantity", "INT64", row["quantity"]),
                         bigquery.ScalarQueryParameter("unit_price_usd", "FLOAT64", row["unit_price_usd"]),
-                        bigquery.ScalarQueryParameter("effective_date", "STRING", row["effective_date"]),
-                        bigquery.ScalarQueryParameter("end_date", "STRING", row.get("end_date")),
+                        bigquery.ScalarQueryParameter("effective_date", "DATE", row["effective_date"]),
+                        bigquery.ScalarQueryParameter("end_date", "DATE", row.get("end_date")),
                         bigquery.ScalarQueryParameter("is_enabled", "BOOL", row["is_enabled"]),
                         bigquery.ScalarQueryParameter("auth_type", "STRING", row.get("auth_type")),
                         bigquery.ScalarQueryParameter("notes", "STRING", row.get("notes")),
                         bigquery.ScalarQueryParameter("tier_type", "STRING", row["tier_type"]),
-                        bigquery.ScalarQueryParameter("trial_end_date", "STRING", row.get("trial_end_date")),
+                        bigquery.ScalarQueryParameter("trial_end_date", "DATE", row.get("trial_end_date")),
                         bigquery.ScalarQueryParameter("trial_credit_usd", "FLOAT64", row.get("trial_credit_usd")),
                         bigquery.ScalarQueryParameter("monthly_token_limit", "INT64", row.get("monthly_token_limit")),
                         bigquery.ScalarQueryParameter("daily_token_limit", "INT64", row.get("daily_token_limit")),
@@ -1543,8 +1554,11 @@ async def _initialize_llm_subscriptions(org_slug: str, provider: str, force: boo
                         bigquery.ScalarQueryParameter("committed_spend_usd", "FLOAT64", row.get("committed_spend_usd")),
                         bigquery.ScalarQueryParameter("commitment_term_months", "INT64", row.get("commitment_term_months")),
                         bigquery.ScalarQueryParameter("discount_percentage", "FLOAT64", row.get("discount_percentage")),
-                        bigquery.ScalarQueryParameter("created_at", "STRING", row["created_at"]),
-                        bigquery.ScalarQueryParameter("updated_at", "STRING", row["updated_at"]),
+                        bigquery.ScalarQueryParameter("billing_period", "STRING", row["billing_period"]),
+                        bigquery.ScalarQueryParameter("yearly_price_usd", "FLOAT64", row.get("yearly_price_usd")),
+                        bigquery.ScalarQueryParameter("yearly_discount_percentage", "FLOAT64", row.get("yearly_discount_percentage")),
+                        bigquery.ScalarQueryParameter("created_at", "TIMESTAMP", row["created_at"]),
+                        bigquery.ScalarQueryParameter("updated_at", "TIMESTAMP", row["updated_at"]),
                     ]
                 )
                 bq_client.client.query(insert_query, job_config=job_config).result()

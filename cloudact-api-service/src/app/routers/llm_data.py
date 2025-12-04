@@ -2,7 +2,7 @@
 LLM Provider Data CRUD API Routes
 
 Generic endpoints for managing pricing and subscription data for all LLM providers.
-Uses unified tables (llm_subscriptions, llm_model_pricing) with provider column filtering.
+Uses unified tables (saas_subscriptions, llm_model_pricing) with provider column filtering.
 
 URL Structure: /api/v1/integrations/{org_slug}/{provider}/pricing|subscriptions
 """
@@ -39,7 +39,7 @@ settings = get_settings()
 # ============================================
 # Unified Table Names (V7 Architecture)
 # ============================================
-UNIFIED_SUBSCRIPTIONS_TABLE = "llm_subscriptions"
+UNIFIED_SUBSCRIPTIONS_TABLE = "saas_subscriptions"
 UNIFIED_PRICING_TABLE = "llm_model_pricing"
 
 # Valid providers for filtering (including 'custom' for user-defined)
@@ -765,7 +765,7 @@ async def list_subscriptions(
     """
     List all subscription records for an organization and provider.
 
-    Uses unified llm_subscriptions table with provider filtering.
+    Uses unified saas_subscriptions table with provider filtering.
     By default includes both provider-specific and custom entries.
     """
     validate_org_slug(org_slug)
@@ -1210,13 +1210,70 @@ async def reset_subscriptions(
     check_org_access(org, org_slug)
 
     try:
-        from src.app.routers.integrations import _initialize_llm_subscriptions
-        result = await _initialize_llm_subscriptions(org_slug, provider.value, force=True)
+        from src.app.routers.integrations import _initialize_saas_subscriptions
+        result = await _initialize_saas_subscriptions(org_slug, provider.value, force=True)
 
         if result.get("status") != "SUCCESS":
             raise HTTPException(status_code=500, detail=result.get("error", "Failed to reset subscriptions"))
 
-        return await list_subscriptions(org_slug, provider, org, bq_client)
+        # Query the newly reset subscriptions directly instead of calling endpoint
+        provider_value = validate_provider(provider.value)
+        dataset_id = get_org_dataset(org_slug)
+        table_id = f"{settings.gcp_project_id}.{dataset_id}.{UNIFIED_SUBSCRIPTIONS_TABLE}"
+
+        query = f"""
+        SELECT * FROM `{table_id}`
+        WHERE provider = @provider OR provider = 'custom'
+        ORDER BY provider, plan_name
+        LIMIT 1000
+        """
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("provider", "STRING", provider_value)
+            ]
+        )
+        query_result = bq_client.client.query(query, job_config=job_config).result()
+
+        subscriptions = []
+        for row in query_result:
+            subscriptions.append({
+                "subscription_id": row.get("subscription_id"),
+                "provider": row.get("provider"),
+                "plan_name": row.get("plan_name"),
+                "is_custom": row.get("is_custom", False),
+                "quantity": row.get("quantity", 0),
+                "unit_price_usd": float(row.get("unit_price_usd", 0)),
+                "effective_date": str(row.get("effective_date")) if row.get("effective_date") else None,
+                "end_date": str(row.get("end_date")) if row.get("end_date") else None,
+                "is_enabled": row.get("is_enabled", True),
+                "auth_type": row.get("auth_type"),
+                "notes": row.get("notes"),
+                "tier_type": row.get("tier_type", "paid"),
+                "trial_end_date": str(row.get("trial_end_date")) if row.get("trial_end_date") else None,
+                "trial_credit_usd": float(row.get("trial_credit_usd")) if row.get("trial_credit_usd") else None,
+                "monthly_token_limit": row.get("monthly_token_limit"),
+                "daily_token_limit": row.get("daily_token_limit"),
+                "rpm_limit": row.get("rpm_limit"),
+                "tpm_limit": row.get("tpm_limit"),
+                "rpd_limit": row.get("rpd_limit"),
+                "tpd_limit": row.get("tpd_limit"),
+                "concurrent_limit": row.get("concurrent_limit"),
+                "committed_spend_usd": float(row.get("committed_spend_usd")) if row.get("committed_spend_usd") else None,
+                "commitment_term_months": row.get("commitment_term_months"),
+                "discount_percentage": float(row.get("discount_percentage")) if row.get("discount_percentage") else None,
+                "billing_period": row.get("billing_period", "pay_as_you_go"),
+                "yearly_price_usd": float(row.get("yearly_price_usd")) if row.get("yearly_price_usd") else None,
+                "yearly_discount_percentage": float(row.get("yearly_discount_percentage")) if row.get("yearly_discount_percentage") else None,
+                "created_at": row.get("created_at").isoformat() if row.get("created_at") else None,
+                "updated_at": row.get("updated_at").isoformat() if row.get("updated_at") else None,
+            })
+
+        return {
+            "org_slug": org_slug,
+            "provider": provider_value,
+            "subscriptions": subscriptions,
+            "count": len(subscriptions)
+        }
 
     except HTTPException:
         raise

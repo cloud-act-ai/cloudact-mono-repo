@@ -1,0 +1,59 @@
+subscription_id,provider,plan_name,is_custom,quantity,unit_price_usd,effective_date,end_date,is_enabled,auth_type,notes,x_gemini_project_id,x_gemini_region,x_anthropic_workspace_id,x_openai_org_id,tier_type,trial_end_date,trial_credit_usd,monthly_token_limit,daily_token_limit,rpm_limit,tpm_limit,rpd_limit,tpd_limit,concurrent_limit,committed_spend_usd,commitment_term_months,discount_percentage,billing_period,yearly_price_usd,yearly_discount_percentage,category,seats
+sub_openai_free,openai,FREE,false,0,0.00,2024-11-01,,true,api_key,Free tier with rate limits,,,,free,,0,,,3,40000,200,,,,,,,pay_as_you_go,,,llm_api,1
+sub_openai_tier1,openai,TIER1,false,0,0.00,2024-11-01,,true,api_key,Tier 1 - 500 RPM after $5 spend,,,,paid,,0,,,500,30000,10000,,,,,,,pay_as_you_go,,,llm_api,1
+sub_openai_tier2,openai,TIER2,false,0,0.00,2024-11-01,,true,api_key,Tier 2 - 5000 RPM after $50 spend,,,,paid,,0,,,5000,450000,,,,,,,,pay_as_you_go,,,llm_api,1
+sub_openai_tier3,openai,TIER3,false,0,0.00,2024-11-01,,true,api_key,Tier 3 - 10000 RPM after $100 spend,,,,paid,,0,,,10000,800000,,,,,,,,pay_as_you_go,,,llm_api,1
+sub_openai_tier4,openai,TIER4,false,0,0.00,2024-11-01,,true,api_key,Tier 4 - 10000 RPM after $250 spend,,,,paid,,0,,,10000,2000000,,,,,,,,pay_as_you_go,,,llm_api,1
+sub_openai_tier5,openai,TIER5,false,0,0.00,2024-11-01,,true,api_key,Tier 5 - 10000 RPM after $1000 spend,,,,enterprise,,0,,,10000,10000000,,,,,,,,pay_as_you_go,,,llm_api,1
+sub_anthropic_free,anthropic,FREE,false,0,0.00,2024-11-01,,true,api_key,Free tier with $5 trial credit,,,,trial,,5,,,5,20000,1000,100000,,,,,,pay_as_you_go,,,llm_api,1
+sub_anthropic_build_t1,anthropic,BUILD_TIER1,false,0,0.00,2024-11-01,,true,api_key,Tier 1 - Pay-as-you-go,,,,paid,,0,,,50,40000,,,2000000,,,,,,pay_as_you_go,,,llm_api,1
+sub_anthropic_build_t2,anthropic,BUILD_TIER2,false,0,0.00,2024-11-01,,true,api_key,Tier 2 - After $40 spend,,,,paid,,0,,,100,80000,,,4000000,,,,,,pay_as_you_go,,,llm_api,1
+sub_anthropic_build_t3,anthropic,BUILD_TIER3,false,0,0.00,2024-11-01,,true,api_key,Tier 3 - After $200 spend,,,,paid,,0,,,200,160000,,,8000000,,,,,,pay_as_you_go,,,llm_api,1
+sub_anthropic_build_t4,anthropic,BUILD_TIER4,false,0,0.00,2024-11-01,,true,api_key,Tier 4 - After $400 spend,,,,paid,,0,,,400,400000,,,20000000,,,,,,pay_as_you_go,,,llm_api,1
+sub_anthropic_scale,anthropic,SCALE,false,0,0.00,2024-11-01,,true,api_key,Scale - Higher limits and priority,,,,enterprise,,0,,,1000,800000,,,80000000,,,,,,pay_as_you_go,,,llm_api,1
+sub_gemini_free,gemini,FREE,false,0,0.00,2024-11-01,,true,api_key,Free tier - 15 RPM,,,,free,,0,,1500000,15,1000000,1500,1500000,,,,,,pay_as_you_go,,,llm_api,1
+sub_gemini_paygo,gemini,PAY_AS_YOU_GO,false,0,0.00,2024-11-01,,true,service_account,Pay-as-you-go via GCP - 360 RPM,,,,paid,,300,,,360,4000000,,4000000000,,,,,,pay_as_you_go,,,llm_api,1
+sub_gemini_enterprise,gemini,ENTERPRISE,false,0,0.00,2024-11-01,,true,service_account,Custom enterprise via GCP,,,,enterprise,,0,,,,,,,,,,,pay_as_you_go,,,llm_api,1
+sub_chatgpt_plus,chatgpt_plus,PLUS,false,1,20.00,2024-11-01,,true,subscription,ChatGPT Plus - GPT-4 access and priority,,,,,paid,,0,,,,,,,,,,,,monthly,200.00,17,ai,1
+sub_chatgpt_team,chatgpt_plus,TEAM,false,1,25.00,2024-11-01,,true,subscription,ChatGPT Team - Workspace with admin,,,,,paid,,0,,,,,,,,,,,,monthly,300.00,0,ai,1
+sub_chatgpt_enterprise,chatgpt_plus,ENTERPRISE,false,1,0.00,2024-11-01,,true,subscription,ChatGPT Enterprise - Custom pricing,,,,,enterprise,,0,,,,,,,,,,,,monthly,,0,ai,1
+sub_claude_pro,claude_pro,PRO,false,1,20.00,2024-11-01,,true,subscription,Claude Pro - 5x more usage,,,,,paid,,0,,,,,,,,,,,,monthly,200.00,17,ai,1
+sub_claude_team,claude_pro,TEAM,false,1,25.00,2024-11-01,,true,subscription,Claude Team - Shared workspace,,,,,paid,,0,,,,,,,,,,,,monthly,300.00,0,ai,1
+sub_claude_enterprise,claude_pro,ENTERPRISE,false,1,0.00,2024-11-01,,true,subscription,Claude Enterprise - Custom pricing,,,,,enterprise,,0,,,,,,,,,,,,monthly,,0,ai,1
+sub_gemini_advanced,gemini_advanced,ADVANCED,false,1,19.99,2024-11-01,,true,subscription,Gemini Advanced - Ultra model access,,,,,paid,,0,,,,,,,,,,,,monthly,199.99,17,ai,1
+sub_copilot_individual,copilot,INDIVIDUAL,false,1,10.00,2024-11-01,,true,subscription,GitHub Copilot Individual,,,,,paid,,0,,,,,,,,,,,,monthly,100.00,17,ai,1
+sub_copilot_business,copilot,BUSINESS,false,1,19.00,2024-11-01,,true,subscription,GitHub Copilot Business,,,,,paid,,0,,,,,,,,,,,,monthly,228.00,0,ai,1
+sub_copilot_enterprise,copilot,ENTERPRISE,false,1,39.00,2024-11-01,,true,subscription,GitHub Copilot Enterprise,,,,,enterprise,,0,,,,,,,,,,,,monthly,468.00,0,ai,1
+sub_cursor_pro,cursor,PRO,false,1,20.00,2024-11-01,,true,subscription,Cursor Pro - AI code editor,,,,,paid,,0,,,,,,,,,,,,monthly,192.00,20,ai,1
+sub_cursor_business,cursor,BUSINESS,false,1,40.00,2024-11-01,,true,subscription,Cursor Business - Team AI editor,,,,,paid,,0,,,,,,,,,,,,monthly,480.00,0,ai,1
+sub_windsurf_pro,windsurf,PRO,false,1,15.00,2024-11-01,,true,subscription,Windsurf Pro - AI assistant,,,,,paid,,0,,,,,,,,,,,,monthly,144.00,20,ai,1
+sub_replit_core,replit,CORE,false,1,25.00,2024-11-01,,true,subscription,Replit Core - AI development,,,,,paid,,0,,,,,,,,,,,,monthly,220.00,27,ai,1
+sub_v0_pro,v0,PRO,false,1,20.00,2024-11-01,,true,subscription,v0 Pro - AI UI generation,,,,,paid,,0,,,,,,,,,,,,monthly,192.00,20,ai,1
+sub_lovable_pro,lovable,PRO,false,1,25.00,2024-11-01,,true,subscription,Lovable Pro - AI app builder,,,,,paid,,0,,,,,,,,,,,,monthly,240.00,20,ai,1
+sub_canva_pro,canva,PRO,false,1,12.99,2024-11-01,,true,subscription,Canva Pro - Templates and assets,,,,,paid,,0,,,,,,,,,,,,monthly,119.99,23,design,1
+sub_canva_team,canva,TEAM,false,5,14.99,2024-11-01,,true,subscription,Canva for Teams - Brand kits,,,,,paid,,0,,,,,,,,,,,,monthly,149.90,17,design,5
+sub_adobe_photo,adobe_cc,PHOTOGRAPHY,false,1,9.99,2024-11-01,,true,subscription,Adobe Photography Plan,,,,,paid,,0,,,,,,,,,,,,monthly,119.88,0,design,1
+sub_adobe_all,adobe_cc,ALL_APPS,false,1,59.99,2024-11-01,,true,subscription,Adobe All Apps,,,,,paid,,0,,,,,,,,,,,,monthly,659.88,8,design,1
+sub_figma_pro,figma,PROFESSIONAL,false,1,15.00,2024-11-01,,true,subscription,Figma Professional,,,,,paid,,0,,,,,,,,,,,,monthly,144.00,20,design,1
+sub_figma_org,figma,ORGANIZATION,false,1,45.00,2024-11-01,,true,subscription,Figma Organization,,,,,enterprise,,0,,,,,,,,,,,,monthly,540.00,0,design,1
+sub_miro_starter,miro,STARTER,false,1,8.00,2024-11-01,,true,subscription,Miro Starter - Collaboration,,,,,paid,,0,,,,,,,,,,,,monthly,96.00,0,design,1
+sub_miro_business,miro,BUSINESS,false,1,16.00,2024-11-01,,true,subscription,Miro Business,,,,,paid,,0,,,,,,,,,,,,monthly,192.00,0,design,1
+sub_notion_plus,notion,PLUS,false,1,10.00,2024-11-01,,true,subscription,Notion Plus - Unlimited blocks,,,,,paid,,0,,,,,,,,,,,,monthly,96.00,20,productivity,1
+sub_notion_business,notion,BUSINESS,false,1,18.00,2024-11-01,,true,subscription,Notion Business - Permissions,,,,,paid,,0,,,,,,,,,,,,monthly,180.00,17,productivity,1
+sub_confluence_std,confluence,STANDARD,false,10,6.05,2024-11-01,,true,subscription,Confluence Standard,,,,,paid,,0,,,,,,,,,,,,monthly,60.50,17,productivity,10
+sub_asana_premium,asana,PREMIUM,false,1,10.99,2024-11-01,,true,subscription,Asana Premium,,,,,paid,,0,,,,,,,,,,,,monthly,131.88,0,productivity,1
+sub_monday_basic,monday,BASIC,false,3,9.00,2024-11-01,,true,subscription,Monday.com Basic,,,,,paid,,0,,,,,,,,,,,,monthly,108.00,0,productivity,3
+sub_slack_pro,slack,PRO,false,1,8.75,2024-11-01,,true,subscription,Slack Pro - Unlimited history,,,,,paid,,0,,,,,,,,,,,,monthly,87.50,17,communication,1
+sub_slack_business,slack,BUSINESS_PLUS,false,1,15.00,2024-11-01,,true,subscription,Slack Business+ - Security,,,,,paid,,0,,,,,,,,,,,,monthly,150.00,17,communication,1
+sub_zoom_pro,zoom,PRO,false,1,15.99,2024-11-01,,true,subscription,Zoom Pro - 100 participants,,,,,paid,,0,,,,,,,,,,,,monthly,149.90,22,communication,1
+sub_zoom_business,zoom,BUSINESS,false,1,21.99,2024-11-01,,true,subscription,Zoom Business,,,,,paid,,0,,,,,,,,,,,,monthly,219.90,17,communication,1
+sub_teams_essentials,teams,ESSENTIALS,false,1,4.00,2024-11-01,,true,subscription,Teams Essentials,,,,,paid,,0,,,,,,,,,,,,monthly,48.00,0,communication,1
+sub_github_team,github,TEAM,false,1,4.00,2024-11-01,,true,subscription,GitHub Team - Private repos,,,,,paid,,0,,,,,,,,,,,,monthly,44.00,8,development,1
+sub_github_enterprise,github,ENTERPRISE,false,1,21.00,2024-11-01,,true,subscription,GitHub Enterprise,,,,,enterprise,,0,,,,,,,,,,,,monthly,252.00,0,development,1
+sub_gitlab_premium,gitlab,PREMIUM,false,1,29.00,2024-11-01,,true,subscription,GitLab Premium,,,,,paid,,0,,,,,,,,,,,,monthly,348.00,0,development,1
+sub_jira_std,jira,STANDARD,false,10,8.15,2024-11-01,,true,subscription,Jira Standard,,,,,paid,,0,,,,,,,,,,,,monthly,81.50,17,development,10
+sub_linear_std,linear,STANDARD,false,1,8.00,2024-11-01,,true,subscription,Linear Standard,,,,,paid,,0,,,,,,,,,,,,monthly,96.00,0,development,1
+sub_vercel_pro,vercel,PRO,false,1,20.00,2024-11-01,,true,subscription,Vercel Pro,,,,,paid,,0,,,,,,,,,,,,monthly,240.00,0,development,1
+sub_netlify_pro,netlify,PRO,false,1,19.00,2024-11-01,,true,subscription,Netlify Pro,,,,,paid,,0,,,,,,,,,,,,monthly,228.00,0,development,1
+sub_railway_pro,railway,PRO,false,1,20.00,2024-11-01,,true,subscription,Railway Pro,,,,,paid,,0,,,,,,,,,,,,monthly,240.00,0,development,1
+sub_supabase_pro,supabase,PRO,false,1,25.00,2024-11-01,,true,subscription,Supabase Pro,,,,,paid,,0,,,,,,,,,,,,monthly,300.00,0,development,1

@@ -841,11 +841,11 @@ async def onboard_org(
                     "dataset_id": org_slug,
                     "location": dataset_location,
                     "metadata_tables": [
-                        # LLM Subscriptions table (unified for all providers)
+                        # SaaS Subscriptions table (unified for all providers)
                         {
-                            "table_name": "llm_subscriptions",
-                            "schema_file": "llm_subscriptions.json",
-                            "description": "Unified LLM provider subscriptions (OpenAI, Anthropic, Gemini)",
+                            "table_name": "saas_subscriptions",
+                            "schema_file": "saas_subscriptions.json",
+                            "description": "Unified SaaS provider subscriptions (OpenAI, Anthropic, Gemini)",
                             "clustering_fields": ["provider", "plan_name"]
                         },
                         # LLM Model Pricing table (unified for all providers)

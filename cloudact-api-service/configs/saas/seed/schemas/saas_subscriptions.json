@@ -1,5 +1,5 @@
 {
-  "table_name": "llm_subscriptions",
+  "table_name": "saas_subscriptions",
   "description": "Unified LLM provider subscriptions table (OpenAI, Anthropic, Gemini, Custom)",
   "dataset_type": "org",
   "fields": [
