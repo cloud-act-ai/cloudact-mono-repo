@@ -34,24 +34,25 @@ CloudAct is a multi-tenant SaaS platform that helps organizations track and opti
 
 ### System Components
 
-| Component | Technology | Purpose |
-|-----------|------------|---------|
-| **Frontend** | Next.js 16, Supabase, Stripe | User auth, org management, billing, UI/UX |
-| **cloudact-api-service** | FastAPI, BigQuery, KMS | Frontend-facing API: bootstrap, onboarding |
-| **convergence-data-pipeline** | FastAPI, BigQuery, KMS | Pipeline execution, integrations, LLM data CRUD, scheduled ETL |
-| **Authentication** | Supabase Auth | User authentication, session management |
-| **Billing** | Stripe | Subscription management, payment processing |
-| **Data Storage** | BigQuery | Analytics data, pipeline execution logs |
-| **Secret Management** | Google Cloud KMS | Credential encryption at rest |
+| Component                     | Technology                   | Purpose                                                        |
+| ----------------------------- | ---------------------------- | -------------------------------------------------------------- |
+| **Frontend**                  | Next.js 16, Supabase, Stripe | User auth, org management, billing, UI/UX                      |
+| **cloudact-api-service**      | FastAPI, BigQuery, KMS       | Frontend-facing API: bootstrap, onboarding                     |
+| **convergence-data-pipeline** | FastAPI, BigQuery, KMS       | Pipeline execution, integrations, LLM data CRUD, scheduled ETL |
+| **Authentication**            | Supabase Auth                | User authentication, session management                        |
+| **Billing**                   | Stripe                       | Subscription management, payment processing                    |
+| **Data Storage**              | BigQuery                     | Analytics data, pipeline execution logs                        |
+| **Secret Management**         | Google Cloud KMS             | Credential encryption at rest                                  |
 
 ### Backend Service Split
 
-| Service | Responsibility | Endpoints |
-|---------|---------------|-----------|
-| **cloudact-api-service** | Bootstrap & Onboarding | `/api/v1/admin/bootstrap`, `/api/v1/organizations/*` |
+| Service                       | Responsibility           | Endpoints                                                                  |
+| ----------------------------- | ------------------------ | -------------------------------------------------------------------------- |
+| **cloudact-api-service**      | Bootstrap & Onboarding   | `/api/v1/admin/bootstrap`, `/api/v1/organizations/*`                       |
 | **convergence-data-pipeline** | Pipelines & Integrations | `/api/v1/pipelines/run/*`, `/api/v1/integrations/*`, `/api/v1/scheduler/*` |
 
 **Shared Resources:**
+
 - Both services use the **same BigQuery datasets** (organizations, per-org datasets)
 - Both services use the **same CA_ROOT_API_KEY** for admin operations
 - Both services use the **same auth flow** (org API key validation via `organizations.org_api_keys`)
@@ -144,12 +145,12 @@ CloudAct follows a 4-phase customer journey:
 
 ### Phase Summary
 
-| Phase | Duration | Actor | Output |
-|-------|----------|-------|--------|
-| **Signup** | 5 min | User | Supabase org + Stripe subscription |
-| **Onboarding** | 30 sec | System | BigQuery dataset + API key |
-| **Integrations** | 2-5 min | User | Encrypted credentials in BigQuery |
-| **Pipelines** | Ongoing | System/User | Cost analytics data |
+| Phase            | Duration | Actor       | Output                             |
+| ---------------- | -------- | ----------- | ---------------------------------- |
+| **Signup**       | 5 min    | User        | Supabase org + Stripe subscription |
+| **Onboarding**   | 30 sec   | System      | BigQuery dataset + API key         |
+| **Integrations** | 2-5 min  | User        | Encrypted credentials in BigQuery  |
+| **Pipelines**    | Ongoing  | System/User | Cost analytics data                |
 
 ---
 
@@ -159,33 +160,34 @@ CloudAct follows a 4-phase customer journey:
 
 CloudAct uses a **dual-storage architecture** to optimize for different use cases:
 
-| Data Type | Storage | Reason |
-|-----------|---------|--------|
-| **User accounts** | Supabase (auth) | Built-in authentication system |
-| **Org metadata** (name, slug) | Supabase | Fast frontend queries, RLS policies |
-| **Subscription/billing** | Supabase + Stripe | Payment processing, webhook updates |
-| **Billing status** | Supabase (lowercase) + BigQuery (UPPERCASE) | Synced via webhook |
-| **Integration status** | Supabase columns | Quick UI updates, cache layer |
-| **Org API keys** | BigQuery (hashed + KMS) | Security - never exposed to frontend |
-| **Provider credentials** | BigQuery (KMS encrypted) | Security - encrypted at rest |
-| **Pipeline data** | BigQuery | Analytics, aggregations, reporting |
-| **Execution logs** | BigQuery | Audit trail, debugging |
+| Data Type                     | Storage                                     | Reason                               |
+| ----------------------------- | ------------------------------------------- | ------------------------------------ |
+| **User accounts**             | Supabase (auth)                             | Built-in authentication system       |
+| **Org metadata** (name, slug) | Supabase                                    | Fast frontend queries, RLS policies  |
+| **Subscription/billing**      | Supabase + Stripe                           | Payment processing, webhook updates  |
+| **Billing status**            | Supabase (lowercase) + BigQuery (UPPERCASE) | Synced via webhook                   |
+| **Integration status**        | Supabase columns                            | Quick UI updates, cache layer        |
+| **Org API keys**              | BigQuery (hashed + KMS)                     | Security - never exposed to frontend |
+| **Provider credentials**      | BigQuery (KMS encrypted)                    | Security - encrypted at rest         |
+| **Pipeline data**             | BigQuery                                    | Analytics, aggregations, reporting   |
+| **Execution logs**            | BigQuery                                    | Audit trail, debugging               |
 
 ### Billing Status Mapping
 
 Stripe webhooks sync subscription status to both Supabase and BigQuery with different formats:
 
 | Stripe Status | Supabase (frontend) | BigQuery (backend) | Pipeline Access |
-|---------------|---------------------|--------------------| ----------------|
-| `trialing` | `trialing` | `TRIAL` | ✅ Allowed |
-| `active` | `active` | `ACTIVE` | ✅ Allowed |
-| `past_due` | `past_due` | `SUSPENDED` | ❌ Blocked |
-| `canceled` | `canceled` | `CANCELLED` | ❌ Blocked |
-| `paused` | `paused` | `SUSPENDED` | ❌ Blocked |
-| `incomplete` | `incomplete` | `SUSPENDED` | ❌ Blocked |
-| `unpaid` | `unpaid` | `SUSPENDED` | ❌ Blocked |
+| ------------- | ------------------- | ------------------ | --------------- |
+| `trialing`    | `trialing`          | `TRIAL`            | ✅ Allowed      |
+| `active`      | `active`            | `ACTIVE`           | ✅ Allowed      |
+| `past_due`    | `past_due`          | `SUSPENDED`        | ❌ Blocked      |
+| `canceled`    | `canceled`          | `CANCELLED`        | ❌ Blocked      |
+| `paused`      | `paused`            | `SUSPENDED`        | ❌ Blocked      |
+| `incomplete`  | `incomplete`        | `SUSPENDED`        | ❌ Blocked      |
+| `unpaid`      | `unpaid`            | `SUSPENDED`        | ❌ Blocked      |
 
 **Webhook Sync Flow:**
+
 1. Stripe webhook receives event (checkout, subscription.updated, etc.)
 2. Webhook updates Supabase organizations table with lowercase status
 3. Webhook calls `syncSubscriptionToBackend()` with `billingStatus` and `trialEndsAt`
@@ -195,12 +197,14 @@ Stripe webhooks sync subscription status to both Supabase and BigQuery with diff
 ### Why This Split?
 
 **Supabase (PostgreSQL):**
+
 - Fast read/write for user-facing operations
 - Built-in RLS for row-level security
 - Real-time subscriptions for UI updates
 - Easy integration with Next.js server actions
 
 **BigQuery:**
+
 - Petabyte-scale analytics capabilities
 - Columnar storage optimized for aggregations
 - Serverless - no infrastructure management
@@ -321,16 +325,16 @@ Write to: acme_prod.*           Write to: guru_prod.*
 
 ### Core Security Measures
 
-| Measure | Implementation |
-|---------|----------------|
-| **Secrets Never in Supabase** | Only fingerprints/status stored in Supabase |
-| **KMS Encryption** | All credentials encrypted at rest with Cloud KMS |
-| **API Key Hashing** | Org API keys stored as SHA256 hash in BigQuery |
-| **One-Time Display** | API keys shown only once during onboarding |
-| **Constant-Time Comparison** | Admin key uses `hmac.compare_digest()` to prevent timing attacks |
-| **Production Validation** | App fails to start if security config is invalid |
-| **Request Tracing** | Every request gets `X-Request-ID` header |
-| **Rate Limiting** | Enabled by default in production |
+| Measure                       | Implementation                                                   |
+| ----------------------------- | ---------------------------------------------------------------- |
+| **Secrets Never in Supabase** | Only fingerprints/status stored in Supabase                      |
+| **KMS Encryption**            | All credentials encrypted at rest with Cloud KMS                 |
+| **API Key Hashing**           | Org API keys stored as SHA256 hash in BigQuery                   |
+| **One-Time Display**          | API keys shown only once during onboarding                       |
+| **Constant-Time Comparison**  | Admin key uses `hmac.compare_digest()` to prevent timing attacks |
+| **Production Validation**     | App fails to start if security config is invalid                 |
+| **Request Tracing**           | Every request gets `X-Request-ID` header                         |
+| **Rate Limiting**             | Enabled by default in production                                 |
 
 ### Production Requirements
 
@@ -388,14 +392,14 @@ CloudAct tracks three distinct types of integrations:
 
 ### Provider Matrix
 
-| Provider | Type | Credential | Validation | Storage | Status |
-|----------|------|------------|------------|---------|--------|
-| **GCP** | Cloud | Service Account JSON | ADC auth test | BigQuery | Production |
-| **OpenAI** | LLM | API Key (sk-...) | List models API | BigQuery | Production |
-| **Anthropic** | LLM | API Key | List models API | BigQuery | Production |
-| **Gemini** | LLM | API Key | List models API | BigQuery | Production |
-| **DeepSeek** | LLM | API Key | List models API | BigQuery | Production |
-| **Canva, Adobe, etc.** | SaaS | N/A (manual entry) | N/A | Supabase | Production |
+| Provider               | Type  | Credential           | Validation      | Storage  | Status     |
+| ---------------------- | ----- | -------------------- | --------------- | -------- | ---------- |
+| **GCP**                | Cloud | Service Account JSON | ADC auth test   | BigQuery | Production |
+| **OpenAI**             | LLM   | API Key (sk-...)     | List models API | BigQuery | Production |
+| **Anthropic**          | LLM   | API Key              | List models API | BigQuery | Production |
+| **Gemini**             | LLM   | API Key              | List models API | BigQuery | Production |
+| **DeepSeek**           | LLM   | API Key              | List models API | BigQuery | Production |
+| **Canva, Adobe, etc.** | SaaS  | N/A (manual entry)   | N/A             | Supabase | Production |
 
 ### Integration Setup Flow
 
@@ -406,6 +410,7 @@ Users provide credentials via frontend → Backend validates → KMS encrypts �
 Users add subscription via frontend → Stored in Supabase `saas_subscriptions` table → No external validation
 
 **Auto-Initialization:** When OpenAI integration is set up, backend automatically creates and populates:
+
 - `openai_model_pricing` table (GPT-4o, GPT-4, GPT-3.5, o1 models)
 - `openai_subscriptions` table (FREE, TIER1, TIER2, TIER3, PAY_AS_YOU_GO)
 
@@ -563,21 +568,23 @@ curl -X POST http://localhost:8001/api/v1/pipelines/run/{org}/gcp/cost/billing \
 
 ### Component Documentation
 
-| Component | Documentation | Description |
-|-----------|---------------|-------------|
-| **API Service** | `cloudact-backend-systems/cloudact-api-service/CLAUDE.md` | Bootstrap, onboarding, integrations, LLM data CRUD |
-| **Pipeline Service** | `cloudact-backend-systems/convergence-data-pipeline/CLAUDE.md` | Pipeline execution, processors, ETL jobs |
-| **Pipeline Security** | `cloudact-backend-systems/convergence-data-pipeline/SECURITY.md` | Security requirements, credential handling |
-| **Frontend** | `fronted_v0/CLAUDE.md` | Next.js setup, auth flow, billing, backend integration |
-| **Billing** | `fronted_v0/docs/BILLING.md` | Stripe integration, subscription flows, webhook handling |
+| Component             | Documentation                                                    | Description                                              |
+| --------------------- | ---------------------------------------------------------------- | -------------------------------------------------------- |
+| **API Service**       | `cloudact-backend-systems/cloudact-api-service/CLAUDE.md`        | Bootstrap, onboarding, integrations, LLM data CRUD       |
+| **Pipeline Service**  | `cloudact-backend-systems/convergence-data-pipeline/CLAUDE.md`   | Pipeline execution, processors, ETL jobs                 |
+| **Pipeline Security** | `cloudact-backend-systems/convergence-data-pipeline/SECURITY.md` | Security requirements, credential handling               |
+| **Frontend**          | `fronted_v0/CLAUDE.md`                                           | Next.js setup, auth flow, billing, backend integration   |
+| **Billing**           | `fronted_v0/docs/BILLING.md`                                     | Stripe integration, subscription flows, webhook handling |
 
 ### API Endpoint Reference
 
 **cloudact-api-service (Port 8000):**
+
 - Admin endpoints: bootstrap, onboarding
 - Organization management: onboard, subscription updates
 
 **convergence-data-pipeline (Port 8001):**
+
 - Pipeline endpoints: run, status
 - Integration endpoints: setup, validate, delete
 - LLM data CRUD: pricing, subscriptions
@@ -586,10 +593,11 @@ curl -X POST http://localhost:8001/api/v1/pipelines/run/{org}/gcp/cost/billing \
 ### Naming Conventions
 
 See backend CLAUDE.md for naming conventions:
+
 - File/folder structure (snake_case)
 - Pipeline IDs (kebab-case)
-- BigQuery tables ({provider}_{domain}_{granularity}_{state})
-- Dataset naming ({org_slug}_{env})
+- BigQuery tables ({provider}_{domain}_{granularity}\_{state})
+- Dataset naming ({org*slug}*{env})
 
 ---
 
@@ -630,21 +638,22 @@ See backend CLAUDE.md for naming conventions:
 
 ### Production Environments
 
-| Environment | Frontend | Backend |
-|-------------|----------|---------|
-| **Stage** | Vercel (preview) | Cloud Run (stage-526075321773) |
-| **Prod** | Vercel (production) | Cloud Run (prod-820784027009) |
+| Environment | Frontend            | Backend                        |
+| ----------- | ------------------- | ------------------------------ |
+| **Stage**   | Vercel (preview)    | Cloud Run (stage-526075321773) |
+| **Prod**    | Vercel (production) | Cloud Run (prod-820784027009)  |
 
 ### Deployment URLs
 
-| Service | Stage | Production |
-|---------|-------|------------|
-| Frontend | `https://cloudact-stage.vercel.app` | `https://cloudact.ai` |
-| Backend | `https://convergence-pipeline-stage-526075321773.us-central1.run.app` | `https://convergence-pipeline-prod-820784027009.us-central1.run.app` |
+| Service  | Stage                                                                 | Production                                                           |
+| -------- | --------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| Frontend | `https://cloudact-stage.vercel.app`                                   | `https://cloudact.ai`                                                |
+| Backend  | `https://convergence-pipeline-stage-526075321773.us-central1.run.app` | `https://convergence-pipeline-prod-820784027009.us-central1.run.app` |
 
 ### Deployment Process
 
 **Backend:**
+
 ```bash
 cd cloudact-backend-systems
 ./simple_deploy.sh stage|prod  # Deploys to Cloud Run
@@ -652,6 +661,7 @@ cd cloudact-backend-systems
 ```
 
 **Frontend:**
+
 ```bash
 cd fronted_v0
 git push origin main  # Auto-deploys via Vercel
@@ -663,12 +673,12 @@ git push origin main  # Auto-deploys via Vercel
 
 ### Current Limits
 
-| Resource | Limit | Notes |
-|----------|-------|-------|
-| **Orgs per system** | Unlimited | Multi-tenant by design |
+| Resource              | Limit      | Notes                                                  |
+| --------------------- | ---------- | ------------------------------------------------------ |
+| **Orgs per system**   | Unlimited  | Multi-tenant by design                                 |
 | **Pipelines per org** | Plan-based | STARTER: 6/day, PROFESSIONAL: 20/day, SCALE: unlimited |
-| **Team members** | Plan-based | STARTER: 2, PROFESSIONAL: 10, SCALE: unlimited |
-| **Integrations** | Plan-based | STARTER: 3, PROFESSIONAL: 10, SCALE: unlimited |
+| **Team members**      | Plan-based | STARTER: 2, PROFESSIONAL: 10, SCALE: unlimited         |
+| **Integrations**      | Plan-based | STARTER: 3, PROFESSIONAL: 10, SCALE: unlimited         |
 
 ### Scaling Strategy
 
@@ -683,13 +693,13 @@ git push origin main  # Auto-deploys via Vercel
 
 ### Common Issues
 
-| Issue | Cause | Solution |
-|-------|-------|----------|
-| Backend won't start | Missing env vars | Check `ENVIRONMENT`, `CA_ROOT_API_KEY`, `GCP_PROJECT_ID` |
-| API key not found | User metadata missing | Re-run backend onboarding for org |
-| Integration fails | Invalid credentials | Validate credentials in provider console |
-| Pipeline 401 error | Invalid API key | Check user metadata or rotate key |
-| No plans from Stripe | Missing metadata | Add `teamMembers`, `providers`, `pipelinesPerDay` to products |
+| Issue                | Cause                 | Solution                                                      |
+| -------------------- | --------------------- | ------------------------------------------------------------- |
+| Backend won't start  | Missing env vars      | Check `ENVIRONMENT`, `CA_ROOT_API_KEY`, `GCP_PROJECT_ID`      |
+| API key not found    | User metadata missing | Re-run backend onboarding for org                             |
+| Integration fails    | Invalid credentials   | Validate credentials in provider console                      |
+| Pipeline 401 error   | Invalid API key       | Check user metadata or rotate key                             |
+| No plans from Stripe | Missing metadata      | Add `teamMembers`, `providers`, `pipelinesPerDay` to products |
 
 ### Health Checks
 
