@@ -1,0 +1,228 @@
+{
+  "table_name": "subscription_analysis",
+  "description": "Subscription cost analysis and tracking over time periods",
+  "dataset_type": "org",
+  "fields": [
+    {
+      "name": "analysis_id",
+      "type": "STRING",
+      "mode": "REQUIRED",
+      "description": "Unique analysis record identifier (UUID)"
+    },
+    {
+      "name": "subscription_id",
+      "type": "STRING",
+      "mode": "REQUIRED",
+      "description": "Reference to llm_subscriptions.subscription_id"
+    },
+    {
+      "name": "provider",
+      "type": "STRING",
+      "mode": "REQUIRED",
+      "description": "LLM provider: openai, anthropic, gemini, custom"
+    },
+    {
+      "name": "plan_name",
+      "type": "STRING",
+      "mode": "REQUIRED",
+      "description": "Subscription plan name"
+    },
+    {
+      "name": "analysis_date",
+      "type": "DATE",
+      "mode": "REQUIRED",
+      "description": "Date of this analysis snapshot"
+    },
+    {
+      "name": "analysis_period",
+      "type": "STRING",
+      "mode": "REQUIRED",
+      "description": "Period type: daily, weekly, monthly, quarterly, yearly"
+    },
+    {
+      "name": "period_start_date",
+      "type": "DATE",
+      "mode": "REQUIRED",
+      "description": "Start date of the analysis period"
+    },
+    {
+      "name": "period_end_date",
+      "type": "DATE",
+      "mode": "REQUIRED",
+      "description": "End date of the analysis period"
+    },
+    {
+      "name": "quantity",
+      "type": "INTEGER",
+      "mode": "REQUIRED",
+      "description": "Number of seats/units for this period"
+    },
+    {
+      "name": "unit_price_usd",
+      "type": "FLOAT64",
+      "mode": "REQUIRED",
+      "description": "Price per unit in USD"
+    },
+    {
+      "name": "billing_period",
+      "type": "STRING",
+      "mode": "REQUIRED",
+      "description": "Billing period: weekly, monthly, quarterly, yearly, pay_as_you_go"
+    },
+    {
+      "name": "base_cost_usd",
+      "type": "FLOAT64",
+      "mode": "REQUIRED",
+      "description": "Base subscription cost (quantity x unit_price_usd)"
+    },
+    {
+      "name": "discount_percentage",
+      "type": "FLOAT64",
+      "mode": "NULLABLE",
+      "description": "Applied discount percentage (0-100)"
+    },
+    {
+      "name": "discount_amount_usd",
+      "type": "FLOAT64",
+      "mode": "NULLABLE",
+      "description": "Discount amount in USD"
+    },
+    {
+      "name": "net_cost_usd",
+      "type": "FLOAT64",
+      "mode": "REQUIRED",
+      "description": "Net cost after discounts (base_cost - discount_amount)"
+    },
+    {
+      "name": "prorated_days",
+      "type": "INTEGER",
+      "mode": "NULLABLE",
+      "description": "Days prorated if partial period"
+    },
+    {
+      "name": "prorated_cost_usd",
+      "type": "FLOAT64",
+      "mode": "NULLABLE",
+      "description": "Prorated cost for partial periods"
+    },
+    {
+      "name": "final_cost_usd",
+      "type": "FLOAT64",
+      "mode": "REQUIRED",
+      "description": "Final calculated cost for this period"
+    },
+    {
+      "name": "tier_type",
+      "type": "STRING",
+      "mode": "REQUIRED",
+      "description": "Tier classification: free, trial, paid, enterprise, committed_use"
+    },
+    {
+      "name": "is_trial",
+      "type": "BOOLEAN",
+      "mode": "REQUIRED",
+      "description": "True if this is a trial period"
+    },
+    {
+      "name": "trial_credit_used_usd",
+      "type": "FLOAT64",
+      "mode": "NULLABLE",
+      "description": "Trial credit consumed in this period"
+    },
+    {
+      "name": "trial_credit_remaining_usd",
+      "type": "FLOAT64",
+      "mode": "NULLABLE",
+      "description": "Trial credit remaining after this period"
+    },
+    {
+      "name": "committed_spend_usd",
+      "type": "FLOAT64",
+      "mode": "NULLABLE",
+      "description": "Committed spend amount if CUD"
+    },
+    {
+      "name": "commitment_utilization_pct",
+      "type": "FLOAT64",
+      "mode": "NULLABLE",
+      "description": "Percentage of commitment used (0-100)"
+    },
+    {
+      "name": "tokens_used",
+      "type": "INTEGER",
+      "mode": "NULLABLE",
+      "description": "Total tokens consumed in this period"
+    },
+    {
+      "name": "requests_made",
+      "type": "INTEGER",
+      "mode": "NULLABLE",
+      "description": "Total API requests in this period"
+    },
+    {
+      "name": "rpm_utilization_pct",
+      "type": "FLOAT64",
+      "mode": "NULLABLE",
+      "description": "Peak RPM utilization percentage"
+    },
+    {
+      "name": "tpm_utilization_pct",
+      "type": "FLOAT64",
+      "mode": "NULLABLE",
+      "description": "Peak TPM utilization percentage"
+    },
+    {
+      "name": "cost_per_token_usd",
+      "type": "FLOAT64",
+      "mode": "NULLABLE",
+      "description": "Effective cost per token (final_cost / tokens_used)"
+    },
+    {
+      "name": "cost_per_request_usd",
+      "type": "FLOAT64",
+      "mode": "NULLABLE",
+      "description": "Effective cost per request (final_cost / requests_made)"
+    },
+    {
+      "name": "is_custom",
+      "type": "BOOLEAN",
+      "mode": "REQUIRED",
+      "description": "True if custom user-created subscription"
+    },
+    {
+      "name": "currency",
+      "type": "STRING",
+      "mode": "REQUIRED",
+      "description": "Currency code (default: USD)"
+    },
+    {
+      "name": "exchange_rate",
+      "type": "FLOAT64",
+      "mode": "NULLABLE",
+      "description": "Exchange rate to USD if non-USD currency"
+    },
+    {
+      "name": "notes",
+      "type": "STRING",
+      "mode": "NULLABLE",
+      "description": "Analysis notes or comments"
+    },
+    {
+      "name": "created_at",
+      "type": "TIMESTAMP",
+      "mode": "REQUIRED",
+      "description": "Record creation timestamp"
+    },
+    {
+      "name": "updated_at",
+      "type": "TIMESTAMP",
+      "mode": "REQUIRED",
+      "description": "Last update timestamp"
+    }
+  ],
+  "clustering_fields": ["provider", "analysis_period"],
+  "time_partitioning": {
+    "field": "analysis_date",
+    "type": "DAY"
+  }
+}

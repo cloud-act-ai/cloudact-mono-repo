@@ -21,7 +21,7 @@
     "name": "status",
     "type": "STRING",
     "mode": "REQUIRED",
-    "description": "Subscription status: ACTIVE, TRIAL, EXPIRED, CANCELLED"
+    "description": "Subscription status: ACTIVE, TRIAL, SUSPENDED, EXPIRED, CANCELLED"
   },
   {
     "name": "daily_limit",

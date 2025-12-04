@@ -858,10 +858,8 @@ async def onboard_org(
                     ],
                     "create_validation_table": True,
                     "validation_table_name": "onboarding_validation_test",
-                    # LLM seed data configuration
-                    "seed_llm_data": True,
-                    "llm_subscriptions_csv": "configs/llm/seed/data/default_subscriptions.csv",
-                    "llm_pricing_csv": "configs/llm/seed/data/default_pricing.csv",
+                    # LLM tables created empty - customers add custom plans via UI
+                    "seed_llm_data": False,
                     "default_daily_limit": plan_limits["max_daily"],
                     "default_monthly_limit": plan_limits["max_daily"] * 30,
                     "default_concurrent_limit": plan_limits["max_concurrent"]

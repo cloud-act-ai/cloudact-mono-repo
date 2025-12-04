@@ -70,7 +70,7 @@ class Settings(BaseSettings):
     # API Configuration
     # ============================================
     api_host: str = Field(default="0.0.0.0")
-    api_port: int = Field(default=8080, ge=1024, le=65535)
+    api_port: int = Field(default=8001, ge=1024, le=65535, description="Default port for pipeline-service")
     api_workers: int = Field(default=4, ge=1, le=16)
     api_reload: bool = Field(default=False)
     enable_api_docs: bool = Field(
@@ -80,7 +80,8 @@ class Settings(BaseSettings):
 
     # CORS settings
     cors_origins: List[str] = Field(
-        default=["http://localhost:3000", "http://localhost:8080"]
+        default=["http://localhost:3000"],
+        description="Allowed CORS origins. Add production domains via CORS_ORIGINS env var."
     )
     cors_allow_credentials: bool = Field(default=True)
     cors_allow_methods: List[str] = Field(
@@ -113,8 +114,8 @@ class Settings(BaseSettings):
         description="Default organization slug when authentication is disabled (used only in development mode)"
     )
     api_key_hash_algorithm: str = Field(
-        default="HS256",
-        description="Algorithm for API key hashing"
+        default="SHA256",
+        description="Hash algorithm for API key storage (SHA256, not JWT HS256)"
     )
     api_key_secret_key: Optional[str] = Field(
         default=None,
@@ -337,9 +338,9 @@ class Settings(BaseSettings):
         default=None,
         description="Email sender address (root configuration)"
     )
-    email_to_addresses: Optional[str] = Field(
+    email_to_addresses: Optional[List[str]] = Field(
         default=None,
-        description="Comma-separated recipient email addresses (root configuration)"
+        description="List of recipient email addresses (root configuration)"
     )
 
     # Slack notification defaults (root fallback)
@@ -435,6 +436,7 @@ class Settings(BaseSettings):
     # Provider-specific timeout configuration (seconds)
     provider_timeout_openai: float = Field(default=30.0, description="HTTP timeout for OpenAI API calls")
     provider_timeout_anthropic: float = Field(default=30.0, description="HTTP timeout for Anthropic API calls")
+    provider_timeout_claude: float = Field(default=30.0, description="HTTP timeout for Claude/Anthropic API calls (alias)")
     provider_timeout_gcp: float = Field(default=60.0, description="HTTP timeout for GCP API calls (higher for BigQuery)")
     provider_credential_types: Dict[str, str] = Field(
         default={

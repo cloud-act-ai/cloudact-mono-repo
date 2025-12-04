@@ -305,7 +305,7 @@ class OpenAISubscriptionCreate(BaseModel):
     quantity: int = Field(
         ...,
         ge=0,
-        description="Number of subscriptions"
+        description="Number of seats/units"
     )
     unit_price_usd: float = Field(
         ...,
@@ -410,7 +410,7 @@ class OpenAISubscriptionUpdate(BaseModel):
     quantity: Optional[int] = Field(
         None,
         ge=0,
-        description="Number of subscriptions"
+        description="Number of seats/units"
     )
     unit_price_usd: Optional[float] = Field(
         None,
@@ -529,7 +529,7 @@ class OpenAISubscriptionResponse(BaseModel):
     x_anthropic_workspace_id: Optional[str] = None
     x_openai_org_id: Optional[str] = None
     # Tier type, rate limits, and commitments
-    tier_type: str = "paid"
+    tier_type: Optional[str] = "paid"
     trial_end_date: Optional[date] = None
     trial_credit_usd: Optional[float] = None
     monthly_token_limit: Optional[int] = None

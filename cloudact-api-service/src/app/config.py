@@ -31,7 +31,7 @@ LOG_LEVEL               - Logging level: DEBUG|INFO|WARNING|ERROR|CRITICAL (defa
 API CONFIGURATION:
 -----------------
 API_HOST                - API bind host (default: "0.0.0.0")
-API_PORT                - API bind port (default: 8080)
+API_PORT                - API bind port (default: 8000)
 API_WORKERS             - Number of uvicorn workers (default: 4)
 ENABLE_API_DOCS         - Enable /docs and /redoc endpoints (default: true)
 CORS_ORIGINS            - Allowed CORS origins as JSON array (default: ["http://localhost:3000"])
@@ -155,7 +155,7 @@ class Settings(BaseSettings):
     # API Configuration
     # ============================================
     api_host: str = Field(default="0.0.0.0")
-    api_port: int = Field(default=8080, ge=1024, le=65535)
+    api_port: int = Field(default=8000, ge=1024, le=65535, description="Default port for api-service")
     api_workers: int = Field(default=4, ge=1, le=16)
     api_reload: bool = Field(default=False)
     enable_api_docs: bool = Field(
@@ -165,7 +165,8 @@ class Settings(BaseSettings):
 
     # CORS settings
     cors_origins: List[str] = Field(
-        default=["http://localhost:3000", "http://localhost:8080"]
+        default=["http://localhost:3000"],
+        description="Allowed CORS origins. Add production domains via CORS_ORIGINS env var."
     )
     cors_allow_credentials: bool = Field(default=True)
     cors_allow_methods: List[str] = Field(

@@ -19,7 +19,7 @@
       "name": "plan_name",
       "type": "STRING",
       "mode": "REQUIRED",
-      "description": "Subscription plan name (e.g., FREE, TIER1, BUILD, PAY_AS_YOU_GO)"
+      "description": "Subscription plan name (user-defined custom plan)"
     },
     {
       "name": "is_custom",
@@ -170,6 +170,24 @@
       "type": "FLOAT64",
       "mode": "NULLABLE",
       "description": "Discount percentage for this tier (0-100)"
+    },
+    {
+      "name": "billing_period",
+      "type": "STRING",
+      "mode": "REQUIRED",
+      "description": "Billing period: weekly, monthly, quarterly, yearly, pay_as_you_go"
+    },
+    {
+      "name": "yearly_price_usd",
+      "type": "FLOAT64",
+      "mode": "NULLABLE",
+      "description": "Annual price in USD (typically discounted vs monthly)"
+    },
+    {
+      "name": "yearly_discount_percentage",
+      "type": "FLOAT64",
+      "mode": "NULLABLE",
+      "description": "Percentage discount for annual billing (e.g., 20 for 20% off)"
     },
     {
       "name": "created_at",

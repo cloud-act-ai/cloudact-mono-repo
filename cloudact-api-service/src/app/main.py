@@ -100,7 +100,7 @@ def validate_production_config() -> None:
         errors.append("RATE_LIMIT_ENABLED must be true in production")
 
     # Check CORS origins are configured and valid
-    if not settings.cors_origins or settings.cors_origins == ["http://localhost:3000", "http://localhost:8080"]:
+    if not settings.cors_origins or settings.cors_origins == ["http://localhost:3000"]:
         logger.warning("CORS origins appear to be using default values - ensure these are correct for production")
 
     # Validate CORS origins format
