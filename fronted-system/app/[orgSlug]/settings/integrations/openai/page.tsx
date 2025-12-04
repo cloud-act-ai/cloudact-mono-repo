@@ -956,9 +956,10 @@ export default function OpenAIIntegrationPage() {
                 id="sub-quantity"
                 type="number"
                 min="0"
+                placeholder="0"
                 className="col-span-3"
-                value={newSubscription.quantity}
-                onChange={(e) => setNewSubscription({ ...newSubscription, quantity: parseInt(e.target.value) || 0 })}
+                value={newSubscription.quantity === 0 ? "" : newSubscription.quantity}
+                onChange={(e) => setNewSubscription({ ...newSubscription, quantity: e.target.value === "" ? 0 : parseInt(e.target.value) })}
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
@@ -968,9 +969,10 @@ export default function OpenAIIntegrationPage() {
                 type="number"
                 step="0.01"
                 min="0"
+                placeholder="0.00"
                 className="col-span-3"
-                value={newSubscription.unit_price_usd}
-                onChange={(e) => setNewSubscription({ ...newSubscription, unit_price_usd: parseFloat(e.target.value) || 0 })}
+                value={newSubscription.unit_price_usd === 0 ? "" : newSubscription.unit_price_usd}
+                onChange={(e) => setNewSubscription({ ...newSubscription, unit_price_usd: e.target.value === "" ? 0 : parseFloat(e.target.value) })}
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
@@ -1073,9 +1075,10 @@ export default function OpenAIIntegrationPage() {
                 type="number"
                 step="0.0001"
                 min="0"
+                placeholder="0.0000"
                 className="col-span-3"
-                value={newPricing.input_price_per_1k}
-                onChange={(e) => setNewPricing({ ...newPricing, input_price_per_1k: parseFloat(e.target.value) || 0 })}
+                value={newPricing.input_price_per_1k === 0 ? "" : newPricing.input_price_per_1k}
+                onChange={(e) => setNewPricing({ ...newPricing, input_price_per_1k: e.target.value === "" ? 0 : parseFloat(e.target.value) })}
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
@@ -1085,9 +1088,10 @@ export default function OpenAIIntegrationPage() {
                 type="number"
                 step="0.0001"
                 min="0"
+                placeholder="0.0000"
                 className="col-span-3"
-                value={newPricing.output_price_per_1k}
-                onChange={(e) => setNewPricing({ ...newPricing, output_price_per_1k: parseFloat(e.target.value) || 0 })}
+                value={newPricing.output_price_per_1k === 0 ? "" : newPricing.output_price_per_1k}
+                onChange={(e) => setNewPricing({ ...newPricing, output_price_per_1k: e.target.value === "" ? 0 : parseFloat(e.target.value) })}
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">

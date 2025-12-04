@@ -1,14 +1,14 @@
 # Subscription Costs Pipeline
-# Calculates daily prorated costs for LLM subscriptions
+# Calculates daily prorated costs for SaaS subscriptions
 #
 # Schedule: Daily at 05:00 UTC
-# Tables: tfd_llm_subscription_costs
+# Tables: tfd_saas_subscription_costs
 #
 # Usage: POST /api/v1/pipelines/run/{org_slug}/subscription/costs/example_subscription_cost_analysis
 
-pipeline_id: "{org_slug}-example-subscription-cost-analysis"
-name: "Example Subscription Cost Analysis"
-description: "Calculate daily run rates and projected costs for LLM subscriptions"
+pipeline_id: "{org_slug}-saas-subscription-cost-analysis"
+name: "SaaS Subscription Cost Analysis"
+description: "Calculate daily run rates and projected costs for SaaS subscriptions"
 version: "1.0.0"
 
 # Schedule: Daily at 05:00 UTC
@@ -80,7 +80,7 @@ steps:
         ORDER BY final_daily_cost_usd DESC
 
     destination:
-      table: "tfd_llm_subscription_costs"
+      table: "tfd_saas_subscription_costs"
       mode: "overwrite"
 
   # Notification on failure
@@ -91,9 +91,9 @@ steps:
     config:
       to_emails:
         - "{admin_email}"
-      subject: "[ALERT] Subscription Cost Pipeline Failed - {org_slug}"
+      subject: "[ALERT] SaaS Subscription Cost Pipeline Failed - {org_slug}"
       message: |
-        ALERT: The Subscription Cost Analysis pipeline has failed!
+        ALERT: The SaaS Subscription Cost Analysis pipeline has failed!
 
         Organization: {org_slug}
         Pipeline: {pipeline_id}

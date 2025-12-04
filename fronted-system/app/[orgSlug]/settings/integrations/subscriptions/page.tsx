@@ -225,17 +225,11 @@ export default function SubscriptionProvidersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="console-page-title">Subscription Providers</h1>
-          <p className="console-subheading">
-            Track fixed-cost SaaS subscriptions. Enable providers to manage plans.
-          </p>
-        </div>
-        <Button onClick={openCustomDialog} className="console-button-primary">
-          <Plus className="h-4 w-4 mr-2" />
-          Add Provider
-        </Button>
+      <div>
+        <h1 className="console-page-title">Subscription Providers</h1>
+        <p className="console-subheading">
+          Track fixed-cost SaaS subscriptions. Enable providers to manage plans.
+        </p>
       </div>
 
       <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-muted console-small w-fit">
@@ -283,6 +277,7 @@ export default function SubscriptionProvidersPage() {
               />
             ))}
           </div>
+          {/* Show more button - before custom provider message */}
           {subscriptionProviders.length > INITIAL_PROVIDERS_COUNT && !showAllProviders && (
             <div className="mt-4 text-center">
               <Button
@@ -296,6 +291,25 @@ export default function SubscriptionProvidersPage() {
               </Button>
             </div>
           )}
+
+          {/* Don't see your provider message - show after load more */}
+          {!showAllProviders && (
+            <div className="mt-4 text-center py-4 border border-dashed rounded-lg bg-slate-50/50">
+              <p className="text-sm text-gray-500 mb-2">
+                Don&apos;t see your provider?
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={openCustomDialog}
+                className="text-[#007A78] border-[#007A78]/30 hover:bg-[#F0FDFA]"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Custom Provider
+              </Button>
+            </div>
+          )}
+
           {showAllProviders && subscriptionProviders.length > INITIAL_PROVIDERS_COUNT && (
             <div className="mt-4 text-center">
               <Button
@@ -367,8 +381,9 @@ export default function SubscriptionProvidersPage() {
                   type="number"
                   step="0.01"
                   min="0"
-                  value={customCost}
-                  onChange={(e) => setCustomCost(parseFloat(e.target.value) || 0)}
+                  placeholder="0.00"
+                  value={customCost === 0 ? "" : customCost}
+                  onChange={(e) => setCustomCost(e.target.value === "" ? 0 : parseFloat(e.target.value))}
                   className="flex-1"
                 />
               </div>
@@ -398,8 +413,9 @@ export default function SubscriptionProvidersPage() {
                 id="customSeats"
                 type="number"
                 min="1"
-                value={customSeats}
-                onChange={(e) => setCustomSeats(parseInt(e.target.value) || 1)}
+                placeholder="1"
+                value={customSeats === 1 ? "" : customSeats}
+                onChange={(e) => setCustomSeats(e.target.value === "" ? 1 : parseInt(e.target.value))}
                 className="col-span-3"
               />
             </div>

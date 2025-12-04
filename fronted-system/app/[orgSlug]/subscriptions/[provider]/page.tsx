@@ -343,8 +343,9 @@ export default function ProviderDetailPage() {
                   type="number"
                   min="0"
                   step="0.01"
-                  value={newSub.cost}
-                  onChange={(e) => setNewSub({ ...newSub, cost: parseFloat(e.target.value) || 0 })}
+                  placeholder="0.00"
+                  value={newSub.cost === 0 ? "" : newSub.cost}
+                  onChange={(e) => setNewSub({ ...newSub, cost: e.target.value === "" ? 0 : parseFloat(e.target.value) })}
                 />
               </div>
               <div className="space-y-2">
@@ -369,8 +370,9 @@ export default function ProviderDetailPage() {
                 id="seats"
                 type="number"
                 min="1"
-                value={newSub.seats}
-                onChange={(e) => setNewSub({ ...newSub, seats: parseInt(e.target.value) || 1 })}
+                placeholder="1"
+                value={newSub.seats === 1 ? "" : newSub.seats}
+                onChange={(e) => setNewSub({ ...newSub, seats: e.target.value === "" ? 1 : parseInt(e.target.value) })}
               />
             </div>
             <div className="space-y-2">

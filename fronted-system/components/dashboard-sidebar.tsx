@@ -38,6 +38,7 @@ import {
   MessageSquare,
   Code,
   FileText,
+  DollarSign,
 } from "lucide-react"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
@@ -323,73 +324,47 @@ export function DashboardSidebar({
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
-                  {/* Subscription Providers */}
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      asChild
-                      className={cn(
-                        "text-gray-500 hover:text-[#007A78] hover:bg-[#007A78]/5 text-sm h-8",
-                        isActive(`/${orgSlug}/settings/integrations/subscriptions`) && "bg-[#007A78]/10 text-[#007A78]",
-                      )}
-                    >
-                      <Link href={`/${orgSlug}/settings/integrations/subscriptions`}>
-                        <Wallet className="h-3.5 w-3.5" />
-                        <span>Subscription Providers</span>
-                        {enabledProviders.length > 0 && (
-                          <Badge variant="outline" className="ml-auto text-xs px-1.5 py-0 h-4 bg-[#007A78]/5 text-[#007A78] border-[#007A78]/20">
-                            {enabledProviders.length}
-                          </Badge>
-                        )}
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                </div>
-              )}
-
-              {/* Subscriptions Menu - Show only if there are enabled providers */}
-              {enabledProviders.length > 0 && (
-                <>
+                  {/* Subscription Providers - Expandable submenu */}
                   <SidebarMenuItem>
                     <SidebarMenuButton
                       onClick={() => setSubscriptionsExpanded(!subscriptionsExpanded)}
-                      aria-expanded={subscriptionsExpanded}
-                      aria-controls="subscriptions-submenu"
                       className={cn(
-                        "text-gray-600 hover:text-[#007A78] hover:bg-[#007A78]/5 justify-between",
-                        isActive(`/${orgSlug}/subscriptions`) && "bg-[#007A78]/5 text-[#007A78]",
+                        "text-gray-500 hover:text-[#007A78] hover:bg-[#007A78]/5 text-sm h-8 justify-between",
+                        isActive(`/${orgSlug}/settings/integrations/subscriptions`) && "bg-[#007A78]/10 text-[#007A78]",
                       )}
                     >
                       <div className="flex items-center gap-2">
-                        <Wallet className="h-4 w-4" />
-                        <span>Subscriptions</span>
-                        <Badge variant="outline" className="text-xs px-1.5 py-0 h-5 bg-[#007A78]/5 text-[#007A78] border-[#007A78]/20">
-                          {enabledProviders.length}
-                        </Badge>
+                        <Wallet className="h-3.5 w-3.5" />
+                        <span>Subscription Providers</span>
+                        {enabledProviders.length > 0 && (
+                          <Badge variant="outline" className="text-xs px-1.5 py-0 h-4 bg-[#007A78]/5 text-[#007A78] border-[#007A78]/20">
+                            {enabledProviders.length}
+                          </Badge>
+                        )}
                       </div>
                       <ChevronRight
                         className={cn(
-                          "h-4 w-4 transition-transform duration-200",
+                          "h-3 w-3 transition-transform duration-200",
                           subscriptionsExpanded && "rotate-90"
                         )}
                       />
                     </SidebarMenuButton>
                   </SidebarMenuItem>
-
-                  {/* Subscription Provider Sub-menus */}
+                  {/* Subscription Providers Sub-menu (third level) */}
                   {subscriptionsExpanded && (
-                    <div id="subscriptions-submenu" className="ml-4 pl-2 border-l border-gray-200 space-y-1">
-                      {/* All Subscriptions overview link */}
+                    <div className="ml-6 pl-2 border-l border-gray-200 space-y-1">
+                      {/* Manage Subscriptions - main provider management page */}
                       <SidebarMenuItem>
                         <SidebarMenuButton
                           asChild
                           className={cn(
-                            "text-gray-500 hover:text-[#007A78] hover:bg-[#007A78]/5 text-sm h-8",
-                            pathname === `/${orgSlug}/subscriptions` && "bg-[#007A78]/10 text-[#007A78]",
+                            "text-gray-500 hover:text-[#007A78] hover:bg-[#007A78]/5 text-sm h-7",
+                            pathname === `/${orgSlug}/settings/integrations/subscriptions` && "bg-[#007A78]/10 text-[#007A78]",
                           )}
                         >
-                          <Link href={`/${orgSlug}/subscriptions`}>
-                            <List className="h-3.5 w-3.5" />
-                            <span>All Subscriptions</span>
+                          <Link href={`/${orgSlug}/settings/integrations/subscriptions`}>
+                            <Settings className="h-3 w-3" />
+                            <span>Manage Subscriptions</span>
                           </Link>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
@@ -403,12 +378,12 @@ export function DashboardSidebar({
                             <SidebarMenuButton
                               asChild
                               className={cn(
-                                "text-gray-500 hover:text-[#007A78] hover:bg-[#007A78]/5 text-sm h-8",
+                                "text-gray-500 hover:text-[#007A78] hover:bg-[#007A78]/5 text-sm h-7",
                                 isActive(`/${orgSlug}/subscriptions/${provider.provider_name}`) && "bg-[#007A78]/10 text-[#007A78]",
                               )}
                             >
                               <Link href={`/${orgSlug}/subscriptions/${provider.provider_name}`}>
-                                <ProviderIcon className="h-3.5 w-3.5" />
+                                <ProviderIcon className="h-3 w-3" />
                                 <span className="truncate">{displayName}</span>
                               </Link>
                             </SidebarMenuButton>
@@ -417,7 +392,25 @@ export function DashboardSidebar({
                       })}
                     </div>
                   )}
-                </>
+                </div>
+              )}
+
+              {/* Subscriptions Menu - Only show if there are enabled providers */}
+              {enabledProviders.length > 0 && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    className={cn(
+                      "text-gray-600 hover:text-[#007A78] hover:bg-[#007A78]/5",
+                      pathname === `/${orgSlug}/subscriptions` && "bg-[#007A78]/5 text-[#007A78]",
+                    )}
+                  >
+                    <Link href={`/${orgSlug}/subscriptions`}>
+                      <DollarSign className="h-4 w-4" />
+                      <span>Subscription Costs</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
               )}
 
             </SidebarMenu>
