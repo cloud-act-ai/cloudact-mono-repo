@@ -8,7 +8,7 @@ Pipeline execution engine for ETL jobs. Port 8001. Runs scheduled pipelines, pro
 
 **Security Documentation:** `SECURITY.md`
 
-**API Service (port 8000):** Bootstrap, onboarding, integrations, and LLM data CRUD are handled by `cloudact-api-service`.
+**API Service (port 8000):** Bootstrap, onboarding, integrations, and LLM data CRUD are handled by `api-service`.
 
 ## Pipeline Flow
 
@@ -119,8 +119,8 @@ Org API Key (created during onboarding)
 ### Frontend ↔ Backend Flow
 
 ```
-Frontend (Supabase)                    api-service (8000)                   pipeline (8001)
-─────────────────                      ──────────────────                   ───────────────
+Frontend (Supabase)                    api-service (8000)                   data-pipeline-service (8001)
+─────────────────                      ──────────────────                   ────────────────────────────
 1. User signup
 2. Org created in Supabase
 3. Stripe subscription
@@ -475,7 +475,7 @@ Per-Organization: {org_slug}_{env} (e.g., acme_prod)
 **Actual structure (verified 2025-12-02):**
 
 ```
-convergence-data-pipeline/
+data-pipeline-service/
 ├── src/app/
 │   ├── main.py                        # FastAPI entry point
 │   ├── config.py                      # Settings (env vars)
@@ -565,7 +565,7 @@ export BIGQUERY_LOCATION="US"
 ### Run Locally
 
 ```bash
-cd convergence-data-pipeline
+cd data-pipeline-service
 pip install -r requirements.txt
 
 # For LOCAL DEVELOPMENT ONLY - never use these in production!
@@ -698,7 +698,7 @@ See `SECURITY.md` for detailed security configuration requirements.
 | `RATE_LIMIT_REQUESTS_PER_MINUTE` | 100 | Per-org limit | Configurable |
 | `RATE_LIMIT_GLOBAL_REQUESTS_PER_MINUTE` | 10000 | Global limit | Configurable |
 | `KMS_KEY_NAME` | None | Full GCP KMS key path | Required in production |
-| `API_SERVICE_URL` | http://localhost:8000 | cloudact-api-service URL | Set for your environment |
+| `API_SERVICE_URL` | http://localhost:8000 | api-service URL | Set for your environment |
 
 ---
 

@@ -7,7 +7,7 @@ This service handles:
 - Integration management (credentials, validation)
 - LLM pricing and subscription data management
 
-Pipeline execution is handled by the separate convergence-data-pipeline service.
+Pipeline execution is handled by the separate data-pipeline-service.
 """
 
 from fastapi import FastAPI, Request, status
@@ -248,7 +248,7 @@ Two authentication methods:
 
 ```
 Frontend (Next.js) --> CloudAct API Service --> BigQuery
-                                            --> convergence-data-pipeline (for pipelines)
+                                            --> data-pipeline-service (for pipelines)
 ```
 
 **Central Dataset**: `organizations` (14 management tables)
@@ -283,7 +283,7 @@ tags_metadata = [
     },
     {
         "name": "Pipeline Validator",
-        "description": "Pipeline validation endpoints for convergence-data-pipeline. Validates org subscription, quota, and credentials before pipeline execution."
+        "description": "Pipeline validation endpoints for data-pipeline-service. Validates org subscription, quota, and credentials before pipeline execution."
     }
 ]
 

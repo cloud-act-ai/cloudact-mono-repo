@@ -44,7 +44,7 @@ class Settings(BaseSettings):
     # Application Settings
     # ============================================
     app_name: str = Field(
-        default="convergence-data-pipeline",
+        default="data-pipeline-service",
         description="Application name"
     )
     app_version: str = Field(
@@ -477,7 +477,7 @@ class Settings(BaseSettings):
     # ============================================
     api_service_url: str = Field(
         default="http://localhost:8000",
-        description="URL of cloudact-api-service for validation and centralized operations"
+        description="URL of api-service for validation and centralized operations"
     )
     api_service_timeout: float = Field(
         default=10.0,

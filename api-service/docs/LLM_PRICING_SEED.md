@@ -16,7 +16,7 @@ POST /api/v1/organizations/onboard
             └── 22 default models across 4 providers
 ```
 
-**After onboarding**, pricing CRUD is handled by `convergence-data-pipeline` (port 8001).
+**After onboarding**, pricing CRUD is handled by `data-pipeline-service` (port 8001).
 
 ---
 
@@ -319,6 +319,6 @@ Example use cases:
 ## Related Documentation
 
 - **Subscription Seed Data**: See `LLM_SUBSCRIPTION_SEED.md`
-- **Pricing CRUD API**: See `convergence-data-pipeline/docs/LLM_PRICING_CRUD.md`
-- **Frontend Config**: See `fronted_v0/docs/LLM_PRICING_CONFIG.md`
+- **Pricing CRUD API**: See `data-pipeline-service/docs/LLM_PRICING_CRUD.md`
+- **Frontend Config**: See `fronted-system/docs/LLM_PRICING_CONFIG.md`
 - **Architecture**: See `../../ARCHITECTURE.md`

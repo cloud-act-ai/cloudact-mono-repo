@@ -10,7 +10,7 @@ This document describes the CRUD API for managing LLM provider subscriptions. Th
 Frontend / API Client
     │
     ▼
-cloudact-api-service (port 8000)
+api-service (port 8000)
     │
     ├── GET    /api/v1/integrations/{org}/{provider}/subscriptions
     ├── GET    /api/v1/integrations/{org}/{provider}/subscriptions/{plan_name}
@@ -23,7 +23,7 @@ cloudact-api-service (port 8000)
 BigQuery: {org_slug}_prod.llm_subscriptions
 ```
 
-**Note:** Both seed data (onboarding) AND CRUD operations are handled by `cloudact-api-service` (port 8000). The `convergence-data-pipeline` (port 8001) only uses these tables for future cost calculations.
+**Note:** Both seed data (onboarding) AND CRUD operations are handled by `api-service` (port 8000). The `data-pipeline-service` (port 8001) only uses these tables for future cost calculations.
 
 ---
 
@@ -358,5 +358,5 @@ class TierTypeEnum(str, Enum):
 
 - **Subscription Seed Data**: See `LLM_SUBSCRIPTION_SEED.md`
 - **Pricing CRUD**: See `LLM_PRICING_CRUD.md`
-- **Frontend Config**: See `fronted_v0/docs/LLM_SUBSCRIPTION_CONFIG.md`
+- **Frontend Config**: See `fronted-system/docs/LLM_SUBSCRIPTION_CONFIG.md`
 - **API Service Architecture**: See `CLAUDE.md`

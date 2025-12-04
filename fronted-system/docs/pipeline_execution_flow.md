@@ -2,7 +2,7 @@
 
 Complete guide to running data pipelines in CloudAct.ai platform.
 
-> **Prerequisites:** See `fronted_v0/CLAUDE.md` for the complete onboarding flow. Organization must be onboarded and have required integrations configured before running pipelines.
+> **Prerequisites:** See `fronted-system/CLAUDE.md` for the complete onboarding flow. Organization must be onboarded and have required integrations configured before running pipelines.
 
 ---
 
@@ -469,7 +469,7 @@ await runGcpBillingPipeline("acmecorp")
 
 - [API Key Generation Flow](./api_key_generation_flow.md) - How to generate org API keys
 - [Integration Setup Flow](./integration_setup_flow.md) - How to setup required integrations
-- [Backend CLAUDE.md](../../cloudact-backend-systems/convergence-data-pipeline/CLAUDE.md) - Backend architecture
+- [Backend CLAUDE.md](../../data-pipeline-service/CLAUDE.md) - Backend architecture
 
 ---
 

@@ -18,7 +18,7 @@ POST /api/v1/organizations/onboard
             └── default_subscriptions.csv → llm_subscriptions
 ```
 
-**After onboarding**, CRUD operations are handled by `convergence-data-pipeline` (port 8001).
+**After onboarding**, CRUD operations are handled by `data-pipeline-service` (port 8001).
 
 ---
 
@@ -247,7 +247,7 @@ Free tier resets based on `free_tier_reset_frequency`:
 
 ## Adding Custom Models
 
-Users can add custom models via the CRUD API (convergence-data-pipeline):
+Users can add custom models via the CRUD API (data-pipeline-service):
 
 ```bash
 POST /api/v1/integrations/{org_slug}/{provider}/pricing
@@ -259,6 +259,6 @@ Custom models are marked with `is_custom: true` and don't get overwritten during
 
 ## Related Documentation
 
-- **CRUD Operations**: See `convergence-data-pipeline/docs/LLM_SUBSCRIPTION_CRUD.md`
-- **Frontend Config**: See `fronted_v0/docs/LLM_SUBSCRIPTION_CONFIG.md`
+- **CRUD Operations**: See `data-pipeline-service/docs/LLM_SUBSCRIPTION_CRUD.md`
+- **Frontend Config**: See `fronted-system/docs/LLM_SUBSCRIPTION_CONFIG.md`
 - **Architecture**: See `../../ARCHITECTURE.md`

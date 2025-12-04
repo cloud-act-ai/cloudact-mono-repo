@@ -33,7 +33,7 @@ async def test_root_endpoint():
         assert "openapi" in data
 
         # Verify expected values
-        assert "convergence-data-pipeline" in data["message"]
+        assert "data-pipeline-service" in data["message"]
         assert isinstance(data["environment"], str)
 
 
@@ -61,7 +61,7 @@ async def test_health_endpoint():
 
         # Verify healthy status
         assert data["status"] == "healthy"
-        assert data["service"] == "convergence-data-pipeline"
+        assert data["service"] == "data-pipeline-service"
         assert isinstance(data["version"], str)
 
 
@@ -132,7 +132,7 @@ async def test_openapi_json():
         assert "paths" in data
 
         # Verify API info (actual title is lowercase kebab-case)
-        assert data["info"]["title"] == "convergence-data-pipeline"
+        assert data["info"]["title"] == "data-pipeline-service"
 
 
 @pytest.mark.asyncio

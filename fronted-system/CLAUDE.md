@@ -292,7 +292,7 @@ After Supabase signup, frontend connects to FastAPI backend for:
 
 ```bash
 # Start backend server
-cd ../cloudact-backend-systems/convergence-data-pipeline
+cd ../data-pipeline-service
 export GCP_PROJECT_ID="your-project"
 export CA_ROOT_API_KEY="your-admin-key"
 export KMS_KEY_NAME="projects/.../cryptoKeys/..."

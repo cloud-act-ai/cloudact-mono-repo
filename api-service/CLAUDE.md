@@ -47,13 +47,13 @@ Frontend (Next.js)
 
 ## Overview
 
-This service is the **API layer** extracted from the convergence-data-pipeline. It handles:
+This service is the **API layer** extracted from the data-pipeline-service. It handles:
 - System bootstrap (creating central BigQuery tables)
 - Organization onboarding (creating org profiles, API keys, datasets)
 - Integration management (setting up OpenAI, Anthropic, GCP credentials)
 - LLM data management (pricing, subscriptions CRUD)
 
-**Pipeline execution and ETL processing** remain in `convergence-data-pipeline` (port 8001).
+**Pipeline execution and ETL processing** remain in `data-pipeline-service` (port 8001).
 
 ## API Endpoints
 
@@ -83,7 +83,7 @@ This service is the **API layer** extracted from the convergence-data-pipeline. 
 ## Project Structure
 
 ```
-cloudact-api-service/
+api-service/
 ├── src/
 │   ├── app/
 │   │   ├── main.py                    # FastAPI entry point
@@ -141,7 +141,7 @@ cloudact-api-service/
 ## Local Development
 
 ```bash
-cd cloudact-api-service
+cd api-service
 pip install -r requirements.txt
 
 # Environment variables
@@ -157,9 +157,9 @@ python3 -m uvicorn src.app.main:app --host 0.0.0.0 --port 8000
 python -m pytest tests/ -v
 ```
 
-## Relationship with convergence-data-pipeline
+## Relationship with data-pipeline-service
 
-| cloudact-api-service | convergence-data-pipeline |
+| api-service | data-pipeline-service |
 |---------------------|---------------------------|
 | Frontend-facing API | Pipeline execution engine |
 | Org management | Scheduled pipelines |

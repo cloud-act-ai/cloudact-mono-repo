@@ -1,7 +1,7 @@
 """
 Pipeline Validator API Routes
 
-Service-to-service validation endpoints for convergence-data-pipeline.
+Service-to-service validation endpoints for data-pipeline-service.
 Validates org subscription, quota, and credentials before pipeline execution.
 
 URL Structure: /api/v1/validator
@@ -33,7 +33,7 @@ router = APIRouter()
 # ============================================
 
 class PipelineValidationRequest(BaseModel):
-    """Request for pipeline validation (called by convergence-data-pipeline)."""
+    """Request for pipeline validation (called by data-pipeline-service)."""
     pipeline_id: str = Field(..., description="Pipeline ID to validate")
     include_credentials: bool = Field(False, description="Include decrypted credentials in response")
 
@@ -279,14 +279,14 @@ async def get_pipeline(pipeline_id: str) -> PipelineConfig:
 
 
 # ============================================
-# Pipeline Validation Endpoint (for convergence-data-pipeline)
+# Pipeline Validation Endpoint (for data-pipeline-service)
 # ============================================
 
 @router.post(
     "/validator/validate/{org_slug}",
     response_model=PipelineValidationResponse,
     summary="Validate pipeline execution",
-    description="Validates org can run a pipeline. Called by convergence-data-pipeline before execution."
+    description="Validates org can run a pipeline. Called by data-pipeline-service before execution."
 )
 async def validate_pipeline_execution(
     org_slug: str,
@@ -297,7 +297,7 @@ async def validate_pipeline_execution(
     """
     Validate that an organization can execute a pipeline.
 
-    This endpoint is called by convergence-data-pipeline (service-to-service)
+    This endpoint is called by data-pipeline-service (service-to-service)
     to validate:
     1. API key is valid and org is active
     2. Subscription is active
@@ -467,7 +467,7 @@ async def validate_pipeline_execution(
 @router.post(
     "/validator/complete/{org_slug}",
     summary="Report pipeline completion",
-    description="Called by convergence-data-pipeline after pipeline execution to update usage counters."
+    description="Called by data-pipeline-service after pipeline execution to update usage counters."
 )
 async def report_pipeline_completion(
     org_slug: str,
@@ -478,7 +478,7 @@ async def report_pipeline_completion(
     """
     Report pipeline completion to update usage counters.
 
-    Called by convergence-data-pipeline after pipeline execution.
+    Called by data-pipeline-service after pipeline execution.
 
     Args:
         org_slug: Organization slug

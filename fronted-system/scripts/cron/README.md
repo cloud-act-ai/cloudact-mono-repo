@@ -45,10 +45,10 @@ chmod +x scripts/cron/*.sh
 crontab -e
 
 # Add entries:
-*/5 * * * * /path/to/fronted_v0/scripts/cron/billing-sync-retry.sh >> /var/log/billing-sync-retry.log 2>&1
-0 2 * * * /path/to/fronted_v0/scripts/cron/billing-reconciliation.sh >> /var/log/billing-reconciliation.log 2>&1
-*/15 * * * * /path/to/fronted_v0/scripts/cron/billing-sync-stats.sh >> /var/log/billing-sync-stats.log 2>&1
-0 3 * * * /path/to/fronted_v0/scripts/cron/run-all-cleanup.sh >> /var/log/cleanup.log 2>&1
+*/5 * * * * /path/to/fronted-system/scripts/cron/billing-sync-retry.sh >> /var/log/billing-sync-retry.log 2>&1
+0 2 * * * /path/to/fronted-system/scripts/cron/billing-reconciliation.sh >> /var/log/billing-reconciliation.log 2>&1
+*/15 * * * * /path/to/fronted-system/scripts/cron/billing-sync-stats.sh >> /var/log/billing-sync-stats.log 2>&1
+0 3 * * * /path/to/fronted-system/scripts/cron/run-all-cleanup.sh >> /var/log/cleanup.log 2>&1
 ```
 
 ### 5. Or Use Cloud Scheduler (GCP)

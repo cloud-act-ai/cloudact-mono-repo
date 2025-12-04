@@ -54,10 +54,10 @@ Port 3000                    Frontend-facing API             ETL Execution + Int
 | Component | Documentation | Description |
 |-----------|---------------|-------------|
 | **Architecture** | `ARCHITECTURE.md` | Complete system architecture, customer lifecycle, data flow |
-| **API Service** | `cloudact-backend-systems/cloudact-api-service/CLAUDE.md` | Frontend-facing API: bootstrap, onboarding, integrations |
-| **Pipeline Engine** | `cloudact-backend-systems/convergence-data-pipeline/CLAUDE.md` | Pipeline architecture, processors, configs, scheduled ETL |
-| **Frontend** | `fronted_v0/CLAUDE.md` | Next.js frontend, Supabase, Stripe, backend integration |
-| **Security** | `cloudact-backend-systems/convergence-data-pipeline/SECURITY.md` | Production security requirements, API key handling |
+| **API Service** | `api-service/CLAUDE.md` | Frontend-facing API: bootstrap, onboarding, integrations |
+| **Pipeline Engine** | `data-pipeline-service/CLAUDE.md` | Pipeline architecture, processors, configs, scheduled ETL |
+| **Frontend** | `fronted-system/CLAUDE.md` | Next.js frontend, Supabase, Stripe, backend integration |
+| **Security** | `data-pipeline-service/SECURITY.md` | Production security requirements, API key handling |
 
 ## Backend Services Split
 
@@ -96,9 +96,9 @@ API Request → configs/ → Processor → BigQuery API
 ```
 
 ### Key Paths
-- **Bootstrap Schemas**: `cloudact-backend-systems/cloudact-api-service/configs/setup/bootstrap/schemas/*.json` (14 tables)
-- **Pipeline Configs**: `cloudact-backend-systems/convergence-data-pipeline/configs/{provider}/{domain}/*.yml`
-- **Processors**: `cloudact-backend-systems/convergence-data-pipeline/src/core/processors/{provider}/{domain}.py`
+- **Bootstrap Schemas**: `api-service/configs/setup/bootstrap/schemas/*.json` (14 tables)
+- **Pipeline Configs**: `data-pipeline-service/configs/{provider}/{domain}/*.yml`
+- **Processors**: `data-pipeline-service/src/core/processors/{provider}/{domain}.py`
 
 ## API Key Hierarchy
 
@@ -162,7 +162,7 @@ See `ARCHITECTURE.md` for complete customer journey (signup → onboarding → i
 
 ### Pipeline Configuration
 
-**Source of Truth:** `convergence-data-pipeline/configs/`
+**Source of Truth:** `data-pipeline-service/configs/`
 
 Pipeline URL structure: `/api/v1/pipelines/run/{org_slug}/{provider}/{domain}/{pipeline}`
 
@@ -191,15 +191,15 @@ WHERE org_slug = 'your_org_slug' AND is_active = true"
 
 | What | Path |
 |------|------|
-| **Pipeline configs** | `convergence-data-pipeline/configs/{provider}/{domain}/*.yml` |
-| **Provider registry** | `convergence-data-pipeline/configs/system/providers.yml` |
-| **API Service routers** | `cloudact-api-service/src/app/routers/*.py` |
-| **Pipeline Engine routers** | `convergence-data-pipeline/src/app/routers/*.py` |
-| **Frontend pipeline actions** | `fronted_v0/actions/pipelines.ts` |
-| **Frontend backend client** | `fronted_v0/lib/api/backend.ts` |
-| **Frontend env config** | `fronted_v0/.env.local` |
-| **GCP billing processor** | `convergence-data-pipeline/src/core/processors/gcp/external_bq_extractor.py` |
-| **Bootstrap schemas** | `cloudact-api-service/configs/setup/bootstrap/schemas/*.json` |
+| **Pipeline configs** | `data-pipeline-service/configs/{provider}/{domain}/*.yml` |
+| **Provider registry** | `data-pipeline-service/configs/system/providers.yml` |
+| **API Service routers** | `api-service/src/app/routers/*.py` |
+| **Pipeline Engine routers** | `data-pipeline-service/src/app/routers/*.py` |
+| **Frontend pipeline actions** | `fronted-system/actions/pipelines.ts` |
+| **Frontend backend client** | `fronted-system/lib/api/backend.ts` |
+| **Frontend env config** | `fronted-system/.env.local` |
+| **GCP billing processor** | `data-pipeline-service/src/core/processors/gcp/external_bq_extractor.py` |
+| **Bootstrap schemas** | `api-service/configs/setup/bootstrap/schemas/*.json` |
 
 ### Test Pipeline Execution (curl)
 
@@ -218,7 +218,7 @@ curl -s http://localhost:8000/api/v1/validator/pipelines | python3 -m json.tool
 
 ```bash
 # API Service (port 8000)
-cd cloudact-backend-systems/cloudact-api-service
+cd api-service
 export GOOGLE_APPLICATION_CREDENTIALS="~/.gcp/your-sa.json"
 export GCP_PROJECT_ID="gac-prod-471220"
 export CA_ROOT_API_KEY="test-ca-root-key-dev"
@@ -227,12 +227,12 @@ export DISABLE_AUTH="false"
 python3 -m uvicorn src.app.main:app --host 0.0.0.0 --port 8000
 
 # Pipeline Engine (port 8001)
-cd cloudact-backend-systems/convergence-data-pipeline
+cd data-pipeline-service
 # Same env vars as above
 python3 -m uvicorn src.app.main:app --host 0.0.0.0 --port 8001
 
 # Frontend (port 3000)
-cd fronted_v0
+cd fronted-system
 npm run dev
 ```
 

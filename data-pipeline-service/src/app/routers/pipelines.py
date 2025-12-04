@@ -37,7 +37,7 @@ async def validate_pipeline_with_api_service(
     include_credentials: bool = False
 ) -> dict:
     """
-    Call cloudact-api-service to validate pipeline execution.
+    Call api-service to validate pipeline execution.
 
     This validates:
     - API key is valid
@@ -445,7 +445,7 @@ async def trigger_templated_pipeline(
     # ============================================
     # VALIDATE WITH API-SERVICE (Centralized Validation)
     # ============================================
-    # Call cloudact-api-service to validate:
+    # Call api-service to validate:
     # - Subscription is active
     # - Quota limits not exceeded
     # - Required integration is configured

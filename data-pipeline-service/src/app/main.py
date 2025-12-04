@@ -256,7 +256,7 @@ api_description = """
 
 **Pure Pipeline Execution Engine** - Handles ETL jobs, usage data processing, and scheduled pipelines.
 
-**Note**: Bootstrap, onboarding, and organization management are handled by `cloudact-api-service` (port 8000).
+**Note**: Bootstrap, onboarding, and organization management are handled by `api-service` (port 8000).
 
 ### Key Features
 
@@ -272,10 +272,10 @@ api_description = """
 
 **Organization API Key** (`X-API-Key` header)
 - Organization-specific operations (run pipelines, view runs, manage integrations)
-- Generated during organization onboarding via cloudact-api-service
+- Generated during organization onboarding via api-service
 - Format: `{org_slug}_api_{random_16_chars}`
 
-**Note**: Root API Key operations (bootstrap, onboarding) are handled by cloudact-api-service (port 8000).
+**Note**: Root API Key operations (bootstrap, onboarding) are handled by api-service (port 8000).
 
 ### Architecture
 
@@ -288,8 +288,8 @@ API Request → configs/ → Processor → BigQuery API
 
 ### Service Separation
 
-* **cloudact-api-service (port 8000)**: Bootstrap, onboarding, organizations, user management
-* **convergence-data-pipeline (port 8001)**: Pipeline execution, ETL jobs, integrations, scheduled runs
+* **api-service (port 8000)**: Bootstrap, onboarding, organizations, user management
+* **data-pipeline-service (port 8001)**: Pipeline execution, ETL jobs, integrations, scheduled runs
 
 ### Deployment Environments
 
@@ -298,7 +298,7 @@ API Request → configs/ → Processor → BigQuery API
 """
 
 # API tags metadata
-# NOTE: Admin and Organizations tags removed - handled by cloudact-api-service (port 8000)
+# NOTE: Admin and Organizations tags removed - handled by api-service (port 8000)
 tags_metadata = [
     {
         "name": "Health",
@@ -685,7 +685,7 @@ from src.app.routers import pipelines, scheduler
 
 app.include_router(pipelines.router, prefix="/api/v1", tags=["Pipelines"])
 app.include_router(scheduler.router, prefix="/api/v1", tags=["Scheduler"])
-# Note: Integration setup/validate and LLM Data CRUD endpoints are in cloudact-api-service (port 8000), not here
+# Note: Integration setup/validate and LLM Data CRUD endpoints are in api-service (port 8000), not here
 
 
 if __name__ == "__main__":

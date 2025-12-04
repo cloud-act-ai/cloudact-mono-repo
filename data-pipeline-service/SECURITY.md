@@ -2,9 +2,9 @@
 
 **Last Updated: 2025-11-30**
 
-This document describes the security measures in the Convergence Data Pipeline (port 8001).
+This document describes the security measures in the Data Pipeline Service (port 8001).
 
-**Note:** Bootstrap and onboarding are handled by `cloudact-api-service` (port 8000).
+**Note:** Bootstrap and onboarding are handled by `api-service` (port 8000).
 
 ---
 

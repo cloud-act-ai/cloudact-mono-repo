@@ -10,7 +10,7 @@ This document describes the CRUD API for managing LLM model pricing. These endpo
 Frontend / API Client
     │
     ▼
-cloudact-api-service (port 8000)
+api-service (port 8000)
     │
     ├── GET    /api/v1/integrations/{org}/{provider}/pricing
     ├── GET    /api/v1/integrations/{org}/{provider}/pricing/{model_id}
@@ -24,7 +24,7 @@ cloudact-api-service (port 8000)
 BigQuery: {org_slug}_prod.llm_model_pricing
 ```
 
-**Note:** Both seed data (onboarding) AND CRUD operations are handled by `cloudact-api-service` (port 8000). The `convergence-data-pipeline` (port 8001) only uses these tables for future cost calculations.
+**Note:** Both seed data (onboarding) AND CRUD operations are handled by `api-service` (port 8000). The `data-pipeline-service` (port 8001) only uses these tables for future cost calculations.
 
 ---
 
@@ -521,5 +521,5 @@ class DiscountReasonEnum(str, Enum):
 
 - **Pricing Seed Data**: See `LLM_PRICING_SEED.md`
 - **Subscription CRUD**: See `LLM_SUBSCRIPTION_CRUD.md`
-- **Frontend Config**: See `fronted_v0/docs/LLM_PRICING_CONFIG.md`
+- **Frontend Config**: See `fronted-system/docs/LLM_PRICING_CONFIG.md`
 - **API Service Architecture**: See `CLAUDE.md`

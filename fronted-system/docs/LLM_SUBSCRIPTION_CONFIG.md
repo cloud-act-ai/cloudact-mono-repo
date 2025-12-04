@@ -14,7 +14,7 @@ Frontend (Next.js)
     └── /settings/integrations/{provider}/usage       → Usage vs limits
     │
     ▼
-Backend API (cloudact-api-service:8000)
+Backend API (api-service:8000)
     │
     ├── GET/POST/PUT/DELETE .../pricing
     └── GET/POST/PUT/DELETE .../subscriptions
@@ -24,7 +24,7 @@ BigQuery: {org_slug}_prod.llm_model_pricing
 BigQuery: {org_slug}_prod.llm_subscriptions
 ```
 
-**Note:** All CRUD operations go through `cloudact-api-service` (port 8000). The `convergence-data-pipeline` (port 8001) only reads these tables for future cost calculations.
+**Note:** All CRUD operations go through `api-service` (port 8000). The `data-pipeline-service` (port 8001) only reads these tables for future cost calculations.
 
 ---
 

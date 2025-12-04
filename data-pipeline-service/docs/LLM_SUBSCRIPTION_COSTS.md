@@ -11,7 +11,7 @@ This document will describe how the pipeline calculates subscription costs using
 ## Architecture
 
 ```
-convergence-data-pipeline (port 8001)
+data-pipeline-service (port 8001)
     │
     ├── Reads from: {org_slug}_prod.llm_subscriptions
     ├── Reads from: {org_slug}_prod.llm_model_pricing
@@ -19,7 +19,7 @@ convergence-data-pipeline (port 8001)
     └── Calculates: Subscription costs based on usage vs limits
 ```
 
-**Note:** Subscription and pricing data is managed via CRUD APIs in `cloudact-api-service` (port 8000). This pipeline only READS from those tables for cost calculations.
+**Note:** Subscription and pricing data is managed via CRUD APIs in `api-service` (port 8000). This pipeline only READS from those tables for cost calculations.
 
 ---
 
@@ -35,6 +35,6 @@ convergence-data-pipeline (port 8001)
 
 ## Related Documentation
 
-- **Subscription CRUD**: See `cloudact-api-service/docs/LLM_SUBSCRIPTION_CRUD.md`
-- **Subscription Seed Data**: See `cloudact-api-service/docs/LLM_SUBSCRIPTION_SEED.md`
+- **Subscription CRUD**: See `api-service/docs/LLM_SUBSCRIPTION_CRUD.md`
+- **Subscription Seed Data**: See `api-service/docs/LLM_SUBSCRIPTION_SEED.md`
 - **Pipeline Architecture**: See `CLAUDE.md`

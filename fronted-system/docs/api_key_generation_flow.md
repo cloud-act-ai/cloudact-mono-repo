@@ -2,7 +2,7 @@
 
 Complete guide to API key generation in CloudAct.ai platform.
 
-> **Prerequisites:** See `fronted_v0/CLAUDE.md` for the complete onboarding flow (signup → organization creation → backend setup).
+> **Prerequisites:** See `fronted-system/CLAUDE.md` for the complete onboarding flow (signup → organization creation → backend setup).
 
 ---
 
@@ -342,7 +342,7 @@ ORDER BY created_at DESC
 
 **Decrypt key (backend admin only):**
 ```bash
-cd cloudact-backend-systems/convergence-data-pipeline
+cd data-pipeline-service
 python get_api_key.py acmecorp
 ```
 
@@ -352,7 +352,7 @@ python get_api_key.py acmecorp
 
 - [Integration Setup Flow](./integration_setup_flow.md) - How to setup LLM and cloud provider integrations
 - [Pipeline Execution Flow](./pipeline_execution_flow.md) - How to run data pipelines
-- [Backend CLAUDE.md](../../cloudact-backend-systems/convergence-data-pipeline/CLAUDE.md) - Backend architecture and setup
+- [Backend CLAUDE.md](../../data-pipeline-service/CLAUDE.md) - Backend architecture and setup
 
 ---
 

@@ -1,8 +1,8 @@
-# Convergence Data Pipeline
+# Data Pipeline Service
 
 Pipeline execution engine for ETL jobs. Port 8001.
 
-**Bootstrap/Onboarding:** Use `cloudact-api-service` (port 8000) - NOT this service.
+**Bootstrap/Onboarding:** Use `api-service` (port 8000) - NOT this service.
 
 ---
 
@@ -15,9 +15,9 @@ Pipeline execution engine for ETL jobs. Port 8001.
 
 ## What This Service Does NOT Do
 
-- Bootstrap (use cloudact-api-service)
-- Organization onboarding (use cloudact-api-service)
-- Integration setup (use cloudact-api-service)
+- Bootstrap (use api-service)
+- Organization onboarding (use api-service)
+- Integration setup (use api-service)
 
 ---
 
@@ -25,7 +25,7 @@ Pipeline execution engine for ETL jobs. Port 8001.
 
 ### Prerequisites
 
-Organization must be onboarded via `cloudact-api-service` first.
+Organization must be onboarded via `api-service` first.
 
 ### Environment Variables
 
@@ -39,7 +39,7 @@ export KMS_KEY_NAME="projects/{project}/locations/{loc}/keyRings/{ring}/cryptoKe
 ### Start Server
 
 ```bash
-cd convergence-data-pipeline
+cd data-pipeline-service
 pip install -r requirements.txt
 python3 -m uvicorn src.app.main:app --host 0.0.0.0 --port 8001
 ```
@@ -100,7 +100,7 @@ Pipeline execution validates:
 ## Project Structure
 
 ```
-convergence-data-pipeline/
+data-pipeline-service/
 ├── src/app/
 │   ├── main.py
 │   ├── config.py
@@ -125,4 +125,4 @@ convergence-data-pipeline/
 ## See Also
 
 - **CLAUDE.md** - Detailed architecture and processor documentation
-- **cloudact-api-service** - Bootstrap, onboarding, integration setup (port 8000)
+- **api-service** - Bootstrap, onboarding, integration setup (port 8000)

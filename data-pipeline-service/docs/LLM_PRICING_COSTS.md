@@ -11,7 +11,7 @@ This document will describe how the pipeline calculates token costs using BigQue
 ## Architecture
 
 ```
-convergence-data-pipeline (port 8001)
+data-pipeline-service (port 8001)
     │
     ├── Reads from: {org_slug}_prod.llm_model_pricing
     ├── Reads from: {org_slug}_prod.{provider}_usage_daily_raw
@@ -19,7 +19,7 @@ convergence-data-pipeline (port 8001)
     └── Calculates: Token costs with free tier & discount logic
 ```
 
-**Note:** Pricing data is managed via CRUD APIs in `cloudact-api-service` (port 8000). This pipeline only READS from those tables for cost calculations.
+**Note:** Pricing data is managed via CRUD APIs in `api-service` (port 8000). This pipeline only READS from those tables for cost calculations.
 
 ---
 
@@ -49,6 +49,6 @@ cost = (billable_input / 1000 * input_price_per_1k) +
 
 ## Related Documentation
 
-- **Pricing CRUD**: See `cloudact-api-service/docs/LLM_PRICING_CRUD.md`
-- **Pricing Seed Data**: See `cloudact-api-service/docs/LLM_PRICING_SEED.md`
+- **Pricing CRUD**: See `api-service/docs/LLM_PRICING_CRUD.md`
+- **Pricing Seed Data**: See `api-service/docs/LLM_PRICING_SEED.md`
 - **Pipeline Architecture**: See `CLAUDE.md`

@@ -321,7 +321,7 @@ Write to: acme_prod.*           Write to: guru_prod.*
 
 ## Security Principles
 
-**Full security documentation:** See `cloudact-backend-systems/convergence-data-pipeline/SECURITY.md`
+**Full security documentation:** See `data-pipeline-service/SECURITY.md`
 
 ### Core Security Measures
 
@@ -457,7 +457,7 @@ CREATE TABLE saas_subscriptions (
 ```bash
 # Terminal 1: Start cloudact-api-service (Port 8000)
 # Handles: bootstrap, onboarding, integrations, LLM data CRUD
-cd cloudact-backend-systems/cloudact-api-service
+cd api-service
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
@@ -479,7 +479,7 @@ curl http://localhost:8000/health
 ```bash
 # Terminal 2: Start convergence-data-pipeline (Port 8001)
 # Handles: scheduled ETL, usage processing, pipeline execution
-cd cloudact-backend-systems/convergence-data-pipeline
+cd data-pipeline-service
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
@@ -502,7 +502,7 @@ curl http://localhost:8001/health
 
 ```bash
 # Terminal 3: Start frontend
-cd fronted_v0
+cd fronted-system
 npm install
 
 # Configure .env.local
@@ -535,11 +535,11 @@ curl -X POST http://localhost:8000/api/v1/admin/bootstrap \
 
 # Run Supabase migrations
 # In Supabase SQL Editor, run migrations in order from:
-# fronted_v0/scripts/supabase_db/*.sql
-# See fronted_v0/scripts/supabase_db/README.md for details
+# fronted-system/scripts/supabase_db/*.sql
+# See fronted-system/scripts/supabase_db/README.md for details
 
 # Configure Stripe products
-cd fronted_v0
+cd fronted-system
 python scripts/stripe/update_product_metadata.py
 ```
 
@@ -568,13 +568,13 @@ curl -X POST http://localhost:8001/api/v1/pipelines/run/{org}/gcp/cost/billing \
 
 ### Component Documentation
 
-| Component             | Documentation                                                    | Description                                              |
-| --------------------- | ---------------------------------------------------------------- | -------------------------------------------------------- |
-| **API Service**       | `cloudact-backend-systems/cloudact-api-service/CLAUDE.md`        | Bootstrap, onboarding, integrations, LLM data CRUD       |
-| **Pipeline Service**  | `cloudact-backend-systems/convergence-data-pipeline/CLAUDE.md`   | Pipeline execution, processors, ETL jobs                 |
-| **Pipeline Security** | `cloudact-backend-systems/convergence-data-pipeline/SECURITY.md` | Security requirements, credential handling               |
-| **Frontend**          | `fronted_v0/CLAUDE.md`                                           | Next.js setup, auth flow, billing, backend integration   |
-| **Billing**           | `fronted_v0/docs/BILLING.md`                                     | Stripe integration, subscription flows, webhook handling |
+| Component             | Documentation                                | Description                                              |
+| --------------------- | -------------------------------------------- | -------------------------------------------------------- |
+| **API Service**       | `api-service/CLAUDE.md`                      | Bootstrap, onboarding, integrations, LLM data CRUD       |
+| **Pipeline Service**  | `data-pipeline-service/CLAUDE.md`            | Pipeline execution, processors, ETL jobs                 |
+| **Pipeline Security** | `data-pipeline-service/SECURITY.md`          | Security requirements, credential handling               |
+| **Frontend**          | `fronted-system/CLAUDE.md`                   | Next.js setup, auth flow, billing, backend integration   |
+| **Billing**           | `fronted-system/docs/BILLING.md`             | Stripe integration, subscription flows, webhook handling |
 
 ### API Endpoint Reference
 
@@ -655,7 +655,7 @@ See backend CLAUDE.md for naming conventions:
 **Backend:**
 
 ```bash
-cd cloudact-backend-systems
+cd api-service
 ./simple_deploy.sh stage|prod  # Deploys to Cloud Run
 ./simple_test.sh stage|prod    # Runs health checks
 ```
@@ -663,7 +663,7 @@ cd cloudact-backend-systems
 **Frontend:**
 
 ```bash
-cd fronted_v0
+cd fronted-system
 git push origin main  # Auto-deploys via Vercel
 ```
 
@@ -727,7 +727,7 @@ stripe listen --forward-to localhost:3000/api/webhooks/stripe
 
 1. **For new developers:** Read backend and frontend CLAUDE.md files
 2. **For backend work:** Review backend CLAUDE.md for production requirements and security
-3. **For billing/subscriptions:** Read fronted_v0/docs/BILLING.md
+3. **For billing/subscriptions:** Read fronted-system/docs/BILLING.md
 4. **For integrations:** See backend CLAUDE.md for integration endpoints
 5. **For deployment:** Follow deployment scripts in respective directories
 

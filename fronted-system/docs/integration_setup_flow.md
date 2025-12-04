@@ -2,7 +2,7 @@
 
 Complete guide to setting up LLM and cloud provider integrations in CloudAct.ai.
 
-> **Prerequisites:** See `fronted_v0/CLAUDE.md` for the complete onboarding flow. Organization must be onboarded and have an API key before setting up integrations.
+> **Prerequisites:** See `fronted-system/CLAUDE.md` for the complete onboarding flow. Organization must be onboarded and have an API key before setting up integrations.
 
 ---
 
@@ -462,7 +462,7 @@ curl -X GET http://localhost:8000/api/v1/integrations/acmecorp \
 
 - [API Key Generation Flow](./api_key_generation_flow.md) - How to generate org API keys
 - [Pipeline Execution Flow](./pipeline_execution_flow.md) - How to run pipelines with integrations
-- [Backend CLAUDE.md](../../cloudact-backend-systems/convergence-data-pipeline/CLAUDE.md) - Backend architecture
+- [Backend CLAUDE.md](../../data-pipeline-service/CLAUDE.md) - Backend architecture
 
 ---
 
