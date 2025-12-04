@@ -1,6 +1,6 @@
 # SaaS Subscription Costs
 
-**Status**: IMPLEMENTED | **Updated**: 2025-12-04 | **Single Source of Truth**
+**Status**: IMPLEMENTED (v9.0) | **Updated**: 2025-12-04 | **Single Source of Truth**
 
 > Track fixed-cost SaaS subscriptions (Canva, ChatGPT Plus, Slack, etc.)
 > NOT CloudAct platform billing (that's Stripe)
@@ -15,14 +15,14 @@
 | Placeholder | Meaning | Example |
 |-------------|---------|---------|
 | `{org_slug}` | Organization identifier (3-50 chars, alphanumeric + underscore) | `acme_corp`, `my_startup` |
-| `{environment}` | Environment suffix: `local`, `stage`, `prod` | `prod` |
-| `{org_slug}_{environment}` | Full BigQuery dataset name | `acme_corp_prod`, `my_startup_stage` |
+| `{env}` | Environment suffix: `local`, `stage`, `prod` | `prod` |
+| `{org_slug}_{env}` | Full BigQuery dataset name | `acme_corp_prod`, `my_startup_stage` |
 | `{provider}` | SaaS provider key (lowercase, underscores) | `canva`, `chatgpt_plus`, `claude_pro` |
 | `{plan_name}` | Plan tier identifier (uppercase) | `FREE`, `PRO`, `TEAM`, `ENTERPRISE` |
 
 **BigQuery Dataset Naming:**
 ```
-Format: {org_slug}_{environment}
+Format: {org_slug}_{env}
 Examples:
   - acme_corp_local   (development)
   - acme_corp_stage   (staging)
@@ -67,9 +67,6 @@ Examples:
 - **BigQuery** stores ALL subscription plan data (seeded + custom plans)
 - ALL plan operations go through **API Service** (port 8000)
 - Org API key (from `user.user_metadata.org_api_keys[orgSlug]`) required for API calls
-
-**IMPORTANT:** The old `saas_subscriptions` table in Supabase has been **DEPRECATED and DROPPED**.
-See migration: `15_drop_saas_subscriptions_table.sql`
 
 ---
 
@@ -121,7 +118,7 @@ See migration: `15_drop_saas_subscriptions_table.sql`
 │     └── API Service: POST /subscriptions/{org}/providers/{p}/enable        │
 │                                                                             │
 │  2. API Service (subscription_plans.py) seeds default plans:               │
-│     ├── Loads plans from configs/saas/seed/data/default_subscriptions.csv  │
+│     ├── Loads plans from configs/saas/seed/data/saas_subscription_plans.csv  │
 │     ├── Filters by provider                                                │
 │     └── INSERTs into {org_slug}_{env}.saas_subscription_plans              │
 │                                                                             │
@@ -143,7 +140,7 @@ See migration: `15_drop_saas_subscriptions_table.sql`
 **Key Points:**
 - Table exists immediately after onboarding (EMPTY)
 - Data is seeded PER PROVIDER when enabled
-- Seed data comes from `default_subscriptions.csv`
+- Seed data comes from `saas_subscription_plans.csv`
 - Custom plans are user-added via API
 - Disabling provider doesn't delete data (soft disable)
 
@@ -343,7 +340,7 @@ Authentication:
 
 ## CSV Seed Data Structure
 
-**File:** `api-service/configs/saas/seed/data/default_subscriptions.csv`
+**File:** `api-service/configs/saas/seed/data/saas_subscription_plans.csv`
 
 **Columns (14):**
 ```
@@ -402,40 +399,135 @@ provider,plan_name,display_name,unit_price_usd,yearly_price_usd,yearly_discount_
 - SELECT: All org members can view
 - INSERT/UPDATE/DELETE: Owner and Admin only
 
-### DEPRECATED: saas_subscriptions table
-
-**Migration:** `fronted-system/scripts/supabase_db/15_drop_saas_subscriptions_table.sql`
-
-The `saas_subscriptions` table in Supabase has been **DROPPED**. All subscription plan data now lives in BigQuery only.
-
----
-
 ## Frontend Implementation
 
 ### Server Actions
 
 **File:** `fronted-system/actions/subscription-providers.ts`
 
+#### Input Validation Functions
+
+All server actions include input validation to prevent injection attacks:
+
 ```typescript
-// ============================================
-// Supabase Meta Operations (provider enable/disable)
-// ============================================
+// Organization slug validation
+const isValidOrgSlug = (slug: string): boolean => {
+  return /^[a-zA-Z0-9_]{3,50}$/.test(slug)
+}
+
+// Provider name validation (2-50 chars, alphanumeric + underscore, no leading/trailing underscore)
+const isValidProviderName = (provider: string): boolean => {
+  if (!provider || typeof provider !== "string") return false
+  const normalized = provider.toLowerCase().trim()
+  return /^[a-z0-9][a-z0-9_]{0,48}[a-z0-9]$/.test(normalized) || /^[a-z0-9]{2}$/.test(normalized)
+}
+
+// Provider name sanitization
+const sanitizeProviderName = (provider: string): string => {
+  return provider
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9_]/g, "_")  // Replace invalid chars with underscore
+    .replace(/^_+|_+$/g, "")       // Remove leading/trailing underscores
+    .replace(/_+/g, "_")           // Collapse multiple underscores
+    .slice(0, 50)                  // Limit length
+}
+```
+
+#### Supabase Meta Operations
+
+```typescript
 listEnabledProviders(orgSlug)        // Get enabled providers from meta
 getProviderMeta(orgSlug, provider)   // Get single provider meta
-enableProvider(orgSlug, provider)    // Enable + trigger API seed
-disableProvider(orgSlug, provider)   // Disable provider
+enableProvider(orgSlug, provider)    // Enable + trigger API seed (validates provider name)
+disableProvider(orgSlug, provider)   // Disable provider (validates provider name)
 getAllProviders(orgSlug)             // Get all 28 providers with status
+```
 
-// ============================================
-// API Service Operations (BigQuery plans)
-// ============================================
-getProviderPlans(orgSlug, provider)          // Get plans for one provider
+#### API Service Operations (BigQuery Plans)
+
+```typescript
+getProviderPlans(orgSlug, provider)          // Get plans for one provider (validates provider name)
 getAllPlansForCostDashboard(orgSlug)         // Get all plans across providers
-createCustomPlan(orgSlug, provider, plan)    // Add custom plan to BigQuery
-updatePlan(orgSlug, provider, planId, updates)
+createCustomPlan(orgSlug, provider, plan)    // Add custom plan to BigQuery (validates provider name)
+updatePlan(orgSlug, provider, planId, updates) // Validates provider name + subscription ID
 togglePlan(orgSlug, provider, planId, enabled)
-deletePlan(orgSlug, provider, planId)        // Delete custom plan only
-resetProvider(orgSlug, provider)             // Re-seed from CSV
+deletePlan(orgSlug, provider, planId)        // Validates provider name + subscription ID
+resetProvider(orgSlug, provider)             // Re-seed from CSV (validates provider name)
+```
+
+#### TypeScript Interfaces
+
+```typescript
+export interface ProviderMeta {
+  id: string
+  org_id: string
+  provider_name: string
+  is_enabled: boolean
+  enabled_at: string
+  created_at: string
+  updated_at: string
+}
+
+export interface ProviderInfo {
+  provider: string
+  display_name: string
+  category: string
+  is_enabled: boolean
+  plan_count: number
+}
+
+export interface SubscriptionPlan {
+  subscription_id: string
+  provider: string
+  plan_name: string
+  display_name?: string
+  is_custom: boolean
+  quantity: number
+  unit_price_usd: number
+  effective_date?: string
+  end_date?: string
+  is_enabled: boolean
+  billing_period: string
+  category: string
+  notes?: string
+  daily_limit?: number
+  monthly_limit?: number
+  storage_limit_gb?: number
+  yearly_price_usd?: number
+  yearly_discount_pct?: number
+  seats: number
+  created_at?: string
+  updated_at?: string
+}
+
+export interface PlanCreate {
+  plan_name: string
+  display_name?: string
+  quantity?: number
+  unit_price_usd: number
+  billing_period?: string
+  notes?: string
+  daily_limit?: number
+  monthly_limit?: number
+  yearly_price_usd?: number
+  yearly_discount_pct?: number
+  seats?: number
+}
+
+export interface PlanUpdate {
+  display_name?: string
+  quantity?: number
+  unit_price_usd?: number
+  is_enabled?: boolean
+  billing_period?: string
+  notes?: string
+  daily_limit?: number
+  monthly_limit?: number
+  yearly_price_usd?: number
+  yearly_discount_pct?: number
+  seats?: number
+}
 ```
 
 **DELETED:** `fronted-system/actions/saas-subscriptions.ts`
@@ -460,6 +552,85 @@ resetProvider(orgSlug, provider)             // Re-seed from CSV
 | Custom Badge | Purple "Custom" badge for user-added plans |
 | Add Custom Subscription | Button in header + footer section |
 | Delete Custom Plans | Only custom plans can be deleted (seeded plans protected) |
+| Form Reset on Close | Dialog form resets when closed (prevents stale data) |
+| Error Handling | Try-catch with user-friendly error messages |
+| Input Validation | Prevents negative costs, ensures seats >= 1 |
+
+**Error Handling Pattern (Provider Detail Page):**
+```typescript
+const handleAdd = async () => {
+  // Validate inputs
+  if (newPlan.unit_price_usd < 0) {
+    setError("Price cannot be negative")
+    return
+  }
+  if ((newPlan.seats ?? 1) < 1) {
+    setError("Seats must be at least 1")
+    return
+  }
+
+  setAdding(true)
+  setError(null)
+
+  try {
+    const result = await createCustomPlan(orgSlug, provider, { ... })
+    if (!result.success) {
+      setError(result.error || "Failed to create plan")
+      return
+    }
+    setShowAddDialog(false)
+    resetNewPlanForm()  // Reset form after success
+    await loadPlans()
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred"
+    setError(errorMessage)
+  } finally {
+    setAdding(false)
+  }
+}
+```
+
+### Manage Subscriptions Page Features
+
+| Feature | Description |
+|---------|-------------|
+| Provider Grid | Card grid of all 28 providers with enable/disable toggle |
+| Category Icons | Visual icons for each category (AI, Design, etc.) |
+| Plan Count Badge | Shows number of plans for enabled providers |
+| Add Custom Provider | Dialog to add completely custom providers |
+| Rollback on Failure | If plan creation fails, provider is disabled (rollback) |
+| Form Reset on Close | Custom provider form resets when dialog closes |
+| Success Messages | Auto-dismiss success messages after 5 seconds |
+| Show More/Less | Pagination with "Show N more providers" / "Show less" |
+
+**Rollback Pattern (Custom Provider):**
+```typescript
+const handleAddCustomProvider = async () => {
+  try {
+    // 1. Enable provider in Supabase
+    const enableResult = await enableProvider(orgSlug, providerId)
+    if (!enableResult.success) {
+      setError(enableResult.error || "Failed to enable custom provider")
+      return
+    }
+
+    // 2. Create plan in BigQuery
+    const planResult = await createCustomPlan(orgSlug, providerId, { ... })
+    if (!planResult.success) {
+      // ROLLBACK: Disable provider if plan creation fails
+      await disableProvider(orgSlug, providerId)
+      setError(planResult.error || "Failed to create custom plan")
+      return
+    }
+
+    // Success
+    resetCustomForm()
+    await loadSubscriptionProviders()
+  } catch (error) {
+    setError(error instanceof Error ? error.message : "An unexpected error occurred")
+  }
+}
+```
 
 ### Costs Dashboard Page Features
 
@@ -481,6 +652,10 @@ resetProvider(orgSlug, provider)             // Re-seed from CSV
 ```
 GET    /subscriptions/{org}/providers
        → List all 28 providers with enabled status
+
+GET    /subscriptions/{org}/all-plans
+       → Get ALL plans across ALL enabled providers (for Costs Dashboard)
+       → Returns: { plans: SubscriptionPlan[], summary: { total_monthly_cost, total_annual_cost, ... } }
 
 POST   /subscriptions/{org}/providers/{provider}/enable
        → Enable provider + seed default plans to BigQuery
@@ -517,15 +692,20 @@ POST   /subscriptions/{org}/providers/{provider}/reset
 
 | Component | Service | File |
 |-----------|---------|------|
-| Supabase saas_subscription_provider_meta table | Supabase | 14_saas_subscription_provider_meta.sql |
-| Drop saas_subscriptions table migration | Supabase | 15_drop_saas_subscriptions_table.sql |
+| Supabase saas_subscription_providers_meta table | Supabase | 14_saas_subscription_provider_meta.sql |
 | Provider server actions (unified) | Frontend | actions/subscription-providers.ts |
+| Input validation (provider name, subscription ID) | Frontend | actions/subscription-providers.ts |
+| Provider name sanitization | Frontend | actions/subscription-providers.ts |
 | Costs page (API service) | Frontend | app/[orgSlug]/subscriptions/page.tsx |
 | Provider detail page (API service) | Frontend | app/[orgSlug]/subscriptions/[provider]/page.tsx |
+| Provider detail page error handling | Frontend | app/[orgSlug]/subscriptions/[provider]/page.tsx |
+| Provider detail page form reset on close | Frontend | app/[orgSlug]/subscriptions/[provider]/page.tsx |
 | Manage Subscriptions page | Frontend | app/[orgSlug]/settings/integrations/subscriptions/page.tsx |
+| Manage page rollback on API failure | Frontend | app/[orgSlug]/settings/integrations/subscriptions/page.tsx |
+| Manage page form reset on dialog close | Frontend | app/[orgSlug]/settings/integrations/subscriptions/page.tsx |
 | Sidebar with Subscriptions menu | Frontend | components/dashboard-sidebar.tsx |
 | Subscription Plans router | API Service | src/app/routers/subscription_plans.py |
-| CSV seed data (14 cols, 70 plans) | API Service | configs/saas/seed/data/default_subscriptions.csv |
+| CSV seed data (14 cols, 70 plans) | API Service | configs/saas/seed/data/saas_subscription_plans.csv |
 
 ### REMOVED
 
@@ -588,7 +768,7 @@ If the organization hasn't completed backend onboarding (no API key in user meta
 |------|---------|
 | `fronted-system/tests/13-saas-subscription-providers.test.ts` | Frontend provider + plans tests |
 | `api-service/tests/test_05_saas_subscription_providers.py` | API endpoint tests |
-| `data-pipeline-service/tests/test_05_subscription_pipelines.py` | Pipeline tests (pending) |
+| `data-pipeline-service/tests/test_05_saas_subscription_pipelines.py` | Pipeline tests |
 
 ---
 
@@ -601,8 +781,6 @@ To complete the architecture migration:
 - [x] Update `subscriptions/[provider]/page.tsx` to use API service
 - [x] Update `settings/integrations/subscriptions/page.tsx` to use `createCustomPlan`
 - [x] Delete `actions/saas-subscriptions.ts`
-- [x] Create `15_drop_saas_subscriptions_table.sql` migration
-- [x] Run migration in Supabase to drop `saas_subscriptions` table (DONE 2025-12-04)
 
 ---
 
@@ -613,7 +791,6 @@ To complete the architecture migration:
 | File | Purpose |
 |------|---------|
 | `fronted-system/scripts/supabase_db/14_saas_subscription_provider_meta.sql` | Provider enable/disable meta table |
-| `fronted-system/scripts/supabase_db/15_drop_saas_subscriptions_table.sql` | Drop old Supabase plans table migration |
 
 ### Plan Files (BigQuery data)
 
@@ -621,7 +798,7 @@ To complete the architecture migration:
 |------|---------|
 | `api-service/src/app/routers/subscription_plans.py` | API endpoints for plan CRUD |
 | `api-service/configs/saas/seed/schemas/saas_subscription_plans.json` | BigQuery schema for plans table |
-| `api-service/configs/saas/seed/data/default_subscriptions.csv` | Seed data (14 cols, 70 plans) |
+| `api-service/configs/saas/seed/data/saas_subscription_plans.csv` | Seed data (14 cols, 70 plans) |
 
 ### Frontend Files
 
@@ -636,4 +813,4 @@ To complete the architecture migration:
 
 ---
 
-**Version**: 8.0 | **Policy**: Single source of truth - no duplicate docs
+**Version**: 9.0 | **Updated**: 2025-12-04 | **Policy**: Single source of truth - no duplicate docs

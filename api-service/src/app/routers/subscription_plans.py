@@ -245,7 +245,7 @@ def check_org_access(org: Dict, org_slug: str) -> None:
 
 def load_seed_data_for_provider(provider: str) -> List[Dict[str, Any]]:
     """Load seed data for a specific provider from CSV."""
-    seed_path = Path(__file__).parent.parent.parent.parent / "configs" / "saas" / "seed" / "data" / "default_subscriptions.csv"
+    seed_path = Path(__file__).parent.parent.parent.parent / "configs" / "saas" / "seed" / "data" / "saas_subscription_plans.csv"
 
     if not seed_path.exists():
         logger.warning(f"Seed data file not found: {seed_path}")
