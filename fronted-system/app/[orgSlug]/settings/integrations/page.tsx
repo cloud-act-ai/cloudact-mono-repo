@@ -306,7 +306,7 @@ export default function IntegrationsPage() {
   const [providersLoading, setProvidersLoading] = useState(false)
   const [togglingSubscriptionProvider, setTogglingSubscriptionProvider] = useState<string | null>(null)
   const [showAllProviders, setShowAllProviders] = useState(false)
-  const INITIAL_PROVIDERS_COUNT = 6
+  const INITIAL_PROVIDERS_COUNT = 20
 
   // Load integrations and check backend status
   const loadIntegrations = useCallback(async () => {
