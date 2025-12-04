@@ -1,0 +1,228 @@
+"use client"
+
+import { useState, useEffect } from "react"
+import { useParams } from "next/navigation"
+import Link from "next/link"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Button } from "@/components/ui/button"
+import { AlertTriangle, TrendingUp, Users, Plug, X } from "lucide-react"
+import { getQuotaUsage, type QuotaUsage } from "@/actions/quota"
+
+// Helper functions moved outside component to prevent re-creation on each render
+function getAlertVariant(level: string): "destructive" | undefined {
+  if (level === 'exceeded') return 'destructive'
+  return undefined
+}
+
+function getAlertStyles(level: string): string {
+  switch (level) {
+    case 'critical':
+      return 'border-orange-500 bg-orange-50 dark:bg-orange-950'
+    case 'warning':
+      return 'border-yellow-500 bg-yellow-50 dark:bg-yellow-950'
+    default:
+      return ''
+  }
+}
+
+function getTitleStyles(level: string): string {
+  switch (level) {
+    case 'critical':
+      return 'text-orange-800 dark:text-orange-200'
+    case 'warning':
+      return 'text-yellow-800 dark:text-yellow-200'
+    default:
+      return ''
+  }
+}
+
+function getDescStyles(level: string): string {
+  switch (level) {
+    case 'critical':
+      return 'text-orange-700 dark:text-orange-300'
+    case 'warning':
+      return 'text-yellow-700 dark:text-yellow-300'
+    default:
+      return ''
+  }
+}
+
+interface QuotaWarningBannerProps {
+  className?: string
+  showPipelineQuota?: boolean
+  showResourceQuota?: boolean
+}
+
+/**
+ * QuotaWarningBanner - Displays warnings when approaching quota limits
+ *
+ * Shows alerts at:
+ * - 80% usage (warning - yellow)
+ * - 90% usage (critical - orange)
+ * - 100% usage (exceeded - red)
+ */
+export function QuotaWarningBanner({
+  className = "",
+  showPipelineQuota = true,
+  showResourceQuota = true,
+}: QuotaWarningBannerProps) {
+  const params = useParams<{ orgSlug: string }>()
+  const orgSlug = params.orgSlug
+
+  const [quota, setQuota] = useState<QuotaUsage | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set())
+
+  useEffect(() => {
+    if (!orgSlug) return
+
+    const fetchQuota = async () => {
+      setIsLoading(true)
+      try {
+        const result = await getQuotaUsage(orgSlug)
+        if (result.success && result.data) {
+          setQuota(result.data)
+        }
+      } catch (err) {
+        console.error("Failed to fetch quota:", err)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchQuota()
+
+    // Refresh every 5 minutes
+    const interval = setInterval(fetchQuota, 5 * 60 * 1000)
+    return () => clearInterval(interval)
+  }, [orgSlug])
+
+  if (isLoading || !quota) {
+    return null
+  }
+
+  const warnings: Array<{
+    id: string
+    level: 'warning' | 'critical' | 'exceeded'
+    icon: typeof AlertTriangle
+    title: string
+    description: string
+    action?: { label: string; href: string }
+  }> = []
+
+  // Daily pipeline warning
+  if (showPipelineQuota && quota.dailyWarningLevel !== 'ok') {
+    warnings.push({
+      id: 'daily',
+      level: quota.dailyWarningLevel as any,
+      icon: TrendingUp,
+      title: quota.dailyWarningLevel === 'exceeded'
+        ? 'Daily Pipeline Limit Reached'
+        : 'Approaching Daily Pipeline Limit',
+      description: quota.dailyWarningLevel === 'exceeded'
+        ? `You've used all ${quota.dailyLimit} pipelines for today. Upgrade your plan for more.`
+        : `You've used ${quota.pipelinesRunToday} of ${quota.dailyLimit} daily pipelines (${quota.dailyUsagePercent}%).`,
+      action: { label: 'Upgrade Plan', href: `/${orgSlug}/billing` }
+    })
+  }
+
+  // Monthly pipeline warning
+  if (showPipelineQuota && quota.monthlyWarningLevel !== 'ok' && quota.monthlyWarningLevel !== quota.dailyWarningLevel) {
+    warnings.push({
+      id: 'monthly',
+      level: quota.monthlyWarningLevel as any,
+      icon: TrendingUp,
+      title: quota.monthlyWarningLevel === 'exceeded'
+        ? 'Monthly Pipeline Limit Reached'
+        : 'Approaching Monthly Pipeline Limit',
+      description: quota.monthlyWarningLevel === 'exceeded'
+        ? `You've used all ${quota.monthlyLimit} pipelines this month. Upgrade your plan for more.`
+        : `You've used ${quota.pipelinesRunMonth} of ${quota.monthlyLimit} monthly pipelines (${quota.monthlyUsagePercent}%).`,
+      action: { label: 'Upgrade Plan', href: `/${orgSlug}/billing` }
+    })
+  }
+
+  // Seat limit warning
+  if (showResourceQuota && quota.seatWarningLevel !== 'ok') {
+    warnings.push({
+      id: 'seats',
+      level: quota.seatWarningLevel as any,
+      icon: Users,
+      title: quota.seatWarningLevel === 'exceeded'
+        ? 'Team Member Limit Reached'
+        : 'Approaching Team Member Limit',
+      description: quota.seatWarningLevel === 'exceeded'
+        ? `You have ${quota.teamMembers} team members, which is your plan's limit.`
+        : `You have ${quota.teamMembers} of ${quota.seatLimit} team members (${quota.seatUsagePercent}%).`,
+      action: { label: 'Upgrade Plan', href: `/${orgSlug}/billing` }
+    })
+  }
+
+  // Provider limit warning
+  if (showResourceQuota && quota.providerWarningLevel !== 'ok') {
+    warnings.push({
+      id: 'providers',
+      level: quota.providerWarningLevel as any,
+      icon: Plug,
+      title: quota.providerWarningLevel === 'exceeded'
+        ? 'Integration Limit Reached'
+        : 'Approaching Integration Limit',
+      description: quota.providerWarningLevel === 'exceeded'
+        ? `You have ${quota.configuredProviders} integrations configured, which is your plan's limit.`
+        : `You have ${quota.configuredProviders} of ${quota.providersLimit} integrations (${quota.providerUsagePercent}%).`,
+      action: { label: 'Upgrade Plan', href: `/${orgSlug}/billing` }
+    })
+  }
+
+  // Filter out dismissed warnings
+  const activeWarnings = warnings.filter(w => !dismissed.has(w.id))
+
+  if (activeWarnings.length === 0) {
+    return null
+  }
+
+  return (
+    <div className={`space-y-2 ${className}`}>
+      {activeWarnings.map((warning) => {
+        const Icon = warning.icon
+        return (
+          <Alert
+            key={warning.id}
+            variant={getAlertVariant(warning.level)}
+            className={getAlertStyles(warning.level)}
+          >
+            <Icon className="h-4 w-4" />
+            <AlertTitle className={getTitleStyles(warning.level)}>
+              {warning.title}
+            </AlertTitle>
+            <AlertDescription className={getDescStyles(warning.level)}>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <span>{warning.description}</span>
+                <div className="flex items-center gap-2">
+                  {warning.action && (
+                    <Button
+                      asChild
+                      size="sm"
+                      variant={warning.level === 'exceeded' ? 'default' : 'outline'}
+                      className={warning.level === 'warning' ? 'border-yellow-600 text-yellow-800 hover:bg-yellow-100 dark:border-yellow-400 dark:text-yellow-200 dark:hover:bg-yellow-900' : ''}
+                    >
+                      <Link href={warning.action.href}>{warning.action.label}</Link>
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-auto p-1"
+                    onClick={() => setDismissed(prev => new Set([...prev, warning.id]))}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </AlertDescription>
+          </Alert>
+        )
+      })}
+    </div>
+  )
+}

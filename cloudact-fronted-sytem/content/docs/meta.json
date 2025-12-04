@@ -1,0 +1,13 @@
+{
+  "title": "User Guide",
+  "pages": [
+    "---Getting Started---",
+    "getting-started",
+    "---Your Account---",
+    "account",
+    "---Integrations---",
+    "integrations",
+    "---Billing---",
+    "billing"
+  ]
+}

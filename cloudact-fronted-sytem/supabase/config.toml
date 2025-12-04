@@ -1,0 +1,159 @@
+# =============================================
+# CLOUDACT.AI - Supabase Local Configuration
+# =============================================
+# This file configures Supabase for local development
+# Run: supabase start (requires Docker)
+# =============================================
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[api.tls]
+enabled = false
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[db.pooler]
+enabled = false
+port = 54329
+pool_mode = "transaction"
+default_pool_size = 20
+max_client_conn = 100
+
+[realtime]
+enabled = true
+
+[studio]
+enabled = true
+port = 54323
+api_url = "http://127.0.0.1"
+
+# =============================================
+# INBUCKET - Local Email Testing
+# =============================================
+# Emails are captured locally and viewable at:
+# http://127.0.0.1:54324
+# =============================================
+[inbucket]
+enabled = true
+port = 54324
+smtp_port = 54325
+pop3_port = 54326
+
+[storage]
+enabled = true
+file_size_limit = "50MiB"
+
+# =============================================
+# AUTHENTICATION SETTINGS
+# =============================================
+[auth]
+enabled = true
+site_url = "http://127.0.0.1:3000"
+additional_redirect_urls = [
+  "http://localhost:3000",
+  "http://127.0.0.1:3000",
+  "http://localhost:3000/auth/callback",
+  "http://localhost:3000/reset-password",
+  "http://localhost:3000/invite/*"
+]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+refresh_token_reuse_interval = 10
+enable_signup = true
+enable_anonymous_sign_ins = false
+minimum_password_length = 8
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = true
+secure_password_change = true
+max_frequency = "1s"
+otp_length = 6
+otp_expiry = 3600
+
+# =============================================
+# EMAIL TEMPLATES - Authentication
+# =============================================
+# These templates are used for authentication flows
+# Variables available:
+#   {{ .ConfirmationURL }} - Complete verification link
+#   {{ .Token }} - 6-digit OTP code
+#   {{ .TokenHash }} - Hashed token for custom links
+#   {{ .SiteURL }} - Your site URL
+#   {{ .Email }} - User's email address
+#   {{ .NewEmail }} - New email (for email_change)
+# =============================================
+
+[auth.email.template.confirmation]
+subject = "Confirm Your Email - CloudAct.AI"
+content_path = "./supabase/templates/confirmation.html"
+
+[auth.email.template.recovery]
+subject = "Reset Your Password - CloudAct.AI"
+content_path = "./supabase/templates/recovery.html"
+
+[auth.email.template.invite]
+subject = "You're Invited to CloudAct.AI"
+content_path = "./supabase/templates/invite.html"
+
+[auth.email.template.magic_link]
+subject = "Sign In to CloudAct.AI"
+content_path = "./supabase/templates/magic_link.html"
+
+[auth.email.template.email_change]
+subject = "Confirm Email Change - CloudAct.AI"
+content_path = "./supabase/templates/email_change.html"
+
+# =============================================
+# EMAIL TEMPLATES - Security Notifications
+# =============================================
+# These notify users when security-sensitive changes occur
+# =============================================
+
+[auth.email.notification.password_changed]
+enabled = true
+subject = "Your Password Has Been Changed - CloudAct.AI"
+content_path = "./supabase/templates/password_changed.html"
+
+# =============================================
+# EXTERNAL AUTH PROVIDERS (Optional)
+# =============================================
+# Uncomment and configure as needed
+
+# [auth.external.google]
+# enabled = true
+# client_id = "your-google-client-id"
+# secret = "env(GOOGLE_CLIENT_SECRET)"
+# redirect_uri = ""
+# skip_nonce_check = false
+
+# [auth.external.github]
+# enabled = true
+# client_id = "your-github-client-id"
+# secret = "env(GITHUB_CLIENT_SECRET)"
+# redirect_uri = ""
+
+# =============================================
+# EDGE FUNCTIONS
+# =============================================
+[edge_runtime]
+enabled = true
+policy = "oneshot"
+inspector_port = 8083
+
+# =============================================
+# ANALYTICS
+# =============================================
+[analytics]
+enabled = true
+port = 54327
+backend = "postgres"

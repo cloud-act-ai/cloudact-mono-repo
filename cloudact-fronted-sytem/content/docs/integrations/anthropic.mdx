@@ -1,0 +1,70 @@
+---
+title: Anthropic
+description: Connect your Anthropic account to track Claude usage and costs
+---
+
+Track your Claude API usage including Claude 3 Opus, Sonnet, and Haiku.
+
+## What You'll See
+
+- Daily and monthly costs
+- Usage by model (Opus, Sonnet, Haiku)
+- Input and output token counts
+
+## Setup Steps
+
+### Step 1: Get Your API Key from Anthropic
+
+1. Go to [console.anthropic.com/settings/keys](https://console.anthropic.com/settings/keys)
+2. Click **Create Key**
+3. Name it "CloudAct"
+4. **Copy the key immediately**
+
+<Callout type="warning">
+  Copy your API key before closing. Anthropic only shows it once.
+</Callout>
+
+### Step 2: Add to CloudAct
+
+1. In CloudAct, go to **Settings** → **Integrations**
+2. Click **Anthropic**
+3. Paste your API key
+4. Click **Validate & Save**
+
+### Step 3: Verify Connection
+
+After saving:
+- You'll see a **Connected** status
+- Data syncs daily
+- Check your dashboard the next day
+
+## Supported Models
+
+| Model | Tracked |
+|-------|---------|
+| Claude 3 Opus | Yes |
+| Claude 3.5 Sonnet | Yes |
+| Claude 3 Haiku | Yes |
+| Claude 2 | Yes |
+
+## Troubleshooting
+
+### "Invalid API key"
+
+- Make sure the key starts with `sk-ant-`
+- Check that the key is active in Anthropic console
+- Verify you have API access enabled
+
+### "No data showing"
+
+- Anthropic provides daily data only
+- Check back tomorrow after connecting
+- Ensure you have recent Claude API usage
+
+## Disconnect
+
+To remove the integration:
+
+1. Go to **Settings** → **Integrations** → **Anthropic**
+2. Click **Disconnect**
+3. Confirm the removal

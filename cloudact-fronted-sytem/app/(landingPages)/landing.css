@@ -1,0 +1,493 @@
+/* CloudAct Landing Page Styles - Teal & Coral Theme */
+/* Font: DM Sans (body) + Merriweather (headings) */
+
+/* CloudAct Brand Colors */
+:root {
+  --cloudact-teal: #007A78;
+  --cloudact-teal-light: #14B8A6;
+  --cloudact-teal-dark: #005F5D;
+  --cloudact-coral: #FF6E50;
+  --cloudact-coral-light: #FF8A73;
+  --cloudact-coral-dark: #E55A3C;
+  --cloudact-bg-teal: #F0FDFA;
+  --cloudact-bg-coral: #FFF5F3;
+}
+
+/* Typography - Landing Pages */
+.cloudact-heading-xl {
+  font-family: var(--font-merriweather), Georgia, serif;
+  font-size: clamp(2rem, 5vw, 4rem);
+  font-weight: 300;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: #111827;
+}
+
+.cloudact-heading-lg {
+  font-family: var(--font-merriweather), Georgia, serif;
+  font-size: clamp(1.5rem, 3vw, 2.625rem);
+  font-weight: 300;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: #111827;
+}
+
+.cloudact-heading-md {
+  font-family: var(--font-dm-sans), sans-serif;
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: #111827;
+}
+
+.cloudact-body {
+  font-family: var(--font-dm-sans), sans-serif;
+  font-size: 1rem;
+  font-weight: 400;
+  line-height: 1.6;
+  color: #4B5563;
+}
+
+.cloudact-body-sm {
+  font-family: var(--font-dm-sans), sans-serif;
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.5;
+  color: #6B7280;
+}
+
+/* CloudAct Buttons */
+.cloudact-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.625rem 1.5rem;
+  background: var(--cloudact-teal);
+  color: white;
+  border-radius: 0.375rem;
+  font-family: var(--font-dm-sans), sans-serif;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  border: none;
+  cursor: pointer;
+}
+
+.cloudact-btn-primary:hover {
+  background: var(--cloudact-teal-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 122, 120, 0.3);
+}
+
+.cloudact-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.625rem 1.5rem;
+  background: white;
+  color: var(--cloudact-teal);
+  border: 2px solid var(--cloudact-teal);
+  border-radius: 0.375rem;
+  font-family: var(--font-dm-sans), sans-serif;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+}
+
+.cloudact-btn-secondary:hover {
+  background: var(--cloudact-bg-teal);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 122, 120, 0.15);
+}
+
+/* CloudAct Cards */
+.cloudact-card {
+  background: white;
+  border-radius: 0.75rem;
+  border: 1px solid #E5E7EB;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.cloudact-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.cloudact-card-featured {
+  background: white;
+  border-radius: 0.75rem;
+  border: 2px solid var(--cloudact-teal);
+  box-shadow: 0 4px 16px rgba(0, 122, 120, 0.15);
+}
+
+/* CloudAct Feature Icon Box */
+.cloudact-icon-box {
+  width: 4rem;
+  height: 4rem;
+  background: var(--cloudact-bg-teal);
+  border-radius: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cloudact-icon-box svg {
+  width: 2rem;
+  height: 2rem;
+  color: var(--cloudact-teal);
+}
+
+.cloudact-icon-box-coral {
+  width: 4rem;
+  height: 4rem;
+  background: var(--cloudact-bg-coral);
+  border-radius: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cloudact-icon-box-coral svg {
+  width: 2rem;
+  height: 2rem;
+  color: var(--cloudact-coral);
+}
+
+/* CloudAct Badge */
+.cloudact-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.75rem;
+  background: var(--cloudact-bg-teal);
+  color: var(--cloudact-teal);
+  border-radius: 9999px;
+  font-family: var(--font-dm-sans), sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.cloudact-badge-coral {
+  background: var(--cloudact-bg-coral);
+  color: var(--cloudact-coral);
+}
+
+/* CloudAct Promo Banner */
+.cloudact-promo-banner {
+  background: linear-gradient(to right, var(--cloudact-coral), var(--cloudact-coral-light));
+  color: white;
+  padding: 0.625rem 1rem;
+  text-align: center;
+  font-family: var(--font-dm-sans), sans-serif;
+  font-size: 0.875rem;
+}
+
+/* CloudAct Stats Section */
+.cloudact-stats-section {
+  background: var(--cloudact-teal);
+  color: white;
+}
+
+.cloudact-stat-value {
+  font-family: var(--font-dm-sans), sans-serif;
+  font-size: clamp(2.5rem, 5vw, 3.75rem);
+  font-weight: 700;
+  color: var(--cloudact-coral);
+}
+
+/* CloudAct Link */
+.cloudact-link {
+  color: var(--cloudact-teal);
+  font-family: var(--font-dm-sans), sans-serif;
+  font-weight: 600;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.cloudact-link:hover {
+  color: var(--cloudact-teal-dark);
+  text-decoration: underline;
+}
+
+/* Text Colors */
+.text-cloudact-teal {
+  color: var(--cloudact-teal);
+}
+
+.text-cloudact-coral {
+  color: var(--cloudact-coral);
+}
+
+.bg-cloudact-teal {
+  background-color: var(--cloudact-teal);
+}
+
+.bg-cloudact-coral {
+  background-color: var(--cloudact-coral);
+}
+
+.bg-cloudact-teal-light {
+  background-color: var(--cloudact-bg-teal);
+}
+
+.bg-cloudact-coral-light {
+  background-color: var(--cloudact-bg-coral);
+}
+
+/* Tailwind-style utilities for CloudAct colors */
+.text-cloudact-teal\/30 {
+  color: rgba(0, 122, 120, 0.3);
+}
+
+.text-cloudact-coral\/30 {
+  color: rgba(255, 110, 80, 0.3);
+}
+
+.focus\:border-cloudact-teal:focus {
+  border-color: var(--cloudact-teal);
+}
+
+.focus\:ring-cloudact-teal\/20:focus {
+  --tw-ring-color: rgba(0, 122, 120, 0.2);
+}
+
+/* Modern Grid Backgrounds */
+.bg-grid-black\/5 {
+  background-image: linear-gradient(to right, rgb(0 0 0 / 0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(0 0 0 / 0.03) 1px, transparent 1px);
+  background-size: 4rem 4rem;
+}
+
+.bg-grid-white\/5 {
+  background-image: linear-gradient(to right, rgb(255 255 255 / 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(255 255 255 / 0.05) 1px, transparent 1px);
+  background-size: 4rem 4rem;
+}
+
+.bg-grid-small-black\/5 {
+  background-image: linear-gradient(to right, rgb(0 0 0 / 0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(0 0 0 / 0.03) 1px, transparent 1px);
+  background-size: 1rem 1rem;
+}
+
+/* Glass Card - CloudAct Style */
+.glass-card {
+  background-color: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(229, 231, 235, 0.6);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+}
+
+/* Text Gradient - Teal to Dark */
+.text-gradient {
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  background-image: linear-gradient(to bottom, #111827, #374151);
+}
+
+.text-gradient-teal {
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  background-image: linear-gradient(to bottom, var(--cloudact-teal), var(--cloudact-teal-dark));
+}
+
+/* Animations */
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.5s ease-out forwards;
+}
+
+.md\:hidden.border-t {
+  animation: slideDown 0.2s ease-out;
+}
+
+/* Prose Styling */
+.prose h2 {
+  margin-top: 0;
+  font-family: var(--font-merriweather), Georgia, serif;
+}
+
+.prose ul {
+  list-style: none;
+  padding-left: 0;
+}
+
+/* Global Behaviors */
+html {
+  scroll-behavior: smooth;
+}
+
+@media (min-width: 1400px) {
+  .container {
+    max-width: 1280px;
+  }
+}
+
+.container {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Hero Section Gradient */
+.cloudact-hero-gradient {
+  background: linear-gradient(to bottom, white, var(--cloudact-bg-teal), white);
+}
+
+/* Pricing Card Styles */
+.cloudact-pricing-card {
+  background: white;
+  border-radius: 0.75rem;
+  padding: 2rem;
+  border: 1px solid #E5E7EB;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.cloudact-pricing-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+}
+
+.cloudact-pricing-card-featured {
+  border: 2px solid var(--cloudact-teal);
+  box-shadow: 0 8px 24px rgba(0, 122, 120, 0.2);
+}
+
+.cloudact-pricing-value {
+  font-family: var(--font-dm-sans), sans-serif;
+  font-size: 3rem;
+  font-weight: 700;
+  color: var(--cloudact-coral);
+}
+
+/* ============================================
+   MOBILE RESPONSIVENESS IMPROVEMENTS
+   Ensures optimal mobile experience
+   ============================================ */
+
+/* Mobile-first touch targets (min 44x44px per WCAG 2.5.5) */
+@media (max-width: 768px) {
+  .cloudact-btn-primary,
+  .cloudact-btn-secondary {
+    min-height: 44px;
+    padding: 0.75rem 1.25rem;
+  }
+
+  .cloudact-icon-box,
+  .cloudact-icon-box-coral {
+    width: 3rem;
+    height: 3rem;
+  }
+
+  .cloudact-icon-box svg,
+  .cloudact-icon-box-coral svg {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+
+  .cloudact-pricing-card {
+    padding: 1.5rem;
+  }
+
+  .cloudact-pricing-value {
+    font-size: 2.25rem;
+  }
+
+  /* Prevent horizontal scroll on mobile */
+  .container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+    overflow-x: hidden;
+  }
+
+  /* Improve stat section readability on mobile */
+  .cloudact-stat-value {
+    font-size: 2rem;
+  }
+}
+
+/* Small mobile devices */
+@media (max-width: 480px) {
+  .cloudact-heading-xl {
+    font-size: 1.75rem;
+  }
+
+  .cloudact-heading-lg {
+    font-size: 1.375rem;
+  }
+
+  .cloudact-promo-banner {
+    font-size: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .cloudact-promo-banner span:first-child {
+    margin-right: 0;
+  }
+}
+
+/* Safe area insets for notched devices */
+@supports (padding: max(0px)) {
+  .cloudact-promo-banner {
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+}
+
+/* Prevent text selection issues on mobile */
+.cloudact-btn-primary,
+.cloudact-btn-secondary {
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+/* Smooth scrolling with reduced motion support */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cloudact-card:hover,
+  .cloudact-pricing-card:hover,
+  .cloudact-btn-primary:hover,
+  .cloudact-btn-secondary:hover {
+    transform: none;
+  }
+
+  .animate-fade-in-up {
+    animation: none;
+  }
+}

@@ -1,0 +1,85 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.13 [39m[90m/Users/gurukallam/prod-ready-apps/cloudact-meta-data-store/fronted_v0[39m
+
+[90mstdout[2m | tests/07-pipeline-quota-enforcement.test.ts[2m > [22m[2mFlow 7: Pipeline Quota Enforcement
+[22m[39mCreating test org: quota_test_1764637646039
+
+[90mstdout[2m | tests/07-pipeline-quota-enforcement.test.ts[2m > [22m[2mFlow 7: Pipeline Quota Enforcement
+[22m[39mConfiguring GCP Integration...
+
+[90mstdout[2m | tests/07-pipeline-quota-enforcement.test.ts[2m > [22m[2mFlow 7: Pipeline Quota Enforcement[2m > [22m[2mshould enforce pipeline quotas
+[22m[39mStarting Pipeline Quota Test
+
+[90mstdout[2m | tests/07-pipeline-quota-enforcement.test.ts[2m > [22m[2mFlow 7: Pipeline Quota Enforcement[2m > [22m[2mshould enforce pipeline quotas
+[22m[39mInitial runs: 0
+
+[90mstdout[2m | tests/07-pipeline-quota-enforcement.test.ts[2m > [22m[2mFlow 7: Pipeline Quota Enforcement[2m > [22m[2mshould enforce pipeline quotas
+[22m[39mTriggering run 1/6...
+
+ [31m❯[39m tests/07-pipeline-quota-enforcement.test.ts [2m([22m[2m1 test[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 38295[2mms[22m[39m
+[31m     [31m×[31m should enforce pipeline quotas[39m[33m 13382[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m tests/07-pipeline-quota-enforcement.test.ts[2m > [22mFlow 7: Pipeline Quota Enforcement[2m > [22mshould enforce pipeline quotas
+[31m[1mTypeError[22m: fetch failed[39m
+[36m [2m❯[22m ApiClient.triggerPipeline tests/utils/api-client.ts:[2m114:26[22m[39m
+    [90m112| [39m        const url = `${PIPELINE_SERVICE_URL}/api/v1/pipelines/run/${th…
+    [90m113| [39m        
+    [90m114| [39m        [35mconst[39m response [33m=[39m [35mawait[39m [34mfetch[39m(url[33m,[39m {
+    [90m   | [39m                         [31m^[39m
+    [90m115| [39m            method[33m:[39m [32m'POST'[39m[33m,[39m
+    [90m116| [39m            headers[33m:[39m {
+[90m [2m❯[22m tests/07-pipeline-quota-enforcement.test.ts:[2m50:29[22m[39m
+
+{
+  stack: 'AggregateError: \n' +
+    '    at internalConnectMultiple (node:net:1139:18)\n' +
+    '    at afterConnectMultiple (node:net:1714:7)',
+  errors: [
+    {
+      stack: 'Error: connect ECONNREFUSED ::1:8001\n' +
+        '    at createConnectionError (node:net:1677:14)\n' +
+        '    at afterConnectMultiple (node:net:1707:16)',
+      message: 'connect ECONNREFUSED ::1:8001',
+      errno: -61,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '::1',
+      port: 8001,
+      constructor: 'Function<Error>',
+      name: 'Error',
+      toString: 'Function<toString>'
+    },
+    {
+      stack: 'Error: connect ECONNREFUSED 127.0.0.1:8001\n' +
+        '    at createConnectionError (node:net:1677:14)\n' +
+        '    at afterConnectMultiple (node:net:1707:16)',
+      message: 'connect ECONNREFUSED 127.0.0.1:8001',
+      errno: -61,
+      code: 'ECONNREFUSED',
+      syscall: 'connect',
+      address: '127.0.0.1',
+      port: 8001,
+      constructor: 'Function<Error>',
+      name: 'Error',
+      toString: 'Function<toString>'
+    }
+  ],
+  code: 'ECONNREFUSED',
+  constructor: 'Function<AggregateError>',
+  name: 'Caused by: AggregateError',
+  message: '',
+  toString: 'Function<toString>',
+  stacks: []
+}
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[22m[39m
+[31m[1mSerialized Error:[22m[39m [90m{ errors: [ { stack: 'Error: connect ECONNREFUSED ::1:8001\n    at createConnectionError (node:net:1677:14)\n    at afterConnectMultiple (node:net:1707:16)', message: 'connect ECONNREFUSED ::1:8001', errno: -61, code: 'ECONNREFUSED', syscall: 'connect', address: '::1', port: 8001, constructor: 'Function<Error>', name: 'Error', toString: 'Function<toString>' }, { stack: 'Error: connect ECONNREFUSED 127.0.0.1:8001\n    at createConnectionError (node:net:1677:14)\n    at afterConnectMultiple (node:net:1707:16)', message: 'connect ECONNREFUSED 127.0.0.1:8001', errno: -61, code: 'ECONNREFUSED', syscall: 'connect', address: '127.0.0.1', port: 8001, constructor: 'Function<Error>', name: 'Error', toString: 'Function<toString>' } ], code: 'ECONNREFUSED' }[39m
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m   Start at [22m 17:07:25
+[2m   Duration [22m 38.49s[2m (transform 29ms, setup 0ms, collect 39ms, tests 38.30s, environment 0ms, prepare 3ms)[22m
+
