@@ -10,15 +10,16 @@
 
 ## Where Data Lives
 
-| Storage   | Port | What                           | Examples                        |
-|-----------|------|--------------------------------|---------------------------------|
-| Supabase  | 3000 | Provider enable/disable meta   | `saas_subscription_meta` table  |
-| BigQuery  | 8000 | Subscription plans (seeded)    | `{org}_prod.saas_subscriptions` |
-| BigQuery  | 8001 | Cost projections (pipeline)    | `tfd_llm_subscription_costs`    |
+| Storage  | Port | What                         | Examples                                   |
+| -------- | ---- | ---------------------------- | ------------------------------------------ |
+| Supabase | 3000 | Provider enable/disable meta | `saas_subscription_meta` table             |
+| BigQuery | 8000 | Subscription plans (seeded)  | `{org_slug}_{env}.saas_subscriptions`      |
+| BigQuery | 8001 | Cost projections (pipeline)  | `{org_slug}_{env}.saas_subscription_costs` |
 
 **Key Distinction:**
+
 - **Supabase** = Simple metadata (which providers are enabled)
-- **BigQuery** = Full plan details (costs, seats, limits, billing cycle)
+- **BigQuery** = Full plan details (costs, seats, limits, billing period)
 
 ---
 
@@ -85,6 +86,7 @@ Frontend (3000)                    API Service (8000)              Pipeline (800
 ```
 
 **On Provider Enable:**
+
 1. Frontend saves to Supabase `saas_subscription_meta` (provider enabled)
 2. Frontend calls API Service to seed default plans
 3. API Service inserts plans to BigQuery `{org}_prod.saas_subscriptions`
@@ -97,37 +99,37 @@ Frontend (3000)                    API Service (8000)              Pipeline (800
 
 ### Frontend (F) → Supabase + API
 
-| Step | Feature                                         | Status | Test Ref |
-|------|-------------------------------------------------|--------|----------|
-| F1   | Section 3: Subscription provider toggles        | ❌     | FE-01    |
-| F2   | Enable provider → call API to seed              | ❌     | FE-02    |
-| F3   | Sidebar shows enabled providers                 | ❌     | FE-09    |
-| F4   | Provider detail page with plans                 | ❌     | FE-04    |
-| F5   | Add custom plan to provider                     | ❌     | FE-05    |
-| F6   | Toggle/delete plans                             | ❌     | FE-06,07 |
-| F7   | Cost summary on provider page                   | ❌     | FE-08    |
+| Step | Feature                                  | Status | Test Ref |
+| ---- | ---------------------------------------- | ------ | -------- |
+| F1   | Section 3: Subscription provider toggles | ❌     | FE-01    |
+| F2   | Enable provider → call API to seed       | ❌     | FE-02    |
+| F3   | Sidebar shows enabled providers          | ❌     | FE-09    |
+| F4   | Provider detail page with plans          | ❌     | FE-04    |
+| F5   | Add custom plan to provider              | ❌     | FE-05    |
+| F6   | Toggle/delete plans                      | ❌     | FE-06,07 |
+| F7   | Cost summary on provider page            | ❌     | FE-08    |
 
 ### API Service (B) → BigQuery
 
-| Step | Feature                                         | Status | Test Ref |
-|------|-------------------------------------------------|--------|----------|
-| B1   | GET /subscriptions/{org}/providers              | ❌     | API-01   |
-| B2   | POST /subscriptions/{org}/providers/{p}/enable  | ❌     | API-02   |
-| B3   | POST /subscriptions/{org}/providers/{p}/disable | ❌     | API-03   |
-| B4   | GET /subscriptions/{org}/providers/{p}/plans    | ❌     | API-04   |
-| B5   | POST /subscriptions/{org}/providers/{p}/plans   | ❌     | API-05   |
-| B6   | PUT/DELETE plans                                | ❌     | API-06,07|
-| B7   | Seed excludes LLM API tiers                     | ❌     | API-08   |
-| B8   | Seed includes FREE tiers with limits            | ❌     | API-09   |
+| Step | Feature                                         | Status | Test Ref  |
+| ---- | ----------------------------------------------- | ------ | --------- |
+| B1   | GET /subscriptions/{org}/providers              | ❌     | API-01    |
+| B2   | POST /subscriptions/{org}/providers/{p}/enable  | ❌     | API-02    |
+| B3   | POST /subscriptions/{org}/providers/{p}/disable | ❌     | API-03    |
+| B4   | GET /subscriptions/{org}/providers/{p}/plans    | ❌     | API-04    |
+| B5   | POST /subscriptions/{org}/providers/{p}/plans   | ❌     | API-05    |
+| B6   | PUT/DELETE plans                                | ❌     | API-06,07 |
+| B7   | Seed excludes LLM API tiers                     | ❌     | API-08    |
+| B8   | Seed includes FREE tiers with limits            | ❌     | API-09    |
 
 ### Pipeline Service (P) → Scheduler
 
-| Step | Feature                            | Schedule          | Status      | Test Ref |
-|------|------------------------------------|-------------------|-------------|----------|
-| P1   | Cost analysis pipeline             | Daily 05:00       | ⚠️ Template | PIPE-01  |
-| P2   | Daily rate normalization           | (part of P1)      | ⚠️ Template | PIPE-02  |
-| P3   | Discount/quantity calculation      | (part of P1)      | ⚠️ Template | PIPE-03,04|
-| P4   | Weekly/Monthly/Yearly projections  | (part of P1)      | ⚠️ Template | PIPE-05  |
+| Step | Feature                           | Schedule     | Status      | Test Ref   |
+| ---- | --------------------------------- | ------------ | ----------- | ---------- |
+| P1   | Cost analysis pipeline            | Daily 05:00  | ⚠️ Template | PIPE-01    |
+| P2   | Daily rate normalization          | (part of P1) | ⚠️ Template | PIPE-02    |
+| P3   | Discount/quantity calculation     | (part of P1) | ⚠️ Template | PIPE-03,04 |
+| P4   | Weekly/Monthly/Yearly projections | (part of P1) | ⚠️ Template | PIPE-05    |
 
 ---
 
@@ -188,21 +190,21 @@ deletePlan(orgSlug, provider, planId)  → DELETE /subscriptions/.../plans/{id}
 
 ### Supabase Schema: saas_subscription_meta (NEW)
 
-| Field         | Type         | Description                    |
-|---------------|--------------|--------------------------------|
-| id            | UUID         | Primary key                    |
-| org_id        | UUID         | Organization reference         |
-| provider_name | VARCHAR(50)  | canva, chatgpt_plus, slack     |
-| is_enabled    | BOOLEAN      | Provider enabled for this org  |
-| enabled_at    | TIMESTAMPTZ  | When enabled                   |
-| created_at    | TIMESTAMPTZ  | Created timestamp              |
+| Field         | Type        | Description                   |
+| ------------- | ----------- | ----------------------------- |
+| id            | UUID        | Primary key                   |
+| org_id        | UUID        | Organization reference        |
+| provider_name | VARCHAR(50) | canva, chatgpt_plus, slack    |
+| is_enabled    | BOOLEAN     | Provider enabled for this org |
+| enabled_at    | TIMESTAMPTZ | When enabled                  |
+| created_at    | TIMESTAMPTZ | Created timestamp             |
 
 **Unique Constraint:** `(org_id, provider_name)`
 
 ### RLS Policies (saas_subscription_meta)
 
 | Operation | Policy            | Who Can Access          |
-|-----------|-------------------|-------------------------|
+| --------- | ----------------- | ----------------------- |
 | SELECT    | Members can view  | All active org members  |
 | INSERT    | Admins can enable | Owner, Admin roles only |
 | UPDATE    | Admins can toggle | Owner, Admin roles only |
@@ -210,31 +212,31 @@ deletePlan(orgSlug, provider, planId)  → DELETE /subscriptions/.../plans/{id}
 
 ### BigQuery Schema: saas_subscriptions
 
-| Field                   | Type    | Description                               |
-|-------------------------|---------|-------------------------------------------|
-| subscription_id         | STRING  | UUID                                      |
-| provider                | STRING  | canva, chatgpt_plus, slack, figma, etc.   |
-| plan_name               | STRING  | FREE, PRO, TEAM, BUSINESS, ENTERPRISE     |
-| display_name            | STRING  | Human readable plan name                  |
-| is_custom               | BOOLEAN | True if user-created (not seeded)         |
-| quantity                | INTEGER | Seats/units                               |
-| unit_price_usd          | FLOAT64 | Monthly cost per unit                     |
-| effective_date          | DATE    | Start date                                |
-| end_date                | DATE    | End date (null = active)                  |
-| is_enabled              | BOOLEAN | Active flag                               |
-| billing_period          | STRING  | monthly, quarterly, yearly                |
-| category                | STRING  | ai, design, productivity, etc.            |
-| notes                   | STRING  | Plan description or limits info           |
-| **Usage Limits**        |         |                                           |
-| daily_limit             | INTEGER | Daily usage limit (messages, designs)     |
-| monthly_limit           | INTEGER | Monthly usage limit                       |
-| storage_limit_gb        | FLOAT64 | Storage limit in GB                       |
-| **Annual Pricing**      |         |                                           |
-| yearly_price_usd        | FLOAT64 | Annual price                              |
-| yearly_discount_pct     | FLOAT64 | % discount for annual                     |
-| **Metadata**            |         |                                           |
-| created_at              | TIMESTAMP | Created timestamp                       |
-| updated_at              | TIMESTAMP | Updated timestamp                       |
+| Field               | Type      | Description                             |
+| ------------------- | --------- | --------------------------------------- |
+| subscription_id     | STRING    | UUID                                    |
+| provider            | STRING    | canva, chatgpt_plus, slack, figma, etc. |
+| plan_name           | STRING    | FREE, PRO, TEAM, BUSINESS, ENTERPRISE   |
+| display_name        | STRING    | Human readable plan name                |
+| is_custom           | BOOLEAN   | True if user-created (not seeded)       |
+| quantity            | INTEGER   | Seats/units                             |
+| unit_price_usd      | FLOAT64   | Monthly cost per unit                   |
+| effective_date      | DATE      | Start date                              |
+| end_date            | DATE      | End date (null = active)                |
+| is_enabled          | BOOLEAN   | Active flag                             |
+| billing_period      | STRING    | monthly, quarterly, yearly              |
+| category            | STRING    | ai, design, productivity, etc.          |
+| notes               | STRING    | Plan description or limits info         |
+| **Usage Limits**    |           |                                         |
+| daily_limit         | INTEGER   | Daily usage limit (messages, designs)   |
+| monthly_limit       | INTEGER   | Monthly usage limit                     |
+| storage_limit_gb    | FLOAT64   | Storage limit in GB                     |
+| **Annual Pricing**  |           |                                         |
+| yearly_price_usd    | FLOAT64   | Annual price                            |
+| yearly_discount_pct | FLOAT64   | % discount for annual                   |
+| **Metadata**        |           |                                         |
+| created_at          | TIMESTAMP | Created timestamp                       |
+| updated_at          | TIMESTAMP | Updated timestamp                       |
 
 **Note:** LLM API tier fields (rpm_limit, tpm_limit, committed_spend, etc.) are NOT included here. Those belong to the separate LLM integration flow.
 
@@ -247,7 +249,7 @@ deletePlan(orgSlug, provider, planId)  → DELETE /subscriptions/.../plans/{id}
 **INCLUDED** in auto-seed:
 
 | Provider       | Plans | Examples                                       | Category      |
-|----------------|-------|------------------------------------------------|---------------|
+| -------------- | ----- | ---------------------------------------------- | ------------- |
 | ChatGPT Plus   | 3     | FREE (50 msg/day), PLUS ($20), TEAM ($25)      | ai            |
 | Claude Pro     | 3     | FREE (limits), PRO ($20), TEAM ($25)           | ai            |
 | GitHub Copilot | 3     | INDIVIDUAL ($10), BUSINESS ($19), ENT ($39)    | development   |
@@ -263,30 +265,31 @@ deletePlan(orgSlug, provider, planId)  → DELETE /subscriptions/.../plans/{id}
 
 **EXCLUDED** from auto-seed (separate LLM integration flow):
 
-| Provider  | Plans | Reason                          |
-|-----------|-------|---------------------------------|
-| OpenAI    | 6     | API tiers with rate limits      |
-| Anthropic | 6     | API tiers with rate limits      |
-| Gemini    | 3     | API tiers with rate limits      |
+| Provider  | Plans | Reason                     |
+| --------- | ----- | -------------------------- |
+| OpenAI    | 6     | API tiers with rate limits |
+| Anthropic | 6     | API tiers with rate limits |
+| Gemini    | 3     | API tiers with rate limits |
 
 ### FREE Tier Limits
 
-| Provider     | FREE Plan Limits                    |
-|--------------|-------------------------------------|
-| ChatGPT Plus | 50 messages/day, GPT-3.5 only       |
-| Claude Pro   | Limited messages, Claude Instant    |
-| Cursor       | 2000 completions, 50 slow requests  |
-| Canva        | 5 designs/month, watermarks         |
-| Figma        | 3 files, 3 pages per file           |
-| Slack        | 90-day message history              |
-| Notion       | 10 guests, 7-day page history       |
-| Linear       | 250 issues, 1 team                  |
+| Provider     | FREE Plan Limits                   |
+| ------------ | ---------------------------------- |
+| ChatGPT Plus | 50 messages/day, GPT-3.5 only      |
+| Claude Pro   | Limited messages, Claude Instant   |
+| Cursor       | 2000 completions, 50 slow requests |
+| Canva        | 5 designs/month, watermarks        |
+| Figma        | 3 files, 3 pages per file          |
+| Slack        | 90-day message history             |
+| Notion       | 10 guests, 7-day page history      |
+| Linear       | 250 issues, 1 team                 |
 
 ---
 
 ## Cost Calculation Logic
 
 **Daily Rate:**
+
 - yearly: `price / 365`
 - monthly: `price / 30.4375`
 - quarterly: `price / 91.25`
@@ -295,6 +298,7 @@ deletePlan(orgSlug, provider, planId)  → DELETE /subscriptions/.../plans/{id}
 **Final Cost:** `base_daily × (1 - discount%) × quantity`
 
 **Projections:**
+
 - weekly: `daily × 7`
 - monthly: `daily × 30.4375`
 - yearly: `daily × 365`
@@ -303,19 +307,19 @@ deletePlan(orgSlug, provider, planId)  → DELETE /subscriptions/.../plans/{id}
 
 ## Supported Providers (40+)
 
-| Category        | Providers                                            |
-|-----------------|------------------------------------------------------|
-| AI              | ChatGPT Plus, Claude Pro, Copilot, Cursor, v0, Lovable, Windsurf, Replit |
-| Design          | Canva, Adobe CC, Figma, Miro, DrawIO                 |
-| Productivity    | Notion, Asana, Monday, Confluence, Coda              |
-| Communication   | Slack, Zoom, Teams, Discord                          |
-| Development     | GitHub, GitLab, Jira, Linear, Vercel, Netlify, Railway, Supabase |
-| Custom          | User-defined (unlisted tools)                        |
+| Category      | Providers                                                                |
+| ------------- | ------------------------------------------------------------------------ |
+| AI            | ChatGPT Plus, Claude Pro, Copilot, Cursor, v0, Lovable, Windsurf, Replit |
+| Design        | Canva, Adobe CC, Figma, Miro, DrawIO                                     |
+| Productivity  | Notion, Asana, Monday, Confluence, Coda                                  |
+| Communication | Slack, Zoom, Teams, Discord                                              |
+| Development   | GitHub, GitLab, Jira, Linear, Vercel, Netlify, Railway, Supabase         |
+| Custom        | User-defined (unlisted tools)                                            |
 
 ### Category Colors (Frontend)
 
 | Category      | Background      | Text              |
-|---------------|-----------------|-------------------|
+| ------------- | --------------- | ----------------- |
 | AI            | `bg-purple-100` | `text-purple-700` |
 | Design        | `bg-pink-100`   | `text-pink-700`   |
 | Productivity  | `bg-blue-100`   | `text-blue-700`   |
@@ -329,10 +333,12 @@ deletePlan(orgSlug, provider, planId)  → DELETE /subscriptions/.../plans/{id}
 ### Enable Provider and Manage Plans
 
 **Step 1: Navigate to Integrations**
+
 - Route: `/{orgSlug}/settings/integrations`
 - Section 3 shows Subscription Providers
 
 **Step 2: Enable Provider**
+
 - User clicks toggle to enable "Canva"
 - Frontend: Saves to Supabase `saas_subscription_meta`
 - Frontend: Calls `POST /subscriptions/{org}/providers/canva/enable`
@@ -340,16 +346,19 @@ deletePlan(orgSlug, provider, planId)  → DELETE /subscriptions/.../plans/{id}
 - Sidebar: Updates to show "Canva" under Subscriptions
 
 **Step 3: View Provider Plans**
+
 - Route: `/{orgSlug}/subscriptions/canva`
 - Shows seeded plans: FREE ($0), PRO ($12.99), TEAMS ($14.99)
 - Each plan has toggle, edit, delete options
 
 **Step 4: Customize Plans**
+
 - Toggle PRO plan ON, 3 seats
 - Add custom "ENTERPRISE" plan ($50/mo)
 - Disable FREE plan (not using)
 
 **Step 5: View Cost Summary**
+
 - PRO: 3 × $12.99 = $38.97/mo
 - ENTERPRISE: 1 × $50 = $50/mo
 - Total: $88.97/mo
@@ -359,26 +368,28 @@ deletePlan(orgSlug, provider, planId)  → DELETE /subscriptions/.../plans/{id}
 ## Test Cases
 
 ### Frontend Tests (port 3000) - No Mocks
+
 **File**: `fronted-system/tests/14-subscription-providers.test.ts`
 
-| Test ID | Description                                          | Status |
-|---------|------------------------------------------------------|--------|
-| FE-01   | List available subscription providers on integrations| ❌     |
-| FE-02   | Enable provider toggle → calls API → shows in sidebar| ❌     |
-| FE-03   | Disable provider toggle → removes from sidebar       | ❌     |
-| FE-04   | Navigate to provider detail page shows seeded plans  | ❌     |
-| FE-05   | Add custom plan to provider                          | ❌     |
-| FE-06   | Toggle plan enable/disable within provider           | ❌     |
-| FE-07   | Delete custom plan                                   | ❌     |
-| FE-08   | Cost summary calculation on provider page            | ❌     |
-| FE-09   | Sidebar shows correct enabled providers              | ❌     |
-| FE-10   | Add custom provider (not in list)                    | ❌     |
+| Test ID | Description                                           | Status |
+| ------- | ----------------------------------------------------- | ------ |
+| FE-01   | List available subscription providers on integrations | ❌     |
+| FE-02   | Enable provider toggle → calls API → shows in sidebar | ❌     |
+| FE-03   | Disable provider toggle → removes from sidebar        | ❌     |
+| FE-04   | Navigate to provider detail page shows seeded plans   | ❌     |
+| FE-05   | Add custom plan to provider                           | ❌     |
+| FE-06   | Toggle plan enable/disable within provider            | ❌     |
+| FE-07   | Delete custom plan                                    | ❌     |
+| FE-08   | Cost summary calculation on provider page             | ❌     |
+| FE-09   | Sidebar shows correct enabled providers               | ❌     |
+| FE-10   | Add custom provider (not in list)                     | ❌     |
 
 ### API Service Tests (port 8000)
+
 **File**: `api-service/tests/test_06_subscription_providers.py`
 
 | Test ID | Description                                          | Status |
-|---------|------------------------------------------------------|--------|
+| ------- | ---------------------------------------------------- | ------ |
 | API-01  | GET /subscriptions/{org}/providers - list all        | ❌     |
 | API-02  | POST .../providers/{provider}/enable - enable + seed | ❌     |
 | API-03  | POST .../providers/{provider}/disable - disable      | ❌     |
@@ -393,18 +404,19 @@ deletePlan(orgSlug, provider, planId)  → DELETE /subscriptions/.../plans/{id}
 | API-12  | Auth: X-API-Key required                             | ❌     |
 
 ### Pipeline Service Tests (port 8001)
+
 **File**: `data-pipeline-service/tests/test_06_subscription_cost_pipelines.py`
 
-| Test ID  | Description                                         | Status |
-|----------|-----------------------------------------------------|--------|
-| PIPE-01  | Cost analysis pipeline reads from saas_subscriptions| ❌     |
-| PIPE-02  | Daily rate calculation (yearly/365, monthly/30.4375)| ❌     |
-| PIPE-03  | Discount application (1 - discount%)                | ❌     |
-| PIPE-04  | Quantity multiplier                                 | ❌     |
-| PIPE-05  | Weekly/Monthly/Yearly projections                   | ❌     |
-| PIPE-06  | Filter by is_enabled = true                         | ❌     |
-| PIPE-07  | Output to tfd_llm_subscription_costs                | ❌     |
-| PIPE-08  | Scheduler trigger works                             | ❌     |
+| Test ID | Description                                          | Status |
+| ------- | ---------------------------------------------------- | ------ |
+| PIPE-01 | Cost analysis pipeline reads from saas_subscriptions | ❌     |
+| PIPE-02 | Daily rate calculation (yearly/365, monthly/30.4375) | ❌     |
+| PIPE-03 | Discount application (1 - discount%)                 | ❌     |
+| PIPE-04 | Quantity multiplier                                  | ❌     |
+| PIPE-05 | Weekly/Monthly/Yearly projections                    | ❌     |
+| PIPE-06 | Filter by is_enabled = true                          | ❌     |
+| PIPE-07 | Output to tfd_llm_subscription_costs                 | ❌     |
+| PIPE-08 | Scheduler trigger works                              | ❌     |
 
 ---
 
@@ -413,6 +425,7 @@ deletePlan(orgSlug, provider, planId)  → DELETE /subscriptions/.../plans/{id}
 ### Frontend-system (port 3000)
 
 **Flow:**
+
 ```
 User → Integrations Page → Section 3: Subscription Providers
                               │
@@ -434,27 +447,28 @@ User → Integrations Page → Section 3: Subscription Providers
 
 **What Gets Implemented:**
 
-| Component | File | Description |
-|-----------|------|-------------|
-| Supabase Meta Table | `scripts/supabase_db/14_saas_subscription_meta.sql` | New table for provider enable/disable |
-| Server Actions | `actions/subscription-providers.ts` | CRUD for meta + API calls for plans |
-| Integrations Section 3 | `app/[orgSlug]/settings/integrations/page.tsx` | Replace current with provider toggles |
-| Provider Detail Page | `app/[orgSlug]/subscriptions/[provider]/page.tsx` | New page showing plans from BigQuery |
-| Sidebar Update | `components/dashboard-sidebar.tsx` | Query meta table, show enabled providers |
+| Component              | File                                                | Description                              |
+| ---------------------- | --------------------------------------------------- | ---------------------------------------- |
+| Supabase Meta Table    | `scripts/supabase_db/14_saas_subscription_meta.sql` | New table for provider enable/disable    |
+| Server Actions         | `actions/subscription-providers.ts`                 | CRUD for meta + API calls for plans      |
+| Integrations Section 3 | `app/[orgSlug]/settings/integrations/page.tsx`      | Replace current with provider toggles    |
+| Provider Detail Page   | `app/[orgSlug]/subscriptions/[provider]/page.tsx`   | New page showing plans from BigQuery     |
+| Sidebar Update         | `components/dashboard-sidebar.tsx`                  | Query meta table, show enabled providers |
 
 **Server Actions:**
+
 ```typescript
 // Supabase (meta table)
-listEnabledProviders(orgSlug)           // SELECT from saas_subscription_meta
-enableProvider(orgSlug, provider)       // INSERT + call API seed
-disableProvider(orgSlug, provider)      // UPDATE is_enabled = false
+listEnabledProviders(orgSlug); // SELECT from saas_subscription_meta
+enableProvider(orgSlug, provider); // INSERT + call API seed
+disableProvider(orgSlug, provider); // UPDATE is_enabled = false
 
 // API Service (BigQuery plans)
-getProviderPlans(orgSlug, provider)     // GET /subscriptions/.../plans
-createCustomPlan(orgSlug, provider, data) // POST
-updatePlan(orgSlug, provider, planId)   // PUT
-deletePlan(orgSlug, provider, planId)   // DELETE
-togglePlan(orgSlug, provider, planId)   // PUT is_enabled
+getProviderPlans(orgSlug, provider); // GET /subscriptions/.../plans
+createCustomPlan(orgSlug, provider, data); // POST
+updatePlan(orgSlug, provider, planId); // PUT
+deletePlan(orgSlug, provider, planId); // DELETE
+togglePlan(orgSlug, provider, planId); // PUT is_enabled
 ```
 
 ---
@@ -462,6 +476,7 @@ togglePlan(orgSlug, provider, planId)   // PUT is_enabled
 ### API-service (port 8000)
 
 **Flow:**
+
 ```
 Frontend Request → API Router → Validate X-API-Key → Process
                                      │
@@ -487,13 +502,14 @@ Frontend Request → API Router → Validate X-API-Key → Process
 
 **What Gets Implemented:**
 
-| Component | File | Description |
-|-----------|------|-------------|
-| New Router | `src/app/routers/subscriptions.py` | All subscription provider endpoints |
-| Seed Function | (refactor existing) | Extract provider-specific seeding |
-| Seed CSV Update | `configs/saas/seed/data/default_subscriptions.csv` | Remove LLM tiers, add FREE tiers |
+| Component       | File                                               | Description                         |
+| --------------- | -------------------------------------------------- | ----------------------------------- |
+| New Router      | `src/app/routers/subscriptions.py`                 | All subscription provider endpoints |
+| Seed Function   | (refactor existing)                                | Extract provider-specific seeding   |
+| Seed CSV Update | `configs/saas/seed/data/default_subscriptions.csv` | Remove LLM tiers, add FREE tiers    |
 
 **Seed CSV Changes:**
+
 ```
 REMOVE (category = 'llm_api'):
 - openai: FREE, TIER1, TIER2, TIER3, TIER4, TIER5
@@ -510,6 +526,7 @@ KEEP/ADD (consumer subscriptions):
 ```
 
 **New API Endpoints:**
+
 ```python
 # New router: /api/v1/subscriptions/{org_slug}/providers/...
 
@@ -551,6 +568,7 @@ async def reset_provider(org_slug: str, provider: str, ...):
 ### Data-pipeline-service (port 8001)
 
 **Flow:**
+
 ```
 Scheduler (Daily 05:00 UTC) → Trigger Pipeline → Process
                                     │
@@ -576,19 +594,20 @@ Scheduler (Daily 05:00 UTC) → Trigger Pipeline → Process
 
 **What Gets Implemented:**
 
-| Component | File | Description |
-|-----------|------|-------------|
+| Component       | File                                                        | Description            |
+| --------------- | ----------------------------------------------------------- | ---------------------- |
 | Pipeline Config | `configs/subscription/costs/subscription_cost_analysis.yml` | Activate from template |
-| Cost SQL | `configs/subscription/costs/subscription_cost_analysis.sql` | Transform query |
-| Processor | `src/core/processors/subscription/cost_analysis.py` | If custom logic needed |
+| Cost SQL        | `configs/subscription/costs/subscription_cost_analysis.sql` | Transform query        |
+| Processor       | `src/core/processors/subscription/cost_analysis.py`         | If custom logic needed |
 
 **Pipeline Config (activate template):**
+
 ```yaml
 # configs/subscription/costs/subscription_cost_analysis.yml
 pipeline:
   name: subscription_cost_analysis
   description: Calculate daily cost projections for SaaS subscriptions
-  schedule: "0 5 * * *"  # Daily at 05:00 UTC
+  schedule: "0 5 * * *" # Daily at 05:00 UTC
 
 source:
   type: bigquery
@@ -602,10 +621,11 @@ transform:
 destination:
   type: bigquery
   table: "{org_dataset}.tfd_llm_subscription_costs"
-  write_disposition: WRITE_TRUNCATE  # Overwrite daily
+  write_disposition: WRITE_TRUNCATE # Overwrite daily
 ```
 
 **Transform SQL:**
+
 ```sql
 -- configs/subscription/costs/subscription_cost_analysis.sql
 SELECT
@@ -651,38 +671,38 @@ WHERE is_enabled = true AND quantity > 0
 
 ### To Be Implemented
 
-| Component                        | Service            | Priority |
-|----------------------------------|--------------------|----------|
-| Supabase meta table              | Supabase           | P0       |
-| Subscription provider endpoints  | API Service (8000) | P0       |
-| Provider toggle UI               | Frontend (3000)    | P0       |
-| Provider detail page             | Frontend (3000)    | P0       |
-| Sidebar update                   | Frontend (3000)    | P0       |
-| Update seed CSV (exclude LLM)    | API Service (8000) | P1       |
-| Cost analysis pipeline           | Pipeline (8001)    | P2       |
+| Component                       | Service            | Priority |
+| ------------------------------- | ------------------ | -------- |
+| Supabase meta table             | Supabase           | P0       |
+| Subscription provider endpoints | API Service (8000) | P0       |
+| Provider toggle UI              | Frontend (3000)    | P0       |
+| Provider detail page            | Frontend (3000)    | P0       |
+| Sidebar update                  | Frontend (3000)    | P0       |
+| Update seed CSV (exclude LLM)   | API Service (8000) | P1       |
+| Cost analysis pipeline          | Pipeline (8001)    | P2       |
 
 ### Already Exists (May Need Updates)
 
-| Component                     | Service            | Notes                    |
-|-------------------------------|--------------------|--------------------------|
-| BigQuery CRUD (LLM)           | API Service (8000) | Reuse for SaaS providers |
-| Seed CSV                      | API Service        | Remove LLM tiers         |
-| Subscriptions page            | Frontend (3000)    | Replace with new flow    |
+| Component           | Service            | Notes                    |
+| ------------------- | ------------------ | ------------------------ |
+| BigQuery CRUD (LLM) | API Service (8000) | Reuse for SaaS providers |
+| Seed CSV            | API Service        | Remove LLM tiers         |
+| Subscriptions page  | Frontend (3000)    | Replace with new flow    |
 
 ---
 
 ## File References
 
-| File                                                     | Purpose                    |
-|----------------------------------------------------------|----------------------------|
-| `fronted-system/scripts/supabase_db/14_saas_subscription_meta.sql` | New meta table     |
-| `fronted-system/actions/subscription-providers.ts`       | New server actions         |
-| `fronted-system/app/[orgSlug]/settings/integrations/page.tsx` | Section 3 update      |
-| `fronted-system/app/[orgSlug]/subscriptions/[provider]/page.tsx` | New detail page     |
-| `fronted-system/components/dashboard-sidebar.tsx`        | Sidebar update             |
-| `api-service/src/app/routers/subscriptions.py`           | New API router             |
-| `api-service/configs/saas/seed/data/default_subscriptions.csv` | Update seed data    |
-| `data-pipeline-service/tests/test_06_subscription_cost_pipelines.py` | Pipeline tests  |
+| File                                                                 | Purpose            |
+| -------------------------------------------------------------------- | ------------------ |
+| `fronted-system/scripts/supabase_db/14_saas_subscription_meta.sql`   | New meta table     |
+| `fronted-system/actions/subscription-providers.ts`                   | New server actions |
+| `fronted-system/app/[orgSlug]/settings/integrations/page.tsx`        | Section 3 update   |
+| `fronted-system/app/[orgSlug]/subscriptions/[provider]/page.tsx`     | New detail page    |
+| `fronted-system/components/dashboard-sidebar.tsx`                    | Sidebar update     |
+| `api-service/src/app/routers/subscriptions.py`                       | New API router     |
+| `api-service/configs/saas/seed/data/default_subscriptions.csv`       | Update seed data   |
+| `data-pipeline-service/tests/test_06_subscription_cost_pipelines.py` | Pipeline tests     |
 
 ---
 

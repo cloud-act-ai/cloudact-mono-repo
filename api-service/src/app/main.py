@@ -757,12 +757,13 @@ async def metrics():
 # API Routers (NO PIPELINES OR SCHEDULER)
 # ============================================
 
-from src.app.routers import admin, organizations, integrations, llm_data, pipeline_validator, pipeline_logs
+from src.app.routers import admin, organizations, integrations, llm_data, pipeline_validator, pipeline_logs, subscriptions
 
 app.include_router(admin.router, prefix="/api/v1", tags=["Admin"])
 app.include_router(organizations.router, prefix="/api/v1", tags=["Organizations"])
 app.include_router(integrations.router, prefix="/api/v1", tags=["Integrations"])
 app.include_router(llm_data.router, prefix="/api/v1", tags=["LLM Data"])
+app.include_router(subscriptions.router, prefix="/api/v1", tags=["Subscriptions"])
 app.include_router(pipeline_validator.router, prefix="/api/v1", tags=["Pipeline Validator"])
 app.include_router(pipeline_logs.router, prefix="/api/v1", tags=["Pipeline Logs"])
 
