@@ -17,8 +17,33 @@ import logging
 import re
 import csv
 import uuid
+import sys
 
 from google.cloud import bigquery
+
+# Add configs/saas/schema to path for schema imports
+schema_path = Path(__file__).parent.parent.parent.parent / "configs" / "saas" / "schema"
+if str(schema_path) not in sys.path:
+    sys.path.insert(0, str(schema_path))
+
+# Import centralized schema
+from subscription_schema import (
+    SaaSSubscriptionBase,
+    SaaSSubscriptionCreate,
+    SaaSSubscriptionUpdate,
+    SaaSSubscriptionResponse,
+    CategoryEnum,
+    TierTypeEnum,
+    BillingPeriodEnum,
+    LLM_API_PROVIDERS,
+    SAAS_PROVIDERS,
+    PROVIDER_CATEGORIES,
+    PROVIDER_DISPLAY_NAMES,
+    get_provider_category,
+    get_provider_display_name,
+    is_llm_api_provider,
+    is_saas_provider
+)
 
 from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
 from src.app.dependencies.auth import get_current_org
@@ -35,34 +60,8 @@ settings = get_settings()
 # Table name for SaaS subscriptions
 SAAS_SUBSCRIPTIONS_TABLE = "saas_subscriptions"
 
-# Providers to EXCLUDE from SaaS subscriptions (these are LLM API tiers)
-LLM_API_PROVIDERS = {"openai", "anthropic", "gemini"}
-
-# Valid SaaS subscription providers (consumer subscriptions)
-SAAS_PROVIDERS = {
-    # AI Tools (consumer subscriptions, not API tiers)
-    "chatgpt_plus", "claude_pro", "gemini_advanced", "copilot",
-    "cursor", "windsurf", "replit", "v0", "lovable",
-    # Design
-    "canva", "adobe_cc", "figma", "miro",
-    # Productivity
-    "notion", "confluence", "asana", "monday",
-    # Communication
-    "slack", "zoom", "teams",
-    # Development
-    "github", "gitlab", "jira", "linear", "vercel", "netlify", "railway", "supabase",
-    # Custom
-    "custom"
-}
-
-# Category to providers mapping
-PROVIDER_CATEGORIES = {
-    "ai": ["chatgpt_plus", "claude_pro", "gemini_advanced", "copilot", "cursor", "windsurf", "replit", "v0", "lovable"],
-    "design": ["canva", "adobe_cc", "figma", "miro"],
-    "productivity": ["notion", "confluence", "asana", "monday"],
-    "communication": ["slack", "zoom", "teams"],
-    "development": ["github", "gitlab", "jira", "linear", "vercel", "netlify", "railway", "supabase"],
-}
+# Note: LLM_API_PROVIDERS, SAAS_PROVIDERS, PROVIDER_CATEGORIES, and helper functions
+# are now imported from the centralized subscription_schema module
 
 
 # ============================================
@@ -195,7 +194,7 @@ def validate_org_slug(org_slug: str) -> None:
 def validate_provider(provider: str) -> str:
     """Validate provider is a supported SaaS provider."""
     provider_lower = provider.lower()
-    if provider_lower not in SAAS_PROVIDERS:
+    if not is_saas_provider(provider_lower):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Unsupported provider: {provider}. For LLM API tiers, use /integrations endpoints."
@@ -225,49 +224,8 @@ def check_org_access(org: Dict, org_slug: str) -> None:
             detail="Cannot access data for another organization"
         )
 
-
-def get_provider_display_name(provider: str) -> str:
-    """Get human-readable display name for provider."""
-    display_names = {
-        "chatgpt_plus": "ChatGPT Plus",
-        "claude_pro": "Claude Pro",
-        "gemini_advanced": "Gemini Advanced",
-        "copilot": "GitHub Copilot",
-        "cursor": "Cursor",
-        "windsurf": "Windsurf",
-        "replit": "Replit",
-        "v0": "v0",
-        "lovable": "Lovable",
-        "canva": "Canva",
-        "adobe_cc": "Adobe Creative Cloud",
-        "figma": "Figma",
-        "miro": "Miro",
-        "notion": "Notion",
-        "confluence": "Confluence",
-        "asana": "Asana",
-        "monday": "Monday.com",
-        "slack": "Slack",
-        "zoom": "Zoom",
-        "teams": "Microsoft Teams",
-        "github": "GitHub",
-        "gitlab": "GitLab",
-        "jira": "Jira",
-        "linear": "Linear",
-        "vercel": "Vercel",
-        "netlify": "Netlify",
-        "railway": "Railway",
-        "supabase": "Supabase",
-        "custom": "Custom",
-    }
-    return display_names.get(provider, provider.replace("_", " ").title())
-
-
-def get_provider_category(provider: str) -> str:
-    """Get category for provider."""
-    for category, providers in PROVIDER_CATEGORIES.items():
-        if provider in providers:
-            return category
-    return "other"
+# Note: get_provider_display_name and get_provider_category are now imported
+# from the centralized subscription_schema module
 
 
 # ============================================
@@ -640,7 +598,7 @@ async def create_plan(
     table_ref = f"{settings.gcp_project_id}.{dataset_id}.{SAAS_SUBSCRIPTIONS_TABLE}"
 
     subscription_id = f"sub_{provider}_{plan.plan_name.lower()}_{uuid.uuid4().hex[:8]}"
-    category = get_provider_category(provider)
+    category = get_provider_category(provider).value  # Get enum value
 
     insert_query = f"""
     INSERT INTO `{table_ref}` (

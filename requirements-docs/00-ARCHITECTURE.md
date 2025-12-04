@@ -60,6 +60,53 @@ CloudAct is a multi-tenant SaaS platform that helps organizations track and opti
 
 ---
 
+## Folder Structure
+
+The codebase is organized as a monorepo containing the following core components:
+
+### `api-service/`
+
+**Frontend-Facing API (FastAPI)**
+Handles organization onboarding, integration setup, and LLM data management.
+
+- `src/`: Application source code (routers, services, models).
+- `configs/`: Service configurations.
+- `tests/`: Pytest test suite.
+
+### `data-pipeline-service/`
+
+**Pipeline Engine (FastAPI + BigQuery)**
+Handles scheduled ETL jobs, usage processing, and cost calculations.
+
+- `src/`: Pipeline logic, processors, and scheduler.
+- `configs/`: Pipeline definitions (YAML) and SQL queries.
+- `scripts/`: Deployment and utility scripts.
+- `tests/`: Pipeline verification tests.
+
+### `fronted-system/`
+
+**User Interface (Next.js 16)**
+The main web application for users to interact with the platform.
+
+- `app/`: Next.js App Router pages and API routes.
+- `components/`: Reusable React components (UI library).
+- `lib/`: Shared utilities, Supabase client, and Stripe logic.
+- `supabase/`: Database migrations and type definitions.
+- `actions/`: Server actions for form handling and data mutation.
+- `tests/`: End-to-end and unit tests.
+
+### `inra-cicd-automation/`
+
+**CI/CD Automation**
+Scripts and workflows for infrastructure and deployment automation.
+
+### `requirements-docs/`
+
+**Documentation**
+Architecture diagrams, requirements, and design specifications.
+
+---
+
 ## Customer Lifecycle
 
 CloudAct follows a 4-phase customer journey:
@@ -568,13 +615,13 @@ curl -X POST http://localhost:8001/api/v1/pipelines/run/{org}/gcp/cost/billing \
 
 ### Component Documentation
 
-| Component             | Documentation                                | Description                                              |
-| --------------------- | -------------------------------------------- | -------------------------------------------------------- |
-| **API Service**       | `api-service/CLAUDE.md`                      | Bootstrap, onboarding, integrations, LLM data CRUD       |
-| **Pipeline Service**  | `data-pipeline-service/CLAUDE.md`            | Pipeline execution, processors, ETL jobs                 |
-| **Pipeline Security** | `data-pipeline-service/SECURITY.md`          | Security requirements, credential handling               |
-| **Frontend**          | `fronted-system/CLAUDE.md`                   | Next.js setup, auth flow, billing, backend integration   |
-| **Billing**           | `fronted-system/docs/BILLING.md`             | Stripe integration, subscription flows, webhook handling |
+| Component             | Documentation                       | Description                                              |
+| --------------------- | ----------------------------------- | -------------------------------------------------------- |
+| **API Service**       | `api-service/CLAUDE.md`             | Bootstrap, onboarding, integrations, LLM data CRUD       |
+| **Pipeline Service**  | `data-pipeline-service/CLAUDE.md`   | Pipeline execution, processors, ETL jobs                 |
+| **Pipeline Security** | `data-pipeline-service/SECURITY.md` | Security requirements, credential handling               |
+| **Frontend**          | `fronted-system/CLAUDE.md`          | Next.js setup, auth flow, billing, backend integration   |
+| **Billing**           | `fronted-system/docs/BILLING.md`    | Stripe integration, subscription flows, webhook handling |
 
 ### API Endpoint Reference
 

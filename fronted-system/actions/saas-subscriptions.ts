@@ -3,6 +3,16 @@
 /**
  * SaaS Subscription Management Server Actions
  *
+ * @deprecated This file manages individual Supabase subscriptions.
+ * New flow uses BigQuery subscription providers (see subscription-providers.ts).
+ *
+ * This file is STILL USED by:
+ * - app/[orgSlug]/subscriptions/page.tsx (main subscriptions page)
+ * - components/dashboard-sidebar.tsx (sidebar subscriptions list)
+ *
+ * DO NOT DELETE until the new subscription providers flow is fully implemented
+ * and the above files are migrated to use the new system.
+ *
  * Handles CRUD operations for SaaS subscriptions (Canva, Adobe, ChatGPT Plus, etc.)
  * These are fixed monthly/annual fee subscriptions, NOT per-usage API costs.
  *

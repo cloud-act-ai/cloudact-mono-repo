@@ -46,7 +46,8 @@ import { useState, useEffect } from "react"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { getIntegrations } from "@/actions/integrations"
-import { listSaaSSubscriptions, SaaSSubscription } from "@/actions/saas-subscriptions"
+import { listEnabledProviders, ProviderMeta } from "@/actions/subscription-providers"
+import { COMMON_SAAS_PROVIDERS } from "@/lib/saas-providers"
 
 // Category icon mapping for subscriptions
 const CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -128,7 +129,7 @@ export function DashboardSidebar({
     pathname?.includes("/subscriptions") || false
   )
   const [connectedProviders, setConnectedProviders] = useState<Set<string>>(new Set())
-  const [enabledSubscriptions, setEnabledSubscriptions] = useState<SaaSSubscription[]>([])
+  const [enabledProviders, setEnabledProviders] = useState<ProviderMeta[]>([])
   const formattedOrgName = formatOrgName(orgName)
 
   // Fetch integration status to show only connected providers
@@ -153,19 +154,19 @@ export function DashboardSidebar({
     fetchIntegrations()
   }, [orgSlug])
 
-  // Fetch enabled SaaS subscriptions for sidebar
+  // Fetch enabled subscription providers for sidebar
   useEffect(() => {
-    const fetchSubscriptions = async () => {
+    const fetchProviders = async () => {
       try {
-        const result = await listSaaSSubscriptions(orgSlug)
-        if (result.success && result.subscriptions) {
-          setEnabledSubscriptions(result.subscriptions.filter(s => s.is_enabled))
+        const result = await listEnabledProviders(orgSlug)
+        if (result.success && result.providers) {
+          setEnabledProviders(result.providers)
         }
       } catch (error) {
-        console.error("Failed to fetch subscriptions:", error)
+        console.error("Failed to fetch providers:", error)
       }
     }
-    fetchSubscriptions()
+    fetchProviders()
   }, [orgSlug])
 
   const handleLogout = async () => {
@@ -177,6 +178,13 @@ export function DashboardSidebar({
   }
 
   const isActive = (path: string) => pathname?.startsWith(path)
+
+  // Get icon for a provider based on category
+  const getProviderIcon = (providerId: string) => {
+    const provider = COMMON_SAAS_PROVIDERS.find(p => p.id === providerId)
+    const category = provider?.category || "other"
+    return CATEGORY_ICONS[category] || Wallet
+  }
 
   return (
     <Sidebar className="border-r bg-white border-gray-200" {...props}>
@@ -329,8 +337,8 @@ export function DashboardSidebar({
                 </div>
               )}
 
-              {/* Subscriptions Menu - Show only if there are enabled subscriptions */}
-              {enabledSubscriptions.length > 0 && (
+              {/* Subscriptions Menu - Show only if there are enabled providers */}
+              {enabledProviders.length > 0 && (
                 <>
                   <SidebarMenuItem>
                     <SidebarMenuButton
@@ -346,7 +354,7 @@ export function DashboardSidebar({
                         <Wallet className="h-4 w-4" />
                         <span>Subscriptions</span>
                         <Badge variant="outline" className="text-xs px-1.5 py-0 h-5 bg-[#007A78]/5 text-[#007A78] border-[#007A78]/20">
-                          {enabledSubscriptions.length}
+                          {enabledProviders.length}
                         </Badge>
                       </div>
                       <ChevronRight
@@ -358,7 +366,7 @@ export function DashboardSidebar({
                     </SidebarMenuButton>
                   </SidebarMenuItem>
 
-                  {/* Subscription Sub-menus */}
+                  {/* Subscription Provider Sub-menus */}
                   {subscriptionsExpanded && (
                     <div id="subscriptions-submenu" className="ml-4 pl-2 border-l border-gray-200 space-y-1">
                       {/* All Subscriptions overview link */}
@@ -367,38 +375,37 @@ export function DashboardSidebar({
                           asChild
                           className={cn(
                             "text-gray-500 hover:text-[#007A78] hover:bg-[#007A78]/5 text-sm h-8",
-                            pathname === `/${orgSlug}/subscriptions` && "bg-[#007A78]/10 text-[#007A78]",
+                            pathname === `/${orgSlug}/settings/integrations` && "bg-[#007A78]/10 text-[#007A78]",
                           )}
                         >
-                          <Link href={`/${orgSlug}/subscriptions`}>
+                          <Link href={`/${orgSlug}/settings/integrations`}>
                             <List className="h-3.5 w-3.5" />
                             <span>All Subscriptions</span>
                           </Link>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
-                      {/* Show each enabled subscription */}
-                      {enabledSubscriptions.slice(0, 8).map((sub) => {
-                        const CategoryIcon = CATEGORY_ICONS[sub.category || "other"] || Wallet
+                      {/* Show each enabled provider */}
+                      {enabledProviders.map((provider) => {
+                        const ProviderIcon = getProviderIcon(provider.provider_name)
+                        const displayName = COMMON_SAAS_PROVIDERS.find(p => p.id === provider.provider_name)?.name ||
+                                          provider.provider_name.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())
                         return (
-                          <SidebarMenuItem key={sub.id}>
+                          <SidebarMenuItem key={provider.id}>
                             <SidebarMenuButton
                               asChild
-                              className="text-gray-500 hover:text-[#007A78] hover:bg-[#007A78]/5 text-sm h-8"
+                              className={cn(
+                                "text-gray-500 hover:text-[#007A78] hover:bg-[#007A78]/5 text-sm h-8",
+                                isActive(`/${orgSlug}/subscriptions/${provider.provider_name}`) && "bg-[#007A78]/10 text-[#007A78]",
+                              )}
                             >
-                              <Link href={`/${orgSlug}/subscriptions`}>
-                                <CategoryIcon className="h-3.5 w-3.5" />
-                                <span className="truncate">{sub.display_name}</span>
-                                <span className="ml-auto text-xs text-gray-400">${sub.cost_per_cycle.toFixed(0)}</span>
+                              <Link href={`/${orgSlug}/subscriptions/${provider.provider_name}`}>
+                                <ProviderIcon className="h-3.5 w-3.5" />
+                                <span className="truncate">{displayName}</span>
                               </Link>
                             </SidebarMenuButton>
                           </SidebarMenuItem>
                         )
                       })}
-                      {enabledSubscriptions.length > 8 && (
-                        <div className="text-xs text-gray-400 px-2 py-1">
-                          +{enabledSubscriptions.length - 8} more
-                        </div>
-                      )}
                     </div>
                   )}
                 </>

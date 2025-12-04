@@ -1,5 +1,6 @@
-// @vitest-environment node
 /**
+ * @vitest-environment node
+ *
  * Flow Test 14: Subscription Providers (Integration Test)
  *
  * Tests subscription provider management through Supabase and API Service:
@@ -20,19 +21,35 @@
  * - Supabase configured with saas_subscription_meta table
  * - Test user authenticated with org API key
  *
- * Run: npx vitest tests/14-subscription-providers.test.ts --config vitest.node.config.ts
+ * Run: npx vitest tests/14-subscription-providers.test.ts
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
-// Environment config
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
-const API_SERVICE_URL = process.env.NEXT_PUBLIC_API_SERVICE_URL || 'http://localhost:8001'
+// Environment config - use import.meta.env for Vite/Vitest
+const getEnv = (key: string, defaultValue = ''): string => {
+    // Try import.meta.env first (Vite)
+    if (typeof import.meta !== 'undefined' && import.meta.env) {
+        const value = (import.meta.env as Record<string, string>)[key]
+        if (value) return value
+    }
+    // Fallback to process.env (Node.js)
+    if (typeof process !== 'undefined' && process.env) {
+        return process.env[key] || defaultValue
+    }
+    return defaultValue
+}
 
-if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
-    console.warn('Warning: Supabase credentials not set. Tests will fail.')
+const SUPABASE_URL = getEnv('NEXT_PUBLIC_SUPABASE_URL')
+const SUPABASE_SERVICE_KEY = getEnv('SUPABASE_SERVICE_ROLE_KEY')
+const API_SERVICE_URL = getEnv('NEXT_PUBLIC_API_SERVICE_URL', 'http://localhost:8001')
+
+// Check if credentials are available
+const SKIP_TESTS = !SUPABASE_URL || !SUPABASE_SERVICE_KEY
+
+if (SKIP_TESTS) {
+    console.warn('Warning: Supabase credentials not set. Tests will be skipped.')
 }
 
 // Test org details
@@ -67,13 +84,13 @@ const TEST_PROVIDERS = {
     }
 }
 
-describe('Flow 14: Subscription Providers (Supabase + API)', () => {
+describe.skipIf(SKIP_TESTS)('Flow 14: Subscription Providers (Supabase + API)', () => {
 
     beforeAll(async () => {
         console.log('Setting up subscription providers tests...')
 
         // Create Supabase admin client
-        supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_KEY!, {
+        supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
             auth: { persistSession: false }
         })
 
@@ -96,15 +113,15 @@ describe('Flow 14: Subscription Providers (Supabase + API)', () => {
         testUserId = authData.user.id
         console.log(`Created test user: ${testUserId}`)
 
-        // Create test organization
+        // Create test organization (use correct column names from schema)
         const { data: orgData, error: orgError } = await supabase
             .from('organizations')
             .insert({
-                name: TEST_ORG_NAME,
-                slug: TEST_ORG_SLUG,
-                owner_id: testUserId,
-                subscription_status: 'active',
-                subscription_plan: 'starter',
+                org_name: TEST_ORG_NAME,
+                org_slug: TEST_ORG_SLUG,
+                created_by: testUserId,
+                billing_status: 'active',
+                plan: 'starter',
                 backend_onboarded: true,
                 backend_api_key_fingerprint: 'test_fingerprint_123'
             })
@@ -119,7 +136,7 @@ describe('Flow 14: Subscription Providers (Supabase + API)', () => {
         testOrgApiKey = `${TEST_ORG_SLUG}_api_test_key_${Date.now()}`
         console.log(`Created test org: ${testOrgId}`)
 
-        // Add user as org member
+        // Add user as org member (owner)
         await supabase
             .from('organization_members')
             .insert({
