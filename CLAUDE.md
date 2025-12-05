@@ -51,6 +51,8 @@ Port 3000                    Frontend-facing API             ETL Execution + Int
 
 ## Documentation
 
+### Service Documentation
+
 | Component | Documentation | Description |
 |-----------|---------------|-------------|
 | **Architecture** | `ARCHITECTURE.md` | Complete system architecture, customer lifecycle, data flow |
@@ -58,6 +60,26 @@ Port 3000                    Frontend-facing API             ETL Execution + Int
 | **Pipeline Engine** | `data-pipeline-service/CLAUDE.md` | Pipeline architecture, processors, configs, scheduled ETL |
 | **Frontend** | `fronted-system/CLAUDE.md` | Next.js frontend, Supabase, Stripe, backend integration |
 | **Security** | `data-pipeline-service/SECURITY.md` | Production security requirements, API key handling |
+
+### Feature Documentation (requirements-docs/)
+
+**Single source of truth for all features. Each document follows standardized format.**
+
+| Category | Document | Status | Description |
+|----------|----------|--------|-------------|
+| **01 - Core** | `01_USER_MANAGEMENT.md` | IMPLEMENTED | Auth, roles, team invites, permissions |
+| **01 - Core** | `01_ORGANIZATION_ONBOARDING.md` | IMPLEMENTED | Org creation, API key generation, dataset setup |
+| **01 - Core** | `01_BILLING_STRIPE.md` | IMPLEMENTED | Stripe subscriptions, webhooks, billing portal |
+| **02 - Costs** | `02_SAAS_SUBSCRIPTION_COSTS.md` | IMPLEMENTED | SaaS subscription tracking (Canva, Slack, etc.) |
+| **02 - Costs** | `02_CLOUD_COSTS.md` | IMPLEMENTED | GCP billing extraction and analytics |
+| **02 - Costs** | `02_LLM_API_USAGE_COSTS.md` | PARTIAL | LLM pricing config (usage tracking future) |
+| **03 - Features** | `03_PIPELINES.md` | IMPLEMENTED | Pipeline execution, scheduling, async processing |
+| **03 - Features** | `03_INTEGRATIONS.md` | IMPLEMENTED | Provider setup, credential encryption |
+| **03 - Features** | `03_DASHBOARD_ANALYTICS.md` | IMPLEMENTED | Charts, metrics, cost visualization |
+| **04 - UI** | `04_LANDING_PAGES.md` | IMPLEMENTED | Public marketing pages, SEO |
+| **04 - UI** | `04_CONSOLE_UI.md` | IMPLEMENTED | Dashboard layout, navigation, theming |
+
+**Document Format:** Each document includes Notation, Terminology, Where Data Lives, Lifecycle, Architecture Flow (ASCII), Data Flow, Schema Definitions, Frontend Implementation, API Endpoints, Implementation Status, Error Handling, Test Files, and File References.
 
 ## Backend Services Split
 
@@ -267,4 +289,4 @@ curl -s http://localhost:8001/health | python3 -m json.tool
 
 ---
 
-**Last Updated:** 2025-12-02
+**Last Updated:** 2025-12-04

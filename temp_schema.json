@@ -1,0 +1,140 @@
+[
+  {
+    "name": "subscription_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Unique subscription identifier (e.g., sub_canva_pro_abc123)"
+  },
+  {
+    "name": "provider",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Provider key: canva, slack, chatgpt_plus, figma, etc."
+  },
+  {
+    "name": "plan_name",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Plan tier: FREE, PRO, TEAM, BUSINESS, ENTERPRISE"
+  },
+  {
+    "name": "display_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Human-readable plan name (e.g., 'Canva Pro', 'Slack Business+')"
+  },
+  {
+    "name": "is_custom",
+    "type": "BOOLEAN",
+    "mode": "REQUIRED",
+    "description": "True if user-created custom subscription"
+  },
+  {
+    "name": "quantity",
+    "type": "INTEGER",
+    "mode": "REQUIRED",
+    "description": "Number of units purchased"
+  },
+  {
+    "name": "unit_price_usd",
+    "type": "FLOAT64",
+    "mode": "REQUIRED",
+    "description": "Monthly price per unit in USD"
+  },
+  {
+    "name": "yearly_price_usd",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Annual price in USD"
+  },
+  {
+    "name": "yearly_discount_pct",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Percentage discount for annual billing (0-100)"
+  },
+  {
+    "name": "billing_period",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Billing period: monthly, quarterly, yearly"
+  },
+  {
+    "name": "category",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Category: ai, design, productivity, communication, development, cloud, other"
+  },
+  {
+    "name": "seats",
+    "type": "INTEGER",
+    "mode": "NULLABLE",
+    "description": "Number of seats included in plan"
+  },
+  {
+    "name": "storage_limit_gb",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Storage limit in GB (null = unlimited)"
+  },
+  {
+    "name": "monthly_limit",
+    "type": "INTEGER",
+    "mode": "NULLABLE",
+    "description": "Monthly usage limit (null = unlimited)"
+  },
+  {
+    "name": "daily_limit",
+    "type": "INTEGER",
+    "mode": "NULLABLE",
+    "description": "Daily usage limit (null = unlimited)"
+  },
+  {
+    "name": "projects_limit",
+    "type": "INTEGER",
+    "mode": "NULLABLE",
+    "description": "Project limit (null = unlimited)"
+  },
+  {
+    "name": "members_limit",
+    "type": "INTEGER",
+    "mode": "NULLABLE",
+    "description": "Member limit (null = unlimited)"
+  },
+  {
+    "name": "effective_date",
+    "type": "DATE",
+    "mode": "NULLABLE",
+    "description": "Date when subscription becomes active"
+  },
+  {
+    "name": "end_date",
+    "type": "DATE",
+    "mode": "NULLABLE",
+    "description": "Subscription end date (null = active/ongoing)"
+  },
+  {
+    "name": "is_enabled",
+    "type": "BOOLEAN",
+    "mode": "REQUIRED",
+    "description": "User can enable/disable subscription for cost tracking"
+  },
+  {
+    "name": "notes",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "User notes or plan description"
+  },
+  {
+    "name": "created_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "Record creation timestamp"
+  },
+  {
+    "name": "updated_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "Last update timestamp"
+  }
+]
