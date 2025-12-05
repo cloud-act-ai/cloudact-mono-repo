@@ -4,36 +4,11 @@ import { useParams, usePathname } from "next/navigation"
 import Link from "next/link"
 import { User, Shield, AlertTriangle } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { createClient } from "@/lib/supabase/client"
-import { useState, useEffect } from "react"
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
   const params = useParams()
   const pathname = usePathname()
   const orgSlug = params.orgSlug as string
-
-  const [userRole, setUserRole] = useState<string | null>(null)
-  const isOwner = userRole === "owner"
-
-  useEffect(() => {
-    const fetchUserRole = async () => {
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-
-      const { data: membership } = await supabase
-        .from("organization_members")
-        .select("role, organizations!inner(org_slug)")
-        .eq("user_id", user.id)
-        .eq("organizations.org_slug", orgSlug)
-        .single()
-
-      if (membership) {
-        setUserRole(membership.role)
-      }
-    }
-    fetchUserRole()
-  }, [orgSlug])
 
   const isActive = (path: string) => pathname === path
 

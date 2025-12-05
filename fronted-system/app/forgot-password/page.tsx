@@ -3,7 +3,6 @@
 import type React from "react"
 
 import { useState } from "react"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -35,8 +34,8 @@ export default function ForgotPasswordPage() {
       }
 
       setSuccess(true)
-    } catch (err: any) {
-      setError(err.message || "Failed to send reset email")
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to send reset email")
     } finally {
       setIsLoading(false)
     }

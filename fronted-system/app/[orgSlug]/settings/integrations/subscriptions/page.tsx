@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { Loader2, Check, CreditCard, Plus, ChevronRight, ChevronDown, ChevronUp, Brain, Palette, FileText, MessageSquare, Code, Cloud, Wallet } from "lucide-react"
+import { Loader2, Check, CreditCard, Plus, ChevronRight, ChevronDown, ChevronUp, Brain, Palette, FileText, MessageSquare, Code, Cloud } from "lucide-react"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -32,7 +32,6 @@ import {
   disableProvider,
   createCustomPlan,
   type ProviderInfo,
-  type PlanCreate,
 } from "@/actions/subscription-providers"
 
 const INITIAL_PROVIDERS_COUNT = 20
@@ -179,7 +178,7 @@ export default function SubscriptionProvidersPage() {
       } else {
         setError(result.error || `Failed to ${enabled ? 'enable' : 'disable'} provider`)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred"
       setError(errorMessage)
     } finally {
@@ -240,7 +239,7 @@ export default function SubscriptionProvidersPage() {
       resetCustomForm()
       setSuccessMessage(`${customProviderName.trim()} added successfully`)
       await loadSubscriptionProviders()
-    } catch (error) {
+    } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred"
       setError(errorMessage)
     } finally {

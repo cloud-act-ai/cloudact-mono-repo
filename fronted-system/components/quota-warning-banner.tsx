@@ -114,7 +114,7 @@ export function QuotaWarningBanner({
   if (showPipelineQuota && quota.dailyWarningLevel !== 'ok') {
     warnings.push({
       id: 'daily',
-      level: quota.dailyWarningLevel as any,
+      level: quota.dailyWarningLevel as 'warning' | 'critical' | 'exceeded',
       icon: TrendingUp,
       title: quota.dailyWarningLevel === 'exceeded'
         ? 'Daily Pipeline Limit Reached'
@@ -130,7 +130,7 @@ export function QuotaWarningBanner({
   if (showPipelineQuota && quota.monthlyWarningLevel !== 'ok' && quota.monthlyWarningLevel !== quota.dailyWarningLevel) {
     warnings.push({
       id: 'monthly',
-      level: quota.monthlyWarningLevel as any,
+      level: quota.monthlyWarningLevel as 'warning' | 'critical' | 'exceeded',
       icon: TrendingUp,
       title: quota.monthlyWarningLevel === 'exceeded'
         ? 'Monthly Pipeline Limit Reached'
@@ -146,7 +146,7 @@ export function QuotaWarningBanner({
   if (showResourceQuota && quota.seatWarningLevel !== 'ok') {
     warnings.push({
       id: 'seats',
-      level: quota.seatWarningLevel as any,
+      level: quota.seatWarningLevel as 'warning' | 'critical' | 'exceeded',
       icon: Users,
       title: quota.seatWarningLevel === 'exceeded'
         ? 'Team Member Limit Reached'
@@ -162,7 +162,7 @@ export function QuotaWarningBanner({
   if (showResourceQuota && quota.providerWarningLevel !== 'ok') {
     warnings.push({
       id: 'providers',
-      level: quota.providerWarningLevel as any,
+      level: quota.providerWarningLevel as 'warning' | 'critical' | 'exceeded',
       icon: Plug,
       title: quota.providerWarningLevel === 'exceeded'
         ? 'Integration Limit Reached'

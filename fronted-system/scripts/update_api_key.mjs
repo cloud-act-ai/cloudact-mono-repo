@@ -1,3 +1,4 @@
+/* eslint-env node */
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = 'https://kwroaccbrxppfiysqlzs.supabase.co';
@@ -50,7 +51,7 @@ async function updateApiKey() {
     'newteset_11262025': 'newteset_11262025_api_zkiSa4IEz1ebyS0_'
   };
 
-  const { data, error } = await supabase.auth.admin.updateUserById(userId, {
+  const { data: updateData, error } = await supabase.auth.admin.updateUserById(userId, {
     user_metadata: {
       ...user.user_metadata,
       org_api_keys: updatedKeys
@@ -62,7 +63,7 @@ async function updateApiKey() {
     return;
   }
 
-  console.log('Updated org_api_keys:', data.user.user_metadata?.org_api_keys);
+  console.log('Updated org_api_keys:', updateData.user.user_metadata?.org_api_keys);
   console.log('SUCCESS: API key saved to user metadata');
 }
 

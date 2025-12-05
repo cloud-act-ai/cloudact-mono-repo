@@ -1,6 +1,5 @@
 import fs from 'fs';
-import path from 'path';
-// @ts-ignore
+// @ts-expect-error - user_credentials.json may not have type definitions
 import userCreds from '../fixtures/user_credentials.json';
 
 const API_BASE_URL = process.env.API_SERVICE_URL || process.env.NEXT_PUBLIC_API_SERVICE_URL || 'http://localhost:8000';
@@ -138,7 +137,7 @@ export class ApiClient {
         return true;
     }
 
-    async getQuota(pipelineId: string = 'gcp_billing'): Promise<any> {
+    async getQuota(pipelineId: string = 'gcp_billing'): Promise<unknown> {
         const url = `${API_BASE_URL}/api/v1/validator/validate/${this.orgSlug}`;
         const payload = {
             pipeline_id: pipelineId,

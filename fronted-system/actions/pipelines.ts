@@ -14,7 +14,7 @@
  */
 
 import { createClient } from "@/lib/supabase/server"
-import { BackendClient, PipelineConfig, PipelinesListResponse, PipelineRunsResponse, PipelineRunDetail } from "@/lib/api/backend"
+import { BackendClient, PipelineConfig, PipelineRunsResponse, PipelineRunDetail } from "@/lib/api/backend"
 import { getOrgApiKeySecure } from "@/actions/backend-onboarding"
 
 // ============================================
@@ -30,7 +30,7 @@ interface PipelineRunResult {
   status?: string
   message?: string
   error?: string
-  result?: any
+  result?: unknown
 }
 
 // ============================================
@@ -165,8 +165,9 @@ export async function getAvailablePipelines(): Promise<{
     // Fall back to hardcoded defaults if API fails
     console.error("[Pipelines] Failed to fetch from API, using defaults")
     return { success: true, pipelines: FALLBACK_PIPELINES }
-  } catch (err: any) {
-    console.error("[Pipelines] Error fetching pipelines:", err)
+  } catch (err: unknown) {
+    const errorMessage = err instanceof Error ? err.message : "Unknown error"
+    console.error("[Pipelines] Error fetching pipelines:", errorMessage)
     // Clear cache on error
     pipelinesCache = null
     pipelinesCacheTime = 0
@@ -240,7 +241,7 @@ async function getOrgApiKey(orgSlug: string): Promise<string | null> {
 export async function runPipeline(
   orgSlug: string,
   pipelineId: string,
-  params?: { date?: string; [key: string]: any }
+  params?: Record<string, unknown>
 ): Promise<PipelineRunResult> {
   try {
     // Step 1: Validate inputs
@@ -345,11 +346,16 @@ export async function runPipeline(
       message: response.message,
       result: response.result,
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(`[Pipelines] Run ${pipelineId} error:`, err)
+    const errorMessage = err instanceof Error && 'detail' in err
+      ? (err as Error & { detail?: string }).detail
+      : err instanceof Error
+      ? err.message
+      : "Pipeline run failed"
     return {
       success: false,
-      error: err.detail || err.message || "Pipeline run failed",
+      error: errorMessage,
     }
   }
 }
@@ -431,11 +437,16 @@ export async function getPipelineRuns(
       success: true,
       data: response,
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(`[Pipelines] Get runs error:`, err)
+    const errorMessage = err instanceof Error && 'detail' in err
+      ? (err as Error & { detail?: string }).detail
+      : err instanceof Error
+      ? err.message
+      : "Failed to fetch pipeline runs"
     return {
       success: false,
-      error: err.detail || err.message || "Failed to fetch pipeline runs",
+      error: errorMessage,
     }
   }
 }
@@ -499,11 +510,16 @@ export async function getPipelineRunDetail(
       success: true,
       data: response,
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(`[Pipelines] Get run detail error:`, err)
+    const errorMessage = err instanceof Error && 'detail' in err
+      ? (err as Error & { detail?: string }).detail
+      : err instanceof Error
+      ? err.message
+      : "Failed to fetch pipeline run details"
     return {
       success: false,
-      error: err.detail || err.message || "Failed to fetch pipeline run details",
+      error: errorMessage,
     }
   }
 }

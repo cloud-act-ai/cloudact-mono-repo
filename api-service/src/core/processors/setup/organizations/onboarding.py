@@ -120,7 +120,7 @@ class OrgOnboardingProcessor:
 
     def _load_csv_file(self, csv_path: str) -> List[Dict[str, Any]]:
         """Load CSV file and return list of row dictionaries"""
-        # Resolve path relative to project root (cloudact-api-service/)
+        # Resolve path relative to project root (api-service/)
         base_dir = Path(__file__).parent.parent.parent.parent.parent.parent
         full_path = base_dir / csv_path
 

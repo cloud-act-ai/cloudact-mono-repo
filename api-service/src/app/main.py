@@ -625,7 +625,7 @@ async def health_check():
     """
     return {
         "status": "healthy",
-        "service": "cloudact-api-service",
+        "service": "api-service",
         "version": settings.app_version,
         "environment": settings.environment
     }
@@ -645,14 +645,14 @@ async def liveness_probe():
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             content={
                 "status": "shutting_down",
-                "service": "cloudact-api-service",
+                "service": "api-service",
                 "message": "Service is shutting down"
             }
         )
 
     return {
         "status": "alive",
-        "service": "cloudact-api-service",
+        "service": "api-service",
         "version": settings.app_version
     }
 
@@ -673,7 +673,7 @@ async def readiness_probe():
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             content={
                 "status": "not_ready",
-                "service": "cloudact-api-service",
+                "service": "api-service",
                 "reason": "shutting_down",
                 "checks": {
                     "shutdown": False
@@ -710,7 +710,7 @@ async def readiness_probe():
     if all_ready:
         return {
             "status": "ready",
-            "service": "cloudact-api-service",
+            "service": "api-service",
             "version": settings.app_version,
             "checks": checks
         }
@@ -719,7 +719,7 @@ async def readiness_probe():
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             content={
                 "status": "not_ready",
-                "service": "cloudact-api-service",
+                "service": "api-service",
                 "checks": checks
             }
         )

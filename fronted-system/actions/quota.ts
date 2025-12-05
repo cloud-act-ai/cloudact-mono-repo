@@ -9,7 +9,6 @@
 
 import { createClient, createServiceRoleClient } from "@/lib/supabase/server"
 import { getOrgApiKeySecure } from "@/actions/backend-onboarding"
-import { BackendClient } from "@/lib/api/backend"
 
 export interface QuotaUsage {
   // Pipeline quotas
@@ -116,17 +115,17 @@ export async function getQuotaUsage(orgSlug: string): Promise<{
     ].filter(Boolean).length
 
     // Get pipeline usage from backend (if available)
-    let pipelinesRunToday = 0
-    let pipelinesRunMonth = 0
-    let concurrentRunning = 0
+    const pipelinesRunToday = 0
+    const pipelinesRunMonth = 0
+    const concurrentRunning = 0
 
     try {
       const apiKey = await getOrgApiKeySecure(orgSlug)
       if (apiKey) {
-        const backend = new BackendClient({ orgApiKey: apiKey })
         // Try to get quota info from backend
         // This would require an endpoint on the backend - for now use defaults
         // TODO: Implement GET /api/v1/organizations/{org}/quota endpoint in backend
+        // const _backend = new BackendClient({ orgApiKey: apiKey })
       }
     } catch (err) {
       // Backend quota check failed - use defaults
@@ -167,9 +166,10 @@ export async function getQuotaUsage(orgSlug: string): Promise<{
     }
 
     return { success: true, data: quotaUsage }
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const errorMessage = err instanceof Error ? err.message : "Failed to get quota usage"
     console.error("[Quota] Error getting quota usage:", err)
-    return { success: false, error: err.message || "Failed to get quota usage" }
+    return { success: false, error: errorMessage }
   }
 }
 

@@ -4,7 +4,7 @@
 
 Next.js 16 frontend with Supabase auth and Stripe payments. Port 3000. Connects to api-service (8000) for backend operations. Multi-tenant SaaS platform for GenAI and cloud cost management.
 
-**Full Platform Architecture:** `../ARCHITECTURE.md`
+**Full Platform Architecture:** `../requirements-docs/00-ARCHITECTURE.md`
 
 ## Frontend Flow
 
@@ -279,7 +279,7 @@ Returning user: `/login` → `/{orgSlug}/dashboard`
 
 ## Backend Integration (Pipeline Backend)
 
-**See full architecture:** `../ARCHITECTURE.md`
+**See full architecture:** `../requirements-docs/00-ARCHITECTURE.md`
 
 ### Overview
 

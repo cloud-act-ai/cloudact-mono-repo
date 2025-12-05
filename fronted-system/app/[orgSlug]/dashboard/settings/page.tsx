@@ -5,7 +5,7 @@ export default async function SettingsPage({
 }: {
   params: Promise<{ orgSlug: string }>
 }) {
-  const { orgSlug } = await params
+  await params
 
   return (
     <div className="space-y-8">

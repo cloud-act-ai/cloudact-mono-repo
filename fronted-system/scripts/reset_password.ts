@@ -44,7 +44,7 @@ async function resetPassword() {
     console.log(`Found user ID: ${user.id}`);
 
     // 2. Update password
-    const { data, error } = await supabase.auth.admin.updateUserById(
+    const { error } = await supabase.auth.admin.updateUserById(
         user.id,
         { password: newPassword }
     );

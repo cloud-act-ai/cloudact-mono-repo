@@ -308,7 +308,7 @@ class BigQueryClient:
             dataset.labels = {
                 "org_slug": org_slug.replace("_", "-"),  # Labels can't have underscores
                 "dataset_type": dataset_type.replace("_", "-"),
-                "managed_by": "convergence-pipeline"
+                "managed_by": "cloudact-pipeline"
             }
 
         try:

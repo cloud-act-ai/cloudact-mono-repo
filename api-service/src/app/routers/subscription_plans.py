@@ -269,6 +269,66 @@ def load_seed_data_for_provider(provider: str) -> List[Dict[str, Any]]:
     return plans
 
 
+def get_saas_subscription_plans_schema() -> List[bigquery.SchemaField]:
+    """Get the schema for saas_subscription_plans table."""
+    return [
+        bigquery.SchemaField("subscription_id", "STRING", mode="REQUIRED"),
+        bigquery.SchemaField("provider", "STRING", mode="REQUIRED"),
+        bigquery.SchemaField("plan_name", "STRING", mode="REQUIRED"),
+        bigquery.SchemaField("display_name", "STRING", mode="NULLABLE"),
+        bigquery.SchemaField("is_custom", "BOOLEAN", mode="REQUIRED"),
+        bigquery.SchemaField("quantity", "INTEGER", mode="REQUIRED"),
+        bigquery.SchemaField("unit_price_usd", "FLOAT64", mode="REQUIRED"),
+        bigquery.SchemaField("yearly_price_usd", "FLOAT64", mode="NULLABLE"),
+        bigquery.SchemaField("yearly_discount_pct", "FLOAT64", mode="NULLABLE"),
+        bigquery.SchemaField("billing_period", "STRING", mode="REQUIRED"),
+        bigquery.SchemaField("category", "STRING", mode="REQUIRED"),
+        bigquery.SchemaField("seats", "INTEGER", mode="NULLABLE"),
+        bigquery.SchemaField("storage_limit_gb", "FLOAT64", mode="NULLABLE"),
+        bigquery.SchemaField("monthly_limit", "INTEGER", mode="NULLABLE"),
+        bigquery.SchemaField("daily_limit", "INTEGER", mode="NULLABLE"),
+        bigquery.SchemaField("projects_limit", "INTEGER", mode="NULLABLE"),
+        bigquery.SchemaField("members_limit", "INTEGER", mode="NULLABLE"),
+        bigquery.SchemaField("effective_date", "DATE", mode="NULLABLE"),
+        bigquery.SchemaField("end_date", "DATE", mode="NULLABLE"),
+        bigquery.SchemaField("is_enabled", "BOOLEAN", mode="REQUIRED"),
+        bigquery.SchemaField("notes", "STRING", mode="NULLABLE"),
+        bigquery.SchemaField("created_at", "TIMESTAMP", mode="NULLABLE"),
+        bigquery.SchemaField("updated_at", "TIMESTAMP", mode="NULLABLE"),
+    ]
+
+
+async def ensure_table_exists(bq_client: BigQueryClient, dataset_id: str) -> bool:
+    """
+    Ensure the saas_subscription_plans table exists in the org's dataset.
+    Creates it if it doesn't exist.
+
+    Returns True if table exists or was created successfully.
+    """
+    table_ref = f"{settings.gcp_project_id}.{dataset_id}.{SAAS_SUBSCRIPTION_PLANS_TABLE}"
+
+    try:
+        # Try to get table metadata
+        bq_client.client.get_table(table_ref)
+        logger.debug(f"Table exists: {table_ref}")
+        return True
+    except Exception as e:
+        # Table doesn't exist - create it
+        logger.info(f"Table not found, creating: {table_ref}")
+        try:
+            schema = get_saas_subscription_plans_schema()
+            table = bigquery.Table(table_ref, schema=schema)
+            table.description = "SaaS subscription plans for providers (Canva, Slack, ChatGPT Plus, etc.)"
+            table.clustering_fields = ["provider", "plan_name"]
+
+            bq_client.client.create_table(table)
+            logger.info(f"Created table: {table_ref}")
+            return True
+        except Exception as create_error:
+            logger.error(f"Failed to create table {table_ref}: {create_error}")
+            return False
+
+
 # ============================================
 # Provider Endpoints
 # ============================================
@@ -359,6 +419,14 @@ async def enable_provider(
 
     dataset_id = get_org_dataset(org_slug)
     table_ref = f"{settings.gcp_project_id}.{dataset_id}.{SAAS_SUBSCRIPTION_PLANS_TABLE}"
+
+    # Ensure table exists (creates it if missing - handles orgs created before this table was added)
+    table_exists = await ensure_table_exists(bq_client, dataset_id)
+    if not table_exists:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create or access {SAAS_SUBSCRIPTION_PLANS_TABLE} table for {org_slug}"
+        )
 
     # Check if plans already exist
     if not force:

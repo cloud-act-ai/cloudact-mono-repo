@@ -41,7 +41,7 @@ import { getOrgApiKeySecure } from "@/actions/backend-onboarding"
 // Types
 // ============================================
 
-export interface LLMDataResult<T = any> {
+export interface LLMDataResult<T = unknown> {
   success: boolean
   data?: T
   error?: string
@@ -173,7 +173,7 @@ function validateSubscriptionData(subscription: SaaSSubscriptionCreate | SaaSSub
   const rateLimitFields = ['rpm_limit', 'tpm_limit', 'rpd_limit', 'tpd_limit', 'concurrent_limit'] as const
   for (const field of rateLimitFields) {
     if (field in subscription) {
-      const value = (subscription as any)[field]
+      const value = subscription[field as keyof typeof subscription]
       if (value !== undefined && value !== null) {
         if (typeof value !== 'number' || value < 0) {
           return `${field} must be a non-negative number`
@@ -224,7 +224,7 @@ function validatePricingData(pricing: LLMPricingCreate | LLMPricingUpdate): stri
   const tokenFields = ['free_tier_input_tokens', 'free_tier_output_tokens', 'volume_threshold_tokens'] as const
   for (const field of tokenFields) {
     if (field in pricing) {
-      const value = (pricing as any)[field]
+      const value = pricing[field as keyof typeof pricing]
       if (value !== undefined && value !== null) {
         if (typeof value !== 'number' || value < 0) {
           return `${field} must be a non-negative number`
@@ -237,7 +237,7 @@ function validatePricingData(pricing: LLMPricingCreate | LLMPricingUpdate): stri
   const priceFields = ['input_price_per_1k', 'output_price_per_1k', 'base_input_price_per_1k', 'base_output_price_per_1k', 'discounted_input_price_per_1k', 'discounted_output_price_per_1k'] as const
   for (const field of priceFields) {
     if (field in pricing) {
-      const value = (pricing as any)[field]
+      const value = pricing[field as keyof typeof pricing]
       if (value !== undefined && value !== null) {
         if (typeof value !== 'number' || value < 0) {
           return `${field} must be a non-negative number`
@@ -328,9 +328,11 @@ export async function listLLMPricing(
     const data = await backend.listLLMPricing(orgSlug, normalizeProvider(provider))
 
     return { success: true, data }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(`[LLM Data] List ${provider} pricing error:`, err)
-    return { success: false, error: err.detail || err.message || "Failed to list pricing" }
+    const errorMessage = err instanceof Error ? err.message : "Failed to list pricing"
+    const errorDetail = typeof err === 'object' && err !== null && 'detail' in err ? String(err.detail) : errorMessage
+    return { success: false, error: errorDetail }
   }
 }
 
@@ -367,9 +369,11 @@ export async function getLLMPricing(
     const data = await backend.getLLMPricing(orgSlug, normalizeProvider(provider), modelId)
 
     return { success: true, data }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(`[LLM Data] Get ${provider} pricing error:`, err)
-    return { success: false, error: err.detail || err.message || "Failed to get pricing" }
+    const errorMessage = err instanceof Error ? err.message : "Failed to get pricing"
+    const errorDetail = typeof err === 'object' && err !== null && 'detail' in err ? String(err.detail) : errorMessage
+    return { success: false, error: errorDetail }
   }
 }
 
@@ -412,9 +416,11 @@ export async function createLLMPricing(
     const data = await backend.createLLMPricing(orgSlug, normalizeProvider(provider), pricing)
 
     return { success: true, data, message: "Pricing created successfully" }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(`[LLM Data] Create ${provider} pricing error:`, err)
-    return { success: false, error: err.detail || err.message || "Failed to create pricing" }
+    const errorMessage = err instanceof Error ? err.message : "Failed to create pricing"
+    const errorDetail = typeof err === 'object' && err !== null && 'detail' in err ? String(err.detail) : errorMessage
+    return { success: false, error: errorDetail }
   }
 }
 
@@ -458,9 +464,11 @@ export async function updateLLMPricing(
     const data = await backend.updateLLMPricing(orgSlug, normalizeProvider(provider), modelId, pricing)
 
     return { success: true, data, message: "Pricing updated successfully" }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(`[LLM Data] Update ${provider} pricing error:`, err)
-    return { success: false, error: err.detail || err.message || "Failed to update pricing" }
+    const errorMessage = err instanceof Error ? err.message : "Failed to update pricing"
+    const errorDetail = typeof err === 'object' && err !== null && 'detail' in err ? String(err.detail) : errorMessage
+    return { success: false, error: errorDetail }
   }
 }
 
@@ -497,9 +505,11 @@ export async function deleteLLMPricing(
     await backend.deleteLLMPricing(orgSlug, normalizeProvider(provider), modelId)
 
     return { success: true, message: "Pricing deleted successfully" }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(`[LLM Data] Delete ${provider} pricing error:`, err)
-    return { success: false, error: err.detail || err.message || "Failed to delete pricing" }
+    const errorMessage = err instanceof Error ? err.message : "Failed to delete pricing"
+    const errorDetail = typeof err === 'object' && err !== null && 'detail' in err ? String(err.detail) : errorMessage
+    return { success: false, error: errorDetail }
   }
 }
 
@@ -532,9 +542,11 @@ export async function resetLLMPricing(
     const data = await backend.resetLLMPricing(orgSlug, normalizeProvider(provider))
 
     return { success: true, data, message: "Pricing reset to defaults" }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(`[LLM Data] Reset ${provider} pricing error:`, err)
-    return { success: false, error: err.detail || err.message || "Failed to reset pricing" }
+    const errorMessage = err instanceof Error ? err.message : "Failed to reset pricing"
+    const errorDetail = typeof err === 'object' && err !== null && 'detail' in err ? String(err.detail) : errorMessage
+    return { success: false, error: errorDetail }
   }
 }
 
@@ -571,9 +583,11 @@ export async function listSaaSSubscriptions(
     const data = await backend.listSaaSSubscriptions(orgSlug, normalizeProvider(provider))
 
     return { success: true, data }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(`[LLM Data] List ${provider} subscriptions error:`, err)
-    return { success: false, error: err.detail || err.message || "Failed to list subscriptions" }
+    const errorMessage = err instanceof Error ? err.message : "Failed to list subscriptions"
+    const errorDetail = typeof err === 'object' && err !== null && 'detail' in err ? String(err.detail) : errorMessage
+    return { success: false, error: errorDetail }
   }
 }
 
@@ -610,9 +624,11 @@ export async function getSaaSSubscription(
     const data = await backend.getSaaSSubscription(orgSlug, normalizeProvider(provider), planName)
 
     return { success: true, data }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(`[LLM Data] Get ${provider} subscription error:`, err)
-    return { success: false, error: err.detail || err.message || "Failed to get subscription" }
+    const errorMessage = err instanceof Error ? err.message : "Failed to get subscription"
+    const errorDetail = typeof err === 'object' && err !== null && 'detail' in err ? String(err.detail) : errorMessage
+    return { success: false, error: errorDetail }
   }
 }
 
@@ -655,9 +671,11 @@ export async function createSaaSSubscription(
     const data = await backend.createSaaSSubscription(orgSlug, normalizeProvider(provider), subscription)
 
     return { success: true, data, message: "Subscription created successfully" }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(`[LLM Data] Create ${provider} subscription error:`, err)
-    return { success: false, error: err.detail || err.message || "Failed to create subscription" }
+    const errorMessage = err instanceof Error ? err.message : "Failed to create subscription"
+    const errorDetail = typeof err === 'object' && err !== null && 'detail' in err ? String(err.detail) : errorMessage
+    return { success: false, error: errorDetail }
   }
 }
 
@@ -701,9 +719,11 @@ export async function updateSaaSSubscription(
     const data = await backend.updateSaaSSubscription(orgSlug, normalizeProvider(provider), planName, subscription)
 
     return { success: true, data, message: "Subscription updated successfully" }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(`[LLM Data] Update ${provider} subscription error:`, err)
-    return { success: false, error: err.detail || err.message || "Failed to update subscription" }
+    const errorMessage = err instanceof Error ? err.message : "Failed to update subscription"
+    const errorDetail = typeof err === 'object' && err !== null && 'detail' in err ? String(err.detail) : errorMessage
+    return { success: false, error: errorDetail }
   }
 }
 
@@ -740,9 +760,11 @@ export async function deleteSaaSSubscription(
     await backend.deleteSaaSSubscription(orgSlug, normalizeProvider(provider), planName)
 
     return { success: true, message: "Subscription deleted successfully" }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(`[LLM Data] Delete ${provider} subscription error:`, err)
-    return { success: false, error: err.detail || err.message || "Failed to delete subscription" }
+    const errorMessage = err instanceof Error ? err.message : "Failed to delete subscription"
+    const errorDetail = typeof err === 'object' && err !== null && 'detail' in err ? String(err.detail) : errorMessage
+    return { success: false, error: errorDetail }
   }
 }
 
@@ -775,9 +797,11 @@ export async function resetSaaSSubscriptions(
     const data = await backend.resetSaaSSubscriptions(orgSlug, normalizeProvider(provider))
 
     return { success: true, data, message: "Subscriptions reset to defaults" }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(`[LLM Data] Reset ${provider} subscriptions error:`, err)
-    return { success: false, error: err.detail || err.message || "Failed to reset subscriptions" }
+    const errorMessage = err instanceof Error ? err.message : "Failed to reset subscriptions"
+    const errorDetail = typeof err === 'object' && err !== null && 'detail' in err ? String(err.detail) : errorMessage
+    return { success: false, error: errorDetail }
   }
 }
 

@@ -27,48 +27,17 @@ import {
   BarChart3,
   Plug,
   Brain,
-  Sparkles,
   Cloud,
-  Cpu,
-  Gem,
   Play,
   List,
-  Wallet,
-  Palette,
-  MessageSquare,
-  Code,
-  FileText,
-  DollarSign,
 } from "lucide-react"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
-import { useRouter, usePathname } from "next/navigation"
+import { usePathname } from "next/navigation"
 import { useState, useEffect } from "react"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
-import { getIntegrations } from "@/actions/integrations"
 import { listEnabledProviders, ProviderMeta } from "@/actions/subscription-providers"
-import { COMMON_SAAS_PROVIDERS } from "@/lib/saas-providers"
-
-// Category icon mapping for subscriptions
-const CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
-  ai: Brain,
-  design: Palette,
-  productivity: FileText,
-  communication: MessageSquare,
-  development: Code,
-  cloud: Cloud,
-  other: Wallet,
-}
-
-// Provider configuration with backend keys - defined outside component to prevent re-creation
-const INTEGRATION_PROVIDERS = [
-  { id: "gcp", backendKey: "GCP_SA", name: "GCP", icon: Cloud, href: "gcp" },
-  { id: "openai", backendKey: "OPENAI", name: "OpenAI", icon: Brain, href: "openai" },
-  { id: "anthropic", backendKey: "ANTHROPIC", name: "Anthropic", icon: Sparkles, href: "anthropic" },
-  { id: "gemini", backendKey: "GEMINI", name: "Gemini", icon: Gem, href: "gemini" },
-  { id: "deepseek", backendKey: "DEEPSEEK", name: "DeepSeek", icon: Cpu, href: "deepseek" },
-] as const
 
 // Format org name: "guruInc_11242025" → "Guru Inc"
 function formatOrgName(name: string): string {
@@ -116,7 +85,6 @@ export function DashboardSidebar({
   userRole,
   ...props
 }: DashboardSidebarProps) {
-  const router = useRouter()
   const pathname = usePathname()
   const [isLoading, setIsLoading] = useState(false)
   const [orgExpanded, setOrgExpanded] = useState(false)
@@ -129,31 +97,8 @@ export function DashboardSidebar({
   const [subscriptionsExpanded, setSubscriptionsExpanded] = useState(
     pathname?.includes("/subscriptions") || false
   )
-  const [connectedProviders, setConnectedProviders] = useState<Set<string>>(new Set())
   const [enabledProviders, setEnabledProviders] = useState<ProviderMeta[]>([])
   const formattedOrgName = formatOrgName(orgName)
-
-  // Fetch integration status to show only connected providers
-  useEffect(() => {
-    const fetchIntegrations = async () => {
-      try {
-        const result = await getIntegrations(orgSlug)
-        if (result.success && result.integrations) {
-          const connected = new Set<string>()
-          for (const provider of INTEGRATION_PROVIDERS) {
-            const integration = result.integrations.integrations[provider.backendKey]
-            if (integration?.status === "VALID") {
-              connected.add(provider.id)
-            }
-          }
-          setConnectedProviders(connected)
-        }
-      } catch (error) {
-        console.error("Failed to fetch integrations:", error)
-      }
-    }
-    fetchIntegrations()
-  }, [orgSlug])
 
   // Fetch enabled subscription providers for sidebar
   useEffect(() => {
@@ -179,13 +124,6 @@ export function DashboardSidebar({
   }
 
   const isActive = (path: string) => pathname?.startsWith(path)
-
-  // Get icon for a provider based on category
-  const getProviderIcon = (providerId: string) => {
-    const provider = COMMON_SAAS_PROVIDERS.find(p => p.id === providerId)
-    const category = provider?.category || "other"
-    return CATEGORY_ICONS[category] || Wallet
-  }
 
   return (
     <Sidebar className="border-r bg-white border-gray-200" {...props}>

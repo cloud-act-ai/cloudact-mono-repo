@@ -4,7 +4,7 @@
 
 Frontend-facing API for org management, auth, and integrations. Port 8000. Handles bootstrap, onboarding, integration setup, and LLM data CRUD. Does NOT run pipelines or ETL jobs.
 
-**Full Platform Architecture:** `../../ARCHITECTURE.md`
+**Full Platform Architecture:** `../requirements-docs/00-ARCHITECTURE.md`
 
 ## Service Flow
 

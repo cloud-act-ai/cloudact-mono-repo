@@ -62,25 +62,24 @@ let supabase: SupabaseClient
 let testOrgId: string
 let testUserId: string
 let testOrgApiKey: string
-let enabledProviders: string[] = []
-let createdSubscriptionIds: string[] = []
+const enabledProviders: string[] = []
 
 // Test providers
 const TEST_PROVIDERS = {
     canva: {
         name: 'canva',
         displayName: 'Canva',
-        category: 'design'
+        category: 'design' as const
     },
     chatgpt_plus: {
         name: 'chatgpt_plus',
         displayName: 'ChatGPT Plus',
-        category: 'ai'
+        category: 'ai' as const
     },
     slack: {
         name: 'slack',
         displayName: 'Slack',
-        category: 'communication'
+        category: 'communication' as const
     }
 }
 
@@ -169,7 +168,7 @@ describe.skipIf(SKIP_TESTS)('Flow 14: Subscription Providers (Supabase + API)', 
                 .select('provider_name, is_enabled')
                 .eq('org_id', testOrgId)
 
-            if (metaError && metaError.code !== '42P01') {
+            if (metaError && (metaError as { code?: string }).code !== '42P01') {
                 throw metaError
             }
 
@@ -210,7 +209,7 @@ describe.skipIf(SKIP_TESTS)('Flow 14: Subscription Providers (Supabase + API)', 
                     { onConflict: 'org_id,provider_name' }
                 )
 
-            if (error && error.code !== '42P01') {
+            if (error && (error as { code?: string }).code !== '42P01') {
                 throw error
             }
 
@@ -235,7 +234,7 @@ describe.skipIf(SKIP_TESTS)('Flow 14: Subscription Providers (Supabase + API)', 
                     { onConflict: 'org_id,provider_name' }
                 )
 
-            if (error && error.code !== '42P01') {
+            if (error && (error as { code?: string }).code !== '42P01') {
                 throw error
             }
 
@@ -259,7 +258,7 @@ describe.skipIf(SKIP_TESTS)('Flow 14: Subscription Providers (Supabase + API)', 
                 .eq('org_id', testOrgId)
                 .eq('is_enabled', true)
 
-            if (error && error.code === '42P01') {
+            if (error && (error as { code?: string }).code === '42P01') {
                 console.log('Table does not exist - skipping')
                 return
             }
@@ -285,7 +284,7 @@ describe.skipIf(SKIP_TESTS)('Flow 14: Subscription Providers (Supabase + API)', 
                 .eq('org_id', testOrgId)
                 .eq('provider_name', TEST_PROVIDERS.canva.name)
 
-            if (error && error.code === '42P01') {
+            if (error && (error as { code?: string }).code === '42P01') {
                 console.log('Table does not exist - skipping')
                 return
             }
@@ -316,7 +315,7 @@ describe.skipIf(SKIP_TESTS)('Flow 14: Subscription Providers (Supabase + API)', 
                 .eq('org_id', testOrgId)
                 .eq('provider_name', TEST_PROVIDERS.canva.name)
 
-            if (error && error.code === '42P01') {
+            if (error && (error as { code?: string }).code === '42P01') {
                 console.log('Table does not exist - skipping')
                 return
             }
@@ -349,12 +348,12 @@ describe.skipIf(SKIP_TESTS)('Flow 14: Subscription Providers (Supabase + API)', 
                 .eq('provider_name', TEST_PROVIDERS.canva.name)
                 .single()
 
-            if (error && error.code === 'PGRST116') {
+            if (error && (error as { code?: string }).code === 'PGRST116') {
                 console.log('Provider not found - would need to enable first')
                 return
             }
 
-            if (error && error.code === '42P01') {
+            if (error && (error as { code?: string }).code === '42P01') {
                 console.log('Table does not exist - skipping')
                 return
             }
@@ -560,7 +559,7 @@ describe.skipIf(SKIP_TESTS)('Flow 14: Subscription Providers (Supabase + API)', 
                 .eq('is_enabled', true)
                 .order('provider_name')
 
-            if (error && error.code === '42P01') {
+            if (error && (error as { code?: string }).code === '42P01') {
                 console.log('Table does not exist - skipping')
                 return
             }
@@ -587,7 +586,7 @@ describe.skipIf(SKIP_TESTS)('Flow 14: Subscription Providers (Supabase + API)', 
                 .select('*')
                 .eq('org_id', testOrgId)
 
-            if (allError && allError.code === '42P01') {
+            if (allError && (allError as { code?: string }).code === '42P01') {
                 console.log('Table does not exist - skipping')
                 return
             }
@@ -628,7 +627,7 @@ describe.skipIf(SKIP_TESTS)('Flow 14: Subscription Providers (Supabase + API)', 
                     { onConflict: 'org_id,provider_name' }
                 )
 
-            if (error && error.code === '42P01') {
+            if (error && (error as { code?: string }).code === '42P01') {
                 console.log('Table does not exist - skipping')
                 return
             }
@@ -686,7 +685,7 @@ describe.skipIf(SKIP_TESTS)('Flow 14: Subscription Providers (Supabase + API)', 
                     { onConflict: 'org_id,provider_name' }
                 )
 
-            if (enableError && enableError.code === '42P01') {
+            if (enableError && (enableError as { code?: string }).code === '42P01') {
                 console.log('Table does not exist - skipping flow test')
                 return
             }
@@ -746,7 +745,7 @@ describe.skipIf(SKIP_TESTS)('Flow 14: Subscription Providers (Supabase + API)', 
                     enabled_at: new Date().toISOString(),
                 })
 
-            if (error && error.code === '42P01') {
+            if (error && (error as { code?: string }).code === '42P01') {
                 console.log('Table does not exist - skipping')
                 return
             }
@@ -768,7 +767,7 @@ describe.skipIf(SKIP_TESTS)('Flow 14: Subscription Providers (Supabase + API)', 
                     enabled_at: new Date().toISOString(),
                 })
 
-            if (error && error.code === '42P01') {
+            if (error && (error as { code?: string }).code === '42P01') {
                 console.log('Table does not exist - skipping')
                 return
             }
@@ -807,7 +806,7 @@ describe.skipIf(SKIP_TESTS)('Flow 14: Subscription Providers (Supabase + API)', 
             }
 
             console.log('Cleanup complete')
-        } catch (e) {
+        } catch (e: unknown) {
             console.warn('Cleanup warning:', e)
         }
     }, 30000)

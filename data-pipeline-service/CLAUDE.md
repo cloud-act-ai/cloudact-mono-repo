@@ -1,10 +1,10 @@
-# Backend: Convergence Data Pipeline
+# Backend: Data Pipeline Service
 
 ## Gist
 
 Pipeline execution engine for ETL jobs. Port 8001. Runs scheduled pipelines, processes usage data, calculates costs.
 
-**Full Platform Architecture:** `../../ARCHITECTURE.md`
+**Full Platform Architecture:** `../requirements-docs/00-ARCHITECTURE.md`
 
 **Security Documentation:** `SECURITY.md`
 
@@ -657,10 +657,10 @@ curl -X POST http://localhost:8001/api/v1/pipelines/run/{org_slug}/gcp/cost/bill
 
 ```bash
 # Deploy via gcloud (Cloud Run)
-gcloud run deploy convergence-pipeline-{stage|prod} --source .
+gcloud run deploy data-pipeline-{stage|prod} --source .
 
 # Test health
-curl https://convergence-pipeline-{env}-{project-id}.us-central1.run.app/health
+curl https://data-pipeline-{env}-{project-id}.us-central1.run.app/health
 ```
 
 ### Environments

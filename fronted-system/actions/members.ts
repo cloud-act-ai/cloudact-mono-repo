@@ -148,9 +148,10 @@ export async function fetchMembersData(orgSlug: string) {
         invites: invitesData || [],
       },
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[v0] Fetch members data error:", err)
-    return { success: false, error: err.message || "Failed to fetch data" }
+    const errorMessage = err instanceof Error ? err.message : "Failed to fetch data"
+    return { success: false, error: errorMessage }
   }
 }
 
@@ -288,7 +289,7 @@ export async function inviteMember(orgSlug: string, email: string, role: "collab
     expiresAt.setHours(expiresAt.getHours() + 48) // 48 hour expiry
 
     // Insert invite using adminClient to bypass RLS
-    const { data: invite, error: inviteError } = await adminClient
+    const { error: inviteError } = await adminClient
       .from("invites")
       .insert({
         org_id: org.id,
@@ -336,9 +337,10 @@ export async function inviteMember(orgSlug: string, email: string, role: "collab
       inviteLink,
       message: "Invite sent successfully",
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[v0] Invite member error:", err)
-    return { success: false, error: err.message || "Failed to invite member" }
+    const errorMessage = err instanceof Error ? err.message : "Failed to invite member"
+    return { success: false, error: errorMessage }
   }
 }
 
@@ -426,9 +428,10 @@ export async function removeMember(orgSlug: string, memberUserId: string) {
     }
 
     return { success: true, message: "Member removed successfully" }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[v0] Remove member error:", err)
-    return { success: false, error: err.message || "Failed to remove member" }
+    const errorMessage = err instanceof Error ? err.message : "Failed to remove member"
+    return { success: false, error: errorMessage }
   }
 }
 
@@ -519,9 +522,10 @@ export async function updateMemberRole(
     }
 
     return { success: true, message: "Member role updated successfully" }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[v0] Update role error:", err)
-    return { success: false, error: err.message || "Failed to update member role" }
+    const errorMessage = err instanceof Error ? err.message : "Failed to update member role"
+    return { success: false, error: errorMessage }
   }
 }
 
@@ -627,9 +631,10 @@ export async function acceptInvite(token: string) {
       message: "You have joined the organization!",
       orgSlug: org?.org_slug || null,
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[v0] Accept invite error:", err)
-    return { success: false, error: err.message || "Failed to accept invite" }
+    const errorMessage = err instanceof Error ? err.message : "Failed to accept invite"
+    return { success: false, error: errorMessage }
   }
 }
 
@@ -679,7 +684,7 @@ export async function getInviteInfo(token: string) {
         },
       },
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[v0] Get invite info error:", err)
     return { success: false, error: "Failed to fetch invite" }
   }
@@ -729,8 +734,9 @@ export async function cancelInvite(orgSlug: string, inviteId: string) {
     }
 
     return { success: true, message: "Invite canceled successfully" }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[v0] Cancel invite error:", err)
-    return { success: false, error: err.message || "Failed to cancel invite" }
+    const errorMessage = err instanceof Error ? err.message : "Failed to cancel invite"
+    return { success: false, error: errorMessage }
   }
 }

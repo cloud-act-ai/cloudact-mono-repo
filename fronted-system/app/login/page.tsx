@@ -6,7 +6,6 @@ import { useState, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { Cloud, Loader2 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -26,6 +25,7 @@ function isValidRedirect(url: string | null): url is string {
   // Reject URLs with @ which could indicate user@host
   if (url.includes("@")) return false
   // Reject URLs with control characters
+  // eslint-disable-next-line no-control-regex
   if (/[\x00-\x1f]/.test(url)) return false
   return true
 }
@@ -78,13 +78,13 @@ function LoginForm() {
         .single()
 
       if (orgData) {
-        const org = (orgData.organizations as any)
+        const org = orgData.organizations as { org_slug: string }
         window.location.href = `/${org.org_slug}/dashboard`
       } else {
         window.location.href = "/onboarding/organization"
       }
-    } catch (err: any) {
-      setError(err.message || "Invalid email or password")
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Invalid email or password")
       setIsLoading(false)
     }
   }

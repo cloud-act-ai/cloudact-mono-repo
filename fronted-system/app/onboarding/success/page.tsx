@@ -8,7 +8,6 @@ import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
 import { completeOnboarding } from "@/actions/organization"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Button } from "@/components/ui/button"
 
 // Validate Stripe session ID format
 function isValidSessionId(sessionId: string | null): sessionId is string {
@@ -86,14 +85,14 @@ function SuccessContent() {
       // Redirect to dashboard after a short delay
       // Note: This timeout doesn't need cleanup since it only runs after success
       // and the component will be unmounted by the redirect
-      const redirectTimeout = setTimeout(() => {
+      setTimeout(() => {
         router.push(`/${result.orgSlug}/dashboard?welcome=true`)
       }, 2000)
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[v0] Checkout processing error:", err)
       setStatus("error")
-      setError(err.message || "Something went wrong. Please contact support.")
+      setError(err instanceof Error ? err.message : "Something went wrong. Please contact support.")
     } finally {
       processingRef.current = false
       setIsRetrying(false)

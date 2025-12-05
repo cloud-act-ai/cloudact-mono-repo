@@ -21,7 +21,6 @@ import { generateTestUser, generateInviteEmail, TEST_CONFIG } from './utils/test
 describe('Flow 3: Team Member Invite', () => {
     const adminUser = generateTestUser('team_admin')
     const memberEmail = generateInviteEmail(adminUser.email)
-    const memberPassword = TEST_CONFIG.password
 
     it('should invite team member and accept invitation', async () => {
         console.log('Starting Flow 3: Team Member Invite')

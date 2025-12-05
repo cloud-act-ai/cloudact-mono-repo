@@ -324,7 +324,7 @@ describe('Flow 11: OpenAI Subscription CRUD', () => {
                 }
             })
             const data = await listResponse.json()
-            const found = data.subscriptions.find((s: any) => s.plan_name === deletePlanName)
+            const found = data.subscriptions.find((s: { plan_name: string }) => s.plan_name === deletePlanName)
             expect(found).toBeUndefined()
         })
 
@@ -371,7 +371,7 @@ describe('Flow 11: OpenAI Subscription CRUD', () => {
             const data = await response.json()
 
             // Check for expected default tier types
-            const tierTypes = data.subscriptions.map((s: any) => s.tier_type)
+            const tierTypes = data.subscriptions.map((s: { tier_type: string }) => s.tier_type)
             console.log('Tier types after reset:', [...new Set(tierTypes)])
 
             // Should have some subscriptions

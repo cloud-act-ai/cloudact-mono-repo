@@ -150,7 +150,7 @@ export default function GCPIntegrationPage() {
         project_id: parsed.project_id,
         client_email: parsed.client_email,
       })
-    } catch (e) {
+    } catch {
       setError("Invalid JSON file. Please upload a valid Service Account JSON.")
     }
   }
@@ -214,8 +214,8 @@ export default function GCPIntegrationPage() {
         // Use error, message, or a descriptive fallback
         setError(result.error || result.message || "Setup failed. Please check your Service Account JSON and try again.")
       }
-    } catch (e: any) {
-      setError(e.message || "Failed to setup integration")
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : "Failed to setup integration")
     } finally {
       setUploadLoading(false)
     }

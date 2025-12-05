@@ -56,10 +56,11 @@ export async function POST(request: NextRequest) {
       default:
         return NextResponse.json({ error: `Unknown action: ${action}` }, { status: 400 })
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Internal error"
     console.error("[Cron] Billing sync error:", error)
     return NextResponse.json(
-      { error: error.message || "Internal error" },
+      { error: errorMessage },
       { status: 500 }
     )
   }
@@ -93,7 +94,7 @@ async function handleReconciliation() {
     checked: 0,
     synced: 0,
     errors: [] as string[],
-    mismatches: [] as { orgSlug: string; field: string; stripe: any; supabase: any }[],
+    mismatches: [] as { orgSlug: string; field: string; stripe: unknown; supabase: unknown }[],
   }
 
   try {
@@ -236,8 +237,9 @@ async function handleReconciliation() {
             }
           }
         }
-      } catch (orgErr: any) {
-        results.errors.push(`${org.org_slug}: ${orgErr.message}`)
+      } catch (orgErr: unknown) {
+        const errMessage = orgErr instanceof Error ? orgErr.message : "Unknown error"
+        results.errors.push(`${org.org_slug}: ${errMessage}`)
       }
     }
 
@@ -248,10 +250,11 @@ async function handleReconciliation() {
       ...results,
       timestamp: new Date().toISOString(),
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error"
     console.error("[Cron] Reconciliation error:", error)
     return NextResponse.json(
-      { action: "reconcile", error: error.message },
+      { action: "reconcile", error: errorMessage },
       { status: 500 }
     )
   }

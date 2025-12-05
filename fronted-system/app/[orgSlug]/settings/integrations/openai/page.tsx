@@ -2,14 +2,13 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useParams } from "next/navigation"
-import { Brain, Loader2, Check, AlertCircle, ArrowLeft, DollarSign, CreditCard, RotateCcw, Pencil, Save, X, Trash2, Plus, ChevronDown, ChevronRight, Plug } from "lucide-react"
+import { Brain, Loader2, Check, AlertCircle, ArrowLeft, DollarSign, RotateCcw, Pencil, Save, X, Trash2, Plus, Plug } from "lucide-react"
 import Link from "next/link"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
 import {
   Select,
   SelectContent,
@@ -26,12 +25,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { IntegrationConfigCard, IntegrationStatus } from "@/components/integration-config-card"
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion"
 import {
   Table,
   TableBody,
@@ -50,8 +43,6 @@ import {
   listLLMPricing,
   updateLLMPricing,
   resetLLMPricing,
-  listSaaSSubscriptions,
-  updateSaaSSubscription,
   resetSaaSSubscriptions,
   createSaaSSubscription,
   deleteSaaSSubscription,
@@ -85,17 +76,13 @@ export default function OpenAIIntegrationPage() {
 
   // Pricing and Subscriptions state
   const [pricing, setPricing] = useState<LLMPricing[]>([])
-  const [subscriptions, setSubscriptions] = useState<SaaSSubscription[]>([])
   const [pricingLoading, setPricingLoading] = useState(false)
-  const [subscriptionsLoading, setSubscriptionsLoading] = useState(false)
 
   // Edit state
   const [editingPricing, setEditingPricing] = useState<string | null>(null)
-  const [editingSubscription, setEditingSubscription] = useState<string | null>(null)
-  const [editValues, setEditValues] = useState<Record<string, any>>({})
+  const [editValues, setEditValues] = useState<Record<string, unknown>>({})
 
   // Loading states for CRUD operations
-  const [savingSubscription, setSavingSubscription] = useState<string | null>(null)
   const [deletingSubscription, setDeletingSubscription] = useState<string | null>(null)
   const [savingPricing, setSavingPricing] = useState<string | null>(null)
   const [deletingPricing, setDeletingPricing] = useState<string | null>(null)
@@ -103,16 +90,12 @@ export default function OpenAIIntegrationPage() {
   const [resettingSubscriptions, setResettingSubscriptions] = useState(false)
   const [creatingSubscription, setCreatingSubscription] = useState(false)
   const [creatingPricing, setCreatingPricing] = useState(false)
-  const [togglingSubscription, setTogglingSubscription] = useState<string | null>(null)
 
   // Dialog states
   const [deleteSubDialog, setDeleteSubDialog] = useState<{ open: boolean; sub: SaaSSubscription | null }>({ open: false, sub: null })
   const [deletePricingDialog, setDeletePricingDialog] = useState<{ open: boolean; model: LLMPricing | null }>({ open: false, model: null })
   const [resetPricingDialog, setResetPricingDialog] = useState(false)
   const [resetSubDialog, setResetSubDialog] = useState(false)
-
-  // Expanded rows state for subscriptions
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
 
   // Create modal states
   const [createSubModal, setCreateSubModal] = useState(false)
@@ -171,36 +154,17 @@ export default function OpenAIIntegrationPage() {
     setPricingLoading(false)
   }, [orgSlug])
 
-  // Load subscriptions
-  const loadSubscriptions = useCallback(async () => {
-    setSubscriptionsLoading(true)
-    const [openaiResult, customResult] = await Promise.all([
-      listSaaSSubscriptions(orgSlug, "openai"),
-      listSaaSSubscriptions(orgSlug, "custom")
-    ])
-
-    const allSubscriptions: SaaSSubscription[] = []
-    if (openaiResult.success && openaiResult.subscriptions) {
-      allSubscriptions.push(...openaiResult.subscriptions)
-    }
-    if (customResult.success && customResult.subscriptions) {
-      allSubscriptions.push(...customResult.subscriptions)
-    }
-    setSubscriptions(allSubscriptions)
-    setSubscriptionsLoading(false)
-  }, [orgSlug])
 
   useEffect(() => {
     loadIntegration()
   }, [loadIntegration])
 
-  // Load pricing and subscriptions when integration is valid
+  // Load pricing when integration is valid
   useEffect(() => {
     if (integration?.status === "VALID") {
       loadPricing()
-      loadSubscriptions()
     }
-  }, [integration?.status, loadPricing, loadSubscriptions])
+  }, [integration?.status, loadPricing])
 
   // Clear success message after delay
   useEffect(() => {
@@ -307,78 +271,6 @@ export default function OpenAIIntegrationPage() {
     }
   }
 
-  // Handle subscription toggle (enable/disable)
-  const handleSubscriptionToggle = async (sub: SaaSSubscription) => {
-    const planName = sub.plan_name
-    const newEnabledState = sub.is_enabled === false ? true : false // Toggle
-
-    setTogglingSubscription(planName)
-    setError(null)
-
-    const provider = sub.provider as "openai" | "anthropic" | "gemini" | "custom"
-    const result = await updateSaaSSubscription(orgSlug, provider, planName, {
-      is_enabled: newEnabledState
-    })
-    setTogglingSubscription(null)
-
-    if (result.success) {
-      setSuccessMessage(`Subscription "${planName}" ${newEnabledState ? 'enabled' : 'disabled'}`)
-      await loadSubscriptions()
-    } else {
-      setError(result.error || "Failed to toggle subscription")
-    }
-  }
-
-  // Handle subscription update
-  const handleSubscriptionUpdate = async (planName: string, subProvider: string) => {
-    const values = editValues[planName]
-    if (!values) return
-
-    const quantity = parseInt(values.quantity)
-    const price = parseFloat(values.unit_price_usd)
-    const rpm = values.rpm_limit ? parseInt(values.rpm_limit) : null
-    const tpm = values.tpm_limit ? parseInt(values.tpm_limit) : null
-
-    if (isNaN(quantity) || quantity < 0) {
-      setError("Quantity must be a non-negative number")
-      return
-    }
-    if (isNaN(price) || price < 0) {
-      setError("Price must be a non-negative number")
-      return
-    }
-    if (rpm !== null && (isNaN(rpm) || rpm < 0)) {
-      setError("RPM must be a non-negative number")
-      return
-    }
-    if (tpm !== null && (isNaN(tpm) || tpm < 0)) {
-      setError("TPM must be a non-negative number")
-      return
-    }
-
-    const updatePayload: Record<string, any> = {}
-    updatePayload.quantity = quantity
-    updatePayload.unit_price_usd = price
-    if (values.tier_type !== undefined && values.tier_type !== '') updatePayload.tier_type = values.tier_type
-    if (rpm !== null) updatePayload.rpm_limit = rpm
-    if (tpm !== null) updatePayload.tpm_limit = tpm
-    if (values.notes !== undefined) updatePayload.notes = values.notes
-
-    setSavingSubscription(planName)
-    setError(null)
-
-    const provider = subProvider as "openai" | "anthropic" | "gemini" | "custom"
-    const result = await updateSaaSSubscription(orgSlug, provider, planName, updatePayload)
-    setSavingSubscription(null)
-
-    if (result.success) {
-      setSuccessMessage(`Subscription updated for ${planName}`)
-      setEditingSubscription(null)
-      await loadSubscriptions()
-    } else {
-      setError(result.error || "Failed to update subscription")
-    }
-  }
 
   // Handle reset pricing
   const handleResetPricing = async () => {
@@ -546,35 +438,6 @@ export default function OpenAIIntegrationPage() {
     })
   }
 
-  // Toggle expanded row
-  const toggleExpanded = (key: string) => {
-    setExpandedRows(prev => {
-      const newSet = new Set(prev)
-      if (newSet.has(key)) {
-        newSet.delete(key)
-      } else {
-        newSet.add(key)
-      }
-      return newSet
-    })
-  }
-
-  // Start editing subscription
-  const startEditSubscription = (sub: SaaSSubscription) => {
-    setEditingSubscription(sub.plan_name)
-    setEditValues({
-      ...editValues,
-      [sub.plan_name]: {
-        quantity: sub.quantity,
-        unit_price_usd: sub.unit_price_usd,
-        tier_type: sub.tier_type || 'paid',
-        rpm_limit: sub.rpm_limit || '',
-        tpm_limit: sub.tpm_limit || '',
-        notes: sub.notes || '',
-      }
-    })
-  }
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -584,7 +447,6 @@ export default function OpenAIIntegrationPage() {
   }
 
   const isConnected = integration?.status === "VALID"
-  const enabledSubscriptions = subscriptions.filter(s => s.is_enabled !== false)
 
   return (
     <div className="space-y-8">
@@ -989,7 +851,7 @@ export default function OpenAIIntegrationPage() {
               <Label htmlFor="sub-tier" className="text-right">Tier Type</Label>
               <Select
                 value={newSubscription.tier_type || 'paid'}
-                onValueChange={(value) => setNewSubscription({ ...newSubscription, tier_type: value as any })}
+                onValueChange={(value) => setNewSubscription({ ...newSubscription, tier_type: value as "free" | "paid" | "trial" | "enterprise" })}
               >
                 <SelectTrigger className="col-span-3">
                   <SelectValue />

@@ -61,7 +61,7 @@ async def test_health_endpoint():
 
         # Verify healthy status
         assert data["status"] == "healthy"
-        assert data["service"] == "cloudact-api-service"
+        assert data["service"] == "api-service"
         assert isinstance(data["version"], str)
 
 

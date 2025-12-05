@@ -14,7 +14,7 @@ CloudAct is a multi-tenant SaaS platform that helps organizations track and opti
 ├─────────────────────────────────────────────────────────────────────────────────┤
 │                                                                                  │
 │   ┌──────────────────┐      ┌────────────────────┐      ┌────────────────────┐  │
-│   │     FRONTEND     │      │  CLOUDACT-API-SVC  │      │ CONVERGENCE-PIPE   │  │
+│   │     FRONTEND     │      │    API-SERVICE     │      │ DATA-PIPELINE-SVC  │  │
 │   │  (User Interface)│◄────►│  (Frontend-Facing) │      │ (Pipeline Engine)  │  │
 │   ├──────────────────┤      ├────────────────────┤      ├────────────────────┤  │
 │   │ • Next.js 16     │      │ • Bootstrap        │      │ • Scheduled ETL    │  │
@@ -37,8 +37,8 @@ CloudAct is a multi-tenant SaaS platform that helps organizations track and opti
 | Component                     | Technology                   | Purpose                                                        |
 | ----------------------------- | ---------------------------- | -------------------------------------------------------------- |
 | **Frontend**                  | Next.js 16, Supabase, Stripe | User auth, org management, billing, UI/UX                      |
-| **cloudact-api-service**      | FastAPI, BigQuery, KMS       | Frontend-facing API: bootstrap, onboarding                     |
-| **convergence-data-pipeline** | FastAPI, BigQuery, KMS       | Pipeline execution, integrations, LLM data CRUD, scheduled ETL |
+| **api-service**      | FastAPI, BigQuery, KMS       | Frontend-facing API: bootstrap, onboarding                     |
+| **data-pipeline-service** | FastAPI, BigQuery, KMS       | Pipeline execution, integrations, LLM data CRUD, scheduled ETL |
 | **Authentication**            | Supabase Auth                | User authentication, session management                        |
 | **Billing**                   | Stripe                       | Subscription management, payment processing                    |
 | **Data Storage**              | BigQuery                     | Analytics data, pipeline execution logs                        |
@@ -48,8 +48,8 @@ CloudAct is a multi-tenant SaaS platform that helps organizations track and opti
 
 | Service                       | Responsibility           | Endpoints                                                                  |
 | ----------------------------- | ------------------------ | -------------------------------------------------------------------------- |
-| **cloudact-api-service**      | Bootstrap & Onboarding   | `/api/v1/admin/bootstrap`, `/api/v1/organizations/*`                       |
-| **convergence-data-pipeline** | Pipelines & Integrations | `/api/v1/pipelines/run/*`, `/api/v1/integrations/*`, `/api/v1/scheduler/*` |
+| **api-service**      | Bootstrap & Onboarding   | `/api/v1/admin/bootstrap`, `/api/v1/organizations/*`                       |
+| **data-pipeline-service** | Pipelines & Integrations | `/api/v1/pipelines/run/*`, `/api/v1/integrations/*`, `/api/v1/scheduler/*` |
 
 **Shared Resources:**
 
@@ -149,7 +149,7 @@ CloudAct follows a 4-phase customer journey:
 │                                                                         │
 │  PHASE 3: INTEGRATIONS (User provides credentials)                     │
 │  ────────────────────────────────────────────────────────              │
-│  User adds LLM/Cloud provider credentials via convergence-pipeline:    │
+│  User adds LLM/Cloud provider credentials via data-pipeline-service:    │
 │  - POST /api/v1/integrations/{org}/openai/setup                        │
 │  - POST /api/v1/integrations/{org}/anthropic/setup                     │
 │  - POST /api/v1/integrations/{org}/gcp/setup                           │
@@ -502,7 +502,7 @@ CREATE TABLE saas_subscriptions (
 ### Backend Setup (Two Services)
 
 ```bash
-# Terminal 1: Start cloudact-api-service (Port 8000)
+# Terminal 1: Start api-service (Port 8000)
 # Handles: bootstrap, onboarding, integrations, LLM data CRUD
 cd api-service
 python3 -m venv venv
@@ -524,7 +524,7 @@ curl http://localhost:8000/health
 ```
 
 ```bash
-# Terminal 2: Start convergence-data-pipeline (Port 8001)
+# Terminal 2: Start data-pipeline-service (Port 8001)
 # Handles: scheduled ETL, usage processing, pipeline execution
 cd data-pipeline-service
 python3 -m venv venv
@@ -602,7 +602,7 @@ open http://localhost:3000/signup
 # Navigate to /{orgSlug}/settings/integrations
 # Add OpenAI, GCP, or other credentials
 
-# 4. Run pipeline (via convergence-pipeline on port 8001)
+# 4. Run pipeline (via data-pipeline-service on port 8001)
 curl -X POST http://localhost:8001/api/v1/pipelines/run/{org}/gcp/cost/billing \
   -H "X-API-Key: {org_api_key}" \
   -H "Content-Type: application/json" \
@@ -625,12 +625,12 @@ curl -X POST http://localhost:8001/api/v1/pipelines/run/{org}/gcp/cost/billing \
 
 ### API Endpoint Reference
 
-**cloudact-api-service (Port 8000):**
+**api-service (Port 8000):**
 
 - Admin endpoints: bootstrap, onboarding
 - Organization management: onboard, subscription updates
 
-**convergence-data-pipeline (Port 8001):**
+**data-pipeline-service (Port 8001):**
 
 - Pipeline endpoints: run, status
 - Integration endpoints: setup, validate, delete
@@ -695,7 +695,9 @@ See backend CLAUDE.md for naming conventions:
 | Service  | Stage                                                                 | Production                                                           |
 | -------- | --------------------------------------------------------------------- | -------------------------------------------------------------------- |
 | Frontend | `https://cloudact-stage.vercel.app`                                   | `https://cloudact.ai`                                                |
-| Backend  | `https://convergence-pipeline-stage-526075321773.us-central1.run.app` | `https://convergence-pipeline-prod-820784027009.us-central1.run.app` |
+| Pipeline Service  | `https://convergence-pipeline-stage-526075321773.us-central1.run.app` | `https://convergence-pipeline-prod-820784027009.us-central1.run.app` |
+
+> **Note:** Pipeline service Cloud Run deployments still use "convergence-pipeline" naming. Renaming requires infrastructure updates.
 
 ### Deployment Process
 
@@ -780,6 +782,6 @@ stripe listen --forward-to localhost:3000/api/webhooks/stripe
 
 ---
 
-**Last Updated:** 2025-12-03
-**Version:** 2.3 (Added SaaS subscriptions feature)
+**Last Updated:** 2025-12-04
+**Version:** 2.4 (Renamed convergence-data-pipeline to data-pipeline-service)
 **Maintainers:** CloudAct Platform Team

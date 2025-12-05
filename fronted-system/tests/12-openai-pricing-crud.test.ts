@@ -348,7 +348,7 @@ describe('Flow 12: OpenAI Pricing CRUD', () => {
                 }
             })
             const data = await listResponse.json()
-            const found = data.pricing.find((p: any) => p.model_id === deleteModelId)
+            const found = data.pricing.find((p: { model_id: string }) => p.model_id === deleteModelId)
             expect(found).toBeUndefined()
         })
 
@@ -405,7 +405,7 @@ describe('Flow 12: OpenAI Pricing CRUD', () => {
             const data = await response.json()
 
             // Check for some expected models
-            const modelIds = data.pricing.map((p: any) => p.model_id)
+            const modelIds = data.pricing.map((p: { model_id: string }) => p.model_id)
             console.log('Models after reset:', modelIds.slice(0, 5))
 
             // NOTE: Due to backend bug, reset doesn't populate defaults

@@ -67,7 +67,7 @@ export default function DeepSeekIntegrationPage() {
   // Edit state
   const [editingPricing, setEditingPricing] = useState<string | null>(null)
   const [editingSubscription, setEditingSubscription] = useState<string | null>(null)
-  const [editValues, setEditValues] = useState<Record<string, any>>({})
+  const [editValues, setEditValues] = useState<Record<string, unknown>>({})
 
   // Load integration status
   const loadIntegration = useCallback(async () => {

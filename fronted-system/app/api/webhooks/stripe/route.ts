@@ -87,7 +87,7 @@ async function getPlanDetailsFromStripe(priceId: string): Promise<{
       expand: ["product"],
     });
 
-    const product = price.product as any;
+    const product = price.product;
 
     if (!product || typeof product === "string") {
       console.error(`[Webhook] Could not expand product for price: ${priceId}`);

@@ -90,9 +90,9 @@ describe('Pipeline Validation: org_slug format', () => {
     })
 
     it('should reject null/undefined values', () => {
-        expect(isValidOrgSlug(null as any)).toBe(false)
-        expect(isValidOrgSlug(undefined as any)).toBe(false)
-        expect(isValidOrgSlug(123 as any)).toBe(false)
+        expect(isValidOrgSlug(null as unknown as string)).toBe(false)
+        expect(isValidOrgSlug(undefined as unknown as string)).toBe(false)
+        expect(isValidOrgSlug(123 as unknown as string)).toBe(false)
     })
 })
 
@@ -119,8 +119,8 @@ describe('Pipeline Validation: pipeline_id format', () => {
     })
 
     it('should reject null/undefined values', () => {
-        expect(isValidPipelineId(null as any)).toBe(false)
-        expect(isValidPipelineId(undefined as any)).toBe(false)
+        expect(isValidPipelineId(null as unknown as string)).toBe(false)
+        expect(isValidPipelineId(undefined as unknown as string)).toBe(false)
     })
 })
 

@@ -116,7 +116,7 @@ function ChartTooltipContent({
   color,
   nameKey,
   labelKey,
-}: TooltipProps<any, any> &
+}: TooltipProps<unknown, unknown> &
   React.ComponentProps<'div'> & {
     hideLabel?: boolean
     hideIndicator?: boolean

@@ -1,1 +1,1 @@
-"""Convergence Data Pipeline - Source Package"""
+"""Data Pipeline Service - Source Package"""

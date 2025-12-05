@@ -53,7 +53,9 @@ const isValidOrgSlug = (slug: string): boolean => {
  * - Must be 2-50 characters
  * - Only lowercase alphanumeric and underscores
  * - Cannot start or end with underscore
+ * Note: Currently unused but available for validation if needed
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const isValidProviderName = (provider: string): boolean => {
   if (!provider || typeof provider !== "string") return false
   const normalized = provider.toLowerCase().trim()
@@ -293,7 +295,7 @@ export async function listEnabledProviders(orgSlug: string): Promise<{
   error?: string
 }> {
   try {
-    const { user, orgId } = await requireOrgMembership(orgSlug)
+    const { orgId } = await requireOrgMembership(orgSlug)
     const supabase = await createClient()
 
     const { data, error } = await supabase
@@ -325,7 +327,7 @@ export async function getProviderMeta(
   error?: string
 }> {
   try {
-    const { user, orgId } = await requireOrgMembership(orgSlug)
+    const { orgId } = await requireOrgMembership(orgSlug)
     const supabase = await createClient()
 
     const { data, error } = await supabase
@@ -520,7 +522,7 @@ export async function getAllProviders(orgSlug: string): Promise<{
     const supabase = await createClient()
 
     // Get enabled providers from meta table
-    const { data: metaData, error: metaError } = await supabase
+    const { data: metaData } = await supabase
       .from("saas_subscription_providers_meta")
       .select("provider_name, is_enabled")
       .eq("org_id", orgId)
@@ -532,7 +534,7 @@ export async function getAllProviders(orgSlug: string): Promise<{
 
     // Get plan counts from API if available
     const orgApiKey = await getOrgApiKeySecure(orgSlug)
-    let planCounts = new Map<string, number>()
+    const planCounts = new Map<string, number>()
 
     if (orgApiKey) {
       try {

@@ -210,7 +210,7 @@ export async function createOnboardingCheckoutSession(priceId: string) {
     console.log(`[v0] Creating onboarding checkout with ${trialDays} trial days`)
 
     // Build checkout session options
-    const sessionOptions: any = {
+    const sessionOptions: Stripe.Checkout.SessionCreateParams = {
       line_items: [
         {
           price: priceId,
@@ -255,9 +255,10 @@ export async function createOnboardingCheckoutSession(priceId: string) {
 
     console.log("[v0] Onboarding checkout session created:", session.id)
     return { url: session.url, error: null }
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Failed to create checkout session"
     console.error("[v0] Onboarding checkout error:", error)
-    return { url: null, error: error.message || "Failed to create checkout session" }
+    return { url: null, error: errorMessage }
   }
 }
 
@@ -369,7 +370,7 @@ export async function createCheckoutSession(priceId: string, orgSlug: string) {
     console.log(`[v0] Creating checkout with ${trialDays} trial days (Plan: ${planTrialDays}, Default: ${DEFAULT_TRIAL_DAYS})`)
 
     // Build checkout session options
-    const sessionOptions: any = {
+    const sessionOptions: Stripe.Checkout.SessionCreateParams = {
       line_items: [
         {
           price: priceId,
@@ -417,9 +418,10 @@ export async function createCheckoutSession(priceId: string, orgSlug: string) {
 
     console.log("[v0] Checkout session created:", session.id)
     return { url: session.url, error: null }
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Failed to create checkout session"
     console.error("[v0] Stripe checkout error:", error)
-    return { url: null, error: error.message || "Failed to create checkout session" }
+    return { url: null, error: errorMessage }
   }
 }
 
@@ -466,7 +468,7 @@ export async function getBillingInfo(orgSlug: string): Promise<{ data: BillingIn
       return { data: null, error: "Not a member of this organization" }
     }
 
-    let billingInfo: BillingInfo = {
+    const billingInfo: BillingInfo = {
       subscription: null,
       invoices: [],
       paymentMethod: null,
@@ -502,8 +504,9 @@ export async function getBillingInfo(orgSlug: string): Promise<{ data: BillingIn
           console.log("[v0] Found subscription by customer ID (webhook may have missed):", subscription.id)
         }
       }
-    } catch (subError: any) {
-      console.error("[v0] Error fetching subscription:", subError.message)
+    } catch (subError: unknown) {
+      const errorMessage = subError instanceof Error ? subError.message : "Unknown error"
+      console.error("[v0] Error fetching subscription:", errorMessage)
     }
 
     if (subscription) {
@@ -564,8 +567,9 @@ export async function getBillingInfo(orgSlug: string): Promise<{ data: BillingIn
             }
           }
         }
-      } catch (subError: any) {
-        console.error("[v0] Error fetching subscription:", subError.message)
+      } catch (subError: unknown) {
+        const errorMessage = subError instanceof Error ? subError.message : "Unknown error"
+        console.error("[v0] Error fetching subscription:", errorMessage)
       }
     }
 
@@ -587,14 +591,16 @@ export async function getBillingInfo(orgSlug: string): Promise<{ data: BillingIn
         hostedInvoiceUrl: inv.hosted_invoice_url ?? null,
         invoicePdf: inv.invoice_pdf ?? null,
       }))
-    } catch (invError: any) {
-      console.error("[v0] Error fetching invoices:", invError.message)
+    } catch (invError: unknown) {
+      const errorMessage = invError instanceof Error ? invError.message : "Unknown error"
+      console.error("[v0] Error fetching invoices:", errorMessage)
     }
 
     return { data: billingInfo, error: null }
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Failed to fetch billing info"
     console.error("[v0] getBillingInfo error:", error)
-    return { data: null, error: error.message || "Failed to fetch billing info" }
+    return { data: null, error: errorMessage }
   }
 }
 
@@ -685,7 +691,7 @@ export async function createBillingPortalSession(orgSlug: string): Promise<{ url
 
     console.log("[v0] Billing portal session created:", session.id)
     return { url: session.url, error: null }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[v0] createBillingPortalSession error:", error)
     return { url: null, error: "Unable to access billing portal. Please try again or contact support if the issue persists." }
   }
@@ -975,9 +981,10 @@ export async function changeSubscriptionPlan(
           .eq("org_id", org.id)
           .eq("stripe_subscription_id", updatedSubscription.id)
       }
-    } catch (syncErr: any) {
+    } catch (syncErr: unknown) {
+      const errorMessage = syncErr instanceof Error ? syncErr.message : "Backend sync error"
       console.error(`[v0] Backend sync error for org ${orgSlug}:`, syncErr)
-      syncWarning = syncErr.message || "Backend sync error"
+      syncWarning = errorMessage
       // Non-blocking - don't fail the plan change if backend sync fails
     }
 
@@ -999,9 +1006,10 @@ export async function changeSubscriptionPlan(
       syncWarning: syncWarning,
       syncQueued: syncQueued,
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Failed to change plan"
     console.error("[v0] changeSubscriptionPlan error:", error)
-    return { success: false, subscription: null, error: error.message || "Failed to change plan" }
+    return { success: false, subscription: null, error: errorMessage }
   }
 }
 
@@ -1122,8 +1130,9 @@ export async function getStripePlans(): Promise<{ data: DynamicPlan[] | null; er
     })
 
     return { data: plans, error: null }
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Failed to fetch plans"
     console.error("[v0] getStripePlans error:", error)
-    return { data: null, error: error.message || "Failed to fetch plans" }
+    return { data: null, error: errorMessage }
   }
 }

@@ -123,7 +123,7 @@ export default function MembersPage() {
   }, [orgSlug])
 
   useEffect(() => {
-    fetchData()
+    void fetchData()
   }, [fetchData])
 
   const handleInvite = async () => {
@@ -147,10 +147,9 @@ export default function MembersPage() {
       toast.success("Invitation sent successfully")
       setInviteLink(result.inviteLink || null)
       setInviteEmail("")
-      fetchData()
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to invite member"
-      toast.error(errorMessage)
+      void fetchData()
+    } catch {
+      toast.error("Failed to invite member")
     } finally {
       setIsInviting(false)
     }
@@ -163,7 +162,7 @@ export default function MembersPage() {
     const result = await removeMember(orgSlug, memberIdToRemove)
     if (result.success) {
       toast.success("Member removed successfully")
-      fetchData()
+      void fetchData()
       setMemberToRemove(null)
     } else {
       toast.error(result.error || "Failed to remove member")
@@ -175,7 +174,7 @@ export default function MembersPage() {
     const result = await updateMemberRole(orgSlug, memberUserId, newRole)
     if (result.success) {
       toast.success("Role updated successfully")
-      fetchData()
+      void fetchData()
     } else {
       toast.error(result.error || "Failed to update role")
     }
@@ -185,7 +184,7 @@ export default function MembersPage() {
     const result = await cancelInvite(orgSlug, inviteId)
     if (result.success) {
       toast.success("Invitation cancelled")
-      fetchData()
+      void fetchData()
     } else {
       toast.error(result.error || "Failed to cancel invitation")
     }
@@ -213,7 +212,7 @@ export default function MembersPage() {
       toast.success("Link copied to clipboard")
       setCopied(true)
       copyTimeoutRef.current = setTimeout(() => setCopied(false), 2000)
-    } catch (error) {
+    } catch {
       // Fallback for browsers that don't support clipboard API
       try {
         const textArea = document.createElement("textarea")
@@ -227,7 +226,7 @@ export default function MembersPage() {
         toast.success("Link copied to clipboard")
         setCopied(true)
         copyTimeoutRef.current = setTimeout(() => setCopied(false), 2000)
-      } catch (fallbackError) {
+      } catch {
         toast.error("Failed to copy link. Please copy it manually.")
       }
     }

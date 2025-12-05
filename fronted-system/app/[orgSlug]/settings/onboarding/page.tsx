@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useRouter, useParams } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
@@ -41,7 +41,6 @@ export default function OnboardingPage() {
   // Manual API key entry state
   const [manualApiKey, setManualApiKey] = useState("")
   const [isSavingApiKey, setIsSavingApiKey] = useState(false)
-  const [apiKeyExists, setApiKeyExists] = useState(false)
 
   // Organization member count
   const [memberCount, setMemberCount] = useState<number>(0)
@@ -62,48 +61,8 @@ export default function OnboardingPage() {
     document.title = "Onboarding & Quota | CloudAct.ai"
   }, [])
 
-  useEffect(() => {
-    checkOwnerAndLoad()
-  }, [orgSlug])
-
-  const checkOwnerAndLoad = async () => {
-    try {
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-
-      if (!user) {
-        router.push("/login")
-        return
-      }
-
-      setEmail(user.email || "")
-
-      // Check if user is owner
-      const { data: membership } = await supabase
-        .from("organization_members")
-        .select("role, organizations!inner(org_slug)")
-        .eq("user_id", user.id)
-        .eq("organizations.org_slug", orgSlug)
-        .single()
-
-      if (membership?.role !== "owner") {
-        // Not owner, redirect to profile
-        router.push(`/${orgSlug}/settings/profile`)
-        return
-      }
-
-      setIsOwner(true)
-      await loadBackendStatus()
-    } catch (err) {
-      console.error("Error checking owner status:", err)
-      setError("Failed to verify access")
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
   // Load backend status and org info
-  const loadBackendStatus = async () => {
+  const loadBackendStatus = useCallback(async () => {
     setLoadingBackendStatus(true)
     setBackendOnboardingError(null)
 
@@ -138,13 +97,12 @@ export default function OnboardingPage() {
       }
 
       // Check if backend is onboarded via Supabase and if API key exists
-      const [onboardingStatus, keyResult] = await Promise.all([
+      const [onboardingStatus] = await Promise.all([
         checkBackendOnboarding(orgSlug),
         hasStoredApiKey(orgSlug),
       ])
 
       setBackendOnboarded(onboardingStatus.onboarded)
-      setApiKeyExists(keyResult.hasKey)
 
       if (onboardingStatus.onboarded) {
         // Get API key info for fingerprint
@@ -155,13 +113,51 @@ export default function OnboardingPage() {
           setApiKeyFingerprint(onboardingStatus.apiKeyFingerprint)
         }
       }
-    } catch (err) {
-      console.error("Failed to load backend status:", err)
+    } catch {
       setBackendOnboardingError("Failed to check backend status")
     } finally {
       setLoadingBackendStatus(false)
     }
-  }
+  }, [orgSlug])
+
+  const checkOwnerAndLoad = useCallback(async () => {
+    try {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+
+      if (!user) {
+        router.push("/login")
+        return
+      }
+
+      setEmail(user.email || "")
+
+      // Check if user is owner
+      const { data: membership } = await supabase
+        .from("organization_members")
+        .select("role, organizations!inner(org_slug)")
+        .eq("user_id", user.id)
+        .eq("organizations.org_slug", orgSlug)
+        .single()
+
+      if (membership?.role !== "owner") {
+        // Not owner, redirect to profile
+        router.push(`/${orgSlug}/settings/profile`)
+        return
+      }
+
+      setIsOwner(true)
+      await loadBackendStatus()
+    } catch {
+      setError("Failed to verify access")
+    } finally {
+      setIsLoading(false)
+    }
+  }, [orgSlug, router, loadBackendStatus])
+
+  useEffect(() => {
+    void checkOwnerAndLoad()
+  }, [checkOwnerAndLoad])
 
   // Retry backend onboarding if it failed previously
   const handleRetryOnboarding = async () => {
@@ -208,8 +204,8 @@ export default function OnboardingPage() {
       } else {
         setBackendOnboardingError(result.error || "Backend onboarding failed")
       }
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : "Backend onboarding failed"
+    } catch (error: unknown) {
+      const errorMsg = error instanceof Error ? error.message : "Backend onboarding failed"
       setBackendOnboardingError(errorMsg)
     } finally {
       setIsRetryingOnboarding(false)
@@ -231,7 +227,6 @@ export default function OnboardingPage() {
       const result = await saveApiKey(orgSlug, manualApiKey.trim())
 
       if (result.success) {
-        setApiKeyExists(true)
         setApiKeyFingerprint(manualApiKey.trim().slice(-4))
         setManualApiKey("") // Clear input
         setSuccess("API key saved successfully!")
@@ -241,8 +236,8 @@ export default function OnboardingPage() {
       } else {
         setBackendOnboardingError(result.error || "Failed to save API key")
       }
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : "Failed to save API key"
+    } catch (error: unknown) {
+      const errorMsg = error instanceof Error ? error.message : "Failed to save API key"
       setBackendOnboardingError(errorMsg)
     } finally {
       setIsSavingApiKey(false)

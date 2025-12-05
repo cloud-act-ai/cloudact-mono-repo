@@ -2,7 +2,7 @@
 Google Cloud KMS Encryption/Decryption Utilities
 
 Simple encryption and decryption using GCP Cloud KMS for securing sensitive data
-in the convergence data pipeline.
+in the data pipeline service.
 """
 
 import base64

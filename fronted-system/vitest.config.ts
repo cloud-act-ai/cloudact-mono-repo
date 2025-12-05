@@ -9,10 +9,13 @@ dotenv.config({ path: '.env.local' })
 export default defineConfig({
     test: {
         // Exclude API integration tests from browser mode - they run with --pool=forks
+        // Also exclude tests that require Node.js features (fs, process.env)
         exclude: [
             '**/node_modules/**',
             '**/tests/*-openai-*.test.ts',
             '**/tests/*-api-*.test.ts',
+            '**/tests/07-*.test.ts',
+            '**/tests/09-*.test.ts',
         ],
         browser: {
             enabled: true,

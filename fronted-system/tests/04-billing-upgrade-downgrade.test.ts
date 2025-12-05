@@ -17,7 +17,6 @@ import { generateTestUser, TEST_CONFIG } from './utils/test-data'
 
 describe('Flow 4: Billing Upgrade and Downgrade', () => {
     const testUser = generateTestUser('billing_flow')
-    let orgSlug: string
 
     it('should upgrade and downgrade billing plan', async () => {
         console.log('Starting Flow 4: Billing Upgrade/Downgrade')

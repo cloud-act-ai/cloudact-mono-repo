@@ -11,7 +11,6 @@ import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
 import { createOrganization } from "@/actions/organization"
 import { getStripePlans, type DynamicPlan } from "@/actions/stripe"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -103,7 +102,7 @@ export default function OnboardingPage() {
         setPlans(sortedPlans)
 
         // Set default plan to first one
-        if (sortedPlans.length > 0 && !watch("plan")) {
+        if (sortedPlans.length > 0) {
           setValue("plan", sortedPlans[0].id)
         }
       } catch (err) {
@@ -115,7 +114,7 @@ export default function OnboardingPage() {
     }
 
     fetchPlans()
-  }, [])
+  }, [setValue])
 
   const onSubmit = async (data: OnboardingFormValues) => {
     setIsLoading(true)
@@ -180,13 +179,13 @@ export default function OnboardingPage() {
           console.log("[v0] Redirecting to dashboard (no backend key):", result.orgSlug)
           router.push(`/${result.orgSlug}/dashboard`)
         }
-      } catch (innerErr: any) {
+      } catch (innerErr: unknown) {
         clearTimeout(timeoutId)
         throw innerErr
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[v0] Onboarding error:", err)
-      setError(err.message || "Failed to create organization")
+      setError(err instanceof Error ? err.message : "Failed to create organization")
       setIsLoading(false)
     }
   }

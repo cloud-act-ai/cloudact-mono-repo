@@ -67,8 +67,9 @@ export async function POST(request: NextRequest) {
       message: "Password reset link sent! Check your email."
     })
 
-  } catch (error: any) {
-    console.error("[v0] Password reset error:", error.message)
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error"
+    console.error("[v0] Password reset error:", errorMessage)
     return NextResponse.json(
       { error: "Failed to process request" },
       { status: 500 }

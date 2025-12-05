@@ -21,7 +21,6 @@ import { executeFlow, FlowStep, formatTestResults } from './utils/browser-helper
 
 describe('Flow 1: Signup → Onboarding → Billing → Dashboard', () => {
     const testUser = generateTestUser('signup_flow')
-    let orgSlug: string
 
     const flow: FlowStep[] = [
         {

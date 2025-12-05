@@ -4,11 +4,9 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Cloud, Loader2, Check, Lock, Shield } from "lucide-react"
-import { toast } from "sonner"
 
 import { createClient } from "@/lib/supabase/client"
 import { getStripePlans, createOnboardingCheckoutSession, type DynamicPlan } from "@/actions/stripe"
-import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { cn } from "@/lib/utils"
 import { DEFAULT_TRIAL_DAYS } from "@/lib/constants"
@@ -21,7 +19,7 @@ export default function BillingPage() {
   const [plans, setPlans] = useState<DynamicPlan[]>([])
   const [isLoadingPlans, setIsLoadingPlans] = useState(true)
   const [selectedPlan, setSelectedPlan] = useState<string>("")
-  const [user, setUser] = useState<any>(null)
+  const [user, setUser] = useState<{ user_metadata?: { pending_company_name?: string } } | null>(null)
 
   // Check auth and get user metadata (contains pending company info)
   useEffect(() => {
@@ -45,7 +43,7 @@ export default function BillingPage() {
 
         if (memberships && memberships.length > 0) {
           // User already has an org, redirect to dashboard
-          const org = memberships[0].organizations as any
+          const org = memberships[0].organizations as { org_slug: string }
           if (org?.org_slug) {
             console.log("[v0] User already has org, redirecting to dashboard:", org.org_slug)
             router.push(`/${org.org_slug}/dashboard`)
@@ -137,9 +135,9 @@ export default function BillingPage() {
 
       // Redirect to Stripe Checkout
       window.location.href = result.url
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[v0] Checkout error:", err)
-      setError(err.message || "Failed to start checkout")
+      setError(err instanceof Error ? err.message : "Failed to start checkout")
       setIsLoading(false)
     }
   }

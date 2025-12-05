@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useRouter, useParams } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
@@ -16,8 +16,7 @@ import {
 
 export default function SecurityPage() {
   const router = useRouter()
-  const params = useParams()
-  const orgSlug = params.orgSlug as string
+  useParams()
 
   const [isLoading, setIsLoading] = useState(true)
   const [isResettingPassword, setIsResettingPassword] = useState(false)
@@ -29,11 +28,7 @@ export default function SecurityPage() {
     document.title = "Security | CloudAct.ai"
   }, [])
 
-  useEffect(() => {
-    fetchUser()
-  }, [orgSlug])
-
-  const fetchUser = async () => {
+  const fetchUser = useCallback(async () => {
     try {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
@@ -44,13 +39,16 @@ export default function SecurityPage() {
       }
 
       setEmail(user.email || "")
-    } catch (err) {
-      console.error("Error fetching user:", err)
+    } catch {
       setError("Failed to load user data")
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [router])
+
+  useEffect(() => {
+    void fetchUser()
+  }, [fetchUser])
 
   const handleResetPassword = async () => {
     setIsResettingPassword(true)
@@ -72,8 +70,8 @@ export default function SecurityPage() {
 
       setSuccess(data.message || "Password reset email sent! Check your inbox.")
       setTimeout(() => setSuccess(null), 6000)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred")
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : "An error occurred")
     } finally {
       setIsResettingPassword(false)
     }

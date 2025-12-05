@@ -48,7 +48,7 @@ async function checkService(
     const responseTime = Date.now() - startTime
 
     if (response.ok) {
-      const data = await response.json().catch(() => ({}))
+      await response.json().catch(() => ({}))
       return {
         service: name,
         url: fullUrl,
@@ -65,8 +65,8 @@ async function checkService(
         responseTime,
       }
     }
-  } catch (err: any) {
-    if (err.name === "AbortError") {
+  } catch (err: unknown) {
+    if (err instanceof Error && err.name === "AbortError") {
       return {
         service: name,
         url: fullUrl,
@@ -74,11 +74,13 @@ async function checkService(
         message: `Timeout (>${timeout}ms)`,
       }
     }
+    const error = err as { code?: string; message?: string }
+    const message = error.code === "ECONNREFUSED" ? "Connection refused" : (error.message || String(err))
     return {
       service: name,
       url: fullUrl,
       status: "down",
-      message: err.code === "ECONNREFUSED" ? "Connection refused" : err.message,
+      message,
     }
   }
 }
@@ -103,7 +105,7 @@ async function checkSupabase(): Promise<HealthCheckResult> {
     })
 
     // Try to query a simple table
-    const { data, error } = await supabase.from("organizations").select("id").limit(1)
+    const { error } = await supabase.from("organizations").select("id").limit(1)
 
     const responseTime = Date.now() - startTime
 
@@ -124,12 +126,13 @@ async function checkSupabase(): Promise<HealthCheckResult> {
       message: "Connected",
       responseTime,
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const errorMessage = err instanceof Error ? err.message : String(err)
     return {
       service: "Supabase",
       url,
       status: "down",
-      message: err.message,
+      message: errorMessage,
     }
   }
 }
@@ -206,9 +209,9 @@ async function main() {
   } else {
     console.log("❌ Required services are not healthy. Please start them before running tests.\n")
     console.log("Commands to start services:")
-    console.log("  Frontend:         cd fronted_v0 && npm run dev")
-    console.log("  API Service:      cd cloudact-api-service && python3 -m uvicorn src.app.main:app --port 8000")
-    console.log("  Pipeline Service: cd convergence-data-pipeline && python3 -m uvicorn src.app.main:app --port 8001")
+    console.log("  Frontend:         cd fronted-system && npm run dev")
+    console.log("  API Service:      cd api-service && python3 -m uvicorn src.app.main:app --port 8000")
+    console.log("  Pipeline Service: cd data-pipeline-service && python3 -m uvicorn src.app.main:app --port 8001")
     console.log("")
     process.exit(1)
   }

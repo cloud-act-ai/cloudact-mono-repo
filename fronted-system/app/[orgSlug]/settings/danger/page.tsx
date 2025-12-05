@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useRouter, useParams } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
@@ -101,9 +101,24 @@ export default function DangerPage() {
 
   useEffect(() => {
     loadUserAndOrgs()
-  }, [orgSlug])
+  }, [orgSlug, loadUserAndOrgs])
 
-  const loadUserAndOrgs = async () => {
+  // Load owned organizations
+  const loadOwnedOrganizations = useCallback(async () => {
+    setLoadingOwnedOrgs(true)
+    try {
+      const result = await getOwnedOrganizations()
+      if (result.success && result.data) {
+        setOwnedOrgs(result.data)
+      }
+    } catch (err: unknown) {
+      console.error("Failed to load owned orgs:", err)
+    } finally {
+      setLoadingOwnedOrgs(false)
+    }
+  }, [])
+
+  const loadUserAndOrgs = useCallback(async () => {
     try {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
@@ -115,28 +130,13 @@ export default function DangerPage() {
 
       setEmail(user.email || "")
       await loadOwnedOrganizations()
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Error loading user:", err)
       setError("Failed to load user data")
     } finally {
       setIsLoading(false)
     }
-  }
-
-  // Load owned organizations
-  const loadOwnedOrganizations = async () => {
-    setLoadingOwnedOrgs(true)
-    try {
-      const result = await getOwnedOrganizations()
-      if (result.success && result.data) {
-        setOwnedOrgs(result.data)
-      }
-    } catch (err) {
-      console.error("Failed to load owned orgs:", err)
-    } finally {
-      setLoadingOwnedOrgs(false)
-    }
-  }
+  }, [loadOwnedOrganizations, router])
 
   // Open transfer dialog and load members
   const openTransferDialog = async (org: OwnedOrg) => {
@@ -152,7 +152,7 @@ export default function DangerPage() {
       } else {
         setTransferMembers([])
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Failed to load transfer members:", err)
       setTransferMembers([])
     } finally {
@@ -178,7 +178,7 @@ export default function DangerPage() {
       } else {
         setError(result.error || "Failed to transfer ownership")
       }
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to transfer ownership")
     } finally {
       setIsTransferring(false)
@@ -213,7 +213,7 @@ export default function DangerPage() {
       } else {
         setError(result.error || "Failed to delete organization")
       }
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to delete organization")
     } finally {
       setIsDeletingOrg(false)
@@ -233,7 +233,7 @@ export default function DangerPage() {
       } else {
         setError(result.error || "Failed to request account deletion")
       }
-    } catch (err) {
+    } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to request account deletion")
     } finally {
       setIsRequestingDeletion(false)

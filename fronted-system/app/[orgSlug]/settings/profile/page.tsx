@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useRouter, useParams } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
@@ -198,8 +198,7 @@ const TIMEZONES = [
 
 export default function ProfilePage() {
   const router = useRouter()
-  const params = useParams()
-  const orgSlug = params.orgSlug as string
+  useParams()
 
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -218,11 +217,7 @@ export default function ProfilePage() {
     document.title = "Settings | CloudAct.ai"
   }, [])
 
-  useEffect(() => {
-    fetchProfile()
-  }, [orgSlug])
-
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
     try {
       const supabase = createClient()
       const {
@@ -254,13 +249,17 @@ export default function ProfilePage() {
         setPhoneNumber(parsedNumber)
         setTimezone(profile.timezone || "UTC")
       }
-    } catch (err) {
-      const errorMessage = logError("ProfilePage:fetchProfile", err)
+    } catch (error: unknown) {
+      const errorMessage = logError("ProfilePage:fetchProfile", error)
       setError(errorMessage)
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [router])
+
+  useEffect(() => {
+    void fetchProfile()
+  }, [fetchProfile])
 
   const handleSave = async () => {
     setIsSaving(true)
@@ -301,8 +300,8 @@ export default function ProfilePage() {
 
       setSuccess("Profile updated successfully!")
       setTimeout(() => setSuccess(null), 4000)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred")
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : "An error occurred")
     } finally {
       setIsSaving(false)
     }

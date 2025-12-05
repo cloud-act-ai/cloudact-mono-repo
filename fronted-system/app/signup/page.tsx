@@ -6,7 +6,6 @@ import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Cloud, Loader2, Phone } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -194,6 +193,7 @@ function isValidRedirect(url: string | null): url is string {
   // Reject URLs with @ which could indicate user@host
   if (url.includes("@")) return false
   // Reject URLs with control characters
+  // eslint-disable-next-line no-control-regex
   if (/[\x00-\x1f]/.test(url)) return false
   return true
 }
@@ -254,7 +254,7 @@ function SignupForm() {
       const finalRedirect = redirectTo || "/onboarding/billing"
 
       // Build user metadata - only include company info for non-invite signup
-      const userData: Record<string, any> = {
+      const userData: Record<string, string> = {
         phone: fullPhone,
         signup_completed_at: new Date().toISOString(),
       }
@@ -285,7 +285,7 @@ function SignupForm() {
       }
 
       // Sign in to establish session
-      const { data: signinData, error: signinError } = await supabase.auth.signInWithPassword({
+      const { error: signinError } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
@@ -301,8 +301,8 @@ function SignupForm() {
 
       // Success - redirect to billing page for plan selection
       window.location.href = finalRedirect
-    } catch (error: any) {
-      setServerError(error.message || "An error occurred during signup")
+    } catch (error: unknown) {
+      setServerError(error instanceof Error ? error.message : "An error occurred during signup")
       setIsLoading(false)
     }
   }

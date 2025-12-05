@@ -26,7 +26,7 @@ export default async function UnauthorizedPage() {
 
   let userOrgSlug = null
   if (memberData && memberData.organizations) {
-    const org = memberData.organizations as any
+    const org = memberData.organizations as { org_slug: string }
     userOrgSlug = org.org_slug
   }
 

@@ -5,7 +5,6 @@ import type React from "react"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -59,7 +58,7 @@ export default function ResetPasswordPage() {
           .single()
 
         if (memberData && memberData.organizations) {
-          const org = memberData.organizations as any
+          const org = memberData.organizations as { org_slug: string }
           router.push(`/${org.org_slug}/dashboard?password_reset=true`)
           return
         }
@@ -67,8 +66,8 @@ export default function ResetPasswordPage() {
 
       // No org found, go to onboarding
       router.push("/onboarding/organization")
-    } catch (err: any) {
-      setError(err.message || "Failed to reset password")
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to reset password")
     } finally {
       setIsLoading(false)
     }

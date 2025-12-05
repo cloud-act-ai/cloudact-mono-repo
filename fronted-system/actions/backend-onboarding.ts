@@ -275,12 +275,13 @@ export async function onboardToBackend(input: {
       apiKey: response.api_key, // Show to user ONCE
       apiKeyFingerprint,
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[Backend Onboarding] Error:", err)
 
     // Extract error message and status code
-    const errorMessage = err.detail || err.message || "Backend onboarding failed"
-    const statusCode = err.statusCode || 0
+    const error = err as { detail?: string; message?: string; statusCode?: number }
+    const errorMessage = error.detail || error.message || "Backend onboarding failed"
+    const statusCode = error.statusCode || 0
 
     // Handle 409 Conflict - org already exists in backend
     // This happens when backend has the org but Supabase wasn't synced
@@ -346,13 +347,14 @@ export async function onboardToBackend(input: {
           apiKey: retryResponse.api_key, // Show to user ONCE
           apiKeyFingerprint: newFingerprint,
         }
-      } catch (retryErr: any) {
+      } catch (retryErr: unknown) {
         console.error("[Backend Onboarding] Failed to regenerate via retry:", retryErr)
 
+        const retryError = retryErr as { detail?: string; message?: string }
         return {
           success: false,
           orgSlug: input.orgSlug,
-          error: `Organization exists but failed to regenerate API key: ${retryErr.message || retryErr.detail}. Please contact support.`,
+          error: `Organization exists but failed to regenerate API key: ${retryError.message || retryError.detail}. Please contact support.`,
         }
       }
     }
@@ -447,11 +449,12 @@ export async function getApiKeyInfo(orgSlug: string): Promise<{
       createdAt: response.created_at,
       scopes: response.scopes,
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[Backend Onboarding] Get API key info error:", err)
+    const error = err as { detail?: string; message?: string }
     return {
       success: false,
-      error: err.detail || err.message || "Failed to get API key info",
+      error: error.detail || error.message || "Failed to get API key info",
     }
   }
 }
@@ -535,9 +538,10 @@ export async function rotateApiKey(orgSlug: string): Promise<{
           signal: controller.signal,
         }
       )
-    } catch (fetchErr: any) {
+    } catch (fetchErr: unknown) {
       clearTimeout(timeoutId)
-      if (fetchErr.name === "AbortError") {
+      const error = fetchErr as { name?: string }
+      if (error.name === "AbortError") {
         throw new Error("Request timed out after 30 seconds. Please try again.")
       }
       throw fetchErr
@@ -586,11 +590,12 @@ export async function rotateApiKey(orgSlug: string): Promise<{
       apiKey: rotateResponse.api_key, // Show to user ONCE
       apiKeyFingerprint: newFingerprint,
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[Backend Onboarding] Rotate API key error:", err)
+    const error = err as { detail?: string; message?: string }
     return {
       success: false,
-      error: err.detail || err.message || "Failed to rotate API key",
+      error: error.detail || error.message || "Failed to rotate API key",
     }
   } finally {
     // Always release lock
@@ -632,11 +637,12 @@ export async function saveApiKey(
     }
 
     return { success: true }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[Backend Onboarding] Save API key error:", err)
+    const errorMessage = err instanceof Error ? err.message : "Failed to save API key"
     return {
       success: false,
-      error: err.message || "Failed to save API key",
+      error: errorMessage,
     }
   }
 }
@@ -812,9 +818,10 @@ export async function processPendingSyncs(limit: number = 10): Promise<{
     }
 
     return results
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[Backend Sync] Error processing pending syncs:", err)
-    results.errors.push(err.message)
+    const errorMessage = err instanceof Error ? err.message : "Unknown error"
+    results.errors.push(errorMessage)
     return results
   }
 }
@@ -969,11 +976,12 @@ async function syncSubscriptionToBackendInternal(
           signal: controller.signal,
         }
       )
-    } catch (fetchErr: any) {
+    } catch (fetchErr: unknown) {
       clearTimeout(timeoutId)
-      const errorMsg = fetchErr.name === "AbortError"
+      const error = fetchErr as { name?: string; message?: string }
+      const errorMsg = error.name === "AbortError"
         ? "Backend sync timed out after 30 seconds"
-        : fetchErr.message || "Network error"
+        : error.message || "Network error"
 
       console.error("[Backend Sync]", errorMsg)
 
@@ -1034,8 +1042,9 @@ async function syncSubscriptionToBackendInternal(
       monthlyLimit: syncResponse.monthly_limit,
       concurrentLimit: syncResponse.concurrent_limit,
     }
-  } catch (err: any) {
-    const errorMsg = err.message || "Failed to sync subscription to backend"
+  } catch (err: unknown) {
+    const errorMessage = err instanceof Error ? err.message : "Failed to sync subscription to backend"
+    const errorMsg = errorMessage
     console.error("[Backend Sync] Error syncing subscription:", err)
 
     // Queue for retry if enabled

@@ -21,11 +21,9 @@ import {
   LLMPricing,
   LLMPricingCreate,
   LLMPricingUpdate,
-  LLMPricingListResponse,
   SaaSSubscription,
   SaaSSubscriptionCreate,
   SaaSSubscriptionUpdate,
-  SaaSSubscriptionListResponse,
   LLMProvider
 } from "@/lib/api/backend"
 import { getOrgApiKeySecure } from "@/actions/backend-onboarding"
@@ -43,7 +41,7 @@ export interface SetupIntegrationInput {
   provider: IntegrationProvider
   credential: string
   credentialName?: string
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 }
 
 export interface IntegrationResult {
@@ -52,6 +50,14 @@ export interface IntegrationResult {
   validationStatus?: string
   error?: string
   message?: string
+}
+
+interface IntegrationStatus {
+  provider: string
+  status: string
+  created_at?: string | null
+  last_validated_at?: string | null
+  is_enabled: boolean
 }
 
 // ============================================
@@ -252,12 +258,14 @@ export async function setupIntegration(
       error: response.validation_error,
       message: response.message,
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(`[Integrations] Setup ${input.provider} error:`, err)
+    const errorMessage = err instanceof Error ? err.message : "Integration setup failed"
+    const errorDetail = err && typeof err === 'object' && 'detail' in err ? String((err as {detail?: unknown}).detail) : undefined
     return {
       success: false,
       provider: input.provider,
-      error: err.detail || err.message || "Integration setup failed",
+      error: errorDetail || errorMessage,
     }
   }
 }
@@ -362,47 +370,63 @@ export async function getIntegrations(
     // Note: last_validated_at uses configured_at since validation happens at configuration time
     // Use optional chaining to handle missing columns gracefully
     // is_enabled defaults to true (enabled) unless explicitly disabled
-    const integrations: Record<string, any> = {
+
+    // Helper to safely access optional properties
+    type OrgDataWithOptionalIntegrations = typeof org & {
+      integration_openai_enabled?: boolean
+      integration_anthropic_enabled?: boolean
+      integration_gemini_status?: string
+      integration_gemini_configured_at?: string
+      integration_gemini_enabled?: boolean
+      integration_deepseek_status?: string
+      integration_deepseek_configured_at?: string
+      integration_deepseek_enabled?: boolean
+      integration_gcp_enabled?: boolean
+    }
+
+    const orgData = org as OrgDataWithOptionalIntegrations
+
+    const integrations: Record<string, IntegrationStatus> = {
       OPENAI: {
         provider: "OPENAI",
         status: org?.integration_openai_status || "NOT_CONFIGURED",
         created_at: org?.integration_openai_configured_at,
         last_validated_at: org?.integration_openai_configured_at,
-        is_enabled: (org as any)?.integration_openai_enabled !== false,
+        is_enabled: orgData?.integration_openai_enabled !== false,
       },
       ANTHROPIC: {
         provider: "ANTHROPIC",
         status: org?.integration_anthropic_status || "NOT_CONFIGURED",
         created_at: org?.integration_anthropic_configured_at,
         last_validated_at: org?.integration_anthropic_configured_at,
-        is_enabled: (org as any)?.integration_anthropic_enabled !== false,
+        is_enabled: orgData?.integration_anthropic_enabled !== false,
       },
       GEMINI: {
         provider: "GEMINI",
-        status: (org as any)?.integration_gemini_status || "NOT_CONFIGURED",
-        created_at: (org as any)?.integration_gemini_configured_at,
-        last_validated_at: (org as any)?.integration_gemini_configured_at,
-        is_enabled: (org as any)?.integration_gemini_enabled !== false,
+        status: orgData?.integration_gemini_status || "NOT_CONFIGURED",
+        created_at: orgData?.integration_gemini_configured_at,
+        last_validated_at: orgData?.integration_gemini_configured_at,
+        is_enabled: orgData?.integration_gemini_enabled !== false,
       },
       DEEPSEEK: {
         provider: "DEEPSEEK",
-        status: (org as any)?.integration_deepseek_status || "NOT_CONFIGURED",
-        created_at: (org as any)?.integration_deepseek_configured_at,
-        last_validated_at: (org as any)?.integration_deepseek_configured_at,
-        is_enabled: (org as any)?.integration_deepseek_enabled !== false,
+        status: orgData?.integration_deepseek_status || "NOT_CONFIGURED",
+        created_at: orgData?.integration_deepseek_configured_at,
+        last_validated_at: orgData?.integration_deepseek_configured_at,
+        is_enabled: orgData?.integration_deepseek_enabled !== false,
       },
       GCP_SA: {
         provider: "GCP_SA",
         status: org?.integration_gcp_status || "NOT_CONFIGURED",
         created_at: org?.integration_gcp_configured_at,
         last_validated_at: org?.integration_gcp_configured_at,
-        is_enabled: (org as any)?.integration_gcp_enabled !== false,
+        is_enabled: orgData?.integration_gcp_enabled !== false,
       },
     }
 
     const providersConfigured = Object.entries(integrations)
-      .filter(([_, v]) => v && v.status === "VALID")
-      .map(([k, _]) => k)
+      .filter(([, v]) => v && v.status === "VALID")
+      .map(([k]) => k)
 
     const allValid = providersConfigured.length === 3
 
@@ -415,7 +439,7 @@ export async function getIntegrations(
         providers_configured: providersConfigured,
       },
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[Integrations] Get integrations error:", err)
     // Return defaults instead of error to prevent page crashes
     return defaultResponse
@@ -479,12 +503,14 @@ export async function validateIntegration(
       error: response.validation_error,
       message: response.message,
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(`[Integrations] Validate ${provider} error:`, err)
+    const errorMessage = err instanceof Error ? err.message : "Validation failed"
+    const errorDetail = err && typeof err === 'object' && 'detail' in err ? String((err as {detail?: unknown}).detail) : undefined
     return {
       success: false,
       provider,
-      error: err.detail || err.message || "Validation failed",
+      error: errorDetail || errorMessage,
     }
   }
 }
@@ -540,12 +566,14 @@ export async function deleteIntegration(
       provider,
       message: response.message,
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(`[Integrations] Delete ${provider} error:`, err)
+    const errorMessage = err instanceof Error ? err.message : "Delete failed"
+    const errorDetail = err && typeof err === 'object' && 'detail' in err ? String((err as {detail?: unknown}).detail) : undefined
     return {
       success: false,
       provider,
-      error: err.detail || err.message || "Delete failed",
+      error: errorDetail || errorMessage,
     }
   }
 }
@@ -578,7 +606,7 @@ async function saveIntegrationStatus(
       return
     }
 
-    const updateData: Record<string, any> = {
+    const updateData: Record<string, string> = {
       [`${columnPrefix}_status`]: status,
     }
 
@@ -645,11 +673,13 @@ export async function listLLMPricing(
       pricing: result.pricing,
       count: result.count
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(`[Integrations] List ${provider} pricing error:`, err)
+    const errorMessage = err instanceof Error ? err.message : "Failed to list pricing"
+    const errorDetail = err && typeof err === 'object' && 'detail' in err ? String((err as {detail?: unknown}).detail) : undefined
     return {
       success: false,
-      error: err.detail || err.message || "Failed to list pricing"
+      error: errorDetail || errorMessage
     }
   }
 }
@@ -690,11 +720,13 @@ export async function updateLLMPricing(
       success: true,
       pricing: result
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(`[Integrations] Update ${provider} pricing error:`, err)
+    const errorMessage = err instanceof Error ? err.message : "Failed to update pricing"
+    const errorDetail = err && typeof err === 'object' && 'detail' in err ? String((err as {detail?: unknown}).detail) : undefined
     return {
       success: false,
-      error: err.detail || err.message || "Failed to update pricing"
+      error: errorDetail || errorMessage
     }
   }
 }
@@ -734,11 +766,13 @@ export async function createLLMPricing(
       success: true,
       pricing: result
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(`[Integrations] Create ${provider} pricing error:`, err)
+    const errorMessage = err instanceof Error ? err.message : "Failed to create pricing"
+    const errorDetail = err && typeof err === 'object' && 'detail' in err ? String((err as {detail?: unknown}).detail) : undefined
     return {
       success: false,
-      error: err.detail || err.message || "Failed to create pricing"
+      error: errorDetail || errorMessage
     }
   }
 }
@@ -774,11 +808,13 @@ export async function deleteLLMPricing(
     await client.deleteLLMPricing(orgSlug, provider, modelId)
 
     return { success: true }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(`[Integrations] Delete ${provider} pricing error:`, err)
+    const errorMessage = err instanceof Error ? err.message : "Failed to delete pricing"
+    const errorDetail = err && typeof err === 'object' && 'detail' in err ? String((err as {detail?: unknown}).detail) : undefined
     return {
       success: false,
-      error: err.detail || err.message || "Failed to delete pricing"
+      error: errorDetail || errorMessage
     }
   }
 }
@@ -817,11 +853,13 @@ export async function resetLLMPricing(
       success: true,
       message: "Pricing reset to defaults"
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(`[Integrations] Reset ${provider} pricing error:`, err)
+    const errorMessage = err instanceof Error ? err.message : "Failed to reset pricing"
+    const errorDetail = err && typeof err === 'object' && 'detail' in err ? String((err as {detail?: unknown}).detail) : undefined
     return {
       success: false,
-      error: err.detail || err.message || "Failed to reset pricing"
+      error: errorDetail || errorMessage
     }
   }
 }
@@ -868,11 +906,13 @@ export async function listSaaSSubscriptions(
       subscriptions: result.subscriptions,
       count: result.count
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(`[Integrations] List ${provider} subscriptions error:`, err)
+    const errorMessage = err instanceof Error ? err.message : "Failed to list subscriptions"
+    const errorDetail = err && typeof err === 'object' && 'detail' in err ? String((err as {detail?: unknown}).detail) : undefined
     return {
       success: false,
-      error: err.detail || err.message || "Failed to list subscriptions"
+      error: errorDetail || errorMessage
     }
   }
 }
@@ -913,11 +953,13 @@ export async function updateSaaSSubscription(
       success: true,
       subscription: result
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(`[Integrations] Update ${provider} subscription error:`, err)
+    const errorMessage = err instanceof Error ? err.message : "Failed to update subscription"
+    const errorDetail = err && typeof err === 'object' && 'detail' in err ? String((err as {detail?: unknown}).detail) : undefined
     return {
       success: false,
-      error: err.detail || err.message || "Failed to update subscription"
+      error: errorDetail || errorMessage
     }
   }
 }
@@ -957,11 +999,13 @@ export async function createSaaSSubscription(
       success: true,
       subscription: result
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(`[Integrations] Create ${provider} subscription error:`, err)
+    const errorMessage = err instanceof Error ? err.message : "Failed to create subscription"
+    const errorDetail = err && typeof err === 'object' && 'detail' in err ? String((err as {detail?: unknown}).detail) : undefined
     return {
       success: false,
-      error: err.detail || err.message || "Failed to create subscription"
+      error: errorDetail || errorMessage
     }
   }
 }
@@ -997,11 +1041,13 @@ export async function deleteSaaSSubscription(
     await client.deleteSaaSSubscription(orgSlug, provider, planName)
 
     return { success: true }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(`[Integrations] Delete ${provider} subscription error:`, err)
+    const errorMessage = err instanceof Error ? err.message : "Failed to delete subscription"
+    const errorDetail = err && typeof err === 'object' && 'detail' in err ? String((err as {detail?: unknown}).detail) : undefined
     return {
       success: false,
-      error: err.detail || err.message || "Failed to delete subscription"
+      error: errorDetail || errorMessage
     }
   }
 }
@@ -1040,11 +1086,13 @@ export async function resetSaaSSubscriptions(
       success: true,
       message: "Subscriptions reset to defaults"
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(`[Integrations] Reset ${provider} subscriptions error:`, err)
+    const errorMessage = err instanceof Error ? err.message : "Failed to reset subscriptions"
+    const errorDetail = err && typeof err === 'object' && 'detail' in err ? String((err as {detail?: unknown}).detail) : undefined
     return {
       success: false,
-      error: err.detail || err.message || "Failed to reset subscriptions"
+      error: errorDetail || errorMessage
     }
   }
 }
@@ -1192,11 +1240,13 @@ export async function toggleIntegrationEnabled(
 
     console.log(`[Integrations] Toggled ${provider} enabled=${enabled} for ${orgSlug}`)
     return { success: true, enabled }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(`[Integrations] Toggle ${provider} error:`, err)
+    const errorMessage = err instanceof Error ? err.message : "Failed to toggle integration"
+    const errorDetail = err && typeof err === 'object' && 'detail' in err ? String((err as {detail?: unknown}).detail) : undefined
     return {
       success: false,
-      error: err.detail || err.message || "Failed to toggle integration"
+      error: errorDetail || errorMessage
     }
   }
 }

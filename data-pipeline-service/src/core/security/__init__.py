@@ -1,4 +1,4 @@
-"""Security utilities for the convergence data pipeline."""
+"""Security utilities for the data pipeline service."""
 
 from .kms_encryption import encrypt_value, decrypt_value
 

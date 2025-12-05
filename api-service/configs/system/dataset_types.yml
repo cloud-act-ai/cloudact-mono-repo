@@ -10,7 +10,7 @@ dataset_types:
     layer: "unified"
     retention_days: null  # No automatic expiration
     labels:
-      managed_by: "convergence-platform"
+      managed_by: "cloudact-platform"
       layer: "unified"
     # Table configuration for high-volume tables
     table_defaults:

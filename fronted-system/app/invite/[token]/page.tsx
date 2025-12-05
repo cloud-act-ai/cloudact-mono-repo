@@ -1,9 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
-import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -35,11 +34,7 @@ export default function InvitePage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null)
 
-  useEffect(() => {
-    fetchInviteAndAuth()
-  }, [token])
-
-  const fetchInviteAndAuth = async () => {
+  const fetchInviteAndAuth = useCallback(async () => {
     setIsLoading(true)
     setError(null)
 
@@ -59,12 +54,16 @@ export default function InvitePage() {
       }
 
       setInviteData(result.data!)
-    } catch (err: any) {
-      setError(err.message || "Failed to load invite")
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to load invite")
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [token])
+
+  useEffect(() => {
+    fetchInviteAndAuth()
+  }, [fetchInviteAndAuth])
 
   const handleAccept = async () => {
     setIsAccepting(true)
@@ -93,8 +92,8 @@ export default function InvitePage() {
           window.location.href = "/"
         }
       }, 2000)
-    } catch (err: any) {
-      setError(err.message || "Failed to accept invite")
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to accept invite")
       setIsAccepting(false)
     }
   }

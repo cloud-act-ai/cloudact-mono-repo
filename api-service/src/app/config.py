@@ -54,8 +54,8 @@ KMS ENCRYPTION:
 KMS_KEY_NAME            - Full GCP KMS key resource name (optional)
 KMS_PROJECT_ID          - GCP project for KMS (if KMS_KEY_NAME not set)
 KMS_LOCATION            - KMS location (default: "us-central1")
-KMS_KEYRING             - KMS keyring name (default: "convergence-keyring")
-KMS_KEY                 - KMS key name (default: "convergence-encryption-key")
+KMS_KEYRING             - KMS keyring name (default: "cloudact-keyring")
+KMS_KEY                 - KMS key name (default: "cloudact-encryption-key")
 
 API KEY CONFIGURATION (#54):
 ---------------------------
@@ -78,7 +78,7 @@ OBSERVABILITY:
 -------------
 ENABLE_TRACING          - Enable distributed tracing (default: true)
 ENABLE_METRICS          - Enable Prometheus metrics (default: true)
-OTEL_SERVICE_NAME       - OpenTelemetry service name (default: "convergence-api")
+OTEL_SERVICE_NAME       - OpenTelemetry service name (default: "api-service")
 OTEL_EXPORTER_OTLP_ENDPOINT - OTLP exporter endpoint (optional)
 
 For complete documentation, see each Field's description attribute below.
@@ -125,7 +125,7 @@ class Settings(BaseSettings):
     # Application Settings
     # ============================================
     app_name: str = Field(
-        default="cloudact-api-service",
+        default="api-service",
         description="Application name"
     )
     app_version: str = Field(
@@ -260,11 +260,11 @@ class Settings(BaseSettings):
         description="GCP KMS location (used if kms_key_name not provided)"
     )
     kms_keyring: str = Field(
-        default="convergence-keyring",
+        default="cloudact-keyring",
         description="GCP KMS keyring name (used if kms_key_name not provided)"
     )
     kms_key: str = Field(
-        default="convergence-encryption-key",
+        default="cloudact-encryption-key",
         description="GCP KMS key name (used if kms_key_name not provided)"
     )
 
@@ -378,7 +378,7 @@ class Settings(BaseSettings):
     # ============================================
     enable_tracing: bool = Field(default=True)
     enable_metrics: bool = Field(default=True)
-    otel_service_name: str = Field(default="convergence-api")
+    otel_service_name: str = Field(default="api-service")
     otel_exporter_otlp_endpoint: Optional[str] = Field(default=None)
 
     # ============================================

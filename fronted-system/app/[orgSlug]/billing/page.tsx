@@ -1,11 +1,10 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useParams, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
-import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Dialog,
@@ -16,7 +15,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import {
   Check,
@@ -78,7 +76,7 @@ export default function BillingPage() {
     fetchBillingData()
     fetchPlans()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orgSlug]) // fetchBillingData and fetchPlans are stable functions defined within component
+  }, [orgSlug])
 
   // Poll for subscription data after successful checkout
   useEffect(() => {
@@ -107,9 +105,9 @@ export default function BillingPage() {
         }
       }
     }
-  }, [searchParams, hasStripeSubscription, isLoadingBilling])
+  }, [searchParams, hasStripeSubscription, isLoadingBilling, fetchBillingData])
 
-  const fetchPlans = async () => {
+  const fetchPlans = useCallback(async () => {
     try {
       const result = await getStripePlans()
 
@@ -131,14 +129,14 @@ export default function BillingPage() {
       const sortedPlans = result.data.sort((a, b) => a.price - b.price)
       setPlans(sortedPlans)
       setPlansError(null)
-    } catch (err) {
+    } catch (err: unknown) {
       const errorMessage = logError("BillingPage:fetchPlans", err)
       setPlansError(errorMessage || "Failed to load subscription plans. Please refresh the page or contact support.")
       setPlans([])
     }
-  }
+  }, [])
 
-  const fetchBillingData = async () => {
+  const fetchBillingData = useCallback(async () => {
     setIsLoadingBilling(true)
     try {
       const supabase = createClient()
@@ -226,12 +224,12 @@ export default function BillingPage() {
           setBillingStatus(result.data.subscription.status)
         }
       }
-    } catch (err) {
+    } catch (err: unknown) {
       logError("BillingPage:fetchBillingData", err)
     } finally {
       setIsLoadingBilling(false)
     }
-  }
+  }, [orgSlug])
 
   // Validate URL is from allowed domains to prevent open redirect
   const isValidRedirectUrl = (url: string): boolean => {
@@ -256,7 +254,7 @@ export default function BillingPage() {
       } else if (url) {
         throw new Error("Invalid checkout URL")
       }
-    } catch (err) {
+    } catch (err: unknown) {
       const errorMessage = logError("BillingPage:handleSubscribe", err)
       toast.error(`Failed to start checkout: ${errorMessage}`)
     } finally {
@@ -276,7 +274,7 @@ export default function BillingPage() {
       } else if (url) {
         throw new Error("Invalid portal URL")
       }
-    } catch (err) {
+    } catch (err: unknown) {
       const errorMessage = logError("BillingPage:handleManageSubscription", err)
       toast.error(`Failed to open billing portal: ${errorMessage}`)
     } finally {
@@ -324,7 +322,7 @@ export default function BillingPage() {
           }
         }
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Error checking provider limits:", err)
       // Don't block downgrade on error - let backend validation catch it
     }
@@ -404,7 +402,7 @@ export default function BillingPage() {
       // 1. Local state is already updated from changeSubscriptionPlan result
       // 2. Stripe API may return cached/stale data immediately after update
       // 3. User can refresh page manually if needed to see updated invoices
-    } catch (err) {
+    } catch (err: unknown) {
       const errorMessage = logError("BillingPage:handleChangePlan", err)
       toast.error(`Failed to change plan: ${errorMessage}`)
     } finally {

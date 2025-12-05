@@ -74,16 +74,16 @@ class OrganizationDeleteTest {
         console.log(`  ❌ ${name} (${duration}ms)`)
         console.log(`     ${result.message}`)
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       const duration = Date.now() - start
       this.results.push({
         name,
         passed: false,
-        message: `Exception: ${err.message}`,
+        message: `Exception: ${err instanceof Error ? err.message : String(err)}`,
         duration,
       })
       console.log(`  ❌ ${name} (${duration}ms)`)
-      console.log(`     Exception: ${err.message}`)
+      console.log(`     Exception: ${err instanceof Error ? err.message : String(err)}`)
     }
   }
 
@@ -247,9 +247,10 @@ class OrganizationDeleteTest {
           }
         }
         return { passed: false, message: `Unexpected status: ${response.status}` }
-      } catch (err: any) {
+      } catch (err: unknown) {
         // Backend not reachable is acceptable for non-onboarded orgs
-        return { passed: true, message: `Backend not reachable (acceptable): ${err.message}` }
+        const errorMessage = err instanceof Error ? err.message : String(err)
+        return { passed: true, message: `Backend not reachable (acceptable): ${errorMessage}` }
       }
     })
   }
@@ -267,8 +268,9 @@ class OrganizationDeleteTest {
         await this.supabase.auth.admin.deleteUser(this.userId)
         console.log(`  ✅ Deleted user`)
       }
-    } catch (err: any) {
-      console.log(`  ⚠️  Cleanup error: ${err.message}`)
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : String(err)
+      console.log(`  ⚠️  Cleanup error: ${errorMessage}`)
     }
   }
 

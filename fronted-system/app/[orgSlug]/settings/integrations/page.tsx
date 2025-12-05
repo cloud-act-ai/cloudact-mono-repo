@@ -336,7 +336,7 @@ export default function IntegrationsPage() {
 
   useEffect(() => {
     void loadIntegrations()
-  }, [orgSlug])
+  }, [orgSlug, loadIntegrations])
 
   // Clear messages after delay
   useEffect(() => {
@@ -362,9 +362,9 @@ export default function IntegrationsPage() {
       }
 
       await loadIntegrations()
-    } catch (err: any) {
-      console.error("[Integrations] Validation error:", err)
-      setError(err.message || "Failed to validate integration")
+    } catch (error: unknown) {
+      console.error("[Integrations] Validation error:", error)
+      setError(error instanceof Error ? error.message : "Failed to validate integration")
     } finally {
       setValidatingProvider(null)
     }
@@ -385,9 +385,9 @@ export default function IntegrationsPage() {
       } else {
         setError(result.error || `Failed to ${enabled ? 'enable' : 'disable'} ${providerId.toUpperCase()}`)
       }
-    } catch (err: any) {
-      console.error("[Integrations] Toggle error:", err)
-      setError(err.message || "Failed to toggle integration")
+    } catch (error: unknown) {
+      console.error("[Integrations] Toggle error:", error)
+      setError(error instanceof Error ? error.message : "Failed to toggle integration")
     } finally {
       setTogglingProvider(null)
     }

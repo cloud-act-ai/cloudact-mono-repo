@@ -1,5 +1,5 @@
 """
-Convergence Data Pipeline - Enterprise FastAPI Application
+Data Pipeline Service - Enterprise FastAPI Application
 Main application entry point with multi-organization support.
 """
 
@@ -256,7 +256,7 @@ async def lifespan(app: FastAPI):
 
 # OpenAPI metadata and tags
 api_description = """
-## Convergence Data Pipeline API
+## Data Pipeline Service API
 
 **Pure Pipeline Execution Engine** - Handles ETL jobs, usage data processing, and scheduled pipelines.
 
@@ -294,11 +294,6 @@ API Request → configs/ → Processor → BigQuery API
 
 * **api-service (port 8000)**: Bootstrap, onboarding, organizations, user management
 * **data-pipeline-service (port 8001)**: Pipeline execution, ETL jobs, integrations, scheduled runs
-
-### Deployment Environments
-
-* **Stage**: `https://convergence-pipeline-stage-526075321773.us-central1.run.app`
-* **Production**: `https://convergence-pipeline-prod-820784027009.us-central1.run.app`
 """
 
 # API tags metadata

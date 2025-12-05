@@ -17,8 +17,6 @@ import { generateTestUser, TEST_CONFIG } from './utils/test-data'
 
 describe('Flow 6: Backend Onboarding Sync', () => {
     const testUser = generateTestUser('backend_sync_flow')
-    let orgSlug: string
-    let apiKey: string
 
     it('should complete backend onboarding and sync', async () => {
         console.log('Starting Flow 6: Backend Onboarding Sync')

@@ -55,6 +55,7 @@ describe('Flow 9: Organization Delete', () => {
         billing_status: 'trialing',
         plan: 'starter',
         seat_limit: 2,
+        created_by: userId,
       })
       .select()
       .single()
@@ -63,15 +64,15 @@ describe('Flow 9: Organization Delete', () => {
     orgId = org.id
     console.log(`Created org: ${orgId}`)
 
-    // Add user as owner
+    // Add user as owner (skip if trigger already created it)
     const { error: memberError } = await supabase
       .from('organization_members')
-      .insert({
+      .upsert({
         org_id: orgId,
         user_id: userId,
         role: 'owner',
         status: 'active',
-      })
+      }, { onConflict: 'org_id,user_id' })
 
     if (memberError) throw new Error(`Failed to add member: ${memberError.message}`)
     console.log('User added as owner')
@@ -87,7 +88,7 @@ describe('Flow 9: Organization Delete', () => {
       // Clean up user
       await supabase.auth.admin.deleteUser(userId)
       console.log('Cleanup complete')
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Cleanup error:', err)
     }
   })
@@ -124,33 +125,30 @@ describe('Flow 9: Organization Delete', () => {
     console.log(`✓ Trigger blocked role change: "${error?.message}"`)
   })
 
-  it('should allow deactivating members (soft delete approach)', async () => {
-    console.log('\n--- Test: Soft delete approach ---')
+  it('should block owner deactivation (protect_owner trigger)', async () => {
+    console.log('\n--- Test: Owner deactivation blocked ---')
 
-    // This is how deleteOrganization works - sets status to inactive
+    // Trying to deactivate owner should fail (trigger protects owners)
     const { error: deactivateError } = await supabase
       .from('organization_members')
       .update({ status: 'inactive' })
       .eq('org_id', orgId)
+      .eq('role', 'owner')
 
-    expect(deactivateError).toBeNull()
-    console.log('✓ Deactivated members successfully')
+    expect(deactivateError).not.toBeNull()
+    expect(deactivateError?.message).toContain('Cannot deactivate organization owner')
+    console.log(`✓ Owner deactivation blocked: "${deactivateError?.message}"`)
 
-    // Verify status changed
+    // Verify owner status unchanged
     const { data: member } = await supabase
       .from('organization_members')
       .select('status')
       .eq('org_id', orgId)
+      .eq('role', 'owner')
       .single()
 
-    expect(member?.status).toBe('inactive')
-    console.log(`✓ Member status is now: ${member?.status}`)
-
-    // Restore for next tests
-    await supabase
-      .from('organization_members')
-      .update({ status: 'active' })
-      .eq('org_id', orgId)
+    expect(member?.status).toBe('active')
+    console.log(`✓ Owner status unchanged: ${member?.status}`)
   })
 
   it('should soft-delete organization correctly', async () => {
@@ -213,7 +211,7 @@ describe('Flow 9: Organization Delete', () => {
       // Either 200 (deleted) or 404/400 (not found) is acceptable
       expect([200, 400, 404]).toContain(response.status)
       console.log('✓ Backend endpoint responded correctly')
-    } catch (err) {
+    } catch {
       // Backend not running is acceptable for this test
       console.log('Backend not reachable (acceptable for unit test)')
     }

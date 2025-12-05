@@ -1,4 +1,6 @@
-# CloudAct Meta Data Store
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Gist
 
@@ -6,7 +8,64 @@ Multi-org cloud cost analytics platform. BigQuery-powered. Two backend services:
 
 **Architecture:** Everything is a pipeline. No SQL files, no Alembic, no direct DDL.
 
-**Full Platform Architecture:** See `ARCHITECTURE.md`
+**Full Platform Architecture:** See `requirements-docs/00-ARCHITECTURE.md`
+
+## Development Commands
+
+### API Service (Port 8000)
+```bash
+cd api-service
+pip install -r requirements.txt
+
+# Run server
+python3 -m uvicorn src.app.main:app --host 0.0.0.0 --port 8000 --reload
+
+# Run tests
+python -m pytest tests/ -v                    # All tests
+python -m pytest tests/test_01_bootstrap.py   # Single test file
+python -m pytest tests/ -k "test_health"      # Pattern match
+```
+
+### Pipeline Service (Port 8001)
+```bash
+cd data-pipeline-service
+pip install -r requirements.txt
+
+# Run server
+python3 -m uvicorn src.app.main:app --host 0.0.0.0 --port 8001 --reload
+
+# Run tests
+python -m pytest tests/ -v
+
+# Lint & format
+ruff check src/
+black src/
+mypy src/
+```
+
+### Frontend (Port 3000)
+```bash
+cd fronted-system
+npm install
+
+npm run dev       # Start dev server
+npm run build     # Production build
+npm run lint      # ESLint
+
+# Tests (Vitest)
+npx vitest                                    # All tests
+npx vitest tests/auth-flow.test.ts            # Single file
+npx vitest --watch                            # Watch mode
+npx vitest -c vitest.api.config.ts            # API tests
+```
+
+### Database Migrations (Supabase)
+```bash
+cd fronted-system/scripts/supabase_db
+./migrate.sh              # Run all pending migrations
+./migrate.sh --status     # Show migration status
+./migrate.sh --force 12   # Force re-run specific migration
+```
 
 ## Service Architecture
 
@@ -87,8 +146,8 @@ The backend is split into two services that share the same BigQuery datasets and
 
 | Service | Port | Purpose | Key Endpoints |
 |---------|------|---------|---------------|
-| **cloudact-api-service** | 8000 | Frontend-facing API layer | `/api/v1/admin/bootstrap`, `/api/v1/organizations/*` |
-| **convergence-data-pipeline** | 8001 | Pipeline + Integrations | `/api/v1/pipelines/run/*`, `/api/v1/integrations/*`, scheduled jobs |
+| **api-service** | 8000 | Frontend-facing API layer | `/api/v1/admin/bootstrap`, `/api/v1/organizations/*` |
+| **data-pipeline-service** | 8001 | Pipeline + Integrations | `/api/v1/pipelines/run/*`, `/api/v1/integrations/*`, scheduled jobs |
 
 **Shared:** Same `CA_ROOT_API_KEY`, same BigQuery datasets, same org API key validation.
 
@@ -146,7 +205,7 @@ CA_ROOT_API_KEY (system admin)
 
 ### API Endpoints
 
-#### cloudact-api-service (Port 8000) - Bootstrap & Onboarding
+#### api-service (Port 8000) - Bootstrap & Onboarding
 
 **Admin (X-CA-Root-Key)**
 - `POST /api/v1/admin/bootstrap` - Initialize system
@@ -154,7 +213,7 @@ CA_ROOT_API_KEY (system admin)
 - `POST /api/v1/organizations/dryrun` - Validate org before onboarding
 - `PUT /api/v1/organizations/{org}/subscription` - Update subscription limits
 
-#### convergence-data-pipeline (Port 8001) - Pipelines & Integrations
+#### data-pipeline-service (Port 8001) - Pipelines & Integrations
 
 **Organization (X-API-Key)**
 - `POST /api/v1/pipelines/run/{org}/{provider}/{domain}/{pipeline}` - Run pipeline
@@ -234,28 +293,6 @@ curl -X POST "http://localhost:8001/api/v1/pipelines/run/{org_slug}/gcp/cost/bil
 
 # List available pipelines (no auth)
 curl -s http://localhost:8000/api/v1/validator/pipelines | python3 -m json.tool
-```
-
-### Start Services Locally
-
-```bash
-# API Service (port 8000)
-cd api-service
-export GOOGLE_APPLICATION_CREDENTIALS="~/.gcp/your-sa.json"
-export GCP_PROJECT_ID="gac-prod-471220"
-export CA_ROOT_API_KEY="test-ca-root-key-dev"
-export ENVIRONMENT="development"
-export DISABLE_AUTH="false"
-python3 -m uvicorn src.app.main:app --host 0.0.0.0 --port 8000
-
-# Pipeline Engine (port 8001)
-cd data-pipeline-service
-# Same env vars as above
-python3 -m uvicorn src.app.main:app --host 0.0.0.0 --port 8001
-
-# Frontend (port 3000)
-cd fronted-system
-npm run dev
 ```
 
 ### Common Debugging Commands

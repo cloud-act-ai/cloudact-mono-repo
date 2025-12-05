@@ -80,7 +80,7 @@ export async function createOrganization(input: CreateOrganizationInput) {
       .single()
 
     if (existingMember) {
-      const org = existingMember.organizations as any
+      const org = existingMember.organizations as { org_slug: string } | null
       return {
         success: true,
         orgSlug: org?.org_slug,
@@ -165,10 +165,10 @@ export async function createOrganization(input: CreateOrganizationInput) {
         backendOnboardingError = backendResult.error
         // Don't fail the whole operation - user can onboard to backend later from Profile
       }
-    } catch (backendErr: any) {
+    } catch (backendErr: unknown) {
       console.error("[v0] Backend onboarding error:", backendErr)
       backendOnboardingFailed = true
-      backendOnboardingError = backendErr.message || "Backend connection failed"
+      backendOnboardingError = backendErr instanceof Error ? backendErr.message : "Backend connection failed"
       // Don't fail - Supabase org creation succeeded
     }
 
@@ -192,9 +192,10 @@ export async function createOrganization(input: CreateOrganizationInput) {
       backendOnboardingError,
       message,
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[v0] Create organization error:", err)
-    return { success: false, error: err.message || "Failed to create organization" }
+    const errorMessage = err instanceof Error ? err.message : "Failed to create organization"
+    return { success: false, error: errorMessage }
   }
 }
 
@@ -300,7 +301,7 @@ export async function completeOnboarding(sessionId: string) {
       .single()
 
     if (existingMember) {
-      const org = existingMember.organizations as any
+      const org = existingMember.organizations as { org_slug: string } | null
       console.log("[v0] User already has org:", org?.org_slug)
       return {
         success: true,
@@ -351,13 +352,14 @@ export async function completeOnboarding(sessionId: string) {
     }
 
     // Check if product is deleted
-    if ((product as any).deleted) {
+    type ProductWithDeleted = { deleted?: boolean; metadata?: Record<string, string>; name: string }
+    const productData = product as ProductWithDeleted
+
+    if (productData.deleted) {
       return { success: false, error: "Product has been deleted" }
     }
 
     // Get plan info from Stripe product metadata
-    // Cast to any to access properties safely after validation above
-    const productData = product as any
     const metadata = productData.metadata || {}
     const planId = metadata.plan_id || productData.name.toLowerCase().replace(/\s+/g, "_")
 
@@ -392,11 +394,11 @@ export async function completeOnboarding(sessionId: string) {
         stripe_price_id: priceItem.id,
         billing_status: subscription.status,
         trial_ends_at: trialEndsAt.toISOString(),
-        current_period_start: (subscription as any).current_period_start
-          ? new Date((subscription as any).current_period_start * 1000).toISOString()
+        current_period_start: subscription.current_period_start
+          ? new Date(subscription.current_period_start * 1000).toISOString()
           : new Date().toISOString(),
-        current_period_end: (subscription as any).current_period_end
-          ? new Date((subscription as any).current_period_end * 1000).toISOString()
+        current_period_end: subscription.current_period_end
+          ? new Date(subscription.current_period_end * 1000).toISOString()
           : trialEndsAt.toISOString(),
         seat_limit: limits.teamMembers,
         providers_limit: limits.providers,
@@ -427,9 +429,10 @@ export async function completeOnboarding(sessionId: string) {
           },
         })
         updateSuccess = true
-      } catch (stripeErr: any) {
+      } catch (stripeErr: unknown) {
         retryCount++
-        console.warn(`[v0] Failed to update Stripe subscription metadata (attempt ${retryCount}/${maxRetries}):`, stripeErr.message)
+        const errMsg = stripeErr instanceof Error ? stripeErr.message : "Unknown error"
+        console.warn(`[v0] Failed to update Stripe subscription metadata (attempt ${retryCount}/${maxRetries}):`, errMsg)
 
         if (retryCount >= maxRetries) {
           // Queue for later or log error - final attempt
@@ -450,8 +453,9 @@ export async function completeOnboarding(sessionId: string) {
           onboarding_completed_at: new Date().toISOString(),
         },
       })
-    } catch (metaErr: any) {
-      console.warn("[v0] Failed to clear user metadata:", metaErr.message)
+    } catch (metaErr: unknown) {
+      const errMsg = metaErr instanceof Error ? metaErr.message : "Unknown error"
+      console.warn("[v0] Failed to clear user metadata:", errMsg)
       // Non-critical, continue
     }
 
@@ -476,7 +480,7 @@ export async function completeOnboarding(sessionId: string) {
         console.warn("[v0] Backend onboarding failed:", backendResult.error)
         backendOnboardingFailed = true
       }
-    } catch (backendErr: any) {
+    } catch (backendErr: unknown) {
       console.error("[v0] Backend onboarding error:", backendErr)
       backendOnboardingFailed = true
     }
@@ -491,8 +495,9 @@ export async function completeOnboarding(sessionId: string) {
         ? "Organization created. Backend setup can be completed from Settings."
         : "Organization created successfully.",
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[v0] Complete onboarding error:", err)
-    return { success: false, error: err.message || "Failed to complete setup" }
+    const errorMessage = err instanceof Error ? err.message : "Failed to complete setup"
+    return { success: false, error: errorMessage }
   }
 }

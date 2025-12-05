@@ -19,8 +19,6 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   Table,
@@ -33,7 +31,7 @@ import {
 import { runPipeline, getAvailablePipelines, getPipelineRuns, getPipelineRunDetail } from "@/actions/pipelines"
 import { getIntegrations } from "@/actions/integrations"
 import { checkBackendOnboarding, hasStoredApiKey } from "@/actions/backend-onboarding"
-import { PipelineRunSummary, StepLogSummary, PipelineRunDetail as PipelineRunDetailType } from "@/lib/api/backend"
+import { PipelineRunSummary, PipelineRunDetail as PipelineRunDetailType } from "@/lib/api/backend"
 
 // ============================================
 // Types
@@ -77,6 +75,20 @@ export default function PipelinesPage() {
   // Run history limit - show latest 100 runs
   const MAX_RUNS = 100
 
+  // Load pipeline runs (latest 100)
+  const loadPipelineRuns = useCallback(async () => {
+    setRunsLoading(true)
+    try {
+      const result = await getPipelineRuns(orgSlug, { limit: MAX_RUNS })
+      if (result.success && result.data) {
+        setPipelineRuns(result.data.runs)
+      }
+    } catch (err: unknown) {
+      console.error("Failed to load pipeline runs:", err)
+    }
+    setRunsLoading(false)
+  }, [orgSlug])
+
   // Load pipelines, integrations, and backend status
   const loadData = useCallback(async () => {
     setIsLoading(true)
@@ -107,21 +119,7 @@ export default function PipelinesPage() {
     if (onboardingStatus.onboarded && apiKeyResult.hasKey) {
       loadPipelineRuns()
     }
-  }, [orgSlug])
-
-  // Load pipeline runs (latest 100)
-  const loadPipelineRuns = useCallback(async () => {
-    setRunsLoading(true)
-    try {
-      const result = await getPipelineRuns(orgSlug, { limit: MAX_RUNS })
-      if (result.success && result.data) {
-        setPipelineRuns(result.data.runs)
-      }
-    } catch (err) {
-      console.error("Failed to load pipeline runs:", err)
-    }
-    setRunsLoading(false)
-  }, [orgSlug])
+  }, [orgSlug, loadPipelineRuns])
 
   // Toggle row expansion and load details
   const toggleRunExpansion = async (runId: string) => {
@@ -140,7 +138,7 @@ export default function PipelinesPage() {
         if (result.success && result.data) {
           setRunDetails(prev => ({ ...prev, [runId]: result.data! }))
         }
-      } catch (err) {
+      } catch (err: unknown) {
         console.error("Failed to load run details:", err)
       }
       setLoadingDetail(null)
@@ -177,11 +175,12 @@ export default function PipelinesPage() {
         success: result.success,
         message: result.success ? "Pipeline triggered successfully! Check backend logs." : result.error,
       })
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to run pipeline"
       setLastResult({
         pipelineId,
         success: false,
-        message: err.message || "Failed to run pipeline",
+        message: errorMessage,
       })
     }
 

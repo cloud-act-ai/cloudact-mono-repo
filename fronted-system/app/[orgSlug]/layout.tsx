@@ -42,7 +42,7 @@ export default async function OrgLayout({
 
     if (userOrgs && userOrgs.length > 0) {
       // User has another org - redirect to that org's dashboard
-      const existingOrg = userOrgs[0].organizations as any
+      const existingOrg = userOrgs[0].organizations as { org_slug?: string } | null
       if (existingOrg?.org_slug) {
         redirect(`/${existingOrg.org_slug}/dashboard`)
       }

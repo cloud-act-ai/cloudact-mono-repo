@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
     .single()
 
   if (memberData) {
-    const org = memberData.organizations as any
+    const org = memberData.organizations as { org_slug: string } | null
     const slug = org?.org_slug
     if (slug) {
       const redirectUrl = new URL(`/${slug}/dashboard`, request.url)

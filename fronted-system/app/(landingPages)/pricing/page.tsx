@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowRight, Check, Shield, Lock, CreditCard, HelpCircle } from "lucide-react"
+import { Check, Shield, Lock, CreditCard } from "lucide-react"
 import { getStripePlans } from "@/actions/stripe"
 import {
   Accordion,
@@ -46,29 +46,6 @@ export default async function PricingPage() {
 
   // Get trial days from first plan (Stripe is source of truth)
   const trialDays = plans[0]?.trialDays
-
-  const faqs = [
-    {
-      question: "How does the free trial work?",
-      answer: `You get full access to all features for ${trialDays || 14} days. No credit card is required to start. At the end of the trial, you can choose a plan that fits your needs.`,
-    },
-    {
-      question: "Can I change plans later?",
-      answer: "Yes, you can upgrade or downgrade your plan at any time. Changes take effect immediately, and we'll prorate any payments.",
-    },
-    {
-      question: "What happens if I exceed my usage limits?",
-      answer: "We'll notify you when you're approaching your limits. You can choose to upgrade your plan or pay for overages at standard rates.",
-    },
-    {
-      question: "Do you offer enterprise discounts?",
-      answer: "Yes, for large teams and high-volume usage, we offer custom enterprise plans with volume discounts. Contact our sales team for more details.",
-    },
-    {
-      question: "Is my data secure?",
-      answer: "Absolutely. We are SOC 2 Type II certified and GDPR compliant. Your data is encrypted in transit and at rest.",
-    },
-  ]
 
   return (
     <>

@@ -171,8 +171,9 @@ async function main() {
       } else {
         console.log(`   Backend response (${response.status}):`, result)
       }
-    } catch (err) {
-      console.log(`   Backend not reachable (this is OK if not onboarded):`, err)
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : String(err)
+      console.log(`   Backend not reachable (this is OK if not onboarded):`, errorMessage)
     }
   } else {
     console.log("   Skipped (CA_ROOT_API_KEY not set)")
@@ -186,7 +187,7 @@ async function main() {
   console.log("\n=== Test Complete ===")
 }
 
-async function showState(orgId: string, userId: string) {
+async function showState(orgId: string, _userId: string) {
   const { data: org } = await supabase
     .from("organizations")
     .select("org_name, billing_status, is_deleted")

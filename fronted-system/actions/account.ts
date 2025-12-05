@@ -16,9 +16,11 @@
 import { createClient, createServiceRoleClient } from "@/lib/supabase/server"
 import { randomBytes } from "crypto"
 
-// Validate email format
+// Validate email format (RFC 5322 simplified)
+// Note: Utility function available for future email validation needs
 const EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function isValidEmail(email: string): boolean {
   return EMAIL_REGEX.test(email) && email.length <= 254
 }
@@ -204,9 +206,10 @@ export async function getOwnedOrganizations(): Promise<{
     }
 
     return { success: true, data: orgsWithCounts }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[Account] getOwnedOrganizations error:", err)
-    return { success: false, error: err.message || "Failed to fetch organizations" }
+    const errorMessage = err instanceof Error ? err.message : "Failed to fetch organizations"
+    return { success: false, error: errorMessage }
   }
 }
 
@@ -274,9 +277,10 @@ export async function getEligibleTransferMembers(orgId: string): Promise<{
     })
 
     return { success: true, data: membersWithProfiles }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[Account] getEligibleTransferMembers error:", err)
-    return { success: false, error: err.message || "Failed to fetch members" }
+    const errorMessage = err instanceof Error ? err.message : "Failed to fetch members"
+    return { success: false, error: errorMessage }
   }
 }
 
@@ -388,9 +392,10 @@ export async function transferOwnership(
 
     console.log(`[Account] Ownership transferred for org ${orgId} from ${user.id} to ${newOwnerId}`)
     return { success: true }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[Account] transferOwnership error:", err)
-    return { success: false, error: err.message || "Failed to transfer ownership" }
+    const errorMessage = err instanceof Error ? err.message : "Failed to transfer ownership"
+    return { success: false, error: errorMessage }
   }
 }
 
@@ -461,7 +466,7 @@ export async function deleteOrganization(
         const stripe = (await import("@/lib/stripe")).stripe
         await stripe.subscriptions.cancel(org.stripe_subscription_id)
         console.log(`[Account] Cancelled Stripe subscription: ${org.stripe_subscription_id}`)
-      } catch (stripeErr: any) {
+      } catch (stripeErr: unknown) {
         console.error("[Account] Stripe cancellation error:", stripeErr)
         // Continue with deletion even if Stripe fails
       }
@@ -513,7 +518,7 @@ export async function deleteOrganization(
         } else {
           console.warn("[Account] CA_ROOT_API_KEY not set, skipping backend offboarding")
         }
-      } catch (backendErr: any) {
+      } catch (backendErr: unknown) {
         // Log but don't fail - Supabase deletion succeeded
         console.error("[Account] Backend offboarding error (continuing anyway):", backendErr)
       }
@@ -521,9 +526,10 @@ export async function deleteOrganization(
 
     console.log(`[Account] Organization ${org.org_name} (${orgId}) deleted by user ${user.id}`)
     return { success: true }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[Account] deleteOrganization error:", err)
-    return { success: false, error: err.message || "Failed to delete organization" }
+    const errorMessage = err instanceof Error ? err.message : "Failed to delete organization"
+    return { success: false, error: errorMessage }
   }
 }
 
@@ -593,7 +599,7 @@ export async function requestAccountDeletion(): Promise<{
         text: `Account Deletion Request\n\nYou have requested to delete your CloudAct.ai account.\n\nThis action is permanent and cannot be undone.\n\nIf you want to proceed, visit this link within 30 minutes:\n${deleteLink}\n\nIf you did not request this, you can safely ignore this email.`,
       })
       console.log("[Account] Deletion verification email sent to:", user.email)
-    } catch (emailErr) {
+    } catch {
       console.warn("[Account] Email send failed, providing direct link")
     }
 
@@ -614,9 +620,10 @@ export async function requestAccountDeletion(): Promise<{
       success: true,
       message: "A verification email has been sent to your email address. Please check your inbox and click the link to confirm deletion.",
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[Account] requestAccountDeletion error:", err)
-    return { success: false, error: err.message || "Failed to request account deletion" }
+    const errorMessage = err instanceof Error ? err.message : "Failed to request account deletion"
+    return { success: false, error: errorMessage }
   }
 }
 
@@ -711,9 +718,10 @@ export async function confirmAccountDeletion(token: string): Promise<{
 
     console.log(`[Account] Account deleted: ${userId} (${profile?.email})`)
     return { success: true }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[Account] confirmAccountDeletion error:", err)
-    return { success: false, error: err.message || "Failed to delete account" }
+    const errorMessage = err instanceof Error ? err.message : "Failed to delete account"
+    return { success: false, error: errorMessage }
   }
 }
 
@@ -801,8 +809,9 @@ export async function leaveOrganization(orgSlug: string): Promise<{
     })
 
     return { success: true }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[Account] leaveOrganization error:", err)
-    return { success: false, error: err.message || "Failed to leave organization" }
+    const errorMessage = err instanceof Error ? err.message : "Failed to leave organization"
+    return { success: false, error: errorMessage }
   }
 }
