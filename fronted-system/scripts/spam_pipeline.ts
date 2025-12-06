@@ -5,8 +5,8 @@ import { resolve } from 'path';
 // Load .env.local
 config({ path: resolve(process.cwd(), '.env.local') });
 
-const API_KEY = process.env.TEST_ORG_API_KEY;
-const ORG_SLUG = process.env.TEST_ORG_SLUG || process.argv[2];
+const API_KEY = process.env.TEST_ORG_API_KEY || '';
+const ORG_SLUG = process.env.TEST_ORG_SLUG || process.argv[2] || '';
 const PIPELINE_SERVICE_URL = process.env.PIPELINE_SERVICE_URL || 'http://localhost:8001';
 
 if (!API_KEY || !ORG_SLUG) {
@@ -30,7 +30,7 @@ async function spamPipeline() {
                 body: JSON.stringify({ date: '2025-12-01' })
             });
 
-            const data = await response.json();
+            const data = await response.json() as any;
             console.log(`Status: ${response.status}`);
             if (response.status !== 200) {
                 console.log('Error Body:', JSON.stringify(data, null, 2));

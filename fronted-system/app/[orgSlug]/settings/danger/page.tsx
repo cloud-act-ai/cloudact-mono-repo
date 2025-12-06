@@ -95,14 +95,6 @@ export default function DangerPage() {
   const [isRequestingDeletion, setIsRequestingDeletion] = useState(false)
   const [deletionRequested, setDeletionRequested] = useState(false)
 
-  useEffect(() => {
-    document.title = "Danger Zone | CloudAct.ai"
-  }, [])
-
-  useEffect(() => {
-    loadUserAndOrgs()
-  }, [orgSlug, loadUserAndOrgs])
-
   // Load owned organizations
   const loadOwnedOrganizations = useCallback(async () => {
     setLoadingOwnedOrgs(true)
@@ -137,6 +129,14 @@ export default function DangerPage() {
       setIsLoading(false)
     }
   }, [loadOwnedOrganizations, router])
+
+  useEffect(() => {
+    document.title = "Danger Zone | CloudAct.ai"
+  }, [])
+
+  useEffect(() => {
+    loadUserAndOrgs()
+  }, [orgSlug, loadUserAndOrgs])
 
   // Open transfer dialog and load members
   const openTransferDialog = async (org: OwnedOrg) => {

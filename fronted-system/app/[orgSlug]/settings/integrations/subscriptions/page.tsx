@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { Loader2, Check, CreditCard, Plus, ChevronRight, ChevronDown, ChevronUp, Brain, Palette, FileText, MessageSquare, Code, Cloud } from "lucide-react"
+import { Loader2, Check, CreditCard, Plus, ChevronRight, ChevronDown, ChevronUp, Brain, Palette, FileText, MessageSquare, Code, Cloud, AlertTriangle } from "lucide-react"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -26,6 +26,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   getAllProviders,
   enableProvider,
@@ -124,6 +125,7 @@ export default function SubscriptionProvidersPage() {
   const [showAllProviders, setShowAllProviders] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [warningMessage, setWarningMessage] = useState<string | null>(null)
 
   // Add Provider Dialog state
   const [customDialogOpen, setCustomDialogOpen] = useState(false)
@@ -158,10 +160,18 @@ export default function SubscriptionProvidersPage() {
     }
   }, [successMessage])
 
+  useEffect(() => {
+    if (warningMessage) {
+      const timer = setTimeout(() => setWarningMessage(null), 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [warningMessage])
+
   const handleSubscriptionProviderToggle = async (provider: string, enabled: boolean) => {
     setTogglingSubscriptionProvider(provider)
     setError(null)
     setSuccessMessage(null)
+    setWarningMessage(null)
 
     try {
       const result = enabled
@@ -169,11 +179,39 @@ export default function SubscriptionProvidersPage() {
         : await disableProvider(orgSlug, provider)
 
       if (result.success) {
-        setSuccessMessage(
-          enabled
-            ? `${provider.replace(/_/g, ' ')} enabled${result.plans_seeded ? ` (${result.plans_seeded} plans seeded)` : ''}`
-            : `${provider.replace(/_/g, ' ')} disabled`
-        )
+        const displayName = provider.replace(/_/g, ' ')
+
+        if (enabled) {
+          // Enable logic
+          if (result.error) {
+            // Partial failure on enable (enabled but failed to seed plans)
+            setWarningMessage(
+              `${displayName} enabled, but some issues occurred: ${result.error}`
+            )
+          } else {
+            setSuccessMessage(
+              `${displayName} enabled${result.plans_seeded ? ` (${result.plans_seeded} plans seeded)` : ''}`
+            )
+          }
+        } else {
+          // Disable logic - check for partial_failure or error
+          if ('partial_failure' in result && result.partial_failure) {
+            // Partial failure: some plans deleted, some failed
+            setWarningMessage(
+              `${displayName} disabled (${result.plans_deleted} plans deleted). Warning: ${result.partial_failure}`
+            )
+          } else if (result.error) {
+            // Complete failure or provider disabled but plans not deleted
+            setWarningMessage(
+              `${displayName} disabled${result.plans_deleted ? ` (${result.plans_deleted} plans deleted)` : ''}. Warning: ${result.error}`
+            )
+          } else {
+            // Full success
+            setSuccessMessage(
+              `${displayName} disabled${result.plans_deleted ? ` (${result.plans_deleted} plans deleted)` : ''}`
+            )
+          }
+        }
         await loadSubscriptionProviders()
       } else {
         setError(result.error || `Failed to ${enabled ? 'enable' : 'disable'} provider`)
@@ -277,8 +315,41 @@ export default function SubscriptionProvidersPage() {
 
   if (providersLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-[#007A78]" />
+      <div className="space-y-6">
+        <div>
+          <Skeleton className="h-8 w-64 mb-2" />
+          <Skeleton className="h-4 w-96" />
+        </div>
+
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-muted w-fit">
+          <Skeleton className="h-4 w-32" />
+        </div>
+
+        {/* Provider Cards Skeleton */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 12 }).map((_, i) => (
+            <Card key={i} className="console-stat-card">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="h-10 w-10 rounded-lg" />
+                    <div>
+                      <Skeleton className="h-5 w-32 mb-2" />
+                      <Skeleton className="h-3 w-20" />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-3 w-12" />
+                    <Skeleton className="h-6 w-10" />
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-2">
+                <Skeleton className="h-6 w-24" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
     )
   }
@@ -308,6 +379,13 @@ export default function SubscriptionProvidersPage() {
         <Alert className="border-green-500/20 bg-green-500/5">
           <Check className="h-4 w-4 text-green-600" />
           <AlertDescription>{successMessage}</AlertDescription>
+        </Alert>
+      )}
+
+      {warningMessage && (
+        <Alert className="border-amber-500/20 bg-amber-500/5">
+          <AlertTriangle className="h-4 w-4 text-amber-600" />
+          <AlertDescription className="text-amber-900">{warningMessage}</AlertDescription>
         </Alert>
       )}
 

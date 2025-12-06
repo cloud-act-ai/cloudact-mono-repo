@@ -19,6 +19,7 @@ import {
   Cloud,
   Plus,
   AlertCircle,
+  RefreshCw,
 } from "lucide-react"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -33,6 +34,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { CardSkeleton } from "@/components/ui/card-skeleton"
+import { TableSkeleton } from "@/components/ui/table-skeleton"
 import {
   getAllPlansForCostDashboard,
   togglePlan,
@@ -69,6 +72,7 @@ export default function SubscriptionsPage() {
 
   const [plans, setPlans] = useState<PlanWithProvider[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [isRefreshing, setIsRefreshing] = useState(false)
   const [toggling, setToggling] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [summary, setSummary] = useState<{
@@ -98,7 +102,20 @@ export default function SubscriptionsPage() {
 
   useEffect(() => {
     loadData()
+
+    // Auto-refresh every 30 seconds to catch newly enabled providers
+    const interval = setInterval(() => {
+      loadData()
+    }, 30000)
+
+    return () => clearInterval(interval)
   }, [loadData])
+
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true)
+    await loadData()
+    setIsRefreshing(false)
+  }
 
   const handleToggle = async (plan: PlanWithProvider) => {
     setToggling(plan.subscription_id)
@@ -139,8 +156,39 @@ export default function SubscriptionsPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-[#007A78]" />
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-lg bg-gradient-to-br from-[#007A78]/10 to-[#14B8A6]/10">
+                <Wallet className="h-6 w-6 text-[#007A78]" />
+              </div>
+              <h1 className="console-page-title">Subscription Costs</h1>
+            </div>
+            <p className="console-subheading ml-12">
+              View your SaaS subscription costs and usage
+            </p>
+          </div>
+        </div>
+
+        {/* Summary Cards Skeleton */}
+        <div className="grid gap-4 md:grid-cols-4">
+          <CardSkeleton count={4} showDescription />
+        </div>
+
+        {/* Table Skeleton */}
+        <Card className="console-table-card">
+          <CardHeader>
+            <CardTitle className="console-card-title">All Subscriptions</CardTitle>
+            <CardDescription>
+              View and manage all your SaaS subscriptions. Toggle to enable/disable cost tracking.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <TableSkeleton rows={8} columns={8} />
+          </CardContent>
+        </Card>
       </div>
     )
   }
@@ -207,6 +255,16 @@ export default function SubscriptionsPage() {
             View your SaaS subscription costs and usage
           </p>
         </div>
+        <Button
+          onClick={handleManualRefresh}
+          disabled={isRefreshing}
+          variant="outline"
+          size="sm"
+          className="text-[#007A78] border-[#007A78]/30 hover:bg-[#007A78]/5"
+        >
+          <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
+          Refresh
+        </Button>
         <Link href={`/${orgSlug}/settings/integrations/subscriptions`}>
           <Button className="console-button-primary">
             <Plus className="h-4 w-4 mr-2" />

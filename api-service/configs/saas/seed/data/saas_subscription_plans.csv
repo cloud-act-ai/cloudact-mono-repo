@@ -1,71 +1,71 @@
 provider,plan_name,display_name,unit_price_usd,yearly_price_usd,yearly_discount_pct,billing_period,category,seats,storage_limit_gb,monthly_usage_limit,projects_limit,members_limit,notes
-chatgpt_plus,FREE,ChatGPT Free,0.00,0.00,0,monthly,ai,1,,,,1,Limited GPT-3.5 access
-chatgpt_plus,PLUS,ChatGPT Plus,20.00,200.00,17,monthly,ai,1,,,,1,GPT-4 access and priority
-chatgpt_plus,TEAM,ChatGPT Team,25.00,300.00,0,monthly,ai,1,,1000000,,150,1M tokens/month workspace
-chatgpt_plus,ENTERPRISE,ChatGPT Enterprise,0.00,,0,monthly,ai,1,,,,,Custom pricing unlimited
-claude_pro,FREE,Claude Free,0.00,0.00,0,monthly,ai,1,,,,1,Limited daily usage
-claude_pro,PRO,Claude Pro,20.00,200.00,17,monthly,ai,1,,,,1,5x more usage priority
-claude_pro,TEAM,Claude Team,25.00,300.00,0,monthly,ai,1,,2000000,,150,2M tokens/month workspace
-claude_pro,ENTERPRISE,Claude Enterprise,0.00,,0,monthly,ai,1,,,,,Custom pricing security
-gemini_advanced,FREE,Gemini Free,0.00,0.00,0,monthly,ai,1,,,,1,Basic Gemini access
-gemini_advanced,ADVANCED,Gemini Advanced,19.99,199.99,17,monthly,ai,1,,,,1,Ultra model 2TB storage
-copilot,FREE,Copilot Free,0.00,0.00,0,monthly,ai,1,,,,1,Limited suggestions
-copilot,INDIVIDUAL,Copilot Individual,10.00,100.00,17,monthly,ai,1,,,,1,Unlimited suggestions
-copilot,BUSINESS,Copilot Business,19.00,228.00,0,monthly,ai,1,,,,,Organization SSO
-copilot,ENTERPRISE,Copilot Enterprise,39.00,468.00,0,monthly,ai,1,,,,,Fine-tuned models
-cursor,FREE,Cursor Free,0.00,0.00,0,monthly,ai,1,,2000,,1,2000 completions/month
-cursor,PRO,Cursor Pro,20.00,192.00,20,monthly,ai,1,,500000,,1,500K fast completions
-cursor,BUSINESS,Cursor Business,40.00,480.00,0,monthly,ai,1,,,,,Unlimited completions
-windsurf,FREE,Windsurf Free,0.00,0.00,0,monthly,ai,1,,,,1,Basic AI assistance
-windsurf,PRO,Windsurf Pro,15.00,144.00,20,monthly,ai,1,,,,1,Advanced AI features
-replit,FREE,Replit Free,0.00,0.00,0,monthly,ai,1,0.5,,,1,500MB storage
-replit,CORE,Replit Core,25.00,220.00,27,monthly,ai,1,50,,,1,50GB storage AI
-v0,FREE,v0 Free,0.00,0.00,0,monthly,ai,1,,200,,1,200 generations/month
-v0,PRO,v0 Pro,20.00,192.00,20,monthly,ai,1,,,,,Unlimited generations
-lovable,FREE,Lovable Free,0.00,0.00,0,monthly,ai,1,,,5,1,5 projects
-lovable,PRO,Lovable Pro,25.00,240.00,20,monthly,ai,1,,,,,Unlimited projects
-canva,FREE,Canva Free,0.00,0.00,0,monthly,design,1,5,,,1,5GB limited templates
-canva,PRO,Canva Pro,12.99,119.99,23,monthly,design,1,1000,,,1,1TB all templates
+chatgpt_plus,FREE,ChatGPT Free,0.00,0.00,0,monthly,ai,0,,,,0,Limited GPT-3.5 access
+chatgpt_plus,PLUS,ChatGPT Plus,20.00,200.00,17,monthly,ai,0,,,,0,GPT-4 access and priority
+chatgpt_plus,TEAM,ChatGPT Team,25.00,300.00,0,monthly,ai,0,,1000000,,150,1M tokens/month workspace
+chatgpt_plus,ENTERPRISE,ChatGPT Enterprise,0.00,,0,monthly,ai,0,,,,,Custom pricing unlimited
+claude_pro,FREE,Claude Free,0.00,0.00,0,monthly,ai,0,,,,0,Limited daily usage
+claude_pro,PRO,Claude Pro,20.00,200.00,17,monthly,ai,0,,,,0,5x more usage priority
+claude_pro,TEAM,Claude Team,25.00,300.00,0,monthly,ai,0,,2000000,,150,2M tokens/month workspace
+claude_pro,ENTERPRISE,Claude Enterprise,0.00,,0,monthly,ai,0,,,,,Custom pricing security
+gemini_advanced,FREE,Gemini Free,0.00,0.00,0,monthly,ai,0,,,,0,Basic Gemini access
+gemini_advanced,ADVANCED,Gemini Advanced,19.99,199.99,17,monthly,ai,0,,,,0,Ultra model 2TB storage
+copilot,FREE,Copilot Free,0.00,0.00,0,monthly,ai,0,,,,0,Limited suggestions
+copilot,INDIVIDUAL,Copilot Individual,10.00,100.00,17,monthly,ai,0,,,,0,Unlimited suggestions
+copilot,BUSINESS,Copilot Business,19.00,228.00,0,monthly,ai,0,,,,,Organization SSO
+copilot,ENTERPRISE,Copilot Enterprise,39.00,468.00,0,monthly,ai,0,,,,,Fine-tuned models
+cursor,FREE,Cursor Free,0.00,0.00,0,monthly,ai,0,,2000,,0,2000 completions/month
+cursor,PRO,Cursor Pro,20.00,192.00,20,monthly,ai,0,,500000,,0,500K fast completions
+cursor,BUSINESS,Cursor Business,40.00,480.00,0,monthly,ai,0,,,,,Unlimited completions
+windsurf,FREE,Windsurf Free,0.00,0.00,0,monthly,ai,0,,,,0,Basic AI assistance
+windsurf,PRO,Windsurf Pro,15.00,144.00,20,monthly,ai,0,,,,0,Advanced AI features
+replit,FREE,Replit Free,0.00,0.00,0,monthly,ai,0,0.5,,,0,500MB storage
+replit,CORE,Replit Core,25.00,220.00,27,monthly,ai,0,50,,,0,50GB storage AI
+v0,FREE,v0 Free,0.00,0.00,0,monthly,ai,0,,200,,0,200 generations/month
+v0,PRO,v0 Pro,20.00,192.00,20,monthly,ai,0,,,,,Unlimited generations
+lovable,FREE,Lovable Free,0.00,0.00,0,monthly,ai,0,,,5,0,5 projects
+lovable,PRO,Lovable Pro,25.00,240.00,20,monthly,ai,0,,,,,Unlimited projects
+canva,FREE,Canva Free,0.00,0.00,0,monthly,design,0,5,,,0,5GB limited templates
+canva,PRO,Canva Pro,12.99,119.99,23,monthly,design,0,1000,,,0,1TB all templates
 canva,TEAM,Canva Teams,14.99,149.90,17,monthly,design,5,1000,,,,Brand kits team
-adobe_cc,PHOTOGRAPHY,Adobe Photography,9.99,119.88,0,monthly,design,1,20,,,1,Lightroom Photoshop 20GB
-adobe_cc,ALL_APPS,Adobe All Apps,59.99,659.88,8,monthly,design,1,100,,,1,All apps 100GB
-figma,FREE,Figma Free,0.00,0.00,0,monthly,design,1,,,3,2,3 projects 30-day history
-figma,PROFESSIONAL,Figma Professional,15.00,144.00,20,monthly,design,1,,,,1,Unlimited projects history
-figma,ORGANIZATION,Figma Organization,45.00,540.00,0,monthly,design,1,,,,,Design system SSO
-miro,FREE,Miro Free,0.00,0.00,0,monthly,design,1,,,3,,3 editable boards
-miro,STARTER,Miro Starter,8.00,96.00,0,monthly,design,1,,,,,Unlimited boards
-miro,BUSINESS,Miro Business,16.00,192.00,0,monthly,design,1,,,,,SSO permissions
-notion,FREE,Notion Free,0.00,0.00,0,monthly,productivity,1,5,,,,5MB uploads 10 guests
-notion,PLUS,Notion Plus,10.00,96.00,20,monthly,productivity,1,,,,,Unlimited blocks 100 guests
-notion,BUSINESS,Notion Business,18.00,180.00,17,monthly,productivity,1,,,,,SAML SSO permissions
-confluence,FREE,Confluence Free,0.00,0.00,0,monthly,productivity,1,2,,,10,2GB storage 10 users
+adobe_cc,PHOTOGRAPHY,Adobe Photography,9.99,119.88,0,monthly,design,0,20,,,0,Lightroom Photoshop 20GB
+adobe_cc,ALL_APPS,Adobe All Apps,59.99,659.88,8,monthly,design,0,100,,,0,All apps 100GB
+figma,FREE,Figma Free,0.00,0.00,0,monthly,design,0,,,3,2,3 projects 30-day history
+figma,PROFESSIONAL,Figma Professional,15.00,144.00,20,monthly,design,0,,,,0,Unlimited projects history
+figma,ORGANIZATION,Figma Organization,45.00,540.00,0,monthly,design,0,,,,,Design system SSO
+miro,FREE,Miro Free,0.00,0.00,0,monthly,design,0,,,3,,3 editable boards
+miro,STARTER,Miro Starter,8.00,96.00,0,monthly,design,0,,,,,Unlimited boards
+miro,BUSINESS,Miro Business,16.00,192.00,0,monthly,design,0,,,,,SSO permissions
+notion,FREE,Notion Free,0.00,0.00,0,monthly,productivity,0,5,,,,5MB uploads 10 guests
+notion,PLUS,Notion Plus,10.00,96.00,20,monthly,productivity,0,,,,,Unlimited blocks 100 guests
+notion,BUSINESS,Notion Business,18.00,180.00,17,monthly,productivity,0,,,,,SAML SSO permissions
+confluence,FREE,Confluence Free,0.00,0.00,0,monthly,productivity,0,2,,,10,2GB storage 10 users
 confluence,STANDARD,Confluence Standard,6.05,60.50,17,monthly,productivity,10,250,,,20000,250GB storage
-asana,FREE,Asana Free,0.00,0.00,0,monthly,productivity,1,,,,15,Basic tasks 15 members
-asana,PREMIUM,Asana Premium,10.99,131.88,0,monthly,productivity,1,,,,,Timeline workflow
+asana,FREE,Asana Free,0.00,0.00,0,monthly,productivity,0,,,,15,Basic tasks 15 members
+asana,PREMIUM,Asana Premium,10.99,131.88,0,monthly,productivity,0,,,,,Timeline workflow
 monday,FREE,Monday Free,0.00,0.00,0,monthly,productivity,2,0.5,,,2,500MB 2 seats
 monday,BASIC,Monday Basic,9.00,108.00,0,monthly,productivity,3,5,,,,5GB storage
-slack,FREE,Slack Free,0.00,0.00,0,monthly,communication,1,,,,,90-day message history
-slack,PRO,Slack Pro,8.75,87.50,17,monthly,communication,1,,,,,Unlimited history guests
-slack,BUSINESS_PLUS,Slack Business+,15.00,150.00,17,monthly,communication,1,,,,,SSO compliance
-zoom,FREE,Zoom Free,0.00,0.00,0,monthly,communication,1,,,,,40-min 100 participants
-zoom,PRO,Zoom Pro,15.99,149.90,22,monthly,communication,1,,,,,30-hour 100 participants
-zoom,BUSINESS,Zoom Business,21.99,219.90,17,monthly,communication,1,,,,,30-hour 300 participants
-teams,FREE,Teams Free,0.00,0.00,0,monthly,communication,1,5,,,100,5GB 60-min meetings
-teams,ESSENTIALS,Teams Essentials,4.00,48.00,0,monthly,communication,1,10,,,300,10GB 30-hour meetings
-github,FREE,GitHub Free,0.00,0.00,0,monthly,development,1,,2000,,,Public repos 2000 Actions
-github,TEAM,GitHub Team,4.00,44.00,8,monthly,development,1,,3000,,,Private repos 3000 Actions
-github,ENTERPRISE,GitHub Enterprise,21.00,252.00,0,monthly,development,1,,50000,,,SAML SSO 50000 Actions
-gitlab,FREE,GitLab Free,0.00,0.00,0,monthly,development,1,5,,,5,5GB per project
-gitlab,PREMIUM,GitLab Premium,29.00,348.00,0,monthly,development,1,50,,,,50GB code owners
-jira,FREE,Jira Free,0.00,0.00,0,monthly,development,1,2,,,10,2GB 10 users
+slack,FREE,Slack Free,0.00,0.00,0,monthly,communication,0,,,,,90-day message history
+slack,PRO,Slack Pro,8.75,87.50,17,monthly,communication,0,,,,,Unlimited history guests
+slack,BUSINESS_PLUS,Slack Business+,15.00,150.00,17,monthly,communication,0,,,,,SSO compliance
+zoom,FREE,Zoom Free,0.00,0.00,0,monthly,communication,0,,,,,40-min 100 participants
+zoom,PRO,Zoom Pro,15.99,149.90,22,monthly,communication,0,,,,,30-hour 100 participants
+zoom,BUSINESS,Zoom Business,21.99,219.90,17,monthly,communication,0,,,,,30-hour 300 participants
+teams,FREE,Teams Free,0.00,0.00,0,monthly,communication,0,5,,,100,5GB 60-min meetings
+teams,ESSENTIALS,Teams Essentials,4.00,48.00,0,monthly,communication,0,10,,,300,10GB 30-hour meetings
+github,FREE,GitHub Free,0.00,0.00,0,monthly,development,0,,2000,,,Public repos 2000 Actions
+github,TEAM,GitHub Team,4.00,44.00,8,monthly,development,0,,3000,,,Private repos 3000 Actions
+github,ENTERPRISE,GitHub Enterprise,21.00,252.00,0,monthly,development,0,,50000,,,SAML SSO 50000 Actions
+gitlab,FREE,GitLab Free,0.00,0.00,0,monthly,development,0,5,,,5,5GB per project
+gitlab,PREMIUM,GitLab Premium,29.00,348.00,0,monthly,development,0,50,,,,50GB code owners
+jira,FREE,Jira Free,0.00,0.00,0,monthly,development,0,2,,,10,2GB 10 users
 jira,STANDARD,Jira Standard,8.15,81.50,17,monthly,development,10,250,,,20000,250GB storage
-linear,FREE,Linear Free,0.00,0.00,0,monthly,development,1,0.25,,,,250MB file storage
-linear,STANDARD,Linear Standard,8.00,96.00,0,monthly,development,1,10,,,,10GB integrations
-vercel,FREE,Vercel Hobby,0.00,0.00,0,monthly,development,1,,,,1,100GB bandwidth
-vercel,PRO,Vercel Pro,20.00,240.00,0,monthly,development,1,,,,10,1TB bandwidth
-netlify,FREE,Netlify Starter,0.00,0.00,0,monthly,development,1,,,,1,100GB bandwidth
-netlify,PRO,Netlify Pro,19.00,228.00,0,monthly,development,1,,,,,400GB bandwidth
-railway,HOBBY,Railway Hobby,0.00,0.00,0,monthly,development,1,1,,,1,1GB RAM $5 credit
-railway,PRO,Railway Pro,20.00,240.00,0,monthly,development,1,100,,,,100GB team features
-supabase,FREE,Supabase Free,0.00,0.00,0,monthly,development,1,1,,,1,500MB db 1GB storage
-supabase,PRO,Supabase Pro,25.00,300.00,0,monthly,development,1,100,,,,8GB db 100GB storage
+linear,FREE,Linear Free,0.00,0.00,0,monthly,development,0,0.25,,,,250MB file storage
+linear,STANDARD,Linear Standard,8.00,96.00,0,monthly,development,0,10,,,,10GB integrations
+vercel,FREE,Vercel Hobby,0.00,0.00,0,monthly,development,0,,,,0,100GB bandwidth
+vercel,PRO,Vercel Pro,20.00,240.00,0,monthly,development,0,,,,10,1TB bandwidth
+netlify,FREE,Netlify Starter,0.00,0.00,0,monthly,development,0,,,,0,100GB bandwidth
+netlify,PRO,Netlify Pro,19.00,228.00,0,monthly,development,0,,,,,400GB bandwidth
+railway,HOBBY,Railway Hobby,0.00,0.00,0,monthly,development,0,1,,,0,1GB RAM $5 credit
+railway,PRO,Railway Pro,20.00,240.00,0,monthly,development,0,100,,,,100GB team features
+supabase,FREE,Supabase Free,0.00,0.00,0,monthly,development,0,1,,,0,500MB db 1GB storage
+supabase,PRO,Supabase Pro,25.00,300.00,0,monthly,development,0,100,,,,8GB db 100GB storage

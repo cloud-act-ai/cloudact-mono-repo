@@ -53,10 +53,15 @@ from subscription_schema import (
 from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
 from src.app.dependencies.auth import get_current_org
 from src.app.config import get_settings
+from src.core.utils.cache import get_cache, invalidate_org_cache, invalidate_provider_cache
+from src.core.utils.query_performance import QueryTimer, log_query_performance
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 settings = get_settings()
+
+# Cache TTL configuration (5 minutes for read operations)
+CACHE_TTL_SECONDS = 300
 
 # ============================================
 # Constants
@@ -100,6 +105,7 @@ class DisableProviderResponse(BaseModel):
     """Response after disabling a provider."""
     success: bool
     provider: str
+    plans_deleted: int
     message: str
 
 
@@ -349,13 +355,23 @@ async def list_providers(
 
     Returns providers that can be enabled for subscription tracking.
     LLM API providers (OpenAI, Anthropic, Gemini) are excluded - use /integrations for those.
+
+    Performance: This endpoint is cached for 5 minutes to improve response time.
     """
     validate_org_slug(org_slug)
     check_org_access(org, org_slug)
 
+    # Check cache first
+    cache = get_cache()
+    cache_key = f"providers_list_{org_slug}"
+    cached_result = cache.get(cache_key)
+    if cached_result is not None:
+        logger.debug(f"Cache HIT: providers list for {org_slug}")
+        return cached_result
+
     dataset_id = get_org_dataset(org_slug)
 
-    # Get plan counts per provider from BigQuery
+    # Optimized query: Only select needed columns, add LIMIT
     query = f"""
     SELECT
         provider,
@@ -364,16 +380,18 @@ async def list_providers(
     FROM `{settings.gcp_project_id}.{dataset_id}.{SAAS_SUBSCRIPTION_PLANS_TABLE}`
     WHERE category != 'llm_api'
     GROUP BY provider
+    LIMIT 100
     """
 
     enabled_providers = {}
     try:
-        result = bq_client.client.query(query).result()
-        for row in result:
-            enabled_providers[row.provider.lower()] = {
-                "plan_count": row.plan_count,
-                "is_enabled": row.has_enabled
-            }
+        with QueryTimer("list_providers_query") as timer:
+            result = bq_client.client.query(query).result()
+            for row in result:
+                enabled_providers[row.provider.lower()] = {
+                    "plan_count": row.plan_count,
+                    "is_enabled": row.has_enabled
+                }
     except Exception as e:
         logger.debug(f"Could not query existing plans (table may not exist): {e}")
 
@@ -389,7 +407,13 @@ async def list_providers(
             plan_count=info["plan_count"]
         ))
 
-    return ProviderListResponse(providers=providers, total=len(providers))
+    response = ProviderListResponse(providers=providers, total=len(providers))
+
+    # Cache the result
+    cache.set(cache_key, response, ttl_seconds=CACHE_TTL_SECONDS)
+    logger.debug(f"Cache SET: providers list for {org_slug}")
+
+    return response
 
 
 @router.post(
@@ -583,6 +607,11 @@ async def enable_provider(
     if insert_errors:
         message += f" ({len(insert_errors)} errors: {'; '.join(insert_errors[:3])}{'...' if len(insert_errors) > 3 else ''})"
 
+    # Invalidate relevant caches after enabling provider
+    invalidate_provider_cache(org_slug, provider)
+    invalidate_org_cache(org_slug)
+    logger.debug(f"Invalidated cache for org {org_slug} provider {provider}")
+
     return EnableProviderResponse(
         success=True,
         provider=provider,
@@ -594,7 +623,7 @@ async def enable_provider(
 @router.post(
     "/subscriptions/{org_slug}/providers/{provider}/disable",
     response_model=DisableProviderResponse,
-    summary="Disable provider (soft delete)",
+    summary="Disable provider (hard delete)",
     tags=["Subscriptions"]
 )
 async def disable_provider(
@@ -604,10 +633,10 @@ async def disable_provider(
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """
-    Disable a subscription provider.
+    Disable a subscription provider by deleting all plans.
 
-    Soft disables by setting is_enabled=false on all plans.
-    Plans are not deleted - can be re-enabled later.
+    Hard delete - permanently removes all plans for the provider from BigQuery.
+    Plans cannot be recovered - use re-enable to seed new plans from defaults.
     """
     validate_org_slug(org_slug)
     check_org_access(org, org_slug)
@@ -616,23 +645,48 @@ async def disable_provider(
     dataset_id = get_org_dataset(org_slug)
     table_ref = f"{settings.gcp_project_id}.{dataset_id}.{SAAS_SUBSCRIPTION_PLANS_TABLE}"
 
-    update_query = f"""
-    UPDATE `{table_ref}`
-    SET is_enabled = false, updated_at = CURRENT_TIMESTAMP()
+    # First, count how many plans will be deleted
+    count_query = f"""
+    SELECT COUNT(*) as count
+    FROM `{table_ref}`
     WHERE provider = @provider
     """
 
     try:
+        # Get count of plans to be deleted
         job_config = bigquery.QueryJobConfig(
             query_parameters=[
                 bigquery.ScalarQueryParameter("provider", "STRING", provider),
             ]
         )
-        bq_client.client.query(update_query, job_config=job_config).result()
+        result = bq_client.client.query(count_query, job_config=job_config).result()
+        plans_count = 0
+        for row in result:
+            plans_count = row.count
+
+        # Delete all plans for the provider
+        delete_query = f"""
+        DELETE FROM `{table_ref}`
+        WHERE provider = @provider
+        """
+
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("provider", "STRING", provider),
+            ]
+        )
+        bq_client.client.query(delete_query, job_config=job_config).result()
+
+        # Invalidate relevant caches after deleting provider plans
+        invalidate_provider_cache(org_slug, provider)
+        invalidate_org_cache(org_slug)
+        logger.debug(f"Invalidated cache for org {org_slug} provider {provider}")
+
         return DisableProviderResponse(
             success=True,
             provider=provider,
-            message=f"Disabled all plans for {provider}"
+            plans_deleted=plans_count,
+            message=f"Deleted {plans_count} plan(s) for {provider}"
         )
     except Exception as e:
         logger.error(f"Failed to disable provider {provider}: {e}")
@@ -663,10 +717,20 @@ async def list_plans(
     List all subscription plans for a provider.
 
     Returns both seeded and custom plans from BigQuery.
+
+    Performance: This endpoint is cached for 5 minutes to improve response time.
     """
     validate_org_slug(org_slug)
     check_org_access(org, org_slug)
     provider = validate_provider(provider)
+
+    # Check cache first
+    cache = get_cache()
+    cache_key = f"plans_list_{org_slug}_{provider}_{include_disabled}"
+    cached_result = cache.get(cache_key)
+    if cached_result is not None:
+        logger.debug(f"Cache HIT: plans list for {org_slug}/{provider}")
+        return cached_result
 
     dataset_id = get_org_dataset(org_slug)
     table_ref = f"{settings.gcp_project_id}.{dataset_id}.{SAAS_SUBSCRIPTION_PLANS_TABLE}"
@@ -675,11 +739,17 @@ async def list_plans(
     if not include_disabled:
         where_clause += " AND is_enabled = true"
 
+    # Optimized query: Select only needed columns instead of SELECT *
     query = f"""
-    SELECT *
+    SELECT
+        subscription_id, provider, plan_name, display_name, is_custom,
+        quantity, unit_price_usd, yearly_price_usd, yearly_discount_pct,
+        effective_date, end_date, is_enabled, billing_period, category,
+        notes, seats, daily_limit, monthly_limit, storage_limit_gb
     FROM `{table_ref}`
     {where_clause}
     ORDER BY is_custom, plan_name
+    LIMIT 500
     """
 
     plans = []
@@ -691,7 +761,8 @@ async def list_plans(
                 bigquery.ScalarQueryParameter("provider", "STRING", provider),
             ]
         )
-        result = bq_client.client.query(query, job_config=job_config).result()
+        with QueryTimer(f"list_plans_query_{provider}") as timer:
+            result = bq_client.client.query(query, job_config=job_config).result()
         for row in result:
             plan = SubscriptionPlan(
                 subscription_id=row.subscription_id,
@@ -731,11 +802,17 @@ async def list_plans(
             detail=f"Failed to list plans: {e}"
         )
 
-    return PlanListResponse(
+    response = PlanListResponse(
         plans=plans,
         total=len(plans),
         total_monthly_cost=round(total_monthly_cost, 2)
     )
+
+    # Cache the result
+    cache.set(cache_key, response, ttl_seconds=CACHE_TTL_SECONDS)
+    logger.debug(f"Cache SET: plans list for {org_slug}/{provider}")
+
+    return response
 
 
 @router.post(
@@ -865,6 +942,11 @@ async def create_plan(
             seats=plan.seats,
         )
 
+        # Invalidate relevant caches after creating plan
+        invalidate_provider_cache(org_slug, provider)
+        invalidate_org_cache(org_slug)
+        logger.debug(f"Invalidated cache for org {org_slug} provider {provider}")
+
         return PlanResponse(
             success=True,
             plan=created_plan,
@@ -985,6 +1067,11 @@ async def update_plan(
                 yearly_discount_pct=float(row.yearly_discount_pct) if hasattr(row, "yearly_discount_pct") and row.yearly_discount_pct else None,
                 seats=row.seats if hasattr(row, "seats") else 1,
             )
+            # Invalidate relevant caches after updating plan
+            invalidate_provider_cache(org_slug, provider)
+            invalidate_org_cache(org_slug)
+            logger.debug(f"Invalidated cache for org {org_slug} provider {provider}")
+
             return PlanResponse(
                 success=True,
                 plan=updated_plan,
@@ -1041,6 +1128,12 @@ async def delete_plan(
             ]
         )
         bq_client.client.query(delete_query, job_config=job_config).result()
+
+        # Invalidate relevant caches after deleting plan
+        invalidate_provider_cache(org_slug, provider)
+        invalidate_org_cache(org_slug)
+        logger.debug(f"Invalidated cache for org {org_slug} provider {provider}")
+
         return DeletePlanResponse(
             success=True,
             subscription_id=subscription_id,
@@ -1159,6 +1252,11 @@ async def toggle_plan(
         )
         bq_client.client.query(update_query, job_config=job_config).result()
 
+        # Invalidate relevant caches after toggling plan
+        invalidate_provider_cache(org_slug, provider)
+        invalidate_org_cache(org_slug)
+        logger.debug(f"Invalidated cache for org {org_slug} provider {provider}")
+
         return ToggleResponse(
             success=True,
             subscription_id=subscription_id,
@@ -1203,14 +1301,25 @@ async def get_all_plans(
     Get all subscription plans across all providers for the costs dashboard.
 
     This endpoint reduces N+1 queries by fetching all plans in one call.
+
+    Performance: This endpoint is cached for 5 minutes to improve response time.
+    Cache is invalidated when plans are created, updated, or deleted.
     """
     validate_org_slug(org_slug)
     check_org_access(org, org_slug)
 
+    # Check cache first
+    cache = get_cache()
+    cache_key = f"all_plans_{org_slug}_{enabled_only}"
+    cached_result = cache.get(cache_key)
+    if cached_result is not None:
+        logger.debug(f"Cache HIT: all plans for {org_slug}")
+        return cached_result
+
     dataset_id = get_org_dataset(org_slug)
     table_ref = f"{settings.gcp_project_id}.{dataset_id}.{SAAS_SUBSCRIPTION_PLANS_TABLE}"
 
-    # Query all plans
+    # Query all plans with optimizations
     where_clause = "WHERE is_enabled = true" if enabled_only else ""
     query = f"""
     SELECT
@@ -1221,10 +1330,12 @@ async def get_all_plans(
     FROM `{table_ref}`
     {where_clause}
     ORDER BY provider, plan_name
+    LIMIT 1000
     """
 
     try:
-        result = bq_client.client.query(query).result()
+        with QueryTimer("get_all_plans_query") as timer:
+            result = bq_client.client.query(query).result()
         plans = []
         total_monthly_cost = 0.0
         count_by_category: Dict[str, int] = {}
@@ -1274,12 +1385,18 @@ async def get_all_plans(
             "total_count": len(plans),
         }
 
-        return AllPlansResponse(
+        response = AllPlansResponse(
             success=True,
             plans=plans,
             summary=summary,
             message=f"Found {len(plans)} plans"
         )
+
+        # Cache the result
+        cache.set(cache_key, response, ttl_seconds=CACHE_TTL_SECONDS)
+        logger.debug(f"Cache SET: all plans for {org_slug}")
+
+        return response
     except Exception as e:
         logger.error(f"Failed to get all plans: {e}")
         raise HTTPException(

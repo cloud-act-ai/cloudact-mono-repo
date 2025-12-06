@@ -6,9 +6,9 @@ import { resolve } from 'path';
 // Load .env.local
 config({ path: resolve(process.cwd(), '.env.local') });
 
-const API_KEY = process.env.TEST_ORG_API_KEY;
-const ORG_SLUG = process.env.TEST_ORG_SLUG || process.argv[2];
-const KEY_FILE = process.env.GCP_KEY_FILE || process.argv[3];
+const API_KEY = process.env.TEST_ORG_API_KEY || '';
+const ORG_SLUG = process.env.TEST_ORG_SLUG || process.argv[2] || '';
+const KEY_FILE = process.env.GCP_KEY_FILE || process.argv[3] || '';
 const BACKEND_URL = process.env.API_SERVICE_URL || 'http://localhost:8000';
 
 if (!API_KEY || !ORG_SLUG || !KEY_FILE) {

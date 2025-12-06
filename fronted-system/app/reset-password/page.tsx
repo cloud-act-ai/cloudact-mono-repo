@@ -58,7 +58,7 @@ export default function ResetPasswordPage() {
           .single()
 
         if (memberData && memberData.organizations) {
-          const org = memberData.organizations as { org_slug: string }
+          const org = memberData.organizations as unknown as { org_slug: string }
           router.push(`/${org.org_slug}/dashboard?password_reset=true`)
           return
         }

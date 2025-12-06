@@ -67,7 +67,7 @@ export default function GeminiIntegrationPage() {
   // Edit state
   const [editingPricing, setEditingPricing] = useState<string | null>(null)
   const [editingSubscription, setEditingSubscription] = useState<string | null>(null)
-  const [editValues, setEditValues] = useState<Record<string, unknown>>({})
+  const [editValues, setEditValues] = useState<Record<string, any>>({})
 
   // Load integration status
   const loadIntegration = useCallback(async () => {

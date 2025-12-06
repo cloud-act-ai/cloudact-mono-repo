@@ -1,10 +1,9 @@
 import fs from 'fs';
-// @ts-expect-error - user_credentials.json may not have type definitions
 import userCreds from '../fixtures/user_credentials.json';
 
 const API_BASE_URL = process.env.API_SERVICE_URL || process.env.NEXT_PUBLIC_API_SERVICE_URL || 'http://localhost:8000';
 const PIPELINE_SERVICE_URL = process.env.NEXT_PUBLIC_PIPELINE_SERVICE_URL || 'http://localhost:8001';
-const ROOT_KEY = process.env.CA_ROOT_API_KEY;
+const ROOT_KEY = process.env.CA_ROOT_API_KEY || '';
 
 if (!ROOT_KEY) {
     console.warn('Warning: CA_ROOT_API_KEY not set. Tests requiring root access will fail.');
@@ -33,7 +32,7 @@ export class ApiClient {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CA-Root-Key': ROOT_KEY
+                'X-CA-Root-Key': ROOT_KEY || ''
             },
             body: JSON.stringify(payload)
         });

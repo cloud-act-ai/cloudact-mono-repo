@@ -80,7 +80,7 @@ export default function OpenAIIntegrationPage() {
 
   // Edit state
   const [editingPricing, setEditingPricing] = useState<string | null>(null)
-  const [editValues, setEditValues] = useState<Record<string, unknown>>({})
+  const [editValues, setEditValues] = useState<Record<string, any>>({})
 
   // Loading states for CRUD operations
   const [deletingSubscription, setDeletingSubscription] = useState<string | null>(null)

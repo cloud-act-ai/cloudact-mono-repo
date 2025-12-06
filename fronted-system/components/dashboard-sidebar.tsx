@@ -30,6 +30,7 @@ import {
   Cloud,
   Play,
   List,
+  Wallet,
 } from "lucide-react"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
@@ -113,7 +114,17 @@ export function DashboardSidebar({
       }
     }
     fetchProviders()
-  }, [orgSlug])
+
+    // Also poll every 10 seconds when subscriptions are expanded
+    let interval: NodeJS.Timeout | null = null
+    if (subscriptionsExpanded) {
+      interval = setInterval(fetchProviders, 10000) // Refresh every 10 seconds
+    }
+
+    return () => {
+      if (interval) clearInterval(interval)
+    }
+  }, [orgSlug, subscriptionsExpanded, pathname])
 
   const handleLogout = async () => {
     setIsLoading(true)
@@ -160,6 +171,23 @@ export function DashboardSidebar({
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+
+              {/* Subscription Costs - Top Level Menu */}
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  className={cn(
+                    "text-gray-600 hover:text-[#007A78] hover:bg-[#007A78]/5",
+                    isActive(`/${orgSlug}/subscriptions`) && "bg-[#007A78]/10 text-[#007A78]",
+                  )}
+                >
+                  <Link href={`/${orgSlug}/subscriptions`}>
+                    <Wallet className="h-4 w-4" />
+                    <span>Subscription Costs</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
               {/* Analytics - Coming Soon */}
               {/* Pipelines Menu with Sub-menus */}
               <SidebarMenuItem>

@@ -20,6 +20,7 @@ import {
   ChevronDown,
   ChevronUp,
   X,
+  Pencil,
 } from "lucide-react"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -43,14 +44,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Skeleton } from "@/components/ui/skeleton"
+import { CardSkeleton } from "@/components/ui/card-skeleton"
 
 import {
   getProviderPlans,
   createCustomPlan,
+  updatePlan,
   togglePlan,
   deletePlan,
   SubscriptionPlan,
   PlanCreate,
+  PlanUpdate,
 } from "@/actions/subscription-providers"
 
 // Provider display names
@@ -114,18 +119,33 @@ export default function ProviderDetailPage() {
 
   // Dialog states
   const [showAddDialog, setShowAddDialog] = useState(false)
+  const [showEditDialog, setShowEditDialog] = useState<{ open: boolean; plan: SubscriptionPlan | null }>({
+    open: false,
+    plan: null,
+  })
   const [showDeleteDialog, setShowDeleteDialog] = useState<{ open: boolean; plan: SubscriptionPlan | null }>({
     open: false,
     plan: null,
   })
   const [adding, setAdding] = useState(false)
+  const [editing, setEditing] = useState(false)
 
   // Add form state
   const [newPlan, setNewPlan] = useState<PlanCreate>({
     plan_name: "",
     display_name: "",
     unit_price_usd: 0,
-    seats: 1,
+    seats: 0,
+    billing_period: "monthly",
+    notes: "",
+  })
+
+  // Edit form state
+  const [editPlanData, setEditPlanData] = useState<PlanUpdate>({
+    display_name: "",
+    quantity: 0,
+    unit_price_usd: 0,
+    seats: 0,
     billing_period: "monthly",
     notes: "",
   })
@@ -136,7 +156,7 @@ export default function ProviderDetailPage() {
       plan_name: "",
       display_name: "",
       unit_price_usd: 0,
-      seats: 1,
+      seats: 0,
       billing_period: "monthly",
       notes: "",
     })
@@ -222,6 +242,71 @@ export default function ProviderDetailPage() {
     setDeleting(null) // Clear deleting state after reload completes
   }
 
+  // Handle edit dialog open/close
+  const handleEditDialogOpenChange = (open: boolean, plan?: SubscriptionPlan) => {
+    if (open && plan) {
+      // Pre-fill form with existing plan data
+      setEditPlanData({
+        display_name: plan.display_name || plan.plan_name,
+        quantity: plan.quantity || 1,
+        unit_price_usd: plan.unit_price_usd,
+        seats: plan.seats || 1,
+        billing_period: plan.billing_period,
+        notes: plan.notes || "",
+      })
+      setShowEditDialog({ open: true, plan })
+    } else {
+      setShowEditDialog({ open: false, plan: null })
+    }
+    if (open) {
+      setError(null) // Clear error when opening
+    }
+  }
+
+  // Edit plan via API service
+  const handleEdit = async () => {
+    if (!showEditDialog.plan) return
+
+    // Validate inputs
+    if (editPlanData.unit_price_usd !== undefined && editPlanData.unit_price_usd < 0) {
+      setError("Price cannot be negative")
+      return
+    }
+    if (editPlanData.quantity !== undefined && editPlanData.quantity < 0) {
+      setError("Quantity cannot be negative")
+      return
+    }
+    if (editPlanData.seats !== undefined && editPlanData.seats < 0) {
+      setError("Seats cannot be negative")
+      return
+    }
+
+    setEditing(true)
+    setError(null)
+
+    try {
+      const result = await updatePlan(
+        orgSlug,
+        provider,
+        showEditDialog.plan.subscription_id,
+        editPlanData
+      )
+
+      if (!result.success) {
+        setError(result.error || "Failed to update plan")
+        return
+      }
+
+      setShowEditDialog({ open: false, plan: null })
+      await loadPlans()
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred"
+      setError(errorMessage)
+    } finally {
+      setEditing(false)
+    }
+  }
+
   // Add custom plan via API service
   const handleAdd = async () => {
     if (!newPlan.plan_name.trim()) return
@@ -231,8 +316,8 @@ export default function ProviderDetailPage() {
       setError("Price cannot be negative")
       return
     }
-    if ((newPlan.seats ?? 1) < 1) {
-      setError("Seats must be at least 1")
+    if ((newPlan.seats ?? 0) < 0) {
+      setError("Seats cannot be negative")
       return
     }
 
@@ -271,8 +356,57 @@ export default function ProviderDetailPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-[#007A78]" />
+      <div className="p-6 space-y-6">
+        {/* Header Skeleton */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-8 w-8 rounded" />
+            <div className="p-2.5 rounded-lg bg-gradient-to-br from-[#007A78]/10 to-[#14B8A6]/10">
+              <CreditCard className="h-6 w-6 text-[#007A78]" />
+            </div>
+            <div>
+              <Skeleton className="h-8 w-48 mb-2" />
+              <Skeleton className="h-4 w-64" />
+            </div>
+          </div>
+          <Skeleton className="h-10 w-48" />
+        </div>
+
+        {/* Summary Cards Skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <CardSkeleton count={3} />
+        </div>
+
+        {/* Plans Table Skeleton */}
+        <Card className="console-table-card">
+          <CardHeader>
+            <Skeleton className="h-6 w-48 mb-2" />
+            <Skeleton className="h-4 w-96" />
+          </CardHeader>
+          <CardContent className="px-0">
+            {/* Table Header */}
+            <div className="console-table-header-row grid grid-cols-12 gap-4 px-4 py-3 border-b bg-slate-50/50">
+              {[1, 3, 2, 2, 2, 2].map((span, i) => (
+                <div key={i} className={`col-span-${span}`}>
+                  <Skeleton className="h-4 w-full" />
+                </div>
+              ))}
+            </div>
+            {/* Table Rows */}
+            <div className="divide-y divide-slate-100">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="grid grid-cols-12 gap-4 px-4 py-3.5">
+                  <div className="col-span-1"><Skeleton className="h-6 w-10" /></div>
+                  <div className="col-span-3"><Skeleton className="h-6 w-full" /></div>
+                  <div className="col-span-2"><Skeleton className="h-6 w-20 ml-auto" /></div>
+                  <div className="col-span-2"><Skeleton className="h-6 w-16" /></div>
+                  <div className="col-span-2"><Skeleton className="h-6 w-12 ml-auto" /></div>
+                  <div className="col-span-2"><Skeleton className="h-6 w-16 ml-auto" /></div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     )
   }
@@ -428,13 +562,23 @@ export default function ProviderDetailPage() {
                       <div className="col-span-2 text-right text-slate-600">
                         {plan.seats || 1}
                       </div>
-                      <div className="col-span-2 text-right" onClick={(e) => e.stopPropagation()}>
+                      <div className="col-span-2 text-right flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-[#007A78] hover:bg-[#007A78]/10"
+                          onClick={() => handleEditDialogOpenChange(true, plan)}
+                          title="Edit plan"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
                         {plan.is_custom && (
                           <Button
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8 text-destructive hover:bg-destructive/10"
                             onClick={() => setShowDeleteDialog({ open: true, plan })}
+                            title="Delete plan"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -579,12 +723,13 @@ export default function ProviderDetailPage() {
               <Input
                 id="seats"
                 type="number"
-                min="1"
-                placeholder="1"
-                value={newPlan.seats === 1 ? "" : newPlan.seats}
+                min="0"
+                step="1"
+                placeholder="0"
+                value={newPlan.seats === 0 ? "" : newPlan.seats}
                 onChange={(e) => {
                   const parsed = parseInt(e.target.value, 10)
-                  setNewPlan({ ...newPlan, seats: e.target.value === "" ? 1 : (isNaN(parsed) || parsed < 1 ? 1 : parsed) })
+                  setNewPlan({ ...newPlan, seats: e.target.value === "" ? 0 : (isNaN(parsed) || parsed < 0 ? 0 : parsed) })
                 }}
               />
             </div>
@@ -609,6 +754,119 @@ export default function ProviderDetailPage() {
             >
               {adding ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Check className="h-4 w-4 mr-2" />}
               Add Subscription
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Subscription Dialog */}
+      <Dialog
+        open={showEditDialog.open}
+        onOpenChange={(open) => handleEditDialogOpenChange(open, open ? showEditDialog.plan ?? undefined : undefined)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit {providerDisplayName} Subscription</DialogTitle>
+            <DialogDescription>
+              Update subscription details for &quot;{showEditDialog.plan?.display_name || showEditDialog.plan?.plan_name || ""}&quot;.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit_display_name">Display Name (optional)</Label>
+              <Input
+                id="edit_display_name"
+                placeholder="e.g., Enterprise Plan"
+                value={editPlanData.display_name}
+                onChange={(e) => setEditPlanData({ ...editPlanData, display_name: e.target.value })}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit_cost">Monthly Cost ($) *</Label>
+                <Input
+                  id="edit_cost"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={editPlanData.unit_price_usd === 0 ? "" : editPlanData.unit_price_usd}
+                  onChange={(e) => {
+                    const parsed = parseFloat(e.target.value)
+                    setEditPlanData({ ...editPlanData, unit_price_usd: e.target.value === "" ? 0 : (isNaN(parsed) ? 0 : parsed) })
+                  }}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit_billing">Billing Period</Label>
+                <Select
+                  value={editPlanData.billing_period}
+                  onValueChange={(value) => setEditPlanData({ ...editPlanData, billing_period: value })}
+                >
+                  <SelectTrigger id="edit_billing">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                    <SelectItem value="annual">Annual</SelectItem>
+                    <SelectItem value="quarterly">Quarterly</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit_quantity">Quantity</Label>
+                <Input
+                  id="edit_quantity"
+                  type="number"
+                  min="0"
+                  step="1"
+                  placeholder="0"
+                  value={editPlanData.quantity === 0 ? "" : editPlanData.quantity}
+                  onChange={(e) => {
+                    const parsed = parseInt(e.target.value, 10)
+                    setEditPlanData({ ...editPlanData, quantity: e.target.value === "" ? 0 : (isNaN(parsed) || parsed < 0 ? 0 : parsed) })
+                  }}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit_seats">Seats</Label>
+                <Input
+                  id="edit_seats"
+                  type="number"
+                  min="0"
+                  step="1"
+                  placeholder="0"
+                  value={editPlanData.seats === 0 ? "" : editPlanData.seats}
+                  onChange={(e) => {
+                    const parsed = parseInt(e.target.value, 10)
+                    setEditPlanData({ ...editPlanData, seats: e.target.value === "" ? 0 : (isNaN(parsed) || parsed < 0 ? 0 : parsed) })
+                  }}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit_notes">Notes (optional)</Label>
+              <Input
+                id="edit_notes"
+                placeholder="e.g., Team subscription for design team"
+                value={editPlanData.notes}
+                onChange={(e) => setEditPlanData({ ...editPlanData, notes: e.target.value })}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => handleEditDialogOpenChange(false)} disabled={editing}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleEdit}
+              disabled={editing}
+              className="console-button-primary"
+            >
+              {editing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Check className="h-4 w-4 mr-2" />}
+              Update Subscription
             </Button>
           </DialogFooter>
         </DialogContent>

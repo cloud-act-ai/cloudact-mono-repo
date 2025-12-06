@@ -80,7 +80,7 @@ export async function createOrganization(input: CreateOrganizationInput) {
       .single()
 
     if (existingMember) {
-      const org = existingMember.organizations as { org_slug: string } | null
+      const org = existingMember.organizations as unknown as { org_slug: string } | null
       return {
         success: true,
         orgSlug: org?.org_slug,
@@ -301,7 +301,7 @@ export async function completeOnboarding(sessionId: string) {
       .single()
 
     if (existingMember) {
-      const org = existingMember.organizations as { org_slug: string } | null
+      const org = existingMember.organizations as unknown as { org_slug: string } | null
       console.log("[v0] User already has org:", org?.org_slug)
       return {
         success: true,
@@ -394,11 +394,11 @@ export async function completeOnboarding(sessionId: string) {
         stripe_price_id: priceItem.id,
         billing_status: subscription.status,
         trial_ends_at: trialEndsAt.toISOString(),
-        current_period_start: subscription.current_period_start
-          ? new Date(subscription.current_period_start * 1000).toISOString()
+        current_period_start: (subscription as any).current_period_start
+          ? new Date((subscription as any).current_period_start * 1000).toISOString()
           : new Date().toISOString(),
-        current_period_end: subscription.current_period_end
-          ? new Date(subscription.current_period_end * 1000).toISOString()
+        current_period_end: (subscription as any).current_period_end
+          ? new Date((subscription as any).current_period_end * 1000).toISOString()
           : trialEndsAt.toISOString(),
         seat_limit: limits.teamMembers,
         providers_limit: limits.providers,

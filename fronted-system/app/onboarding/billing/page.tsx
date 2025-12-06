@@ -43,7 +43,7 @@ export default function BillingPage() {
 
         if (memberships && memberships.length > 0) {
           // User already has an org, redirect to dashboard
-          const org = memberships[0].organizations as { org_slug: string }
+          const org = memberships[0].organizations as unknown as { org_slug: string }
           if (org?.org_slug) {
             console.log("[v0] User already has org, redirecting to dashboard:", org.org_slug)
             router.push(`/${org.org_slug}/dashboard`)

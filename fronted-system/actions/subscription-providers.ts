@@ -438,14 +438,16 @@ export async function enableProvider(
 }
 
 /**
- * Disable a provider - updates meta table
+ * Disable a provider - updates meta table first, then deletes plans
  */
 export async function disableProvider(
   orgSlug: string,
   provider: string
 ): Promise<{
   success: boolean
+  plans_deleted?: number
   error?: string
+  partial_failure?: string
 }> {
   try {
     // Validate provider name
@@ -457,49 +459,96 @@ export async function disableProvider(
     const { orgId } = await requireRole(orgSlug, "admin")
     const supabase = await createClient()
 
-    const { error } = await supabase
+    // Step 1: Disable provider in Supabase meta table FIRST
+    const { error: metaError } = await supabase
       .from("saas_subscription_providers_meta")
       .update({ is_enabled: false })
       .eq("org_id", orgId)
       .eq("provider_name", sanitizedProvider)
 
-    if (error) {
-      return { success: false, error: error.message }
+    if (metaError) {
+      return { success: false, error: `Failed to update provider status: ${metaError.message}` }
     }
 
-    // Also call API to disable plans in BigQuery
+    // Step 2: Delete all plans for this provider from BigQuery (only if Supabase succeeded)
     const orgApiKey = await getOrgApiKeySecure(orgSlug)
-    if (!orgApiKey) {
-      console.warn("No API key found for org:", orgSlug)
-      return {
-        success: true,
-        error: "Provider disabled in Supabase but no API key found - BigQuery plans not updated"
-      }
-    }
+    let plansDeleted = 0
+    const failures: string[] = []
 
-    try {
-      const apiUrl = getApiServiceUrl()
-      const response = await fetch(
-        `${apiUrl}/api/v1/subscriptions/${orgSlug}/providers/${sanitizedProvider}/disable`,
-        {
-          method: "POST",
-          headers: {
-            "X-API-Key": orgApiKey,
-            "Content-Type": "application/json",
-          },
+    if (orgApiKey) {
+      try {
+        const apiUrl = getApiServiceUrl()
+
+        // Get all plans for this provider
+        const plansResponse = await fetch(
+          `${apiUrl}/api/v1/subscriptions/${orgSlug}/providers/${sanitizedProvider}/plans`,
+          {
+            headers: { "X-API-Key": orgApiKey },
+          }
+        )
+
+        if (plansResponse.ok) {
+          const plansResult = await safeJsonParse<{ plans?: SubscriptionPlan[] }>(
+            plansResponse,
+            { plans: [] }
+          )
+          const plans = plansResult.plans || []
+
+          // Delete each plan
+          for (const plan of plans) {
+            try {
+              const deleteResponse = await fetch(
+                `${apiUrl}/api/v1/subscriptions/${orgSlug}/providers/${sanitizedProvider}/plans/${plan.subscription_id}`,
+                {
+                  method: "DELETE",
+                  headers: { "X-API-Key": orgApiKey },
+                }
+              )
+              if (deleteResponse.ok) {
+                plansDeleted++
+              } else {
+                const errorText = await deleteResponse.text()
+                console.warn(`Failed to delete plan ${plan.subscription_id}: ${errorText}`)
+                failures.push(plan.subscription_id)
+              }
+            } catch (deleteError) {
+              console.warn(`Error deleting plan ${plan.subscription_id}:`, deleteError)
+              failures.push(plan.subscription_id)
+            }
+          }
+
+          // Check for partial failures
+          if (failures.length > 0 && failures.length < plans.length) {
+            return {
+              success: true,
+              plans_deleted: plansDeleted,
+              partial_failure: `${failures.length} of ${plans.length} plans failed to delete`
+            }
+          }
+
+          // Check for complete failure
+          if (failures.length === plans.length && plans.length > 0) {
+            return {
+              success: true, // Provider is still disabled in Supabase
+              plans_deleted: 0,
+              error: `Provider disabled but failed to delete all ${plans.length} plans`
+            }
+          }
         }
-      )
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.warn("API disable call failed:", errorText)
+      } catch (apiError) {
+        console.warn("Failed to delete plans:", apiError)
+        return {
+          success: true, // Provider is still disabled in Supabase
+          plans_deleted: 0,
+          error: `Provider disabled but failed to delete plans: ${apiError instanceof Error ? apiError.message : String(apiError)}`
+        }
       }
-    } catch (apiError) {
-      // Log API errors - meta table was updated
-      console.warn("API disable call failed:", apiError)
     }
 
-    return { success: true }
+    return {
+      success: true,
+      plans_deleted: plansDeleted,
+    }
   } catch (error) {
     return { success: false, error: logError("disableProvider", error) }
   }

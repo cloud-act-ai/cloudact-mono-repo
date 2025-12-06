@@ -78,7 +78,7 @@ function LoginForm() {
         .single()
 
       if (orgData) {
-        const org = orgData.organizations as { org_slug: string }
+        const org = orgData.organizations as unknown as { org_slug: string }
         window.location.href = `/${org.org_slug}/dashboard`
       } else {
         window.location.href = "/onboarding/organization"

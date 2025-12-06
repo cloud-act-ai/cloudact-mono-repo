@@ -35,7 +35,7 @@ describe('Flow 8: OpenAI Integration & Quota', () => {
 
         // 1. Check initial quota
         // Note: Quota is shared across all pipelines for the org
-        let quota = await client.getQuota('openai_usage_cost');
+        let quota = await client.getQuota('openai_usage_cost') as any;
         expect(quota).toBeDefined();
         const initialRuns = quota.pipelines_run_today;
         console.log(`Initial runs: ${initialRuns}`);

@@ -18,6 +18,7 @@ import {
   PipelineBackendClient as BackendClient,
   SetupIntegrationRequest,
   AllIntegrationsResponse,
+  IntegrationStatus,
   LLMPricing,
   LLMPricingCreate,
   LLMPricingUpdate,
@@ -52,13 +53,7 @@ export interface IntegrationResult {
   message?: string
 }
 
-interface IntegrationStatus {
-  provider: string
-  status: string
-  created_at?: string | null
-  last_validated_at?: string | null
-  is_enabled: boolean
-}
+// IntegrationStatus is imported from lib/api/backend.ts
 
 // ============================================
 // Input Validation
@@ -389,35 +384,35 @@ export async function getIntegrations(
     const integrations: Record<string, IntegrationStatus> = {
       OPENAI: {
         provider: "OPENAI",
-        status: org?.integration_openai_status || "NOT_CONFIGURED",
+        status: (org?.integration_openai_status as IntegrationStatus["status"]) || "NOT_CONFIGURED",
         created_at: org?.integration_openai_configured_at,
         last_validated_at: org?.integration_openai_configured_at,
         is_enabled: orgData?.integration_openai_enabled !== false,
       },
       ANTHROPIC: {
         provider: "ANTHROPIC",
-        status: org?.integration_anthropic_status || "NOT_CONFIGURED",
+        status: (org?.integration_anthropic_status as IntegrationStatus["status"]) || "NOT_CONFIGURED",
         created_at: org?.integration_anthropic_configured_at,
         last_validated_at: org?.integration_anthropic_configured_at,
         is_enabled: orgData?.integration_anthropic_enabled !== false,
       },
       GEMINI: {
         provider: "GEMINI",
-        status: orgData?.integration_gemini_status || "NOT_CONFIGURED",
+        status: (orgData?.integration_gemini_status as IntegrationStatus["status"]) || "NOT_CONFIGURED",
         created_at: orgData?.integration_gemini_configured_at,
         last_validated_at: orgData?.integration_gemini_configured_at,
         is_enabled: orgData?.integration_gemini_enabled !== false,
       },
       DEEPSEEK: {
         provider: "DEEPSEEK",
-        status: orgData?.integration_deepseek_status || "NOT_CONFIGURED",
+        status: (orgData?.integration_deepseek_status as IntegrationStatus["status"]) || "NOT_CONFIGURED",
         created_at: orgData?.integration_deepseek_configured_at,
         last_validated_at: orgData?.integration_deepseek_configured_at,
         is_enabled: orgData?.integration_deepseek_enabled !== false,
       },
       GCP_SA: {
         provider: "GCP_SA",
-        status: org?.integration_gcp_status || "NOT_CONFIGURED",
+        status: (org?.integration_gcp_status as IntegrationStatus["status"]) || "NOT_CONFIGURED",
         created_at: org?.integration_gcp_configured_at,
         last_validated_at: org?.integration_gcp_configured_at,
         is_enabled: orgData?.integration_gcp_enabled !== false,

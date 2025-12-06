@@ -245,7 +245,7 @@ export async function createOnboardingCheckoutSession(priceId: string) {
     }
 
     // Only add trial_period_days if > 0
-    if (trialDays > 0) {
+    if (trialDays > 0 && sessionOptions.subscription_data) {
       sessionOptions.subscription_data.trial_period_days = trialDays
     }
 
@@ -399,7 +399,7 @@ export async function createCheckoutSession(priceId: string, orgSlug: string) {
     }
 
     // Only add trial_period_days if > 0
-    if (trialDays > 0) {
+    if (trialDays > 0 && sessionOptions.subscription_data) {
       sessionOptions.subscription_data.trial_period_days = trialDays
     }
 

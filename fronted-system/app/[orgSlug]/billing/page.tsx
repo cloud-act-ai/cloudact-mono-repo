@@ -68,74 +68,6 @@ export default function BillingPage() {
 
   const orgSlug = params.orgSlug
 
-  useEffect(() => {
-    document.title = "Billing & Subscription | CloudAct.ai"
-  }, [])
-
-  useEffect(() => {
-    fetchBillingData()
-    fetchPlans()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orgSlug])
-
-  // Poll for subscription data after successful checkout
-  useEffect(() => {
-    if (searchParams.get("success") === "true" && !hasStripeSubscription && !isLoadingBilling) {
-      let pollCount = 0
-      const maxPolls = 10
-      const pollInterval = 2000 // 2 seconds
-      let timeoutId: ReturnType<typeof setTimeout> | null = null
-
-      const pollForSubscription = async () => {
-        pollCount++
-        await fetchBillingData()
-
-        if (pollCount < maxPolls && !hasStripeSubscription) {
-          timeoutId = setTimeout(pollForSubscription, pollInterval)
-        }
-      }
-
-      // Start polling after a short delay
-      timeoutId = setTimeout(pollForSubscription, 1000)
-
-      // Cleanup function to prevent memory leaks
-      return () => {
-        if (timeoutId) {
-          clearTimeout(timeoutId)
-        }
-      }
-    }
-  }, [searchParams, hasStripeSubscription, isLoadingBilling, fetchBillingData])
-
-  const fetchPlans = useCallback(async () => {
-    try {
-      const result = await getStripePlans()
-
-      if (result.error) {
-        logError("BillingPage:fetchPlans:StripeAPI", result.error)
-        setPlansError(result.error)
-        setPlans([])
-        return
-      }
-
-      if (!result.data || result.data.length === 0) {
-        logError("BillingPage:fetchPlans:NoPlans", "No plans returned from Stripe")
-        setPlansError("No subscription plans are currently available. Please contact support.")
-        setPlans([])
-        return
-      }
-
-      // Sort plans by price (ascending)
-      const sortedPlans = result.data.sort((a, b) => a.price - b.price)
-      setPlans(sortedPlans)
-      setPlansError(null)
-    } catch (err: unknown) {
-      const errorMessage = logError("BillingPage:fetchPlans", err)
-      setPlansError(errorMessage || "Failed to load subscription plans. Please refresh the page or contact support.")
-      setPlans([])
-    }
-  }, [])
-
   const fetchBillingData = useCallback(async () => {
     setIsLoadingBilling(true)
     try {
@@ -230,6 +162,74 @@ export default function BillingPage() {
       setIsLoadingBilling(false)
     }
   }, [orgSlug])
+
+  const fetchPlans = useCallback(async () => {
+    try {
+      const result = await getStripePlans()
+
+      if (result.error) {
+        logError("BillingPage:fetchPlans:StripeAPI", result.error)
+        setPlansError(result.error)
+        setPlans([])
+        return
+      }
+
+      if (!result.data || result.data.length === 0) {
+        logError("BillingPage:fetchPlans:NoPlans", "No plans returned from Stripe")
+        setPlansError("No subscription plans are currently available. Please contact support.")
+        setPlans([])
+        return
+      }
+
+      // Sort plans by price (ascending)
+      const sortedPlans = result.data.sort((a, b) => a.price - b.price)
+      setPlans(sortedPlans)
+      setPlansError(null)
+    } catch (err: unknown) {
+      const errorMessage = logError("BillingPage:fetchPlans", err)
+      setPlansError(errorMessage || "Failed to load subscription plans. Please refresh the page or contact support.")
+      setPlans([])
+    }
+  }, [])
+
+  useEffect(() => {
+    document.title = "Billing & Subscription | CloudAct.ai"
+  }, [])
+
+  useEffect(() => {
+    fetchBillingData()
+    fetchPlans()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgSlug])
+
+  // Poll for subscription data after successful checkout
+  useEffect(() => {
+    if (searchParams.get("success") === "true" && !hasStripeSubscription && !isLoadingBilling) {
+      let pollCount = 0
+      const maxPolls = 10
+      const pollInterval = 2000 // 2 seconds
+      let timeoutId: ReturnType<typeof setTimeout> | null = null
+
+      const pollForSubscription = async () => {
+        pollCount++
+        await fetchBillingData()
+
+        if (pollCount < maxPolls && !hasStripeSubscription) {
+          timeoutId = setTimeout(pollForSubscription, pollInterval)
+        }
+      }
+
+      // Start polling after a short delay
+      timeoutId = setTimeout(pollForSubscription, 1000)
+
+      // Cleanup function to prevent memory leaks
+      return () => {
+        if (timeoutId) {
+          clearTimeout(timeoutId)
+        }
+      }
+    }
+  }, [searchParams, hasStripeSubscription, isLoadingBilling, fetchBillingData])
 
   // Validate URL is from allowed domains to prevent open redirect
   const isValidRedirectUrl = (url: string): boolean => {

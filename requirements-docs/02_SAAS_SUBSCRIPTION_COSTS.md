@@ -135,14 +135,14 @@ Examples:
 | **User Enables Provider A** | Seed data loaded for A | Plans for A only |
 | **User Enables Provider B** | Seed data loaded for B | Plans for A + B |
 | **User Adds Custom Plan** | INSERT via API | Plans + custom |
-| **User Disables Provider** | is_enabled=false in BigQuery | Data preserved, hidden |
+| **User Disables Provider** | DELETE all plans for provider | Plans removed from BigQuery |
 
 **Key Points:**
 - Table exists immediately after onboarding (EMPTY)
 - Data is seeded PER PROVIDER when enabled
 - Seed data comes from `saas_subscription_plans.csv`
 - Custom plans are user-added via API
-- Disabling provider doesn't delete data (soft disable)
+- Disabling provider DELETES all plans from BigQuery
 
 ---
 
@@ -336,6 +336,37 @@ Authentication:
 4. Org API key (from user metadata) required for API calls
 5. If org doesn't have API key, shows onboarding message
 
+### Provider Disable Flow
+
+When a user toggles a provider OFF, the system deletes all associated plans from BigQuery:
+
+```
+User toggles provider OFF
+    ↓
+1. Get all plans for provider (API call)
+    ↓
+2. Loop through each plan
+    ↓
+3. DELETE each plan from BigQuery
+    ↓
+4. Update Supabase meta: is_enabled = false
+    ↓
+5. Show success: "Provider disabled (3 plans deleted)"
+```
+
+**Implementation Details:**
+- Function: `disableProvider()` in `actions/subscription-providers.ts`
+- Fetches plans via `GET /subscriptions/{org}/providers/{provider}/plans`
+- Deletes each plan via `DELETE /subscriptions/{org}/providers/{provider}/plans/{id}`
+- Updates Supabase meta table last (ensures cleanup completes)
+- Returns count of deleted plans in success message
+- Data is permanently removed from BigQuery (not soft-deleted)
+
+**Behavior:**
+- **Toggle OFF**: Deletes ALL plans for the provider from BigQuery
+- **UI Message**: Shows "provider disabled (X plans deleted)"
+- **Data Cleanup**: Plans are fully removed from BigQuery
+
 ---
 
 ## CSV Seed Data Structure
@@ -440,7 +471,9 @@ const sanitizeProviderName = (provider: string): string => {
 listEnabledProviders(orgSlug)        // Get enabled providers from meta
 getProviderMeta(orgSlug, provider)   // Get single provider meta
 enableProvider(orgSlug, provider)    // Enable + trigger API seed (validates provider name)
-disableProvider(orgSlug, provider)   // Disable provider (validates provider name)
+                                     // Returns: { success, plans_seeded, error? }
+disableProvider(orgSlug, provider)   // Disable provider + DELETE all plans (validates provider name)
+                                     // Returns: { success, plans_deleted?, error? }
 getAllProviders(orgSlug)             // Get all 28 providers with status
 ```
 

@@ -32,7 +32,7 @@ describe('Flow 7: Pipeline Quota Enforcement', () => {
         console.log('Starting Pipeline Quota Test');
 
         // 1. Check initial quota
-        let quota = await client.getQuota();
+        let quota = await client.getQuota() as any;
         expect(quota).toBeDefined();
         const initialRuns = quota.pipelines_run_today;
         console.log(`Initial runs: ${initialRuns}`);
@@ -57,7 +57,7 @@ describe('Flow 7: Pipeline Quota Enforcement', () => {
             await client.resetPipelineState();
             
             // Check quota increment
-            quota = await client.getQuota();
+            quota = await client.getQuota() as any;
             expect(quota.pipelines_run_today).toBeGreaterThan(runs);
             runs = quota.pipelines_run_today;
             console.log(`Current quota: ${runs}/${limit}`);
