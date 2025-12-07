@@ -144,8 +144,8 @@ async def list_pricing(
     check_org_access(org, org_slug)
     provider_value = validate_provider(provider.value)
 
-    # Validate pagination bounds
-    MAX_LIMIT = 10000
+    # Validate pagination bounds (lowered from 10000 to 500 for better performance)
+    MAX_LIMIT = 500
     if limit < 0 or limit > MAX_LIMIT:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -180,17 +180,28 @@ async def list_pricing(
 
         where_clause = " AND ".join(where_conditions)
 
-        # Use SELECT * to get all columns that exist in the table
-        # This avoids schema mismatch errors when table doesn't have all V7 columns yet
+        # Explicit column selection for better performance and clarity
         query = f"""
-        SELECT *
+        SELECT
+            pricing_id, provider, model_id, model_name, is_custom,
+            input_price_per_1k, output_price_per_1k, effective_date, end_date,
+            is_enabled, notes, x_gemini_context_window, x_gemini_region,
+            x_anthropic_tier, x_openai_batch_input_price, x_openai_batch_output_price,
+            pricing_type, free_tier_input_tokens, free_tier_output_tokens,
+            free_tier_reset_frequency, discount_percentage, discount_reason,
+            volume_threshold_tokens, base_input_price_per_1k, base_output_price_per_1k,
+            discounted_input_price_per_1k, discounted_output_price_per_1k,
+            created_at, updated_at
         FROM `{table_id}`
         WHERE {where_clause}
         ORDER BY provider, model_id
         LIMIT @limit OFFSET @offset
         """
 
-        job_config = bigquery.QueryJobConfig(query_parameters=query_params)
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=query_params,
+            timeout_ms=30000  # 30 second timeout for user-facing queries
+        )
         result = bq_client.client.query(query, job_config=job_config).result()
         pricing = [dict(row) for row in result]
 
@@ -231,9 +242,18 @@ async def get_pricing(
         dataset_id = get_org_dataset(org_slug)
         table_id = f"{settings.gcp_project_id}.{dataset_id}.{UNIFIED_PRICING_TABLE}"
 
-        # Use SELECT * to get all columns that exist in the table
+        # Explicit column selection for better performance
         query = f"""
-        SELECT *
+        SELECT
+            pricing_id, provider, model_id, model_name, is_custom,
+            input_price_per_1k, output_price_per_1k, effective_date, end_date,
+            is_enabled, notes, x_gemini_context_window, x_gemini_region,
+            x_anthropic_tier, x_openai_batch_input_price, x_openai_batch_output_price,
+            pricing_type, free_tier_input_tokens, free_tier_output_tokens,
+            free_tier_reset_frequency, discount_percentage, discount_reason,
+            volume_threshold_tokens, base_input_price_per_1k, base_output_price_per_1k,
+            discounted_input_price_per_1k, discounted_output_price_per_1k,
+            created_at, updated_at
         FROM `{table_id}`
         WHERE model_id = @model_id AND (provider = @provider OR provider = 'custom')
         """
@@ -242,7 +262,8 @@ async def get_pricing(
             query_parameters=[
                 bigquery.ScalarQueryParameter("model_id", "STRING", model_id),
                 bigquery.ScalarQueryParameter("provider", "STRING", provider_value)
-            ]
+            ],
+            timeout_ms=30000  # 30 second timeout for user queries
         )
 
         result = bq_client.client.query(query, job_config=job_config).result()
@@ -290,7 +311,8 @@ async def create_pricing(
             query_parameters=[
                 bigquery.ScalarQueryParameter("model_id", "STRING", pricing.model_id),
                 bigquery.ScalarQueryParameter("provider", "STRING", provider_value)
-            ]
+            ],
+            timeout_ms=10000  # 10 second timeout for auth operations
         )
         result = bq_client.client.query(check_query, job_config=job_config).result()
         if list(result)[0].cnt > 0:
@@ -347,7 +369,8 @@ async def create_pricing(
                 bigquery.ScalarQueryParameter("base_output_price", "FLOAT64", pricing.base_output_price_per_1k),
                 bigquery.ScalarQueryParameter("created_at", "TIMESTAMP", now),
                 bigquery.ScalarQueryParameter("updated_at", "TIMESTAMP", now),
-            ]
+            ],
+            timeout_ms=30000  # 30 second timeout for user operations
         )
         bq_client.client.query(insert_query, job_config=job_config).result()
 
@@ -473,7 +496,10 @@ async def update_pricing(
         update_fields.append("updated_at = CURRENT_TIMESTAMP()")
 
         query = f"UPDATE `{table_id}` SET {', '.join(update_fields)} WHERE model_id = @model_id AND provider = @provider"
-        job_config = bigquery.QueryJobConfig(query_parameters=query_params)
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=query_params,
+            timeout_ms=30000  # 30 second timeout for user operations
+        )
         bq_client.client.query(query, job_config=job_config).result()
 
         logger.info(f"Updated {provider_value} pricing for model {model_id} in {org_slug}")
@@ -516,12 +542,14 @@ async def delete_pricing(
         dataset_id = get_org_dataset(org_slug)
         table_id = f"{settings.gcp_project_id}.{dataset_id}.{UNIFIED_PRICING_TABLE}"
 
-        query = f"DELETE FROM `{table_id}` WHERE model_id = @model_id AND provider = @provider"
+        query = f"DELETE FROM `{table_id}` WHERE model_id = @model_id AND provider = @provider AND org_slug = @org_slug"
         job_config = bigquery.QueryJobConfig(
             query_parameters=[
                 bigquery.ScalarQueryParameter("model_id", "STRING", model_id),
-                bigquery.ScalarQueryParameter("provider", "STRING", provider_value)
-            ]
+                bigquery.ScalarQueryParameter("provider", "STRING", provider_value),
+                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
+            ],
+            timeout_ms=30000  # 30 second timeout for user operations
         )
         bq_client.client.query(query, job_config=job_config).result()
         logger.info(f"Deleted {provider_value} pricing for model {model_id} in {org_slug}")
@@ -650,7 +678,8 @@ async def bulk_update_pricing(
                 update_fields = []
                 query_params = [
                     bigquery.ScalarQueryParameter("model_id", "STRING", item.model_id),
-                    bigquery.ScalarQueryParameter("provider", "STRING", provider_value)
+                    bigquery.ScalarQueryParameter("provider", "STRING", provider_value),
+                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
                 ]
 
                 # Core fields
@@ -714,8 +743,11 @@ async def bulk_update_pricing(
 
                 update_fields.append("updated_at = CURRENT_TIMESTAMP()")
 
-                query = f"UPDATE `{table_id}` SET {', '.join(update_fields)} WHERE model_id = @model_id AND provider = @provider"
-                job_config = bigquery.QueryJobConfig(query_parameters=query_params)
+                query = f"UPDATE `{table_id}` SET {', '.join(update_fields)} WHERE model_id = @model_id AND provider = @provider AND org_slug = @org_slug"
+                job_config = bigquery.QueryJobConfig(
+                    query_parameters=query_params,
+                    timeout_ms=30000  # 30 second timeout for user operations
+                )
                 bq_client.client.query(query, job_config=job_config).result()
 
                 updated_count += 1
@@ -772,8 +804,8 @@ async def list_subscriptions(
     check_org_access(org, org_slug)
     provider_value = validate_provider(provider.value)
 
-    # Validate pagination bounds
-    MAX_LIMIT = 10000
+    # Validate pagination bounds (lowered from 10000 to 500 for better performance)
+    MAX_LIMIT = 500
     if limit < 0 or limit > MAX_LIMIT:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -808,17 +840,30 @@ async def list_subscriptions(
 
         where_clause = " AND ".join(where_conditions)
 
-        # Use SELECT * to get all columns that exist in the table
-        # This avoids schema mismatch errors when table doesn't have all V7 columns yet
+        # Explicit column selection for better performance and clarity
         query = f"""
-        SELECT *
+        SELECT
+            subscription_id, provider, plan_name, display_name, is_custom,
+            quantity, unit_price_usd, yearly_price_usd, yearly_discount_pct,
+            billing_period, category, seats, storage_limit_gb,
+            monthly_limit, daily_limit, projects_limit, members_limit,
+            effective_date, end_date, is_enabled, auth_type, notes,
+            x_gemini_project_id, x_gemini_region, x_anthropic_workspace_id, x_openai_org_id,
+            tier_type, trial_end_date, trial_credit_usd,
+            monthly_token_limit, daily_token_limit, rpm_limit, tpm_limit,
+            rpd_limit, tpd_limit, concurrent_limit,
+            committed_spend_usd, commitment_term_months, discount_percentage,
+            created_at, updated_at
         FROM `{table_id}`
         WHERE {where_clause}
         ORDER BY provider, plan_name
         LIMIT @limit OFFSET @offset
         """
 
-        job_config = bigquery.QueryJobConfig(query_parameters=query_params)
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=query_params,
+            timeout_ms=30000  # 30 second timeout for user queries
+        )
         result = bq_client.client.query(query, job_config=job_config).result()
         subscriptions = [dict(row) for row in result]
 
@@ -859,9 +904,20 @@ async def get_subscription(
         dataset_id = get_org_dataset(org_slug)
         table_id = f"{settings.gcp_project_id}.{dataset_id}.{UNIFIED_SUBSCRIPTIONS_TABLE}"
 
-        # Use SELECT * to get all columns that exist in the table
+        # Explicit column selection for better performance
         query = f"""
-        SELECT *
+        SELECT
+            subscription_id, provider, plan_name, display_name, is_custom,
+            quantity, unit_price_usd, yearly_price_usd, yearly_discount_pct,
+            billing_period, category, seats, storage_limit_gb,
+            monthly_limit, daily_limit, projects_limit, members_limit,
+            effective_date, end_date, is_enabled, auth_type, notes,
+            x_gemini_project_id, x_gemini_region, x_anthropic_workspace_id, x_openai_org_id,
+            tier_type, trial_end_date, trial_credit_usd,
+            monthly_token_limit, daily_token_limit, rpm_limit, tpm_limit,
+            rpd_limit, tpd_limit, concurrent_limit,
+            committed_spend_usd, commitment_term_months, discount_percentage,
+            created_at, updated_at
         FROM `{table_id}`
         WHERE plan_name = @plan_name AND (provider = @provider OR provider = 'custom')
         """
@@ -918,7 +974,8 @@ async def create_subscription(
             query_parameters=[
                 bigquery.ScalarQueryParameter("subscription_id", "STRING", subscription.subscription_id),
                 bigquery.ScalarQueryParameter("provider", "STRING", provider_value)
-            ]
+            ],
+            timeout_ms=10000  # 10 second timeout for auth operations
         )
         result = bq_client.client.query(check_query, job_config=job_config).result()
         if list(result)[0].cnt > 0:
@@ -980,7 +1037,8 @@ async def create_subscription(
                 bigquery.ScalarQueryParameter("yearly_discount_percentage", "FLOAT64", subscription.yearly_discount_percentage),
                 bigquery.ScalarQueryParameter("created_at", "TIMESTAMP", now),
                 bigquery.ScalarQueryParameter("updated_at", "TIMESTAMP", now),
-            ]
+            ],
+            timeout_ms=30000  # 30 second timeout for user operations
         )
         bq_client.client.query(insert_query, job_config=job_config).result()
 
@@ -1128,7 +1186,10 @@ async def update_subscription(
         update_fields.append("updated_at = CURRENT_TIMESTAMP()")
 
         query = f"UPDATE `{table_id}` SET {', '.join(update_fields)} WHERE plan_name = @plan_name AND provider = @provider"
-        job_config = bigquery.QueryJobConfig(query_parameters=query_params)
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=query_params,
+            timeout_ms=30000  # 30 second timeout for user operations
+        )
         bq_client.client.query(query, job_config=job_config).result()
 
         logger.info(f"Updated {provider_value} subscription {plan_name} in {org_slug}")
@@ -1176,7 +1237,8 @@ async def delete_subscription(
             query_parameters=[
                 bigquery.ScalarQueryParameter("plan_name", "STRING", plan_name),
                 bigquery.ScalarQueryParameter("provider", "STRING", provider_value)
-            ]
+            ],
+            timeout_ms=30000  # 30 second timeout for user operations
         )
         bq_client.client.query(query, job_config=job_config).result()
         logger.info(f"Deleted {provider_value} subscription {plan_name} in {org_slug}")
@@ -1222,7 +1284,19 @@ async def reset_subscriptions(
         table_id = f"{settings.gcp_project_id}.{dataset_id}.{UNIFIED_SUBSCRIPTIONS_TABLE}"
 
         query = f"""
-        SELECT * FROM `{table_id}`
+        SELECT
+            subscription_id, provider, plan_name, display_name, is_custom,
+            quantity, unit_price_usd, yearly_price_usd, yearly_discount_pct,
+            billing_period, category, seats, storage_limit_gb,
+            monthly_limit, daily_limit, projects_limit, members_limit,
+            effective_date, end_date, is_enabled, auth_type, notes,
+            x_gemini_project_id, x_gemini_region, x_anthropic_workspace_id, x_openai_org_id,
+            tier_type, trial_end_date, trial_credit_usd,
+            monthly_token_limit, daily_token_limit, rpm_limit, tpm_limit,
+            rpd_limit, tpd_limit, concurrent_limit,
+            committed_spend_usd, commitment_term_months, discount_percentage,
+            created_at, updated_at
+        FROM `{table_id}`
         WHERE provider = @provider OR provider = 'custom'
         ORDER BY provider, plan_name
         LIMIT 1000
@@ -1230,7 +1304,8 @@ async def reset_subscriptions(
         job_config = bigquery.QueryJobConfig(
             query_parameters=[
                 bigquery.ScalarQueryParameter("provider", "STRING", provider_value)
-            ]
+            ],
+            timeout_ms=30000  # 30 second timeout for user queries
         )
         query_result = bq_client.client.query(query, job_config=job_config).result()
 

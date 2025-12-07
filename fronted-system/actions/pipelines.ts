@@ -9,13 +9,14 @@
  * SECURITY MEASURES:
  * 1. Authentication: All actions require authenticated user
  * 2. Authorization: User must be a member of the organization
- * 3. Input Validation: orgSlug and pipelineId validated
+ * 3. Input Validation: orgSlug and pipelineId validated with zod (Issue #23)
  * 4. API Key: Retrieved from secure server-side storage (not user metadata)
  */
 
 import { createClient } from "@/lib/supabase/server"
 import { BackendClient, PipelineConfig, PipelineRunsResponse, PipelineRunDetail } from "@/lib/api/backend"
 import { getOrgApiKeySecure } from "@/actions/backend-onboarding"
+import { pipelineRunParamsSchema, pipelineRunWithDateSchema, validateInput } from "@/lib/validation/schemas"
 
 // ============================================
 // Types (internal only - not exported)
@@ -127,10 +128,60 @@ async function verifyOrgMembership(orgSlug: string): Promise<{
 // Available Pipelines (fetched from API)
 // ============================================
 
+// LRU Cache implementation for pipelines
+// Issue #19: Implement LRU cache with max size to prevent memory leaks
+class LRUCache<K, V> {
+  private cache: Map<K, V>
+  private maxSize: number
+
+  constructor(maxSize: number = 1000) {
+    this.cache = new Map()
+    this.maxSize = maxSize
+  }
+
+  get(key: K): V | undefined {
+    const value = this.cache.get(key)
+    if (value !== undefined) {
+      // Move to end (most recently used)
+      this.cache.delete(key)
+      this.cache.set(key, value)
+    }
+    return value
+  }
+
+  set(key: K, value: V): void {
+    // Remove if exists (to update position)
+    if (this.cache.has(key)) {
+      this.cache.delete(key)
+    }
+    // Add to end
+    this.cache.set(key, value)
+    // Evict oldest if over max size
+    if (this.cache.size > this.maxSize) {
+      const firstKey = this.cache.keys().next().value
+      this.cache.delete(firstKey)
+    }
+  }
+
+  clear(): void {
+    this.cache.clear()
+  }
+
+  size(): number {
+    return this.cache.size
+  }
+}
+
 // Cache for pipelines (refreshed on demand)
-let pipelinesCache: PipelineConfig[] | null = null
-let pipelinesCacheTime: number = 0
+// Using LRU cache to prevent unbounded growth
+interface CacheEntry {
+  pipelines: PipelineConfig[]
+  timestamp: number
+}
+
+const pipelinesCache = new LRUCache<string, CacheEntry>(1000)
 const PIPELINES_CACHE_TTL = 5 * 60 * 1000 // 5 minutes
+const CACHE_KEY = "pipelines_list" // Single cache key for now
 
 /**
  * Get available pipelines from the backend API.
@@ -142,10 +193,11 @@ export async function getAvailablePipelines(): Promise<{
   error?: string
 }> {
   try {
-    // Check cache first
+    // Check LRU cache first (Issue #19)
     const now = Date.now()
-    if (pipelinesCache && (now - pipelinesCacheTime) < PIPELINES_CACHE_TTL) {
-      return { success: true, pipelines: pipelinesCache }
+    const cached = pipelinesCache.get(CACHE_KEY)
+    if (cached && (now - cached.timestamp) < PIPELINES_CACHE_TTL) {
+      return { success: true, pipelines: cached.pipelines }
     }
 
     // Fetch from API
@@ -153,14 +205,16 @@ export async function getAvailablePipelines(): Promise<{
     const response = await backend.listPipelines()
 
     if (response.success) {
-      pipelinesCache = response.pipelines
-      pipelinesCacheTime = now
+      // Store in LRU cache
+      pipelinesCache.set(CACHE_KEY, {
+        pipelines: response.pipelines,
+        timestamp: now,
+      })
       return { success: true, pipelines: response.pipelines }
     }
 
     // Clear cache on API failure
-    pipelinesCache = null
-    pipelinesCacheTime = 0
+    pipelinesCache.clear()
 
     // Fall back to hardcoded defaults if API fails
     console.error("[Pipelines] Failed to fetch from API, using defaults")
@@ -169,8 +223,7 @@ export async function getAvailablePipelines(): Promise<{
     const errorMessage = err instanceof Error ? err.message : "Unknown error"
     console.error("[Pipelines] Error fetching pipelines:", errorMessage)
     // Clear cache on error
-    pipelinesCache = null
-    pipelinesCacheTime = 0
+    pipelinesCache.clear()
     // Fall back to hardcoded defaults
     return { success: true, pipelines: FALLBACK_PIPELINES }
   }
@@ -244,15 +297,26 @@ export async function runPipeline(
   params?: Record<string, unknown>
 ): Promise<PipelineRunResult> {
   try {
-    // Step 1: Validate inputs
-    if (!isValidOrgSlug(orgSlug)) {
+    // Step 1: Validate inputs with zod (Issue #23)
+    const validation = validateInput(pipelineRunParamsSchema, { orgSlug, pipelineId, params })
+    if (!validation.success) {
+      return {
+        success: false,
+        error: validation.error || "Invalid input parameters",
+      }
+    }
+
+    const { orgSlug: validOrgSlug, pipelineId: validPipelineId, params: validParams } = validation.data
+
+    // Legacy validation kept for backward compatibility
+    if (!isValidOrgSlug(validOrgSlug)) {
       return {
         success: false,
         error: "Invalid organization identifier",
       }
     }
 
-    if (!isValidPipelineId(pipelineId)) {
+    if (!isValidPipelineId(validPipelineId)) {
       return {
         success: false,
         error: "Invalid pipeline identifier",
@@ -260,7 +324,7 @@ export async function runPipeline(
     }
 
     // Step 2: Verify authentication and authorization
-    const authResult = await verifyOrgMembership(orgSlug)
+    const authResult = await verifyOrgMembership(validOrgSlug)
     if (!authResult.authorized) {
       return {
         success: false,
@@ -280,11 +344,11 @@ export async function runPipeline(
 
     // Step 4: Validate pipeline exists (fetch from API)
     const pipelinesResult = await getAvailablePipelines()
-    const pipeline = pipelinesResult.pipelines.find(p => p.id === pipelineId)
+    const pipeline = pipelinesResult.pipelines.find(p => p.id === validPipelineId)
     if (!pipeline) {
       return {
         success: false,
-        error: `Unknown pipeline: ${pipelineId}. Available: ${pipelinesResult.pipelines.map(p => p.id).join(", ")}`,
+        error: `Unknown pipeline: ${validPipelineId}. Available: ${pipelinesResult.pipelines.map(p => p.id).join(", ")}`,
       }
     }
 
@@ -327,11 +391,11 @@ export async function runPipeline(
     const backend = new BackendClient({ orgApiKey: apiKey })
 
     const response = await backend.runPipeline(
-      orgSlug,
+      validOrgSlug,
       pipeline.provider,
       pipeline.domain,
       pipeline.pipeline,
-      params
+      validParams
     )
 
     // Backend returns PENDING for async pipelines (background execution)
@@ -347,7 +411,7 @@ export async function runPipeline(
       result: response.result,
     }
   } catch (err: unknown) {
-    console.error(`[Pipelines] Run ${pipelineId} error:`, err)
+    console.error(`[Pipelines] Run error:`, err)
     const errorMessage = err instanceof Error && 'detail' in err
       ? (err as Error & { detail?: string }).detail
       : err instanceof Error
@@ -368,7 +432,16 @@ export async function runGcpBillingPipeline(
   orgSlug: string,
   date?: string
 ): Promise<PipelineRunResult> {
-  return runPipeline(orgSlug, "gcp_billing", { date })
+  // Validate with zod (Issue #23)
+  const validation = validateInput(pipelineRunWithDateSchema, { orgSlug, date })
+  if (!validation.success) {
+    return {
+      success: false,
+      error: validation.error || "Invalid input parameters",
+    }
+  }
+
+  return runPipeline(validation.data.orgSlug, "gcp_billing", { date: validation.data.date })
 }
 
 // Legacy alias for backward compatibility

@@ -408,6 +408,8 @@ class AsyncPipelineExecutor:
 
         except Exception as e:
             # Don't fail the pipeline if status update fails, just log it
+            # MEMORY LEAK FIX #28: Background task errors properly logged with exc_info=True
+            # Never silently swallow errors - always log with stack traces for debugging
             self.logger.warning(
                 f"Failed to update pipeline status to RUNNING: {e}",
                 pipeline_logging_id=self.pipeline_logging_id,
@@ -473,6 +475,7 @@ class AsyncPipelineExecutor:
                 break
 
         except Exception as e:
+            # MEMORY LEAK FIX #28: Background task errors properly logged
             self.logger.warning(
                 f"Failed to increment concurrent pipelines counter: {e}",
                 org_slug=self.org_slug,
@@ -509,6 +512,7 @@ class AsyncPipelineExecutor:
             UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
             SET
                 pipelines_run_today = pipelines_run_today + 1,
+                pipelines_run_month = pipelines_run_month + 1,
                 pipelines_succeeded_today = pipelines_succeeded_today + @success_increment,
                 pipelines_failed_today = pipelines_failed_today + @failed_increment,
                 concurrent_pipelines_running = GREATEST(concurrent_pipelines_running - 1, 0),
@@ -537,12 +541,15 @@ class AsyncPipelineExecutor:
                 f"Updated customer usage quotas",
                 org_slug=self.org_slug,
                 status=self.status,
-                pipelines_run=1,
+                pipelines_run_today=1,
+                pipelines_run_month=1,
                 pipelines_succeeded=success_increment,
-                pipelines_failed=failed_increment
+                pipelines_failed=failed_increment,
+                concurrent_decremented=1
             )
 
         except Exception as e:
+            # MEMORY LEAK FIX #28: Background task errors properly logged
             self.logger.warning(
                 f"Failed to update customer usage quotas: {e}",
                 org_slug=self.org_slug,

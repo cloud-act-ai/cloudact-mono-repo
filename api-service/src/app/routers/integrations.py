@@ -995,7 +995,8 @@ async def _initialize_openai_pricing(org_slug: str, force: bool = False) -> Dict
         # If force=True, delete existing data
         if force:
             delete_query = f"DELETE FROM `{table_id}` WHERE 1=1"
-            bq_client.query(delete_query).result()
+            job_config = bigquery.QueryJobConfig(timeout_ms=300000)  # 5 minute timeout for admin/batch operations
+            bq_client.query(delete_query, job_config=job_config).result()
             logger.info(f"Deleted existing pricing data from {table_id}")
 
         # Load CSV data
@@ -1108,7 +1109,8 @@ async def _initialize_openai_subscriptions(org_slug: str, force: bool = False) -
         # If force=True, delete existing data
         if force:
             delete_query = f"DELETE FROM `{table_id}` WHERE 1=1"
-            bq_client.query(delete_query).result(timeout=15)
+            job_config = bigquery.QueryJobConfig(timeout_ms=300000)  # 5 minute timeout for admin/batch operations
+            bq_client.query(delete_query, job_config=job_config).result()
             logger.info(f"Deleted existing subscriptions data from {table_id}")
 
         # Load CSV data
@@ -1229,7 +1231,8 @@ async def _initialize_llm_pricing(org_slug: str, provider: str, force: bool = Fa
         # If force=True, delete existing data
         if force:
             delete_query = f"DELETE FROM `{table_id}` WHERE 1=1"
-            bq_client.client.query(delete_query).result()
+            job_config = bigquery.QueryJobConfig(timeout_ms=300000)  # 5 minute timeout for admin/batch operations
+            bq_client.client.query(delete_query, job_config=job_config).result()
             logger.info(f"Deleted existing pricing data from {table_id}")
 
         # Load CSV data
@@ -1356,7 +1359,8 @@ async def _initialize_llm_pricing(org_slug: str, provider: str, force: bool = Fa
                         bigquery.ScalarQueryParameter("base_output_price_per_1k", "FLOAT64", row.get("base_output_price_per_1k")),
                         bigquery.ScalarQueryParameter("created_at", "STRING", row["created_at"]),
                         bigquery.ScalarQueryParameter("updated_at", "STRING", row["updated_at"]),
-                    ]
+                    ],
+                    timeout_ms=300000  # 5 minute timeout for admin/batch operations
                 )
                 bq_client.client.query(insert_query, job_config=job_config).result()
 
@@ -1425,7 +1429,8 @@ async def _initialize_saas_subscriptions(org_slug: str, provider: str, force: bo
         # If force=True, delete existing data
         if force:
             delete_query = f"DELETE FROM `{table_id}` WHERE 1=1"
-            bq_client.client.query(delete_query).result()
+            job_config = bigquery.QueryJobConfig(timeout_ms=300000)  # 5 minute timeout for admin/batch operations
+            bq_client.client.query(delete_query, job_config=job_config).result()
             logger.info(f"Deleted existing subscriptions data from {table_id}")
 
         # Load CSV data
@@ -1559,7 +1564,8 @@ async def _initialize_saas_subscriptions(org_slug: str, provider: str, force: bo
                         bigquery.ScalarQueryParameter("yearly_discount_percentage", "FLOAT64", row.get("yearly_discount_percentage")),
                         bigquery.ScalarQueryParameter("created_at", "TIMESTAMP", row["created_at"]),
                         bigquery.ScalarQueryParameter("updated_at", "TIMESTAMP", row["updated_at"]),
-                    ]
+                    ],
+                    timeout_ms=300000  # 5 minute timeout for admin/batch operations
                 )
                 bq_client.client.query(insert_query, job_config=job_config).result()
 
@@ -1630,7 +1636,8 @@ async def _initialize_gemini_pricing(org_slug: str, force: bool = False) -> Dict
         # If force=True, delete existing data
         if force:
             delete_query = f"DELETE FROM `{table_id}` WHERE 1=1"
-            bq_client.client.query(delete_query).result()
+            job_config = bigquery.QueryJobConfig(timeout_ms=300000)  # 5 minute timeout for admin/batch operations
+            bq_client.client.query(delete_query, job_config=job_config).result()
             logger.info(f"Deleted existing pricing data from {table_id}")
 
         # Load CSV data
@@ -1727,7 +1734,8 @@ async def _initialize_gemini_subscriptions(org_slug: str, force: bool = False) -
         # If force=True, delete existing data
         if force:
             delete_query = f"DELETE FROM `{table_id}` WHERE 1=1"
-            bq_client.client.query(delete_query).result()
+            job_config = bigquery.QueryJobConfig(timeout_ms=300000)  # 5 minute timeout for admin/batch operations
+            bq_client.client.query(delete_query, job_config=job_config).result()
             logger.info(f"Deleted existing subscriptions data from {table_id}")
 
         # Load CSV data

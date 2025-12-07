@@ -54,7 +54,7 @@ from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
 from src.app.dependencies.auth import get_current_org
 from src.app.config import get_settings
 from src.core.utils.cache import get_cache, invalidate_org_cache, invalidate_provider_cache
-from src.core.utils.query_performance import QueryTimer, log_query_performance
+from src.core.utils.query_performance import QueryPerformanceMonitor, log_query_performance
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -385,8 +385,10 @@ async def list_providers(
 
     enabled_providers = {}
     try:
-        with QueryTimer("list_providers_query") as timer:
-            result = bq_client.client.query(query).result()
+        with QueryPerformanceMonitor(operation="list_providers_query") as monitor:
+            job_config = bigquery.QueryJobConfig(timeout_ms=30000)  # 30 second timeout for user queries
+            result = bq_client.client.query(query, job_config=job_config).result()
+            monitor.set_result(result)
             for row in result:
                 enabled_providers[row.provider.lower()] = {
                     "plan_count": row.plan_count,
@@ -463,7 +465,8 @@ async def enable_provider(
             job_config = bigquery.QueryJobConfig(
                 query_parameters=[
                     bigquery.ScalarQueryParameter("provider", "STRING", provider),
-                ]
+                ],
+                timeout_ms=10000  # 10 second timeout for auth operations
             )
             result = bq_client.client.query(check_query, job_config=job_config).result()
             for row in result:
@@ -497,7 +500,8 @@ async def enable_provider(
             job_config = bigquery.QueryJobConfig(
                 query_parameters=[
                     bigquery.ScalarQueryParameter("provider", "STRING", provider),
-                ]
+                ],
+                timeout_ms=300000  # 5 minute timeout for admin/batch operations
             )
             bq_client.client.query(delete_query, job_config=job_config).result()
             logger.info(f"Deleted existing plans for {provider} in {org_slug}")
@@ -593,7 +597,8 @@ async def enable_provider(
                     bigquery.ScalarQueryParameter("seats", "INT64", seats),
                     bigquery.ScalarQueryParameter("storage_limit", "FLOAT64", storage_limit),
                     bigquery.ScalarQueryParameter("monthly_limit", "INT64", monthly_limit),
-                ]
+                ],
+                timeout_ms=300000  # 5 minute timeout for admin/batch operations
             )
             bq_client.client.query(insert_query, job_config=job_config).result()
             rows_inserted += 1
@@ -657,7 +662,8 @@ async def disable_provider(
         job_config = bigquery.QueryJobConfig(
             query_parameters=[
                 bigquery.ScalarQueryParameter("provider", "STRING", provider),
-            ]
+            ],
+            timeout_ms=30000  # 30 second timeout for user queries
         )
         result = bq_client.client.query(count_query, job_config=job_config).result()
         plans_count = 0
@@ -673,7 +679,8 @@ async def disable_provider(
         job_config = bigquery.QueryJobConfig(
             query_parameters=[
                 bigquery.ScalarQueryParameter("provider", "STRING", provider),
-            ]
+            ],
+            timeout_ms=300000  # 5 minute timeout for admin/batch operations
         )
         bq_client.client.query(delete_query, job_config=job_config).result()
 
@@ -759,10 +766,12 @@ async def list_plans(
         job_config = bigquery.QueryJobConfig(
             query_parameters=[
                 bigquery.ScalarQueryParameter("provider", "STRING", provider),
-            ]
+            ],
+            timeout_ms=30000  # 30 second timeout for user queries
         )
-        with QueryTimer(f"list_plans_query_{provider}") as timer:
+        with QueryPerformanceMonitor(operation=f"list_plans_query_{provider}", org_slug=org_slug) as monitor:
             result = bq_client.client.query(query, job_config=job_config).result()
+            monitor.set_result(result)
         for row in result:
             plan = SubscriptionPlan(
                 subscription_id=row.subscription_id,
@@ -852,7 +861,8 @@ async def create_plan(
             query_parameters=[
                 bigquery.ScalarQueryParameter("provider", "STRING", provider),
                 bigquery.ScalarQueryParameter("plan_name", "STRING", plan_name_upper),
-            ]
+            ],
+            timeout_ms=10000  # 10 second timeout for auth operations
         )
         result = bq_client.client.query(check_query, job_config=job_config).result()
         for row in result:
@@ -918,7 +928,8 @@ async def create_plan(
                 bigquery.ScalarQueryParameter("yearly_price_usd", "FLOAT64", plan.yearly_price_usd),
                 bigquery.ScalarQueryParameter("yearly_discount_pct", "FLOAT64", plan.yearly_discount_pct),
                 bigquery.ScalarQueryParameter("seats", "INT64", plan.seats),
-            ]
+            ],
+            timeout_ms=30000  # 30 second timeout for user operations
         )
         bq_client.client.query(insert_query, job_config=job_config).result()
 
@@ -1032,18 +1043,34 @@ async def update_plan(
     """
 
     try:
-        job_config = bigquery.QueryJobConfig(query_parameters=query_parameters)
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=query_parameters,
+            timeout_ms=30000  # 30 second timeout for user operations
+        )
         bq_client.client.query(update_query, job_config=job_config).result()
 
-        # Fetch updated plan
+        # Fetch updated plan with explicit columns
         select_query = f"""
-        SELECT * FROM `{table_ref}`
+        SELECT
+            subscription_id, provider, plan_name, display_name, is_custom,
+            quantity, unit_price_usd, yearly_price_usd, yearly_discount_pct,
+            billing_period, category, seats, storage_limit_gb,
+            monthly_limit, daily_limit, projects_limit, members_limit,
+            effective_date, end_date, is_enabled, auth_type, notes,
+            x_gemini_project_id, x_gemini_region, x_anthropic_workspace_id, x_openai_org_id,
+            tier_type, trial_end_date, trial_credit_usd,
+            monthly_token_limit, daily_token_limit, rpm_limit, tpm_limit,
+            rpd_limit, tpd_limit, concurrent_limit,
+            committed_spend_usd, commitment_term_months, discount_percentage,
+            created_at, updated_at
+        FROM `{table_ref}`
         WHERE subscription_id = @subscription_id
         """
         select_config = bigquery.QueryJobConfig(
             query_parameters=[
                 bigquery.ScalarQueryParameter("subscription_id", "STRING", subscription_id),
-            ]
+            ],
+            timeout_ms=30000  # 30 second timeout for user queries
         )
         result = bq_client.client.query(select_query, job_config=select_config).result()
 
@@ -1125,7 +1152,8 @@ async def delete_plan(
             query_parameters=[
                 bigquery.ScalarQueryParameter("subscription_id", "STRING", subscription_id),
                 bigquery.ScalarQueryParameter("provider", "STRING", provider),
-            ]
+            ],
+            timeout_ms=30000  # 30 second timeout for user operations
         )
         bq_client.client.query(delete_query, job_config=job_config).result()
 
@@ -1222,7 +1250,8 @@ async def toggle_plan(
             query_parameters=[
                 bigquery.ScalarQueryParameter("subscription_id", "STRING", subscription_id),
                 bigquery.ScalarQueryParameter("provider", "STRING", provider),
-            ]
+            ],
+            timeout_ms=10000  # 10 second timeout for auth operations
         )
         result = bq_client.client.query(check_query, job_config=job_config).result()
         rows = list(result)
@@ -1248,7 +1277,8 @@ async def toggle_plan(
                 bigquery.ScalarQueryParameter("new_enabled", "BOOL", new_enabled),
                 bigquery.ScalarQueryParameter("subscription_id", "STRING", subscription_id),
                 bigquery.ScalarQueryParameter("provider", "STRING", provider),
-            ]
+            ],
+            timeout_ms=30000  # 30 second timeout for user operations
         )
         bq_client.client.query(update_query, job_config=job_config).result()
 
@@ -1334,8 +1364,10 @@ async def get_all_plans(
     """
 
     try:
-        with QueryTimer("get_all_plans_query") as timer:
-            result = bq_client.client.query(query).result()
+        with QueryPerformanceMonitor(operation="get_all_plans_query", org_slug=org_slug) as monitor:
+            job_config = bigquery.QueryJobConfig(timeout_ms=30000)  # 30 second timeout for user queries
+            result = bq_client.client.query(query, job_config=job_config).result()
+            monitor.set_result(result)
         plans = []
         total_monthly_cost = 0.0
         count_by_category: Dict[str, int] = {}

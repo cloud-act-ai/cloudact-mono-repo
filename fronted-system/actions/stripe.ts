@@ -951,7 +951,6 @@ export async function changeSubscriptionPlan(
           : undefined,
         dailyLimit: limits.pipelines_per_day_limit,
         monthlyLimit: limits.pipelines_per_day_limit * 30,
-        concurrentLimit: limits.concurrent_pipelines_limit,
         seatLimit: limits.seat_limit,
         providersLimit: limits.providers_limit,
         syncType: 'plan_change',

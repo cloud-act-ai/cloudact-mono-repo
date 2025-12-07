@@ -689,8 +689,8 @@ await syncSubscriptionToBackend({
   trialEndsAt: "2025-12-31T23:59:59.999Z",
   planName: "starter",
   dailyLimit: 6,
-  monthlyLimit: 100,
-  concurrentLimit: 2
+  monthlyLimit: 100
+  // Note: concurrent_pipelines_limit removed (not used in current implementation)
 })
 ```
 
@@ -706,6 +706,22 @@ await syncSubscriptionToBackend({
 
 **Pipeline Access:** Only `ACTIVE` and `TRIAL` statuses allow pipeline execution.
 
+**Note:** The `concurrent_pipelines_limit` field has been removed from the subscription sync as it is not used in the current implementation. Quota enforcement focuses on `daily_limit` and `monthly_limit` only.
+
+### Recent Improvements (December 2024)
+
+#### Subscription Sync Reliability
+- **Fixed webhook billing sync** to backend BigQuery:
+  - Webhooks now properly call `syncSubscriptionToBackend()` after updating Supabase
+  - Ensures backend quota enforcement stays in sync with frontend billing status
+  - Prevents stale subscription data in BigQuery
+
+#### Quota Management Simplification
+- **Removed `concurrent_pipelines_limit`** from subscription model:
+  - Not used in current pipeline execution logic
+  - Simplified quota tracking to `daily_limit` and `monthly_limit`
+  - Reduced complexity in webhook handlers and backend sync
+
 ### Common Issues
 
 | Issue | Cause | Fix |
@@ -713,6 +729,7 @@ await syncSubscriptionToBackend({
 | "No plans returned from Stripe" | Products missing required metadata | Add teamMembers, providers, pipelinesPerDay metadata |
 | Plan shows wrong name after upgrade | Plan ID mismatch between webhook and getStripePlans | Ensure both use same `plan_id || product.name.toLowerCase()` logic |
 | Limits not updating | Webhook not received | Check `stripe listen` is running; subscription may need lookup by customer ID |
+| Backend quota out of sync | Webhook sync failed | Check backend logs; manually call `syncSubscriptionToBackend()` |
 
 ### Documentation
 
@@ -1037,3 +1054,7 @@ Before deploying any new feature, verify:
 | `docs/pipeline_execution_flow.md` | Pipeline execution flow |
 | `docs/SECURITY.md` | Security documentation |
 | `docs/TESTING.md` | Testing documentation |
+
+---
+
+**Last Updated:** 2025-12-06

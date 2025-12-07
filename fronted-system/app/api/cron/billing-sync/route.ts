@@ -220,7 +220,6 @@ async function handleReconciliation() {
               billingStatus: expectedStatus,
               dailyLimit: stripeLimits.pipelines_per_day_limit,
               monthlyLimit: stripeLimits.pipelines_per_day_limit * 30,
-              concurrentLimit: stripeLimits.concurrent_pipelines_limit,
               seatLimit: stripeLimits.seat_limit,
               providersLimit: stripeLimits.providers_limit,
               trialEndsAt: subscription.trial_end

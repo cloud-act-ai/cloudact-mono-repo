@@ -2,7 +2,7 @@
 Test suite for bootstrap endpoint.
 
 Tests the POST /api/v1/admin/bootstrap endpoint which initializes the system
-by creating the central organizations dataset and 14 management tables.
+by creating the central organizations dataset and 15 management tables.
 
 Authentication:
 - Requires X-CA-Root-Key header
@@ -92,10 +92,11 @@ def mock_bootstrap_processor():
                 "org_meta_dq_results",
                 "org_audit_logs",
                 "org_kms_keys",
-                "org_cost_tracking"
+                "org_cost_tracking",
+                "org_idempotency_keys"
             ],
             "tables_existed": [],
-            "total_tables": 14,
+            "total_tables": 15,
             "message": "Bootstrap completed successfully"
         })
 
@@ -128,9 +129,10 @@ def mock_bootstrap_processor_idempotent():
                 "org_meta_dq_results",
                 "org_audit_logs",
                 "org_kms_keys",
-                "org_cost_tracking"
+                "org_cost_tracking",
+                "org_idempotency_keys"
             ],
-            "total_tables": 14,
+            "total_tables": 15,
             "message": "Bootstrap already completed - all tables exist"
         })
 
@@ -215,8 +217,8 @@ async def test_bootstrap_success(base_url, admin_headers, mock_bootstrap_process
         # Verify response structure
         assert data["status"] == "SUCCESS"
         assert data["dataset_created"] is True
-        assert data["total_tables"] == 14
-        assert len(data["tables_created"]) == 14
+        assert data["total_tables"] == 15
+        assert len(data["tables_created"]) == 15
         assert len(data["tables_existed"]) == 0
 
         # Verify all expected tables were created
@@ -272,9 +274,9 @@ async def test_bootstrap_idempotent(base_url, admin_headers, mock_bootstrap_proc
         # Verify response structure for idempotent case
         assert data["status"] == "SUCCESS"
         assert data["dataset_created"] is False  # Dataset already exists
-        assert data["total_tables"] == 14
+        assert data["total_tables"] == 15
         assert len(data["tables_created"]) == 0  # No new tables created
-        assert len(data["tables_existed"]) == 14  # All tables already exist
+        assert len(data["tables_existed"]) == 15  # All tables already exist
 
         # Verify processor was called
         mock_bootstrap_processor_idempotent.execute.assert_called_once()
@@ -286,7 +288,7 @@ async def test_bootstrap_idempotent(base_url, admin_headers, mock_bootstrap_proc
 
 @pytest.mark.asyncio
 async def test_bootstrap_creates_meta_tables(base_url, admin_headers, mock_bootstrap_processor):
-    """Test bootstrap creates all 14 meta tables."""
+    """Test bootstrap creates all 15 meta tables."""
     from src.app.main import app
     from httpx import ASGITransport
 
@@ -302,9 +304,9 @@ async def test_bootstrap_creates_meta_tables(base_url, admin_headers, mock_boots
 
         data = response.json()
 
-        # Verify all 14 meta tables are created
-        assert data["total_tables"] == 14
-        assert len(data["tables_created"]) == 14
+        # Verify all 15 meta tables are created
+        assert data["total_tables"] == 15
+        assert len(data["tables_created"]) == 15
 
         # Critical tables for organization management
         core_tables = ["org_profiles", "org_api_keys", "org_subscriptions", "org_usage_quotas"]
@@ -439,10 +441,10 @@ async def test_bootstrap_integration_real_bigquery(base_url, admin_headers):
 
         data = response.json()
         assert data["status"] == "SUCCESS"
-        assert data["total_tables"] == 14
+        assert data["total_tables"] == 15
 
         # Either tables were created or already existed (idempotent)
-        assert len(data["tables_created"]) + len(data["tables_existed"]) == 14
+        assert len(data["tables_created"]) + len(data["tables_existed"]) == 15
 
 
 # ============================================

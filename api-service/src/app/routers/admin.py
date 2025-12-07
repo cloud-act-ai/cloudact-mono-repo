@@ -18,6 +18,9 @@ from src.app.config import settings
 from src.app.dependencies.auth import verify_admin_key
 from src.app.dependencies.rate_limit_decorator import rate_limit_global
 from src.app.models.org_models import SUBSCRIPTION_LIMITS, SubscriptionPlan
+from src.core.utils.audit_logger import log_create, log_delete, log_audit, AuditLogger
+from src.core.utils.error_handling import safe_error_response
+from src.core.utils.validators import validate_org_slug
 
 logger = logging.getLogger(__name__)
 
@@ -438,10 +441,25 @@ async def create_org(
             ).result()
         except:
             pass
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create any datasets for org {org_slug}: {'; '.join(dataset_errors)}"
+
+        # Issue #29: Generic error message
+        raise safe_error_response(
+            error=Exception('; '.join(dataset_errors)),
+            operation="create organization datasets",
+            context={"org_slug": org_slug, "errors": dataset_errors}
         )
+
+    # Issue #32: Audit logging for org creation
+    await log_create(
+        org_slug=org_slug,
+        resource_type=AuditLogger.RESOURCE_ORG,
+        resource_id=org_slug,
+        details={
+            "datasets_created": datasets_created,
+            "description": request.description
+        },
+        status=AuditLogger.STATUS_SUCCESS
+    )
 
     return OrgResponse(
         org_slug=org_slug,
@@ -609,7 +627,7 @@ async def create_api_key(
 
     bq_client.client.query(insert_query, job_config=job_config).result()
 
-    # Bug fix #9: Add audit log entry after successful API key creation
+    # Bug fix #9 & Issue #32: Add audit log entry after successful API key creation
     logger.info(
         f"API key created successfully",
         extra={
@@ -619,6 +637,17 @@ async def create_api_key(
             "org_api_key_hash": org_api_key_hash[:16] + "...",
             "description": request.description
         }
+    )
+
+    await log_create(
+        org_slug=request.org_slug,
+        resource_type=AuditLogger.RESOURCE_API_KEY,
+        resource_id=org_api_key_id,
+        details={
+            "description": request.description,
+            "scopes": settings.api_key_default_scopes
+        },
+        status=AuditLogger.STATUS_SUCCESS
     )
 
     return APIKeyResponse(
@@ -662,6 +691,30 @@ async def revoke_api_key(
     )
 
     bq_client.client.query(update_query, job_config=job_config).result()
+
+    # Issue #32: Audit logging for API key revocation
+    # Note: We don't have org_slug here, but we can query it
+    try:
+        query_org = f"""
+        SELECT org_slug FROM `{settings.gcp_project_id}.organizations.org_api_keys`
+        WHERE org_api_key_hash = @org_api_key_hash LIMIT 1
+        """
+        org_result = list(bq_client.client.query(
+            query_org,
+            job_config=bigquery.QueryJobConfig(
+                query_parameters=[bigquery.ScalarQueryParameter("org_api_key_hash", "STRING", org_api_key_hash)]
+            )
+        ).result())
+
+        if org_result:
+            await log_delete(
+                org_slug=org_result[0]["org_slug"],
+                resource_type=AuditLogger.RESOURCE_API_KEY,
+                resource_id=org_api_key_hash[:16],
+                status=AuditLogger.STATUS_SUCCESS
+            )
+    except Exception as audit_error:
+        logger.warning(f"Failed to log API key revocation audit: {audit_error}")
 
     return {
         "org_api_key_hash": org_api_key_hash,

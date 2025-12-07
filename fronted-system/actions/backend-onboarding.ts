@@ -687,7 +687,6 @@ interface SyncSubscriptionResult {
   status?: string
   dailyLimit?: number
   monthlyLimit?: number
-  concurrentLimit?: number
   queued?: boolean  // True if sync failed but was queued for retry
   queueId?: string  // ID of the queue entry if queued
 }
@@ -699,7 +698,6 @@ interface SyncSubscriptionInput {
   billingStatus?: string
   dailyLimit?: number
   monthlyLimit?: number
-  concurrentLimit?: number
   seatLimit?: number
   providersLimit?: number
   trialEndsAt?: string
@@ -728,7 +726,6 @@ async function queueFailedSync(
           billingStatus: input.billingStatus,
           dailyLimit: input.dailyLimit,
           monthlyLimit: input.monthlyLimit,
-          concurrentLimit: input.concurrentLimit,
           seatLimit: input.seatLimit,
           providersLimit: input.providersLimit,
           trialEndsAt: input.trialEndsAt,
@@ -794,7 +791,6 @@ export async function processPendingSyncs(limit: number = 10): Promise<{
         billingStatus: payload.billingStatus,
         dailyLimit: payload.dailyLimit,
         monthlyLimit: payload.monthlyLimit,
-        concurrentLimit: payload.concurrentLimit,
         seatLimit: payload.seatLimit,
         providersLimit: payload.providersLimit,
         trialEndsAt: payload.trialEndsAt,
@@ -946,7 +942,6 @@ async function syncSubscriptionToBackendInternal(
       trialEndsAt: input.trialEndsAt,
       dailyLimit: input.dailyLimit,
       monthlyLimit: input.monthlyLimit,
-      concurrentLimit: input.concurrentLimit,
     })
 
     // Call backend subscription update endpoint with timeout (30s)
@@ -969,7 +964,6 @@ async function syncSubscriptionToBackendInternal(
             trial_end_date: input.trialEndsAt,
             daily_limit: input.dailyLimit,
             monthly_limit: input.monthlyLimit,
-            concurrent_limit: input.concurrentLimit,
             seat_limit: input.seatLimit,
             providers_limit: input.providersLimit,
           }),
@@ -1040,7 +1034,6 @@ async function syncSubscriptionToBackendInternal(
       planName: syncResponse.plan_name,
       dailyLimit: syncResponse.daily_limit,
       monthlyLimit: syncResponse.monthly_limit,
-      concurrentLimit: syncResponse.concurrent_limit,
     }
   } catch (err: unknown) {
     const errorMessage = err instanceof Error ? err.message : "Failed to sync subscription to backend"
@@ -1082,7 +1075,6 @@ export async function syncSubscriptionToBackend(input: {
   billingStatus?: string  // Frontend billing_status (trialing, active, past_due, etc.)
   dailyLimit?: number
   monthlyLimit?: number
-  concurrentLimit?: number
   seatLimit?: number
   providersLimit?: number
   trialEndsAt?: string    // ISO date string for trial end

@@ -1,9 +1,14 @@
 """
 Quota Management API Routes
 Provides quota usage information for organizations.
+
+Security Enhancements:
+- Issue #29: Generic error messages (no details leaked)
+- Issue #30: Rate limiting (100 req/min per org)
+- Issue #47: org_slug validation
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime, date
@@ -12,6 +17,9 @@ import logging
 from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
 from src.app.config import settings
 from src.app.dependencies.auth import get_org_or_admin_auth, AuthResult
+from src.app.dependencies.rate_limit_decorator import rate_limit_by_org
+from src.core.utils.error_handling import safe_error_response, handle_not_found, handle_forbidden
+from src.core.utils.validators import validate_org_slug
 from google.cloud import bigquery
 
 router = APIRouter()
@@ -44,10 +52,11 @@ class QuotaResponse(BaseModel):
     "/organizations/{org_slug}/quota",
     response_model=QuotaResponse,
     summary="Get quota usage for an organization",
-    description="Returns current quota usage and limits for pipelines"
+    description="Returns current quota usage and limits for pipelines. Rate limited: 100 req/min per org."
 )
 async def get_quota(
     org_slug: str,
+    request: Request,
     auth: AuthResult = Depends(get_org_or_admin_auth),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
@@ -63,8 +72,14 @@ async def get_quota(
     - Organization API Key (X-API-Key header) - self-service access
     - Root API Key (X-CA-Root-Key header) - admin can access any org
 
+    SECURITY ENHANCEMENTS:
+    - Issue #29: Generic error messages
+    - Issue #30: Rate limiting (100 req/min per org)
+    - Issue #47: org_slug validation
+
     Args:
         org_slug: Organization identifier
+        request: FastAPI request (for rate limiting)
         auth: Authentication result (org key or admin key)
         bq_client: BigQuery client instance
 
@@ -74,11 +89,23 @@ async def get_quota(
     Raises:
         HTTPException: If org not found or user not authorized
     """
+    # Issue #47: Validate org_slug format
+    validate_org_slug(org_slug)
+
+    # Issue #30: Apply rate limiting (100 requests per minute per org)
+    await rate_limit_by_org(
+        request=request,
+        org_slug=org_slug,
+        limit_per_minute=100,
+        endpoint_name="get_quota"
+    )
+
     # Security check: if using org key, must match the org in URL
     if not auth.is_admin and auth.org_slug != org_slug:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Cannot access quota for another organization"
+        # Issue #29: Generic error message
+        raise handle_forbidden(
+            reason="Access denied",
+            context={"org_slug": org_slug, "auth_org": auth.org_slug}
         )
 
     logger.info(f"Getting quota information for organization: {org_slug}")
@@ -116,9 +143,11 @@ async def get_quota(
         ))
 
         if not results:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Organization '{org_slug}' not found or has no subscription"
+            # Issue #29: Generic error message
+            raise handle_not_found(
+                resource_type="Organization",
+                resource_id=org_slug,
+                context={"reason": "no_subscription"}
             )
 
         row = results[0]
@@ -163,8 +192,9 @@ async def get_quota(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to get quota for org {org_slug}: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve quota information. Please check server logs."
+        # Issue #29: Generic error message with server-side logging
+        raise safe_error_response(
+            error=e,
+            operation="retrieve quota information",
+            context={"org_slug": org_slug}
         )

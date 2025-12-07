@@ -221,7 +221,10 @@ async def get_pipelines_due_now(
           AND c.next_run_time <= CURRENT_TIMESTAMP()
           AND p.status = 'ACTIVE'
     )
-    SELECT *
+    SELECT
+        config_id, org_slug, provider, domain, pipeline_template,
+        schedule_cron, timezone, parameters, next_run_time, priority,
+        org_status, max_pipelines_per_day, pipelines_run_today
     FROM due_pipelines
     WHERE pipelines_run_today < max_pipelines_per_day
     ORDER BY next_run_time ASC, priority DESC

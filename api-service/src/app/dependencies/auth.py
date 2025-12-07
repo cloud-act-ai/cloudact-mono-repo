@@ -8,6 +8,7 @@ Fallback to local file-based API keys for development.
 import hashlib
 import json
 import os
+import secrets
 import asyncio
 from dataclasses import dataclass
 from typing import Optional, Dict, Any, Set
@@ -212,7 +213,8 @@ class AuthMetricsAggregator:
                 job_config=bigquery.QueryJobConfig(
                     query_parameters=[
                         bigquery.ArrayQueryParameter("key_ids", "STRING", valid_key_ids)
-                    ]
+                    ],
+                    timeout_ms=10000  # 10 seconds for auth ops
                 )
             ).result()
 
@@ -416,12 +418,13 @@ async def get_current_org(
 
     try:
         # Use custom BigQueryClient.query() with parameters
-        results = list(bq_client.query(
-            query,
-            parameters=[
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=[
                 bigquery.ScalarQueryParameter("org_api_key_hash", "STRING", org_api_key_hash)
-            ]
-        ))
+            ],
+            timeout_ms=10000  # 10 seconds for auth ops
+        )
+        results = list(bq_client.client.query(query, job_config=job_config).result())
 
         if not results:
             logger.warning(
@@ -617,13 +620,14 @@ async def validate_quota(
 
     try:
         # Bug fix #5: Use custom BigQueryClient API (no job_config parameter)
-        results = list(bq_client.query(
-            query,
-            parameters=[
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=[
                 bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
                 bigquery.ScalarQueryParameter("usage_date", "DATE", today)
-            ]
-        ))
+            ],
+            timeout_ms=10000  # 10 seconds for auth ops
+        )
+        results = list(bq_client.client.query(query, job_config=job_config).result())
 
         if not results:
             # Create today's usage record
@@ -656,7 +660,8 @@ async def validate_quota(
                         bigquery.ScalarQueryParameter("daily_limit", "INT64", subscription["max_pipelines_per_day"]),
                         bigquery.ScalarQueryParameter("monthly_limit", "INT64", subscription["max_pipelines_per_month"]),
                         bigquery.ScalarQueryParameter("concurrent_limit", "INT64", subscription["max_concurrent_pipelines"])
-                    ]
+                    ],
+                    timeout_ms=10000  # 10 seconds for auth ops
                 )
             ).result()
 
@@ -817,7 +822,8 @@ async def reserve_pipeline_quota_atomic(
                     query_parameters=[
                         bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
                         bigquery.ScalarQueryParameter("usage_date", "DATE", today)
-                    ]
+                    ],
+                    timeout_ms=10000  # 10 seconds for auth ops
                 )
             ).result())
 
@@ -917,7 +923,8 @@ async def increment_pipeline_usage(
                     query_parameters=[
                         bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
                         bigquery.ScalarQueryParameter("usage_date", "DATE", today)
-                    ]
+                    ],
+                    timeout_ms=10000  # 10 seconds for auth ops
                 )
             ).result()
 
@@ -953,7 +960,8 @@ async def increment_pipeline_usage(
                         bigquery.ScalarQueryParameter("usage_date", "DATE", today),
                         bigquery.ScalarQueryParameter("success_increment", "INT64", success_increment),
                         bigquery.ScalarQueryParameter("failed_increment", "INT64", failed_increment)
-                    ]
+                    ],
+                    timeout_ms=10000  # 10 seconds for auth ops
                 )
             ).result()
 
@@ -1014,13 +1022,14 @@ async def get_org_credentials(
 
     try:
         # Bug fix #5: Use custom BigQueryClient API (no job_config parameter)
-        results = list(bq_client.query(
-            query,
-            parameters=[
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=[
                 bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
                 bigquery.ScalarQueryParameter("provider", "STRING", provider.upper())
-            ]
-        ))
+            ],
+            timeout_ms=10000  # 10 seconds for auth ops
+        )
+        results = list(bq_client.client.query(query, job_config=job_config).result())
 
         if not results:
             logger.warning(f"No active credentials found for org {org_slug}, provider {provider}")
@@ -1119,14 +1128,15 @@ async def get_provider_config(
     """
 
     try:
-        results = list(bq_client.query(
-            query,
-            parameters=[
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=[
                 bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
                 bigquery.ScalarQueryParameter("provider", "STRING", provider.upper()),
                 bigquery.ScalarQueryParameter("domain", "STRING", domain.upper())
-            ]
-        ))
+            ],
+            timeout_ms=10000  # 10 seconds for auth ops
+        )
+        results = list(bq_client.client.query(query, job_config=job_config).result())
 
         if not results:
             # Return default configuration if not found
@@ -1201,7 +1211,8 @@ async def get_org_from_local_file(org_api_key_hash: str) -> Optional[str]:
             with open(metadata_file, 'r') as f:
                 metadata = json.load(f)
 
-            if metadata.get("org_api_key_hash") == org_api_key_hash:
+            stored_hash = metadata.get("org_api_key_hash", "")
+            if stored_hash and secrets.compare_digest(stored_hash, org_api_key_hash):
                 org_slug = metadata.get("org_slug")
                 logger.info(f"Found API key in local file for org: {org_slug}")
                 return org_slug
@@ -1251,12 +1262,13 @@ async def get_org_from_api_key(
 
     try:
         logger.info(f"[AUTH] Looking up API key in centralized organizations dataset")
-        results = list(bq_client.query(
-            query,
-            parameters=[
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=[
                 bigquery.ScalarQueryParameter("org_api_key_hash", "STRING", org_api_key_hash)
-            ]
-        ))
+            ],
+            timeout_ms=10000  # 10 seconds for auth ops
+        )
+        results = list(bq_client.client.query(query, job_config=job_config).result())
 
         if not results:
             logger.warning(f"API key not found in organizations dataset, trying local files")
@@ -1556,12 +1568,13 @@ async def get_org_or_admin_auth(
             LIMIT 1
             """
 
-            results = list(bq_client.query(
-                query,
-                parameters=[
+            job_config = bigquery.QueryJobConfig(
+                query_parameters=[
                     bigquery.ScalarQueryParameter("org_api_key_hash", "STRING", org_api_key_hash)
-                ]
-            ))
+                ],
+                timeout_ms=10000  # 10 seconds for auth ops
+            )
+            results = list(bq_client.client.query(query, job_config=job_config).result())
 
             if results:
                 row = results[0]

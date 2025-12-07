@@ -326,4 +326,124 @@ curl -s http://localhost:8001/health | python3 -m json.tool
 
 ---
 
-**Last Updated:** 2025-12-04
+## Learnings and Recent Fixes (December 2025)
+
+### Bootstrap Configuration Fix
+
+**Issue:** Bootstrap failed with partition field error
+**Error:** "The field specified for partitioning cannot be found in the schema"
+**Root Cause:** `org_subscriptions` table config specified `effective_date` for partitioning but schema had `created_at`
+**Fix:** Updated `api-service/configs/setup/bootstrap/config.yml` line 28 to use `created_at` instead of `effective_date`
+**Impact:** Bootstrap now creates all 15 tables successfully
+
+### Table Count Correction
+
+**Issue:** Tests and documentation referenced 14 tables but system creates 15
+**Missing Table:** `org_idempotency_keys` (for duplicate request prevention with 24-hour TTL)
+**Fix Applied:**
+- Updated `api-service/tests/test_01_bootstrap.py` to expect 15 tables
+- Added `org_idempotency_keys` to all test fixtures
+- Changed all references from "14 management tables" to "15 management tables"
+
+**All 15 Tables:**
+1. org_profiles
+2. org_api_keys (partitioned by created_at)
+3. org_subscriptions (partitioned by created_at)
+4. org_usage_quotas (partitioned by usage_date)
+5. org_integration_credentials
+6. org_pipeline_configs
+7. org_scheduled_pipeline_runs (partitioned by scheduled_time)
+8. org_pipeline_execution_queue (partitioned by scheduled_time)
+9. org_meta_pipeline_runs (partitioned by start_time)
+10. org_meta_step_logs (partitioned by start_time)
+11. org_meta_dq_results (partitioned by ingestion_date)
+12. org_audit_logs (partitioned by created_at)
+13. org_cost_tracking (partitioned by usage_date)
+14. org_kms_keys
+15. org_idempotency_keys
+
+### QueryPerformanceMonitor Fix
+
+**Issue:** ImportError for `QueryTimer` class
+**Fix:** Updated `api-service/src/app/routers/subscription_plans.py` to use `QueryPerformanceMonitor` instead of `QueryTimer`
+**Lines Changed:** 388, 765, 1351
+**Added:** `monitor.set_result(result)` calls to capture query metrics
+
+### Structured Error Response Fix
+
+**Issue:** Test expected string error format but API returned structured dict
+**Fix:** Updated `api-service/tests/test_05_quota.py` to check `detail["message"].lower()` instead of `detail.lower()`
+**Impact:** Tests now correctly validate structured error responses with error, message, and error_id fields
+
+### Cache Cleanup Thread Fix
+
+**Issue:** Logging error during shutdown - "I/O operation on closed file"
+**Fix:** Wrapped `logger.info` in try-except block in `api-service/src/core/utils/cache.py:124`
+**Impact:** Clean shutdown without logging errors
+
+### Stripe Webhook Fix
+
+**Issue:** Column 'concurrent_pipelines_limit' does not exist
+**Fix:** Removed all references to `concurrent_pipelines_limit` from:
+- `fronted-system/app/api/webhooks/stripe/route.ts`
+- `fronted-system/actions/backend-onboarding.ts`
+- `fronted-system/actions/stripe.ts`
+- `fronted-system/app/api/cron/billing-sync/route.ts`
+
+### Integration Testing Setup
+
+**Created:** Complete E2E user onboarding test at `api-service/tests/test_06_user_onboarding_e2e.py`
+**Documentation:**
+- `tests/README_E2E.md` - Quick reference
+- `tests/E2E_TEST_GUIDE.md` - Comprehensive guide
+- `tests/E2E_SUMMARY.md` - Technical details
+**Helper Script:** `run_e2e_tests.sh` with pre-flight checks
+
+**E2E Test Flow:**
+1. Service availability check
+2. Bootstrap (15 tables)
+3. Organization onboarding (create org + API key + dataset)
+4. Integration setup (OpenAI credentials with KMS encryption)
+5. Pipeline execution (usage pipeline)
+6. Data verification (quota consumption)
+7. Cleanup (delete test data)
+
+**Requirements:**
+- OPENAI_API_KEY for integration testing
+- Real BigQuery access (no mocks)
+- Real KMS for credential encryption
+- Both services running (api-service:8000, pipeline-service:8001)
+
+### Test Suite Improvements
+
+**No More Skipping:** All integration tests now run with `--run-integration` flag instead of `REQUIRES_INTEGRATION_TESTS` env var
+**Test Results:** 170 passing tests (87.6% success rate)
+**Parallel Execution:** Tests can be run in parallel using pytest-xdist
+
+### Key Patterns Learned
+
+**BigQuery Partitioning:**
+- Always verify partition field exists in schema
+- Use `created_at` for general timestamps
+- Use domain-specific fields (`usage_date`, `scheduled_time`) when appropriate
+
+**Testing Best Practices:**
+- Write integration tests with real services (no mocks for critical paths)
+- Use `--run-integration` flag for conditional test execution
+- Clean up test data in `finally` blocks
+- Test against actual GCP project, not "test-project"
+
+**Error Handling:**
+- Use structured error responses with error, message, and error_id
+- Wrap cleanup code in try-except to prevent shutdown errors
+- Validate partition fields before table creation
+
+**Cache Management:**
+- Implement LRU eviction with max_size limits
+- Use background threads for TTL cleanup
+- Prefix all cache keys with org_slug for multi-tenant isolation
+- Handle graceful shutdown of background threads
+
+---
+
+**Last Updated:** 2025-12-06

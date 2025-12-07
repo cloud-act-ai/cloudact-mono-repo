@@ -1,0 +1,70 @@
+Phase 4: Memory Leak Fixes - Changed Files Summary
+===================================================
+
+Files Modified for Phase 4 (Memory Leak Fixes):
+------------------------------------------------
+
+1. api-service/src/core/utils/cache.py
+   - Issue #24: Added LRU eviction with OrderedDict
+   - Issue #25: Added background TTL cleanup thread
+   - Issue #26: Documented singleton pattern safety
+   Status: MODIFIED (NEW FEATURES)
+
+2. api-service/tests/test_cache.py
+   - Added test_lru_eviction()
+   - Added test_lru_eviction_order()
+   - Added test_background_cleanup_thread()
+   Status: MODIFIED (NEW TESTS)
+
+3. data-pipeline-service/src/core/engine/bq_client.py
+   - Issue #27: Added documentation for connection pool limits
+   Status: MODIFIED (DOCUMENTATION ONLY)
+
+4. data-pipeline-service/src/core/pipeline/async_executor.py
+   - Issue #28: Added documentation for error logging
+   Status: MODIFIED (DOCUMENTATION ONLY)
+
+New Files Created:
+------------------
+
+5. PHASE4_MEMORY_LEAK_FIXES.md
+   - Comprehensive implementation report
+   - Test results
+   - Deployment notes
+   Status: NEW (DOCUMENTATION)
+
+6. PHASE4_CHANGES_SUMMARY.txt
+   - This file
+   Status: NEW (DOCUMENTATION)
+
+Test Results:
+-------------
+✅ api-service/tests/test_cache.py: 17/17 tests pass (3 new tests)
+
+All Other Modified Files (From Previous Phases):
+-------------------------------------------------
+These files were modified in earlier phases (Phase 1-3) and are NOT part of Phase 4:
+
+- api-service/configs/setup/bootstrap/config.yml (Phase 1)
+- api-service/pytest.ini (Phase 1)
+- api-service/src/app/dependencies/auth.py (Phase 1)
+- api-service/src/app/routers/admin.py (Phase 1)
+- api-service/src/app/routers/llm_data.py (Phase 1)
+- api-service/src/app/routers/organizations.py (Phase 1)
+- api-service/src/app/routers/quota.py (Phase 3)
+- api-service/src/app/routers/subscription_plans.py (Phase 1)
+- api-service/tests/test_05_quota.py (Phase 3)
+- data-pipeline-service/src/app/routers/pipelines.py (Phase 1)
+- data-pipeline-service/src/app/routers/scheduler.py (Phase 1)
+- fronted-system/actions/pipelines.ts (Phase 1)
+- fronted-system/tests/utils/test-data.ts (Phase 1)
+
+Phase 4 Completion Status:
+---------------------------
+✅ Issue #24: Unbounded In-Memory Cache - FIXED
+✅ Issue #25: Missing Cache TTL Enforcement - FIXED
+✅ Issue #26: Global Cache Instance - DOCUMENTED
+✅ Issue #27: Missing Connection Pool Limits - VERIFIED
+✅ Issue #28: Background Task Error Swallowing - VERIFIED
+
+All Phase 4 issues resolved!

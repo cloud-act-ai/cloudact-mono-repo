@@ -423,7 +423,11 @@ class OrgOnboardingProcessor:
                     bigquery.ScalarQueryParameter("default_monthly_limit", "INT64", default_monthly_limit),
                     bigquery.ScalarQueryParameter("default_concurrent_limit", "INT64", default_concurrent_limit),
                 ]
-                list(bq_client.query(quota_insert_query, parameters=query_params))
+                job_config = bigquery.QueryJobConfig(
+                    query_parameters=query_params,
+                    timeout_ms=300000  # 5 minutes for onboarding ops
+                )
+                bq_client.client.query(quota_insert_query, job_config=job_config).result()
                 self.logger.info(
                     f"Created initial quota record for organization {org_slug}",
                     extra={
@@ -481,7 +485,11 @@ class OrgOnboardingProcessor:
                             bigquery.ScalarQueryParameter("test_id", "STRING", test_row["id"]),
                             bigquery.ScalarQueryParameter("test_message", "STRING", test_row["test_message"]),
                         ]
-                        list(bq_client.query(query, parameters=query_params))
+                        job_config = bigquery.QueryJobConfig(
+                            query_parameters=query_params,
+                            timeout_ms=300000  # 5 minutes for onboarding ops
+                        )
+                        bq_client.client.query(query, job_config=job_config).result()
                         self.logger.info(f"Inserted test record into {validation_table}")
                     except Exception as e:
                         self.logger.warning(f"Failed to insert test record: {e}")
@@ -585,7 +593,8 @@ class OrgOnboardingProcessor:
                 view_sql = view_sql.replace('{org_slug}', org_slug)
 
                 # Execute view creation
-                query_job = client.query(view_sql)
+                job_config = bigquery.QueryJobConfig(timeout_ms=300000)  # 5 minutes for onboarding ops
+                query_job = client.query(view_sql, job_config=job_config)
                 query_job.result()  # Wait for completion
 
                 views_created.append(view_name)

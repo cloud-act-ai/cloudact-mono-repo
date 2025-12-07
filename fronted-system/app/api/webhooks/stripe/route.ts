@@ -78,7 +78,6 @@ async function getPlanDetailsFromStripe(priceId: string): Promise<{
     seat_limit: number;
     providers_limit: number;
     pipelines_per_day_limit: number;
-    concurrent_pipelines_limit: number;
   };
 } | null> {
   try {
@@ -119,24 +118,21 @@ async function getPlanDetailsFromStripe(priceId: string): Promise<{
     const seatLimit = parseInt(metadata.teamMembers, 10);
     const providersLimit = parseInt(metadata.providers, 10);
     const pipelinesLimit = parseInt(metadata.pipelinesPerDay, 10);
-    // concurrentPipelines defaults to 2 if not set (for backward compatibility)
-    const concurrentLimit = metadata.concurrentPipelines ? parseInt(metadata.concurrentPipelines, 10) : 2;
 
-    if (isNaN(seatLimit) || isNaN(providersLimit) || isNaN(pipelinesLimit) || isNaN(concurrentLimit)) {
+    if (isNaN(seatLimit) || isNaN(providersLimit) || isNaN(pipelinesLimit)) {
       throw new Error(
         `[Stripe Webhook] CONFIGURATION ERROR: Product ${product.id} has invalid numeric metadata. ` +
         `teamMembers: "${metadata.teamMembers}" (parsed: ${seatLimit}), ` +
         `providers: "${metadata.providers}" (parsed: ${providersLimit}), ` +
-        `pipelinesPerDay: "${metadata.pipelinesPerDay}" (parsed: ${pipelinesLimit}), ` +
-        `concurrentPipelines: "${metadata.concurrentPipelines}" (parsed: ${concurrentLimit}). ` +
+        `pipelinesPerDay: "${metadata.pipelinesPerDay}" (parsed: ${pipelinesLimit}). ` +
         `All values must be valid integers.`,
       );
     }
 
-    if (seatLimit <= 0 || providersLimit <= 0 || pipelinesLimit <= 0 || concurrentLimit <= 0) {
+    if (seatLimit <= 0 || providersLimit <= 0 || pipelinesLimit <= 0) {
       throw new Error(
         `[Stripe Webhook] CONFIGURATION ERROR: Product ${product.id} has non-positive limits. ` +
-        `All limits must be positive integers. Got: seats=${seatLimit}, providers=${providersLimit}, pipelines=${pipelinesLimit}, concurrent=${concurrentLimit}`,
+        `All limits must be positive integers. Got: seats=${seatLimit}, providers=${providersLimit}, pipelines=${pipelinesLimit}`,
       );
     }
 
@@ -144,7 +140,6 @@ async function getPlanDetailsFromStripe(priceId: string): Promise<{
       seat_limit: seatLimit,
       providers_limit: providersLimit,
       pipelines_per_day_limit: pipelinesLimit,
-      concurrent_pipelines_limit: concurrentLimit,
     };
 
     console.log(`[Webhook] Fetched plan from Stripe: ${planId}`, limits);
@@ -337,7 +332,6 @@ export async function POST(request: NextRequest) {
                 : undefined,
               dailyLimit: planDetails.limits.pipelines_per_day_limit,
               monthlyLimit: planDetails.limits.pipelines_per_day_limit * 30,
-              concurrentLimit: planDetails.limits.concurrent_pipelines_limit,
               seatLimit: planDetails.limits.seat_limit,
               providersLimit: planDetails.limits.providers_limit,
             });
@@ -518,7 +512,6 @@ export async function POST(request: NextRequest) {
                 : undefined,
               dailyLimit: planDetails.limits.pipelines_per_day_limit,
               monthlyLimit: planDetails.limits.pipelines_per_day_limit * 30,
-              concurrentLimit: planDetails.limits.concurrent_pipelines_limit,
               seatLimit: planDetails.limits.seat_limit,
               providersLimit: planDetails.limits.providers_limit,
             });

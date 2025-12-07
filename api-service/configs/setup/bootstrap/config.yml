@@ -12,12 +12,21 @@ dataset:
 tables:
   org_profiles:
     description: "Organization profiles"
+    clustering: ["org_slug", "status"]
 
   org_api_keys:
     description: "API keys (SHA256 hashed)"
+    partition:
+      type: "DAY"
+      field: "created_at"
+    clustering: ["org_slug", "is_active"]
 
   org_subscriptions:
     description: "Subscription plans and limits"
+    partition:
+      type: "DAY"
+      field: "created_at"
+    clustering: ["org_slug", "status", "plan_name"]
 
   org_usage_quotas:
     description: "Usage tracking"
@@ -32,6 +41,7 @@ tables:
 
   org_pipeline_configs:
     description: "Pipeline configurations"
+    clustering: ["org_slug", "provider", "is_active"]
 
   org_scheduled_pipeline_runs:
     description: "Scheduled pipeline runs"

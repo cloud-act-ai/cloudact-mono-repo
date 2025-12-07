@@ -198,6 +198,11 @@ class BigQueryClient:
                     # Configure adapter with connection pool settings
                     # pool_block=True provides backpressure: requests wait for available connection
                     # This prevents connection drops under extreme load (10k+ concurrent users)
+                    #
+                    # MEMORY LEAK FIX #27: Connection pool limits enforced
+                    # - pool_connections=500: Max connection pools to cache (prevents unbounded growth)
+                    # - pool_maxsize=500: Max connections per pool (hard limit on HTTP connections)
+                    # - pool_block=True: Block when pool full (provides backpressure, prevents OOM)
                     adapter = requests.adapters.HTTPAdapter(
                         pool_connections=500,  # Number of connection pools to cache
                         pool_maxsize=500,      # Max connections per pool

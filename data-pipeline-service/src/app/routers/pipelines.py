@@ -816,16 +816,19 @@ async def trigger_pipeline(
                 detail=f"Monthly pipeline quota exceeded. Limit: {quota['monthly_limit']}. Please upgrade or wait until next month."
             )
 
-        if quota["concurrent_pipelines_running"] >= quota["concurrent_limit"]:
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail=f"Concurrent pipeline limit exceeded. You have {quota['concurrent_pipelines_running']} pipelines running (limit: {quota['concurrent_limit']}). Please wait for a pipeline to complete."
-            )
+        # NOTE: Concurrent limit check is now ATOMIC inside the INSERT query below
+        # This prevents race conditions where multiple requests check the limit simultaneously
+        # and all increment the counter, exceeding the limit.
 
-        # NOTE: Concurrent counter increment moved to background task wrapper (run_async_pipeline_task)
-        # This ensures increment only happens if background task actually starts
-
-        logger.info(f"Quota check passed for org: {org_slug}")
+        logger.info(
+            f"Quota check passed for org: {org_slug}",
+            daily_used=quota["pipelines_run_today"],
+            daily_limit=quota["daily_limit"],
+            monthly_used=quota["pipelines_run_month"],
+            monthly_limit=quota["monthly_limit"],
+            concurrent_running=quota["concurrent_pipelines_running"],
+            concurrent_limit=quota["concurrent_limit"]
+        )
 
     except HTTPException:
         raise
@@ -849,7 +852,9 @@ async def trigger_pipeline(
     import uuid
     pipeline_logging_id = str(uuid.uuid4())
 
-    # ATOMIC: Insert pipeline run ONLY IF no RUNNING/PENDING pipeline exists
+    # ATOMIC: Insert pipeline run ONLY IF:
+    # 1. No RUNNING/PENDING pipeline exists (prevent duplicates)
+    # 2. Concurrent limit not exceeded (prevent race condition)
     # This single DML operation prevents race conditions by being atomic
     insert_query = f"""
     INSERT INTO `{settings.gcp_project_id}.organizations.org_meta_pipeline_runs`
@@ -874,6 +879,13 @@ async def trigger_pipeline(
         WHERE org_slug = @org_slug
           AND pipeline_id = @pipeline_id
           AND status IN ('RUNNING', 'PENDING')
+    )
+    AND (
+        -- ATOMIC concurrent limit check
+        SELECT COALESCE(concurrent_pipelines_running, 0) < COALESCE(concurrent_limit, 999999)
+        FROM `{settings.gcp_project_id}.organizations.org_usage_quotas`
+        WHERE org_slug = @org_slug
+          AND usage_date = CURRENT_DATE()
     )
     """
 
@@ -923,9 +935,11 @@ async def trigger_pipeline(
             message=f"Pipeline {pipeline_id} triggered successfully (async mode)"
         )
     else:
-        # INSERT was blocked - pipeline already running/pending
-        # Query to get the existing pipeline_logging_id
-        check_query = f"""
+        # INSERT was blocked - either duplicate pipeline OR concurrent limit exceeded
+        # Check which condition caused the failure
+
+        # First check: Is there a duplicate pipeline running?
+        duplicate_check_query = f"""
         SELECT pipeline_logging_id
         FROM `{settings.gcp_project_id}.organizations.org_meta_pipeline_runs`
         WHERE org_slug = @org_slug
@@ -935,23 +949,53 @@ async def trigger_pipeline(
         LIMIT 1
         """
 
-        check_job_config = bigquery.QueryJobConfig(
+        duplicate_check_config = bigquery.QueryJobConfig(
             query_parameters=[
                 bigquery.ScalarQueryParameter("org_slug", "STRING", org.org_slug),
                 bigquery.ScalarQueryParameter("pipeline_id", "STRING", pipeline_id),
             ]
         )
 
-        existing_runs = list(bq_client.client.query(check_query, job_config=check_job_config).result())
-        existing_pipeline_logging_id = existing_runs[0]["pipeline_logging_id"] if existing_runs else "unknown"
+        existing_runs = list(bq_client.client.query(duplicate_check_query, job_config=duplicate_check_config).result())
 
-        return TriggerPipelineResponse(
-            pipeline_logging_id=existing_pipeline_logging_id,
-            pipeline_id=pipeline_id,
-            org_slug=org.org_slug,
-            status="RUNNING",
-            message=f"Pipeline {pipeline_id} already running or pending - returning existing execution {existing_pipeline_logging_id}"
-        )
+        if existing_runs:
+            # Duplicate pipeline - return existing execution
+            existing_pipeline_logging_id = existing_runs[0]["pipeline_logging_id"]
+            return TriggerPipelineResponse(
+                pipeline_logging_id=existing_pipeline_logging_id,
+                pipeline_id=pipeline_id,
+                org_slug=org.org_slug,
+                status="RUNNING",
+                message=f"Pipeline {pipeline_id} already running or pending - returning existing execution {existing_pipeline_logging_id}"
+            )
+        else:
+            # No duplicate - must be concurrent limit exceeded
+            # Re-fetch current quota to show accurate error message
+            quota_check_query = f"""
+            SELECT concurrent_pipelines_running, concurrent_limit
+            FROM `{settings.gcp_project_id}.organizations.org_usage_quotas`
+            WHERE org_slug = @org_slug
+              AND usage_date = CURRENT_DATE()
+            """
+
+            quota_check_config = bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("org_slug", "STRING", org.org_slug),
+                ]
+            )
+
+            quota_results = list(bq_client.client.query(quota_check_query, job_config=quota_check_config).result())
+            if quota_results:
+                current_running = quota_results[0].get("concurrent_pipelines_running", 0)
+                concurrent_limit = quota_results[0].get("concurrent_limit", 1)
+            else:
+                current_running = 0
+                concurrent_limit = 1
+
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Concurrent pipeline limit exceeded. You have {current_running} pipelines running (limit: {concurrent_limit}). Please wait for a pipeline to complete."
+            )
 
 
 @router.get(

@@ -115,7 +115,8 @@ async def list_pricing(
         ORDER BY model_id
         """
 
-        result = bq_client.client.query(query).result()
+        job_config = bigquery.QueryJobConfig(timeout_ms=30000)  # 30 second timeout for user queries
+        result = bq_client.client.query(query, job_config=job_config).result()
         pricing = [dict(row) for row in result]
 
         return OpenAIPricingListResponse(
@@ -180,7 +181,8 @@ async def get_pricing(
         job_config = bigquery.QueryJobConfig(
             query_parameters=[
                 bigquery.ScalarQueryParameter("model_id", "STRING", model_id),
-            ]
+            ],
+            timeout_ms=30000  # 30 second timeout for user queries
         )
 
         result = bq_client.client.query(query, job_config=job_config).result()
@@ -237,7 +239,8 @@ async def create_pricing(
         job_config = bigquery.QueryJobConfig(
             query_parameters=[
                 bigquery.ScalarQueryParameter("model_id", "STRING", pricing.model_id),
-            ]
+            ],
+            timeout_ms=10000  # 10 second timeout for auth operations
         )
         result = bq_client.client.query(check_query, job_config=job_config).result()
         if list(result)[0].cnt > 0:
@@ -355,7 +358,10 @@ async def update_pricing(
         WHERE model_id = @model_id
         """
 
-        job_config = bigquery.QueryJobConfig(query_parameters=query_params)
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=query_params,
+            timeout_ms=30000  # 30 second timeout for user operations
+        )
         result = bq_client.client.query(query, job_config=job_config).result()
 
         logger.info(f"Updated pricing for model {model_id} in {org_slug}")
@@ -406,7 +412,8 @@ async def delete_pricing(
         job_config = bigquery.QueryJobConfig(
             query_parameters=[
                 bigquery.ScalarQueryParameter("model_id", "STRING", model_id),
-            ]
+            ],
+            timeout_ms=30000  # 30 second timeout for user operations
         )
 
         bq_client.client.query(query, job_config=job_config).result()
@@ -505,7 +512,8 @@ async def list_subscriptions(
         ORDER BY plan_name
         """
 
-        result = bq_client.client.query(query).result()
+        job_config = bigquery.QueryJobConfig(timeout_ms=30000)  # 30 second timeout for user queries
+        result = bq_client.client.query(query, job_config=job_config).result()
         subscriptions = [dict(row) for row in result]
 
         return OpenAISubscriptionListResponse(
@@ -570,7 +578,8 @@ async def get_subscription(
         job_config = bigquery.QueryJobConfig(
             query_parameters=[
                 bigquery.ScalarQueryParameter("plan_name", "STRING", plan_name),
-            ]
+            ],
+            timeout_ms=30000  # 30 second timeout for user queries
         )
 
         result = bq_client.client.query(query, job_config=job_config).result()
@@ -627,7 +636,8 @@ async def create_subscription(
         job_config = bigquery.QueryJobConfig(
             query_parameters=[
                 bigquery.ScalarQueryParameter("subscription_id", "STRING", subscription.subscription_id),
-            ]
+            ],
+            timeout_ms=10000  # 10 second timeout for auth operations
         )
         result = bq_client.client.query(check_query, job_config=job_config).result()
         if list(result)[0].cnt > 0:
@@ -741,7 +751,10 @@ async def update_subscription(
         WHERE plan_name = @plan_name
         """
 
-        job_config = bigquery.QueryJobConfig(query_parameters=query_params)
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=query_params,
+            timeout_ms=30000  # 30 second timeout for user operations
+        )
         bq_client.client.query(query, job_config=job_config).result()
 
         logger.info(f"Updated subscription {plan_name} in {org_slug}")
@@ -792,7 +805,8 @@ async def delete_subscription(
         job_config = bigquery.QueryJobConfig(
             query_parameters=[
                 bigquery.ScalarQueryParameter("plan_name", "STRING", plan_name),
-            ]
+            ],
+            timeout_ms=30000  # 30 second timeout for user operations
         )
 
         bq_client.client.query(query, job_config=job_config).result()

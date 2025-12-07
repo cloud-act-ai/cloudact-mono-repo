@@ -22,6 +22,9 @@ from src.core.security.kms_encryption import encrypt_value
 from src.app.config import settings
 from src.app.dependencies.auth import get_current_org, get_org_or_admin_auth, AuthResult, verify_admin_key
 from src.app.models.org_models import SUBSCRIPTION_LIMITS, SubscriptionPlan, UpdateLimitsRequest
+from src.core.utils.audit_logger import log_create, log_update, log_delete, log_audit, AuditLogger
+from src.core.utils.error_handling import safe_error_response
+from src.core.utils.validators import validate_org_slug, validate_email
 from google.cloud import bigquery
 import uuid
 
@@ -932,7 +935,24 @@ async def onboard_org(
             logger.warning(f"Failed to store idempotency key: {e}")
 
     # ============================================
-    # STEP 8: Return response
+    # STEP 8: Audit logging (Issue #32)
+    # ============================================
+    await log_create(
+        org_slug=org_slug,
+        resource_type=AuditLogger.RESOURCE_ORG,
+        resource_id=org_slug,
+        details={
+            "company_name": request.company_name,
+            "admin_email": request.admin_email,
+            "subscription_plan": request.subscription_plan,
+            "dataset_location": dataset_location,
+            "tables_created": len(tables_created)
+        },
+        status=AuditLogger.STATUS_SUCCESS
+    )
+
+    # ============================================
+    # STEP 9: Return response
     # ============================================
     logger.info(f"Organization onboarding completed - org_slug: {org_slug}")
 
@@ -1121,13 +1141,38 @@ async def rotate_api_key(
             }
         )
 
+        # Issue #32: Audit logging for API key rotation
+        await log_audit(
+            org_slug=org_slug,
+            action=AuditLogger.ACTION_ROTATE,
+            resource_type=AuditLogger.RESOURCE_API_KEY,
+            resource_id=org_api_key_id,
+            details={
+                "previous_keys_revoked": True,
+                "fingerprint": api_key_fingerprint
+            },
+            status=AuditLogger.STATUS_SUCCESS
+        )
+
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Failed to generate/store new API key: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to generate new API key. Please check server logs for details."
+
+        # Issue #32: Audit log failure
+        await log_audit(
+            org_slug=org_slug,
+            action=AuditLogger.ACTION_ROTATE,
+            resource_type=AuditLogger.RESOURCE_API_KEY,
+            status=AuditLogger.STATUS_FAILURE,
+            error_message=str(e)
+        )
+
+        # Issue #29: Generic error message
+        raise safe_error_response(
+            error=e,
+            operation="rotate API key",
+            context={"org_slug": org_slug}
         )
 
     return RotateApiKeyResponse(
@@ -1623,6 +1668,23 @@ async def update_subscription_limits(
         }
     )
 
+    # Issue #32: Audit logging for subscription update
+    await log_update(
+        org_slug=org_slug,
+        resource_type=AuditLogger.RESOURCE_SUBSCRIPTION,
+        resource_id=org_slug,
+        details={
+            "plan_name": plan_name,
+            "status": subscription_status,
+            "daily_limit": daily_limit,
+            "monthly_limit": monthly_limit,
+            "concurrent_limit": concurrent_limit,
+            "seat_limit": seat_limit,
+            "providers_limit": providers_limit
+        },
+        status=AuditLogger.STATUS_SUCCESS
+    )
+
     return UpdateSubscriptionLimitsResponse(
         org_slug=org_slug,
         plan_name=plan_name,
@@ -1761,6 +1823,18 @@ async def delete_organization(
                 "deleted_tables": deleted_tables,
                 "dataset_deleted": dataset_deleted
             }
+        )
+
+        # Issue #32: Audit logging for organization deletion
+        await log_delete(
+            org_slug=org_slug,
+            resource_type=AuditLogger.RESOURCE_ORG,
+            resource_id=org_slug,
+            details={
+                "deleted_tables": deleted_tables,
+                "dataset_deleted": dataset_deleted
+            },
+            status=AuditLogger.STATUS_SUCCESS
         )
 
         return DeleteOrgResponse(
