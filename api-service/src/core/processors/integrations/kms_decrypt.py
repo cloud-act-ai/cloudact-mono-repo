@@ -121,7 +121,7 @@ class KMSDecryptIntegrationProcessor:
                         bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
                         bigquery.ScalarQueryParameter("provider", "STRING", provider),
                     ],
-                    timeout_ms=60000  # 60 seconds for integration ops
+                    job_timeout_ms=60000  # 60 seconds for integration ops
                 )
             ).result())
 
@@ -271,7 +271,7 @@ class GetIntegrationStatusProcessor:
                     query_parameters=[
                         bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
                     ],
-                    timeout_ms=60000  # 60 seconds for integration ops
+                    job_timeout_ms=60000  # 60 seconds for integration ops
                 )
             ).result())
 

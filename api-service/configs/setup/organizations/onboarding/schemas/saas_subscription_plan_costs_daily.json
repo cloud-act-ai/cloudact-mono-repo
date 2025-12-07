@@ -63,7 +63,13 @@
     "name": "unit",
     "type": "STRING",
     "mode": "NULLABLE",
-    "description": "Unit of measure. Example: 'seat', 'license'."
+    "description": "Unit of measure. 'seat' for PER_SEAT, 'subscription' for FLAT_FEE."
+  },
+  {
+    "name": "pricing_model",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Pricing model: PER_SEAT or FLAT_FEE."
   },
   {
     "name": "cycle_cost",

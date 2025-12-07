@@ -530,13 +530,6 @@ The schema was expanded from 14 columns to 25 columns to support enterprise-grad
 - `yearly_discount_pct` → `discount_type` + `discount_value` (more flexible)
 - `is_enabled` → `status` (more granular states)
 
-**Columns Removed (4):**
-- `storage_limit_gb` - Moved to notes or custom fields
-- `monthly_usage_limit` - Moved to notes or custom fields
-- `projects_limit` - Moved to notes or custom fields
-- `members_limit` - Moved to notes or custom fields
-- `is_custom` - Inferred from seed data presence
-
 **Columns Retained (10):**
 - `subscription_id` - UUID identifier
 - `provider` - Provider key

@@ -76,6 +76,40 @@ const sanitizeProviderName = (provider: string): string => {
     .slice(0, 50)                  // Limit length
 }
 
+// Valid enum values for plan fields
+const VALID_BILLING_CYCLES = new Set(["monthly", "annual", "quarterly"])
+const VALID_PRICING_MODELS = new Set(["PER_SEAT", "FLAT_FEE"])
+const VALID_DISCOUNT_TYPES = new Set(["percent", "fixed"])
+const VALID_STATUS_VALUES = new Set(["active", "cancelled", "expired"])
+
+/**
+ * Validate plan data before sending to API
+ */
+function validatePlanData(plan: PlanCreate | PlanUpdate): { valid: boolean; error?: string } {
+  if ("billing_cycle" in plan && plan.billing_cycle && !VALID_BILLING_CYCLES.has(plan.billing_cycle)) {
+    return { valid: false, error: `Invalid billing_cycle: ${plan.billing_cycle}. Must be: monthly, annual, or quarterly` }
+  }
+  if ("pricing_model" in plan && plan.pricing_model && !VALID_PRICING_MODELS.has(plan.pricing_model)) {
+    return { valid: false, error: `Invalid pricing_model: ${plan.pricing_model}. Must be: PER_SEAT or FLAT_FEE` }
+  }
+  if ("discount_type" in plan && plan.discount_type && !VALID_DISCOUNT_TYPES.has(plan.discount_type)) {
+    return { valid: false, error: `Invalid discount_type: ${plan.discount_type}. Must be: percent or fixed` }
+  }
+  if ("status" in plan && plan.status && !VALID_STATUS_VALUES.has(plan.status)) {
+    return { valid: false, error: `Invalid status: ${plan.status}. Must be: active, cancelled, or expired` }
+  }
+  return { valid: true }
+}
+
+/**
+ * Validate subscription ID format
+ */
+const isValidSubscriptionId = (id: string): boolean => {
+  if (!id || typeof id !== "string") return false
+  // Subscription IDs should be alphanumeric with underscores/hyphens, reasonable length
+  return /^[a-zA-Z0-9_-]{5,100}$/.test(id)
+}
+
 interface AuthResult {
   user: { id: string; user_metadata?: Record<string, unknown> }
   orgId: string
@@ -850,6 +884,12 @@ export async function createCustomPlan(
       return { success: false, error: "Invalid provider name" }
     }
 
+    // Validate plan data
+    const planValidation = validatePlanData(plan)
+    if (!planValidation.valid) {
+      return { success: false, error: planValidation.error }
+    }
+
     await requireRole(orgSlug, "admin")
 
     const orgApiKey = await getOrgApiKeySecure(orgSlug)
@@ -902,9 +942,15 @@ export async function updatePlan(
       return { success: false, error: "Invalid provider name" }
     }
 
-    // Validate subscription ID
-    if (!subscriptionId || typeof subscriptionId !== "string" || subscriptionId.trim().length < 1) {
-      return { success: false, error: "Invalid subscription ID" }
+    // Validate subscription ID format
+    if (!isValidSubscriptionId(subscriptionId)) {
+      return { success: false, error: "Invalid subscription ID format" }
+    }
+
+    // Validate update data
+    const updateValidation = validatePlanData(updates)
+    if (!updateValidation.valid) {
+      return { success: false, error: updateValidation.error }
     }
 
     await requireRole(orgSlug, "admin")
@@ -973,9 +1019,9 @@ export async function deletePlan(
       return { success: false, error: "Invalid provider name" }
     }
 
-    // Validate subscription ID
-    if (!subscriptionId || typeof subscriptionId !== "string" || subscriptionId.trim().length < 1) {
-      return { success: false, error: "Invalid subscription ID" }
+    // Validate subscription ID format
+    if (!isValidSubscriptionId(subscriptionId)) {
+      return { success: false, error: "Invalid subscription ID format" }
     }
 
     await requireRole(orgSlug, "admin")

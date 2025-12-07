@@ -7,12 +7,21 @@ Designed for calling procedures in the organizations dataset that operate on per
 """
 
 import logging
+import re
+import asyncio
 from typing import Dict, Any, List, Optional
 from datetime import date, datetime
 from google.cloud import bigquery
+from google.api_core import retry
+from google.api_core.exceptions import GoogleAPIError
 
 from src.app.config import get_settings
 from src.core.engine.bq_client import BigQueryClient
+
+# Validation patterns for SQL injection prevention
+PROCEDURE_NAME_PATTERN = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*$')
+PARAM_NAME_PATTERN = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*$')
+DATASET_NAME_PATTERN = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*$')
 
 
 class ProcedureExecutorProcessor:
@@ -75,12 +84,26 @@ class ProcedureExecutorProcessor:
         config = step_config.get("config", {})
         procedure_config = config.get("procedure", {})
 
-        # 1. Get procedure details
+        # 1. Get and validate procedure details
         procedure_name = procedure_config.get("name")
         if not procedure_name:
             return {"status": "FAILED", "error": "procedure.name is required"}
 
+        # SQL injection prevention - validate procedure name
+        if not PROCEDURE_NAME_PATTERN.match(procedure_name):
+            return {
+                "status": "FAILED",
+                "error": f"Invalid procedure name: {procedure_name}. Must match pattern [a-zA-Z_][a-zA-Z0-9_]*"
+            }
+
         procedure_dataset = procedure_config.get("dataset", "organizations")
+
+        # Validate dataset name
+        if not DATASET_NAME_PATTERN.match(procedure_dataset):
+            return {
+                "status": "FAILED",
+                "error": f"Invalid dataset name: {procedure_dataset}. Must match pattern [a-zA-Z_][a-zA-Z0-9_]*"
+            }
 
         # 2. Build context for parameter resolution
         project_id = self.settings.gcp_project_id
@@ -112,8 +135,16 @@ class ProcedureExecutorProcessor:
             param_type = param.get("type", "STRING").upper()
             param_value = param.get("value")
 
-            if not param_name:
+            if not param_name or not param_name.strip():
+                self.logger.warning("Skipping parameter with empty or whitespace name")
                 continue
+
+            # Validate parameter name to prevent SQL injection
+            if not PARAM_NAME_PATTERN.match(param_name):
+                return {
+                    "status": "FAILED",
+                    "error": f"Invalid parameter name: {param_name}. Must match pattern [a-zA-Z_][a-zA-Z0-9_]*"
+                }
 
             # Resolve value from context if it's a template variable
             resolved_value = self._resolve_value(param_value, resolution_context)
@@ -124,8 +155,12 @@ class ProcedureExecutorProcessor:
 
             # Convert to appropriate BigQuery parameter type
             bq_param = self._create_bq_parameter(param_name, param_type, resolved_value)
-            if bq_param:
-                query_parameters.append(bq_param)
+            if bq_param is None:
+                return {
+                    "status": "FAILED",
+                    "error": f"Failed to convert parameter {param_name} to type {param_type}"
+                }
+            query_parameters.append(bq_param)
 
         # 4. Build CALL statement
         procedure_full_name = f"`{project_id}.{procedure_dataset}`.{procedure_name}"
@@ -144,18 +179,40 @@ class ProcedureExecutorProcessor:
             }
         )
 
-        # 5. Execute the procedure
+        # 5. Execute the procedure with timeout and retry
         bq_client = BigQueryClient(project_id=project_id)
 
+        # Get timeout from step config (default 10 minutes, max 60 minutes)
+        timeout_minutes = min(step_config.get("timeout_minutes", 10), 60)
+        timeout_ms = timeout_minutes * 60 * 1000
+
         job_config = bigquery.QueryJobConfig(
-            query_parameters=query_parameters
+            query_parameters=query_parameters,
+            job_timeout_ms=timeout_ms
         )
 
         try:
-            query_job = bq_client.client.query(call_sql, job_config=job_config)
+            # Use asyncio to run blocking BigQuery calls in executor
+            loop = asyncio.get_event_loop()
 
-            # Wait for completion and get results
-            results = list(query_job.result())
+            # Execute query with retry for transient errors
+            @retry.Retry(
+                predicate=retry.if_transient_error,
+                initial=1.0,
+                maximum=10.0,
+                multiplier=2.0,
+                deadline=timeout_minutes * 60
+            )
+            def execute_query():
+                return bq_client.client.query(call_sql, job_config=job_config)
+
+            query_job = await loop.run_in_executor(None, execute_query)
+
+            # Wait for completion in executor
+            def get_results():
+                return list(query_job.result(timeout=timeout_minutes * 60))
+
+            results = await loop.run_in_executor(None, get_results)
 
             # Parse result rows if any
             result_data = []
@@ -181,6 +238,44 @@ class ProcedureExecutorProcessor:
                 "parameters": {p.name: str(p.value) for p in query_parameters}
             }
 
+        except GoogleAPIError as e:
+            error_msg = str(e)
+            self.logger.error(
+                f"BigQuery API error executing procedure: {procedure_name}",
+                exc_info=True,
+                extra={
+                    "procedure": procedure_name,
+                    "org_slug": org_slug,
+                    "error": error_msg,
+                    "error_type": type(e).__name__
+                }
+            )
+            return {
+                "status": "FAILED",
+                "procedure": procedure_name,
+                "error": error_msg,
+                "error_type": "BigQueryAPIError",
+                "org_slug": org_slug
+            }
+
+        except asyncio.TimeoutError:
+            error_msg = f"Procedure execution timed out after {timeout_minutes} minutes"
+            self.logger.error(
+                error_msg,
+                extra={
+                    "procedure": procedure_name,
+                    "org_slug": org_slug,
+                    "timeout_minutes": timeout_minutes
+                }
+            )
+            return {
+                "status": "FAILED",
+                "procedure": procedure_name,
+                "error": error_msg,
+                "error_type": "Timeout",
+                "org_slug": org_slug
+            }
+
         except Exception as e:
             error_msg = str(e)
             self.logger.error(
@@ -189,13 +284,15 @@ class ProcedureExecutorProcessor:
                 extra={
                     "procedure": procedure_name,
                     "org_slug": org_slug,
-                    "error": error_msg
+                    "error": error_msg,
+                    "error_type": type(e).__name__
                 }
             )
             return {
                 "status": "FAILED",
                 "procedure": procedure_name,
                 "error": error_msg,
+                "error_type": type(e).__name__,
                 "org_slug": org_slug
             }
 
@@ -240,19 +337,29 @@ class ProcedureExecutorProcessor:
         """
         try:
             if param_type == "DATE":
-                # Convert string to date if needed
+                # Convert string to date if needed - support multiple formats
                 if isinstance(value, str):
-                    value = datetime.strptime(value, "%Y-%m-%d").date()
+                    # Try ISO 8601 format with time first
+                    if 'T' in value:
+                        value = datetime.fromisoformat(value.replace("Z", "+00:00")).date()
+                    else:
+                        value = datetime.strptime(value, "%Y-%m-%d").date()
                 elif isinstance(value, datetime):
                     value = value.date()
+                elif not isinstance(value, date):
+                    raise ValueError(f"Cannot convert {type(value).__name__} to DATE")
                 return bigquery.ScalarQueryParameter(name, "DATE", value)
 
             elif param_type == "TIMESTAMP":
                 if isinstance(value, str):
                     value = datetime.fromisoformat(value.replace("Z", "+00:00"))
+                elif not isinstance(value, datetime):
+                    raise ValueError(f"Cannot convert {type(value).__name__} to TIMESTAMP")
                 return bigquery.ScalarQueryParameter(name, "TIMESTAMP", value)
 
             elif param_type == "INT64":
+                if isinstance(value, float) and not value.is_integer():
+                    raise ValueError(f"Cannot convert float {value} to INT64 (has decimal)")
                 return bigquery.ScalarQueryParameter(name, "INT64", int(value))
 
             elif param_type == "FLOAT64":
@@ -266,8 +373,15 @@ class ProcedureExecutorProcessor:
             else:  # STRING and default
                 return bigquery.ScalarQueryParameter(name, "STRING", str(value))
 
-        except Exception as e:
-            self.logger.error(f"Failed to create parameter {name}: {e}")
+        except (ValueError, TypeError) as e:
+            self.logger.error(
+                f"Failed to create parameter {name}: {e}",
+                extra={
+                    "param_name": name,
+                    "param_type": param_type,
+                    "value_type": type(value).__name__
+                }
+            )
             return None
 
 

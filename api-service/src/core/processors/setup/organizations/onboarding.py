@@ -425,7 +425,7 @@ class OrgOnboardingProcessor:
                 ]
                 job_config = bigquery.QueryJobConfig(
                     query_parameters=query_params,
-                    timeout_ms=300000  # 5 minutes for onboarding ops
+                    job_timeout_ms=300000  # 5 minutes for onboarding ops
                 )
                 bq_client.client.query(quota_insert_query, job_config=job_config).result()
                 self.logger.info(
@@ -487,7 +487,7 @@ class OrgOnboardingProcessor:
                         ]
                         job_config = bigquery.QueryJobConfig(
                             query_parameters=query_params,
-                            timeout_ms=300000  # 5 minutes for onboarding ops
+                            job_timeout_ms=300000  # 5 minutes for onboarding ops
                         )
                         bq_client.client.query(query, job_config=job_config).result()
                         self.logger.info(f"Inserted test record into {validation_table}")
@@ -593,7 +593,7 @@ class OrgOnboardingProcessor:
                 view_sql = view_sql.replace('{org_slug}', org_slug)
 
                 # Execute view creation
-                job_config = bigquery.QueryJobConfig(timeout_ms=300000)  # 5 minutes for onboarding ops
+                job_config = bigquery.QueryJobConfig(job_timeout_ms=300000)  # 5 minutes for onboarding ops
                 query_job = client.query(view_sql, job_config=job_config)
                 query_job.result()  # Wait for completion
 

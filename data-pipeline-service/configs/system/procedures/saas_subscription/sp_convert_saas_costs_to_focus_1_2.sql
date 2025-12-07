@@ -71,7 +71,11 @@ BEGIN
         spc.org_slug, 'Organization', 'Organization',
         spc.daily_cost, spc.currency,
         spc.daily_cost, spc.cycle_cost, spc.currency, spc.quantity, spc.unit,
-        CASE WHEN spc.seats > 0 THEN spc.cycle_cost / spc.seats ELSE spc.cycle_cost END,
+        -- UnitPrice: For PER_SEAT, calculate per-seat price; for FLAT_FEE, use cycle_cost
+        CASE
+          WHEN spc.pricing_model = 'PER_SEAT' AND spc.seats > 0 THEN spc.cycle_cost / spc.seats
+          ELSE spc.cycle_cost
+        END,
         spc.quantity, spc.unit,
         'Subscription', 'Recurring',
         CONCAT('Subscription: ', spc.display_name, ' (', spc.plan_name, ')'),
@@ -81,7 +85,8 @@ BEGIN
         NULL, 'Global', 'Global',
         'SaaS', spc.display_name, spc.plan_name,
         'SaaS', 'Amortized',
-        CASE WHEN spc.billing_cycle IN ('annual','yearly','year') THEN 'Flat-fee Subscription' ELSE 'Seat-based Subscription' END,
+        -- UsageType: Based on pricing_model, not billing_cycle
+        CASE WHEN spc.pricing_model = 'FLAT_FEE' THEN 'Flat-fee Subscription' ELSE 'Seat-based Subscription' END,
         spc.plan_name, NULL, NULL, NULL,
         DATE_TRUNC(spc.cost_date, MONTH),
         DATE_SUB(DATE_ADD(DATE_TRUNC(spc.cost_date, MONTH), INTERVAL 1 MONTH), INTERVAL 1 DAY),

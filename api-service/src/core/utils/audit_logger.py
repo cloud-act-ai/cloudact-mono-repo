@@ -128,7 +128,7 @@ class AuditLogger:
                     bigquery.ScalarQueryParameter("status", "STRING", status),
                     bigquery.ScalarQueryParameter("error_message", "STRING", error_message)
                 ],
-                timeout_ms=60000  # 60 seconds for audit logging
+                job_timeout_ms=60000  # 60 seconds for audit logging
             )
 
             bq_client.client.query(insert_query, job_config=job_config).result()

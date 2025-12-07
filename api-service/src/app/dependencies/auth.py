@@ -214,7 +214,7 @@ class AuthMetricsAggregator:
                     query_parameters=[
                         bigquery.ArrayQueryParameter("key_ids", "STRING", valid_key_ids)
                     ],
-                    timeout_ms=10000  # 10 seconds for auth ops
+                    job_timeout_ms=10000  # 10 seconds for auth ops
                 )
             ).result()
 
@@ -422,7 +422,7 @@ async def get_current_org(
             query_parameters=[
                 bigquery.ScalarQueryParameter("org_api_key_hash", "STRING", org_api_key_hash)
             ],
-            timeout_ms=10000  # 10 seconds for auth ops
+            job_timeout_ms=10000  # 10 seconds for auth ops
         )
         results = list(bq_client.client.query(query, job_config=job_config).result())
 
@@ -625,7 +625,7 @@ async def validate_quota(
                 bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
                 bigquery.ScalarQueryParameter("usage_date", "DATE", today)
             ],
-            timeout_ms=10000  # 10 seconds for auth ops
+            job_timeout_ms=10000  # 10 seconds for auth ops
         )
         results = list(bq_client.client.query(query, job_config=job_config).result())
 
@@ -661,7 +661,7 @@ async def validate_quota(
                         bigquery.ScalarQueryParameter("monthly_limit", "INT64", subscription["max_pipelines_per_month"]),
                         bigquery.ScalarQueryParameter("concurrent_limit", "INT64", subscription["max_concurrent_pipelines"])
                     ],
-                    timeout_ms=10000  # 10 seconds for auth ops
+                    job_timeout_ms=10000  # 10 seconds for auth ops
                 )
             ).result()
 
@@ -823,7 +823,7 @@ async def reserve_pipeline_quota_atomic(
                         bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
                         bigquery.ScalarQueryParameter("usage_date", "DATE", today)
                     ],
-                    timeout_ms=10000  # 10 seconds for auth ops
+                    job_timeout_ms=10000  # 10 seconds for auth ops
                 )
             ).result())
 
@@ -924,7 +924,7 @@ async def increment_pipeline_usage(
                         bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
                         bigquery.ScalarQueryParameter("usage_date", "DATE", today)
                     ],
-                    timeout_ms=10000  # 10 seconds for auth ops
+                    job_timeout_ms=10000  # 10 seconds for auth ops
                 )
             ).result()
 
@@ -961,7 +961,7 @@ async def increment_pipeline_usage(
                         bigquery.ScalarQueryParameter("success_increment", "INT64", success_increment),
                         bigquery.ScalarQueryParameter("failed_increment", "INT64", failed_increment)
                     ],
-                    timeout_ms=10000  # 10 seconds for auth ops
+                    job_timeout_ms=10000  # 10 seconds for auth ops
                 )
             ).result()
 
@@ -1027,7 +1027,7 @@ async def get_org_credentials(
                 bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
                 bigquery.ScalarQueryParameter("provider", "STRING", provider.upper())
             ],
-            timeout_ms=10000  # 10 seconds for auth ops
+            job_timeout_ms=10000  # 10 seconds for auth ops
         )
         results = list(bq_client.client.query(query, job_config=job_config).result())
 
@@ -1134,7 +1134,7 @@ async def get_provider_config(
                 bigquery.ScalarQueryParameter("provider", "STRING", provider.upper()),
                 bigquery.ScalarQueryParameter("domain", "STRING", domain.upper())
             ],
-            timeout_ms=10000  # 10 seconds for auth ops
+            job_timeout_ms=10000  # 10 seconds for auth ops
         )
         results = list(bq_client.client.query(query, job_config=job_config).result())
 
@@ -1266,7 +1266,7 @@ async def get_org_from_api_key(
             query_parameters=[
                 bigquery.ScalarQueryParameter("org_api_key_hash", "STRING", org_api_key_hash)
             ],
-            timeout_ms=10000  # 10 seconds for auth ops
+            job_timeout_ms=10000  # 10 seconds for auth ops
         )
         results = list(bq_client.client.query(query, job_config=job_config).result())
 
@@ -1572,7 +1572,7 @@ async def get_org_or_admin_auth(
                 query_parameters=[
                     bigquery.ScalarQueryParameter("org_api_key_hash", "STRING", org_api_key_hash)
                 ],
-                timeout_ms=10000  # 10 seconds for auth ops
+                job_timeout_ms=10000  # 10 seconds for auth ops
             )
             results = list(bq_client.client.query(query, job_config=job_config).result())
 

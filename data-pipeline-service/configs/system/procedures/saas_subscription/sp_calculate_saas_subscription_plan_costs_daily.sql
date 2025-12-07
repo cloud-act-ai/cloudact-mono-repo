@@ -52,7 +52,7 @@ BEGIN
       INSERT INTO `%s.%s.saas_subscription_plan_costs_daily` (
         org_slug, provider, subscription_id, plan_name, display_name,
         cost_date, billing_cycle, currency,
-        seats, quantity, unit,
+        seats, quantity, unit, pricing_model,
         cycle_cost, daily_cost, monthly_run_rate, annual_run_rate,
         invoice_id_last, source, updated_at
       )
@@ -91,8 +91,12 @@ BEGIN
       expanded AS (
         SELECT
           p.org_slug, p.provider, p.subscription_id, p.plan_name, p.display_name,
-          day AS cost_date, p.billing_cycle, p.currency, p.seats,
-          CAST(p.seats AS NUMERIC) AS quantity, 'seat' AS unit, p.cycle_cost,
+          day AS cost_date, p.billing_cycle, p.currency, p.seats, p.pricing_model,
+          -- quantity: For FLAT_FEE, always 1; for PER_SEAT, use seats
+          CASE WHEN p.pricing_model = 'FLAT_FEE' THEN CAST(1 AS NUMERIC) ELSE CAST(p.seats AS NUMERIC) END AS quantity,
+          -- unit: For FLAT_FEE, 'subscription'; for PER_SEAT, 'seat'
+          CASE WHEN p.pricing_model = 'FLAT_FEE' THEN 'subscription' ELSE 'seat' END AS unit,
+          p.cycle_cost,
           CAST(
             CASE
               WHEN p.cycle_cost IS NULL THEN NULL
@@ -105,7 +109,7 @@ BEGIN
         UNNEST(GENERATE_DATE_ARRAY(GREATEST(p.start_date, @p_start), LEAST(COALESCE(p.end_date, DATE('2099-12-31')), @p_end))) AS day
       )
       SELECT org_slug, provider, subscription_id, plan_name, display_name,
-        cost_date, billing_cycle, currency, seats, quantity, unit, cycle_cost, daily_cost,
+        cost_date, billing_cycle, currency, seats, quantity, unit, pricing_model, cycle_cost, daily_cost,
         CASE WHEN daily_cost IS NULL THEN NULL ELSE daily_cost * EXTRACT(DAY FROM LAST_DAY(cost_date)) END,
         CASE WHEN daily_cost IS NULL THEN NULL ELSE daily_cost * DATE_DIFF(DATE_ADD(DATE(EXTRACT(YEAR FROM cost_date), 1, 1), INTERVAL 1 YEAR), DATE(EXTRACT(YEAR FROM cost_date), 1, 1), DAY) END,
         invoice_id_last, 'subscription_proration', CURRENT_TIMESTAMP()
