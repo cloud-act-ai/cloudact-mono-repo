@@ -1122,62 +1122,251 @@ sp_run_saas_subscription_costs_pipeline
     └── 4. Return completion status
 ```
 
-### Pipeline Execution Flow
+### Complete Pipeline Execution Flow
 
 ```
-+-----------------------------------------------------------------------------------+
-| STEP 1: Customer Dataset Tables (created during org onboarding)                   |
-| {project_id}.{org_slug}_prod.saas_subscription_plans                              |
-| {project_id}.{org_slug}_prod.saas_subscription_plan_costs_daily                   |
-| {project_id}.{org_slug}_prod.cost_data_standard_1_2                               |
-+-----------------------------------------------------------------------------------+
-                                       |
-                                       v
-+-----------------------------------------------------------------------------------+
-| STEP 2: User manages subscriptions via UI/API                                     |
-| - Enable provider → seed default plans                                            |
-| - Add/edit/delete custom plans                                                    |
-| - Set seats, pricing, discounts                                                   |
-+-----------------------------------------------------------------------------------+
-                                       |
-                                       v
-+-----------------------------------------------------------------------------------+
-| STEP 3: Pipeline runs (daily scheduler or ad-hoc)                                 |
-| POST /api/v1/pipelines/run/{org}/subscription/cost/saas_cost                      |
-|                                                                                   |
-| Calls: sp_run_saas_subscription_costs_pipeline(project, dataset, start, end)      |
-+-----------------------------------------------------------------------------------+
-                                       |
-                                       v
-           +----------------------------------------------------------+
-           | Stage 1: Calculate Daily Costs                           |
-           | sp_calculate_saas_subscription_plan_costs_daily          |
-           |                                                          |
-           | 1. Read active subscriptions                             |
-           | 2. Apply pricing model (PER_SEAT / FLAT_FEE)             |
-           | 3. Apply discounts (percent / fixed)                     |
-           | 4. Calculate: cycle_cost / days_in_cycle = daily_cost    |
-           | 5. Write to saas_subscription_plan_costs_daily           |
-           +----------------------------------------------------------+
-                                       |
-                                       v
-           +----------------------------------------------------------+
-           | Stage 2: Convert to FOCUS 1.2 Standard                   |
-           | sp_convert_saas_costs_to_focus_1_2                       |
-           |                                                          |
-           | 1. Read from saas_subscription_plan_costs_daily          |
-           | 2. Map to FOCUS 1.2 columns                              |
-           | 3. Set ChargeCategory = 'Subscription'                   |
-           | 4. Write to cost_data_standard_1_2                       |
-           +----------------------------------------------------------+
-                                       |
-                                       v
-+-----------------------------------------------------------------------------------+
-| STEP 4: Cost data available for dashboards and analytics                          |
-| - Daily costs in saas_subscription_plan_costs_daily                               |
-| - Standardized costs in cost_data_standard_1_2                                    |
-| - Can aggregate with GCP, LLM, and other costs                                    |
-+-----------------------------------------------------------------------------------+
+┌─────────────────────────────────────────────────────────────────────────────────────────┐
+│                              EXTERNAL TRIGGER LAYER                                      │
+├─────────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                          │
+│  ┌─────────────────────────────────────────────────────────────────────────────────┐    │
+│  │                         CLOUD SCHEDULER (GCP)                                    │    │
+│  │                                                                                  │    │
+│  │  Job: saas-subscription-costs-daily                                              │    │
+│  │  Schedule: 0 3 * * * (Daily at 03:00 UTC)                                        │    │
+│  │  Target: Cloud Run / Pipeline Service                                            │    │
+│  │  Payload: { "trigger_type": "scheduled", "date": "YYYY-MM-DD" }                 │    │
+│  │                                                                                  │    │
+│  └─────────────────────────────────────────────────────────────────────────────────┘    │
+│                                         │                                                │
+│                   ┌─────────────────────┴─────────────────────┐                         │
+│                   │                                           │                         │
+│                   v                                           v                         │
+│  ┌─────────────────────────────────┐      ┌─────────────────────────────────┐          │
+│  │      SCHEDULED TRIGGER          │      │        AD-HOC TRIGGER           │          │
+│  │   (Automated Daily Run)         │      │     (Manual/API Request)        │          │
+│  │                                 │      │                                 │          │
+│  │  POST /scheduler/trigger        │      │  POST /pipelines/run/{org}/     │          │
+│  │  Iterates all active orgs       │      │  saas_subscription/costs/       │          │
+│  │                                 │      │  saas_cost                      │          │
+│  └─────────────────────────────────┘      └─────────────────────────────────┘          │
+│                   │                                           │                         │
+│                   └─────────────────────┬─────────────────────┘                         │
+│                                         │                                                │
+└─────────────────────────────────────────┼────────────────────────────────────────────────┘
+                                          │
+                                          v
+┌─────────────────────────────────────────────────────────────────────────────────────────┐
+│                              PIPELINE SERVICE LAYER (Port 8001)                          │
+├─────────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                          │
+│  ┌─────────────────────────────────────────────────────────────────────────────────┐    │
+│  │                      PIPELINE EXECUTOR                                           │    │
+│  │                                                                                  │    │
+│  │  Config: configs/saas_subscription/costs/saas_cost.yml                           │    │
+│  │  Pipeline ID: {org_slug}-saas-subscription-costs                                 │    │
+│  │                                                                                  │    │
+│  │  1. Load pipeline configuration                                                  │    │
+│  │  2. Resolve context variables:                                                   │    │
+│  │     • ${project_id} → gac-prod-471220                                           │    │
+│  │     • ${org_dataset} → {org_slug}_prod                                          │    │
+│  │     • ${start_date} → Pipeline parameter or yesterday                           │    │
+│  │     • ${end_date} → Pipeline parameter or yesterday                             │    │
+│  │  3. Execute step: run_cost_pipeline                                              │    │
+│  │                                                                                  │    │
+│  └─────────────────────────────────────────────────────────────────────────────────┘    │
+│                                         │                                                │
+│                                         v                                                │
+│  ┌─────────────────────────────────────────────────────────────────────────────────┐    │
+│  │                   PROCESSOR: generic.procedure_executor                          │    │
+│  │                                                                                  │    │
+│  │  File: src/core/processors/generic/procedure_executor.py                         │    │
+│  │                                                                                  │    │
+│  │  1. Build CALL statement with parameters                                         │    │
+│  │  2. Convert parameter types (STRING, DATE, etc.)                                 │    │
+│  │  3. Execute BigQuery procedure call                                              │    │
+│  │                                                                                  │    │
+│  │  CALL `{project_id}.organizations`.sp_run_saas_subscription_costs_pipeline(      │    │
+│  │    @p_project_id,   -- 'gac-prod-471220'                                         │    │
+│  │    @p_dataset_id,   -- '{org_slug}_prod'                                         │    │
+│  │    @p_start_date,   -- DATE('2024-01-15')                                        │    │
+│  │    @p_end_date      -- DATE('2024-01-15')                                        │    │
+│  │  )                                                                               │    │
+│  │                                                                                  │    │
+│  └─────────────────────────────────────────────────────────────────────────────────┘    │
+│                                                                                          │
+└──────────────────────────────────────────┬──────────────────────────────────────────────┘
+                                           │
+                                           v
+┌─────────────────────────────────────────────────────────────────────────────────────────┐
+│                              BIGQUERY PROCEDURE LAYER                                    │
+├─────────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                          │
+│  ┌─────────────────────────────────────────────────────────────────────────────────┐    │
+│  │          ORCHESTRATOR: sp_run_saas_subscription_costs_pipeline                   │    │
+│  │          Location: {project_id}.organizations                                    │    │
+│  │                                                                                  │    │
+│  │  1. Validate parameters (NULL checks, date range ≤ 366 days)                    │    │
+│  │  2. CALL Stage 1 procedure                                                       │    │
+│  │  3. CALL Stage 2 procedure                                                       │    │
+│  │  4. Return completion status                                                     │    │
+│  │                                                                                  │    │
+│  └─────────────────────────────────────────────────────────────────────────────────┘    │
+│                                         │                                                │
+│              ┌──────────────────────────┴──────────────────────────┐                    │
+│              │                                                      │                    │
+│              v                                                      v                    │
+│  ┌───────────────────────────────────────────┐  ┌───────────────────────────────────────┐
+│  │  STAGE 1: Calculate Daily Costs           │  │  STAGE 2: Convert to FOCUS 1.2       │
+│  │  sp_calculate_saas_subscription_plan_     │  │  sp_convert_saas_costs_to_focus_1_2  │
+│  │  costs_daily                              │  │                                       │
+│  │                                           │  │  INPUT:                               │
+│  │  INPUT:                                   │  │  └── saas_subscription_plan_costs_   │
+│  │  └── saas_subscription_plans              │  │      daily                            │
+│  │      (dimension table)                    │  │                                       │
+│  │                                           │  │  PROCESS:                             │
+│  │  PROCESS:                                 │  │  ┌─────────────────────────────────┐ │
+│  │  ┌─────────────────────────────────────┐  │  │  │ 1. BEGIN TRANSACTION             │ │
+│  │  │ 1. BEGIN TRANSACTION                │  │  │  │                                 │ │
+│  │  │                                     │  │  │  │ 2. DELETE existing records      │ │
+│  │  │ 2. DELETE existing records          │  │  │  │    WHERE ChargePeriodStart      │ │
+│  │  │    WHERE cost_date BETWEEN          │  │  │  │    BETWEEN start AND end        │ │
+│  │  │    start_date AND end_date          │  │  │  │    AND SourceSystem =           │ │
+│  │  │                                     │  │  │  │    'saas_subscription_costs_    │ │
+│  │  │ 3. Read active subscriptions:       │  │  │  │    daily'                       │ │
+│  │  │    • WHERE status = 'active'        │  │  │  │                                 │ │
+│  │  │    • start_date <= end_date param   │  │  │  │ 3. INSERT mapped data:          │ │
+│  │  │    • end_date >= start_date param   │  │  │  │    ┌───────────────────────────┐│ │
+│  │  │                                     │  │  │  │    │ FOCUS 1.2 Mapping:        ││ │
+│  │  │ 4. Apply pricing model:             │  │  │  │    │ • ChargeCategory =        ││ │
+│  │  │    ┌─────────────────────────────┐  │  │  │  │    │   'Subscription'          ││ │
+│  │  │    │ PER_SEAT:                   │  │  │  │  │    │ • ChargeClass =           ││ │
+│  │  │    │   cycle_cost = unit_price   │  │  │  │  │    │   'Recurring'             ││ │
+│  │  │    │              × seats        │  │  │  │  │    │ • ServiceCategory =       ││ │
+│  │  │    │                             │  │  │  │  │    │   'SaaS'                  ││ │
+│  │  │    │ FLAT_FEE:                   │  │  │  │  │    │ • BilledCost =            ││ │
+│  │  │    │   cycle_cost = unit_price   │  │  │  │  │    │   daily_cost              ││ │
+│  │  │    └─────────────────────────────┘  │  │  │  │    │ • SourceSystem =          ││ │
+│  │  │                                     │  │  │  │    │   'saas_subscription_     ││ │
+│  │  │ 5. Apply discounts:                 │  │  │  │    │   costs_daily'            ││ │
+│  │  │    ┌─────────────────────────────┐  │  │  │  │    │ • SourceRecordId =        ││ │
+│  │  │    │ percent: cycle_cost ×       │  │  │  │  │    │   subscription_id         ││ │
+│  │  │    │   (1 - discount_value/100)  │  │  │  │  │    └───────────────────────────┘│ │
+│  │  │    │                             │  │  │  │  │                                 │ │
+│  │  │    │ fixed: cycle_cost -         │  │  │  │  │ 4. COMMIT TRANSACTION           │ │
+│  │  │    │   discount_value            │  │  │  │  └─────────────────────────────────┘ │
+│  │  │    └─────────────────────────────┘  │  │  │                                       │
+│  │  │                                     │  │  │  OUTPUT:                              │
+│  │  │ 6. Calculate daily cost:            │  │  │  └── cost_data_standard_1_2          │
+│  │  │    ┌─────────────────────────────┐  │  │  │      (67 columns FOCUS 1.2)          │
+│  │  │    │ monthly:                    │  │  │  │                                       │
+│  │  │    │   daily = cycle_cost /      │  │  │  │  IDEMPOTENCY:                         │
+│  │  │    │     days_in_month           │  │  │  │  └── Only affects records where      │
+│  │  │    │                             │  │  │  │      SourceSystem = 'saas_           │
+│  │  │    │ annual:                     │  │  │  │      subscription_costs_daily'       │
+│  │  │    │   daily = cycle_cost /      │  │  │  │      Other cost sources preserved    │
+│  │  │    │     days_in_year            │  │  │  │                                       │
+│  │  │    │   (365 or 366 for leap)     │  │  │  └───────────────────────────────────────┘
+│  │  │    └─────────────────────────────┘  │  │
+│  │  │                                     │  │
+│  │  │ 7. Generate date series:            │  │
+│  │  │    UNNEST(GENERATE_DATE_ARRAY(      │  │
+│  │  │      start_date, end_date)) AS day  │  │
+│  │  │                                     │  │
+│  │  │ 8. Calculate run rates:             │  │
+│  │  │    • monthly_run_rate =             │  │
+│  │  │      daily × days_in_month          │  │
+│  │  │    • annual_run_rate =              │  │
+│  │  │      daily × days_in_year           │  │
+│  │  │                                     │  │
+│  │  │ 9. INSERT to target table           │  │
+│  │  │                                     │  │
+│  │  │ 10. COMMIT TRANSACTION              │  │
+│  │  └─────────────────────────────────────┘  │
+│  │                                           │
+│  │  OUTPUT:                                  │
+│  │  └── saas_subscription_plan_costs_daily   │
+│  │      (18 columns, partitioned by         │
+│  │       cost_date)                          │
+│  │                                           │
+│  └───────────────────────────────────────────┘
+│                                                                                          │
+└──────────────────────────────────────────┬──────────────────────────────────────────────┘
+                                           │
+                                           v
+┌─────────────────────────────────────────────────────────────────────────────────────────┐
+│                              OUTPUT DATA LAYER                                           │
+├─────────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                          │
+│  Dataset: {project_id}.{org_slug}_prod                                                  │
+│                                                                                          │
+│  ┌─────────────────────────────────────────────────────────────────────────────────┐    │
+│  │                    saas_subscription_plan_costs_daily                            │    │
+│  │                                                                                  │    │
+│  │  Partition: DAY on cost_date                                                     │    │
+│  │  Cluster: org_slug, subscription_id                                              │    │
+│  │                                                                                  │    │
+│  │  Sample Row:                                                                     │    │
+│  │  ┌────────────┬───────────┬─────────────┬─────────────┬───────────┬──────────┐  │    │
+│  │  │ cost_date  │ provider  │ plan_name   │ daily_cost  │ seats     │ cycle_   │  │    │
+│  │  │            │           │             │             │           │ cost     │  │    │
+│  │  ├────────────┼───────────┼─────────────┼─────────────┼───────────┼──────────┤  │    │
+│  │  │ 2024-01-15 │ canva     │ PRO         │ 0.49        │ 10        │ 15.00    │  │    │
+│  │  │ 2024-01-15 │ slack     │ BUSINESS    │ 4.92        │ 50        │ 150.00   │  │    │
+│  │  │ 2024-01-15 │ openai    │ PLUS        │ 0.66        │ 5         │ 100.00   │  │    │
+│  │  └────────────┴───────────┴─────────────┴─────────────┴───────────┴──────────┘  │    │
+│  │                                                                                  │    │
+│  └─────────────────────────────────────────────────────────────────────────────────┘    │
+│                                         │                                                │
+│                                         v                                                │
+│  ┌─────────────────────────────────────────────────────────────────────────────────┐    │
+│  │                         cost_data_standard_1_2                                   │    │
+│  │                      (FinOps FOCUS 1.2 Standard)                                 │    │
+│  │                                                                                  │    │
+│  │  Partition: DAY on ChargePeriodStart                                             │    │
+│  │  Cluster: SubAccountId, Provider                                                 │    │
+│  │                                                                                  │    │
+│  │  Unified Cost View - Aggregates:                                                 │    │
+│  │  ┌─────────────────────────────────────────────────────────────────────────┐    │    │
+│  │  │ SourceSystem                    │ Description                           │    │    │
+│  │  ├─────────────────────────────────┼───────────────────────────────────────┤    │    │
+│  │  │ saas_subscription_costs_daily   │ SaaS subscription costs (this pipe)   │    │    │
+│  │  │ gcp_billing_export              │ GCP cloud costs                       │    │    │
+│  │  │ openai_usage_daily              │ OpenAI API usage costs                │    │    │
+│  │  │ anthropic_usage_daily           │ Anthropic API usage costs             │    │    │
+│  │  └─────────────────────────────────┴───────────────────────────────────────┘    │    │
+│  │                                                                                  │    │
+│  │  All sources conform to FOCUS 1.2 → Single dashboard for all costs              │    │
+│  │                                                                                  │    │
+│  └─────────────────────────────────────────────────────────────────────────────────┘    │
+│                                                                                          │
+└──────────────────────────────────────────┬──────────────────────────────────────────────┘
+                                           │
+                                           v
+┌─────────────────────────────────────────────────────────────────────────────────────────┐
+│                              CONSUMPTION LAYER                                           │
+├─────────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                          │
+│  ┌───────────────────────┐  ┌───────────────────────┐  ┌───────────────────────┐        │
+│  │     DASHBOARDS        │  │      ANALYTICS        │  │       REPORTS         │        │
+│  │                       │  │                       │  │                       │        │
+│  │  • Cost Overview      │  │  • Trend Analysis     │  │  • Monthly Summaries  │        │
+│  │  • Provider Breakdown │  │  • Cost Forecasting   │  │  • Department Reports │        │
+│  │  • Department Costs   │  │  • Anomaly Detection  │  │  • Budget vs Actual   │        │
+│  │  • Subscription Mgmt  │  │  • Usage Patterns     │  │  • Cost Allocation    │        │
+│  │                       │  │                       │  │                       │        │
+│  └───────────────────────┘  └───────────────────────┘  └───────────────────────┘        │
+│                                                                                          │
+│  Query Example:                                                                          │
+│  ┌─────────────────────────────────────────────────────────────────────────────────┐    │
+│  │  SELECT ServiceName, SUM(BilledCost) as total_cost                              │    │
+│  │  FROM cost_data_standard_1_2                                                     │    │
+│  │  WHERE ChargePeriodStart BETWEEN '2024-01-01' AND '2024-01-31'                  │    │
+│  │  GROUP BY ServiceName                                                            │    │
+│  │  ORDER BY total_cost DESC                                                        │    │
+│  └─────────────────────────────────────────────────────────────────────────────────┘    │
+│                                                                                          │
+└─────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### How to Run
