@@ -23,16 +23,23 @@ BEGIN
       
       seats INT64 OPTIONS(description="Number of licensed seats/users purchased. Used for PER_SEAT pricing calculations."),
       pricing_model STRING OPTIONS(description="Cost calculation logic. 'PER_SEAT' implies (Unit Price * Seats). 'FLAT_FEE' implies (Unit Price only)."),
-      unit_price_usd NUMERIC OPTIONS(description="Price per unit. If PER_SEAT, this is price per user. If FLAT_FEE, this is total platform price."),
-      yearly_price_usd NUMERIC OPTIONS(description="Annual equivalent price if billed yearly using flat fee logic."),
-      
+      unit_price_usd FLOAT64 OPTIONS(description="Price per unit. If PER_SEAT, this is price per user. If FLAT_FEE, this is total platform price."),
+      yearly_price_usd FLOAT64 OPTIONS(description="Annual equivalent price if billed yearly using flat fee logic."),
+
       discount_type STRING OPTIONS(description="Type of discount applied. Values: 'percent', 'fixed'."),
-      discount_value NUMERIC OPTIONS(description="Value of the discount. E.g., 20 for 20%% or 20$ off."),
+      discount_value INT64 OPTIONS(description="Value of the discount. E.g., 20 for 20%% or 20$ off."),
       
       auto_renew BOOLEAN OPTIONS(description="Flag indicating if the subscription auto-renews at end_date."),
       payment_method STRING OPTIONS(description="Payment instrument used. Example: 'credit_card', 'invoice'."),
       invoice_id_last STRING OPTIONS(description="Reference to the most recent invoice ID for audit."),
-      
+
+      -- Additional fields for tracking
+      owner_email STRING OPTIONS(description="Budget owner email for notifications."),
+      department STRING OPTIONS(description="Department or cost center for chargeback."),
+      renewal_date DATE OPTIONS(description="Next renewal date."),
+      contract_id STRING OPTIONS(description="Reference to contract document."),
+      notes STRING OPTIONS(description="Contract notes and comments."),
+
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP() OPTIONS(description="Timestamp of the last row update.")
     )
     PARTITION BY start_date
@@ -169,6 +176,34 @@ BEGIN
     CLUSTER BY SubAccountId, Provider
     OPTIONS(
       description="Standardized billing data adhering to FinOps FOCUS 1.2. Optimized for cross-cloud cost reporting and analysis."
+    );
+  """, v_project_id, v_dataset_id);
+
+  -- 4. Subscription Audit Trail
+  EXECUTE IMMEDIATE FORMAT("""
+    CREATE TABLE IF NOT EXISTS `%s.%s.org_subscription_audit` (
+      audit_id STRING NOT NULL OPTIONS(description="Unique audit record ID."),
+      org_slug STRING NOT NULL OPTIONS(description="Organization identifier."),
+      subscription_id STRING NOT NULL OPTIONS(description="Reference to subscription_plans.subscription_id."),
+
+      -- What changed
+      action STRING NOT NULL OPTIONS(description="Action type: 'created', 'updated', 'cancelled', 'renewed', 'seat_change'."),
+      changed_field STRING OPTIONS(description="Which field was changed."),
+      old_value STRING OPTIONS(description="Previous value."),
+      new_value STRING OPTIONS(description="New value."),
+
+      -- Who/When
+      changed_by STRING OPTIONS(description="User who made the change."),
+      changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP() OPTIONS(description="Timestamp of the change."),
+
+      -- Context
+      reason STRING OPTIONS(description="Reason for the change."),
+      source STRING DEFAULT 'manual' OPTIONS(description="Source: 'manual', 'api', 'sync', 'pipeline'.")
+    )
+    PARTITION BY DATE(changed_at)
+    CLUSTER BY org_slug, subscription_id
+    OPTIONS(
+      description="Audit trail for subscription changes. Tracks all modifications for compliance and analysis."
     );
   """, v_project_id, v_dataset_id);
 END;

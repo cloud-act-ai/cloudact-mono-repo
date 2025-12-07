@@ -1,6 +1,0 @@
-Error in query string: Error processing job 'gac-
-prod-471220:bqjob_r6cc7954b006ff68a_0000019af52a79a8_1': Query error:
-Unrecognized name: updated_at at [gac-
-prod-471220.procedure_testsing.sp_calculate_subscription_plan_costs_daily:28:16]
-at [gac-
-prod-471220.procedure_testsing.sp_calculate_subscription_plan_costs_daily:211:3]

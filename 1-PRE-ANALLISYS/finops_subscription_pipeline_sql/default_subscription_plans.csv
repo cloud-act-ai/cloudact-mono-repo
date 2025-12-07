@@ -1,4 +1,4 @@
-org_slug,subscription_id,provider,plan_name,display_name,category,status,start_date,end_date,billing_cycle,currency,seats,pricing_model,unit_price_usd,yearly_price_usd,discount_type,discount_value,auto_renew,payment_method,invoice_id_last
-guru_inc_123,sub_openai_01,openai,team,ChatGPT Team,AI,active,2024-01-01,2025-12-07,monthly,USD,2,PER_SEAT,30.00,,percent,0,true,credit_card,inv_open_001
-guru_inc_123,sub_canva_01,canva,pro,Canva Pro,Design,active,2024-03-01,2025-12-07,annual,USD,1,PER_SEAT,,120.00,percent,0,true,credit_card,inv_canva_001
-guru_inc_123,sub_claude_01,anthropic,pro,Claude Pro,AI,active,2024-02-01,,monthly,USD,1,PER_SEAT,20.00,,percent,0,true,credit_card,inv_anth_001
+org_slug,subscription_id,provider,plan_name,display_name,category,status,start_date,end_date,billing_cycle,currency,seats,pricing_model,unit_price_usd,yearly_price_usd,discount_type,discount_value,auto_renew,payment_method,invoice_id_last,owner_email,department,renewal_date,contract_id,notes
+,sub_openai_01,openai,team,ChatGPT Team,AI,active,2024-01-01,2025-12-07,monthly,USD,0,PER_SEAT,30.00,,percent,0,true,credit_card,inv_open_001,finance@guru-inc.com,Engineering,2025-12-07,CTR-OPENAI-2024,Team collaboration tool
+,sub_canva_01,canva,pro,Canva Pro,Design,active,2024-03-01,2025-12-07,annual,USD,0,PER_SEAT,,120.00,percent,0,true,credit_card,inv_canva_001,finance@guru-inc.com,Marketing,2025-12-07,CTR-CANVA-2024,Design platform
+,sub_claude_01,anthropic,pro,Claude Pro,AI,active,2024-02-01,,monthly,USD,0,PER_SEAT,20.00,,percent,0,true,credit_card,inv_anth_001,finance@guru-inc.com,Engineering,,CTR-ANTHROPIC-2024,AI assistant
