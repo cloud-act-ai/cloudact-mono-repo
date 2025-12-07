@@ -174,55 +174,71 @@ export interface ProviderInfo {
 }
 
 export interface SubscriptionPlan {
+  org_slug: string
   subscription_id: string
   provider: string
   plan_name: string
   display_name?: string
-  is_custom: boolean
-  quantity: number
-  unit_price_usd: number
-  effective_date?: string
-  end_date?: string
-  is_enabled: boolean
-  billing_period: string
   category: string
-  notes?: string
-  daily_limit?: number
-  monthly_limit?: number
-  storage_limit_gb?: number
-  yearly_price_usd?: number
-  yearly_discount_pct?: number
+  status: 'active' | 'cancelled' | 'expired'
+  start_date?: string
+  end_date?: string
+  billing_cycle: string
+  currency: string
   seats: number
-  created_at?: string
+  pricing_model: 'PER_SEAT' | 'FLAT_FEE'
+  unit_price_usd: number
+  yearly_price_usd?: number
+  discount_type?: 'percent' | 'fixed'
+  discount_value?: number
+  auto_renew: boolean
+  payment_method?: string
+  invoice_id_last?: string
+  owner_email?: string
+  department?: string
+  renewal_date?: string
+  contract_id?: string
+  notes?: string
   updated_at?: string
 }
 
 export interface PlanCreate {
   plan_name: string
   display_name?: string
-  quantity?: number
   unit_price_usd: number
-  billing_period?: string
-  notes?: string
-  daily_limit?: number
-  monthly_limit?: number
-  yearly_price_usd?: number
-  yearly_discount_pct?: number
+  billing_cycle?: string
   seats?: number
+  pricing_model?: 'PER_SEAT' | 'FLAT_FEE'
+  yearly_price_usd?: number
+  discount_type?: 'percent' | 'fixed'
+  discount_value?: number
+  auto_renew?: boolean
+  payment_method?: string
+  owner_email?: string
+  department?: string
+  renewal_date?: string
+  contract_id?: string
+  notes?: string
 }
 
 export interface PlanUpdate {
   display_name?: string
-  quantity?: number
   unit_price_usd?: number
-  is_enabled?: boolean
-  billing_period?: string
-  notes?: string
-  daily_limit?: number
-  monthly_limit?: number
-  yearly_price_usd?: number
-  yearly_discount_pct?: number
+  status?: 'active' | 'cancelled' | 'expired'
+  billing_cycle?: string
   seats?: number
+  pricing_model?: 'PER_SEAT' | 'FLAT_FEE'
+  yearly_price_usd?: number
+  discount_type?: 'percent' | 'fixed'
+  discount_value?: number
+  auto_renew?: boolean
+  payment_method?: string
+  owner_email?: string
+  department?: string
+  renewal_date?: string
+  contract_id?: string
+  notes?: string
+  end_date?: string
 }
 
 // ============================================
@@ -924,7 +940,7 @@ export async function updatePlan(
 }
 
 /**
- * Toggle plan enabled/disabled
+ * Toggle plan active/cancelled
  */
 export async function togglePlan(
   orgSlug: string,
@@ -935,7 +951,7 @@ export async function togglePlan(
   success: boolean
   error?: string
 }> {
-  const result = await updatePlan(orgSlug, provider, subscriptionId, { is_enabled: enabled })
+  const result = await updatePlan(orgSlug, provider, subscriptionId, { status: enabled ? 'active' : 'cancelled' })
   return { success: result.success, error: result.error }
 }
 

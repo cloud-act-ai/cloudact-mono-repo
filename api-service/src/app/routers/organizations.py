@@ -844,12 +844,29 @@ async def onboard_org(
                     "dataset_id": org_slug,
                     "location": dataset_location,
                     "metadata_tables": [
-                        # SaaS Subscription Plans table (unified for all providers)
+                        # SaaS Subscription Plans table (dimension table)
                         {
                             "table_name": "saas_subscription_plans",
                             "schema_file": "saas_subscription_plans.json",
-                            "description": "Unified SaaS subscription plans (Canva, Slack, ChatGPT Plus, etc.)",
-                            "clustering_fields": ["provider", "plan_name"]
+                            "description": "Master dimension table for SaaS subscriptions. Contains terms, pricing, and active windows.",
+                            "partition_field": "start_date",
+                            "clustering_fields": ["org_slug", "provider"]
+                        },
+                        # Daily Amortized Costs (fact table)
+                        {
+                            "table_name": "saas_subscription_plan_costs_daily",
+                            "schema_file": "saas_subscription_plan_costs_daily.json",
+                            "description": "Daily fact table. Granular daily cost breakdown for every active subscription.",
+                            "partition_field": "cost_date",
+                            "clustering_fields": ["org_slug", "subscription_id"]
+                        },
+                        # FOCUS 1.2 Standardized Cost Data (common table for all cost sources)
+                        {
+                            "table_name": "cost_data_standard_1_2",
+                            "schema_file": "cost_data_standard_1_2.json",
+                            "description": "Standardized billing data adhering to FinOps FOCUS 1.2 for cross-cloud cost reporting.",
+                            "partition_field": "ChargePeriodStart",
+                            "clustering_fields": ["SubAccountId", "Provider"]
                         },
                         # LLM Model Pricing table (unified for all providers)
                         {

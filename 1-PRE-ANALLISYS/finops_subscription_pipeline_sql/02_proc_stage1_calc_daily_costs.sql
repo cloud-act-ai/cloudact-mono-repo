@@ -1,4 +1,4 @@
-CREATE OR REPLACE PROCEDURE `gac-prod-471220.procedure_testsing`.sp_calculate_subscription_plan_costs_daily(
+CREATE OR REPLACE PROCEDURE `gac-prod-471220.procedure_testsing`.sp_calculate_saas_subscription_plan_costs_daily(
   p_start_date DATE,
   p_end_date DATE,
   p_org_slug STRING
@@ -6,7 +6,7 @@ CREATE OR REPLACE PROCEDURE `gac-prod-471220.procedure_testsing`.sp_calculate_su
 OPTIONS(strict_mode=TRUE)
 BEGIN
   --------------------------------------------------------------------------------
-  -- PROCEDURE: sp_calculate_subscription_plan_costs_daily
+  -- PROCEDURE: sp_calculate_saas_subscription_plan_costs_daily
   -- PURPOSE: Expands active subscription plans into daily cost rows.
   -- INPUTS:
   --   p_start_date: Start of processing window (inclusive)
@@ -34,7 +34,7 @@ BEGIN
     IF p_org_slug IS NOT NULL THEN
       -- Specific org - uses partition + cluster efficiently
       EXECUTE IMMEDIATE FORMAT("""
-        DELETE FROM `%s.%s.subscription_plan_costs_daily`
+        DELETE FROM `%s.%s.saas_subscription_plan_costs_daily`
         WHERE cost_date BETWEEN @p_start AND @p_end
           AND org_slug = @p_org
       """, v_project_id, v_dataset_id)
@@ -42,7 +42,7 @@ BEGIN
     ELSE
       -- All orgs - partition prune only
       EXECUTE IMMEDIATE FORMAT("""
-        DELETE FROM `%s.%s.subscription_plan_costs_daily`
+        DELETE FROM `%s.%s.saas_subscription_plan_costs_daily`
         WHERE cost_date BETWEEN @p_start AND @p_end
       """, v_project_id, v_dataset_id)
       USING p_start_date AS p_start, p_end_date AS p_end;
@@ -51,7 +51,7 @@ BEGIN
     -- 4. Insert daily costs
     IF p_org_slug IS NOT NULL THEN
       SET v_sql = FORMAT("""
-        INSERT INTO `%s.%s.subscription_plan_costs_daily` (
+        INSERT INTO `%s.%s.saas_subscription_plan_costs_daily` (
           org_slug, provider, subscription_id, plan_name, display_name,
           cost_date, billing_cycle, currency,
           seats, quantity, unit,
@@ -70,7 +70,7 @@ BEGIN
               WHEN LOWER(COALESCE(sp.billing_cycle, 'monthly')) IN ('annual','yearly','year') THEN sp.yearly_price_usd
             END AS base_price,
             sp.discount_type, sp.discount_value, sp.start_date, sp.end_date, sp.invoice_id_last
-          FROM `%s.%s.subscription_plans` sp
+          FROM `%s.%s.saas_subscription_plans` sp
           WHERE sp.status = 'active'
             AND sp.org_slug = @p_org
             AND (sp.start_date <= @p_end OR sp.start_date IS NULL)
@@ -118,7 +118,7 @@ BEGIN
     ELSE
       -- All orgs query (no org filter)
       SET v_sql = FORMAT("""
-        INSERT INTO `%s.%s.subscription_plan_costs_daily` (
+        INSERT INTO `%s.%s.saas_subscription_plan_costs_daily` (
           org_slug, provider, subscription_id, plan_name, display_name,
           cost_date, billing_cycle, currency,
           seats, quantity, unit,
@@ -137,7 +137,7 @@ BEGIN
               WHEN LOWER(COALESCE(sp.billing_cycle, 'monthly')) IN ('annual','yearly','year') THEN sp.yearly_price_usd
             END AS base_price,
             sp.discount_type, sp.discount_value, sp.start_date, sp.end_date, sp.invoice_id_last
-          FROM `%s.%s.subscription_plans` sp
+          FROM `%s.%s.saas_subscription_plans` sp
           WHERE sp.status = 'active'
             AND (sp.start_date <= @p_end OR sp.start_date IS NULL)
             AND (sp.end_date >= @p_start OR sp.end_date IS NULL)
@@ -187,7 +187,7 @@ BEGIN
 
   -- 5. Output row count
   EXECUTE IMMEDIATE FORMAT("""
-    SELECT COUNT(*) FROM `%s.%s.subscription_plan_costs_daily`
+    SELECT COUNT(*) FROM `%s.%s.saas_subscription_plan_costs_daily`
     WHERE cost_date BETWEEN @p_start AND @p_end
   """, v_project_id, v_dataset_id)
   INTO v_rows_inserted USING p_start_date AS p_start, p_end_date AS p_end;

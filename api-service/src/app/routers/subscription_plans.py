@@ -8,9 +8,9 @@ NOT LLM API usage tiers (OpenAI TIER1-5, Anthropic BUILD_TIER - those are in llm
 URL Structure: /api/v1/subscriptions/{org_slug}/providers/...
 
 Each provider can have multiple plans (FREE, PRO, ENTERPRISE, etc.) with different:
-- Pricing (unit_price_usd, billing_period)
-- Limits (daily_limit, monthly_limit, storage_limit_gb)
-- Seats and quantities
+- Pricing (unit_price_usd, billing_cycle, pricing_model)
+- Status (active, cancelled, expired)
+- Seats and contract details
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
@@ -111,26 +111,31 @@ class DisableProviderResponse(BaseModel):
 
 class SubscriptionPlan(BaseModel):
     """A subscription plan."""
+    org_slug: str
     subscription_id: str
     provider: str
     plan_name: str
     display_name: Optional[str] = None
-    is_custom: bool = False
-    quantity: int = 1
-    unit_price_usd: float = 0.0
-    effective_date: Optional[date] = None
-    end_date: Optional[date] = None
-    is_enabled: bool = True
-    billing_period: str = "monthly"
     category: str = "other"
-    notes: Optional[str] = None
-    daily_limit: Optional[int] = None
-    monthly_limit: Optional[int] = None
-    storage_limit_gb: Optional[float] = None
+    status: str = "active"  # active, cancelled, expired
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    billing_cycle: str = "monthly"
+    currency: str = "USD"
+    seats: int = 0
+    pricing_model: str = "PER_SEAT"  # PER_SEAT, FLAT_FEE
+    unit_price_usd: float = 0.0
     yearly_price_usd: Optional[float] = None
-    yearly_discount_pct: Optional[float] = None
-    seats: int = 1
-    created_at: Optional[datetime] = None
+    discount_type: Optional[str] = None  # percent, fixed
+    discount_value: Optional[int] = None
+    auto_renew: bool = True
+    payment_method: Optional[str] = None
+    invoice_id_last: Optional[str] = None
+    owner_email: Optional[str] = None
+    department: Optional[str] = None
+    renewal_date: Optional[date] = None
+    contract_id: Optional[str] = None
+    notes: Optional[str] = None
     updated_at: Optional[datetime] = None
 
 
@@ -143,18 +148,22 @@ class PlanListResponse(BaseModel):
 
 class PlanCreate(BaseModel):
     """Request to create a custom plan."""
-    plan_name: str = Field(..., min_length=1, max_length=50, description="Plan identifier (e.g., 'PRO', 'TEAM')")
-    display_name: Optional[str] = Field(None, max_length=200, description="Human-readable name")
-    quantity: int = Field(1, ge=0, description="Number of seats/units")
-    unit_price_usd: float = Field(..., ge=0, le=10000, description="Monthly price per unit")
-    billing_period: str = Field("monthly", description="monthly, quarterly, yearly")
-    notes: Optional[str] = Field(None, max_length=1000, description="Plan description or limits")
-    daily_limit: Optional[int] = Field(None, ge=0, description="Daily usage limit")
-    monthly_limit: Optional[int] = Field(None, ge=0, description="Monthly usage limit")
-    storage_limit_gb: Optional[float] = Field(None, ge=0, description="Storage limit in GB")
-    yearly_price_usd: Optional[float] = Field(None, ge=0, description="Annual price (if different from monthly × 12)")
-    yearly_discount_pct: Optional[float] = Field(None, ge=0, le=100, description="Annual discount percentage")
-    seats: int = Field(1, ge=1, description="Default number of seats")
+    plan_name: str = Field(..., min_length=1, max_length=50, description="Plan identifier")
+    display_name: Optional[str] = Field(None, max_length=200)
+    unit_price_usd: float = Field(..., ge=0, le=100000, description="Monthly price per unit")
+    billing_cycle: str = Field("monthly", description="monthly, annual, quarterly")
+    seats: int = Field(0, ge=0, description="Number of seats")
+    pricing_model: str = Field("PER_SEAT", description="PER_SEAT or FLAT_FEE")
+    yearly_price_usd: Optional[float] = Field(None, ge=0)
+    discount_type: Optional[str] = Field(None, description="percent or fixed")
+    discount_value: Optional[int] = Field(None, ge=0)
+    auto_renew: bool = Field(True)
+    payment_method: Optional[str] = Field(None, max_length=50)
+    owner_email: Optional[str] = Field(None, max_length=200)
+    department: Optional[str] = Field(None, max_length=100)
+    renewal_date: Optional[date] = None
+    contract_id: Optional[str] = Field(None, max_length=100)
+    notes: Optional[str] = Field(None, max_length=1000)
 
     model_config = ConfigDict(extra="forbid")
 
@@ -162,17 +171,22 @@ class PlanCreate(BaseModel):
 class PlanUpdate(BaseModel):
     """Request to update a plan."""
     display_name: Optional[str] = Field(None, max_length=200)
-    quantity: Optional[int] = Field(None, ge=0)
-    unit_price_usd: Optional[float] = Field(None, ge=0, le=10000)
-    is_enabled: Optional[bool] = None
-    billing_period: Optional[str] = None
-    notes: Optional[str] = Field(None, max_length=1000)
-    daily_limit: Optional[int] = Field(None, ge=0)
-    monthly_limit: Optional[int] = Field(None, ge=0)
-    storage_limit_gb: Optional[float] = Field(None, ge=0)
+    unit_price_usd: Optional[float] = Field(None, ge=0, le=100000)
+    status: Optional[str] = Field(None, description="active, cancelled, expired")
+    billing_cycle: Optional[str] = None
+    seats: Optional[int] = Field(None, ge=0)
+    pricing_model: Optional[str] = None
     yearly_price_usd: Optional[float] = Field(None, ge=0)
-    yearly_discount_pct: Optional[float] = Field(None, ge=0, le=100)
-    seats: Optional[int] = Field(None, ge=1)
+    discount_type: Optional[str] = None
+    discount_value: Optional[int] = Field(None, ge=0)
+    auto_renew: Optional[bool] = None
+    payment_method: Optional[str] = Field(None, max_length=50)
+    owner_email: Optional[str] = Field(None, max_length=200)
+    department: Optional[str] = Field(None, max_length=100)
+    renewal_date: Optional[date] = None
+    contract_id: Optional[str] = Field(None, max_length=100)
+    notes: Optional[str] = Field(None, max_length=1000)
+    end_date: Optional[date] = None
 
     model_config = ConfigDict(extra="forbid")
 
@@ -278,28 +292,31 @@ def load_seed_data_for_provider(provider: str) -> List[Dict[str, Any]]:
 def get_saas_subscription_plans_schema() -> List[bigquery.SchemaField]:
     """Get the schema for saas_subscription_plans table."""
     return [
+        bigquery.SchemaField("org_slug", "STRING", mode="REQUIRED"),
         bigquery.SchemaField("subscription_id", "STRING", mode="REQUIRED"),
         bigquery.SchemaField("provider", "STRING", mode="REQUIRED"),
         bigquery.SchemaField("plan_name", "STRING", mode="REQUIRED"),
         bigquery.SchemaField("display_name", "STRING", mode="NULLABLE"),
-        bigquery.SchemaField("is_custom", "BOOLEAN", mode="REQUIRED"),
-        bigquery.SchemaField("quantity", "INTEGER", mode="REQUIRED"),
+        bigquery.SchemaField("category", "STRING", mode="REQUIRED"),
+        bigquery.SchemaField("status", "STRING", mode="REQUIRED"),
+        bigquery.SchemaField("start_date", "DATE", mode="NULLABLE"),
+        bigquery.SchemaField("end_date", "DATE", mode="NULLABLE"),
+        bigquery.SchemaField("billing_cycle", "STRING", mode="REQUIRED"),
+        bigquery.SchemaField("currency", "STRING", mode="REQUIRED"),
+        bigquery.SchemaField("seats", "INTEGER", mode="REQUIRED"),
+        bigquery.SchemaField("pricing_model", "STRING", mode="REQUIRED"),
         bigquery.SchemaField("unit_price_usd", "FLOAT64", mode="REQUIRED"),
         bigquery.SchemaField("yearly_price_usd", "FLOAT64", mode="NULLABLE"),
-        bigquery.SchemaField("yearly_discount_pct", "FLOAT64", mode="NULLABLE"),
-        bigquery.SchemaField("billing_period", "STRING", mode="REQUIRED"),
-        bigquery.SchemaField("category", "STRING", mode="REQUIRED"),
-        bigquery.SchemaField("seats", "INTEGER", mode="NULLABLE"),
-        bigquery.SchemaField("storage_limit_gb", "FLOAT64", mode="NULLABLE"),
-        bigquery.SchemaField("monthly_limit", "INTEGER", mode="NULLABLE"),
-        bigquery.SchemaField("daily_limit", "INTEGER", mode="NULLABLE"),
-        bigquery.SchemaField("projects_limit", "INTEGER", mode="NULLABLE"),
-        bigquery.SchemaField("members_limit", "INTEGER", mode="NULLABLE"),
-        bigquery.SchemaField("effective_date", "DATE", mode="NULLABLE"),
-        bigquery.SchemaField("end_date", "DATE", mode="NULLABLE"),
-        bigquery.SchemaField("is_enabled", "BOOLEAN", mode="REQUIRED"),
+        bigquery.SchemaField("discount_type", "STRING", mode="NULLABLE"),
+        bigquery.SchemaField("discount_value", "INTEGER", mode="NULLABLE"),
+        bigquery.SchemaField("auto_renew", "BOOLEAN", mode="REQUIRED"),
+        bigquery.SchemaField("payment_method", "STRING", mode="NULLABLE"),
+        bigquery.SchemaField("invoice_id_last", "STRING", mode="NULLABLE"),
+        bigquery.SchemaField("owner_email", "STRING", mode="NULLABLE"),
+        bigquery.SchemaField("department", "STRING", mode="NULLABLE"),
+        bigquery.SchemaField("renewal_date", "DATE", mode="NULLABLE"),
+        bigquery.SchemaField("contract_id", "STRING", mode="NULLABLE"),
         bigquery.SchemaField("notes", "STRING", mode="NULLABLE"),
-        bigquery.SchemaField("created_at", "TIMESTAMP", mode="NULLABLE"),
         bigquery.SchemaField("updated_at", "TIMESTAMP", mode="NULLABLE"),
     ]
 
@@ -376,7 +393,7 @@ async def list_providers(
     SELECT
         provider,
         COUNT(*) as plan_count,
-        MAX(is_enabled) as has_enabled
+        COUNTIF(status = 'active') > 0 as has_active
     FROM `{settings.gcp_project_id}.{dataset_id}.{SAAS_SUBSCRIPTION_PLANS_TABLE}`
     WHERE category != 'llm_api'
     GROUP BY provider
@@ -392,7 +409,7 @@ async def list_providers(
             for row in result:
                 enabled_providers[row.provider.lower()] = {
                     "plan_count": row.plan_count,
-                    "is_enabled": row.has_enabled
+                    "is_enabled": row.has_active
                 }
     except Exception as e:
         logger.debug(f"Could not query existing plans (table may not exist): {e}")
@@ -537,66 +554,63 @@ async def enable_provider(
             subscription_id = f"sub_{provider}_{plan.get('plan_name', 'unknown').lower()}_{uuid.uuid4().hex[:8]}"
 
             # Parse values safely
-            quantity = parse_int(plan.get("quantity"), 1)
+            seats = parse_int(plan.get("seats"), 0)
             unit_price = parse_float(plan.get("unit_price_usd"), 0.0)
             yearly_price = parse_float(plan.get("yearly_price_usd"))
-            yearly_discount = parse_float(plan.get("yearly_discount_pct"))
-            seats = parse_int(plan.get("seats"), 1)
             display_name = plan.get("display_name", "") or ""
             notes = plan.get("notes", "") or ""
             category = plan.get("category", "other") or "other"
-            billing_period = plan.get("billing_period", "monthly") or "monthly"
+            billing_cycle = plan.get("billing_cycle") or plan.get("billing_period", "monthly") or "monthly"
             plan_name = plan.get("plan_name", "DEFAULT") or "DEFAULT"
-            storage_limit = parse_float(plan.get("storage_limit_gb"))
-            # Map CSV column monthly_usage_limit to monthly_limit
-            monthly_limit = parse_int(plan.get("monthly_usage_limit") or plan.get("monthly_limit"), None)
+            pricing_model = plan.get("pricing_model", "PER_SEAT") or "PER_SEAT"
+            discount_type = plan.get("discount_type")
+            discount_value = parse_int(plan.get("discount_value"), None) if discount_type else None
 
             # Use parameterized query to prevent SQL injection
             insert_query = f"""
             INSERT INTO `{table_ref}` (
-                subscription_id, provider, plan_name, display_name, is_custom,
-                quantity, unit_price_usd, yearly_price_usd, yearly_discount_pct,
-                effective_date, is_enabled, billing_period, category, notes, seats,
-                storage_limit_gb, monthly_limit,
-                created_at, updated_at
+                org_slug, subscription_id, provider, plan_name, display_name,
+                category, status, start_date, billing_cycle, currency, seats,
+                pricing_model, unit_price_usd, yearly_price_usd, discount_type,
+                discount_value, auto_renew, notes, updated_at
             ) VALUES (
+                @org_slug,
                 @subscription_id,
                 @provider,
                 @plan_name,
                 @display_name,
-                false,
-                @quantity,
+                @category,
+                'active',
+                CURRENT_DATE(),
+                @billing_cycle,
+                'USD',
+                @seats,
+                @pricing_model,
                 @unit_price,
                 @yearly_price,
-                @yearly_discount,
-                CURRENT_DATE(),
+                @discount_type,
+                @discount_value,
                 true,
-                @billing_period,
-                @category,
                 @notes,
-                @seats,
-                @storage_limit,
-                @monthly_limit,
-                CURRENT_TIMESTAMP(),
                 CURRENT_TIMESTAMP()
             )
             """
             job_config = bigquery.QueryJobConfig(
                 query_parameters=[
+                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
                     bigquery.ScalarQueryParameter("subscription_id", "STRING", subscription_id),
                     bigquery.ScalarQueryParameter("provider", "STRING", provider),
                     bigquery.ScalarQueryParameter("plan_name", "STRING", plan_name),
                     bigquery.ScalarQueryParameter("display_name", "STRING", display_name),
-                    bigquery.ScalarQueryParameter("quantity", "INT64", quantity),
+                    bigquery.ScalarQueryParameter("category", "STRING", category),
+                    bigquery.ScalarQueryParameter("billing_cycle", "STRING", billing_cycle),
+                    bigquery.ScalarQueryParameter("seats", "INT64", seats),
+                    bigquery.ScalarQueryParameter("pricing_model", "STRING", pricing_model),
                     bigquery.ScalarQueryParameter("unit_price", "FLOAT64", unit_price),
                     bigquery.ScalarQueryParameter("yearly_price", "FLOAT64", yearly_price),
-                    bigquery.ScalarQueryParameter("yearly_discount", "FLOAT64", yearly_discount),
-                    bigquery.ScalarQueryParameter("billing_period", "STRING", billing_period),
-                    bigquery.ScalarQueryParameter("category", "STRING", category),
+                    bigquery.ScalarQueryParameter("discount_type", "STRING", discount_type),
+                    bigquery.ScalarQueryParameter("discount_value", "INT64", discount_value),
                     bigquery.ScalarQueryParameter("notes", "STRING", notes),
-                    bigquery.ScalarQueryParameter("seats", "INT64", seats),
-                    bigquery.ScalarQueryParameter("storage_limit", "FLOAT64", storage_limit),
-                    bigquery.ScalarQueryParameter("monthly_limit", "INT64", monthly_limit),
                 ],
                 timeout_ms=300000  # 5 minute timeout for admin/batch operations
             )
@@ -744,18 +758,20 @@ async def list_plans(
 
     where_clause = "WHERE provider = @provider"
     if not include_disabled:
-        where_clause += " AND is_enabled = true"
+        where_clause += " AND status = 'active'"
 
     # Optimized query: Select only needed columns instead of SELECT *
     query = f"""
     SELECT
-        subscription_id, provider, plan_name, display_name, is_custom,
-        quantity, unit_price_usd, yearly_price_usd, yearly_discount_pct,
-        effective_date, end_date, is_enabled, billing_period, category,
-        notes, seats, daily_limit, monthly_limit, storage_limit_gb
+        org_slug, subscription_id, provider, plan_name, display_name,
+        category, status, start_date, end_date, billing_cycle, currency,
+        seats, pricing_model, unit_price_usd, yearly_price_usd,
+        discount_type, discount_value, auto_renew, payment_method,
+        invoice_id_last, owner_email, department, renewal_date,
+        contract_id, notes, updated_at
     FROM `{table_ref}`
     {where_clause}
-    ORDER BY is_custom, plan_name
+    ORDER BY plan_name
     LIMIT 500
     """
 
@@ -774,34 +790,41 @@ async def list_plans(
             monitor.set_result(result)
         for row in result:
             plan = SubscriptionPlan(
+                org_slug=row.org_slug,
                 subscription_id=row.subscription_id,
                 provider=row.provider,
                 plan_name=row.plan_name,
-                display_name=row.display_name if hasattr(row, "display_name") and row.display_name else (row.notes if hasattr(row, "notes") else None),
-                is_custom=row.is_custom if hasattr(row, "is_custom") else False,
-                quantity=row.quantity or 1,
-                unit_price_usd=float(row.unit_price_usd or 0),
-                effective_date=row.effective_date if hasattr(row, "effective_date") else None,
-                end_date=row.end_date if hasattr(row, "end_date") else None,
-                is_enabled=row.is_enabled if hasattr(row, "is_enabled") else True,
-                billing_period=row.billing_period or "monthly",
+                display_name=row.display_name if hasattr(row, "display_name") and row.display_name else None,
                 category=row.category or "other",
-                notes=row.notes if hasattr(row, "notes") else None,
-                daily_limit=row.daily_limit if hasattr(row, "daily_limit") else None,
-                monthly_limit=row.monthly_limit if hasattr(row, "monthly_limit") else None,
-                storage_limit_gb=float(row.storage_limit_gb) if hasattr(row, "storage_limit_gb") and row.storage_limit_gb else None,
+                status=row.status if hasattr(row, "status") else "active",
+                start_date=row.start_date if hasattr(row, "start_date") else None,
+                end_date=row.end_date if hasattr(row, "end_date") else None,
+                billing_cycle=row.billing_cycle or "monthly",
+                currency=row.currency if hasattr(row, "currency") else "USD",
+                seats=row.seats if hasattr(row, "seats") else 0,
+                pricing_model=row.pricing_model if hasattr(row, "pricing_model") else "PER_SEAT",
+                unit_price_usd=float(row.unit_price_usd or 0),
                 yearly_price_usd=float(row.yearly_price_usd) if hasattr(row, "yearly_price_usd") and row.yearly_price_usd else None,
-                yearly_discount_pct=float(row.yearly_discount_pct) if hasattr(row, "yearly_discount_pct") and row.yearly_discount_pct else None,
-                seats=row.seats if hasattr(row, "seats") else 1,
+                discount_type=row.discount_type if hasattr(row, "discount_type") else None,
+                discount_value=row.discount_value if hasattr(row, "discount_value") else None,
+                auto_renew=row.auto_renew if hasattr(row, "auto_renew") else True,
+                payment_method=row.payment_method if hasattr(row, "payment_method") else None,
+                invoice_id_last=row.invoice_id_last if hasattr(row, "invoice_id_last") else None,
+                owner_email=row.owner_email if hasattr(row, "owner_email") else None,
+                department=row.department if hasattr(row, "department") else None,
+                renewal_date=row.renewal_date if hasattr(row, "renewal_date") else None,
+                contract_id=row.contract_id if hasattr(row, "contract_id") else None,
+                notes=row.notes if hasattr(row, "notes") else None,
+                updated_at=row.updated_at if hasattr(row, "updated_at") else None,
             )
             plans.append(plan)
 
-            # Calculate monthly cost for enabled plans
-            if plan.is_enabled:
-                monthly_cost = plan.unit_price_usd * (plan.quantity or 1)
-                if plan.billing_period == "yearly":
+            # Calculate monthly cost for active plans
+            if plan.status == "active":
+                monthly_cost = plan.unit_price_usd * (plan.seats if plan.pricing_model == "PER_SEAT" else 1)
+                if plan.billing_cycle == "annual":
                     monthly_cost = monthly_cost / 12
-                elif plan.billing_period == "quarterly":
+                elif plan.billing_cycle == "quarterly":
                     monthly_cost = monthly_cost / 3
                 total_monthly_cost += monthly_cost
     except Exception as e:
@@ -840,7 +863,7 @@ async def create_plan(
     """
     Create a custom subscription plan.
 
-    Custom plans are marked with is_custom=true.
+    Custom plans are user-created plans for specific providers.
     """
     validate_org_slug(org_slug)
     check_org_access(org, org_slug)
@@ -881,31 +904,35 @@ async def create_plan(
 
     insert_query = f"""
     INSERT INTO `{table_ref}` (
-        subscription_id, provider, plan_name, display_name, is_custom,
-        quantity, unit_price_usd, effective_date, is_enabled,
-        billing_period, category, notes, daily_limit, monthly_limit,
-        storage_limit_gb, yearly_price_usd, yearly_discount_pct, seats,
-        created_at, updated_at
+        org_slug, subscription_id, provider, plan_name, display_name,
+        category, status, start_date, billing_cycle, currency, seats,
+        pricing_model, unit_price_usd, yearly_price_usd, discount_type,
+        discount_value, auto_renew, payment_method, owner_email, department,
+        renewal_date, contract_id, notes, updated_at
     ) VALUES (
+        @org_slug,
         @subscription_id,
         @provider,
         @plan_name,
         @display_name,
-        true,
-        @quantity,
-        @unit_price_usd,
-        CURRENT_DATE(),
-        true,
-        @billing_period,
         @category,
-        @notes,
-        @daily_limit,
-        @monthly_limit,
-        @storage_limit_gb,
-        @yearly_price_usd,
-        @yearly_discount_pct,
+        'active',
+        CURRENT_DATE(),
+        @billing_cycle,
+        'USD',
         @seats,
-        CURRENT_TIMESTAMP(),
+        @pricing_model,
+        @unit_price_usd,
+        @yearly_price_usd,
+        @discount_type,
+        @discount_value,
+        @auto_renew,
+        @payment_method,
+        @owner_email,
+        @department,
+        @renewal_date,
+        @contract_id,
+        @notes,
         CURRENT_TIMESTAMP()
     )
     """
@@ -913,44 +940,55 @@ async def create_plan(
     try:
         job_config = bigquery.QueryJobConfig(
             query_parameters=[
+                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
                 bigquery.ScalarQueryParameter("subscription_id", "STRING", subscription_id),
                 bigquery.ScalarQueryParameter("provider", "STRING", provider),
                 bigquery.ScalarQueryParameter("plan_name", "STRING", plan.plan_name.upper()),
                 bigquery.ScalarQueryParameter("display_name", "STRING", plan.display_name or plan.plan_name),
-                bigquery.ScalarQueryParameter("quantity", "INT64", plan.quantity),
-                bigquery.ScalarQueryParameter("unit_price_usd", "FLOAT64", plan.unit_price_usd),
-                bigquery.ScalarQueryParameter("billing_period", "STRING", plan.billing_period),
                 bigquery.ScalarQueryParameter("category", "STRING", category),
-                bigquery.ScalarQueryParameter("notes", "STRING", plan.notes or ""),
-                bigquery.ScalarQueryParameter("daily_limit", "INT64", plan.daily_limit),
-                bigquery.ScalarQueryParameter("monthly_limit", "INT64", plan.monthly_limit),
-                bigquery.ScalarQueryParameter("storage_limit_gb", "FLOAT64", plan.storage_limit_gb),
-                bigquery.ScalarQueryParameter("yearly_price_usd", "FLOAT64", plan.yearly_price_usd),
-                bigquery.ScalarQueryParameter("yearly_discount_pct", "FLOAT64", plan.yearly_discount_pct),
+                bigquery.ScalarQueryParameter("billing_cycle", "STRING", plan.billing_cycle),
                 bigquery.ScalarQueryParameter("seats", "INT64", plan.seats),
+                bigquery.ScalarQueryParameter("pricing_model", "STRING", plan.pricing_model),
+                bigquery.ScalarQueryParameter("unit_price_usd", "FLOAT64", plan.unit_price_usd),
+                bigquery.ScalarQueryParameter("yearly_price_usd", "FLOAT64", plan.yearly_price_usd),
+                bigquery.ScalarQueryParameter("discount_type", "STRING", plan.discount_type),
+                bigquery.ScalarQueryParameter("discount_value", "INT64", plan.discount_value),
+                bigquery.ScalarQueryParameter("auto_renew", "BOOL", plan.auto_renew),
+                bigquery.ScalarQueryParameter("payment_method", "STRING", plan.payment_method),
+                bigquery.ScalarQueryParameter("owner_email", "STRING", plan.owner_email),
+                bigquery.ScalarQueryParameter("department", "STRING", plan.department),
+                bigquery.ScalarQueryParameter("renewal_date", "DATE", plan.renewal_date),
+                bigquery.ScalarQueryParameter("contract_id", "STRING", plan.contract_id),
+                bigquery.ScalarQueryParameter("notes", "STRING", plan.notes or ""),
             ],
             timeout_ms=30000  # 30 second timeout for user operations
         )
         bq_client.client.query(insert_query, job_config=job_config).result()
 
         created_plan = SubscriptionPlan(
+            org_slug=org_slug,
             subscription_id=subscription_id,
             provider=provider,
             plan_name=plan.plan_name.upper(),
             display_name=plan.display_name or plan.plan_name,
-            is_custom=True,
-            quantity=plan.quantity,
-            unit_price_usd=plan.unit_price_usd,
-            is_enabled=True,
-            billing_period=plan.billing_period,
             category=category,
-            notes=plan.notes,
-            daily_limit=plan.daily_limit,
-            monthly_limit=plan.monthly_limit,
-            storage_limit_gb=plan.storage_limit_gb,
-            yearly_price_usd=plan.yearly_price_usd,
-            yearly_discount_pct=plan.yearly_discount_pct,
+            status="active",
+            start_date=date.today(),
+            billing_cycle=plan.billing_cycle,
+            currency="USD",
             seats=plan.seats,
+            pricing_model=plan.pricing_model,
+            unit_price_usd=plan.unit_price_usd,
+            yearly_price_usd=plan.yearly_price_usd,
+            discount_type=plan.discount_type,
+            discount_value=plan.discount_value,
+            auto_renew=plan.auto_renew,
+            payment_method=plan.payment_method,
+            owner_email=plan.owner_email,
+            department=plan.department,
+            renewal_date=plan.renewal_date,
+            contract_id=plan.contract_id,
+            notes=plan.notes,
         )
 
         # Invalidate relevant caches after creating plan
@@ -998,9 +1036,10 @@ async def update_plan(
     # Build SET clause and parameters from provided updates
     # Allowlist of valid field names to prevent SQL injection via column names
     ALLOWED_UPDATE_FIELDS = {
-        'display_name', 'quantity', 'unit_price_usd', 'is_enabled', 'billing_period',
-        'notes', 'daily_limit', 'monthly_limit', 'storage_limit_gb', 'yearly_price_usd',
-        'yearly_discount_pct', 'seats'
+        'display_name', 'unit_price_usd', 'status', 'billing_cycle', 'seats',
+        'pricing_model', 'yearly_price_usd', 'discount_type', 'discount_value',
+        'auto_renew', 'payment_method', 'owner_email', 'department', 'renewal_date',
+        'contract_id', 'notes', 'end_date'
     }
 
     set_parts = ["updated_at = CURRENT_TIMESTAMP()"]
@@ -1052,17 +1091,12 @@ async def update_plan(
         # Fetch updated plan with explicit columns
         select_query = f"""
         SELECT
-            subscription_id, provider, plan_name, display_name, is_custom,
-            quantity, unit_price_usd, yearly_price_usd, yearly_discount_pct,
-            billing_period, category, seats, storage_limit_gb,
-            monthly_limit, daily_limit, projects_limit, members_limit,
-            effective_date, end_date, is_enabled, auth_type, notes,
-            x_gemini_project_id, x_gemini_region, x_anthropic_workspace_id, x_openai_org_id,
-            tier_type, trial_end_date, trial_credit_usd,
-            monthly_token_limit, daily_token_limit, rpm_limit, tpm_limit,
-            rpd_limit, tpd_limit, concurrent_limit,
-            committed_spend_usd, commitment_term_months, discount_percentage,
-            created_at, updated_at
+            org_slug, subscription_id, provider, plan_name, display_name,
+            category, status, start_date, end_date, billing_cycle, currency,
+            seats, pricing_model, unit_price_usd, yearly_price_usd,
+            discount_type, discount_value, auto_renew, payment_method,
+            invoice_id_last, owner_email, department, renewal_date,
+            contract_id, notes, updated_at
         FROM `{table_ref}`
         WHERE subscription_id = @subscription_id
         """
@@ -1076,23 +1110,32 @@ async def update_plan(
 
         for row in result:
             updated_plan = SubscriptionPlan(
+                org_slug=row.org_slug,
                 subscription_id=row.subscription_id,
                 provider=row.provider,
                 plan_name=row.plan_name,
                 display_name=row.display_name if hasattr(row, "display_name") and row.display_name else None,
-                is_custom=row.is_custom if hasattr(row, "is_custom") else False,
-                quantity=row.quantity or 1,
-                unit_price_usd=float(row.unit_price_usd or 0),
-                is_enabled=row.is_enabled if hasattr(row, "is_enabled") else True,
-                billing_period=row.billing_period or "monthly",
                 category=row.category or "other",
-                notes=row.notes if hasattr(row, "notes") else None,
-                daily_limit=row.daily_limit if hasattr(row, "daily_limit") else None,
-                monthly_limit=row.monthly_limit if hasattr(row, "monthly_limit") else None,
-                storage_limit_gb=float(row.storage_limit_gb) if hasattr(row, "storage_limit_gb") and row.storage_limit_gb else None,
+                status=row.status if hasattr(row, "status") else "active",
+                start_date=row.start_date if hasattr(row, "start_date") else None,
+                end_date=row.end_date if hasattr(row, "end_date") else None,
+                billing_cycle=row.billing_cycle or "monthly",
+                currency=row.currency if hasattr(row, "currency") else "USD",
+                seats=row.seats if hasattr(row, "seats") else 0,
+                pricing_model=row.pricing_model if hasattr(row, "pricing_model") else "PER_SEAT",
+                unit_price_usd=float(row.unit_price_usd or 0),
                 yearly_price_usd=float(row.yearly_price_usd) if hasattr(row, "yearly_price_usd") and row.yearly_price_usd else None,
-                yearly_discount_pct=float(row.yearly_discount_pct) if hasattr(row, "yearly_discount_pct") and row.yearly_discount_pct else None,
-                seats=row.seats if hasattr(row, "seats") else 1,
+                discount_type=row.discount_type if hasattr(row, "discount_type") else None,
+                discount_value=row.discount_value if hasattr(row, "discount_value") else None,
+                auto_renew=row.auto_renew if hasattr(row, "auto_renew") else True,
+                payment_method=row.payment_method if hasattr(row, "payment_method") else None,
+                invoice_id_last=row.invoice_id_last if hasattr(row, "invoice_id_last") else None,
+                owner_email=row.owner_email if hasattr(row, "owner_email") else None,
+                department=row.department if hasattr(row, "department") else None,
+                renewal_date=row.renewal_date if hasattr(row, "renewal_date") else None,
+                contract_id=row.contract_id if hasattr(row, "contract_id") else None,
+                notes=row.notes if hasattr(row, "notes") else None,
+                updated_at=row.updated_at if hasattr(row, "updated_at") else None,
             )
             # Invalidate relevant caches after updating plan
             invalidate_provider_cache(org_slug, provider)
@@ -1210,14 +1253,14 @@ class ToggleResponse(BaseModel):
     """Response for toggle endpoint."""
     success: bool
     subscription_id: str
-    is_enabled: bool
+    status: str
     message: str
 
 
 @router.post(
     "/subscriptions/{org_slug}/providers/{provider}/toggle/{subscription_id}",
     response_model=ToggleResponse,
-    summary="Toggle plan enabled/disabled",
+    summary="Toggle plan active/cancelled",
     tags=["Subscriptions"]
 )
 async def toggle_plan(
@@ -1228,9 +1271,9 @@ async def toggle_plan(
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """
-    Toggle a plan's is_enabled status.
+    Toggle a plan's status between active and cancelled.
 
-    Returns the new enabled state.
+    Returns the new status.
     """
     validate_org_slug(org_slug)
     check_org_access(org, org_slug)
@@ -1241,7 +1284,7 @@ async def toggle_plan(
 
     # Get current state
     check_query = f"""
-    SELECT is_enabled FROM `{table_ref}`
+    SELECT status FROM `{table_ref}`
     WHERE subscription_id = @subscription_id AND provider = @provider
     """
 
@@ -1262,19 +1305,19 @@ async def toggle_plan(
                 detail=f"Plan {subscription_id} not found"
             )
 
-        current_enabled = rows[0].is_enabled
-        new_enabled = not current_enabled
+        current_status = rows[0].status
+        new_status = "cancelled" if current_status == "active" else "active"
 
         # Update state
         update_query = f"""
         UPDATE `{table_ref}`
-        SET is_enabled = @new_enabled, updated_at = CURRENT_TIMESTAMP()
+        SET status = @new_status, updated_at = CURRENT_TIMESTAMP()
         WHERE subscription_id = @subscription_id AND provider = @provider
         """
 
         job_config = bigquery.QueryJobConfig(
             query_parameters=[
-                bigquery.ScalarQueryParameter("new_enabled", "BOOL", new_enabled),
+                bigquery.ScalarQueryParameter("new_status", "STRING", new_status),
                 bigquery.ScalarQueryParameter("subscription_id", "STRING", subscription_id),
                 bigquery.ScalarQueryParameter("provider", "STRING", provider),
             ],
@@ -1290,8 +1333,8 @@ async def toggle_plan(
         return ToggleResponse(
             success=True,
             subscription_id=subscription_id,
-            is_enabled=new_enabled,
-            message=f"Plan {subscription_id} {'enabled' if new_enabled else 'disabled'}"
+            status=new_status,
+            message=f"Plan {subscription_id} status changed to {new_status}"
         )
     except HTTPException:
         raise
@@ -1350,13 +1393,15 @@ async def get_all_plans(
     table_ref = f"{settings.gcp_project_id}.{dataset_id}.{SAAS_SUBSCRIPTION_PLANS_TABLE}"
 
     # Query all plans with optimizations
-    where_clause = "WHERE is_enabled = true" if enabled_only else ""
+    where_clause = "WHERE status = 'active'" if enabled_only else ""
     query = f"""
     SELECT
-        subscription_id, provider, plan_name, display_name, is_custom,
-        quantity, unit_price_usd, yearly_price_usd, yearly_discount_pct,
-        billing_period, category, notes, seats, daily_limit, monthly_limit,
-        storage_limit_gb, is_enabled, created_at, updated_at
+        org_slug, subscription_id, provider, plan_name, display_name,
+        category, status, start_date, end_date, billing_cycle, currency,
+        seats, pricing_model, unit_price_usd, yearly_price_usd,
+        discount_type, discount_value, auto_renew, payment_method,
+        invoice_id_last, owner_email, department, renewal_date,
+        contract_id, notes, updated_at
     FROM `{table_ref}`
     {where_clause}
     ORDER BY provider, plan_name
@@ -1371,38 +1416,47 @@ async def get_all_plans(
         plans = []
         total_monthly_cost = 0.0
         count_by_category: Dict[str, int] = {}
-        enabled_count = 0
+        active_count = 0
 
         for row in result:
             plan = SubscriptionPlan(
+                org_slug=row.org_slug,
                 subscription_id=row.subscription_id,
                 provider=row.provider,
                 plan_name=row.plan_name,
-                display_name=row.display_name if hasattr(row, "display_name") else None,
-                is_custom=row.is_custom if hasattr(row, "is_custom") else False,
-                quantity=row.quantity or 1,
-                unit_price_usd=float(row.unit_price_usd or 0),
-                yearly_price_usd=float(row.yearly_price_usd) if row.yearly_price_usd else None,
-                yearly_discount_pct=float(row.yearly_discount_pct) if hasattr(row, "yearly_discount_pct") and row.yearly_discount_pct else None,
-                is_enabled=row.is_enabled if hasattr(row, "is_enabled") else True,
-                billing_period=row.billing_period or "monthly",
+                display_name=row.display_name if hasattr(row, "display_name") and row.display_name else None,
                 category=row.category or "other",
+                status=row.status if hasattr(row, "status") else "active",
+                start_date=row.start_date if hasattr(row, "start_date") else None,
+                end_date=row.end_date if hasattr(row, "end_date") else None,
+                billing_cycle=row.billing_cycle or "monthly",
+                currency=row.currency if hasattr(row, "currency") else "USD",
+                seats=row.seats if hasattr(row, "seats") else 0,
+                pricing_model=row.pricing_model if hasattr(row, "pricing_model") else "PER_SEAT",
+                unit_price_usd=float(row.unit_price_usd or 0),
+                yearly_price_usd=float(row.yearly_price_usd) if hasattr(row, "yearly_price_usd") and row.yearly_price_usd else None,
+                discount_type=row.discount_type if hasattr(row, "discount_type") else None,
+                discount_value=row.discount_value if hasattr(row, "discount_value") else None,
+                auto_renew=row.auto_renew if hasattr(row, "auto_renew") else True,
+                payment_method=row.payment_method if hasattr(row, "payment_method") else None,
+                invoice_id_last=row.invoice_id_last if hasattr(row, "invoice_id_last") else None,
+                owner_email=row.owner_email if hasattr(row, "owner_email") else None,
+                department=row.department if hasattr(row, "department") else None,
+                renewal_date=row.renewal_date if hasattr(row, "renewal_date") else None,
+                contract_id=row.contract_id if hasattr(row, "contract_id") else None,
                 notes=row.notes if hasattr(row, "notes") else None,
-                seats=row.seats if hasattr(row, "seats") else 1,
-                daily_limit=row.daily_limit if hasattr(row, "daily_limit") else None,
-                monthly_limit=row.monthly_limit if hasattr(row, "monthly_limit") else None,
-                storage_limit_gb=float(row.storage_limit_gb) if hasattr(row, "storage_limit_gb") and row.storage_limit_gb else None,
+                updated_at=row.updated_at if hasattr(row, "updated_at") else None,
             )
             plans.append(plan)
 
-            # Aggregate for summary - calculate monthly cost with billing period adjustment
-            if plan.is_enabled:
-                enabled_count += 1
-                monthly_cost = plan.unit_price_usd * (plan.quantity or 1)
-                # Adjust for billing period (unit_price_usd is per period, not per month)
-                if plan.billing_period == "yearly":
+            # Aggregate for summary - calculate monthly cost with billing cycle adjustment
+            if plan.status == "active":
+                active_count += 1
+                monthly_cost = plan.unit_price_usd * (plan.seats if plan.pricing_model == "PER_SEAT" else 1)
+                # Adjust for billing cycle (unit_price_usd is per cycle, not per month)
+                if plan.billing_cycle == "annual":
                     monthly_cost = monthly_cost / 12
-                elif plan.billing_period == "quarterly":
+                elif plan.billing_cycle == "quarterly":
                     monthly_cost = monthly_cost / 3
                 total_monthly_cost += monthly_cost
 
@@ -1413,7 +1467,7 @@ async def get_all_plans(
             "total_monthly_cost": round(total_monthly_cost, 2),
             "total_annual_cost": round(total_monthly_cost * 12, 2),
             "count_by_category": count_by_category,
-            "enabled_count": enabled_count,
+            "active_count": active_count,
             "total_count": len(plans),
         }
 

@@ -30,13 +30,13 @@ BEGIN
 
   -- 2. Stage 1: Calculate Daily Costs (Dynamic Call)
   SET v_sql = FORMAT("""
-    CALL `%s.%s.sp_calculate_subscription_plan_costs_daily`(@p_start, @p_end, @p_org_slug)
+    CALL `%s.%s.sp_calculate_saas_subscription_plan_costs_daily`(@p_start, @p_end, @p_org_slug)
   """, v_project_id, v_dataset_id);
   EXECUTE IMMEDIATE v_sql USING p_start_date AS p_start, p_end_date AS p_end, p_org_slug AS p_org_slug;
 
   -- 3. Stage 2: Convert to Standard Schema (Dynamic Call)
   SET v_sql = FORMAT("""
-    CALL `%s.%s.sp_convert_subscription_costs_daily_to_standard_1_2`(@p_start, @p_end, @p_org_slug)
+    CALL `%s.%s.sp_convert_saas_subscription_costs_daily_to_standard_1_2`(@p_start, @p_end, @p_org_slug)
   """, v_project_id, v_dataset_id);
   EXECUTE IMMEDIATE v_sql USING p_start_date AS p_start, p_end_date AS p_end, p_org_slug AS p_org_slug;
 

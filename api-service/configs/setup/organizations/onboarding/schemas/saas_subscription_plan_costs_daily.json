@@ -1,0 +1,110 @@
+[
+  {
+    "name": "org_slug",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Unique organization identifier."
+  },
+  {
+    "name": "provider",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "SaaS provider name."
+  },
+  {
+    "name": "subscription_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Foreign key to subscription_plans."
+  },
+  {
+    "name": "plan_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Plan tier name."
+  },
+  {
+    "name": "display_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Human-readable service name."
+  },
+  {
+    "name": "cost_date",
+    "type": "DATE",
+    "mode": "NULLABLE",
+    "description": "The specific day for which this cost applies."
+  },
+  {
+    "name": "billing_cycle",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Billing frequency (monthly/annual) used for this day's calculation."
+  },
+  {
+    "name": "currency",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Currency of the calculated cost."
+  },
+  {
+    "name": "seats",
+    "type": "INTEGER",
+    "mode": "NULLABLE",
+    "description": "Active seat count on this specific day."
+  },
+  {
+    "name": "quantity",
+    "type": "NUMERIC",
+    "mode": "NULLABLE",
+    "description": "Billable quantity (same as seats for PER_SEAT, 1 for FLAT_FEE)."
+  },
+  {
+    "name": "unit",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Unit of measure. Example: 'seat', 'license'."
+  },
+  {
+    "name": "cycle_cost",
+    "type": "NUMERIC",
+    "mode": "NULLABLE",
+    "description": "The full cycle cost (Monthly/Annual) before amortization."
+  },
+  {
+    "name": "daily_cost",
+    "type": "NUMERIC",
+    "mode": "NULLABLE",
+    "description": "The derived cost for this single day. (Cycle Cost / Days in Cycle)."
+  },
+  {
+    "name": "monthly_run_rate",
+    "type": "NUMERIC",
+    "mode": "NULLABLE",
+    "description": "Extrapolated monthly cost based on this day's rate."
+  },
+  {
+    "name": "annual_run_rate",
+    "type": "NUMERIC",
+    "mode": "NULLABLE",
+    "description": "Extrapolated annual cost based on this day's rate."
+  },
+  {
+    "name": "invoice_id_last",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Linked invoice ID."
+  },
+  {
+    "name": "source",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Source system identifier (e.g., 'subscription_proration')."
+  },
+  {
+    "name": "updated_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "Timestamp of calculation."
+  }
+]

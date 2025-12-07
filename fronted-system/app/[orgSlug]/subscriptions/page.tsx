@@ -119,7 +119,9 @@ export default function SubscriptionsPage() {
 
   const handleToggle = async (plan: PlanWithProvider) => {
     setToggling(plan.subscription_id)
-    const result = await togglePlan(orgSlug, plan.provider_name, plan.subscription_id, !plan.is_enabled)
+    // Toggle between 'active' and 'cancelled' status
+    const newStatus = plan.status === 'active' ? 'cancelled' : 'active'
+    const result = await togglePlan(orgSlug, plan.provider_name, plan.subscription_id, newStatus === 'active')
     setToggling(null)
     if (!result.success) {
       setError(result.error || "Failed to toggle plan")
@@ -139,11 +141,11 @@ export default function SubscriptionsPage() {
     return cycle.charAt(0).toUpperCase() + cycle.slice(1)
   }
 
-  // Calculate monthly equivalent based on billing period
+  // Calculate monthly equivalent based on billing cycle
   const getMonthlyEquivalent = (plan: PlanWithProvider): number => {
     const price = plan.unit_price_usd || 0
-    if (!plan.billing_period) return price
-    switch (plan.billing_period.toLowerCase()) {
+    if (!plan.billing_cycle) return price
+    switch (plan.billing_cycle.toLowerCase()) {
       case "annual":
       case "yearly":
         return price / 12
@@ -152,6 +154,15 @@ export default function SubscriptionsPage() {
       default:
         return price
     }
+  }
+
+  // Calculate total cost based on pricing model
+  const getTotalCost = (plan: PlanWithProvider): number => {
+    const basePrice = plan.unit_price_usd || 0
+    if (plan.pricing_model === 'PER_SEAT' && plan.seats) {
+      return basePrice * plan.seats
+    }
+    return basePrice // FLAT_FEE
   }
 
   if (isLoading) {
@@ -366,21 +377,22 @@ export default function SubscriptionsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-12">Active</TableHead>
+                  <TableHead className="w-12">Status</TableHead>
                   <TableHead>Plan</TableHead>
                   <TableHead>Provider</TableHead>
                   <TableHead>Category</TableHead>
                   <TableHead className="text-right">Cost</TableHead>
                   <TableHead>Billing</TableHead>
                   <TableHead className="text-right">Seats</TableHead>
-                  <TableHead className="text-right">Monthly Equiv.</TableHead>
+                  <TableHead className="text-right">Total Cost</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {plans.map((plan) => {
                   const category = plan.category && plan.category.trim() !== "" ? plan.category : "other"
                   const CategoryIcon = CATEGORY_ICONS[category] || Wallet
-                  const monthlyEquiv = getMonthlyEquivalent(plan)
+                  const totalCost = getTotalCost(plan)
+                  const isActive = plan.status === 'active'
 
                   // Map SaaS provider to integration page (only for LLM providers with API integrations)
                   const providerMapping: Record<string, string> = {
@@ -391,15 +403,22 @@ export default function SubscriptionsPage() {
                   }
                   const integrationPath = providerMapping[plan.provider_name]
 
+                  // Status badge color mapping
+                  const statusColors = {
+                    active: "bg-green-100 text-green-700 border-green-200",
+                    cancelled: "bg-gray-100 text-gray-700 border-gray-200",
+                    expired: "bg-red-100 text-red-700 border-red-200"
+                  }
+
                   return (
-                    <TableRow key={plan.subscription_id} className={!plan.is_enabled ? "opacity-50" : ""}>
+                    <TableRow key={plan.subscription_id} className={!isActive ? "opacity-50" : ""}>
                       <TableCell>
-                        <Switch
-                          checked={plan.is_enabled}
-                          onCheckedChange={() => handleToggle(plan)}
-                          disabled={toggling === plan.subscription_id}
-                          className="data-[state=checked]:bg-[#007A78]"
-                        />
+                        <Badge
+                          variant="outline"
+                          className={`capitalize ${statusColors[plan.status] || statusColors.cancelled}`}
+                        >
+                          {plan.status}
+                        </Badge>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-3">
@@ -439,10 +458,15 @@ export default function SubscriptionsPage() {
                       </TableCell>
                       <TableCell className="text-right font-medium">
                         {formatCurrency(plan.unit_price_usd || 0)}
+                        {plan.pricing_model && (
+                          <div className="text-xs text-gray-500">
+                            {plan.pricing_model === 'PER_SEAT' ? '/seat' : 'flat fee'}
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className="capitalize">
-                          {formatBillingCycle(plan.billing_period)}
+                          {formatBillingCycle(plan.billing_cycle)}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
@@ -456,8 +480,8 @@ export default function SubscriptionsPage() {
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        <span className={plan.is_enabled ? "text-[#007A78] font-medium" : "text-gray-400"}>
-                          {formatCurrency(monthlyEquiv)}/mo
+                        <span className={isActive ? "text-[#007A78] font-medium" : "text-gray-400"}>
+                          {formatCurrency(totalCost)}
                         </span>
                       </TableCell>
                     </TableRow>

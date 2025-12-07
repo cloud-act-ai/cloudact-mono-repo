@@ -105,3 +105,10 @@ tables:
   org_idempotency_keys:
     description: "Idempotency key tracking for duplicate request prevention (24-hour TTL)"
     clustering: ["idempotency_key", "org_slug"]
+
+  org_subscription_audit:
+    description: "Audit trail for subscription changes. Tracks all modifications for compliance and analysis."
+    partition:
+      type: "DAY"
+      field: "changed_at"
+    clustering: ["org_slug", "subscription_id"]

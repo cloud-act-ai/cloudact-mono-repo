@@ -138,16 +138,16 @@ class OrgOnboardingProcessor:
                     for key, value in row.items():
                         if value == '' or value is None:
                             cleaned_row[key] = None
-                        elif key in ('is_custom', 'is_enabled'):
+                        elif key in ('is_custom', 'is_enabled', 'auto_renew'):
                             # Convert boolean strings
                             cleaned_row[key] = value.lower() == 'true'
-                        elif key in ('quantity',):
+                        elif key in ('quantity', 'seats', 'discount_value'):
                             # Convert integer fields
                             cleaned_row[key] = int(value) if value else 0
                         elif key in ('input_price_per_1k', 'output_price_per_1k', 'unit_price_usd',
-                                     'x_openai_batch_input_price', 'x_openai_batch_output_price',
-                                     'base_input_price_per_1k', 'base_output_price_per_1k',
-                                     'discount_percentage'):
+                                     'yearly_price_usd', 'x_openai_batch_input_price',
+                                     'x_openai_batch_output_price', 'base_input_price_per_1k',
+                                     'base_output_price_per_1k', 'discount_percentage'):
                             # Convert float fields
                             cleaned_row[key] = float(value) if value else 0.0
                         elif key in ('free_tier_input_tokens', 'free_tier_output_tokens',

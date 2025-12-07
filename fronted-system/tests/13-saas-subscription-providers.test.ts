@@ -476,19 +476,21 @@ describe.skipIf(SKIP_TESTS)('Flow 13: Subscription Providers - Comprehensive Tes
                 plan_name: 'CUSTOM',
                 display_name: 'Custom Tool Pro',
                 unit_price_usd: 25.00,
-                quantity: 1,
-                billing_period: 'monthly',
+                billing_cycle: 'monthly',
                 notes: 'Custom enterprise tool',
                 seats: 10,
-                is_custom: true,
                 provider: customProvider.name,
                 category: customProvider.category,
-                is_enabled: true
+                status: 'active',
+                currency: 'USD',
+                pricing_model: 'per_seat',
+                auto_renew: true,
+                start_date: new Date().toISOString()
             }
 
             // Verify custom plan structure
             expect(customPlan.plan_name).toBe('CUSTOM')
-            expect(customPlan.is_custom).toBe(true)
+            expect(customPlan.status).toBe('active')
             expect(customPlan.unit_price_usd).toBeGreaterThan(0)
             expect(customPlan.seats).toBeGreaterThan(0)
 
@@ -645,14 +647,14 @@ describe.skipIf(SKIP_TESTS)('Flow 13: Subscription Providers - Comprehensive Tes
             const mockAllPlansResponse = {
                 success: true,
                 plans: [
-                    { provider: 'canva', plan_name: 'PRO', unit_price_usd: 12.99, billing_period: 'monthly', is_enabled: true, category: 'design' },
-                    { provider: 'canva', plan_name: 'ENTERPRISE', unit_price_usd: 30.00, billing_period: 'monthly', is_enabled: true, category: 'design' },
-                    { provider: 'chatgpt_plus', plan_name: 'PLUS', unit_price_usd: 20.00, billing_period: 'monthly', is_enabled: true, category: 'ai' },
-                    { provider: 'slack', plan_name: 'BUSINESS', unit_price_usd: 12.50, billing_period: 'monthly', is_enabled: true, category: 'communication' },
-                    { provider: 'notion', plan_name: 'TEAM', unit_price_usd: 15.00, billing_period: 'monthly', is_enabled: false, category: 'productivity' }
+                    { provider: 'canva', plan_name: 'PRO', unit_price_usd: 12.99, billing_cycle: 'monthly', status: 'active', category: 'design' },
+                    { provider: 'canva', plan_name: 'ENTERPRISE', unit_price_usd: 30.00, billing_cycle: 'monthly', status: 'active', category: 'design' },
+                    { provider: 'chatgpt_plus', plan_name: 'PLUS', unit_price_usd: 20.00, billing_cycle: 'monthly', status: 'active', category: 'ai' },
+                    { provider: 'slack', plan_name: 'BUSINESS', unit_price_usd: 12.50, billing_cycle: 'monthly', status: 'active', category: 'communication' },
+                    { provider: 'notion', plan_name: 'TEAM', unit_price_usd: 15.00, billing_cycle: 'monthly', status: 'cancelled', category: 'productivity' }
                 ],
                 summary: {
-                    total_monthly_cost: 90.49, // Only enabled plans
+                    total_monthly_cost: 90.49, // Only active plans
                     total_annual_cost: 1085.88,
                     count_by_category: {
                         design: 2,
@@ -660,39 +662,39 @@ describe.skipIf(SKIP_TESTS)('Flow 13: Subscription Providers - Comprehensive Tes
                         communication: 1,
                         productivity: 1
                     },
-                    enabled_count: 4,
+                    active_count: 4,
                     total_count: 5
                 }
             }
 
             expect(mockAllPlansResponse.plans).toBeDefined()
             expect(mockAllPlansResponse.plans.length).toBe(5)
-            expect(mockAllPlansResponse.summary.enabled_count).toBe(4)
+            expect(mockAllPlansResponse.summary.active_count).toBe(4)
             expect(mockAllPlansResponse.summary.total_count).toBe(5)
             expect(mockAllPlansResponse.summary.total_monthly_cost).toBeCloseTo(90.49, 2)
 
             console.log('✓ All plans aggregated successfully')
             console.log(`  Total plans: ${mockAllPlansResponse.summary.total_count}`)
-            console.log(`  Enabled plans: ${mockAllPlansResponse.summary.enabled_count}`)
+            console.log(`  Active plans: ${mockAllPlansResponse.summary.active_count}`)
             console.log(`  Monthly cost: $${mockAllPlansResponse.summary.total_monthly_cost.toFixed(2)}`)
         })
 
         it('should calculate correct cost summaries', () => {
             const plans = [
-                { name: 'Monthly Plan', price: 10.00, billing_period: 'monthly', is_enabled: true },
-                { name: 'Annual Plan', price: 120.00, billing_period: 'yearly', is_enabled: true },
-                { name: 'Quarterly Plan', price: 30.00, billing_period: 'quarterly', is_enabled: true },
-                { name: 'Disabled Plan', price: 50.00, billing_period: 'monthly', is_enabled: false }
+                { name: 'Monthly Plan', price: 10.00, billing_cycle: 'monthly', status: 'active' },
+                { name: 'Annual Plan', price: 120.00, billing_cycle: 'annual', status: 'active' },
+                { name: 'Quarterly Plan', price: 30.00, billing_cycle: 'quarterly', status: 'active' },
+                { name: 'Cancelled Plan', price: 50.00, billing_cycle: 'monthly', status: 'cancelled' }
             ]
 
-            // Calculate monthly equivalent (only enabled)
+            // Calculate monthly equivalent (only active)
             let totalMonthly = 0
-            for (const plan of plans.filter(p => p.is_enabled)) {
-                if (plan.billing_period === 'monthly') {
+            for (const plan of plans.filter(p => p.status === 'active')) {
+                if (plan.billing_cycle === 'monthly') {
                     totalMonthly += plan.price
-                } else if (plan.billing_period === 'yearly') {
+                } else if (plan.billing_cycle === 'annual') {
                     totalMonthly += plan.price / 12
-                } else if (plan.billing_period === 'quarterly') {
+                } else if (plan.billing_cycle === 'quarterly') {
                     totalMonthly += plan.price / 3
                 }
             }
@@ -826,7 +828,9 @@ describe.skipIf(SKIP_TESTS)('Flow 13: Subscription Providers - Comprehensive Tes
                 plan_name: 'CUSTOM_SLACK_PLAN',
                 unit_price_usd: 15.00,
                 seats: 50,
-                billing_period: 'monthly'
+                billing_cycle: 'monthly',
+                status: 'active',
+                currency: 'USD'
             }
             expect(customPlan.plan_name).toBe('CUSTOM_SLACK_PLAN')
 

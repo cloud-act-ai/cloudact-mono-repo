@@ -1,4 +1,4 @@
-CREATE OR REPLACE PROCEDURE `gac-prod-471220.procedure_testsing`.sp_convert_subscription_costs_daily_to_standard_1_2(
+CREATE OR REPLACE PROCEDURE `gac-prod-471220.procedure_testsing`.sp_convert_saas_subscription_costs_daily_to_standard_1_2(
   p_start_date DATE,
   p_end_date DATE,
   p_org_slug STRING
@@ -6,7 +6,7 @@ CREATE OR REPLACE PROCEDURE `gac-prod-471220.procedure_testsing`.sp_convert_subs
 OPTIONS(strict_mode=TRUE)
 BEGIN
   --------------------------------------------------------------------------------
-  -- PROCEDURE: sp_convert_subscription_costs_daily_to_standard_1_2
+  -- PROCEDURE: sp_convert_saas_subscription_costs_daily_to_standard_1_2
   -- PURPOSE: Maps daily subscription cost data to FOCUS 1.2 Standard schema.
   -- INPUTS:
   --   p_start_date: Start of target window (inclusive)
@@ -83,7 +83,7 @@ BEGIN
           DATE_SUB(DATE_ADD(DATE_TRUNC(spc.cost_date, MONTH), INTERVAL 1 MONTH), INTERVAL 1 DAY),
           spc.cost_date, spc.cost_date,
           'subscription_costs_daily', spc.subscription_id, CURRENT_TIMESTAMP()
-        FROM `%s.%s.subscription_plan_costs_daily` spc
+        FROM `%s.%s.saas_subscription_plan_costs_daily` spc
         WHERE spc.cost_date BETWEEN @p_start AND @p_end
           AND spc.org_slug = @p_org
       """, v_project_id, v_dataset_id, v_project_id, v_dataset_id);
@@ -125,7 +125,7 @@ BEGIN
           DATE_SUB(DATE_ADD(DATE_TRUNC(spc.cost_date, MONTH), INTERVAL 1 MONTH), INTERVAL 1 DAY),
           spc.cost_date, spc.cost_date,
           'subscription_costs_daily', spc.subscription_id, CURRENT_TIMESTAMP()
-        FROM `%s.%s.subscription_plan_costs_daily` spc
+        FROM `%s.%s.saas_subscription_plan_costs_daily` spc
         WHERE spc.cost_date BETWEEN @p_start AND @p_end
       """, v_project_id, v_dataset_id, v_project_id, v_dataset_id);
       EXECUTE IMMEDIATE v_sql USING p_start_date AS p_start, p_end_date AS p_end;

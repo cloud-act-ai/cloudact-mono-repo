@@ -680,10 +680,11 @@ async def metrics():
 # API Routers
 # ============================================
 
-from src.app.routers import pipelines, scheduler
+from src.app.routers import pipelines, scheduler, procedures
 
 app.include_router(pipelines.router, prefix="/api/v1", tags=["Pipelines"])
 app.include_router(scheduler.router, prefix="/api/v1", tags=["Scheduler"])
+app.include_router(procedures.router, prefix="/api/v1", tags=["Procedures"])
 # Note: Integration setup/validate and LLM Data CRUD endpoints are in api-service (port 8000), not here
 
 

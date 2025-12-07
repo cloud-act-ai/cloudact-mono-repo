@@ -136,17 +136,20 @@ export default function ProviderDetailPage() {
     display_name: "",
     unit_price_usd: 0,
     seats: 0,
-    billing_period: "monthly",
+    billing_cycle: "monthly",
+    pricing_model: "FLAT_FEE",
+    currency: "USD",
     notes: "",
   })
 
   // Edit form state
   const [editPlanData, setEditPlanData] = useState<PlanUpdate>({
     display_name: "",
-    quantity: 0,
     unit_price_usd: 0,
     seats: 0,
-    billing_period: "monthly",
+    billing_cycle: "monthly",
+    pricing_model: "FLAT_FEE",
+    currency: "USD",
     notes: "",
   })
 
@@ -157,7 +160,9 @@ export default function ProviderDetailPage() {
       display_name: "",
       unit_price_usd: 0,
       seats: 0,
-      billing_period: "monthly",
+      billing_cycle: "monthly",
+      pricing_model: "FLAT_FEE",
+      currency: "USD",
       notes: "",
     })
   }
@@ -214,10 +219,12 @@ export default function ProviderDetailPage() {
     return () => { mounted = false }
   }, [loadPlans])
 
-  // Toggle plan enabled/disabled
+  // Toggle plan status (active/cancelled)
   const handleToggle = async (plan: SubscriptionPlan) => {
     setToggling(plan.subscription_id)
-    const result = await togglePlan(orgSlug, provider, plan.subscription_id, !plan.is_enabled)
+    // Toggle between 'active' and 'cancelled' status
+    const newStatus = plan.status === 'active' ? 'cancelled' : 'active'
+    const result = await togglePlan(orgSlug, provider, plan.subscription_id, newStatus === 'active')
     if (result.success) {
       setError(null) // Clear error on success
     } else {
@@ -248,10 +255,11 @@ export default function ProviderDetailPage() {
       // Pre-fill form with existing plan data
       setEditPlanData({
         display_name: plan.display_name || plan.plan_name,
-        quantity: plan.quantity || 1,
         unit_price_usd: plan.unit_price_usd,
         seats: plan.seats || 1,
-        billing_period: plan.billing_period,
+        billing_cycle: plan.billing_cycle,
+        pricing_model: plan.pricing_model || "FLAT_FEE",
+        currency: plan.currency || "USD",
         notes: plan.notes || "",
       })
       setShowEditDialog({ open: true, plan })
@@ -270,10 +278,6 @@ export default function ProviderDetailPage() {
     // Validate inputs
     if (editPlanData.unit_price_usd !== undefined && editPlanData.unit_price_usd < 0) {
       setError("Price cannot be negative")
-      return
-    }
-    if (editPlanData.quantity !== undefined && editPlanData.quantity < 0) {
-      setError("Quantity cannot be negative")
       return
     }
     if (editPlanData.seats !== undefined && editPlanData.seats < 0) {
@@ -330,7 +334,9 @@ export default function ProviderDetailPage() {
         display_name: newPlan.display_name || newPlan.plan_name,
         unit_price_usd: newPlan.unit_price_usd,
         seats: newPlan.seats,
-        billing_period: newPlan.billing_period,
+        billing_cycle: newPlan.billing_cycle,
+        pricing_model: newPlan.pricing_model,
+        currency: newPlan.currency,
         notes: newPlan.notes,
       })
 
@@ -351,8 +357,8 @@ export default function ProviderDetailPage() {
   }
 
   const providerDisplayName = getProviderDisplayName(provider)
-  const enabledPlans = plans.filter(p => p.is_enabled)
-  const activePlansCount = enabledPlans.length
+  const activePlans = plans.filter(p => p.status === 'active')
+  const activePlansCount = activePlans.length
 
   if (loading) {
     return (
@@ -509,7 +515,7 @@ export default function ProviderDetailPage() {
             <>
               {/* Table Header */}
               <div className="console-table-header-row grid grid-cols-12 gap-4 px-4 py-3 border-b bg-slate-50/50">
-                <div className="col-span-1 console-table-header">Active</div>
+                <div className="col-span-1 console-table-header">Status</div>
                 <div className="col-span-3 console-table-header">Plan Name</div>
                 <div className="col-span-2 console-table-header text-right">Cost</div>
                 <div className="col-span-2 console-table-header">Billing</div>
@@ -519,31 +525,34 @@ export default function ProviderDetailPage() {
 
               {/* Table Body */}
               <div className="divide-y divide-slate-100">
-                {plans.map((plan) => (
+                {plans.map((plan) => {
+                  const isActive = plan.status === 'active'
+                  const statusColors = {
+                    active: "bg-green-100 text-green-700 border-green-200",
+                    cancelled: "bg-gray-100 text-gray-700 border-gray-200",
+                    expired: "bg-red-100 text-red-700 border-red-200"
+                  }
+
+                  return (
                   <div key={plan.subscription_id}>
                     {/* Main Row */}
                     <div
-                      className="console-table-row grid grid-cols-12 gap-4 px-4 py-3.5 items-center hover:bg-[#F0FDFA] cursor-pointer transition-colors"
+                      className={`console-table-row grid grid-cols-12 gap-4 px-4 py-3.5 items-center hover:bg-[#F0FDFA] cursor-pointer transition-colors ${!isActive ? "opacity-50" : ""}`}
                       onClick={() => setExpandedRow(expandedRow === plan.subscription_id ? null : plan.subscription_id)}
                     >
                       <div className="col-span-1" onClick={(e) => e.stopPropagation()}>
-                        <Switch
-                          checked={plan.is_enabled}
-                          onCheckedChange={() => handleToggle(plan)}
-                          disabled={toggling === plan.subscription_id}
-                          className="data-[state=checked]:bg-[#007A78]"
-                        />
+                        <Badge
+                          variant="outline"
+                          className={`capitalize text-xs ${statusColors[plan.status] || statusColors.cancelled}`}
+                        >
+                          {plan.status}
+                        </Badge>
                       </div>
                       <div className="col-span-3">
                         <div className="flex items-center gap-2">
                           <span className="font-medium text-slate-900">
                             {plan.display_name || plan.plan_name}
                           </span>
-                          {plan.is_custom && (
-                            <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
-                              Custom
-                            </Badge>
-                          )}
                           {expandedRow === plan.subscription_id ? (
                             <ChevronUp className="h-4 w-4 text-slate-400" />
                           ) : (
@@ -551,12 +560,19 @@ export default function ProviderDetailPage() {
                           )}
                         </div>
                       </div>
-                      <div className="col-span-2 text-right font-medium text-[#007A78]">
-                        {formatCurrency(plan.unit_price_usd)}
+                      <div className="col-span-2 text-right">
+                        <div className="font-medium text-[#007A78]">
+                          {formatCurrency(plan.unit_price_usd)}
+                        </div>
+                        {plan.pricing_model && (
+                          <div className="text-xs text-slate-500">
+                            {plan.pricing_model === 'PER_SEAT' ? '/seat' : 'flat fee'}
+                          </div>
+                        )}
                       </div>
                       <div className="col-span-2">
                         <Badge variant="outline" className="capitalize bg-slate-50">
-                          {plan.billing_period}
+                          {plan.billing_cycle}
                         </Badge>
                       </div>
                       <div className="col-span-2 text-right text-slate-600">
@@ -572,17 +588,15 @@ export default function ProviderDetailPage() {
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
-                        {plan.is_custom && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-destructive hover:bg-destructive/10"
-                            onClick={() => setShowDeleteDialog({ open: true, plan })}
-                            title="Delete plan"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                          onClick={() => setShowDeleteDialog({ open: true, plan })}
+                          title="Delete plan"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
 
@@ -590,26 +604,55 @@ export default function ProviderDetailPage() {
                     {expandedRow === plan.subscription_id && (
                       <div className="bg-slate-50/50 px-4 py-4 border-t border-slate-100">
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                          {plan.yearly_price_usd !== undefined && plan.yearly_price_usd > 0 && (
+                          {plan.start_date && (
                             <div>
-                              <span className="text-slate-500 block text-xs uppercase tracking-wide mb-1">Yearly Price</span>
-                              <span className="font-medium">{formatCurrency(plan.yearly_price_usd)}</span>
-                              {plan.yearly_discount_pct && plan.yearly_discount_pct > 0 && (
-                                <span className="text-green-600 text-xs ml-1">({plan.yearly_discount_pct}% off)</span>
-                              )}
+                              <span className="text-slate-500 block text-xs uppercase tracking-wide mb-1">Start Date</span>
+                              <span className="font-medium">{new Date(plan.start_date).toLocaleDateString()}</span>
                             </div>
                           )}
-                          {plan.storage_limit_gb !== undefined && plan.storage_limit_gb > 0 && (
+                          {plan.renewal_date && (
                             <div>
-                              <span className="text-slate-500 block text-xs uppercase tracking-wide mb-1">Storage</span>
-                              <span className="font-medium">{plan.storage_limit_gb} GB</span>
+                              <span className="text-slate-500 block text-xs uppercase tracking-wide mb-1">Renewal Date</span>
+                              <span className="font-medium">{new Date(plan.renewal_date).toLocaleDateString()}</span>
                             </div>
                           )}
-                          {plan.monthly_limit !== undefined && plan.monthly_limit !== null && (
+                          {plan.owner_email && (
                             <div>
-                              <span className="text-slate-500 block text-xs uppercase tracking-wide mb-1">Monthly Limit</span>
-                              <span className="font-medium">
-                                {typeof plan.monthly_limit === "string" ? plan.monthly_limit : plan.monthly_limit.toLocaleString()}
+                              <span className="text-slate-500 block text-xs uppercase tracking-wide mb-1">Owner</span>
+                              <span className="font-medium">{plan.owner_email}</span>
+                            </div>
+                          )}
+                          {plan.department && (
+                            <div>
+                              <span className="text-slate-500 block text-xs uppercase tracking-wide mb-1">Department</span>
+                              <span className="font-medium">{plan.department}</span>
+                            </div>
+                          )}
+                          {plan.contract_id && (
+                            <div>
+                              <span className="text-slate-500 block text-xs uppercase tracking-wide mb-1">Contract ID</span>
+                              <span className="font-medium">{plan.contract_id}</span>
+                            </div>
+                          )}
+                          {plan.currency && plan.currency !== 'USD' && (
+                            <div>
+                              <span className="text-slate-500 block text-xs uppercase tracking-wide mb-1">Currency</span>
+                              <span className="font-medium">{plan.currency}</span>
+                            </div>
+                          )}
+                          {plan.auto_renew !== undefined && (
+                            <div>
+                              <span className="text-slate-500 block text-xs uppercase tracking-wide mb-1">Auto Renew</span>
+                              <Badge variant={plan.auto_renew ? "default" : "outline"}>
+                                {plan.auto_renew ? "Yes" : "No"}
+                              </Badge>
+                            </div>
+                          )}
+                          {plan.discount_type && plan.discount_value && (
+                            <div>
+                              <span className="text-slate-500 block text-xs uppercase tracking-wide mb-1">Discount</span>
+                              <span className="font-medium text-green-600">
+                                {plan.discount_type === 'percentage' ? `${plan.discount_value}%` : formatCurrency(plan.discount_value)}
                               </span>
                             </div>
                           )}
@@ -629,7 +672,8 @@ export default function ProviderDetailPage() {
                       </div>
                     )}
                   </div>
-                ))}
+                  )
+                })}
               </div>
 
               {/* Add Custom Subscription Footer */}
@@ -687,7 +731,7 @@ export default function ProviderDetailPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="cost">Monthly Cost ($) *</Label>
+                <Label htmlFor="cost">Unit Price ($) *</Label>
                 <Input
                   id="cost"
                   type="number"
@@ -702,10 +746,10 @@ export default function ProviderDetailPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="billing">Billing Period</Label>
+                <Label htmlFor="billing">Billing Cycle</Label>
                 <Select
-                  value={newPlan.billing_period}
-                  onValueChange={(value) => setNewPlan({ ...newPlan, billing_period: value })}
+                  value={newPlan.billing_cycle}
+                  onValueChange={(value) => setNewPlan({ ...newPlan, billing_cycle: value })}
                 >
                   <SelectTrigger id="billing">
                     <SelectValue />
@@ -714,6 +758,39 @@ export default function ProviderDetailPage() {
                     <SelectItem value="monthly">Monthly</SelectItem>
                     <SelectItem value="annual">Annual</SelectItem>
                     <SelectItem value="quarterly">Quarterly</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="pricing_model">Pricing Model</Label>
+                <Select
+                  value={newPlan.pricing_model}
+                  onValueChange={(value) => setNewPlan({ ...newPlan, pricing_model: value as 'PER_SEAT' | 'FLAT_FEE' })}
+                >
+                  <SelectTrigger id="pricing_model">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="FLAT_FEE">Flat Fee</SelectItem>
+                    <SelectItem value="PER_SEAT">Per Seat</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="currency">Currency</Label>
+                <Select
+                  value={newPlan.currency}
+                  onValueChange={(value) => setNewPlan({ ...newPlan, currency: value })}
+                >
+                  <SelectTrigger id="currency">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="USD">USD</SelectItem>
+                    <SelectItem value="EUR">EUR</SelectItem>
+                    <SelectItem value="GBP">GBP</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -783,7 +860,7 @@ export default function ProviderDetailPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="edit_cost">Monthly Cost ($) *</Label>
+                <Label htmlFor="edit_cost">Unit Price ($) *</Label>
                 <Input
                   id="edit_cost"
                   type="number"
@@ -798,10 +875,10 @@ export default function ProviderDetailPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit_billing">Billing Period</Label>
+                <Label htmlFor="edit_billing">Billing Cycle</Label>
                 <Select
-                  value={editPlanData.billing_period}
-                  onValueChange={(value) => setEditPlanData({ ...editPlanData, billing_period: value })}
+                  value={editPlanData.billing_cycle}
+                  onValueChange={(value) => setEditPlanData({ ...editPlanData, billing_cycle: value })}
                 >
                   <SelectTrigger id="edit_billing">
                     <SelectValue />
@@ -816,35 +893,51 @@ export default function ProviderDetailPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="edit_quantity">Quantity</Label>
-                <Input
-                  id="edit_quantity"
-                  type="number"
-                  min="0"
-                  step="1"
-                  placeholder="0"
-                  value={editPlanData.quantity === 0 ? "" : editPlanData.quantity}
-                  onChange={(e) => {
-                    const parsed = parseInt(e.target.value, 10)
-                    setEditPlanData({ ...editPlanData, quantity: e.target.value === "" ? 0 : (isNaN(parsed) || parsed < 0 ? 0 : parsed) })
-                  }}
-                />
+                <Label htmlFor="edit_pricing_model">Pricing Model</Label>
+                <Select
+                  value={editPlanData.pricing_model}
+                  onValueChange={(value) => setEditPlanData({ ...editPlanData, pricing_model: value as 'PER_SEAT' | 'FLAT_FEE' })}
+                >
+                  <SelectTrigger id="edit_pricing_model">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="FLAT_FEE">Flat Fee</SelectItem>
+                    <SelectItem value="PER_SEAT">Per Seat</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit_seats">Seats</Label>
-                <Input
-                  id="edit_seats"
-                  type="number"
-                  min="0"
-                  step="1"
-                  placeholder="0"
-                  value={editPlanData.seats === 0 ? "" : editPlanData.seats}
-                  onChange={(e) => {
-                    const parsed = parseInt(e.target.value, 10)
-                    setEditPlanData({ ...editPlanData, seats: e.target.value === "" ? 0 : (isNaN(parsed) || parsed < 0 ? 0 : parsed) })
-                  }}
-                />
+                <Label htmlFor="edit_currency">Currency</Label>
+                <Select
+                  value={editPlanData.currency}
+                  onValueChange={(value) => setEditPlanData({ ...editPlanData, currency: value })}
+                >
+                  <SelectTrigger id="edit_currency">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="USD">USD</SelectItem>
+                    <SelectItem value="EUR">EUR</SelectItem>
+                    <SelectItem value="GBP">GBP</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit_seats">Seats</Label>
+              <Input
+                id="edit_seats"
+                type="number"
+                min="0"
+                step="1"
+                placeholder="0"
+                value={editPlanData.seats === 0 ? "" : editPlanData.seats}
+                onChange={(e) => {
+                  const parsed = parseInt(e.target.value, 10)
+                  setEditPlanData({ ...editPlanData, seats: e.target.value === "" ? 0 : (isNaN(parsed) || parsed < 0 ? 0 : parsed) })
+                }}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit_notes">Notes (optional)</Label>

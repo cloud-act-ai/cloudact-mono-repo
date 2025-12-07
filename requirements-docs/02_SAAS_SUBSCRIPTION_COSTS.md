@@ -1,6 +1,6 @@
 # SaaS Subscription Costs
 
-**Status**: IMPLEMENTED (v9.0) | **Updated**: 2025-12-04 | **Single Source of Truth**
+**Status**: IMPLEMENTED (v11.0) | **Updated**: 2025-12-06 | **Single Source of Truth**
 
 > Track fixed-cost SaaS subscriptions (Canva, ChatGPT Plus, Slack, etc.)
 > NOT CloudAct platform billing (that's Stripe)
@@ -52,6 +52,12 @@ Examples:
 **Code Naming Convention:**
 - Functions for **providers**: `enableProvider()`, `disableProvider()`, `getAllProviders()`
 - Functions for **plans**: `getProviderPlans()`, `createCustomPlan()`, `togglePlan()`
+
+**Field Terminology (v10.0):**
+- `status` - Subscription status: `active`, `cancelled`, `expired` (replaces `is_enabled`)
+- `billing_cycle` - Payment frequency: `monthly`, `yearly`, `quarterly`, `weekly` (replaces `billing_period`)
+- `discount_type` - Discount format: `percentage`, `fixed`, `none` (replaces `yearly_discount_pct`)
+- `pricing_model` - Pricing structure: `per_seat`, `flat_rate`, `tiered` (new field)
 
 ---
 
@@ -169,21 +175,96 @@ Examples:
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                      BIGQUERY (All Subscription Data)                       │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│  {org_slug}_{env}.saas_subscription_plans                                   │
-│  ├── subscription_id: STRING (UUID)                                         │
+│  {org_slug}_{env}.saas_subscription_plans (25 columns)                      │
+│  ├── org_slug: STRING           (organization identifier)                  │
+│  ├── subscription_id: STRING    (UUID, unique per subscription)            │
 │  ├── provider: STRING           (e.g., "canva", "claude_pro")              │
 │  ├── plan_name: STRING          (e.g., "FREE", "PRO", "TEAM")              │
-│  ├── display_name: STRING       (human-readable)                           │
-│  ├── unit_price_usd: FLOAT      (monthly cost)                             │
-│  ├── yearly_price_usd: FLOAT                                               │
-│  ├── billing_period: STRING     (monthly, yearly)                          │
+│  ├── display_name: STRING       (human-readable name)                      │
 │  ├── category: STRING           (ai, design, productivity, etc.)           │
-│  ├── seats: INT                                                            │
-│  ├── is_enabled: BOOLEAN        (active for cost tracking)                 │
-│  ├── is_custom: BOOLEAN         (user-added vs seeded)                     │
-│  └── storage_limit_gb, daily_limit, monthly_limit, etc.                    │
+│  ├── status: STRING             (active, cancelled, expired)               │
+│  ├── start_date: DATE           (subscription start date)                  │
+│  ├── end_date: DATE             (subscription end date, nullable)          │
+│  ├── billing_cycle: STRING      (monthly, yearly, quarterly, weekly)       │
+│  ├── currency: STRING           (USD, EUR, GBP, etc.)                      │
+│  ├── seats: INT                 (number of seats/licenses)                 │
+│  ├── pricing_model: STRING      (per_seat, flat_rate, tiered)             │
+│  ├── unit_price_usd: FLOAT      (monthly cost per unit)                    │
+│  ├── yearly_price_usd: FLOAT    (annual cost, nullable)                    │
+│  ├── discount_type: STRING      (percentage, fixed, none)                  │
+│  ├── discount_value: FLOAT      (discount amount or %, nullable)           │
+│  ├── auto_renew: BOOLEAN        (auto-renewal enabled)                     │
+│  ├── payment_method: STRING     (credit_card, invoice, etc.)               │
+│  ├── invoice_id_last: STRING    (last invoice reference, nullable)         │
+│  ├── owner_email: STRING        (subscription owner)                       │
+│  ├── department: STRING         (cost center, nullable)                    │
+│  ├── renewal_date: DATE         (next renewal date, nullable)              │
+│  ├── contract_id: STRING        (contract reference, nullable)             │
+│  ├── notes: STRING              (additional notes, nullable)               │
+│  └── updated_at: TIMESTAMP      (last update timestamp)                    │
 │                                                                             │
 │  Purpose: ALL subscription plans (seeded from CSV + custom user plans)     │
+│                                                                             │
+│  {org_slug}_{env}.saas_subscription_plan_costs_daily (18 columns) - FACT   │
+│  ├── org_slug: STRING           (organization identifier)                  │
+│  ├── provider: STRING           (e.g., "canva", "claude_pro")              │
+│  ├── subscription_id: STRING    (FK to saas_subscription_plans)            │
+│  ├── plan_name: STRING          (plan tier: FREE, PRO, TEAM)               │
+│  ├── display_name: STRING       (human-readable name)                      │
+│  ├── cost_date: DATE            (partition key - cost applies to this day) │
+│  ├── billing_cycle: STRING      (monthly, yearly, quarterly)               │
+│  ├── currency: STRING           (USD, EUR, GBP)                            │
+│  ├── seats: INT64               (number of seats)                          │
+│  ├── quantity: NUMERIC          (usage quantity)                           │
+│  ├── unit: STRING               (seat, user, license)                      │
+│  ├── cycle_cost: NUMERIC        (full billing cycle cost after discounts)  │
+│  ├── daily_cost: NUMERIC        (amortized daily cost)                     │
+│  ├── monthly_run_rate: NUMERIC  (projected monthly cost)                   │
+│  ├── annual_run_rate: NUMERIC   (projected annual cost)                    │
+│  ├── invoice_id_last: STRING    (last invoice reference)                   │
+│  ├── source: STRING             (subscription_proration)                   │
+│  └── updated_at: TIMESTAMP      (last update)                              │
+│                                                                             │
+│  Purpose: Daily amortized costs calculated by pipeline procedures          │
+│  Partition: DAY on cost_date | Cluster: org_slug, subscription_id          │
+│                                                                             │
+│  {org_slug}_{env}.cost_data_standard_1_2 (67 columns) - FOCUS 1.2 STANDARD │
+│  ├── (See FOCUS 1.2 specification for full column list)                    │
+│  ├── SourceSystem: STRING = 'saas_subscription_costs_daily'                │
+│  └── ChargeCategory: STRING = 'Subscription'                               │
+│                                                                             │
+│  Purpose: Standardized cost data conforming to FinOps FOCUS 1.2 schema     │
+│  Partition: DAY on ChargePeriodStart | Cluster: SubAccountId, Provider     │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                    Centralized Tables (Bootstrap)
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     BIGQUERY CENTRAL DATASET (organizations)                │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  {project_id}.organizations.org_subscription_audit (11 columns) - BOOTSTRAP │
+│  ├── audit_id: STRING           (UUID, unique per audit entry)             │
+│  ├── org_slug: STRING           (organization identifier)                  │
+│  ├── subscription_id: STRING    (FK to saas_subscription_plans)            │
+│  ├── action: STRING             (created, updated, deleted, status_change) │
+│  ├── changed_field: STRING      (field name that changed, nullable)        │
+│  ├── old_value: STRING          (previous value, nullable)                 │
+│  ├── new_value: STRING          (new value, nullable)                      │
+│  ├── changed_by: STRING         (user email or system)                     │
+│  ├── changed_at: TIMESTAMP      (when change occurred)                     │
+│  ├── reason: STRING             (reason for change, nullable)              │
+│  └── source: STRING             (api, pipeline, manual, system)            │
+│                                                                             │
+│  Purpose: Centralized audit trail for ALL subscription changes (all orgs)  │
+│  Location: Created during bootstrap, NOT per-org onboarding                │
+│  Partition: DAY on changed_at | Cluster: org_slug, subscription_id         │
+│                                                                             │
+│  {project_id}.organizations Procedures (Central - operate on per-org data) │
+│  ├── sp_calculate_saas_subscription_plan_costs_daily                        │
+│  ├── sp_convert_saas_costs_to_focus_1_2                                     │
+│  └── sp_run_saas_subscription_costs_pipeline (orchestrator)                 │
+│                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -373,28 +454,39 @@ User toggles provider OFF
 
 **File:** `api-service/configs/saas/seed/data/saas_subscription_plans.csv`
 
-**Columns (14):**
+**Columns (25):**
 ```
-provider,plan_name,display_name,unit_price_usd,yearly_price_usd,yearly_discount_pct,billing_period,category,seats,storage_limit_gb,monthly_usage_limit,projects_limit,members_limit,notes
+org_slug,subscription_id,provider,plan_name,display_name,category,status,start_date,end_date,billing_cycle,currency,seats,pricing_model,unit_price_usd,yearly_price_usd,discount_type,discount_value,auto_renew,payment_method,invoice_id_last,owner_email,department,renewal_date,contract_id,notes
 ```
 
 **Column Descriptions:**
 | Column | Type | Description |
 |--------|------|-------------|
+| org_slug | STRING | Organization identifier (populated during seeding) |
+| subscription_id | STRING | UUID (auto-generated during seeding) |
 | provider | STRING | Provider key (chatgpt_plus, canva, slack) |
 | plan_name | STRING | Plan tier (FREE, PRO, TEAM, BUSINESS) |
 | display_name | STRING | Human-readable name |
-| unit_price_usd | FLOAT | Monthly price |
-| yearly_price_usd | FLOAT | Annual price |
-| yearly_discount_pct | INT | Discount % for annual (0-27) |
-| billing_period | STRING | Always "monthly" |
 | category | STRING | ai, design, productivity, communication, development |
-| seats | INT | Included seats (1, 2, 5, 10) |
-| storage_limit_gb | FLOAT | Storage limit (0.25, 5, 50, 100, 1000, unlimited) |
-| monthly_usage_limit | INT/STRING | Usage cap (2000, 500000, unlimited) |
-| projects_limit | INT/STRING | Project limit (3, 5, unlimited) |
-| members_limit | INT/STRING | Member limit (1, 10, 150, unlimited) |
-| notes | STRING | Plan description |
+| status | STRING | active, cancelled, expired |
+| start_date | DATE | Subscription start date (nullable) |
+| end_date | DATE | Subscription end date (nullable) |
+| billing_cycle | STRING | monthly, yearly, quarterly, weekly |
+| currency | STRING | USD, EUR, GBP, etc. |
+| seats | INT | Number of seats/licenses |
+| pricing_model | STRING | per_seat, flat_rate, tiered |
+| unit_price_usd | FLOAT | Monthly price per unit |
+| yearly_price_usd | FLOAT | Annual price (nullable) |
+| discount_type | STRING | percentage, fixed, none |
+| discount_value | FLOAT | Discount amount or percentage (nullable) |
+| auto_renew | BOOLEAN | Auto-renewal enabled |
+| payment_method | STRING | credit_card, invoice, etc. (nullable) |
+| invoice_id_last | STRING | Last invoice reference (nullable) |
+| owner_email | STRING | Subscription owner email (nullable) |
+| department | STRING | Cost center or department (nullable) |
+| renewal_date | DATE | Next renewal date (nullable) |
+| contract_id | STRING | Contract reference (nullable) |
+| notes | STRING | Plan description or additional notes |
 
 **Provider Coverage (28 providers, 70 plans):**
 
@@ -405,6 +497,95 @@ provider,plan_name,display_name,unit_price_usd,yearly_price_usd,yearly_discount_
 | Productivity | notion, confluence, asana, monday |
 | Communication | slack, zoom, teams |
 | Development | github, gitlab, jira, linear, vercel, netlify, railway, supabase |
+
+---
+
+## Schema Migration (v9.0 → v10.0)
+
+**Migration Date:** 2025-12-06
+
+### What Changed
+
+The schema was expanded from 14 columns to 25 columns to support enterprise-grade subscription management.
+
+**Columns Added (11 new):**
+- `org_slug` - Organization identifier (for multi-tenant support)
+- `status` - Subscription status (active, cancelled, expired)
+- `start_date` - Subscription start date
+- `end_date` - Subscription end date
+- `currency` - Currency code (USD, EUR, GBP, etc.)
+- `pricing_model` - Pricing model (per_seat, flat_rate, tiered)
+- `discount_type` - Type of discount (percentage, fixed, none)
+- `discount_value` - Discount amount or percentage
+- `auto_renew` - Auto-renewal flag
+- `payment_method` - Payment method (credit_card, invoice, etc.)
+- `invoice_id_last` - Last invoice reference
+- `owner_email` - Subscription owner email
+- `department` - Department or cost center
+- `renewal_date` - Next renewal date
+- `contract_id` - Contract reference
+
+**Columns Renamed (3):**
+- `billing_period` → `billing_cycle`
+- `yearly_discount_pct` → `discount_type` + `discount_value` (more flexible)
+- `is_enabled` → `status` (more granular states)
+
+**Columns Removed (4):**
+- `storage_limit_gb` - Moved to notes or custom fields
+- `monthly_usage_limit` - Moved to notes or custom fields
+- `projects_limit` - Moved to notes or custom fields
+- `members_limit` - Moved to notes or custom fields
+- `is_custom` - Inferred from seed data presence
+
+**Columns Retained (10):**
+- `subscription_id` - UUID identifier
+- `provider` - Provider key
+- `plan_name` - Plan tier
+- `display_name` - Human-readable name
+- `category` - Category classification
+- `seats` - Number of seats
+- `unit_price_usd` - Monthly price
+- `yearly_price_usd` - Annual price
+- `notes` - Additional notes
+- `updated_at` - Last update timestamp
+
+### Terminology Updates
+
+| Old Term | New Term | Reason |
+|----------|----------|--------|
+| `is_enabled` | `status` | More states: active, cancelled, expired |
+| `billing_period` | `billing_cycle` | Industry standard terminology |
+| `yearly_discount_pct` | `discount_type` + `discount_value` | Supports both percentage and fixed discounts |
+| `effective_date` | `start_date` | Clearer meaning |
+
+### New Audit Table
+
+**Table:** `org_subscription_audit` (11 columns)
+
+Created via pipeline procedures to track all subscription changes:
+- `audit_id` - Unique audit entry ID
+- `org_slug` - Organization identifier
+- `subscription_id` - FK to saas_subscription_plans
+- `action` - Action type (created, updated, deleted, status_change)
+- `changed_field` - Field that changed
+- `old_value` - Previous value
+- `new_value` - New value
+- `changed_by` - User or system
+- `changed_at` - Timestamp
+- `reason` - Reason for change
+- `source` - Source (api, pipeline, manual, system)
+
+**Note:** This table is NOT created during org onboarding. It's created via pipeline procedures when first subscription audit is needed.
+
+### Migration Impact
+
+| Component | Impact | Action Required |
+|-----------|--------|-----------------|
+| CSV Seed Data | Schema mismatch | Update CSV to 25 columns |
+| BigQuery Schema | Schema updated | Re-create table or add columns |
+| API Service | New fields | Update request/response models |
+| Frontend | New fields | Update TypeScript interfaces |
+| Tests | Schema mismatch | Update test fixtures |
 
 ---
 
@@ -511,55 +692,81 @@ export interface ProviderInfo {
 }
 
 export interface SubscriptionPlan {
+  org_slug: string
   subscription_id: string
   provider: string
   plan_name: string
   display_name?: string
-  is_custom: boolean
-  quantity: number
-  unit_price_usd: number
-  effective_date?: string
-  end_date?: string
-  is_enabled: boolean
-  billing_period: string
   category: string
-  notes?: string
-  daily_limit?: number
-  monthly_limit?: number
-  storage_limit_gb?: number
-  yearly_price_usd?: number
-  yearly_discount_pct?: number
+  status: string // active, cancelled, expired
+  start_date?: string
+  end_date?: string
+  billing_cycle: string // monthly, yearly, quarterly, weekly
+  currency: string // USD, EUR, GBP, etc.
   seats: number
-  created_at?: string
+  pricing_model: string // per_seat, flat_rate, tiered
+  unit_price_usd: number
+  yearly_price_usd?: number
+  discount_type: string // percentage, fixed, none
+  discount_value?: number
+  auto_renew: boolean
+  payment_method?: string // credit_card, invoice, etc.
+  invoice_id_last?: string
+  owner_email?: string
+  department?: string
+  renewal_date?: string
+  contract_id?: string
+  notes?: string
   updated_at?: string
 }
 
 export interface PlanCreate {
   plan_name: string
   display_name?: string
-  quantity?: number
-  unit_price_usd: number
-  billing_period?: string
-  notes?: string
-  daily_limit?: number
-  monthly_limit?: number
-  yearly_price_usd?: number
-  yearly_discount_pct?: number
+  category?: string
+  status?: string // active, cancelled, expired (default: active)
+  start_date?: string
+  end_date?: string
+  billing_cycle?: string // monthly, yearly, quarterly, weekly (default: monthly)
+  currency?: string // USD, EUR, GBP (default: USD)
   seats?: number
+  pricing_model?: string // per_seat, flat_rate, tiered (default: flat_rate)
+  unit_price_usd: number
+  yearly_price_usd?: number
+  discount_type?: string // percentage, fixed, none (default: none)
+  discount_value?: number
+  auto_renew?: boolean // default: false
+  payment_method?: string
+  invoice_id_last?: string
+  owner_email?: string
+  department?: string
+  renewal_date?: string
+  contract_id?: string
+  notes?: string
 }
 
 export interface PlanUpdate {
   display_name?: string
-  quantity?: number
-  unit_price_usd?: number
-  is_enabled?: boolean
-  billing_period?: string
-  notes?: string
-  daily_limit?: number
-  monthly_limit?: number
-  yearly_price_usd?: number
-  yearly_discount_pct?: number
+  category?: string
+  status?: string // active, cancelled, expired
+  start_date?: string
+  end_date?: string
+  billing_cycle?: string
+  currency?: string
   seats?: number
+  pricing_model?: string
+  unit_price_usd?: number
+  yearly_price_usd?: number
+  discount_type?: string
+  discount_value?: number
+  auto_renew?: boolean
+  payment_method?: string
+  invoice_id_last?: string
+  owner_email?: string
+  department?: string
+  renewal_date?: string
+  contract_id?: string
+  notes?: string
 }
 ```
 
@@ -709,7 +916,7 @@ DELETE /subscriptions/{org}/providers/{provider}/plans/{id}
        → Delete plan from BigQuery (custom only)
 
 POST   /subscriptions/{org}/providers/{provider}/toggle/{id}
-       → Toggle plan is_enabled in BigQuery
+       → Toggle plan status in BigQuery (active ↔ cancelled)
 
 POST   /subscriptions/{org}/providers/{provider}/reset
        → Force re-seed defaults from CSV
@@ -738,7 +945,14 @@ POST   /subscriptions/{org}/providers/{provider}/reset
 | Manage page form reset on dialog close | Frontend | app/[orgSlug]/settings/integrations/subscriptions/page.tsx |
 | Sidebar with Subscriptions menu | Frontend | components/dashboard-sidebar.tsx |
 | Subscription Plans router | API Service | src/app/routers/subscription_plans.py |
-| CSV seed data (14 cols, 70 plans) | API Service | configs/saas/seed/data/saas_subscription_plans.csv |
+| CSV seed data (25 cols, 70 plans) | API Service | configs/saas/seed/data/saas_subscription_plans.csv |
+| Schema: saas_subscription_plans (25 cols) | API Service | configs/setup/organizations/onboarding/schemas/ |
+| Schema: saas_subscription_plan_costs_daily (18 cols) | API Service | configs/setup/organizations/onboarding/schemas/ |
+| Schema: cost_data_standard_1_2 (67 cols FOCUS 1.2) | API Service | configs/setup/organizations/onboarding/schemas/ |
+| Schema: org_subscription_audit (11 cols) | Bootstrap | configs/setup/bootstrap/schemas/ |
+| Procedure: sp_calculate_saas_subscription_plan_costs_daily | Pipeline | configs/system/procedures/subscription/ |
+| Procedure: sp_convert_saas_costs_to_focus_1_2 | Pipeline | configs/system/procedures/subscription/ |
+| Procedure: sp_run_saas_subscription_costs_pipeline | Pipeline | configs/system/procedures/subscription/ |
 
 ### REMOVED
 
@@ -751,7 +965,7 @@ POST   /subscriptions/{org}/providers/{provider}/reset
 
 | Component | Service | Priority |
 |-----------|---------|----------|
-| Cost analysis pipeline | Pipeline (8001) | P2 |
+| Daily scheduler for cost pipeline | Cloud Scheduler | P2 |
 | Auto-seed on org onboarding | API Service | P3 |
 | Bulk provider enable | API Service | P3 |
 
@@ -759,18 +973,327 @@ POST   /subscriptions/{org}/providers/{provider}/reset
 
 ## Cost Calculation Logic
 
-**Daily Rate:**
+**Daily Rate (based on billing_cycle):**
 - yearly: `price / 365`
 - monthly: `price / 30.4375`
 - quarterly: `price / 91.25`
 - weekly: `price / 7`
 
-**Final Cost:** `base_daily × (1 - discount%) × quantity`
+**Discount Application:**
+```
+if discount_type == "percentage":
+    discount_multiplier = 1 - (discount_value / 100)
+elif discount_type == "fixed":
+    discount_amount = discount_value
+    discount_multiplier = 1 (apply fixed after)
+else: // none
+    discount_multiplier = 1
+```
+
+**Final Cost:**
+```
+if pricing_model == "per_seat":
+    base_cost = unit_price_usd × seats
+elif pricing_model == "flat_rate":
+    base_cost = unit_price_usd
+elif pricing_model == "tiered":
+    base_cost = unit_price_usd (calculated externally)
+
+if discount_type == "percentage":
+    final_cost = base_cost × discount_multiplier
+elif discount_type == "fixed":
+    final_cost = base_cost - discount_value
+else:
+    final_cost = base_cost
+```
 
 **Projections:**
-- weekly: `daily × 7`
-- monthly: `daily × 30.4375`
-- yearly: `daily × 365`
+- weekly: `daily_rate × 7`
+- monthly: `daily_rate × 30.4375`
+- yearly: `daily_rate × 365`
+
+---
+
+## Pipeline Procedures
+
+### Architecture
+
+All procedures live in the central `{project_id}.organizations` dataset but operate on per-customer datasets.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                           PROCEDURE ARCHITECTURE                                 │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                  │
+│  CENTRAL DATASET: {project_id}.organizations                                     │
+│  ├── Procedures (created ONCE, called for each customer):                        │
+│  │   ├── sp_calculate_saas_subscription_plan_costs_daily                        │
+│  │   ├── sp_convert_saas_costs_to_focus_1_2                                     │
+│  │   └── sp_run_saas_subscription_costs_pipeline (orchestrator)                 │
+│  │                                                                               │
+│  └── Bootstrap Tables                                                            │
+│      └── org_subscription_audit (centralized audit trail for all orgs)          │
+│                                                                                  │
+│  PER-CUSTOMER DATASETS: {project_id}.{org_slug}_prod                            │
+│  └── Tables (created during onboarding):                                         │
+│      ├── saas_subscription_plans (dimension - user-managed subscriptions)        │
+│      ├── saas_subscription_plan_costs_daily (fact - calculated by pipeline)      │
+│      └── cost_data_standard_1_2 (FOCUS 1.2 - standardized costs)                │
+│                                                                                  │
+└─────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Procedure Details
+
+#### 1. sp_calculate_saas_subscription_plan_costs_daily (Stage 1)
+
+**Purpose:** Expands active subscription plans into daily amortized cost rows.
+
+```sql
+CALL `{project_id}.organizations`.sp_calculate_saas_subscription_plan_costs_daily(
+  'gac-prod-471220',    -- p_project_id
+  'acme_corp_prod',     -- p_dataset_id (customer dataset)
+  DATE('2024-01-01'),   -- p_start_date
+  DATE('2024-01-31')    -- p_end_date
+);
+```
+
+**Logic:**
+1. Read active subscriptions from `saas_subscription_plans` WHERE status = 'active'
+2. Apply pricing model: `PER_SEAT` (unit_price × seats) or `FLAT_FEE` (unit_price only)
+3. Apply discounts: `percent` (1 - discount_value/100) or `fixed` (subtract discount_value)
+4. Calculate daily cost: `cycle_cost / days_in_cycle`
+5. Write to `saas_subscription_plan_costs_daily` (DELETE + INSERT for idempotency)
+
+**Daily Cost Formula:**
+```
+Monthly: cycle_cost / EXTRACT(DAY FROM LAST_DAY(day))
+Annual:  cycle_cost / days_in_year (365 or 366 for leap years)
+```
+
+#### 2. sp_convert_saas_costs_to_focus_1_2 (Stage 2)
+
+**Purpose:** Maps daily SaaS subscription costs to FinOps FOCUS 1.2 standard schema.
+
+```sql
+CALL `{project_id}.organizations`.sp_convert_saas_costs_to_focus_1_2(
+  'gac-prod-471220',    -- p_project_id
+  'acme_corp_prod',     -- p_dataset_id (customer dataset)
+  DATE('2024-01-01'),   -- p_start_date
+  DATE('2024-01-31')    -- p_end_date
+);
+```
+
+**Logic:**
+1. Read from `saas_subscription_plan_costs_daily`
+2. Map fields to FOCUS 1.2 columns:
+   - `ChargeCategory = 'Subscription'`
+   - `ChargeClass = 'Recurring'`
+   - `ServiceCategory = 'SaaS'`
+   - `SourceSystem = 'saas_subscription_costs_daily'`
+3. DELETE existing records for date range WHERE SourceSystem = 'saas_subscription_costs_daily'
+4. INSERT mapped data to `cost_data_standard_1_2`
+
+#### 3. sp_run_saas_subscription_costs_pipeline (Orchestrator)
+
+**Purpose:** Runs both stages in sequence for a customer.
+
+```sql
+CALL `{project_id}.organizations`.sp_run_saas_subscription_costs_pipeline(
+  'gac-prod-471220',    -- p_project_id
+  'acme_corp_prod',     -- p_dataset_id (customer dataset)
+  DATE('2024-01-01'),   -- p_start_date
+  DATE('2024-01-31')    -- p_end_date
+);
+```
+
+**Flow:**
+```
+sp_run_saas_subscription_costs_pipeline
+    │
+    ├── 1. Validate parameters (NULL checks, date range validation)
+    │
+    ├── 2. CALL sp_calculate_saas_subscription_plan_costs_daily
+    │       └── Stage 1: Calculate daily amortized costs
+    │
+    ├── 3. CALL sp_convert_saas_costs_to_focus_1_2
+    │       └── Stage 2: Convert to FOCUS 1.2 standard
+    │
+    └── 4. Return completion status
+```
+
+### Pipeline Execution Flow
+
+```
++-----------------------------------------------------------------------------------+
+| STEP 1: Customer Dataset Tables (created during org onboarding)                   |
+| {project_id}.{org_slug}_prod.saas_subscription_plans                              |
+| {project_id}.{org_slug}_prod.saas_subscription_plan_costs_daily                   |
+| {project_id}.{org_slug}_prod.cost_data_standard_1_2                               |
++-----------------------------------------------------------------------------------+
+                                       |
+                                       v
++-----------------------------------------------------------------------------------+
+| STEP 2: User manages subscriptions via UI/API                                     |
+| - Enable provider → seed default plans                                            |
+| - Add/edit/delete custom plans                                                    |
+| - Set seats, pricing, discounts                                                   |
++-----------------------------------------------------------------------------------+
+                                       |
+                                       v
++-----------------------------------------------------------------------------------+
+| STEP 3: Pipeline runs (daily scheduler or ad-hoc)                                 |
+| POST /api/v1/pipelines/run/{org}/subscription/cost/saas_cost                      |
+|                                                                                   |
+| Calls: sp_run_saas_subscription_costs_pipeline(project, dataset, start, end)      |
++-----------------------------------------------------------------------------------+
+                                       |
+                                       v
+           +----------------------------------------------------------+
+           | Stage 1: Calculate Daily Costs                           |
+           | sp_calculate_saas_subscription_plan_costs_daily          |
+           |                                                          |
+           | 1. Read active subscriptions                             |
+           | 2. Apply pricing model (PER_SEAT / FLAT_FEE)             |
+           | 3. Apply discounts (percent / fixed)                     |
+           | 4. Calculate: cycle_cost / days_in_cycle = daily_cost    |
+           | 5. Write to saas_subscription_plan_costs_daily           |
+           +----------------------------------------------------------+
+                                       |
+                                       v
+           +----------------------------------------------------------+
+           | Stage 2: Convert to FOCUS 1.2 Standard                   |
+           | sp_convert_saas_costs_to_focus_1_2                       |
+           |                                                          |
+           | 1. Read from saas_subscription_plan_costs_daily          |
+           | 2. Map to FOCUS 1.2 columns                              |
+           | 3. Set ChargeCategory = 'Subscription'                   |
+           | 4. Write to cost_data_standard_1_2                       |
+           +----------------------------------------------------------+
+                                       |
+                                       v
++-----------------------------------------------------------------------------------+
+| STEP 4: Cost data available for dashboards and analytics                          |
+| - Daily costs in saas_subscription_plan_costs_daily                               |
+| - Standardized costs in cost_data_standard_1_2                                    |
+| - Can aggregate with GCP, LLM, and other costs                                    |
++-----------------------------------------------------------------------------------+
+```
+
+### How to Run
+
+#### Daily Run (Scheduler)
+
+Pipeline service scheduler calls for each active customer:
+
+```sql
+-- For each active org
+CALL `gac-prod-471220.organizations`.sp_run_saas_subscription_costs_pipeline(
+  'gac-prod-471220',
+  'acme_corp_prod',
+  DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY),
+  DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)
+);
+```
+
+#### Ad-hoc Run (API)
+
+```bash
+curl -X POST http://localhost:8001/api/v1/pipelines/run/acme_corp/subscription/cost/saas_cost \
+  -H "X-API-Key: $ORG_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "start_date": "2024-01-01",
+    "end_date": "2024-01-31"
+  }'
+```
+
+#### Backfill Run (Full Year)
+
+```sql
+CALL `gac-prod-471220.organizations`.sp_run_saas_subscription_costs_pipeline(
+  'gac-prod-471220',
+  'acme_corp_prod',
+  DATE('2024-01-01'),
+  DATE('2024-12-31')
+);
+```
+
+### Handling Subscription Changes (SCD Type 2)
+
+#### Cancellation
+
+To cancel a subscription (preserve historical data):
+
+1. **Do NOT delete** the row
+2. Set `end_date` to the last valid day
+3. Set `status` to 'cancelled'
+4. Pipeline calculates costs up to `end_date`
+
+```sql
+UPDATE saas_subscription_plans
+SET end_date = '2024-12-31', status = 'cancelled'
+WHERE subscription_id = 'sub_123';
+```
+
+#### Changing Seats
+
+To change seat count (preserve cost accuracy):
+
+1. **Close the old row**: Set `end_date` to today
+2. **Create new row**: Insert with `start_date` = tomorrow and new seat count
+
+### Procedure Files
+
+| File | Purpose |
+|------|---------|
+| `data-pipeline-service/configs/system/procedures/saas_subscription/sp_calculate_saas_subscription_plan_costs_daily.sql` | Stage 1 procedure |
+| `data-pipeline-service/configs/system/procedures/saas_subscription/sp_convert_saas_costs_to_focus_1_2.sql` | Stage 2 procedure |
+| `data-pipeline-service/configs/system/procedures/saas_subscription/sp_run_saas_subscription_costs_pipeline.sql` | Orchestrator procedure |
+
+### Pipeline Service Integration
+
+**Config Path:** `data-pipeline-service/configs/saas_subscription/costs/saas_cost.yml`
+
+**Processor:** `generic.procedure_executor` - Executes BigQuery stored procedures with dynamic parameters.
+
+```yaml
+pipeline_id: "{org_slug}-saas-subscription-costs"
+name: "SaaS Subscription Costs Pipeline"
+schedule:
+  type: daily
+  time: "03:00"
+  timezone: UTC
+
+steps:
+  - step_id: "run_cost_pipeline"
+    ps_type: "generic.procedure_executor"
+    config:
+      procedure:
+        name: sp_run_saas_subscription_costs_pipeline
+        dataset: organizations  # Central dataset
+      parameters:
+        - name: p_project_id
+          type: STRING
+          value: "${project_id}"
+        - name: p_dataset_id
+          type: STRING
+          value: "${org_dataset}"
+        - name: p_start_date
+          type: DATE
+          value: "${start_date}"
+        - name: p_end_date
+          type: DATE
+          value: "${end_date}"
+```
+
+**Run Pipeline via API:**
+```bash
+curl -X POST http://localhost:8001/api/v1/pipelines/run/{org_slug}/saas_subscription/costs/saas_cost \
+  -H "X-API-Key: $ORG_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"start_date": "2024-01-01", "end_date": "2024-01-31"}'
+```
 
 ---
 
@@ -809,11 +1332,28 @@ If the organization hasn't completed backend onboarding (no API key in user meta
 
 To complete the architecture migration:
 
+### Frontend
 - [x] Update `subscription-providers.ts` with `getAllPlansForCostDashboard()`
 - [x] Update `subscriptions/page.tsx` to use API service
 - [x] Update `subscriptions/[provider]/page.tsx` to use API service
 - [x] Update `settings/integrations/subscriptions/page.tsx` to use `createCustomPlan`
 - [x] Delete `actions/saas-subscriptions.ts`
+
+### Schema (v10.0)
+- [x] Create `saas_subscription_plans.json` (25 columns)
+- [x] Create `saas_subscription_plan_costs_daily.json` (18 columns)
+- [x] Create `cost_data_standard_1_2.json` (67 columns FOCUS 1.2)
+- [x] Create `org_subscription_audit.json` (11 columns) in bootstrap
+- [x] Update seed CSV to 25 columns
+
+### Pipeline Procedures
+- [x] Create `sp_calculate_saas_subscription_plan_costs_daily.sql`
+- [x] Create `sp_convert_saas_costs_to_focus_1_2.sql`
+- [x] Create `sp_run_saas_subscription_costs_pipeline.sql`
+- [x] Create procedure management API endpoint (`/api/v1/procedures/*`)
+- [x] Create pipeline config `saas_cost.yml`
+- [x] Create `generic.procedure_executor` processor
+- [ ] Set up daily scheduler (Cloud Scheduler configuration)
 
 ---
 
@@ -830,8 +1370,22 @@ To complete the architecture migration:
 | File | Purpose |
 |------|---------|
 | `api-service/src/app/routers/subscription_plans.py` | API endpoints for plan CRUD |
-| `api-service/configs/saas/seed/schemas/saas_subscription_plans.json` | BigQuery schema for plans table |
-| `api-service/configs/saas/seed/data/saas_subscription_plans.csv` | Seed data (14 cols, 70 plans) |
+| `api-service/configs/setup/organizations/onboarding/schemas/saas_subscription_plans.json` | BigQuery schema (25 cols) |
+| `api-service/configs/setup/organizations/onboarding/schemas/saas_subscription_plan_costs_daily.json` | Daily costs schema (18 cols) |
+| `api-service/configs/setup/organizations/onboarding/schemas/cost_data_standard_1_2.json` | FOCUS 1.2 schema (67 cols) |
+| `api-service/configs/setup/bootstrap/schemas/org_subscription_audit.json` | Audit table schema (11 cols) |
+| `api-service/configs/saas/seed/data/saas_subscription_plans.csv` | Seed data (25 cols, 70 plans) |
+
+### Pipeline Files (Cost Calculation)
+
+| File | Purpose |
+|------|---------|
+| `data-pipeline-service/configs/system/procedures/saas_subscription/sp_calculate_saas_subscription_plan_costs_daily.sql` | Stage 1: Daily cost calculation |
+| `data-pipeline-service/configs/system/procedures/saas_subscription/sp_convert_saas_costs_to_focus_1_2.sql` | Stage 2: FOCUS 1.2 conversion |
+| `data-pipeline-service/configs/system/procedures/saas_subscription/sp_run_saas_subscription_costs_pipeline.sql` | Orchestrator procedure |
+| `data-pipeline-service/configs/saas_subscription/costs/saas_cost.yml` | Pipeline config |
+| `data-pipeline-service/src/core/processors/generic/procedure_executor.py` | Procedure executor processor |
+| `1-PRE-ANALLISYS/finops_subscription_pipeline_sql/README.md` | Pipeline architecture docs |
 
 ### Frontend Files
 
@@ -846,4 +1400,4 @@ To complete the architecture migration:
 
 ---
 
-**Version**: 9.0 | **Updated**: 2025-12-04 | **Policy**: Single source of truth - no duplicate docs
+**Version**: 11.0 | **Updated**: 2025-12-06 | **Policy**: Single source of truth - no duplicate docs

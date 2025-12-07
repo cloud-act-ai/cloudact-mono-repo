@@ -97,6 +97,7 @@ Org API Key (created during onboarding)
 |--------|-----|--------|---------|
 | `pipelines.py` | Pipelines | `/api/v1` | Pipeline execution and monitoring |
 | `scheduler.py` | Scheduler | `/api/v1` | Pipeline scheduling and cron jobs |
+| `procedures.py` | Procedures | `/api/v1` | Procedure management (create/update/delete in organizations) |
 
 #### Pipeline Endpoints (X-API-Key)
 
@@ -111,6 +112,19 @@ Org API Key (created during onboarding)
 | POST | `/api/v1/scheduler/trigger` | Trigger scheduled pipeline |
 | GET | `/api/v1/scheduler/queue` | Get pipeline queue |
 | POST | `/api/v1/scheduler/queue/process` | Process queued pipelines |
+
+#### Procedure Management Endpoints (X-CA-Root-Key)
+
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| GET | `/api/v1/procedures` | List all procedures in organizations dataset |
+| GET | `/api/v1/procedures/files` | List procedure SQL files available for sync |
+| POST | `/api/v1/procedures/sync` | Sync all procedures from SQL files |
+| GET | `/api/v1/procedures/{name}` | Get procedure details |
+| POST | `/api/v1/procedures/{name}` | Create/update a specific procedure |
+| DELETE | `/api/v1/procedures/{name}` | Delete a procedure |
+
+**Procedure Files Location:** `configs/system/procedures/{domain}/*.sql`
 
 ---
 
@@ -828,6 +842,7 @@ steps:
 | `gcp/gcp_api_extractor.py` | `gcp.api_extractor` | `configs/gcp/api/billing_accounts.yml` | ✓ Verified |
 | `generic/api_extractor.py` | `generic.api_extractor` | Any API pipeline | ✓ Verified |
 | `generic/local_bq_transformer.py` | `generic.local_bq_transformer` | SQL transformations | ✓ Verified |
+| `generic/procedure_executor.py` | `generic.procedure_executor` | `configs/saas_subscription/costs/saas_cost.yml` | ✓ Verified |
 | `notify_systems/email_notification.py` | `notify_systems.email_notification` | `configs/notify_systems/email_notification/` | ✓ Verified |
 
 ---

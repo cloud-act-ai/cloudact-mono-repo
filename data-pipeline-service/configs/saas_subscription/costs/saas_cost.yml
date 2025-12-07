@@ -1,0 +1,94 @@
+# SaaS Subscription Costs Pipeline
+# Calculates daily amortized costs from subscription plans and converts to FOCUS 1.2 format
+#
+# Schedule: Daily at 03:00 UTC (after other cost pipelines)
+# Tables: saas_subscription_plan_costs_daily, cost_data_standard_1_2
+#
+# Flow:
+#   1. Read active subscriptions from saas_subscription_plans
+#   2. Calculate daily amortized costs (sp_calculate_saas_subscription_plan_costs_daily)
+#   3. Convert to FOCUS 1.2 standard (sp_convert_saas_costs_to_focus_1_2)
+#
+# Procedures Location: {project_id}.organizations (central dataset)
+# Data Location: {project_id}.{org_slug}_{env} (per-org dataset)
+
+pipeline_id: "{org_slug}-saas-subscription-costs"
+name: "SaaS Subscription Costs Pipeline"
+description: "Calculate daily amortized SaaS subscription costs and convert to FOCUS 1.2 format"
+version: "1.0.0"
+
+# Pipeline-level timeout (minutes)
+timeout_minutes: 15
+
+# Rate limiting (requests per minute for this pipeline)
+rate_limit_per_minute: 30
+
+# Schedule configuration
+schedule:
+  type: daily
+  time: "03:00"
+  timezone: UTC
+
+variables:
+  org_slug: "{org_slug}"
+  provider: "saas_subscription"
+
+steps:
+  # Single step that runs the orchestrator procedure
+  # The procedure internally calls:
+  #   1. sp_calculate_saas_subscription_plan_costs_daily (Stage 1)
+  #   2. sp_convert_saas_costs_to_focus_1_2 (Stage 2)
+  - step_id: "run_cost_pipeline"
+    ps_type: "generic.procedure_executor"
+    description: "Execute SaaS subscription cost calculation and FOCUS 1.2 conversion"
+    timeout_minutes: 10
+    config:
+      procedure:
+        name: sp_run_saas_subscription_costs_pipeline
+        dataset: organizations  # Central dataset where procedure lives
+      parameters:
+        - name: p_project_id
+          type: STRING
+          value: "${project_id}"
+        - name: p_dataset_id
+          type: STRING
+          value: "${org_dataset}"
+        - name: p_start_date
+          type: DATE
+          value: "${start_date}"
+        - name: p_end_date
+          type: DATE
+          value: "${end_date}"
+
+requires_auth: true
+auth_type: "org_api_key"
+
+# Metadata
+tags:
+  - subscription
+  - cost
+  - saas
+  - focus
+  - daily
+category: "subscription_analytics"
+
+# Integration requirements
+# This pipeline requires the organization to have:
+# - saas_subscription_plans table with active subscriptions
+# - Procedures synced to organizations dataset
+integration_required: false  # No external API needed, uses internal data
+
+# Output tables (for documentation)
+output_tables:
+  - name: saas_subscription_plan_costs_daily
+    description: "Daily amortized subscription costs"
+    partition_field: cost_date
+    cluster_fields:
+      - org_slug
+      - subscription_id
+  - name: cost_data_standard_1_2
+    description: "FOCUS 1.2 standardized costs (SourceSystem = 'saas_subscription_costs_daily')"
+    partition_field: ChargePeriodStart
+    cluster_fields:
+      - SubAccountId
+      - Provider

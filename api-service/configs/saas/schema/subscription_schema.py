@@ -56,6 +56,32 @@ class CategoryEnum(str, Enum):
     OTHER = "other"
 
 
+class StatusEnum(str, Enum):
+    """Subscription status."""
+    ACTIVE = "active"
+    CANCELLED = "cancelled"
+    EXPIRED = "expired"
+
+
+class PricingModelEnum(str, Enum):
+    """Pricing model types."""
+    PER_SEAT = "PER_SEAT"
+    FLAT_FEE = "FLAT_FEE"
+
+
+class DiscountTypeEnum(str, Enum):
+    """Discount types."""
+    PERCENT = "percent"
+    FIXED = "fixed"
+
+
+class BillingCycleEnum(str, Enum):
+    """Billing cycle types - replaces BillingPeriodEnum."""
+    MONTHLY = "monthly"
+    ANNUAL = "annual"
+    QUARTERLY = "quarterly"
+
+
 class TierTypeEnum(str, Enum):
     """Subscription tier types."""
     FREE = "free"
@@ -90,6 +116,13 @@ class AuthTypeEnum(str, Enum):
 class SaaSSubscriptionBase(BaseModel):
     """Base schema for SaaS subscriptions (shared fields)."""
 
+    org_slug: str = Field(
+        ...,
+        min_length=3,
+        max_length=50,
+        description="Organization slug identifier"
+    )
+
     provider: str = Field(
         ...,
         min_length=1,
@@ -104,25 +137,19 @@ class SaaSSubscriptionBase(BaseModel):
         description="Plan identifier (FREE, TIER1, PRO, TEAM, ENTERPRISE, etc.)"
     )
 
-    is_custom: bool = Field(
-        default=False,
-        description="True if user-created custom subscription"
-    )
-
-    quantity: int = Field(
-        default=1,
-        ge=0,
-        description="Number of seats/units"
-    )
-
     unit_price_usd: float = Field(
         ...,
         ge=0.0,
         description="Monthly subscription cost per unit in USD"
     )
 
-    effective_date: date = Field(
-        default_factory=date.today,
+    status: StatusEnum = Field(
+        default=StatusEnum.ACTIVE,
+        description="Subscription status: active, cancelled, expired"
+    )
+
+    start_date: Optional[date] = Field(
+        default=None,
         description="Date when subscription becomes active"
     )
 
@@ -131,144 +158,77 @@ class SaaSSubscriptionBase(BaseModel):
         description="Subscription end date (null = active/ongoing)"
     )
 
-    is_enabled: bool = Field(
-        default=True,
-        description="User can enable/disable subscription tracking"
+    billing_cycle: BillingCycleEnum = Field(
+        ...,
+        description="Billing cycle: monthly, annual, quarterly"
     )
 
-    auth_type: Optional[AuthTypeEnum] = Field(
+    currency: str = Field(
+        default="USD",
+        max_length=3,
+        description="Currency code (ISO 4217)"
+    )
+
+    pricing_model: PricingModelEnum = Field(
+        default=PricingModelEnum.PER_SEAT,
+        description="Pricing model: PER_SEAT or FLAT_FEE"
+    )
+
+    discount_type: Optional[DiscountTypeEnum] = Field(
         default=None,
-        description="Authentication type: api_key, service_account, oauth, subscription"
+        description="Discount type: percent or fixed"
+    )
+
+    discount_value: Optional[int] = Field(
+        default=None,
+        ge=0,
+        description="Discount value (percentage 0-100 or fixed amount)"
+    )
+
+    auto_renew: bool = Field(
+        default=True,
+        description="Auto-renewal enabled"
+    )
+
+    payment_method: Optional[str] = Field(
+        default=None,
+        max_length=50,
+        description="Payment method (credit_card, invoice, etc.)"
+    )
+
+    invoice_id_last: Optional[str] = Field(
+        default=None,
+        max_length=100,
+        description="Last invoice ID"
+    )
+
+    owner_email: Optional[str] = Field(
+        default=None,
+        max_length=255,
+        description="Subscription owner email"
+    )
+
+    department: Optional[str] = Field(
+        default=None,
+        max_length=100,
+        description="Department responsible for subscription"
+    )
+
+    renewal_date: Optional[date] = Field(
+        default=None,
+        description="Next renewal date"
+    )
+
+    contract_id: Optional[str] = Field(
+        default=None,
+        max_length=100,
+        description="Contract or agreement ID"
     )
 
     notes: Optional[str] = Field(
         default=None,
         max_length=1000,
         description="User notes, plan description, or limitations"
-    )
-
-    # Provider-specific fields
-    x_gemini_project_id: Optional[str] = Field(
-        default=None,
-        max_length=100,
-        description="Gemini-specific: GCP project ID"
-    )
-
-    x_gemini_region: Optional[str] = Field(
-        default=None,
-        max_length=50,
-        description="Gemini-specific: GCP region"
-    )
-
-    x_anthropic_workspace_id: Optional[str] = Field(
-        default=None,
-        max_length=100,
-        description="Anthropic-specific: Workspace ID"
-    )
-
-    x_openai_org_id: Optional[str] = Field(
-        default=None,
-        max_length=100,
-        description="OpenAI-specific: Organization ID"
-    )
-
-    # Tier and trial information
-    tier_type: TierTypeEnum = Field(
-        ...,
-        description="Tier classification: free, trial, paid, enterprise, committed_use"
-    )
-
-    trial_end_date: Optional[date] = Field(
-        default=None,
-        description="Trial expiration date (null = not a trial)"
-    )
-
-    trial_credit_usd: Optional[float] = Field(
-        default=None,
-        ge=0.0,
-        description="Trial credit amount in USD (e.g., GCP $300 trial)"
-    )
-
-    # Rate limits (primarily for LLM APIs)
-    monthly_token_limit: Optional[int] = Field(
-        default=None,
-        ge=0,
-        description="Monthly token usage cap (null = unlimited)"
-    )
-
-    daily_token_limit: Optional[int] = Field(
-        default=None,
-        ge=0,
-        description="Daily token usage cap (null = unlimited)"
-    )
-
-    rpm_limit: Optional[int] = Field(
-        default=None,
-        ge=0,
-        description="Requests per minute rate limit"
-    )
-
-    tpm_limit: Optional[int] = Field(
-        default=None,
-        ge=0,
-        description="Tokens per minute rate limit"
-    )
-
-    rpd_limit: Optional[int] = Field(
-        default=None,
-        ge=0,
-        description="Requests per day rate limit"
-    )
-
-    tpd_limit: Optional[int] = Field(
-        default=None,
-        ge=0,
-        description="Tokens per day rate limit"
-    )
-
-    concurrent_limit: Optional[int] = Field(
-        default=None,
-        ge=0,
-        description="Maximum concurrent requests"
-    )
-
-    # Committed use and discounts
-    committed_spend_usd: Optional[float] = Field(
-        default=None,
-        ge=0.0,
-        description="Committed monthly spend for CUD pricing"
-    )
-
-    commitment_term_months: Optional[int] = Field(
-        default=None,
-        ge=1,
-        description="Commitment duration in months (12, 24, 36)"
-    )
-
-    discount_percentage: Optional[float] = Field(
-        default=None,
-        ge=0.0,
-        le=100.0,
-        description="Discount percentage for this tier (0-100)"
-    )
-
-    # Billing information
-    billing_period: BillingPeriodEnum = Field(
-        ...,
-        description="Billing period: pay_as_you_go, weekly, monthly, quarterly, yearly"
-    )
-
-    yearly_price_usd: Optional[float] = Field(
-        default=None,
-        ge=0.0,
-        description="Annual price in USD (typically discounted vs monthly × 12)"
-    )
-
-    yearly_discount_percentage: Optional[float] = Field(
-        default=None,
-        ge=0.0,
-        le=100.0,
-        description="Percentage discount for annual billing (e.g., 20 for 20% off)"
     )
 
     # Additional fields (not in BigQuery schema, but used in CSV and logic)
@@ -305,24 +265,24 @@ class SaaSSubscriptionUpdate(BaseModel):
     """Schema for updating an existing SaaS subscription (partial updates)."""
 
     plan_name: Optional[str] = Field(None, min_length=1, max_length=50)
-    quantity: Optional[int] = Field(None, ge=0)
     unit_price_usd: Optional[float] = Field(None, ge=0.0)
-    is_enabled: Optional[bool] = None
+    status: Optional[StatusEnum] = None
+    start_date: Optional[date] = None
     end_date: Optional[date] = None
+    billing_cycle: Optional[BillingCycleEnum] = None
+    currency: Optional[str] = Field(None, max_length=3)
+    pricing_model: Optional[PricingModelEnum] = None
+    discount_type: Optional[DiscountTypeEnum] = None
+    discount_value: Optional[int] = Field(None, ge=0)
+    auto_renew: Optional[bool] = None
+    payment_method: Optional[str] = Field(None, max_length=50)
+    invoice_id_last: Optional[str] = Field(None, max_length=100)
+    owner_email: Optional[str] = Field(None, max_length=255)
+    department: Optional[str] = Field(None, max_length=100)
+    renewal_date: Optional[date] = None
+    contract_id: Optional[str] = Field(None, max_length=100)
     notes: Optional[str] = Field(None, max_length=1000)
-    tier_type: Optional[TierTypeEnum] = None
-    trial_end_date: Optional[date] = None
-    billing_period: Optional[BillingPeriodEnum] = None
-    yearly_price_usd: Optional[float] = Field(None, ge=0.0)
-    yearly_discount_percentage: Optional[float] = Field(None, ge=0.0, le=100.0)
     seats: Optional[int] = Field(None, ge=1)
-
-    # Rate limits
-    rpm_limit: Optional[int] = Field(None, ge=0)
-    tpm_limit: Optional[int] = Field(None, ge=0)
-    rpd_limit: Optional[int] = Field(None, ge=0)
-    tpd_limit: Optional[int] = Field(None, ge=0)
-    concurrent_limit: Optional[int] = Field(None, ge=0)
 
     model_config = ConfigDict(
         use_enum_values=True,
@@ -337,11 +297,6 @@ class SaaSSubscriptionResponse(SaaSSubscriptionBase):
         ...,
         min_length=1,
         description="Unique subscription identifier (UUID or custom ID)"
-    )
-
-    created_at: datetime = Field(
-        default_factory=datetime.utcnow,
-        description="Record creation timestamp"
     )
 
     updated_at: datetime = Field(

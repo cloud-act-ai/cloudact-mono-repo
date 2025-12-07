@@ -1,151 +1,291 @@
-# FinOps Subscription → Daily Costs → Standardized Cost Table (v1.2 column set)
+# FinOps SaaS Subscription Cost Pipeline
 
-This bundle creates:
+This bundle provides the complete SaaS subscription cost calculation system.
 
-- `subscription_plans` (master)
-- `subscription_plan_costs_daily` (derived daily costs)
-- `cost_data_standard_1_2` (neutral standardized costs table with the complete v1.2 column set + internal fields)
+## Architecture Overview
 
-## Stage flow diagram
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                         SYSTEM ARCHITECTURE                                      │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                  │
+│  CENTRAL DATASET: {project_id}.organizations                                     │
+│  ├── Procedures (created ONCE, called for each customer):                        │
+│  │   ├── sp_calculate_saas_subscription_plan_costs_daily                        │
+│  │   ├── sp_convert_saas_costs_to_focus_1_2                                     │
+│  │   └── sp_run_saas_subscription_costs_pipeline (orchestrator)                 │
+│  │                                                                               │
+│  └── Bootstrap Tables (15 org_* tables)                                          │
+│      └── org_subscription_audit (audit trail for all orgs)                       │
+│                                                                                  │
+│  PER-CUSTOMER DATASETS: {project_id}.{org_slug}_prod                            │
+│  └── Tables (created during onboarding):                                         │
+│      ├── saas_subscription_plans (dimension - user-managed subscriptions)        │
+│      ├── saas_subscription_plan_costs_daily (fact - calculated by pipeline)      │
+│      └── cost_data_standard_1_2 (FOCUS 1.2 - standardized costs)                │
+│                                                                                  │
+└─────────────────────────────────────────────────────────────────────────────────┘
+```
 
-```text
+## Tables
+
+### Per-Customer Dataset Tables
+
+| Table | Type | Description |
+|-------|------|-------------|
+| `saas_subscription_plans` | Dimension | Master subscription data (user-managed via UI/API) |
+| `saas_subscription_plan_costs_daily` | Fact | Daily amortized costs (pipeline-generated) |
+| `cost_data_standard_1_2` | Standard | FinOps FOCUS 1.2 normalized costs |
+
+### Central (organizations) Dataset
+
+| Table | Type | Description |
+|-------|------|-------------|
+| `org_subscription_audit` | Audit | Audit trail for subscription changes |
+
+## Procedures
+
+All procedures live in `{project_id}.organizations` dataset but operate on customer datasets.
+
+### 1. sp_calculate_saas_subscription_plan_costs_daily
+
+**Stage 1:** Expands active subscription plans into daily amortized cost rows.
+
+```sql
+CALL `{project_id}.organizations`.sp_calculate_saas_subscription_plan_costs_daily(
+  'gac-prod-471220',    -- p_project_id
+  'acme_corp_prod',     -- p_dataset_id (customer dataset)
+  DATE('2024-01-01'),   -- p_start_date
+  DATE('2024-01-31')    -- p_end_date
+);
+```
+
+**Logic:**
+- Reads active subscriptions from `saas_subscription_plans`
+- Applies pricing model (PER_SEAT vs FLAT_FEE)
+- Applies discounts (percentage or fixed)
+- Calculates daily cost based on billing cycle
+- Writes to `saas_subscription_plan_costs_daily`
+
+### 2. sp_convert_saas_costs_to_focus_1_2
+
+**Stage 2:** Converts daily costs to FinOps FOCUS 1.2 standard format.
+
+```sql
+CALL `{project_id}.organizations`.sp_convert_saas_costs_to_focus_1_2(
+  'gac-prod-471220',    -- p_project_id
+  'acme_corp_prod',     -- p_dataset_id (customer dataset)
+  DATE('2024-01-01'),   -- p_start_date
+  DATE('2024-01-31')    -- p_end_date
+);
+```
+
+**Logic:**
+- Reads from `saas_subscription_plan_costs_daily`
+- Maps fields to FOCUS 1.2 columns
+- Writes to `cost_data_standard_1_2`
+- Uses `SourceSystem = 'saas_subscription_costs_daily'` for idempotency
+
+### 3. sp_run_saas_subscription_costs_pipeline (Orchestrator)
+
+**Runs both stages** in sequence for a customer.
+
+```sql
+CALL `{project_id}.organizations`.sp_run_saas_subscription_costs_pipeline(
+  'gac-prod-471220',    -- p_project_id
+  'acme_corp_prod',     -- p_dataset_id (customer dataset)
+  DATE('2024-01-01'),   -- p_start_date
+  DATE('2024-01-31')    -- p_end_date
+);
+```
+
+## Flow Diagram
+
+```
 +-----------------------------------------------------------------------------------+
-| STEP 1: Source Table                                                              |
-| gac-prod-471220.procedure_testsing.subscription_plans                             |
+| STEP 1: Customer Dataset Tables (created during org onboarding)                   |
+| {project_id}.{org_slug}_prod.saas_subscription_plans                              |
+| {project_id}.{org_slug}_prod.saas_subscription_plan_costs_daily                   |
+| {project_id}.{org_slug}_prod.cost_data_standard_1_2                               |
 +-----------------------------------------------------------------------------------+
-                                        |
-                                        v
+                                       |
+                                       v
 +-----------------------------------------------------------------------------------+
-| STEP 2: Stored Procedure (Stage 1)                                                |
-| sp_calculate_subscription_plan_costs_daily.sql                                    |
+| STEP 2: User manages subscriptions via UI/API                                     |
+| - Enable provider → seed default plans                                            |
+| - Add/edit/delete custom plans                                                    |
+| - Set seats, pricing, discounts                                                   |
++-----------------------------------------------------------------------------------+
+                                       |
+                                       v
++-----------------------------------------------------------------------------------+
+| STEP 3: Pipeline runs (daily scheduler or ad-hoc)                                 |
+| POST /api/v1/pipelines/run/{org}/subscription/cost/saas_cost                      |
 |                                                                                   |
-| INPUTS:                                                                           |
-|  • start_date        (e.g., '2024-01-01')                                         |
-|  • end_date          (e.g., '2024-01-31')                                         |
+| Calls: sp_run_saas_subscription_costs_pipeline(project, dataset, start, end)      |
 +-----------------------------------------------------------------------------------+
-                                        |
-                                        v
+                                       |
+                                       v
            +----------------------------------------------------------+
-           | 2A: GENERATE DATE SPINE & CROSS JOIN                     |
-           | Filter by active Plans                                   |
-           | -> Expand each plan to daily rows                        |
+           | Stage 1: Calculate Daily Costs                           |
+           | sp_calculate_saas_subscription_plan_costs_daily          |
+           |                                                          |
+           | 1. Read active subscriptions                             |
+           | 2. Apply pricing model (PER_SEAT / FLAT_FEE)             |
+           | 3. Apply discounts (percentage / fixed)                  |
+           | 4. Calculate: cycle_cost / days_in_cycle = daily_cost    |
+           | 5. Write to saas_subscription_plan_costs_daily           |
            +----------------------------------------------------------+
-                                        |
-                                        v
+                                       |
+                                       v
            +----------------------------------------------------------+
-           | 2B: CALCULATE DAILY COST                                 |
-           | • Monthly: Cost / Days in Month                          |
-           | • Annual:  Cost / Days in Year (Leap year aware)         |
+           | Stage 2: Convert to FOCUS 1.2 Standard                   |
+           | sp_convert_saas_costs_to_focus_1_2                       |
+           |                                                          |
+           | 1. Read from saas_subscription_plan_costs_daily          |
+           | 2. Map to FOCUS 1.2 columns                              |
+           | 3. Set ChargeCategory = 'Subscription'                   |
+           | 4. Write to cost_data_standard_1_2                       |
            +----------------------------------------------------------+
-                                        |
-                                        v
-           +----------------------------------------------------------+
-           | 2C: INSERT INTO DAILY TABLE                              |
-           | subscription_plan_costs_daily                            |
-           | -> Partitioned by cost_date, Clustered by org_id         |
-           +----------------------------------------------------------+
-                                        |
-                                        v
+                                       |
+                                       v
 +-----------------------------------------------------------------------------------+
-| STEP 3: Stored Procedure (Stage 2)                                                |
-| sp_convert_subscription_costs_daily_to_standard_1_2.sql                           |
+| STEP 4: Cost data available for dashboards and analytics                          |
+| - Daily costs in saas_subscription_plan_costs_daily                               |
+| - Standardized costs in cost_data_standard_1_2                                    |
+| - Can aggregate with GCP, LLM, and other costs                                    |
 +-----------------------------------------------------------------------------------+
-                                        |
-                                        v
-           +----------------------------------------------------------+
-           | 3A: READ & MAP TO FOCUS 1.2                              |
-           | • Map organization_id -> SubAccountId                    |
-           | • Map quantity -> ConsumedQuantity                       |
-           | • Set ChargeCategory = 'Subscription'                    |
-           +----------------------------------------------------------+
-                                        |
-                                        v
-           +----------------------------------------------------------+
-           | 3B: IDEMPOTENCY CLEANUP & INSERT                         |
-           | Delete existing rows for date range -> Insert new        |
-           | -> Output: cost_data_standard_1_2                        |
-           +----------------------------------------------------------+
 ```
 
-## How to run (examples)
+## How to Run
 
-### 1. Daily Run (All Customers)
+### Daily Run (Scheduler)
 
-Refreshes data for **ALL** tenants for the given date range.
+Pipeline service scheduler calls for each active customer:
 
 ```sql
-CALL `gac-prod-471220.procedure_testsing`.sp_run_subscription_costs_pipeline(
+-- For each active org
+CALL `gac-prod-471220.organizations`.sp_run_saas_subscription_costs_pipeline(
+  'gac-prod-471220',
+  'acme_corp_prod',
   DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY),
-  DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY),
-  NULL
+  DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)
 );
 ```
 
-### 2. Ad-hoc Run (Specific Customer)
+### Ad-hoc Run (API)
 
-Refreshes data **ONLY** for `guru_inc_123` without touching others.
+```bash
+curl -X POST http://localhost:8001/api/v1/pipelines/run/acme_corp/subscription/cost/saas_cost \
+  -H "X-API-Key: $ORG_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "start_date": "2024-01-01",
+    "end_date": "2024-01-31"
+  }'
+```
+
+### Backfill Run (Full Month)
 
 ```sql
-CALL `gac-prod-471220.procedure_testsing`.sp_run_subscription_costs_pipeline(
-  DATE('2025-12-01'),
-  DATE('2025-12-31'),
-  'guru_inc_123'
+CALL `gac-prod-471220.organizations`.sp_run_saas_subscription_costs_pipeline(
+  'gac-prod-471220',
+  'acme_corp_prod',
+  DATE('2024-01-01'),
+  DATE('2024-12-31')
 );
 ```
 
-## Notes on "constraints"
+## Pricing Logic
 
-BigQuery does not support CHECK constraints like Postgres.
-We enforce required fields using:
+### Pricing Models
 
-- NOT NULL columns in `subscription_plans`
-- ASSERT guardrails inside procedures
+| Model | Formula | Example |
+|-------|---------|---------|
+| `PER_SEAT` | `unit_price × seats` | $30/seat × 10 seats = $300/month |
+| `FLAT_FEE` | `unit_price` (seats ignored for price) | $199/month flat |
 
-## Logic & Usage Guide
+### Daily Cost Calculation
 
-### 1. Handling Cancellations
+```
+daily_cost = cycle_cost / days_in_cycle
+
+Where:
+- cycle_cost = base_price × seats (PER_SEAT) or base_price (FLAT_FEE)
+- days_in_cycle = days in month (monthly) or days in year (annual)
+```
+
+### Discount Application
+
+```sql
+CASE
+  WHEN discount_type = 'percent' THEN
+    cycle_cost × (1 - discount_value / 100)
+  WHEN discount_type = 'fixed' THEN
+    cycle_cost - discount_value
+  ELSE
+    cycle_cost
+END
+```
+
+### Leap Year Handling
+
+- Monthly: `cycle_cost / EXTRACT(DAY FROM LAST_DAY(day))`
+- Annual: `cycle_cost / days_in_year` (366 for leap years, 365 otherwise)
+
+## Handling Cancellations (SCD Type 2)
 
 To cancel a subscription:
 
-- Do **not** delete the row.
-- Set the `end_date` to the last valid day of the subscription.
-- The pipeline will automatically calculate costs up to that date and stop effectively the next day.
-- _Example_: `end_date = '2025-12-07'` means usage is calculated for Dec 7th, but is $0 from Dec 8th.
+1. **Do NOT delete** the row
+2. Set `end_date` to the last valid day
+3. Set `status` to 'cancelled'
+4. Pipeline calculates costs up to `end_date`
 
-### 2. Changing Seats (SCD Type 2)
+Example:
+```sql
+UPDATE saas_subscription_plans
+SET end_date = '2024-12-31', status = 'cancelled'
+WHERE subscription_id = 'sub_123';
+```
 
-To increase/decrease seats (e.g., 10 -> 2):
+## Changing Seats (SCD Type 2)
 
-1.  **Close the old row**: Set `end_date` to today.
-2.  **Create a new row**: Insert a new record with `start_date` = tomorrow and the new seat count.
+To change seat count:
+
+1. **Close the old row**: Set `end_date` to today
+2. **Create new row**: Insert with `start_date` = tomorrow and new seat count
 
 This preserves historical cost accuracy.
 
-### 3. Leap Year Logic
+## Files in This Directory
 
-- Annual plans are calculated as `Price / DaysInYear`.
-- In a leap year (e.g., 2024, 2028), the denominator is **366**.
-- This ensures daily costs are precise and you are not "over-billed" by missing Feb 29th.
+| File | Purpose |
+|------|---------|
+| `01_create_tables.sql` | DDL for all tables (reference only) |
+| `02_proc_stage1_calc_daily_costs.sql` | Legacy procedure (use new sp_* files) |
+| `03_proc_stage2_convert_to_standard_1_2.sql` | Legacy procedure (use new sp_* files) |
+| `04_proc_orchestrator.sql` | Legacy orchestrator (use new sp_* files) |
+| `sp_calculate_saas_subscription_plan_costs_daily.sql` | **Production procedure** |
+| `sp_convert_saas_costs_to_focus_1_2.sql` | **Production procedure** |
+| `sp_run_saas_subscription_costs_pipeline.sql` | **Production orchestrator** |
+| `default_subscription_plans.csv` | Sample seed data |
 
-### 4. Pricing Models
+## Integration with Pipeline Service
 
-- **PER_SEAT** (Default): `DailyCost = (UnitPrice * Seats) / DaysInCycle`
-- **FLAT_FEE**: `DailyCost = UnitPrice / DaysInCycle` (Seats are ignored for price, but tracked for quantity).
+Pipeline config: `data-pipeline-service/configs/subscription/cost/saas_cost.yml`
 
-## CSV Data Entry Guide
+```yaml
+pipeline_id: saas-subscription-costs
+steps:
+  - step: run_cost_pipeline
+    processor: subscription.saas_cost
+    config:
+      procedure: sp_run_saas_subscription_costs_pipeline
+      project_id: ${GCP_PROJECT_ID}
+      dataset_id: ${org_slug}_${env}
+```
 
-How to format rows in `default_subscription_plans.csv` for different models:
+---
 
-### 1. Per Seat Subscription (e.g. ChatGPT, GitHub)
-
-- **pricing_model**: `PER_SEAT` (or leave empty, defaulting to this)
-- **seats**: The number of licenses (e.g., `10`)
-- **unit_price_usd**: The price **PER USER** (e.g., `30.00`)
-- _Resulting Cost_: $30 \* 10 = $300/month.
-
-### 2. Flat Fee Subscription (e.g. Platform Fee, 1Password Family)
-
-- **pricing_model**: `FLAT_FEE`
-- **seats**: The number of users (e.g., `50`). _Used for reporting only._
-- **unit_price_usd**: The **TOTAL** price for the plan (e.g., `199.00`)
-- _Resulting Cost_: $199/month (regardless of seat count).
+**Version**: 2.0 | **Updated**: 2025-12-06

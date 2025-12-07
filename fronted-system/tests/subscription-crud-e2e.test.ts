@@ -179,19 +179,25 @@ describe('Subscription CRUD - Functional Validation', () => {
 
     const planFields = [
       'subscription_id',
+      'org_slug',
       'provider',
       'plan_name',
       'display_name',
-      'is_custom',
-      'quantity',
       'unit_price_usd',
-      'effective_date',
+      'start_date',
       'end_date',
-      'is_enabled',
-      'billing_period',
+      'status',
+      'billing_cycle',
       'category',
       'notes',
       'seats',
+      'currency',
+      'pricing_model',
+      'auto_renew',
+      'owner_email',
+      'department',
+      'renewal_date',
+      'contract_id',
       'created_at',
       'updated_at',
     ]
@@ -211,8 +217,10 @@ describe('Subscription CRUD - Functional Validation', () => {
       orgSlug: /^[a-zA-Z0-9_]{3,50}$/,
       providerName: /^[a-z0-9][a-z0-9_]{0,48}[a-z0-9]$/,
       price: 'Must be >= 0',
-      quantity: 'Must be >= 0',
       seats: 'Must be >= 1',
+      status: 'Must be one of: active, cancelled, expired',
+      billing_cycle: 'Must be one of: monthly, annual, quarterly, custom',
+      currency: 'Must be valid ISO 4217 code (e.g., USD, EUR)',
     }
 
     Object.entries(validationRules).forEach(([field, rule]) => {
@@ -324,22 +332,39 @@ describe('Subscription CRUD - Functional Validation', () => {
     console.log('✅ Provider categories validated')
   })
 
-  it('should validate billing periods are supported', () => {
-    console.log('📋 Validating billing periods...')
+  it('should validate billing cycles are supported', () => {
+    console.log('📋 Validating billing cycles...')
 
-    const billingPeriods = [
+    const billingCycles = [
       'monthly',
       'annual',
       'quarterly',
       'custom',
     ]
 
-    billingPeriods.forEach(period => {
-      expect(period).toBeTypeOf('string')
-      console.log(`✅ Billing period: ${period}`)
+    billingCycles.forEach(cycle => {
+      expect(cycle).toBeTypeOf('string')
+      console.log(`✅ Billing cycle: ${cycle}`)
     })
 
-    console.log('✅ Billing periods validated')
+    console.log('✅ Billing cycles validated')
+  })
+
+  it('should validate subscription statuses are supported', () => {
+    console.log('📋 Validating subscription statuses...')
+
+    const statuses = [
+      'active',
+      'cancelled',
+      'expired',
+    ]
+
+    statuses.forEach(status => {
+      expect(status).toBeTypeOf('string')
+      console.log(`✅ Status: ${status}`)
+    })
+
+    console.log('✅ Subscription statuses validated')
   })
 })
 
@@ -451,15 +476,15 @@ describe('Subscription CRUD - Data Flow Validation', () => {
     const flow = [
       '1. User clicks "Add Subscription" button',
       '2. Dialog opens with form fields',
-      '3. User fills: plan_name, price, seats, billing_period',
+      '3. User fills: plan_name, price, seats, billing_cycle, currency, start_date',
       '4. User submits form',
       '5. Frontend calls createCustomPlan(orgSlug, provider, data)',
       '6. Action calls API: POST /subscriptions/{org}/providers/{provider}/plans',
-      '7. API creates plan in BigQuery with is_custom=true',
+      '7. API creates plan in BigQuery with status=active',
       '8. Response returns created plan',
       '9. Frontend closes dialog',
       '10. Page reloads plans list',
-      '11. New plan appears with "Custom" badge',
+      '11. New plan appears in table',
     ]
 
     flow.forEach((step, index) => {
@@ -476,7 +501,7 @@ describe('Subscription CRUD - Data Flow Validation', () => {
     const flow = [
       '1. User clicks edit (pencil) icon',
       '2. Dialog opens pre-filled with plan data',
-      '3. User modifies: quantity, price, seats',
+      '3. User modifies: price, seats, billing_cycle, auto_renew',
       '4. User submits form',
       '5. Frontend validates inputs (no negative values)',
       '6. Frontend calls updatePlan(orgSlug, provider, subscriptionId, updates)',
@@ -502,12 +527,12 @@ describe('Subscription CRUD - Data Flow Validation', () => {
     const flow = [
       '1. User clicks plan toggle switch',
       '2. Frontend sets toggling state',
-      '3. Frontend calls togglePlan(orgSlug, provider, subscriptionId, enabled)',
-      '4. Action calls updatePlan with is_enabled update',
+      '3. Frontend calls togglePlan(orgSlug, provider, subscriptionId, newStatus)',
+      '4. Action calls updatePlan with status update (active/cancelled)',
       '5. API updates plan in BigQuery',
       '6. Response confirms update',
       '7. Page reloads plans list',
-      '8. Plan row shows opacity change if disabled',
+      '8. Plan row shows opacity change if status is cancelled',
       '9. Toggling state cleared',
     ]
 
@@ -551,7 +576,7 @@ describe('Subscription CRUD - Data Flow Validation', () => {
     const flow = [
       '1. Dashboard loads with getAllPlansForCostDashboard(orgSlug)',
       '2. Action calls API: GET /subscriptions/{org}/all-plans',
-      '3. API queries BigQuery for all enabled plans',
+      '3. API queries BigQuery for all active plans (status=active)',
       '4. Response includes plans and summary (totals, counts)',
       '5. Frontend displays summary cards',
       '6. Frontend renders plans table',
@@ -577,7 +602,7 @@ describe('Subscription CRUD - Data Flow Validation', () => {
       '2. Frontend calls disableProvider(orgSlug, provider)',
       '3. Action updates saas_subscription_providers_meta.is_enabled=false',
       '4. Action calls API: POST /subscriptions/{org}/providers/{provider}/disable',
-      '5. API disables all plans in BigQuery',
+      '5. API sets all plans status to cancelled in BigQuery',
       '6. Response confirms disable',
       '7. Frontend shows success message',
       '8. Page reloads provider list',

@@ -167,7 +167,7 @@ class TestListProviders:
             assert "provider" in provider
             assert "display_name" in provider
             assert "category" in provider
-            assert "is_enabled" in provider
+            assert "status" in provider
             assert "plan_count" in provider
 
         # Verify SaaS providers are present (not LLM API providers)
@@ -537,11 +537,15 @@ class TestCreatePlan:
         plan_data = {
             "plan_name": f"CUSTOM_{uuid.uuid4().hex[:6].upper()}",
             "display_name": "Custom Slack Enterprise",
-            "quantity": 50,
+            "seats": 50,
             "unit_price_usd": 12.50,
-            "billing_period": "monthly",
-            "notes": "Custom enterprise plan for large team",
-            "seats": 50
+            "billing_cycle": "monthly",
+            "currency": "USD",
+            "pricing_model": "per_seat",
+            "auto_renew": True,
+            "owner_email": TEST_EMAIL,
+            "department": "Engineering",
+            "notes": "Custom enterprise plan for large team"
         }
 
         response = client.post(
@@ -555,9 +559,10 @@ class TestCreatePlan:
         data = response.json()
         assert data["success"] is True
         assert "plan" in data
-        assert data["plan"]["is_custom"] is True
         assert data["plan"]["plan_name"] == plan_data["plan_name"]
         assert data["plan"]["unit_price_usd"] == 12.50
+        assert data["plan"]["billing_cycle"] == "monthly"
+        assert data["plan"]["status"] == "active"
 
         created_subscription_ids.append(data["plan"]["subscription_id"])
         print(f"Created custom plan: {data['plan']['subscription_id']}")
@@ -574,11 +579,16 @@ class TestCreatePlan:
         plan_data = {
             "plan_name": f"ANNUAL_{uuid.uuid4().hex[:6].upper()}",
             "display_name": "Annual Subscription",
-            "quantity": 1,
+            "seats": 1,
             "unit_price_usd": 99.00,
-            "billing_period": "yearly",
-            "yearly_price_usd": 999.00,
-            "yearly_discount_pct": 16.0,
+            "billing_cycle": "yearly",
+            "currency": "USD",
+            "pricing_model": "flat_rate",
+            "discount_type": "percentage",
+            "discount_value": 16.0,
+            "auto_renew": True,
+            "owner_email": TEST_EMAIL,
+            "department": "Finance",
             "notes": "Annual plan with discount"
         }
 
@@ -591,8 +601,9 @@ class TestCreatePlan:
         assert response.status_code == 200, f"Failed: {response.text}"
 
         data = response.json()
-        assert data["plan"]["billing_period"] == "yearly"
-        assert data["plan"]["yearly_price_usd"] == 999.00
+        assert data["plan"]["billing_cycle"] == "yearly"
+        assert data["plan"]["discount_type"] == "percentage"
+        assert data["plan"]["discount_value"] == 16.0
 
         created_subscription_ids.append(data["plan"]["subscription_id"])
         print(f"Created annual plan: {data['plan']['subscription_id']}")
@@ -610,7 +621,7 @@ class TestCreatePlan:
         invalid_data = {
             "plan_name": "TEST",
             # Missing unit_price_usd
-            "quantity": 1
+            "seats": 1
         }
 
         response = client.post(
@@ -633,7 +644,8 @@ class TestCreatePlan:
         invalid_data = {
             "plan_name": "invalid-plan-name-with-dashes",  # Should be alphanumeric + underscores
             "unit_price_usd": 10.00,
-            "quantity": 1
+            "seats": 1,
+            "billing_cycle": "monthly"
         }
 
         response = client.post(
@@ -665,9 +677,14 @@ class TestUpdatePlan:
         # Create plan first
         plan_data = {
             "plan_name": f"UPDATE_TEST_{uuid.uuid4().hex[:6].upper()}",
-            "quantity": 5,
+            "seats": 5,
             "unit_price_usd": 10.00,
-            "billing_period": "monthly"
+            "billing_cycle": "monthly",
+            "currency": "USD",
+            "pricing_model": "per_seat",
+            "auto_renew": True,
+            "owner_email": TEST_EMAIL,
+            "department": "Engineering"
         }
 
         create_response = client.post(
@@ -683,7 +700,7 @@ class TestUpdatePlan:
 
         # Update the plan
         update_data = {
-            "quantity": 20,
+            "seats": 20,
             "unit_price_usd": 15.00
         }
 
@@ -697,7 +714,7 @@ class TestUpdatePlan:
 
         data = response.json()
         assert data["success"] is True
-        assert data["plan"]["quantity"] == 20
+        assert data["plan"]["seats"] == 20
         assert data["plan"]["unit_price_usd"] == 15.00
 
         created_subscription_ids.append(subscription_id)
@@ -715,9 +732,14 @@ class TestUpdatePlan:
         # Create plan
         plan_data = {
             "plan_name": f"DISABLE_TEST_{uuid.uuid4().hex[:6].upper()}",
-            "quantity": 1,
+            "seats": 1,
             "unit_price_usd": 5.00,
-            "billing_period": "monthly"
+            "billing_cycle": "monthly",
+            "currency": "USD",
+            "pricing_model": "flat_rate",
+            "auto_renew": True,
+            "owner_email": TEST_EMAIL,
+            "department": "IT"
         }
 
         create_response = client.post(
@@ -731,8 +753,8 @@ class TestUpdatePlan:
 
         subscription_id = create_response.json()["plan"]["subscription_id"]
 
-        # Disable it
-        update_data = {"is_enabled": False}
+        # Disable it by changing status to 'cancelled'
+        update_data = {"status": "cancelled"}
 
         response = client.put(
             f"/api/v1/subscriptions/{org_slug}/providers/slack/plans/{subscription_id}",
@@ -742,7 +764,7 @@ class TestUpdatePlan:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["plan"]["is_enabled"] is False
+        assert data["plan"]["status"] == "cancelled"
 
         created_subscription_ids.append(subscription_id)
         print(f"Disabled plan: {subscription_id}")
@@ -759,7 +781,7 @@ class TestUpdatePlan:
         response = client.put(
             f"/api/v1/subscriptions/{org_slug}/providers/slack/plans/sub_nonexistent_xyz",
             headers=org_headers,
-            json={"quantity": 10}
+            json={"seats": 10}
         )
 
         assert response.status_code == 404, f"Expected 404, got {response.status_code}"
@@ -784,9 +806,14 @@ class TestDeletePlan:
         # Create plan first
         plan_data = {
             "plan_name": f"DELETE_TEST_{uuid.uuid4().hex[:6].upper()}",
-            "quantity": 1,
+            "seats": 1,
             "unit_price_usd": 5.00,
-            "billing_period": "monthly"
+            "billing_cycle": "monthly",
+            "currency": "USD",
+            "pricing_model": "flat_rate",
+            "auto_renew": False,
+            "owner_email": TEST_EMAIL,
+            "department": "Finance"
         }
 
         create_response = client.post(

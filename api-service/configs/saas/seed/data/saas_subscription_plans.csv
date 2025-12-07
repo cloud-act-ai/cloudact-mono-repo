@@ -1,71 +1,76 @@
-provider,plan_name,display_name,unit_price_usd,yearly_price_usd,yearly_discount_pct,billing_period,category,seats,storage_limit_gb,monthly_usage_limit,projects_limit,members_limit,notes
-chatgpt_plus,FREE,ChatGPT Free,0.00,0.00,0,monthly,ai,0,,,,0,Limited GPT-3.5 access
-chatgpt_plus,PLUS,ChatGPT Plus,20.00,200.00,17,monthly,ai,0,,,,0,GPT-4 access and priority
-chatgpt_plus,TEAM,ChatGPT Team,25.00,300.00,0,monthly,ai,0,,1000000,,150,1M tokens/month workspace
-chatgpt_plus,ENTERPRISE,ChatGPT Enterprise,0.00,,0,monthly,ai,0,,,,,Custom pricing unlimited
-claude_pro,FREE,Claude Free,0.00,0.00,0,monthly,ai,0,,,,0,Limited daily usage
-claude_pro,PRO,Claude Pro,20.00,200.00,17,monthly,ai,0,,,,0,5x more usage priority
-claude_pro,TEAM,Claude Team,25.00,300.00,0,monthly,ai,0,,2000000,,150,2M tokens/month workspace
-claude_pro,ENTERPRISE,Claude Enterprise,0.00,,0,monthly,ai,0,,,,,Custom pricing security
-gemini_advanced,FREE,Gemini Free,0.00,0.00,0,monthly,ai,0,,,,0,Basic Gemini access
-gemini_advanced,ADVANCED,Gemini Advanced,19.99,199.99,17,monthly,ai,0,,,,0,Ultra model 2TB storage
-copilot,FREE,Copilot Free,0.00,0.00,0,monthly,ai,0,,,,0,Limited suggestions
-copilot,INDIVIDUAL,Copilot Individual,10.00,100.00,17,monthly,ai,0,,,,0,Unlimited suggestions
-copilot,BUSINESS,Copilot Business,19.00,228.00,0,monthly,ai,0,,,,,Organization SSO
-copilot,ENTERPRISE,Copilot Enterprise,39.00,468.00,0,monthly,ai,0,,,,,Fine-tuned models
-cursor,FREE,Cursor Free,0.00,0.00,0,monthly,ai,0,,2000,,0,2000 completions/month
-cursor,PRO,Cursor Pro,20.00,192.00,20,monthly,ai,0,,500000,,0,500K fast completions
-cursor,BUSINESS,Cursor Business,40.00,480.00,0,monthly,ai,0,,,,,Unlimited completions
-windsurf,FREE,Windsurf Free,0.00,0.00,0,monthly,ai,0,,,,0,Basic AI assistance
-windsurf,PRO,Windsurf Pro,15.00,144.00,20,monthly,ai,0,,,,0,Advanced AI features
-replit,FREE,Replit Free,0.00,0.00,0,monthly,ai,0,0.5,,,0,500MB storage
-replit,CORE,Replit Core,25.00,220.00,27,monthly,ai,0,50,,,0,50GB storage AI
-v0,FREE,v0 Free,0.00,0.00,0,monthly,ai,0,,200,,0,200 generations/month
-v0,PRO,v0 Pro,20.00,192.00,20,monthly,ai,0,,,,,Unlimited generations
-lovable,FREE,Lovable Free,0.00,0.00,0,monthly,ai,0,,,5,0,5 projects
-lovable,PRO,Lovable Pro,25.00,240.00,20,monthly,ai,0,,,,,Unlimited projects
-canva,FREE,Canva Free,0.00,0.00,0,monthly,design,0,5,,,0,5GB limited templates
-canva,PRO,Canva Pro,12.99,119.99,23,monthly,design,0,1000,,,0,1TB all templates
-canva,TEAM,Canva Teams,14.99,149.90,17,monthly,design,5,1000,,,,Brand kits team
-adobe_cc,PHOTOGRAPHY,Adobe Photography,9.99,119.88,0,monthly,design,0,20,,,0,Lightroom Photoshop 20GB
-adobe_cc,ALL_APPS,Adobe All Apps,59.99,659.88,8,monthly,design,0,100,,,0,All apps 100GB
-figma,FREE,Figma Free,0.00,0.00,0,monthly,design,0,,,3,2,3 projects 30-day history
-figma,PROFESSIONAL,Figma Professional,15.00,144.00,20,monthly,design,0,,,,0,Unlimited projects history
-figma,ORGANIZATION,Figma Organization,45.00,540.00,0,monthly,design,0,,,,,Design system SSO
-miro,FREE,Miro Free,0.00,0.00,0,monthly,design,0,,,3,,3 editable boards
-miro,STARTER,Miro Starter,8.00,96.00,0,monthly,design,0,,,,,Unlimited boards
-miro,BUSINESS,Miro Business,16.00,192.00,0,monthly,design,0,,,,,SSO permissions
-notion,FREE,Notion Free,0.00,0.00,0,monthly,productivity,0,5,,,,5MB uploads 10 guests
-notion,PLUS,Notion Plus,10.00,96.00,20,monthly,productivity,0,,,,,Unlimited blocks 100 guests
-notion,BUSINESS,Notion Business,18.00,180.00,17,monthly,productivity,0,,,,,SAML SSO permissions
-confluence,FREE,Confluence Free,0.00,0.00,0,monthly,productivity,0,2,,,10,2GB storage 10 users
-confluence,STANDARD,Confluence Standard,6.05,60.50,17,monthly,productivity,10,250,,,20000,250GB storage
-asana,FREE,Asana Free,0.00,0.00,0,monthly,productivity,0,,,,15,Basic tasks 15 members
-asana,PREMIUM,Asana Premium,10.99,131.88,0,monthly,productivity,0,,,,,Timeline workflow
-monday,FREE,Monday Free,0.00,0.00,0,monthly,productivity,2,0.5,,,2,500MB 2 seats
-monday,BASIC,Monday Basic,9.00,108.00,0,monthly,productivity,3,5,,,,5GB storage
-slack,FREE,Slack Free,0.00,0.00,0,monthly,communication,0,,,,,90-day message history
-slack,PRO,Slack Pro,8.75,87.50,17,monthly,communication,0,,,,,Unlimited history guests
-slack,BUSINESS_PLUS,Slack Business+,15.00,150.00,17,monthly,communication,0,,,,,SSO compliance
-zoom,FREE,Zoom Free,0.00,0.00,0,monthly,communication,0,,,,,40-min 100 participants
-zoom,PRO,Zoom Pro,15.99,149.90,22,monthly,communication,0,,,,,30-hour 100 participants
-zoom,BUSINESS,Zoom Business,21.99,219.90,17,monthly,communication,0,,,,,30-hour 300 participants
-teams,FREE,Teams Free,0.00,0.00,0,monthly,communication,0,5,,,100,5GB 60-min meetings
-teams,ESSENTIALS,Teams Essentials,4.00,48.00,0,monthly,communication,0,10,,,300,10GB 30-hour meetings
-github,FREE,GitHub Free,0.00,0.00,0,monthly,development,0,,2000,,,Public repos 2000 Actions
-github,TEAM,GitHub Team,4.00,44.00,8,monthly,development,0,,3000,,,Private repos 3000 Actions
-github,ENTERPRISE,GitHub Enterprise,21.00,252.00,0,monthly,development,0,,50000,,,SAML SSO 50000 Actions
-gitlab,FREE,GitLab Free,0.00,0.00,0,monthly,development,0,5,,,5,5GB per project
-gitlab,PREMIUM,GitLab Premium,29.00,348.00,0,monthly,development,0,50,,,,50GB code owners
-jira,FREE,Jira Free,0.00,0.00,0,monthly,development,0,2,,,10,2GB 10 users
-jira,STANDARD,Jira Standard,8.15,81.50,17,monthly,development,10,250,,,20000,250GB storage
-linear,FREE,Linear Free,0.00,0.00,0,monthly,development,0,0.25,,,,250MB file storage
-linear,STANDARD,Linear Standard,8.00,96.00,0,monthly,development,0,10,,,,10GB integrations
-vercel,FREE,Vercel Hobby,0.00,0.00,0,monthly,development,0,,,,0,100GB bandwidth
-vercel,PRO,Vercel Pro,20.00,240.00,0,monthly,development,0,,,,10,1TB bandwidth
-netlify,FREE,Netlify Starter,0.00,0.00,0,monthly,development,0,,,,0,100GB bandwidth
-netlify,PRO,Netlify Pro,19.00,228.00,0,monthly,development,0,,,,,400GB bandwidth
-railway,HOBBY,Railway Hobby,0.00,0.00,0,monthly,development,0,1,,,0,1GB RAM $5 credit
-railway,PRO,Railway Pro,20.00,240.00,0,monthly,development,0,100,,,,100GB team features
-supabase,FREE,Supabase Free,0.00,0.00,0,monthly,development,0,1,,,0,500MB db 1GB storage
-supabase,PRO,Supabase Pro,25.00,300.00,0,monthly,development,0,100,,,,8GB db 100GB storage
+org_slug,subscription_id,provider,plan_name,display_name,category,status,start_date,end_date,billing_cycle,currency,seats,pricing_model,unit_price_usd,yearly_price_usd,discount_type,discount_value,auto_renew,payment_method,invoice_id_last,owner_email,department,renewal_date,contract_id,notes
+,sub_chatgpt_free,ChatGPT,FREE,ChatGPT Free,ai_ml,active,,,monthly,USD,1,FLAT_FEE,0.00,0.00,percent,0,true,,,,,,,Basic ChatGPT access with GPT-3.5
+,sub_chatgpt_plus,ChatGPT,PLUS,ChatGPT Plus,ai_ml,active,,,monthly,USD,1,FLAT_FEE,20.00,240.00,percent,0,true,,,,,,,ChatGPT Plus with GPT-4 access and priority
+,sub_chatgpt_team,ChatGPT,TEAM,ChatGPT Team,ai_ml,active,,,monthly,USD,1,PER_SEAT,25.00,300.00,percent,0,true,,,,,,,Team workspace with GPT-4 and collaboration features
+,sub_chatgpt_enterprise,ChatGPT,ENTERPRISE,ChatGPT Enterprise,ai_ml,active,,,annual,USD,1,PER_SEAT,60.00,720.00,percent,0,true,,,,,,,Enterprise features with unlimited usage and SSO
+,sub_claude_free,Claude,FREE,Claude Free,ai_ml,active,,,monthly,USD,1,FLAT_FEE,0.00,0.00,percent,0,true,,,,,,,Free tier with Claude Sonnet access
+,sub_claude_pro,Claude,PRO,Claude Pro,ai_ml,active,,,monthly,USD,1,FLAT_FEE,20.00,240.00,percent,0,true,,,,,,,Claude Pro with priority access to all models
+,sub_claude_team,Claude,TEAM,Claude Team,ai_ml,active,,,monthly,USD,1,PER_SEAT,25.00,300.00,percent,0,true,,,,,,,Team workspace with usage controls and collaboration
+,sub_claude_enterprise,Claude,ENTERPRISE,Claude Enterprise,ai_ml,active,,,annual,USD,1,PER_SEAT,60.00,720.00,percent,0,true,,,,,,,Enterprise deployment with dedicated support
+,sub_canva_free,Canva,FREE,Canva Free,design,active,,,monthly,USD,1,FLAT_FEE,0.00,0.00,percent,0,true,,,,,,,Basic design tools with limited templates
+,sub_canva_pro,Canva,PRO,Canva Pro,design,active,,,monthly,USD,1,FLAT_FEE,12.99,155.88,percent,0,true,,,,,,,Pro features with premium templates and brand kit
+,sub_canva_pro_annual,Canva,PRO,Canva Pro Annual,design,active,,,annual,USD,1,FLAT_FEE,119.99,119.99,percent,17,true,,,,,,,Annual billing with 17% discount
+,sub_canva_team,Canva,TEAM,Canva for Teams,design,active,,,monthly,USD,1,PER_SEAT,14.99,179.88,percent,0,true,,,,,,,Team collaboration with shared brand assets
+,sub_slack_free,Slack,FREE,Slack Free,collaboration,active,,,monthly,USD,1,FLAT_FEE,0.00,0.00,percent,0,true,,,,,,,Free tier with 90-day message history
+,sub_slack_pro,Slack,PRO,Slack Pro,collaboration,active,,,monthly,USD,1,PER_SEAT,8.75,105.00,percent,0,true,,,,,,,Unlimited message history and apps
+,sub_slack_business,Slack,BUSINESS_PLUS,Slack Business+,collaboration,active,,,monthly,USD,1,PER_SEAT,15.00,180.00,percent,0,true,,,,,,,Advanced admin and compliance features
+,sub_slack_enterprise,Slack,ENTERPRISE_GRID,Slack Enterprise Grid,collaboration,active,,,annual,USD,1,PER_SEAT,20.00,240.00,percent,0,true,,,,,,,Enterprise-grade security and unlimited workspaces
+,sub_figma_free,Figma,FREE,Figma Free,design,active,,,monthly,USD,1,FLAT_FEE,0.00,0.00,percent,0,true,,,,,,,Starter plan with 3 Figma and FigJam files
+,sub_figma_pro,Figma,PROFESSIONAL,Figma Professional,design,active,,,monthly,USD,1,PER_SEAT,15.00,180.00,percent,0,true,,,,,,,Unlimited Figma files and version history
+,sub_figma_org,Figma,ORGANIZATION,Figma Organization,design,active,,,monthly,USD,1,PER_SEAT,45.00,540.00,percent,0,true,,,,,,,Organization-wide design system and libraries
+,sub_figma_enterprise,Figma,ENTERPRISE,Figma Enterprise,design,active,,,annual,USD,1,PER_SEAT,75.00,900.00,percent,0,true,,,,,,,Enterprise security and dedicated support
+,sub_notion_free,Notion,FREE,Notion Free,productivity,active,,,monthly,USD,1,FLAT_FEE,0.00,0.00,percent,0,true,,,,,,,Personal workspace with unlimited blocks
+,sub_notion_plus,Notion,PLUS,Notion Plus,productivity,active,,,monthly,USD,1,PER_SEAT,10.00,120.00,percent,0,true,,,,,,,Unlimited file uploads and 30-day version history
+,sub_notion_business,Notion,BUSINESS,Notion Business,productivity,active,,,monthly,USD,1,PER_SEAT,18.00,216.00,percent,0,true,,,,,,,Advanced permissions and SAML SSO
+,sub_notion_enterprise,Notion,ENTERPRISE,Notion Enterprise,productivity,active,,,annual,USD,1,PER_SEAT,25.00,300.00,percent,0,true,,,,,,,Enterprise analytics and dedicated support
+,sub_github_free,GitHub,FREE,GitHub Free,developer_tools,active,,,monthly,USD,1,FLAT_FEE,0.00,0.00,percent,0,true,,,,,,,Unlimited public and private repositories
+,sub_github_pro,GitHub,PRO,GitHub Pro,developer_tools,active,,,monthly,USD,1,FLAT_FEE,4.00,48.00,percent,0,true,,,,,,,Advanced code review and insights
+,sub_github_team,GitHub,TEAM,GitHub Team,developer_tools,active,,,monthly,USD,1,PER_SEAT,4.00,48.00,percent,0,true,,,,,,,Team access controls and code review
+,sub_github_enterprise,GitHub,ENTERPRISE,GitHub Enterprise,developer_tools,active,,,annual,USD,1,PER_SEAT,21.00,252.00,percent,0,true,,,,,,,Enterprise-grade security and compliance
+,sub_cursor_free,Cursor,FREE,Cursor Free,developer_tools,active,,,monthly,USD,1,FLAT_FEE,0.00,0.00,percent,0,true,,,,,,,Free AI code editor with basic features
+,sub_cursor_pro,Cursor,PRO,Cursor Pro,developer_tools,active,,,monthly,USD,1,FLAT_FEE,20.00,240.00,percent,0,true,,,,,,,Pro features with unlimited AI requests
+,sub_cursor_business,Cursor,BUSINESS,Cursor Business,developer_tools,active,,,monthly,USD,1,PER_SEAT,40.00,480.00,percent,0,true,,,,,,,Business tier with team collaboration
+,sub_linear_free,Linear,FREE,Linear Free,project_management,active,,,monthly,USD,1,FLAT_FEE,0.00,0.00,percent,0,true,,,,,,,Free tier for small teams up to 10 members
+,sub_linear_standard,Linear,STANDARD,Linear Standard,project_management,active,,,monthly,USD,1,PER_SEAT,8.00,96.00,percent,0,true,,,,,,,Unlimited users with advanced workflows
+,sub_linear_plus,Linear,PLUS,Linear Plus,project_management,active,,,monthly,USD,1,PER_SEAT,14.00,168.00,percent,0,true,,,,,,,Enhanced security and custom integrations
+,sub_loom_starter,Loom,STARTER,Loom Starter,video,active,,,monthly,USD,1,FLAT_FEE,0.00,0.00,percent,0,true,,,,,,,Free video messaging up to 25 videos
+,sub_loom_business,Loom,BUSINESS,Loom Business,video,active,,,monthly,USD,1,PER_SEAT,12.50,150.00,percent,0,true,,,,,,,Unlimited videos and advanced analytics
+,sub_loom_enterprise,Loom,ENTERPRISE,Loom Enterprise,video,active,,,annual,USD,1,PER_SEAT,16.67,200.00,percent,0,true,,,,,,,Enterprise features with SSO and custom retention
+,sub_vercel_hobby,Vercel,HOBBY,Vercel Hobby,infrastructure,active,,,monthly,USD,1,FLAT_FEE,0.00,0.00,percent,0,true,,,,,,,Free tier for personal projects
+,sub_vercel_pro,Vercel,PRO,Vercel Pro,infrastructure,active,,,monthly,USD,1,FLAT_FEE,20.00,240.00,percent,0,true,,,,,,,Pro deployment features with analytics
+,sub_vercel_enterprise,Vercel,ENTERPRISE,Vercel Enterprise,infrastructure,active,,,annual,USD,1,FLAT_FEE,0.00,0.00,percent,0,true,,,,,,,Custom enterprise pricing with SLA
+,sub_zapier_free,Zapier,FREE,Zapier Free,automation,active,,,monthly,USD,1,FLAT_FEE,0.00,0.00,percent,0,true,,,,,,,Free tier with 100 tasks per month
+,sub_zapier_starter,Zapier,STARTER,Zapier Starter,automation,active,,,monthly,USD,1,FLAT_FEE,29.99,359.88,percent,0,true,,,,,,,750 tasks per month with multi-step Zaps
+,sub_zapier_professional,Zapier,PROFESSIONAL,Zapier Professional,automation,active,,,monthly,USD,1,FLAT_FEE,73.50,882.00,percent,0,true,,,,,,,2000 tasks per month with premium apps
+,sub_zapier_team,Zapier,TEAM,Zapier Team,automation,active,,,monthly,USD,1,FLAT_FEE,103.50,1242.00,percent,0,true,,,,,,,Unlimited users with 50000 tasks per month
+,sub_jira_free,Jira,FREE,Jira Free,project_management,active,,,monthly,USD,1,FLAT_FEE,0.00,0.00,percent,0,true,,,,,,,Free for up to 10 users
+,sub_jira_standard,Jira,STANDARD,Jira Standard,project_management,active,,,monthly,USD,1,PER_SEAT,8.15,97.80,percent,0,true,,,,,,,Standard features with 250GB storage
+,sub_jira_premium,Jira,PREMIUM,Jira Premium,project_management,active,,,monthly,USD,1,PER_SEAT,16.00,192.00,percent,0,true,,,,,,,Advanced roadmaps and 24/7 support
+,sub_confluence_standard,Confluence,STANDARD,Confluence Standard,collaboration,active,,,monthly,USD,1,PER_SEAT,6.05,72.60,percent,0,true,,,,,,,Team collaboration with unlimited pages
+,sub_confluence_premium,Confluence,PREMIUM,Confluence Premium,collaboration,active,,,monthly,USD,1,PER_SEAT,11.55,138.60,percent,0,true,,,,,,,Premium features with analytics and automation
+,sub_copilot_free,GitHub Copilot,FREE,Copilot Free,developer_tools,active,,,monthly,USD,1,FLAT_FEE,0.00,0.00,percent,0,true,,,,,,,Limited AI code suggestions
+,sub_copilot_individual,GitHub Copilot,INDIVIDUAL,Copilot Individual,developer_tools,active,,,monthly,USD,1,FLAT_FEE,10.00,100.00,percent,17,true,,,,,,,Unlimited AI code suggestions
+,sub_copilot_business,GitHub Copilot,BUSINESS,Copilot Business,developer_tools,active,,,monthly,USD,1,PER_SEAT,19.00,228.00,percent,0,true,,,,,,,Organization features with SSO
+,sub_copilot_enterprise,GitHub Copilot,ENTERPRISE,Copilot Enterprise,developer_tools,active,,,monthly,USD,1,PER_SEAT,39.00,468.00,percent,0,true,,,,,,,Fine-tuned models and custom features
+,sub_miro_free,Miro,FREE,Miro Free,design,active,,,monthly,USD,1,FLAT_FEE,0.00,0.00,percent,0,true,,,,,,,3 editable boards
+,sub_miro_starter,Miro,STARTER,Miro Starter,design,active,,,monthly,USD,1,PER_SEAT,8.00,96.00,percent,0,true,,,,,,,Unlimited boards with basic features
+,sub_miro_business,Miro,BUSINESS,Miro Business,design,active,,,monthly,USD,1,PER_SEAT,16.00,192.00,percent,0,true,,,,,,,SSO and advanced permissions
+,sub_adobe_photography,Adobe Creative Cloud,PHOTOGRAPHY,Adobe Photography,design,active,,,monthly,USD,1,FLAT_FEE,9.99,119.88,percent,0,true,,,,,,,Lightroom and Photoshop with 20GB storage
+,sub_adobe_allapps,Adobe Creative Cloud,ALL_APPS,Adobe All Apps,design,active,,,monthly,USD,1,FLAT_FEE,59.99,659.88,percent,8,true,,,,,,,All Creative Cloud apps with 100GB storage
+,sub_asana_free,Asana,FREE,Asana Free,project_management,active,,,monthly,USD,1,FLAT_FEE,0.00,0.00,percent,0,true,,,,,,,Basic tasks for up to 15 members
+,sub_asana_premium,Asana,PREMIUM,Asana Premium,project_management,active,,,monthly,USD,1,PER_SEAT,10.99,131.88,percent,0,true,,,,,,,Timeline and workflow features
+,sub_monday_free,Monday,FREE,Monday Free,project_management,active,,,monthly,USD,2,FLAT_FEE,0.00,0.00,percent,0,true,,,,,,,500MB storage with 2 seats
+,sub_monday_basic,Monday,BASIC,Monday Basic,project_management,active,,,monthly,USD,3,PER_SEAT,9.00,108.00,percent,0,true,,,,,,,5GB storage with essential features
+,sub_zoom_free,Zoom,FREE,Zoom Free,communication,active,,,monthly,USD,1,FLAT_FEE,0.00,0.00,percent,0,true,,,,,,,40-minute meetings with 100 participants
+,sub_zoom_pro,Zoom,PRO,Zoom Pro,communication,active,,,monthly,USD,1,FLAT_FEE,15.99,191.88,percent,0,true,,,,,,,30-hour meetings with 100 participants
+,sub_zoom_business,Zoom,BUSINESS,Zoom Business,communication,active,,,monthly,USD,1,PER_SEAT,21.99,263.88,percent,0,true,,,,,,,30-hour meetings with 300 participants
+,sub_teams_free,Microsoft Teams,FREE,Teams Free,communication,active,,,monthly,USD,1,FLAT_FEE,0.00,0.00,percent,0,true,,,,,,,5GB storage with 60-minute meetings
+,sub_teams_essentials,Microsoft Teams,ESSENTIALS,Teams Essentials,communication,active,,,monthly,USD,1,PER_SEAT,4.00,48.00,percent,0,true,,,,,,,10GB storage with 30-hour meetings
+,sub_gitlab_free,GitLab,FREE,GitLab Free,developer_tools,active,,,monthly,USD,1,FLAT_FEE,0.00,0.00,percent,0,true,,,,,,,5GB per project
+,sub_gitlab_premium,GitLab,PREMIUM,GitLab Premium,developer_tools,active,,,monthly,USD,1,PER_SEAT,29.00,348.00,percent,0,true,,,,,,,50GB with code owners
+,sub_netlify_free,Netlify,FREE,Netlify Starter,infrastructure,active,,,monthly,USD,1,FLAT_FEE,0.00,0.00,percent,0,true,,,,,,,100GB bandwidth
+,sub_netlify_pro,Netlify,PRO,Netlify Pro,infrastructure,active,,,monthly,USD,1,FLAT_FEE,19.00,228.00,percent,0,true,,,,,,,400GB bandwidth
+,sub_railway_hobby,Railway,HOBBY,Railway Hobby,infrastructure,active,,,monthly,USD,1,FLAT_FEE,0.00,0.00,percent,0,true,,,,,,,1GB RAM with $5 credit
+,sub_railway_pro,Railway,PRO,Railway Pro,infrastructure,active,,,monthly,USD,1,FLAT_FEE,20.00,240.00,percent,0,true,,,,,,,100GB with team features
+,sub_supabase_free,Supabase,FREE,Supabase Free,infrastructure,active,,,monthly,USD,1,FLAT_FEE,0.00,0.00,percent,0,true,,,,,,,500MB database with 1GB storage
+,sub_supabase_pro,Supabase,PRO,Supabase Pro,infrastructure,active,,,monthly,USD,1,FLAT_FEE,25.00,300.00,percent,0,true,,,,,,,8GB database with 100GB storage

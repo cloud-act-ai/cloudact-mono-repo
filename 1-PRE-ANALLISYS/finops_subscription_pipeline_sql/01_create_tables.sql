@@ -7,7 +7,7 @@ DECLARE v_dataset_id STRING DEFAULT 'procedure_testsing';
 BEGIN
   -- 1. SaaS Subscription Plans (Dimension Table)
   EXECUTE IMMEDIATE FORMAT("""
-    CREATE TABLE IF NOT EXISTS `%s.%s.subscription_plans` (
+    CREATE TABLE IF NOT EXISTS `%s.%s.saas_subscription_plans` (
       org_slug STRING NOT NULL OPTIONS(description="Unique organization identifier (Multi-tenancy ID). Example: 'guru_inc_123'."),
       subscription_id STRING NOT NULL OPTIONS(description="Unique primary key for the subscription. Often a hash or provider ID. Example: 'sub_openai_01'."),
       provider STRING OPTIONS(description="Name of the SaaS vendor or provider. Normalized to lowercase. Example: 'openai', 'slack'."),
@@ -51,7 +51,7 @@ BEGIN
 
   -- 2. Daily Amortized Costs (Fact Table)
   EXECUTE IMMEDIATE FORMAT("""
-    CREATE TABLE IF NOT EXISTS `%s.%s.subscription_plan_costs_daily` (
+    CREATE TABLE IF NOT EXISTS `%s.%s.saas_subscription_plan_costs_daily` (
       org_slug STRING NOT NULL OPTIONS(description="Unique organization identifier."),
       provider STRING OPTIONS(description="SaaS provider name."),
       subscription_id STRING OPTIONS(description="Foreign key to subscription_plans."),
