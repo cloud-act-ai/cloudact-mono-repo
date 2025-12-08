@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { Loader2, Check, CreditCard, Plus, ChevronRight, ChevronDown, ChevronUp, Brain, Palette, FileText, MessageSquare, Code, Cloud, AlertTriangle } from "lucide-react"
+import Link from "next/link"
+import { Loader2, Check, CreditCard, Plus, ChevronRight, ChevronDown, ChevronUp, Brain, Palette, FileText, MessageSquare, Code, Cloud, AlertTriangle, Search } from "lucide-react"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -126,6 +127,7 @@ export default function SubscriptionProvidersPage() {
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [warningMessage, setWarningMessage] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState("")
 
   // Add Provider Dialog state
   const [customDialogOpen, setCustomDialogOpen] = useState(false)
@@ -173,16 +175,23 @@ export default function SubscriptionProvidersPage() {
     setSuccessMessage(null)
     setWarningMessage(null)
 
+    // Optimistic update: update local state immediately for instant feedback
+    const previousProviders = [...subscriptionProviders]
+    setSubscriptionProviders(prev =>
+      prev.map(p => p.provider === provider ? { ...p, is_enabled: enabled } : p)
+    )
+
     try {
-      const result = enabled
-        ? await enableProvider(orgSlug, provider)
-        : await disableProvider(orgSlug, provider)
+      const displayName = provider.replace(/_/g, ' ')
+      let success = false
+      let errorMsg: string | undefined
 
-      if (result.success) {
-        const displayName = provider.replace(/_/g, ' ')
+      if (enabled) {
+        // Enable provider
+        const result = await enableProvider(orgSlug, provider)
+        success = result.success
 
-        if (enabled) {
-          // Enable logic
+        if (result.success) {
           if (result.error) {
             // Partial failure on enable (enabled but failed to seed plans)
             setWarningMessage(
@@ -194,11 +203,18 @@ export default function SubscriptionProvidersPage() {
             )
           }
         } else {
-          // Disable logic - check for partial_failure or error
-          if ('partial_failure' in result && result.partial_failure) {
+          errorMsg = result.error
+        }
+      } else {
+        // Disable provider
+        const result = await disableProvider(orgSlug, provider)
+        success = result.success
+
+        if (result.success) {
+          if (result.partial_failure) {
             // Partial failure: some plans deleted, some failed
             setWarningMessage(
-              `${displayName} disabled (${result.plans_deleted} plans deleted). Warning: ${result.partial_failure}`
+              `${displayName} disabled (${result.plans_deleted || 0} plans deleted). Warning: ${result.partial_failure}`
             )
           } else if (result.error) {
             // Complete failure or provider disabled but plans not deleted
@@ -211,12 +227,22 @@ export default function SubscriptionProvidersPage() {
               `${displayName} disabled${result.plans_deleted ? ` (${result.plans_deleted} plans deleted)` : ''}`
             )
           }
+        } else {
+          errorMsg = result.error
         }
+      }
+
+      if (success) {
+        // Reload to get accurate plan counts
         await loadSubscriptionProviders()
       } else {
-        setError(result.error || `Failed to ${enabled ? 'enable' : 'disable'} provider`)
+        // Revert optimistic update on failure
+        setSubscriptionProviders(previousProviders)
+        setError(errorMsg || `Failed to ${enabled ? 'enable' : 'disable'} provider`)
       }
     } catch (error: unknown) {
+      // Revert optimistic update on error
+      setSubscriptionProviders(previousProviders)
       const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred"
       setError(errorMessage)
     } finally {
@@ -262,7 +288,7 @@ export default function SubscriptionProvidersPage() {
         plan_name: "custom",
         display_name: customProviderName.trim(),
         unit_price_usd: customCost,
-        billing_period: billingCycle,
+        billing_cycle: billingCycle,
         seats: customSeats,
       })
 
@@ -313,6 +339,13 @@ export default function SubscriptionProvidersPage() {
 
   const enabledCount = subscriptionProviders.filter(p => p.is_enabled).length
 
+  // Filter providers based on search query
+  const filteredProviders = subscriptionProviders.filter(provider =>
+    provider.display_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    provider.provider.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    provider.category.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
   if (providersLoading) {
     return (
       <div className="space-y-6">
@@ -356,9 +389,23 @@ export default function SubscriptionProvidersPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="console-page-title">Subscription Providers</h1>
-        <p className="console-subheading">
+      {/* Breadcrumb Navigation */}
+      <nav className="flex items-center gap-2 text-sm text-gray-500 mb-4">
+        <Link href={`/${orgSlug}/settings`} className="hover:text-[#007A78]">Settings</Link>
+        <ChevronRight className="h-4 w-4" />
+        <Link href={`/${orgSlug}/settings/integrations`} className="hover:text-[#007A78]">Integrations</Link>
+        <ChevronRight className="h-4 w-4" />
+        <span className="text-gray-900 font-medium">Subscriptions</span>
+      </nav>
+
+      <div className="space-y-2">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-lg bg-gradient-to-br from-[#007A78]/10 to-[#14B8A6]/10">
+            <CreditCard className="h-6 w-6 text-[#007A78]" />
+          </div>
+          <h1 className="console-page-title">Subscription Providers</h1>
+        </div>
+        <p className="console-subheading ml-12">
           Track fixed-cost SaaS subscriptions. Enable providers to manage plans.
         </p>
       </div>
@@ -389,6 +436,19 @@ export default function SubscriptionProvidersPage() {
         </Alert>
       )}
 
+      {subscriptionProviders.length > 0 && (
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Input
+            type="text"
+            placeholder="Search providers by name or category..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10 max-w-md border-[#007A78]/20 focus:border-[#007A78] focus:ring-[#007A78]/20"
+          />
+        </div>
+      )}
+
       {subscriptionProviders.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="py-8 text-center">
@@ -405,7 +465,7 @@ export default function SubscriptionProvidersPage() {
       ) : (
         <>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {(showAllProviders ? subscriptionProviders : subscriptionProviders.slice(0, INITIAL_PROVIDERS_COUNT)).map((provider) => (
+            {(showAllProviders ? filteredProviders : filteredProviders.slice(0, INITIAL_PROVIDERS_COUNT)).map((provider) => (
               <SubscriptionProviderCard
                 key={provider.provider}
                 provider={provider}
@@ -415,8 +475,18 @@ export default function SubscriptionProvidersPage() {
               />
             ))}
           </div>
+
+          {/* No results message */}
+          {filteredProviders.length === 0 && searchQuery && (
+            <div className="text-center py-8">
+              <p className="console-body text-gray-500">
+                No providers found matching &quot;{searchQuery}&quot;
+              </p>
+            </div>
+          )}
+
           {/* Show more button - before custom provider message */}
-          {subscriptionProviders.length > INITIAL_PROVIDERS_COUNT && !showAllProviders && (
+          {filteredProviders.length > INITIAL_PROVIDERS_COUNT && !showAllProviders && (
             <div className="mt-4 text-center">
               <Button
                 variant="ghost"
@@ -424,7 +494,7 @@ export default function SubscriptionProvidersPage() {
                 onClick={() => setShowAllProviders(true)}
                 className="text-[#007A78] hover:bg-[#F0FDFA]"
               >
-                Show {subscriptionProviders.length - INITIAL_PROVIDERS_COUNT} more providers
+                Show {filteredProviders.length - INITIAL_PROVIDERS_COUNT} more providers
                 <ChevronDown className="h-4 w-4 ml-1" />
               </Button>
             </div>
@@ -448,7 +518,7 @@ export default function SubscriptionProvidersPage() {
             </div>
           )}
 
-          {showAllProviders && subscriptionProviders.length > INITIAL_PROVIDERS_COUNT && (
+          {showAllProviders && filteredProviders.length > INITIAL_PROVIDERS_COUNT && (
             <div className="mt-4 text-center">
               <Button
                 variant="ghost"

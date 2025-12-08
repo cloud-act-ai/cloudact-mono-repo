@@ -229,6 +229,16 @@ CA_ROOT_API_KEY (system admin)
 - `GET /api/v1/integrations/{org}/{provider}/subscriptions` - List subscriptions
 - `POST /api/v1/integrations/{org}/{provider}/subscriptions` - Add subscription
 
+**SaaS Subscription Plan CRUD (api-service port 8000):**
+- `GET /api/v1/subscriptions/{org}/providers` - List all providers with status
+- `POST /api/v1/subscriptions/{org}/providers/{provider}/enable` - Enable provider
+- `POST /api/v1/subscriptions/{org}/providers/{provider}/disable` - Disable provider
+- `GET /api/v1/subscriptions/{org}/providers/{provider}/plans` - List plans
+- `POST /api/v1/subscriptions/{org}/providers/{provider}/plans` - Create plan
+- `PUT /api/v1/subscriptions/{org}/providers/{provider}/plans/{id}` - Update plan
+- `DELETE /api/v1/subscriptions/{org}/providers/{provider}/plans/{id}` - End plan (soft delete)
+- `POST /api/v1/subscriptions/{org}/providers/{provider}/plans/{id}/edit-version` - Edit with version history
+
 ### Customer Lifecycle
 
 See `ARCHITECTURE.md` for complete customer journey (signup → onboarding → integrations → pipelines).
@@ -444,6 +454,30 @@ curl -s http://localhost:8001/health | python3 -m json.tool
 - Prefix all cache keys with org_slug for multi-tenant isolation
 - Handle graceful shutdown of background threads
 
+### SaaS Subscription Plan CRUD with Version History (December 2024)
+
+**Feature:** Complete subscription plan management with version history and soft delete.
+
+**Backend (api-service):**
+- Added `/edit-version` endpoint for version-creating edits
+- Old row gets `end_date`, new row starts from `effective_date`
+- Soft delete via `end_date` instead of hard delete
+- Status values: `active`, `pending`, `cancelled`, `expired`
+
+**Frontend:**
+- Date picker components (`date-picker.tsx`, `calendar.tsx`, `popover.tsx`)
+- Edit dialog shows current plan details + effective date picker
+- End subscription dialog with end date selection
+- "Pending" badge for future-dated changes
+
+**Files Modified:**
+- `api-service/src/app/routers/subscription_plans.py` - Version endpoint
+- `fronted-system/actions/subscription-providers.ts` - `editPlanWithVersion()`, `endSubscription()`
+- `fronted-system/app/[orgSlug]/subscriptions/[provider]/page.tsx` - Redesigned dialogs
+- `fronted-system/components/ui/date-picker.tsx` - New component
+
+**Tests:** 36 API integration tests passing, 51 frontend tests passing
+
 ---
 
-**Last Updated:** 2025-12-06
+**Last Updated:** 2025-12-07

@@ -40,15 +40,85 @@ import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { listEnabledProviders, ProviderMeta } from "@/actions/subscription-providers"
 
+// Provider display names mapping
+const PROVIDER_DISPLAY_NAMES: Record<string, string> = {
+  chatgpt_plus: "ChatGPT Plus",
+  claude_pro: "Claude Pro",
+  gemini_advanced: "Gemini Advanced",
+  copilot: "GitHub Copilot",
+  cursor: "Cursor",
+  windsurf: "Windsurf",
+  replit: "Replit",
+  v0: "v0",
+  lovable: "Lovable",
+  canva: "Canva",
+  adobe_cc: "Adobe Creative Cloud",
+  figma: "Figma",
+  miro: "Miro",
+  notion: "Notion",
+  confluence: "Confluence",
+  asana: "Asana",
+  monday: "Monday.com",
+  slack: "Slack",
+  zoom: "Zoom",
+  teams: "Microsoft Teams",
+  github: "GitHub",
+  gitlab: "GitLab",
+  jira: "Jira",
+  linear: "Linear",
+  vercel: "Vercel",
+  netlify: "Netlify",
+  railway: "Railway",
+  supabase: "Supabase",
+  custom: "Custom",
+}
+
 // Format org name: "guruInc_11242025" → "Guru Inc"
+// Preserves common acronyms: SaaS, API, AI, LLM, GCP, AWS, etc.
 function formatOrgName(name: string): string {
   const withoutDate = name.replace(/_\d{8}$/, "")
-  const words = withoutDate
-    .replace(/([a-z])([A-Z])/g, "$1 $2")
-    .replace(/[_-]/g, " ")
-    .split(" ")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+
+  // Common acronyms to preserve (case-insensitive)
+  const acronymPatterns = [
+    { pattern: /saas/gi, replacement: "SaaS" },
+    { pattern: /\bapi\b/gi, replacement: "API" },
+    { pattern: /\bai\b/gi, replacement: "AI" },
+    { pattern: /\bllm\b/gi, replacement: "LLM" },
+    { pattern: /\bgcp\b/gi, replacement: "GCP" },
+    { pattern: /\baws\b/gi, replacement: "AWS" },
+    { pattern: /\bml\b/gi, replacement: "ML" },
+    { pattern: /\bui\b/gi, replacement: "UI" },
+    { pattern: /\bux\b/gi, replacement: "UX" },
+  ]
+
+  // First, replace underscores and hyphens with spaces
+  let processed = withoutDate.replace(/[_-]/g, " ")
+
+  // Preserve acronyms BEFORE camelCase split
+  for (const { pattern, replacement } of acronymPatterns) {
+    processed = processed.replace(pattern, replacement)
+  }
+
+  // Then handle camelCase (but skip consecutive capitals like "SaaS")
+  processed = processed.replace(/([a-z])([A-Z])/g, "$1 $2")
+
+  // Split and title-case each word (but preserve already-cased acronyms)
+  const words = processed
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => {
+      // Check if word is an acronym (all caps or known pattern like "SaaS")
+      const isAcronym = acronymPatterns.some(({ replacement }) =>
+        word === replacement || word.toUpperCase() === word
+      )
+      if (isAcronym) {
+        return word // Keep as-is
+      }
+      // Otherwise title case
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+    })
     .join(" ")
+
   return words
 }
 
@@ -56,13 +126,13 @@ function formatOrgName(name: string): string {
 function getBillingStatusColor(status: string): string {
   switch (status) {
     case "active":
-      return "bg-[#007A78]/10 text-[#007A78] border-[#007A78]/20"
+      return "bg-[#007A78]/10 text-[#007A78] border-[#007A78]/30 font-medium"
     case "trialing":
-      return "bg-[#14B8A6]/10 text-[#14B8A6] border-[#14B8A6]/20"
+      return "bg-amber-500/15 text-amber-700 border-amber-500/40 font-semibold"
     case "past_due":
-      return "bg-[#FF6E50]/10 text-[#FF6E50] border-[#FF6E50]/20"
+      return "bg-[#FF6E50]/10 text-[#FF6E50] border-[#FF6E50]/30 font-medium"
     case "canceled":
-      return "bg-red-500/10 text-red-500 border-red-500/20"
+      return "bg-red-500/10 text-red-500 border-red-500/30 font-medium"
     default:
       return "bg-gray-100 text-gray-500"
   }
@@ -134,7 +204,19 @@ export function DashboardSidebar({
     window.location.href = "/login"
   }
 
-  const isActive = (path: string) => pathname?.startsWith(path)
+  // More specific active state logic - only highlight exact matches
+  const isActive = (path: string, exact = false) => {
+    if (!pathname) return false
+
+    if (exact) {
+      // Exact match only
+      return pathname === path
+    }
+
+    // For non-exact matches, ensure we don't highlight parent paths
+    // when on a child path. E.g., don't highlight /subscriptions when on /subscriptions/chatgpt_plus
+    return pathname === path || pathname.startsWith(path + "/")
+  }
 
   return (
     <Sidebar className="border-r bg-white border-gray-200" {...props}>
@@ -160,9 +242,7 @@ export function DashboardSidebar({
                   asChild
                   className={cn(
                     "text-gray-600 hover:text-[#007A78] hover:bg-[#007A78]/5",
-                    isActive(`/${orgSlug}/dashboard`) &&
-                      !isActive(`/${orgSlug}/dashboard/`) &&
-                      "bg-[#007A78]/10 text-[#007A78]",
+                    isActive(`/${orgSlug}/dashboard`, true) && "bg-[#007A78]/10 text-[#007A78]",
                   )}
                 >
                   <Link href={`/${orgSlug}/dashboard`}>
@@ -178,7 +258,7 @@ export function DashboardSidebar({
                   asChild
                   className={cn(
                     "text-gray-600 hover:text-[#007A78] hover:bg-[#007A78]/5",
-                    isActive(`/${orgSlug}/subscriptions`) && "bg-[#007A78]/10 text-[#007A78]",
+                    isActive(`/${orgSlug}/subscriptions`, true) && "bg-[#007A78]/10 text-[#007A78]",
                   )}
                 >
                   <Link href={`/${orgSlug}/subscriptions`}>
@@ -221,7 +301,7 @@ export function DashboardSidebar({
                       asChild
                       className={cn(
                         "text-gray-500 hover:text-[#007A78] hover:bg-[#007A78]/5 text-sm h-8",
-                        isActive(`/${orgSlug}/pipelines`) && !pathname?.includes("/pipelines/runs") && "bg-[#007A78]/10 text-[#007A78]",
+                        isActive(`/${orgSlug}/pipelines`, true) && "bg-[#007A78]/10 text-[#007A78]",
                       )}
                     >
                       <Link href={`/${orgSlug}/pipelines`}>
@@ -266,7 +346,7 @@ export function DashboardSidebar({
                       asChild
                       className={cn(
                         "text-gray-500 hover:text-[#007A78] hover:bg-[#007A78]/5 text-sm h-8",
-                        isActive(`/${orgSlug}/settings/integrations/cloud`) && "bg-[#007A78]/10 text-[#007A78]",
+                        isActive(`/${orgSlug}/settings/integrations/cloud`, true) && "bg-[#007A78]/10 text-[#007A78]",
                       )}
                     >
                       <Link href={`/${orgSlug}/settings/integrations/cloud`}>
@@ -281,7 +361,7 @@ export function DashboardSidebar({
                       asChild
                       className={cn(
                         "text-gray-500 hover:text-[#007A78] hover:bg-[#007A78]/5 text-sm h-8",
-                        isActive(`/${orgSlug}/settings/integrations/llm`) && "bg-[#007A78]/10 text-[#007A78]",
+                        isActive(`/${orgSlug}/settings/integrations/llm`, true) && "bg-[#007A78]/10 text-[#007A78]",
                       )}
                     >
                       <Link href={`/${orgSlug}/settings/integrations/llm`}>
@@ -336,9 +416,11 @@ export function DashboardSidebar({
                       </SidebarMenuItem>
                       {/* Show each enabled provider */}
                       {enabledProviders.map((provider) => {
-                        const providerDisplayName = provider.provider_name
-                          .replace(/_/g, " ")
-                          .replace(/\b\w/g, (l: string) => l.toUpperCase())
+                        // Use PROVIDER_DISPLAY_NAMES mapping for proper capitalization
+                        const providerDisplayName = PROVIDER_DISPLAY_NAMES[provider.provider_name] ||
+                          provider.provider_name
+                            .replace(/_/g, " ")
+                            .replace(/\b\w/g, (l: string) => l.toUpperCase())
                         return (
                           <SidebarMenuItem key={provider.id}>
                             <SidebarMenuButton
@@ -419,7 +501,7 @@ export function DashboardSidebar({
               asChild
               className={cn(
                 "w-full justify-start gap-2 px-2 h-9 text-gray-600 hover:text-[#007A78] hover:bg-[#007A78]/5",
-                isActive(`/${orgSlug}/billing`) && "bg-[#007A78]/10 text-[#007A78]",
+                isActive(`/${orgSlug}/billing`, true) && "bg-[#007A78]/10 text-[#007A78]",
               )}
             >
               <Link href={`/${orgSlug}/billing`}>
@@ -433,7 +515,7 @@ export function DashboardSidebar({
             asChild
             className={cn(
               "w-full justify-start gap-2 px-2 h-9 text-gray-600 hover:text-[#007A78] hover:bg-[#007A78]/5",
-              isActive(`/${orgSlug}/settings/members`) && "bg-[#007A78]/10 text-[#007A78]",
+              isActive(`/${orgSlug}/settings/members`, true) && "bg-[#007A78]/10 text-[#007A78]",
             )}
           >
             <Link href={`/${orgSlug}/settings/members`}>
@@ -448,7 +530,7 @@ export function DashboardSidebar({
               asChild
               className={cn(
                 "w-full justify-start gap-2 px-2 h-9 text-gray-600 hover:text-[#007A78] hover:bg-[#007A78]/5",
-                isActive(`/${orgSlug}/settings/onboarding`) && "bg-[#007A78]/10 text-[#007A78]",
+                isActive(`/${orgSlug}/settings/onboarding`, true) && "bg-[#007A78]/10 text-[#007A78]",
               )}
             >
               <Link href={`/${orgSlug}/settings/onboarding`}>
@@ -462,7 +544,7 @@ export function DashboardSidebar({
             asChild
             className={cn(
               "w-full justify-start gap-2 px-2 h-9 text-gray-600 hover:text-[#007A78] hover:bg-[#007A78]/5",
-              isActive(`/${orgSlug}/settings/profile`) && "bg-[#007A78]/10 text-[#007A78]",
+              isActive(`/${orgSlug}/settings/profile`, true) && "bg-[#007A78]/10 text-[#007A78]",
             )}
           >
             <Link href={`/${orgSlug}/settings/profile`}>

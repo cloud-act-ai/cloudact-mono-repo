@@ -57,6 +57,35 @@ User Journey
 
 This file provides guidance to Claude Code when working with the CloudAct.ai frontend codebase.
 
+## Environment Setup (.env.local)
+
+All credentials are stored in `.env.local`. This file is loaded automatically by:
+- Next.js for development and production
+- Vitest for running tests
+
+**Required variables:**
+
+```bash
+# .env.local
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
+SUPABASE_SERVICE_ROLE_KEY=eyJ...
+
+# Stripe
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+
+# Backend Services
+NEXT_PUBLIC_API_SERVICE_URL=http://localhost:8000
+NEXT_PUBLIC_PIPELINE_SERVICE_URL=http://localhost:8001
+CA_ROOT_API_KEY=your-admin-key-32chars
+
+# App
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+```
+
 ## Commands
 
 ```bash
@@ -66,11 +95,22 @@ npm run lint     # Run ESLint
 npm run start    # Start production server
 ```
 
-Tests use Vitest:
+## Running Tests
+
+Tests automatically load credentials from `.env.local`:
+
 ```bash
-npx vitest                          # Run all tests
-npx vitest tests/auth-flow.test.ts  # Run specific test file
-npx vitest --watch                  # Watch mode
+# Run all tests (uses .env.local credentials)
+npx vitest
+
+# Run specific test file
+npx vitest tests/auth-flow.test.ts
+
+# Watch mode
+npx vitest --watch
+
+# Run with verbose output
+npx vitest run --reporter=verbose
 ```
 
 ## Validation Testing
@@ -481,44 +521,57 @@ await toggleIntegrationEnabled("acmecorp", "openai", false)
 
 ### SaaS Subscription Functions
 
-SaaS subscriptions track fixed-cost subscriptions (Canva, Adobe, ChatGPT Plus, etc.) stored in Supabase.
+SaaS subscriptions track fixed-cost subscriptions (Canva, Adobe, ChatGPT Plus, etc.) stored in BigQuery via backend API.
 
 ```typescript
-// From actions/saas-subscriptions.ts
+// From actions/subscription-providers.ts
 
 // List all subscriptions for an org
-const result = await listSaaSSubscriptions("acmecorp")
+const result = await listSaaSSubscriptions("acmecorp", "slack")
 // Returns: { success: true, subscriptions: [...], count: 5 }
 
-// Create a new subscription
-const result = await createSaaSSubscription("acmecorp", {
-  provider_name: "canva",
-  display_name: "Canva Pro",
-  billing_cycle: "monthly",  // monthly | annual | quarterly | custom
-  cost_per_cycle: 12.99,
-  currency: "USD",
-  seats: 5,
-  renewal_date: "2025-01-15",
-  category: "design",  // design | productivity | ai | development | cloud | other
-  notes: "Team design subscription"
+// Create a new subscription with start date
+const result = await createSaaSSubscription("acmecorp", "slack", {
+  plan_name: "slack_pro",
+  display_name: "Slack Pro",
+  billing_cycle: "monthly",  // monthly | annual | quarterly
+  price_per_unit: 12.99,
+  quantity: 5,
+  start_date: "2025-01-01",  // When subscription starts
+  renewal_date: "2025-02-01",
+  owner_email: "admin@acme.com",
+  department: "Engineering",
+  notes: "Team communication"
 })
 
-// Update a subscription
-await updateSaaSSubscription("acmecorp", "subscription-uuid", {
-  cost_per_cycle: 14.99,
-  seats: 10
-})
+// Edit with version history (creates new row, ends old row)
+const result = await editPlanWithVersion(
+  "acmecorp",
+  "slack",
+  "subscription-id",
+  "2025-12-15",  // effective_date - when changes take effect
+  {
+    price_per_unit: 14.99,
+    quantity: 10,
+    notes: "Upgraded seats"
+  }
+)
+// Old row gets end_date = Dec 14, new row starts Dec 15
 
-// Delete a subscription
-await deleteSaaSSubscription("acmecorp", "subscription-uuid")
+// End subscription (soft delete via end_date)
+await endSubscription("acmecorp", "slack", "subscription-id", "2025-12-31")
+// Sets end_date and status = 'cancelled', preserves history
 
 // Toggle subscription enabled/disabled
 await toggleSaaSSubscription("acmecorp", "subscription-uuid", false)
-
-// Get subscription summary (total monthly cost, counts by category)
-const summary = await getSaaSSubscriptionSummary("acmecorp")
-// Returns: { total_monthly_cost: 150.00, count_by_category: { design: 2, ai: 3 }, ... }
 ```
+
+**Status Values:** `active` (current), `pending` (future start_date), `cancelled` (ended), `expired` (past end_date)
+
+**UI Components:**
+- `components/ui/date-picker.tsx` - Date selection for start/end/effective dates
+- `components/ui/calendar.tsx` - Calendar component (react-day-picker)
+- `components/ui/popover.tsx` - Radix popover wrapper
 
 **Common SaaS Providers:** Canva, Adobe CC, Figma, Notion, Slack, Zoom, GitHub, GitLab, Jira, ChatGPT Plus, Claude Pro, Gemini Advanced, Copilot, Cursor, Lovable, v0, Miro, Linear, Vercel, Netlify, AWS, GCP, Azure
 
@@ -1057,4 +1110,4 @@ Before deploying any new feature, verify:
 
 ---
 
-**Last Updated:** 2025-12-06
+**Last Updated:** 2025-12-07

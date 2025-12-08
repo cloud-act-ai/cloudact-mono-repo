@@ -409,25 +409,56 @@ export default function IntegrationsPage() {
 
   // Handle subscription provider toggle
   const handleSubscriptionProviderToggle = async (provider: string, enabled: boolean) => {
+    // Optimistic update: update local state immediately for instant feedback
+    const previousProviders = [...subscriptionProviders]
+    setSubscriptionProviders(prev =>
+      prev.map(p => p.provider === provider ? { ...p, is_enabled: enabled } : p)
+    )
+
     setTogglingSubscriptionProvider(provider)
     setError(null)
     setSuccessMessage(null)
 
-    const result = enabled
-      ? await enableProvider(orgSlug, provider)
-      : await disableProvider(orgSlug, provider)
+    try {
+      const displayName = provider.replace(/_/g, ' ')
+      let success = false
+      let errorMsg: string | undefined
 
-    setTogglingSubscriptionProvider(null)
+      if (enabled) {
+        const result = await enableProvider(orgSlug, provider)
+        success = result.success
+        if (result.success) {
+          setSuccessMessage(
+            `${displayName} enabled${result.plans_seeded ? ` (${result.plans_seeded} plans seeded)` : ''}`
+          )
+        } else {
+          errorMsg = result.error
+        }
+      } else {
+        const result = await disableProvider(orgSlug, provider)
+        success = result.success
+        if (result.success) {
+          setSuccessMessage(`${displayName} disabled`)
+        } else {
+          errorMsg = result.error
+        }
+      }
 
-    if (result.success) {
-      setSuccessMessage(
-        enabled
-          ? `${provider.replace(/_/g, ' ')} enabled${result.plans_seeded ? ` (${result.plans_seeded} plans seeded)` : ''}`
-          : `${provider.replace(/_/g, ' ')} disabled`
-      )
-      await loadSubscriptionProviders()
-    } else {
-      setError(result.error || `Failed to ${enabled ? 'enable' : 'disable'} provider`)
+      setTogglingSubscriptionProvider(null)
+
+      if (success) {
+        // Refresh to get accurate data from server
+        await loadSubscriptionProviders()
+      } else {
+        // Revert optimistic update on failure
+        setSubscriptionProviders(previousProviders)
+        setError(errorMsg || `Failed to ${enabled ? 'enable' : 'disable'} provider`)
+      }
+    } catch (error) {
+      // Revert optimistic update on error
+      setSubscriptionProviders(previousProviders)
+      setTogglingSubscriptionProvider(null)
+      setError(`Failed to ${enabled ? 'enable' : 'disable'} provider`)
     }
   }
 

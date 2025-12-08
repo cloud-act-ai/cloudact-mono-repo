@@ -6,16 +6,47 @@ variables are set before the settings module is imported.
 
 Test Modes:
 1. Unit Tests (default) - Run with mocked BigQuery
-2. Integration Tests - Run with real BigQuery (requires credentials)
+2. Integration Tests - Run with real BigQuery (requires credentials from .env.local)
 
 To run integration tests:
     pytest -m integration --run-integration
 
 To run only unit tests:
     pytest -m "not integration"
+
+Environment Setup:
+    All credentials are loaded from .env.local file. Create this file with:
+
+    GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
+    GCP_PROJECT_ID=your-project-id
+    CA_ROOT_API_KEY=your-api-key-min-32-chars
+    KMS_KEY_NAME=projects/.../cryptoKeys/...
+    ENVIRONMENT=development
+    DISABLE_AUTH=false
+    RUN_INTEGRATION_TESTS=true
 """
 
 import os
+from pathlib import Path
+
+# Load .env.local file if it exists
+def load_env_local():
+    """Load environment variables from .env.local file."""
+    env_local_path = Path(__file__).parent.parent / ".env.local"
+    if env_local_path.exists():
+        with open(env_local_path) as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    key, value = line.split("=", 1)
+                    key = key.strip()
+                    value = value.strip().strip('"').strip("'")
+                    # Only set if not already set (allows override from command line)
+                    if key not in os.environ:
+                        os.environ[key] = value
+
+# Load .env.local FIRST before any other operations
+load_env_local()
 
 # Set environment variables BEFORE any imports that might load settings
 # These must be set before src.app.config is imported anywhere
@@ -27,11 +58,9 @@ if os.environ.get("GCP_PROJECT_ID") in [None, "", "test-project"]:
     os.environ.setdefault("CA_ROOT_API_KEY", "test-ca-root-key-secure-32chars")
     os.environ.setdefault("DISABLE_AUTH", "true")
 else:
-    # Integration test mode - use real credentials but still set defaults for missing vars
+    # Integration test mode - use real credentials from .env.local
     os.environ.setdefault("ENVIRONMENT", "development")
-    os.environ.setdefault("KMS_KEY_NAME", "projects/gac-prod-471220/locations/us-central1/keyRings/cloudact-keyring/cryptoKeys/credentials-key")
-    os.environ.setdefault("CA_ROOT_API_KEY", "test-ca-root-key-secure-32chars")
-    os.environ.setdefault("DISABLE_AUTH", "true")
+    os.environ.setdefault("DISABLE_AUTH", "false")
 
 import pytest
 from httpx import AsyncClient, ASGITransport

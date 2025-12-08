@@ -80,12 +80,30 @@ const sanitizeProviderName = (provider: string): string => {
 const VALID_BILLING_CYCLES = new Set(["monthly", "annual", "quarterly"])
 const VALID_PRICING_MODELS = new Set(["PER_SEAT", "FLAT_FEE"])
 const VALID_DISCOUNT_TYPES = new Set(["percent", "fixed"])
-const VALID_STATUS_VALUES = new Set(["active", "cancelled", "expired"])
+const VALID_STATUS_VALUES = new Set(["active", "cancelled", "expired", "pending"])
 
 /**
  * Validate plan data before sending to API
  */
 function validatePlanData(plan: PlanCreate | PlanUpdate): { valid: boolean; error?: string } {
+  // Validate plan name length
+  if ("plan_name" in plan && plan.plan_name && plan.plan_name.length > 50) {
+    return { valid: false, error: `Plan name too long. Maximum 50 characters allowed.` }
+  }
+
+  // Validate negative prices
+  if ("unit_price_usd" in plan && plan.unit_price_usd !== undefined && plan.unit_price_usd < 0) {
+    return { valid: false, error: `Unit price cannot be negative` }
+  }
+  if ("yearly_price_usd" in plan && plan.yearly_price_usd !== undefined && plan.yearly_price_usd < 0) {
+    return { valid: false, error: `Yearly price cannot be negative` }
+  }
+
+  // Validate negative seats
+  if ("seats" in plan && plan.seats !== undefined && plan.seats < 0) {
+    return { valid: false, error: `Seats cannot be negative` }
+  }
+
   if ("billing_cycle" in plan && plan.billing_cycle && !VALID_BILLING_CYCLES.has(plan.billing_cycle)) {
     return { valid: false, error: `Invalid billing_cycle: ${plan.billing_cycle}. Must be: monthly, annual, or quarterly` }
   }
@@ -214,7 +232,7 @@ export interface SubscriptionPlan {
   plan_name: string
   display_name?: string
   category: string
-  status: 'active' | 'cancelled' | 'expired'
+  status: 'active' | 'cancelled' | 'expired' | 'pending'
   start_date?: string
   end_date?: string
   billing_cycle: string
@@ -241,6 +259,7 @@ export interface PlanCreate {
   display_name?: string
   unit_price_usd: number
   billing_cycle?: string
+  currency?: string  // Currency code (USD, EUR, GBP)
   seats?: number
   pricing_model?: 'PER_SEAT' | 'FLAT_FEE'
   yearly_price_usd?: number
@@ -250,6 +269,7 @@ export interface PlanCreate {
   payment_method?: string
   owner_email?: string
   department?: string
+  start_date?: string  // YYYY-MM-DD format
   renewal_date?: string
   contract_id?: string
   notes?: string
@@ -260,6 +280,7 @@ export interface PlanUpdate {
   unit_price_usd?: number
   status?: 'active' | 'cancelled' | 'expired'
   billing_cycle?: string
+  currency?: string  // Currency code (USD, EUR, GBP)
   seats?: number
   pricing_model?: 'PER_SEAT' | 'FLAT_FEE'
   yearly_price_usd?: number
@@ -1097,5 +1118,164 @@ export async function resetProvider(
     return { success: true, plans_seeded: result.plans_seeded || 0 }
   } catch (error) {
     return { success: false, plans_seeded: 0, error: logError("resetProvider", error) }
+  }
+}
+
+/**
+ * Edit a plan with version history
+ * Creates a new row with the updated values, sets end_date on the old row
+ *
+ * @param orgSlug - Organization slug
+ * @param provider - Provider name
+ * @param subscriptionId - Current subscription ID to edit
+ * @param effectiveDate - Date when the new version takes effect (YYYY-MM-DD)
+ * @param updates - Fields to update in the new version
+ */
+export async function editPlanWithVersion(
+  orgSlug: string,
+  provider: string,
+  subscriptionId: string,
+  effectiveDate: string,
+  updates: PlanUpdate
+): Promise<{
+  success: boolean
+  newPlan?: SubscriptionPlan
+  oldPlan?: SubscriptionPlan
+  error?: string
+}> {
+  try {
+    // Validate provider name
+    const sanitizedProvider = sanitizeProviderName(provider)
+    if (!sanitizedProvider || sanitizedProvider.length < 2) {
+      return { success: false, error: "Invalid provider name" }
+    }
+
+    // Validate subscription ID format
+    if (!isValidSubscriptionId(subscriptionId)) {
+      return { success: false, error: "Invalid subscription ID format" }
+    }
+
+    // Validate effective date format (YYYY-MM-DD)
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(effectiveDate)) {
+      return { success: false, error: "Invalid date format. Use YYYY-MM-DD" }
+    }
+
+    // Validate update data
+    const updateValidation = validatePlanData(updates)
+    if (!updateValidation.valid) {
+      return { success: false, error: updateValidation.error }
+    }
+
+    await requireRole(orgSlug, "admin")
+
+    const orgApiKey = await getOrgApiKeySecure(orgSlug)
+    if (!orgApiKey) {
+      return { success: false, error: "Organization API key not found" }
+    }
+
+    const apiUrl = getApiServiceUrl()
+    const response = await fetch(
+      `${apiUrl}/api/v1/subscriptions/${orgSlug}/providers/${sanitizedProvider}/plans/${subscriptionId}/edit-version`,
+      {
+        method: "POST",
+        headers: {
+          "X-API-Key": orgApiKey,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          effective_date: effectiveDate,
+          ...updates,
+        }),
+      }
+    )
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      return { success: false, error: `Failed to create plan version: ${errorText}` }
+    }
+
+    const result = await safeJsonParse<{ new_plan?: SubscriptionPlan; old_plan?: SubscriptionPlan }>(
+      response,
+      { new_plan: undefined, old_plan: undefined }
+    )
+    return {
+      success: true,
+      newPlan: result.new_plan,
+      oldPlan: result.old_plan,
+    }
+  } catch (error) {
+    return { success: false, error: logError("editPlanWithVersion", error) }
+  }
+}
+
+/**
+ * End a subscription (soft delete)
+ * Sets end_date and status='cancelled' instead of hard deleting
+ *
+ * @param orgSlug - Organization slug
+ * @param provider - Provider name
+ * @param subscriptionId - Subscription ID to end
+ * @param endDate - Date when the subscription ends (YYYY-MM-DD)
+ */
+export async function endSubscription(
+  orgSlug: string,
+  provider: string,
+  subscriptionId: string,
+  endDate: string
+): Promise<{
+  success: boolean
+  plan?: SubscriptionPlan
+  error?: string
+}> {
+  try {
+    // Validate provider name
+    const sanitizedProvider = sanitizeProviderName(provider)
+    if (!sanitizedProvider || sanitizedProvider.length < 2) {
+      return { success: false, error: "Invalid provider name" }
+    }
+
+    // Validate subscription ID format
+    if (!isValidSubscriptionId(subscriptionId)) {
+      return { success: false, error: "Invalid subscription ID format" }
+    }
+
+    // Validate end date format (YYYY-MM-DD)
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(endDate)) {
+      return { success: false, error: "Invalid date format. Use YYYY-MM-DD" }
+    }
+
+    await requireRole(orgSlug, "admin")
+
+    const orgApiKey = await getOrgApiKeySecure(orgSlug)
+    if (!orgApiKey) {
+      return { success: false, error: "Organization API key not found" }
+    }
+
+    // Use the existing update endpoint with end_date and status
+    const apiUrl = getApiServiceUrl()
+    const response = await fetch(
+      `${apiUrl}/api/v1/subscriptions/${orgSlug}/providers/${sanitizedProvider}/plans/${subscriptionId}`,
+      {
+        method: "PUT",
+        headers: {
+          "X-API-Key": orgApiKey,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          end_date: endDate,
+          status: 'cancelled',
+        }),
+      }
+    )
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      return { success: false, error: `Failed to end subscription: ${errorText}` }
+    }
+
+    const result = await safeJsonParse<{ plan?: SubscriptionPlan }>(response, { plan: undefined })
+    return { success: true, plan: result.plan }
+  } catch (error) {
+    return { success: false, error: logError("endSubscription", error) }
   }
 }

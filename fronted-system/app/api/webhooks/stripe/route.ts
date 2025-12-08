@@ -462,7 +462,6 @@ export async function POST(request: NextRequest) {
                     : undefined,
                   dailyLimit: planDetails.limits.pipelines_per_day_limit,
                   monthlyLimit: planDetails.limits.pipelines_per_day_limit * 30,
-                  concurrentLimit: planDetails.limits.concurrent_pipelines_limit,
                   seatLimit: planDetails.limits.seat_limit,
                   providersLimit: planDetails.limits.providers_limit,
                 });

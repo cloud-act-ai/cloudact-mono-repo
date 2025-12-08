@@ -43,6 +43,7 @@ import {
   listLLMPricing,
   updateLLMPricing,
   resetLLMPricing,
+  listSaaSSubscriptions,
   resetSaaSSubscriptions,
   createSaaSSubscription,
   deleteSaaSSubscription,
@@ -77,6 +78,8 @@ export default function OpenAIIntegrationPage() {
   // Pricing and Subscriptions state
   const [pricing, setPricing] = useState<LLMPricing[]>([])
   const [pricingLoading, setPricingLoading] = useState(false)
+  const [subscriptions, setSubscriptions] = useState<SaaSSubscription[]>([])
+  const [subscriptionsLoading, setSubscriptionsLoading] = useState(false)
 
   // Edit state
   const [editingPricing, setEditingPricing] = useState<string | null>(null)
@@ -154,17 +157,28 @@ export default function OpenAIIntegrationPage() {
     setPricingLoading(false)
   }, [orgSlug])
 
+  // Load subscriptions
+  const loadSubscriptions = useCallback(async () => {
+    setSubscriptionsLoading(true)
+    const result = await listSaaSSubscriptions(orgSlug, "openai")
+    if (result.success && result.subscriptions) {
+      setSubscriptions(result.subscriptions)
+    }
+    setSubscriptionsLoading(false)
+  }, [orgSlug])
+
 
   useEffect(() => {
     loadIntegration()
   }, [loadIntegration])
 
-  // Load pricing when integration is valid
+  // Load pricing and subscriptions when integration is valid
   useEffect(() => {
     if (integration?.status === "VALID") {
       loadPricing()
+      loadSubscriptions()
     }
-  }, [integration?.status, loadPricing])
+  }, [integration?.status, loadPricing, loadSubscriptions])
 
   // Clear success message after delay
   useEffect(() => {

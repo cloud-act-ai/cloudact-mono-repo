@@ -172,6 +172,25 @@
   html {
     scroll-behavior: smooth;
   }
+
+  /* High-contrast focus rings for accessibility */
+  *:focus-visible {
+    outline: 2px solid #007A78;
+    outline-offset: 2px;
+  }
+
+  /* Override for buttons and interactive elements */
+  button:focus-visible,
+  a:focus-visible,
+  [role="button"]:focus-visible,
+  [role="tab"]:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline: 2px solid #007A78;
+    outline-offset: 2px;
+    box-shadow: 0 0 0 4px rgba(0, 122, 120, 0.1);
+  }
 }
 
 @layer utilities {

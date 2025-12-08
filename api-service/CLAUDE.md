@@ -140,23 +140,47 @@ api-service/
 
 ## Local Development
 
+### Environment Setup (.env.local)
+
+All credentials are stored in `.env.local`. Create this file:
+
+```bash
+# .env.local
+GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
+GCP_PROJECT_ID=gac-prod-471220
+CA_ROOT_API_KEY=your-secure-admin-key-32chars
+KMS_KEY_NAME=projects/gac-prod-471220/locations/us-central1/keyRings/.../cryptoKeys/...
+ENVIRONMENT=development
+DISABLE_AUTH=false
+RUN_INTEGRATION_TESTS=true
+```
+
+### Running the Server
+
 ```bash
 cd api-service
 pip install -r requirements.txt
 
-# Environment variables
-export GCP_PROJECT_ID="gac-prod-471220"
-export CA_ROOT_API_KEY="your-secure-admin-key"
-export ENVIRONMENT="development"
-export DISABLE_AUTH="true"  # LOCAL ONLY
+# Load .env.local and run server
+source .env.local && python3 -m uvicorn src.app.main:app --host 0.0.0.0 --port 8000 --reload
+```
 
-# Run server
-python3 -m uvicorn src.app.main:app --host 0.0.0.0 --port 8000 --reload
+### Running Tests
 
-# Run tests
-python -m pytest tests/ -v                    # All tests
-python -m pytest tests/test_01_bootstrap.py   # Single test file
-python -m pytest tests/ -k "test_health"      # Pattern match
+Tests automatically load credentials from `.env.local`:
+
+```bash
+# Unit tests (mocked BigQuery)
+python -m pytest tests/ -v
+
+# Integration tests (real BigQuery - uses .env.local credentials)
+python -m pytest tests/ -v --run-integration
+
+# Single test file
+python -m pytest tests/test_01_bootstrap.py -v --run-integration
+
+# Pattern match
+python -m pytest tests/ -k "test_health" -v
 ```
 
 ## Bootstrap Configuration
@@ -294,6 +318,19 @@ export RATE_LIMIT_ENABLED="true"
   - Reduced complexity in onboarding and subscription management
   - Backend validates subscription status before pipeline execution
 
+### SaaS Subscription Plan CRUD with Version History (December 2024)
+- **Added version-creating edit endpoint:**
+  - `POST /api/v1/subscriptions/{org}/providers/{provider}/plans/{id}/edit-version`
+  - Creates new row when editing (old row gets `end_date`, new row starts from `effective_date`)
+  - Maintains full version history for audit and cost tracking
+  - Supports future-dated changes (shows "Pending" status)
+- **Changed delete to soft delete:**
+  - Plans are ended via `end_date` instead of hard delete
+  - Status changes to `cancelled` when ended
+  - Historical data preserved for cost calculations
+- **New status values:** `active`, `cancelled`, `expired`, `pending`
+- **Pipeline compatibility:** Existing `sp_calculate_saas_subscription_plan_costs_daily.sql` already handles date ranges correctly
+
 ### Documentation Updates
 - Created `README.md` with quick start and bootstrap details
 - Created `tests/README.md` with comprehensive E2E testing guide
@@ -316,4 +353,4 @@ export RATE_LIMIT_ENABLED="true"
 
 ---
 
-**Last Updated:** 2025-12-06
+**Last Updated:** 2025-12-07

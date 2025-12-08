@@ -16,17 +16,25 @@ import {
   Loader2,
   CreditCard,
   Check,
-  Trash2,
   ChevronDown,
   ChevronUp,
+  ChevronRight,
   X,
   Pencil,
+  Brain,
+  Palette,
+  FileText,
+  MessageSquare,
+  Code,
+  Cloud,
+  CalendarX,
 } from "lucide-react"
+import { format } from "date-fns"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Switch } from "@/components/ui/switch"
+// Switch removed - no longer using toggle
 import {
   Dialog,
   DialogContent,
@@ -47,15 +55,17 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { CardSkeleton } from "@/components/ui/card-skeleton"
 
+import { DatePicker } from "@/components/ui/date-picker"
 import {
   getProviderPlans,
+  getProviderMeta,
   createCustomPlan,
-  updatePlan,
-  togglePlan,
-  deletePlan,
+  editPlanWithVersion,
+  endSubscription,
   SubscriptionPlan,
   PlanCreate,
   PlanUpdate,
+  type ProviderMeta,
 } from "@/actions/subscription-providers"
 
 // Provider display names
@@ -101,6 +111,17 @@ function formatCurrency(amount: number): string {
   }).format(amount)
 }
 
+// Category icon mapping
+const categoryIcons: Record<string, React.ReactNode> = {
+  ai: <Brain className="h-6 w-6" />,
+  design: <Palette className="h-6 w-6" />,
+  productivity: <FileText className="h-6 w-6" />,
+  communication: <MessageSquare className="h-6 w-6" />,
+  development: <Code className="h-6 w-6" />,
+  cloud: <Cloud className="h-6 w-6" />,
+  other: <CreditCard className="h-6 w-6" />,
+}
+
 export default function ProviderDetailPage() {
   const params = useParams<{ orgSlug: string; provider: string }>()
   const { orgSlug, provider } = params
@@ -112,10 +133,9 @@ export default function ProviderDetailPage() {
   const [plans, setPlans] = useState<SubscriptionPlan[]>([])
   const [totalMonthlyCost, setTotalMonthlyCost] = useState(0)
   const [loading, setLoading] = useState(true)
-  const [toggling, setToggling] = useState<string | null>(null)
-  const [deleting, setDeleting] = useState<string | null>(null)
   const [expandedRow, setExpandedRow] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [providerMeta, setProviderMeta] = useState<ProviderMeta | null>(null)
 
   // Dialog states
   const [showAddDialog, setShowAddDialog] = useState(false)
@@ -123,12 +143,18 @@ export default function ProviderDetailPage() {
     open: false,
     plan: null,
   })
-  const [showDeleteDialog, setShowDeleteDialog] = useState<{ open: boolean; plan: SubscriptionPlan | null }>({
+  const [showEndDialog, setShowEndDialog] = useState<{ open: boolean; plan: SubscriptionPlan | null }>({
     open: false,
     plan: null,
   })
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState(false)
+  const [ending, setEnding] = useState(false)
+
+  // Date states
+  const [addStartDate, setAddStartDate] = useState<Date | undefined>(new Date())
+  const [editEffectiveDate, setEditEffectiveDate] = useState<Date | undefined>(new Date())
+  const [endDate, setEndDate] = useState<Date | undefined>(new Date())
 
   // Add form state
   const [newPlan, setNewPlan] = useState<PlanCreate>({
@@ -171,14 +197,16 @@ export default function ProviderDetailPage() {
   const handleAddDialogOpenChange = (open: boolean) => {
     setShowAddDialog(open)
     if (open) {
-      setError(null) // Clear error when opening
+      // Reset date when opening
+      setAddStartDate(new Date())
     } else {
-      // Reset form when closing
+      // Reset form and clear error when closing
       resetNewPlanForm()
+      setError(null)
     }
   }
 
-  // Load plans from API service (BigQuery)
+  // Load plans and provider meta from API service (BigQuery)
   const loadPlans = useCallback(async (isMounted?: () => boolean) => {
     if (!isValidParams) {
       if (!isMounted || isMounted()) {
@@ -191,22 +219,31 @@ export default function ProviderDetailPage() {
     if (!isMounted || isMounted()) setLoading(true)
     if (!isMounted || isMounted()) setError(null)
 
-    const result = await getProviderPlans(orgSlug, provider)
+    // Fetch provider meta and plans in parallel
+    const [metaResult, plansResult] = await Promise.all([
+      getProviderMeta(orgSlug, provider),
+      getProviderPlans(orgSlug, provider)
+    ])
 
     // Check if component is still mounted before updating state
     if (isMounted && !isMounted()) return
 
-    if (result.success) {
-      setPlans(result.plans || [])
-      setTotalMonthlyCost(result.total_monthly_cost || 0)
+    // Set provider meta (for icon display)
+    if (metaResult.success && metaResult.provider) {
+      setProviderMeta(metaResult.provider)
+    }
+
+    if (plansResult.success) {
+      setPlans(plansResult.plans || [])
+      setTotalMonthlyCost(plansResult.total_monthly_cost || 0)
     } else {
       setPlans([])
       setTotalMonthlyCost(0)
 
-      if (result.error?.includes("API key not found")) {
+      if (plansResult.error?.includes("API key not found")) {
         setError("Backend not configured. Please complete organization onboarding in Settings to enable subscription tracking.")
       } else {
-        setError(result.error || "Failed to load plans")
+        setError(plansResult.error || "Failed to load plans")
       }
     }
 
@@ -218,36 +255,6 @@ export default function ProviderDetailPage() {
     loadPlans(() => mounted)
     return () => { mounted = false }
   }, [loadPlans])
-
-  // Toggle plan status (active/cancelled)
-  const handleToggle = async (plan: SubscriptionPlan) => {
-    setToggling(plan.subscription_id)
-    // Toggle between 'active' and 'cancelled' status
-    const newStatus = plan.status === 'active' ? 'cancelled' : 'active'
-    const result = await togglePlan(orgSlug, provider, plan.subscription_id, newStatus === 'active')
-    if (result.success) {
-      setError(null) // Clear error on success
-    } else {
-      setError(result.error || "Failed to toggle plan")
-    }
-    await loadPlans()
-    setToggling(null) // Clear toggling state after reload completes
-  }
-
-  // Delete plan (only custom plans can be deleted)
-  const handleDelete = async () => {
-    if (!showDeleteDialog.plan) return
-    setDeleting(showDeleteDialog.plan.subscription_id)
-    const result = await deletePlan(orgSlug, provider, showDeleteDialog.plan.subscription_id)
-    setShowDeleteDialog({ open: false, plan: null })
-    if (result.success) {
-      setError(null) // Clear error on success
-    } else {
-      setError(result.error || "Failed to delete plan")
-    }
-    await loadPlans()
-    setDeleting(null) // Clear deleting state after reload completes
-  }
 
   // Handle edit dialog open/close
   const handleEditDialogOpenChange = (open: boolean, plan?: SubscriptionPlan) => {
@@ -263,17 +270,21 @@ export default function ProviderDetailPage() {
         notes: plan.notes || "",
       })
       setShowEditDialog({ open: true, plan })
+      setEditEffectiveDate(new Date()) // Reset effective date
+      setError(null) // Clear error when opening
     } else {
       setShowEditDialog({ open: false, plan: null })
-    }
-    if (open) {
-      setError(null) // Clear error when opening
+      setError(null) // Clear error when closing
     }
   }
 
-  // Edit plan via API service
+  // Edit plan via API service (creates new version)
   const handleEdit = async () => {
     if (!showEditDialog.plan) return
+    if (!editEffectiveDate) {
+      setError("Effective date is required")
+      return
+    }
 
     // Validate inputs
     if (editPlanData.unit_price_usd !== undefined && editPlanData.unit_price_usd < 0) {
@@ -289,10 +300,12 @@ export default function ProviderDetailPage() {
     setError(null)
 
     try {
-      const result = await updatePlan(
+      const effectiveDateStr = format(editEffectiveDate, "yyyy-MM-dd")
+      const result = await editPlanWithVersion(
         orgSlug,
         provider,
         showEditDialog.plan.subscription_id,
+        effectiveDateStr,
         editPlanData
       )
 
@@ -311,9 +324,48 @@ export default function ProviderDetailPage() {
     }
   }
 
+  // End subscription (soft delete with end date)
+  const handleEndSubscription = async () => {
+    if (!showEndDialog.plan) return
+    if (!endDate) {
+      setError("End date is required")
+      return
+    }
+
+    setEnding(true)
+    setError(null)
+
+    try {
+      const endDateStr = format(endDate, "yyyy-MM-dd")
+      const result = await endSubscription(
+        orgSlug,
+        provider,
+        showEndDialog.plan.subscription_id,
+        endDateStr
+      )
+
+      if (!result.success) {
+        setError(result.error || "Failed to end subscription")
+        return
+      }
+
+      setShowEndDialog({ open: false, plan: null })
+      await loadPlans()
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred"
+      setError(errorMessage)
+    } finally {
+      setEnding(false)
+    }
+  }
+
   // Add custom plan via API service
   const handleAdd = async () => {
     if (!newPlan.plan_name.trim()) return
+    if (!addStartDate) {
+      setError("Start date is required")
+      return
+    }
 
     // Validate inputs
     if (newPlan.unit_price_usd < 0) {
@@ -329,6 +381,7 @@ export default function ProviderDetailPage() {
     setError(null)
 
     try {
+      const startDateStr = format(addStartDate, "yyyy-MM-dd")
       const result = await createCustomPlan(orgSlug, provider, {
         plan_name: newPlan.plan_name.toUpperCase().replace(/\s+/g, "_"),
         display_name: newPlan.display_name || newPlan.plan_name,
@@ -338,6 +391,7 @@ export default function ProviderDetailPage() {
         pricing_model: newPlan.pricing_model,
         currency: newPlan.currency,
         notes: newPlan.notes,
+        start_date: startDateStr,
       })
 
       if (!result.success) {
@@ -345,8 +399,7 @@ export default function ProviderDetailPage() {
         return
       }
 
-      setShowAddDialog(false)
-      resetNewPlanForm()
+      setShowAddDialog(false) // This will trigger handleAddDialogOpenChange which resets form
       await loadPlans()
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred"
@@ -419,6 +472,13 @@ export default function ProviderDetailPage() {
 
   return (
     <div className="p-6 space-y-6">
+      {/* Breadcrumb Navigation */}
+      <nav className="flex items-center gap-2 text-sm text-gray-500">
+        <Link href={`/${orgSlug}/settings/integrations/subscriptions`} className="hover:text-[#007A78]">Subscriptions</Link>
+        <ChevronRight className="h-4 w-4" />
+        <span className="text-gray-900 font-medium">{providerDisplayName}</span>
+      </nav>
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -427,8 +487,9 @@ export default function ProviderDetailPage() {
               <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>
-          <div className="p-2.5 rounded-lg bg-gradient-to-br from-[#007A78]/10 to-[#14B8A6]/10">
-            <CreditCard className="h-6 w-6 text-[#007A78]" />
+          <div className="p-2.5 rounded-lg bg-gradient-to-br from-[#007A78]/10 to-[#14B8A6]/10 text-[#007A78]">
+            {/* Get category from first plan if available, otherwise use default icon */}
+            {plans.length > 0 && plans[0].category ? categoryIcons[plans[0].category] || categoryIcons.other : <CreditCard className="h-6 w-6" />}
           </div>
           <div>
             <h1 className="console-page-title">{providerDisplayName}</h1>
@@ -501,10 +562,9 @@ export default function ProviderDetailPage() {
           {plans.length === 0 ? (
             <div className="text-center py-12 px-6">
               <CreditCard className="h-12 w-12 mx-auto text-slate-300 mb-4" />
-              <h3 className="text-lg font-medium text-slate-900 mb-2">No plans yet</h3>
+              <h3 className="text-lg font-medium text-slate-900 mb-2">No plans configured yet</h3>
               <p className="text-slate-500 mb-4">
-                Enable this provider in Settings → Integrations → Subscription Providers to seed default plans,
-                or add a custom subscription below.
+                Click &apos;Add Custom Subscription&apos; to create your first subscription plan for {providerDisplayName}.
               </p>
               <Button onClick={() => handleAddDialogOpenChange(true)} className="console-button-primary">
                 <Plus className="h-4 w-4 mr-2" />
@@ -526,9 +586,11 @@ export default function ProviderDetailPage() {
               {/* Table Body */}
               <div className="divide-y divide-slate-100">
                 {plans.map((plan) => {
-                  const isActive = plan.status === 'active'
-                  const statusColors = {
+                  const isActive = plan.status === 'active' || plan.status === 'pending'
+                  const isPending = plan.status === 'pending' || (plan.start_date && new Date(plan.start_date) > new Date())
+                  const statusColors: Record<string, string> = {
                     active: "bg-green-100 text-green-700 border-green-200",
+                    pending: "bg-yellow-100 text-yellow-700 border-yellow-200",
                     cancelled: "bg-gray-100 text-gray-700 border-gray-200",
                     expired: "bg-red-100 text-red-700 border-red-200"
                   }
@@ -550,13 +612,18 @@ export default function ProviderDetailPage() {
                       </div>
                       <div className="col-span-3">
                         <div className="flex items-center gap-2">
-                          <span className="font-medium text-slate-900">
+                          <span className="font-medium text-slate-900 truncate max-w-[200px]" title={plan.display_name || plan.plan_name}>
                             {plan.display_name || plan.plan_name}
                           </span>
+                          {isPending && (
+                            <Badge variant="outline" className="text-xs bg-yellow-50 text-yellow-700 border-yellow-200">
+                              Pending {plan.start_date && `(${format(new Date(plan.start_date), 'MMM d')})`}
+                            </Badge>
+                          )}
                           {expandedRow === plan.subscription_id ? (
-                            <ChevronUp className="h-4 w-4 text-slate-400" />
+                            <ChevronUp className="h-4 w-4 text-slate-400 flex-shrink-0" />
                           ) : (
-                            <ChevronDown className="h-4 w-4 text-slate-400" />
+                            <ChevronDown className="h-4 w-4 text-slate-400 flex-shrink-0" />
                           )}
                         </div>
                       </div>
@@ -591,11 +658,14 @@ export default function ProviderDetailPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 text-destructive hover:bg-destructive/10"
-                          onClick={() => setShowDeleteDialog({ open: true, plan })}
-                          title="Delete plan"
+                          className="h-8 w-8 text-amber-600 hover:bg-amber-50"
+                          onClick={() => {
+                            setEndDate(new Date())
+                            setShowEndDialog({ open: true, plan })
+                          }}
+                          title="End subscription"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <CalendarX className="h-4 w-4" />
                         </Button>
                       </div>
                     </div>
@@ -652,7 +722,7 @@ export default function ProviderDetailPage() {
                             <div>
                               <span className="text-slate-500 block text-xs uppercase tracking-wide mb-1">Discount</span>
                               <span className="font-medium text-green-600">
-                                {plan.discount_type === 'percentage' ? `${plan.discount_value}%` : formatCurrency(plan.discount_value)}
+                                {plan.discount_type === 'percent' ? `${plan.discount_value}%` : formatCurrency(plan.discount_value)}
                               </span>
                             </div>
                           )}
@@ -713,11 +783,12 @@ export default function ProviderDetailPage() {
               <Input
                 id="plan_name"
                 placeholder="e.g., Enterprise"
+                maxLength={50}
                 value={newPlan.plan_name}
                 onChange={(e) => setNewPlan({ ...newPlan, plan_name: e.target.value })}
               />
               <p className="text-xs text-slate-500">
-                This will be converted to uppercase (e.g., ENTERPRISE)
+                This will be converted to uppercase (e.g., ENTERPRISE). Max 50 characters.
               </p>
             </div>
             <div className="space-y-2">
@@ -735,13 +806,13 @@ export default function ProviderDetailPage() {
                 <Input
                   id="cost"
                   type="number"
-                  min="0"
+                  min={0}
                   step="0.01"
                   placeholder="0.00"
                   value={newPlan.unit_price_usd === 0 ? "" : newPlan.unit_price_usd}
                   onChange={(e) => {
                     const parsed = parseFloat(e.target.value)
-                    setNewPlan({ ...newPlan, unit_price_usd: e.target.value === "" ? 0 : (isNaN(parsed) ? 0 : parsed) })
+                    setNewPlan({ ...newPlan, unit_price_usd: e.target.value === "" ? 0 : (isNaN(parsed) ? 0 : Math.max(0, parsed)) })
                   }}
                 />
               </div>
@@ -800,15 +871,26 @@ export default function ProviderDetailPage() {
               <Input
                 id="seats"
                 type="number"
-                min="0"
+                min={0}
                 step="1"
                 placeholder="0"
                 value={newPlan.seats === 0 ? "" : newPlan.seats}
                 onChange={(e) => {
                   const parsed = parseInt(e.target.value, 10)
-                  setNewPlan({ ...newPlan, seats: e.target.value === "" ? 0 : (isNaN(parsed) || parsed < 0 ? 0 : parsed) })
+                  setNewPlan({ ...newPlan, seats: e.target.value === "" ? 0 : (isNaN(parsed) ? 0 : Math.max(0, parsed)) })
                 }}
               />
+            </div>
+            <div className="space-y-2">
+              <Label>Start Date *</Label>
+              <DatePicker
+                date={addStartDate}
+                onSelect={setAddStartDate}
+                placeholder="Select start date"
+              />
+              <p className="text-xs text-slate-500">
+                When does this subscription start? Future dates will show as &quot;Pending&quot;.
+              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="notes">Notes (optional)</Label>
@@ -826,7 +908,7 @@ export default function ProviderDetailPage() {
             </Button>
             <Button
               onClick={handleAdd}
-              disabled={adding || !newPlan.plan_name.trim()}
+              disabled={adding || !newPlan.plan_name.trim() || !addStartDate}
               className="console-button-primary"
             >
               {adding ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Check className="h-4 w-4 mr-2" />}
@@ -841,39 +923,98 @@ export default function ProviderDetailPage() {
         open={showEditDialog.open}
         onOpenChange={(open) => handleEditDialogOpenChange(open, open ? showEditDialog.plan ?? undefined : undefined)}
       >
-        <DialogContent>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Edit {providerDisplayName} Subscription</DialogTitle>
             <DialogDescription>
-              Update subscription details for &quot;{showEditDialog.plan?.display_name || showEditDialog.plan?.plan_name || ""}&quot;.
+              Changes will create a new version. Current plan ends day before effective date.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="edit_display_name">Display Name (optional)</Label>
-              <Input
-                id="edit_display_name"
-                placeholder="e.g., Enterprise Plan"
-                value={editPlanData.display_name}
-                onChange={(e) => setEditPlanData({ ...editPlanData, display_name: e.target.value })}
+          <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
+            {/* Current Plan Details (Read-only) */}
+            {showEditDialog.plan && (
+              <div className="bg-slate-50 rounded-lg p-4 space-y-2">
+                <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Current Plan Details</p>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                  <div>
+                    <span className="text-slate-500">Plan:</span>
+                    <span className="ml-2 font-medium">{showEditDialog.plan.display_name || showEditDialog.plan.plan_name}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500">Status:</span>
+                    <Badge variant="outline" className="ml-2 capitalize text-xs">{showEditDialog.plan.status}</Badge>
+                  </div>
+                  {showEditDialog.plan.start_date && (
+                    <div>
+                      <span className="text-slate-500">Started:</span>
+                      <span className="ml-2">{format(new Date(showEditDialog.plan.start_date), 'MMM d, yyyy')}</span>
+                    </div>
+                  )}
+                  <div>
+                    <span className="text-slate-500">Price:</span>
+                    <span className="ml-2 font-medium text-[#007A78]">{formatCurrency(showEditDialog.plan.unit_price_usd)}/{showEditDialog.plan.billing_cycle}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500">Seats:</span>
+                    <span className="ml-2">{showEditDialog.plan.seats || 1}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500">Monthly Cost:</span>
+                    <span className="ml-2 font-medium">{formatCurrency(showEditDialog.plan.unit_price_usd * (showEditDialog.plan.seats || 1))}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Effective Date */}
+            <div className="space-y-2 pt-2 border-t">
+              <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Changes (creates new version)</p>
+              <Label>Effective Date *</Label>
+              <DatePicker
+                date={editEffectiveDate}
+                onSelect={setEditEffectiveDate}
+                placeholder="Select effective date"
+                minDate={new Date()}
               />
+              <p className="text-xs text-slate-500">
+                Current plan ends {editEffectiveDate ? format(new Date(editEffectiveDate.getTime() - 86400000), 'MMM d, yyyy') : 'day before effective date'}. New plan starts on effective date.
+              </p>
             </div>
+
+            {/* Editable Fields */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="edit_cost">Unit Price ($) *</Label>
+                <Label htmlFor="edit_cost">New Price ($)</Label>
                 <Input
                   id="edit_cost"
                   type="number"
-                  min="0"
+                  min={0}
                   step="0.01"
                   placeholder="0.00"
                   value={editPlanData.unit_price_usd === 0 ? "" : editPlanData.unit_price_usd}
                   onChange={(e) => {
                     const parsed = parseFloat(e.target.value)
-                    setEditPlanData({ ...editPlanData, unit_price_usd: e.target.value === "" ? 0 : (isNaN(parsed) ? 0 : parsed) })
+                    setEditPlanData({ ...editPlanData, unit_price_usd: e.target.value === "" ? 0 : (isNaN(parsed) ? 0 : Math.max(0, parsed)) })
                   }}
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit_seats">New Seats</Label>
+                <Input
+                  id="edit_seats"
+                  type="number"
+                  min={0}
+                  step="1"
+                  placeholder="0"
+                  value={editPlanData.seats === 0 ? "" : editPlanData.seats}
+                  onChange={(e) => {
+                    const parsed = parseInt(e.target.value, 10)
+                    setEditPlanData({ ...editPlanData, seats: e.target.value === "" ? 0 : (isNaN(parsed) ? 0 : Math.max(0, parsed)) })
+                  }}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="edit_billing">Billing Cycle</Label>
                 <Select
@@ -890,8 +1031,6 @@ export default function ProviderDetailPage() {
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="edit_pricing_model">Pricing Model</Label>
                 <Select
@@ -907,37 +1046,6 @@ export default function ProviderDetailPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit_currency">Currency</Label>
-                <Select
-                  value={editPlanData.currency}
-                  onValueChange={(value) => setEditPlanData({ ...editPlanData, currency: value })}
-                >
-                  <SelectTrigger id="edit_currency">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="USD">USD</SelectItem>
-                    <SelectItem value="EUR">EUR</SelectItem>
-                    <SelectItem value="GBP">GBP</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit_seats">Seats</Label>
-              <Input
-                id="edit_seats"
-                type="number"
-                min="0"
-                step="1"
-                placeholder="0"
-                value={editPlanData.seats === 0 ? "" : editPlanData.seats}
-                onChange={(e) => {
-                  const parsed = parseInt(e.target.value, 10)
-                  setEditPlanData({ ...editPlanData, seats: e.target.value === "" ? 0 : (isNaN(parsed) || parsed < 0 ? 0 : parsed) })
-                }}
-              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit_notes">Notes (optional)</Label>
@@ -955,7 +1063,7 @@ export default function ProviderDetailPage() {
             </Button>
             <Button
               onClick={handleEdit}
-              disabled={editing}
+              disabled={editing || !editEffectiveDate}
               className="console-button-primary"
             >
               {editing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Check className="h-4 w-4 mr-2" />}
@@ -965,34 +1073,84 @@ export default function ProviderDetailPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
+      {/* End Subscription Dialog */}
       <Dialog
-        open={showDeleteDialog.open}
-        onOpenChange={(open) => setShowDeleteDialog({ open, plan: open ? showDeleteDialog.plan : null })}
+        open={showEndDialog.open}
+        onOpenChange={(open) => setShowEndDialog({ open, plan: open ? showEndDialog.plan : null })}
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Subscription</DialogTitle>
+            <DialogTitle>End Subscription</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete &quot;{showDeleteDialog.plan?.display_name || showDeleteDialog.plan?.plan_name || "this plan"}&quot;?
-              This action cannot be undone.
+              Set an end date for this subscription. Costs will stop being calculated after this date.
             </DialogDescription>
           </DialogHeader>
+          <div className="space-y-4 py-4">
+            {/* Subscription Details (Read-only) */}
+            {showEndDialog.plan && (
+              <div className="bg-slate-50 rounded-lg p-4 space-y-2">
+                <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Subscription Details</p>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                  <div>
+                    <span className="text-slate-500">Plan:</span>
+                    <span className="ml-2 font-medium">{showEndDialog.plan.display_name || showEndDialog.plan.plan_name}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500">Status:</span>
+                    <Badge variant="outline" className="ml-2 capitalize text-xs">{showEndDialog.plan.status}</Badge>
+                  </div>
+                  {showEndDialog.plan.start_date && (
+                    <div>
+                      <span className="text-slate-500">Started:</span>
+                      <span className="ml-2">{format(new Date(showEndDialog.plan.start_date), 'MMM d, yyyy')}</span>
+                    </div>
+                  )}
+                  <div>
+                    <span className="text-slate-500">Monthly Cost:</span>
+                    <span className="ml-2 font-medium">{formatCurrency(showEndDialog.plan.unit_price_usd * (showEndDialog.plan.seats || 1))}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500">Seats:</span>
+                    <span className="ml-2">{showEndDialog.plan.seats || 1}</span>
+                  </div>
+                  {showEndDialog.plan.owner_email && (
+                    <div>
+                      <span className="text-slate-500">Owner:</span>
+                      <span className="ml-2">{showEndDialog.plan.owner_email}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* End Date Selection */}
+            <div className="space-y-2 pt-2 border-t">
+              <Label>When should this subscription end? *</Label>
+              <DatePicker
+                date={endDate}
+                onSelect={setEndDate}
+                placeholder="Select end date"
+              />
+              <p className="text-xs text-slate-500">
+                Costs will stop being calculated after this date.
+              </p>
+            </div>
+          </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDeleteDialog({ open: false, plan: null })}>
+            <Button variant="outline" onClick={() => setShowEndDialog({ open: false, plan: null })} disabled={ending}>
               Cancel
             </Button>
             <Button
               variant="destructive"
-              onClick={handleDelete}
-              disabled={deleting !== null}
+              onClick={handleEndSubscription}
+              disabled={ending || !endDate}
             >
-              {deleting === showDeleteDialog.plan?.subscription_id ? (
+              {ending ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               ) : (
-                <Trash2 className="h-4 w-4 mr-2" />
+                <CalendarX className="h-4 w-4 mr-2" />
               )}
-              Delete
+              End Subscription
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -147,7 +147,7 @@ class PlanListResponse(BaseModel):
 
 
 # Valid enum values for validation
-VALID_STATUS_VALUES = {"active", "cancelled", "expired"}
+VALID_STATUS_VALUES = {"active", "cancelled", "expired", "pending"}
 VALID_PRICING_MODELS = {"PER_SEAT", "FLAT_FEE"}
 VALID_BILLING_CYCLES = {"monthly", "annual", "quarterly"}
 VALID_DISCOUNT_TYPES = {"percent", "fixed", None}
@@ -168,6 +168,7 @@ class PlanCreate(BaseModel):
     display_name: Optional[str] = Field(None, max_length=200)
     unit_price_usd: float = Field(..., ge=0, le=100000, description="Monthly price per unit")
     billing_cycle: str = Field("monthly", description="monthly, annual, quarterly")
+    currency: str = Field("USD", max_length=3, description="Currency code (USD, EUR, GBP)")
     seats: int = Field(0, ge=0, description="Number of seats")
     pricing_model: str = Field("PER_SEAT", description="PER_SEAT or FLAT_FEE")
     yearly_price_usd: Optional[float] = Field(None, ge=0)
@@ -190,6 +191,7 @@ class PlanUpdate(BaseModel):
     unit_price_usd: Optional[float] = Field(None, ge=0, le=100000)
     status: Optional[str] = Field(None, description="active, cancelled, expired")
     billing_cycle: Optional[str] = None
+    currency: Optional[str] = Field(None, max_length=3, description="Currency code (USD, EUR, GBP)")
     seats: Optional[int] = Field(None, ge=0)
     pricing_model: Optional[str] = None
     yearly_price_usd: Optional[float] = Field(None, ge=0)
@@ -218,6 +220,37 @@ class DeletePlanResponse(BaseModel):
     """Response after deleting a plan."""
     success: bool
     subscription_id: str
+    message: str
+
+
+class EditVersionRequest(BaseModel):
+    """Request to edit a plan with version history."""
+    effective_date: date = Field(..., description="Date when the new version takes effect (YYYY-MM-DD)")
+    display_name: Optional[str] = Field(None, max_length=200)
+    unit_price_usd: Optional[float] = Field(None, ge=0, le=100000)
+    billing_cycle: Optional[str] = None
+    currency: Optional[str] = Field(None, max_length=3)
+    seats: Optional[int] = Field(None, ge=0)
+    pricing_model: Optional[str] = None
+    yearly_price_usd: Optional[float] = Field(None, ge=0)
+    discount_type: Optional[str] = None
+    discount_value: Optional[int] = Field(None, ge=0)
+    auto_renew: Optional[bool] = None
+    payment_method: Optional[str] = Field(None, max_length=50)
+    owner_email: Optional[str] = Field(None, max_length=200)
+    department: Optional[str] = Field(None, max_length=100)
+    renewal_date: Optional[date] = None
+    contract_id: Optional[str] = Field(None, max_length=100)
+    notes: Optional[str] = Field(None, max_length=1000)
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class EditVersionResponse(BaseModel):
+    """Response after creating a plan version."""
+    success: bool
+    new_plan: SubscriptionPlan
+    old_plan: SubscriptionPlan
     message: str
 
 
@@ -942,7 +975,7 @@ async def create_plan(
         'active',
         CURRENT_DATE(),
         @billing_cycle,
-        'USD',
+        @currency,
         @seats,
         @pricing_model,
         @unit_price_usd,
@@ -970,6 +1003,7 @@ async def create_plan(
                 bigquery.ScalarQueryParameter("display_name", "STRING", plan.display_name or plan.plan_name),
                 bigquery.ScalarQueryParameter("category", "STRING", category),
                 bigquery.ScalarQueryParameter("billing_cycle", "STRING", plan.billing_cycle),
+                bigquery.ScalarQueryParameter("currency", "STRING", plan.currency),
                 bigquery.ScalarQueryParameter("seats", "INT64", plan.seats),
                 bigquery.ScalarQueryParameter("pricing_model", "STRING", plan.pricing_model),
                 bigquery.ScalarQueryParameter("unit_price_usd", "FLOAT64", plan.unit_price_usd),
@@ -998,7 +1032,7 @@ async def create_plan(
             status="active",
             start_date=date.today(),
             billing_cycle=plan.billing_cycle,
-            currency="USD",
+            currency=plan.currency,
             seats=plan.seats,
             pricing_model=plan.pricing_model,
             unit_price_usd=plan.unit_price_usd,
@@ -1059,8 +1093,8 @@ async def update_plan(
     # Build SET clause and parameters from provided updates
     # Allowlist of valid field names to prevent SQL injection via column names
     ALLOWED_UPDATE_FIELDS = {
-        'display_name', 'unit_price_usd', 'status', 'billing_cycle', 'seats',
-        'pricing_model', 'yearly_price_usd', 'discount_type', 'discount_value',
+        'display_name', 'unit_price_usd', 'status', 'billing_cycle', 'currency',
+        'seats', 'pricing_model', 'yearly_price_usd', 'discount_type', 'discount_value',
         'auto_renew', 'payment_method', 'owner_email', 'department', 'renewal_date',
         'contract_id', 'notes', 'end_date'
     }
@@ -1184,6 +1218,235 @@ async def update_plan(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to update plan: {e}"
+        )
+
+
+@router.post(
+    "/subscriptions/{org_slug}/providers/{provider}/plans/{subscription_id}/edit-version",
+    response_model=EditVersionResponse,
+    summary="Edit plan with version history",
+    tags=["Subscriptions"]
+)
+async def edit_plan_with_version(
+    org_slug: str,
+    provider: str,
+    subscription_id: str,
+    request: EditVersionRequest,
+    org: Dict = Depends(get_current_org),
+    bq_client: BigQueryClient = Depends(get_bigquery_client)
+):
+    """
+    Edit a plan by creating a new version.
+
+    This endpoint:
+    1. Closes the old row by setting end_date = effective_date - 1 and status = 'expired'
+    2. Creates a new row with start_date = effective_date and the updated fields
+    3. Returns both the old and new plans
+
+    Use this for subscription changes that need version history (e.g., price changes, seat changes).
+    """
+    from datetime import timedelta
+
+    validate_org_slug(org_slug)
+    check_org_access(org, org_slug)
+    provider = validate_provider(provider)
+
+    dataset_id = get_org_dataset(org_slug)
+    table_ref = f"{settings.gcp_project_id}.{dataset_id}.{SAAS_SUBSCRIPTION_PLANS_TABLE}"
+
+    # Step 1: Get current plan
+    select_query = f"""
+    SELECT
+        org_slug, subscription_id, provider, plan_name, display_name,
+        category, status, start_date, end_date, billing_cycle, currency,
+        seats, pricing_model, unit_price_usd, yearly_price_usd,
+        discount_type, discount_value, auto_renew, payment_method,
+        invoice_id_last, owner_email, department, renewal_date,
+        contract_id, notes, updated_at
+    FROM `{table_ref}`
+    WHERE org_slug = @org_slug AND subscription_id = @subscription_id AND provider = @provider
+    """
+
+    try:
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                bigquery.ScalarQueryParameter("subscription_id", "STRING", subscription_id),
+                bigquery.ScalarQueryParameter("provider", "STRING", provider),
+            ],
+            job_timeout_ms=30000
+        )
+        result = bq_client.client.query(select_query, job_config=job_config).result()
+        rows = list(result)
+
+        if not rows:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Plan {subscription_id} not found"
+            )
+
+        current_row = rows[0]
+
+        # Step 2: Close the old row (set end_date and status)
+        old_end_date = request.effective_date - timedelta(days=1)
+        close_query = f"""
+        UPDATE `{table_ref}`
+        SET end_date = @end_date, status = 'expired', updated_at = CURRENT_TIMESTAMP()
+        WHERE org_slug = @org_slug AND subscription_id = @subscription_id AND provider = @provider
+        """
+        close_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                bigquery.ScalarQueryParameter("subscription_id", "STRING", subscription_id),
+                bigquery.ScalarQueryParameter("provider", "STRING", provider),
+                bigquery.ScalarQueryParameter("end_date", "DATE", old_end_date),
+            ],
+            job_timeout_ms=30000
+        )
+        bq_client.client.query(close_query, job_config=close_config).result()
+
+        # Step 3: Create new row with updates
+        new_subscription_id = f"sub_{provider}_{current_row.plan_name.lower()}_{uuid.uuid4().hex[:8]}"
+
+        # Determine new status: 'pending' if effective_date is in the future, 'active' otherwise
+        new_status = "pending" if request.effective_date > date.today() else "active"
+
+        # Merge current values with updates (updates take precedence)
+        new_display_name = request.display_name if request.display_name is not None else (current_row.display_name or current_row.plan_name)
+        new_unit_price = request.unit_price_usd if request.unit_price_usd is not None else float(current_row.unit_price_usd or 0)
+        new_billing_cycle = request.billing_cycle if request.billing_cycle is not None else (current_row.billing_cycle or "monthly")
+        new_currency = request.currency if request.currency is not None else (current_row.currency if hasattr(current_row, "currency") else "USD")
+        new_seats = request.seats if request.seats is not None else (current_row.seats if hasattr(current_row, "seats") else 0)
+        new_pricing_model = request.pricing_model if request.pricing_model is not None else (current_row.pricing_model if hasattr(current_row, "pricing_model") else "PER_SEAT")
+        new_yearly_price = request.yearly_price_usd if request.yearly_price_usd is not None else (float(current_row.yearly_price_usd) if hasattr(current_row, "yearly_price_usd") and current_row.yearly_price_usd else None)
+        new_discount_type = request.discount_type if request.discount_type is not None else (current_row.discount_type if hasattr(current_row, "discount_type") else None)
+        new_discount_value = request.discount_value if request.discount_value is not None else (current_row.discount_value if hasattr(current_row, "discount_value") else None)
+        new_auto_renew = request.auto_renew if request.auto_renew is not None else (current_row.auto_renew if hasattr(current_row, "auto_renew") else True)
+        new_payment_method = request.payment_method if request.payment_method is not None else (current_row.payment_method if hasattr(current_row, "payment_method") else None)
+        new_owner_email = request.owner_email if request.owner_email is not None else (current_row.owner_email if hasattr(current_row, "owner_email") else None)
+        new_department = request.department if request.department is not None else (current_row.department if hasattr(current_row, "department") else None)
+        new_renewal_date = request.renewal_date if request.renewal_date is not None else (current_row.renewal_date if hasattr(current_row, "renewal_date") else None)
+        new_contract_id = request.contract_id if request.contract_id is not None else (current_row.contract_id if hasattr(current_row, "contract_id") else None)
+        new_notes = request.notes if request.notes is not None else (current_row.notes if hasattr(current_row, "notes") else None)
+
+        insert_query = f"""
+        INSERT INTO `{table_ref}` (
+            org_slug, subscription_id, provider, plan_name, display_name,
+            category, status, start_date, billing_cycle, currency, seats,
+            pricing_model, unit_price_usd, yearly_price_usd, discount_type,
+            discount_value, auto_renew, payment_method, owner_email, department,
+            renewal_date, contract_id, notes, updated_at
+        ) VALUES (
+            @org_slug, @subscription_id, @provider, @plan_name, @display_name,
+            @category, @status, @start_date, @billing_cycle, @currency, @seats,
+            @pricing_model, @unit_price_usd, @yearly_price_usd, @discount_type,
+            @discount_value, @auto_renew, @payment_method, @owner_email, @department,
+            @renewal_date, @contract_id, @notes, CURRENT_TIMESTAMP()
+        )
+        """
+        insert_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                bigquery.ScalarQueryParameter("subscription_id", "STRING", new_subscription_id),
+                bigquery.ScalarQueryParameter("provider", "STRING", provider),
+                bigquery.ScalarQueryParameter("plan_name", "STRING", current_row.plan_name),
+                bigquery.ScalarQueryParameter("display_name", "STRING", new_display_name),
+                bigquery.ScalarQueryParameter("category", "STRING", current_row.category or "other"),
+                bigquery.ScalarQueryParameter("status", "STRING", new_status),
+                bigquery.ScalarQueryParameter("start_date", "DATE", request.effective_date),
+                bigquery.ScalarQueryParameter("billing_cycle", "STRING", new_billing_cycle),
+                bigquery.ScalarQueryParameter("currency", "STRING", new_currency),
+                bigquery.ScalarQueryParameter("seats", "INT64", new_seats),
+                bigquery.ScalarQueryParameter("pricing_model", "STRING", new_pricing_model),
+                bigquery.ScalarQueryParameter("unit_price_usd", "FLOAT64", new_unit_price),
+                bigquery.ScalarQueryParameter("yearly_price_usd", "FLOAT64", new_yearly_price),
+                bigquery.ScalarQueryParameter("discount_type", "STRING", new_discount_type),
+                bigquery.ScalarQueryParameter("discount_value", "INT64", new_discount_value),
+                bigquery.ScalarQueryParameter("auto_renew", "BOOL", new_auto_renew),
+                bigquery.ScalarQueryParameter("payment_method", "STRING", new_payment_method),
+                bigquery.ScalarQueryParameter("owner_email", "STRING", new_owner_email),
+                bigquery.ScalarQueryParameter("department", "STRING", new_department),
+                bigquery.ScalarQueryParameter("renewal_date", "DATE", new_renewal_date),
+                bigquery.ScalarQueryParameter("contract_id", "STRING", new_contract_id),
+                bigquery.ScalarQueryParameter("notes", "STRING", new_notes),
+            ],
+            job_timeout_ms=30000
+        )
+        bq_client.client.query(insert_query, job_config=insert_config).result()
+
+        # Build response objects
+        old_plan = SubscriptionPlan(
+            org_slug=current_row.org_slug,
+            subscription_id=current_row.subscription_id,
+            provider=current_row.provider,
+            plan_name=current_row.plan_name,
+            display_name=current_row.display_name if hasattr(current_row, "display_name") else None,
+            category=current_row.category or "other",
+            status="expired",
+            start_date=current_row.start_date if hasattr(current_row, "start_date") else None,
+            end_date=old_end_date,
+            billing_cycle=current_row.billing_cycle or "monthly",
+            currency=current_row.currency if hasattr(current_row, "currency") else "USD",
+            seats=current_row.seats if hasattr(current_row, "seats") else 0,
+            pricing_model=current_row.pricing_model if hasattr(current_row, "pricing_model") else "PER_SEAT",
+            unit_price_usd=float(current_row.unit_price_usd or 0),
+            yearly_price_usd=float(current_row.yearly_price_usd) if hasattr(current_row, "yearly_price_usd") and current_row.yearly_price_usd else None,
+            discount_type=current_row.discount_type if hasattr(current_row, "discount_type") else None,
+            discount_value=current_row.discount_value if hasattr(current_row, "discount_value") else None,
+            auto_renew=current_row.auto_renew if hasattr(current_row, "auto_renew") else True,
+            payment_method=current_row.payment_method if hasattr(current_row, "payment_method") else None,
+            owner_email=current_row.owner_email if hasattr(current_row, "owner_email") else None,
+            department=current_row.department if hasattr(current_row, "department") else None,
+            renewal_date=current_row.renewal_date if hasattr(current_row, "renewal_date") else None,
+            contract_id=current_row.contract_id if hasattr(current_row, "contract_id") else None,
+            notes=current_row.notes if hasattr(current_row, "notes") else None,
+        )
+
+        new_plan = SubscriptionPlan(
+            org_slug=org_slug,
+            subscription_id=new_subscription_id,
+            provider=provider,
+            plan_name=current_row.plan_name,
+            display_name=new_display_name,
+            category=current_row.category or "other",
+            status=new_status,
+            start_date=request.effective_date,
+            billing_cycle=new_billing_cycle,
+            currency=new_currency,
+            seats=new_seats,
+            pricing_model=new_pricing_model,
+            unit_price_usd=new_unit_price,
+            yearly_price_usd=new_yearly_price,
+            discount_type=new_discount_type,
+            discount_value=new_discount_value,
+            auto_renew=new_auto_renew,
+            payment_method=new_payment_method,
+            owner_email=new_owner_email,
+            department=new_department,
+            renewal_date=new_renewal_date,
+            contract_id=new_contract_id,
+            notes=new_notes,
+        )
+
+        # Invalidate caches
+        invalidate_provider_cache(org_slug, provider)
+        invalidate_org_cache(org_slug)
+        logger.debug(f"Invalidated cache for org {org_slug} provider {provider}")
+
+        return EditVersionResponse(
+            success=True,
+            new_plan=new_plan,
+            old_plan=old_plan,
+            message=f"Created new version of plan {current_row.plan_name} effective {request.effective_date}"
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to create plan version: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create plan version: {e}"
         )
 
 

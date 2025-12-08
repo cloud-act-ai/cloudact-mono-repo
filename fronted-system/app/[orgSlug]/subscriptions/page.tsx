@@ -20,12 +20,14 @@ import {
   Plus,
   AlertCircle,
   RefreshCw,
+  Pencil,
+  CalendarX,
 } from "lucide-react"
+import { format } from "date-fns"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Switch } from "@/components/ui/switch"
 import {
   Table,
   TableBody,
@@ -38,7 +40,6 @@ import { CardSkeleton } from "@/components/ui/card-skeleton"
 import { TableSkeleton } from "@/components/ui/table-skeleton"
 import {
   getAllPlansForCostDashboard,
-  togglePlan,
   type SubscriptionPlan,
 } from "@/actions/subscription-providers"
 
@@ -73,7 +74,6 @@ export default function SubscriptionsPage() {
   const [plans, setPlans] = useState<PlanWithProvider[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
-  const [toggling, setToggling] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [summary, setSummary] = useState<{
     total_monthly_cost: number
@@ -115,18 +115,6 @@ export default function SubscriptionsPage() {
     setIsRefreshing(true)
     await loadData()
     setIsRefreshing(false)
-  }
-
-  const handleToggle = async (plan: PlanWithProvider) => {
-    setToggling(plan.subscription_id)
-    // Toggle between 'active' and 'cancelled' status
-    const newStatus = plan.status === 'active' ? 'cancelled' : 'active'
-    const result = await togglePlan(orgSlug, plan.provider_name, plan.subscription_id, newStatus === 'active')
-    setToggling(null)
-    if (!result.success) {
-      setError(result.error || "Failed to toggle plan")
-    }
-    await loadData()
   }
 
   const formatCurrency = (amount: number) => {
@@ -385,6 +373,7 @@ export default function SubscriptionsPage() {
                   <TableHead>Billing</TableHead>
                   <TableHead className="text-right">Seats</TableHead>
                   <TableHead className="text-right">Total Cost</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -392,7 +381,8 @@ export default function SubscriptionsPage() {
                   const category = plan.category && plan.category.trim() !== "" ? plan.category : "other"
                   const CategoryIcon = CATEGORY_ICONS[category] || Wallet
                   const totalCost = getTotalCost(plan)
-                  const isActive = plan.status === 'active'
+                  const isActive = plan.status === 'active' || plan.status === 'pending'
+                  const isPending = plan.status === 'pending' || (plan.start_date && new Date(plan.start_date) > new Date())
 
                   // Map SaaS provider to integration page (only for LLM providers with API integrations)
                   const providerMapping: Record<string, string> = {
@@ -404,8 +394,9 @@ export default function SubscriptionsPage() {
                   const integrationPath = providerMapping[plan.provider_name]
 
                   // Status badge color mapping
-                  const statusColors = {
+                  const statusColors: Record<string, string> = {
                     active: "bg-green-100 text-green-700 border-green-200",
+                    pending: "bg-yellow-100 text-yellow-700 border-yellow-200",
                     cancelled: "bg-gray-100 text-gray-700 border-gray-200",
                     expired: "bg-red-100 text-red-700 border-red-200"
                   }
@@ -413,12 +404,24 @@ export default function SubscriptionsPage() {
                   return (
                     <TableRow key={plan.subscription_id} className={!isActive ? "opacity-50" : ""}>
                       <TableCell>
-                        <Badge
-                          variant="outline"
-                          className={`capitalize ${statusColors[plan.status] || statusColors.cancelled}`}
-                        >
-                          {plan.status}
-                        </Badge>
+                        <div className="flex flex-col gap-1">
+                          <Badge
+                            variant="outline"
+                            className={`capitalize ${statusColors[plan.status] || statusColors.cancelled}`}
+                          >
+                            {plan.status}
+                          </Badge>
+                          {isPending && plan.start_date && (
+                            <span className="text-xs text-yellow-600">
+                              Starts {format(new Date(plan.start_date), 'MMM d')}
+                            </span>
+                          )}
+                          {plan.end_date && (
+                            <span className="text-xs text-gray-500">
+                              Ends {format(new Date(plan.end_date), 'MMM d')}
+                            </span>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-3">
@@ -483,6 +486,30 @@ export default function SubscriptionsPage() {
                         <span className={isActive ? "text-[#007A78] font-medium" : "text-gray-400"}>
                           {formatCurrency(totalCost)}
                         </span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Link href={`/${orgSlug}/subscriptions/${plan.provider_name}`}>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-[#007A78] hover:bg-[#007A78]/10"
+                              title="Edit plan"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          </Link>
+                          <Link href={`/${orgSlug}/subscriptions/${plan.provider_name}`}>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-amber-600 hover:bg-amber-50"
+                              title="End subscription"
+                            >
+                              <CalendarX className="h-4 w-4" />
+                            </Button>
+                          </Link>
+                        </div>
                       </TableCell>
                     </TableRow>
                   )
