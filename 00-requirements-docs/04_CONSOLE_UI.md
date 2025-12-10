@@ -121,7 +121,7 @@
 
 ### Sidebar Component
 
-**File:** `fronted-system/components/dashboard-sidebar.tsx`
+**File:** `01-fronted-system/components/dashboard-sidebar.tsx`
 
 ```typescript
 interface SidebarProps {
@@ -230,7 +230,7 @@ export function DashboardSidebar({ orgSlug, currentPath }: SidebarProps) {
 
 ### Theme Provider
 
-**File:** `fronted-system/components/theme-provider.tsx`
+**File:** `01-fronted-system/components/theme-provider.tsx`
 
 ```typescript
 import { ThemeProvider as NextThemeProvider } from 'next-themes'
@@ -251,7 +251,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
 ### Theme Toggle
 
-**File:** `fronted-system/components/theme-toggle.tsx`
+**File:** `01-fronted-system/components/theme-toggle.tsx`
 
 ```typescript
 export function ThemeToggle() {
@@ -277,7 +277,7 @@ export function ThemeToggle() {
 
 ### CSS Variables
 
-**File:** `fronted-system/app/globals.css`
+**File:** `01-fronted-system/app/globals.css`
 
 ```css
 :root {
@@ -441,38 +441,38 @@ export function ThemeToggle() {
 
 | File | Purpose |
 |------|---------|
-| `fronted-system/app/(console)/layout.tsx` | Console layout |
-| `fronted-system/app/[orgSlug]/layout.tsx` | Org-specific layout |
-| `fronted-system/app/[orgSlug]/settings/layout.tsx` | Settings layout |
+| `01-fronted-system/app/(console)/layout.tsx` | Console layout |
+| `01-fronted-system/app/[orgSlug]/layout.tsx` | Org-specific layout |
+| `01-fronted-system/app/[orgSlug]/settings/layout.tsx` | Settings layout |
 
 ### Component Files
 
 | File | Purpose |
 |------|---------|
-| `fronted-system/components/dashboard-sidebar.tsx` | Sidebar navigation |
-| `fronted-system/components/dashboard-header.tsx` | Top header |
-| `fronted-system/components/org-switcher.tsx` | Org dropdown |
-| `fronted-system/components/user-menu.tsx` | User dropdown |
-| `fronted-system/components/theme-provider.tsx` | Theme context |
-| `fronted-system/components/theme-toggle.tsx` | Theme switch |
-| `fronted-system/components/breadcrumb.tsx` | Navigation path |
+| `01-fronted-system/components/dashboard-sidebar.tsx` | Sidebar navigation |
+| `01-fronted-system/components/dashboard-header.tsx` | Top header |
+| `01-fronted-system/components/org-switcher.tsx` | Org dropdown |
+| `01-fronted-system/components/user-menu.tsx` | User dropdown |
+| `01-fronted-system/components/theme-provider.tsx` | Theme context |
+| `01-fronted-system/components/theme-toggle.tsx` | Theme switch |
+| `01-fronted-system/components/breadcrumb.tsx` | Navigation path |
 
 ### Settings Pages
 
 | File | Purpose |
 |------|---------|
-| `fronted-system/app/[orgSlug]/settings/organization/page.tsx` | Org settings |
-| `fronted-system/app/[orgSlug]/settings/team/page.tsx` | Team management |
-| `fronted-system/app/[orgSlug]/settings/billing/page.tsx` | Billing page |
-| `fronted-system/app/[orgSlug]/settings/onboarding/page.tsx` | Onboarding status |
+| `01-fronted-system/app/[orgSlug]/settings/organization/page.tsx` | Org settings |
+| `01-fronted-system/app/[orgSlug]/settings/team/page.tsx` | Team management |
+| `01-fronted-system/app/[orgSlug]/settings/billing/page.tsx` | Billing page |
+| `01-fronted-system/app/[orgSlug]/settings/onboarding/page.tsx` | Onboarding status |
 
 ### Style Files
 
 | File | Purpose |
 |------|---------|
-| `fronted-system/app/globals.css` | Global styles, CSS variables |
-| `fronted-system/tailwind.config.ts` | Tailwind configuration |
-| `fronted-system/components.json` | shadcn/ui config |
+| `01-fronted-system/app/globals.css` | Global styles, CSS variables |
+| `01-fronted-system/tailwind.config.ts` | Tailwind configuration |
+| `01-fronted-system/components.json` | shadcn/ui config |
 
 ---
 

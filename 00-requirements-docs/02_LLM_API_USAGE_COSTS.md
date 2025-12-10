@@ -160,7 +160,7 @@ Authentication:
 
 ### BigQuery: llm_model_pricing
 
-**File:** `api-service/configs/setup/onboarding/schemas/llm_model_pricing.json`
+**File:** `02-api-service/configs/setup/onboarding/schemas/llm_model_pricing.json`
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -180,7 +180,7 @@ Authentication:
 
 ### BigQuery: llm_provider_subscriptions
 
-**File:** `api-service/configs/setup/onboarding/schemas/llm_provider_subscriptions.json`
+**File:** `02-api-service/configs/setup/onboarding/schemas/llm_provider_subscriptions.json`
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -251,7 +251,7 @@ Authentication:
 
 ### Server Actions
 
-**File:** `fronted-system/actions/llm-providers.ts`
+**File:** `01-fronted-system/actions/llm-providers.ts`
 
 #### getLLMPricing()
 
@@ -365,7 +365,7 @@ export interface SubscriptionCreate {
 
 ## Pipeline Engine Endpoints
 
-**File:** `data-pipeline-service/src/app/routers/integrations.py`
+**File:** `03-data-pipeline-service/src/app/routers/integrations.py`
 
 ### Pricing Management
 
@@ -421,7 +421,7 @@ POST   /api/v1/pipelines/run/{org}/{provider}/cost/usage
 
 ### Default Model Pricing
 
-**File:** `api-service/configs/llm/seed/data/llm_model_pricing.csv`
+**File:** `02-api-service/configs/llm/seed/data/llm_model_pricing.csv`
 
 | Provider | Model | Input/1K | Output/1K | Context |
 |----------|-------|----------|-----------|---------|
@@ -514,8 +514,8 @@ if tokens_this_minute >= tier.tokens_per_minute:
 
 | File | Purpose |
 |------|---------|
-| `data-pipeline-service/tests/test_04_llm_integration.py` | LLM integration tests |
-| `fronted-system/tests/07-llm-integrations.test.ts` | Frontend integration tests |
+| `03-data-pipeline-service/tests/test_04_llm_integration.py` | LLM integration tests |
+| `01-fronted-system/tests/07-llm-integrations.test.ts` | Frontend integration tests |
 
 ---
 
@@ -525,26 +525,26 @@ if tokens_this_minute >= tier.tokens_per_minute:
 
 | File | Purpose |
 |------|---------|
-| `data-pipeline-service/src/app/routers/integrations.py` | Integration + pricing/subscription CRUD |
-| `data-pipeline-service/src/services/kms_service.py` | API key encryption |
-| `data-pipeline-service/configs/openai/cost/usage_cost.yml` | OpenAI pipeline config (future) |
-| `data-pipeline-service/configs/anthropic/usage_cost.yml` | Anthropic pipeline config (future) |
+| `03-data-pipeline-service/src/app/routers/integrations.py` | Integration + pricing/subscription CRUD |
+| `03-data-pipeline-service/src/services/kms_service.py` | API key encryption |
+| `03-data-pipeline-service/configs/openai/cost/usage_cost.yml` | OpenAI pipeline config (future) |
+| `03-data-pipeline-service/configs/anthropic/usage_cost.yml` | Anthropic pipeline config (future) |
 
 ### API Service Files
 
 | File | Purpose |
 |------|---------|
-| `api-service/configs/setup/onboarding/schemas/llm_model_pricing.json` | Pricing table schema |
-| `api-service/configs/setup/onboarding/schemas/llm_provider_subscriptions.json` | Subscription table schema |
-| `api-service/configs/llm/seed/data/llm_model_pricing.csv` | Default pricing seed |
+| `02-api-service/configs/setup/onboarding/schemas/llm_model_pricing.json` | Pricing table schema |
+| `02-api-service/configs/setup/onboarding/schemas/llm_provider_subscriptions.json` | Subscription table schema |
+| `02-api-service/configs/llm/seed/data/llm_model_pricing.csv` | Default pricing seed |
 
 ### Frontend Files
 
 | File | Purpose |
 |------|---------|
-| `fronted-system/actions/llm-providers.ts` | LLM provider server actions |
-| `fronted-system/app/[orgSlug]/settings/integrations/llm/page.tsx` | LLM providers list |
-| `fronted-system/app/[orgSlug]/settings/integrations/llm/[provider]/page.tsx` | Provider config |
+| `01-fronted-system/actions/llm-providers.ts` | LLM provider server actions |
+| `01-fronted-system/app/[orgSlug]/settings/integrations/llm/page.tsx` | LLM providers list |
+| `01-fronted-system/app/[orgSlug]/settings/integrations/llm/[provider]/page.tsx` | Provider config |
 
 ---
 

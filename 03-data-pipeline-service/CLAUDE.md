@@ -489,7 +489,7 @@ Per-Organization: {org_slug}_{env} (e.g., acme_prod)
 **Actual structure (verified 2025-12-02):**
 
 ```
-data-pipeline-service/
+03-data-pipeline-service/
 ├── src/app/
 │   ├── main.py                        # FastAPI entry point
 │   ├── config.py                      # Settings (env vars)
@@ -579,7 +579,7 @@ export BIGQUERY_LOCATION="US"
 ### Run Locally
 
 ```bash
-cd data-pipeline-service
+cd 03-data-pipeline-service
 pip install -r requirements.txt
 
 # For LOCAL DEVELOPMENT ONLY - never use these in production!
@@ -684,7 +684,7 @@ curl -s -X POST "http://localhost:8001/api/v1/procedures/sync" \
 #### Adding New Pipelines
 
 1. **Create pipeline config:** `configs/{provider}/{domain}/{pipeline}.yml`
-2. **Register in api-service:** Add entry to `api-service/configs/system/pipelines.yml`
+2. **Register in api-service:** Add entry to `02-api-service/configs/system/pipelines.yml`
 3. **Restart api-service:** PipelineRegistry is a singleton - requires restart to pick up new configs
 4. **Run pipeline:** Use the URL pattern above
 
@@ -905,5 +905,5 @@ steps:
 
 ---
 
-**Last Updated:** 2025-12-08
+**Last Updated:** 2025-12-10
 **Version:** 2.2

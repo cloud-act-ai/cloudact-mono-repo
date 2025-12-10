@@ -198,7 +198,7 @@ Security:
 
 ### BigQuery: org_integrations
 
-**File:** `api-service/configs/setup/bootstrap/schemas/org_integrations.json`
+**File:** `02-api-service/configs/setup/bootstrap/schemas/org_integrations.json`
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -215,7 +215,7 @@ Security:
 
 ### BigQuery: org_credentials
 
-**File:** `api-service/configs/setup/bootstrap/schemas/org_credentials.json`
+**File:** `02-api-service/configs/setup/bootstrap/schemas/org_credentials.json`
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -233,7 +233,7 @@ Security:
 
 ### Provider Registry
 
-**File:** `data-pipeline-service/configs/system/providers.yml`
+**File:** `03-data-pipeline-service/configs/system/providers.yml`
 
 ```yaml
 providers:
@@ -270,7 +270,7 @@ providers:
 
 ### Server Actions
 
-**File:** `fronted-system/actions/integrations.ts`
+**File:** `01-fronted-system/actions/integrations.ts`
 
 #### setupIntegration()
 
@@ -392,7 +392,7 @@ export interface ValidationDetails {
 
 ## Pipeline Engine Endpoints
 
-**File:** `data-pipeline-service/src/app/routers/integrations.py`
+**File:** `03-data-pipeline-service/src/app/routers/integrations.py`
 
 ### Integration Management
 
@@ -464,7 +464,7 @@ POST   /api/v1/integrations/{org}/{provider}/rotate
 
 ### Credential Encryption
 
-**File:** `data-pipeline-service/src/services/kms_service.py`
+**File:** `03-data-pipeline-service/src/services/kms_service.py`
 
 ```python
 class KMSService:
@@ -508,10 +508,10 @@ class KMSService:
 
 | File | Purpose |
 |------|---------|
-| `data-pipeline-service/tests/test_02_gcp_integration.py` | GCP integration tests |
-| `data-pipeline-service/tests/test_04_llm_integration.py` | LLM integration tests |
-| `fronted-system/tests/06-cloud-integrations.test.ts` | Cloud integration tests |
-| `fronted-system/tests/07-llm-integrations.test.ts` | LLM integration tests |
+| `03-data-pipeline-service/tests/test_02_gcp_integration.py` | GCP integration tests |
+| `03-data-pipeline-service/tests/test_04_llm_integration.py` | LLM integration tests |
+| `01-fronted-system/tests/06-cloud-integrations.test.ts` | Cloud integration tests |
+| `01-fronted-system/tests/07-llm-integrations.test.ts` | LLM integration tests |
 
 ---
 
@@ -521,29 +521,29 @@ class KMSService:
 
 | File | Purpose |
 |------|---------|
-| `data-pipeline-service/src/app/routers/integrations.py` | Integration CRUD endpoints |
-| `data-pipeline-service/src/services/kms_service.py` | KMS encryption service |
-| `data-pipeline-service/src/validators/gcp_validator.py` | GCP validation logic |
-| `data-pipeline-service/src/validators/openai_validator.py` | OpenAI validation |
-| `data-pipeline-service/src/validators/anthropic_validator.py` | Anthropic validation |
-| `data-pipeline-service/configs/system/providers.yml` | Provider registry |
+| `03-data-pipeline-service/src/app/routers/integrations.py` | Integration CRUD endpoints |
+| `03-data-pipeline-service/src/services/kms_service.py` | KMS encryption service |
+| `03-data-pipeline-service/src/validators/gcp_validator.py` | GCP validation logic |
+| `03-data-pipeline-service/src/validators/openai_validator.py` | OpenAI validation |
+| `03-data-pipeline-service/src/validators/anthropic_validator.py` | Anthropic validation |
+| `03-data-pipeline-service/configs/system/providers.yml` | Provider registry |
 
 ### API Service Files
 
 | File | Purpose |
 |------|---------|
-| `api-service/configs/setup/bootstrap/schemas/org_credentials.json` | Credentials schema |
-| `api-service/configs/setup/bootstrap/schemas/org_integrations.json` | Integrations schema |
+| `02-api-service/configs/setup/bootstrap/schemas/org_credentials.json` | Credentials schema |
+| `02-api-service/configs/setup/bootstrap/schemas/org_integrations.json` | Integrations schema |
 
 ### Frontend Files
 
 | File | Purpose |
 |------|---------|
-| `fronted-system/actions/integrations.ts` | Integration server actions |
-| `fronted-system/app/[orgSlug]/settings/integrations/page.tsx` | Integration overview |
-| `fronted-system/app/[orgSlug]/settings/integrations/cloud/page.tsx` | Cloud providers |
-| `fronted-system/app/[orgSlug]/settings/integrations/llm/page.tsx` | LLM providers |
-| `fronted-system/app/[orgSlug]/settings/integrations/subscriptions/page.tsx` | SaaS providers |
+| `01-fronted-system/actions/integrations.ts` | Integration server actions |
+| `01-fronted-system/app/[orgSlug]/settings/integrations/page.tsx` | Integration overview |
+| `01-fronted-system/app/[orgSlug]/settings/integrations/cloud/page.tsx` | Cloud providers |
+| `01-fronted-system/app/[orgSlug]/settings/integrations/llm/page.tsx` | LLM providers |
+| `01-fronted-system/app/[orgSlug]/settings/integrations/subscriptions/page.tsx` | SaaS providers |
 
 ---
 

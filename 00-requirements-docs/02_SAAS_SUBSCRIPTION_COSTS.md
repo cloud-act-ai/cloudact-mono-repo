@@ -97,7 +97,7 @@ Examples:
 │  3. EMPTY llm_model_pricing table (no data)                                │
 │  4. Validation test table                                                  │
 │                                                                             │
-│  Location: api-service/src/app/routers/organizations.py lines 843-850     │
+│  Location: 02-api-service/src/app/routers/organizations.py lines 843-850     │
 │                                                                             │
 │  metadata_tables: [                                                        │
 │    {                                                                       │
@@ -141,8 +141,8 @@ Examples:
 │     ├── User selects template → Form pre-filled with template data         │
 │     └── On save: POST /subscriptions/{org}/providers/{p}/plans             │
 │                                                                             │
-│  Location: fronted-system/actions/subscription-providers.ts                │
-│  Backend: api-service/src/app/routers/subscription_plans.py                │
+│  Location: 01-fronted-system/actions/subscription-providers.ts                │
+│  Backend: 02-api-service/src/app/routers/subscription_plans.py                │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -488,7 +488,7 @@ User toggles provider OFF
 
 ## CSV Seed Data Structure
 
-**File:** `api-service/configs/saas/seed/data/saas_subscription_plans.csv`
+**File:** `02-api-service/configs/saas/seed/data/saas_subscription_plans.csv`
 
 **Columns (25):**
 ```
@@ -622,7 +622,7 @@ Created via pipeline procedures to track all subscription changes:
 
 ### Table: saas_subscription_providers_meta (ONLY table in Supabase)
 
-**File:** `fronted-system/scripts/supabase_db/14_saas_subscription_provider_meta.sql`
+**File:** `01-fronted-system/scripts/supabase_db/14_saas_subscription_provider_meta.sql`
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -644,7 +644,7 @@ Created via pipeline procedures to track all subscription changes:
 
 ### Server Actions
 
-**File:** `fronted-system/actions/subscription-providers.ts`
+**File:** `01-fronted-system/actions/subscription-providers.ts`
 
 #### Input Validation Functions
 
@@ -799,7 +799,7 @@ export interface PlanUpdate {
 }
 ```
 
-**DELETED:** `fronted-system/actions/saas-subscriptions.ts`
+**DELETED:** `01-fronted-system/actions/saas-subscriptions.ts`
 - This file has been removed
 - All functions migrated to `subscription-providers.ts`
 
@@ -914,7 +914,7 @@ const handleAddCustomProvider = async () => {
 
 ## API Service Endpoints
 
-**File:** `api-service/src/app/routers/subscription_plans.py`
+**File:** `02-api-service/src/app/routers/subscription_plans.py`
 
 **Router registered at:** `/api/v1/subscriptions`
 
@@ -1492,13 +1492,13 @@ To change seat count (preserve cost accuracy):
 
 | File | Purpose |
 |------|---------|
-| `data-pipeline-service/configs/system/procedures/saas_subscription/sp_calculate_saas_subscription_plan_costs_daily.sql` | Stage 1 procedure |
-| `data-pipeline-service/configs/system/procedures/saas_subscription/sp_convert_saas_costs_to_focus_1_2.sql` | Stage 2 procedure |
-| `data-pipeline-service/configs/system/procedures/saas_subscription/sp_run_saas_subscription_costs_pipeline.sql` | Orchestrator procedure |
+| `03-data-pipeline-service/configs/system/procedures/saas_subscription/sp_calculate_saas_subscription_plan_costs_daily.sql` | Stage 1 procedure |
+| `03-data-pipeline-service/configs/system/procedures/saas_subscription/sp_convert_saas_costs_to_focus_1_2.sql` | Stage 2 procedure |
+| `03-data-pipeline-service/configs/system/procedures/saas_subscription/sp_run_saas_subscription_costs_pipeline.sql` | Orchestrator procedure |
 
 ### Pipeline Service Integration
 
-**Config Path:** `data-pipeline-service/configs/saas_subscription/costs/saas_cost.yml`
+**Config Path:** `03-data-pipeline-service/configs/saas_subscription/costs/saas_cost.yml`
 
 **Processor:** `generic.procedure_executor` - Executes BigQuery stored procedures with dynamic parameters.
 
@@ -1567,9 +1567,9 @@ If the organization hasn't completed backend onboarding (no API key in user meta
 
 | File | Purpose |
 |------|---------|
-| `fronted-system/tests/13-saas-subscription-providers.test.ts` | Frontend provider + plans tests |
-| `api-service/tests/test_05_saas_subscription_providers.py` | API endpoint tests |
-| `data-pipeline-service/tests/test_05_saas_subscription_pipelines.py` | Pipeline tests |
+| `01-fronted-system/tests/13-saas-subscription-providers.test.ts` | Frontend provider + plans tests |
+| `02-api-service/tests/test_05_saas_subscription_providers.py` | API endpoint tests |
+| `03-data-pipeline-service/tests/test_05_saas_subscription_pipelines.py` | Pipeline tests |
 
 ---
 
@@ -1608,42 +1608,42 @@ To complete the architecture migration:
 
 | File | Purpose |
 |------|---------|
-| `fronted-system/scripts/supabase_db/14_saas_subscription_provider_meta.sql` | Provider enable/disable meta table |
+| `01-fronted-system/scripts/supabase_db/14_saas_subscription_provider_meta.sql` | Provider enable/disable meta table |
 
 ### Plan Files (BigQuery data)
 
 | File | Purpose |
 |------|---------|
-| `api-service/src/app/routers/subscription_plans.py` | API endpoints for plan CRUD |
-| `api-service/configs/setup/organizations/onboarding/schemas/saas_subscription_plans.json` | BigQuery schema (25 cols) |
-| `api-service/configs/setup/organizations/onboarding/schemas/saas_subscription_plan_costs_daily.json` | Daily costs schema (18 cols) |
-| `api-service/configs/setup/organizations/onboarding/schemas/cost_data_standard_1_2.json` | FOCUS 1.2 schema (67 cols) |
-| `api-service/configs/setup/bootstrap/schemas/org_subscription_audit.json` | Audit table schema (11 cols) |
-| `api-service/configs/saas/seed/data/saas_subscription_plans.csv` | Seed data (25 cols, 76 plans, status=pending) |
-| `api-service/src/app/routers/costs.py` | Costs API endpoints (Polars-powered) |
-| `api-service/src/core/utils/audit_logger.py` | Audit logging with JSON column support |
+| `02-api-service/src/app/routers/subscription_plans.py` | API endpoints for plan CRUD |
+| `02-api-service/configs/setup/organizations/onboarding/schemas/saas_subscription_plans.json` | BigQuery schema (25 cols) |
+| `02-api-service/configs/setup/organizations/onboarding/schemas/saas_subscription_plan_costs_daily.json` | Daily costs schema (18 cols) |
+| `02-api-service/configs/setup/organizations/onboarding/schemas/cost_data_standard_1_2.json` | FOCUS 1.2 schema (67 cols) |
+| `02-api-service/configs/setup/bootstrap/schemas/org_subscription_audit.json` | Audit table schema (11 cols) |
+| `02-api-service/configs/saas/seed/data/saas_subscription_plans.csv` | Seed data (25 cols, 76 plans, status=pending) |
+| `02-api-service/src/app/routers/costs.py` | Costs API endpoints (Polars-powered) |
+| `02-api-service/src/core/utils/audit_logger.py` | Audit logging with JSON column support |
 
 ### Pipeline Files (Cost Calculation)
 
 | File | Purpose |
 |------|---------|
-| `data-pipeline-service/configs/system/procedures/saas_subscription/sp_calculate_saas_subscription_plan_costs_daily.sql` | Stage 1: Daily cost calculation |
-| `data-pipeline-service/configs/system/procedures/saas_subscription/sp_convert_saas_costs_to_focus_1_2.sql` | Stage 2: FOCUS 1.2 conversion |
-| `data-pipeline-service/configs/system/procedures/saas_subscription/sp_run_saas_subscription_costs_pipeline.sql` | Orchestrator procedure |
-| `data-pipeline-service/configs/saas_subscription/costs/saas_cost.yml` | Pipeline config |
-| `data-pipeline-service/src/core/processors/generic/procedure_executor.py` | Procedure executor processor |
+| `03-data-pipeline-service/configs/system/procedures/saas_subscription/sp_calculate_saas_subscription_plan_costs_daily.sql` | Stage 1: Daily cost calculation |
+| `03-data-pipeline-service/configs/system/procedures/saas_subscription/sp_convert_saas_costs_to_focus_1_2.sql` | Stage 2: FOCUS 1.2 conversion |
+| `03-data-pipeline-service/configs/system/procedures/saas_subscription/sp_run_saas_subscription_costs_pipeline.sql` | Orchestrator procedure |
+| `03-data-pipeline-service/configs/saas_subscription/costs/saas_cost.yml` | Pipeline config |
+| `03-data-pipeline-service/src/core/processors/generic/procedure_executor.py` | Procedure executor processor |
 | `1-PRE-ANALLISYS/finops_subscription_pipeline_sql/README.md` | Pipeline architecture docs |
 
 ### Frontend Files
 
 | File | Purpose |
 |------|---------|
-| `fronted-system/lib/saas-providers.ts` | Static provider list (COMMON_SAAS_PROVIDERS array) |
-| `fronted-system/actions/subscription-providers.ts` | ALL subscription actions (providers + plans) |
-| `fronted-system/app/[orgSlug]/subscriptions/page.tsx` | Costs dashboard (all plans) |
-| `fronted-system/app/[orgSlug]/subscriptions/[provider]/page.tsx` | Provider detail page (plans CRUD) |
-| `fronted-system/app/[orgSlug]/settings/integrations/subscriptions/page.tsx` | Manage providers (enable/disable) |
-| `fronted-system/components/dashboard-sidebar.tsx` | Sidebar with Integrations → Subscription Providers submenu |
+| `01-fronted-system/lib/saas-providers.ts` | Static provider list (COMMON_SAAS_PROVIDERS array) |
+| `01-fronted-system/actions/subscription-providers.ts` | ALL subscription actions (providers + plans) |
+| `01-fronted-system/app/[orgSlug]/subscriptions/page.tsx` | Costs dashboard (all plans) |
+| `01-fronted-system/app/[orgSlug]/subscriptions/[provider]/page.tsx` | Provider detail page (plans CRUD) |
+| `01-fronted-system/app/[orgSlug]/settings/integrations/subscriptions/page.tsx` | Manage providers (enable/disable) |
+| `01-fronted-system/components/dashboard-sidebar.tsx` | Sidebar with Integrations → Subscription Providers submenu |
 
 ---
 

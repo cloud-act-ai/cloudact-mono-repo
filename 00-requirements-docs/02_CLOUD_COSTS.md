@@ -178,7 +178,7 @@ Authentication:
 
 ### BigQuery: gcp_billing_costs
 
-**File:** `data-pipeline-service/configs/gcp/cost/billing.yml`
+**File:** `03-data-pipeline-service/configs/gcp/cost/billing.yml`
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -220,7 +220,7 @@ Authentication:
 
 ### BigQuery: org_credentials
 
-**File:** `api-service/configs/setup/bootstrap/schemas/org_credentials.json`
+**File:** `02-api-service/configs/setup/bootstrap/schemas/org_credentials.json`
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -236,7 +236,7 @@ Authentication:
 
 ### BigQuery: org_integrations
 
-**File:** `api-service/configs/setup/bootstrap/schemas/org_integrations.json`
+**File:** `02-api-service/configs/setup/bootstrap/schemas/org_integrations.json`
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -256,7 +256,7 @@ Authentication:
 
 ### Server Actions
 
-**File:** `fronted-system/actions/integrations.ts`
+**File:** `01-fronted-system/actions/integrations.ts`
 
 #### setupGCPIntegration()
 
@@ -360,7 +360,7 @@ export interface BillingSummary {
 
 ## Pipeline Engine Endpoints
 
-**File:** `data-pipeline-service/src/app/routers/integrations.py`
+**File:** `03-data-pipeline-service/src/app/routers/integrations.py`
 
 ### Integration Setup
 
@@ -389,7 +389,7 @@ DELETE /api/v1/integrations/{org}/gcp
 
 ### Pipeline Execution
 
-**File:** `data-pipeline-service/src/app/routers/pipelines.py`
+**File:** `03-data-pipeline-service/src/app/routers/pipelines.py`
 
 ```
 POST   /api/v1/pipelines/run/{org}/gcp/cost/billing
@@ -402,7 +402,7 @@ GET    /api/v1/pipelines/status/{org}/{run_id}
        -> Returns: { status, progress, records, errors? }
 ```
 
-**Pipeline Config:** `data-pipeline-service/configs/gcp/cost/billing.yml`
+**Pipeline Config:** `03-data-pipeline-service/configs/gcp/cost/billing.yml`
 
 ---
 
@@ -486,9 +486,9 @@ Pipeline execution is rate-limited by subscription plan:
 
 | File | Purpose |
 |------|---------|
-| `data-pipeline-service/tests/test_02_gcp_integration.py` | GCP integration tests |
-| `data-pipeline-service/tests/test_03_billing_pipeline.py` | Billing pipeline tests |
-| `fronted-system/tests/06-cloud-integrations.test.ts` | Frontend integration tests |
+| `03-data-pipeline-service/tests/test_02_gcp_integration.py` | GCP integration tests |
+| `03-data-pipeline-service/tests/test_03_billing_pipeline.py` | Billing pipeline tests |
+| `01-fronted-system/tests/06-cloud-integrations.test.ts` | Frontend integration tests |
 
 ---
 
@@ -498,27 +498,27 @@ Pipeline execution is rate-limited by subscription plan:
 
 | File | Purpose |
 |------|---------|
-| `data-pipeline-service/src/app/routers/integrations.py` | Integration CRUD endpoints |
-| `data-pipeline-service/src/app/routers/pipelines.py` | Pipeline execution endpoints |
-| `data-pipeline-service/src/core/processors/gcp/external_bq_extractor.py` | Billing extraction processor |
-| `data-pipeline-service/src/services/kms_service.py` | GCP KMS encryption |
-| `data-pipeline-service/configs/gcp/cost/billing.yml` | Pipeline configuration |
+| `03-data-pipeline-service/src/app/routers/integrations.py` | Integration CRUD endpoints |
+| `03-data-pipeline-service/src/app/routers/pipelines.py` | Pipeline execution endpoints |
+| `03-data-pipeline-service/src/core/processors/gcp/external_bq_extractor.py` | Billing extraction processor |
+| `03-data-pipeline-service/src/services/kms_service.py` | GCP KMS encryption |
+| `03-data-pipeline-service/configs/gcp/cost/billing.yml` | Pipeline configuration |
 
 ### API Service Files
 
 | File | Purpose |
 |------|---------|
-| `api-service/configs/setup/bootstrap/schemas/org_credentials.json` | Credentials schema |
-| `api-service/configs/setup/bootstrap/schemas/org_integrations.json` | Integrations schema |
+| `02-api-service/configs/setup/bootstrap/schemas/org_credentials.json` | Credentials schema |
+| `02-api-service/configs/setup/bootstrap/schemas/org_integrations.json` | Integrations schema |
 
 ### Frontend Files
 
 | File | Purpose |
 |------|---------|
-| `fronted-system/actions/integrations.ts` | Integration server actions |
-| `fronted-system/actions/pipelines.ts` | Pipeline execution actions |
-| `fronted-system/app/[orgSlug]/settings/integrations/cloud/page.tsx` | Cloud setup page |
-| `fronted-system/app/[orgSlug]/analytics/page.tsx` | Cost analytics dashboard |
+| `01-fronted-system/actions/integrations.ts` | Integration server actions |
+| `01-fronted-system/actions/pipelines.ts` | Pipeline execution actions |
+| `01-fronted-system/app/[orgSlug]/settings/integrations/cloud/page.tsx` | Cloud setup page |
+| `01-fronted-system/app/[orgSlug]/analytics/page.tsx` | Cost analytics dashboard |
 
 ---
 

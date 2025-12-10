@@ -139,7 +139,7 @@
 
 ### Metadata
 
-**File:** `fronted-system/app/(public)/layout.tsx`
+**File:** `01-fronted-system/app/(public)/layout.tsx`
 
 ```typescript
 export const metadata: Metadata = {
@@ -175,7 +175,7 @@ export const metadata: Metadata = {
 
 ### Sitemap
 
-**File:** `fronted-system/app/sitemap.ts`
+**File:** `01-fronted-system/app/sitemap.ts`
 
 ```typescript
 export default function sitemap(): MetadataRoute.Sitemap {
@@ -194,7 +194,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
 ### Marketing Components
 
-**Directory:** `fronted-system/components/marketing/`
+**Directory:** `01-fronted-system/components/marketing/`
 
 | Component | Purpose | File |
 |-----------|---------|------|
@@ -405,36 +405,36 @@ export function PricingCard({ plan }: PricingCardProps) {
 
 | File | Purpose |
 |------|---------|
-| `fronted-system/app/(public)/layout.tsx` | Public layout wrapper |
-| `fronted-system/app/(public)/page.tsx` | Homepage |
-| `fronted-system/app/(public)/pricing/page.tsx` | Pricing page |
-| `fronted-system/app/(public)/features/page.tsx` | Features page |
-| `fronted-system/app/(public)/about/page.tsx` | About page |
-| `fronted-system/app/(public)/contact/page.tsx` | Contact page |
-| `fronted-system/app/(public)/blog/page.tsx` | Blog listing |
-| `fronted-system/app/(public)/blog/[slug]/page.tsx` | Blog post |
-| `fronted-system/app/(public)/legal/privacy/page.tsx` | Privacy policy |
-| `fronted-system/app/(public)/legal/terms/page.tsx` | Terms of service |
+| `01-fronted-system/app/(public)/layout.tsx` | Public layout wrapper |
+| `01-fronted-system/app/(public)/page.tsx` | Homepage |
+| `01-fronted-system/app/(public)/pricing/page.tsx` | Pricing page |
+| `01-fronted-system/app/(public)/features/page.tsx` | Features page |
+| `01-fronted-system/app/(public)/about/page.tsx` | About page |
+| `01-fronted-system/app/(public)/contact/page.tsx` | Contact page |
+| `01-fronted-system/app/(public)/blog/page.tsx` | Blog listing |
+| `01-fronted-system/app/(public)/blog/[slug]/page.tsx` | Blog post |
+| `01-fronted-system/app/(public)/legal/privacy/page.tsx` | Privacy policy |
+| `01-fronted-system/app/(public)/legal/terms/page.tsx` | Terms of service |
 
 ### Component Files
 
 | File | Purpose |
 |------|---------|
-| `fronted-system/components/marketing/header.tsx` | Navigation header |
-| `fronted-system/components/marketing/footer.tsx` | Page footer |
-| `fronted-system/components/marketing/hero.tsx` | Hero sections |
-| `fronted-system/components/marketing/feature-card.tsx` | Feature display |
-| `fronted-system/components/marketing/pricing-card.tsx` | Pricing plans |
-| `fronted-system/components/marketing/testimonial-card.tsx` | Testimonials |
-| `fronted-system/components/marketing/cta-section.tsx` | CTAs |
+| `01-fronted-system/components/marketing/header.tsx` | Navigation header |
+| `01-fronted-system/components/marketing/footer.tsx` | Page footer |
+| `01-fronted-system/components/marketing/hero.tsx` | Hero sections |
+| `01-fronted-system/components/marketing/feature-card.tsx` | Feature display |
+| `01-fronted-system/components/marketing/pricing-card.tsx` | Pricing plans |
+| `01-fronted-system/components/marketing/testimonial-card.tsx` | Testimonials |
+| `01-fronted-system/components/marketing/cta-section.tsx` | CTAs |
 
 ### SEO Files
 
 | File | Purpose |
 |------|---------|
-| `fronted-system/app/sitemap.ts` | Sitemap generation |
-| `fronted-system/app/robots.ts` | Robots.txt |
-| `fronted-system/public/og-image.png` | Open Graph image |
+| `01-fronted-system/app/sitemap.ts` | Sitemap generation |
+| `01-fronted-system/app/robots.ts` | Robots.txt |
+| `01-fronted-system/public/og-image.png` | Open Graph image |
 
 ---
 

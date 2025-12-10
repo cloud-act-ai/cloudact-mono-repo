@@ -64,7 +64,7 @@ CloudAct is a multi-tenant SaaS platform that helps organizations track and opti
 
 The codebase is organized as a monorepo containing the following core components:
 
-### `api-service/`
+### `02-api-service/`
 
 **Frontend-Facing API (FastAPI)**
 Handles organization onboarding, integration setup, and LLM data management.
@@ -73,7 +73,7 @@ Handles organization onboarding, integration setup, and LLM data management.
 - `configs/`: Service configurations.
 - `tests/`: Pytest test suite.
 
-### `data-pipeline-service/`
+### `03-data-pipeline-service/`
 
 **Pipeline Engine (FastAPI + BigQuery)**
 Handles scheduled ETL jobs, usage processing, and cost calculations.
@@ -83,7 +83,7 @@ Handles scheduled ETL jobs, usage processing, and cost calculations.
 - `scripts/`: Deployment and utility scripts.
 - `tests/`: Pipeline verification tests.
 
-### `fronted-system/`
+### `01-fronted-system/`
 
 **User Interface (Next.js 16)**
 The main web application for users to interact with the platform.
@@ -100,7 +100,7 @@ The main web application for users to interact with the platform.
 **CI/CD Automation**
 Scripts and workflows for infrastructure and deployment automation.
 
-### `requirements-docs/`
+### `00-requirements-docs/`
 
 **Documentation**
 Architecture diagrams, requirements, and design specifications.
@@ -368,7 +368,7 @@ Write to: acme_prod.*           Write to: guru_prod.*
 
 ## Security Principles
 
-**Full security documentation:** See `data-pipeline-service/SECURITY.md`
+**Full security documentation:** See `03-data-pipeline-service/SECURITY.md`
 
 ### Core Security Measures
 
@@ -582,8 +582,8 @@ curl -X POST http://localhost:8000/api/v1/admin/bootstrap \
 
 # Run Supabase migrations
 # In Supabase SQL Editor, run migrations in order from:
-# fronted-system/scripts/supabase_db/*.sql
-# See fronted-system/scripts/supabase_db/README.md for details
+# 01-fronted-system/scripts/supabase_db/*.sql
+# See 01-fronted-system/scripts/supabase_db/README.md for details
 
 # Configure Stripe products
 cd fronted-system
@@ -617,11 +617,11 @@ curl -X POST http://localhost:8001/api/v1/pipelines/run/{org}/gcp/cost/billing \
 
 | Component             | Documentation                       | Description                                              |
 | --------------------- | ----------------------------------- | -------------------------------------------------------- |
-| **API Service**       | `api-service/CLAUDE.md`             | Bootstrap, onboarding, integrations, LLM data CRUD       |
-| **Pipeline Service**  | `data-pipeline-service/CLAUDE.md`   | Pipeline execution, processors, ETL jobs                 |
-| **Pipeline Security** | `data-pipeline-service/SECURITY.md` | Security requirements, credential handling               |
-| **Frontend**          | `fronted-system/CLAUDE.md`          | Next.js setup, auth flow, billing, backend integration   |
-| **Billing**           | `fronted-system/docs/BILLING.md`    | Stripe integration, subscription flows, webhook handling |
+| **API Service**       | `02-api-service/CLAUDE.md`             | Bootstrap, onboarding, integrations, LLM data CRUD       |
+| **Pipeline Service**  | `03-data-pipeline-service/CLAUDE.md`   | Pipeline execution, processors, ETL jobs                 |
+| **Pipeline Security** | `03-data-pipeline-service/SECURITY.md` | Security requirements, credential handling               |
+| **Frontend**          | `01-fronted-system/CLAUDE.md`          | Next.js setup, auth flow, billing, backend integration   |
+| **Billing**           | `01-fronted-system/docs/BILLING.md`    | Stripe integration, subscription flows, webhook handling |
 
 ### API Endpoint Reference
 
@@ -776,7 +776,7 @@ stripe listen --forward-to localhost:3000/api/webhooks/stripe
 
 1. **For new developers:** Read backend and frontend CLAUDE.md files
 2. **For backend work:** Review backend CLAUDE.md for production requirements and security
-3. **For billing/subscriptions:** Read fronted-system/docs/BILLING.md
+3. **For billing/subscriptions:** Read 01-fronted-system/docs/BILLING.md
 4. **For integrations:** See backend CLAUDE.md for integration endpoints
 5. **For deployment:** Follow deployment scripts in respective directories
 

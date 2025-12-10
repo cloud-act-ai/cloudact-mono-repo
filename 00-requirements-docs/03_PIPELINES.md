@@ -173,7 +173,7 @@ Authentication:
 
 ### BigQuery: pipeline_runs
 
-**File:** `api-service/configs/setup/bootstrap/schemas/pipeline_runs.json`
+**File:** `02-api-service/configs/setup/bootstrap/schemas/pipeline_runs.json`
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -193,7 +193,7 @@ Authentication:
 
 ### BigQuery: pipeline_schedules
 
-**File:** `api-service/configs/setup/bootstrap/schemas/pipeline_schedules.json`
+**File:** `02-api-service/configs/setup/bootstrap/schemas/pipeline_schedules.json`
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -212,7 +212,7 @@ Authentication:
 
 ### Pipeline Config Schema (YAML)
 
-**File:** `data-pipeline-service/configs/gcp/cost/billing.yml` (example)
+**File:** `03-data-pipeline-service/configs/gcp/cost/billing.yml` (example)
 
 ```yaml
 pipeline:
@@ -260,7 +260,7 @@ schedule:
 
 ### Server Actions
 
-**File:** `fronted-system/actions/pipelines.ts`
+**File:** `01-fronted-system/actions/pipelines.ts`
 
 #### runPipeline()
 
@@ -384,7 +384,7 @@ export interface PipelineConfig {
 
 ## Pipeline Engine Endpoints
 
-**File:** `data-pipeline-service/src/app/routers/pipelines.py`
+**File:** `03-data-pipeline-service/src/app/routers/pipelines.py`
 
 ### Pipeline Execution
 
@@ -444,7 +444,7 @@ GET    /api/v1/validator/pipelines/{provider}
 
 ### Base Processor
 
-**File:** `data-pipeline-service/src/core/processors/base.py`
+**File:** `03-data-pipeline-service/src/core/processors/base.py`
 
 ```python
 class BaseProcessor:
@@ -501,7 +501,7 @@ class BaseProcessor:
 
 ### Template Resolver
 
-**File:** `data-pipeline-service/src/core/template_resolver.py`
+**File:** `03-data-pipeline-service/src/core/template_resolver.py`
 
 ```python
 class TemplateResolver:
@@ -601,9 +601,9 @@ def get_next_run(cron_expression: str) -> datetime:
 
 | File | Purpose |
 |------|---------|
-| `data-pipeline-service/tests/test_01_pipeline_execution.py` | Pipeline execution tests |
-| `data-pipeline-service/tests/test_06_scheduler.py` | Scheduler tests |
-| `fronted-system/tests/08-pipelines.test.ts` | Frontend pipeline tests |
+| `03-data-pipeline-service/tests/test_01_pipeline_execution.py` | Pipeline execution tests |
+| `03-data-pipeline-service/tests/test_06_scheduler.py` | Scheduler tests |
+| `01-fronted-system/tests/08-pipelines.test.ts` | Frontend pipeline tests |
 
 ---
 
@@ -613,38 +613,38 @@ def get_next_run(cron_expression: str) -> datetime:
 
 | File | Purpose |
 |------|---------|
-| `data-pipeline-service/src/app/routers/pipelines.py` | Pipeline execution endpoints |
-| `data-pipeline-service/src/app/routers/scheduler.py` | Schedule management endpoints |
-| `data-pipeline-service/src/services/async_executor.py` | Background task execution |
-| `data-pipeline-service/src/core/template_resolver.py` | Config template resolution |
-| `data-pipeline-service/src/core/processors/base.py` | Base processor class |
-| `data-pipeline-service/src/core/processors/gcp/external_bq_extractor.py` | GCP billing processor |
-| `data-pipeline-service/src/middleware/quota.py` | Quota enforcement middleware |
+| `03-data-pipeline-service/src/app/routers/pipelines.py` | Pipeline execution endpoints |
+| `03-data-pipeline-service/src/app/routers/scheduler.py` | Schedule management endpoints |
+| `03-data-pipeline-service/src/services/async_executor.py` | Background task execution |
+| `03-data-pipeline-service/src/core/template_resolver.py` | Config template resolution |
+| `03-data-pipeline-service/src/core/processors/base.py` | Base processor class |
+| `03-data-pipeline-service/src/core/processors/gcp/external_bq_extractor.py` | GCP billing processor |
+| `03-data-pipeline-service/src/middleware/quota.py` | Quota enforcement middleware |
 
 ### Config Files
 
 | File | Purpose |
 |------|---------|
-| `data-pipeline-service/configs/system/providers.yml` | Provider registry |
-| `data-pipeline-service/configs/gcp/cost/billing.yml` | GCP billing pipeline |
-| `data-pipeline-service/configs/openai/cost/usage_cost.yml` | OpenAI usage pipeline |
-| `data-pipeline-service/configs/anthropic/usage_cost.yml` | Anthropic usage pipeline |
+| `03-data-pipeline-service/configs/system/providers.yml` | Provider registry |
+| `03-data-pipeline-service/configs/gcp/cost/billing.yml` | GCP billing pipeline |
+| `03-data-pipeline-service/configs/openai/cost/usage_cost.yml` | OpenAI usage pipeline |
+| `03-data-pipeline-service/configs/anthropic/usage_cost.yml` | Anthropic usage pipeline |
 
 ### API Service Files
 
 | File | Purpose |
 |------|---------|
-| `api-service/configs/setup/bootstrap/schemas/pipeline_runs.json` | Runs table schema |
-| `api-service/configs/setup/bootstrap/schemas/pipeline_schedules.json` | Schedules table schema |
+| `02-api-service/configs/setup/bootstrap/schemas/pipeline_runs.json` | Runs table schema |
+| `02-api-service/configs/setup/bootstrap/schemas/pipeline_schedules.json` | Schedules table schema |
 
 ### Frontend Files
 
 | File | Purpose |
 |------|---------|
-| `fronted-system/actions/pipelines.ts` | Pipeline server actions |
-| `fronted-system/app/[orgSlug]/pipelines/page.tsx` | Pipeline dashboard |
-| `fronted-system/app/[orgSlug]/pipelines/history/page.tsx` | Run history page |
-| `fronted-system/lib/api/backend.ts` | Backend API client |
+| `01-fronted-system/actions/pipelines.ts` | Pipeline server actions |
+| `01-fronted-system/app/[orgSlug]/pipelines/page.tsx` | Pipeline dashboard |
+| `01-fronted-system/app/[orgSlug]/pipelines/history/page.tsx` | Run history page |
+| `01-fronted-system/lib/api/backend.ts` | Backend API client |
 
 ---
 

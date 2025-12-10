@@ -239,7 +239,7 @@ Data Sources:
 
 ### Server Actions
 
-**File:** `fronted-system/actions/analytics.ts`
+**File:** `01-fronted-system/actions/analytics.ts`
 
 #### getDashboardData()
 
@@ -330,7 +330,7 @@ export interface Alert {
 
 ### Components
 
-**File:** `fronted-system/components/analytics/`
+**File:** `01-fronted-system/components/analytics/`
 
 | Component | Purpose | Props |
 |-----------|---------|-------|
@@ -347,7 +347,7 @@ export interface Alert {
 
 ## Pipeline Engine Endpoints
 
-**File:** `data-pipeline-service/src/app/routers/analytics.py`
+**File:** `03-data-pipeline-service/src/app/routers/analytics.py`
 
 ### Analytics Endpoints
 
@@ -460,9 +460,9 @@ const COLORS = {
 
 | File | Purpose |
 |------|---------|
-| `fronted-system/tests/09-dashboard.test.ts` | Dashboard page tests |
-| `fronted-system/tests/10-analytics-charts.test.ts` | Chart component tests |
-| `data-pipeline-service/tests/test_07_analytics.py` | Analytics API tests |
+| `01-fronted-system/tests/09-dashboard.test.ts` | Dashboard page tests |
+| `01-fronted-system/tests/10-analytics-charts.test.ts` | Chart component tests |
+| `03-data-pipeline-service/tests/test_07_analytics.py` | Analytics API tests |
 
 ---
 
@@ -472,21 +472,21 @@ const COLORS = {
 
 | File | Purpose |
 |------|---------|
-| `fronted-system/app/[orgSlug]/dashboard/page.tsx` | Main dashboard |
-| `fronted-system/app/[orgSlug]/analytics/page.tsx` | Analytics page |
-| `fronted-system/app/[orgSlug]/analytics/gcp/page.tsx` | GCP analytics |
-| `fronted-system/actions/analytics.ts` | Analytics server actions |
-| `fronted-system/components/analytics/summary-cards.tsx` | Summary display |
-| `fronted-system/components/analytics/cost-trend-chart.tsx` | Trend chart |
-| `fronted-system/components/analytics/service-breakdown.tsx` | Breakdown chart |
-| `fronted-system/components/analytics/period-selector.tsx` | Period picker |
+| `01-fronted-system/app/[orgSlug]/dashboard/page.tsx` | Main dashboard |
+| `01-fronted-system/app/[orgSlug]/analytics/page.tsx` | Analytics page |
+| `01-fronted-system/app/[orgSlug]/analytics/gcp/page.tsx` | GCP analytics |
+| `01-fronted-system/actions/analytics.ts` | Analytics server actions |
+| `01-fronted-system/components/analytics/summary-cards.tsx` | Summary display |
+| `01-fronted-system/components/analytics/cost-trend-chart.tsx` | Trend chart |
+| `01-fronted-system/components/analytics/service-breakdown.tsx` | Breakdown chart |
+| `01-fronted-system/components/analytics/period-selector.tsx` | Period picker |
 
 ### Pipeline Engine Files
 
 | File | Purpose |
 |------|---------|
-| `data-pipeline-service/src/app/routers/analytics.py` | Analytics endpoints |
-| `data-pipeline-service/src/services/analytics_service.py` | Aggregation logic |
+| `03-data-pipeline-service/src/app/routers/analytics.py` | Analytics endpoints |
+| `03-data-pipeline-service/src/services/analytics_service.py` | Aggregation logic |
 
 ---
 

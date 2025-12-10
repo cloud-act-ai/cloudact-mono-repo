@@ -101,7 +101,7 @@
 
 ### Org Slug Generation
 
-**File:** `fronted-system/actions/organization.ts` (Lines 91-104)
+**File:** `01-fronted-system/actions/organization.ts` (Lines 91-104)
 
 ```
 Format: {firstWord}_{MMDDYYYY}
@@ -212,7 +212,7 @@ Authentication:
 
 ### BigQuery: org_profiles
 
-**File:** `api-service/configs/setup/bootstrap/schemas/org_profiles.json`
+**File:** `02-api-service/configs/setup/bootstrap/schemas/org_profiles.json`
 
 | Column | Type | Mode | Description |
 |--------|------|------|-------------|
@@ -227,7 +227,7 @@ Authentication:
 
 ### BigQuery: org_api_keys
 
-**File:** `api-service/configs/setup/bootstrap/schemas/org_api_keys.json`
+**File:** `02-api-service/configs/setup/bootstrap/schemas/org_api_keys.json`
 
 | Column | Type | Mode | Description |
 |--------|------|------|-------------|
@@ -243,7 +243,7 @@ Authentication:
 
 ### BigQuery: org_subscriptions
 
-**File:** `api-service/configs/setup/bootstrap/schemas/org_subscriptions.json`
+**File:** `02-api-service/configs/setup/bootstrap/schemas/org_subscriptions.json`
 
 | Column | Type | Mode | Description |
 |--------|------|------|-------------|
@@ -288,7 +288,7 @@ Partitioned by: `usage_date` (daily)
 
 ## API Service Endpoints
 
-**File:** `api-service/src/app/routers/organizations.py`
+**File:** `02-api-service/src/app/routers/organizations.py`
 
 ### POST /api/v1/organizations/dryrun
 
@@ -396,7 +396,7 @@ Partitioned by: `usage_date` (daily)
 
 ### Server Actions
 
-**File:** `fronted-system/actions/backend-onboarding.ts`
+**File:** `01-fronted-system/actions/backend-onboarding.ts`
 
 #### onboardToBackend()
 
@@ -606,8 +606,8 @@ function sanitizeOrgName(name: string): string {
 
 | File | Purpose |
 |------|---------|
-| `api-service/tests/test_02_organizations.py` | Onboarding endpoint tests |
-| `fronted-system/tests/01-signup-onboarding-billing-dashboard.test.ts` | E2E onboarding flow |
+| `02-api-service/tests/test_02_organizations.py` | Onboarding endpoint tests |
+| `01-fronted-system/tests/01-signup-onboarding-billing-dashboard.test.ts` | E2E onboarding flow |
 
 ---
 
@@ -617,23 +617,23 @@ function sanitizeOrgName(name: string): string {
 
 | File | Purpose |
 |------|---------|
-| `api-service/src/app/routers/organizations.py` | Onboarding endpoints (948 lines) |
-| `api-service/src/core/processors/setup/organizations/onboarding.py` | Dataset creation processor |
-| `api-service/src/core/processors/setup/organizations/dryrun.py` | Validation processor |
-| `api-service/configs/setup/bootstrap/schemas/org_profiles.json` | Schema |
-| `api-service/configs/setup/bootstrap/schemas/org_api_keys.json` | Schema |
-| `api-service/configs/setup/bootstrap/schemas/org_subscriptions.json` | Schema |
+| `02-api-service/src/app/routers/organizations.py` | Onboarding endpoints (948 lines) |
+| `02-api-service/src/core/processors/setup/organizations/onboarding.py` | Dataset creation processor |
+| `02-api-service/src/core/processors/setup/organizations/dryrun.py` | Validation processor |
+| `02-api-service/configs/setup/bootstrap/schemas/org_profiles.json` | Schema |
+| `02-api-service/configs/setup/bootstrap/schemas/org_api_keys.json` | Schema |
+| `02-api-service/configs/setup/bootstrap/schemas/org_subscriptions.json` | Schema |
 
 ### Frontend Files
 
 | File | Purpose |
 |------|---------|
-| `fronted-system/actions/organization.ts` | Org creation (200 lines) |
-| `fronted-system/actions/backend-onboarding.ts` | Backend onboarding (1084 lines) |
-| `fronted-system/app/onboarding/organization/page.tsx` | Org form |
-| `fronted-system/app/onboarding/billing/page.tsx` | Plan selection |
-| `fronted-system/app/onboarding/success/page.tsx` | Completion page |
-| `fronted-system/app/[orgSlug]/settings/onboarding/page.tsx` | Settings view |
+| `01-fronted-system/actions/organization.ts` | Org creation (200 lines) |
+| `01-fronted-system/actions/backend-onboarding.ts` | Backend onboarding (1084 lines) |
+| `01-fronted-system/app/onboarding/organization/page.tsx` | Org form |
+| `01-fronted-system/app/onboarding/billing/page.tsx` | Plan selection |
+| `01-fronted-system/app/onboarding/success/page.tsx` | Completion page |
+| `01-fronted-system/app/[orgSlug]/settings/onboarding/page.tsx` | Settings view |
 
 ---
 
