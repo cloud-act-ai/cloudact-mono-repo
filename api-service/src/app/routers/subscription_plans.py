@@ -122,7 +122,7 @@ class SubscriptionPlan(BaseModel):
     end_date: Optional[date] = None
     billing_cycle: str = "monthly"
     currency: str = "USD"
-    seats: int = 0
+    seats: int = 0  # Some plans genuinely have 0 seats (e.g., FREE tiers or FLAT_FEE plans without per-seat pricing)
     pricing_model: str = "PER_SEAT"  # PER_SEAT, FLAT_FEE
     unit_price_usd: float = 0.0
     yearly_price_usd: Optional[float] = None
@@ -169,7 +169,7 @@ class PlanCreate(BaseModel):
     unit_price_usd: float = Field(..., ge=0, le=100000, description="Monthly price per unit")
     billing_cycle: str = Field("monthly", description="monthly, annual, quarterly")
     currency: str = Field("USD", max_length=3, description="Currency code (USD, EUR, GBP)")
-    seats: int = Field(0, ge=0, description="Number of seats")
+    seats: int = Field(0, ge=0, description="Number of seats (0 is valid for FREE tiers or non-seat-based plans)")
     pricing_model: str = Field("PER_SEAT", description="PER_SEAT or FLAT_FEE")
     yearly_price_usd: Optional[float] = Field(None, ge=0)
     discount_type: Optional[str] = Field(None, description="percent or fixed")
@@ -591,9 +591,7 @@ async def enable_provider(
         if val is None or val == "" or str(val).strip() == "":
             return default
         try:
-            result = float(val)
-            # Return None if value is 0 and we don't want zeros
-            return result if result > 0 or default == 0.0 else default
+            return float(val)  # Return actual value including 0.0
         except (ValueError, TypeError):
             return default
 
@@ -603,17 +601,30 @@ async def enable_provider(
             subscription_id = f"sub_{provider}_{plan.get('plan_name', 'unknown').lower()}_{uuid.uuid4().hex[:8]}"
 
             # Parse values safely
-            seats = parse_int(plan.get("seats"), 0)
+            pricing_model = plan.get("pricing_model", "PER_SEAT") or "PER_SEAT"
+            # For PER_SEAT plans, default to 1 seat; for FLAT_FEE, default to 0
+            default_seats = 1 if pricing_model == "PER_SEAT" else 0
+            seats = parse_int(plan.get("seats"), default_seats)
             unit_price = parse_float(plan.get("unit_price_usd"), 0.0)
             yearly_price = parse_float(plan.get("yearly_price_usd"))
+            # Calculate yearly_price if not provided and billing cycle is annual
+            billing_cycle = plan.get("billing_cycle") or plan.get("billing_period", "monthly") or "monthly"
+            if yearly_price is None and billing_cycle == "annual":
+                yearly_price = unit_price * 12
             display_name = plan.get("display_name", "") or ""
             notes = plan.get("notes", "") or ""
             category = plan.get("category", "other") or "other"
-            billing_cycle = plan.get("billing_cycle") or plan.get("billing_period", "monthly") or "monthly"
             plan_name = plan.get("plan_name", "DEFAULT") or "DEFAULT"
-            pricing_model = plan.get("pricing_model", "PER_SEAT") or "PER_SEAT"
             discount_type = plan.get("discount_type")
             discount_value = parse_int(plan.get("discount_value"), None) if discount_type else None
+            # Validate discount - if type is percent, value should be 0-100
+            if discount_type == "percent" and discount_value is not None and discount_value > 100:
+                discount_value = 100
+            status = plan.get("status", "pending") or "pending"  # Use CSV status, default to pending
+            # Validate status against allowed values, default to pending if invalid
+            if status not in VALID_STATUS_VALUES:
+                logger.warning(f"Invalid status '{status}' in CSV for plan {plan_name}, defaulting to 'pending'")
+                status = "pending"
 
             # Use parameterized query to prevent SQL injection
             insert_query = f"""
@@ -629,8 +640,8 @@ async def enable_provider(
                 @plan_name,
                 @display_name,
                 @category,
-                'active',
-                CURRENT_DATE(),
+                @status,
+                CURRENT_DATE(),  -- Seed plans start immediately (today)
                 @billing_cycle,
                 'USD',
                 @seats,
@@ -652,6 +663,7 @@ async def enable_provider(
                     bigquery.ScalarQueryParameter("plan_name", "STRING", plan_name),
                     bigquery.ScalarQueryParameter("display_name", "STRING", display_name),
                     bigquery.ScalarQueryParameter("category", "STRING", category),
+                    bigquery.ScalarQueryParameter("status", "STRING", status),
                     bigquery.ScalarQueryParameter("billing_cycle", "STRING", billing_cycle),
                     bigquery.ScalarQueryParameter("seats", "INT64", seats),
                     bigquery.ScalarQueryParameter("pricing_model", "STRING", pricing_model),
@@ -807,7 +819,7 @@ async def list_plans(
 
     where_clause = "WHERE org_slug = @org_slug AND provider = @provider"
     if not include_disabled:
-        where_clause += " AND status = 'active'"
+        where_clause += " AND status IN ('active', 'pending')"
 
     # Optimized query: Select only needed columns instead of SELECT *
     query = f"""
@@ -1124,6 +1136,8 @@ async def update_plan(
                 query_parameters.append(bigquery.ScalarQueryParameter(param_name, "INT64", value))
             elif isinstance(value, float):
                 query_parameters.append(bigquery.ScalarQueryParameter(param_name, "FLOAT64", value))
+            elif isinstance(value, date):
+                query_parameters.append(bigquery.ScalarQueryParameter(param_name, "DATE", value))
             else:
                 query_parameters.append(bigquery.ScalarQueryParameter(param_name, "STRING", str(value)))
 
@@ -1286,6 +1300,16 @@ async def edit_plan_with_version(
             )
 
         current_row = rows[0]
+
+        # Validate effective_date is not before the original start_date
+        # This prevents creating illogical date ranges where start_date > end_date
+        original_start_date = current_row.start_date if hasattr(current_row, "start_date") else None
+        if original_start_date and request.effective_date <= original_start_date:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"effective_date ({request.effective_date}) must be after the plan's start_date ({original_start_date}). "
+                       f"Use a date after {original_start_date} or delete and recreate the plan."
+            )
 
         # Step 2: Close the old row (set end_date and status)
         old_end_date = request.effective_date - timedelta(days=1)
@@ -1453,18 +1477,22 @@ async def edit_plan_with_version(
 @router.delete(
     "/subscriptions/{org_slug}/providers/{provider}/plans/{subscription_id}",
     response_model=DeletePlanResponse,
-    summary="Delete plan",
+    summary="Delete plan (soft delete)",
     tags=["Subscriptions"]
 )
 async def delete_plan(
     org_slug: str,
     provider: str,
     subscription_id: str,
+    end_date: Optional[date] = Query(None, description="Custom end date (defaults to today)"),
     org: Dict = Depends(get_current_org),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """
-    Delete a subscription plan.
+    Delete a subscription plan (soft delete).
+
+    Sets end_date (default: today, or custom date if provided) and status to 'cancelled'.
+    Historical data is preserved for cost calculations.
     """
     validate_org_slug(org_slug)
     check_org_access(org, org_slug)
@@ -1473,8 +1501,13 @@ async def delete_plan(
     dataset_id = get_org_dataset(org_slug)
     table_ref = f"{settings.gcp_project_id}.{dataset_id}.{SAAS_SUBSCRIPTION_PLANS_TABLE}"
 
-    delete_query = f"""
-    DELETE FROM `{table_ref}`
+    # Use custom end_date if provided, otherwise use CURRENT_DATE()
+    end_date_value = end_date if end_date is not None else date.today()
+
+    # Soft delete: set end_date and status instead of removing rows
+    update_query = f"""
+    UPDATE `{table_ref}`
+    SET end_date = @end_date, status = 'cancelled', updated_at = CURRENT_TIMESTAMP()
     WHERE org_slug = @org_slug AND subscription_id = @subscription_id AND provider = @provider
     """
 
@@ -1484,12 +1517,13 @@ async def delete_plan(
                 bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
                 bigquery.ScalarQueryParameter("subscription_id", "STRING", subscription_id),
                 bigquery.ScalarQueryParameter("provider", "STRING", provider),
+                bigquery.ScalarQueryParameter("end_date", "DATE", end_date_value),
             ],
             job_timeout_ms=30000  # 30 second timeout for user operations
         )
-        bq_client.client.query(delete_query, job_config=job_config).result()
+        bq_client.client.query(update_query, job_config=job_config).result()
 
-        # Invalidate relevant caches after deleting plan
+        # Invalidate relevant caches after soft-deleting plan
         invalidate_provider_cache(org_slug, provider)
         invalidate_org_cache(org_slug)
         logger.debug(f"Invalidated cache for org {org_slug} provider {provider}")
@@ -1497,13 +1531,13 @@ async def delete_plan(
         return DeletePlanResponse(
             success=True,
             subscription_id=subscription_id,
-            message=f"Deleted plan {subscription_id}"
+            message=f"Ended subscription {subscription_id}"
         )
     except Exception as e:
         logger.error(f"Failed to delete plan: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to delete plan: {e}"
+            detail=f"Failed to end subscription: {e}"
         )
 
 
@@ -1686,7 +1720,7 @@ async def get_all_plans(
     # Query all plans with optimizations - ALWAYS filter by org_slug for multi-tenant isolation
     where_clause = "WHERE org_slug = @org_slug"
     if enabled_only:
-        where_clause += " AND status = 'active'"
+        where_clause += " AND status IN ('active', 'pending')"
     query = f"""
     SELECT
         org_slug, subscription_id, provider, plan_name, display_name,
@@ -1714,7 +1748,7 @@ async def get_all_plans(
         plans = []
         total_monthly_cost = 0.0
         count_by_category: Dict[str, int] = {}
-        active_count = 0
+        enabled_count = 0  # Count of active plans (matching frontend expected field name)
 
         for row in result:
             plan = SubscriptionPlan(
@@ -1749,7 +1783,7 @@ async def get_all_plans(
 
             # Aggregate for summary - calculate monthly cost with billing cycle adjustment
             if plan.status == "active":
-                active_count += 1
+                enabled_count += 1
                 monthly_cost = plan.unit_price_usd * (plan.seats if plan.pricing_model == "PER_SEAT" else 1)
                 # Adjust for billing cycle (unit_price_usd is per cycle, not per month)
                 if plan.billing_cycle == "annual":
@@ -1765,7 +1799,7 @@ async def get_all_plans(
             "total_monthly_cost": round(total_monthly_cost, 2),
             "total_annual_cost": round(total_monthly_cost * 12, 2),
             "count_by_category": count_by_category,
-            "active_count": active_count,
+            "enabled_count": enabled_count,  # Frontend expects 'enabled_count' field name
             "total_count": len(plans),
         }
 

@@ -40,7 +40,9 @@ import { CardSkeleton } from "@/components/ui/card-skeleton"
 import { TableSkeleton } from "@/components/ui/table-skeleton"
 import {
   getAllPlansForCostDashboard,
+  getSaaSSubscriptionCosts,
   type SubscriptionPlan,
+  type SaaSCostSummary,
 } from "@/actions/subscription-providers"
 
 // Category icon mapping
@@ -75,28 +77,54 @@ export default function SubscriptionsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [summary, setSummary] = useState<{
+  // Plan summary from saas_subscription_plans table (for counts, etc.)
+  const [planSummary, setPlanSummary] = useState<{
     total_monthly_cost: number
     total_annual_cost: number
     count_by_category: Record<string, number>
     enabled_count: number
     total_count: number
   } | null>(null)
+  // Cost summary from Polars API (cost_data_standard_1_2) - SOURCE OF TRUTH for costs
+  const [costSummary, setCostSummary] = useState<SaaSCostSummary | null>(null)
+
+  // Merged summary: costs from Polars API, counts from plans
+  const summary = costSummary
+    ? {
+        total_monthly_cost: costSummary.total_monthly_cost,
+        total_annual_cost: costSummary.total_annual_cost,
+        count_by_category: planSummary?.count_by_category || {},
+        enabled_count: planSummary?.enabled_count || 0,
+        total_count: planSummary?.total_count || 0,
+      }
+    : planSummary // Fallback to plan summary if no cost data yet
 
   const loadData = useCallback(async () => {
     setIsLoading(true)
     setError(null)
 
-    const result = await getAllPlansForCostDashboard(orgSlug)
+    // Fetch both plan details and actual costs in parallel
+    const [plansResult, costsResult] = await Promise.all([
+      getAllPlansForCostDashboard(orgSlug),
+      getSaaSSubscriptionCosts(orgSlug),
+    ])
 
-    if (result.success) {
-      setPlans(result.plans)
-      setSummary(result.summary)
+    if (plansResult.success) {
+      setPlans(plansResult.plans)
+      setPlanSummary(plansResult.summary)
     } else {
-      setError(result.error || "Failed to load subscription data")
+      setError(plansResult.error || "Failed to load subscription data")
       setPlans([])
-      setSummary(null)
+      setPlanSummary(null)
     }
+
+    // Cost data is optional - may not exist if pipeline hasn't run
+    if (costsResult.success && costsResult.summary) {
+      setCostSummary(costsResult.summary)
+    } else {
+      setCostSummary(null)
+    }
+
     setIsLoading(false)
   }, [orgSlug])
 
@@ -131,7 +159,7 @@ export default function SubscriptionsPage() {
 
   // Calculate monthly equivalent based on billing cycle
   const getMonthlyEquivalent = (plan: PlanWithProvider): number => {
-    const price = plan.unit_price_usd || 0
+    const price = plan.unit_price_usd ?? 0
     if (!plan.billing_cycle) return price
     switch (plan.billing_cycle.toLowerCase()) {
       case "annual":
@@ -146,7 +174,7 @@ export default function SubscriptionsPage() {
 
   // Calculate total cost based on pricing model
   const getTotalCost = (plan: PlanWithProvider): number => {
-    const basePrice = plan.unit_price_usd || 0
+    const basePrice = plan.unit_price_usd ?? 0
     if (plan.pricing_model === 'PER_SEAT' && plan.seats) {
       return basePrice * plan.seats
     }
@@ -460,7 +488,7 @@ export default function SubscriptionsPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right font-medium">
-                        {formatCurrency(plan.unit_price_usd || 0)}
+                        {formatCurrency(plan.unit_price_usd ?? 0)}
                         {plan.pricing_model && (
                           <div className="text-xs text-gray-500">
                             {plan.pricing_model === 'PER_SEAT' ? '/seat' : 'flat fee'}

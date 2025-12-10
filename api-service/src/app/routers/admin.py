@@ -13,7 +13,7 @@ import logging
 
 from google.cloud import bigquery
 from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
-from src.core.security.kms_encryption import encrypt_value
+from src.core.security.kms_encryption import encrypt_value, decrypt_value
 from src.app.config import settings
 from src.app.dependencies.auth import verify_admin_key
 from src.app.dependencies.rate_limit_decorator import rate_limit_global
@@ -1001,4 +1001,104 @@ async def get_audit_logs(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to query audit logs. Please check server logs."
+        )
+
+
+# ============================================
+# Development-Only Endpoint (API Key Retrieval)
+# ============================================
+
+class DevApiKeyResponse(BaseModel):
+    """Response for dev-only API key retrieval."""
+    org_slug: str
+    api_key: str
+    message: str = "DEV ONLY - Never use in production"
+
+
+@router.get(
+    "/admin/dev/api-key/{org_slug}",
+    response_model=DevApiKeyResponse,
+    summary="[DEV ONLY] Get decrypted org API key",
+    description="Development-only endpoint to retrieve decrypted org API key for testing. DISABLED in production.",
+    tags=["Development"]
+)
+async def get_org_api_key_dev(
+    org_slug: str,
+    bq_client: BigQueryClient = Depends(get_bigquery_client),
+    _admin: None = Depends(verify_admin_key)
+):
+    """
+    Development-only endpoint to retrieve decrypted org API key.
+
+    This endpoint is DISABLED in production environments.
+    Use only for local development and testing.
+
+    REQUIRES:
+    - X-CA-Root-Key header (admin authentication)
+    - ENVIRONMENT must be "development" or "local"
+    """
+    # SECURITY: Only allow in development/local environments
+    if settings.environment not in ("development", "local"):
+        logger.warning(
+            f"Dev API key retrieval attempted in {settings.environment} environment",
+            extra={"event_type": "security_violation", "org_slug": org_slug}
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This endpoint is only available in development/local environments"
+        )
+
+    logger.info(
+        f"[DEV] Retrieving API key for org: {org_slug}",
+        extra={"event_type": "dev_api_key_retrieval", "org_slug": org_slug}
+    )
+
+    try:
+        # Query for encrypted API key
+        query = f"""
+        SELECT encrypted_org_api_key
+        FROM `{settings.gcp_project_id}.organizations.org_api_keys`
+        WHERE org_slug = @org_slug AND is_active = TRUE
+        LIMIT 1
+        """
+
+        from google.cloud import bigquery as bq
+        job_config = bq.QueryJobConfig(
+            query_parameters=[
+                bq.ScalarQueryParameter("org_slug", "STRING", org_slug),
+            ]
+        )
+
+        result = list(bq_client.client.query(query, job_config=job_config).result())
+
+        if not result:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"No active API key found for org: {org_slug}"
+            )
+
+        encrypted_key = result[0]["encrypted_org_api_key"]
+
+        if not encrypted_key:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"API key exists but encrypted value is missing for org: {org_slug}"
+            )
+
+        # Decrypt using KMS
+        decrypted_key = decrypt_value(encrypted_key)
+
+        return DevApiKeyResponse(
+            org_slug=org_slug,
+            api_key=decrypted_key,
+            message="DEV ONLY - This endpoint is disabled in production"
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[DEV] Failed to retrieve API key: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve API key: {str(e)}"
         )

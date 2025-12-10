@@ -596,74 +596,114 @@ curl http://localhost:8001/health
 
 ### Running Pipelines
 
-Once organization is onboarded and integrations are set up, run pipelines:
+#### Step 1: Get Org API Key
 
 ```bash
-# Run GCP Billing pipeline
-curl -X POST http://localhost:8001/api/v1/pipelines/run/{org_slug}/gcp/cost/billing \
-  -H "X-API-Key: $ORG_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"date": "2025-11-25"}'
+# Get decrypted org API key (dev/local environments only)
+curl -s -X GET "http://localhost:8000/api/v1/admin/dev/api-key/{org_slug}" \
+  -H "X-CA-Root-Key: $CA_ROOT_API_KEY"
 
-# Run OpenAI Usage & Cost pipeline
-curl -X POST http://localhost:8001/api/v1/pipelines/run/{org_slug}/openai/cost/usage_cost \
-  -H "X-API-Key: $ORG_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"start_date": "2025-11-25", "end_date": "2025-11-25"}'
+# Save the returned api_key for subsequent requests
+export ORG_API_KEY="returned_api_key_value"
 ```
 
-### Getting Customer API Keys for Local Development
+#### Step 2: Run Pipeline
 
-To run pipelines locally for a specific customer, you need their decrypted API key. Customer API keys are stored encrypted with KMS in BigQuery.
-
-**Step 1: Query the encrypted API key from BigQuery**
-
-```sql
-SELECT
-    org_slug,
-    encrypted_api_key
-FROM `gac-prod-471220.organizations.org_api_keys`
-WHERE org_slug = 'your_org_slug'
-  AND is_active = TRUE
+**Pipeline URL Pattern:**
+```
+POST /api/v1/pipelines/run/{org_slug}/{provider}/{domain}/{pipeline}
 ```
 
-**Step 2: Decrypt using Python script**
+**Available Pipelines:**
 
-```python
-from google.cloud import kms_v1
-import base64
+| Pipeline | Provider | Domain | Pipeline Name | Body Parameters |
+|----------|----------|--------|---------------|-----------------|
+| GCP Billing | `gcp` | `cost` | `billing` | `{"date": "YYYY-MM-DD"}` |
+| GCP Billing Accounts | `gcp` | `api` | `billing_accounts` | `{}` |
+| GCP Compute Instances | `gcp` | `api` | `compute_instances` | `{}` |
+| OpenAI Usage & Cost | `openai` | `cost` | `usage_cost` | `{"start_date": "...", "end_date": "..."}` or `{}` |
+| Anthropic Usage & Cost | `anthropic` | `` (empty) | `usage_cost` | `{"start_date": "...", "end_date": "..."}` or `{}` |
+| SaaS Subscription Costs | `saas_subscription` | `costs` | `saas_cost` | `{}` (dates default to current month) |
 
-# KMS key for decryption
-KMS_KEY = "projects/gac-prod-471220/locations/us-central1/keyRings/convergence-keyring-prod/cryptoKeys/api-key-encryption"
-
-def decrypt_api_key(encrypted_base64: str) -> str:
-    """Decrypt a KMS-encrypted API key."""
-    client = kms_v1.KeyManagementServiceClient()
-    ciphertext = base64.b64decode(encrypted_base64)
-    response = client.decrypt(
-        request={"name": KMS_KEY, "ciphertext": ciphertext}
-    )
-    return response.plaintext.decode("utf-8")
-
-# Usage:
-# decrypted_key = decrypt_api_key("BASE64_ENCRYPTED_STRING_FROM_BQ")
-# print(f"API Key: {decrypted_key}")
-```
-
-**Step 3: Use the decrypted key in pipeline requests**
+#### Pipeline Examples
 
 ```bash
-export ORG_API_KEY="decrypted_key_here"
-curl -X POST http://localhost:8001/api/v1/pipelines/run/{org_slug}/gcp/cost/billing \
+# GCP Billing Pipeline
+curl -s -X POST "http://localhost:8001/api/v1/pipelines/run/{org_slug}/gcp/cost/billing" \
   -H "X-API-Key: $ORG_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"date": "2025-11-29"}'
+  -d '{"date": "2025-12-08"}'
+
+# OpenAI Usage & Cost Pipeline
+curl -s -X POST "http://localhost:8001/api/v1/pipelines/run/{org_slug}/openai/cost/usage_cost" \
+  -H "X-API-Key: $ORG_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"start_date": "2025-12-01", "end_date": "2025-12-08"}'
+
+# Anthropic Usage & Cost Pipeline (note: empty domain)
+curl -s -X POST "http://localhost:8001/api/v1/pipelines/run/{org_slug}/anthropic//usage_cost" \
+  -H "X-API-Key: $ORG_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{}'
+
+# SaaS Subscription Costs Pipeline (dates optional - defaults to current month)
+curl -s -X POST "http://localhost:8001/api/v1/pipelines/run/{org_slug}/saas_subscription/costs/saas_cost" \
+  -H "X-API-Key: $ORG_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{}'
+
+# GCP Compute Instances Pipeline
+curl -s -X POST "http://localhost:8001/api/v1/pipelines/run/{org_slug}/gcp/api/compute_instances" \
+  -H "X-API-Key: $ORG_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{}'
 ```
 
-**Security Notes:**
-- Never commit decrypted API keys to version control
-- Use environment variables for local testing
-- Customer API keys grant full access to that org's pipeline operations
+#### Step 3: Sync Stored Procedures (if needed)
+
+When updating SQL procedures in `configs/system/procedures/`, sync them to BigQuery:
+
+```bash
+# List available procedure files
+curl -s -X GET "http://localhost:8001/api/v1/procedures/files" \
+  -H "X-CA-Root-Key: $CA_ROOT_API_KEY"
+
+# Sync all procedures to BigQuery
+curl -s -X POST "http://localhost:8001/api/v1/procedures/sync" \
+  -H "X-CA-Root-Key: $CA_ROOT_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{}'
+
+# Force sync (re-create even if unchanged)
+curl -s -X POST "http://localhost:8001/api/v1/procedures/sync" \
+  -H "X-CA-Root-Key: $CA_ROOT_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"force": true}'
+```
+
+#### Adding New Pipelines
+
+1. **Create pipeline config:** `configs/{provider}/{domain}/{pipeline}.yml`
+2. **Register in api-service:** Add entry to `api-service/configs/system/pipelines.yml`
+3. **Restart api-service:** PipelineRegistry is a singleton - requires restart to pick up new configs
+4. **Run pipeline:** Use the URL pattern above
+
+#### Pipeline Config Location
+
+```
+configs/
+├── gcp/
+│   ├── cost/billing.yml                    # gcp/cost/billing
+│   └── api/
+│       ├── billing_accounts.yml            # gcp/api/billing_accounts
+│       └── compute_instances.yml           # gcp/api/compute_instances
+├── openai/
+│   └── cost/usage_cost.yml                 # openai/cost/usage_cost
+├── anthropic/
+│   └── usage_cost.yml                      # anthropic//usage_cost (empty domain)
+└── saas_subscription/
+    └── costs/saas_cost.yml                 # saas_subscription/costs/saas_cost
+```
 
 ---
 
@@ -865,5 +905,5 @@ steps:
 
 ---
 
-**Last Updated:** 2025-12-02
+**Last Updated:** 2025-12-08
 **Version:** 2.2

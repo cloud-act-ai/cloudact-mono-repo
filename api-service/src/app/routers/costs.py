@@ -1,0 +1,489 @@
+"""
+Read-Only Cost API Endpoints
+
+High-performance, Polars-powered cost data API for multi-tenant architecture.
+All endpoints are read-only and designed for millions of requests per second.
+
+Features:
+- Multi-tenant isolation via org_slug
+- Aggressive caching with configurable TTL
+- Zero-copy data transfer via Arrow format
+- Comprehensive cost analytics endpoints
+"""
+
+from fastapi import APIRouter, Depends, Query, HTTPException, status
+from pydantic import BaseModel, Field
+from typing import Optional, List, Dict, Any
+from datetime import date
+from enum import Enum
+import logging
+import re
+
+from src.app.dependencies.auth import verify_api_key, OrgContext
+from src.core.services.cost_service import (
+    get_cost_service,
+    CostQuery,
+    CostResponse,
+    PolarsCostService
+)
+
+logger = logging.getLogger(__name__)
+
+
+# ==============================================================================
+# Multi-Tenancy Security Helpers
+# ==============================================================================
+
+# Valid org_slug pattern: alphanumeric + underscore, 3-50 chars
+ORG_SLUG_PATTERN = re.compile(r'^[a-zA-Z0-9_]{3,50}$')
+
+
+def validate_org_slug_format(org_slug: str) -> None:
+    """
+    Validate org_slug format to prevent SQL injection and path traversal.
+
+    Raises:
+        HTTPException: If org_slug format is invalid
+    """
+    if not ORG_SLUG_PATTERN.match(org_slug):
+        logger.warning(f"Invalid org_slug format attempted: {org_slug[:50]}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid organization identifier format"
+        )
+
+
+def validate_org_access(url_org_slug: str, auth_context: OrgContext) -> None:
+    """
+    CRITICAL MULTI-TENANCY CHECK: Ensure URL org_slug matches authenticated org.
+
+    This prevents cross-tenant data access where customer A tries to access
+    customer B's data by manipulating the URL.
+
+    Args:
+        url_org_slug: The org_slug from the URL path
+        auth_context: The authenticated organization context from API key
+
+    Raises:
+        HTTPException: 403 Forbidden if org_slug mismatch (cross-tenant access attempt)
+    """
+    # First validate format
+    validate_org_slug_format(url_org_slug)
+
+    # CRITICAL: URL org_slug MUST match the API key's org_slug
+    if url_org_slug != auth_context.org_slug:
+        logger.warning(
+            f"SECURITY: Cross-tenant access attempt blocked",
+            extra={
+                "event_type": "cross_tenant_access_blocked",
+                "requested_org": url_org_slug,
+                "authenticated_org": auth_context.org_slug,
+                "severity": "HIGH"
+            }
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied: You can only access your own organization's data"
+        )
+
+router = APIRouter(prefix="/costs", tags=["Costs"])
+
+
+# ==============================================================================
+# Request/Response Models
+# ==============================================================================
+
+class Granularity(str, Enum):
+    DAILY = "daily"
+    WEEKLY = "weekly"
+    MONTHLY = "monthly"
+
+
+class CostQueryParams(BaseModel):
+    """Query parameters for cost data retrieval."""
+    start_date: Optional[date] = Field(None, description="Start date for cost data (inclusive)")
+    end_date: Optional[date] = Field(None, description="End date for cost data (inclusive)")
+    providers: Optional[List[str]] = Field(None, description="Filter by providers (e.g., openai, anthropic, gcp)")
+    service_categories: Optional[List[str]] = Field(None, description="Filter by service categories (e.g., SaaS, Cloud)")
+    limit: int = Field(1000, ge=1, le=10000, description="Maximum records to return")
+    offset: int = Field(0, ge=0, description="Offset for pagination")
+
+
+class CostDataResponse(BaseModel):
+    """Standard response wrapper for cost data."""
+    success: bool
+    data: Optional[List[Dict[str, Any]]] = None
+    summary: Optional[Dict[str, Any]] = None
+    pagination: Optional[Dict[str, int]] = None
+    cache_hit: bool = False
+    query_time_ms: float = 0.0
+    error: Optional[str] = None
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "success": True,
+                "data": [
+                    {
+                        "Provider": "openai",
+                        "ServiceCategory": "SaaS",
+                        "BilledCost": 150.50,
+                        "ChargePeriodStart": "2025-12-01"
+                    }
+                ],
+                "pagination": {"limit": 1000, "offset": 0, "total": 1},
+                "cache_hit": False,
+                "query_time_ms": 45.2
+            }
+        }
+
+
+class CacheStat(BaseModel):
+    """Cache statistics response."""
+    hits: int
+    misses: int
+    evictions: int
+    size: int
+    max_size: int
+    hit_rate: float
+
+
+# ==============================================================================
+# Helper Functions
+# ==============================================================================
+
+def _to_response(cost_response: CostResponse) -> CostDataResponse:
+    """Convert internal CostResponse to API response model."""
+    return CostDataResponse(
+        success=cost_response.success,
+        data=cost_response.data,
+        summary=cost_response.summary,
+        pagination=cost_response.pagination,
+        cache_hit=cost_response.cache_hit,
+        query_time_ms=cost_response.query_time_ms,
+        error=cost_response.error
+    )
+
+
+# ==============================================================================
+# Cost API Endpoints
+# ==============================================================================
+
+@router.get(
+    "/{org_slug}",
+    response_model=CostDataResponse,
+    summary="Get Cost Data",
+    description="Retrieve cost data for an organization with optional filters. Uses FOCUS 1.2 standard schema."
+)
+async def get_costs(
+    org_slug: str,
+    start_date: Optional[date] = Query(None, description="Start date (YYYY-MM-DD)"),
+    end_date: Optional[date] = Query(None, description="End date (YYYY-MM-DD)"),
+    providers: Optional[str] = Query(None, description="Comma-separated list of providers"),
+    service_categories: Optional[str] = Query(None, description="Comma-separated list of service categories"),
+    limit: int = Query(1000, ge=1, le=10000, description="Max records"),
+    offset: int = Query(0, ge=0, description="Offset for pagination"),
+    auth_context: OrgContext = Depends(verify_api_key),
+    cost_service: PolarsCostService = Depends(get_cost_service)
+):
+    """
+    Get cost data for an organization.
+
+    - **org_slug**: Organization identifier (must match API key)
+    - **start_date**: Filter costs from this date
+    - **end_date**: Filter costs until this date
+    - **providers**: Comma-separated provider filter (e.g., "openai,anthropic")
+    - **service_categories**: Comma-separated category filter (e.g., "SaaS,Cloud")
+    - **limit**: Maximum records to return (default 1000, max 10000)
+    - **offset**: Pagination offset
+    """
+    # CRITICAL: Multi-tenancy security check
+    validate_org_access(org_slug, auth_context)
+
+    # Parse comma-separated filters
+    provider_list = [p.strip() for p in providers.split(",")] if providers else None
+    category_list = [c.strip() for c in service_categories.split(",")] if service_categories else None
+
+    query = CostQuery(
+        org_slug=org_slug,
+        start_date=start_date,
+        end_date=end_date,
+        providers=provider_list,
+        service_categories=category_list,
+        limit=limit,
+        offset=offset
+    )
+
+    result = await cost_service.get_costs(query)
+
+    if not result.success:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=result.error or "Failed to retrieve cost data"
+        )
+
+    return _to_response(result)
+
+
+@router.get(
+    "/{org_slug}/summary",
+    response_model=CostDataResponse,
+    summary="Get Cost Summary",
+    description="Get aggregated cost summary statistics for an organization."
+)
+async def get_cost_summary(
+    org_slug: str,
+    start_date: Optional[date] = Query(None, description="Start date (YYYY-MM-DD)"),
+    end_date: Optional[date] = Query(None, description="End date (YYYY-MM-DD)"),
+    providers: Optional[str] = Query(None, description="Comma-separated list of providers"),
+    auth_context: OrgContext = Depends(verify_api_key),
+    cost_service: PolarsCostService = Depends(get_cost_service)
+):
+    """
+    Get cost summary statistics for an organization.
+
+    Returns:
+    - Total billed cost
+    - Total effective cost
+    - Record count
+    - Date range
+    - Unique providers
+    - Unique service categories
+    """
+    # CRITICAL: Multi-tenancy security check
+    validate_org_access(org_slug, auth_context)
+
+    provider_list = [p.strip() for p in providers.split(",")] if providers else None
+
+    query = CostQuery(
+        org_slug=org_slug,
+        start_date=start_date,
+        end_date=end_date,
+        providers=provider_list
+    )
+
+    result = await cost_service.get_cost_summary(query)
+
+    if not result.success:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=result.error or "Failed to retrieve cost summary"
+        )
+
+    return _to_response(result)
+
+
+@router.get(
+    "/{org_slug}/by-provider",
+    response_model=CostDataResponse,
+    summary="Get Cost by Provider",
+    description="Get cost breakdown grouped by provider (OpenAI, Anthropic, GCP, etc.)."
+)
+async def get_cost_by_provider(
+    org_slug: str,
+    start_date: Optional[date] = Query(None, description="Start date (YYYY-MM-DD)"),
+    end_date: Optional[date] = Query(None, description="End date (YYYY-MM-DD)"),
+    auth_context: OrgContext = Depends(verify_api_key),
+    cost_service: PolarsCostService = Depends(get_cost_service)
+):
+    """
+    Get cost breakdown by provider.
+
+    Returns aggregated costs grouped by provider with:
+    - Total billed cost
+    - Total effective cost
+    - Record count
+    - Service categories per provider
+    """
+    # CRITICAL: Multi-tenancy security check
+    validate_org_access(org_slug, auth_context)
+
+    result = await cost_service.get_cost_by_provider(org_slug, start_date, end_date)
+
+    if not result.success:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=result.error or "Failed to retrieve cost by provider"
+        )
+
+    return _to_response(result)
+
+
+@router.get(
+    "/{org_slug}/by-service",
+    response_model=CostDataResponse,
+    summary="Get Cost by Service",
+    description="Get cost breakdown grouped by service category and name."
+)
+async def get_cost_by_service(
+    org_slug: str,
+    start_date: Optional[date] = Query(None, description="Start date (YYYY-MM-DD)"),
+    end_date: Optional[date] = Query(None, description="End date (YYYY-MM-DD)"),
+    auth_context: OrgContext = Depends(verify_api_key),
+    cost_service: PolarsCostService = Depends(get_cost_service)
+):
+    """
+    Get cost breakdown by service.
+
+    Returns aggregated costs grouped by:
+    - Service category
+    - Service name
+    - Provider
+
+    Limited to top 100 services by cost.
+    """
+    # CRITICAL: Multi-tenancy security check
+    validate_org_access(org_slug, auth_context)
+
+    result = await cost_service.get_cost_by_service(org_slug, start_date, end_date)
+
+    if not result.success:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=result.error or "Failed to retrieve cost by service"
+        )
+
+    return _to_response(result)
+
+
+@router.get(
+    "/{org_slug}/trend",
+    response_model=CostDataResponse,
+    summary="Get Cost Trend",
+    description="Get cost trend over time with configurable granularity."
+)
+async def get_cost_trend(
+    org_slug: str,
+    granularity: Granularity = Query(Granularity.DAILY, description="Time granularity"),
+    days: int = Query(30, ge=1, le=365, description="Number of days to look back"),
+    auth_context: OrgContext = Depends(verify_api_key),
+    cost_service: PolarsCostService = Depends(get_cost_service)
+):
+    """
+    Get cost trend over time.
+
+    - **granularity**: "daily", "weekly", or "monthly"
+    - **days**: Number of days to look back (default 30, max 365)
+
+    Returns time series data with:
+    - Period (date)
+    - Total billed cost
+    - Total effective cost
+    - Record count
+    - Providers active in period
+    """
+    # CRITICAL: Multi-tenancy security check
+    validate_org_access(org_slug, auth_context)
+
+    result = await cost_service.get_cost_trend(org_slug, granularity.value, days)
+
+    if not result.success:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=result.error or "Failed to retrieve cost trend"
+        )
+
+    return _to_response(result)
+
+
+# ==============================================================================
+# SaaS Subscription Costs Endpoint (Polars-powered)
+# ==============================================================================
+
+@router.get(
+    "/{org_slug}/saas-subscriptions",
+    response_model=CostDataResponse,
+    summary="Get SaaS Subscription Costs",
+    description="Get actual calculated SaaS subscription costs from cost_data_standard_1_2 (pipeline output)."
+)
+async def get_saas_subscription_costs(
+    org_slug: str,
+    start_date: Optional[date] = Query(None, description="Start date (YYYY-MM-DD). Defaults to first of current month."),
+    end_date: Optional[date] = Query(None, description="End date (YYYY-MM-DD). Defaults to today."),
+    auth_context: OrgContext = Depends(verify_api_key),
+    cost_service: PolarsCostService = Depends(get_cost_service)
+):
+    """
+    Get SaaS subscription costs from the cost_data_standard_1_2 table.
+
+    This is the **source of truth** for subscription costs, calculated by the
+    SaaS subscription costs pipeline (sp_run_saas_subscription_costs_pipeline).
+
+    Returns:
+    - Per-subscription monthly and annual run rates (calculated from daily costs)
+    - Total monthly and annual costs across all subscriptions
+    - Provider breakdown
+
+    Use this for the Subscription Costs dashboard to show actual calculated costs,
+    while using /subscriptions endpoints for plan details (seats, status, etc.).
+    """
+    # CRITICAL: Multi-tenancy security check
+    validate_org_access(org_slug, auth_context)
+
+    result = await cost_service.get_saas_subscription_costs(org_slug, start_date, end_date)
+
+    if not result.success:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=result.error or "Failed to retrieve SaaS subscription costs"
+        )
+
+    return _to_response(result)
+
+
+# ==============================================================================
+# Cache Management Endpoints
+# ==============================================================================
+
+@router.get(
+    "/{org_slug}/cache/stats",
+    response_model=CacheStat,
+    summary="Get Cache Statistics",
+    description="Get cache performance statistics (hit rate, size, etc.)."
+)
+async def get_cache_stats(
+    org_slug: str,
+    auth_context: OrgContext = Depends(verify_api_key),
+    cost_service: PolarsCostService = Depends(get_cost_service)
+):
+    """
+    Get cache statistics.
+
+    Returns:
+    - hits: Number of cache hits
+    - misses: Number of cache misses
+    - evictions: Number of cache evictions
+    - size: Current cache size
+    - max_size: Maximum cache size
+    - hit_rate: Cache hit rate (0.0 - 1.0)
+    """
+    # CRITICAL: Multi-tenancy security check
+    validate_org_access(org_slug, auth_context)
+
+    stats = cost_service.get_cache_stats()
+    return CacheStat(**stats)
+
+
+@router.post(
+    "/{org_slug}/cache/invalidate",
+    summary="Invalidate Cache",
+    description="Invalidate all cached cost data for an organization."
+)
+async def invalidate_cache(
+    org_slug: str,
+    auth_context: OrgContext = Depends(verify_api_key),
+    cost_service: PolarsCostService = Depends(get_cost_service)
+):
+    """
+    Invalidate all cached data for the organization.
+
+    Use this after data updates to ensure fresh data is returned.
+    """
+    # CRITICAL: Multi-tenancy security check
+    validate_org_access(org_slug, auth_context)
+
+    count = cost_service.invalidate_org_cache(org_slug)
+    return {
+        "success": True,
+        "message": f"Invalidated {count} cache entries for {org_slug}"
+    }

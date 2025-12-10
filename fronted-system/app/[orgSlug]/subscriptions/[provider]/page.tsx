@@ -28,6 +28,7 @@ import {
   Code,
   Cloud,
   CalendarX,
+  Info,
 } from "lucide-react"
 import { format } from "date-fns"
 
@@ -150,6 +151,7 @@ export default function ProviderDetailPage() {
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState(false)
   const [ending, setEnding] = useState(false)
+  const [showDeleted, setShowDeleted] = useState(false)
 
   // Date states
   const [addStartDate, setAddStartDate] = useState<Date | undefined>(new Date())
@@ -161,7 +163,7 @@ export default function ProviderDetailPage() {
     plan_name: "",
     display_name: "",
     unit_price_usd: 0,
-    seats: 0,
+    seats: 1,
     billing_cycle: "monthly",
     pricing_model: "FLAT_FEE",
     currency: "USD",
@@ -185,7 +187,7 @@ export default function ProviderDetailPage() {
       plan_name: "",
       display_name: "",
       unit_price_usd: 0,
-      seats: 0,
+      seats: 1,
       billing_cycle: "monthly",
       pricing_model: "FLAT_FEE",
       currency: "USD",
@@ -263,7 +265,7 @@ export default function ProviderDetailPage() {
       setEditPlanData({
         display_name: plan.display_name || plan.plan_name,
         unit_price_usd: plan.unit_price_usd,
-        seats: plan.seats || 1,
+        seats: plan.seats ?? 0,
         billing_cycle: plan.billing_cycle,
         pricing_model: plan.pricing_model || "FLAT_FEE",
         currency: plan.currency || "USD",
@@ -376,6 +378,11 @@ export default function ProviderDetailPage() {
       setError("Seats cannot be negative")
       return
     }
+    // Validate seats for PER_SEAT plans
+    if (newPlan.pricing_model === 'PER_SEAT' && (newPlan.seats ?? 0) < 1) {
+      setError("Per-seat plans require at least 1 seat")
+      return
+    }
 
     setAdding(true)
     setError(null)
@@ -410,8 +417,14 @@ export default function ProviderDetailPage() {
   }
 
   const providerDisplayName = getProviderDisplayName(provider)
-  const activePlans = plans.filter(p => p.status === 'active')
-  const activePlansCount = activePlans.length
+  // Filter plans based on showDeleted toggle
+  const visiblePlans = showDeleted
+    ? plans // Show all plans including cancelled/expired
+    : plans.filter(p => p.status === 'active' || p.status === 'pending')
+  // Total active seats = sum of all seats from active plans
+  const totalActiveSeats = plans.filter(p => p.status === 'active').reduce((sum, p) => sum + (p.seats ?? 0), 0)
+  const activeSubscriptionsCount = plans.filter(p => p.status === 'active' && (p.seats ?? 0) > 0).length
+  const deletedPlansCount = plans.filter(p => p.status === 'cancelled' || p.status === 'expired').length
 
   if (loading) {
     return (
@@ -526,26 +539,36 @@ export default function ProviderDetailPage() {
         </Card>
       )}
 
+      {/* Info Banner - Cost Update Timing */}
+      <Card className="border-blue-200 bg-blue-50">
+        <CardContent className="py-3 px-4">
+          <div className="flex items-center gap-3">
+            <Info className="h-5 w-5 text-blue-600 flex-shrink-0" />
+            <p className="text-sm text-blue-700">
+              New changes to subscription costs will be reflected within 24 hours once the scheduler runs every day at midnight.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="console-stat-card">
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-[#007A78]">
-              {formatCurrency(totalMonthlyCost)}
-            </div>
-            <p className="text-sm text-muted-foreground">Monthly Cost</p>
+            <div className="text-2xl font-bold">{totalActiveSeats}</div>
+            <p className="text-sm text-muted-foreground">Total Active Seats</p>
           </CardContent>
         </Card>
         <Card className="console-stat-card">
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold">{activePlansCount}</div>
-            <p className="text-sm text-muted-foreground">Active Plans</p>
+            <div className="text-2xl font-bold">{activeSubscriptionsCount}</div>
+            <p className="text-sm text-muted-foreground">Active Subscriptions</p>
           </CardContent>
         </Card>
         <Card className="console-stat-card">
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold">{plans.length}</div>
-            <p className="text-sm text-muted-foreground">Total Plans</p>
+            <div className="text-2xl font-bold">{visiblePlans.length}</div>
+            <p className="text-sm text-muted-foreground">Available Plans</p>
           </CardContent>
         </Card>
       </div>
@@ -553,13 +576,31 @@ export default function ProviderDetailPage() {
       {/* Plans Table */}
       <Card className="console-table-card">
         <CardHeader>
-          <CardTitle className="console-card-title">{providerDisplayName} Plans</CardTitle>
-          <CardDescription>
-            Toggle plans on/off to include them in cost tracking. Click a row to see more details.
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="console-card-title">{providerDisplayName} Plans</CardTitle>
+              <CardDescription>
+                Toggle plans on/off to include them in cost tracking. Click a row to see more details.
+              </CardDescription>
+            </div>
+            {deletedPlansCount > 0 && (
+              <div className="flex items-center gap-2">
+                <label htmlFor="show-deleted" className="text-sm text-slate-500 cursor-pointer">
+                  Show cancelled ({deletedPlansCount})
+                </label>
+                <input
+                  id="show-deleted"
+                  type="checkbox"
+                  checked={showDeleted}
+                  onChange={(e) => setShowDeleted(e.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300 text-[#007A78] focus:ring-[#007A78] cursor-pointer"
+                />
+              </div>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="px-0">
-          {plans.length === 0 ? (
+          {visiblePlans.length === 0 ? (
             <div className="text-center py-12 px-6">
               <CreditCard className="h-12 w-12 mx-auto text-slate-300 mb-4" />
               <h3 className="text-lg font-medium text-slate-900 mb-2">No plans configured yet</h3>
@@ -585,11 +626,16 @@ export default function ProviderDetailPage() {
 
               {/* Table Body */}
               <div className="divide-y divide-slate-100">
-                {plans.map((plan) => {
-                  const isActive = plan.status === 'active' || plan.status === 'pending'
+                {visiblePlans.map((plan) => {
+                  // A plan is truly "active" only if it has seats assigned
+                  const hasActiveSeats = (plan.seats ?? 0) > 0
+                  const isActive = (plan.status === 'active' || plan.status === 'pending') && hasActiveSeats
                   const isPending = plan.status === 'pending' || (plan.start_date && new Date(plan.start_date) > new Date())
+                  // Display status: show "inactive" for plans with 0 seats
+                  const displayStatus = hasActiveSeats ? plan.status : 'inactive'
                   const statusColors: Record<string, string> = {
                     active: "bg-green-100 text-green-700 border-green-200",
+                    inactive: "bg-slate-100 text-slate-600 border-slate-200",
                     pending: "bg-yellow-100 text-yellow-700 border-yellow-200",
                     cancelled: "bg-gray-100 text-gray-700 border-gray-200",
                     expired: "bg-red-100 text-red-700 border-red-200"
@@ -605,9 +651,9 @@ export default function ProviderDetailPage() {
                       <div className="col-span-1" onClick={(e) => e.stopPropagation()}>
                         <Badge
                           variant="outline"
-                          className={`capitalize text-xs ${statusColors[plan.status] || statusColors.cancelled}`}
+                          className={`capitalize text-xs ${statusColors[displayStatus] || statusColors.inactive}`}
                         >
-                          {plan.status}
+                          {displayStatus}
                         </Badge>
                       </div>
                       <div className="col-span-3">
@@ -616,7 +662,11 @@ export default function ProviderDetailPage() {
                             {plan.display_name || plan.plan_name}
                           </span>
                           {isPending && (
-                            <Badge variant="outline" className="text-xs bg-yellow-50 text-yellow-700 border-yellow-200">
+                            <Badge
+                              variant="outline"
+                              className="text-xs bg-yellow-50 text-yellow-700 border-yellow-200"
+                              title="This plan will become active when the start date arrives"
+                            >
                               Pending {plan.start_date && `(${format(new Date(plan.start_date), 'MMM d')})`}
                             </Badge>
                           )}
@@ -643,7 +693,7 @@ export default function ProviderDetailPage() {
                         </Badge>
                       </div>
                       <div className="col-span-2 text-right text-slate-600">
-                        {plan.seats || 1}
+                        {plan.seats ?? 0}
                       </div>
                       <div className="col-span-2 text-right flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
                         <Button
@@ -718,7 +768,7 @@ export default function ProviderDetailPage() {
                               </Badge>
                             </div>
                           )}
-                          {plan.discount_type && plan.discount_value && (
+                          {plan.discount_type && plan.discount_value !== undefined && plan.discount_value > 0 && (
                             <div>
                               <span className="text-slate-500 block text-xs uppercase tracking-wide mb-1">Discount</span>
                               <span className="font-medium text-green-600">
@@ -956,11 +1006,18 @@ export default function ProviderDetailPage() {
                   </div>
                   <div>
                     <span className="text-slate-500">Seats:</span>
-                    <span className="ml-2">{showEditDialog.plan.seats || 1}</span>
+                    <span className="ml-2">{showEditDialog.plan.seats ?? 0}</span>
                   </div>
                   <div>
                     <span className="text-slate-500">Monthly Cost:</span>
-                    <span className="ml-2 font-medium">{formatCurrency(showEditDialog.plan.unit_price_usd * (showEditDialog.plan.seats || 1))}</span>
+                    <span className="ml-2 font-medium">{(() => {
+                      const plan = showEditDialog.plan
+                      let monthlyCost = plan.unit_price_usd * (plan.seats ?? 1)
+                      if (plan.pricing_model === 'FLAT_FEE') monthlyCost = plan.unit_price_usd
+                      if (plan.billing_cycle === 'annual') monthlyCost = monthlyCost / 12
+                      if (plan.billing_cycle === 'quarterly') monthlyCost = monthlyCost / 3
+                      return formatCurrency(monthlyCost)
+                    })()}</span>
                   </div>
                 </div>
               </div>
@@ -1107,11 +1164,18 @@ export default function ProviderDetailPage() {
                   )}
                   <div>
                     <span className="text-slate-500">Monthly Cost:</span>
-                    <span className="ml-2 font-medium">{formatCurrency(showEndDialog.plan.unit_price_usd * (showEndDialog.plan.seats || 1))}</span>
+                    <span className="ml-2 font-medium">{(() => {
+                      const plan = showEndDialog.plan
+                      let monthlyCost = plan.unit_price_usd * (plan.seats ?? 1)
+                      if (plan.pricing_model === 'FLAT_FEE') monthlyCost = plan.unit_price_usd
+                      if (plan.billing_cycle === 'annual') monthlyCost = monthlyCost / 12
+                      if (plan.billing_cycle === 'quarterly') monthlyCost = monthlyCost / 3
+                      return formatCurrency(monthlyCost)
+                    })()}</span>
                   </div>
                   <div>
                     <span className="text-slate-500">Seats:</span>
-                    <span className="ml-2">{showEndDialog.plan.seats || 1}</span>
+                    <span className="ml-2">{showEndDialog.plan.seats ?? 0}</span>
                   </div>
                   {showEndDialog.plan.owner_email && (
                     <div>

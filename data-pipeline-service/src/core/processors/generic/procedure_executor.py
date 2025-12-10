@@ -10,7 +10,7 @@ import logging
 import re
 import asyncio
 from typing import Dict, Any, List, Optional
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from google.cloud import bigquery
 from google.api_core import retry
 from google.api_core.exceptions import GoogleAPIError
@@ -149,8 +149,23 @@ class ProcedureExecutorProcessor:
             # Resolve value from context if it's a template variable
             resolved_value = self._resolve_value(param_value, resolution_context)
 
+            # Check for default value if resolved_value is None
+            default_value = param.get("default")
+            if resolved_value is None and default_value is not None:
+                resolved_value = self._resolve_default_value(default_value, param_type)
+                self.logger.info(f"Parameter {param_name} using default value: {resolved_value}")
+
+            # Check if parameter is marked as optional
+            is_optional = param.get("optional", False)
+
             if resolved_value is None:
-                self.logger.warning(f"Parameter {param_name} resolved to None")
+                if is_optional:
+                    # Pass NULL explicitly for optional parameters
+                    self.logger.info(f"Parameter {param_name} is optional and resolved to None - passing NULL")
+                    bq_param = bigquery.ScalarQueryParameter(param_name, param_type, None)
+                    query_parameters.append(bq_param)
+                else:
+                    self.logger.warning(f"Parameter {param_name} resolved to None (skipping)")
                 continue
 
             # Convert to appropriate BigQuery parameter type
@@ -317,6 +332,37 @@ class ProcedureExecutorProcessor:
 
         # Return literal value
         return value
+
+    def _resolve_default_value(self, default: str, param_type: str) -> Any:
+        """
+        Resolve special default values for parameters.
+
+        Supports:
+            - "TODAY" - Current date
+            - "MONTH_START" - First day of current month
+            - "MONTH_END" - Last day of current month
+            - "YEAR_START" - First day of current year
+            - Date string like "2025-01-01" - Parsed as-is
+        """
+        today = date.today()
+
+        if default.upper() == "TODAY":
+            return today
+        elif default.upper() == "MONTH_START":
+            return today.replace(day=1)
+        elif default.upper() == "MONTH_END":
+            # Get last day of month
+            if today.month == 12:
+                return date(today.year + 1, 1, 1) - timedelta(days=1)
+            else:
+                return date(today.year, today.month + 1, 1) - timedelta(days=1)
+        elif default.upper() == "YEAR_START":
+            return date(today.year, 1, 1)
+        elif default.upper() == "YEAR_END":
+            return date(today.year, 12, 31)
+        else:
+            # Return as-is (will be parsed by _create_bq_parameter)
+            return default
 
     def _create_bq_parameter(
         self,

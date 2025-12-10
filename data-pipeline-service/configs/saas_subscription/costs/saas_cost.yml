@@ -56,9 +56,11 @@ steps:
         - name: p_start_date
           type: DATE
           value: "${start_date}"
+          default: "MONTH_START"  # Default to start of current month
         - name: p_end_date
           type: DATE
           value: "${end_date}"
+          default: "TODAY"  # Default to current date
 
 requires_auth: true
 auth_type: "org_api_key"

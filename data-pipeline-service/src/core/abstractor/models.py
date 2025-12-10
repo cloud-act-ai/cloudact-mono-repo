@@ -206,6 +206,9 @@ class PipelineStepConfig(BaseModel):
     message: Optional[str] = Field(None, description="Email message for notifications")
     variables: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Variables for template replacement")
 
+    # Generic config for processor-specific settings (procedure executor, api extractor, etc.)
+    config: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Processor-specific configuration")
+
     # BigQuery to BigQuery step fields
     # Note: source can be BigQuerySourceConfig OR DataQualitySourceConfig OR dict (for flexibility)
     source: Optional[BigQuerySourceConfig | DataQualitySourceConfig | Dict[str, Any]] = Field(
@@ -270,7 +273,7 @@ class PipelineConfig(BaseModel):
     pipeline_id: str = Field(..., description="Unique pipeline identifier", min_length=1)
     description: Optional[str] = Field(None, description="Pipeline description")
     version: Optional[str] = Field(None, description="Pipeline version")
-    schedule: Optional[str] = Field(None, description="Cron expression for scheduling")
+    schedule: Optional[str | Dict[str, Any]] = Field(None, description="Cron expression or schedule config")
     steps: List[PipelineStepConfig] = Field(..., min_length=1, description="Pipeline steps (at least 1 required)")
     timeout_minutes: int = Field(default=30, ge=1, le=1440, description="Pipeline timeout in minutes")
     timeout_seconds: int = Field(default=3600, ge=60, description="Pipeline timeout in seconds (deprecated)")

@@ -374,6 +374,11 @@ export async function checkBackendOnboarding(orgSlug: string): Promise<{
   apiKeyFingerprint?: string
 }> {
   try {
+    // Validate orgSlug format to prevent injection
+    if (!isValidOrgSlug(orgSlug)) {
+      return { onboarded: false }
+    }
+
     const supabase = await createClient()
 
     const { data, error } = await supabase
@@ -460,6 +465,10 @@ export async function getApiKeyInfo(orgSlug: string): Promise<{
 }
 
 // Simple in-memory lock to prevent concurrent API key rotations
+// NOTE: This lock only works within a single serverless instance.
+// In production with multiple instances, concurrent rotations may still occur.
+// For stronger guarantees, consider using a database-based lock or Redis.
+// The backend should also have idempotency protection for key rotation.
 const rotationLocks = new Map<string, boolean>()
 
 /**

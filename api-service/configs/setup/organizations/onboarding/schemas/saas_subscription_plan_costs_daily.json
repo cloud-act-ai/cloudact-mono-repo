@@ -3,114 +3,108 @@
     "name": "org_slug",
     "type": "STRING",
     "mode": "REQUIRED",
-    "description": "Unique organization identifier."
+    "description": "Organization identifier."
   },
   {
     "name": "provider",
     "type": "STRING",
-    "mode": "NULLABLE",
-    "description": "SaaS provider name."
+    "mode": "REQUIRED",
+    "description": "SaaS provider name (e.g., chatgpt_plus, slack, canva)."
   },
   {
     "name": "subscription_id",
     "type": "STRING",
-    "mode": "NULLABLE",
-    "description": "Foreign key to subscription_plans."
+    "mode": "REQUIRED",
+    "description": "Foreign key to saas_subscription_plans."
   },
   {
     "name": "plan_name",
     "type": "STRING",
-    "mode": "NULLABLE",
-    "description": "Plan tier name."
+    "mode": "REQUIRED",
+    "description": "Plan tier (FREE, PRO, TEAM, ENTERPRISE)."
   },
   {
     "name": "display_name",
     "type": "STRING",
     "mode": "NULLABLE",
-    "description": "Human-readable service name."
+    "description": "Human-readable name."
   },
   {
     "name": "cost_date",
     "type": "DATE",
-    "mode": "NULLABLE",
-    "description": "The specific day for which this cost applies."
+    "mode": "REQUIRED",
+    "description": "The day this cost applies to (partition key)."
   },
   {
     "name": "billing_cycle",
     "type": "STRING",
-    "mode": "NULLABLE",
-    "description": "Billing frequency (monthly/annual) used for this day's calculation."
+    "mode": "REQUIRED",
+    "description": "Billing frequency: monthly, annual."
   },
   {
     "name": "currency",
     "type": "STRING",
-    "mode": "NULLABLE",
-    "description": "Currency of the calculated cost."
+    "mode": "REQUIRED",
+    "description": "Currency code (USD, EUR, GBP)."
   },
   {
     "name": "seats",
     "type": "INTEGER",
-    "mode": "NULLABLE",
-    "description": "Active seat count on this specific day."
-  },
-  {
-    "name": "quantity",
-    "type": "NUMERIC",
-    "mode": "NULLABLE",
-    "description": "Billable quantity (same as seats for PER_SEAT, 1 for FLAT_FEE)."
-  },
-  {
-    "name": "unit",
-    "type": "STRING",
-    "mode": "NULLABLE",
-    "description": "Unit of measure. 'seat' for PER_SEAT, 'subscription' for FLAT_FEE."
+    "mode": "REQUIRED",
+    "description": "Number of seats/licenses."
   },
   {
     "name": "pricing_model",
     "type": "STRING",
-    "mode": "NULLABLE",
-    "description": "Pricing model: PER_SEAT or FLAT_FEE."
+    "mode": "REQUIRED",
+    "description": "PER_SEAT or FLAT_FEE."
   },
   {
     "name": "cycle_cost",
     "type": "NUMERIC",
-    "mode": "NULLABLE",
-    "description": "The full cycle cost (Monthly/Annual) before amortization."
+    "mode": "REQUIRED",
+    "description": "Full billing cycle cost after discounts."
   },
   {
     "name": "daily_cost",
     "type": "NUMERIC",
-    "mode": "NULLABLE",
-    "description": "The derived cost for this single day. (Cycle Cost / Days in Cycle)."
+    "mode": "REQUIRED",
+    "description": "Amortized daily cost (cycle_cost / days_in_period)."
   },
   {
     "name": "monthly_run_rate",
     "type": "NUMERIC",
     "mode": "NULLABLE",
-    "description": "Extrapolated monthly cost based on this day's rate."
+    "description": "Projected monthly cost (daily_cost × days_in_month)."
   },
   {
     "name": "annual_run_rate",
     "type": "NUMERIC",
     "mode": "NULLABLE",
-    "description": "Extrapolated annual cost based on this day's rate."
+    "description": "Projected annual cost (daily_cost × days_in_year)."
   },
   {
     "name": "invoice_id_last",
     "type": "STRING",
     "mode": "NULLABLE",
-    "description": "Linked invoice ID."
+    "description": "Last invoice reference."
   },
   {
     "name": "source",
     "type": "STRING",
-    "mode": "NULLABLE",
-    "description": "Source system identifier (e.g., 'subscription_proration')."
+    "mode": "REQUIRED",
+    "description": "Source: subscription_amortization."
+  },
+  {
+    "name": "run_date",
+    "type": "DATE",
+    "mode": "REQUIRED",
+    "description": "Date when pipeline job ran to calculate this cost."
   },
   {
     "name": "updated_at",
     "type": "TIMESTAMP",
-    "mode": "NULLABLE",
-    "description": "Timestamp of calculation."
+    "mode": "REQUIRED",
+    "description": "Timestamp when this row was written."
   }
 ]

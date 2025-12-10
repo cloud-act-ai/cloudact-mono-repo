@@ -36,35 +36,39 @@ CREATE OR REPLACE PROCEDURE `{project_id}.organizations`.sp_run_saas_subscriptio
   p_end_date DATE
 )
 BEGIN
-  DECLARE v_sql STRING;
+  -- Declare local variables for defaulting dates
+  DECLARE v_start_date DATE;
+  DECLARE v_end_date DATE;
 
-  -- 1. Parameter Validation
+  -- 1. Parameter Validation (required params)
   ASSERT p_project_id IS NOT NULL AS "p_project_id cannot be NULL";
   ASSERT p_dataset_id IS NOT NULL AS "p_dataset_id cannot be NULL";
-  ASSERT p_start_date IS NOT NULL AS "p_start_date cannot be NULL";
-  ASSERT p_end_date IS NOT NULL AS "p_end_date cannot be NULL";
-  ASSERT p_end_date >= p_start_date AS "p_end_date must be >= p_start_date";
+
+  -- 2. Default dates if not provided
+  -- Default: first of current month to today
+  SET v_start_date = COALESCE(p_start_date, DATE_TRUNC(CURRENT_DATE(), MONTH));
+  SET v_end_date = COALESCE(p_end_date, CURRENT_DATE());
+
+  -- Validate date range
+  ASSERT v_end_date >= v_start_date AS "p_end_date must be >= p_start_date";
 
   -- 2. Stage 1: Calculate Daily Costs
-  SET v_sql = FORMAT("""
-    CALL `%s.organizations`.sp_calculate_saas_subscription_plan_costs_daily(@p_project, @p_dataset, @p_start, @p_end)
-  """, p_project_id);
-  EXECUTE IMMEDIATE v_sql
-  USING p_project_id AS p_project, p_dataset_id AS p_dataset, p_start_date AS p_start, p_end_date AS p_end;
+  -- Note: Using direct CALL - procedures must be in same project as orchestrator
+  CALL `{project_id}.organizations`.sp_calculate_saas_subscription_plan_costs_daily(
+    p_project_id, p_dataset_id, v_start_date, v_end_date
+  );
 
   -- 3. Stage 2: Convert to FOCUS 1.2 Standard
-  SET v_sql = FORMAT("""
-    CALL `%s.organizations`.sp_convert_saas_costs_to_focus_1_2(@p_project, @p_dataset, @p_start, @p_end)
-  """, p_project_id);
-  EXECUTE IMMEDIATE v_sql
-  USING p_project_id AS p_project, p_dataset_id AS p_dataset, p_start_date AS p_start, p_end_date AS p_end;
+  CALL `{project_id}.organizations`.sp_convert_saas_costs_to_focus_1_2(
+    p_project_id, p_dataset_id, v_start_date, v_end_date
+  );
 
   -- 4. Completion
   SELECT 'SaaS Subscription Costs Pipeline Completed' AS status,
          p_project_id AS project_id,
          p_dataset_id AS dataset_id,
-         p_start_date AS start_date,
-         p_end_date AS end_date;
+         v_start_date AS start_date,
+         v_end_date AS end_date;
 
 EXCEPTION WHEN ERROR THEN
   SELECT @@error.message AS error_message;

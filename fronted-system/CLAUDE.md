@@ -456,6 +456,9 @@ const result = await onboardToBackend({
 // Get org API key (from user metadata)
 const apiKey = await getOrgApiKeySecure("acmecorp")
 
+// DEV ONLY: Get decrypted API key via api-service (local/dev environments only)
+// curl -X GET "http://localhost:8000/api/v1/admin/dev/api-key/{org_slug}" -H "X-CA-Root-Key: $CA_ROOT_API_KEY"
+
 // Check if org is onboarded
 const status = await checkBackendOnboarding("acmecorp")
 

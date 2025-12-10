@@ -351,6 +351,85 @@ export RATE_LIMIT_ENABLED="true"
   - Success criteria and benchmarks
 - **Next steps:** Add timeouts to all BigQuery operations (Phase 2 - Week 2)
 
+### Dev-Only API Key Retrieval Endpoint (December 2024)
+- **Added development-only endpoint for API key retrieval:**
+  - `GET /api/v1/admin/dev/api-key/{org_slug}` - Retrieves decrypted org API key
+  - Requires `X-CA-Root-Key` header (admin authentication)
+  - Only available when `ENVIRONMENT` is `development` or `local`
+  - Returns 403 Forbidden in production environments
+  - Used for local testing and debugging only
+- **Security measures:**
+  - Environment check blocks production access
+  - Logs security violation attempts
+  - Requires admin authentication
+- **Usage:**
+  ```bash
+  curl -X GET "http://localhost:8000/api/v1/admin/dev/api-key/{org_slug}" \
+    -H "X-CA-Root-Key: $CA_ROOT_API_KEY"
+  ```
+
+### SaaS Subscription Seed Data Fix (December 2024)
+- **Fixed provider name mismatch in seed CSV:**
+  - CSV file: `configs/saas/seed/data/saas_subscription_plans.csv`
+  - Changed `chatgpt` → `chatgpt_plus` (4 plans)
+  - Changed `claude` → `claude_pro` (4 plans)
+  - Changed `github_copilot` → `copilot` (4 plans)
+  - Changed `microsoft_teams` → `teams` (2 plans)
+- **Root cause:** Frontend expected provider names like `chatgpt_plus` but CSV had `chatgpt`
+- **Impact:** Default plans now seed correctly when enabling providers
+- **Frontend update:** Added `force` parameter support to `enableProvider()` function
+
 ---
 
-**Last Updated:** 2025-12-07
+## Quick Onboarding Steps
+
+```bash
+# 1. Bootstrap (one-time)
+curl -s -X POST "http://localhost:8000/api/v1/admin/bootstrap" \
+  -H "X-CA-Root-Key: $CA_ROOT_API_KEY" -d '{}'
+
+# 2. Onboard organization
+curl -s -X POST "http://localhost:8000/api/v1/organizations/onboard" \
+  -H "X-CA-Root-Key: $CA_ROOT_API_KEY" \
+  -d '{"org_slug": "my_org", "company_name": "My Org", "admin_email": "a@b.com"}'
+
+# 3. Get API key (dev only)
+curl -s -X GET "http://localhost:8000/api/v1/admin/dev/api-key/{org_slug}" \
+  -H "X-CA-Root-Key: $CA_ROOT_API_KEY"
+
+# 4. Enable SaaS provider
+curl -s -X POST "http://localhost:8000/api/v1/subscriptions/{org_slug}/providers/chatgpt_plus/enable" \
+  -H "X-API-Key: $ORG_API_KEY" -d '{}'
+
+# 5. Sync procedures (pipeline-service port 8001)
+curl -s -X POST "http://localhost:8001/api/v1/procedures/sync" \
+  -H "X-CA-Root-Key: $CA_ROOT_API_KEY" -d '{}'
+
+# 6. Run pipeline (pipeline-service port 8001)
+curl -s -X POST "http://localhost:8001/api/v1/pipelines/run/{org_slug}/saas_subscription/costs/saas_cost" \
+  -H "X-API-Key: $ORG_API_KEY" -d '{}'
+```
+
+## Re-Onboarding (Dataset Deleted)
+
+When you manually delete a BigQuery dataset and need to recreate it:
+
+```bash
+# 1. Delete org from meta tables
+curl -s -X DELETE "http://localhost:8000/api/v1/organizations/{org_slug}" \
+  -H "X-CA-Root-Key: $CA_ROOT_API_KEY" \
+  -d '{"confirm_org_slug": "{org_slug}", "delete_dataset": false}'
+
+# 2. Re-onboard (creates new dataset + tables + API key)
+curl -s -X POST "http://localhost:8000/api/v1/organizations/onboard" \
+  -H "X-CA-Root-Key: $CA_ROOT_API_KEY" \
+  -d '{"org_slug": "{org_slug}", "company_name": "Company Name", "admin_email": "email@example.com"}'
+
+# 3. Get new API key
+curl -s -X GET "http://localhost:8000/api/v1/admin/dev/api-key/{org_slug}" \
+  -H "X-CA-Root-Key: $CA_ROOT_API_KEY"
+```
+
+---
+
+**Last Updated:** 2025-12-09

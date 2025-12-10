@@ -288,6 +288,10 @@ tags_metadata = [
     {
         "name": "Quota",
         "description": "Quota usage and limits endpoints. Retrieve current pipeline usage and available quotas for organizations."
+    },
+    {
+        "name": "Costs",
+        "description": "High-performance, Polars-powered read-only cost analytics endpoints. Retrieve cost data, summaries, and trends using FOCUS 1.2 standard schema."
     }
 ]
 
@@ -761,7 +765,7 @@ async def metrics():
 # API Routers (NO PIPELINES OR SCHEDULER)
 # ============================================
 
-from src.app.routers import admin, organizations, integrations, llm_data, pipeline_validator, pipeline_logs, subscription_plans, quota
+from src.app.routers import admin, organizations, integrations, llm_data, pipeline_validator, pipeline_logs, subscription_plans, quota, costs
 
 app.include_router(admin.router, prefix="/api/v1", tags=["Admin"])
 app.include_router(organizations.router, prefix="/api/v1", tags=["Organizations"])
@@ -771,6 +775,7 @@ app.include_router(subscription_plans.router, prefix="/api/v1", tags=["Subscript
 app.include_router(pipeline_validator.router, prefix="/api/v1", tags=["Pipeline Validator"])
 app.include_router(pipeline_logs.router, prefix="/api/v1", tags=["Pipeline Logs"])
 app.include_router(quota.router, prefix="/api/v1", tags=["Quota"])
+app.include_router(costs.router, prefix="/api/v1", tags=["Costs"])
 
 
 if __name__ == "__main__":

@@ -251,10 +251,11 @@ export async function inviteMember(orgSlug: string, email: string, role: "collab
     }
 
     // Check if email is already a member (check by email in profiles)
+    // Use normalizedEmail for case-insensitive comparison
     const { data: existingProfile } = await adminClient
       .from("profiles")
       .select("id")
-      .eq("email", email)
+      .ilike("email", normalizedEmail)
       .maybeSingle()
 
     if (existingProfile) {
@@ -270,12 +271,12 @@ export async function inviteMember(orgSlug: string, email: string, role: "collab
       }
     }
 
-    // Check if there's already a pending invite
+    // Check if there's already a pending invite (case-insensitive)
     const { data: existingInvite } = await adminClient
       .from("invites")
       .select("id, status")
       .eq("org_id", org.id)
-      .eq("email", email)
+      .ilike("email", normalizedEmail)
       .eq("status", "pending")
       .maybeSingle()
 
@@ -289,11 +290,12 @@ export async function inviteMember(orgSlug: string, email: string, role: "collab
     expiresAt.setHours(expiresAt.getHours() + 48) // 48 hour expiry
 
     // Insert invite using adminClient to bypass RLS
+    // Use normalizedEmail to ensure consistent case for lookups
     const { error: inviteError } = await adminClient
       .from("invites")
       .insert({
         org_id: org.id,
-        email,
+        email: normalizedEmail,
         role,
         token,
         invited_by: user.id,
@@ -319,7 +321,7 @@ export async function inviteMember(orgSlug: string, email: string, role: "collab
 
     // Send invite email via SMTP
     const emailSent = await sendInviteEmail({
-      to: email,
+      to: normalizedEmail,
       inviterName,
       orgName: org.org_name,
       role,
@@ -327,7 +329,7 @@ export async function inviteMember(orgSlug: string, email: string, role: "collab
     })
 
     if (emailSent) {
-      console.log("[v0] Invite email sent to:", email)
+      console.log("[v0] Invite email sent to:", normalizedEmail)
     } else {
       console.warn("[v0] Invite email not sent (SMTP not configured) - link still works:", inviteLink)
     }
@@ -349,6 +351,13 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-
 
 function isValidUUID(uuid: string): boolean {
   return UUID_REGEX.test(uuid)
+}
+
+// Invite token validation (64 hex chars from randomBytes(32).toString("hex"))
+function isValidInviteToken(token: string): boolean {
+  if (!token || typeof token !== "string") return false
+  // Token should be exactly 64 hex characters
+  return /^[0-9a-f]{64}$/i.test(token)
 }
 
 export async function removeMember(orgSlug: string, memberUserId: string) {
@@ -532,6 +541,11 @@ export async function updateMemberRole(
 // Accept an invite by token - used by invited users
 export async function acceptInvite(token: string) {
   try {
+    // Validate token format before database query
+    if (!isValidInviteToken(token)) {
+      return { success: false, error: "Invalid invite link" }
+    }
+
     const supabase = await createClient()
     const adminClient = createServiceRoleClient()
 
@@ -641,6 +655,11 @@ export async function acceptInvite(token: string) {
 // Get invite info by token (for displaying invite page)
 export async function getInviteInfo(token: string) {
   try {
+    // Validate token format before database query
+    if (!isValidInviteToken(token)) {
+      return { success: false, error: "Invalid invite link" }
+    }
+
     const adminClient = createServiceRoleClient()
 
     const { data: invite, error } = await adminClient
@@ -692,6 +711,16 @@ export async function getInviteInfo(token: string) {
 
 export async function cancelInvite(orgSlug: string, inviteId: string) {
   try {
+    // Validate orgSlug format
+    if (!isValidOrgSlug(orgSlug)) {
+      return { success: false, error: "Invalid organization" }
+    }
+
+    // Validate inviteId is a valid UUID to prevent injection
+    if (!isValidUUID(inviteId)) {
+      return { success: false, error: "Invalid invite ID" }
+    }
+
     const supabase = await createClient()
     const adminClient = createServiceRoleClient()
 

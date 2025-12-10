@@ -21,6 +21,13 @@ interface InviteData {
   }
 }
 
+// Invite token validation (64 hex chars from randomBytes(32).toString("hex"))
+// Must match server-side validation in actions/members.ts
+function isValidInviteToken(token: string): boolean {
+  if (!token || typeof token !== "string") return false
+  return /^[0-9a-f]{64}$/i.test(token)
+}
+
 export default function InvitePage() {
   const params = useParams()
   const router = useRouter()
@@ -39,6 +46,13 @@ export default function InvitePage() {
     setError(null)
 
     try {
+      // Validate token format before making server call
+      if (!isValidInviteToken(token)) {
+        setError("Invalid invite link")
+        setIsLoading(false)
+        return
+      }
+
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
 

@@ -1,6 +1,6 @@
 # SaaS Subscription Costs
 
-**Status**: IMPLEMENTED (v11.0) | **Updated**: 2025-12-06 | **Single Source of Truth**
+**Status**: IMPLEMENTED (v12.0) | **Updated**: 2025-12-08 | **Single Source of Truth**
 
 > Track fixed-cost SaaS subscriptions (Canva, ChatGPT Plus, Slack, etc.)
 > NOT CloudAct platform billing (that's Stripe)
@@ -53,8 +53,12 @@ Examples:
 - Functions for **providers**: `enableProvider()`, `disableProvider()`, `getAllProviders()`
 - Functions for **plans**: `getProviderPlans()`, `createCustomPlan()`, `togglePlan()`
 
-**Field Terminology (v10.0):**
-- `status` - Subscription status: `active`, `cancelled`, `expired` (replaces `is_enabled`)
+**Field Terminology (v12.0):**
+- `status` - Subscription status: `pending`, `active`, `cancelled`, `expired` (replaces `is_enabled`)
+  - `pending` - Newly seeded plans awaiting user activation (default for seed data)
+  - `active` - Currently active subscriptions (costs calculated)
+  - `cancelled` - User cancelled subscription (soft delete with `end_date`)
+  - `expired` - Past `end_date` (auto-set by pipeline)
 - `billing_cycle` - Payment frequency: `monthly`, `yearly`, `quarterly`, `weekly` (replaces `billing_period`)
 - `discount_type` - Discount format: `percentage`, `fixed`, `none` (replaces `yearly_discount_pct`)
 - `pricing_model` - Pricing structure: `per_seat`, `flat_rate`, `tiered` (new field)
@@ -147,8 +151,10 @@ Examples:
 - Table exists immediately after onboarding (EMPTY)
 - Data is seeded PER PROVIDER when enabled
 - Seed data comes from `saas_subscription_plans.csv`
-- Custom plans are user-added via API
+- **Seeded plans have `status=pending` by default** - users must activate plans they want to track
+- Custom plans are user-added via API (can set status to `active` or `pending`)
 - Disabling provider DELETES all plans from BigQuery
+- **Cost updates are reflected within 24 hours** when the scheduler runs daily at midnight
 
 ---
 
@@ -182,7 +188,7 @@ Examples:
 │  ├── plan_name: STRING          (e.g., "FREE", "PRO", "TEAM")              │
 │  ├── display_name: STRING       (human-readable name)                      │
 │  ├── category: STRING           (ai, design, productivity, etc.)           │
-│  ├── status: STRING             (active, cancelled, expired)               │
+│  ├── status: STRING             (pending, active, cancelled, expired)      │
 │  ├── start_date: DATE           (subscription start date)                  │
 │  ├── end_date: DATE             (subscription end date, nullable)          │
 │  ├── billing_cycle: STRING      (monthly, yearly, quarterly, weekly)       │
@@ -468,12 +474,12 @@ org_slug,subscription_id,provider,plan_name,display_name,category,status,start_d
 | plan_name | STRING | Plan tier (FREE, PRO, TEAM, BUSINESS) |
 | display_name | STRING | Human-readable name |
 | category | STRING | ai, design, productivity, communication, development |
-| status | STRING | active, cancelled, expired |
+| status | STRING | pending (default for seeds), active, cancelled, expired |
 | start_date | DATE | Subscription start date (nullable) |
 | end_date | DATE | Subscription end date (nullable) |
 | billing_cycle | STRING | monthly, yearly, quarterly, weekly |
 | currency | STRING | USD, EUR, GBP, etc. |
-| seats | INT | Number of seats/licenses |
+| seats | INT | Number of seats/licenses (seed data uses 0 - users set their own) |
 | pricing_model | STRING | per_seat, flat_rate, tiered |
 | unit_price_usd | FLOAT | Monthly price per unit |
 | yearly_price_usd | FLOAT | Annual price (nullable) |
@@ -488,7 +494,7 @@ org_slug,subscription_id,provider,plan_name,display_name,category,status,start_d
 | contract_id | STRING | Contract reference (nullable) |
 | notes | STRING | Plan description or additional notes |
 
-**Provider Coverage (28 providers, 70 plans):**
+**Provider Coverage (28 providers, 76 plans):**
 
 | Category | Providers |
 |----------|-----------|
@@ -691,7 +697,7 @@ export interface SubscriptionPlan {
   plan_name: string
   display_name?: string
   category: string
-  status: string // active, cancelled, expired
+  status: string // pending, active, cancelled, expired
   start_date?: string
   end_date?: string
   billing_cycle: string // monthly, yearly, quarterly, weekly
@@ -717,7 +723,7 @@ export interface PlanCreate {
   plan_name: string
   display_name?: string
   category?: string
-  status?: string // active, cancelled, expired (default: active)
+  status?: string // pending, active, cancelled, expired (default: pending for seeds)
   start_date?: string
   end_date?: string
   billing_cycle?: string // monthly, yearly, quarterly, weekly (default: monthly)
@@ -741,7 +747,7 @@ export interface PlanCreate {
 export interface PlanUpdate {
   display_name?: string
   category?: string
-  status?: string // active, cancelled, expired
+  status?: string // pending, active, cancelled, expired
   start_date?: string
   end_date?: string
   billing_cycle?: string
@@ -915,6 +921,28 @@ POST   /subscriptions/{org}/providers/{provider}/reset
        → Force re-seed defaults from CSV
 ```
 
+### Costs API Endpoints (Polars-Powered)
+
+```
+GET    /costs/{org}/saas-subscriptions
+       → Get all SaaS subscription costs with summary
+
+GET    /costs/{org}/saas-subscriptions/summary
+       → Get cost summary only (monthly, annual, by category)
+
+GET    /costs/{org}/saas-subscriptions/by-provider
+       → Get costs grouped by provider
+
+GET    /costs/{org}/saas-subscriptions/by-category
+       → Get costs grouped by category
+
+GET    /costs/{org}/saas-subscriptions/trends
+       → Get cost trends over time (daily/weekly/monthly)
+
+GET    /costs/{org}/saas-subscriptions/{subscription_id}
+       → Get costs for a specific subscription
+```
+
 **Authentication:** X-API-Key header required for ALL API endpoints
 
 ---
@@ -938,7 +966,7 @@ POST   /subscriptions/{org}/providers/{provider}/reset
 | Manage page form reset on dialog close | Frontend | app/[orgSlug]/settings/integrations/subscriptions/page.tsx |
 | Sidebar with Subscriptions menu | Frontend | components/dashboard-sidebar.tsx |
 | Subscription Plans router | API Service | src/app/routers/subscription_plans.py |
-| CSV seed data (25 cols, 70 plans) | API Service | configs/saas/seed/data/saas_subscription_plans.csv |
+| CSV seed data (25 cols, 76 plans, status=pending) | API Service | configs/saas/seed/data/saas_subscription_plans.csv |
 | Schema: saas_subscription_plans (25 cols) | API Service | configs/setup/organizations/onboarding/schemas/ |
 | Schema: saas_subscription_plan_costs_daily (18 cols) | API Service | configs/setup/organizations/onboarding/schemas/ |
 | Schema: cost_data_standard_1_2 (67 cols FOCUS 1.2) | API Service | configs/setup/organizations/onboarding/schemas/ |
@@ -946,6 +974,11 @@ POST   /subscriptions/{org}/providers/{provider}/reset
 | Procedure: sp_calculate_saas_subscription_plan_costs_daily | Pipeline | configs/system/procedures/subscription/ |
 | Procedure: sp_convert_saas_costs_to_focus_1_2 | Pipeline | configs/system/procedures/subscription/ |
 | Procedure: sp_run_saas_subscription_costs_pipeline | Pipeline | configs/system/procedures/subscription/ |
+| Info banner - cost update timing | Frontend | app/[orgSlug]/subscriptions/[provider]/page.tsx |
+| Status validation in enable_provider | API Service | src/app/routers/subscription_plans.py:615-619 |
+| Date type handling in UPDATE query | API Service | src/app/routers/subscription_plans.py:1131 |
+| Audit logger JSON column fix | API Service | src/core/utils/audit_logger.py:111 |
+| Costs API endpoints (6 endpoints) | API Service | src/app/routers/costs.py |
 
 ### REMOVED
 
@@ -1556,7 +1589,9 @@ To complete the architecture migration:
 | `api-service/configs/setup/organizations/onboarding/schemas/saas_subscription_plan_costs_daily.json` | Daily costs schema (18 cols) |
 | `api-service/configs/setup/organizations/onboarding/schemas/cost_data_standard_1_2.json` | FOCUS 1.2 schema (67 cols) |
 | `api-service/configs/setup/bootstrap/schemas/org_subscription_audit.json` | Audit table schema (11 cols) |
-| `api-service/configs/saas/seed/data/saas_subscription_plans.csv` | Seed data (25 cols, 70 plans) |
+| `api-service/configs/saas/seed/data/saas_subscription_plans.csv` | Seed data (25 cols, 76 plans, status=pending) |
+| `api-service/src/app/routers/costs.py` | Costs API endpoints (Polars-powered) |
+| `api-service/src/core/utils/audit_logger.py` | Audit logging with JSON column support |
 
 ### Pipeline Files (Cost Calculation)
 
@@ -1582,4 +1617,41 @@ To complete the architecture migration:
 
 ---
 
-**Version**: 11.0 | **Updated**: 2025-12-06 | **Policy**: Single source of truth - no duplicate docs
+## Changelog
+
+### v12.0 (2025-12-08)
+
+**Status Value Changes:**
+- Added `pending` status for newly seeded plans (default for all seed data)
+- Seeded plans now start as `pending` instead of `active`
+- Users must activate plans they want to track for cost calculation
+- Only `active` plans are included in cost calculations by the pipeline
+
+**Bug Fixes:**
+| Issue | Fix | File:Line |
+|-------|-----|-----------|
+| Hardcoded 'active' status in INSERT | Use CSV status value with `@status` parameter | subscription_plans.py:630-654 |
+| Invalid status values from CSV | Added validation against `VALID_STATUS_VALUES` | subscription_plans.py:615-619 |
+| Date type not handled in UPDATE | Added `elif isinstance(value, date)` handler | subscription_plans.py:1131 |
+| Audit logger JSON column error | Use `PARSE_JSON(@details)` instead of `@details` | audit_logger.py:111 |
+
+**New Features:**
+- Info banner on provider detail page: "New changes to subscription costs will be reflected within 24 hours once the scheduler runs every day at midnight"
+- Full status validation in enable_provider endpoint
+- 6 Costs API endpoints for Polars-powered cost queries
+
+**Test Results (2025-12-08):**
+- All CRUD operations: ✅ PASS
+- Provider enable/disable: ✅ PASS (status correctly set to "pending")
+- Costs API endpoints: ✅ PASS (all 6 endpoints)
+- Multi-tenant security: ✅ PASS (403 on cross-tenant access)
+- Cache performance: ✅ PASS (38,361x faster on cache hits)
+
+### v11.0 (2025-12-06)
+- Initial FOCUS 1.2 integration
+- Pipeline procedures for cost calculation
+- 25-column schema migration
+
+---
+
+**Version**: 12.0 | **Updated**: 2025-12-08 | **Policy**: Single source of truth - no duplicate docs

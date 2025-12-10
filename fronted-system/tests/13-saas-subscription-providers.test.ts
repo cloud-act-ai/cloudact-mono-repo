@@ -662,20 +662,20 @@ describe.skipIf(SKIP_TESTS)('Flow 13: Subscription Providers - Comprehensive Tes
                         communication: 1,
                         productivity: 1
                     },
-                    active_count: 4,
+                    enabled_count: 4,
                     total_count: 5
                 }
             }
 
             expect(mockAllPlansResponse.plans).toBeDefined()
             expect(mockAllPlansResponse.plans.length).toBe(5)
-            expect(mockAllPlansResponse.summary.active_count).toBe(4)
+            expect(mockAllPlansResponse.summary.enabled_count).toBe(4)
             expect(mockAllPlansResponse.summary.total_count).toBe(5)
             expect(mockAllPlansResponse.summary.total_monthly_cost).toBeCloseTo(90.49, 2)
 
             console.log('✓ All plans aggregated successfully')
             console.log(`  Total plans: ${mockAllPlansResponse.summary.total_count}`)
-            console.log(`  Active plans: ${mockAllPlansResponse.summary.active_count}`)
+            console.log(`  Active plans: ${mockAllPlansResponse.summary.enabled_count}`)
             console.log(`  Monthly cost: $${mockAllPlansResponse.summary.total_monthly_cost.toFixed(2)}`)
         })
 

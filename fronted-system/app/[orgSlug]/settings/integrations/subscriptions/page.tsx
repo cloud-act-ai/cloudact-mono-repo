@@ -3,13 +3,12 @@
 import { useState, useEffect, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
-import { Loader2, Check, CreditCard, Plus, ChevronRight, ChevronDown, ChevronUp, Brain, Palette, FileText, MessageSquare, Code, Cloud, AlertTriangle, Search } from "lucide-react"
+import { Loader2, Check, CreditCard, Plus, ChevronRight, ChevronDown, ChevronUp, Brain, Palette, FileText, MessageSquare, Code, Cloud, AlertTriangle, Search, Power } from "lucide-react"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Switch } from "@/components/ui/switch"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -83,14 +82,23 @@ function SubscriptionProviderCard({
               <CardDescription className="console-small capitalize">{provider.category}</CardDescription>
             </div>
           </div>
-          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-            <span className="text-xs text-gray-500">{provider.is_enabled ? 'Enabled' : 'Disabled'}</span>
-            <Switch
-              checked={provider.is_enabled}
-              onCheckedChange={(checked) => onToggle(provider.provider, checked)}
-              disabled={isToggling}
-              className="data-[state=checked]:bg-[#007A78]"
-            />
+          <div onClick={(e) => e.stopPropagation()}>
+            {provider.is_enabled ? (
+              <Badge className="bg-green-100 text-green-700 border-green-200 hover:bg-green-100">
+                <Check className="h-3 w-3 mr-1" />
+                Enabled
+              </Badge>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs text-[#007A78] border-[#007A78]/30 hover:bg-[#F0FDFA]"
+                onClick={() => onToggle(provider.provider, true)}
+                disabled={isToggling}
+              >
+                {isToggling ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Enable'}
+              </Button>
+            )}
           </div>
         </div>
       </CardHeader>
@@ -103,11 +111,26 @@ function SubscriptionProviderCard({
               </Badge>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             {provider.is_enabled && (
-              <Button variant="ghost" size="sm" className="h-8 hover:bg-[#F0FDFA]">
-                <ChevronRight className="h-4 w-4 text-[#007A78]" />
-              </Button>
+              <>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-gray-400 hover:text-red-500 hover:bg-red-50"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onToggle(provider.provider, false)
+                  }}
+                  disabled={isToggling}
+                  title="Disable provider"
+                >
+                  {isToggling ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Power className="h-3.5 w-3.5" />}
+                </Button>
+                <Button variant="ghost" size="sm" className="h-7 hover:bg-[#F0FDFA]">
+                  <ChevronRight className="h-4 w-4 text-[#007A78]" />
+                </Button>
+              </>
             )}
           </div>
         </div>

@@ -25,6 +25,20 @@ function isValidEmail(email: string): boolean {
   return EMAIL_REGEX.test(email) && email.length <= 254
 }
 
+// UUID validation regex
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+function isValidUUID(uuid: string): boolean {
+  if (!uuid || typeof uuid !== "string") return false
+  return UUID_REGEX.test(uuid)
+}
+
+// Validate org slug format (alphanumeric + underscore, 3-50 chars)
+function isValidOrgSlug(slug: string): boolean {
+  if (!slug || typeof slug !== "string") return false
+  return /^[a-zA-Z0-9_]{3,50}$/.test(slug)
+}
+
 // ============================================
 // Deletion Token Storage (Database-backed)
 // ============================================
@@ -222,6 +236,11 @@ export async function getEligibleTransferMembers(orgId: string): Promise<{
   error?: string
 }> {
   try {
+    // Validate orgId format to prevent injection
+    if (!isValidUUID(orgId)) {
+      return { success: false, error: "Invalid organization ID" }
+    }
+
     const supabase = await createClient()
     const adminClient = createServiceRoleClient()
 
@@ -266,8 +285,13 @@ export async function getEligibleTransferMembers(orgId: string): Promise<{
       .select("id, email, full_name")
       .in("id", userIds)
 
+    // Create a Map for O(1) profile lookup instead of O(n) find()
+    const profileMap = new Map(
+      (profiles || []).map(p => [p.id, p])
+    )
+
     const membersWithProfiles = members.map(member => {
-      const profile = profiles?.find(p => p.id === member.user_id)
+      const profile = profileMap.get(member.user_id)
       return {
         user_id: member.user_id,
         email: profile?.email || "Unknown",
@@ -292,6 +316,14 @@ export async function transferOwnership(
   newOwnerId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    // Validate UUID formats to prevent injection
+    if (!isValidUUID(orgId)) {
+      return { success: false, error: "Invalid organization ID" }
+    }
+    if (!isValidUUID(newOwnerId)) {
+      return { success: false, error: "Invalid user ID" }
+    }
+
     const supabase = await createClient()
     const adminClient = createServiceRoleClient()
 
@@ -407,6 +439,11 @@ export async function deleteOrganization(
   confirmName: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    // Validate orgId format to prevent injection
+    if (!isValidUUID(orgId)) {
+      return { success: false, error: "Invalid organization ID" }
+    }
+
     const supabase = await createClient()
     const adminClient = createServiceRoleClient()
 
@@ -733,6 +770,11 @@ export async function leaveOrganization(orgSlug: string): Promise<{
   error?: string
 }> {
   try {
+    // Validate orgSlug format to prevent injection
+    if (!isValidOrgSlug(orgSlug)) {
+      return { success: false, error: "Invalid organization" }
+    }
+
     const supabase = await createClient()
     const adminClient = createServiceRoleClient()
 

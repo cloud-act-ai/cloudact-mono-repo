@@ -268,14 +268,15 @@ Pipeline URL structure: `/api/v1/pipelines/run/{org_slug}/{provider}/{domain}/{p
 ### Get Org API Key
 
 ```bash
-# From BigQuery (org_api_keys table)
-bq query --use_legacy_sql=false "
-SELECT api_key, org_slug
-FROM \`gac-prod-471220.organizations.org_api_keys\`
-WHERE org_slug = 'your_org_slug' AND is_active = true"
+# DEV ONLY: Use the dev endpoint (local/development environments only)
+curl -X GET "http://localhost:8000/api/v1/admin/dev/api-key/{org_slug}" \
+  -H "X-CA-Root-Key: $CA_ROOT_API_KEY"
 
 # From frontend user metadata (Supabase)
 # Keys stored in: user.user_metadata.org_api_keys[org_slug]
+
+# Note: API keys are stored encrypted in BigQuery (encrypted_org_api_key column)
+# Use the dev endpoint above for local testing
 ```
 
 ### Key File Locations
@@ -478,6 +479,43 @@ curl -s http://localhost:8001/health | python3 -m json.tool
 
 **Tests:** 36 API integration tests passing, 51 frontend tests passing
 
+### Dev-Only API Key Retrieval Endpoint (December 2024)
+
+**Feature:** Development-only endpoint to retrieve decrypted org API keys for local testing.
+
+**Endpoint:** `GET /api/v1/admin/dev/api-key/{org_slug}`
+- Requires `X-CA-Root-Key` header
+- Only works when `ENVIRONMENT` is `development` or `local`
+- Returns 403 Forbidden in production environments
+
+**Usage:**
+```bash
+curl -X GET "http://localhost:8000/api/v1/admin/dev/api-key/{org_slug}" \
+  -H "X-CA-Root-Key: $CA_ROOT_API_KEY"
+```
+
+**Files Modified:**
+- `api-service/src/app/routers/admin.py` - Added `get_org_api_key_dev()` endpoint
+
+### SaaS Subscription Seed Data Fix (December 2024)
+
+**Issue:** Default subscription plans not showing for providers like ChatGPT Plus.
+
+**Root Cause:** Provider name mismatch between seed CSV and frontend expectations.
+- CSV used `chatgpt`, frontend expected `chatgpt_plus`
+- Same issue for `claude`, `github_copilot`, `microsoft_teams`
+
+**Fix Applied:**
+- Updated `api-service/configs/saas/seed/data/saas_subscription_plans.csv`:
+  - `chatgpt` → `chatgpt_plus` (4 plans: FREE, PLUS, TEAM, ENTERPRISE)
+  - `claude` → `claude_pro` (4 plans)
+  - `github_copilot` → `copilot` (4 plans)
+  - `microsoft_teams` → `teams` (2 plans)
+- Added `force` parameter to `enableProvider()` function for re-seeding
+
+**Frontend Changes:**
+- `fronted-system/actions/subscription-providers.ts` - Added `force` parameter support
+
 ---
 
-**Last Updated:** 2025-12-07
+**Last Updated:** 2025-12-08

@@ -253,6 +253,9 @@ function SignupForm() {
       // For invite flow, redirect back to invite; otherwise go to billing
       const finalRedirect = redirectTo || "/onboarding/billing"
 
+      // Normalize email - trim whitespace and lowercase
+      const normalizedEmail = email.trim().toLowerCase()
+
       // Build user metadata - only include company info for non-invite signup
       const userData: Record<string, string> = {
         phone: fullPhone,
@@ -264,9 +267,9 @@ function SignupForm() {
         userData.pending_company_type = companyType
       }
 
-      // Signup with user_metadata
+      // Signup with user_metadata (use normalizedEmail for consistency)
       const { data: authData, error: signupError } = await supabase.auth.signUp({
-        email,
+        email: normalizedEmail,
         password,
         options: {
           emailRedirectTo: `${window.location.origin}${finalRedirect}`,

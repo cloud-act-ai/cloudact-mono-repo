@@ -114,7 +114,7 @@ function validatePlanData(plan: PlanCreate | PlanUpdate): { valid: boolean; erro
     return { valid: false, error: `Invalid discount_type: ${plan.discount_type}. Must be: percent or fixed` }
   }
   if ("status" in plan && plan.status && !VALID_STATUS_VALUES.has(plan.status)) {
-    return { valid: false, error: `Invalid status: ${plan.status}. Must be: active, cancelled, or expired` }
+    return { valid: false, error: `Invalid status: ${plan.status}. Must be: active, cancelled, expired, or pending` }
   }
   return { valid: true }
 }
@@ -278,7 +278,7 @@ export interface PlanCreate {
 export interface PlanUpdate {
   display_name?: string
   unit_price_usd?: number
-  status?: 'active' | 'cancelled' | 'expired'
+  status?: 'active' | 'cancelled' | 'expired' | 'pending'
   billing_cycle?: string
   currency?: string  // Currency code (USD, EUR, GBP)
   seats?: number
@@ -329,6 +329,8 @@ const PROVIDER_DISPLAY_NAMES: Record<string, string> = {
   netlify: "Netlify",
   railway: "Railway",
   supabase: "Supabase",
+  loom: "Loom",
+  zapier: "Zapier",
   custom: "Custom",
 }
 
@@ -338,6 +340,8 @@ const PROVIDER_CATEGORIES: Record<string, string[]> = {
   productivity: ["notion", "confluence", "asana", "monday"],
   communication: ["slack", "zoom", "teams"],
   development: ["github", "gitlab", "jira", "linear", "vercel", "netlify", "railway", "supabase"],
+  video: ["loom"],
+  automation: ["zapier"],
 }
 
 function getProviderDisplayName(provider: string): string {
@@ -423,7 +427,8 @@ export async function getProviderMeta(
  */
 export async function enableProvider(
   orgSlug: string,
-  provider: string
+  provider: string,
+  force: boolean = false
 ): Promise<{
   success: boolean
   plans_seeded: number
@@ -469,8 +474,9 @@ export async function enableProvider(
 
     try {
       const apiUrl = getApiServiceUrl()
+      const forceParam = force ? "?force=true" : ""
       const response = await fetch(
-        `${apiUrl}/api/v1/subscriptions/${orgSlug}/providers/${sanitizedProvider}/enable`,
+        `${apiUrl}/api/v1/subscriptions/${orgSlug}/providers/${sanitizedProvider}/enable${forceParam}`,
         {
           method: "POST",
           headers: {
@@ -709,13 +715,22 @@ export async function getProviderPlans(
   success: boolean
   plans: SubscriptionPlan[]
   total_monthly_cost: number
+  active_subscriptions_count: number
+  total_plans_count: number
   error?: string
 }> {
   try {
     // Validate provider name
     const sanitizedProvider = sanitizeProviderName(provider)
     if (!sanitizedProvider || sanitizedProvider.length < 2) {
-      return { success: false, plans: [], total_monthly_cost: 0, error: "Invalid provider name" }
+      return {
+        success: false,
+        plans: [],
+        total_monthly_cost: 0,
+        active_subscriptions_count: 0,
+        total_plans_count: 0,
+        error: "Invalid provider name"
+      }
     }
 
     await requireOrgMembership(orgSlug)
@@ -726,6 +741,8 @@ export async function getProviderPlans(
         success: false,
         plans: [],
         total_monthly_cost: 0,
+        active_subscriptions_count: 0,
+        total_plans_count: 0,
         error: "Organization API key not found"
       }
     }
@@ -744,6 +761,8 @@ export async function getProviderPlans(
         success: false,
         plans: [],
         total_monthly_cost: 0,
+        active_subscriptions_count: 0,
+        total_plans_count: 0,
         error: `Failed to get plans: ${errorText}`
       }
     }
@@ -752,16 +771,23 @@ export async function getProviderPlans(
       response,
       { plans: [], total_monthly_cost: 0 }
     )
+
+    const plans = result.plans || []
+
     return {
       success: true,
-      plans: result.plans || [],
+      plans: plans,
       total_monthly_cost: result.total_monthly_cost || 0,
+      active_subscriptions_count: plans.filter(p => p.status === 'active' && (p.seats ?? 0) > 0).length,
+      total_plans_count: plans.length,
     }
   } catch (error) {
     return {
       success: false,
       plans: [],
       total_monthly_cost: 0,
+      active_subscriptions_count: 0,
+      total_plans_count: 0,
       error: logError("getProviderPlans", error)
     }
   }
@@ -882,6 +908,210 @@ export async function getAllPlansForCostDashboard(orgSlug: string): Promise<{
         total_count: 0,
       },
       error: logError("getAllPlansForCostDashboard", error),
+    }
+  }
+}
+
+// ============================================
+// FOCUS 1.2 Cost Data (Polars API)
+// ============================================
+
+/**
+ * SaaS Subscription Cost record from FOCUS 1.2 standard table
+ * Source: cost_data_standard_1_2 (Polars API endpoint)
+ */
+export interface SaaSCostRecord {
+  // Identity
+  BillingAccountId: string | null
+  BillingAccountName: string | null
+  SubAccountId: string
+  SubAccountName: string | null
+
+  // Provider & Service (FOCUS 1.2)
+  Provider: string
+  Publisher: string | null
+  ServiceCategory: string
+  ServiceName: string
+  ServiceSubcategory: string  // Plan name
+
+  // Cost Columns
+  BilledCost: number
+  EffectiveCost: number
+  ListCost: number | null
+  ContractedCost: number | null
+  BillingCurrency: string
+
+  // Pricing
+  UnitPrice: number | null
+  ListUnitPrice: number | null
+  PricingCategory: string | null
+  PricingCurrency: string | null
+  PricingQuantity: number | null
+  PricingUnit: string | null
+
+  // Usage
+  ConsumedQuantity: number | null
+  ConsumedUnit: string | null
+  UsageType: string
+
+  // Charge Details
+  ChargeCategory: string
+  ChargeClass: string
+  ChargeDescription: string
+  ChargeFrequency: string
+
+  // Resource
+  ResourceId: string | null
+  ResourceName: string | null
+  ResourceType: string | null
+  SkuId: string | null
+
+  // Region
+  RegionId: string | null
+  RegionName: string | null
+
+  // Time Periods
+  BillingPeriodStart: string
+  BillingPeriodEnd: string
+  ChargePeriodStart: string
+  ChargePeriodEnd: string
+
+  // Metadata
+  SourceSystem: string
+  SourceRecordId: string
+  UpdatedAt: string
+
+  // Calculated Run Rates
+  MonthlyRunRate: number
+  AnnualRunRate: number
+}
+
+/**
+ * Summary from SaaS subscription costs API
+ */
+export interface SaaSCostSummary {
+  total_billed_cost: number
+  total_monthly_cost: number
+  total_annual_cost: number
+  providers: string[]
+  service_categories: string[]
+  record_count: number
+  date_range: {
+    start: string
+    end: string
+  }
+}
+
+/**
+ * Get SaaS subscription costs from Polars API (cost_data_standard_1_2)
+ *
+ * This is the SOURCE OF TRUTH for actual calculated subscription costs.
+ * Data comes from the pipeline that calculates daily amortized costs.
+ *
+ * Use this for:
+ * - Monthly/Annual cost display
+ * - Cost trends and analytics
+ * - Accurate cost reporting
+ *
+ * Use getAllPlansForCostDashboard for:
+ * - Plan details (seats, status)
+ * - Subscription management
+ */
+export async function getSaaSSubscriptionCosts(
+  orgSlug: string,
+  startDate?: string,
+  endDate?: string
+): Promise<{
+  success: boolean
+  data: SaaSCostRecord[]
+  summary: SaaSCostSummary | null
+  cache_hit: boolean
+  query_time_ms: number
+  error?: string
+}> {
+  try {
+    await requireOrgMembership(orgSlug)
+
+    const orgApiKey = await getOrgApiKeySecure(orgSlug)
+    if (!orgApiKey) {
+      return {
+        success: false,
+        data: [],
+        summary: null,
+        cache_hit: false,
+        query_time_ms: 0,
+        error: "Organization API key not found. Please complete organization onboarding.",
+      }
+    }
+
+    const apiUrl = getApiServiceUrl()
+    let url = `${apiUrl}/api/v1/costs/${orgSlug}/saas-subscriptions`
+
+    // Add date parameters if provided
+    const params = new URLSearchParams()
+    if (startDate) params.append("start_date", startDate)
+    if (endDate) params.append("end_date", endDate)
+    if (params.toString()) url += `?${params.toString()}`
+
+    const response = await fetch(url, {
+      headers: { "X-API-Key": orgApiKey },
+    })
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        // No cost data yet - return empty success
+        return {
+          success: true,
+          data: [],
+          summary: null,
+          cache_hit: false,
+          query_time_ms: 0,
+        }
+      }
+      const errorText = await response.text()
+      return {
+        success: false,
+        data: [],
+        summary: null,
+        cache_hit: false,
+        query_time_ms: 0,
+        error: `Failed to fetch subscription costs: ${errorText}`,
+      }
+    }
+
+    interface CostApiResponse {
+      success: boolean
+      data: SaaSCostRecord[]
+      summary: SaaSCostSummary | null
+      cache_hit: boolean
+      query_time_ms: number
+      error?: string
+    }
+
+    const result = await safeJsonParse<CostApiResponse>(response, {
+      success: false,
+      data: [],
+      summary: null,
+      cache_hit: false,
+      query_time_ms: 0,
+    })
+
+    return {
+      success: result.success,
+      data: result.data || [],
+      summary: result.summary,
+      cache_hit: result.cache_hit,
+      query_time_ms: result.query_time_ms,
+      error: result.error,
+    }
+  } catch (error) {
+    return {
+      success: false,
+      data: [],
+      summary: null,
+      cache_hit: false,
+      query_time_ms: 0,
+      error: logError("getSaaSSubscriptionCosts", error),
     }
   }
 }

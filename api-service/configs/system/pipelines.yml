@@ -71,3 +71,14 @@ pipelines:
     schedule: daily
     enabled: true
     default_timeout_seconds: 900  # 15 minutes for large inventories
+
+  - id: saas_subscription_saas_cost
+    name: SaaS Subscription Costs
+    description: Calculate daily amortized SaaS subscription costs and convert to FOCUS 1.2 format
+    provider: saas_subscription
+    domain: costs
+    pipeline: saas_cost
+    required_integration: ""  # No external integration needed - uses internal data
+    schedule: daily
+    enabled: true
+    default_timeout_seconds: 600  # 10 minutes

@@ -57,6 +57,11 @@ export async function createOrganization(input: CreateOrganizationInput) {
     }
     const sanitizedName = sanitizeOrgName(input.name)
 
+    // Check that sanitized name is not empty (e.g., if input was "<>" it becomes "")
+    if (sanitizedName.length < 2) {
+      return { success: false, error: "Organization name is too short after removing invalid characters" }
+    }
+
     // Get current user from session (anon key client with cookies)
     const supabase = await createClient()
     const {
@@ -286,6 +291,11 @@ export async function completeOnboarding(sessionId: string) {
     const sanitizedName = sanitizeOrgName(companyName)
     if (!isValidOrgName(sanitizedName)) {
       return { success: false, error: "Invalid company name" }
+    }
+
+    // Check that sanitized name is not empty (e.g., if input was "<>" it becomes "")
+    if (sanitizedName.length < 2) {
+      return { success: false, error: "Company name is too short after removing invalid characters" }
     }
 
     // Use service role client to bypass RLS
