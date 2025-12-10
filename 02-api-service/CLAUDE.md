@@ -4,7 +4,7 @@
 
 Frontend-facing API for org management, auth, and integrations. Port 8000. Handles bootstrap, onboarding, integration setup, and LLM data CRUD. Does NOT run pipelines or ETL jobs.
 
-**Full Platform Architecture:** `../requirements-docs/00-ARCHITECTURE.md`
+**Full Platform Architecture:** `../00-requirements-docs/00-ARCHITECTURE.md`
 
 ## Service Flow
 
@@ -53,7 +53,7 @@ This service is the **API layer** extracted from the data-pipeline-service. It h
 - Integration management (setting up OpenAI, Anthropic, GCP credentials)
 - LLM data management (pricing, subscriptions CRUD)
 
-**Pipeline execution and ETL processing** remain in `data-pipeline-service` (port 8001).
+**Pipeline execution and ETL processing** remain in `03-data-pipeline-service` (port 8001).
 
 ## API Endpoints
 
@@ -83,7 +83,7 @@ This service is the **API layer** extracted from the data-pipeline-service. It h
 ## Project Structure
 
 ```
-api-service/
+02-api-service/
 ├── src/
 │   ├── app/
 │   │   ├── main.py                    # FastAPI entry point
@@ -158,7 +158,7 @@ RUN_INTEGRATION_TESTS=true
 ### Running the Server
 
 ```bash
-cd api-service
+cd 02-api-service
 pip install -r requirements.txt
 
 # Load .env.local and run server
@@ -244,8 +244,8 @@ E2E tests validate the **complete user onboarding journey**:
 - KMS encryption enabled and accessible
 - Real OpenAI API key (for integration testing)
 - Both services running:
-  - api-service on port 8000
-  - data-pipeline-service on port 8001
+  - 02-api-service on port 8000
+  - 03-data-pipeline-service on port 8001
 
 **Environment Setup:**
 ```bash
@@ -259,9 +259,9 @@ export GOOGLE_APPLICATION_CREDENTIALS="/path/to/sa.json"
 
 **See `tests/README.md` for detailed E2E testing documentation.**
 
-## Relationship with data-pipeline-service
+## Relationship with 03-data-pipeline-service
 
-| api-service | data-pipeline-service |
+| 02-api-service | 03-data-pipeline-service |
 |---------------------|---------------------------|
 | Frontend-facing API | Pipeline execution engine |
 | Org management | Scheduled pipelines |

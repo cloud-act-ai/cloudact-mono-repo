@@ -4,11 +4,11 @@
 
 Pipeline execution engine for ETL jobs. Port 8001. Runs scheduled pipelines, processes usage data, calculates costs.
 
-**Full Platform Architecture:** `../requirements-docs/00-ARCHITECTURE.md`
+**Full Platform Architecture:** `../00-requirements-docs/00-ARCHITECTURE.md`
 
 **Security Documentation:** `SECURITY.md`
 
-**API Service (port 8000):** Bootstrap, onboarding, integrations, and LLM data CRUD are handled by `api-service`.
+**API Service (port 8000):** Bootstrap, onboarding, integrations, and LLM data CRUD are handled by `02-api-service`.
 
 ## Pipeline Flow
 

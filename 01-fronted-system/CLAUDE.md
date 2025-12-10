@@ -4,7 +4,7 @@
 
 Next.js 16 frontend with Supabase auth and Stripe payments. Port 3000. Connects to api-service (8000) for backend operations. Multi-tenant SaaS platform for GenAI and cloud cost management.
 
-**Full Platform Architecture:** `../requirements-docs/00-ARCHITECTURE.md`
+**Full Platform Architecture:** `../00-requirements-docs/00-ARCHITECTURE.md`
 
 ## Frontend Flow
 
@@ -319,7 +319,7 @@ Returning user: `/login` → `/{orgSlug}/dashboard`
 
 ## Backend Integration (Pipeline Backend)
 
-**See full architecture:** `../requirements-docs/00-ARCHITECTURE.md`
+**See full architecture:** `../00-requirements-docs/00-ARCHITECTURE.md`
 
 ### Overview
 
@@ -332,7 +332,7 @@ After Supabase signup, frontend connects to FastAPI backend for:
 
 ```bash
 # Start backend server
-cd ../data-pipeline-service
+cd ../03-data-pipeline-service
 export GCP_PROJECT_ID="your-project"
 export CA_ROOT_API_KEY="your-admin-key"
 export KMS_KEY_NAME="projects/.../cryptoKeys/..."
@@ -1128,4 +1128,4 @@ Before deploying any new feature, verify:
 
 ---
 
-**Last Updated:** 2025-12-09
+**Last Updated:** 2025-12-10
