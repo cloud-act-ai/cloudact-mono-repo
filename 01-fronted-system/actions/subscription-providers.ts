@@ -423,12 +423,12 @@ export async function getProviderMeta(
 }
 
 /**
- * Enable a provider - inserts to meta table and calls API to seed plans
+ * Enable a provider - inserts to meta table only (no automatic seeding)
+ * Users should use "Add from Template" or "Add Custom Subscription" to add plans
  */
 export async function enableProvider(
   orgSlug: string,
-  provider: string,
-  force: boolean = false
+  provider: string
 ): Promise<{
   success: boolean
   plans_seeded: number
@@ -461,53 +461,11 @@ export async function enableProvider(
       return { success: false, plans_seeded: 0, error: metaError.message }
     }
 
-    // 2. Call API to seed default plans
-    const orgApiKey = await getOrgApiKeySecure(orgSlug)
-    if (!orgApiKey) {
-      // If no API key, just enable the provider without seeding
-      return {
-        success: true,
-        plans_seeded: 0,
-        error: "Provider enabled but no API key found - plans not seeded"
-      }
-    }
-
-    try {
-      const apiUrl = getApiServiceUrl()
-      const forceParam = force ? "?force=true" : ""
-      const response = await fetch(
-        `${apiUrl}/api/v1/subscriptions/${orgSlug}/providers/${sanitizedProvider}/enable${forceParam}`,
-        {
-          method: "POST",
-          headers: {
-            "X-API-Key": orgApiKey,
-            "Content-Type": "application/json",
-          },
-        }
-      )
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        return {
-          success: false, // API call failed - return failure
-          plans_seeded: 0,
-          error: `Failed to enable provider: ${errorText}`
-        }
-      }
-
-      const result = await safeJsonParse<{ plans_seeded?: number }>(response, { plans_seeded: 0 })
-      return {
-        success: true,
-        plans_seeded: result.plans_seeded || 0,
-      }
-    } catch (apiError) {
-      // API call failed - return failure
-      const errorMessage = apiError instanceof Error ? apiError.message : String(apiError)
-      return {
-        success: false,
-        plans_seeded: 0,
-        error: `Failed to enable provider: ${errorMessage}`
-      }
+    // Provider enabled - no automatic seeding
+    // Users will use "Add from Template" or "Add Custom Subscription" to add plans
+    return {
+      success: true,
+      plans_seeded: 0,
     }
   } catch (error) {
     return { success: false, plans_seeded: 0, error: logError("enableProvider", error) }
@@ -1020,7 +978,8 @@ export interface SaaSCostSummary {
 export async function getSaaSSubscriptionCosts(
   orgSlug: string,
   startDate?: string,
-  endDate?: string
+  endDate?: string,
+  provider?: string  // Optional: filter by provider (client-side)
 ): Promise<{
   success: boolean
   data: SaaSCostRecord[]
@@ -1096,10 +1055,38 @@ export async function getSaaSSubscriptionCosts(
       query_time_ms: 0,
     })
 
+    // Filter by provider if specified (client-side filtering)
+    let filteredData = result.data || []
+    if (provider && filteredData.length > 0) {
+      const normalizedProvider = provider.toLowerCase()
+      filteredData = filteredData.filter(
+        (record) => record.Provider?.toLowerCase() === normalizedProvider
+      )
+    }
+
+    // Recalculate summary for filtered data
+    let summary = result.summary
+    if (provider && filteredData.length > 0) {
+      const totalBilledCost = filteredData.reduce((sum, r) => sum + (r.BilledCost || 0), 0)
+      const totalMonthly = filteredData.reduce((sum, r) => sum + (r.MonthlyRunRate || 0), 0)
+      const totalAnnual = filteredData.reduce((sum, r) => sum + (r.AnnualRunRate || 0), 0)
+      summary = {
+        total_billed_cost: Math.round(totalBilledCost * 100) / 100,
+        total_monthly_cost: Math.round(totalMonthly * 100) / 100,
+        total_annual_cost: Math.round(totalAnnual * 100) / 100,
+        providers: [provider],
+        service_categories: [...new Set(filteredData.map(r => r.ServiceCategory).filter(Boolean))],
+        record_count: filteredData.length,
+        date_range: result.summary?.date_range || { start: "", end: "" },
+      }
+    } else if (provider && filteredData.length === 0) {
+      summary = null  // No costs for this provider
+    }
+
     return {
       success: result.success,
-      data: result.data || [],
-      summary: result.summary,
+      data: filteredData,
+      summary: summary,
       cache_hit: result.cache_hit,
       query_time_ms: result.query_time_ms,
       error: result.error,
@@ -1507,5 +1494,89 @@ export async function endSubscription(
     return { success: true, plan: result.plan }
   } catch (error) {
     return { success: false, error: logError("endSubscription", error) }
+  }
+}
+
+/**
+ * Available plan template from CSV seed data
+ */
+export interface AvailablePlan {
+  plan_name: string
+  display_name: string
+  billing_cycle: string
+  pricing_model: 'PER_SEAT' | 'FLAT_FEE'
+  unit_price_usd: number
+  yearly_price_usd?: number
+  notes?: string
+  seats: number
+  category: string
+  discount_type?: 'percent' | 'fixed'
+  discount_value?: number
+}
+
+/**
+ * Get available predefined plans for a provider (from seed data)
+ *
+ * @param orgSlug - Organization slug
+ * @param provider - Provider name
+ */
+export async function getAvailablePlans(
+  orgSlug: string,
+  provider: string
+): Promise<{
+  success: boolean
+  plans: AvailablePlan[]
+  error?: string
+}> {
+  try {
+    // Validate provider name
+    const sanitizedProvider = sanitizeProviderName(provider)
+    if (!sanitizedProvider || sanitizedProvider.length < 2) {
+      return { success: false, plans: [], error: "Invalid provider name" }
+    }
+
+    await requireOrgMembership(orgSlug)
+
+    const orgApiKey = await getOrgApiKeySecure(orgSlug)
+    if (!orgApiKey) {
+      return {
+        success: false,
+        plans: [],
+        error: "Organization API key not found"
+      }
+    }
+
+    const apiUrl = getApiServiceUrl()
+    const response = await fetch(
+      `${apiUrl}/api/v1/subscriptions/${orgSlug}/providers/${sanitizedProvider}/available-plans`,
+      {
+        headers: { "X-API-Key": orgApiKey },
+      }
+    )
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      return {
+        success: false,
+        plans: [],
+        error: `Failed to get available plans: ${errorText}`
+      }
+    }
+
+    const result = await safeJsonParse<{ success?: boolean; plans?: AvailablePlan[] }>(
+      response,
+      { success: false, plans: [] }
+    )
+
+    return {
+      success: result.success || true,
+      plans: result.plans || [],
+    }
+  } catch (error) {
+    return {
+      success: false,
+      plans: [],
+      error: logError("getAvailablePlans", error),
+    }
   }
 }

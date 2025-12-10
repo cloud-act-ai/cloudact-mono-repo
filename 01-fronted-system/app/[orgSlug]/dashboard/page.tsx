@@ -36,9 +36,18 @@ export default async function DashboardPage({
   const { success } = await searchParams
   const supabase = await createClient()
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  // Phase 1: Fetch user and org in parallel
+  const [userResult, orgResult] = await Promise.all([
+    supabase.auth.getUser(),
+    supabase
+      .from("organizations")
+      .select("id, org_name, org_slug, plan, billing_status")
+      .eq("org_slug", orgSlug)
+      .single()
+  ])
+
+  const user = userResult.data?.user
+  const org = orgResult.data
 
   if (!user) {
     return (
@@ -56,12 +65,6 @@ export default async function DashboardPage({
     )
   }
 
-  const { data: org } = await supabase
-    .from("organizations")
-    .select("id, org_name, org_slug, plan, billing_status")
-    .eq("org_slug", orgSlug)
-    .single()
-
   if (!org) {
     return (
       <div className="flex min-h-[400px] flex-col items-center justify-center space-y-4">
@@ -74,23 +77,25 @@ export default async function DashboardPage({
     )
   }
 
-  const { data: membership } = await supabase
-    .from("organization_members")
-    .select("role")
-    .eq("org_id", org.id)
-    .eq("user_id", user.id)
-    .single()
-
-  const { count: memberCount } = await supabase
-    .from("organization_members")
-    .select("*", { count: "exact", head: true })
-    .eq("org_id", org.id)
-    .eq("status", "active")
+  // Phase 2: Fetch membership and member count in parallel (both depend on org.id)
+  const [membershipResult, memberCountResult] = await Promise.all([
+    supabase
+      .from("organization_members")
+      .select("role")
+      .eq("org_id", org.id)
+      .eq("user_id", user.id)
+      .single(),
+    supabase
+      .from("organization_members")
+      .select("*", { count: "exact", head: true })
+      .eq("org_id", org.id)
+      .eq("status", "active")
+  ])
 
   const data: DashboardData = {
     organization: org,
-    memberCount: memberCount || 0,
-    userRole: membership?.role || "read_only",
+    memberCount: memberCountResult.count || 0,
+    userRole: membershipResult.data?.role || "read_only",
   }
 
   return (

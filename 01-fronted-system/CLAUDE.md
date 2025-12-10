@@ -526,8 +526,23 @@ await toggleIntegrationEnabled("acmecorp", "openai", false)
 
 SaaS subscriptions track fixed-cost subscriptions (Canva, Adobe, ChatGPT Plus, etc.) stored in BigQuery via backend API.
 
+**v12.1 Flow (No Auto-Seed):** When enabling a provider, NO data is automatically seeded. Users must manually add plans via "Add from Template" or "Add Custom Subscription".
+
 ```typescript
 // From actions/subscription-providers.ts
+
+// Enable provider (v12.1 - no auto-seed, just Supabase metadata)
+await enableProvider("acmecorp", "chatgpt_plus")
+// Returns: { success: true, plans_seeded: 0 }
+
+// Get available template plans (from seed CSV - not stored in BigQuery)
+const templates = await getAvailablePlans("acmecorp", "chatgpt_plus")
+// Returns: { success: true, provider: "chatgpt_plus", plans: [
+//   {plan_name: "FREE", display_name: "ChatGPT Free", unit_price_usd: 0, ...},
+//   {plan_name: "PLUS", display_name: "ChatGPT Plus", unit_price_usd: 20, ...},
+//   {plan_name: "TEAM", display_name: "ChatGPT Team", unit_price_usd: 25, ...},
+//   {plan_name: "ENTERPRISE", display_name: "ChatGPT Enterprise", unit_price_usd: 60, ...}
+// ]}
 
 // List all subscriptions for an org
 const result = await listSaaSSubscriptions("acmecorp", "slack")
@@ -1113,4 +1128,4 @@ Before deploying any new feature, verify:
 
 ---
 
-**Last Updated:** 2025-12-07
+**Last Updated:** 2025-12-09

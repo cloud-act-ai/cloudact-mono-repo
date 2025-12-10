@@ -63,10 +63,15 @@ import {
   createCustomPlan,
   editPlanWithVersion,
   endSubscription,
+  getAvailablePlans,
+  getSaaSSubscriptionCosts,
   SubscriptionPlan,
   PlanCreate,
   PlanUpdate,
   type ProviderMeta,
+  type AvailablePlan,
+  type SaaSCostSummary,
+  type SaaSCostRecord,
 } from "@/actions/subscription-providers"
 
 // Provider display names
@@ -132,14 +137,21 @@ export default function ProviderDetailPage() {
 
   // State
   const [plans, setPlans] = useState<SubscriptionPlan[]>([])
-  const [totalMonthlyCost, setTotalMonthlyCost] = useState(0)
+  const [totalMonthlyCost, setTotalMonthlyCost] = useState(0)  // From plan data (fallback)
   const [loading, setLoading] = useState(true)
   const [expandedRow, setExpandedRow] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [providerMeta, setProviderMeta] = useState<ProviderMeta | null>(null)
+  // Cost data from Polars (source of truth for costs)
+  const [costSummary, setCostSummary] = useState<SaaSCostSummary | null>(null)
+  const [costRecords, setCostRecords] = useState<SaaSCostRecord[]>([])
+
+  // Effective monthly cost: prefer Polars data, fallback to plan calculation
+  const effectiveMonthlyCost = costSummary?.total_monthly_cost ?? totalMonthlyCost
 
   // Dialog states
   const [showAddDialog, setShowAddDialog] = useState(false)
+  const [showTemplateDialog, setShowTemplateDialog] = useState(false)
   const [showEditDialog, setShowEditDialog] = useState<{ open: boolean; plan: SubscriptionPlan | null }>({
     open: false,
     plan: null,
@@ -152,6 +164,8 @@ export default function ProviderDetailPage() {
   const [editing, setEditing] = useState(false)
   const [ending, setEnding] = useState(false)
   const [showDeleted, setShowDeleted] = useState(false)
+  const [availablePlans, setAvailablePlans] = useState<AvailablePlan[]>([])
+  const [loadingTemplates, setLoadingTemplates] = useState(false)
 
   // Date states
   const [addStartDate, setAddStartDate] = useState<Date | undefined>(new Date())
@@ -208,7 +222,44 @@ export default function ProviderDetailPage() {
     }
   }
 
-  // Load plans and provider meta from API service (BigQuery)
+  // Load available template plans
+  const loadAvailablePlans = async () => {
+    setLoadingTemplates(true)
+    setError(null)
+    const result = await getAvailablePlans(orgSlug, provider)
+
+    if (result.success) {
+      setAvailablePlans(result.plans || [])
+    } else {
+      setError(result.error || "Failed to load available plans")
+      setAvailablePlans([])
+    }
+    setLoadingTemplates(false)
+  }
+
+  // Handle template dialog open
+  const handleTemplateDialogOpen = async () => {
+    setShowTemplateDialog(true)
+    await loadAvailablePlans()
+  }
+
+  // Handle template selection - pre-fill add form with template data
+  const handleSelectTemplate = (template: AvailablePlan) => {
+    setNewPlan({
+      plan_name: template.plan_name,
+      display_name: template.display_name || template.plan_name,
+      unit_price_usd: template.unit_price_usd,
+      seats: template.seats || 1, // Use template seats or default to 1
+      billing_cycle: template.billing_cycle,
+      pricing_model: template.pricing_model,
+      currency: "USD", // Available plans don't have currency field
+      notes: template.notes || "",
+    })
+    setShowTemplateDialog(false)
+    setShowAddDialog(true)
+  }
+
+  // Load plans from BigQuery and costs from Polars (source of truth for costs)
   const loadPlans = useCallback(async (isMounted?: () => boolean) => {
     if (!isValidParams) {
       if (!isMounted || isMounted()) {
@@ -221,10 +272,13 @@ export default function ProviderDetailPage() {
     if (!isMounted || isMounted()) setLoading(true)
     if (!isMounted || isMounted()) setError(null)
 
-    // Fetch provider meta and plans in parallel
-    const [metaResult, plansResult] = await Promise.all([
+    // Fetch provider meta, plans, and costs in parallel
+    // - Plans from saas_subscription_plans (BigQuery) for plan details
+    // - Costs from cost_data_standard_1_2 (Polars) for actual costs
+    const [metaResult, plansResult, costsResult] = await Promise.all([
       getProviderMeta(orgSlug, provider),
-      getProviderPlans(orgSlug, provider)
+      getProviderPlans(orgSlug, provider),
+      getSaaSSubscriptionCosts(orgSlug, undefined, undefined, provider)  // Filter by provider
     ])
 
     // Check if component is still mounted before updating state
@@ -235,9 +289,18 @@ export default function ProviderDetailPage() {
       setProviderMeta(metaResult.provider)
     }
 
+    // Set cost data from Polars (source of truth for costs)
+    if (costsResult.success) {
+      setCostSummary(costsResult.summary)
+      setCostRecords(costsResult.data || [])
+    } else {
+      setCostSummary(null)
+      setCostRecords([])
+    }
+
     if (plansResult.success) {
       setPlans(plansResult.plans || [])
-      setTotalMonthlyCost(plansResult.total_monthly_cost || 0)
+      setTotalMonthlyCost(plansResult.total_monthly_cost || 0)  // Fallback if no Polars data
     } else {
       setPlans([])
       setTotalMonthlyCost(0)
@@ -512,10 +575,16 @@ export default function ProviderDetailPage() {
           </div>
         </div>
         {plans.length > 0 && (
-          <Button onClick={() => handleAddDialogOpenChange(true)} className="console-button-primary">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Custom Subscription
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button onClick={handleTemplateDialogOpen} className="console-button-primary">
+              <Plus className="h-4 w-4 mr-2" />
+              Add from Template
+            </Button>
+            <Button onClick={() => handleAddDialogOpenChange(true)} variant="outline" className="border-[#007A78]/30 text-[#007A78] hover:bg-[#007A78]/5">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Custom
+            </Button>
+          </div>
         )}
       </div>
 
@@ -552,7 +621,16 @@ export default function ProviderDetailPage() {
       </Card>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card className="console-stat-card">
+          <CardContent className="pt-6">
+            <div className="text-2xl font-bold text-[#007A78]">{formatCurrency(effectiveMonthlyCost)}</div>
+            <p className="text-sm text-muted-foreground">Monthly Cost</p>
+            {costSummary && (
+              <p className="text-xs text-muted-foreground mt-1">From pipeline data</p>
+            )}
+          </CardContent>
+        </Card>
         <Card className="console-stat-card">
           <CardContent className="pt-6">
             <div className="text-2xl font-bold">{totalActiveSeats}</div>
@@ -603,14 +681,20 @@ export default function ProviderDetailPage() {
           {visiblePlans.length === 0 ? (
             <div className="text-center py-12 px-6">
               <CreditCard className="h-12 w-12 mx-auto text-slate-300 mb-4" />
-              <h3 className="text-lg font-medium text-slate-900 mb-2">No plans configured yet</h3>
-              <p className="text-slate-500 mb-4">
-                Click &apos;Add Custom Subscription&apos; to create your first subscription plan for {providerDisplayName}.
+              <h3 className="text-lg font-medium text-slate-900 mb-2">No subscriptions yet</h3>
+              <p className="text-slate-500 mb-6">
+                Choose a predefined plan or create a custom one.
               </p>
-              <Button onClick={() => handleAddDialogOpenChange(true)} className="console-button-primary">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Custom Subscription
-              </Button>
+              <div className="flex items-center justify-center gap-3">
+                <Button onClick={handleTemplateDialogOpen} className="console-button-primary">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add from Template
+                </Button>
+                <Button onClick={() => handleAddDialogOpenChange(true)} variant="outline" className="border-[#007A78]/30 text-[#007A78] hover:bg-[#007A78]/5">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Custom Subscription
+                </Button>
+              </div>
             </div>
           ) : (
             <>
@@ -1215,6 +1299,65 @@ export default function ProviderDetailPage() {
                 <CalendarX className="h-4 w-4 mr-2" />
               )}
               End Subscription
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add from Template Dialog */}
+      <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Choose a Plan Template</DialogTitle>
+            <DialogDescription>
+              Select a predefined plan for {providerDisplayName}. You can customize seats and dates in the next step.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            {loadingTemplates ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-[#007A78]" />
+              </div>
+            ) : availablePlans.length === 0 ? (
+              <div className="text-center py-8">
+                <CreditCard className="h-12 w-12 mx-auto text-slate-300 mb-4" />
+                <p className="text-slate-500">No templates available for this provider.</p>
+                <Button onClick={() => { setShowTemplateDialog(false); handleAddDialogOpenChange(true) }} className="mt-4 console-button-primary">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Custom Plan
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-3 max-h-[400px] overflow-y-auto">
+                {availablePlans.map((plan, index) => (
+                  <button
+                    key={`${plan.plan_name}-${index}`}
+                    onClick={() => handleSelectTemplate(plan)}
+                    className="w-full text-left p-4 rounded-lg border border-slate-200 hover:border-[#007A78] hover:bg-[#F0FDFA] transition-colors"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-semibold text-slate-900">{plan.display_name || plan.plan_name}</h4>
+                        <Badge variant="outline" className="capitalize text-xs">{plan.billing_cycle}</Badge>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-lg font-bold text-[#007A78]">{formatCurrency(plan.unit_price_usd)}</div>
+                        <div className="text-xs text-slate-500">
+                          {plan.pricing_model === 'PER_SEAT' ? '/seat' : 'flat fee'}
+                        </div>
+                      </div>
+                    </div>
+                    {plan.notes && (
+                      <p className="text-sm text-slate-600">{plan.notes}</p>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowTemplateDialog(false)}>
+              Cancel
             </Button>
           </DialogFooter>
         </DialogContent>

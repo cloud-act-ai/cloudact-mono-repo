@@ -146,6 +146,28 @@ class PlanListResponse(BaseModel):
     total_monthly_cost: float
 
 
+class AvailablePlan(BaseModel):
+    """A predefined plan template from CSV seed data."""
+    plan_name: str
+    display_name: str
+    billing_cycle: str
+    pricing_model: str
+    unit_price_usd: float
+    yearly_price_usd: Optional[float] = None
+    notes: Optional[str] = None
+    seats: int = 0
+    category: str = "other"
+    discount_type: Optional[str] = None
+    discount_value: Optional[int] = None
+
+
+class AvailablePlansResponse(BaseModel):
+    """Response for available plans endpoint."""
+    success: bool
+    provider: str
+    plans: List[AvailablePlan]
+
+
 # Valid enum values for validation
 VALID_STATUS_VALUES = {"active", "cancelled", "expired", "pending"}
 VALID_PRICING_MODELS = {"PER_SEAT", "FLAT_FEE"}
@@ -487,7 +509,7 @@ async def list_providers(
 @router.post(
     "/subscriptions/{org_slug}/providers/{provider}/enable",
     response_model=EnableProviderResponse,
-    summary="Enable provider and seed default plans",
+    summary="Enable provider (mark as enabled without seeding)",
     tags=["Subscriptions"]
 )
 async def enable_provider(
@@ -498,19 +520,19 @@ async def enable_provider(
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """
-    Enable a subscription provider and seed default plans.
+    Enable a subscription provider without seeding any plans.
 
-    - Checks if provider already has plans (skips seeding unless force=True)
-    - Loads default plans from seed CSV
-    - Inserts plans into BigQuery
-    - Returns number of plans seeded
+    This endpoint now only marks the provider as enabled (by ensuring the table exists).
+    Use the /available-plans endpoint to see predefined plan templates from CSV.
+    Plans must be manually created using the /plans POST endpoint.
+
+    Note: The 'force' parameter is kept for API compatibility but has no effect.
     """
     validate_org_slug(org_slug)
     check_org_access(org, org_slug)
     provider = validate_provider(provider)
 
     dataset_id = get_org_dataset(org_slug)
-    table_ref = f"{settings.gcp_project_id}.{dataset_id}.{SAAS_SUBSCRIPTION_PLANS_TABLE}"
 
     # Ensure table exists (creates it if missing - handles orgs created before this table was added)
     table_exists = await ensure_table_exists(bq_client, dataset_id)
@@ -520,173 +542,6 @@ async def enable_provider(
             detail=f"Failed to create or access {SAAS_SUBSCRIPTION_PLANS_TABLE} table for {org_slug}"
         )
 
-    # Check if plans already exist
-    if not force:
-        check_query = f"""
-        SELECT COUNT(*) as count
-        FROM `{table_ref}`
-        WHERE provider = @provider
-        """
-        try:
-            job_config = bigquery.QueryJobConfig(
-                query_parameters=[
-                    bigquery.ScalarQueryParameter("provider", "STRING", provider),
-                ],
-                job_timeout_ms=10000  # 10 second timeout for auth operations
-            )
-            result = bq_client.client.query(check_query, job_config=job_config).result()
-            for row in result:
-                if row.count > 0:
-                    return EnableProviderResponse(
-                        success=True,
-                        provider=provider,
-                        plans_seeded=0,
-                        message=f"Provider {provider} already has {row.count} plans. Use force=true to re-seed."
-                    )
-        except Exception as e:
-            logger.debug(f"Could not check existing plans: {e}")
-
-    # Load seed data
-    seed_data = load_seed_data_for_provider(provider)
-    if not seed_data:
-        return EnableProviderResponse(
-            success=True,
-            provider=provider,
-            plans_seeded=0,
-            message=f"No seed data found for provider {provider}. Add plans manually."
-        )
-
-    # If force, delete existing plans first
-    if force:
-        delete_query = f"""
-        DELETE FROM `{table_ref}`
-        WHERE provider = @provider
-        """
-        try:
-            job_config = bigquery.QueryJobConfig(
-                query_parameters=[
-                    bigquery.ScalarQueryParameter("provider", "STRING", provider),
-                ],
-                job_timeout_ms=300000  # 5 minute timeout for admin/batch operations
-            )
-            bq_client.client.query(delete_query, job_config=job_config).result()
-            logger.info(f"Deleted existing plans for {provider} in {org_slug}")
-        except Exception as e:
-            logger.warning(f"Could not delete existing plans: {e}")
-
-    # Insert seed data using parameterized queries (prevents SQL injection)
-    rows_inserted = 0
-    insert_errors = []
-
-    # Parse numeric values - handle empty strings properly
-    def parse_int(val, default=1):
-        if val is None or val == "" or str(val).strip() == "":
-            return default
-        try:
-            return int(val)
-        except (ValueError, TypeError):
-            return default
-
-    def parse_float(val, default=None):
-        if val is None or val == "" or str(val).strip() == "":
-            return default
-        try:
-            return float(val)  # Return actual value including 0.0
-        except (ValueError, TypeError):
-            return default
-
-    for plan in seed_data:
-        try:
-            # Generate new subscription ID
-            subscription_id = f"sub_{provider}_{plan.get('plan_name', 'unknown').lower()}_{uuid.uuid4().hex[:8]}"
-
-            # Parse values safely
-            pricing_model = plan.get("pricing_model", "PER_SEAT") or "PER_SEAT"
-            # For PER_SEAT plans, default to 1 seat; for FLAT_FEE, default to 0
-            default_seats = 1 if pricing_model == "PER_SEAT" else 0
-            seats = parse_int(plan.get("seats"), default_seats)
-            unit_price = parse_float(plan.get("unit_price_usd"), 0.0)
-            yearly_price = parse_float(plan.get("yearly_price_usd"))
-            # Calculate yearly_price if not provided and billing cycle is annual
-            billing_cycle = plan.get("billing_cycle") or plan.get("billing_period", "monthly") or "monthly"
-            if yearly_price is None and billing_cycle == "annual":
-                yearly_price = unit_price * 12
-            display_name = plan.get("display_name", "") or ""
-            notes = plan.get("notes", "") or ""
-            category = plan.get("category", "other") or "other"
-            plan_name = plan.get("plan_name", "DEFAULT") or "DEFAULT"
-            discount_type = plan.get("discount_type")
-            discount_value = parse_int(plan.get("discount_value"), None) if discount_type else None
-            # Validate discount - if type is percent, value should be 0-100
-            if discount_type == "percent" and discount_value is not None and discount_value > 100:
-                discount_value = 100
-            status = plan.get("status", "pending") or "pending"  # Use CSV status, default to pending
-            # Validate status against allowed values, default to pending if invalid
-            if status not in VALID_STATUS_VALUES:
-                logger.warning(f"Invalid status '{status}' in CSV for plan {plan_name}, defaulting to 'pending'")
-                status = "pending"
-
-            # Use parameterized query to prevent SQL injection
-            insert_query = f"""
-            INSERT INTO `{table_ref}` (
-                org_slug, subscription_id, provider, plan_name, display_name,
-                category, status, start_date, billing_cycle, currency, seats,
-                pricing_model, unit_price_usd, yearly_price_usd, discount_type,
-                discount_value, auto_renew, notes, updated_at
-            ) VALUES (
-                @org_slug,
-                @subscription_id,
-                @provider,
-                @plan_name,
-                @display_name,
-                @category,
-                @status,
-                CURRENT_DATE(),  -- Seed plans start immediately (today)
-                @billing_cycle,
-                'USD',
-                @seats,
-                @pricing_model,
-                @unit_price,
-                @yearly_price,
-                @discount_type,
-                @discount_value,
-                true,
-                @notes,
-                CURRENT_TIMESTAMP()
-            )
-            """
-            job_config = bigquery.QueryJobConfig(
-                query_parameters=[
-                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
-                    bigquery.ScalarQueryParameter("subscription_id", "STRING", subscription_id),
-                    bigquery.ScalarQueryParameter("provider", "STRING", provider),
-                    bigquery.ScalarQueryParameter("plan_name", "STRING", plan_name),
-                    bigquery.ScalarQueryParameter("display_name", "STRING", display_name),
-                    bigquery.ScalarQueryParameter("category", "STRING", category),
-                    bigquery.ScalarQueryParameter("status", "STRING", status),
-                    bigquery.ScalarQueryParameter("billing_cycle", "STRING", billing_cycle),
-                    bigquery.ScalarQueryParameter("seats", "INT64", seats),
-                    bigquery.ScalarQueryParameter("pricing_model", "STRING", pricing_model),
-                    bigquery.ScalarQueryParameter("unit_price", "FLOAT64", unit_price),
-                    bigquery.ScalarQueryParameter("yearly_price", "FLOAT64", yearly_price),
-                    bigquery.ScalarQueryParameter("discount_type", "STRING", discount_type),
-                    bigquery.ScalarQueryParameter("discount_value", "INT64", discount_value),
-                    bigquery.ScalarQueryParameter("notes", "STRING", notes),
-                ],
-                job_timeout_ms=300000  # 5 minute timeout for admin/batch operations
-            )
-            bq_client.client.query(insert_query, job_config=job_config).result()
-            rows_inserted += 1
-        except Exception as e:
-            error_msg = f"Failed to insert plan {plan.get('plan_name')}: {e}"
-            logger.error(error_msg)
-            insert_errors.append(error_msg)
-
-    # Build result message with error summary if any
-    message = f"Enabled {provider} with {rows_inserted} default plans"
-    if insert_errors:
-        message += f" ({len(insert_errors)} errors: {'; '.join(insert_errors[:3])}{'...' if len(insert_errors) > 3 else ''})"
-
     # Invalidate relevant caches after enabling provider
     invalidate_provider_cache(org_slug, provider)
     invalidate_org_cache(org_slug)
@@ -695,8 +550,8 @@ async def enable_provider(
     return EnableProviderResponse(
         success=True,
         provider=provider,
-        plans_seeded=rows_inserted,
-        message=message
+        plans_seeded=0,
+        message=f"Provider {provider} enabled. Use GET /available-plans to see predefined plan templates, then POST /plans to create plans manually."
     )
 
 
@@ -776,6 +631,61 @@ async def disable_provider(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to disable provider: {e}"
         )
+
+
+@router.get(
+    "/subscriptions/{org_slug}/providers/{provider}/available-plans",
+    response_model=AvailablePlansResponse,
+    summary="Get available predefined plans from seed data",
+    tags=["Subscriptions"]
+)
+async def get_available_plans(
+    org_slug: str,
+    provider: str,
+    org: Dict = Depends(get_current_org)
+):
+    """
+    Get predefined subscription plans from seed CSV data.
+
+    Returns plan templates that can be used to create subscriptions.
+    These are NOT active subscriptions - they are templates to choose from.
+
+    Use POST /plans to create an actual subscription from these templates.
+    """
+    validate_org_slug(org_slug)
+    check_org_access(org, org_slug)
+    provider = validate_provider(provider)
+
+    # Load seed data from CSV
+    seed_data = load_seed_data_for_provider(provider)
+
+    # Convert to AvailablePlan objects
+    plans = []
+    for row in seed_data:
+        try:
+            plan = AvailablePlan(
+                plan_name=row.get("plan_name", "").upper(),
+                display_name=row.get("display_name") or row.get("plan_name", ""),
+                billing_cycle=row.get("billing_cycle", "monthly"),
+                pricing_model=row.get("pricing_model", "FLAT_FEE"),
+                unit_price_usd=float(row.get("unit_price_usd", 0)),
+                yearly_price_usd=float(row.get("yearly_price_usd")) if row.get("yearly_price_usd") else None,
+                notes=row.get("notes"),
+                seats=int(row.get("seats", 0)) if row.get("seats") else 0,
+                category=row.get("category", "other"),
+                discount_type=row.get("discount_type") if row.get("discount_type") else None,
+                discount_value=int(row.get("discount_value")) if row.get("discount_value") else None,
+            )
+            plans.append(plan)
+        except (ValueError, TypeError) as e:
+            logger.warning(f"Skipping invalid seed row for {provider}: {e}")
+            continue
+
+    return AvailablePlansResponse(
+        success=True,
+        provider=provider,
+        plans=plans
+    )
 
 
 # ============================================
@@ -907,6 +817,100 @@ async def list_plans(
     logger.debug(f"Cache SET: plans list for {org_slug}/{provider}")
 
     return response
+
+
+@router.get(
+    "/subscriptions/{org_slug}/providers/{provider}/available-plans",
+    response_model=AvailablePlansResponse,
+    summary="Get available plan templates from CSV",
+    tags=["Subscriptions"]
+)
+async def get_available_plans(
+    org_slug: str,
+    provider: str,
+    org: Dict = Depends(get_current_org)
+):
+    """
+    Get predefined plan templates for a provider from CSV seed data.
+
+    This endpoint reads from configs/saas/seed/data/saas_subscription_plans.csv
+    and returns plan metadata (not org-specific fields like subscription_id).
+
+    Use these templates as a reference when creating plans via POST /plans.
+    """
+    validate_org_slug(org_slug)
+    check_org_access(org, org_slug)
+    provider = validate_provider(provider)
+
+    # Load seed data for the provider
+    seed_data = load_seed_data_for_provider(provider)
+
+    if not seed_data:
+        return AvailablePlansResponse(
+            success=True,
+            provider=provider,
+            plans=[]
+        )
+
+    # Parse numeric values - handle empty strings properly
+    def parse_int(val, default=1):
+        if val is None or val == "" or str(val).strip() == "":
+            return default
+        try:
+            return int(val)
+        except (ValueError, TypeError):
+            return default
+
+    def parse_float(val, default=None):
+        if val is None or val == "" or str(val).strip() == "":
+            return default
+        try:
+            return float(val)  # Return actual value including 0.0
+        except (ValueError, TypeError):
+            return default
+
+    # Convert seed data to AvailablePlan objects
+    available_plans = []
+    for plan in seed_data:
+        pricing_model = plan.get("pricing_model", "PER_SEAT") or "PER_SEAT"
+        # For PER_SEAT plans, default to 1 seat; for FLAT_FEE, default to 0
+        default_seats = 1 if pricing_model == "PER_SEAT" else 0
+        seats = parse_int(plan.get("seats"), default_seats)
+        unit_price = parse_float(plan.get("unit_price_usd"), 0.0)
+        yearly_price = parse_float(plan.get("yearly_price_usd"))
+        # Calculate yearly_price if not provided and billing cycle is annual
+        billing_cycle = plan.get("billing_cycle") or plan.get("billing_period", "monthly") or "monthly"
+        if yearly_price is None and billing_cycle == "annual":
+            yearly_price = unit_price * 12
+        display_name = plan.get("display_name", "") or ""
+        notes = plan.get("notes", "") or ""
+        category = plan.get("category", "other") or "other"
+        plan_name = plan.get("plan_name", "DEFAULT") or "DEFAULT"
+        discount_type = plan.get("discount_type")
+        discount_value = parse_int(plan.get("discount_value"), None) if discount_type else None
+        # Validate discount - if type is percent, value should be 0-100
+        if discount_type == "percent" and discount_value is not None and discount_value > 100:
+            discount_value = 100
+
+        available_plans.append(AvailablePlan(
+            plan_name=plan_name,
+            display_name=display_name,
+            billing_cycle=billing_cycle,
+            pricing_model=pricing_model,
+            unit_price_usd=unit_price,
+            yearly_price_usd=yearly_price,
+            notes=notes,
+            seats=seats,
+            category=category,
+            discount_type=discount_type,
+            discount_value=discount_value
+        ))
+
+    return AvailablePlansResponse(
+        success=True,
+        provider=provider,
+        plans=available_plans
+    )
 
 
 @router.post(

@@ -1,6 +1,6 @@
 # SaaS Subscription Costs
 
-**Status**: IMPLEMENTED (v12.0) | **Updated**: 2025-12-08 | **Single Source of Truth**
+**Status**: IMPLEMENTED (v12.1) | **Updated**: 2025-12-09 | **Single Source of Truth**
 
 > Track fixed-cost SaaS subscriptions (Canva, ChatGPT Plus, Slack, etc.)
 > NOT CloudAct platform billing (that's Stripe)
@@ -115,26 +115,56 @@ Examples:
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### When Data is Seeded
+### When Plans are Created (v12.1 - Manual Add Flow)
 
-**When User Enables a Provider** (via frontend toggle or API):
+**When User Enables a Provider** (via frontend toggle):
+- ONLY updates Supabase metadata (`saas_subscription_providers_meta`)
+- NO automatic seeding to BigQuery
+- Shows empty state with "Add from Template" and "Add Custom Subscription" options
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│  Enable Provider Flow:                                                      │
+│  Enable Provider Flow (v12.1 - No Auto-Seed):                               │
 │                                                                             │
 │  1. Frontend calls enableProvider(orgSlug, provider)                       │
-│     ├── Supabase: INSERT into saas_subscription_providers_meta             │
-│     └── API Service: POST /subscriptions/{org}/providers/{p}/enable        │
+│     └── Supabase: INSERT into saas_subscription_providers_meta             │
+│     (NO backend call - just metadata)                                      │
 │                                                                             │
-│  2. API Service (subscription_plans.py) seeds default plans:               │
-│     ├── Loads plans from configs/saas/seed/data/saas_subscription_plans.csv  │
-│     ├── Filters by provider                                                │
-│     └── INSERTs into {org_slug}_{env}.saas_subscription_plans              │
+│  2. User navigates to provider detail page                                 │
+│     └── Shows EMPTY state with two buttons:                                │
+│         ├── "Add from Template" → Opens template selection dialog          │
+│         └── "Add Custom Subscription" → Opens manual add form              │
 │                                                                             │
-│  Location: api-service/src/app/routers/subscription_plans.py               │
-│  Function: enable_provider() → load_seed_data_for_provider()               │
+│  3. User clicks "Add from Template":                                       │
+│     ├── Calls GET /subscriptions/{org}/providers/{p}/available-plans       │
+│     ├── Returns predefined plans from seed CSV (not stored in BigQuery)    │
+│     ├── User selects template → Form pre-filled with template data         │
+│     └── On save: POST /subscriptions/{org}/providers/{p}/plans             │
+│                                                                             │
+│  Location: fronted-system/actions/subscription-providers.ts                │
+│  Backend: api-service/src/app/routers/subscription_plans.py                │
 └─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Template Plans Endpoint
+
+```
+GET /api/v1/subscriptions/{org_slug}/providers/{provider}/available-plans
+Header: X-API-Key: {org_api_key}
+
+Response:
+{
+  "success": true,
+  "provider": "chatgpt_plus",
+  "plans": [
+    {"plan_name": "FREE", "display_name": "ChatGPT Free", "unit_price_usd": 0, ...},
+    {"plan_name": "PLUS", "display_name": "ChatGPT Plus", "unit_price_usd": 20, ...},
+    {"plan_name": "TEAM", "display_name": "ChatGPT Team", "unit_price_usd": 25, ...},
+    {"plan_name": "ENTERPRISE", "display_name": "ChatGPT Enterprise", "unit_price_usd": 60, ...}
+  ]
+}
+
+Source: configs/saas/seed/data/saas_subscription_plans.csv (read-only, not stored in BigQuery)
 ```
 
 ### Lifecycle Summary
@@ -142,17 +172,17 @@ Examples:
 | Stage | What Happens | Table State |
 |-------|--------------|-------------|
 | **Org Onboarding** | Dataset + tables created | EMPTY tables |
-| **User Enables Provider A** | Seed data loaded for A | Plans for A only |
-| **User Enables Provider B** | Seed data loaded for B | Plans for A + B |
+| **User Enables Provider A** | Supabase metadata only | EMPTY tables |
+| **User Adds Plan from Template** | Plan created via API | Plans for A |
 | **User Adds Custom Plan** | INSERT via API | Plans + custom |
 | **User Disables Provider** | DELETE all plans for provider | Plans removed from BigQuery |
 
 **Key Points:**
 - Table exists immediately after onboarding (EMPTY)
-- Data is seeded PER PROVIDER when enabled
-- Seed data comes from `saas_subscription_plans.csv`
-- **Seeded plans have `status=pending` by default** - users must activate plans they want to track
-- Custom plans are user-added via API (can set status to `active` or `pending`)
+- **Enabling provider does NOT seed any data** (v12.1 change)
+- Users manually add plans via "Add from Template" or "Add Custom Subscription"
+- Template data comes from `saas_subscription_plans.csv` (served via `/available-plans` endpoint)
+- Plans created with `status=active` by default
 - Disabling provider DELETES all plans from BigQuery
 - **Cost updates are reflected within 24 hours** when the scheduler runs daily at midnight
 

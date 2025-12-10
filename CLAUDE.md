@@ -8,13 +8,25 @@ Multi-org cloud cost analytics platform. BigQuery-powered. Two backend services:
 
 **Architecture:** Everything is a pipeline. No SQL files, no Alembic, no direct DDL.
 
-**Full Platform Architecture:** See `requirements-docs/00-ARCHITECTURE.md`
+**Full Platform Architecture:** See `00-requirements-docs/00-ARCHITECTURE.md`
+
+## Folder Structure
+
+```
+cloudact-mono-repo/
+├── 00-requirements-docs/     # Feature documentation, architecture specs
+├── 01-fronted-system/        # Next.js frontend (Port 3000)
+├── 02-api-service/           # FastAPI backend API (Port 8000)
+├── 03-data-pipeline-service/ # Pipeline engine (Port 8001)
+├── 04-inra-cicd-automation/  # Infrastructure & CI/CD
+└── ZZ-PRE-ANALLISYS/         # Analysis artifacts
+```
 
 ## Development Commands
 
 ### API Service (Port 8000)
 ```bash
-cd api-service
+cd 02-api-service
 pip install -r requirements.txt
 
 # Run server
@@ -28,7 +40,7 @@ python -m pytest tests/ -k "test_health"      # Pattern match
 
 ### Pipeline Service (Port 8001)
 ```bash
-cd data-pipeline-service
+cd 03-data-pipeline-service
 pip install -r requirements.txt
 
 # Run server
@@ -45,7 +57,7 @@ mypy src/
 
 ### Frontend (Port 3000)
 ```bash
-cd fronted-system
+cd 01-fronted-system
 npm install
 
 npm run dev       # Start dev server
@@ -61,7 +73,7 @@ npx vitest -c vitest.api.config.ts            # API tests
 
 ### Database Migrations (Supabase)
 ```bash
-cd fronted-system/scripts/supabase_db
+cd 01-fronted-system/scripts/supabase_db
 ./migrate.sh              # Run all pending migrations
 ./migrate.sh --status     # Show migration status
 ./migrate.sh --force 12   # Force re-run specific migration
@@ -71,13 +83,13 @@ cd fronted-system/scripts/supabase_db
 
 ```
 Frontend (Next.js)           API Service (8000)              Pipeline Engine (8001)
-Port 3000                    Frontend-facing API             ETL Execution + Integrations
+Port 3000                    Frontend-facing API             ETL Execution Only
 ├─ Supabase Auth             ├─ Bootstrap                    ├─ Run pipelines
 ├─ Stripe Payments           ├─ Org onboarding               ├─ Process usage data
-└─ Dashboard UI              └─ Org management               ├─ Cost calculations
-                                                             ├─ Integration setup/validate
-                                                             ├─ LLM data CRUD
-                                                             └─ Scheduled jobs
+└─ Dashboard UI              ├─ Org management               ├─ Cost calculations
+                             ├─ Integration setup/validate   └─ Scheduled jobs
+                             ├─ LLM data CRUD
+                             └─ SaaS subscription plans
 
                              ↓                               ↓
                              BigQuery (Shared)
@@ -114,11 +126,11 @@ Port 3000                    Frontend-facing API             ETL Execution + Int
 
 | Component | Documentation | Description |
 |-----------|---------------|-------------|
-| **Architecture** | `ARCHITECTURE.md` | Complete system architecture, customer lifecycle, data flow |
-| **API Service** | `api-service/CLAUDE.md` | Frontend-facing API: bootstrap, onboarding, integrations |
-| **Pipeline Engine** | `data-pipeline-service/CLAUDE.md` | Pipeline architecture, processors, configs, scheduled ETL |
-| **Frontend** | `fronted-system/CLAUDE.md` | Next.js frontend, Supabase, Stripe, backend integration |
-| **Security** | `data-pipeline-service/SECURITY.md` | Production security requirements, API key handling |
+| **Architecture** | `00-requirements-docs/00-ARCHITECTURE.md` | Complete system architecture, customer lifecycle, data flow |
+| **API Service** | `02-api-service/CLAUDE.md` | Frontend-facing API: bootstrap, onboarding, integrations |
+| **Pipeline Engine** | `03-data-pipeline-service/CLAUDE.md` | Pipeline architecture, processors, configs, scheduled ETL |
+| **Frontend** | `01-fronted-system/CLAUDE.md` | Next.js frontend, Supabase, Stripe, backend integration |
+| **Security** | `03-data-pipeline-service/SECURITY.md` | Production security requirements, API key handling |
 
 ### Feature Documentation (requirements-docs/)
 
@@ -146,12 +158,12 @@ The backend is split into two services that share the same BigQuery datasets and
 
 | Service | Port | Purpose | Key Endpoints |
 |---------|------|---------|---------------|
-| **api-service** | 8000 | Frontend-facing API layer | `/api/v1/admin/bootstrap`, `/api/v1/organizations/*` |
-| **data-pipeline-service** | 8001 | Pipeline + Integrations | `/api/v1/pipelines/run/*`, `/api/v1/integrations/*`, scheduled jobs |
+| **02-api-service** | 8000 | Frontend-facing API layer | `/api/v1/admin/bootstrap`, `/api/v1/organizations/*`, `/api/v1/integrations/*`, `/api/v1/subscriptions/*` |
+| **03-data-pipeline-service** | 8001 | Pipeline execution only | `/api/v1/pipelines/run/*`, scheduled jobs |
 
 **Shared:** Same `CA_ROOT_API_KEY`, same BigQuery datasets, same org API key validation.
 
-**Frontend Integration:** Frontend calls api-service (8000) for bootstrap/onboarding, pipeline-service (8001) for integrations and pipeline execution.
+**Frontend Integration:** Frontend calls api-service (8000) for ALL operations except pipeline execution. Pipeline-service (8001) is for pipeline runs only.
 
 ## Production Security
 
@@ -177,9 +189,9 @@ API Request → configs/ → Processor → BigQuery API
 ```
 
 ### Key Paths
-- **Bootstrap Schemas**: `api-service/configs/setup/bootstrap/schemas/*.json` (14 tables)
-- **Pipeline Configs**: `data-pipeline-service/configs/{provider}/{domain}/*.yml`
-- **Processors**: `data-pipeline-service/src/core/processors/{provider}/{domain}.py`
+- **Bootstrap Schemas**: `02-api-service/configs/setup/bootstrap/schemas/*.json` (15 tables)
+- **Pipeline Configs**: `03-data-pipeline-service/configs/{provider}/{domain}/*.yml`
+- **Processors**: `03-data-pipeline-service/src/core/processors/{provider}/{domain}.py`
 
 ## API Key Hierarchy
 
@@ -205,7 +217,7 @@ CA_ROOT_API_KEY (system admin)
 
 ### API Endpoints
 
-#### api-service (Port 8000) - Bootstrap & Onboarding
+#### api-service (Port 8000) - All Frontend Operations
 
 **Admin (X-CA-Root-Key)**
 - `POST /api/v1/admin/bootstrap` - Initialize system
@@ -213,13 +225,8 @@ CA_ROOT_API_KEY (system admin)
 - `POST /api/v1/organizations/dryrun` - Validate org before onboarding
 - `PUT /api/v1/organizations/{org}/subscription` - Update subscription limits
 
-#### data-pipeline-service (Port 8001) - Pipelines & Integrations
-
-**Organization (X-API-Key)**
-- `POST /api/v1/pipelines/run/{org}/{provider}/{domain}/{pipeline}` - Run pipeline
-- `POST /api/v1/scheduler/trigger` - Trigger scheduled pipeline
-- `GET /api/v1/scheduler/queue` - Get pipeline queue
-- `POST /api/v1/integrations/{org}/{provider}/setup` - Setup integration (OpenAI, Anthropic, GCP)
+**Integrations (X-API-Key)**
+- `POST /api/v1/integrations/{org}/{provider}/setup` - Setup integration (OpenAI, Anthropic, GCP, Gemini)
 - `POST /api/v1/integrations/{org}/{provider}/validate` - Validate integration
 - `GET /api/v1/integrations/{org}` - Get all integrations status
 - `GET /api/v1/integrations/{org}/{provider}` - Get specific integration status
@@ -229,7 +236,7 @@ CA_ROOT_API_KEY (system admin)
 - `GET /api/v1/integrations/{org}/{provider}/subscriptions` - List subscriptions
 - `POST /api/v1/integrations/{org}/{provider}/subscriptions` - Add subscription
 
-**SaaS Subscription Plan CRUD (api-service port 8000):**
+**SaaS Subscription Plans (X-API-Key)**
 - `GET /api/v1/subscriptions/{org}/providers` - List all providers with status
 - `POST /api/v1/subscriptions/{org}/providers/{provider}/enable` - Enable provider
 - `POST /api/v1/subscriptions/{org}/providers/{provider}/disable` - Disable provider
@@ -238,6 +245,13 @@ CA_ROOT_API_KEY (system admin)
 - `PUT /api/v1/subscriptions/{org}/providers/{provider}/plans/{id}` - Update plan
 - `DELETE /api/v1/subscriptions/{org}/providers/{provider}/plans/{id}` - End plan (soft delete)
 - `POST /api/v1/subscriptions/{org}/providers/{provider}/plans/{id}/edit-version` - Edit with version history
+
+#### data-pipeline-service (Port 8001) - Pipeline Execution Only
+
+**Organization (X-API-Key)**
+- `POST /api/v1/pipelines/run/{org}/{provider}/{domain}/{pipeline}` - Run pipeline
+- `POST /api/v1/scheduler/trigger` - Trigger scheduled pipeline
+- `GET /api/v1/scheduler/queue` - Get pipeline queue
 
 ### Customer Lifecycle
 
@@ -253,7 +267,7 @@ See `ARCHITECTURE.md` for complete customer journey (signup → onboarding → i
 
 ### Pipeline Configuration
 
-**Source of Truth:** `data-pipeline-service/configs/`
+**Source of Truth:** `03-data-pipeline-service/configs/`
 
 Pipeline URL structure: `/api/v1/pipelines/run/{org_slug}/{provider}/{domain}/{pipeline}`
 
@@ -283,15 +297,15 @@ curl -X GET "http://localhost:8000/api/v1/admin/dev/api-key/{org_slug}" \
 
 | What | Path |
 |------|------|
-| **Pipeline configs** | `data-pipeline-service/configs/{provider}/{domain}/*.yml` |
-| **Provider registry** | `data-pipeline-service/configs/system/providers.yml` |
-| **API Service routers** | `api-service/src/app/routers/*.py` |
-| **Pipeline Engine routers** | `data-pipeline-service/src/app/routers/*.py` |
-| **Frontend pipeline actions** | `fronted-system/actions/pipelines.ts` |
-| **Frontend backend client** | `fronted-system/lib/api/backend.ts` |
-| **Frontend env config** | `fronted-system/.env.local` |
-| **GCP billing processor** | `data-pipeline-service/src/core/processors/gcp/external_bq_extractor.py` |
-| **Bootstrap schemas** | `api-service/configs/setup/bootstrap/schemas/*.json` |
+| **Pipeline configs** | `03-data-pipeline-service/configs/{provider}/{domain}/*.yml` |
+| **Provider registry** | `03-data-pipeline-service/configs/system/providers.yml` |
+| **API Service routers** | `02-api-service/src/app/routers/*.py` |
+| **Pipeline Engine routers** | `03-data-pipeline-service/src/app/routers/*.py` |
+| **Frontend pipeline actions** | `01-fronted-system/actions/pipelines.ts` |
+| **Frontend backend client** | `01-fronted-system/lib/api/backend.ts` |
+| **Frontend env config** | `01-fronted-system/.env.local` |
+| **GCP billing processor** | `03-data-pipeline-service/src/core/processors/gcp/external_bq_extractor.py` |
+| **Bootstrap schemas** | `02-api-service/configs/setup/bootstrap/schemas/*.json` |
 
 ### Test Pipeline Execution (curl)
 
@@ -327,7 +341,7 @@ curl -s http://localhost:8001/health | python3 -m json.tool
 
 1. **Pipeline 404 errors**: Check provider/domain match config path. Provider is lowercase (`gcp` not `GCP`), domain matches subfolder (`cost` for `configs/gcp/cost/`).
 
-2. **Frontend calls wrong port**: Frontend should call api-service (8000) for bootstrap/onboarding, pipeline-service (8001) for integrations and execution. Set `PIPELINE_SERVICE_URL=http://localhost:8001` in `.env.local`.
+2. **Frontend calls wrong port**: Frontend should call api-service (8000) for ALL operations (bootstrap, onboarding, integrations, subscriptions). Pipeline-service (8001) is ONLY for pipeline execution. Set `PIPELINE_SERVICE_URL=http://localhost:8001` in `.env.local`.
 
 3. **Config not updating**: Pipeline configs are loaded dynamically. Check `configs/system/providers.yml` for provider registry.
 
@@ -518,4 +532,4 @@ curl -X GET "http://localhost:8000/api/v1/admin/dev/api-key/{org_slug}" \
 
 ---
 
-**Last Updated:** 2025-12-08
+**Last Updated:** 2025-12-10
