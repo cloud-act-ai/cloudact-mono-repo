@@ -300,7 +300,12 @@ export default function PipelinesPage() {
       {/* Pipelines Table - Only show pipelines for connected providers */}
       {(() => {
         // Filter pipelines to only show those with connected integrations
+        // OR pipelines that don't require any integration (like SaaS subscriptions)
         const connectedPipelines = pipelines.filter((pipeline) => {
+          // If no integration required, always show the pipeline
+          if (!pipeline.required_integration || pipeline.required_integration === "") {
+            return true
+          }
           const integration = integrations[pipeline.required_integration]
           return integration?.status === "VALID"
         })
@@ -354,10 +359,17 @@ export default function PipelinesPage() {
                           <span className="console-badge console-badge-coral">{pipeline.domain}</span>
                         </TableCell>
                         <TableCell className="console-table-cell">
-                          <span className="console-badge console-badge-success inline-flex items-center">
-                            <CheckCircle2 className="h-3 w-3 mr-1" />
-                            Connected
-                          </span>
+                          {!pipeline.required_integration || pipeline.required_integration === "" ? (
+                            <span className="console-badge console-badge-teal inline-flex items-center">
+                              <CheckCircle2 className="h-3 w-3 mr-1" />
+                              No Setup Required
+                            </span>
+                          ) : (
+                            <span className="console-badge console-badge-success inline-flex items-center">
+                              <CheckCircle2 className="h-3 w-3 mr-1" />
+                              Connected
+                            </span>
+                          )}
                         </TableCell>
                         <TableCell className="console-table-cell text-right">
                           <button

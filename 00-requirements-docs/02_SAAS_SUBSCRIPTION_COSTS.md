@@ -1684,4 +1684,4 @@ To complete the architecture migration:
 
 ---
 
-**Version**: 12.0 | **Updated**: 2025-12-08 | **Policy**: Single source of truth - no duplicate docs
+**Version**: 12.1 | **Updated**: 2025-12-09 | **Policy**: Single source of truth - no duplicate docs

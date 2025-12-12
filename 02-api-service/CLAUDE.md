@@ -1,84 +1,368 @@
-# CloudAct API Service
+# API Service (Port 8000)
 
 ## Gist
 
-Frontend-facing API for org management, auth, and integrations. Port 8000. Handles bootstrap, onboarding, integration setup, and LLM data CRUD. Does NOT run pipelines or ETL jobs.
+Frontend-facing API for org management, auth, and integrations. Handles bootstrap, onboarding, integration setup, subscription plans, and cost analytics (Polars-powered). Does NOT run pipelines or ETL jobs.
 
 **Full Platform Architecture:** `../00-requirements-docs/00-ARCHITECTURE.md`
 
-## Service Flow
+## Service Responsibilities
 
 ```
-Frontend (Next.js)
+Frontend (Next.js) → API Service (8000)
     │
-    ├─ POST /api/v1/admin/bootstrap (X-CA-Root-Key)
-    │   └─ One-time: Create central dataset + 15 meta tables
-    │
-    ├─ POST /api/v1/organizations/onboard (X-CA-Root-Key)
-    │   └─ Create org + dataset + API key + subscription
-    │
-    ├─ POST /api/v1/integrations/{org}/{provider}/setup (X-API-Key)
-    │   └─ Validate → KMS encrypt → Store credentials
-    │
-    └─ GET/POST/PUT/DELETE /api/v1/integrations/{org}/... (X-API-Key)
-        └─ Manage pricing, subscriptions, integrations
+    ├─ Bootstrap: Create 15 meta tables (one-time)
+    ├─ Onboarding: Create org + dataset + API key
+    ├─ Integrations: Setup/validate credentials (OpenAI, Anthropic, GCP)
+    ├─ Subscription Plans: CRUD with version history
+    └─ Cost Analytics: Polars-powered cost aggregation and analysis
 ```
 
-## DO's and DON'Ts
+**Pipeline execution happens on port 8001** (see `../03-data-pipeline-service/CLAUDE.md`)
 
-### DO
-- Handle bootstrap and org onboarding
-- Manage organization profiles and subscriptions
-- Setup and validate integrations (OpenAI, Anthropic, GCP)
-- Store credentials encrypted via KMS
-- Provide CRUD endpoints for LLM pricing and subscriptions
-- Validate all inputs (org_slug, email, credentials)
-- Rate limit sensitive operations
-- Return integration status to frontend
+## Router Structure
 
-### DON'T
-- Never run pipelines or execute ETL jobs (use pipeline service)
-- Never process usage data or cost calculations (use pipeline service)
-- Never skip authentication (X-CA-Root-Key or X-API-Key required)
-- Never return actual credentials (only status and metadata)
-- Never create schemas directly (use configs/)
-- Never allow org onboarding without subscription plan
-- Never start in production without DISABLE_AUTH=false
+| Router | File | Endpoints | Purpose |
+|--------|------|-----------|---------|
+| **Admin** | `src/app/routers/admin.py` | `/api/v1/admin/*` | Bootstrap, dev API key retrieval |
+| **Organizations** | `src/app/routers/organizations.py` | `/api/v1/organizations/*` | Onboarding, subscription management |
+| **Integrations** | `src/app/routers/integrations.py` | `/api/v1/integrations/*` | Integration setup/validate/status |
+| **LLM Data** | `src/app/routers/llm_data.py` | `/api/v1/integrations/{org}/{provider}/pricing` | LLM pricing/subscriptions CRUD |
+| **Subscription Plans** | `src/app/routers/subscription_plans.py` | `/api/v1/subscriptions/*` | SaaS plan CRUD with version history |
+| **Cost Service** | `src/app/routers/cost_service.py` | `/api/v1/costs/*` | Polars-powered cost analytics |
 
-## Overview
+## FastAPI Server Commands
 
-This service is the **API layer** extracted from the data-pipeline-service. It handles:
-- System bootstrap (creating central BigQuery tables)
-- Organization onboarding (creating org profiles, API keys, datasets)
-- Integration management (setting up OpenAI, Anthropic, GCP credentials)
-- LLM data management (pricing, subscriptions CRUD)
+```bash
+cd /Users/gurukallam/prod-ready-apps/cloudact-mono-repo/02-api-service
 
-**Pipeline execution and ETL processing** remain in `03-data-pipeline-service` (port 8001).
+# Install dependencies
+pip install -r requirements.txt
 
-## API Endpoints
+# Run server (development)
+python3 -m uvicorn src.app.main:app --host 0.0.0.0 --port 8000 --reload
 
-### Admin Endpoints (X-CA-Root-Key)
+# Run with .env.local
+source .env.local && python3 -m uvicorn src.app.main:app --host 0.0.0.0 --port 8000 --reload
 
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| POST | `/api/v1/admin/bootstrap` | Create central dataset + 15 meta tables |
-| POST | `/api/v1/organizations/onboard` | Create organization + API key + dataset |
-| POST | `/api/v1/organizations/dryrun` | Validate org before onboarding |
-| PUT | `/api/v1/organizations/{org}/subscription` | Update subscription limits |
+# Run tests
+python -m pytest tests/ -v                    # All tests
+python -m pytest tests/ -v --run-integration  # Integration tests (real BigQuery)
+python -m pytest tests/test_01_bootstrap.py   # Single test file
+python -m pytest tests/ -k "test_health"      # Pattern match
+```
 
-### Organization Endpoints (X-API-Key)
+## Bootstrap Process
 
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| POST | `/api/v1/integrations/{org}/{provider}/setup` | Setup integration (OpenAI, Anthropic, GCP) |
-| POST | `/api/v1/integrations/{org}/{provider}/validate` | Validate integration credentials |
-| GET | `/api/v1/integrations/{org}` | Get all integration statuses |
-| GET | `/api/v1/integrations/{org}/{provider}` | Get specific integration status |
-| DELETE | `/api/v1/integrations/{org}/{provider}` | Remove integration |
-| GET | `/api/v1/integrations/{org}/{provider}/pricing` | List pricing models |
-| POST | `/api/v1/integrations/{org}/{provider}/pricing` | Add pricing model |
-| GET | `/api/v1/integrations/{org}/{provider}/subscriptions` | List subscriptions |
-| POST | `/api/v1/integrations/{org}/{provider}/subscriptions` | Add subscription |
+### 15 Meta Tables
+
+Bootstrap creates **15 central tables** in the `organizations` dataset:
+
+| Table | Purpose | Partitioned By |
+|-------|---------|----------------|
+| `org_profiles` | Organization metadata | - |
+| `org_api_keys` | API key management | `created_at` |
+| `org_subscriptions` | Subscription plans & limits | `created_at` |
+| `org_usage_quotas` | Daily/monthly quota tracking | `usage_date` |
+| `org_integration_credentials` | Encrypted credentials (KMS) | - |
+| `org_meta_pipeline_runs` | Pipeline execution history | `start_time` |
+| `org_meta_step_logs` | Step-by-step execution logs | `start_time` |
+| `org_meta_dq_results` | Data quality validation results | `ingestion_date` |
+| `org_pipeline_configs` | Pipeline configurations | - |
+| `org_scheduled_pipeline_runs` | Scheduled pipeline jobs | `scheduled_time` |
+| `org_pipeline_execution_queue` | Pipeline queue management | `scheduled_time` |
+| `org_cost_tracking` | Cost analytics data | `usage_date` |
+| `org_audit_logs` | Audit trail for all operations | `created_at` |
+| `org_kms_keys` | KMS key management | - |
+| `org_idempotency_keys` | Webhook deduplication (24h TTL) | - |
+
+**Schema Location:** `configs/setup/bootstrap/schemas/*.json`
+
+**Config Location:** `configs/setup/bootstrap/config.yml`
+
+**Bootstrap is idempotent:** Tables won't be recreated unless `force_recreate_tables: true`.
+
+### Bootstrap Endpoint
+
+```bash
+# One-time system initialization
+curl -X POST "http://localhost:8000/api/v1/admin/bootstrap" \
+  -H "X-CA-Root-Key: $CA_ROOT_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{}'
+
+# Response includes:
+# - total_tables: 15
+# - created_tables: [list of new tables]
+# - existing_tables: [list of skipped tables]
+```
+
+## Organization Onboarding
+
+### Onboarding Flow
+
+```
+POST /api/v1/organizations/onboard
+  │
+  ├─ 1. Validate org_slug, email, subscription plan
+  ├─ 2. Create org profile in org_profiles
+  ├─ 3. Generate org API key (encrypted, stored in org_api_keys)
+  ├─ 4. Create org subscription record
+  ├─ 5. Create BigQuery dataset: {org_slug}_prod
+  ├─ 6. Create 6 org-specific tables (usage, metadata, integrations, etc.)
+  └─ 7. Return org profile + API key (dev only)
+```
+
+### Onboarding Endpoints
+
+```bash
+# Dry-run validation (no changes)
+curl -X POST "http://localhost:8000/api/v1/organizations/dryrun" \
+  -H "X-CA-Root-Key: $CA_ROOT_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "org_slug": "test_org",
+    "company_name": "Test Org",
+    "admin_email": "admin@test.com",
+    "subscription_plan": "FREE"
+  }'
+
+# Actual onboarding
+curl -X POST "http://localhost:8000/api/v1/organizations/onboard" \
+  -H "X-CA-Root-Key: $CA_ROOT_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "org_slug": "test_org",
+    "company_name": "Test Org",
+    "admin_email": "admin@test.com",
+    "subscription_plan": "FREE"
+  }'
+
+# Get org API key (dev only - blocked in production)
+curl -X GET "http://localhost:8000/api/v1/admin/dev/api-key/test_org" \
+  -H "X-CA-Root-Key: $CA_ROOT_API_KEY"
+
+# Update subscription
+curl -X PUT "http://localhost:8000/api/v1/organizations/test_org/subscription" \
+  -H "X-CA-Root-Key: $CA_ROOT_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "plan_name": "PRO",
+    "daily_limit": 1000,
+    "monthly_limit": 25000
+  }'
+
+# Delete org (soft delete)
+curl -X DELETE "http://localhost:8000/api/v1/organizations/test_org" \
+  -H "X-CA-Root-Key: $CA_ROOT_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "confirm_org_slug": "test_org",
+    "delete_dataset": false
+  }'
+```
+
+## Integration Management
+
+### Setup Flow
+
+```
+POST /api/v1/integrations/{org}/{provider}/setup
+  │
+  ├─ 1. Validate credentials (call provider API)
+  ├─ 2. Encrypt credentials via KMS
+  ├─ 3. Store in org_integration_credentials
+  ├─ 4. Seed default data (pricing models, subscriptions)
+  └─ 5. Return integration status
+```
+
+### Integration Endpoints
+
+```bash
+# Setup integration (OpenAI, Anthropic, GCP)
+curl -X POST "http://localhost:8000/api/v1/integrations/test_org/openai/setup" \
+  -H "X-API-Key: $ORG_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "api_key": "sk-..."
+  }'
+
+# Validate integration
+curl -X POST "http://localhost:8000/api/v1/integrations/test_org/openai/validate" \
+  -H "X-API-Key: $ORG_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{}'
+
+# Get all integrations status
+curl -X GET "http://localhost:8000/api/v1/integrations/test_org" \
+  -H "X-API-Key: $ORG_API_KEY"
+
+# Get specific integration status
+curl -X GET "http://localhost:8000/api/v1/integrations/test_org/openai" \
+  -H "X-API-Key: $ORG_API_KEY"
+
+# Delete integration
+curl -X DELETE "http://localhost:8000/api/v1/integrations/test_org/openai" \
+  -H "X-API-Key: $ORG_API_KEY"
+```
+
+### LLM Pricing & Subscriptions CRUD
+
+```bash
+# List pricing models
+curl -X GET "http://localhost:8000/api/v1/integrations/test_org/openai/pricing" \
+  -H "X-API-Key: $ORG_API_KEY"
+
+# Add pricing model
+curl -X POST "http://localhost:8000/api/v1/integrations/test_org/openai/pricing" \
+  -H "X-API-Key: $ORG_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model_id": "gpt-4o",
+    "price_per_1k_input_tokens": 5.00,
+    "price_per_1k_output_tokens": 15.00,
+    "effective_date": "2025-01-01"
+  }'
+
+# List subscriptions
+curl -X GET "http://localhost:8000/api/v1/integrations/test_org/openai/subscriptions" \
+  -H "X-API-Key: $ORG_API_KEY"
+
+# Add subscription
+curl -X POST "http://localhost:8000/api/v1/integrations/test_org/openai/subscriptions" \
+  -H "X-API-Key: $ORG_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "subscription_name": "team_plan",
+    "monthly_cost": 500.00,
+    "start_date": "2025-01-01"
+  }'
+```
+
+## Subscription Plans CRUD (SaaS Providers)
+
+### Version History Pattern
+
+**Key Feature:** All edits create new rows with version history. No data is deleted.
+
+```
+Edit Plan:
+  Old row → end_date = new_effective_date
+  New row → effective_date = specified date, previous row gets end_date
+
+Status Values:
+  - active: Current active plan
+  - pending: Future-dated plan (effective_date > today)
+  - cancelled: Manually ended plan (end_date set)
+  - expired: Naturally expired plan (end_date < today)
+```
+
+### Subscription Plan Endpoints
+
+```bash
+# List all providers with status
+curl -X GET "http://localhost:8000/api/v1/subscriptions/test_org/providers" \
+  -H "X-API-Key: $ORG_API_KEY"
+
+# Enable provider (seeds default plans from CSV)
+curl -X POST "http://localhost:8000/api/v1/subscriptions/test_org/providers/chatgpt_plus/enable" \
+  -H "X-API-Key: $ORG_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{}'
+
+# Disable provider (soft delete all plans)
+curl -X POST "http://localhost:8000/api/v1/subscriptions/test_org/providers/chatgpt_plus/disable" \
+  -H "X-API-Key: $ORG_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{}'
+
+# List plans for provider
+curl -X GET "http://localhost:8000/api/v1/subscriptions/test_org/providers/chatgpt_plus/plans" \
+  -H "X-API-Key: $ORG_API_KEY"
+
+# Create plan
+curl -X POST "http://localhost:8000/api/v1/subscriptions/test_org/providers/chatgpt_plus/plans" \
+  -H "X-API-Key: $ORG_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "plan_name": "TEAM",
+    "plan_type": "team",
+    "price_per_user_monthly": 25.00,
+    "currency": "USD",
+    "number_of_users": 10,
+    "effective_date": "2025-01-01"
+  }'
+
+# Edit plan (creates new version)
+curl -X POST "http://localhost:8000/api/v1/subscriptions/test_org/providers/chatgpt_plus/plans/123/edit-version" \
+  -H "X-API-Key: $ORG_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "number_of_users": 15,
+    "effective_date": "2025-02-01"
+  }'
+
+# End subscription (soft delete)
+curl -X DELETE "http://localhost:8000/api/v1/subscriptions/test_org/providers/chatgpt_plus/plans/123" \
+  -H "X-API-Key: $ORG_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "end_date": "2025-03-31"
+  }'
+```
+
+### Seed Data
+
+**Location:** `configs/saas/seed/data/saas_subscription_plans.csv`
+
+**Providers:**
+- `chatgpt_plus` (4 plans: FREE, PLUS, TEAM, ENTERPRISE)
+- `claude_pro` (4 plans: FREE, PRO, TEAM, ENTERPRISE)
+- `copilot` (4 plans: INDIVIDUAL, BUSINESS, ENTERPRISE)
+- `teams` (2 plans: ESSENTIALS, BUSINESS)
+- `canva` (4 plans: FREE, PRO, TEAMS, ENTERPRISE)
+- `slack` (4 plans: FREE, PRO, BUSINESS, ENTERPRISE_GRID)
+
+## Cost Service (Polars-Powered)
+
+### Architecture
+
+```
+Frontend → GET /api/v1/costs/{org}/summary
+              │
+              ├─ BigQuery: Fetch raw cost data
+              ├─ Polars: Aggregate, filter, pivot
+              └─ Return: JSON with totals, breakdowns, trends
+```
+
+**Key Feature:** All aggregations happen in Python using Polars (not BigQuery SQL). This allows:
+- Complex multi-dimensional analysis
+- Fast in-memory pivoting
+- Flexible filtering and grouping
+- Reduced BigQuery costs
+
+### Cost Endpoints
+
+```bash
+# Get cost summary
+curl -X GET "http://localhost:8000/api/v1/costs/test_org/summary?start_date=2025-01-01&end_date=2025-01-31" \
+  -H "X-API-Key: $ORG_API_KEY"
+
+# Response includes:
+# - total_cost
+# - breakdown_by_provider (GCP, OpenAI, Anthropic, SaaS)
+# - breakdown_by_category (cloud, llm, saas)
+# - daily_trend
+# - top_services
+```
+
+### Polars Processors
+
+**Location:** `src/core/processors/cost/`
+- `aggregator.py` - Main cost aggregation logic
+- `filters.py` - Date range, provider, category filters
+- `pivots.py` - Multi-dimensional pivoting
+- `exporters.py` - CSV, JSON, Parquet exports
 
 ## Project Structure
 
@@ -89,11 +373,12 @@ This service is the **API layer** extracted from the data-pipeline-service. It h
 │   │   ├── main.py                    # FastAPI entry point
 │   │   ├── config.py                  # Settings (env vars)
 │   │   ├── routers/
-│   │   │   ├── admin.py               # Bootstrap endpoint
-│   │   │   ├── organizations.py       # Onboarding + subscription management
+│   │   │   ├── admin.py               # Bootstrap, dev API key
+│   │   │   ├── organizations.py       # Onboarding, subscription mgmt
 │   │   │   ├── integrations.py        # Integration CRUD
-│   │   │   ├── llm_data.py            # LLM pricing/subscriptions management
-│   │   │   └── openai_data.py         # OpenAI-specific data endpoints
+│   │   │   ├── llm_data.py            # LLM pricing/subscriptions
+│   │   │   ├── subscription_plans.py  # SaaS plan CRUD with versions
+│   │   │   └── cost_service.py        # Polars-powered cost analytics
 │   │   ├── models/
 │   │   │   └── org_models.py          # Pydantic models
 │   │   ├── middleware/
@@ -110,42 +395,50 @@ This service is the **API layer** extracted from the data-pipeline-service. It h
 │       │   ├── registry.py            # Provider configuration
 │       │   └── validator.py           # Credential validation
 │       ├── processors/
-│       │   ├── setup/                 # Bootstrap + onboarding processors
+│       │   ├── setup/                 # Bootstrap + onboarding
 │       │   ├── integrations/          # Integration processors
+│       │   ├── cost/                  # Polars cost aggregation
 │       │   ├── openai/                # OpenAI authenticator
 │       │   ├── anthropic/             # Anthropic authenticator
 │       │   └── gcp/                   # GCP authenticator
 │       ├── utils/
 │       │   ├── logging.py             # Logging configuration
+│       │   ├── cache.py               # LRU cache with TTL
 │       │   └── rate_limiter.py        # Rate limiting utilities
 │       ├── observability/
 │       │   └── metrics.py             # Prometheus metrics
 │       └── exceptions.py              # Custom exceptions
 ├── configs/
 │   ├── setup/                         # Bootstrap + onboarding configs
-│   ├── openai/seed/                   # OpenAI seed data (pricing, subscriptions)
+│   │   └── bootstrap/
+│   │       ├── config.yml             # Bootstrap configuration
+│   │       └── schemas/*.json         # 15 table schemas
+│   ├── openai/seed/                   # OpenAI seed data
 │   ├── anthropic/seed/                # Anthropic seed data
 │   ├── gemini/seed/                   # Gemini seed data
-│   └── system/                        # Provider configurations
+│   ├── saas/seed/                     # SaaS subscription seed data
+│   │   └── data/saas_subscription_plans.csv
+│   └── system/
+│       └── providers.yml              # Provider configurations
 ├── tests/
 │   ├── test_00_health.py              # Health check tests
-│   ├── test_01_bootstrap.py           # Bootstrap tests
+│   ├── test_01_bootstrap.py           # Bootstrap tests (15 tables)
 │   ├── test_02_organizations.py       # Onboarding tests
-│   └── test_03_integrations.py        # Integration tests
+│   ├── test_03_integrations.py        # Integration tests
+│   ├── test_04_subscription_plans.py  # SaaS plan CRUD tests
+│   ├── test_05_quota.py               # Quota management tests
+│   ├── test_06_user_onboarding_e2e.py # E2E onboarding journey
+│   └── README.md                      # E2E testing guide
 ├── Dockerfile
 ├── requirements.txt
 ├── pytest.ini
 └── CLAUDE.md
 ```
 
-## Local Development
-
-### Environment Setup (.env.local)
-
-All credentials are stored in `.env.local`. Create this file:
+## Environment Setup (.env.local)
 
 ```bash
-# .env.local
+# .env.local (development)
 GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
 GCP_PROJECT_ID=gac-prod-471220
 CA_ROOT_API_KEY=your-secure-admin-key-32chars
@@ -153,70 +446,15 @@ KMS_KEY_NAME=projects/gac-prod-471220/locations/us-central1/keyRings/.../cryptoK
 ENVIRONMENT=development
 DISABLE_AUTH=false
 RUN_INTEGRATION_TESTS=true
+OPENAI_API_KEY=sk-...  # For E2E testing
 ```
-
-### Running the Server
-
-```bash
-cd 02-api-service
-pip install -r requirements.txt
-
-# Load .env.local and run server
-source .env.local && python3 -m uvicorn src.app.main:app --host 0.0.0.0 --port 8000 --reload
-```
-
-### Running Tests
-
-Tests automatically load credentials from `.env.local`:
-
-```bash
-# Unit tests (mocked BigQuery)
-python -m pytest tests/ -v
-
-# Integration tests (real BigQuery - uses .env.local credentials)
-python -m pytest tests/ -v --run-integration
-
-# Single test file
-python -m pytest tests/test_01_bootstrap.py -v --run-integration
-
-# Pattern match
-python -m pytest tests/ -k "test_health" -v
-```
-
-## Bootstrap Configuration
-
-### 15 Meta Tables
-
-The bootstrap process creates **15 central tables** in the `organizations` dataset:
-
-| Table | Purpose | Key Fields |
-|-------|---------|------------|
-| `org_profiles` | Organization metadata | org_slug, company_name, status |
-| `org_api_keys` | API key management | api_key, org_slug, is_active |
-| `org_subscriptions` | Subscription plans & limits | plan_name, status, daily_limit |
-| `org_usage_quotas` | Daily/monthly quota tracking | pipelines_run_today, usage_date |
-| `org_integration_credentials` | Encrypted credentials (KMS) | provider, encrypted_credential |
-| `org_meta_pipeline_runs` | Pipeline execution history | pipeline_id, status, duration_ms |
-| `org_meta_step_logs` | Step-by-step execution logs | step_name, step_status, output |
-| `org_meta_dq_results` | Data quality validation results | rule_name, validation_status |
-| `org_pipeline_configs` | Pipeline configurations | config_name, config_data |
-| `org_scheduled_pipeline_runs` | Scheduled pipeline jobs | schedule_expression, next_run |
-| `org_pipeline_execution_queue` | Pipeline queue management | queue_position, priority |
-| `org_cost_tracking` | Cost analytics data | provider, cost_amount, cost_date |
-| `org_audit_logs` | Audit trail for all operations | action, user_id, timestamp |
-| `org_kms_keys` | KMS key management | key_name, key_version |
-| `org_idempotency_keys` | Webhook deduplication | idempotency_key, expires_at |
-
-**Schema Location:** `configs/setup/bootstrap/schemas/*.json`
-
-**Bootstrap is idempotent:** If tables already exist, they won't be recreated unless `force_recreate_tables: true`.
 
 ## E2E Testing
 
 ### Quick Start
 
 ```bash
-# Run E2E tests (requires real services)
+# Run E2E tests (requires both services running)
 ./run_e2e_tests.sh
 
 # Specific test scenarios
@@ -228,61 +466,36 @@ The bootstrap process creates **15 central tables** in the `organizations` datas
 
 ### E2E Test Flow
 
-E2E tests validate the **complete user onboarding journey**:
-
 1. **Bootstrap** - Create 15 meta tables in BigQuery
 2. **Organization Onboarding** - Create org profile + API key + dataset
 3. **Integration Setup** - Store encrypted OpenAI credentials (KMS)
-4. **Pipeline Execution** - Run OpenAI usage pipeline
+4. **Pipeline Execution** - Run OpenAI usage pipeline (via port 8001)
 5. **Data Verification** - Verify quota consumption and data storage
 6. **Final Verification** - Check subscription status and limits
 
-### Requirements
-
-- Real BigQuery connection (GCP project)
-- Valid GCP credentials (service account JSON)
-- KMS encryption enabled and accessible
-- Real OpenAI API key (for integration testing)
-- Both services running:
-  - 02-api-service on port 8000
-  - 03-data-pipeline-service on port 8001
-
-**Environment Setup:**
-```bash
-export REQUIRES_INTEGRATION_TESTS=true
-export GCP_PROJECT_ID="gac-prod-471220"
-export CA_ROOT_API_KEY="your-admin-key"
-export OPENAI_API_KEY="sk-your-openai-key"
-export KMS_KEY_NAME="projects/.../cryptoKeys/..."
-export GOOGLE_APPLICATION_CREDENTIALS="/path/to/sa.json"
-```
-
 **See `tests/README.md` for detailed E2E testing documentation.**
 
-## Relationship with 03-data-pipeline-service
+## Relationship with Pipeline Service
 
-| 02-api-service | 03-data-pipeline-service |
-|---------------------|---------------------------|
+| API Service (8000) | Pipeline Service (8001) |
+|--------------------|-------------------------|
 | Frontend-facing API | Pipeline execution engine |
 | Org management | Scheduled pipelines |
 | Integration setup | Usage data processing |
 | Credential storage | Cost calculations |
-| Same BigQuery | Same BigQuery |
+| Cost analytics (Polars) | ETL processors |
+| **Same BigQuery datasets** | **Same BigQuery datasets** |
 
 Both services share:
 - BigQuery datasets (organizations, per-org datasets)
 - KMS encryption keys
-- Configuration files
-- Auth models
+- Configuration files (`configs/system/providers.yml`)
+- Auth models (X-CA-Root-Key, X-API-Key)
 
 ## Security
 
-- All endpoints require authentication (X-CA-Root-Key or X-API-Key)
-- Credentials stored encrypted via KMS
-- Rate limiting enabled by default
-- CORS configured for frontend domains
+### Production Requirements
 
-Required production environment variables:
 ```bash
 export ENVIRONMENT="production"
 export CA_ROOT_API_KEY="your-secure-key-min-32-chars"
@@ -290,143 +503,80 @@ export DISABLE_AUTH="false"
 export RATE_LIMIT_ENABLED="true"
 ```
 
-## Recent Improvements
+**CRITICAL:** Backend will NOT start in production without proper security configuration.
 
-### Bootstrap Fix (December 2024)
-- **Fixed bootstrap table count from 14 to 15 tables:**
-  - Added `org_idempotency_keys` table for webhook deduplication
-  - Updated all documentation and tests to reflect 15 tables
-  - E2E tests now verify all 15 tables are created
-  - Bootstrap endpoint response shows `total_tables: 15`
+### Authentication
 
-### E2E Testing Infrastructure
-- **Added comprehensive E2E test suite** (`test_06_user_onboarding_e2e.py`):
-  - Tests complete user onboarding journey (6 steps)
-  - Validates bootstrap, onboarding, integration setup, pipeline execution
-  - Supports focused testing (bootstrap-only, onboarding-only, integration-only)
-  - Automatic cleanup of test organizations
-- **Created shell script runner** (`run_e2e_tests.sh`):
-  - Environment variable validation
-  - Service availability checks
-  - Helpful error messages and troubleshooting tips
-  - Multiple test scenarios support
+- All endpoints require authentication (X-CA-Root-Key or X-API-Key)
+- Credentials stored encrypted via KMS
+- Rate limiting enabled by default
+- CORS configured for frontend domains
 
-### Quota Management Simplification
-- **Removed `concurrent_pipelines_limit` from subscription model:**
-  - Not used in current pipeline execution logic
-  - Simplified quota tracking to `daily_limit` and `monthly_limit`
-  - Reduced complexity in onboarding and subscription management
-  - Backend validates subscription status before pipeline execution
+### Dev-Only Endpoint
 
-### SaaS Subscription Plan CRUD with Version History (December 2024)
-- **Added version-creating edit endpoint:**
-  - `POST /api/v1/subscriptions/{org}/providers/{provider}/plans/{id}/edit-version`
-  - Creates new row when editing (old row gets `end_date`, new row starts from `effective_date`)
-  - Maintains full version history for audit and cost tracking
-  - Supports future-dated changes (shows "Pending" status)
-- **Changed delete to soft delete:**
-  - Plans are ended via `end_date` instead of hard delete
-  - Status changes to `cancelled` when ended
-  - Historical data preserved for cost calculations
-- **New status values:** `active`, `cancelled`, `expired`, `pending`
-- **Pipeline compatibility:** Existing `sp_calculate_saas_subscription_plan_costs_daily.sql` already handles date ranges correctly
+`GET /api/v1/admin/dev/api-key/{org_slug}` - Blocked in production (403 Forbidden)
 
-### Documentation Updates
-- Created `README.md` with quick start and bootstrap details
-- Created `tests/README.md` with comprehensive E2E testing guide
-- Updated `CLAUDE.md` with 15 tables and E2E testing section
-- All docs now consistent with 15-table bootstrap
+## Quick Reference
 
-### Performance Analysis (December 2024)
-- **Comprehensive BigQuery performance audit:**
-  - Analyzed 14 files with BigQuery operations
-  - ✅ SELECT * queries already optimized (explicit column lists)
-  - ✅ MAX_LIMIT already at 500 (not 10000)
-  - ⚠️ Missing query timeouts (30s user, 300s batch) - HIGH PRIORITY
-  - ⚠️ Connection cleanup needs verification - MEDIUM PRIORITY
-- **Created `PERFORMANCE_ANALYSIS.md`:**
-  - Detailed findings for all 14 files
-  - Query timeout recommendations
-  - Performance testing plan
-  - Success criteria and benchmarks
-- **Next steps:** Add timeouts to all BigQuery operations (Phase 2 - Week 2)
-
-### Dev-Only API Key Retrieval Endpoint (December 2024)
-- **Added development-only endpoint for API key retrieval:**
-  - `GET /api/v1/admin/dev/api-key/{org_slug}` - Retrieves decrypted org API key
-  - Requires `X-CA-Root-Key` header (admin authentication)
-  - Only available when `ENVIRONMENT` is `development` or `local`
-  - Returns 403 Forbidden in production environments
-  - Used for local testing and debugging only
-- **Security measures:**
-  - Environment check blocks production access
-  - Logs security violation attempts
-  - Requires admin authentication
-- **Usage:**
-  ```bash
-  curl -X GET "http://localhost:8000/api/v1/admin/dev/api-key/{org_slug}" \
-    -H "X-CA-Root-Key: $CA_ROOT_API_KEY"
-  ```
-
-### SaaS Subscription Seed Data Fix (December 2024)
-- **Fixed provider name mismatch in seed CSV:**
-  - CSV file: `configs/saas/seed/data/saas_subscription_plans.csv`
-  - Changed `chatgpt` → `chatgpt_plus` (4 plans)
-  - Changed `claude` → `claude_pro` (4 plans)
-  - Changed `github_copilot` → `copilot` (4 plans)
-  - Changed `microsoft_teams` → `teams` (2 plans)
-- **Root cause:** Frontend expected provider names like `chatgpt_plus` but CSV had `chatgpt`
-- **Impact:** Default plans now seed correctly when enabling providers
-- **Frontend update:** Added `force` parameter support to `enableProvider()` function
-
----
-
-## Quick Onboarding Steps
+### Complete Onboarding
 
 ```bash
 # 1. Bootstrap (one-time)
-curl -s -X POST "http://localhost:8000/api/v1/admin/bootstrap" \
+curl -X POST "http://localhost:8000/api/v1/admin/bootstrap" \
   -H "X-CA-Root-Key: $CA_ROOT_API_KEY" -d '{}'
 
 # 2. Onboard organization
-curl -s -X POST "http://localhost:8000/api/v1/organizations/onboard" \
+curl -X POST "http://localhost:8000/api/v1/organizations/onboard" \
   -H "X-CA-Root-Key: $CA_ROOT_API_KEY" \
-  -d '{"org_slug": "my_org", "company_name": "My Org", "admin_email": "a@b.com"}'
+  -d '{
+    "org_slug": "my_org",
+    "company_name": "My Org",
+    "admin_email": "admin@example.com",
+    "subscription_plan": "FREE"
+  }'
 
 # 3. Get API key (dev only)
-curl -s -X GET "http://localhost:8000/api/v1/admin/dev/api-key/{org_slug}" \
+curl -X GET "http://localhost:8000/api/v1/admin/dev/api-key/my_org" \
   -H "X-CA-Root-Key: $CA_ROOT_API_KEY"
 
-# 4. Enable SaaS provider
-curl -s -X POST "http://localhost:8000/api/v1/subscriptions/{org_slug}/providers/chatgpt_plus/enable" \
+# 4. Setup integration
+curl -X POST "http://localhost:8000/api/v1/integrations/my_org/openai/setup" \
+  -H "X-API-Key: $ORG_API_KEY" \
+  -d '{"api_key": "sk-..."}'
+
+# 5. Enable SaaS provider
+curl -X POST "http://localhost:8000/api/v1/subscriptions/my_org/providers/chatgpt_plus/enable" \
   -H "X-API-Key: $ORG_API_KEY" -d '{}'
 
-# 5. Sync procedures (pipeline-service port 8001)
-curl -s -X POST "http://localhost:8001/api/v1/procedures/sync" \
+# 6. Sync procedures (pipeline-service port 8001)
+curl -X POST "http://localhost:8001/api/v1/procedures/sync" \
   -H "X-CA-Root-Key: $CA_ROOT_API_KEY" -d '{}'
 
-# 6. Run pipeline (pipeline-service port 8001)
-curl -s -X POST "http://localhost:8001/api/v1/pipelines/run/{org_slug}/saas_subscription/costs/saas_cost" \
+# 7. Run pipeline (pipeline-service port 8001)
+curl -X POST "http://localhost:8001/api/v1/pipelines/run/my_org/openai/cost/usage_cost" \
   -H "X-API-Key: $ORG_API_KEY" -d '{}'
 ```
 
-## Re-Onboarding (Dataset Deleted)
-
-When you manually delete a BigQuery dataset and need to recreate it:
+### Re-Onboarding (Dataset Deleted)
 
 ```bash
 # 1. Delete org from meta tables
-curl -s -X DELETE "http://localhost:8000/api/v1/organizations/{org_slug}" \
+curl -X DELETE "http://localhost:8000/api/v1/organizations/my_org" \
   -H "X-CA-Root-Key: $CA_ROOT_API_KEY" \
-  -d '{"confirm_org_slug": "{org_slug}", "delete_dataset": false}'
+  -d '{"confirm_org_slug": "my_org", "delete_dataset": false}'
 
 # 2. Re-onboard (creates new dataset + tables + API key)
-curl -s -X POST "http://localhost:8000/api/v1/organizations/onboard" \
+curl -X POST "http://localhost:8000/api/v1/organizations/onboard" \
   -H "X-CA-Root-Key: $CA_ROOT_API_KEY" \
-  -d '{"org_slug": "{org_slug}", "company_name": "Company Name", "admin_email": "email@example.com"}'
+  -d '{
+    "org_slug": "my_org",
+    "company_name": "My Org",
+    "admin_email": "admin@example.com",
+    "subscription_plan": "FREE"
+  }'
 
 # 3. Get new API key
-curl -s -X GET "http://localhost:8000/api/v1/admin/dev/api-key/{org_slug}" \
+curl -X GET "http://localhost:8000/api/v1/admin/dev/api-key/my_org" \
   -H "X-CA-Root-Key: $CA_ROOT_API_KEY"
 ```
 

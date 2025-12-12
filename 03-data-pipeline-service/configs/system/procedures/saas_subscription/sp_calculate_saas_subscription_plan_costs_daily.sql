@@ -3,8 +3,9 @@
 -- LOCATION: {project_id}.organizations (central dataset)
 -- OPERATES ON: {project_id}.{p_dataset_id} (per-customer dataset)
 --
--- PURPOSE: Calculate daily amortized costs for active subscriptions.
---          Simple, straightforward calculation:
+-- PURPOSE: Calculate daily amortized costs for ALL subscriptions that overlap
+--          with the date range, including historical costs for expired/cancelled
+--          subscriptions. Simple, straightforward calculation:
 --          daily_cost = cycle_cost / days_in_billing_period
 --
 -- INPUTS:
@@ -14,11 +15,14 @@
 --   p_end_date:   End date (inclusive)
 --
 -- CALCULATION:
---   1. cycle_cost = unit_price × seats (PER_SEAT) or unit_price (FLAT_FEE)
---   2. Apply discount if any
---   3. daily_cost = cycle_cost / days_in_period
---   4. monthly_run_rate = daily_cost × days_in_month
---   5. annual_run_rate = daily_cost × days_in_year
+--   1. Select subscriptions with status IN ('active', 'expired', 'cancelled')
+--   2. For each day, determine which plan version was valid:
+--      - start_date <= day AND (end_date IS NULL OR end_date >= day)
+--   3. cycle_cost = unit_price × seats (PER_SEAT) or unit_price (FLAT_FEE)
+--   4. Apply discount if any
+--   5. daily_cost = cycle_cost / days_in_period
+--   6. monthly_run_rate = daily_cost × days_in_month
+--   7. annual_run_rate = daily_cost × days_in_year
 --
 -- ================================================================================
 
@@ -58,7 +62,8 @@ BEGIN
         invoice_id_last, source, run_date, updated_at
       )
       WITH subscriptions AS (
-        -- Read active subscriptions within date range
+        -- Read all subscriptions that overlap with date range
+        -- Include active, expired, and cancelled to calculate historical costs
         SELECT
           org_slug,
           provider,
@@ -70,9 +75,10 @@ BEGIN
           COALESCE(seats, 1) AS seats,
           COALESCE(pricing_model, 'PER_SEAT') AS pricing_model,
           -- Get base price based on billing cycle
+          -- For annual billing: use yearly_price_usd if set, otherwise use unit_price_usd × 12
           CASE
             WHEN LOWER(COALESCE(billing_cycle, 'monthly')) IN ('monthly', 'month') THEN unit_price_usd
-            WHEN LOWER(COALESCE(billing_cycle, 'monthly')) IN ('annual', 'yearly', 'year') THEN yearly_price_usd
+            WHEN LOWER(COALESCE(billing_cycle, 'monthly')) IN ('annual', 'yearly', 'year') THEN COALESCE(yearly_price_usd, unit_price_usd * 12)
             ELSE unit_price_usd
           END AS base_price,
           discount_type,
@@ -81,7 +87,7 @@ BEGIN
           end_date,
           invoice_id_last
         FROM `%s.%s.saas_subscription_plans`
-        WHERE status = 'active'
+        WHERE status IN ('active', 'expired', 'cancelled')
           AND (start_date <= @p_end OR start_date IS NULL)
           AND (end_date >= @p_start OR end_date IS NULL)
       ),

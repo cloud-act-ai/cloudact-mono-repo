@@ -432,6 +432,196 @@ async def get_saas_subscription_costs(
 
 
 # ==============================================================================
+# Cloud Costs Endpoint
+# ==============================================================================
+
+@router.get(
+    "/{org_slug}/cloud",
+    response_model=CostDataResponse,
+    summary="Get Cloud Costs",
+    description="Get cloud infrastructure costs (GCP, AWS, Azure) from cost_data_standard_1_2."
+)
+async def get_cloud_costs(
+    org_slug: str,
+    start_date: Optional[date] = Query(None, description="Start date (YYYY-MM-DD). Defaults to first of current month."),
+    end_date: Optional[date] = Query(None, description="End date (YYYY-MM-DD). Defaults to today."),
+    auth_context: OrgContext = Depends(verify_api_key),
+    cost_service: PolarsCostService = Depends(get_cost_service)
+):
+    """
+    Get cloud infrastructure costs from cost_data_standard_1_2.
+
+    Includes costs from:
+    - Google Cloud Platform (GCP)
+    - Amazon Web Services (AWS)
+    - Microsoft Azure
+
+    Returns:
+    - Daily, monthly, and annual cost projections
+    - Cost breakdown by provider and service
+    """
+    validate_org_access(org_slug, auth_context)
+
+    result = await cost_service.get_cloud_costs(org_slug, start_date, end_date)
+
+    if not result.success:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=result.error or "Failed to retrieve cloud costs"
+        )
+
+    return _to_response(result)
+
+
+# ==============================================================================
+# LLM API Costs Endpoint
+# ==============================================================================
+
+@router.get(
+    "/{org_slug}/llm",
+    response_model=CostDataResponse,
+    summary="Get LLM API Costs",
+    description="Get LLM API costs (OpenAI, Anthropic, etc.) from cost_data_standard_1_2."
+)
+async def get_llm_costs(
+    org_slug: str,
+    start_date: Optional[date] = Query(None, description="Start date (YYYY-MM-DD). Defaults to first of current month."),
+    end_date: Optional[date] = Query(None, description="End date (YYYY-MM-DD). Defaults to today."),
+    auth_context: OrgContext = Depends(verify_api_key),
+    cost_service: PolarsCostService = Depends(get_cost_service)
+):
+    """
+    Get LLM API costs from cost_data_standard_1_2.
+
+    Includes costs from:
+    - OpenAI (GPT-4, GPT-3.5, embeddings, etc.)
+    - Anthropic (Claude)
+    - Google (Gemini)
+    - Cohere
+    - Mistral
+    - Other LLM providers
+
+    Returns:
+    - Daily, monthly, and annual cost projections
+    - Cost breakdown by provider and model
+    """
+    validate_org_access(org_slug, auth_context)
+
+    result = await cost_service.get_llm_costs(org_slug, start_date, end_date)
+
+    if not result.success:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=result.error or "Failed to retrieve LLM costs"
+        )
+
+    return _to_response(result)
+
+
+# ==============================================================================
+# Total Costs Aggregation Endpoint
+# ==============================================================================
+
+class TotalCostSummary(BaseModel):
+    """Aggregated cost summary across all cost types."""
+    saas: Dict[str, Any]
+    cloud: Dict[str, Any]
+    llm: Dict[str, Any]
+    total: Dict[str, Any]
+    date_range: Dict[str, str]
+    query_time_ms: float
+
+
+@router.get(
+    "/{org_slug}/total",
+    response_model=TotalCostSummary,
+    summary="Get Total Costs",
+    description="Get aggregated costs across SaaS subscriptions, cloud infrastructure, and LLM APIs."
+)
+async def get_total_costs(
+    org_slug: str,
+    start_date: Optional[date] = Query(None, description="Start date (YYYY-MM-DD). Defaults to first of current month."),
+    end_date: Optional[date] = Query(None, description="End date (YYYY-MM-DD). Defaults to today."),
+    auth_context: OrgContext = Depends(verify_api_key),
+    cost_service: PolarsCostService = Depends(get_cost_service)
+):
+    """
+    Get total costs aggregated from all sources.
+
+    Combines costs from:
+    - SaaS subscriptions (ChatGPT Plus, Canva, Slack, etc.)
+    - Cloud infrastructure (GCP, AWS, Azure)
+    - LLM APIs (OpenAI, Anthropic, etc.)
+
+    Returns:
+    - Individual summaries for each cost type
+    - Total daily, monthly, and annual projections
+    """
+    import asyncio
+    import time
+
+    validate_org_access(org_slug, auth_context)
+
+    start_time = time.time()
+
+    # Fetch all cost types in parallel
+    saas_result, cloud_result, llm_result = await asyncio.gather(
+        cost_service.get_saas_subscription_costs(org_slug, start_date, end_date),
+        cost_service.get_cloud_costs(org_slug, start_date, end_date),
+        cost_service.get_llm_costs(org_slug, start_date, end_date)
+    )
+
+    # Extract summaries (default to zeros if failed)
+    def safe_summary(result) -> Dict[str, Any]:
+        if result.success and result.summary:
+            return {
+                "total_daily_cost": result.summary.get("total_daily_cost", 0),
+                "total_monthly_cost": result.summary.get("total_monthly_cost", 0),
+                "total_annual_cost": result.summary.get("total_annual_cost", 0),
+                "record_count": result.summary.get("record_count", 0),
+                "providers": result.summary.get("providers", []),
+            }
+        return {
+            "total_daily_cost": 0,
+            "total_monthly_cost": 0,
+            "total_annual_cost": 0,
+            "record_count": 0,
+            "providers": [],
+        }
+
+    saas_summary = safe_summary(saas_result)
+    cloud_summary = safe_summary(cloud_result)
+    llm_summary = safe_summary(llm_result)
+
+    # Calculate totals
+    total_daily = saas_summary["total_daily_cost"] + cloud_summary["total_daily_cost"] + llm_summary["total_daily_cost"]
+    total_monthly = saas_summary["total_monthly_cost"] + cloud_summary["total_monthly_cost"] + llm_summary["total_monthly_cost"]
+    total_annual = saas_summary["total_annual_cost"] + cloud_summary["total_annual_cost"] + llm_summary["total_annual_cost"]
+
+    query_time = (time.time() - start_time) * 1000
+
+    # Determine date range from first successful result
+    date_range = {"start": "", "end": ""}
+    for result in [saas_result, cloud_result, llm_result]:
+        if result.success and result.summary and "date_range" in result.summary:
+            date_range = result.summary["date_range"]
+            break
+
+    return TotalCostSummary(
+        saas=saas_summary,
+        cloud=cloud_summary,
+        llm=llm_summary,
+        total={
+            "total_daily_cost": round(total_daily, 2),
+            "total_monthly_cost": round(total_monthly, 2),
+            "total_annual_cost": round(total_annual, 2),
+        },
+        date_range=date_range,
+        query_time_ms=round(query_time, 2)
+    )
+
+
+# ==============================================================================
 # Cache Management Endpoints
 # ==============================================================================
 

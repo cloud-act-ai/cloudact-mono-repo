@@ -948,9 +948,14 @@ export interface SaaSCostRecord {
  * Summary from SaaS subscription costs API
  */
 export interface SaaSCostSummary {
-  total_billed_cost: number
-  total_monthly_cost: number
-  total_annual_cost: number
+  total_daily_cost: number          // Current daily rate (latest day per resource)
+  total_monthly_cost: number        // MTD actual costs (sum of BilledCost in current month)
+  total_annual_cost: number         // YTD actual + forecast (YTD + daily_rate * remaining_days)
+  total_billed_cost: number         // Sum of all days in date range
+  ytd_cost: number                  // Year-to-date actual spent
+  mtd_cost: number                  // Month-to-date actual spent
+  forecast_monthly_cost: number     // Current daily rate × days in current month
+  forecast_annual_cost: number      // YTD + (daily rate × remaining days in year)
   providers: string[]
   service_categories: string[]
   record_count: number
@@ -1064,18 +1069,45 @@ export async function getSaaSSubscriptionCosts(
       )
     }
 
-    // Recalculate summary for filtered data
+    // Recalculate summary for filtered data (client-side filtering)
+    // Note: Backend already calculates YTD/MTD/forecast values, but when filtering by provider
+    // client-side, we need to recalculate. However, YTD/MTD calculations require full date range
+    // data which we don't have client-side, so we'll use simplified calculations.
     let summary = result.summary
     if (provider && filteredData.length > 0) {
+      // Get latest record per subscription for daily rate
+      const latestBySubscription = new Map<string, typeof filteredData[0]>()
+      filteredData.forEach(row => {
+        const subId = row.ResourceId || row.ServiceName || 'unknown'
+        const existing = latestBySubscription.get(subId)
+        if (!existing || row.ChargePeriodStart > existing.ChargePeriodStart) {
+          latestBySubscription.set(subId, row)
+        }
+      })
+
+      const latestRecords = Array.from(latestBySubscription.values())
+      const totalDaily = latestRecords.reduce((sum, r) => sum + (r.BilledCost || 0), 0)
       const totalBilledCost = filteredData.reduce((sum, r) => sum + (r.BilledCost || 0), 0)
-      const totalMonthly = filteredData.reduce((sum, r) => sum + (r.MonthlyRunRate || 0), 0)
-      const totalAnnual = filteredData.reduce((sum, r) => sum + (r.AnnualRunRate || 0), 0)
+
+      // For filtered data, we'll use simplified forecast calculations
+      // (Backend calculates these more accurately with full date range awareness)
+      const today = new Date()
+      const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate()
+      const daysInYear = (today.getFullYear() % 4 === 0 && (today.getFullYear() % 100 !== 0 || today.getFullYear() % 400 === 0)) ? 366 : 365
+      const forecastMonthly = totalDaily * daysInMonth
+      const forecastAnnual = totalDaily * daysInYear
+
       summary = {
+        total_daily_cost: Math.round(totalDaily * 100) / 100,
+        total_monthly_cost: Math.round(totalBilledCost * 100) / 100,  // Use total billed as MTD approximation
+        total_annual_cost: Math.round(forecastAnnual * 100) / 100,
         total_billed_cost: Math.round(totalBilledCost * 100) / 100,
-        total_monthly_cost: Math.round(totalMonthly * 100) / 100,
-        total_annual_cost: Math.round(totalAnnual * 100) / 100,
+        ytd_cost: Math.round(totalBilledCost * 100) / 100,  // Approximation
+        mtd_cost: Math.round(totalBilledCost * 100) / 100,  // Approximation
+        forecast_monthly_cost: Math.round(forecastMonthly * 100) / 100,
+        forecast_annual_cost: Math.round(forecastAnnual * 100) / 100,
         providers: [provider],
-        service_categories: [...new Set(filteredData.map(r => r.ServiceCategory).filter(Boolean))],
+        service_categories: Array.from(new Set(filteredData.map(r => r.ServiceCategory).filter(Boolean))),
         record_count: filteredData.length,
         date_range: result.summary?.date_range || { start: "", end: "" },
       }

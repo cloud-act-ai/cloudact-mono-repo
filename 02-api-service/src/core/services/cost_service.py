@@ -769,12 +769,12 @@ class PolarsCostService:
                 query_time_ms=round((time.time() - start_time) * 1000, 2)
             )
 
-        # Default to current month if no dates provided
+        # Default to year-to-date if no dates provided (for accurate YTD/forecast calculations)
         if end_date is None:
             end_date = date.today()
         if start_date is None:
-            # Default to first of current month
-            start_date = end_date.replace(day=1)
+            # Default to Jan 1st for accurate YTD costs
+            start_date = date(end_date.year, 1, 1)
 
         cache_key = f"saas_costs:{org_slug}:{start_date}:{end_date}"
 
@@ -782,24 +782,8 @@ class PolarsCostService:
         if cached_df is not None:
             query_time = (time.time() - start_time) * 1000
             data = cached_df.to_dicts()
-            total_monthly = sum(row.get('MonthlyRunRate', 0) or 0 for row in data)
-            total_annual = sum(row.get('AnnualRunRate', 0) or 0 for row in data)
-            total_billed = sum(row.get('BilledCost', 0) or 0 for row in data)
-            return CostResponse(
-                success=True,
-                data=data,
-                summary={
-                    "total_billed_cost": round(total_billed, 2),
-                    "total_monthly_cost": round(total_monthly, 2),
-                    "total_annual_cost": round(total_annual, 2),
-                    "providers": list(set(row.get('Provider', '') for row in data if row.get('Provider'))),
-                    "service_categories": list(set(row.get('ServiceCategory', '') for row in data if row.get('ServiceCategory'))),
-                    "record_count": len(data),
-                    "date_range": {"start": str(start_date), "end": str(end_date)}
-                },
-                cache_hit=True,
-                query_time_ms=round(query_time, 2)
-            )
+            # Use shared calculation method
+            return self._calculate_cost_summary(data, start_date, end_date, query_time, cache_hit=True)
 
         try:
             # SECURITY: org_slug is validated above, safe for dataset name construction
@@ -872,9 +856,11 @@ class PolarsCostService:
                 SourceRecordId,
                 UpdatedAt,
 
-                -- Calculated Run Rates (convenience columns)
-                CAST(BilledCost AS FLOAT64) * 30.44 AS MonthlyRunRate,
-                CAST(BilledCost AS FLOAT64) * 365.25 AS AnnualRunRate
+                -- Calculated Run Rates (use actual days in period for accurate projection)
+                -- Monthly: daily_cost × days_in_current_month
+                CAST(BilledCost AS FLOAT64) * EXTRACT(DAY FROM LAST_DAY(ChargePeriodStart)) AS MonthlyRunRate,
+                -- Annual: daily_cost × days_in_current_year (365 or 366)
+                CAST(BilledCost AS FLOAT64) * (CASE WHEN MOD(EXTRACT(YEAR FROM ChargePeriodStart), 4) = 0 THEN 366 ELSE 365 END) AS AnnualRunRate
 
             FROM {table_ref}
             WHERE SubAccountId = @org_slug
@@ -896,31 +882,10 @@ class PolarsCostService:
             self._cache.set(cache_key, df, ttl=60)  # Short TTL for recent data
 
             query_time = (time.time() - start_time) * 1000
-
-            # Calculate totals using FOCUS 1.2 column names
             data = df.to_dicts()
-            total_monthly = sum(row.get('MonthlyRunRate', 0) or 0 for row in data)
-            total_annual = sum(row.get('AnnualRunRate', 0) or 0 for row in data)
-            total_billed = sum(row.get('BilledCost', 0) or 0 for row in data)
 
-            return CostResponse(
-                success=True,
-                data=data,
-                summary={
-                    "total_billed_cost": round(total_billed, 2),
-                    "total_monthly_cost": round(total_monthly, 2),
-                    "total_annual_cost": round(total_annual, 2),
-                    "providers": list(set(row.get('Provider', '') for row in data if row.get('Provider'))),
-                    "service_categories": list(set(row.get('ServiceCategory', '') for row in data if row.get('ServiceCategory'))),
-                    "record_count": len(data),
-                    "date_range": {
-                        "start": str(start_date),
-                        "end": str(end_date)
-                    }
-                },
-                cache_hit=False,
-                query_time_ms=round(query_time, 2)
-            )
+            # Use shared calculation method
+            return self._calculate_cost_summary(data, start_date, end_date, query_time, cache_hit=False)
 
         except Exception as e:
             logger.error(f"SaaS subscription costs query failed for {org_slug}: {e}")
@@ -930,6 +895,313 @@ class PolarsCostService:
                 error=str(e),
                 query_time_ms=round(query_time, 2)
             )
+
+    async def get_cloud_costs(
+        self,
+        org_slug: str,
+        start_date: Optional[date] = None,
+        end_date: Optional[date] = None
+    ) -> CostResponse:
+        """
+        Get cloud costs (GCP, AWS, Azure) from cost_data_standard_1_2.
+
+        Filters by SourceSystem containing 'cloud' or 'gcp' or 'aws' or 'azure'.
+        Returns daily, monthly, and annual projections.
+        """
+        start_time = time.time()
+
+        # Validate org_slug format
+        if not self._is_valid_org_slug(org_slug):
+            return CostResponse(success=False, error="Invalid organization slug format")
+
+        # Default date range: current month
+        if not end_date:
+            end_date = date.today()
+        if not start_date:
+            start_date = end_date.replace(day=1)
+
+        cache_key = f"cloud_costs:{org_slug}:{start_date}:{end_date}"
+
+        cached_df = self._cache.get(cache_key)
+        if cached_df is not None:
+            query_time = (time.time() - start_time) * 1000
+            data = cached_df.to_dicts()
+            return self._calculate_cost_summary(data, start_date, end_date, query_time, cache_hit=True)
+
+        try:
+            dataset_id = self._get_dataset_id(org_slug)
+            project_id = settings.gcp_project_id
+            table_ref = f"`{project_id}.{dataset_id}.cost_data_standard_1_2`"
+
+            sql = f"""
+            SELECT
+                Provider,
+                ServiceCategory,
+                ServiceName,
+                ChargeCategory,
+                ChargeSubcategory,
+                ChargeDescription,
+                ChargeFrequency,
+                ResourceId,
+                ResourceName,
+                ResourceType,
+                SkuId,
+                RegionId,
+                RegionName,
+                BillingPeriodStart,
+                BillingPeriodEnd,
+                ChargePeriodStart,
+                ChargePeriodEnd,
+                SourceSystem,
+                SourceRecordId,
+                UpdatedAt,
+                BilledCost,
+                CAST(BilledCost AS FLOAT64) * EXTRACT(DAY FROM LAST_DAY(ChargePeriodStart)) AS MonthlyRunRate,
+                CAST(BilledCost AS FLOAT64) * (CASE WHEN MOD(EXTRACT(YEAR FROM ChargePeriodStart), 4) = 0 THEN 366 ELSE 365 END) AS AnnualRunRate
+            FROM {table_ref}
+            WHERE SubAccountId = @org_slug
+              AND (
+                LOWER(SourceSystem) LIKE '%cloud%'
+                OR LOWER(SourceSystem) LIKE '%gcp%'
+                OR LOWER(SourceSystem) LIKE '%aws%'
+                OR LOWER(SourceSystem) LIKE '%azure%'
+                OR LOWER(Provider) IN ('gcp', 'aws', 'azure', 'google', 'amazon', 'microsoft')
+              )
+              AND ChargePeriodStart >= @start_date
+              AND ChargePeriodEnd <= @end_date
+            ORDER BY BilledCost DESC
+            """
+
+            query_params = [
+                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                bigquery.ScalarQueryParameter("start_date", "DATE", start_date),
+                bigquery.ScalarQueryParameter("end_date", "DATE", end_date),
+            ]
+
+            df = await self._execute_query(sql, query_params)
+            self._cache.set(cache_key, df, ttl=60)
+
+            query_time = (time.time() - start_time) * 1000
+            data = df.to_dicts()
+            return self._calculate_cost_summary(data, start_date, end_date, query_time, cache_hit=False)
+
+        except Exception as e:
+            logger.error(f"Cloud costs query failed for {org_slug}: {e}")
+            query_time = (time.time() - start_time) * 1000
+            return CostResponse(
+                success=False,
+                error=str(e),
+                query_time_ms=round(query_time, 2)
+            )
+
+    async def get_llm_costs(
+        self,
+        org_slug: str,
+        start_date: Optional[date] = None,
+        end_date: Optional[date] = None
+    ) -> CostResponse:
+        """
+        Get LLM API costs (OpenAI, Anthropic, etc.) from cost_data_standard_1_2.
+
+        Filters by SourceSystem or Provider containing LLM provider names.
+        Returns daily, monthly, and annual projections.
+        """
+        start_time = time.time()
+
+        # Validate org_slug format
+        if not self._is_valid_org_slug(org_slug):
+            return CostResponse(success=False, error="Invalid organization slug format")
+
+        # Default date range: current month
+        if not end_date:
+            end_date = date.today()
+        if not start_date:
+            start_date = end_date.replace(day=1)
+
+        cache_key = f"llm_costs:{org_slug}:{start_date}:{end_date}"
+
+        cached_df = self._cache.get(cache_key)
+        if cached_df is not None:
+            query_time = (time.time() - start_time) * 1000
+            data = cached_df.to_dicts()
+            return self._calculate_cost_summary(data, start_date, end_date, query_time, cache_hit=True)
+
+        try:
+            dataset_id = self._get_dataset_id(org_slug)
+            project_id = settings.gcp_project_id
+            table_ref = f"`{project_id}.{dataset_id}.cost_data_standard_1_2`"
+
+            sql = f"""
+            SELECT
+                Provider,
+                ServiceCategory,
+                ServiceName,
+                ChargeCategory,
+                ChargeSubcategory,
+                ChargeDescription,
+                ChargeFrequency,
+                ResourceId,
+                ResourceName,
+                ResourceType,
+                SkuId,
+                RegionId,
+                RegionName,
+                BillingPeriodStart,
+                BillingPeriodEnd,
+                ChargePeriodStart,
+                ChargePeriodEnd,
+                SourceSystem,
+                SourceRecordId,
+                UpdatedAt,
+                BilledCost,
+                CAST(BilledCost AS FLOAT64) * EXTRACT(DAY FROM LAST_DAY(ChargePeriodStart)) AS MonthlyRunRate,
+                CAST(BilledCost AS FLOAT64) * (CASE WHEN MOD(EXTRACT(YEAR FROM ChargePeriodStart), 4) = 0 THEN 366 ELSE 365 END) AS AnnualRunRate
+            FROM {table_ref}
+            WHERE SubAccountId = @org_slug
+              AND (
+                LOWER(SourceSystem) LIKE '%llm%'
+                OR LOWER(SourceSystem) LIKE '%openai%'
+                OR LOWER(SourceSystem) LIKE '%anthropic%'
+                OR LOWER(SourceSystem) LIKE '%gemini%'
+                OR LOWER(SourceSystem) LIKE '%cohere%'
+                OR LOWER(Provider) IN ('openai', 'anthropic', 'google', 'cohere', 'mistral', 'meta')
+                OR LOWER(ServiceCategory) = 'llm'
+                OR LOWER(ServiceCategory) = 'ai'
+              )
+              AND ChargePeriodStart >= @start_date
+              AND ChargePeriodEnd <= @end_date
+            ORDER BY BilledCost DESC
+            """
+
+            query_params = [
+                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                bigquery.ScalarQueryParameter("start_date", "DATE", start_date),
+                bigquery.ScalarQueryParameter("end_date", "DATE", end_date),
+            ]
+
+            df = await self._execute_query(sql, query_params)
+            self._cache.set(cache_key, df, ttl=60)
+
+            query_time = (time.time() - start_time) * 1000
+            data = df.to_dicts()
+            return self._calculate_cost_summary(data, start_date, end_date, query_time, cache_hit=False)
+
+        except Exception as e:
+            logger.error(f"LLM costs query failed for {org_slug}: {e}")
+            query_time = (time.time() - start_time) * 1000
+            return CostResponse(
+                success=False,
+                error=str(e),
+                query_time_ms=round(query_time, 2)
+            )
+
+    def _calculate_cost_summary(
+        self,
+        data: List[Dict[str, Any]],
+        start_date: date,
+        end_date: date,
+        query_time: float,
+        cache_hit: bool
+    ) -> CostResponse:
+        """
+        Calculate cost summary from data rows with proper YTD and forecast calculations.
+
+        Summary Fields:
+        - total_daily_cost: Sum of BilledCost from latest day per resource (current daily rate)
+        - total_monthly_cost: MTD actual costs (sum of all BilledCost in current month)
+        - total_annual_cost: YTD actual + forecast (YTD + daily_rate * remaining_days)
+        - ytd_cost: Year-to-date actual spent
+        - mtd_cost: Month-to-date actual spent
+        - forecast_monthly_cost: Current daily rate × days in current month
+        - forecast_annual_cost: YTD + (daily rate × remaining days in year)
+        """
+        # Get current date for calculations
+        today = date.today()
+        year_start = date(today.year, 1, 1)
+        month_start = date(today.year, today.month, 1)
+        year_end = date(today.year, 12, 31)
+
+        # Days calculations
+        from calendar import monthrange
+        days_in_current_month = monthrange(today.year, today.month)[1]
+        days_in_current_year = 366 if today.year % 4 == 0 and (today.year % 100 != 0 or today.year % 400 == 0) else 365
+        remaining_days_in_year = (year_end - today).days + 1  # +1 to include today
+
+        # Calculate total billed (sum of all costs in date range)
+        total_billed = sum(row.get('BilledCost', 0) or 0 for row in data)
+
+        # Group by resource and get latest day's projection per resource
+        latest_by_resource: Dict[str, Dict[str, Any]] = {}
+        for row in data:
+            resource_id = row.get('ResourceId') or row.get('ServiceName') or 'unknown'
+            charge_date = row.get('ChargePeriodStart', '')
+            if resource_id not in latest_by_resource or charge_date > latest_by_resource[resource_id].get('ChargePeriodStart', ''):
+                latest_by_resource[resource_id] = row
+
+        # Total daily cost (latest day's cost per resource)
+        total_daily = sum(row.get('BilledCost', 0) or 0 for row in latest_by_resource.values())
+
+        # Calculate MTD costs (actual costs from start of current month)
+        mtd_cost = 0.0
+        for row in data:
+            charge_date_str = row.get('ChargePeriodStart', '')
+            if charge_date_str:
+                try:
+                    # Parse date string (YYYY-MM-DD format)
+                    if isinstance(charge_date_str, str):
+                        charge_date = date.fromisoformat(charge_date_str.split('T')[0])
+                    else:
+                        charge_date = charge_date_str
+
+                    # Sum costs from current month
+                    if charge_date >= month_start and charge_date <= today:
+                        mtd_cost += row.get('BilledCost', 0) or 0
+                except (ValueError, AttributeError):
+                    pass
+
+        # Calculate YTD costs (actual costs from start of year)
+        ytd_cost = 0.0
+        for row in data:
+            charge_date_str = row.get('ChargePeriodStart', '')
+            if charge_date_str:
+                try:
+                    if isinstance(charge_date_str, str):
+                        charge_date = date.fromisoformat(charge_date_str.split('T')[0])
+                    else:
+                        charge_date = charge_date_str
+
+                    # Sum costs from current year
+                    if charge_date >= year_start and charge_date <= today:
+                        ytd_cost += row.get('BilledCost', 0) or 0
+                except (ValueError, AttributeError):
+                    pass
+
+        # Forecast monthly cost (current daily rate × days in month)
+        forecast_monthly_cost = total_daily * days_in_current_month
+
+        # Forecast annual cost (YTD actual + daily rate × remaining days)
+        forecast_annual_cost = ytd_cost + (total_daily * remaining_days_in_year)
+
+        return CostResponse(
+            success=True,
+            data=data,
+            summary={
+                "total_daily_cost": round(total_daily, 2),
+                "total_monthly_cost": round(mtd_cost, 2),  # MTD actual
+                "total_annual_cost": round(forecast_annual_cost, 2),  # YTD + forecast
+                "total_billed_cost": round(total_billed, 2),
+                "ytd_cost": round(ytd_cost, 2),
+                "mtd_cost": round(mtd_cost, 2),
+                "forecast_monthly_cost": round(forecast_monthly_cost, 2),
+                "forecast_annual_cost": round(forecast_annual_cost, 2),
+                "providers": list(set(row.get('Provider', '') for row in data if row.get('Provider'))),
+                "service_categories": list(set(row.get('ServiceCategory', '') for row in data if row.get('ServiceCategory'))),
+                "record_count": len(data),
+                "date_range": {"start": str(start_date), "end": str(end_date)}
+            },
+            cache_hit=cache_hit,
+            query_time_ms=round(query_time, 2)
+        )
 
 
 # ==============================================================================

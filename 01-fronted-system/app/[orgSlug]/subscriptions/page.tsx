@@ -91,13 +91,18 @@ export default function SubscriptionsPage() {
   // Merged summary: costs from Polars API, counts from plans
   const summary = costSummary
     ? {
+        total_daily_cost: costSummary.total_daily_cost,
         total_monthly_cost: costSummary.total_monthly_cost,
         total_annual_cost: costSummary.total_annual_cost,
+        ytd_cost: costSummary.ytd_cost,
+        mtd_cost: costSummary.mtd_cost,
+        forecast_monthly_cost: costSummary.forecast_monthly_cost,
+        forecast_annual_cost: costSummary.forecast_annual_cost,
         count_by_category: planSummary?.count_by_category || {},
         enabled_count: planSummary?.enabled_count || 0,
         total_count: planSummary?.total_count || 0,
       }
-    : planSummary // Fallback to plan summary if no cost data yet
+    : planSummary ? { ...planSummary, total_daily_cost: 0, ytd_cost: 0, mtd_cost: 0, forecast_monthly_cost: 0, forecast_annual_cost: 0 } : null
 
   const loadData = useCallback(async () => {
     setIsLoading(true)
@@ -300,70 +305,117 @@ export default function SubscriptionsPage() {
         </Link>
       </div>
 
-      {/* Summary Cards */}
+      {/* Summary Cards - Two Rows */}
       {summary && (
-        <div className="grid gap-4 md:grid-cols-4">
-          <Card className="console-stat-card">
-            <CardHeader className="pb-2">
-              <CardDescription className="console-small">Monthly Cost</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-2">
-                <DollarSign className="h-5 w-5 text-[#007A78]" />
-                <span className="console-metric-teal">{formatCurrency(summary.total_monthly_cost)}</span>
-              </div>
-            </CardContent>
-          </Card>
+        <>
+          {/* Row 1: Actual Costs */}
+          <div className="grid gap-4 md:grid-cols-4">
+            <Card className="console-stat-card">
+              <CardHeader className="pb-2">
+                <CardDescription className="console-small">Daily Cost</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-2">
+                  <DollarSign className="h-5 w-5 text-blue-600" />
+                  <span className="text-2xl font-bold text-blue-600">{formatCurrency(summary.total_daily_cost)}</span>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">Current daily rate</p>
+              </CardContent>
+            </Card>
 
-          <Card className="console-stat-card">
-            <CardHeader className="pb-2">
-              <CardDescription className="console-small">Annual Cost</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-2">
-                <Calendar className="h-5 w-5 text-[#FF6E50]" />
-                <span className="console-metric-coral">{formatCurrency(summary.total_annual_cost)}</span>
-              </div>
-            </CardContent>
-          </Card>
+            <Card className="console-stat-card">
+              <CardHeader className="pb-2">
+                <CardDescription className="console-small">Month-to-Date</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-2">
+                  <DollarSign className="h-5 w-5 text-[#007A78]" />
+                  <span className="console-metric-teal">{formatCurrency(summary.mtd_cost || summary.total_monthly_cost)}</span>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">Actual spent this month</p>
+              </CardContent>
+            </Card>
 
-          <Card className="console-stat-card">
-            <CardHeader className="pb-2">
-              <CardDescription className="console-small">Active Plans</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5 text-green-600" />
-                <span className="text-2xl font-bold text-gray-900">
-                  {summary.enabled_count} / {summary.total_count}
-                </span>
-              </div>
-            </CardContent>
-          </Card>
+            <Card className="console-stat-card">
+              <CardHeader className="pb-2">
+                <CardDescription className="console-small">Year-to-Date {new Date().getFullYear()}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5 text-purple-600" />
+                  <span className="text-2xl font-bold text-purple-600">{formatCurrency(summary.ytd_cost || 0)}</span>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">Jan 1 - today actual</p>
+              </CardContent>
+            </Card>
 
-          <Card className="console-stat-card">
-            <CardHeader className="pb-2">
-              <CardDescription className="console-small">Categories</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-1">
-                {summary.count_by_category && Object.keys(summary.count_by_category).length > 0 ? (
-                  Object.entries(summary.count_by_category).map(([cat, count]) => (
-                    <Badge
-                      key={cat}
-                      variant="outline"
-                      className={`text-xs capitalize ${CATEGORY_COLORS[cat] || CATEGORY_COLORS.other}`}
-                    >
-                      {cat}: {count}
-                    </Badge>
-                  ))
-                ) : (
-                  <span className="text-sm text-gray-400">No categories</span>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+            <Card className="console-stat-card">
+              <CardHeader className="pb-2">
+                <CardDescription className="console-small">Active Plans</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5 text-green-600" />
+                  <span className="text-2xl font-bold text-gray-900">
+                    {summary.enabled_count} / {summary.total_count}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Row 2: Forecasts */}
+          <div className="grid gap-4 md:grid-cols-4">
+            <Card className="console-stat-card bg-gradient-to-br from-blue-50 to-white">
+              <CardHeader className="pb-2">
+                <CardDescription className="console-small">Monthly Forecast</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5 text-blue-500" />
+                  <span className="text-2xl font-bold text-blue-700">{formatCurrency(summary.forecast_monthly_cost || 0)}</span>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">Projected full month</p>
+              </CardContent>
+            </Card>
+
+            <Card className="console-stat-card bg-gradient-to-br from-orange-50 to-white">
+              <CardHeader className="pb-2">
+                <CardDescription className="console-small">Annual Forecast {new Date().getFullYear()}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5 text-[#FF6E50]" />
+                  <span className="console-metric-coral">{formatCurrency(summary.forecast_annual_cost || summary.total_annual_cost)}</span>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">YTD actual + projected to Dec 31</p>
+              </CardContent>
+            </Card>
+
+            <Card className="console-stat-card col-span-2">
+              <CardHeader className="pb-2">
+                <CardDescription className="console-small">Categories</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-wrap gap-1">
+                  {summary.count_by_category && Object.keys(summary.count_by_category).length > 0 ? (
+                    Object.entries(summary.count_by_category).map(([cat, count]) => (
+                      <Badge
+                        key={cat}
+                        variant="outline"
+                        className={`text-xs capitalize ${CATEGORY_COLORS[cat] || CATEGORY_COLORS.other}`}
+                      >
+                        {cat}: {count}
+                      </Badge>
+                    ))
+                  ) : (
+                    <span className="text-sm text-gray-400">No categories</span>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </>
       )}
 
       {/* Plans Table */}

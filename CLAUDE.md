@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Gist
 
-Multi-org cloud cost analytics platform. BigQuery-powered. Two backend services: **api-service** (frontend API, port 8000) + **pipeline** (ETL engine, port 8001). Frontend: Next.js with Supabase auth and Stripe payments.
+Multi-org cloud cost analytics platform. BigQuery-powered. Two backend services: **api-service** (frontend API, port 8000) + **pipeline-service** (ETL engine, port 8001). Frontend: Next.js with Supabase auth and Stripe payments.
 
 **Architecture:** Everything is a pipeline. No SQL files, no Alembic, no direct DDL.
 
@@ -93,7 +93,7 @@ Port 3000                    Frontend-facing API             ETL Execution Only
 
                              ↓                               ↓
                              BigQuery (Shared)
-                             ├─ organizations dataset (meta tables)
+                             ├─ organizations dataset (15 meta tables)
                              └─ {org_slug}_prod datasets (data tables)
 ```
 
@@ -115,7 +115,7 @@ Port 3000                    Frontend-facing API             ETL Execution Only
 - Never hardcode schemas in Python code
 - Never skip authentication in production
 - Never store actual API keys in Supabase (only fingerprints)
-- Never call pipeline service directly from frontend
+- Never call pipeline service directly from frontend (use api-service)
 - Never run pipelines for SUSPENDED/CANCELLED orgs
 - Never skip input validation or rate limiting
 - Never expose CA_ROOT_API_KEY to client-side code
@@ -132,7 +132,7 @@ Port 3000                    Frontend-facing API             ETL Execution Only
 | **Frontend** | `01-fronted-system/CLAUDE.md` | Next.js frontend, Supabase, Stripe, backend integration |
 | **Security** | `03-data-pipeline-service/SECURITY.md` | Production security requirements, API key handling |
 
-### Feature Documentation (requirements-docs/)
+### Feature Documentation (00-requirements-docs/)
 
 **Single source of truth for all features. Each document follows standardized format.**
 
@@ -150,8 +150,6 @@ Port 3000                    Frontend-facing API             ETL Execution Only
 | **04 - UI** | `04_LANDING_PAGES.md` | IMPLEMENTED | Public marketing pages, SEO |
 | **04 - UI** | `04_CONSOLE_UI.md` | IMPLEMENTED | Dashboard layout, navigation, theming |
 
-**Document Format:** Each document includes Notation, Terminology, Where Data Lives, Lifecycle, Architecture Flow (ASCII), Data Flow, Schema Definitions, Frontend Implementation, API Endpoints, Implementation Status, Error Handling, Test Files, and File References.
-
 ## Backend Services Split
 
 The backend is split into two services that share the same BigQuery datasets and auth flow:
@@ -164,20 +162,6 @@ The backend is split into two services that share the same BigQuery datasets and
 **Shared:** Same `CA_ROOT_API_KEY`, same BigQuery datasets, same org API key validation.
 
 **Frontend Integration:** Frontend calls api-service (8000) for ALL operations except pipeline execution. Pipeline-service (8001) is for pipeline runs only.
-
-## Production Security
-
-**CRITICAL:** Backend will NOT start in production without proper security configuration.
-
-Required environment variables:
-```bash
-export ENVIRONMENT="production"
-export CA_ROOT_API_KEY="your-secure-key-min-32-chars"
-export DISABLE_AUTH="false"
-export RATE_LIMIT_ENABLED="true"
-```
-
-See `ARCHITECTURE.md` for complete security details.
 
 ## Quick Reference
 
@@ -192,6 +176,8 @@ API Request → configs/ → Processor → BigQuery API
 - **Bootstrap Schemas**: `02-api-service/configs/setup/bootstrap/schemas/*.json` (15 tables)
 - **Pipeline Configs**: `03-data-pipeline-service/configs/{provider}/{domain}/*.yml`
 - **Processors**: `03-data-pipeline-service/src/core/processors/{provider}/{domain}.py`
+- **Frontend Actions**: `01-fronted-system/actions/*.ts`
+- **Frontend Backend Client**: `01-fronted-system/lib/api/backend.ts`
 
 ## API Key Hierarchy
 
@@ -199,7 +185,7 @@ API Request → configs/ → Processor → BigQuery API
 CA_ROOT_API_KEY (system admin)
     │
     ├── Bootstrap: POST /api/v1/admin/bootstrap
-    │   └── One-time system initialization (meta tables)
+    │   └── One-time system initialization (15 meta tables)
     │
     └── Creates → Org API Keys (per-organization)
                     │
@@ -215,162 +201,71 @@ CA_ROOT_API_KEY (system admin)
 | Org API Key | `X-API-Key` | Integrations, pipelines, data | Per-organization |
 | Provider Keys | N/A (stored encrypted) | OpenAI, Anthropic, GCP SA | Per-provider |
 
-### API Endpoints
+**Dev-Only Key Retrieval:**
+```bash
+# DEV ONLY: Get org API key for local testing
+curl -X GET "http://localhost:8000/api/v1/admin/dev/api-key/{org_slug}" \
+  -H "X-CA-Root-Key: $CA_ROOT_API_KEY"
+```
 
-#### api-service (Port 8000) - All Frontend Operations
+## API Endpoints Summary
+
+### api-service (Port 8000) - All Frontend Operations
 
 **Admin (X-CA-Root-Key)**
-- `POST /api/v1/admin/bootstrap` - Initialize system
-- `POST /api/v1/organizations/onboard` - Create organization + API key
+- `POST /api/v1/admin/bootstrap` - Initialize system (15 meta tables)
+- `POST /api/v1/organizations/onboard` - Create organization + API key + dataset
 - `POST /api/v1/organizations/dryrun` - Validate org before onboarding
 - `PUT /api/v1/organizations/{org}/subscription` - Update subscription limits
+- `GET /api/v1/admin/dev/api-key/{org_slug}` - Get org API key (dev only)
 
 **Integrations (X-API-Key)**
-- `POST /api/v1/integrations/{org}/{provider}/setup` - Setup integration (OpenAI, Anthropic, GCP, Gemini)
+- `POST /api/v1/integrations/{org}/{provider}/setup` - Setup integration
 - `POST /api/v1/integrations/{org}/{provider}/validate` - Validate integration
-- `GET /api/v1/integrations/{org}` - Get all integrations status
-- `GET /api/v1/integrations/{org}/{provider}` - Get specific integration status
+- `GET /api/v1/integrations/{org}` - List all integrations
+- `GET /api/v1/integrations/{org}/{provider}` - Get integration status
 - `DELETE /api/v1/integrations/{org}/{provider}` - Delete integration
 - `GET /api/v1/integrations/{org}/{provider}/pricing` - List pricing models
 - `POST /api/v1/integrations/{org}/{provider}/pricing` - Add pricing model
-- `GET /api/v1/integrations/{org}/{provider}/subscriptions` - List subscriptions
-- `POST /api/v1/integrations/{org}/{provider}/subscriptions` - Add subscription
 
 **SaaS Subscription Plans (X-API-Key)**
-- `GET /api/v1/subscriptions/{org}/providers` - List all providers with status
+- `GET /api/v1/subscriptions/{org}/providers` - List all providers
 - `POST /api/v1/subscriptions/{org}/providers/{provider}/enable` - Enable provider
-- `POST /api/v1/subscriptions/{org}/providers/{provider}/disable` - Disable provider
 - `GET /api/v1/subscriptions/{org}/providers/{provider}/plans` - List plans
 - `POST /api/v1/subscriptions/{org}/providers/{provider}/plans` - Create plan
 - `PUT /api/v1/subscriptions/{org}/providers/{provider}/plans/{id}` - Update plan
 - `DELETE /api/v1/subscriptions/{org}/providers/{provider}/plans/{id}` - End plan (soft delete)
 - `POST /api/v1/subscriptions/{org}/providers/{provider}/plans/{id}/edit-version` - Edit with version history
 
-#### data-pipeline-service (Port 8001) - Pipeline Execution Only
+### data-pipeline-service (Port 8001) - Pipeline Execution Only
 
 **Organization (X-API-Key)**
 - `POST /api/v1/pipelines/run/{org}/{provider}/{domain}/{pipeline}` - Run pipeline
 - `POST /api/v1/scheduler/trigger` - Trigger scheduled pipeline
 - `GET /api/v1/scheduler/queue` - Get pipeline queue
 
-### Customer Lifecycle
+**Pipeline URL Structure:** `/api/v1/pipelines/run/{org_slug}/{provider}/{domain}/{pipeline}`
+- Provider and domain are **lowercase**
+- Domain matches subfolder in `configs/{provider}/{domain}/`
 
-See `ARCHITECTURE.md` for complete customer journey (signup → onboarding → integrations → pipelines).
+## Production Security
 
-### Environments
-- **Stage**: `https://convergence-pipeline-stage-526075321773.us-central1.run.app`
-- **Prod**: `https://convergence-pipeline-prod-820784027009.us-central1.run.app`
+**CRITICAL:** Backend will NOT start in production without proper security configuration.
 
----
-
-## Debugging Quick Reference
-
-### Pipeline Configuration
-
-**Source of Truth:** `03-data-pipeline-service/configs/`
-
-Pipeline URL structure: `/api/v1/pipelines/run/{org_slug}/{provider}/{domain}/{pipeline}`
-
-| Pipeline | Provider | Domain | Pipeline | Config Path |
-|----------|----------|--------|----------|-------------|
-| GCP Billing | `gcp` | `cost` | `billing` | `configs/gcp/cost/billing.yml` |
-| OpenAI Usage | `openai` | `cost` | `usage_cost` | `configs/openai/cost/usage_cost.yml` |
-| Anthropic Usage | `anthropic` | `` (empty) | `usage_cost` | `configs/anthropic/usage_cost.yml` |
-
-**Important:** Provider and domain values are **lowercase**. Domain matches subfolder structure.
-
-### Get Org API Key
-
+Required environment variables:
 ```bash
-# DEV ONLY: Use the dev endpoint (local/development environments only)
-curl -X GET "http://localhost:8000/api/v1/admin/dev/api-key/{org_slug}" \
-  -H "X-CA-Root-Key: $CA_ROOT_API_KEY"
-
-# From frontend user metadata (Supabase)
-# Keys stored in: user.user_metadata.org_api_keys[org_slug]
-
-# Note: API keys are stored encrypted in BigQuery (encrypted_org_api_key column)
-# Use the dev endpoint above for local testing
+export ENVIRONMENT="production"
+export CA_ROOT_API_KEY="your-secure-key-min-32-chars"
+export DISABLE_AUTH="false"
+export RATE_LIMIT_ENABLED="true"
 ```
 
-### Key File Locations
+See `00-requirements-docs/00-ARCHITECTURE.md` for complete security details.
 
-| What | Path |
-|------|------|
-| **Pipeline configs** | `03-data-pipeline-service/configs/{provider}/{domain}/*.yml` |
-| **Provider registry** | `03-data-pipeline-service/configs/system/providers.yml` |
-| **API Service routers** | `02-api-service/src/app/routers/*.py` |
-| **Pipeline Engine routers** | `03-data-pipeline-service/src/app/routers/*.py` |
-| **Frontend pipeline actions** | `01-fronted-system/actions/pipelines.ts` |
-| **Frontend backend client** | `01-fronted-system/lib/api/backend.ts` |
-| **Frontend env config** | `01-fronted-system/.env.local` |
-| **GCP billing processor** | `03-data-pipeline-service/src/core/processors/gcp/external_bq_extractor.py` |
-| **Bootstrap schemas** | `02-api-service/configs/setup/bootstrap/schemas/*.json` |
+## Bootstrap System Tables
 
-### Test Pipeline Execution (curl)
+Bootstrap creates 15 management tables in the `organizations` dataset:
 
-```bash
-# Run GCP billing pipeline
-curl -X POST "http://localhost:8001/api/v1/pipelines/run/{org_slug}/gcp/cost/billing" \
-  -H "X-API-Key: {org_api_key}" \
-  -H "Content-Type: application/json" \
-  -d '{"date": "2025-11-30"}'
-
-# List available pipelines (no auth)
-curl -s http://localhost:8000/api/v1/validator/pipelines | python3 -m json.tool
-```
-
-### Common Debugging Commands
-
-```bash
-# Check what's running on ports
-lsof -i :8000  # API service
-lsof -i :8001  # Pipeline engine
-lsof -i :3000  # Frontend
-
-# Kill services on port
-pkill -f "uvicorn.*8000"
-pkill -f "uvicorn.*8001"
-
-# Check health
-curl -s http://localhost:8000/health | python3 -m json.tool
-curl -s http://localhost:8001/health | python3 -m json.tool
-```
-
-### Debugging Learnings
-
-1. **Pipeline 404 errors**: Check provider/domain match config path. Provider is lowercase (`gcp` not `GCP`), domain matches subfolder (`cost` for `configs/gcp/cost/`).
-
-2. **Frontend calls wrong port**: Frontend should call api-service (8000) for ALL operations (bootstrap, onboarding, integrations, subscriptions). Pipeline-service (8001) is ONLY for pipeline execution. Set `PIPELINE_SERVICE_URL=http://localhost:8001` in `.env.local`.
-
-3. **Config not updating**: Pipeline configs are loaded dynamically. Check `configs/system/providers.yml` for provider registry.
-
-4. **Org slug validation**: Backend requires `^[a-zA-Z0-9_]{3,50}$` (underscores only, no hyphens).
-
-5. **API key not found**: Check user.user_metadata.org_api_keys[org_slug] in Supabase, or org_api_keys table in BigQuery.
-
----
-
-## Learnings and Recent Fixes (December 2025)
-
-### Bootstrap Configuration Fix
-
-**Issue:** Bootstrap failed with partition field error
-**Error:** "The field specified for partitioning cannot be found in the schema"
-**Root Cause:** `org_subscriptions` table config specified `effective_date` for partitioning but schema had `created_at`
-**Fix:** Updated `api-service/configs/setup/bootstrap/config.yml` line 28 to use `created_at` instead of `effective_date`
-**Impact:** Bootstrap now creates all 15 tables successfully
-
-### Table Count Correction
-
-**Issue:** Tests and documentation referenced 14 tables but system creates 15
-**Missing Table:** `org_idempotency_keys` (for duplicate request prevention with 24-hour TTL)
-**Fix Applied:**
-- Updated `api-service/tests/test_01_bootstrap.py` to expect 15 tables
-- Added `org_idempotency_keys` to all test fixtures
-- Changed all references from "14 management tables" to "15 management tables"
-
-**All 15 Tables:**
 1. org_profiles
 2. org_api_keys (partitioned by created_at)
 3. org_subscriptions (partitioned by created_at)
@@ -387,76 +282,18 @@ curl -s http://localhost:8001/health | python3 -m json.tool
 14. org_kms_keys
 15. org_idempotency_keys
 
-### QueryPerformanceMonitor Fix
-
-**Issue:** ImportError for `QueryTimer` class
-**Fix:** Updated `api-service/src/app/routers/subscription_plans.py` to use `QueryPerformanceMonitor` instead of `QueryTimer`
-**Lines Changed:** 388, 765, 1351
-**Added:** `monitor.set_result(result)` calls to capture query metrics
-
-### Structured Error Response Fix
-
-**Issue:** Test expected string error format but API returned structured dict
-**Fix:** Updated `api-service/tests/test_05_quota.py` to check `detail["message"].lower()` instead of `detail.lower()`
-**Impact:** Tests now correctly validate structured error responses with error, message, and error_id fields
-
-### Cache Cleanup Thread Fix
-
-**Issue:** Logging error during shutdown - "I/O operation on closed file"
-**Fix:** Wrapped `logger.info` in try-except block in `api-service/src/core/utils/cache.py:124`
-**Impact:** Clean shutdown without logging errors
-
-### Stripe Webhook Fix
-
-**Issue:** Column 'concurrent_pipelines_limit' does not exist
-**Fix:** Removed all references to `concurrent_pipelines_limit` from:
-- `fronted-system/app/api/webhooks/stripe/route.ts`
-- `fronted-system/actions/backend-onboarding.ts`
-- `fronted-system/actions/stripe.ts`
-- `fronted-system/app/api/cron/billing-sync/route.ts`
-
-### Integration Testing Setup
-
-**Created:** Complete E2E user onboarding test at `api-service/tests/test_06_user_onboarding_e2e.py`
-**Documentation:**
-- `tests/README_E2E.md` - Quick reference
-- `tests/E2E_TEST_GUIDE.md` - Comprehensive guide
-- `tests/E2E_SUMMARY.md` - Technical details
-**Helper Script:** `run_e2e_tests.sh` with pre-flight checks
-
-**E2E Test Flow:**
-1. Service availability check
-2. Bootstrap (15 tables)
-3. Organization onboarding (create org + API key + dataset)
-4. Integration setup (OpenAI credentials with KMS encryption)
-5. Pipeline execution (usage pipeline)
-6. Data verification (quota consumption)
-7. Cleanup (delete test data)
-
-**Requirements:**
-- OPENAI_API_KEY for integration testing
-- Real BigQuery access (no mocks)
-- Real KMS for credential encryption
-- Both services running (api-service:8000, pipeline-service:8001)
-
-### Test Suite Improvements
-
-**No More Skipping:** All integration tests now run with `--run-integration` flag instead of `REQUIRES_INTEGRATION_TESTS` env var
-**Test Results:** 170 passing tests (87.6% success rate)
-**Parallel Execution:** Tests can be run in parallel using pytest-xdist
-
-### Key Patterns Learned
+## Key Patterns
 
 **BigQuery Partitioning:**
 - Always verify partition field exists in schema
 - Use `created_at` for general timestamps
 - Use domain-specific fields (`usage_date`, `scheduled_time`) when appropriate
 
-**Testing Best Practices:**
-- Write integration tests with real services (no mocks for critical paths)
-- Use `--run-integration` flag for conditional test execution
+**Testing:**
+- Integration tests use `--run-integration` flag
+- E2E tests require real BigQuery/KMS (no mocks for critical paths)
 - Clean up test data in `finally` blocks
-- Test against actual GCP project, not "test-project"
+- Test against actual GCP project
 
 **Error Handling:**
 - Use structured error responses with error, message, and error_id
@@ -469,66 +306,56 @@ curl -s http://localhost:8001/health | python3 -m json.tool
 - Prefix all cache keys with org_slug for multi-tenant isolation
 - Handle graceful shutdown of background threads
 
-### SaaS Subscription Plan CRUD with Version History (December 2024)
-
-**Feature:** Complete subscription plan management with version history and soft delete.
-
-**Backend (api-service):**
-- Added `/edit-version` endpoint for version-creating edits
-- Old row gets `end_date`, new row starts from `effective_date`
+**SaaS Subscription Plans:**
+- Use version history for edits (old row gets `end_date`, new row starts from `effective_date`)
 - Soft delete via `end_date` instead of hard delete
 - Status values: `active`, `pending`, `cancelled`, `expired`
 
-**Frontend:**
-- Date picker components (`date-picker.tsx`, `calendar.tsx`, `popover.tsx`)
-- Edit dialog shows current plan details + effective date picker
-- End subscription dialog with end date selection
-- "Pending" badge for future-dated changes
+## Common Debugging
 
-**Files Modified:**
-- `api-service/src/app/routers/subscription_plans.py` - Version endpoint
-- `fronted-system/actions/subscription-providers.ts` - `editPlanWithVersion()`, `endSubscription()`
-- `fronted-system/app/[orgSlug]/subscriptions/[provider]/page.tsx` - Redesigned dialogs
-- `fronted-system/components/ui/date-picker.tsx` - New component
-
-**Tests:** 36 API integration tests passing, 51 frontend tests passing
-
-### Dev-Only API Key Retrieval Endpoint (December 2024)
-
-**Feature:** Development-only endpoint to retrieve decrypted org API keys for local testing.
-
-**Endpoint:** `GET /api/v1/admin/dev/api-key/{org_slug}`
-- Requires `X-CA-Root-Key` header
-- Only works when `ENVIRONMENT` is `development` or `local`
-- Returns 403 Forbidden in production environments
-
-**Usage:**
+### Check Services
 ```bash
-curl -X GET "http://localhost:8000/api/v1/admin/dev/api-key/{org_slug}" \
-  -H "X-CA-Root-Key: $CA_ROOT_API_KEY"
+# Health checks
+curl -s http://localhost:8000/health | python3 -m json.tool
+curl -s http://localhost:8001/health | python3 -m json.tool
+
+# Check what's running on ports
+lsof -i :8000  # API service
+lsof -i :8001  # Pipeline engine
+lsof -i :3000  # Frontend
+
+# Kill services
+pkill -f "uvicorn.*8000"
+pkill -f "uvicorn.*8001"
 ```
 
-**Files Modified:**
-- `api-service/src/app/routers/admin.py` - Added `get_org_api_key_dev()` endpoint
+### Test Pipeline Execution
+```bash
+# Run GCP billing pipeline
+curl -X POST "http://localhost:8001/api/v1/pipelines/run/{org_slug}/gcp/cost/billing" \
+  -H "X-API-Key: {org_api_key}" \
+  -H "Content-Type: application/json" \
+  -d '{"date": "2025-11-30"}'
 
-### SaaS Subscription Seed Data Fix (December 2024)
+# List available pipelines (no auth)
+curl -s http://localhost:8000/api/v1/validator/pipelines | python3 -m json.tool
+```
 
-**Issue:** Default subscription plans not showing for providers like ChatGPT Plus.
+### Common Issues
 
-**Root Cause:** Provider name mismatch between seed CSV and frontend expectations.
-- CSV used `chatgpt`, frontend expected `chatgpt_plus`
-- Same issue for `claude`, `github_copilot`, `microsoft_teams`
+1. **Pipeline 404 errors**: Check provider/domain match config path. Provider is lowercase (`gcp` not `GCP`), domain matches subfolder (`cost` for `configs/gcp/cost/`).
 
-**Fix Applied:**
-- Updated `api-service/configs/saas/seed/data/saas_subscription_plans.csv`:
-  - `chatgpt` → `chatgpt_plus` (4 plans: FREE, PLUS, TEAM, ENTERPRISE)
-  - `claude` → `claude_pro` (4 plans)
-  - `github_copilot` → `copilot` (4 plans)
-  - `microsoft_teams` → `teams` (2 plans)
-- Added `force` parameter to `enableProvider()` function for re-seeding
+2. **Frontend calls wrong port**: Frontend should call api-service (8000) for ALL operations (bootstrap, onboarding, integrations, subscriptions). Pipeline-service (8001) is ONLY for pipeline execution. Set `PIPELINE_SERVICE_URL=http://localhost:8001` in `.env.local`.
 
-**Frontend Changes:**
-- `fronted-system/actions/subscription-providers.ts` - Added `force` parameter support
+3. **Config not updating**: Pipeline configs are loaded dynamically. Check `configs/system/providers.yml` for provider registry.
+
+4. **Org slug validation**: Backend requires `^[a-zA-Z0-9_]{3,50}$` (underscores only, no hyphens).
+
+5. **API key not found**: Use dev endpoint above for local testing, or check `user.user_metadata.org_api_keys[org_slug]` in Supabase.
+
+## Environments
+- **Stage**: `https://convergence-pipeline-stage-526075321773.us-central1.run.app`
+- **Prod**: `https://convergence-pipeline-prod-820784027009.us-central1.run.app`
 
 ---
 

@@ -200,6 +200,7 @@ class PlanCreate(BaseModel):
     payment_method: Optional[str] = Field(None, max_length=50)
     owner_email: Optional[str] = Field(None, max_length=200)
     department: Optional[str] = Field(None, max_length=100)
+    start_date: Optional[date] = None
     renewal_date: Optional[date] = None
     contract_id: Optional[str] = Field(None, max_length=100)
     notes: Optional[str] = Field(None, max_length=1000)
@@ -974,6 +975,10 @@ async def create_plan(
     subscription_id = f"sub_{provider}_{plan.plan_name.lower()}_{uuid.uuid4().hex[:8]}"
     category = get_provider_category(provider).value  # Get enum value
 
+    # Determine start_date and status
+    effective_start_date = plan.start_date or date.today()
+    initial_status = "pending" if plan.start_date and plan.start_date > date.today() else "active"
+
     insert_query = f"""
     INSERT INTO `{table_ref}` (
         org_slug, subscription_id, provider, plan_name, display_name,
@@ -988,8 +993,8 @@ async def create_plan(
         @plan_name,
         @display_name,
         @category,
-        'active',
-        CURRENT_DATE(),
+        @status,
+        @start_date,
         @billing_cycle,
         @currency,
         @seats,
@@ -1018,6 +1023,8 @@ async def create_plan(
                 bigquery.ScalarQueryParameter("plan_name", "STRING", plan.plan_name.upper()),
                 bigquery.ScalarQueryParameter("display_name", "STRING", plan.display_name or plan.plan_name),
                 bigquery.ScalarQueryParameter("category", "STRING", category),
+                bigquery.ScalarQueryParameter("status", "STRING", initial_status),
+                bigquery.ScalarQueryParameter("start_date", "DATE", effective_start_date),
                 bigquery.ScalarQueryParameter("billing_cycle", "STRING", plan.billing_cycle),
                 bigquery.ScalarQueryParameter("currency", "STRING", plan.currency),
                 bigquery.ScalarQueryParameter("seats", "INT64", plan.seats),
@@ -1045,8 +1052,8 @@ async def create_plan(
             plan_name=plan.plan_name.upper(),
             display_name=plan.display_name or plan.plan_name,
             category=category,
-            status="active",
-            start_date=date.today(),
+            status=initial_status,
+            start_date=effective_start_date,
             billing_cycle=plan.billing_cycle,
             currency=plan.currency,
             seats=plan.seats,

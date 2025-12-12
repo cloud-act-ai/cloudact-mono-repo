@@ -1,14 +1,28 @@
-# Backend: Data Pipeline Service
+# Pipeline Service (Port 8001)
 
 ## Gist
 
-Pipeline execution engine for ETL jobs. Port 8001. Runs scheduled pipelines, processes usage data, calculates costs.
+Pipeline execution engine for ETL jobs. Runs scheduled pipelines, processes usage data, calculates costs. This service executes pipelines only - integrations, onboarding, and LLM data CRUD are handled by `02-api-service`.
 
 **Full Platform Architecture:** `../00-requirements-docs/00-ARCHITECTURE.md`
 
 **Security Documentation:** `SECURITY.md`
 
-**API Service (port 8000):** Bootstrap, onboarding, integrations, and LLM data CRUD are handled by `02-api-service`.
+**Root Documentation:** `../CLAUDE.md` (service overview, folder structure, development commands)
+
+---
+
+## Core Principle
+
+**Everything is a Pipeline** - No raw SQL, no Alembic, no direct DDL.
+
+```
+API Request → configs/ → Processor → BigQuery API
+```
+
+**Single Source of Truth:** All configs, schemas, and pipeline definitions live in `configs/`
+
+---
 
 ## Pipeline Flow
 
@@ -28,184 +42,11 @@ API Request (X-API-Key)
         └─ Daily/Monthly: Run pipelines for all orgs
 ```
 
-## DO's and DON'Ts
-
-### DO
-- Run scheduled pipelines (daily GCP billing, OpenAI usage)
-- Execute ad-hoc pipeline runs via API
-- Process usage data and calculate costs
-- Decrypt credentials from BigQuery using KMS
-- Validate subscription status before execution
-- Load all schemas from configs/
-- Log execution to org_meta_pipeline_runs
-- Use processors for ALL BigQuery operations
-
-### DON'T
-- **NEVER use DISABLE_AUTH=true in production** - Always authenticate properly
-- Never handle bootstrap, onboarding, or integrations (see API Service above)
-- Never write raw SQL or use Alembic
-- Never hardcode schemas in Python
-- Never run pipelines for SUSPENDED/CANCELLED orgs
-- Never skip credential decryption
-- Never execute without valid org API key
-
-## Core Principle
-
-**Everything is a Pipeline** - No raw SQL, no Alembic, no direct DDL.
-
-```
-API Request → configs/ → Processor → BigQuery API
-```
-
-**Single Source of Truth:** All configs, schemas, and pipeline definitions live in `configs/`
-
-## Security
-
-See `SECURITY.md` for production security requirements, API key handling, and credential management.
-
-**Quick Security Notes:**
-- Production startup validates security configuration (fails if misconfigured)
-- CA Root API key uses constant-time comparison with SHA256 hashing
-- All credentials encrypted with KMS
-- Rate limiting and request tracing enabled by default
-- Subscription status checked before pipeline execution
-
----
-
-## API Architecture
-
-### Key Types
-
-| Key | Header | Used For | Scope |
-|-----|--------|----------|-------|
-| Org API Key | `X-API-Key` | Pipelines | Per-organization operations |
-
-### Authentication Flow
-
-```
-Org API Key (created during onboarding)
-    │
-    ├── Run Pipelines: POST /api/v1/pipelines/run/{org}/...
-    └── Query Data: org-specific BigQuery datasets
-```
-
-### API Endpoints
-
-#### Routers Registered in main.py
-
-| Router | Tag | Prefix | Purpose |
-|--------|-----|--------|---------|
-| `pipelines.py` | Pipelines | `/api/v1` | Pipeline execution and monitoring |
-| `scheduler.py` | Scheduler | `/api/v1` | Pipeline scheduling and cron jobs |
-| `procedures.py` | Procedures | `/api/v1` | Procedure management (create/update/delete in organizations) |
-
-#### Pipeline Endpoints (X-API-Key)
-
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| POST | `/api/v1/pipelines/run/{org}/{provider}/{domain}/{pipeline}` | Run specific pipeline |
-
-#### Scheduler Endpoints (X-API-Key)
-
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| POST | `/api/v1/scheduler/trigger` | Trigger scheduled pipeline |
-| GET | `/api/v1/scheduler/queue` | Get pipeline queue |
-| POST | `/api/v1/scheduler/queue/process` | Process queued pipelines |
-
-#### Procedure Management Endpoints (X-CA-Root-Key)
-
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| GET | `/api/v1/procedures` | List all procedures in organizations dataset |
-| GET | `/api/v1/procedures/files` | List procedure SQL files available for sync |
-| POST | `/api/v1/procedures/sync` | Sync all procedures from SQL files |
-| GET | `/api/v1/procedures/{name}` | Get procedure details |
-| POST | `/api/v1/procedures/{name}` | Create/update a specific procedure |
-| DELETE | `/api/v1/procedures/{name}` | Delete a procedure |
-
-**Procedure Files Location:** `configs/system/procedures/{domain}/*.sql`
-
----
-
-## Customer Lifecycle
-
-### Frontend ↔ Backend Flow
-
-```
-Frontend (Supabase)                    api-service (8000)                   data-pipeline-service (8001)
-─────────────────                      ──────────────────                   ────────────────────────────
-1. User signup
-2. Org created in Supabase
-3. Stripe subscription
-                    ────────────────►
-4. /organizations/onboard              5. Create dataset + API key
-                    ◄────────────────
-6. Save API key
-                    ────────────────►
-7. /integrations/{org}/{provider}/setup 8. Validate → KMS encrypt → Store
-                    ◄────────────────
-9. Save status
-                                                                           ────────────────►
-                                                                           10. Daily scheduler runs pipelines
-                                                                           11. User triggers ad-hoc runs
-```
-
-### Data Storage Split
-
-| Data Type | Stored In | Why |
-|-----------|-----------|-----|
-| User accounts, auth | Supabase | Auth system |
-| Org metadata (name, slug) | Supabase | Frontend queries |
-| Subscription/billing | Supabase + Stripe | Billing system |
-| Billing status | Supabase (lowercase) + BigQuery (UPPERCASE) | Synced via webhook |
-| Integration status reference | Supabase | Fast frontend reads |
-| Org API Key | BigQuery (hashed + KMS) | Security |
-| Provider credentials | BigQuery (KMS encrypted) | Security |
-| Pipeline data (billing, usage) | BigQuery | Analytics |
-| Execution logs | BigQuery | Audit trail |
-
-### Billing Status Mapping
-
-Frontend → Backend status mapping (via `syncSubscriptionToBackend()`):
-
-| Frontend (Supabase) | Backend (BigQuery) | Pipeline Access |
-|---------------------|--------------------| ----------------|
-| `trialing` | `TRIAL` | ✅ Allowed |
-| `active` | `ACTIVE` | ✅ Allowed |
-| `past_due` | `SUSPENDED` | ❌ Blocked |
-| `canceled` | `CANCELLED` | ❌ Blocked |
-| `paused` | `SUSPENDED` | ❌ Blocked |
-| `incomplete` | `SUSPENDED` | ❌ Blocked |
-
-### Multi-Tenant Isolation
-
-**Single KMS Key for All Orgs** - Isolation is at DATA layer:
-
-```sql
--- Credentials encrypted with shared KMS key
--- Isolation via org_slug filter in every query
-SELECT encrypted_credential
-FROM organizations.org_integration_credentials
-WHERE org_slug = @org_slug  -- ← THIS provides isolation
-  AND provider = 'GCP_SA'
-```
-
-**Concurrent Pipeline Execution (Org A + Org B):**
-- Each request authenticated by unique org API key
-- org_slug extracted from API key lookup
-- Credentials fetched: `WHERE org_slug = @org_slug`
-- Separate BigQuery client per execution
-- Data writes to separate datasets: `{org_slug}.*`
-- NO shared state between executions
-
 ---
 
 ## Pipeline Architecture
 
 ### Config Structure (Single Source of Truth)
-
-**Actual config structure (verified 2025-12-02):**
 
 ```
 configs/
@@ -222,6 +63,9 @@ configs/
 │       ├── billing.yml                     # GCP billing pipeline
 │       └── schemas/
 │           └── billing_cost.json           # BQ table schema
+├── saas_subscription/
+│   └── costs/
+│       └── saas_cost.yml                   # SaaS subscription cost pipeline
 ├── example/
 │   ├── finance/
 │   │   └── subscription_costs_transform.yml
@@ -234,7 +78,9 @@ configs/
 │       └── config.yml
 └── system/
     ├── dataset_types.yml                   # Dataset type definitions
-    └── providers.yml                       # Provider registry (IMPORTANT)
+    ├── providers.yml                       # Provider registry (IMPORTANT)
+    └── procedures/                         # Stored procedures
+        └── {domain}/*.sql
 ```
 
 **Key Config: `providers.yml`** - Single source of truth for all provider configurations including:
@@ -250,8 +96,6 @@ Processors are the **execution engines** that do the actual work:
 - Read configuration from `configs/`
 - Execute business logic (BigQuery operations, validations, notifications)
 - Return structured results for logging
-
-**Actual processor structure (verified 2025-12-02):**
 
 ```
 src/core/processors/
@@ -274,7 +118,8 @@ src/core/processors/
 │   └── validation.py                       # Validate GCP credentials
 ├── generic/
 │   ├── api_extractor.py                    # Generic API extraction (ps_type: generic.api_extractor)
-│   └── local_bq_transformer.py             # Local BQ transformation (ps_type: generic.local_bq_transformer)
+│   ├── local_bq_transformer.py             # Local BQ transformation (ps_type: generic.local_bq_transformer)
+│   └── procedure_executor.py               # Execute stored procedures (ps_type: generic.procedure_executor)
 ├── integrations/
 │   ├── kms_store.py                        # Encrypt & store credentials
 │   ├── kms_decrypt.py                      # Decrypt credentials for use
@@ -330,16 +175,18 @@ API Request
 - ELT pattern: stores raw JSON, transform via SQL
 - See: `docs/GCP_API_EXTRACTOR.md`
 
-**3. Generic Processors**
-- `generic.api_extractor` - Generic API data extraction
-- `generic.local_bq_transformer` - Local BigQuery transformations
+**3. Generic API Extractor (`generic.api_extractor`)**
+- File: `src/core/processors/generic/api_extractor.py`
+- Generic API data extraction with multiple auth types
+- Memory-safe streaming with configurable batch size
+- See: Generic API Extractor section below
 
-**4. Integration Processors**
-- `kms_store.py` - Encrypt & store credentials via KMS
-- `kms_decrypt.py` - Decrypt credentials for pipeline use
-- `validate_*.py` - Provider-specific credential validation
+**4. Procedure Executor (`generic.procedure_executor`)**
+- File: `src/core/processors/generic/procedure_executor.py`
+- Execute stored procedures in BigQuery
+- Used by SaaS subscription cost pipeline
 
-**4. Email Notification Processor (`notify_systems.email_notification`)**
+**5. Email Notification Processor (`notify_systems.email_notification`)**
 - File: `src/core/processors/notify_systems/email_notification.py`
 - Send email notifications for pipeline events
 - Triggers: on_failure, on_success, on_completion, always
@@ -381,7 +228,11 @@ API Request
        └── my_table.json
    ```
 
-4. **Update this documentation!**
+4. **Register in api-service:**
+   Add entry to `02-api-service/configs/system/pipelines.yml`
+   (PipelineRegistry is a singleton - requires api-service restart)
+
+5. **Update documentation**
 
 ### Pipeline Types
 
@@ -400,268 +251,36 @@ API Request
 | `gcp/cost/billing.yml` | Daily | `gcp.bq_etl` | `gcp_billing_daily_raw` |
 | `gcp/api/billing_accounts.yml` | Daily | `gcp.api_extractor` | `gcp_billing_accounts_raw` |
 
-#### Integration Processors
+#### SaaS Subscription Pipelines
 
-Managed via API endpoints, not separate config files:
-
-| Processor | Purpose |
-|-----------|---------|
-| `integrations.kms_store` | Store KMS-encrypted credentials |
-| `integrations.kms_decrypt` | Decrypt credentials for use |
-| `integrations.validate_openai` | Validate OpenAI API key |
-| `integrations.validate_claude` | Validate Anthropic/Claude API key |
-| `integrations.validate_gcp` | Validate GCP Service Account |
+| Config | Schedule | Processor | Output Tables |
+|--------|----------|-----------|---------------|
+| `saas_subscription/costs/saas_cost.yml` | Daily | `generic.procedure_executor` | `saas_subscription_cost_daily` |
 
 ---
 
-## Naming Conventions
+## Stored Procedures
 
-### File & Folder Naming
-| Item | Convention | Example |
-|------|------------|---------|
-| Config folder | `snake_case` | `openai/`, `gcp/` |
-| Config file | `snake_case.yml` | `usage_cost.yml`, `billing.yml` |
-| Processor file | `snake_case.py` | `cost.py`, `usage.py` |
+Stored procedures are managed in BigQuery and synced from SQL files.
 
-### Pipeline & Step Naming
-| Item | Convention | Pattern | Example |
-|------|------------|---------|---------|
-| Pipeline ID | `kebab-case` | `{org}-{provider}-{domain}` | `acme-openai-usage-cost` |
-| Step ID | `snake_case` | `{action}_{target}` | `extract_usage`, `transform_cost` |
-| ps_type | `dot.notation` | `{provider}.{domain}` | `openai.usage`, `gcp.bq_etl` |
+### Procedure Management
 
-### BigQuery Table Naming
-| Item | Convention | Pattern | Example |
-|------|------------|---------|---------|
-| Dataset | `snake_case` | `{org}_{env}` | `acme_prod` |
-| Table | `snake_case` | `{provider}_{domain}_{granularity}_{state}` | `openai_usage_daily_raw` |
+**Procedure Files Location:** `configs/system/procedures/{domain}/*.sql`
 
-### Table Name Components
-```
-{provider}_{domain}_{granularity}_{state}
+**Example:** `configs/system/procedures/saas_subscription/calculate_subscription_cost.sql`
 
-Components:
-├── provider:    openai, anthropic, gcp
-├── domain:      usage, cost, billing, subscriptions
-├── granularity: daily, monthly, hourly
-└── state:       raw, staging, (none = final)
-```
+### Procedure Endpoints (X-CA-Root-Key)
 
-### Step ID Actions
-| Prefix | Use Case | Examples |
-|--------|----------|----------|
-| `extract_` | Pull data from external API | `extract_usage`, `extract_billing` |
-| `transform_` | Transform/derive data | `transform_cost` |
-| `load_` | Write to destination | `load_to_bq` |
-| `validate_` | Validate data/credentials | `validate_credential` |
-| `notify_` | Send notifications | `notify_on_failure` |
-| `decrypt_` | Decrypt credentials | `decrypt_credentials` |
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| GET | `/api/v1/procedures` | List all procedures in organizations dataset |
+| GET | `/api/v1/procedures/files` | List procedure SQL files available for sync |
+| POST | `/api/v1/procedures/sync` | Sync all procedures from SQL files |
+| GET | `/api/v1/procedures/{name}` | Get procedure details |
+| POST | `/api/v1/procedures/{name}` | Create/update a specific procedure |
+| DELETE | `/api/v1/procedures/{name}` | Delete a procedure |
 
----
-
-## Dataset Structure
-
-```
-Central: organizations (project.organizations)
-├── org_profiles                    # Organization metadata
-├── org_api_keys                    # API keys (SHA256 hash + KMS encrypted)
-├── org_subscriptions               # Subscription tiers (STARTER, PROFESSIONAL, SCALE)
-├── org_usage_quotas                # Usage limits per org
-├── org_integration_credentials     # LLM & cloud integration credentials (KMS encrypted)
-├── org_pipeline_configs            # Pipeline configurations
-├── org_scheduled_pipeline_runs     # Scheduled pipeline definitions
-├── org_pipeline_execution_queue    # Pipeline execution queue
-├── org_meta_pipeline_runs          # Execution logs
-├── org_meta_step_logs              # Step-level logs
-├── org_meta_dq_results             # Data quality results
-├── org_audit_logs                  # Audit trail
-├── org_kms_keys                    # KMS key metadata
-└── org_cost_tracking               # Cost tracking data
-
-Per-Organization: {org_slug}_{env} (e.g., acme_prod)
-└── billing_cost_daily, openai_usage_daily_raw, etc.  # Data tables only
-```
-
----
-
-## Project Structure
-
-**Actual structure (verified 2025-12-02):**
-
-```
-03-data-pipeline-service/
-├── src/app/
-│   ├── main.py                        # FastAPI entry point
-│   ├── config.py                      # Settings (env vars)
-│   ├── routers/
-│   │   ├── pipelines.py               # POST /api/v1/pipelines/run/...
-│   │   └── scheduler.py               # Scheduled pipeline execution
-│   ├── models/
-│   │   ├── openai_data_models.py      # Pydantic models for cost calculations
-│   │   └── org_models.py              # Organization models
-│   ├── dependencies/
-│   │   ├── auth.py                    # get_current_org(), AuthMetricsAggregator
-│   │   └── rate_limit_decorator.py    # Rate limiting
-│   └── middleware/
-│       ├── validation.py              # Input validation
-│       ├── audit_logging.py           # Audit trail
-│       └── scope_enforcement.py       # Authorization scopes
-├── src/core/
-│   ├── processors/                    # PROCESSORS - Heart of the system
-│   │   ├── openai/                    # OpenAI processors
-│   │   ├── anthropic/                 # Anthropic processors
-│   │   ├── gcp/                       # GCP processors
-│   │   ├── generic/                   # Generic processors
-│   │   ├── integrations/              # Integration processors
-│   │   └── notify_systems/            # Notification processors
-│   ├── abstractor/                    # Config loading
-│   │   ├── config_loader.py
-│   │   └── models.py
-│   ├── engine/                        # BigQuery & API clients
-│   │   ├── bq_client.py
-│   │   ├── org_bq_client.py
-│   │   ├── api_connector.py
-│   │   └── polars_processor.py
-│   ├── pipeline/                      # Pipeline execution
-│   │   └── async_executor.py          # AsyncPipelineExecutor
-│   ├── security/                      # KMS encryption
-│   │   ├── kms_encryption.py
-│   │   └── org_kms_encryption.py
-│   ├── scheduler/                     # Scheduled execution
-│   │   ├── queue_manager.py
-│   │   ├── retry_manager.py
-│   │   └── state_manager.py
-│   ├── notifications/                 # Email/Slack
-│   ├── observability/                 # Metrics
-│   ├── metadata/                      # Execution logging
-│   ├── providers/                     # Provider registry
-│   ├── pubsub/                        # Pub/Sub integration
-│   └── utils/                         # Utilities
-└── configs/                           # SINGLE SOURCE OF TRUTH
-    ├── openai/                        # OpenAI configs
-    │   ├── cost/
-    │   │   ├── cost_calculation.yml
-    │   │   ├── cost_extract.yml
-    │   │   └── usage_cost.yml
-    │   └── subscriptions.yml
-    ├── anthropic/                     # Anthropic configs
-    │   └── usage_cost.yml
-    ├── gcp/                           # GCP configs
-    │   └── cost/
-    │       ├── billing.yml
-    │       └── schemas/
-    │           └── billing_cost.json
-    ├── example/                       # Example pipelines
-    ├── notify_systems/                # Notification configs
-    └── system/                        # System configs
-        ├── dataset_types.yml
-        └── providers.yml              # Provider registry
-```
-
----
-
-## Local Development
-
-### Prerequisites
-
-```bash
-# Required environment variables
-export GCP_PROJECT_ID="gac-prod-471220"
-export CA_ROOT_API_KEY="your-secure-admin-key"
-export ENVIRONMENT="development"  # development|staging|production
-export KMS_KEY_NAME="projects/{project}/locations/{loc}/keyRings/{ring}/cryptoKeys/{key}"
-
-# Optional (for local dev only)
-export DISABLE_AUTH="true"         # Skip auth validation
-export BIGQUERY_LOCATION="US"
-```
-
-### Run Locally
-
-```bash
-cd 03-data-pipeline-service
-pip install -r requirements.txt
-
-# For LOCAL DEVELOPMENT ONLY - never use these in production!
-export GCP_PROJECT_ID="gac-prod-471220"
-export CA_ROOT_API_KEY="test-admin-key"
-export DISABLE_AUTH="true"
-export ENVIRONMENT="development"
-
-python3 -m uvicorn src.app.main:app --host 0.0.0.0 --port 8001
-
-# Health check
-curl http://localhost:8001/health
-```
-
-### Running Pipelines
-
-#### Step 1: Get Org API Key
-
-```bash
-# Get decrypted org API key (dev/local environments only)
-curl -s -X GET "http://localhost:8000/api/v1/admin/dev/api-key/{org_slug}" \
-  -H "X-CA-Root-Key: $CA_ROOT_API_KEY"
-
-# Save the returned api_key for subsequent requests
-export ORG_API_KEY="returned_api_key_value"
-```
-
-#### Step 2: Run Pipeline
-
-**Pipeline URL Pattern:**
-```
-POST /api/v1/pipelines/run/{org_slug}/{provider}/{domain}/{pipeline}
-```
-
-**Available Pipelines:**
-
-| Pipeline | Provider | Domain | Pipeline Name | Body Parameters |
-|----------|----------|--------|---------------|-----------------|
-| GCP Billing | `gcp` | `cost` | `billing` | `{"date": "YYYY-MM-DD"}` |
-| GCP Billing Accounts | `gcp` | `api` | `billing_accounts` | `{}` |
-| GCP Compute Instances | `gcp` | `api` | `compute_instances` | `{}` |
-| OpenAI Usage & Cost | `openai` | `cost` | `usage_cost` | `{"start_date": "...", "end_date": "..."}` or `{}` |
-| Anthropic Usage & Cost | `anthropic` | `` (empty) | `usage_cost` | `{"start_date": "...", "end_date": "..."}` or `{}` |
-| SaaS Subscription Costs | `saas_subscription` | `costs` | `saas_cost` | `{}` (dates default to current month) |
-
-#### Pipeline Examples
-
-```bash
-# GCP Billing Pipeline
-curl -s -X POST "http://localhost:8001/api/v1/pipelines/run/{org_slug}/gcp/cost/billing" \
-  -H "X-API-Key: $ORG_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"date": "2025-12-08"}'
-
-# OpenAI Usage & Cost Pipeline
-curl -s -X POST "http://localhost:8001/api/v1/pipelines/run/{org_slug}/openai/cost/usage_cost" \
-  -H "X-API-Key: $ORG_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"start_date": "2025-12-01", "end_date": "2025-12-08"}'
-
-# Anthropic Usage & Cost Pipeline (note: empty domain)
-curl -s -X POST "http://localhost:8001/api/v1/pipelines/run/{org_slug}/anthropic//usage_cost" \
-  -H "X-API-Key: $ORG_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{}'
-
-# SaaS Subscription Costs Pipeline (dates optional - defaults to current month)
-curl -s -X POST "http://localhost:8001/api/v1/pipelines/run/{org_slug}/saas_subscription/costs/saas_cost" \
-  -H "X-API-Key: $ORG_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{}'
-
-# GCP Compute Instances Pipeline
-curl -s -X POST "http://localhost:8001/api/v1/pipelines/run/{org_slug}/gcp/api/compute_instances" \
-  -H "X-API-Key: $ORG_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{}'
-```
-
-#### Step 3: Sync Stored Procedures (if needed)
-
-When updating SQL procedures in `configs/system/procedures/`, sync them to BigQuery:
+### Syncing Procedures
 
 ```bash
 # List available procedure files
@@ -680,79 +299,6 @@ curl -s -X POST "http://localhost:8001/api/v1/procedures/sync" \
   -H "Content-Type: application/json" \
   -d '{"force": true}'
 ```
-
-#### Adding New Pipelines
-
-1. **Create pipeline config:** `configs/{provider}/{domain}/{pipeline}.yml`
-2. **Register in api-service:** Add entry to `02-api-service/configs/system/pipelines.yml`
-3. **Restart api-service:** PipelineRegistry is a singleton - requires restart to pick up new configs
-4. **Run pipeline:** Use the URL pattern above
-
-#### Pipeline Config Location
-
-```
-configs/
-├── gcp/
-│   ├── cost/billing.yml                    # gcp/cost/billing
-│   └── api/
-│       ├── billing_accounts.yml            # gcp/api/billing_accounts
-│       └── compute_instances.yml           # gcp/api/compute_instances
-├── openai/
-│   └── cost/usage_cost.yml                 # openai/cost/usage_cost
-├── anthropic/
-│   └── usage_cost.yml                      # anthropic//usage_cost (empty domain)
-└── saas_subscription/
-    └── costs/saas_cost.yml                 # saas_subscription/costs/saas_cost
-```
-
----
-
-## Deployment
-
-```bash
-# Deploy via gcloud (Cloud Run)
-gcloud run deploy data-pipeline-{stage|prod} --source .
-
-# Test health
-curl https://data-pipeline-{env}-{project-id}.us-central1.run.app/health
-```
-
-### Environments
-
-| Environment | URL |
-|-------------|-----|
-| Stage | `https://convergence-pipeline-stage-526075321773.us-central1.run.app` |
-| Prod | `https://convergence-pipeline-prod-820784027009.us-central1.run.app` |
-
-### Production Deployment Checklist
-
-Before deploying to production:
-
-- [ ] `ENVIRONMENT=production` is set
-- [ ] `CA_ROOT_API_KEY` is set to a secure, unique value (min 32 chars)
-- [ ] `DISABLE_AUTH=false` (or not set, defaults to false)
-- [ ] `RATE_LIMIT_ENABLED=true` (or not set, defaults to true)
-- [ ] `CORS_ORIGINS` is configured for your frontend domains
-- [ ] KMS encryption is configured for credential storage
-- [ ] Cloud Run service account has necessary IAM permissions
-
-See `SECURITY.md` for detailed security configuration requirements.
-
----
-
-## Environment Variables
-
-| Variable | Default | Purpose | Production Requirement |
-|----------|---------|---------|------------------------|
-| `GCP_PROJECT_ID` | local-dev-project | GCP project for BigQuery | Required |
-| `CA_ROOT_API_KEY` | None | Root API key for admin ops | Required (min 32 chars) |
-| `DISABLE_AUTH` | false | Disable auth (dev only) | MUST be false |
-| `ENVIRONMENT` | development | Runtime environment | development/staging/production |
-| `RATE_LIMIT_ENABLED` | true | Enable rate limiting | MUST be true |
-| `RATE_LIMIT_REQUESTS_PER_MINUTE` | 100 | Per-org limit | Configurable |
-| `RATE_LIMIT_GLOBAL_REQUESTS_PER_MINUTE` | 10000 | Global limit | Configurable |
-| `KMS_KEY_NAME` | None | Full GCP KMS key path | Required in production |
-| `API_SERVICE_URL` | http://localhost:8000 | api-service URL | Set for your environment |
 
 ---
 
@@ -866,24 +412,318 @@ steps:
 
 ---
 
-## Verified Processor & Config Mapping
+## Scheduler & Queue
 
-**Last verified: 2025-12-02**
+### Pipeline Execution Queue
 
-| Processor | ps_type | Config Path | Status |
-|-----------|---------|-------------|--------|
-| `openai/usage.py` | `openai.usage` | `configs/openai/cost/usage_cost.yml` | ✓ Verified |
-| `openai/cost.py` | `openai.cost` | `configs/openai/cost/usage_cost.yml` | ✓ Verified |
-| `openai/subscriptions.py` | `openai.subscriptions` | `configs/openai/subscriptions.yml` | ✓ Verified |
-| `openai/seed_csv.py` | `openai.seed_csv` | N/A (programmatic) | ✓ Verified |
-| `anthropic/usage.py` | `anthropic.usage` | `configs/anthropic/usage_cost.yml` | ✓ Verified |
-| `anthropic/cost.py` | `anthropic.cost` | `configs/anthropic/usage_cost.yml` | ✓ Verified |
-| `gcp/external_bq_extractor.py` | `gcp.bq_etl` | `configs/gcp/cost/billing.yml` | ✓ Verified |
-| `gcp/gcp_api_extractor.py` | `gcp.api_extractor` | `configs/gcp/api/billing_accounts.yml` | ✓ Verified |
-| `generic/api_extractor.py` | `generic.api_extractor` | Any API pipeline | ✓ Verified |
-| `generic/local_bq_transformer.py` | `generic.local_bq_transformer` | SQL transformations | ✓ Verified |
-| `generic/procedure_executor.py` | `generic.procedure_executor` | `configs/saas_subscription/costs/saas_cost.yml` | ✓ Verified |
-| `notify_systems/email_notification.py` | `notify_systems.email_notification` | `configs/notify_systems/email_notification/` | ✓ Verified |
+**Table:** `organizations.org_pipeline_execution_queue`
+
+**Purpose:** Track scheduled and queued pipeline runs with retry logic
+
+**Key Fields:**
+- `org_slug`, `pipeline_id`, `scheduled_time`
+- `status`: PENDING, RUNNING, SUCCESS, FAILED
+- `retry_count`, `max_retries`
+
+### Scheduler Endpoints (X-API-Key)
+
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| POST | `/api/v1/scheduler/trigger` | Trigger scheduled pipeline |
+| GET | `/api/v1/scheduler/queue` | Get pipeline queue |
+| POST | `/api/v1/scheduler/queue/process` | Process queued pipelines |
+
+### Queue Management Modules
+
+| Module | Path | Purpose |
+|--------|------|---------|
+| **queue_manager** | `src/core/scheduler/queue_manager.py` | Add/remove/query queue entries |
+| **retry_manager** | `src/core/scheduler/retry_manager.py` | Exponential backoff retry logic |
+| **state_manager** | `src/core/scheduler/state_manager.py` | Pipeline execution state tracking |
+
+---
+
+## API Endpoints
+
+### Pipeline Endpoints (X-API-Key)
+
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| POST | `/api/v1/pipelines/run/{org}/{provider}/{domain}/{pipeline}` | Run specific pipeline |
+
+**Pipeline URL Pattern:**
+```
+POST /api/v1/pipelines/run/{org_slug}/{provider}/{domain}/{pipeline}
+```
+
+**Available Pipelines:**
+
+| Pipeline | Provider | Domain | Pipeline Name | Body Parameters |
+|----------|----------|--------|---------------|-----------------|
+| GCP Billing | `gcp` | `cost` | `billing` | `{"date": "YYYY-MM-DD"}` |
+| GCP Billing Accounts | `gcp` | `api` | `billing_accounts` | `{}` |
+| GCP Compute Instances | `gcp` | `api` | `compute_instances` | `{}` |
+| OpenAI Usage & Cost | `openai` | `cost` | `usage_cost` | `{"start_date": "...", "end_date": "..."}` or `{}` |
+| Anthropic Usage & Cost | `anthropic` | `` (empty) | `usage_cost` | `{"start_date": "...", "end_date": "..."}` or `{}` |
+| SaaS Subscription Costs | `saas_subscription` | `costs` | `saas_cost` | `{}` (dates default to current month) |
+
+### Scheduler Endpoints (X-API-Key)
+
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| POST | `/api/v1/scheduler/trigger` | Trigger scheduled pipeline |
+| GET | `/api/v1/scheduler/queue` | Get pipeline queue |
+| POST | `/api/v1/scheduler/queue/process` | Process queued pipelines |
+
+### Procedure Endpoints (X-CA-Root-Key)
+
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| GET | `/api/v1/procedures` | List all procedures in organizations dataset |
+| GET | `/api/v1/procedures/files` | List procedure SQL files available for sync |
+| POST | `/api/v1/procedures/sync` | Sync all procedures from SQL files |
+| GET | `/api/v1/procedures/{name}` | Get procedure details |
+| POST | `/api/v1/procedures/{name}` | Create/update a specific procedure |
+| DELETE | `/api/v1/procedures/{name}` | Delete a procedure |
+
+---
+
+## Naming Conventions
+
+### File & Folder Naming
+| Item | Convention | Example |
+|------|------------|---------|
+| Config folder | `snake_case` | `openai/`, `gcp/` |
+| Config file | `snake_case.yml` | `usage_cost.yml`, `billing.yml` |
+| Processor file | `snake_case.py` | `cost.py`, `usage.py` |
+
+### Pipeline & Step Naming
+| Item | Convention | Pattern | Example |
+|------|------------|---------|---------|
+| Pipeline ID | `kebab-case` | `{org}-{provider}-{domain}` | `acme-openai-usage-cost` |
+| Step ID | `snake_case` | `{action}_{target}` | `extract_usage`, `transform_cost` |
+| ps_type | `dot.notation` | `{provider}.{domain}` | `openai.usage`, `gcp.bq_etl` |
+
+### BigQuery Table Naming
+| Item | Convention | Pattern | Example |
+|------|------------|---------|---------|
+| Dataset | `snake_case` | `{org}_{env}` | `acme_prod` |
+| Table | `snake_case` | `{provider}_{domain}_{granularity}_{state}` | `openai_usage_daily_raw` |
+
+### Table Name Components
+```
+{provider}_{domain}_{granularity}_{state}
+
+Components:
+├── provider:    openai, anthropic, gcp
+├── domain:      usage, cost, billing, subscriptions
+├── granularity: daily, monthly, hourly
+└── state:       raw, staging, (none = final)
+```
+
+### Step ID Actions
+| Prefix | Use Case | Examples |
+|--------|----------|----------|
+| `extract_` | Pull data from external API | `extract_usage`, `extract_billing` |
+| `transform_` | Transform/derive data | `transform_cost` |
+| `load_` | Write to destination | `load_to_bq` |
+| `validate_` | Validate data/credentials | `validate_credential` |
+| `notify_` | Send notifications | `notify_on_failure` |
+| `decrypt_` | Decrypt credentials | `decrypt_credentials` |
+
+---
+
+## BigQuery Integration
+
+### Dataset Structure
+
+```
+Central: organizations (project.organizations)
+├── org_profiles                    # Organization metadata
+├── org_api_keys                    # API keys (SHA256 hash + KMS encrypted)
+├── org_subscriptions               # Subscription tiers (STARTER, PROFESSIONAL, SCALE)
+├── org_usage_quotas                # Usage limits per org
+├── org_integration_credentials     # LLM & cloud integration credentials (KMS encrypted)
+├── org_pipeline_configs            # Pipeline configurations
+├── org_scheduled_pipeline_runs     # Scheduled pipeline definitions
+├── org_pipeline_execution_queue    # Pipeline execution queue
+├── org_meta_pipeline_runs          # Execution logs
+├── org_meta_step_logs              # Step-level logs
+├── org_meta_dq_results             # Data quality results
+├── org_audit_logs                  # Audit trail
+├── org_kms_keys                    # KMS key metadata
+└── org_cost_tracking               # Cost tracking data
+
+Per-Organization: {org_slug}_prod (e.g., acme_prod)
+└── billing_cost_daily, openai_usage_daily_raw, etc.  # Data tables only
+```
+
+### Multi-Tenant Isolation
+
+**Single KMS Key for All Orgs** - Isolation is at DATA layer:
+
+```sql
+-- Credentials encrypted with shared KMS key
+-- Isolation via org_slug filter in every query
+SELECT encrypted_credential
+FROM organizations.org_integration_credentials
+WHERE org_slug = @org_slug  -- ← THIS provides isolation
+  AND provider = 'GCP_SA'
+```
+
+**Concurrent Pipeline Execution (Org A + Org B):**
+- Each request authenticated by unique org API key
+- org_slug extracted from API key lookup
+- Credentials fetched: `WHERE org_slug = @org_slug`
+- Separate BigQuery client per execution
+- Data writes to separate datasets: `{org_slug}_prod`
+- NO shared state between executions
+
+### BigQuery Client
+
+**Module:** `src/core/engine/bq_client.py`
+
+**Key Classes:**
+- `BigQueryClient` - Main BigQuery operations
+- `OrgBigQueryClient` - Org-scoped operations (in `org_bq_client.py`)
+
+**Common Operations:**
+- `create_table()`
+- `insert_rows()`
+- `query()`
+- `execute_procedure()`
+
+---
+
+## Local Development
+
+### Running Pipelines
+
+#### Step 1: Get Org API Key
+
+```bash
+# Get decrypted org API key (dev/local environments only)
+curl -s -X GET "http://localhost:8000/api/v1/admin/dev/api-key/{org_slug}" \
+  -H "X-CA-Root-Key: $CA_ROOT_API_KEY"
+
+# Save the returned api_key for subsequent requests
+export ORG_API_KEY="returned_api_key_value"
+```
+
+#### Step 2: Run Pipeline
+
+```bash
+# GCP Billing Pipeline
+curl -s -X POST "http://localhost:8001/api/v1/pipelines/run/{org_slug}/gcp/cost/billing" \
+  -H "X-API-Key: $ORG_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"date": "2025-12-08"}'
+
+# OpenAI Usage & Cost Pipeline
+curl -s -X POST "http://localhost:8001/api/v1/pipelines/run/{org_slug}/openai/cost/usage_cost" \
+  -H "X-API-Key: $ORG_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"start_date": "2025-12-01", "end_date": "2025-12-08"}'
+
+# Anthropic Usage & Cost Pipeline (note: empty domain)
+curl -s -X POST "http://localhost:8001/api/v1/pipelines/run/{org_slug}/anthropic//usage_cost" \
+  -H "X-API-Key: $ORG_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{}'
+
+# SaaS Subscription Costs Pipeline (dates optional - defaults to current month)
+curl -s -X POST "http://localhost:8001/api/v1/pipelines/run/{org_slug}/saas_subscription/costs/saas_cost" \
+  -H "X-API-Key: $ORG_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+
+#### Adding New Pipelines
+
+1. **Create pipeline config:** `configs/{provider}/{domain}/{pipeline}.yml`
+2. **Register in api-service:** Add entry to `../02-api-service/configs/system/pipelines.yml`
+3. **Restart api-service:** PipelineRegistry is a singleton - requires restart to pick up new configs
+4. **Run pipeline:** Use the URL pattern above
+
+---
+
+## Project Structure
+
+```
+03-data-pipeline-service/
+├── src/app/
+│   ├── main.py                        # FastAPI entry point
+│   ├── config.py                      # Settings (env vars)
+│   ├── routers/
+│   │   ├── pipelines.py               # POST /api/v1/pipelines/run/...
+│   │   ├── scheduler.py               # Scheduled pipeline execution
+│   │   └── procedures.py              # Procedure management
+│   ├── models/
+│   │   ├── openai_data_models.py      # Pydantic models for cost calculations
+│   │   └── org_models.py              # Organization models
+│   ├── dependencies/
+│   │   ├── auth.py                    # get_current_org(), AuthMetricsAggregator
+│   │   └── rate_limit_decorator.py    # Rate limiting
+│   └── middleware/
+│       ├── validation.py              # Input validation
+│       ├── audit_logging.py           # Audit trail
+│       └── scope_enforcement.py       # Authorization scopes
+├── src/core/
+│   ├── processors/                    # PROCESSORS - Heart of the system
+│   │   ├── openai/                    # OpenAI processors
+│   │   ├── anthropic/                 # Anthropic processors
+│   │   ├── gcp/                       # GCP processors
+│   │   ├── generic/                   # Generic processors
+│   │   ├── integrations/              # Integration processors
+│   │   └── notify_systems/            # Notification processors
+│   ├── abstractor/                    # Config loading
+│   │   ├── config_loader.py
+│   │   └── models.py
+│   ├── engine/                        # BigQuery & API clients
+│   │   ├── bq_client.py
+│   │   ├── org_bq_client.py
+│   │   ├── api_connector.py
+│   │   └── polars_processor.py
+│   ├── pipeline/                      # Pipeline execution
+│   │   └── async_executor.py          # AsyncPipelineExecutor
+│   ├── security/                      # KMS encryption
+│   │   ├── kms_encryption.py
+│   │   └── org_kms_encryption.py
+│   ├── scheduler/                     # Scheduled execution
+│   │   ├── queue_manager.py
+│   │   ├── retry_manager.py
+│   │   └── state_manager.py
+│   ├── notifications/                 # Email/Slack
+│   ├── observability/                 # Metrics
+│   ├── metadata/                      # Execution logging
+│   ├── providers/                     # Provider registry
+│   ├── pubsub/                        # Pub/Sub integration
+│   └── utils/                         # Utilities
+└── configs/                           # SINGLE SOURCE OF TRUTH
+    ├── openai/                        # OpenAI configs
+    │   ├── cost/
+    │   │   ├── cost_calculation.yml
+    │   │   ├── cost_extract.yml
+    │   │   └── usage_cost.yml
+    │   └── subscriptions.yml
+    ├── anthropic/                     # Anthropic configs
+    │   └── usage_cost.yml
+    ├── gcp/                           # GCP configs
+    │   └── cost/
+    │       ├── billing.yml
+    │       └── schemas/
+    │           └── billing_cost.json
+    ├── saas_subscription/             # SaaS subscription configs
+    │   └── costs/
+    │       └── saas_cost.yml
+    ├── example/                       # Example pipelines
+    ├── notify_systems/                # Notification configs
+    └── system/                        # System configs
+        ├── dataset_types.yml
+        ├── providers.yml              # Provider registry
+        └── procedures/                # Stored procedures
+            └── {domain}/*.sql
+```
 
 ---
 
@@ -905,5 +745,26 @@ steps:
 
 ---
 
+## Verified Processor & Config Mapping
+
+**Last verified: 2025-12-02**
+
+| Processor | ps_type | Config Path | Status |
+|-----------|---------|-------------|--------|
+| `openai/usage.py` | `openai.usage` | `configs/openai/cost/usage_cost.yml` | ✓ Verified |
+| `openai/cost.py` | `openai.cost` | `configs/openai/cost/usage_cost.yml` | ✓ Verified |
+| `openai/subscriptions.py` | `openai.subscriptions` | `configs/openai/subscriptions.yml` | ✓ Verified |
+| `openai/seed_csv.py` | `openai.seed_csv` | N/A (programmatic) | ✓ Verified |
+| `anthropic/usage.py` | `anthropic.usage` | `configs/anthropic/usage_cost.yml` | ✓ Verified |
+| `anthropic/cost.py` | `anthropic.cost` | `configs/anthropic/usage_cost.yml` | ✓ Verified |
+| `gcp/external_bq_extractor.py` | `gcp.bq_etl` | `configs/gcp/cost/billing.yml` | ✓ Verified |
+| `gcp/gcp_api_extractor.py` | `gcp.api_extractor` | `configs/gcp/api/billing_accounts.yml` | ✓ Verified |
+| `generic/api_extractor.py` | `generic.api_extractor` | Any API pipeline | ✓ Verified |
+| `generic/local_bq_transformer.py` | `generic.local_bq_transformer` | SQL transformations | ✓ Verified |
+| `generic/procedure_executor.py` | `generic.procedure_executor` | `configs/saas_subscription/costs/saas_cost.yml` | ✓ Verified |
+| `notify_systems/email_notification.py` | `notify_systems.email_notification` | `configs/notify_systems/email_notification/` | ✓ Verified |
+
+---
+
 **Last Updated:** 2025-12-10
-**Version:** 2.2
+**Version:** 3.0

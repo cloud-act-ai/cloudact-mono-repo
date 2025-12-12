@@ -208,15 +208,16 @@ class AuthMetricsAggregator:
             """
 
             # Execute with parameterized query (prevents SQL injection)
-            bq_client.client.query(
+            job = bq_client.client.query(
                 update_query,
                 job_config=bigquery.QueryJobConfig(
                     query_parameters=[
                         bigquery.ArrayQueryParameter("key_ids", "STRING", valid_key_ids)
-                    ],
-                    job_timeout_ms=10000  # 10 seconds for auth ops
+                    ]
                 )
-            ).result()
+            )
+            # Wait with explicit timeout (30 seconds) - separate from job_timeout_ms
+            job.result(timeout=30)
 
             logger.info(f"Successfully flushed {len(org_api_key_ids)} auth metric updates")
 

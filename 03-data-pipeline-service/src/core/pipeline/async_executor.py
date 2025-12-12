@@ -385,10 +385,13 @@ class AsyncPipelineExecutor:
 
             # Run update asynchronously
             loop = asyncio.get_event_loop()
-            query_job = await loop.run_in_executor(
-                BQ_EXECUTOR,
-                lambda: self.bq_client.client.query(update_query, job_config=job_config).result()
-            )
+
+            def run_query():
+                job = self.bq_client.client.query(update_query, job_config=job_config)
+                job.result()  # Wait for completion
+                return job  # Return the job object, not the result iterator
+
+            query_job = await loop.run_in_executor(BQ_EXECUTOR, run_query)
 
             # Check if status update affected any rows
             if query_job.num_dml_affected_rows == 0:
@@ -423,7 +426,7 @@ class AsyncPipelineExecutor:
         Updates:
         - concurrent_pipelines_running: Incremented by 1
         - max_concurrent_reached: Updated to maximum value seen
-        - last_pipeline_started_at: Set to current timestamp
+        - last_updated: Set to current timestamp
         """
         from google.cloud import bigquery
         from src.app.config import settings
@@ -434,7 +437,6 @@ class AsyncPipelineExecutor:
             SET
                 concurrent_pipelines_running = concurrent_pipelines_running + 1,
                 max_concurrent_reached = GREATEST(max_concurrent_reached, concurrent_pipelines_running + 1),
-                last_pipeline_started_at = CURRENT_TIMESTAMP(),
                 last_updated = CURRENT_TIMESTAMP()
             WHERE
                 org_slug = @org_slug

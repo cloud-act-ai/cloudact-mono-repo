@@ -757,15 +757,37 @@ export async function POST(request: NextRequest) {
 
         // Update org with trial end date for UI display
         if (trialEndDate) {
-          const { data: org, error } = await supabase
+          // Try to find org by stripe_subscription_id first
+          let { data: org, error } = await supabase
             .from("organizations")
             .update({
               trial_ends_at: trialEndDate.toISOString(),
+              stripe_subscription_id: subscription.id,
               stripe_webhook_last_event_id: event.id,
             })
             .eq("stripe_subscription_id", subscription.id)
             .select("org_name, org_slug")
             .single();
+
+          // If not found by subscription_id, try by customer_id
+          if (error && error.code === "PGRST116") {
+            const customerId = subscription.customer as string;
+            if (customerId) {
+              const result = await supabase
+                .from("organizations")
+                .update({
+                  trial_ends_at: trialEndDate.toISOString(),
+                  stripe_subscription_id: subscription.id,
+                  stripe_webhook_last_event_id: event.id,
+                })
+                .eq("stripe_customer_id", customerId)
+                .select("org_name, org_slug")
+                .single();
+
+              org = result.data;
+              error = result.error;
+            }
+          }
 
           if (error) {
             console.error("[Webhook] Failed to update trial end date:", error);
