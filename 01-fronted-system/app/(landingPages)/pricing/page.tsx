@@ -64,15 +64,15 @@ export default async function PricingPage() {
       </section>
 
       {/* Pricing Cards */}
-      <section className="pb-20 bg-white">
+      <section className="pb-16 sm:pb-20 bg-white">
         <div className="container px-4 md:px-12">
           {error && (
-            <div className="mx-auto max-w-md mb-8 p-4 bg-red-50 text-red-600 rounded-lg text-center">
+            <div className="mx-auto max-w-md mb-6 sm:mb-8 p-4 bg-red-50 text-red-600 rounded-lg text-center text-sm">
               Failed to load pricing plans. Please try again later.
             </div>
           )}
 
-          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+          <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-6 sm:gap-8 max-w-6xl mx-auto">
             {plans.map((plan) => (
               <div
                 key={plan.id}
@@ -123,17 +123,17 @@ export default async function PricingPage() {
           </div>
 
           {/* Trust Badges */}
-          <div className="mt-16 flex flex-col sm:flex-row items-center justify-center gap-8 text-sm font-medium text-gray-600 border-t border-gray-200 pt-12">
+          <div className="mt-12 sm:mt-16 flex flex-col sm:flex-row items-center justify-center gap-6 sm:gap-8 text-xs sm:text-sm font-medium text-gray-600 border-t border-gray-200 pt-10 sm:pt-12">
             <div className="flex items-center gap-2">
-              <CreditCard className="h-5 w-5 text-[#007A78]" />
+              <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 text-[#007A78] flex-shrink-0" />
               <span>Secure payments via Stripe</span>
             </div>
             <div className="flex items-center gap-2">
-              <Lock className="h-5 w-5 text-[#007A78]" />
+              <Lock className="h-4 w-4 sm:h-5 sm:w-5 text-[#007A78] flex-shrink-0" />
               <span>256-bit SSL encryption</span>
             </div>
             <div className="flex items-center gap-2">
-              <Shield className="h-5 w-5 text-[#007A78]" />
+              <Shield className="h-4 w-4 sm:h-5 sm:w-5 text-[#007A78] flex-shrink-0" />
               <span>GDPR compliant</span>
             </div>
           </div>
@@ -141,9 +141,9 @@ export default async function PricingPage() {
       </section>
 
       {/* Enterprise Section */}
-      <section className="py-20 bg-gray-50 border-y border-gray-200">
+      <section className="py-12 sm:py-16 md:py-20 bg-gray-50 border-y border-gray-200">
         <div className="container px-4 md:px-12">
-          <div className="mx-auto max-w-4xl flex flex-col md:flex-row items-center justify-between gap-8">
+          <div className="mx-auto max-w-4xl flex flex-col md:flex-row items-center justify-between gap-6 sm:gap-8">
             <div className="space-y-2 text-center md:text-left">
               <h2 className="cloudact-heading-lg">Need a custom plan?</h2>
               <p className="cloudact-body">
@@ -152,7 +152,7 @@ export default async function PricingPage() {
             </div>
             <Link
               href="/contact"
-              className="cloudact-btn-secondary"
+              className="cloudact-btn-secondary w-full sm:w-auto"
             >
               Contact Sales
             </Link>
@@ -161,9 +161,9 @@ export default async function PricingPage() {
       </section>
 
       {/* FAQ Section */}
-      <section className="py-20 bg-white">
+      <section className="py-12 sm:py-16 md:py-20 bg-white">
         <div className="container px-4 md:px-12">
-          <div className="mx-auto max-w-3xl space-y-8">
+          <div className="mx-auto max-w-3xl space-y-6 sm:space-y-8">
             <div className="text-center space-y-2">
               <h2 className="cloudact-heading-lg">Frequently Asked Questions</h2>
               <p className="cloudact-body">
@@ -173,26 +173,26 @@ export default async function PricingPage() {
 
             <Accordion type="single" collapsible className="w-full">
               <AccordionItem value="item-1" className="border-gray-200">
-                <AccordionTrigger className="text-base text-gray-900 hover:text-[#007A78]">Is there a free trial?</AccordionTrigger>
-                <AccordionContent className="text-gray-600">
+                <AccordionTrigger className="text-sm sm:text-base text-gray-900 hover:text-[#007A78]">Is there a free trial?</AccordionTrigger>
+                <AccordionContent className="text-sm text-gray-600">
                   Yes, all plans come with a {trialDays}-day free trial. You won't be charged until the trial ends.
                 </AccordionContent>
               </AccordionItem>
               <AccordionItem value="item-2" className="border-gray-200">
-                <AccordionTrigger className="text-base text-gray-900 hover:text-[#007A78]">Can I change plans later?</AccordionTrigger>
-                <AccordionContent className="text-gray-600">
+                <AccordionTrigger className="text-sm sm:text-base text-gray-900 hover:text-[#007A78]">Can I change plans later?</AccordionTrigger>
+                <AccordionContent className="text-sm text-gray-600">
                   Absolutely. You can upgrade or downgrade your plan at any time from your dashboard settings.
                 </AccordionContent>
               </AccordionItem>
               <AccordionItem value="item-3" className="border-gray-200">
-                <AccordionTrigger className="text-base text-gray-900 hover:text-[#007A78]">What payment methods do you accept?</AccordionTrigger>
-                <AccordionContent className="text-gray-600">
+                <AccordionTrigger className="text-sm sm:text-base text-gray-900 hover:text-[#007A78]">What payment methods do you accept?</AccordionTrigger>
+                <AccordionContent className="text-sm text-gray-600">
                   We accept all major credit cards (Visa, Mastercard, Amex) via Stripe secure checkout.
                 </AccordionContent>
               </AccordionItem>
               <AccordionItem value="item-4" className="border-gray-200">
-                <AccordionTrigger className="text-base text-gray-900 hover:text-[#007A78]">Do you offer enterprise discounts?</AccordionTrigger>
-                <AccordionContent className="text-gray-600">
+                <AccordionTrigger className="text-sm sm:text-base text-gray-900 hover:text-[#007A78]">Do you offer enterprise discounts?</AccordionTrigger>
+                <AccordionContent className="text-sm text-gray-600">
                   Yes, for annual contracts and large volume commitments. Please contact our sales team for details.
                 </AccordionContent>
               </AccordionItem>

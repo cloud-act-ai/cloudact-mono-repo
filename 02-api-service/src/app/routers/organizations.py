@@ -844,6 +844,9 @@ async def onboard_org(
                     "dataset_id": org_slug,
                     "location": dataset_location,
                     "metadata_tables": [
+                        # ========================================
+                        # Business Data Tables
+                        # ========================================
                         # SaaS Subscription Plans table (dimension table)
                         {
                             "table_name": "saas_subscription_plans",
@@ -876,8 +879,6 @@ async def onboard_org(
                             "clustering_fields": ["provider", "model_id"]
                         }
                     ],
-                    "create_validation_table": True,
-                    "validation_table_name": "onboarding_validation_test",
                     # LLM tables created empty - customers add custom plans via UI
                     "seed_llm_data": False,
                     "default_daily_limit": plan_limits["max_daily"],

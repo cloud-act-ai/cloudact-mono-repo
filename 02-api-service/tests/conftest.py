@@ -22,8 +22,9 @@ Environment Setup:
     CA_ROOT_API_KEY=your-api-key-min-32-chars
     KMS_KEY_NAME=projects/.../cryptoKeys/...
     ENVIRONMENT=development
-    DISABLE_AUTH=false
     RUN_INTEGRATION_TESTS=true
+
+    Note: Auth is always enabled. Use test_api_keys.json for test credentials.
 """
 
 import os
@@ -56,11 +57,11 @@ if os.environ.get("GCP_PROJECT_ID") in [None, "", "test-project"]:
     os.environ.setdefault("ENVIRONMENT", "development")
     os.environ.setdefault("KMS_KEY_NAME", "projects/test/locations/global/keyRings/test/cryptoKeys/test")
     os.environ.setdefault("CA_ROOT_API_KEY", "test-ca-root-key-secure-32chars")
-    os.environ.setdefault("DISABLE_AUTH", "true")
+    # Auth is always enabled - use test_api_keys.json for test credentials
 else:
     # Integration test mode - use real credentials from .env.local
     os.environ.setdefault("ENVIRONMENT", "development")
-    os.environ.setdefault("DISABLE_AUTH", "false")
+    # Auth is always enabled
 
 import pytest
 from httpx import AsyncClient, ASGITransport

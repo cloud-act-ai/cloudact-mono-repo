@@ -90,28 +90,28 @@ export default function ResourcesPage() {
       </section>
 
       {/* Resources Grid */}
-      <section className="pb-24 bg-white">
+      <section className="pb-16 sm:pb-20 md:pb-24 bg-white">
         <div className="container px-4 md:px-12">
           <div className="mx-auto max-w-6xl">
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-5 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
               {resources.map((resource) => {
                 const Icon = resource.icon
                 return (
                   <Link
                     key={resource.href}
                     href={resource.href}
-                    className="cloudact-card group p-8"
+                    className="cloudact-card group p-6 sm:p-8"
                   >
-                    <div className={`mb-6 ${resource.isCoral ? "cloudact-icon-box-coral" : "cloudact-icon-box"}`}>
-                      <Icon className="h-7 w-7" />
+                    <div className={`mb-5 sm:mb-6 ${resource.isCoral ? "cloudact-icon-box-coral" : "cloudact-icon-box"}`}>
+                      <Icon className="h-6 w-6 sm:h-7 sm:w-7" />
                     </div>
-                    <h3 className="cloudact-heading-md mb-3 group-hover:text-cloudact-teal transition-colors">{resource.title}</h3>
-                    <p className="cloudact-body-sm mb-6 leading-relaxed">
+                    <h3 className="cloudact-heading-md mb-2 sm:mb-3 group-hover:text-cloudact-teal transition-colors">{resource.title}</h3>
+                    <p className="cloudact-body-sm mb-5 sm:mb-6 leading-relaxed">
                       {resource.description}
                     </p>
-                    <div className="cloudact-link inline-flex items-center">
+                    <div className="cloudact-link inline-flex items-center text-sm">
                       {resource.cta}
-                      <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                      <ArrowRight className="ml-2 h-3.5 w-3.5 sm:h-4 sm:w-4 transition-transform group-hover:translate-x-1" />
                     </div>
                   </Link>
                 )

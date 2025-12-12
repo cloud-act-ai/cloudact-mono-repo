@@ -28,6 +28,7 @@ class OrgOnboardingProcessor:
         # Path to configs/setup/organizations/onboarding/
         self.template_dir = Path(__file__).parent.parent.parent.parent.parent.parent / "configs" / "setup" / "organizations" / "onboarding"
         self.schema_dir = self.template_dir / "schemas"
+        self.views_dir = self.template_dir / "views"
 
     def _load_schema_file(self, schema_filename: str) -> List[bigquery.SchemaField]:
         """Load schema from JSON file and convert to BigQuery SchemaField list"""
@@ -444,61 +445,11 @@ class OrgOnboardingProcessor:
         else:
             self.logger.info(f"Skipping quota creation (handled by API endpoint)")
 
-        # Step 4: Create validation test table if configured
-        if config.get("create_validation_table", False):
-            validation_table = config.get("validation_table_name", "onboarding_validation_test")
-            validation_schema_file = config.get("validation_table_schema_file", "onboarding_validation_test.json")
+        # Step 4: Create organization-specific materialized view (x_pipeline_exec_logs)
+        # This MV queries central organizations tables filtered by org_slug
+        views_created, views_failed = self._create_org_materialized_views(org_slug, dataset_id)
 
-            # Load test schema from config file (not hardcoded)
-            test_schema = self._load_schema_file(validation_schema_file)
-            if not test_schema:
-                self.logger.error(f"Failed to load validation schema from {validation_schema_file}")
-                tables_failed.append(validation_table)
-            else:
-                success = await self._create_table(
-                    bq_client=bq_client,
-                    dataset_id=dataset_id,
-                    table_name=validation_table,
-                    schema=test_schema,
-                    description="Onboarding validation test table"
-                )
-
-                if success:
-                    tables_created.append(validation_table)
-
-                    # Insert test record
-                    try:
-                        full_table_id = f"{self.settings.gcp_project_id}.{dataset_id}.{validation_table}"
-                        test_row = {
-                            "id": f"onboarding_test_{org_slug}",
-                            "test_message": f"Onboarding successful for {org_slug}",
-                            "created_at": "CURRENT_TIMESTAMP()"
-                        }
-
-                        query = f"""
-                        INSERT INTO `{full_table_id}` (id, test_message, created_at)
-                        VALUES (@test_id, @test_message, CURRENT_TIMESTAMP())
-                        """
-
-                        # Execute query with parameterized values (prevents SQL injection)
-                        query_params = [
-                            bigquery.ScalarQueryParameter("test_id", "STRING", test_row["id"]),
-                            bigquery.ScalarQueryParameter("test_message", "STRING", test_row["test_message"]),
-                        ]
-                        job_config = bigquery.QueryJobConfig(
-                            query_parameters=query_params,
-                            job_timeout_ms=300000  # 5 minutes for onboarding ops
-                        )
-                        bq_client.client.query(query, job_config=job_config).result()
-                        self.logger.info(f"Inserted test record into {validation_table}")
-                    except Exception as e:
-                        self.logger.warning(f"Failed to insert test record: {e}")
-
-        # Step 5: Create organization-specific views (pipeline_logs, step_logs)
-        # These views filter central metadata tables for this org's data only
-        views_created, views_failed = self._create_org_views(org_slug, dataset_id)
-
-        # Step 6: Seed LLM subscription and pricing data if configured
+        # Step 5: Seed LLM subscription and pricing data if configured
         llm_seed_result = {"subscriptions_seeded": 0, "pricing_seeded": 0, "errors": []}
         if config.get("seed_llm_data", False):
             self.logger.info(f"Seeding LLM data for organization {org_slug}")
@@ -551,60 +502,67 @@ class OrgOnboardingProcessor:
 
         return result
 
-    def _create_org_views(self, org_slug: str, dataset_id: str):
-        """Create organization-specific views in organization's dataset.
+    def _create_org_materialized_views(self, org_slug: str, dataset_id: str):
+        """Create organization-specific materialized views in organization's dataset.
 
-        Creates views that filter central metadata tables for this org's data:
-        - pipeline_logs: View of org_meta_pipeline_runs filtered by org_slug
-        - step_logs: View of org_meta_step_logs filtered by org_slug
+        Creates a single materialized view that queries CENTRAL organizations tables:
+        - x_pipeline_exec_logs: MV filtering org_meta_pipeline_runs + org_meta_step_logs by org_slug
+
+        Architecture:
+            organizations.org_meta_pipeline_runs + organizations.org_meta_step_logs
+            -> {org_dataset}.x_pipeline_exec_logs (filtered by org_slug)
+
+        Data Flow:
+            1. Pipeline service writes logs to CENTRAL organizations dataset
+            2. This MV filters central data for THIS org only
+            3. Frontend queries this MV for fast, pre-filtered results
+
+        Benefits:
+            - Single materialized view per org
+            - Queries central tables (no data duplication)
+            - Auto-refreshed every 30 minutes
+            - Denormalized for fast dashboard queries
         """
-        from pathlib import Path
-
-        views_dir = Path(__file__).parent.parent.parent.parent.parent.parent / "configs" / "setup" / "bootstrap" / "views"
         client = bigquery.Client(project=self.settings.gcp_project_id)
 
-        # List of view files to create
-        # Order matters: consolidated view depends on pipeline_logs and step_logs existing in central dataset
-        view_files = [
-            "pipeline_logs_view.sql",      # Filtered view of org_meta_pipeline_runs
-            "step_logs_view.sql",          # Filtered view of org_meta_step_logs
-            "org_consolidated_view.sql",   # Consolidated view joining pipelines + steps
+        # Single materialized view querying central tables
+        mv_files = [
+            ("x_pipeline_exec_logs_mv.sql", "x_pipeline_exec_logs"),
         ]
 
         views_created = []
         views_failed = []
 
-        for view_filename in view_files:
-            view_file = views_dir / view_filename
-            view_name = view_filename.replace("_view.sql", "")
+        for mv_filename, mv_name in mv_files:
+            mv_file = self.views_dir / mv_filename
 
-            if not view_file.exists():
-                self.logger.warning(f"View SQL file not found: {view_file}")
-                views_failed.append(view_name)
+            if not mv_file.exists():
+                self.logger.warning(f"Materialized view SQL file not found: {mv_file}")
+                views_failed.append(mv_name)
                 continue
 
             try:
-                with open(view_file, 'r') as f:
-                    view_sql = f.read()
+                with open(mv_file, 'r') as f:
+                    mv_sql = f.read()
 
                 # Replace placeholders
-                view_sql = view_sql.replace('{project_id}', self.settings.gcp_project_id)
-                view_sql = view_sql.replace('{dataset_id}', dataset_id)
-                view_sql = view_sql.replace('{org_slug}', org_slug)
+                mv_sql = mv_sql.replace('{project_id}', self.settings.gcp_project_id)
+                mv_sql = mv_sql.replace('{dataset_id}', dataset_id)
+                mv_sql = mv_sql.replace('{org_slug}', org_slug)
 
-                # Execute view creation
+                # Execute materialized view creation
                 job_config = bigquery.QueryJobConfig(job_timeout_ms=300000)  # 5 minutes for onboarding ops
-                query_job = client.query(view_sql, job_config=job_config)
+                query_job = client.query(mv_sql, job_config=job_config)
                 query_job.result()  # Wait for completion
 
-                views_created.append(view_name)
+                views_created.append(mv_name)
                 self.logger.info(
-                    f"Created view: {self.settings.gcp_project_id}.{dataset_id}.{view_name}"
+                    f"Created materialized view: {self.settings.gcp_project_id}.{dataset_id}.{mv_name}"
                 )
 
             except Exception as e:
-                views_failed.append(view_name)
-                self.logger.error(f"Failed to create view {view_name}: {e}", exc_info=True)
+                views_failed.append(mv_name)
+                self.logger.error(f"Failed to create materialized view {mv_name}: {e}", exc_info=True)
 
         return views_created, views_failed
 

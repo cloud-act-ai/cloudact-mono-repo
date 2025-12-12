@@ -316,7 +316,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {error && (
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
@@ -331,19 +331,19 @@ export default function ProfilePage() {
         </Alert>
       )}
 
-      <Card className="console-stat-card">
-        <CardHeader>
+      <div className="health-card">
+        <div className="health-card-header mb-6">
           <div className="flex items-center gap-2">
             <User className="h-5 w-5 text-[#007A78]" />
-            <CardTitle className="console-card-title">Personal Information</CardTitle>
+            <h2 className="text-[22px] font-bold text-black">Personal Information</h2>
           </div>
-          <CardDescription className="console-subheading">Update your personal details and preferences</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
+          <p className="text-[13px] sm:text-[15px] text-[#8E8E93] mt-1">Update your personal details and preferences</p>
+        </div>
+        <div className="health-card-content space-y-4 sm:space-y-6">
           {/* Email - Read Only */}
           <div className="space-y-2">
-            <Label htmlFor="email" className="console-label flex items-center gap-2">
-              <Mail className="h-4 w-4 text-gray-500" />
+            <Label htmlFor="email" className="text-[13px] sm:text-[15px] font-medium flex items-center gap-2">
+              <Mail className="h-4 w-4 text-[#8E8E93]" />
               Email Address
             </Label>
             <Input
@@ -351,9 +351,9 @@ export default function ProfilePage() {
               type="email"
               value={email}
               disabled
-              className="console-input bg-muted/50 text-gray-500"
+              className="h-10 px-3 text-[15px] bg-muted/50 text-gray-500 border-[#E5E5EA]"
             />
-            <p className="console-small text-gray-500">
+            <p className="text-[13px] text-[#8E8E93]">
               Email address cannot be changed. Contact support if you need to update it.
             </p>
           </div>
@@ -361,40 +361,40 @@ export default function ProfilePage() {
           <Separator />
 
           {/* Name Fields */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="firstName" className="console-label">First Name</Label>
+              <Label htmlFor="firstName" className="text-[13px] sm:text-[15px] font-medium">First Name</Label>
               <Input
                 id="firstName"
                 type="text"
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
                 placeholder="Enter your first name"
-                className="console-input"
+                className="h-10 px-3 text-[15px] border-[#E5E5EA]"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="lastName" className="console-label">Last Name</Label>
+              <Label htmlFor="lastName" className="text-[13px] sm:text-[15px] font-medium">Last Name</Label>
               <Input
                 id="lastName"
                 type="text"
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
                 placeholder="Enter your last name"
-                className="console-input"
+                className="h-10 px-3 text-[15px] border-[#E5E5EA]"
               />
             </div>
           </div>
 
           {/* Phone Number with Country Code */}
           <div className="space-y-2">
-            <Label htmlFor="phone" className="console-label flex items-center gap-2">
-              <Phone className="h-4 w-4 text-gray-500" />
-              Phone Number <span className="text-[#FF6E50]">*</span>
+            <Label htmlFor="phone" className="text-[13px] sm:text-[15px] font-medium flex items-center gap-2">
+              <Phone className="h-4 w-4 text-[#8E8E93]" />
+              Phone Number <span className="text-[#FF3B30]">*</span>
             </Label>
             <div className="flex gap-2">
               <Select value={countryCode} onValueChange={setCountryCode}>
-                <SelectTrigger className="w-24 h-10">
+                <SelectTrigger className="w-[90px] sm:w-24 h-10 text-[15px]">
                   <SelectValue>{countryCode}</SelectValue>
                 </SelectTrigger>
                 <SelectContent className="max-h-[300px]">
@@ -411,22 +411,22 @@ export default function ProfilePage() {
                 value={phoneNumber}
                 onChange={(e) => setPhoneNumber(e.target.value)}
                 placeholder="555 123 4567"
-                className="console-input flex-1"
+                className="h-10 px-3 text-[15px] border-[#E5E5EA] flex-1"
               />
             </div>
-            <p className="console-small text-gray-500">
+            <p className="text-[13px] text-[#8E8E93]">
               Used for account recovery and notifications.
             </p>
           </div>
 
           {/* Timezone */}
           <div className="space-y-2">
-            <Label htmlFor="timezone" className="console-label flex items-center gap-2">
-              <Globe className="h-4 w-4 text-gray-500" />
+            <Label htmlFor="timezone" className="text-[13px] sm:text-[15px] font-medium flex items-center gap-2">
+              <Globe className="h-4 w-4 text-[#8E8E93]" />
               Timezone
             </Label>
             <Select value={timezone} onValueChange={setTimezone}>
-              <SelectTrigger id="timezone">
+              <SelectTrigger id="timezone" className="h-10 text-[15px]">
                 <SelectValue placeholder="Select your timezone" />
               </SelectTrigger>
               <SelectContent>
@@ -437,13 +437,13 @@ export default function ProfilePage() {
                 ))}
               </SelectContent>
             </Select>
-            <p className="console-small text-gray-500">
+            <p className="text-[13px] text-[#8E8E93]">
               Used for displaying times in your local timezone.
             </p>
           </div>
-        </CardContent>
-        <CardFooter>
-          <Button onClick={handleSave} disabled={isSaving} className="console-button-primary">
+        </div>
+        <div className="pt-4 sm:pt-6 border-t border-[#E5E5EA]">
+          <Button onClick={handleSave} disabled={isSaving} className="h-[36px] px-4 bg-[#007A78] text-white rounded-xl text-[15px] font-semibold hover:bg-[#006664]">
             {isSaving ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -456,8 +456,8 @@ export default function ProfilePage() {
               </>
             )}
           </Button>
-        </CardFooter>
-      </Card>
+        </div>
+      </div>
     </div>
   )
 }

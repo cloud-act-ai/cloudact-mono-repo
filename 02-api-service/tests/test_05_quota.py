@@ -11,15 +11,29 @@ from datetime import date
 from httpx import AsyncClient, ASGITransport
 
 # Set environment variables BEFORE importing app
-os.environ.setdefault("GCP_PROJECT_ID", "test-project")
+# Use real values from .env.local if available
+os.environ.setdefault("GCP_PROJECT_ID", "gac-prod-471220")
 os.environ.setdefault("ENVIRONMENT", "development")
-os.environ.setdefault("CA_ROOT_API_KEY", "test-root-key-for-testing-only-32chars")
-os.environ.setdefault("DISABLE_AUTH", "true")  # Disable auth for simpler testing
-os.environ.setdefault("KMS_KEY_NAME", "projects/test/locations/global/keyRings/test/cryptoKeys/test")
+if "CA_ROOT_API_KEY" not in os.environ:
+    os.environ["CA_ROOT_API_KEY"] = "test-root-key-for-testing-only-32chars"
+# Auth is always enabled - use test_api_keys.json for test credentials
+os.environ.setdefault("KMS_KEY_NAME", "projects/gac-prod-471220/locations/us-central1/keyRings/convergence-keyring-prod/cryptoKeys/api-key-encryption")
 
 from src.app.main import app
 
-ROOT_API_KEY = "test-root-key-for-testing-only-32chars"
+ROOT_API_KEY = os.environ.get("CA_ROOT_API_KEY", "test-root-key-for-testing-only-32chars")
+# Test org API key (must be in test_api_keys.json)
+TEST_ORG_API_KEY = "test_org_123_api_testkey1234567890"
+TEST_ORG_SLUG = "test_org_123"
+
+
+@pytest.fixture(autouse=True)
+def clear_test_api_keys_cache():
+    """Clear and reload test API keys cache before each test."""
+    import src.app.dependencies.auth as auth_module
+    auth_module._test_api_keys = None  # Clear cached value
+    auth_module.load_test_api_keys()  # Reload from file
+    yield
 
 
 @pytest.mark.asyncio
@@ -50,12 +64,15 @@ async def test_get_quota_success():
     try:
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get("/api/v1/organizations/test_org/quota")
+            response = await client.get(
+                f"/api/v1/organizations/{TEST_ORG_SLUG}/quota",
+                headers={"X-API-Key": TEST_ORG_API_KEY}
+            )
 
         assert response.status_code == 200
         data = response.json()
 
-        assert data["org_slug"] == "test_org"
+        assert data["org_slug"] == TEST_ORG_SLUG
         assert data["pipelinesRunToday"] == 5
         assert data["dailyLimit"] == 10
         assert data["pipelinesRunMonth"] == 50
@@ -82,7 +99,10 @@ async def test_get_quota_org_not_found():
     try:
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get("/api/v1/organizations/nonexistent_org/quota")
+            response = await client.get(
+                f"/api/v1/organizations/{TEST_ORG_SLUG}/quota",
+                headers={"X-API-Key": TEST_ORG_API_KEY}
+            )
 
         assert response.status_code == 404
         detail = response.json()["detail"]
@@ -117,7 +137,10 @@ async def test_get_quota_no_usage_record():
     try:
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get("/api/v1/organizations/new_org/quota")
+            response = await client.get(
+                f"/api/v1/organizations/{TEST_ORG_SLUG}/quota",
+                headers={"X-API-Key": TEST_ORG_API_KEY}
+            )
 
         assert response.status_code == 200
         data = response.json()
@@ -158,7 +181,10 @@ async def test_get_quota_usage_percentages():
     try:
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get("/api/v1/organizations/test_org/quota")
+            response = await client.get(
+                f"/api/v1/organizations/{TEST_ORG_SLUG}/quota",
+                headers={"X-API-Key": TEST_ORG_API_KEY}
+            )
 
         assert response.status_code == 200
         data = response.json()
@@ -197,7 +223,10 @@ async def test_get_quota_zero_limits_no_division_error():
     try:
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get("/api/v1/organizations/test_org/quota")
+            response = await client.get(
+                f"/api/v1/organizations/{TEST_ORG_SLUG}/quota",
+                headers={"X-API-Key": TEST_ORG_API_KEY}
+            )
 
         assert response.status_code == 200
         data = response.json()

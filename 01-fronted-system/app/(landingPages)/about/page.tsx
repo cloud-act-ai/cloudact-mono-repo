@@ -38,10 +38,10 @@ export default function AboutPage() {
       </section>
 
       {/* Story Section */}
-      <section className="py-16 md:py-24 bg-white">
+      <section className="py-12 sm:py-16 md:py-24 bg-white">
         <div className="container px-4 md:px-12">
-          <div className="mx-auto max-w-4xl space-y-12">
-            <div className="space-y-8 cloudact-body text-lg leading-relaxed">
+          <div className="mx-auto max-w-4xl space-y-10 sm:space-y-12">
+            <div className="space-y-6 sm:space-y-8 cloudact-body text-base sm:text-lg leading-relaxed">
               <p>
                 <span className="text-5xl font-bold text-cloudact-teal float-left mr-3 leading-none">C</span>
                 loudAct.ai was founded in 2024 by a team of cloud infrastructure and AI engineers who experienced the
@@ -63,29 +63,29 @@ export default function AboutPage() {
       </section>
 
       {/* Stats Grid */}
-      <section className="cloudact-stats-section py-20 relative overflow-hidden">
+      <section className="cloudact-stats-section py-12 sm:py-16 md:py-20 relative overflow-hidden">
         <div className="container px-4 md:px-12 relative z-10">
           <div className="mx-auto max-w-6xl">
-            <div className="grid gap-12 md:grid-cols-2 lg:grid-cols-4">
-              <div className="text-center space-y-4">
-                <Users className="h-10 w-10 mx-auto text-white/80" />
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 sm:gap-10 md:gap-12">
+              <div className="text-center space-y-3 sm:space-y-4">
+                <Users className="h-8 w-8 sm:h-9 sm:w-9 md:h-10 md:w-10 mx-auto text-white/80" />
                 <div className="cloudact-stat-value">500+</div>
-                <div className="text-lg text-white/80 font-medium">Companies Trust Us</div>
+                <div className="text-sm sm:text-base md:text-lg text-white/80 font-medium">Companies Trust Us</div>
               </div>
-              <div className="text-center space-y-4">
-                <Cloud className="h-10 w-10 mx-auto text-white/80" />
+              <div className="text-center space-y-3 sm:space-y-4">
+                <Cloud className="h-8 w-8 sm:h-9 sm:w-9 md:h-10 md:w-10 mx-auto text-white/80" />
                 <div className="cloudact-stat-value">$50M+</div>
-                <div className="text-lg text-white/80 font-medium">Costs Optimized</div>
+                <div className="text-sm sm:text-base md:text-lg text-white/80 font-medium">Costs Optimized</div>
               </div>
-              <div className="text-center space-y-4">
-                <Shield className="h-10 w-10 mx-auto text-white/80" />
+              <div className="text-center space-y-3 sm:space-y-4">
+                <Shield className="h-8 w-8 sm:h-9 sm:w-9 md:h-10 md:w-10 mx-auto text-white/80" />
                 <div className="cloudact-stat-value">67%</div>
-                <div className="text-lg text-white/80 font-medium">Avg. Cost Reduction</div>
+                <div className="text-sm sm:text-base md:text-lg text-white/80 font-medium">Avg. Cost Reduction</div>
               </div>
-              <div className="text-center space-y-4">
-                <Heart className="h-10 w-10 mx-auto text-white/80" />
+              <div className="text-center space-y-3 sm:space-y-4">
+                <Heart className="h-8 w-8 sm:h-9 sm:w-9 md:h-10 md:w-10 mx-auto text-white/80" />
                 <div className="cloudact-stat-value">98%</div>
-                <div className="text-lg text-white/80 font-medium">Customer Satisfaction</div>
+                <div className="text-sm sm:text-base md:text-lg text-white/80 font-medium">Customer Satisfaction</div>
               </div>
             </div>
           </div>
@@ -93,19 +93,19 @@ export default function AboutPage() {
       </section>
 
       {/* Values Section */}
-      <section className="py-20 bg-white">
+      <section className="py-12 sm:py-16 md:py-20 bg-white">
         <div className="container px-4 md:px-12">
           <div className="mx-auto max-w-6xl">
-            <div className="text-center space-y-4 mb-16">
+            <div className="text-center space-y-3 sm:space-y-4 mb-12 sm:mb-14 md:mb-16">
               <h2 className="cloudact-heading-lg">Our Values</h2>
-              <p className="cloudact-body text-lg">What drives us every day</p>
+              <p className="cloudact-body text-base sm:text-lg">What drives us every day</p>
             </div>
 
-            <div className="grid gap-8 md:grid-cols-2">
-              <div className="cloudact-card group p-8">
-                <div className="space-y-6">
+            <div className="grid gap-6 sm:gap-8 md:grid-cols-2">
+              <div className="cloudact-card group p-6 sm:p-8">
+                <div className="space-y-4 sm:space-y-6">
                   <div className="cloudact-icon-box-coral">
-                    <Target className="h-8 w-8" />
+                    <Target className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8" />
                   </div>
                   <h3 className="cloudact-heading-md">Customer Obsessed</h3>
                   <p className="cloudact-body leading-relaxed">
@@ -115,10 +115,10 @@ export default function AboutPage() {
                 </div>
               </div>
 
-              <div className="cloudact-card group p-8">
-                <div className="space-y-6">
+              <div className="cloudact-card group p-6 sm:p-8">
+                <div className="space-y-4 sm:space-y-6">
                   <div className="cloudact-icon-box">
-                    <Shield className="h-8 w-8" />
+                    <Shield className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8" />
                   </div>
                   <h3 className="cloudact-heading-md">Trust & Transparency</h3>
                   <p className="cloudact-body leading-relaxed">
@@ -128,10 +128,10 @@ export default function AboutPage() {
                 </div>
               </div>
 
-              <div className="cloudact-card group p-8">
-                <div className="space-y-6">
+              <div className="cloudact-card group p-6 sm:p-8">
+                <div className="space-y-4 sm:space-y-6">
                   <div className="cloudact-icon-box-coral">
-                    <Sparkles className="h-8 w-8" />
+                    <Sparkles className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8" />
                   </div>
                   <h3 className="cloudact-heading-md">Innovation First</h3>
                   <p className="cloudact-body leading-relaxed">
@@ -141,10 +141,10 @@ export default function AboutPage() {
                 </div>
               </div>
 
-              <div className="cloudact-card group p-8">
-                <div className="space-y-6">
+              <div className="cloudact-card group p-6 sm:p-8">
+                <div className="space-y-4 sm:space-y-6">
                   <div className="cloudact-icon-box">
-                    <Users className="h-8 w-8" />
+                    <Users className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8" />
                   </div>
                   <h3 className="cloudact-heading-md">Built for Teams</h3>
                   <p className="cloudact-body leading-relaxed">

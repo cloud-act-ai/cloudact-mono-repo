@@ -40,12 +40,12 @@ export default function SolutionsPage() {
       </section>
 
       {/* Solutions Grid */}
-      <section className="pb-24 bg-white">
+      <section className="pb-16 sm:pb-20 md:pb-24 bg-white">
         <div className="container px-4 md:px-12">
-          <div className="mx-auto max-w-6xl space-y-16">
+          <div className="mx-auto max-w-6xl space-y-12 sm:space-y-14 md:space-y-16">
             {/* For Startups */}
-            <div className="cloudact-card group grid md:grid-cols-2 gap-8 items-center p-8 md:p-12">
-              <div className="space-y-6">
+            <div className="cloudact-card group grid md:grid-cols-2 gap-6 sm:gap-8 items-center p-6 sm:p-8 md:p-12">
+              <div className="space-y-4 sm:space-y-6">
                 <div className="cloudact-badge-coral inline-flex">
                   <Rocket className="h-4 w-4" />
                   For Startups
@@ -55,40 +55,40 @@ export default function SolutionsPage() {
                   Control GenAI and cloud costs before they spiral. CloudAct helps startups build sustainable cost
                   practices from the beginning.
                 </p>
-                <ul className="space-y-3 cloudact-body-sm">
-                  <li className="flex items-center gap-3">
-                    <span className="h-1.5 w-1.5 rounded-full bg-cloudact-teal" />
+                <ul className="space-y-2.5 sm:space-y-3 cloudact-body-sm">
+                  <li className="flex items-center gap-2.5 sm:gap-3">
+                    <span className="h-1.5 w-1.5 rounded-full bg-cloudact-teal flex-shrink-0" />
                     Free {DEFAULT_TRIAL_DAYS}-day trial with no credit card
                   </li>
-                  <li className="flex items-center gap-3">
-                    <span className="h-1.5 w-1.5 rounded-full bg-cloudact-teal" />
+                  <li className="flex items-center gap-2.5 sm:gap-3">
+                    <span className="h-1.5 w-1.5 rounded-full bg-cloudact-teal flex-shrink-0" />
                     5-minute setup, zero infrastructure
                   </li>
-                  <li className="flex items-center gap-3">
-                    <span className="h-1.5 w-1.5 rounded-full bg-cloudact-teal" />
+                  <li className="flex items-center gap-2.5 sm:gap-3">
+                    <span className="h-1.5 w-1.5 rounded-full bg-cloudact-teal flex-shrink-0" />
                     Pay-as-you-grow pricing
                   </li>
-                  <li className="flex items-center gap-3">
-                    <span className="h-1.5 w-1.5 rounded-full bg-cloudact-teal" />
+                  <li className="flex items-center gap-2.5 sm:gap-3">
+                    <span className="h-1.5 w-1.5 rounded-full bg-cloudact-teal flex-shrink-0" />
                     Real-time cost visibility
                   </li>
                 </ul>
-                <Link href="/signup" className="cloudact-link inline-flex items-center text-lg">
+                <Link href="/signup" className="cloudact-link inline-flex items-center text-base sm:text-lg">
                   Start Free Trial
-                  <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
+                  <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5 transition-transform group-hover:translate-x-1" />
                 </Link>
               </div>
-              <div className="relative aspect-square rounded-2xl bg-cloudact-coral-light flex items-center justify-center overflow-hidden" aria-hidden="true">
-                <Rocket className="h-40 w-40 text-cloudact-coral/30 group-hover:scale-110 transition-transform duration-500" aria-hidden="true" />
+              <div className="relative aspect-square rounded-2xl bg-cloudact-coral-light flex items-center justify-center overflow-hidden order-first md:order-last" aria-hidden="true">
+                <Rocket className="h-32 w-32 sm:h-36 sm:w-36 md:h-40 md:w-40 text-cloudact-coral/30 group-hover:scale-110 transition-transform duration-500" aria-hidden="true" />
               </div>
             </div>
 
             {/* For Enterprises */}
-            <div className="cloudact-card group grid md:grid-cols-2 gap-8 items-center p-8 md:p-12">
-              <div className="relative aspect-square rounded-2xl bg-cloudact-teal-light flex items-center justify-center md:order-first overflow-hidden" aria-hidden="true">
-                <Building2 className="h-40 w-40 text-cloudact-teal/30 group-hover:scale-110 transition-transform duration-500" aria-hidden="true" />
+            <div className="cloudact-card group grid md:grid-cols-2 gap-6 sm:gap-8 items-center p-6 sm:p-8 md:p-12">
+              <div className="relative aspect-square rounded-2xl bg-cloudact-teal-light flex items-center justify-center md:order-first overflow-hidden order-first" aria-hidden="true">
+                <Building2 className="h-32 w-32 sm:h-36 sm:w-36 md:h-40 md:w-40 text-cloudact-teal/30 group-hover:scale-110 transition-transform duration-500" aria-hidden="true" />
               </div>
-              <div className="space-y-6">
+              <div className="space-y-4 sm:space-y-6 order-last">
                 <div className="cloudact-badge inline-flex">
                   <Building2 className="h-4 w-4" />
                   For Enterprises
@@ -98,34 +98,34 @@ export default function SolutionsPage() {
                   Advanced security, compliance, and custom integrations for large organizations managing millions in
                   cloud spend.
                 </p>
-                <ul className="space-y-3 cloudact-body-sm">
-                  <li className="flex items-center gap-3">
-                    <span className="h-1.5 w-1.5 rounded-full bg-cloudact-teal" />
+                <ul className="space-y-2.5 sm:space-y-3 cloudact-body-sm">
+                  <li className="flex items-center gap-2.5 sm:gap-3">
+                    <span className="h-1.5 w-1.5 rounded-full bg-cloudact-teal flex-shrink-0" />
                     SSO & SAML authentication
                   </li>
-                  <li className="flex items-center gap-3">
-                    <span className="h-1.5 w-1.5 rounded-full bg-cloudact-teal" />
+                  <li className="flex items-center gap-2.5 sm:gap-3">
+                    <span className="h-1.5 w-1.5 rounded-full bg-cloudact-teal flex-shrink-0" />
                     SOC 2 Type II certified
                   </li>
-                  <li className="flex items-center gap-3">
-                    <span className="h-1.5 w-1.5 rounded-full bg-cloudact-teal" />
+                  <li className="flex items-center gap-2.5 sm:gap-3">
+                    <span className="h-1.5 w-1.5 rounded-full bg-cloudact-teal flex-shrink-0" />
                     Dedicated support team
                   </li>
-                  <li className="flex items-center gap-3">
-                    <span className="h-1.5 w-1.5 rounded-full bg-cloudact-teal" />
+                  <li className="flex items-center gap-2.5 sm:gap-3">
+                    <span className="h-1.5 w-1.5 rounded-full bg-cloudact-teal flex-shrink-0" />
                     Custom SLAs & contracts
                   </li>
                 </ul>
-                <Link href="/contact" className="cloudact-link inline-flex items-center text-lg">
+                <Link href="/contact" className="cloudact-link inline-flex items-center text-base sm:text-lg">
                   Contact Sales
-                  <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
+                  <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5 transition-transform group-hover:translate-x-1" />
                 </Link>
               </div>
             </div>
 
             {/* For Developers */}
-            <div className="cloudact-card group grid md:grid-cols-2 gap-8 items-center p-8 md:p-12">
-              <div className="space-y-6">
+            <div className="cloudact-card group grid md:grid-cols-2 gap-6 sm:gap-8 items-center p-6 sm:p-8 md:p-12">
+              <div className="space-y-4 sm:space-y-6">
                 <div className="cloudact-badge inline-flex">
                   <Code className="h-4 w-4" />
                   For Developers
@@ -135,40 +135,40 @@ export default function SolutionsPage() {
                   Built by developers, for developers. Full API access, comprehensive docs, and developer-friendly
                   integrations.
                 </p>
-                <ul className="space-y-3 cloudact-body-sm">
-                  <li className="flex items-center gap-3">
-                    <span className="h-1.5 w-1.5 rounded-full bg-cloudact-teal" />
+                <ul className="space-y-2.5 sm:space-y-3 cloudact-body-sm">
+                  <li className="flex items-center gap-2.5 sm:gap-3">
+                    <span className="h-1.5 w-1.5 rounded-full bg-cloudact-teal flex-shrink-0" />
                     RESTful API with SDKs
                   </li>
-                  <li className="flex items-center gap-3">
-                    <span className="h-1.5 w-1.5 rounded-full bg-cloudact-teal" />
+                  <li className="flex items-center gap-2.5 sm:gap-3">
+                    <span className="h-1.5 w-1.5 rounded-full bg-cloudact-teal flex-shrink-0" />
                     Webhooks & real-time events
                   </li>
-                  <li className="flex items-center gap-3">
-                    <span className="h-1.5 w-1.5 rounded-full bg-cloudact-teal" />
+                  <li className="flex items-center gap-2.5 sm:gap-3">
+                    <span className="h-1.5 w-1.5 rounded-full bg-cloudact-teal flex-shrink-0" />
                     Infrastructure as Code support
                   </li>
-                  <li className="flex items-center gap-3">
-                    <span className="h-1.5 w-1.5 rounded-full bg-cloudact-teal" />
+                  <li className="flex items-center gap-2.5 sm:gap-3">
+                    <span className="h-1.5 w-1.5 rounded-full bg-cloudact-teal flex-shrink-0" />
                     Detailed API documentation
                   </li>
                 </ul>
-                <Link href="/signup" className="cloudact-link inline-flex items-center text-lg">
+                <Link href="/signup" className="cloudact-link inline-flex items-center text-base sm:text-lg">
                   View API Docs
-                  <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
+                  <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5 transition-transform group-hover:translate-x-1" />
                 </Link>
               </div>
-              <div className="relative aspect-square rounded-2xl bg-cloudact-teal-light flex items-center justify-center overflow-hidden" aria-hidden="true">
-                <Code className="h-40 w-40 text-cloudact-teal/30 group-hover:scale-110 transition-transform duration-500" aria-hidden="true" />
+              <div className="relative aspect-square rounded-2xl bg-cloudact-teal-light flex items-center justify-center overflow-hidden order-first md:order-last" aria-hidden="true">
+                <Code className="h-32 w-32 sm:h-36 sm:w-36 md:h-40 md:w-40 text-cloudact-teal/30 group-hover:scale-110 transition-transform duration-500" aria-hidden="true" />
               </div>
             </div>
 
             {/* For FinOps Teams */}
-            <div className="cloudact-card group grid md:grid-cols-2 gap-8 items-center p-8 md:p-12">
-              <div className="relative aspect-square rounded-2xl bg-cloudact-coral-light flex items-center justify-center md:order-first overflow-hidden" aria-hidden="true">
-                <TrendingUp className="h-40 w-40 text-cloudact-coral/30 group-hover:scale-110 transition-transform duration-500" aria-hidden="true" />
+            <div className="cloudact-card group grid md:grid-cols-2 gap-6 sm:gap-8 items-center p-6 sm:p-8 md:p-12">
+              <div className="relative aspect-square rounded-2xl bg-cloudact-coral-light flex items-center justify-center md:order-first overflow-hidden order-first" aria-hidden="true">
+                <TrendingUp className="h-32 w-32 sm:h-36 sm:w-36 md:h-40 md:w-40 text-cloudact-coral/30 group-hover:scale-110 transition-transform duration-500" aria-hidden="true" />
               </div>
-              <div className="space-y-6">
+              <div className="space-y-4 sm:space-y-6 order-last">
                 <div className="cloudact-badge-coral inline-flex">
                   <TrendingUp className="h-4 w-4" />
                   For FinOps Teams
@@ -177,27 +177,27 @@ export default function SolutionsPage() {
                 <p className="cloudact-body">
                   Comprehensive financial tools for cost allocation, chargeback, and executive reporting.
                 </p>
-                <ul className="space-y-3 cloudact-body-sm">
-                  <li className="flex items-center gap-3">
-                    <span className="h-1.5 w-1.5 rounded-full bg-cloudact-coral" />
+                <ul className="space-y-2.5 sm:space-y-3 cloudact-body-sm">
+                  <li className="flex items-center gap-2.5 sm:gap-3">
+                    <span className="h-1.5 w-1.5 rounded-full bg-cloudact-coral flex-shrink-0" />
                     Automated invoice reconciliation
                   </li>
-                  <li className="flex items-center gap-3">
-                    <span className="h-1.5 w-1.5 rounded-full bg-cloudact-coral" />
+                  <li className="flex items-center gap-2.5 sm:gap-3">
+                    <span className="h-1.5 w-1.5 rounded-full bg-cloudact-coral flex-shrink-0" />
                     Custom cost allocation rules
                   </li>
-                  <li className="flex items-center gap-3">
-                    <span className="h-1.5 w-1.5 rounded-full bg-cloudact-coral" />
+                  <li className="flex items-center gap-2.5 sm:gap-3">
+                    <span className="h-1.5 w-1.5 rounded-full bg-cloudact-coral flex-shrink-0" />
                     Multi-currency support
                   </li>
-                  <li className="flex items-center gap-3">
-                    <span className="h-1.5 w-1.5 rounded-full bg-cloudact-coral" />
+                  <li className="flex items-center gap-2.5 sm:gap-3">
+                    <span className="h-1.5 w-1.5 rounded-full bg-cloudact-coral flex-shrink-0" />
                     Executive dashboards
                   </li>
                 </ul>
-                <Link href="/signup" className="cloudact-link inline-flex items-center text-lg">
+                <Link href="/signup" className="cloudact-link inline-flex items-center text-base sm:text-lg">
                   Get Started
-                  <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
+                  <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5 transition-transform group-hover:translate-x-1" />
                 </Link>
               </div>
             </div>

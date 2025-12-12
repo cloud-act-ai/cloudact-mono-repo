@@ -41,60 +41,60 @@ export default function ContactPage() {
       </section>
 
       {/* Contact Form Section */}
-      <section className="pb-20 bg-white">
+      <section className="pb-16 sm:pb-20 bg-white">
         <div className="container px-4 md:px-12">
           <div className="mx-auto max-w-5xl">
-            <div className="grid gap-12 lg:grid-cols-2">
+            <div className="grid gap-10 sm:gap-12 lg:grid-cols-2">
               {/* Contact Info */}
-              <div className="space-y-10">
+              <div className="space-y-8 sm:space-y-10">
                 <div>
-                  <h2 className="cloudact-heading-lg mb-3">Let's Talk</h2>
+                  <h2 className="cloudact-heading-lg mb-2 sm:mb-3">Let's Talk</h2>
                   <p className="cloudact-body">
                     Whether you're looking to optimize costs, need technical support, or want to discuss enterprise
                     solutions, we're here to help.
                   </p>
                 </div>
 
-                <div className="space-y-6">
-                  <div className="flex items-start gap-4 group">
+                <div className="space-y-5 sm:space-y-6">
+                  <div className="flex items-start gap-3 sm:gap-4 group">
                     <div className="cloudact-icon-box flex-shrink-0">
-                      <Mail className="h-6 w-6" />
+                      <Mail className="h-5 w-5 sm:h-6 sm:w-6" />
                     </div>
                     <div>
-                      <h3 className="cloudact-heading-md text-base mb-1">Email Us</h3>
+                      <h3 className="cloudact-heading-md text-sm sm:text-base mb-1">Email Us</h3>
                       <p className="cloudact-body-sm mb-1">For general inquiries and support</p>
-                      <a href={`mailto:${process.env.NEXT_PUBLIC_CONTACT_EMAIL || "hello@cloudact.ai"}`} className="cloudact-link text-sm">
+                      <a href={`mailto:${process.env.NEXT_PUBLIC_CONTACT_EMAIL || "hello@cloudact.ai"}`} className="cloudact-link text-xs sm:text-sm">
                         {process.env.NEXT_PUBLIC_CONTACT_EMAIL || "hello@cloudact.ai"}
                       </a>
                     </div>
                   </div>
 
-                  <div className="flex items-start gap-4 group">
+                  <div className="flex items-start gap-3 sm:gap-4 group">
                     <div className="cloudact-icon-box-coral flex-shrink-0">
-                      <MessageSquare className="h-6 w-6" />
+                      <MessageSquare className="h-5 w-5 sm:h-6 sm:w-6" />
                     </div>
                     <div>
-                      <h3 className="cloudact-heading-md text-base mb-1">Live Chat</h3>
+                      <h3 className="cloudact-heading-md text-sm sm:text-base mb-1">Live Chat</h3>
                       <p className="cloudact-body-sm mb-1">For real-time assistance</p>
-                      <span className="text-sm font-medium text-gray-900">Available Mon-Fri, 9am-6pm PT</span>
+                      <span className="text-xs sm:text-sm font-medium text-gray-900">Available Mon-Fri, 9am-6pm PT</span>
                     </div>
                   </div>
 
-                  <div className="flex items-start gap-4 group">
+                  <div className="flex items-start gap-3 sm:gap-4 group">
                     <div className="cloudact-icon-box flex-shrink-0">
-                      <Phone className="h-6 w-6" />
+                      <Phone className="h-5 w-5 sm:h-6 sm:w-6" />
                     </div>
                     <div>
-                      <h3 className="cloudact-heading-md text-base mb-1">Call Us</h3>
+                      <h3 className="cloudact-heading-md text-sm sm:text-base mb-1">Call Us</h3>
                       <p className="cloudact-body-sm mb-1">For urgent matters</p>
-                      <a href="tel:+15551234567" className="cloudact-link text-sm">+1 (555) 123-4567</a>
+                      <a href="tel:+15551234567" className="cloudact-link text-xs sm:text-sm">+1 (555) 123-4567</a>
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* Contact Form */}
-              <div className="cloudact-card p-6 lg:p-8">
+              <div className="cloudact-card p-6 sm:p-7 lg:p-8">
                 {isSuccess ? (
                   <div className="h-full flex flex-col items-center justify-center text-center space-y-6 py-12">
                     <div className="h-16 w-16 rounded-full bg-cloudact-teal-light flex items-center justify-center">

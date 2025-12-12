@@ -466,54 +466,53 @@ export default function BillingPage() {
 
       {/* Header */}
       <div className="text-center">
-        <h1 className="console-page-title">Billing & Plans</h1>
-        <p className="console-subheading mt-2">Manage your subscription and billing information</p>
+        <h1 className="text-[32px] sm:text-[34px] font-bold text-black tracking-tight">Billing & Plans</h1>
+        <p className="text-[13px] sm:text-[15px] text-[#8E8E93] mt-2">Manage your subscription and billing information</p>
       </div>
 
       {/* Current Subscription Status Banner (for existing subscribers) */}
       {hasStripeSubscription && billingInfo?.subscription && (
-        <Card className="bg-[#F0FDFA] border-[#007A78]/20">
-          <CardContent className="py-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="h-10 w-10 rounded-full bg-[#007A78]/10 flex items-center justify-center">
-                  <CreditCard className="h-5 w-5 text-[#007A78]" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold">{billingInfo.subscription.plan.name} Plan</span>
-                    <span className={isCanceledButActive ? "console-badge console-badge-warning" : "console-badge console-badge-success"}>
-                      {isCanceledButActive ? "Cancels at period end" : billingInfo.subscription.status}
-                    </span>
-                  </div>
-                  <p className="console-subheading">
-                    ${billingInfo.subscription.plan.price}/{billingInfo.subscription.plan.interval} ·
-                    Renews {formatDate(billingInfo.subscription.currentPeriodEnd)}
-                  </p>
-                </div>
+        <div className="health-card bg-[#F0FDFA]">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <div className="h-10 w-10 rounded-full bg-[#007A78]/10 flex items-center justify-center flex-shrink-0">
+                <CreditCard className="h-5 w-5 text-[#007A78]" />
               </div>
-              {isOwner && (
-                <button onClick={handleManageSubscription} disabled={isPortalLoading} className="console-button-primary inline-flex items-center">
-                  {isPortalLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  ) : (
-                    <Settings className="h-4 w-4 mr-2" />
-                  )}
-                  Manage Subscription
-                </button>
-              )}
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[15px] sm:text-[17px] font-semibold text-black">{billingInfo.subscription.plan.name} Plan</span>
+                  <span className={isCanceledButActive ? "bg-[#FF9500]/12 text-[#FF9500] text-[11px] font-semibold px-2.5 py-1 rounded-full" : "bg-[#34C759]/12 text-[#34C759] text-[11px] font-semibold px-2.5 py-1 rounded-full"}>
+                    {isCanceledButActive ? "Cancels at period end" : billingInfo.subscription.status}
+                  </span>
+                </div>
+                <p className="text-[13px] sm:text-[15px] text-[#8E8E93] mt-0.5">
+                  ${billingInfo.subscription.plan.price}/{billingInfo.subscription.plan.interval} ·
+                  Renews {formatDate(billingInfo.subscription.currentPeriodEnd)}
+                </p>
+              </div>
             </div>
-            {isCanceledButActive && (
-              <Alert className="mt-4" variant="destructive">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription className="console-body">
-                  Your subscription will end on <strong>{formatDate(billingInfo.subscription.currentPeriodEnd)}</strong>.
-                  Click "Manage Subscription" to resume.
-                </AlertDescription>
-              </Alert>
+            {isOwner && (
+              <button onClick={handleManageSubscription} disabled={isPortalLoading} className="h-[36px] px-4 bg-[#007A78] text-white hover:bg-[#006664] rounded-xl text-[15px] font-semibold inline-flex items-center whitespace-nowrap">
+                {isPortalLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <Settings className="h-4 w-4 mr-2" />
+                )}
+                <span className="hidden sm:inline">Manage Subscription</span>
+                <span className="sm:hidden">Manage</span>
+              </button>
             )}
-          </CardContent>
-        </Card>
+          </div>
+          {isCanceledButActive && (
+            <Alert className="mt-4" variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription className="text-[13px] sm:text-[15px]">
+                Your subscription will end on <strong>{formatDate(billingInfo.subscription.currentPeriodEnd)}</strong>.
+                Click "Manage Subscription" to resume.
+              </AlertDescription>
+            </Alert>
+          )}
+        </div>
       )}
 
       {/* Past Due Payment Warning */}
@@ -619,10 +618,10 @@ export default function BillingPage() {
 
       {/* Pricing Cards */}
       <div id="pricing">
-        <h2 className="console-heading mb-4">
+        <h2 className="text-[22px] font-bold text-black mb-4">
           {hasStripeSubscription ? "Change Plan" : "Choose a Plan"}
         </h2>
-        <p className="console-subheading mb-6">
+        <p className="text-[13px] sm:text-[15px] text-[#8E8E93] mb-6">
           {hasStripeSubscription
             ? "Upgrade or downgrade your plan instantly. Charges are prorated automatically."
             : `Select a plan to get started.${plans[0]?.trialDays ? ` All plans include a ${plans[0].trialDays}-day free trial.` : ''}`
@@ -655,7 +654,7 @@ export default function BillingPage() {
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          <div className="grid gap-6 md:grid-cols-3">
+          <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
             {plans.map((plan, index) => {
               // Only show "Current Plan" if user has an active Stripe subscription
               const isCurrentPlan = hasStripeSubscription && currentPlan === plan.id
@@ -665,52 +664,52 @@ export default function BillingPage() {
               const isDowngrade = hasStripeSubscription && currentPlan && index < currentPlanIndex
 
               return (
-                <Card
+                <div
                   key={plan.priceId}
-                  className={`flex flex-col console-stat-card ${isCurrentPlan ? "border-[#007A78] shadow-lg relative" : ""}`}
+                  className={`flex flex-col health-card ${isCurrentPlan ? "border-[#007A78] shadow-lg relative" : ""}`}
                 >
                   {isCurrentPlan && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#007A78] text-white px-3 py-1 rounded-full text-xs font-medium">
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#007A78] text-white px-3 py-1 rounded-full text-[11px] font-semibold">
                       Current Plan
                     </div>
                   )}
-                  <CardHeader>
-                    <CardTitle className="console-card-title">{plan.name}</CardTitle>
-                    <CardDescription className="console-small">{plan.description}</CardDescription>
-                  </CardHeader>
-                  <CardContent className="flex-1">
+                  <div className="mb-4">
+                    <h3 className="text-[17px] font-semibold text-black">{plan.name}</h3>
+                    <p className="text-[13px] text-[#8E8E93] mt-1">{plan.description}</p>
+                  </div>
+                  <div className="flex-1">
                     <div className="mb-4">
-                      <span className="text-3xl font-bold text-[#FF6E50]">${plan.price}</span>
-                      <span className="text-sm font-normal text-gray-500">/{plan.interval}</span>
+                      <span className="text-[28px] sm:text-[32px] font-bold text-[#FF6E50]">${plan.price}</span>
+                      <span className="text-[13px] sm:text-[15px] font-normal text-[#8E8E93]">/{plan.interval}</span>
                     </div>
                     {plan.trialDays && !hasStripeSubscription && (
-                      <p className="console-small text-[#007A78] mb-4">
+                      <p className="text-[13px] text-[#007A78] mb-4 font-medium">
                         {plan.trialDays}-day free trial included
                       </p>
                     )}
                     {plan.features.length > 0 ? (
-                      <ul className="space-y-2 text-sm">
+                      <ul className="space-y-2">
                         {plan.features.map((feature, i) => (
-                          <li key={i} className="flex items-center gap-2">
-                            <Check className="h-4 w-4 text-[#007A78] flex-shrink-0" />
-                            <span className="text-gray-600">{feature}</span>
+                          <li key={i} className="flex items-start gap-2 text-[13px] sm:text-[15px]">
+                            <Check className="h-4 w-4 text-[#007A78] flex-shrink-0 mt-0.5" />
+                            <span className="text-[#3C3C43]">{feature}</span>
                           </li>
                         ))}
                       </ul>
                     ) : (
-                      <p className="console-small">
+                      <p className="text-[13px] text-[#8E8E93]">
                         Contact us for plan details
                       </p>
                     )}
-                  </CardContent>
-                  <CardFooter className="mt-auto">
+                  </div>
+                  <div className="mt-6">
                     {isCurrentPlan ? (
-                      <button className="console-button-secondary w-full opacity-50 cursor-not-allowed" disabled>
+                      <button className="h-[36px] px-4 w-full text-[#8E8E93] bg-[#F5F5F7] rounded-xl text-[15px] font-semibold opacity-50 cursor-not-allowed" disabled>
                         Current Plan
                       </button>
                     ) : (
                       <button
-                        className={`w-full ${isUpgrade ? "console-button-primary" : "console-button-secondary"}`}
+                        className={`h-[36px] px-4 w-full rounded-xl text-[15px] font-semibold ${isUpgrade ? "bg-[#007A78] text-white hover:bg-[#006664]" : "text-[#007A78] bg-white border border-[#007A78]/30 hover:bg-[#007A78]/5"}`}
                         onClick={
                           hasStripeSubscription
                             ? () => showPlanChangeConfirmation(plan, !!isUpgrade)
@@ -725,7 +724,7 @@ export default function BillingPage() {
                         {(hasStripeSubscription
                           ? planChangeLoading === plan.priceId
                           : isLoading === plan.priceId) ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <Loader2 className="h-4 w-4 animate-spin mx-auto" />
                         ) : isUpgrade ? (
                           "Upgrade"
                         ) : isDowngrade ? (
@@ -735,8 +734,8 @@ export default function BillingPage() {
                         )}
                       </button>
                     )}
-                  </CardFooter>
-                </Card>
+                  </div>
+                </div>
               )
             })}
           </div>
@@ -851,23 +850,23 @@ export default function BillingPage() {
       <Separator />
 
       {/* Invoice History */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Receipt className="h-5 w-5" />
+      <div className="health-card">
+        <div className="mb-6">
+          <h3 className="text-[17px] font-semibold text-black flex items-center gap-2">
+            <Receipt className="h-5 w-5 text-[#007A78]" />
             Invoice History
-          </CardTitle>
-          <CardDescription>Download your past invoices and receipts</CardDescription>
-        </CardHeader>
-        <CardContent>
+          </h3>
+          <p className="text-[13px] text-[#8E8E93] mt-1">Download your past invoices and receipts</p>
+        </div>
+        <div>
           {isLoadingBilling ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
           ) : billingInfo?.invoices && billingInfo.invoices.length > 0 ? (
-            <div className="overflow-x-auto -mx-6 px-6">
-              <div className="min-w-[600px] space-y-2">
-                <div className="grid grid-cols-5 gap-4 text-sm font-medium text-muted-foreground border-b pb-2 px-2">
+            <div className="overflow-x-auto -mx-4 sm:mx-0">
+              <div className="min-w-[600px] space-y-1">
+                <div className="grid grid-cols-5 gap-3 sm:gap-4 console-table-header px-4">
                   <span>Invoice</span>
                   <span>Date</span>
                   <span>Amount</span>
@@ -877,18 +876,18 @@ export default function BillingPage() {
                 {billingInfo.invoices.map((invoice) => (
                   <div
                     key={invoice.id}
-                    className="grid grid-cols-5 gap-4 items-center text-sm py-3 px-2 hover:bg-muted/50 rounded-lg"
+                    className="console-table-row grid grid-cols-5 gap-3 sm:gap-4 items-center px-4 py-3"
                   >
-                  <span className="font-medium">{invoice.number || invoice.id.slice(-8)}</span>
-                  <span className="text-muted-foreground">{formatDate(invoice.created)}</span>
-                  <span>{formatCurrency(invoice.amountPaid, invoice.currency)}</span>
+                  <span className="console-table-cell font-medium text-[13px] sm:text-[15px]">{invoice.number || invoice.id.slice(-8)}</span>
+                  <span className="console-table-cell text-[13px] sm:text-[15px]">{formatDate(invoice.created)}</span>
+                  <span className="console-table-cell text-[13px] sm:text-[15px]">{formatCurrency(invoice.amountPaid, invoice.currency)}</span>
                   <span
                     className={
-                      invoice.status === "paid" ? "console-badge console-badge-success" :
-                      invoice.status === "open" ? "console-badge console-badge-warning" :
-                      (invoice.status === "uncollectible" || invoice.status === "void") ? "console-badge console-badge-coral" :
-                      invoice.amountDue > 0 && invoice.status !== "paid" ? "console-badge console-badge-warning" :
-                      "console-badge"
+                      invoice.status === "paid" ? "bg-[#34C759]/12 text-[#34C759] text-[11px] font-semibold px-2.5 py-1 rounded-full inline-flex" :
+                      invoice.status === "open" ? "bg-[#FF9500]/12 text-[#FF9500] text-[11px] font-semibold px-2.5 py-1 rounded-full inline-flex" :
+                      (invoice.status === "uncollectible" || invoice.status === "void") ? "bg-[#FF3B30]/12 text-[#FF3B30] text-[11px] font-semibold px-2.5 py-1 rounded-full inline-flex" :
+                      invoice.amountDue > 0 && invoice.status !== "paid" ? "bg-[#FF9500]/12 text-[#FF9500] text-[11px] font-semibold px-2.5 py-1 rounded-full inline-flex" :
+                      "bg-[#8E8E93]/12 text-[#8E8E93] text-[11px] font-semibold px-2.5 py-1 rounded-full inline-flex"
                     }
                   >
                     {invoice.status}
@@ -897,7 +896,7 @@ export default function BillingPage() {
                   <div className="flex justify-end gap-2">
                     {invoice.hostedInvoiceUrl && (
                       <button
-                        className="console-button-secondary p-2"
+                        className="h-8 w-8 rounded-lg hover:bg-[#007A78]/10 text-[#007A78] inline-flex items-center justify-center"
                         onClick={() => window.open(invoice.hostedInvoiceUrl!, "_blank")}
                         aria-label="View invoice"
                       >
@@ -906,7 +905,7 @@ export default function BillingPage() {
                     )}
                     {invoice.invoicePdf && (
                       <button
-                        className="console-button-secondary p-2"
+                        className="h-8 w-8 rounded-lg hover:bg-[#007A78]/10 text-[#007A78] inline-flex items-center justify-center"
                         onClick={() => window.open(invoice.invoicePdf!, "_blank")}
                         aria-label="Download invoice PDF"
                       >
@@ -919,14 +918,14 @@ export default function BillingPage() {
               </div>
             </div>
           ) : (
-            <div className="text-center py-8">
-              <Receipt className="h-12 w-12 mx-auto text-gray-500 mb-2" />
-              <p className="console-subheading">No invoices yet</p>
-              <p className="console-small">Invoices will appear here once you subscribe</p>
+            <div className="text-center py-12">
+              <Receipt className="h-12 w-12 mx-auto text-[#8E8E93] mb-4" />
+              <p className="text-[15px] font-medium text-black mb-1">No invoices yet</p>
+              <p className="text-[13px] text-[#8E8E93]">Invoices will appear here once you subscribe</p>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Plan Change Confirmation Dialog */}
       <Dialog open={confirmDialog.open} onOpenChange={(open) => setConfirmDialog(prev => ({ ...prev, open }))}>

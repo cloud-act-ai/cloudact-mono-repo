@@ -96,7 +96,7 @@ export default async function OrgLayout({
         />
         <div className="flex flex-1 flex-col">
           <MobileHeader orgName={org.org_name} />
-          <main id="main-content" className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 bg-gradient-to-br from-white via-[#FEFFFE] to-white" tabIndex={-1}>
+          <main id="main-content" className="console-main-gradient flex-1 overflow-y-auto p-4 md:p-6 lg:p-8" tabIndex={-1}>
             {children}
           </main>
         </div>

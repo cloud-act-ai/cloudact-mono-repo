@@ -257,17 +257,17 @@ export default function MembersPage() {
         </Alert>
       )}
 
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="console-page-title">Team Members</h1>
-          <p className="console-subheading">
+          <h1 className="text-[32px] sm:text-[34px] font-bold text-black tracking-tight">Team Members</h1>
+          <p className="text-[13px] sm:text-[15px] text-[#8E8E93] mt-1">
             Manage who has access to your organization ({currentSeats}/{seatLimit ?? "N/A"} seats used)
           </p>
         </div>
         {isOwner && (
           <Dialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen}>
             <DialogTrigger asChild>
-              <Button disabled={!seatLimit || seatsAvailable <= 0} className="console-button-primary">
+              <Button disabled={!seatLimit || seatsAvailable <= 0} className="h-[36px] px-4 bg-[#007A78] text-white rounded-xl text-[15px] font-semibold hover:bg-[#006664]">
                 <UserPlus className="mr-2 h-4 w-4" />
                 Invite Member
               </Button>
@@ -345,10 +345,10 @@ export default function MembersPage() {
                   )}
 
                   <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsInviteDialogOpen(false)} className="console-button-secondary">
+                    <Button variant="outline" onClick={() => setIsInviteDialogOpen(false)} className="h-[36px] px-4 rounded-xl text-[15px]">
                       Cancel
                     </Button>
-                    <Button onClick={handleInvite} disabled={isInviting || !inviteEmail || !validateEmail(inviteEmail)} className="console-button-primary">
+                    <Button onClick={handleInvite} disabled={isInviting || !inviteEmail || !validateEmail(inviteEmail)} className="h-[36px] px-4 bg-[#007A78] text-white rounded-xl text-[15px] font-semibold hover:bg-[#006664]">
                       {isInviting ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       ) : (
@@ -377,41 +377,41 @@ export default function MembersPage() {
         </Alert>
       )}
 
-      <Card className="console-stat-card">
-        <CardHeader>
-          <CardTitle className="console-card-title flex items-center gap-2">
+      <div className="health-card">
+        <div className="health-card-header mb-4">
+          <div className="flex items-center gap-2">
             <Users className="h-5 w-5 text-[#007A78]" />
-            Active Members ({members.length})
-          </CardTitle>
-          <CardDescription className="console-subheading">People who have access to this organization</CardDescription>
-        </CardHeader>
-        <CardContent>
+            <h2 className="text-[22px] font-bold text-black">Active Members ({members.length})</h2>
+          </div>
+          <p className="text-[13px] sm:text-[15px] text-[#8E8E93] mt-1">People who have access to this organization</p>
+        </div>
+        <div className="health-card-content">
           {members.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <Users className="h-12 w-12 text-gray-500/50 mb-4" />
-              <h3 className="console-heading">No team members yet</h3>
-              <p className="console-subheading mt-1 mb-4">
+              <h3 className="text-[17px] font-semibold text-black mb-1">No team members yet</h3>
+              <p className="text-[13px] sm:text-[15px] text-[#8E8E93] mb-4">
                 Get started by inviting your first team member
               </p>
               {isOwner && (
-                <Button onClick={() => setIsInviteDialogOpen(true)} disabled={!seatLimit || seatsAvailable <= 0} className="console-button-primary">
+                <Button onClick={() => setIsInviteDialogOpen(true)} disabled={!seatLimit || seatsAvailable <= 0} className="h-[36px] px-4 bg-[#007A78] text-white rounded-xl text-[15px] font-semibold hover:bg-[#006664]">
                   <UserPlus className="mr-2 h-4 w-4" />
                   Invite Member
                 </Button>
               )}
             </div>
           ) : (
-            <div className="divide-y">
+            <div className="divide-y divide-[#E5E5EA]">
               {members.map((member) => (
                 <div key={member.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 py-4">
                   <div className="space-y-1 min-w-0">
-                    <p className="console-body font-medium truncate">{member.profiles?.full_name || member.profiles?.email || "Unknown"}</p>
-                    <p className="console-small text-gray-500 truncate">{member.profiles?.email}</p>
+                    <p className="text-[15px] font-medium text-black truncate">{member.profiles?.full_name || member.profiles?.email || "Unknown"}</p>
+                    <p className="text-[13px] text-[#8E8E93] truncate">{member.profiles?.email}</p>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     {isOwner && member.role !== "owner" ? (
                       <Select value={member.role} onValueChange={(v: "collaborator" | "read_only") => handleUpdateRole(member.user_id, v)}>
-                        <SelectTrigger className="w-[140px]">
+                        <SelectTrigger className="w-[140px] h-[36px]">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -420,7 +420,7 @@ export default function MembersPage() {
                         </SelectContent>
                       </Select>
                     ) : (
-                      <Badge variant={member.role === "owner" ? "default" : "secondary"} className={member.role === "owner" ? "console-badge console-badge-teal capitalize" : "console-badge capitalize"}>
+                      <Badge variant={member.role === "owner" ? "default" : "secondary"} className={member.role === "owner" ? "bg-[#007A78]/12 text-[#007A78] border-0 capitalize" : "bg-[#8E8E93]/12 text-[#8E8E93] border-0 capitalize"}>
                         {member.role === "read_only" ? "Read Only" : member.role}
                       </Badge>
                     )}
@@ -429,7 +429,7 @@ export default function MembersPage() {
                         variant="ghost"
                         size="icon"
                         onClick={() => setMemberToRemove(member.user_id)}
-                        className="text-[#FF6E50] hover:text-[#FF6E50] hover:bg-[#FFF5F3]"
+                        className="h-8 w-8 rounded-lg text-[#FF3B30] hover:text-[#FF3B30] hover:bg-[#FF3B30]/10"
                         aria-label="Remove member"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -440,8 +440,8 @@ export default function MembersPage() {
               ))}
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
       <AlertDialog open={memberToRemove !== null} onOpenChange={(open) => !open && setMemberToRemove(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -461,31 +461,31 @@ export default function MembersPage() {
 
 
       {invites.length > 0 && (
-        <Card className="console-stat-card">
-          <CardHeader>
-            <CardTitle className="console-card-title flex items-center gap-2">
+        <div className="health-card">
+          <div className="health-card-header mb-4">
+            <div className="flex items-center gap-2">
               <Mail className="h-5 w-5 text-[#007A78]" />
-              Pending Invites ({invites.length})
-            </CardTitle>
-            <CardDescription className="console-subheading">Invitations that haven't been accepted yet</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="divide-y">
+              <h2 className="text-[22px] font-bold text-black">Pending Invites ({invites.length})</h2>
+            </div>
+            <p className="text-[13px] sm:text-[15px] text-[#8E8E93] mt-1">Invitations that haven't been accepted yet</p>
+          </div>
+          <div className="health-card-content">
+            <div className="divide-y divide-[#E5E5EA]">
               {invites.map((invite) => (
                 <div key={invite.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 py-4">
                   <div className="space-y-1 min-w-0">
-                    <p className="console-body font-medium truncate">{invite.email}</p>
-                    <p className="console-small text-gray-500">
+                    <p className="text-[15px] font-medium text-black truncate">{invite.email}</p>
+                    <p className="text-[13px] text-[#8E8E93]">
                       Invited {new Date(invite.created_at).toLocaleDateString()} • Expires{" "}
                       {new Date(invite.expires_at).toLocaleDateString()}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    <Badge variant="outline" className="console-badge capitalize">
+                    <Badge variant="outline" className="bg-[#FF9500]/12 text-[#FF9500] border-0 capitalize">
                       {invite.role === "read_only" ? "Read Only" : invite.role}
                     </Badge>
                     {isOwner && (
-                      <Button variant="ghost" size="sm" onClick={() => handleCancelInvite(invite.id)}>
+                      <Button variant="ghost" size="sm" onClick={() => handleCancelInvite(invite.id)} className="h-8 px-3 rounded-lg hover:bg-[#F5F5F7] text-[#8E8E93]">
                         Cancel
                       </Button>
                     )}
@@ -493,22 +493,22 @@ export default function MembersPage() {
                 </div>
               ))}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
 
-      <Card className="console-stat-card">
-        <CardHeader>
-          <CardTitle className="console-card-title flex items-center gap-2">
+      <div className="health-card">
+        <div className="health-card-header mb-4">
+          <div className="flex items-center gap-2">
             <Shield className="h-5 w-5 text-[#007A78]" />
-            Role Permissions
-          </CardTitle>
-          <CardDescription className="console-subheading">What each role can do in your organization</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto -mx-6 px-6">
-            <div className="min-w-[400px] space-y-4">
-              <div className="grid grid-cols-4 gap-4 text-sm font-medium border-b pb-2">
+            <h2 className="text-[22px] font-bold text-black">Role Permissions</h2>
+          </div>
+          <p className="text-[13px] sm:text-[15px] text-[#8E8E93] mt-1">What each role can do in your organization</p>
+        </div>
+        <div className="health-card-content">
+          <div className="overflow-x-auto -mx-4 sm:-mx-6 px-4 sm:px-6">
+            <div className="min-w-[400px] space-y-3 sm:space-y-4">
+              <div className="console-table-header grid grid-cols-4 gap-3 sm:gap-4">
                 <div>Permission</div>
                 <div className="text-center">Owner</div>
                 <div className="text-center">Collaborator</div>
@@ -521,17 +521,17 @@ export default function MembersPage() {
                 { label: "Manage roles", owner: true, collab: false, readonly: false },
                 { label: "Access billing", owner: true, collab: false, readonly: false },
               ].map((perm) => (
-                <div key={perm.label} className="grid grid-cols-4 gap-4 console-body">
-                  <div className="text-gray-500">{perm.label}</div>
-                  <div className="text-center">{perm.owner ? "✓" : "✗"}</div>
-                  <div className="text-center">{perm.collab ? "✓" : "✗"}</div>
-                  <div className="text-center">{perm.readonly ? "✓" : "✗"}</div>
+                <div key={perm.label} className="console-table-row grid grid-cols-4 gap-3 sm:gap-4 py-3 hover:bg-[#F5F5F7] rounded-lg px-3">
+                  <div className="console-table-cell text-[13px] sm:text-[15px]">{perm.label}</div>
+                  <div className="console-table-cell text-center text-[13px] sm:text-[15px]">{perm.owner ? "✓" : "✗"}</div>
+                  <div className="console-table-cell text-center text-[13px] sm:text-[15px]">{perm.collab ? "✓" : "✗"}</div>
+                  <div className="console-table-cell text-center text-[13px] sm:text-[15px]">{perm.readonly ? "✓" : "✗"}</div>
                 </div>
               ))}
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   )
 }

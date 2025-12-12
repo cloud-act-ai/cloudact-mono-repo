@@ -122,7 +122,7 @@ export default function FeaturesPage() {
       {/* Hero Section */}
       <section className="relative py-16 md:py-20 overflow-hidden bg-white">
         <div className="container px-4 md:px-12 relative z-10">
-          <div className="mx-auto max-w-3xl text-center space-y-4">
+          <div className="mx-auto max-w-3xl text-center space-y-3 sm:space-y-4">
             <div className="cloudact-badge">
               <span className="flex h-2 w-2 rounded-full bg-cloudact-teal animate-pulse" />
               Powerful Features
@@ -130,7 +130,7 @@ export default function FeaturesPage() {
             <h1 className="cloudact-heading-xl">
               Enterprise-Grade Cost Intelligence
             </h1>
-            <p className="cloudact-body text-lg max-w-2xl mx-auto">
+            <p className="cloudact-body text-base sm:text-lg max-w-2xl mx-auto px-4">
               Everything you need to monitor, analyze, and optimize your GenAI and cloud infrastructure costs
             </p>
           </div>
@@ -138,20 +138,20 @@ export default function FeaturesPage() {
       </section>
 
       {/* Features Grid */}
-      <section className="py-16 md:py-24 bg-white">
+      <section className="py-12 sm:py-16 md:py-24 bg-white">
         <div className="container px-4 md:px-12">
           <div className="mx-auto max-w-7xl">
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-5 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
               {features.map((feature, index) => {
                 const Icon = feature.icon
                 const isCoralIcon = index % 3 === 1
                 return (
-                  <div key={feature.title} className="cloudact-card group p-8">
-                    <div className="space-y-4">
+                  <div key={feature.title} className="cloudact-card group p-6 sm:p-8">
+                    <div className="space-y-3 sm:space-y-4">
                       <div className={isCoralIcon ? "cloudact-icon-box-coral" : "cloudact-icon-box"}>
-                        <Icon className="h-8 w-8" />
+                        <Icon className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8" />
                       </div>
-                      <div className="space-y-2">
+                      <div className="space-y-1.5 sm:space-y-2">
                         <div className="cloudact-body-sm font-medium text-cloudact-teal">{feature.category}</div>
                         <h3 className="cloudact-heading-md">{feature.title}</h3>
                         <p className="cloudact-body-sm leading-relaxed">{feature.description}</p>
@@ -166,19 +166,19 @@ export default function FeaturesPage() {
       </section>
 
       {/* Enterprise Features */}
-      <section className="py-20 bg-gray-50 border-t border-gray-200">
+      <section className="py-12 sm:py-16 md:py-20 bg-gray-50 border-t border-gray-200">
         <div className="container px-4 md:px-12">
           <div className="mx-auto max-w-6xl">
-            <div className="text-center space-y-4 mb-16">
+            <div className="text-center space-y-3 sm:space-y-4 mb-12 sm:mb-14 md:mb-16">
               <h2 className="cloudact-heading-lg">Built for Enterprise</h2>
-              <p className="cloudact-body text-lg">Security, compliance, and scale you can trust</p>
+              <p className="cloudact-body text-base sm:text-lg">Security, compliance, and scale you can trust</p>
             </div>
 
-            <div className="grid gap-8 md:grid-cols-2">
-              <div className="cloudact-card group p-10">
-                <div className="space-y-6">
+            <div className="grid gap-6 sm:gap-8 md:grid-cols-2">
+              <div className="cloudact-card group p-6 sm:p-8 md:p-10">
+                <div className="space-y-4 sm:space-y-6">
                   <div className="cloudact-icon-box">
-                    <Shield className="h-8 w-8" />
+                    <Shield className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8" />
                   </div>
                   <h3 className="cloudact-heading-md">SOC 2 Type II Certified</h3>
                   <p className="cloudact-body leading-relaxed">
@@ -186,10 +186,10 @@ export default function FeaturesPage() {
                   </p>
                 </div>
               </div>
-              <div className="cloudact-card group p-10">
-                <div className="space-y-6">
+              <div className="cloudact-card group p-6 sm:p-8 md:p-10">
+                <div className="space-y-4 sm:space-y-6">
                   <div className="cloudact-icon-box-coral">
-                    <Zap className="h-8 w-8" />
+                    <Zap className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8" />
                   </div>
                   <h3 className="cloudact-heading-md">99.99% Uptime SLA</h3>
                   <p className="cloudact-body leading-relaxed">

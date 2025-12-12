@@ -20,7 +20,7 @@ from httpx import AsyncClient, ASGITransport
 os.environ.setdefault("GCP_PROJECT_ID", "test-project")
 os.environ.setdefault("ENVIRONMENT", "development")
 os.environ.setdefault("CA_ROOT_API_KEY", "test-root-key-for-testing-only-32chars")
-os.environ.setdefault("DISABLE_AUTH", "true")
+# Auth is always enabled - use test_api_keys.json for test credentials
 os.environ.setdefault("KMS_KEY_NAME", "projects/test/locations/global/keyRings/test/cryptoKeys/test")
 
 from src.app.main import app

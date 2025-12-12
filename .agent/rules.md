@@ -1,4 +1,19 @@
-# Antigravity Testing Rules
+# Antigravity Rules
+
+## User Requirements (Non-Negotiable)
+
+- ✅ **No over-engineering** - Simple, direct fixes
+- ✅ **Multi-tenancy support** - Proper `org_slug` isolation
+- ✅ **Enterprise-grade for 10k customers** - Must scale
+- ✅ **BigQuery best practices** - Clustering, partitioning, timeouts
+- ✅ **Supabase best practices** - RLS, connection pooling, tight integration
+- ✅ **Reusability and repeatability** - Patterns that work everywhere
+- ✅ **ZERO mock tests** - All tests must hit real services
+- ✅ **Parallel test execution** - Use `pytest-xdist`
+- ✅ **LRU in-memory cache** - NO Redis at all
+- ✅ **Migrate existing BigQuery tables** - Add clustering/partitioning
+- ✅ **Don't break existing functionality** - Run all tests before/after
+- ✅ **Update docs with learnings** - Document fixes in `CLAUDE.md`
 
 ## Core Philosophy
 

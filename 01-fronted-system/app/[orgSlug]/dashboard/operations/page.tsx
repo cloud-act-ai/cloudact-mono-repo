@@ -1,5 +1,3 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-
 export default async function OperationsPage({
   params,
 }: {
@@ -8,21 +6,21 @@ export default async function OperationsPage({
   await params
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Operations</h1>
-        <p className="text-muted-foreground">Monitor and manage operations</p>
+        <h1 className="text-[32px] sm:text-[34px] font-bold text-black tracking-tight">Operations</h1>
+        <p className="text-[13px] sm:text-[15px] text-[#8E8E93] mt-1">Monitor and manage operations</p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Operations Dashboard</CardTitle>
-          <CardDescription>Coming soon</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p>Operations management features will be available here.</p>
-        </CardContent>
-      </Card>
+      <div className="health-card">
+        <div className="mb-4">
+          <h2 className="text-[17px] font-semibold text-black">Operations Dashboard</h2>
+          <p className="text-[13px] text-[#8E8E93] mt-0.5">Coming soon</p>
+        </div>
+        <div>
+          <p className="text-[15px] text-[#3C3C43]">Operations management features will be available here.</p>
+        </div>
+      </div>
     </div>
   )
 }

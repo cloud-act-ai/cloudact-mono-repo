@@ -22,11 +22,14 @@ from fastapi import HTTPException
 import httpx
 
 # Set environment variables BEFORE any imports that might load settings
-os.environ.setdefault("GCP_PROJECT_ID", "test-project")
+# Use real values from .env.local if available, fall back to test defaults
+os.environ.setdefault("GCP_PROJECT_ID", "gac-prod-471220")
 os.environ.setdefault("ENVIRONMENT", "development")
-os.environ.setdefault("KMS_KEY_NAME", "projects/test/locations/global/keyRings/test/cryptoKeys/test")
-os.environ.setdefault("CA_ROOT_API_KEY", "test-ca-root-key-secure-32chars")
-os.environ.setdefault("DISABLE_AUTH", "false")  # Important: Auth must be enabled for these tests
+os.environ.setdefault("KMS_KEY_NAME", "projects/gac-prod-471220/locations/us-central1/keyRings/convergence-keyring-prod/cryptoKeys/api-key-encryption")
+# CA_ROOT_API_KEY should come from .env.local - don't override if already set
+if "CA_ROOT_API_KEY" not in os.environ:
+    os.environ["CA_ROOT_API_KEY"] = "test-ca-root-key-secure-32chars"
+# Auth is always enabled - use proper CA_ROOT_API_KEY for admin tests
 
 
 # ============================================
@@ -51,9 +54,9 @@ def base_url():
 
 @pytest.fixture
 def admin_headers():
-    """Headers with valid CA root API key."""
+    """Headers with valid CA root API key from environment."""
     return {
-        "X-CA-Root-Key": "test-ca-root-key-secure-32chars",
+        "X-CA-Root-Key": os.environ.get("CA_ROOT_API_KEY", "test-ca-root-key-secure-32chars"),
         "Content-Type": "application/json"
     }
 

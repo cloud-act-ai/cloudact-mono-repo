@@ -18,20 +18,20 @@ export default function PrivacyPage() {
   return (
     <>
       {/* Hero Section */}
-      <section className="py-24 md:py-32 border-b">
+      <section className="py-16 sm:py-20 md:py-24 lg:py-32 border-b">
         <div className="container px-4">
-          <div className="mx-auto max-w-3xl text-center space-y-6">
-            <h1 className="text-4xl md:text-5xl font-bold tracking-tight">Privacy Policy</h1>
-            <p className="text-lg text-muted-foreground">Last updated: January 2025</p>
+          <div className="mx-auto max-w-3xl text-center space-y-4 sm:space-y-6">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight">Privacy Policy</h1>
+            <p className="text-base sm:text-lg text-muted-foreground">Last updated: January 2025</p>
           </div>
         </div>
       </section>
 
       {/* Content Section */}
-      <section className="py-16 md:py-24">
+      <section className="py-12 sm:py-16 md:py-24">
         <div className="container px-4">
           <div className="mx-auto max-w-3xl">
-            <div className="prose dark:prose-invert max-w-none space-y-8">
+            <div className="prose dark:prose-invert max-w-none space-y-6 sm:space-y-8">
               <div className="space-y-4">
                 <h2 className="text-2xl font-bold">Introduction</h2>
                 <p className="text-muted-foreground leading-relaxed">
