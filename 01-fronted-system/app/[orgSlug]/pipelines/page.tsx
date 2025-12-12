@@ -212,14 +212,14 @@ export default function PipelinesPage() {
   const getStatusColor = (status: string) => {
     switch (status.toUpperCase()) {
       case "COMPLETED":
-        return "bg-[#007A78]/10 text-[#007A78] border-[#007A78]/20"
+        return "bg-[#F0FDFA] text-[#007A78] border-[#007A78]/20"
       case "FAILED":
-        return "bg-[#FF6E50]/10 text-[#FF6E50] border-[#FF6E50]/20"
+        return "bg-[#FFF5F3] text-[#FF6E50] border-[#FF6E50]/20"
       case "RUNNING":
       case "PENDING":
-        return "bg-[#14B8A6]/10 text-[#14B8A6] border-[#14B8A6]/20"
+        return "bg-[#F0FDFA] text-[#14B8A6] border-[#14B8A6]/20"
       case "SKIPPED":
-        return "bg-gray-500/10 text-gray-600 border-gray-500/20"
+        return "bg-gray-100 text-[#6B7280] border-gray-300"
       default:
         return ""
     }
@@ -228,29 +228,30 @@ export default function PipelinesPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-[#007A78]" />
+        <Loader2 className="h-10 w-10 animate-spin text-gray-400" />
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="console-page-title">Pipelines</h1>
-        <p className="console-subheading mt-1">
+    <div className="space-y-6 p-4 sm:p-6 lg:p-8">
+      {/* Header Section */}
+      <div className="space-y-2">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900">Pipelines</h1>
+        <p className="text-sm sm:text-base text-gray-600">
           Run data pipelines to fetch your cloud data.
         </p>
       </div>
 
       {/* Backend Connection Warning */}
       {(!backendConnected || !hasApiKey) && (
-        <Alert className="border-[#FF6E50]/50 bg-[#FFF5F3]">
-          <AlertCircle className="h-4 w-4 text-[#FF6E50]" />
-          <AlertDescription className="text-gray-700">
-            <strong className="text-[#FF6E50]">
+        <Alert className="border-2 border-[#FF6E50] bg-[#FFF5F3]">
+          <AlertCircle className="h-5 w-5 text-[#FF6E50]" />
+          <AlertDescription className="space-y-3">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900">
               {!backendConnected ? "Backend Not Connected" : "API Key Missing"}
-            </strong>
-            <p className="mt-1 console-body">
+            </h3>
+            <p className="text-sm text-gray-700">
               {!backendConnected ? (
                 <>
                   Your organization is not connected to the pipeline backend.
@@ -263,10 +264,10 @@ export default function PipelinesPage() {
                 </>
               )}
             </p>
-            <div className="mt-3">
+            <div>
               <Link href={`/${orgSlug}/settings/onboarding`}>
-                <button className="console-button-coral inline-flex items-center">
-                  <Cloud className="h-4 w-4 mr-2" />
+                <button className="inline-flex items-center gap-2 px-4 py-2 bg-[#FF6E50] text-white text-sm font-medium rounded-lg hover:bg-[#E55A3C] transition-colors">
+                  <Cloud className="h-4 w-4" />
                   Go to Onboarding Settings
                 </button>
               </Link>
@@ -275,23 +276,23 @@ export default function PipelinesPage() {
         </Alert>
       )}
 
-      {/* Info */}
-      <Alert className="border-[#007A78]/20 bg-[#F0FDFA]">
-        <Info className="h-4 w-4 text-[#007A78]" />
-        <AlertDescription className="console-body text-[#007A78]">
+      {/* Info Alert */}
+      <Alert className="border-2 border-[#007A78] bg-[#F0FDFA]">
+        <Info className="h-5 w-5 text-[#007A78]" />
+        <AlertDescription className="text-sm text-gray-700">
           Pipelines run daily automatically. Use "Run Now" for manual runs or backfills.
         </AlertDescription>
       </Alert>
 
       {/* Result Alert */}
       {lastResult && (
-        <Alert className={lastResult.success ? "border-[#007A78]/20 bg-[#F0FDFA]" : "border-[#FF6E50]/50 bg-[#FFF5F3]"}>
+        <Alert className={`border-2 ${lastResult.success ? 'border-[#007A78] bg-[#F0FDFA]' : 'border-[#FF6E50] bg-[#FFF5F3]'}`}>
           {lastResult.success ? (
-            <CheckCircle2 className="h-4 w-4 text-[#007A78]" />
+            <CheckCircle2 className="h-5 w-5 text-[#007A78]" />
           ) : (
-            <AlertCircle className="h-4 w-4 text-[#FF6E50]" />
+            <AlertCircle className="h-5 w-5 text-[#FF6E50]" />
           )}
-          <AlertDescription className={lastResult.success ? "text-[#007A78]" : "text-[#FF6E50]"}>
+          <AlertDescription className={`text-sm font-medium ${lastResult.success ? 'text-[#007A78]' : 'text-[#FF6E50]'}`}>
             {lastResult.message}
           </AlertDescription>
         </Alert>
@@ -311,29 +312,41 @@ export default function PipelinesPage() {
         })
 
         return (
-          <div className="console-table-card">
-            <Table>
+          <div className="bg-[#007A78]/5 border-2 border-[#007A78] rounded-xl overflow-hidden">
+            <div className="px-4 sm:px-6 py-4 border-b-2 border-[#007A78]/30 bg-[#007A78]/10">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-lg bg-[#007A78] flex items-center justify-center">
+                  <Play className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-base sm:text-lg font-bold text-gray-900">Available Pipelines</h2>
+                  <p className="text-xs text-gray-600">Run data pipelines to sync your costs</p>
+                </div>
+              </div>
+            </div>
+            <div className="overflow-x-auto">
+              <Table className="min-w-[700px]">
               <TableHeader>
-                <TableRow className="console-table-header-row">
-                  <TableHead className="console-table-header">Pipeline</TableHead>
-                  <TableHead className="console-table-header">Provider</TableHead>
-                  <TableHead className="console-table-header">Domain</TableHead>
-                  <TableHead className="console-table-header">Integration</TableHead>
-                  <TableHead className="console-table-header text-right">Action</TableHead>
+                <TableRow className="border-b-2 border-[#007A78]/30 bg-[#007A78]/5">
+                  <TableHead className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-r-2 border-[#007A78]/20">Pipeline</TableHead>
+                  <TableHead className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-r-2 border-[#007A78]/20">Provider</TableHead>
+                  <TableHead className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-r-2 border-[#007A78]/20">Domain</TableHead>
+                  <TableHead className="px-4 sm:px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-r-2 border-[#007A78]/20">Status</TableHead>
+                  <TableHead className="px-4 sm:px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {connectedPipelines.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8">
-                      <div className="space-y-2">
-                        <p className="console-body">No pipelines available.</p>
-                        <p className="console-small">
+                    <TableCell colSpan={5} className="px-4 sm:px-6 py-12 text-center">
+                      <div className="space-y-4">
+                        <p className="text-sm sm:text-base text-gray-700 font-medium">No pipelines available.</p>
+                        <p className="text-xs sm:text-sm text-gray-500">
                           Connect a provider to see available pipelines.
                         </p>
                         <Link href={`/${orgSlug}/settings/integrations`}>
-                          <button className="console-button-secondary mt-2 inline-flex items-center">
-                            <Plug className="h-4 w-4 mr-2" />
+                          <button className="inline-flex items-center gap-2 px-4 py-2 bg-[#007A78] text-white text-sm font-medium rounded-lg hover:bg-[#005F5D] transition-colors mt-2">
+                            <Plug className="h-4 w-4" />
                             Add New Provider
                           </button>
                         </Link>
@@ -345,47 +358,58 @@ export default function PipelinesPage() {
                     const isRunning = runningPipeline === pipeline.id
 
                     return (
-                      <TableRow key={pipeline.id} className="console-table-row">
-                        <TableCell className="console-table-cell">
-                          <div>
-                            <div className="font-medium text-gray-900">{pipeline.name}</div>
-                            <div className="console-small">{pipeline.description}</div>
+                      <TableRow key={pipeline.id} className="border-b-2 border-[#007A78]/10 hover:bg-[#007A78]/5 transition-all">
+                        <TableCell className="px-4 sm:px-6 py-4 border-r-2 border-[#007A78]/10">
+                          <div className="flex items-center gap-3">
+                            <div className="h-8 w-8 rounded-lg bg-[#007A78] flex items-center justify-center flex-shrink-0">
+                              <Play className="h-4 w-4 text-white" />
+                            </div>
+                            <div className="space-y-0.5">
+                              <div className="text-sm font-bold text-gray-900">{pipeline.name}</div>
+                              <div className="text-xs text-gray-500">{pipeline.description}</div>
+                            </div>
                           </div>
                         </TableCell>
-                        <TableCell className="console-table-cell">
-                          <span className="console-badge console-badge-teal">{pipeline.provider}</span>
+                        <TableCell className="px-4 sm:px-6 py-4 border-r-2 border-[#007A78]/10">
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-gray-100 text-gray-800 border border-gray-300">
+                            {pipeline.provider}
+                          </span>
                         </TableCell>
-                        <TableCell className="console-table-cell">
-                          <span className="console-badge console-badge-coral">{pipeline.domain}</span>
+                        <TableCell className="px-4 sm:px-6 py-4 border-r-2 border-[#007A78]/10">
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-gray-100 text-gray-700 border border-gray-300">
+                            {pipeline.domain}
+                          </span>
                         </TableCell>
-                        <TableCell className="console-table-cell">
+                        <TableCell className="px-4 sm:px-6 py-4 border-r-2 border-[#007A78]/10">
                           {!pipeline.required_integration || pipeline.required_integration === "" ? (
-                            <span className="console-badge console-badge-teal inline-flex items-center">
-                              <CheckCircle2 className="h-3 w-3 mr-1" />
-                              No Setup Required
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-[#007A78] text-white">
+                              <CheckCircle2 className="h-3 w-3" />
+                              Ready
                             </span>
                           ) : (
-                            <span className="console-badge console-badge-success inline-flex items-center">
-                              <CheckCircle2 className="h-3 w-3 mr-1" />
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-[#007A78] text-white">
+                              <CheckCircle2 className="h-3 w-3" />
                               Connected
                             </span>
                           )}
                         </TableCell>
-                        <TableCell className="console-table-cell text-right">
+                        <TableCell className="px-4 sm:px-6 py-4 text-right">
                           <button
                             onClick={() => handleRun(pipeline.id)}
                             disabled={isRunning}
-                            className="console-button-primary inline-flex items-center"
+                            className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#FF6E50] text-white text-sm font-semibold rounded-lg hover:bg-[#E55A3C] disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed transition-all"
                           >
                             {isRunning ? (
                               <>
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                Running...
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                <span className="hidden sm:inline">Running...</span>
+                                <span className="sm:hidden">Run...</span>
                               </>
                             ) : (
                               <>
-                                <Play className="h-4 w-4 mr-2" />
-                                Run Now
+                                <Play className="h-4 w-4" />
+                                <span className="hidden sm:inline">Run Now</span>
+                                <span className="sm:hidden">Run</span>
                               </>
                             )}
                           </button>
@@ -396,6 +420,7 @@ export default function PipelinesPage() {
                 )}
               </TableBody>
             </Table>
+            </div>
           </div>
         )
       })()}
@@ -403,48 +428,49 @@ export default function PipelinesPage() {
       {/* Run History Section */}
       {backendConnected && hasApiKey && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <History className="h-5 w-5 text-[#007A78]" />
-              <h2 className="console-heading">Run History</h2>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <History className="h-5 w-5 sm:h-6 sm:w-6 text-gray-900" />
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900">Run History</h2>
             </div>
             <button
               onClick={loadPipelineRuns}
               disabled={runsLoading}
-              className="console-button-secondary inline-flex items-center"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
             >
               {runsLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <RefreshCw className="h-4 w-4" />
               )}
-              <span className="ml-2">Refresh</span>
+              <span>Refresh</span>
             </button>
           </div>
 
-          <div className="console-table-card">
-            <Table>
+          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+            <div className="overflow-x-auto">
+              <Table className="min-w-[700px]">
               <TableHeader>
-                <TableRow className="console-table-header-row">
-                  <TableHead className="console-table-header w-8"></TableHead>
-                  <TableHead className="console-table-header">Pipeline</TableHead>
-                  <TableHead className="console-table-header">Status</TableHead>
-                  <TableHead className="console-table-header">Started</TableHead>
-                  <TableHead className="console-table-header">Duration</TableHead>
-                  <TableHead className="console-table-header">Trigger</TableHead>
+                <TableRow className="border-b border-gray-200 bg-gray-50">
+                  <TableHead className="px-3 py-3 w-10"></TableHead>
+                  <TableHead className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Pipeline</TableHead>
+                  <TableHead className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</TableHead>
+                  <TableHead className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Started</TableHead>
+                  <TableHead className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Duration</TableHead>
+                  <TableHead className="px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Trigger</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {runsLoading && pipelineRuns.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8">
-                      <Loader2 className="h-6 w-6 animate-spin mx-auto text-[#007A78]" />
+                    <TableCell colSpan={6} className="px-4 sm:px-6 py-12 text-center">
+                      <Loader2 className="h-8 w-8 animate-spin mx-auto text-gray-400" />
                     </TableCell>
                   </TableRow>
                 ) : pipelineRuns.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8">
-                      <p className="console-body">No pipeline runs yet. Run a pipeline to see history.</p>
+                    <TableCell colSpan={6} className="px-4 sm:px-6 py-12 text-center">
+                      <p className="text-sm text-gray-500">No pipeline runs yet. Run a pipeline to see history.</p>
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -456,128 +482,144 @@ export default function PipelinesPage() {
                     return (
                       <React.Fragment key={run.pipeline_logging_id}>
                         <TableRow
-                          className="cursor-pointer hover:bg-muted/50"
+                          className="cursor-pointer hover:bg-gray-50 transition-colors border-b border-gray-200"
                           onClick={() => toggleRunExpansion(run.pipeline_logging_id)}
                         >
-                          <TableCell>
+                          <TableCell className="px-3 py-3">
                             {isExpanded ? (
-                              <ChevronDown className="h-4 w-4" />
+                              <ChevronDown className="h-4 w-4 text-gray-500" />
                             ) : (
-                              <ChevronRight className="h-4 w-4" />
+                              <ChevronRight className="h-4 w-4 text-gray-500" />
                             )}
                           </TableCell>
-                          <TableCell>
-                            <div className="font-medium text-sm">{run.pipeline_id}</div>
-                            <div className="text-xs text-muted-foreground">
+                          <TableCell className="px-3 sm:px-4 py-3">
+                            <div className="text-sm font-semibold text-gray-900">{run.pipeline_id}</div>
+                            <div className="text-xs text-gray-500 font-mono mt-0.5">
                               {run.pipeline_logging_id.slice(0, 8)}...
                             </div>
                           </TableCell>
-                          <TableCell>
-                            <span className={`console-badge ${getStatusColor(run.status)}`}>
-                              {run.status === "COMPLETED" && <CheckCircle2 className="h-3 w-3 mr-1" />}
-                              {run.status === "FAILED" && <XCircle className="h-3 w-3 mr-1" />}
+                          <TableCell className="px-3 sm:px-4 py-3">
+                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full ${
+                              run.status === "COMPLETED" ? "bg-green-100 text-green-700" :
+                              run.status === "FAILED" ? "bg-red-100 text-red-700" :
+                              run.status === "RUNNING" ? "bg-blue-100 text-blue-700" :
+                              run.status === "PENDING" ? "bg-yellow-100 text-yellow-700" :
+                              "bg-gray-100 text-gray-700"
+                            }`}>
+                              {run.status === "COMPLETED" && <CheckCircle2 className="h-3 w-3" />}
+                              {run.status === "FAILED" && <XCircle className="h-3 w-3" />}
                               {(run.status === "RUNNING" || run.status === "PENDING") && (
-                                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                <Loader2 className="h-3 w-3 animate-spin" />
                               )}
-                              {run.status}
+                              <span className="hidden sm:inline">{run.status}</span>
                             </span>
                           </TableCell>
-                          <TableCell>
-                            <div className="text-sm">{formatDateTime(run.start_time)}</div>
+                          <TableCell className="px-3 sm:px-4 py-3">
+                            <div className="text-xs sm:text-sm text-gray-700">{formatDateTime(run.start_time)}</div>
                           </TableCell>
-                          <TableCell>
-                            <div className="flex items-center text-sm">
-                              <Clock className="h-3 w-3 mr-1 text-muted-foreground" />
+                          <TableCell className="px-3 sm:px-4 py-3">
+                            <div className="flex items-center gap-1 text-xs sm:text-sm text-gray-700">
+                              <Clock className="h-3 w-3 text-gray-500" />
                               {formatDuration(run.duration_ms)}
                             </div>
                           </TableCell>
-                          <TableCell>
-                            <span className="console-badge console-badge-warning text-xs">
+                          <TableCell className="px-3 sm:px-4 py-3">
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
                               {run.trigger_type}
                             </span>
                           </TableCell>
                         </TableRow>
 
                         {isExpanded && (
-                          <TableRow className="bg-muted/30">
-                            <TableCell colSpan={6} className="p-4">
+                          <TableRow className="bg-gray-50">
+                            <TableCell colSpan={6} className="px-4 sm:px-6 py-6">
                               {isLoadingThisDetail ? (
-                                <div className="flex items-center justify-center py-4">
-                                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                                <div className="flex items-center justify-center py-6">
+                                  <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
                                 </div>
                               ) : detail ? (
-                                <div className="space-y-3">
+                                <div className="space-y-4">
                                   {/* Error Message */}
                                   {run.error_message && (
-                                    <Alert variant="destructive" className="bg-red-50 dark:bg-red-900/20">
-                                      <AlertCircle className="h-4 w-4" />
-                                      <AlertDescription className="text-sm">
-                                        <strong>Error:</strong> {run.error_message}
+                                    <Alert className="border-2 border-[#FF6E50] bg-white">
+                                      <AlertCircle className="h-5 w-5 text-[#FF6E50]" />
+                                      <AlertDescription>
+                                        <p className="text-sm font-semibold text-gray-900">Error</p>
+                                        <p className="text-sm text-gray-700 mt-1">{run.error_message}</p>
                                       </AlertDescription>
                                     </Alert>
                                   )}
 
                                   {/* Step Logs */}
-                                  <div className="space-y-2">
-                                    <h4 className="text-sm font-medium">Steps</h4>
-                                    <div className="rounded border bg-background">
-                                      <Table>
+                                  <div className="space-y-3">
+                                    <h4 className="text-sm sm:text-base font-semibold text-gray-900">Steps</h4>
+                                    <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                                      <div className="overflow-x-auto">
+                                        <Table className="min-w-[500px]">
                                         <TableHeader>
-                                          <TableRow className="text-xs">
-                                            <TableHead className="py-2">#</TableHead>
-                                            <TableHead className="py-2">Step</TableHead>
-                                            <TableHead className="py-2">Type</TableHead>
-                                            <TableHead className="py-2">Status</TableHead>
-                                            <TableHead className="py-2">Duration</TableHead>
-                                            <TableHead className="py-2">Rows</TableHead>
+                                          <TableRow className="border-b border-gray-200 bg-gray-50">
+                                            <TableHead className="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase">#</TableHead>
+                                            <TableHead className="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Step</TableHead>
+                                            <TableHead className="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Type</TableHead>
+                                            <TableHead className="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Status</TableHead>
+                                            <TableHead className="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Duration</TableHead>
+                                            <TableHead className="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Rows</TableHead>
                                           </TableRow>
                                         </TableHeader>
                                         <TableBody>
                                           {detail.steps.length === 0 ? (
                                             <TableRow>
-                                              <TableCell colSpan={6} className="text-center text-muted-foreground text-sm py-4">
+                                              <TableCell colSpan={6} className="text-center text-gray-500 text-xs sm:text-sm py-6">
                                                 No step logs available
                                               </TableCell>
                                             </TableRow>
                                           ) : (
                                             detail.steps.map((step) => (
-                                              <TableRow key={step.step_logging_id} className="text-xs">
-                                                <TableCell className="py-2">{step.step_index}</TableCell>
-                                                <TableCell className="py-2 font-medium">{step.step_name}</TableCell>
-                                                <TableCell className="py-2">
-                                                  <code className="text-xs bg-muted px-1 rounded">{step.step_type}</code>
+                                              <TableRow key={step.step_logging_id} className="border-b border-gray-200 hover:bg-gray-50">
+                                                <TableCell className="px-3 py-2 text-xs sm:text-sm font-medium text-gray-900">{step.step_index}</TableCell>
+                                                <TableCell className="px-3 py-2 text-xs sm:text-sm font-semibold text-gray-900">{step.step_name}</TableCell>
+                                                <TableCell className="px-3 py-2">
+                                                  <code className="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded font-mono">{step.step_type}</code>
                                                 </TableCell>
-                                                <TableCell className="py-2">
-                                                  <span className={`console-badge text-xs ${getStatusColor(step.status)}`}>
+                                                <TableCell className="px-3 py-2">
+                                                  <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${
+                                                    step.status === "COMPLETED" ? "bg-green-100 text-green-700" :
+                                                    step.status === "FAILED" ? "bg-red-100 text-red-700" :
+                                                    step.status === "RUNNING" ? "bg-blue-100 text-blue-700" :
+                                                    step.status === "SKIPPED" ? "bg-gray-100 text-gray-700" :
+                                                    "bg-gray-100 text-gray-700"
+                                                  }`}>
                                                     {step.status}
                                                   </span>
                                                 </TableCell>
-                                                <TableCell className="py-2">{formatDuration(step.duration_ms)}</TableCell>
-                                                <TableCell className="py-2">
+                                                <TableCell className="px-3 py-2 text-xs sm:text-sm text-gray-700">{formatDuration(step.duration_ms)}</TableCell>
+                                                <TableCell className="px-3 py-2 text-xs sm:text-sm text-gray-700">
                                                   {step.rows_processed !== null && step.rows_processed !== undefined
                                                     ? step.rows_processed.toLocaleString()
-                                                    : <span className="text-muted-foreground">N/A</span>}
+                                                    : <span className="text-gray-400">N/A</span>}
                                                 </TableCell>
                                               </TableRow>
                                             ))
                                           )}
                                         </TableBody>
                                       </Table>
+                                      </div>
                                     </div>
 
                                     {/* Show step errors if any */}
                                     {detail.steps.filter(s => s.error_message).map((step) => (
-                                      <Alert key={step.step_logging_id} variant="destructive" className="bg-red-50 dark:bg-red-900/20">
-                                        <AlertCircle className="h-4 w-4" />
-                                        <AlertDescription className="text-sm">
-                                          <strong>{step.step_name} Error:</strong> {step.error_message}
+                                      <Alert key={step.step_logging_id} className="border-2 border-[#FF6E50] bg-white">
+                                        <AlertCircle className="h-5 w-5 text-[#FF6E50]" />
+                                        <AlertDescription>
+                                          <p className="text-sm font-semibold text-gray-900">{step.step_name} Error</p>
+                                          <p className="text-xs sm:text-sm text-gray-700 mt-1">{step.error_message}</p>
                                         </AlertDescription>
                                       </Alert>
                                     ))}
                                   </div>
                                 </div>
                               ) : (
-                                <div className="text-center text-muted-foreground text-sm py-4">
+                                <div className="text-center text-gray-500 text-xs sm:text-sm py-6">
                                   Failed to load details
                                 </div>
                               )}
@@ -590,13 +632,16 @@ export default function PipelinesPage() {
                 )}
               </TableBody>
             </Table>
+            </div>
           </div>
         </div>
       )}
 
       {/* Coming Soon */}
-      <div className="console-stat-card border-dashed text-center">
-        <p className="console-subheading">More pipelines coming soon: AWS Cost Explorer, Azure, LLM Usage Analytics</p>
+      <div className="border-2 border-dashed border-gray-300 bg-white rounded-xl p-6 sm:p-8 text-center">
+        <p className="text-xs sm:text-sm text-gray-500 font-medium">
+          More pipelines coming soon: AWS Cost Explorer, Azure, LLM Usage Analytics
+        </p>
       </div>
     </div>
   )

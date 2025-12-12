@@ -14,13 +14,10 @@
   --cloudact-coral-light: #FF8A73;
   --cloudact-coral-dark: #E55A3C;
 
-  /* Shadows - Teal-tinted */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.06), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
-  --shadow-hover: 0 8px 25px -5px rgba(0, 122, 120, 0.18), 0 4px 10px -3px rgba(0, 0, 0, 0.06);
-  --shadow-teal: 0 4px 14px rgba(0, 122, 120, 0.15);
-  --shadow-coral: 0 4px 14px rgba(255, 110, 80, 0.15);
+  /* Modern clean borders (no shadows) */
+  --border-color: #E2E8F0;
+  --border-color-hover: rgba(0, 122, 120, 0.3);
+  --border-color-focus: var(--cloudact-teal);
 }
 
 /* ============================================
@@ -152,19 +149,16 @@
   font-weight: 500;
   padding: 10px 20px;
   border: none;
-  box-shadow: 0 1px 2px rgba(0, 122, 120, 0.1);
-  transition: background 0.2s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .console-button-primary:hover {
   background: var(--cloudact-teal-dark);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0, 122, 120, 0.25);
 }
 
 .console-button-primary:active {
-  transform: translateY(0);
-  box-shadow: 0 2px 8px rgba(0, 122, 120, 0.15);
+  background: var(--cloudact-teal-dark);
+  opacity: 0.9;
 }
 
 .console-button-secondary {
@@ -176,15 +170,13 @@
   font-size: 0.875rem;
   font-weight: 500;
   padding: 10px 20px;
-  box-shadow: var(--shadow-sm);
-  transition: background 0.2s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background 0.2s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .console-button-secondary:hover {
   border-color: var(--cloudact-teal);
   color: var(--cloudact-teal);
   background: #F8FAFC;
-  box-shadow: var(--shadow-md);
 }
 
 .console-button-secondary:active {
@@ -200,19 +192,16 @@
   font-weight: 500;
   padding: 10px 20px;
   border: none;
-  box-shadow: 0 1px 2px rgba(255, 110, 80, 0.1);
-  transition: background 0.2s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .console-button-coral:hover {
   background: var(--cloudact-coral-dark);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(255, 110, 80, 0.25);
 }
 
 .console-button-coral:active {
-  transform: translateY(0);
-  box-shadow: 0 2px 8px rgba(255, 110, 80, 0.15);
+  background: var(--cloudact-coral-dark);
+  opacity: 0.9;
 }
 
 /* ============================================
@@ -224,21 +213,17 @@
   padding: 24px;
   border-radius: 10px;
   border: 1px solid #E2E8F0;
-  box-shadow: var(--shadow-sm);
-  transition: box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1), transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: border-color 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .console-stat-card:hover {
-  box-shadow: var(--shadow-hover);
-  transform: translateY(-3px);
-  border-color: rgba(0, 122, 120, 0.2);
+  border-color: rgba(0, 122, 120, 0.3);
 }
 
 .console-chart-card {
   background: white;
   border-radius: 10px;
   border: 1px solid #E2E8F0;
-  box-shadow: var(--shadow-md);
   overflow: hidden;
 }
 
@@ -250,7 +235,6 @@
   background: white;
   border-radius: 10px;
   border: 1px solid #E2E8F0;
-  box-shadow: var(--shadow-md);
   overflow: hidden;
 }
 
@@ -520,7 +504,6 @@
   border-radius: 10px;
   border: 1px solid #E2E8F0;
   border-left: 4px solid var(--cloudact-coral);
-  box-shadow: var(--shadow-md);
 }
 
 /* Card with teal accent */
@@ -529,7 +512,6 @@
   border-radius: 10px;
   border: 1px solid #E2E8F0;
   border-left: 4px solid var(--cloudact-teal);
-  box-shadow: var(--shadow-md);
 }
 
 /* Gradient text */

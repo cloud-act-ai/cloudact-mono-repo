@@ -12,6 +12,8 @@ import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
+  SidebarRail,
+  useSidebar,
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
 import {
@@ -218,21 +220,26 @@ export function DashboardSidebar({
     return pathname === path || pathname.startsWith(path + "/")
   }
 
+  const { state } = useSidebar()
+  const isCollapsed = state === "collapsed"
+
   return (
-    <Sidebar className="border-r bg-white border-gray-200" {...props}>
+    <Sidebar collapsible="icon" className="border-r bg-white border-gray-200" {...props}>
       <SidebarHeader className="border-b border-gray-200 px-4 py-4">
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#007A78] text-white">
-            <BarChart3 className="h-4 w-4" />
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#007A78] text-white flex-shrink-0">
+            <BarChart3 className="h-5 w-5" />
           </div>
-          <span className="text-sm font-semibold tracking-tight text-gray-900">{formattedOrgName}</span>
+          {!isCollapsed && (
+            <span className="text-base font-semibold text-gray-900 truncate">{formattedOrgName}</span>
+          )}
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="px-2 py-4">
+      <SidebarContent className="px-3 py-4">
         {/* Main Navigation */}
         <SidebarGroup>
-          <SidebarGroupLabel className="text-gray-500 text-xs uppercase tracking-wider px-2 mb-2">
+          <SidebarGroupLabel className="text-xs uppercase tracking-wide font-semibold text-gray-400 px-3 mb-2">
             Navigation
           </SidebarGroupLabel>
           <SidebarGroupContent>
@@ -240,9 +247,10 @@ export function DashboardSidebar({
               <SidebarMenuItem>
                 <SidebarMenuButton
                   asChild
+                  tooltip="Dashboard"
                   className={cn(
-                    "text-gray-600 hover:text-[#007A78] hover:bg-[#007A78]/5",
-                    isActive(`/${orgSlug}/dashboard`, true) && "bg-[#007A78]/10 text-[#007A78]",
+                    "h-9 text-sm font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900",
+                    isActive(`/${orgSlug}/dashboard`, true) && "bg-[#007A78]/10 text-[#007A78] font-medium",
                   )}
                 >
                   <Link href={`/${orgSlug}/dashboard`}>
@@ -256,9 +264,10 @@ export function DashboardSidebar({
               <SidebarMenuItem>
                 <SidebarMenuButton
                   asChild
+                  tooltip="Subscription Costs"
                   className={cn(
-                    "text-gray-600 hover:text-[#007A78] hover:bg-[#007A78]/5",
-                    isActive(`/${orgSlug}/subscriptions`, true) && "bg-[#007A78]/10 text-[#007A78]",
+                    "h-9 text-sm font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900",
+                    isActive(`/${orgSlug}/subscriptions`, true) && "bg-[#007A78]/10 text-[#007A78] font-medium",
                   )}
                 >
                   <Link href={`/${orgSlug}/subscriptions`}>
@@ -275,9 +284,10 @@ export function DashboardSidebar({
                   onClick={() => setPipelinesExpanded(!pipelinesExpanded)}
                   aria-expanded={pipelinesExpanded}
                   aria-controls="pipelines-submenu"
+                  tooltip="Pipelines"
                   className={cn(
-                    "text-gray-600 hover:text-[#007A78] hover:bg-[#007A78]/5 justify-between",
-                    isActive(`/${orgSlug}/pipelines`) && "bg-[#007A78]/5 text-[#007A78]",
+                    "h-9 text-sm font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900 justify-between",
+                    isActive(`/${orgSlug}/pipelines`) && "bg-[#007A78]/10 text-[#007A78] font-medium",
                   )}
                 >
                   <div className="flex items-center gap-2">
@@ -286,26 +296,26 @@ export function DashboardSidebar({
                   </div>
                   <ChevronRight
                     className={cn(
-                      "h-4 w-4 transition-transform duration-200",
+                      "h-4 w-4 transition-transform duration-200 group-data-[collapsible=icon]:hidden",
                       pipelinesExpanded && "rotate-90"
                     )}
                   />
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
-              {/* Pipeline Sub-menus */}
-              {pipelinesExpanded && (
-                <div id="pipelines-submenu" className="ml-4 pl-2 border-l border-gray-200 space-y-1">
+              {/* Pipeline Sub-menus - hidden when collapsed */}
+              {pipelinesExpanded && !isCollapsed && (
+                <div id="pipelines-submenu" className="ml-4 space-y-1 group-data-[collapsible=icon]:hidden">
                   <SidebarMenuItem>
                     <SidebarMenuButton
                       asChild
                       className={cn(
-                        "text-gray-500 hover:text-[#007A78] hover:bg-[#007A78]/5 text-sm h-8",
-                        isActive(`/${orgSlug}/pipelines`, true) && "bg-[#007A78]/10 text-[#007A78]",
+                        "h-8 text-sm text-gray-600 hover:bg-gray-100 hover:text-gray-900",
+                        isActive(`/${orgSlug}/pipelines`, true) && "bg-[#007A78]/10 text-[#007A78] font-medium",
                       )}
                     >
                       <Link href={`/${orgSlug}/pipelines`}>
-                        <List className="h-3.5 w-3.5" />
+                        <List className="h-4 w-4" />
                         <span>List / Run</span>
                       </Link>
                     </SidebarMenuButton>
@@ -319,9 +329,10 @@ export function DashboardSidebar({
                   onClick={() => setIntegrationsExpanded(!integrationsExpanded)}
                   aria-expanded={integrationsExpanded}
                   aria-controls="integrations-submenu"
+                  tooltip="Integrations"
                   className={cn(
-                    "text-gray-600 hover:text-[#007A78] hover:bg-[#007A78]/5 justify-between",
-                    isActive(`/${orgSlug}/settings/integrations`) && "bg-[#007A78]/5 text-[#007A78]",
+                    "h-9 text-sm font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900 justify-between",
+                    isActive(`/${orgSlug}/settings/integrations`) && "bg-[#007A78]/10 text-[#007A78] font-medium",
                   )}
                 >
                   <div className="flex items-center gap-2">
@@ -330,27 +341,27 @@ export function DashboardSidebar({
                   </div>
                   <ChevronRight
                     className={cn(
-                      "h-4 w-4 transition-transform duration-200",
+                      "h-4 w-4 transition-transform duration-200 group-data-[collapsible=icon]:hidden",
                       integrationsExpanded && "rotate-90"
                     )}
                   />
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
-              {/* Integration Sub-menus - 3 Categories */}
-              {integrationsExpanded && (
-                <div id="integrations-submenu" className="ml-4 pl-2 border-l border-gray-200 space-y-1">
+              {/* Integration Sub-menus - 3 Categories - hidden when collapsed */}
+              {integrationsExpanded && !isCollapsed && (
+                <div id="integrations-submenu" className="ml-4 space-y-1 group-data-[collapsible=icon]:hidden">
                   {/* Cloud Providers */}
                   <SidebarMenuItem>
                     <SidebarMenuButton
                       asChild
                       className={cn(
-                        "text-gray-500 hover:text-[#007A78] hover:bg-[#007A78]/5 text-sm h-8",
-                        isActive(`/${orgSlug}/settings/integrations/cloud`, true) && "bg-[#007A78]/10 text-[#007A78]",
+                        "h-8 text-sm text-gray-600 hover:bg-gray-100 hover:text-gray-900",
+                        isActive(`/${orgSlug}/settings/integrations/cloud`, true) && "bg-[#007A78]/10 text-[#007A78] font-medium",
                       )}
                     >
                       <Link href={`/${orgSlug}/settings/integrations/cloud`}>
-                        <Cloud className="h-3.5 w-3.5" />
+                        <Cloud className="h-4 w-4" />
                         <span>Cloud Providers</span>
                       </Link>
                     </SidebarMenuButton>
@@ -360,12 +371,12 @@ export function DashboardSidebar({
                     <SidebarMenuButton
                       asChild
                       className={cn(
-                        "text-gray-500 hover:text-[#007A78] hover:bg-[#007A78]/5 text-sm h-8",
-                        isActive(`/${orgSlug}/settings/integrations/llm`, true) && "bg-[#007A78]/10 text-[#007A78]",
+                        "h-8 text-sm text-gray-600 hover:bg-gray-100 hover:text-gray-900",
+                        isActive(`/${orgSlug}/settings/integrations/llm`, true) && "bg-[#007A78]/10 text-[#007A78] font-medium",
                       )}
                     >
                       <Link href={`/${orgSlug}/settings/integrations/llm`}>
-                        <Brain className="h-3.5 w-3.5" />
+                        <Brain className="h-4 w-4" />
                         <span>LLM Providers</span>
                       </Link>
                     </SidebarMenuButton>
@@ -375,42 +386,42 @@ export function DashboardSidebar({
                     <SidebarMenuButton
                       onClick={() => setSubscriptionsExpanded(!subscriptionsExpanded)}
                       className={cn(
-                        "text-gray-500 hover:text-[#007A78] hover:bg-[#007A78]/5 text-sm h-8 justify-between",
-                        isActive(`/${orgSlug}/settings/integrations/subscriptions`) && "bg-[#007A78]/10 text-[#007A78]",
+                        "h-8 text-sm text-gray-600 hover:bg-gray-100 hover:text-gray-900 justify-between",
+                        isActive(`/${orgSlug}/settings/integrations/subscriptions`) && "bg-[#007A78]/10 text-[#007A78] font-medium",
                       )}
                     >
                       <div className="flex items-center gap-2">
-                        <Wallet className="h-3.5 w-3.5" />
-                        <span>Subscription Providers</span>
+                        <Wallet className="h-4 w-4" />
+                        <span>Subscriptions</span>
                         {enabledProviders.length > 0 && (
-                          <Badge variant="outline" className="text-xs px-1.5 py-0 h-4 bg-[#007A78]/5 text-[#007A78] border-[#007A78]/20">
+                          <Badge variant="outline" className="text-xs px-1.5 py-0 h-4 bg-[#007A78]/10 text-[#007A78] border-[#007A78]/30">
                             {enabledProviders.length}
                           </Badge>
                         )}
                       </div>
                       <ChevronRight
                         className={cn(
-                          "h-3 w-3 transition-transform duration-200",
+                          "h-3.5 w-3.5 transition-transform duration-200",
                           subscriptionsExpanded && "rotate-90"
                         )}
                       />
                     </SidebarMenuButton>
                   </SidebarMenuItem>
-                  {/* Subscription Providers Sub-menu (third level) */}
-                  {subscriptionsExpanded && (
-                    <div className="ml-6 pl-2 border-l border-gray-200 space-y-1">
+                  {/* Subscription Providers Sub-menu (third level) - hidden when collapsed */}
+                  {subscriptionsExpanded && !isCollapsed && (
+                    <div className="ml-6 space-y-1 group-data-[collapsible=icon]:hidden">
                       {/* Manage Subscriptions - main provider management page */}
                       <SidebarMenuItem>
                         <SidebarMenuButton
                           asChild
                           className={cn(
-                            "text-gray-500 hover:text-[#007A78] hover:bg-[#007A78]/5 text-sm h-7",
-                            pathname === `/${orgSlug}/settings/integrations/subscriptions` && "bg-[#007A78]/10 text-[#007A78]",
+                            "h-8 text-sm text-gray-600 hover:bg-gray-100 hover:text-gray-900",
+                            pathname === `/${orgSlug}/settings/integrations/subscriptions` && "bg-[#007A78]/10 text-[#007A78] font-medium",
                           )}
                         >
                           <Link href={`/${orgSlug}/settings/integrations/subscriptions`}>
-                            <Settings className="h-3 w-3" />
-                            <span>Manage Subscriptions</span>
+                            <Settings className="h-4 w-4" />
+                            <span>Manage</span>
                           </Link>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
@@ -426,12 +437,12 @@ export function DashboardSidebar({
                             <SidebarMenuButton
                               asChild
                               className={cn(
-                                "text-gray-500 hover:text-[#007A78] hover:bg-[#007A78]/5 text-sm h-7",
-                                pathname === `/${orgSlug}/subscriptions/${provider.provider_name}` && "bg-[#007A78]/10 text-[#007A78]",
+                                "h-8 text-sm text-gray-600 hover:bg-gray-100 hover:text-gray-900",
+                                pathname === `/${orgSlug}/subscriptions/${provider.provider_name}` && "bg-[#007A78]/10 text-[#007A78] font-medium",
                               )}
                             >
                               <Link href={`/${orgSlug}/subscriptions/${provider.provider_name}`}>
-                                <CreditCard className="h-3 w-3" />
+                                <CreditCard className="h-4 w-4" />
                                 <span>{providerDisplayName}</span>
                               </Link>
                             </SidebarMenuButton>
@@ -448,65 +459,68 @@ export function DashboardSidebar({
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-gray-200 px-2 py-3">
-        {/* Organization Section - Expandable */}
-        <div className="mb-2">
-          <button
-            onClick={() => setOrgExpanded(!orgExpanded)}
-            aria-expanded={orgExpanded}
-            aria-controls="org-details-panel"
-            className="w-full flex items-center justify-between px-2 py-2 rounded-md hover:bg-[#007A78]/5 text-gray-600 hover:text-[#007A78] transition-colors"
-          >
-            <div className="flex items-center gap-2">
-              <Building2 className="h-4 w-4" />
-              <span className="text-sm font-medium truncate max-w-[120px]">{orgName}</span>
-            </div>
-            {orgExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </button>
+      <SidebarFooter className="border-t border-gray-200 px-3 py-3">
+        {/* Organization Section - Expandable - hidden when collapsed */}
+        {!isCollapsed && (
+          <div className="mb-2 group-data-[collapsible=icon]:hidden">
+            <button
+              onClick={() => setOrgExpanded(!orgExpanded)}
+              aria-expanded={orgExpanded}
+              aria-controls="org-details-panel"
+              className="w-full flex items-center justify-between px-3 py-2 rounded-md hover:bg-gray-100 text-gray-700 hover:text-gray-900 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <Building2 className="h-4 w-4" />
+                <span className="text-sm font-medium truncate max-w-[140px]">{formattedOrgName}</span>
+              </div>
+              {orgExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </button>
 
-          {orgExpanded && (
-            <div id="org-details-panel" className="mt-2 mx-2 p-3 rounded-lg bg-gray-50 border border-gray-100 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-gray-500">Plan</span>
-                <Badge variant="outline" className="text-xs capitalize border-[#007A78]/20 text-[#007A78]">
-                  {orgPlan}
-                </Badge>
+            {orgExpanded && (
+              <div id="org-details-panel" className="mt-2 p-3 rounded-lg bg-gray-50 border border-gray-200 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Plan</span>
+                  <Badge variant="outline" className="text-xs capitalize border-[#007A78]/30 text-[#007A78] bg-[#007A78]/5">
+                    {orgPlan}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Status</span>
+                  <Badge variant="outline" className={cn("text-xs capitalize", getBillingStatusColor(billingStatus))}>
+                    {billingStatus}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Members</span>
+                  <span className="text-sm font-medium text-gray-900">{memberCount}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Your Role</span>
+                  <Badge variant="outline" className="text-xs capitalize border-gray-300 text-gray-700">
+                    {userRole === "read_only" ? "Read Only" : userRole}
+                  </Badge>
+                </div>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-gray-500">Status</span>
-                <Badge variant="outline" className={cn("text-xs capitalize", getBillingStatusColor(billingStatus))}>
-                  {billingStatus}
-                </Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-gray-500">Members</span>
-                <span className="text-xs font-medium text-gray-900">{memberCount}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-gray-500">Your Role</span>
-                <Badge variant="outline" className="text-xs capitalize border-gray-200 text-gray-700">
-                  {userRole === "read_only" ? "Read Only" : userRole}
-                </Badge>
-              </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
 
         {/* Account Navigation */}
-        <div className="space-y-1">
+        <div className={cn("space-y-1", isCollapsed && "flex flex-col items-center")}>
           {/* Only show Billing for owners */}
           {userRole === "owner" && (
             <Button
               variant="ghost"
               asChild
               className={cn(
-                "w-full justify-start gap-2 px-2 h-9 text-gray-600 hover:text-[#007A78] hover:bg-[#007A78]/5",
-                isActive(`/${orgSlug}/billing`, true) && "bg-[#007A78]/10 text-[#007A78]",
+                "w-full justify-start gap-2 px-3 h-9 text-sm font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900",
+                isActive(`/${orgSlug}/billing`, true) && "bg-[#007A78]/10 text-[#007A78] font-medium",
+                isCollapsed && "w-9 px-0 justify-center"
               )}
             >
-              <Link href={`/${orgSlug}/billing`}>
+              <Link href={`/${orgSlug}/billing`} title="Billing">
                 <CreditCard className="h-4 w-4" />
-                <span>Billing</span>
+                {!isCollapsed && <span>Billing</span>}
               </Link>
             </Button>
           )}
@@ -514,13 +528,14 @@ export function DashboardSidebar({
             variant="ghost"
             asChild
             className={cn(
-              "w-full justify-start gap-2 px-2 h-9 text-gray-600 hover:text-[#007A78] hover:bg-[#007A78]/5",
-              isActive(`/${orgSlug}/settings/members`, true) && "bg-[#007A78]/10 text-[#007A78]",
+              "w-full justify-start gap-2 px-3 h-9 text-sm font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900",
+              isActive(`/${orgSlug}/settings/members`, true) && "bg-[#007A78]/10 text-[#007A78] font-medium",
+              isCollapsed && "w-9 px-0 justify-center"
             )}
           >
-            <Link href={`/${orgSlug}/settings/members`}>
+            <Link href={`/${orgSlug}/settings/members`} title="Invite">
               <Users className="h-4 w-4" />
-              <span>Invite</span>
+              {!isCollapsed && <span>Invite</span>}
             </Link>
           </Button>
           {/* Only show Organization for owners */}
@@ -529,13 +544,14 @@ export function DashboardSidebar({
               variant="ghost"
               asChild
               className={cn(
-                "w-full justify-start gap-2 px-2 h-9 text-gray-600 hover:text-[#007A78] hover:bg-[#007A78]/5",
-                isActive(`/${orgSlug}/settings/onboarding`, true) && "bg-[#007A78]/10 text-[#007A78]",
+                "w-full justify-start gap-2 px-3 h-9 text-sm font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900",
+                isActive(`/${orgSlug}/settings/onboarding`, true) && "bg-[#007A78]/10 text-[#007A78] font-medium",
+                isCollapsed && "w-9 px-0 justify-center"
               )}
             >
-              <Link href={`/${orgSlug}/settings/onboarding`}>
+              <Link href={`/${orgSlug}/settings/onboarding`} title="Organization">
                 <Building2 className="h-4 w-4" />
-                <span>Organization</span>
+                {!isCollapsed && <span>Organization</span>}
               </Link>
             </Button>
           )}
@@ -543,26 +559,32 @@ export function DashboardSidebar({
             variant="ghost"
             asChild
             className={cn(
-              "w-full justify-start gap-2 px-2 h-9 text-gray-600 hover:text-[#007A78] hover:bg-[#007A78]/5",
-              isActive(`/${orgSlug}/settings/profile`, true) && "bg-[#007A78]/10 text-[#007A78]",
+              "w-full justify-start gap-2 px-3 h-9 text-sm font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900",
+              isActive(`/${orgSlug}/settings/profile`, true) && "bg-[#007A78]/10 text-[#007A78] font-medium",
+              isCollapsed && "w-9 px-0 justify-center"
             )}
           >
-            <Link href={`/${orgSlug}/settings/profile`}>
+            <Link href={`/${orgSlug}/settings/profile`} title="Settings">
               <Settings className="h-4 w-4" />
-              <span>Settings</span>
+              {!isCollapsed && <span>Settings</span>}
             </Link>
           </Button>
           <Button
             variant="ghost"
             onClick={handleLogout}
             disabled={isLoading}
-            className="w-full justify-start gap-2 px-2 h-9 text-gray-600 hover:bg-[#FF6E50]/10 hover:text-[#FF6E50]"
+            title="Sign Out"
+            className={cn(
+              "w-full justify-start gap-2 px-3 h-9 text-sm font-medium text-gray-700 hover:bg-[#FF6E50]/10 hover:text-[#FF6E50]",
+              isCollapsed && "w-9 px-0 justify-center"
+            )}
           >
             <LogOut className="h-4 w-4" />
-            {isLoading ? "Signing out..." : "Sign Out"}
+            {!isCollapsed && (isLoading ? "Signing out..." : "Sign Out")}
           </Button>
         </div>
       </SidebarFooter>
+      <SidebarRail />
     </Sidebar>
   )
 }

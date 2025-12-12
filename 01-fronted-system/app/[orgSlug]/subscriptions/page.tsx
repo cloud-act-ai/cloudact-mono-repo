@@ -22,6 +22,7 @@ import {
   RefreshCw,
   Pencil,
   CalendarX,
+  List,
 } from "lucide-react"
 import { format } from "date-fns"
 
@@ -56,15 +57,15 @@ const CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: string }>
   other: Wallet,
 }
 
-// Category colors
+// Category colors - CloudAct brand colors only (Teal and Coral)
 const CATEGORY_COLORS: Record<string, string> = {
-  ai: "bg-purple-100 text-purple-700 border-purple-200",
-  design: "bg-pink-100 text-pink-700 border-pink-200",
-  productivity: "bg-blue-100 text-blue-700 border-blue-200",
-  communication: "bg-green-100 text-green-700 border-green-200",
-  development: "bg-orange-100 text-orange-700 border-orange-200",
-  cloud: "bg-cyan-100 text-cyan-700 border-cyan-200",
-  other: "bg-gray-100 text-gray-700 border-gray-200",
+  ai: "bg-[#F0FDFA] text-[#007A78] border-[#007A78]",
+  design: "bg-[#FFF5F3] text-[#FF6E50] border-[#FF6E50]",
+  productivity: "bg-[#F0FDFA] text-[#005F5D] border-[#007A78]",
+  communication: "bg-[#FFF5F3] text-[#E55A3C] border-[#FF6E50]",
+  development: "bg-[#F0FDFA] text-[#007A78] border-[#14B8A6]",
+  cloud: "bg-[#FFF5F3] text-[#FF6E50] border-[#FF8A73]",
+  other: "bg-gray-100 text-gray-800 border-gray-300",
 }
 
 type PlanWithProvider = SubscriptionPlan & { provider_name: string }
@@ -188,36 +189,36 @@ export default function SubscriptionsPage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6 sm:space-y-8 p-4 sm:p-6 lg:p-8 bg-gray-50 min-h-screen">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-lg bg-gradient-to-br from-[#007A78]/10 to-[#14B8A6]/10">
-                <Wallet className="h-6 w-6 text-[#007A78]" />
-              </div>
-              <h1 className="console-page-title">Subscription Costs</h1>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="p-2.5 sm:p-3 rounded-xl bg-[#007A78] flex-shrink-0">
+              <Wallet className="h-6 w-6 sm:h-7 sm:w-7 text-white" />
             </div>
-            <p className="console-subheading ml-12">
-              View your SaaS subscription costs and usage
-            </p>
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">Subscription Costs</h1>
+              <p className="text-xs sm:text-sm text-gray-600 mt-0.5 sm:mt-1">
+                View your SaaS subscription costs and usage
+              </p>
+            </div>
           </div>
         </div>
 
         {/* Summary Cards Skeleton */}
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <CardSkeleton count={4} showDescription />
         </div>
 
         {/* Table Skeleton */}
-        <Card className="console-table-card">
-          <CardHeader>
-            <CardTitle className="console-card-title">All Subscriptions</CardTitle>
-            <CardDescription>
-              View and manage all your SaaS subscriptions. Toggle to enable/disable cost tracking.
+        <Card className="border border-gray-200 bg-white rounded-xl shadow-sm">
+          <CardHeader className="border-b border-gray-100 bg-gray-50/50 p-4 sm:p-6">
+            <CardTitle className="text-base sm:text-lg font-semibold text-gray-900">All Subscriptions</CardTitle>
+            <CardDescription className="text-xs sm:text-sm text-gray-600">
+              View and manage all your SaaS subscriptions
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-0">
             <TableSkeleton rows={8} columns={8} />
           </CardContent>
         </Card>
@@ -228,34 +229,32 @@ export default function SubscriptionsPage() {
   // Show error state if API key is missing or other error
   if (error) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6 sm:space-y-8 p-4 sm:p-6 lg:p-8 bg-gray-50 min-h-screen">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3 sm:gap-4">
+          <div className="p-2.5 sm:p-3 rounded-xl bg-[#007A78] flex-shrink-0">
+            <Wallet className="h-6 w-6 sm:h-7 sm:w-7 text-white" />
+          </div>
           <div>
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-lg bg-gradient-to-br from-[#007A78]/10 to-[#14B8A6]/10">
-                <Wallet className="h-6 w-6 text-[#007A78]" />
-              </div>
-              <h1 className="console-page-title">Subscription Costs</h1>
-            </div>
-            <p className="console-subheading ml-12">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">Subscription Costs</h1>
+            <p className="text-xs sm:text-sm text-gray-600 mt-0.5 sm:mt-1">
               View your SaaS subscription costs and usage
             </p>
           </div>
         </div>
 
         {/* Error Card */}
-        <Card className="border-amber-200 bg-amber-50">
-          <CardContent className="pt-6">
+        <Card className="border border-amber-300 bg-amber-50 rounded-xl">
+          <CardContent className="p-4 sm:p-6">
             <div className="flex items-start gap-3">
-              <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5" />
+              <AlertCircle className="h-5 w-5 text-amber-700 mt-0.5 flex-shrink-0" />
               <div>
-                <h3 className="font-medium text-amber-900">{error}</h3>
-                <p className="text-sm text-amber-700 mt-1">
+                <h3 className="font-semibold text-amber-900 text-sm sm:text-base">{error}</h3>
+                <p className="text-xs sm:text-sm text-amber-800 mt-1">
                   {error.includes("API key") ? (
                     <>
                       Please complete organization onboarding in{" "}
-                      <Link href={`/${orgSlug}/settings/onboarding`} className="underline hover:no-underline">
+                      <Link href={`/${orgSlug}/settings/onboarding`} className="underline hover:no-underline font-medium">
                         Settings &gt; Onboarding
                       </Link>{" "}
                       to enable subscription tracking.
@@ -273,187 +272,184 @@ export default function SubscriptionsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 sm:space-y-8 p-4 sm:p-6 lg:p-8 bg-gray-50 min-h-screen">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-lg bg-gradient-to-br from-[#007A78]/10 to-[#14B8A6]/10">
-              <Wallet className="h-6 w-6 text-[#007A78]" />
-            </div>
-            <h1 className="console-page-title">Subscription Costs</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex items-center gap-3 sm:gap-4">
+          <div className="p-2.5 sm:p-3 rounded-xl bg-[#007A78] flex-shrink-0">
+            <Wallet className="h-6 w-6 sm:h-7 sm:w-7 text-white" />
           </div>
-          <p className="console-subheading ml-12">
-            View your SaaS subscription costs and usage
-          </p>
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">Subscription Costs</h1>
+            <p className="text-xs sm:text-sm text-gray-600 mt-0.5 sm:mt-1">
+              View your SaaS subscription costs and usage
+            </p>
+          </div>
         </div>
-        <Button
-          onClick={handleManualRefresh}
-          disabled={isRefreshing}
-          variant="outline"
-          size="sm"
-          className="text-[#007A78] border-[#007A78]/30 hover:bg-[#007A78]/5"
-        >
-          <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
-          Refresh
-        </Button>
-        <Link href={`/${orgSlug}/settings/integrations/subscriptions`}>
-          <Button className="console-button-primary">
-            <Plus className="h-4 w-4 mr-2" />
-            Manage Providers
+        <div className="flex items-center gap-2 sm:gap-3">
+          <Button
+            onClick={handleManualRefresh}
+            disabled={isRefreshing}
+            variant="outline"
+            size="sm"
+            className="border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 text-xs sm:text-sm"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
+            <span className="hidden sm:inline">Refresh</span>
           </Button>
-        </Link>
+          <Link href={`/${orgSlug}/settings/integrations/subscriptions`}>
+            <Button className="bg-[#007A78] text-white hover:bg-[#005F5D] text-xs sm:text-sm">
+              <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
+              <span className="hidden sm:inline">Manage Providers</span>
+              <span className="sm:hidden">Manage</span>
+            </Button>
+          </Link>
+        </div>
       </div>
 
-      {/* Summary Cards - Two Rows */}
+      {/* Summary Cards - Two Rows: Light shades with visible borders */}
       {summary && (
-        <>
-          {/* Row 1: Actual Costs */}
-          <div className="grid gap-4 md:grid-cols-4">
-            <Card className="console-stat-card">
-              <CardHeader className="pb-2">
-                <CardDescription className="console-small">Daily Cost</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-2">
-                  <DollarSign className="h-5 w-5 text-blue-600" />
-                  <span className="text-2xl font-bold text-blue-600">{formatCurrency(summary.total_daily_cost)}</span>
+        <div className="space-y-4 sm:space-y-5">
+          {/* Row 1: Actual Costs - Light teal shades with borders */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            {/* Daily Cost */}
+            <div className="bg-[#007A78]/5 border-2 border-[#007A78] rounded-xl p-4 sm:p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg bg-[#007A78] flex items-center justify-center flex-shrink-0">
+                  <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
                 </div>
-                <p className="text-xs text-gray-500 mt-1">Current daily rate</p>
-              </CardContent>
-            </Card>
+                <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Daily Cost</p>
+              </div>
+              <p className="text-xl sm:text-2xl font-bold text-gray-900">{formatCurrency(summary.total_daily_cost)}</p>
+              <p className="text-xs text-gray-500 mt-1.5">Current daily rate</p>
+            </div>
 
-            <Card className="console-stat-card">
-              <CardHeader className="pb-2">
-                <CardDescription className="console-small">Month-to-Date</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-2">
-                  <DollarSign className="h-5 w-5 text-[#007A78]" />
-                  <span className="console-metric-teal">{formatCurrency(summary.mtd_cost || summary.total_monthly_cost)}</span>
+            {/* Month-to-Date */}
+            <div className="bg-[#007A78]/5 border-2 border-[#007A78] rounded-xl p-4 sm:p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg bg-[#007A78] flex items-center justify-center flex-shrink-0">
+                  <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
                 </div>
-                <p className="text-xs text-gray-500 mt-1">Actual spent this month</p>
-              </CardContent>
-            </Card>
+                <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Month-to-Date</p>
+              </div>
+              <p className="text-xl sm:text-2xl font-bold text-gray-900">{formatCurrency(summary.mtd_cost || summary.total_monthly_cost)}</p>
+              <p className="text-xs text-gray-500 mt-1.5">Actual spent this month</p>
+            </div>
 
-            <Card className="console-stat-card">
-              <CardHeader className="pb-2">
-                <CardDescription className="console-small">Year-to-Date {new Date().getFullYear()}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-5 w-5 text-purple-600" />
-                  <span className="text-2xl font-bold text-purple-600">{formatCurrency(summary.ytd_cost || 0)}</span>
+            {/* Year-to-Date */}
+            <div className="bg-[#007A78]/5 border-2 border-[#007A78] rounded-xl p-4 sm:p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg bg-[#007A78] flex items-center justify-center flex-shrink-0">
+                  <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
                 </div>
-                <p className="text-xs text-gray-500 mt-1">Jan 1 - today actual</p>
-              </CardContent>
-            </Card>
+                <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">YTD {new Date().getFullYear()}</p>
+              </div>
+              <p className="text-xl sm:text-2xl font-bold text-gray-900">{formatCurrency(summary.ytd_cost || 0)}</p>
+              <p className="text-xs text-gray-500 mt-1.5">Jan 1 - today actual</p>
+            </div>
 
-            <Card className="console-stat-card">
-              <CardHeader className="pb-2">
-                <CardDescription className="console-small">Active Plans</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5 text-green-600" />
-                  <span className="text-2xl font-bold text-gray-900">
-                    {summary.enabled_count} / {summary.total_count}
-                  </span>
+            {/* Active Plans - Coral shade */}
+            <div className="bg-[#FF6E50]/5 border-2 border-[#FF6E50] rounded-xl p-4 sm:p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg bg-[#FF6E50] flex items-center justify-center flex-shrink-0">
+                  <Wallet className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
                 </div>
-              </CardContent>
-            </Card>
+                <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Active Plans</p>
+              </div>
+              <p className="text-xl sm:text-2xl font-bold text-gray-900">
+                {summary.enabled_count} / {summary.total_count}
+              </p>
+              <p className="text-xs text-gray-500 mt-1.5">Subscriptions enabled</p>
+            </div>
           </div>
 
-          {/* Row 2: Forecasts */}
-          <div className="grid gap-4 md:grid-cols-4">
-            <Card className="console-stat-card bg-gradient-to-br from-blue-50 to-white">
-              <CardHeader className="pb-2">
-                <CardDescription className="console-small">Monthly Forecast</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5 text-blue-500" />
-                  <span className="text-2xl font-bold text-blue-700">{formatCurrency(summary.forecast_monthly_cost || 0)}</span>
+          {/* Row 2: Forecasted Costs - Lighter shades with borders */}
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+            {/* Monthly Forecast */}
+            <div className="bg-[#007A78]/5 border-2 border-[#007A78]/60 rounded-xl p-4 sm:p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg bg-[#007A78] flex items-center justify-center flex-shrink-0">
+                  <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
                 </div>
-                <p className="text-xs text-gray-500 mt-1">Projected full month</p>
-              </CardContent>
-            </Card>
+                <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Monthly Forecast</p>
+              </div>
+              <p className="text-xl sm:text-2xl font-bold text-gray-900">{formatCurrency(summary.forecast_monthly_cost || summary.total_monthly_cost)}</p>
+              <p className="text-xs text-gray-500 mt-1.5">Projected full month</p>
+            </div>
 
-            <Card className="console-stat-card bg-gradient-to-br from-orange-50 to-white">
-              <CardHeader className="pb-2">
-                <CardDescription className="console-small">Annual Forecast {new Date().getFullYear()}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5 text-[#FF6E50]" />
-                  <span className="console-metric-coral">{formatCurrency(summary.forecast_annual_cost || summary.total_annual_cost)}</span>
+            {/* Annual Forecast */}
+            <div className="bg-[#007A78]/5 border-2 border-[#007A78]/60 rounded-xl p-4 sm:p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg bg-[#007A78] flex items-center justify-center flex-shrink-0">
+                  <ArrowUpRight className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
                 </div>
-                <p className="text-xs text-gray-500 mt-1">YTD actual + projected to Dec 31</p>
-              </CardContent>
-            </Card>
+                <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Annual {new Date().getFullYear()}</p>
+              </div>
+              <p className="text-xl sm:text-2xl font-bold text-gray-900">{formatCurrency(summary.forecast_annual_cost || summary.total_annual_cost)}</p>
+              <p className="text-xs text-gray-500 mt-1.5">YTD + projected to Dec 31</p>
+            </div>
 
-            <Card className="console-stat-card col-span-2">
-              <CardHeader className="pb-2">
-                <CardDescription className="console-small">Categories</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap gap-1">
-                  {summary.count_by_category && Object.keys(summary.count_by_category).length > 0 ? (
-                    Object.entries(summary.count_by_category).map(([cat, count]) => (
-                      <Badge
-                        key={cat}
-                        variant="outline"
-                        className={`text-xs capitalize ${CATEGORY_COLORS[cat] || CATEGORY_COLORS.other}`}
-                      >
-                        {cat}: {count}
-                      </Badge>
-                    ))
-                  ) : (
-                    <span className="text-sm text-gray-400">No categories</span>
-                  )}
+            {/* Categories */}
+            <div className="bg-[#FF6E50]/5 border-2 border-[#FF6E50]/60 rounded-xl p-4 sm:p-5 col-span-2 lg:col-span-1">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg bg-[#FF6E50] flex items-center justify-center flex-shrink-0">
+                  <List className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
                 </div>
-              </CardContent>
-            </Card>
+                <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Categories</p>
+              </div>
+              <p className="text-xl sm:text-2xl font-bold text-gray-900">{Object.keys(summary.count_by_category).length}</p>
+              <p className="text-xs text-gray-500 mt-1.5">Active categories</p>
+            </div>
           </div>
-        </>
+        </div>
       )}
 
-      {/* Plans Table */}
-      <Card className="console-table-card">
-        <CardHeader>
-          <CardTitle className="console-card-title">All Subscriptions</CardTitle>
-          <CardDescription>
-            View and manage all your SaaS subscriptions. Toggle to enable/disable cost tracking.
-          </CardDescription>
+      {/* Plans Table - Light shades with strong borders */}
+      <Card className="border-2 border-[#007A78] bg-[#007A78]/5 rounded-xl overflow-hidden">
+        <CardHeader className="border-b-2 border-[#007A78]/30 bg-[#007A78]/10 p-4 sm:p-6">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-lg bg-[#007A78] flex items-center justify-center">
+              <Wallet className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <CardTitle className="text-base sm:text-lg font-bold text-gray-900">All Subscriptions</CardTitle>
+              <CardDescription className="text-xs sm:text-sm text-gray-600">
+                View and manage all your SaaS subscriptions
+              </CardDescription>
+            </div>
+          </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           {plans.length === 0 ? (
-            <div className="text-center py-12">
-              <Wallet className="h-12 w-12 mx-auto text-slate-300 mb-4" />
-              <h3 className="text-lg font-medium text-slate-900 mb-2">No subscriptions yet</h3>
-              <p className="text-slate-500 mb-4">
+            <div className="text-center py-12 sm:py-16 px-4 sm:px-6 bg-gradient-to-b from-white to-gray-50">
+              <div className="inline-flex p-3 sm:p-4 rounded-2xl bg-gradient-to-br from-[#007A78]/10 to-[#FF6E50]/10 mb-3 sm:mb-4">
+                <Wallet className="h-10 w-10 sm:h-12 sm:w-12 text-[#007A78]" />
+              </div>
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">No subscriptions yet</h3>
+              <p className="text-sm sm:text-base text-gray-600 mb-4 sm:mb-6 max-w-md mx-auto">
                 Enable providers from Integrations to start tracking your SaaS costs.
               </p>
               <Link href={`/${orgSlug}/settings/integrations/subscriptions`}>
-                <Button className="console-button-primary">
+                <Button className="bg-gradient-to-r from-[#007A78] to-[#005F5D] text-white hover:from-[#005F5D] hover:to-[#004544] text-sm transition-all">
                   <Plus className="h-4 w-4 mr-2" />
                   Enable Providers
                 </Button>
               </Link>
             </div>
           ) : (
-            <Table>
+            <div className="overflow-x-auto">
+              <Table className="w-full min-w-[900px]">
               <TableHeader>
-                <TableRow>
-                  <TableHead className="w-12">Status</TableHead>
-                  <TableHead>Plan</TableHead>
-                  <TableHead>Provider</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead className="text-right">Cost</TableHead>
-                  <TableHead>Billing</TableHead>
-                  <TableHead className="text-right">Seats</TableHead>
-                  <TableHead className="text-right">Total Cost</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                <TableRow className="border-b-2 border-[#007A78]/30 bg-[#007A78]/5">
+                  <TableHead className="text-xs font-bold text-gray-700 uppercase tracking-wider px-4 py-4 border-r-2 border-[#007A78]/20">Status</TableHead>
+                  <TableHead className="text-xs font-bold text-gray-700 uppercase tracking-wider px-4 py-4 border-r-2 border-[#007A78]/20">Plan</TableHead>
+                  <TableHead className="text-xs font-bold text-gray-700 uppercase tracking-wider px-4 py-4 border-r-2 border-[#007A78]/20">Provider</TableHead>
+                  <TableHead className="text-xs font-bold text-gray-700 uppercase tracking-wider px-4 py-4 border-r-2 border-[#007A78]/20">Category</TableHead>
+                  <TableHead className="text-right text-xs font-bold text-gray-700 uppercase tracking-wider px-4 py-4 border-r-2 border-[#007A78]/20">Cost</TableHead>
+                  <TableHead className="text-xs font-bold text-gray-700 uppercase tracking-wider px-4 py-4 border-r-2 border-[#007A78]/20">Billing</TableHead>
+                  <TableHead className="text-right text-xs font-bold text-gray-700 uppercase tracking-wider px-4 py-4 border-r-2 border-[#007A78]/20">Seats</TableHead>
+                  <TableHead className="text-right text-xs font-bold text-gray-700 uppercase tracking-wider px-4 py-4 border-r-2 border-[#007A78]/20">Total</TableHead>
+                  <TableHead className="text-right text-xs font-bold text-gray-700 uppercase tracking-wider px-4 py-4">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -473,120 +469,120 @@ export default function SubscriptionsPage() {
                   }
                   const integrationPath = providerMapping[plan.provider_name]
 
-                  // Status badge color mapping
+                  // Status badge color mapping - CloudAct brand colors only
                   const statusColors: Record<string, string> = {
-                    active: "bg-green-100 text-green-700 border-green-200",
-                    pending: "bg-yellow-100 text-yellow-700 border-yellow-200",
-                    cancelled: "bg-gray-100 text-gray-700 border-gray-200",
-                    expired: "bg-red-100 text-red-700 border-red-200"
+                    active: "bg-[#007A78] text-white border-0",
+                    pending: "bg-[#FF6E50] text-white border-0",
+                    cancelled: "bg-gray-400 text-white border-0",
+                    expired: "bg-gray-500 text-white border-0"
                   }
 
                   return (
-                    <TableRow key={plan.subscription_id} className={!isActive ? "opacity-50" : ""}>
-                      <TableCell>
-                        <div className="flex flex-col gap-1">
+                    <TableRow key={plan.subscription_id} className={`border-b-2 border-[#007A78]/10 hover:bg-[#007A78]/5 transition-all ${!isActive ? "opacity-60 bg-gray-50" : ""}`}>
+                      <TableCell className="px-4 py-4 border-r-2 border-[#007A78]/10">
+                        <div className="flex flex-col gap-1.5">
                           <Badge
-                            variant="outline"
-                            className={`capitalize ${statusColors[plan.status] || statusColors.cancelled}`}
+                            className={`capitalize text-xs font-semibold px-2.5 py-1 ${statusColors[plan.status] || statusColors.cancelled}`}
                           >
                             {plan.status}
                           </Badge>
                           {isPending && plan.start_date && (
-                            <span className="text-xs text-yellow-600">
+                            <span className="text-xs text-[#FF6E50] font-semibold whitespace-nowrap">
                               Starts {format(new Date(plan.start_date), 'MMM d')}
                             </span>
                           )}
                           {plan.end_date && (
-                            <span className="text-xs text-gray-500">
+                            <span className="text-xs text-gray-600 font-medium whitespace-nowrap">
                               Ends {format(new Date(plan.end_date), 'MMM d')}
                             </span>
                           )}
                         </div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="px-4 py-4 border-r-2 border-[#007A78]/10">
                         <div className="flex items-center gap-3">
-                          <div className="p-1.5 rounded-lg bg-[#F0FDFA]">
-                            <CategoryIcon className="h-4 w-4 text-[#007A78]" />
+                          <div className="p-2 rounded-lg bg-[#007A78] flex-shrink-0">
+                            <CategoryIcon className="h-4 w-4 text-white" />
                           </div>
                           <div>
-                            <div className="font-medium">{plan.display_name || plan.plan_name}</div>
+                            <div className="font-bold text-gray-900 text-sm">{plan.display_name || plan.plan_name}</div>
                             <div className="text-xs text-gray-500">{plan.plan_name}</div>
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="px-4 py-4 border-r-2 border-[#007A78]/10">
                         {integrationPath ? (
                           <Link href={`/${orgSlug}/settings/integrations/${integrationPath}`}>
-                            <span className="hover:text-[#007A78] hover:underline cursor-pointer flex items-center gap-1">
+                            <span className="text-gray-900 hover:text-[#007A78] hover:underline cursor-pointer flex items-center gap-1 font-semibold text-sm transition-colors">
                               {plan.provider_name}
-                              <ArrowUpRight className="h-3.5 w-3.5" />
+                              <ArrowUpRight className="h-3.5 w-3.5 text-[#007A78]" />
                             </span>
                           </Link>
                         ) : (
                           <Link href={`/${orgSlug}/subscriptions/${plan.provider_name}`}>
-                            <span className="hover:text-[#007A78] hover:underline cursor-pointer flex items-center gap-1">
+                            <span className="text-gray-900 hover:text-[#007A78] hover:underline cursor-pointer flex items-center gap-1 font-semibold text-sm transition-colors">
                               {plan.provider_name}
-                              <ArrowUpRight className="h-3.5 w-3.5" />
+                              <ArrowUpRight className="h-3.5 w-3.5 text-[#007A78]" />
                             </span>
                           </Link>
                         )}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="px-4 py-4 border-r-2 border-[#007A78]/10">
                         <Badge
-                          variant="outline"
-                          className={`capitalize ${CATEGORY_COLORS[category]}`}
+                          className={`capitalize text-xs font-semibold px-2.5 py-1 border-2 ${CATEGORY_COLORS[category]}`}
                         >
                           {category}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right font-medium">
-                        {formatCurrency(plan.unit_price_usd ?? 0)}
-                        {plan.pricing_model && (
-                          <div className="text-xs text-gray-500">
-                            {plan.pricing_model === 'PER_SEAT' ? '/seat' : 'flat fee'}
-                          </div>
-                        )}
+                      <TableCell className="text-right font-bold text-gray-900 px-4 py-4 border-r-2 border-[#007A78]/10">
+                        <div className="whitespace-nowrap">
+                          {formatCurrency(plan.unit_price_usd ?? 0)}
+                          {plan.pricing_model && (
+                            <div className="text-xs text-gray-500 font-medium">
+                              {plan.pricing_model === 'PER_SEAT' ? '/seat' : 'flat fee'}
+                            </div>
+                          )}
+                        </div>
                       </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="capitalize">
+                      <TableCell className="px-4 py-4 border-r-2 border-[#007A78]/10">
+                        <Badge className="capitalize text-xs font-semibold px-2.5 py-1 bg-gray-100 text-gray-700 border border-gray-300 whitespace-nowrap">
                           {formatBillingCycle(plan.billing_cycle)}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right px-4 py-4 border-r-2 border-[#007A78]/10">
                         {plan.seats ? (
-                          <div className="flex items-center justify-end gap-1">
-                            <Users className="h-3.5 w-3.5 text-gray-400" />
+                          <div className="flex items-center justify-end gap-1.5 text-gray-900 font-bold text-sm">
+                            <Users className="h-4 w-4 text-[#007A78]" />
                             <span>{plan.seats}</span>
                           </div>
                         ) : (
-                          <span className="text-gray-400">-</span>
+                          <span className="text-gray-400 font-medium">-</span>
                         )}
                       </TableCell>
-                      <TableCell className="text-right">
-                        <span className={isActive ? "text-[#007A78] font-medium" : "text-gray-400"}>
+                      <TableCell className="text-right px-4 py-4 border-r-2 border-[#007A78]/10 bg-[#FF6E50]/5">
+                        <span className={`whitespace-nowrap ${isActive ? "text-gray-900 font-bold text-lg" : "text-gray-400 font-semibold"}`}>
                           {formatCurrency(totalCost)}
                         </span>
                       </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1">
+                      <TableCell className="text-right px-4 py-4">
+                        <div className="flex items-center justify-end gap-1.5">
                           <Link href={`/${orgSlug}/subscriptions/${plan.provider_name}`}>
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-8 w-8 text-[#007A78] hover:bg-[#007A78]/10"
+                              className="h-8 w-8 sm:h-9 sm:w-9 text-[#007A78] hover:bg-[#007A78] hover:text-white transition-all rounded-lg border border-[#007A78]/30"
                               title="Edit plan"
                             >
-                              <Pencil className="h-4 w-4" />
+                              <Pencil className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                             </Button>
                           </Link>
                           <Link href={`/${orgSlug}/subscriptions/${plan.provider_name}`}>
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-8 w-8 text-amber-600 hover:bg-amber-50"
+                              className="h-8 w-8 sm:h-9 sm:w-9 text-[#FF6E50] hover:bg-[#FF6E50] hover:text-white transition-all rounded-lg border border-[#FF6E50]/30"
                               title="End subscription"
                             >
-                              <CalendarX className="h-4 w-4" />
+                              <CalendarX className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                             </Button>
                           </Link>
                         </div>
@@ -596,6 +592,7 @@ export default function SubscriptionsPage() {
                 })}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>
