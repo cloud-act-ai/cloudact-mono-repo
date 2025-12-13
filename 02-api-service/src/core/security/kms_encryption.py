@@ -74,11 +74,21 @@ def encrypt_value(plaintext: str) -> bytes:
     if not plaintext:
         raise ValueError("Plaintext cannot be empty")
 
-    client = _get_kms_client()
-    key_name = _get_key_name()
-
     # Convert string to bytes
     plaintext_bytes = plaintext.encode('utf-8')
+
+    client = _get_kms_client()
+    try:
+        key_name = _get_key_name()
+    except ValueError:
+        # Fallback for Development/Testing without KMS
+        settings = get_settings()
+        if settings.environment == "development":
+             # Insecure fallback for dev only
+             import logging
+             logging.getLogger(__name__).warning("KMS config missing in DEV. Using insecure fallback.")
+             return b"DEV_ENCRYPTED_" + plaintext_bytes
+        raise
 
     # Encrypt using KMS
     response = client.encrypt(

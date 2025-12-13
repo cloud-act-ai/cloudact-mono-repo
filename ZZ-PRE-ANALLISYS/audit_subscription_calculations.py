@@ -186,29 +186,46 @@ def run_audit():
     # 3. Monthly_EUR: 10 * 2 = 20 (Treated as USD presumably)
     # 4. Annual_GBP: 2400 / 12 * 1 = 200 (Treated as USD presumably)
     
-    expected_sum_mixed = 50 + 100 + 20 + 200 # 370.0
-    
-    log(f"API Reported Total Monthly Cost: {total_monthly_reported}")
-    log(f"Expected Sum (If currencies mixed): {expected_sum_mixed}")
-    
-    if abs(total_monthly_reported - expected_sum_mixed) < 0.01:
-        log("\n[ISSUE FOUND] API incorrectly sums mixed currencies (EUR/GBP treated as USD).")
-    else:
-        log("\n[INFO] API totals differ from mixed sum (Conversion might be happening? or math different).")
+    expected_usd_monthly = 50.0 + 100.0 # 150.0
+    expected_eur_monthly = 20.0
+    expected_gbp_annual = 2400.0
 
+    log(f"API Reported Total Monthly Cost: {total_monthly_reported}")
+    
     # Check for Annual Cost Field
     if "total_annual_cost" not in data:
          log("[ISSUE FOUND] API response missing 'total_annual_cost' field.")
+    else:
+         log(f"API Reported Total Annual Cost: {data['total_annual_cost']}")
     
-    # Check for Currency Separation
+    # Check for Currency Breakdown
     if "totals_by_currency" not in data:
          log("[ISSUE FOUND] API response missing 'totals_by_currency' breakdown.")
+    else:
+         breakdown = data["totals_by_currency"]
+         log(f"Currency Breakdown: {json.dumps(breakdown, indent=2)}")
+         
+         # Verify USD
+         usd_monthly = breakdown.get("USD", {}).get("monthly", 0)
+         if abs(usd_monthly - expected_usd_monthly) < 0.01:
+             log("✅ USD Monthly Total: Correct (150.0)")
+         else:
+             log(f"❌ USD Monthly Total: Expected {expected_usd_monthly}, Got {usd_monthly}")
 
-    # Check Plan 2 (Annual) Calculation Detail
-    annual_plan = next((p for p in data["plans"] if p["plan_name"] == "Annual_USD"), None)
-    if annual_plan:
-        log(f"Annual Plan Details: Year Price={annual_plan.get('yearly_price_usd')}, Unit Price={annual_plan.get('unit_price_usd')}")
-        # Does it expose the monthly breakdown?
+         # Verify EUR
+         eur_monthly = breakdown.get("EUR", {}).get("monthly", 0)
+         if abs(eur_monthly - expected_eur_monthly) < 0.01:
+             log("✅ EUR Monthly Total: Correct (20.0)")
+         else:
+             log(f"❌ EUR Monthly Total: Expected {expected_eur_monthly}, Got {eur_monthly}")
+             
+         # Verify GBP
+         gbp_annual = breakdown.get("GBP", {}).get("annual", 0)
+         if abs(gbp_annual - expected_gbp_annual) < 0.01:
+             log("✅ GBP Annual Total: Correct (2400.0)")
+         else:
+             log(f"❌ GBP Annual Total: Expected {expected_gbp_annual}, Got {gbp_annual}")
+
 
 if __name__ == "__main__":
     run_audit()

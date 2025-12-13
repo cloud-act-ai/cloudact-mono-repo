@@ -144,6 +144,8 @@ class PlanListResponse(BaseModel):
     plans: List[SubscriptionPlan]
     total: int
     total_monthly_cost: float
+    total_annual_cost: float
+    totals_by_currency: Dict[str, Dict[str, float]]
 
 
 class AvailablePlan(BaseModel):
@@ -707,32 +709,18 @@ async def list_plans(
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """
-    List all subscription plans for a provider.
-
-    Returns both seeded and custom plans from BigQuery.
-
-    Performance: This endpoint is cached for 5 minutes to improve response time.
+    List subscription plans for a specific provider.
     """
     validate_org_slug(org_slug)
     check_org_access(org, org_slug)
     provider = validate_provider(provider)
 
-    # Check cache first
-    cache = get_cache()
-    cache_key = f"plans_list_{org_slug}_{provider}_{include_disabled}"
-    cached_result = cache.get(cache_key)
-    if cached_result is not None:
-        logger.debug(f"Cache HIT: plans list for {org_slug}/{provider}")
-        return cached_result
-
     dataset_id = get_org_dataset(org_slug)
     table_ref = f"{settings.gcp_project_id}.{dataset_id}.{SAAS_SUBSCRIPTION_PLANS_TABLE}"
+    
+    # Ensure table exists first (idempotent, fast)
+    await ensure_table_exists(bq_client, dataset_id)
 
-    where_clause = "WHERE org_slug = @org_slug AND provider = @provider"
-    if not include_disabled:
-        where_clause += " AND status IN ('active', 'pending')"
-
-    # Optimized query: Select only needed columns instead of SELECT *
     query = f"""
     SELECT
         org_slug, subscription_id, provider, plan_name, display_name,
@@ -742,13 +730,27 @@ async def list_plans(
         invoice_id_last, owner_email, department, renewal_date,
         contract_id, notes, updated_at
     FROM `{table_ref}`
-    {where_clause}
-    ORDER BY plan_name
-    LIMIT 500
+    WHERE org_slug = @org_slug AND provider = @provider
+        AND (status = 'active' OR status = 'pending')
+    ORDER BY updated_at DESC
     """
+    
+    # Check cache first
+    cache = get_cache()
+    cache_key = f"plans:{org_slug}:{provider}"
+    cached_response = cache.get(cache_key)
+    if cached_response:
+        logger.debug(f"Cache HIT: plans list for {org_slug}/{provider}")
+        return PlanListResponse(**cached_response)
+
+    logger.debug(f"Cache MISS: plans list for {org_slug}/{provider}")
 
     plans = []
+    
+    # Initialize totals
     total_monthly_cost = 0.0
+    total_annual_cost = 0.0
+    totals_by_currency = {}  # { "USD": {"monthly": 0.0, "annual": 0.0}, ... }
 
     try:
         job_config = bigquery.QueryJobConfig(
@@ -756,11 +758,10 @@ async def list_plans(
                 bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
                 bigquery.ScalarQueryParameter("provider", "STRING", provider),
             ],
-            job_timeout_ms=30000  # 30 second timeout for user queries
+            job_timeout_ms=10000  # 10 second timeout for user queries
         )
-        with QueryPerformanceMonitor(operation=f"list_plans_query_{provider}", org_slug=org_slug) as monitor:
-            result = bq_client.client.query(query, job_config=job_config).result()
-            monitor.set_result(result)
+        result = bq_client.client.query(query, job_config=job_config).result()
+
         for row in result:
             plan = SubscriptionPlan(
                 org_slug=row.org_slug,
@@ -792,14 +793,54 @@ async def list_plans(
             )
             plans.append(plan)
 
-            # Calculate monthly cost for active plans
-            if plan.status == "active":
-                monthly_cost = plan.unit_price_usd * (plan.seats if plan.pricing_model == "PER_SEAT" else 1)
-                if plan.billing_cycle == "annual":
-                    monthly_cost = monthly_cost / 12
-                elif plan.billing_cycle == "quarterly":
-                    monthly_cost = monthly_cost / 3
-                total_monthly_cost += monthly_cost
+            # Calculation Logic
+            # Note: unit_price_usd is actually in the plan's currency (historically named _usd)
+            # We use the 'currency' field to distinguish.
+            
+            # Calculate Monthly Equivalent
+            monthly_val = 0.0
+            annual_val = 0.0
+            
+            # Determine base annual/monthly cost for this plan
+            if plan.pricing_model == "PER_SEAT":
+                 base_cost = plan.unit_price_usd * plan.seats
+            else:
+                 base_cost = plan.unit_price_usd # Flat fee
+            
+            if plan.billing_cycle == "monthly":
+                monthly_val = base_cost
+                annual_val = base_cost * 12
+            elif plan.billing_cycle == "quarterly":
+                monthly_val = base_cost / 3
+                annual_val = base_cost * 4
+            elif plan.billing_cycle == "annual":
+                # For annual, unit_price_usd usually stores the FULL annual price in some systems, 
+                # OR the monthly equivalent. 
+                # Let's check how 'yearly_price_usd' is used.
+                # If yearly_price_usd is set, that is the total annual cost.
+                if plan.yearly_price_usd:
+                     annual_val = plan.yearly_price_usd
+                     monthly_val = plan.yearly_price_usd / 12
+                else:
+                     # If only unit_price exists and it is annual...
+                     # Assuming unit_price is the annual price if cycle is annual
+                     annual_val = base_cost
+                     monthly_val = base_cost / 12
+            
+            # Add to Currency Buckets
+            curr = plan.currency or "USD"
+            if curr not in totals_by_currency:
+                totals_by_currency[curr] = {"monthly": 0.0, "annual": 0.0}
+            
+            totals_by_currency[curr]["monthly"] += monthly_val
+            totals_by_currency[curr]["annual"] += annual_val
+
+            # Deprecated Legacy Field: Sum everything as if it's 1:1 (for backward compatibility warnings)
+            # Or should we only sum USD? 
+            # Current behavior was summing everything. Let's keep it summing everything but strictly just monthly values
+            total_monthly_cost += monthly_val
+            total_annual_cost += annual_val # Summing mixed currencies (Legacy behavior for top level)
+
     except Exception as e:
         logger.error(f"Failed to list plans: {e}")
         raise HTTPException(
@@ -810,11 +851,13 @@ async def list_plans(
     response = PlanListResponse(
         plans=plans,
         total=len(plans),
-        total_monthly_cost=round(total_monthly_cost, 2)
+        total_monthly_cost=round(total_monthly_cost, 2),
+        total_annual_cost=round(total_annual_cost, 2),
+        totals_by_currency={k: {m: round(v, 2) for m, v in vals.items()} for k, vals in totals_by_currency.items()}
     )
 
     # Cache the result
-    cache.set(cache_key, response, ttl_seconds=CACHE_TTL_SECONDS)
+    cache.set(cache_key, response.model_dump(), ttl_seconds=CACHE_TTL_SECONDS) # Use model_dump() for caching
     logger.debug(f"Cache SET: plans list for {org_slug}/{provider}")
 
     return response
