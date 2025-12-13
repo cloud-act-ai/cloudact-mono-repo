@@ -286,6 +286,10 @@ export default function SubscriptionProvidersPage() {
       setError("Seats must be at least 1")
       return
     }
+    if (customSeats > 10000) {
+      setError("Seats cannot exceed 10,000")
+      return
+    }
 
     const providerId = customProviderName.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')
 
@@ -616,6 +620,7 @@ export default function SubscriptionProvidersPage() {
                   min="0"
                   placeholder="0.00"
                   value={customCost === 0 ? "" : customCost}
+                  onFocus={(e) => e.target.select()}
                   onChange={(e) => {
                     const parsed = parseFloat(e.target.value)
                     setCustomCost(e.target.value === "" ? 0 : (isNaN(parsed) ? 0 : parsed))
@@ -651,11 +656,14 @@ export default function SubscriptionProvidersPage() {
                 id="customSeats"
                 type="number"
                 min="1"
+                max={10000}
                 placeholder="1"
                 value={customSeats === 1 ? "" : customSeats}
+                onFocus={(e) => e.target.select()}
                 onChange={(e) => {
                   const parsed = parseInt(e.target.value, 10)
-                  setCustomSeats(e.target.value === "" ? 1 : (isNaN(parsed) || parsed < 1 ? 1 : parsed))
+                  const bounded = Math.min(10000, Math.max(1, isNaN(parsed) ? 1 : parsed))
+                  setCustomSeats(e.target.value === "" ? 1 : bounded)
                 }}
                 className="col-span-3"
                 disabled={adding !== null}
@@ -663,10 +671,11 @@ export default function SubscriptionProvidersPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => handleDialogOpenChange(false)} disabled={adding !== null}>
+            <Button type="button" variant="outline" onClick={() => handleDialogOpenChange(false)} disabled={adding !== null}>
               Cancel
             </Button>
             <Button
+              type="button"
               onClick={handleAddCustomProvider}
               disabled={!customProviderName.trim() || adding !== null}
               className="console-button-primary"

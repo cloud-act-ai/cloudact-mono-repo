@@ -10,6 +10,7 @@
 import { useEffect, useState, useCallback } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
+import { toast } from "sonner"
 import {
   ArrowLeft,
   Plus,
@@ -360,6 +361,16 @@ export default function ProviderDetailPage() {
       setError("Seats cannot be negative")
       return
     }
+    // Validate seats for PER_SEAT plans
+    if (editPlanData.pricing_model === 'PER_SEAT' && (editPlanData.seats ?? 0) < 1) {
+      setError("Per-seat plans require at least 1 seat")
+      return
+    }
+    // Validate upper bound for seats
+    if (editPlanData.seats !== undefined && editPlanData.seats > 10000) {
+      setError("Seats cannot exceed 10,000")
+      return
+    }
 
     setEditing(true)
     setError(null)
@@ -376,14 +387,17 @@ export default function ProviderDetailPage() {
 
       if (!result.success) {
         setError(result.error || "Failed to update plan")
+        toast.error(result.error || "Failed to update plan")
         return
       }
 
       setShowEditDialog({ open: false, plan: null })
+      toast.success("Subscription updated successfully")
       await loadPlans()
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred"
       setError(errorMessage)
+      toast.error(errorMessage)
     } finally {
       setEditing(false)
     }
@@ -411,14 +425,17 @@ export default function ProviderDetailPage() {
 
       if (!result.success) {
         setError(result.error || "Failed to end subscription")
+        toast.error(result.error || "Failed to end subscription")
         return
       }
 
       setShowEndDialog({ open: false, plan: null })
+      toast.success("Subscription ended successfully")
       await loadPlans()
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred"
       setError(errorMessage)
+      toast.error(errorMessage)
     } finally {
       setEnding(false)
     }
@@ -446,6 +463,11 @@ export default function ProviderDetailPage() {
       setError("Per-seat plans require at least 1 seat")
       return
     }
+    // Validate upper bound for seats
+    if ((newPlan.seats ?? 0) > 10000) {
+      setError("Seats cannot exceed 10,000")
+      return
+    }
 
     setAdding(true)
     setError(null)
@@ -466,14 +488,17 @@ export default function ProviderDetailPage() {
 
       if (!result.success) {
         setError(result.error || "Failed to create plan")
+        toast.error(result.error || "Failed to create plan")
         return
       }
 
       setShowAddDialog(false) // This will trigger handleAddDialogOpenChange which resets form
+      toast.success("Subscription added successfully")
       await loadPlans()
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred"
       setError(errorMessage)
+      toast.error(errorMessage)
     } finally {
       setAdding(false)
     }
@@ -576,11 +601,11 @@ export default function ProviderDetailPage() {
         </div>
         {plans.length > 0 && (
           <div className="flex items-center gap-2">
-            <Button onClick={handleTemplateDialogOpen} className="console-button-primary">
+            <Button type="button" onClick={handleTemplateDialogOpen} className="console-button-primary" data-testid="add-from-template-btn">
               <Plus className="h-4 w-4 mr-2" />
               Add from Template
             </Button>
-            <Button onClick={() => handleAddDialogOpenChange(true)} variant="outline" className="border-[#007A78]/30 text-[#007A78] hover:bg-[#007A78]/5">
+            <Button type="button" onClick={() => handleAddDialogOpenChange(true)} variant="outline" className="border-[#007A78]/30 text-[#007A78] hover:bg-[#007A78]/5" data-testid="add-custom-subscription-btn">
               <Plus className="h-4 w-4 mr-2" />
               Add Custom
             </Button>
@@ -781,15 +806,19 @@ export default function ProviderDetailPage() {
                       </div>
                       <div className="col-span-2 text-right flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
                         <Button
+                          type="button"
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 text-[#007A78] hover:bg-[#007A78]/10"
                           onClick={() => handleEditDialogOpenChange(true, plan)}
                           title="Edit plan"
+                          aria-label="Edit plan"
+                          data-testid={`edit-plan-${plan.subscription_id}`}
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
                         <Button
+                          type="button"
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 text-amber-600 hover:bg-amber-50"
@@ -798,6 +827,8 @@ export default function ProviderDetailPage() {
                             setShowEndDialog({ open: true, plan })
                           }}
                           title="End subscription"
+                          aria-label="End subscription"
+                          data-testid={`end-plan-${plan.subscription_id}`}
                         >
                           <CalendarX className="h-4 w-4" />
                         </Button>
@@ -930,6 +961,7 @@ export default function ProviderDetailPage() {
               <Input
                 id="display_name"
                 placeholder="e.g., Enterprise Plan"
+                maxLength={100}
                 value={newPlan.display_name}
                 onChange={(e) => setNewPlan({ ...newPlan, display_name: e.target.value })}
               />
@@ -944,6 +976,7 @@ export default function ProviderDetailPage() {
                   step="0.01"
                   placeholder="0.00"
                   value={newPlan.unit_price_usd === 0 ? "" : newPlan.unit_price_usd}
+                  onFocus={(e) => e.target.select()}
                   onChange={(e) => {
                     const parsed = parseFloat(e.target.value)
                     setNewPlan({ ...newPlan, unit_price_usd: e.target.value === "" ? 0 : (isNaN(parsed) ? 0 : Math.max(0, parsed)) })
@@ -1006,12 +1039,15 @@ export default function ProviderDetailPage() {
                 id="seats"
                 type="number"
                 min={0}
+                max={10000}
                 step="1"
                 placeholder="0"
                 value={newPlan.seats === 0 ? "" : newPlan.seats}
+                onFocus={(e) => e.target.select()}
                 onChange={(e) => {
                   const parsed = parseInt(e.target.value, 10)
-                  setNewPlan({ ...newPlan, seats: e.target.value === "" ? 0 : (isNaN(parsed) ? 0 : Math.max(0, parsed)) })
+                  const bounded = Math.min(10000, Math.max(0, isNaN(parsed) ? 0 : parsed))
+                  setNewPlan({ ...newPlan, seats: e.target.value === "" ? 0 : bounded })
                 }}
               />
             </div>
@@ -1031,16 +1067,18 @@ export default function ProviderDetailPage() {
               <Input
                 id="notes"
                 placeholder="e.g., Team subscription for design team"
+                maxLength={500}
                 value={newPlan.notes}
                 onChange={(e) => setNewPlan({ ...newPlan, notes: e.target.value })}
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => handleAddDialogOpenChange(false)} disabled={adding}>
+            <Button type="button" variant="outline" onClick={() => handleAddDialogOpenChange(false)} disabled={adding}>
               Cancel
             </Button>
             <Button
+              type="button"
               onClick={handleAdd}
               disabled={adding || !newPlan.plan_name.trim() || !addStartDate}
               className="console-button-primary"
@@ -1133,6 +1171,7 @@ export default function ProviderDetailPage() {
                   step="0.01"
                   placeholder="0.00"
                   value={editPlanData.unit_price_usd === 0 ? "" : editPlanData.unit_price_usd}
+                  onFocus={(e) => e.target.select()}
                   onChange={(e) => {
                     const parsed = parseFloat(e.target.value)
                     setEditPlanData({ ...editPlanData, unit_price_usd: e.target.value === "" ? 0 : (isNaN(parsed) ? 0 : Math.max(0, parsed)) })
@@ -1145,12 +1184,15 @@ export default function ProviderDetailPage() {
                   id="edit_seats"
                   type="number"
                   min={0}
+                  max={10000}
                   step="1"
                   placeholder="0"
                   value={editPlanData.seats === 0 ? "" : editPlanData.seats}
+                  onFocus={(e) => e.target.select()}
                   onChange={(e) => {
                     const parsed = parseInt(e.target.value, 10)
-                    setEditPlanData({ ...editPlanData, seats: e.target.value === "" ? 0 : (isNaN(parsed) ? 0 : Math.max(0, parsed)) })
+                    const bounded = Math.min(10000, Math.max(0, isNaN(parsed) ? 0 : parsed))
+                    setEditPlanData({ ...editPlanData, seats: e.target.value === "" ? 0 : bounded })
                   }}
                 />
               </div>
@@ -1193,16 +1235,18 @@ export default function ProviderDetailPage() {
               <Input
                 id="edit_notes"
                 placeholder="e.g., Team subscription for design team"
+                maxLength={500}
                 value={editPlanData.notes}
                 onChange={(e) => setEditPlanData({ ...editPlanData, notes: e.target.value })}
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => handleEditDialogOpenChange(false)} disabled={editing}>
+            <Button type="button" variant="outline" onClick={() => handleEditDialogOpenChange(false)} disabled={editing}>
               Cancel
             </Button>
             <Button
+              type="button"
               onClick={handleEdit}
               disabled={editing || !editEffectiveDate}
               className="console-button-primary"
@@ -1285,10 +1329,11 @@ export default function ProviderDetailPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowEndDialog({ open: false, plan: null })} disabled={ending}>
+            <Button type="button" variant="outline" onClick={() => setShowEndDialog({ open: false, plan: null })} disabled={ending}>
               Cancel
             </Button>
             <Button
+              type="button"
               variant="destructive"
               onClick={handleEndSubscription}
               disabled={ending || !endDate}
@@ -1356,7 +1401,7 @@ export default function ProviderDetailPage() {
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowTemplateDialog(false)}>
+            <Button type="button" variant="outline" onClick={() => setShowTemplateDialog(false)}>
               Cancel
             </Button>
           </DialogFooter>

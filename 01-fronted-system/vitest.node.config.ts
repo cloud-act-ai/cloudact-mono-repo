@@ -16,6 +16,10 @@ export default defineConfig(({ mode }) => {
                 '**/tests/*-api-*.test.ts',
                 '**/tests/07-*.test.ts',
                 '**/tests/09-*.test.ts',
+                '**/tests/13-*.test.ts',
+                '**/tests/17-*.test.ts',
+                '**/tests/18-*.test.ts',
+                '**/tests/19-*.test.ts',
             ],
             // Allow tests to run longer for API integration flows
             testTimeout: 120000,

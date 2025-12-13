@@ -17,6 +17,10 @@ export default defineConfig({
             '**/tests/*-api-*.test.ts',
             '**/tests/07-*.test.ts',
             '**/tests/09-*.test.ts',
+            '**/tests/13-*.test.ts',
+            '**/tests/17-*.test.ts',
+            '**/tests/18-*.test.ts',
+            '**/tests/19-*.test.ts',
         ],
         browser: {
             enabled: true,
