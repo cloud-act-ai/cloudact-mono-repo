@@ -36,15 +36,37 @@ export default async function DashboardPage({
   const { success } = await searchParams
   const supabase = await createClient()
 
-  // Phase 1: Fetch user and org in parallel
-  const [userResult, orgResult] = await Promise.all([
-    supabase.auth.getUser(),
-    supabase
-      .from("organizations")
-      .select("id, org_name, org_slug, plan, billing_status")
-      .eq("org_slug", orgSlug)
-      .single()
-  ])
+  let userResult, orgResult
+
+  try {
+    // Phase 1: Fetch user and org in parallel - OPTIMIZED
+    // Both queries run simultaneously to minimize loading time
+    const results = await Promise.all([
+      supabase.auth.getUser(),
+      supabase
+        .from("organizations")
+        .select("id, org_name, org_slug, plan, billing_status")
+        .eq("org_slug", orgSlug)
+        .single()
+    ])
+
+    userResult = results[0]
+    orgResult = results[1]
+  } catch (err) {
+    // Handle unexpected errors during parallel fetching
+    console.error("Error loading dashboard data:", err)
+    return (
+      <div className="flex items-center justify-center p-4 min-h-[60vh]">
+        <div className="metric-card max-w-md mx-auto px-6 py-10 text-center space-y-6">
+          <AlertCircle className="h-14 w-14 text-[#FF6E50] mx-auto" />
+          <div className="space-y-2">
+            <h2 className="text-[22px] font-bold text-black">Failed to load dashboard</h2>
+            <p className="text-[15px] text-[#8E8E93] leading-relaxed">Please try refreshing the page</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   const user = userResult.data?.user
   const org = orgResult.data
@@ -81,20 +103,42 @@ export default async function DashboardPage({
     )
   }
 
-  // Phase 2: Fetch membership and member count in parallel (both depend on org.id)
-  const [membershipResult, memberCountResult] = await Promise.all([
-    supabase
-      .from("organization_members")
-      .select("role")
-      .eq("org_id", org.id)
-      .eq("user_id", user.id)
-      .single(),
-    supabase
-      .from("organization_members")
-      .select("*", { count: "exact", head: true })
-      .eq("org_id", org.id)
-      .eq("status", "active")
-  ])
+  // Phase 2: Fetch membership and member count in parallel (both depend on org.id) - OPTIMIZED
+  // Both queries run simultaneously to minimize loading time
+  let membershipResult, memberCountResult
+
+  try {
+    const results = await Promise.all([
+      supabase
+        .from("organization_members")
+        .select("role")
+        .eq("org_id", org.id)
+        .eq("user_id", user.id)
+        .single(),
+      supabase
+        .from("organization_members")
+        .select("*", { count: "exact", head: true })
+        .eq("org_id", org.id)
+        .eq("status", "active")
+    ])
+
+    membershipResult = results[0]
+    memberCountResult = results[1]
+  } catch (err) {
+    // Handle unexpected errors during parallel fetching
+    console.error("Error loading membership data:", err)
+    return (
+      <div className="flex items-center justify-center p-4 min-h-[60vh]">
+        <div className="metric-card max-w-md mx-auto px-6 py-10 text-center space-y-6">
+          <AlertCircle className="h-14 w-14 text-[#FF6E50] mx-auto" />
+          <div className="space-y-2">
+            <h2 className="text-[22px] font-bold text-black">Failed to load membership data</h2>
+            <p className="text-[15px] text-[#8E8E93] leading-relaxed">Please try refreshing the page</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   const data: DashboardData = {
     organization: org,

@@ -15,6 +15,15 @@ from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field, EmailStr, field_validator, computed_field, ConfigDict
 import re
 
+from .i18n_models import (
+    SupportedCurrency,
+    SupportedLanguage,
+    DEFAULT_CURRENCY,
+    DEFAULT_LANGUAGE,
+    DEFAULT_TIMEZONE,
+    DEFAULT_COUNTRY,
+)
+
 
 # ============================================================================
 # ENUMS
@@ -436,6 +445,10 @@ class OrgProfileResponse(BaseModel):
     status: OrgStatus
     subscription_plan: SubscriptionPlan
     org_dataset_id: str
+    default_currency: str = Field(default=DEFAULT_CURRENCY.value)
+    default_country: str = Field(default=DEFAULT_COUNTRY)
+    default_language: str = Field(default=DEFAULT_LANGUAGE.value)
+    default_timezone: str = Field(default=DEFAULT_TIMEZONE)
     created_at: datetime
     updated_at: datetime
 
@@ -447,6 +460,10 @@ class OrgProfileResponse(BaseModel):
             "status": "ACTIVE",
             "subscription_plan": "PROFESSIONAL",
             "org_dataset_id": "org_acme_corp_prod",
+            "default_currency": "USD",
+            "default_country": "US",
+            "default_language": "en",
+            "default_timezone": "UTC",
             "created_at": "2025-01-15T10:00:00Z",
             "updated_at": "2025-01-15T10:00:00Z"
         }

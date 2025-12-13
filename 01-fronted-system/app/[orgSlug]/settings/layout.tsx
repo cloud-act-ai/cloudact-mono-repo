@@ -2,7 +2,7 @@
 
 import { useParams, usePathname } from "next/navigation"
 import Link from "next/link"
-import { User, Shield, AlertTriangle } from "lucide-react"
+import { User, Shield, AlertTriangle, Globe } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
@@ -25,6 +25,13 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
       icon: User,
       show: true,
       color: "#8E8E93", // Neutral
+    },
+    {
+      href: `/${orgSlug}/settings/organization`,
+      label: "Organization",
+      icon: Globe,
+      show: true,
+      color: "#007A78", // Teal for organization
     },
     {
       href: `/${orgSlug}/settings/security`,
@@ -56,11 +63,12 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
             </p>
           </div>
 
-          {/* Navigation Tabs - CloudAct Style with Neutral/Coral */}
+          {/* Navigation Tabs - CloudAct Style with Neutral/Teal/Coral */}
           <div className="console-tabs">
             {visibleNavItems.map((item) => {
               const Icon = item.icon
               const active = isActive(item.href)
+              const isTeal = item.color === "#007A78"
               return (
                 <Link
                   key={item.href}
@@ -70,11 +78,13 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
                     "console-tab flex items-center gap-2",
                     item.danger && "text-[#FF6E50] hover:text-[#FF6E50]",
                     item.danger && active && "text-[#FF6E50] border-b-[#FF6E50]",
-                    !item.danger && "text-[#8E8E93]",
-                    !item.danger && active && "text-[#8E8E93] border-b-[#8E8E93]"
+                    isTeal && "text-[#007A78] hover:text-[#007A78]",
+                    isTeal && active && "text-[#007A78] border-b-[#007A78]",
+                    !item.danger && !isTeal && "text-[#8E8E93]",
+                    !item.danger && !isTeal && active && "text-[#8E8E93] border-b-[#8E8E93]"
                   )}
                 >
-                  <Icon className="h-4 w-4" style={{ color: active || !item.danger ? item.color : undefined }} />
+                  <Icon className="h-4 w-4" style={{ color: item.color }} />
                   <span className="hidden sm:inline">{item.label}</span>
                 </Link>
               )

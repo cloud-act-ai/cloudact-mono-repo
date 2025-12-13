@@ -107,8 +107,23 @@ const PROVIDER_DISPLAY_NAMES: Record<string, string> = {
   supabase: "Supabase",
 }
 
+// Provider aliases - redirect old/incorrect provider names to canonical names
+// Example: chatgpt_enterprise → chatgpt_plus (all ChatGPT plans live under chatgpt_plus)
+const PROVIDER_ALIASES: Record<string, string> = {
+  chatgpt_enterprise: "chatgpt_plus",
+  chatgpt_team: "chatgpt_plus",
+  chatgpt_free: "chatgpt_plus",
+  claude_enterprise: "claude_pro",
+  claude_team: "claude_pro",
+  claude_free: "claude_pro",
+}
+
 function getProviderDisplayName(provider: string): string {
   return PROVIDER_DISPLAY_NAMES[provider] || provider.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())
+}
+
+function getCanonicalProvider(provider: string): string {
+  return PROVIDER_ALIASES[provider.toLowerCase()] || provider.toLowerCase()
 }
 
 function formatCurrency(amount: number): string {
@@ -131,7 +146,13 @@ const categoryIcons: Record<string, React.ReactNode> = {
 
 export default function ProviderDetailPage() {
   const params = useParams<{ orgSlug: string; provider: string }>()
-  const { orgSlug, provider } = params
+  const { orgSlug, provider: rawProvider } = params
+
+  // Canonicalize provider name (handle aliases like chatgpt_enterprise → chatgpt_plus)
+  const provider = rawProvider ? getCanonicalProvider(rawProvider) : rawProvider
+
+  // Track if we redirected from an alias
+  const isAliased = rawProvider && rawProvider !== provider
 
   // Validate params
   const isValidParams = orgSlug && provider && typeof orgSlug === "string" && typeof provider === "string"
@@ -273,47 +294,62 @@ export default function ProviderDetailPage() {
     if (!isMounted || isMounted()) setLoading(true)
     if (!isMounted || isMounted()) setError(null)
 
-    // Fetch provider meta, plans, and costs in parallel
-    // - Plans from saas_subscription_plans (BigQuery) for plan details
-    // - Costs from cost_data_standard_1_2 (Polars) for actual costs
-    const [metaResult, plansResult, costsResult] = await Promise.all([
-      getProviderMeta(orgSlug, provider),
-      getProviderPlans(orgSlug, provider),
-      getSaaSSubscriptionCosts(orgSlug, undefined, undefined, provider)  // Filter by provider
-    ])
+    try {
+      // Fetch provider meta, plans, and costs in parallel - OPTIMIZED
+      // - Plans from saas_subscription_plans (BigQuery) for plan details
+      // - Costs from cost_data_standard_1_2 (Polars) for actual costs
+      // All three calls run simultaneously to minimize loading time
+      const [metaResult, plansResult, costsResult] = await Promise.all([
+        getProviderMeta(orgSlug, provider),
+        getProviderPlans(orgSlug, provider),
+        getSaaSSubscriptionCosts(orgSlug, undefined, undefined, provider)  // Filter by provider
+      ])
 
-    // Check if component is still mounted before updating state
-    if (isMounted && !isMounted()) return
+      // Check if component is still mounted before updating state
+      if (isMounted && !isMounted()) return
 
-    // Set provider meta (for icon display)
-    if (metaResult.success && metaResult.provider) {
-      setProviderMeta(metaResult.provider)
-    }
-
-    // Set cost data from Polars (source of truth for costs)
-    if (costsResult.success) {
-      setCostSummary(costsResult.summary)
-      setCostRecords(costsResult.data || [])
-    } else {
-      setCostSummary(null)
-      setCostRecords([])
-    }
-
-    if (plansResult.success) {
-      setPlans(plansResult.plans || [])
-      setTotalMonthlyCost(plansResult.total_monthly_cost || 0)  // Fallback if no Polars data
-    } else {
-      setPlans([])
-      setTotalMonthlyCost(0)
-
-      if (plansResult.error?.includes("API key not found")) {
-        setError("Backend not configured. Please complete organization onboarding in Settings to enable subscription tracking.")
-      } else {
-        setError(plansResult.error || "Failed to load plans")
+      // Set provider meta (for icon display)
+      if (metaResult.success && metaResult.provider) {
+        setProviderMeta(metaResult.provider)
       }
-    }
 
-    setLoading(false)
+      // Set cost data from Polars (source of truth for costs)
+      if (costsResult.success) {
+        setCostSummary(costsResult.summary)
+        setCostRecords(costsResult.data || [])
+      } else {
+        setCostSummary(null)
+        setCostRecords([])
+      }
+
+      if (plansResult.success) {
+        setPlans(plansResult.plans || [])
+        setTotalMonthlyCost(plansResult.total_monthly_cost || 0)  // Fallback if no Polars data
+      } else {
+        setPlans([])
+        setTotalMonthlyCost(0)
+
+        if (plansResult.error?.includes("API key not found")) {
+          setError("Backend not configured. Please complete organization onboarding in Settings to enable subscription tracking.")
+        } else if (plansResult.error?.includes("Invalid provider name")) {
+          setError(`Provider "${provider}" is not recognized. Please check the provider name and try again.`)
+        } else {
+          setError(plansResult.error || "Failed to load plans")
+        }
+      }
+    } catch (err) {
+      // Handle unexpected errors during parallel fetching
+      console.error("Error loading provider data:", err)
+      if (!isMounted || isMounted()) {
+        setError("Failed to load provider data. Please try again.")
+        setPlans([])
+        setTotalMonthlyCost(0)
+        setCostSummary(null)
+        setCostRecords([])
+      }
+    } finally {
+      if (!isMounted || isMounted()) setLoading(false)
+    }
   }, [orgSlug, provider, isValidParams])
 
   useEffect(() => {
@@ -401,7 +437,8 @@ export default function ProviderDetailPage() {
         toast.success("Subscription updated successfully")
       }
 
-      setShowEditDialog({ open: false, plan: null })
+      // Close dialog via onOpenChange handler to ensure cleanup
+      handleEditDialogOpenChange(false)
       await loadPlans()
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred"
@@ -448,7 +485,9 @@ export default function ProviderDetailPage() {
         toast.success("Subscription ended successfully")
       }
 
+      // Close dialog and reset state
       setShowEndDialog({ open: false, plan: null })
+      setError(null)
       await loadPlans()
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred"
@@ -520,7 +559,8 @@ export default function ProviderDetailPage() {
         toast.success("Subscription added successfully")
       }
 
-      setShowAddDialog(false) // This will trigger handleAddDialogOpenChange which resets form
+      // Close dialog and reset form via onOpenChange handler
+      handleAddDialogOpenChange(false)
       await loadPlans()
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred"
@@ -645,6 +685,21 @@ export default function ProviderDetailPage() {
           </div>
         )}
       </div>
+
+      {/* Provider Alias Info Banner */}
+      {isAliased && (
+        <Card className="border-blue-200 bg-blue-50">
+          <CardContent className="py-3 px-4">
+            <div className="flex items-center gap-3">
+              <Info className="h-5 w-5 text-blue-600 flex-shrink-0" />
+              <p className="text-sm text-blue-700">
+                All {rawProvider.replace(/_/g, " ")} plans are managed under <strong>{getProviderDisplayName(provider)}</strong>.
+                You&apos;re viewing the correct provider page.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Error Message */}
       {error && (
@@ -973,7 +1028,7 @@ export default function ProviderDetailPage() {
 
       {/* Add Custom Subscription Dialog */}
       <Dialog open={showAddDialog} onOpenChange={handleAddDialogOpenChange}>
-        <DialogContent>
+        <DialogContent key={showAddDialog ? 'add-dialog-open' : 'add-dialog-closed'}>
           <DialogHeader>
             <DialogTitle>Add Custom {providerDisplayName} Subscription</DialogTitle>
             <DialogDescription>
@@ -1049,12 +1104,13 @@ export default function ProviderDetailPage() {
               <div className="space-y-2">
                 <Label htmlFor="pricing_model">Pricing Model</Label>
                 <Select
+                  key={`pricing-model-${newPlan.pricing_model}`}
                   value={newPlan.pricing_model}
                   onValueChange={(value) => setNewPlan({ ...newPlan, pricing_model: value as 'PER_SEAT' | 'FLAT_FEE' })}
                   disabled={adding}
                 >
                   <SelectTrigger id="pricing_model" data-testid="add-pricing-model-select">
-                    <SelectValue />
+                    <SelectValue placeholder="Select pricing model" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="FLAT_FEE">Flat Fee</SelectItem>
@@ -1278,12 +1334,13 @@ export default function ProviderDetailPage() {
               <div className="space-y-2">
                 <Label htmlFor="edit_pricing_model">Pricing Model</Label>
                 <Select
+                  key={`edit-pricing-model-${editPlanData.pricing_model}`}
                   value={editPlanData.pricing_model}
                   onValueChange={(value) => setEditPlanData({ ...editPlanData, pricing_model: value as 'PER_SEAT' | 'FLAT_FEE' })}
                   disabled={editing}
                 >
                   <SelectTrigger id="edit_pricing_model" data-testid="edit-pricing-model-select">
-                    <SelectValue />
+                    <SelectValue placeholder="Select pricing model" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="FLAT_FEE">Flat Fee</SelectItem>
@@ -1437,7 +1494,13 @@ export default function ProviderDetailPage() {
                   <CreditCard className="h-12 w-12 text-[#8E8E93]" />
                 </div>
                 <h3 className="text-[17px] font-semibold text-black mb-2">No templates available</h3>
-                <p className="text-[15px] text-[#8E8E93] mb-6">No templates available for this provider.</p>
+                <p className="text-[15px] text-[#8E8E93] mb-6">
+                  {error ?
+                    `Provider "${provider}" may not be supported yet. ` :
+                    "No predefined templates found for this provider. "
+                  }
+                  You can create a custom subscription plan instead.
+                </p>
                 <Button onClick={() => { setShowTemplateDialog(false); handleAddDialogOpenChange(true) }} className="h-[44px] px-6 bg-[#007A78] text-white hover:bg-[#006664] rounded-xl text-[15px] font-semibold shadow-sm">
                   <Plus className="h-4 w-4 mr-2" />
                   Create Custom Plan

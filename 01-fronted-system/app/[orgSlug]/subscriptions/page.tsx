@@ -44,6 +44,8 @@ import {
   type SubscriptionPlan,
   type SaaSCostSummary,
 } from "@/actions/subscription-providers"
+import { createClient } from "@/lib/supabase/client"
+import { formatCurrency } from "@/lib/i18n"
 
 // Category icon mapping
 const CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -77,6 +79,7 @@ export default function SubscriptionsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [orgCurrency, setOrgCurrency] = useState<string>("USD")
   // Plan summary from saas_subscription_plans table (for counts, etc.)
   const [planSummary, setPlanSummary] = useState<{
     total_monthly_cost: number
@@ -108,29 +111,50 @@ export default function SubscriptionsPage() {
     setIsLoading(true)
     setError(null)
 
-    // Fetch both plan details and actual costs in parallel
-    const [plansResult, costsResult] = await Promise.all([
-      getAllPlansForCostDashboard(orgSlug),
-      getSaaSSubscriptionCosts(orgSlug),
-    ])
+    try {
+      // Fetch both plan details and actual costs in parallel - OPTIMIZED
+      // Both API calls run simultaneously to minimize loading time
+      const supabase = createClient()
+      const [plansResult, costsResult, orgResult] = await Promise.all([
+        getAllPlansForCostDashboard(orgSlug),
+        getSaaSSubscriptionCosts(orgSlug),
+        supabase
+          .from("organizations")
+          .select("default_currency")
+          .eq("org_slug", orgSlug)
+          .single(),
+      ])
 
-    if (plansResult.success) {
-      setPlans(plansResult.plans)
-      setPlanSummary(plansResult.summary)
-    } else {
-      setError(plansResult.error || "Failed to load subscription data")
+      if (plansResult.success) {
+        setPlans(plansResult.plans)
+        setPlanSummary(plansResult.summary)
+      } else {
+        setError(plansResult.error || "Failed to load subscription data")
+        setPlans([])
+        setPlanSummary(null)
+      }
+
+      // Cost data is optional - may not exist if pipeline hasn't run
+      if (costsResult.success && costsResult.summary) {
+        setCostSummary(costsResult.summary)
+      } else {
+        setCostSummary(null)
+      }
+
+      // Load org's default currency
+      if (orgResult.data?.default_currency) {
+        setOrgCurrency(orgResult.data.default_currency)
+      }
+    } catch (err) {
+      // Handle unexpected errors during parallel fetching
+      console.error("Error loading subscription data:", err)
+      setError("Failed to load subscription data. Please try again.")
       setPlans([])
       setPlanSummary(null)
-    }
-
-    // Cost data is optional - may not exist if pipeline hasn't run
-    if (costsResult.success && costsResult.summary) {
-      setCostSummary(costsResult.summary)
-    } else {
       setCostSummary(null)
+    } finally {
+      setIsLoading(false)
     }
-
-    setIsLoading(false)
   }, [orgSlug])
 
   useEffect(() => {
@@ -148,13 +172,6 @@ export default function SubscriptionsPage() {
     setIsRefreshing(true)
     await loadData()
     setIsRefreshing(false)
-  }
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(amount)
   }
 
   const formatBillingCycle = (cycle?: string) => {
@@ -304,7 +321,7 @@ export default function SubscriptionsPage() {
                 </div>
               </div>
               <div className="metric-card-content">
-                <div className="metric-card-value">{formatCurrency(summary.total_daily_cost)}</div>
+                <div className="metric-card-value">{formatCurrency(summary.total_daily_cost, orgCurrency)}</div>
                 <div className="metric-card-description mt-1">Current daily rate</div>
               </div>
             </div>
@@ -318,7 +335,7 @@ export default function SubscriptionsPage() {
                 </div>
               </div>
               <div className="metric-card-content">
-                <div className="metric-card-value">{formatCurrency(summary.mtd_cost || summary.total_monthly_cost)}</div>
+                <div className="metric-card-value">{formatCurrency(summary.mtd_cost || summary.total_monthly_cost, orgCurrency)}</div>
                 <div className="metric-card-description mt-1">Actual spent this month</div>
               </div>
             </div>
@@ -332,7 +349,7 @@ export default function SubscriptionsPage() {
                 </div>
               </div>
               <div className="metric-card-content">
-                <div className="metric-card-value">{formatCurrency(summary.ytd_cost || 0)}</div>
+                <div className="metric-card-value">{formatCurrency(summary.ytd_cost || 0, orgCurrency)}</div>
                 <div className="metric-card-description mt-1">Jan 1 - today actual</div>
               </div>
             </div>
@@ -365,7 +382,7 @@ export default function SubscriptionsPage() {
                 </div>
               </div>
               <div className="metric-card-content">
-                <div className="metric-card-value">{formatCurrency(summary.forecast_monthly_cost || summary.total_monthly_cost)}</div>
+                <div className="metric-card-value">{formatCurrency(summary.forecast_monthly_cost || summary.total_monthly_cost, orgCurrency)}</div>
                 <div className="metric-card-description mt-1">Projected full month</div>
               </div>
             </div>
@@ -379,7 +396,7 @@ export default function SubscriptionsPage() {
                 </div>
               </div>
               <div className="metric-card-content">
-                <div className="metric-card-value">{formatCurrency(summary.forecast_annual_cost || summary.total_annual_cost)}</div>
+                <div className="metric-card-value">{formatCurrency(summary.forecast_annual_cost || summary.total_annual_cost, orgCurrency)}</div>
                 <div className="metric-card-description mt-1">YTD + projected to Dec 31</div>
               </div>
             </div>
@@ -517,7 +534,7 @@ export default function SubscriptionsPage() {
                       </TableCell>
                       <TableCell className="console-table-cell text-right">
                         <div className="whitespace-nowrap">
-                          <span className="font-semibold text-black text-[15px]">{formatCurrency(plan.unit_price_usd ?? 0)}</span>
+                          <span className="font-semibold text-black text-[15px]">{formatCurrency(plan.unit_price_usd ?? 0, orgCurrency)}</span>
                           {plan.pricing_model && (
                             <div className="text-[11px] text-[#8E8E93] font-medium">
                               {plan.pricing_model === 'PER_SEAT' ? '/seat' : 'flat fee'}
@@ -542,7 +559,7 @@ export default function SubscriptionsPage() {
                       </TableCell>
                       <TableCell className="console-table-cell text-right">
                         <span className={`whitespace-nowrap ${isActive ? "text-black font-bold text-[17px]" : "text-[#C7C7CC] font-medium"}`}>
-                          {formatCurrency(totalCost)}
+                          {formatCurrency(totalCost, orgCurrency)}
                         </span>
                       </TableCell>
                       <TableCell className="console-table-cell text-right">

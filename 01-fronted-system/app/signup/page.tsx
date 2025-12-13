@@ -4,13 +4,14 @@ import type React from "react"
 import Link from "next/link"
 import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Cloud, Loader2, Phone } from "lucide-react"
+import { Cloud, Loader2, Phone, Globe, DollarSign } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DEFAULT_TRIAL_DAYS } from "@/lib/constants"
+import { SUPPORTED_CURRENCIES, SUPPORTED_TIMEZONES } from "@/lib/i18n"
 
 const ORG_TYPES = [
   { value: "personal", label: "Personal" },
@@ -172,10 +173,43 @@ function isValidOrgName(name: string): boolean {
          !/<script|<\/script|javascript:|on\w+=/i.test(trimmed)
 }
 
-// Validate phone number (digits only, 7-15 chars)
-function isValidPhone(phone: string): boolean {
+// Phone number length requirements by country code
+const PHONE_LENGTH_BY_COUNTRY: Record<string, { min: number; max: number }> = {
+  '+1': { min: 10, max: 10 },      // US/Canada
+  '+91': { min: 10, max: 10 },     // India
+  '+44': { min: 10, max: 11 },     // UK
+  '+61': { min: 9, max: 9 },       // Australia
+  '+49': { min: 10, max: 11 },     // Germany
+  '+33': { min: 9, max: 9 },       // France
+  '+81': { min: 10, max: 10 },     // Japan
+  '+86': { min: 11, max: 11 },     // China
+  '+65': { min: 8, max: 8 },       // Singapore
+  '+971': { min: 9, max: 9 },      // UAE
+  '+55': { min: 10, max: 11 },     // Brazil
+  '+52': { min: 10, max: 10 },     // Mexico
+  '+7': { min: 10, max: 10 },      // Russia/Kazakhstan
+}
+
+// Validate phone number with country-specific rules
+function isValidPhone(phone: string, countryCode: string): boolean {
+  // Extract digits only (allows formatting like spaces, dashes, parens)
   const digitsOnly = phone.replace(/\D/g, "")
-  return digitsOnly.length >= 7 && digitsOnly.length <= 15
+
+  // Must have at least some digits
+  if (digitsOnly.length === 0) return false
+
+  // Get expected length for this country code
+  const expected = PHONE_LENGTH_BY_COUNTRY[countryCode] || { min: 7, max: 15 }
+
+  return digitsOnly.length >= expected.min && digitsOnly.length <= expected.max
+}
+
+// Get expected phone format hint for country
+function getPhoneHint(countryCode: string): string {
+  const expected = PHONE_LENGTH_BY_COUNTRY[countryCode]
+  if (!expected) return "7-15 digits"
+  if (expected.min === expected.max) return `${expected.min} digits`
+  return `${expected.min}-${expected.max} digits`
 }
 
 /**
@@ -214,6 +248,8 @@ function SignupForm() {
   const [phoneNumber, setPhoneNumber] = useState("")
   const [companyName, setCompanyName] = useState("")
   const [companyType, setCompanyType] = useState("company")
+  const [currency, setCurrency] = useState("USD")
+  const [timezone, setTimezone] = useState("UTC")
   const [serverError, setServerError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
@@ -229,9 +265,11 @@ function SignupForm() {
     setIsLoading(true)
     setServerError(null)
 
-    // Validate phone number (required)
-    if (!isValidPhone(phoneNumber)) {
-      setServerError("Please enter a valid phone number (7-15 digits)")
+    // Validate phone number with country-specific rules
+    if (!isValidPhone(phoneNumber, countryCode)) {
+      const hint = getPhoneHint(countryCode)
+      const country = COUNTRY_CODES.find(c => c.code === countryCode)?.country || "your country"
+      setServerError(`Please enter a valid phone number for ${country} (${hint})`)
       setIsLoading(false)
       return
     }
@@ -265,6 +303,8 @@ function SignupForm() {
       if (!isInviteFlow) {
         userData.pending_company_name = sanitizedCompanyName
         userData.pending_company_type = companyType
+        userData.pending_currency = currency
+        userData.pending_timezone = timezone
       }
 
       // Signup with user_metadata (use normalizedEmail for consistency)
@@ -373,7 +413,7 @@ function SignupForm() {
             <div className="space-y-1.5">
               <Label htmlFor="phone" className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
                 <Phone className="h-3.5 w-3.5" />
-                Phone number <span className="text-[#FF6E50]">*</span>
+                Phone number
               </Label>
               <div className="flex gap-2">
                 <Select value={countryCode} onValueChange={setCountryCode} disabled={isLoading}>
@@ -446,6 +486,47 @@ function SignupForm() {
                       </option>
                     ))}
                   </select>
+                </div>
+              </div>
+
+              {/* Currency and Timezone */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="currency" className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+                    <DollarSign className="h-3.5 w-3.5" />
+                    Currency
+                  </Label>
+                  <Select value={currency} onValueChange={setCurrency} disabled={isLoading}>
+                    <SelectTrigger className="h-10 focus:border-[#007A78] focus:ring-[#007A78]">
+                      <SelectValue placeholder="Select currency" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[300px]">
+                      {SUPPORTED_CURRENCIES.map((c) => (
+                        <SelectItem key={c.code} value={c.code}>
+                          {c.symbol} {c.code} - {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="timezone" className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+                    <Globe className="h-3.5 w-3.5" />
+                    Timezone
+                  </Label>
+                  <Select value={timezone} onValueChange={setTimezone} disabled={isLoading}>
+                    <SelectTrigger className="h-10 focus:border-[#007A78] focus:ring-[#007A78]">
+                      <SelectValue placeholder="Select timezone" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[300px]">
+                      {SUPPORTED_TIMEZONES.map((tz) => (
+                        <SelectItem key={tz.value} value={tz.value}>
+                          {tz.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             </div>

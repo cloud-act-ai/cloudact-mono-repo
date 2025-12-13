@@ -36,6 +36,30 @@
     "description": "Current subscription plan tier"
   },
   {
+    "name": "default_currency",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "ISO 4217 currency code (e.g., USD, EUR, AED). Default: USD"
+  },
+  {
+    "name": "default_country",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "ISO 3166-1 alpha-2 country code (e.g., US, AE). Auto-inferred from currency"
+  },
+  {
+    "name": "default_language",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "BCP 47 language tag (e.g., en, ar). Default: en"
+  },
+  {
+    "name": "default_timezone",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "IANA timezone identifier (e.g., UTC, Asia/Dubai). Default: UTC"
+  },
+  {
     "name": "created_at",
     "type": "TIMESTAMP",
     "mode": "REQUIRED",

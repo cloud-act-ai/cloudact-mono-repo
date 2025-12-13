@@ -39,6 +39,7 @@ import {
   type DynamicPlan,
 } from "@/actions/stripe"
 import { logError } from "@/lib/utils"
+import { formatCurrency as formatCurrencyI18n } from "@/lib/i18n"
 
 export default function BillingPage() {
   const params = useParams<{ orgSlug: string }>()
@@ -65,6 +66,7 @@ export default function BillingPage() {
   }>({ open: false, plan: null, isUpgrade: false })
   const [downgradeLimitError, setDowngradeLimitError] = useState<string | null>(null)
   const [currentMemberCount, setCurrentMemberCount] = useState<number>(0)
+  const [orgCurrency, setOrgCurrency] = useState<string>("USD")
 
   const orgSlug = params.orgSlug
 
@@ -86,7 +88,7 @@ export default function BillingPage() {
       // Fetch org basic info (include created_by for owner fallback check)
       const { data: orgData, error: orgError } = await supabase
         .from("organizations")
-        .select("plan, billing_status, stripe_subscription_id, id, created_by")
+        .select("plan, billing_status, stripe_subscription_id, id, created_by, default_currency")
         .eq("org_slug", orgSlug)
         .single()
 
@@ -100,6 +102,9 @@ export default function BillingPage() {
         setCurrentPlan(orgData.plan)
         setBillingStatus(orgData.billing_status)
         setHasStripeSubscription(!!orgData.stripe_subscription_id)
+        if (orgData.default_currency) {
+          setOrgCurrency(orgData.default_currency)
+        }
 
         // Fetch member count for limit validation
         const { count: memberCount } = await supabase
@@ -418,11 +423,8 @@ export default function BillingPage() {
     })
   }
 
-  const formatCurrency = (amount: number, currency: string = "USD") => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency,
-    }).format(amount)
+  const formatCurrency = (amount: number, currency?: string) => {
+    return formatCurrencyI18n(amount, currency || orgCurrency)
   }
 
   const isOwner = userRole === "owner"

@@ -25,6 +25,34 @@ function getApiServiceUrl(): string {
 }
 
 /**
+ * Fetch with timeout to prevent hanging requests
+ * Default timeout: 30 seconds (backend can be slow for large datasets)
+ */
+async function fetchWithTimeout(
+  url: string,
+  options: RequestInit = {},
+  timeoutMs = 30000
+): Promise<Response> {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    })
+    clearTimeout(timeoutId)
+    return response
+  } catch (error) {
+    clearTimeout(timeoutId)
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error(`Request timeout after ${timeoutMs}ms: ${url}`)
+    }
+    throw error
+  }
+}
+
+/**
  * Safely parse JSON response with error handling.
  * Returns fallback for empty responses, throws for parse errors.
  */
@@ -628,7 +656,7 @@ export async function getAllProviders(orgSlug: string): Promise<{
     if (orgApiKey) {
       try {
         const apiUrl = getApiServiceUrl()
-        const response = await fetch(
+        const response = await fetchWithTimeout(
           `${apiUrl}/api/v1/subscriptions/${orgSlug}/providers`,
           {
             headers: { "X-API-Key": orgApiKey },
@@ -711,7 +739,7 @@ export async function getProviderPlans(
     }
 
     const apiUrl = getApiServiceUrl()
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `${apiUrl}/api/v1/subscriptions/${orgSlug}/providers/${sanitizedProvider}/plans`,
       {
         headers: { "X-API-Key": orgApiKey },
@@ -793,7 +821,7 @@ export async function getAllPlansForCostDashboard(orgSlug: string): Promise<{
 
     // Use the new all-plans endpoint for a single API call
     const apiUrl = getApiServiceUrl()
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `${apiUrl}/api/v1/subscriptions/${orgSlug}/all-plans`,
       {
         headers: { "X-API-Key": orgApiKey },
@@ -1022,7 +1050,7 @@ export async function getSaaSSubscriptionCosts(
     if (endDate) params.append("end_date", endDate)
     if (params.toString()) url += `?${params.toString()}`
 
-    const response = await fetch(url, {
+    const response = await fetchWithTimeout(url, {
       headers: { "X-API-Key": orgApiKey },
     })
 
@@ -1173,7 +1201,7 @@ export async function createCustomPlan(
     }
 
     const apiUrl = getApiServiceUrl()
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `${apiUrl}/api/v1/subscriptions/${orgSlug}/providers/${sanitizedProvider}/plans`,
       {
         method: "POST",
@@ -1236,7 +1264,7 @@ export async function updatePlan(
     }
 
     const apiUrl = getApiServiceUrl()
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `${apiUrl}/api/v1/subscriptions/${orgSlug}/providers/${sanitizedProvider}/plans/${subscriptionId}`,
       {
         method: "PUT",
@@ -1428,7 +1456,7 @@ export async function editPlanWithVersion(
     }
 
     const apiUrl = getApiServiceUrl()
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `${apiUrl}/api/v1/subscriptions/${orgSlug}/providers/${sanitizedProvider}/plans/${subscriptionId}/edit-version`,
       {
         method: "POST",
@@ -1584,7 +1612,7 @@ export async function getAvailablePlans(
     }
 
     const apiUrl = getApiServiceUrl()
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `${apiUrl}/api/v1/subscriptions/${orgSlug}/providers/${sanitizedProvider}/available-plans`,
       {
         headers: { "X-API-Key": orgApiKey },

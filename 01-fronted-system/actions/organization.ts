@@ -16,6 +16,7 @@ import { createClient, createServiceRoleClient } from "@/lib/supabase/server"
 import { onboardToBackend } from "@/actions/backend-onboarding"
 import { stripe } from "@/lib/stripe"
 import { DEFAULT_TRIAL_DAYS } from "@/lib/constants"
+import { getCountryFromCurrency } from "@/lib/i18n"
 
 interface CreateOrganizationInput {
   name: string
@@ -28,6 +29,9 @@ interface CreateOrganizationInput {
     pipelinesPerDay: number
   }
   trialDays: number
+  // i18n fields (from signup form via user_metadata)
+  defaultCurrency?: string  // ISO 4217 (e.g., USD, AED)
+  defaultTimezone?: string  // IANA timezone (e.g., UTC, Asia/Dubai)
 }
 
 // Sanitize organization name to prevent XSS and SQL injection
@@ -116,6 +120,12 @@ export async function createOrganization(input: CreateOrganizationInput) {
     // Set to end of day UTC to be generous
     trialEndsAt.setUTCHours(23, 59, 59, 999)
 
+    // Derive i18n fields
+    const defaultCurrency = input.defaultCurrency || "USD"
+    const defaultTimezone = input.defaultTimezone || "UTC"
+    const defaultCountry = getCountryFromCurrency(defaultCurrency)
+    const defaultLanguage = "en"  // Always English for now
+
     // Insert organization using service role (bypasses RLS)
     // All limits come from Stripe metadata - no hardcoded values
     const { data: orgData, error: orgError } = await adminClient
@@ -132,6 +142,11 @@ export async function createOrganization(input: CreateOrganizationInput) {
         providers_limit: input.limits.providers,
         pipelines_per_day_limit: input.limits.pipelinesPerDay,
         created_by: user.id,
+        // i18n fields (from signup form)
+        default_currency: defaultCurrency,
+        default_country: defaultCountry,
+        default_language: defaultLanguage,
+        default_timezone: defaultTimezone,
       })
       .select()
       .single()
@@ -158,6 +173,9 @@ export async function createOrganization(input: CreateOrganizationInput) {
         companyName: sanitizedName,
         adminEmail: user.email || "",
         subscriptionPlan: mapPlanToBackendPlan(input.planId),
+        // i18n fields (from signup form)
+        defaultCurrency: input.defaultCurrency || "USD",
+        defaultTimezone: input.defaultTimezone || "UTC",
       })
 
       if (backendResult.success) {
@@ -282,6 +300,9 @@ export async function completeOnboarding(sessionId: string) {
     const companyName = session.metadata?.pending_company_name
     const companyType = session.metadata?.pending_company_type || "company"
     let orgSlug = session.metadata?.pending_org_slug
+    // i18n fields (from signup via session metadata)
+    const pendingCurrency = session.metadata?.pending_currency || "USD"
+    const pendingTimezone = session.metadata?.pending_timezone || "UTC"
 
     if (!companyName || !orgSlug) {
       return { success: false, error: "Missing company information" }
@@ -414,6 +435,11 @@ export async function completeOnboarding(sessionId: string) {
         providers_limit: limits.providers,
         pipelines_per_day_limit: limits.pipelinesPerDay,
         created_by: user.id,
+        // i18n fields (from signup via session metadata)
+        default_currency: pendingCurrency,
+        default_country: getCountryFromCurrency(pendingCurrency),
+        default_language: "en",  // Always English for now
+        default_timezone: pendingTimezone,
       })
       .select()
       .single()
@@ -460,6 +486,8 @@ export async function completeOnboarding(sessionId: string) {
         data: {
           pending_company_name: null,
           pending_company_type: null,
+          pending_currency: null,
+          pending_timezone: null,
           onboarding_completed_at: new Date().toISOString(),
         },
       })
@@ -481,6 +509,9 @@ export async function completeOnboarding(sessionId: string) {
         companyName: sanitizedName,
         adminEmail: user.email || "",
         subscriptionPlan: mapPlanToBackendPlan(planId),
+        // i18n fields (from signup via session metadata)
+        defaultCurrency: pendingCurrency,
+        defaultTimezone: pendingTimezone,
       })
 
       if (backendResult.success) {

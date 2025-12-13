@@ -38,6 +38,9 @@ export default function OnboardingPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [isCheckingAuth, setIsCheckingAuth] = useState(true)
   const [plans, setPlans] = useState<DynamicPlan[]>([])
+  // i18n settings from signup (stored in user_metadata)
+  const [pendingCurrency, setPendingCurrency] = useState<string>("USD")
+  const [pendingTimezone, setPendingTimezone] = useState<string>("UTC")
 
   const [isLoadingPlans, setIsLoadingPlans] = useState(true)
 
@@ -69,6 +72,15 @@ export default function OnboardingPage() {
         if (!user) {
           router.push("/signup")
           return
+        }
+
+        // Extract i18n settings from user_metadata (set during signup)
+        const metadata = user.user_metadata || {}
+        if (metadata.pending_currency) {
+          setPendingCurrency(metadata.pending_currency)
+        }
+        if (metadata.pending_timezone) {
+          setPendingTimezone(metadata.pending_timezone)
         }
 
         setIsCheckingAuth(false)
@@ -147,6 +159,9 @@ export default function OnboardingPage() {
           planId: selectedPlanData.id,
           limits: selectedPlanData.limits,
           trialDays: selectedPlanData.trialDays,
+          // i18n fields (from signup via user_metadata)
+          defaultCurrency: pendingCurrency,
+          defaultTimezone: pendingTimezone,
         })
 
         // Clear timeout since we got a response

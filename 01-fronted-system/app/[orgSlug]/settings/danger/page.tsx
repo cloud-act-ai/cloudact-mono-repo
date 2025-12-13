@@ -207,7 +207,8 @@ export default function DangerPage() {
         setSelectedOrgForDelete(null)
         await loadOwnedOrganizations()
         if (selectedOrgForDelete.org_slug === orgSlug) {
-          router.push("/dashboard")
+          // Redirect to home since current org was deleted
+          router.push("/")
         }
         setTimeout(() => setSuccess(null), 4000)
       } else {

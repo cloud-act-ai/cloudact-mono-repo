@@ -21,7 +21,18 @@ from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
 from src.core.security.kms_encryption import encrypt_value
 from src.app.config import settings
 from src.app.dependencies.auth import get_current_org, get_org_or_admin_auth, AuthResult, verify_admin_key
-from src.app.models.org_models import SUBSCRIPTION_LIMITS, SubscriptionPlan, UpdateLimitsRequest
+from src.app.models.org_models import SUBSCRIPTION_LIMITS, SubscriptionPlan, UpdateLimitsRequest, UpdateOrgLocaleRequest, OrgLocaleResponse
+from src.app.models.i18n_models import (
+    SupportedCurrency,
+    SUPPORTED_TIMEZONES,
+    DEFAULT_CURRENCY,
+    DEFAULT_TIMEZONE,
+    DEFAULT_LANGUAGE,
+    DEFAULT_COUNTRY,
+    get_country_from_currency,
+    CURRENCY_METADATA,
+    timezone_validator,
+)
 from src.core.utils.audit_logger import log_create, log_update, log_delete, log_audit, AuditLogger
 from src.core.utils.error_handling import safe_error_response
 from src.core.utils.validators import validate_org_slug, validate_email
@@ -55,6 +66,15 @@ class OnboardOrgRequest(BaseModel):
     subscription_plan: str = Field(
         default="STARTER",
         description="Subscription plan: STARTER, PROFESSIONAL, SCALE"
+    )
+    # i18n fields (set at signup)
+    default_currency: str = Field(
+        default="USD",
+        description="ISO 4217 currency code (e.g., USD, EUR, AED). Selected at signup."
+    )
+    default_timezone: str = Field(
+        default="UTC",
+        description="IANA timezone (e.g., UTC, Asia/Dubai). Selected at signup."
     )
     dataset_location: Optional[str] = Field(
         default=None,
@@ -94,12 +114,34 @@ class OnboardOrgRequest(BaseModel):
             raise ValueError(f'subscription_plan must be one of {allowed}')
         return v.upper()
 
+    @field_validator('default_currency')
+    @classmethod
+    def validate_default_currency(cls, v):
+        """Validate currency is supported."""
+        try:
+            SupportedCurrency(v)
+            return v
+        except ValueError:
+            supported = [c.value for c in SupportedCurrency]
+            raise ValueError(f'Unsupported currency: {v}. Supported: {", ".join(supported)}')
+
+    @field_validator('default_timezone')
+    @classmethod
+    def validate_default_timezone(cls, v):
+        """Validate timezone is supported."""
+        return timezone_validator(v)
+
 
 class OnboardOrgResponse(BaseModel):
     """Response for organization onboarding."""
     org_slug: str
     api_key: str  # Unencrypted - show once!
     subscription_plan: str
+    # i18n fields
+    default_currency: str = "USD"
+    default_country: str = "US"
+    default_language: str = "en"
+    default_timezone: str = "UTC"
     dataset_location: str  # (#49) Where the dataset was created
     dataset_created: bool
     tables_created: List[str]
@@ -435,7 +477,13 @@ async def onboard_org(
     if org_already_exists:
         logger.info(f"Re-sync path: Updating org details and regenerating API key for: {org_slug}")
 
-        # STEP 1: Update org profile (company name, admin email, subscription plan)
+        # STEP 1: Update org profile (company name, admin email, subscription plan, i18n)
+        # Derive i18n fields for fast path
+        fast_path_currency = request.default_currency
+        fast_path_timezone = request.default_timezone
+        fast_path_country = get_country_from_currency(fast_path_currency)
+        fast_path_language = DEFAULT_LANGUAGE.value
+
         try:
             update_profile_query = f"""
             UPDATE `{settings.gcp_project_id}.organizations.org_profiles`
@@ -443,6 +491,10 @@ async def onboard_org(
                 company_name = @company_name,
                 admin_email = @admin_email,
                 subscription_plan = @subscription_plan,
+                default_currency = @default_currency,
+                default_country = @default_country,
+                default_language = @default_language,
+                default_timezone = @default_timezone,
                 updated_at = CURRENT_TIMESTAMP()
             WHERE org_slug = @org_slug
             """
@@ -454,7 +506,11 @@ async def onboard_org(
                         bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
                         bigquery.ScalarQueryParameter("company_name", "STRING", request.company_name),
                         bigquery.ScalarQueryParameter("admin_email", "STRING", request.admin_email),
-                        bigquery.ScalarQueryParameter("subscription_plan", "STRING", request.subscription_plan)
+                        bigquery.ScalarQueryParameter("subscription_plan", "STRING", request.subscription_plan),
+                        bigquery.ScalarQueryParameter("default_currency", "STRING", fast_path_currency),
+                        bigquery.ScalarQueryParameter("default_country", "STRING", fast_path_country),
+                        bigquery.ScalarQueryParameter("default_language", "STRING", fast_path_language),
+                        bigquery.ScalarQueryParameter("default_timezone", "STRING", fast_path_timezone)
                     ]
                 )
             ).result()
@@ -586,6 +642,10 @@ async def onboard_org(
                 org_slug=org_slug,
                 api_key=api_key,
                 subscription_plan=request.subscription_plan,
+                default_currency=fast_path_currency,
+                default_country=fast_path_country,
+                default_language=fast_path_language,
+                default_timezone=fast_path_timezone,
                 dataset_location=request.dataset_location or settings.bigquery_location,  # (#49)
                 dataset_created=False,  # Already exists
                 tables_created=[],
@@ -606,11 +666,21 @@ async def onboard_org(
     try:
         logger.info(f"Creating org profile in organizations.org_profiles")
 
+        # Derive i18n fields: country from currency, language always "en"
+        default_currency = request.default_currency
+        default_timezone = request.default_timezone
+        default_country = get_country_from_currency(default_currency)
+        default_language = DEFAULT_LANGUAGE.value
+
         insert_profile_query = f"""
         INSERT INTO `{settings.gcp_project_id}.organizations.org_profiles`
-        (org_slug, company_name, admin_email, org_dataset_id, status, subscription_plan, created_at, updated_at)
+        (org_slug, company_name, admin_email, org_dataset_id, status, subscription_plan,
+         default_currency, default_country, default_language, default_timezone,
+         created_at, updated_at)
         VALUES
-        (@org_slug, @company_name, @admin_email, @org_dataset_id, 'ACTIVE', @subscription_plan, CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP())
+        (@org_slug, @company_name, @admin_email, @org_dataset_id, 'ACTIVE', @subscription_plan,
+         @default_currency, @default_country, @default_language, @default_timezone,
+         CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP())
         """
 
         bq_client.client.query(
@@ -621,7 +691,11 @@ async def onboard_org(
                     bigquery.ScalarQueryParameter("company_name", "STRING", request.company_name),
                     bigquery.ScalarQueryParameter("admin_email", "STRING", request.admin_email),
                     bigquery.ScalarQueryParameter("org_dataset_id", "STRING", org_slug),
-                    bigquery.ScalarQueryParameter("subscription_plan", "STRING", request.subscription_plan)
+                    bigquery.ScalarQueryParameter("subscription_plan", "STRING", request.subscription_plan),
+                    bigquery.ScalarQueryParameter("default_currency", "STRING", default_currency),
+                    bigquery.ScalarQueryParameter("default_country", "STRING", default_country),
+                    bigquery.ScalarQueryParameter("default_language", "STRING", default_language),
+                    bigquery.ScalarQueryParameter("default_timezone", "STRING", default_timezone)
                 ]
             )
         ).result()
@@ -978,6 +1052,10 @@ async def onboard_org(
         org_slug=org_slug,
         api_key=api_key,  # SAVE THIS - shown only once!
         subscription_plan=request.subscription_plan,
+        default_currency=default_currency,
+        default_country=default_country,
+        default_language=default_language,
+        default_timezone=default_timezone,
         dataset_location=dataset_location,  # (#49) Where the dataset was created
         dataset_created=dataset_created,
         tables_created=tables_created,
@@ -1992,4 +2070,223 @@ async def get_subscription(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to get subscription. Please check server logs for details."
+        )
+
+
+# ============================================
+# Organization Locale Endpoints (i18n)
+# ============================================
+
+@router.get(
+    "/organizations/{org_slug}/locale",
+    response_model=OrgLocaleResponse,
+    summary="Get organization locale settings",
+    description="Retrieves currency, country, language, and timezone for an organization"
+)
+async def get_org_locale(
+    org_slug: str,
+    auth: AuthResult = Depends(get_org_or_admin_auth),
+    bq_client: BigQueryClient = Depends(get_bigquery_client)
+):
+    """
+    Get locale settings for an organization.
+
+    Returns:
+    - default_currency: ISO 4217 currency code (e.g., USD, AED)
+    - default_country: ISO 3166-1 alpha-2 country code (auto-inferred from currency)
+    - default_language: BCP 47 language tag (always "en" for now)
+    - default_timezone: IANA timezone (e.g., UTC, Asia/Dubai)
+
+    Accepts EITHER:
+    - Organization API Key (X-API-Key header) - self-service access
+    - Root API Key (X-CA-Root-Key header) - admin can access any org
+    """
+    # Security check: if using org key, must match the org in URL
+    if not auth.is_admin and auth.org_slug != org_slug:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cannot access locale for another organization"
+        )
+
+    logger.info(f"Getting locale settings for organization: {org_slug}")
+
+    try:
+        query = f"""
+        SELECT
+            org_slug,
+            default_currency,
+            default_country,
+            default_language,
+            default_timezone
+        FROM `{settings.gcp_project_id}.organizations.org_profiles`
+        WHERE org_slug = @org_slug
+        LIMIT 1
+        """
+
+        result = list(bq_client.client.query(
+            query,
+            job_config=bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
+                ]
+            )
+        ).result())
+
+        if not result:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Organization '{org_slug}' not found"
+            )
+
+        row = result[0]
+
+        return OrgLocaleResponse(
+            org_slug=row["org_slug"],
+            default_currency=row.get("default_currency") or DEFAULT_CURRENCY.value,
+            default_country=row.get("default_country") or DEFAULT_COUNTRY,
+            default_language=row.get("default_language") or DEFAULT_LANGUAGE.value,
+            default_timezone=row.get("default_timezone") or DEFAULT_TIMEZONE
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get locale: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get locale settings. Please check server logs for details."
+        )
+
+
+@router.put(
+    "/organizations/{org_slug}/locale",
+    response_model=OrgLocaleResponse,
+    summary="Update organization locale settings",
+    description="Updates currency and timezone for an organization (country auto-inferred from currency)"
+)
+async def update_org_locale(
+    org_slug: str,
+    request: UpdateOrgLocaleRequest,
+    auth: AuthResult = Depends(get_org_or_admin_auth),
+    bq_client: BigQueryClient = Depends(get_bigquery_client)
+):
+    """
+    Update locale settings for an organization.
+
+    Updatable fields:
+    - default_currency: ISO 4217 currency code (e.g., USD, AED)
+    - default_timezone: IANA timezone (e.g., UTC, Asia/Dubai)
+
+    Auto-computed fields:
+    - default_country: Inferred from currency (e.g., AED → AE)
+    - default_language: Always "en" (not user-configurable yet)
+
+    Accepts EITHER:
+    - Organization API Key (X-API-Key header) - self-service update
+    - Root API Key (X-CA-Root-Key header) - admin can update any org
+    """
+    # Security check: if using org key, must match the org in URL
+    if not auth.is_admin and auth.org_slug != org_slug:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cannot update locale for another organization"
+        )
+
+    logger.info(f"Updating locale settings for organization: {org_slug}")
+
+    # Derive country from currency
+    new_currency = request.default_currency
+    new_timezone = request.default_timezone
+    new_country = get_country_from_currency(new_currency)
+    new_language = DEFAULT_LANGUAGE.value  # Always "en" for now
+
+    try:
+        # First verify org exists
+        check_query = f"""
+        SELECT org_slug
+        FROM `{settings.gcp_project_id}.organizations.org_profiles`
+        WHERE org_slug = @org_slug
+        LIMIT 1
+        """
+
+        check_result = list(bq_client.client.query(
+            check_query,
+            job_config=bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
+                ]
+            )
+        ).result())
+
+        if not check_result:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Organization '{org_slug}' not found"
+            )
+
+        # Update locale fields
+        update_query = f"""
+        UPDATE `{settings.gcp_project_id}.organizations.org_profiles`
+        SET
+            default_currency = @default_currency,
+            default_country = @default_country,
+            default_language = @default_language,
+            default_timezone = @default_timezone,
+            updated_at = CURRENT_TIMESTAMP()
+        WHERE org_slug = @org_slug
+        """
+
+        bq_client.client.query(
+            update_query,
+            job_config=bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                    bigquery.ScalarQueryParameter("default_currency", "STRING", new_currency),
+                    bigquery.ScalarQueryParameter("default_country", "STRING", new_country),
+                    bigquery.ScalarQueryParameter("default_language", "STRING", new_language),
+                    bigquery.ScalarQueryParameter("default_timezone", "STRING", new_timezone)
+                ]
+            )
+        ).result()
+
+        logger.info(
+            f"Updated locale settings for {org_slug}",
+            extra={
+                "event_type": "org_locale_updated",
+                "org_slug": org_slug,
+                "currency": new_currency,
+                "country": new_country,
+                "timezone": new_timezone
+            }
+        )
+
+        # Audit log
+        await log_update(
+            org_slug=org_slug,
+            resource_type=AuditLogger.RESOURCE_ORG,
+            resource_id=org_slug,
+            details={
+                "field": "locale",
+                "currency": new_currency,
+                "country": new_country,
+                "timezone": new_timezone
+            },
+            status=AuditLogger.STATUS_SUCCESS
+        )
+
+        return OrgLocaleResponse(
+            org_slug=org_slug,
+            default_currency=new_currency,
+            default_country=new_country,
+            default_language=new_language,
+            default_timezone=new_timezone
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to update locale: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update locale settings. Please check server logs for details."
         )

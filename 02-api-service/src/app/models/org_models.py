@@ -15,6 +15,20 @@ from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field, EmailStr, field_validator, computed_field, ConfigDict
 import re
 
+# Import i18n models
+from src.app.models.i18n_models import (
+    SupportedCurrency,
+    SupportedLanguage,
+    SUPPORTED_TIMEZONES,
+    DEFAULT_CURRENCY,
+    DEFAULT_TIMEZONE,
+    DEFAULT_LANGUAGE,
+    DEFAULT_COUNTRY,
+    get_country_from_currency,
+    currency_validator,
+    timezone_validator,
+)
+
 
 # ============================================================================
 # ENUMS
@@ -157,6 +171,15 @@ class OnboardOrgRequest(BaseModel):
         default=SubscriptionPlan.STARTER,
         description="Initial subscription plan"
     )
+    # i18n fields (set at signup)
+    default_currency: SupportedCurrency = Field(
+        default=DEFAULT_CURRENCY,
+        description="Default currency for cost display (ISO 4217). Selected at signup."
+    )
+    default_timezone: str = Field(
+        default=DEFAULT_TIMEZONE,
+        description="Default timezone (IANA format). Selected at signup."
+    )
 
     @field_validator('org_slug')
     @classmethod
@@ -169,12 +192,32 @@ class OnboardOrgRequest(BaseModel):
             )
         return v
 
+    @field_validator('default_timezone')
+    @classmethod
+    def validate_default_timezone(cls, v: str) -> str:
+        """Validate timezone is in supported list."""
+        return timezone_validator(v)
+
+    @computed_field
+    @property
+    def default_country(self) -> str:
+        """Auto-infer country from currency."""
+        return get_country_from_currency(self.default_currency.value)
+
+    @computed_field
+    @property
+    def default_language(self) -> str:
+        """Default language (English only for now)."""
+        return DEFAULT_LANGUAGE.value
+
     model_config = ConfigDict(extra="forbid", json_schema_extra={
         "example": {
             "org_slug": "acme_corp_prod",
             "company_name": "Acme Corporation",
             "admin_email": "admin@acme.com",
-            "subscription_plan": "STARTER"
+            "subscription_plan": "STARTER",
+            "default_currency": "USD",
+            "default_timezone": "America/New_York"
         }
     })
 
@@ -467,6 +510,66 @@ class UpdateLimitsRequest(BaseModel):
 # UpdateUserRequest removed - User management is now handled by Supabase frontend
 
 
+class UpdateOrgLocaleRequest(BaseModel):
+    """Request model for updating organization locale settings."""
+    default_currency: Optional[SupportedCurrency] = Field(
+        default=None,
+        description="ISO 4217 currency code (e.g., USD, EUR, AED)"
+    )
+    default_timezone: Optional[str] = Field(
+        default=None,
+        description="IANA timezone identifier (e.g., UTC, Asia/Dubai)"
+    )
+
+    @field_validator('default_timezone')
+    @classmethod
+    def validate_timezone(cls, v: Optional[str]) -> Optional[str]:
+        """Validate timezone is in supported list."""
+        if v is None:
+            return v
+        return timezone_validator(v)
+
+    @computed_field
+    @property
+    def default_country(self) -> Optional[str]:
+        """Auto-infer country from currency if currency is provided."""
+        if self.default_currency:
+            return get_country_from_currency(self.default_currency.value)
+        return None
+
+    model_config = ConfigDict(extra="forbid", json_schema_extra={
+        "example": {
+            "default_currency": "AED",
+            "default_timezone": "Asia/Dubai"
+        }
+    })
+
+
+class OrgLocaleResponse(BaseModel):
+    """Response model for organization locale settings."""
+    org_slug: str
+    default_currency: str
+    default_country: str
+    default_language: str
+    default_timezone: str
+    currency_symbol: str = Field(description="Currency symbol for display")
+    currency_name: str = Field(description="Currency full name")
+    currency_decimals: int = Field(description="Decimal places for currency")
+
+    model_config = ConfigDict(from_attributes=True, json_schema_extra={
+        "example": {
+            "org_slug": "acme_corp",
+            "default_currency": "AED",
+            "default_country": "AE",
+            "default_language": "en",
+            "default_timezone": "Asia/Dubai",
+            "currency_symbol": "د.إ",
+            "currency_name": "UAE Dirham",
+            "currency_decimals": 2
+        }
+    })
+
+
 # ============================================================================
 # RESPONSE MODELS
 # ============================================================================
@@ -479,6 +582,11 @@ class OrgProfileResponse(BaseModel):
     status: OrgStatus
     subscription_plan: SubscriptionPlan
     org_dataset_id: str
+    # i18n fields
+    default_currency: str = Field(default="USD", description="ISO 4217 currency code")
+    default_country: str = Field(default="US", description="ISO 3166-1 alpha-2 country code")
+    default_language: str = Field(default="en", description="BCP 47 language tag")
+    default_timezone: str = Field(default="UTC", description="IANA timezone identifier")
     created_at: datetime
     updated_at: datetime
 
@@ -490,6 +598,10 @@ class OrgProfileResponse(BaseModel):
             "status": "ACTIVE",
             "subscription_plan": "PROFESSIONAL",
             "org_dataset_id": "org_acme_corp_prod",
+            "default_currency": "AED",
+            "default_country": "AE",
+            "default_language": "en",
+            "default_timezone": "Asia/Dubai",
             "created_at": "2025-01-15T10:00:00Z",
             "updated_at": "2025-01-15T10:00:00Z"
         }

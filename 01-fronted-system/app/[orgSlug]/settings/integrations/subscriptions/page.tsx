@@ -629,7 +629,7 @@ export default function SubscriptionProvidersPage() {
 
       {/* Add Custom Provider Dialog */}
       <Dialog open={customDialogOpen} onOpenChange={handleDialogOpenChange}>
-        <DialogContent>
+        <DialogContent key={customDialogOpen ? 'custom-dialog-open' : 'custom-dialog-closed'}>
           <DialogHeader>
             <DialogTitle>Add Custom Provider</DialogTitle>
             <DialogDescription>
@@ -656,12 +656,13 @@ export default function SubscriptionProvidersPage() {
                 Category
               </Label>
               <Select
+                key={`category-${customProviderCategory}`}
                 value={customProviderCategory}
                 onValueChange={setCustomProviderCategory}
                 disabled={adding !== null}
               >
                 <SelectTrigger className="col-span-3" data-testid="custom-provider-category-select">
-                  <SelectValue />
+                  <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="ai">AI Tools</SelectItem>
@@ -703,12 +704,13 @@ export default function SubscriptionProvidersPage() {
                 Billing
               </Label>
               <Select
+                key={`billing-${billingCycle}`}
                 value={billingCycle}
                 onValueChange={(v) => setBillingCycle(v as "monthly" | "annual")}
                 disabled={adding !== null}
               >
                 <SelectTrigger className="col-span-3" data-testid="custom-provider-billing-select">
-                  <SelectValue />
+                  <SelectValue placeholder="Select billing cycle" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="monthly">Monthly</SelectItem>

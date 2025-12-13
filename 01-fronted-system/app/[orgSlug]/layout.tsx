@@ -1,6 +1,7 @@
 import type React from "react"
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
+import { headers } from "next/headers"
 import { DashboardSidebar } from "@/components/dashboard-sidebar"
 import { MobileHeader } from "@/components/mobile-header"
 import { SidebarProvider } from "@/components/ui/sidebar"
@@ -78,8 +79,14 @@ export default async function OrgLayout({
     .eq("status", "active")
 
   // Enforce active subscription for dashboard access
+  // Exempt billing and subscriptions pages from this check to allow users to manage their billing/subscriptions
+  // even when their subscription is inactive
+  const headersList = await headers()
+  const pathname = headersList.get('x-pathname') || ''
+  const isExemptRoute = pathname.includes('/billing') || pathname.includes('/subscriptions')
+
   const inactiveStatuses = ["canceled", "past_due", "incomplete", "unpaid", "incomplete_expired"]
-  if (org.billing_status && inactiveStatuses.includes(org.billing_status)) {
+  if (org.billing_status && inactiveStatuses.includes(org.billing_status) && !isExemptRoute) {
     redirect(`/${orgSlug}/billing?reason=subscription_required`)
   }
 

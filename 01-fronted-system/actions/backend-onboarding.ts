@@ -178,6 +178,9 @@ export async function onboardToBackend(input: {
   companyName: string
   adminEmail: string
   subscriptionPlan?: "STARTER" | "PROFESSIONAL" | "SCALE"
+  // i18n fields (from signup form)
+  defaultCurrency?: string  // ISO 4217 (e.g., USD, AED)
+  defaultTimezone?: string  // IANA timezone (e.g., UTC, Asia/Dubai)
 }): Promise<BackendOnboardingResult> {
   try {
     // Get current user
@@ -226,6 +229,9 @@ export async function onboardToBackend(input: {
       company_name: input.companyName,
       admin_email: input.adminEmail,
       subscription_plan: input.subscriptionPlan || "STARTER",
+      // i18n fields (default to USD/UTC if not provided)
+      default_currency: input.defaultCurrency || "USD",
+      default_timezone: input.defaultTimezone || "UTC",
     }
 
     console.log("[Backend Onboarding] Calling backend for:", input.orgSlug)
@@ -303,6 +309,9 @@ export async function onboardToBackend(input: {
           company_name: input.companyName,
           admin_email: input.adminEmail,
           subscription_plan: input.subscriptionPlan || "STARTER",
+          // i18n fields (default to USD/UTC if not provided)
+          default_currency: input.defaultCurrency || "USD",
+          default_timezone: input.defaultTimezone || "UTC",
           regenerate_api_key_if_exists: true,
         }
 
