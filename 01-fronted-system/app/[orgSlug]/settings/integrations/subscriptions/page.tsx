@@ -70,6 +70,7 @@ function SubscriptionProviderCard({
           router.push(`/${orgSlug}/subscriptions/${provider.provider}`)
         }
       }}
+      data-testid={`provider-card-${provider.provider}`}
     >
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
@@ -84,7 +85,7 @@ function SubscriptionProviderCard({
           </div>
           <div onClick={(e) => e.stopPropagation()}>
             {provider.is_enabled ? (
-              <Badge className="bg-green-100 text-green-700 border-green-200 hover:bg-green-100">
+              <Badge className="bg-green-100 text-green-700 border-green-200 hover:bg-green-100" data-testid={`provider-enabled-badge-${provider.provider}`}>
                 <Check className="h-3 w-3 mr-1" />
                 Enabled
               </Badge>
@@ -95,6 +96,7 @@ function SubscriptionProviderCard({
                 className="h-7 text-xs text-[#007A78] border-[#007A78]/30 hover:bg-[#F0FDFA]"
                 onClick={() => onToggle(provider.provider, true)}
                 disabled={isToggling}
+                data-testid={`provider-enable-btn-${provider.provider}`}
               >
                 {isToggling ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Enable'}
               </Button>
@@ -124,10 +126,22 @@ function SubscriptionProviderCard({
                   }}
                   disabled={isToggling}
                   title="Disable provider"
+                  aria-label={`Disable ${provider.display_name}`}
+                  data-testid={`provider-disable-btn-${provider.provider}`}
                 >
                   {isToggling ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Power className="h-3.5 w-3.5" />}
                 </Button>
-                <Button variant="ghost" size="sm" className="h-7 hover:bg-[#F0FDFA]">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 hover:bg-[#F0FDFA]"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    router.push(`/${orgSlug}/subscriptions/${provider.provider}`)
+                  }}
+                  aria-label={`Manage ${provider.display_name}`}
+                  data-testid={`provider-manage-btn-${provider.provider}`}
+                >
                   <ChevronRight className="h-4 w-4 text-[#007A78]" />
                 </Button>
               </>
@@ -386,7 +400,7 @@ export default function SubscriptionProvidersPage() {
         </div>
 
         {/* Provider Cards Skeleton */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 12 }).map((_, i) => (
             <Card key={i} className="console-stat-card">
               <CardHeader className="pb-2">
@@ -417,12 +431,24 @@ export default function SubscriptionProvidersPage() {
   return (
     <div className="space-y-6">
       {/* Breadcrumb Navigation */}
-      <nav className="flex items-center gap-2 text-sm text-gray-500 mb-4">
-        <Link href={`/${orgSlug}/settings`} className="hover:text-[#007A78]">Settings</Link>
-        <ChevronRight className="h-4 w-4" />
-        <Link href={`/${orgSlug}/settings/integrations`} className="hover:text-[#007A78]">Integrations</Link>
-        <ChevronRight className="h-4 w-4" />
-        <span className="text-gray-900 font-medium">Subscriptions</span>
+      <nav className="flex items-center gap-2 text-sm mb-4" aria-label="Breadcrumb">
+        <Link
+          href={`/${orgSlug}/settings`}
+          className="text-[#007A78] hover:text-[#005F5D] transition-colors focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2 rounded truncate max-w-[150px]"
+          title="Settings"
+        >
+          Settings
+        </Link>
+        <ChevronRight className="h-4 w-4 text-[#8E8E93] flex-shrink-0" aria-hidden="true" />
+        <Link
+          href={`/${orgSlug}/settings/integrations`}
+          className="text-[#007A78] hover:text-[#005F5D] transition-colors focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2 rounded truncate max-w-[150px]"
+          title="Integrations"
+        >
+          Integrations
+        </Link>
+        <ChevronRight className="h-4 w-4 text-[#8E8E93] flex-shrink-0" aria-hidden="true" />
+        <span className="text-gray-900 font-medium truncate max-w-[200px]" title="Subscriptions">Subscriptions</span>
       </nav>
 
       <div className="space-y-2">
@@ -483,7 +509,7 @@ export default function SubscriptionProvidersPage() {
             <p className="console-body text-slate-500">
               No subscription providers available.
             </p>
-            <Button onClick={openCustomDialog} className="mt-4 console-button-primary">
+            <Button onClick={openCustomDialog} className="mt-4 console-button-primary" data-testid="add-first-provider-btn">
               <Plus className="h-4 w-4 mr-2" />
               Add Your First Provider
             </Button>
@@ -491,7 +517,7 @@ export default function SubscriptionProvidersPage() {
         </Card>
       ) : (
         <>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {(showAllProviders ? filteredProviders : filteredProviders.slice(0, INITIAL_PROVIDERS_COUNT)).map((provider) => (
               <SubscriptionProviderCard
                 key={provider.provider}
@@ -505,8 +531,12 @@ export default function SubscriptionProvidersPage() {
 
           {/* No results message */}
           {filteredProviders.length === 0 && searchQuery && (
-            <div className="text-center py-8">
-              <p className="console-body text-gray-500">
+            <div className="text-center py-12">
+              <div className="inline-flex p-4 rounded-2xl bg-[#8E8E93]/10 mb-4">
+                <CreditCard className="h-12 w-12 text-[#8E8E93]" />
+              </div>
+              <h3 className="text-[20px] font-semibold text-black mb-2">No providers found</h3>
+              <p className="text-[15px] text-[#8E8E93]">
                 No providers found matching &quot;{searchQuery}&quot;
               </p>
             </div>
@@ -538,6 +568,7 @@ export default function SubscriptionProvidersPage() {
                 size="sm"
                 onClick={openCustomDialog}
                 className="text-[#007A78] border-[#007A78]/30 hover:bg-[#F0FDFA]"
+                data-testid="add-custom-provider-btn"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Add Custom Provider
@@ -582,6 +613,7 @@ export default function SubscriptionProvidersPage() {
                 onChange={(e) => setCustomProviderName(e.target.value)}
                 className="col-span-3"
                 disabled={adding !== null}
+                data-testid="custom-provider-name-input"
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
@@ -593,7 +625,7 @@ export default function SubscriptionProvidersPage() {
                 onValueChange={setCustomProviderCategory}
                 disabled={adding !== null}
               >
-                <SelectTrigger className="col-span-3">
+                <SelectTrigger className="col-span-3" data-testid="custom-provider-category-select">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -627,6 +659,7 @@ export default function SubscriptionProvidersPage() {
                   }}
                   className="flex-1"
                   disabled={adding !== null}
+                  data-testid="custom-provider-cost-input"
                 />
               </div>
             </div>
@@ -639,7 +672,7 @@ export default function SubscriptionProvidersPage() {
                 onValueChange={(v) => setBillingCycle(v as "monthly" | "annual")}
                 disabled={adding !== null}
               >
-                <SelectTrigger className="col-span-3">
+                <SelectTrigger className="col-span-3" data-testid="custom-provider-billing-select">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -667,6 +700,7 @@ export default function SubscriptionProvidersPage() {
                 }}
                 className="col-span-3"
                 disabled={adding !== null}
+                data-testid="custom-provider-seats-input"
               />
             </div>
           </div>
@@ -679,6 +713,7 @@ export default function SubscriptionProvidersPage() {
               onClick={handleAddCustomProvider}
               disabled={!customProviderName.trim() || adding !== null}
               className="console-button-primary"
+              data-testid="custom-provider-submit-btn"
             >
               {adding ? (
                 <>

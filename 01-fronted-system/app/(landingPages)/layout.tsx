@@ -118,29 +118,33 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
       {/* Skip to main content link for accessibility */}
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:top-4 focus:left-4 focus:px-4 focus:py-2 focus:bg-[#007A78] focus:text-white focus:rounded-lg focus:font-medium focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:px-4 focus:py-2 focus:bg-[#007A78] focus:text-white focus:rounded-lg focus:font-medium focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2"
+        style={{ zIndex: 'var(--z-skip-link)' }}
       >
         Skip to main content
       </a>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON_LD_STRING }} />
       <header
         className={`sticky top-0 z-50 w-full transition-all duration-300 ${scrolled
-          ? "border-b border-gray-200 bg-white/80 backdrop-blur-md"
+          ? "border-b border-gray-200 bg-white/95 backdrop-blur-md shadow-sm"
           : "bg-white"
           }`}
       >
         <div className="container flex h-16 items-center justify-between px-4 md:px-12">
-          <Link href="/" className="flex items-center gap-2 text-2xl md:text-3xl font-bold text-[#007A78] tracking-tight">
+          <Link
+            href="/"
+            className="flex items-center gap-2 text-2xl md:text-3xl font-bold text-[#007A78] tracking-tight hover:text-[#005F5D] transition-colors focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2 rounded-lg px-2 -ml-2"
+          >
             CloudAct.ai
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center gap-8">
+          <nav className="hidden lg:flex items-center gap-8" aria-label="Main navigation">
             {NAV_LINKS.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
-                className="text-gray-900 text-[15px] font-medium hover:text-[#007A78] transition-colors"
+                className="text-gray-900 text-[15px] font-medium hover:text-[#007A78] transition-colors focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2 rounded px-2 py-1"
               >
                 {link.label}
               </Link>
@@ -151,13 +155,13 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
           <div className="hidden md:flex items-center gap-4">
             <Link
               href="/login"
-              className="text-[#007A78] font-semibold text-sm hover:underline"
+              className="text-[#007A78] font-semibold text-sm hover:text-[#005F5D] hover:underline transition-colors focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2 rounded px-3 py-2"
             >
               Sign In
             </Link>
             <Link
               href="/signup"
-              className="cloudact-btn-primary"
+              className="cloudact-btn-primary focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2"
             >
               Get Started
               <ArrowRight className="ml-1.5 h-4 w-4" />
@@ -166,23 +170,28 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
 
           {/* Mobile Menu Button */}
           <button
-            className="lg:hidden flex h-10 w-10 items-center justify-center rounded-lg hover:bg-gray-100 transition-colors"
+            className="lg:hidden flex h-10 w-10 items-center justify-center rounded-lg hover:bg-[#007A78]/10 transition-colors focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
+            aria-expanded={mobileMenuOpen}
           >
-            {mobileMenuOpen ? <X className="h-5 w-5 text-gray-900" /> : <Menu className="h-5 w-5 text-gray-900" />}
+            {mobileMenuOpen ? (
+              <X className="h-5 w-5 text-[#007A78]" aria-hidden="true" />
+            ) : (
+              <Menu className="h-5 w-5 text-[#007A78]" aria-hidden="true" />
+            )}
           </button>
         </div>
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="lg:hidden border-t border-gray-200 bg-white">
+          <div className="lg:hidden border-t border-gray-200 bg-white" role="navigation" aria-label="Mobile navigation">
             <nav className="container px-4 py-6 space-y-4">
               {NAV_LINKS.map((link) => (
                 <Link
                   key={link.href}
                   href={link.href}
-                  className="block text-gray-900 text-base font-medium hover:text-[#007A78] transition-colors"
+                  className="block text-gray-900 text-base font-medium hover:text-[#007A78] hover:bg-[#007A78]/5 transition-colors rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   {link.label}
@@ -191,14 +200,14 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
               <div className="pt-4 space-y-3 border-t border-gray-200 mt-4">
                 <Link
                   href="/login"
-                  className="block py-3 text-[#007A78] font-semibold hover:underline"
+                  className="block py-3 px-3 text-[#007A78] font-semibold hover:text-[#005F5D] hover:bg-[#007A78]/5 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Sign In
                 </Link>
                 <Link
                   href="/signup"
-                  className="cloudact-btn-primary w-full justify-center"
+                  className="cloudact-btn-primary w-full justify-center focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Get Started

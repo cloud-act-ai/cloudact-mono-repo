@@ -391,8 +391,17 @@ export default function ProviderDetailPage() {
         return
       }
 
+      // Verify API returned the new version
+      if (!result.new_version_id && !result.plan) {
+        toast.warning(
+          "Update may not have been saved correctly. Please refresh the page and verify.",
+          { duration: 8000 }
+        )
+      } else {
+        toast.success("Subscription updated successfully")
+      }
+
       setShowEditDialog({ open: false, plan: null })
-      toast.success("Subscription updated successfully")
       await loadPlans()
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred"
@@ -429,8 +438,17 @@ export default function ProviderDetailPage() {
         return
       }
 
+      // Verify API confirmed the end
+      if (!result.plan && !result.updated) {
+        toast.warning(
+          "Subscription end may not have been saved correctly. Please refresh the page and verify.",
+          { duration: 8000 }
+        )
+      } else {
+        toast.success("Subscription ended successfully")
+      }
+
       setShowEndDialog({ open: false, plan: null })
-      toast.success("Subscription ended successfully")
       await loadPlans()
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred"
@@ -492,8 +510,17 @@ export default function ProviderDetailPage() {
         return
       }
 
+      // Verify API returned the created plan
+      if (!result.plan || !result.plan.subscription_id) {
+        toast.warning(
+          "Plan may not have been saved correctly. Please refresh the page and verify.",
+          { duration: 8000 }
+        )
+      } else {
+        toast.success("Subscription added successfully")
+      }
+
       setShowAddDialog(false) // This will trigger handleAddDialogOpenChange which resets form
-      toast.success("Subscription added successfully")
       await loadPlans()
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred"
@@ -574,10 +601,16 @@ export default function ProviderDetailPage() {
   return (
     <div className="p-6 space-y-6">
       {/* Breadcrumb Navigation */}
-      <nav className="flex items-center gap-2 text-sm text-gray-500">
-        <Link href={`/${orgSlug}/settings/integrations/subscriptions`} className="hover:text-[#007A78]">Subscriptions</Link>
-        <ChevronRight className="h-4 w-4" />
-        <span className="text-gray-900 font-medium">{providerDisplayName}</span>
+      <nav className="flex items-center gap-2 text-sm" aria-label="Breadcrumb">
+        <Link
+          href={`/${orgSlug}/settings/integrations/subscriptions`}
+          className="text-[#007A78] hover:text-[#005F5D] transition-colors focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2 rounded truncate max-w-[200px]"
+          title="Subscriptions"
+        >
+          Subscriptions
+        </Link>
+        <ChevronRight className="h-4 w-4 text-[#8E8E93] flex-shrink-0" aria-hidden="true" />
+        <span className="text-gray-900 font-medium truncate max-w-[300px]" title={providerDisplayName}>{providerDisplayName}</span>
       </nav>
 
       {/* Header */}
@@ -588,7 +621,7 @@ export default function ProviderDetailPage() {
               <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>
-          <div className="p-2.5 rounded-lg bg-gradient-to-br from-[#007A78]/10 to-[#14B8A6]/10 text-[#007A78]">
+          <div className="p-2.5 rounded-lg bg-gradient-to-br from-[#FF6E50]/10 to-[#FF8A73]/10 text-[#FF6E50]">
             {/* Get category from first plan if available, otherwise use default icon */}
             {plans.length > 0 && plans[0].category ? categoryIcons[plans[0].category] || categoryIcons.other : <CreditCard className="h-6 w-6" />}
           </div>
@@ -601,11 +634,11 @@ export default function ProviderDetailPage() {
         </div>
         {plans.length > 0 && (
           <div className="flex items-center gap-2">
-            <Button type="button" onClick={handleTemplateDialogOpen} className="console-button-primary" data-testid="add-from-template-btn">
+            <Button type="button" onClick={handleTemplateDialogOpen} className="h-[36px] px-4 bg-[#FF6E50] text-white hover:bg-[#E55A3C] rounded-xl text-[15px] font-semibold" data-testid="add-from-template-btn">
               <Plus className="h-4 w-4 mr-2" />
               Add from Template
             </Button>
-            <Button type="button" onClick={() => handleAddDialogOpenChange(true)} variant="outline" className="border-[#007A78]/30 text-[#007A78] hover:bg-[#007A78]/5" data-testid="add-custom-subscription-btn">
+            <Button type="button" onClick={() => handleAddDialogOpenChange(true)} variant="outline" className="border-[#FF6E50]/30 text-[#FF6E50] hover:bg-[#FF6E50]/5 rounded-xl" data-testid="add-custom-subscription-btn">
               <Plus className="h-4 w-4 mr-2" />
               Add Custom
             </Button>
@@ -647,30 +680,30 @@ export default function ProviderDetailPage() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="console-stat-card">
+        <Card className="console-stat-card border-[#FF6E50]/20">
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-[#007A78]">{formatCurrency(effectiveMonthlyCost)}</div>
+            <div className="text-2xl font-bold text-[#FF6E50]">{formatCurrency(effectiveMonthlyCost)}</div>
             <p className="text-sm text-muted-foreground">Monthly Cost</p>
             {costSummary && (
               <p className="text-xs text-muted-foreground mt-1">From pipeline data</p>
             )}
           </CardContent>
         </Card>
-        <Card className="console-stat-card">
+        <Card className="console-stat-card border-[#FF6E50]/20">
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold">{totalActiveSeats}</div>
+            <div className="text-2xl font-bold text-[#FF6E50]">{totalActiveSeats}</div>
             <p className="text-sm text-muted-foreground">Total Active Seats</p>
           </CardContent>
         </Card>
-        <Card className="console-stat-card">
+        <Card className="console-stat-card border-[#FF6E50]/20">
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold">{activeSubscriptionsCount}</div>
+            <div className="text-2xl font-bold text-[#FF6E50]">{activeSubscriptionsCount}</div>
             <p className="text-sm text-muted-foreground">Active Subscriptions</p>
           </CardContent>
         </Card>
-        <Card className="console-stat-card">
+        <Card className="console-stat-card border-[#FF6E50]/20">
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold">{visiblePlans.length}</div>
+            <div className="text-2xl font-bold text-[#FF6E50]">{visiblePlans.length}</div>
             <p className="text-sm text-muted-foreground">Available Plans</p>
           </CardContent>
         </Card>
@@ -688,7 +721,7 @@ export default function ProviderDetailPage() {
             </div>
             {deletedPlansCount > 0 && (
               <div className="flex items-center gap-2">
-                <label htmlFor="show-deleted" className="text-sm text-slate-500 cursor-pointer">
+                <label htmlFor="show-deleted" className="text-sm text-slate-500 cursor-pointer" data-testid="show-deleted-label">
                   Show cancelled ({deletedPlansCount})
                 </label>
                 <input
@@ -697,6 +730,7 @@ export default function ProviderDetailPage() {
                   checked={showDeleted}
                   onChange={(e) => setShowDeleted(e.target.checked)}
                   className="h-4 w-4 rounded border-slate-300 text-[#007A78] focus:ring-[#007A78] cursor-pointer"
+                  data-testid="show-deleted-checkbox"
                 />
               </div>
             )}
@@ -705,17 +739,19 @@ export default function ProviderDetailPage() {
         <CardContent className="px-0">
           {visiblePlans.length === 0 ? (
             <div className="text-center py-12 px-6">
-              <CreditCard className="h-12 w-12 mx-auto text-slate-300 mb-4" />
-              <h3 className="text-lg font-medium text-slate-900 mb-2">No subscriptions yet</h3>
-              <p className="text-slate-500 mb-6">
+              <div className="inline-flex p-4 rounded-2xl bg-[#007A78]/10 mb-4">
+                <CreditCard className="h-12 w-12 text-[#007A78]" />
+              </div>
+              <h3 className="text-[20px] font-semibold text-black mb-2">No subscriptions yet</h3>
+              <p className="text-[15px] text-[#8E8E93] mb-6">
                 Choose a predefined plan or create a custom one.
               </p>
               <div className="flex items-center justify-center gap-3">
-                <Button onClick={handleTemplateDialogOpen} className="console-button-primary">
+                <Button onClick={handleTemplateDialogOpen} className="h-[44px] px-6 bg-[#007A78] text-white hover:bg-[#006664] rounded-xl text-[15px] font-semibold shadow-sm">
                   <Plus className="h-4 w-4 mr-2" />
                   Add from Template
                 </Button>
-                <Button onClick={() => handleAddDialogOpenChange(true)} variant="outline" className="border-[#007A78]/30 text-[#007A78] hover:bg-[#007A78]/5">
+                <Button onClick={() => handleAddDialogOpenChange(true)} variant="outline" className="h-[44px] px-6 border-[#007A78]/30 text-[#007A78] hover:bg-[#007A78]/5 rounded-xl" data-testid="add-custom-subscription-empty-btn">
                   <Plus className="h-4 w-4 mr-2" />
                   Add Custom Subscription
                 </Button>
@@ -751,11 +787,12 @@ export default function ProviderDetailPage() {
                   }
 
                   return (
-                  <div key={plan.subscription_id}>
+                  <div key={plan.subscription_id} data-testid={`plan-row-${plan.subscription_id}`}>
                     {/* Main Row */}
                     <div
                       className={`console-table-row grid grid-cols-12 gap-4 px-4 py-3.5 items-center hover:bg-[#F0FDFA] cursor-pointer transition-colors ${!isActive ? "opacity-50" : ""}`}
                       onClick={() => setExpandedRow(expandedRow === plan.subscription_id ? null : plan.subscription_id)}
+                      data-testid={`plan-row-clickable-${plan.subscription_id}`}
                     >
                       <div className="col-span-1" onClick={(e) => e.stopPropagation()}>
                         <Badge
@@ -787,7 +824,7 @@ export default function ProviderDetailPage() {
                         </div>
                       </div>
                       <div className="col-span-2 text-right">
-                        <div className="font-medium text-[#007A78]">
+                        <div className="font-medium text-[#FF6E50]">
                           {formatCurrency(plan.unit_price_usd)}
                         </div>
                         {plan.pricing_model && (
@@ -809,7 +846,7 @@ export default function ProviderDetailPage() {
                           type="button"
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 text-[#007A78] hover:bg-[#007A78]/10"
+                          className="h-8 w-8 text-[#FF6E50] hover:bg-[#FF6E50]/10"
                           onClick={() => handleEditDialogOpenChange(true, plan)}
                           title="Edit plan"
                           aria-label="Edit plan"
@@ -921,7 +958,8 @@ export default function ProviderDetailPage() {
                     variant="outline"
                     size="sm"
                     onClick={() => handleAddDialogOpenChange(true)}
-                    className="text-[#007A78] border-[#007A78]/30 hover:bg-[#007A78]/5"
+                    className="text-[#FF6E50] border-[#FF6E50]/30 hover:bg-[#FF6E50]/5 rounded-xl"
+                    data-testid="add-custom-subscription-footer-btn"
                   >
                     <Plus className="h-4 w-4 mr-2" />
                     Add Custom Subscription
@@ -951,6 +989,8 @@ export default function ProviderDetailPage() {
                 maxLength={50}
                 value={newPlan.plan_name}
                 onChange={(e) => setNewPlan({ ...newPlan, plan_name: e.target.value })}
+                disabled={adding}
+                data-testid="add-plan-name-input"
               />
               <p className="text-xs text-slate-500">
                 This will be converted to uppercase (e.g., ENTERPRISE). Max 50 characters.
@@ -964,6 +1004,8 @@ export default function ProviderDetailPage() {
                 maxLength={100}
                 value={newPlan.display_name}
                 onChange={(e) => setNewPlan({ ...newPlan, display_name: e.target.value })}
+                disabled={adding}
+                data-testid="add-display-name-input"
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -981,6 +1023,8 @@ export default function ProviderDetailPage() {
                     const parsed = parseFloat(e.target.value)
                     setNewPlan({ ...newPlan, unit_price_usd: e.target.value === "" ? 0 : (isNaN(parsed) ? 0 : Math.max(0, parsed)) })
                   }}
+                  disabled={adding}
+                  data-testid="add-price-input"
                 />
               </div>
               <div className="space-y-2">
@@ -988,8 +1032,9 @@ export default function ProviderDetailPage() {
                 <Select
                   value={newPlan.billing_cycle}
                   onValueChange={(value) => setNewPlan({ ...newPlan, billing_cycle: value })}
+                  disabled={adding}
                 >
-                  <SelectTrigger id="billing">
+                  <SelectTrigger id="billing" data-testid="add-billing-select">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1006,8 +1051,9 @@ export default function ProviderDetailPage() {
                 <Select
                   value={newPlan.pricing_model}
                   onValueChange={(value) => setNewPlan({ ...newPlan, pricing_model: value as 'PER_SEAT' | 'FLAT_FEE' })}
+                  disabled={adding}
                 >
-                  <SelectTrigger id="pricing_model">
+                  <SelectTrigger id="pricing_model" data-testid="add-pricing-model-select">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1021,8 +1067,9 @@ export default function ProviderDetailPage() {
                 <Select
                   value={newPlan.currency}
                   onValueChange={(value) => setNewPlan({ ...newPlan, currency: value })}
+                  disabled={adding}
                 >
-                  <SelectTrigger id="currency">
+                  <SelectTrigger id="currency" data-testid="add-currency-select">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1049,6 +1096,8 @@ export default function ProviderDetailPage() {
                   const bounded = Math.min(10000, Math.max(0, isNaN(parsed) ? 0 : parsed))
                   setNewPlan({ ...newPlan, seats: e.target.value === "" ? 0 : bounded })
                 }}
+                disabled={adding}
+                data-testid="add-seats-input"
               />
             </div>
             <div className="space-y-2">
@@ -1057,6 +1106,8 @@ export default function ProviderDetailPage() {
                 date={addStartDate}
                 onSelect={setAddStartDate}
                 placeholder="Select start date"
+                disabled={adding}
+                data-testid="add-start-date-picker"
               />
               <p className="text-xs text-slate-500">
                 When does this subscription start? Future dates will show as &quot;Pending&quot;.
@@ -1070,6 +1121,8 @@ export default function ProviderDetailPage() {
                 maxLength={500}
                 value={newPlan.notes}
                 onChange={(e) => setNewPlan({ ...newPlan, notes: e.target.value })}
+                disabled={adding}
+                data-testid="add-notes-input"
               />
             </div>
           </div>
@@ -1081,7 +1134,8 @@ export default function ProviderDetailPage() {
               type="button"
               onClick={handleAdd}
               disabled={adding || !newPlan.plan_name.trim() || !addStartDate}
-              className="console-button-primary"
+              className="h-[36px] px-4 bg-[#FF6E50] text-white hover:bg-[#E55A3C] rounded-xl text-[15px] font-semibold disabled:bg-[#E5E5EA] disabled:text-[#C7C7CC]"
+              data-testid="add-subscription-submit-btn"
             >
               {adding ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Check className="h-4 w-4 mr-2" />}
               Add Subscription
@@ -1124,7 +1178,7 @@ export default function ProviderDetailPage() {
                   )}
                   <div>
                     <span className="text-slate-500">Price:</span>
-                    <span className="ml-2 font-medium text-[#007A78]">{formatCurrency(showEditDialog.plan.unit_price_usd)}/{showEditDialog.plan.billing_cycle}</span>
+                    <span className="ml-2 font-medium text-[#FF6E50]">{formatCurrency(showEditDialog.plan.unit_price_usd)}/{showEditDialog.plan.billing_cycle}</span>
                   </div>
                   <div>
                     <span className="text-slate-500">Seats:</span>
@@ -1154,6 +1208,8 @@ export default function ProviderDetailPage() {
                 onSelect={setEditEffectiveDate}
                 placeholder="Select effective date"
                 minDate={new Date()}
+                disabled={editing}
+                data-testid="edit-effective-date-picker"
               />
               <p className="text-xs text-slate-500">
                 Current plan ends {editEffectiveDate ? format(new Date(editEffectiveDate.getTime() - 86400000), 'MMM d, yyyy') : 'day before effective date'}. New plan starts on effective date.
@@ -1176,6 +1232,8 @@ export default function ProviderDetailPage() {
                     const parsed = parseFloat(e.target.value)
                     setEditPlanData({ ...editPlanData, unit_price_usd: e.target.value === "" ? 0 : (isNaN(parsed) ? 0 : Math.max(0, parsed)) })
                   }}
+                  disabled={editing}
+                  data-testid="edit-price-input"
                 />
               </div>
               <div className="space-y-2">
@@ -1194,6 +1252,8 @@ export default function ProviderDetailPage() {
                     const bounded = Math.min(10000, Math.max(0, isNaN(parsed) ? 0 : parsed))
                     setEditPlanData({ ...editPlanData, seats: e.target.value === "" ? 0 : bounded })
                   }}
+                  disabled={editing}
+                  data-testid="edit-seats-input"
                 />
               </div>
             </div>
@@ -1203,8 +1263,9 @@ export default function ProviderDetailPage() {
                 <Select
                   value={editPlanData.billing_cycle}
                   onValueChange={(value) => setEditPlanData({ ...editPlanData, billing_cycle: value })}
+                  disabled={editing}
                 >
-                  <SelectTrigger id="edit_billing">
+                  <SelectTrigger id="edit_billing" data-testid="edit-billing-select">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1219,8 +1280,9 @@ export default function ProviderDetailPage() {
                 <Select
                   value={editPlanData.pricing_model}
                   onValueChange={(value) => setEditPlanData({ ...editPlanData, pricing_model: value as 'PER_SEAT' | 'FLAT_FEE' })}
+                  disabled={editing}
                 >
-                  <SelectTrigger id="edit_pricing_model">
+                  <SelectTrigger id="edit_pricing_model" data-testid="edit-pricing-model-select">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1238,6 +1300,8 @@ export default function ProviderDetailPage() {
                 maxLength={500}
                 value={editPlanData.notes}
                 onChange={(e) => setEditPlanData({ ...editPlanData, notes: e.target.value })}
+                disabled={editing}
+                data-testid="edit-notes-input"
               />
             </div>
           </div>
@@ -1249,7 +1313,8 @@ export default function ProviderDetailPage() {
               type="button"
               onClick={handleEdit}
               disabled={editing || !editEffectiveDate}
-              className="console-button-primary"
+              className="h-[36px] px-4 bg-[#FF6E50] text-white hover:bg-[#E55A3C] rounded-xl text-[15px] font-semibold disabled:bg-[#E5E5EA] disabled:text-[#C7C7CC]"
+              data-testid="edit-subscription-submit-btn"
             >
               {editing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Check className="h-4 w-4 mr-2" />}
               Update Subscription
@@ -1322,6 +1387,8 @@ export default function ProviderDetailPage() {
                 date={endDate}
                 onSelect={setEndDate}
                 placeholder="Select end date"
+                disabled={ending}
+                data-testid="end-date-picker"
               />
               <p className="text-xs text-slate-500">
                 Costs will stop being calculated after this date.
@@ -1337,6 +1404,7 @@ export default function ProviderDetailPage() {
               variant="destructive"
               onClick={handleEndSubscription}
               disabled={ending || !endDate}
+              data-testid="end-subscription-submit-btn"
             >
               {ending ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -1365,9 +1433,12 @@ export default function ProviderDetailPage() {
               </div>
             ) : availablePlans.length === 0 ? (
               <div className="text-center py-8">
-                <CreditCard className="h-12 w-12 mx-auto text-slate-300 mb-4" />
-                <p className="text-slate-500">No templates available for this provider.</p>
-                <Button onClick={() => { setShowTemplateDialog(false); handleAddDialogOpenChange(true) }} className="mt-4 console-button-primary">
+                <div className="inline-flex p-4 rounded-2xl bg-[#8E8E93]/10 mb-4">
+                  <CreditCard className="h-12 w-12 text-[#8E8E93]" />
+                </div>
+                <h3 className="text-[17px] font-semibold text-black mb-2">No templates available</h3>
+                <p className="text-[15px] text-[#8E8E93] mb-6">No templates available for this provider.</p>
+                <Button onClick={() => { setShowTemplateDialog(false); handleAddDialogOpenChange(true) }} className="h-[44px] px-6 bg-[#007A78] text-white hover:bg-[#006664] rounded-xl text-[15px] font-semibold shadow-sm">
                   <Plus className="h-4 w-4 mr-2" />
                   Create Custom Plan
                 </Button>
@@ -1378,7 +1449,7 @@ export default function ProviderDetailPage() {
                   <button
                     key={`${plan.plan_name}-${index}`}
                     onClick={() => handleSelectTemplate(plan)}
-                    className="w-full text-left p-4 rounded-lg border border-slate-200 hover:border-[#007A78] hover:bg-[#F0FDFA] transition-colors"
+                    className="w-full text-left p-4 rounded-lg border border-slate-200 hover:border-[#FF6E50] hover:bg-[#FFF5F3] transition-colors"
                   >
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
@@ -1386,7 +1457,7 @@ export default function ProviderDetailPage() {
                         <Badge variant="outline" className="capitalize text-xs">{plan.billing_cycle}</Badge>
                       </div>
                       <div className="text-right">
-                        <div className="text-lg font-bold text-[#007A78]">{formatCurrency(plan.unit_price_usd)}</div>
+                        <div className="text-lg font-bold text-[#FF6E50]">{formatCurrency(plan.unit_price_usd)}</div>
                         <div className="text-xs text-slate-500">
                           {plan.pricing_model === 'PER_SEAT' ? '/seat' : 'flat fee'}
                         </div>

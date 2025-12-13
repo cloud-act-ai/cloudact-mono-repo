@@ -267,7 +267,7 @@ export default function MembersPage() {
         {isOwner && (
           <Dialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen}>
             <DialogTrigger asChild>
-              <Button disabled={!seatLimit || seatsAvailable <= 0} className="h-[36px] px-4 bg-[#007A78] text-white rounded-xl text-[15px] font-semibold hover:bg-[#006664]">
+              <Button disabled={!seatLimit || seatsAvailable <= 0} className="h-[36px] px-4 bg-[#14B8A6] text-white rounded-xl text-[15px] font-semibold hover:bg-[#0F9C8C] shadow-sm transition-colors">
                 <UserPlus className="mr-2 h-4 w-4" />
                 Invite Member
               </Button>
@@ -345,10 +345,10 @@ export default function MembersPage() {
                   )}
 
                   <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsInviteDialogOpen(false)} className="h-[36px] px-4 rounded-xl text-[15px]">
+                    <Button variant="outline" onClick={() => setIsInviteDialogOpen(false)} className="h-[36px] px-4 rounded-xl text-[15px] border border-[#E5E5EA]">
                       Cancel
                     </Button>
-                    <Button onClick={handleInvite} disabled={isInviting || !inviteEmail || !validateEmail(inviteEmail)} className="h-[36px] px-4 bg-[#007A78] text-white rounded-xl text-[15px] font-semibold hover:bg-[#006664]">
+                    <Button onClick={handleInvite} disabled={isInviting || !inviteEmail || !validateEmail(inviteEmail)} className="h-[36px] px-4 bg-[#14B8A6] text-white rounded-xl text-[15px] font-semibold hover:bg-[#0F9C8C] shadow-sm transition-colors">
                       {isInviting ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       ) : (
@@ -377,10 +377,10 @@ export default function MembersPage() {
         </Alert>
       )}
 
-      <div className="health-card">
+      <div className="health-card shadow-sm">
         <div className="health-card-header mb-4">
           <div className="flex items-center gap-2">
-            <Users className="h-5 w-5 text-[#007A78]" />
+            <Users className="h-5 w-5 text-[#14B8A6]" />
             <h2 className="text-[22px] font-bold text-black">Active Members ({members.length})</h2>
           </div>
           <p className="text-[13px] sm:text-[15px] text-[#8E8E93] mt-1">People who have access to this organization</p>
@@ -388,13 +388,15 @@ export default function MembersPage() {
         <div className="health-card-content">
           {members.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
-              <Users className="h-12 w-12 text-gray-500/50 mb-4" />
-              <h3 className="text-[17px] font-semibold text-black mb-1">No team members yet</h3>
-              <p className="text-[13px] sm:text-[15px] text-[#8E8E93] mb-4">
+              <div className="inline-flex p-4 rounded-2xl bg-[#007A78]/10 mb-4">
+                <Users className="h-12 w-12 text-[#007A78]" />
+              </div>
+              <h3 className="text-[20px] font-semibold text-black mb-2">No team members yet</h3>
+              <p className="text-[15px] text-[#8E8E93] mb-6 max-w-md mx-auto">
                 Get started by inviting your first team member
               </p>
               {isOwner && (
-                <Button onClick={() => setIsInviteDialogOpen(true)} disabled={!seatLimit || seatsAvailable <= 0} className="h-[36px] px-4 bg-[#007A78] text-white rounded-xl text-[15px] font-semibold hover:bg-[#006664]">
+                <Button onClick={() => setIsInviteDialogOpen(true)} disabled={!seatLimit || seatsAvailable <= 0} className="h-[44px] px-6 bg-[#007A78] text-white rounded-xl text-[15px] font-semibold hover:bg-[#006664] shadow-sm">
                   <UserPlus className="mr-2 h-4 w-4" />
                   Invite Member
                 </Button>
@@ -411,7 +413,7 @@ export default function MembersPage() {
                   <div className="flex items-center gap-2 flex-shrink-0">
                     {isOwner && member.role !== "owner" ? (
                       <Select value={member.role} onValueChange={(v: "collaborator" | "read_only") => handleUpdateRole(member.user_id, v)}>
-                        <SelectTrigger className="w-[140px] h-[36px]">
+                        <SelectTrigger className="w-[140px] h-[36px] border border-[#E5E5EA] rounded-lg">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -420,7 +422,7 @@ export default function MembersPage() {
                         </SelectContent>
                       </Select>
                     ) : (
-                      <Badge variant={member.role === "owner" ? "default" : "secondary"} className={member.role === "owner" ? "bg-[#007A78]/12 text-[#007A78] border-0 capitalize" : "bg-[#8E8E93]/12 text-[#8E8E93] border-0 capitalize"}>
+                      <Badge variant={member.role === "owner" ? "default" : "secondary"} className={member.role === "owner" ? "bg-[#14B8A6]/12 text-[#14B8A6] border-0 capitalize" : "bg-[#8E8E93]/12 text-[#8E8E93] border-0 capitalize"}>
                         {member.role === "read_only" ? "Read Only" : member.role}
                       </Badge>
                     )}
@@ -461,10 +463,10 @@ export default function MembersPage() {
 
 
       {invites.length > 0 && (
-        <div className="health-card">
+        <div className="health-card shadow-sm">
           <div className="health-card-header mb-4">
             <div className="flex items-center gap-2">
-              <Mail className="h-5 w-5 text-[#007A78]" />
+              <Mail className="h-5 w-5 text-[#14B8A6]" />
               <h2 className="text-[22px] font-bold text-black">Pending Invites ({invites.length})</h2>
             </div>
             <p className="text-[13px] sm:text-[15px] text-[#8E8E93] mt-1">Invitations that haven't been accepted yet</p>
@@ -497,10 +499,10 @@ export default function MembersPage() {
         </div>
       )}
 
-      <div className="health-card">
+      <div className="health-card shadow-sm">
         <div className="health-card-header mb-4">
           <div className="flex items-center gap-2">
-            <Shield className="h-5 w-5 text-[#007A78]" />
+            <Shield className="h-5 w-5 text-[#14B8A6]" />
             <h2 className="text-[22px] font-bold text-black">Role Permissions</h2>
           </div>
           <p className="text-[13px] sm:text-[15px] text-[#8E8E93] mt-1">What each role can do in your organization</p>
@@ -508,11 +510,11 @@ export default function MembersPage() {
         <div className="health-card-content">
           <div className="overflow-x-auto -mx-4 sm:-mx-6 px-4 sm:px-6">
             <div className="min-w-[400px] space-y-3 sm:space-y-4">
-              <div className="console-table-header grid grid-cols-4 gap-3 sm:gap-4">
-                <div>Permission</div>
-                <div className="text-center">Owner</div>
-                <div className="text-center">Collaborator</div>
-                <div className="text-center">Read Only</div>
+              <div className="console-table-header grid grid-cols-4 gap-3 sm:gap-4 border-b border-[#E5E5EA] pb-2">
+                <div className="font-semibold text-gray-700">Permission</div>
+                <div className="text-center font-semibold text-gray-700">Owner</div>
+                <div className="text-center font-semibold text-gray-700">Collaborator</div>
+                <div className="text-center font-semibold text-gray-700">Read Only</div>
               </div>
               {[
                 { label: "View data", owner: true, collab: true, readonly: true },
@@ -521,11 +523,11 @@ export default function MembersPage() {
                 { label: "Manage roles", owner: true, collab: false, readonly: false },
                 { label: "Access billing", owner: true, collab: false, readonly: false },
               ].map((perm) => (
-                <div key={perm.label} className="console-table-row grid grid-cols-4 gap-3 sm:gap-4 py-3 hover:bg-[#F5F5F7] rounded-lg px-3">
-                  <div className="console-table-cell text-[13px] sm:text-[15px]">{perm.label}</div>
-                  <div className="console-table-cell text-center text-[13px] sm:text-[15px]">{perm.owner ? "✓" : "✗"}</div>
-                  <div className="console-table-cell text-center text-[13px] sm:text-[15px]">{perm.collab ? "✓" : "✗"}</div>
-                  <div className="console-table-cell text-center text-[13px] sm:text-[15px]">{perm.readonly ? "✓" : "✗"}</div>
+                <div key={perm.label} className="console-table-row grid grid-cols-4 gap-3 sm:gap-4 py-3 hover:bg-[#F5F5F7] rounded-lg px-3 transition-colors border-b border-[#E5E5EA] last:border-0">
+                  <div className="console-table-cell text-[13px] sm:text-[15px] text-gray-800">{perm.label}</div>
+                  <div className="console-table-cell text-center text-[13px] sm:text-[15px]">{perm.owner ? <span className="text-[#14B8A6]">✓</span> : <span className="text-gray-300">✗</span>}</div>
+                  <div className="console-table-cell text-center text-[13px] sm:text-[15px]">{perm.collab ? <span className="text-[#14B8A6]">✓</span> : <span className="text-gray-300">✗</span>}</div>
+                  <div className="console-table-cell text-center text-[13px] sm:text-[15px]">{perm.readonly ? <span className="text-[#14B8A6]">✓</span> : <span className="text-gray-300">✗</span>}</div>
                 </div>
               ))}
             </div>

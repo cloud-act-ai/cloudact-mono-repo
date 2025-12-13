@@ -238,8 +238,8 @@ export function DashboardSidebar({
                   asChild
                   tooltip="Dashboard"
                   className={cn(
-                    "h-[42px] px-5 text-[14px] font-normal text-black hover:bg-[#007A78]/5 rounded-none",
-                    isActive(`/${orgSlug}/dashboard`, true) && "bg-[#007AFF]/10 text-[#007AFF] font-medium",
+                    "h-[42px] px-5 text-[14px] font-medium text-black hover:bg-[#007A78]/5 rounded-none",
+                    isActive(`/${orgSlug}/dashboard`, true) && "bg-[#007A78]/10 text-[#007A78] font-semibold",
                   )}
                 >
                   <Link href={`/${orgSlug}/dashboard`}>
@@ -255,8 +255,8 @@ export function DashboardSidebar({
                   asChild
                   tooltip="Subscription Costs"
                   className={cn(
-                    "h-[42px] px-5 text-[14px] font-normal text-black hover:bg-[#007A78]/5 rounded-none",
-                    isActive(`/${orgSlug}/subscriptions`, true) && "bg-[#FF6E50]/10 text-[#FF6E50] font-medium",
+                    "h-[42px] px-5 text-[14px] font-medium text-black hover:bg-[#FF6E50]/5 rounded-none",
+                    isActive(`/${orgSlug}/subscriptions`, true) && "bg-[#FF6E50]/10 text-[#FF6E50] font-semibold",
                   )}
                 >
                   <Link href={`/${orgSlug}/subscriptions`}>
@@ -274,13 +274,13 @@ export function DashboardSidebar({
                   aria-controls="pipelines-submenu"
                   tooltip="Pipelines"
                   className={cn(
-                    "h-[42px] px-5 text-[14px] font-normal text-black hover:bg-[#007A78]/5 justify-between rounded-none",
-                    pipelinesExpanded && "font-medium",
-                    isActive(`/${orgSlug}/pipelines`) && "bg-[#AF52DE]/10 text-[#AF52DE] font-medium",
+                    "h-[42px] px-5 text-[14px] font-medium text-black hover:bg-[#007A78]/5 justify-between rounded-none",
+                    pipelinesExpanded && "font-semibold",
+                    isActive(`/${orgSlug}/pipelines`) && "bg-[#007A78]/10 text-[#007A78] font-semibold",
                   )}
                 >
                   <div className="flex items-center gap-3">
-                    <Play className="h-5 w-5 text-[#AF52DE]" />
+                    <Play className="h-5 w-5 text-[#005F5D]" />
                     <span>Pipelines</span>
                   </div>
                   <ChevronRight
@@ -300,11 +300,11 @@ export function DashboardSidebar({
                       asChild
                       className={cn(
                         "h-[32px] pl-4 pr-5 text-[12px] text-[#8E8E93] hover:bg-[#007A78]/5 hover:text-[#007A78] rounded-none",
-                        isActive(`/${orgSlug}/pipelines`, true) && "text-[#AF52DE] font-medium bg-[#AF52DE]/8",
+                        isActive(`/${orgSlug}/pipelines`, true) && "text-[#007A78] font-semibold bg-[#007A78]/10",
                       )}
                     >
                       <Link href={`/${orgSlug}/pipelines`}>
-                        <List className="h-3.5 w-3.5 text-[#AF52DE]" />
+                        <List className="h-3.5 w-3.5 text-[#005F5D]" />
                         <span>List / Run</span>
                       </Link>
                     </SidebarMenuButton>
@@ -320,13 +320,13 @@ export function DashboardSidebar({
                   aria-controls="integrations-submenu"
                   tooltip="Integrations"
                   className={cn(
-                    "h-[42px] px-5 text-[14px] font-normal text-black hover:bg-[#007A78]/5 justify-between rounded-none",
-                    integrationsExpanded && "font-medium",
-                    isActive(`/${orgSlug}/settings/integrations`) && "bg-[#FF9500]/10 text-[#FF9500] font-medium",
+                    "h-[42px] px-5 text-[14px] font-medium text-black hover:bg-[#007A78]/5 justify-between rounded-none",
+                    integrationsExpanded && "font-semibold",
+                    isActive(`/${orgSlug}/settings/integrations`) && "bg-[#007A78]/10 text-[#007A78] font-semibold",
                   )}
                 >
                   <div className="flex items-center gap-3">
-                    <Plug className="h-5 w-5 text-[#FF9500]" />
+                    <Plug className="h-5 w-5 text-[#14B8A6]" />
                     <span>Integrations</span>
                   </div>
                   <ChevronRight
@@ -347,11 +347,11 @@ export function DashboardSidebar({
                       asChild
                       className={cn(
                         "h-[32px] pl-4 pr-5 text-[12px] text-[#8E8E93] hover:bg-[#007A78]/5 hover:text-[#007A78] rounded-none",
-                        isActive(`/${orgSlug}/settings/integrations/cloud`, true) && "text-[#007AFF] font-medium bg-[#007AFF]/8",
+                        isActive(`/${orgSlug}/settings/integrations/cloud`, true) && "text-[#007A78] font-semibold bg-[#007A78]/10",
                       )}
                     >
                       <Link href={`/${orgSlug}/settings/integrations/cloud`}>
-                        <Cloud className="h-3.5 w-3.5 text-[#007AFF]" />
+                        <Cloud className="h-3.5 w-3.5 text-[#007A78]" />
                         <span>Cloud Providers</span>
                       </Link>
                     </SidebarMenuButton>
@@ -362,11 +362,11 @@ export function DashboardSidebar({
                       asChild
                       className={cn(
                         "h-[32px] pl-4 pr-5 text-[12px] text-[#8E8E93] hover:bg-[#007A78]/5 hover:text-[#007A78] rounded-none",
-                        isActive(`/${orgSlug}/settings/integrations/llm`, true) && "text-[#FF2D55] font-medium bg-[#FF2D55]/8",
+                        isActive(`/${orgSlug}/settings/integrations/llm`, true) && "text-[#007A78] font-semibold bg-[#007A78]/10",
                       )}
                     >
                       <Link href={`/${orgSlug}/settings/integrations/llm`}>
-                        <Brain className="h-3.5 w-3.5 text-[#FF2D55]" />
+                        <Brain className="h-3.5 w-3.5 text-[#005F5D]" />
                         <span>LLM Providers</span>
                       </Link>
                     </SidebarMenuButton>
@@ -376,15 +376,15 @@ export function DashboardSidebar({
                     <SidebarMenuButton
                       onClick={() => setSubscriptionsExpanded(!subscriptionsExpanded)}
                       className={cn(
-                        "h-[32px] pl-4 pr-5 text-[12px] text-[#8E8E93] hover:bg-[#007A78]/5 hover:text-[#007A78] justify-between rounded-none",
-                        isActive(`/${orgSlug}/settings/integrations/subscriptions`) && "text-[#34C759] font-medium bg-[#34C759]/8",
+                        "h-[32px] pl-4 pr-5 text-[12px] text-[#8E8E93] hover:bg-[#FF6E50]/5 hover:text-[#FF6E50] justify-between rounded-none",
+                        isActive(`/${orgSlug}/settings/integrations/subscriptions`) && "text-[#FF6E50] font-semibold bg-[#FF6E50]/10",
                       )}
                     >
                       <div className="flex items-center gap-2">
-                        <Wallet className="h-3.5 w-3.5 text-[#34C759]" />
+                        <Wallet className="h-3.5 w-3.5 text-[#FF6E50]" />
                         <span>Subscriptions</span>
                         {enabledProviders.length > 0 && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#34C759]/12 text-[#34C759] font-semibold">
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#FF6E50]/12 text-[#FF6E50] font-semibold">
                             {enabledProviders.length}
                           </span>
                         )}
@@ -405,8 +405,8 @@ export function DashboardSidebar({
                         <SidebarMenuButton
                           asChild
                           className={cn(
-                            "h-[28px] pl-3 pr-5 text-[11px] text-[#8E8E93] hover:bg-[#007A78]/5 hover:text-[#007A78] rounded-none",
-                            pathname === `/${orgSlug}/settings/integrations/subscriptions` && "text-[#34C759] font-medium",
+                            "h-[28px] pl-3 pr-5 text-[11px] text-[#8E8E93] hover:bg-[#FF6E50]/5 hover:text-[#FF6E50] rounded-none",
+                            pathname === `/${orgSlug}/settings/integrations/subscriptions` && "text-[#FF6E50] font-semibold",
                           )}
                         >
                           <Link href={`/${orgSlug}/settings/integrations/subscriptions`}>
@@ -427,8 +427,8 @@ export function DashboardSidebar({
                             <SidebarMenuButton
                               asChild
                               className={cn(
-                                "h-[28px] pl-3 pr-5 text-[11px] text-[#8E8E93] hover:bg-[#007A78]/5 hover:text-[#007A78] rounded-none",
-                                pathname === `/${orgSlug}/subscriptions/${provider.provider_name}` && "text-[#34C759] font-medium",
+                                "h-[28px] pl-3 pr-5 text-[11px] text-[#8E8E93] hover:bg-[#FF6E50]/5 hover:text-[#FF6E50] rounded-none",
+                                pathname === `/${orgSlug}/subscriptions/${provider.provider_name}` && "text-[#FF6E50] font-semibold",
                               )}
                             >
                               <Link href={`/${orgSlug}/subscriptions/${provider.provider_name}`}>
@@ -457,7 +457,7 @@ export function DashboardSidebar({
               onClick={() => setOrgExpanded(!orgExpanded)}
               aria-expanded={orgExpanded}
               aria-controls="org-details-panel"
-              className="w-full flex items-center justify-between py-2 text-black hover:bg-[#007A78]/5 rounded-xl px-3 -mx-3 transition-colors"
+              className="w-full flex items-center justify-between py-2 text-black hover:bg-[#007A78]/5 rounded-xl px-3 -mx-3 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#007A78] focus-visible:outline-offset-2"
             >
               <div className="flex items-center gap-3">
                 <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-[#007A78] to-[#14B8A6] flex items-center justify-center">
@@ -477,13 +477,13 @@ export function DashboardSidebar({
               <div id="org-details-panel" className="mt-3 p-4 rounded-2xl bg-[#F5F5F7] space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-[13px] text-[#8E8E93]">Plan</span>
-                  <span className="text-[13px] font-semibold text-[#007AFF] capitalize">{orgPlan}</span>
+                  <span className="text-[13px] font-semibold text-[#007A78] capitalize">{orgPlan}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-[13px] text-[#8E8E93]">Status</span>
                   <span className={cn("text-[13px] font-semibold capitalize",
-                    billingStatus === "active" ? "text-[#34C759]" :
-                    billingStatus === "trialing" ? "text-[#FF9500]" : "text-[#8E8E93]"
+                    billingStatus === "active" ? "text-[#007A78]" :
+                    billingStatus === "trialing" ? "text-[#FF8A73]" : "text-[#8E8E93]"
                   )}>{billingStatus}</span>
                 </div>
                 <div className="flex items-center justify-between">
@@ -509,13 +509,13 @@ export function DashboardSidebar({
               variant="ghost"
               asChild
               className={cn(
-                "w-full justify-start gap-3 px-5 h-[42px] text-[14px] font-normal text-black hover:bg-[#007A78]/5 rounded-none",
-                isActive(`/${orgSlug}/billing`, true) && "bg-[#34C759]/10 text-[#34C759] font-medium",
+                "w-full justify-start gap-3 px-5 h-[42px] text-[14px] font-medium text-black hover:bg-[#FF6E50]/5 rounded-none",
+                isActive(`/${orgSlug}/billing`, true) && "bg-[#FF6E50]/10 text-[#FF6E50] font-semibold",
                 isCollapsed && "w-10 h-10 px-0 justify-center rounded-lg"
               )}
             >
               <Link href={`/${orgSlug}/billing`} title="Billing">
-                <CreditCard className="h-5 w-5 text-[#34C759]" />
+                <CreditCard className="h-5 w-5 text-[#FF8A73]" />
                 {!isCollapsed && <span>Billing</span>}
               </Link>
             </Button>
@@ -524,13 +524,13 @@ export function DashboardSidebar({
             variant="ghost"
             asChild
             className={cn(
-              "w-full justify-start gap-3 px-5 h-[42px] text-[14px] font-normal text-black hover:bg-[#007A78]/5 rounded-none",
-              isActive(`/${orgSlug}/settings/members`, true) && "bg-[#5856D6]/10 text-[#5856D6] font-medium",
+              "w-full justify-start gap-3 px-5 h-[42px] text-[14px] font-medium text-black hover:bg-[#007A78]/5 rounded-none",
+              isActive(`/${orgSlug}/settings/members`, true) && "bg-[#007A78]/10 text-[#007A78] font-semibold",
               isCollapsed && "w-10 h-10 px-0 justify-center rounded-lg"
             )}
           >
             <Link href={`/${orgSlug}/settings/members`} title="Invite">
-              <Users className="h-5 w-5 text-[#5856D6]" />
+              <Users className="h-5 w-5 text-[#14B8A6]" />
               {!isCollapsed && <span>Invite</span>}
             </Link>
           </Button>
@@ -540,13 +540,13 @@ export function DashboardSidebar({
               variant="ghost"
               asChild
               className={cn(
-                "w-full justify-start gap-3 px-5 h-[42px] text-[14px] font-normal text-black hover:bg-[#007A78]/5 rounded-none",
-                isActive(`/${orgSlug}/settings/onboarding`, true) && "bg-[#007AFF]/10 text-[#007AFF] font-medium",
+                "w-full justify-start gap-3 px-5 h-[42px] text-[14px] font-medium text-black hover:bg-[#007A78]/5 rounded-none",
+                isActive(`/${orgSlug}/settings/onboarding`, true) && "bg-[#007A78]/10 text-[#007A78] font-semibold",
                 isCollapsed && "w-10 h-10 px-0 justify-center rounded-lg"
               )}
             >
               <Link href={`/${orgSlug}/settings/onboarding`} title="Organization">
-                <Building2 className="h-5 w-5 text-[#007AFF]" />
+                <Building2 className="h-5 w-5 text-[#007A78]" />
                 {!isCollapsed && <span>Organization</span>}
               </Link>
             </Button>
@@ -555,8 +555,8 @@ export function DashboardSidebar({
             variant="ghost"
             asChild
             className={cn(
-              "w-full justify-start gap-3 px-5 h-[42px] text-[14px] font-normal text-black hover:bg-[#007A78]/5 rounded-none",
-              isActive(`/${orgSlug}/settings/profile`, true) && "bg-[#8E8E93]/10 text-[#8E8E93] font-medium",
+              "w-full justify-start gap-3 px-5 h-[42px] text-[14px] font-medium text-black hover:bg-[#8E8E93]/5 rounded-none",
+              isActive(`/${orgSlug}/settings/profile`, true) && "bg-[#8E8E93]/10 text-[#8E8E93] font-semibold",
               isCollapsed && "w-10 h-10 px-0 justify-center rounded-lg"
             )}
           >
@@ -571,7 +571,7 @@ export function DashboardSidebar({
             disabled={isLoading}
             title="Sign Out"
             className={cn(
-              "w-full justify-start gap-3 px-5 h-[44px] text-[17px] font-normal text-black hover:bg-[#FF3B30]/10 hover:text-[#FF3B30] rounded-none",
+              "w-full justify-start gap-3 px-5 h-[44px] text-[17px] font-medium text-black hover:bg-[#FF3B30]/10 hover:text-[#FF3B30] rounded-none",
               isCollapsed && "w-10 h-10 px-0 justify-center rounded-lg"
             )}
           >

@@ -44,7 +44,7 @@ export default function ContactPage() {
       <section className="pb-16 sm:pb-20 bg-white">
         <div className="container px-4 md:px-12">
           <div className="mx-auto max-w-5xl">
-            <div className="grid gap-10 sm:gap-12 lg:grid-cols-2">
+            <div className="grid grid-cols-1 gap-10 sm:gap-12 lg:grid-cols-2">
               {/* Contact Info */}
               <div className="space-y-8 sm:space-y-10">
                 <div>
@@ -115,7 +115,7 @@ export default function ContactPage() {
                   </div>
                 ) : (
                   <form onSubmit={handleSubmit} className="space-y-5">
-                    <div className="grid gap-5 sm:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                       <div className="space-y-1.5">
                         <label htmlFor="first-name" className="cloudact-body-sm font-medium">
                           First Name
@@ -155,7 +155,7 @@ export default function ContactPage() {
                       />
                     </div>
 
-                    <div className="grid gap-5 sm:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                       <div className="space-y-1.5">
                         <label htmlFor="company" className="cloudact-body-sm font-medium">
                           Company

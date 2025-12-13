@@ -74,56 +74,60 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <div className="flex min-h-svh w-full flex-col items-center justify-center bg-white p-6 font-sans antialiased">
-      <div className="w-full max-w-[400px] space-y-6">
-        <div className="flex flex-col items-center gap-2 text-center">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#007A78] text-white shadow-sm">
-            <Command className="h-5 w-5" />
+    <div className="flex min-h-svh w-full flex-col items-center justify-center bg-gradient-to-br from-background via-muted/20 to-background p-6">
+      <div className="w-full max-w-[420px] space-y-6">
+        <div className="flex flex-col items-center gap-3 text-center">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#007A78] text-white shadow-lg">
+            <Command className="h-7 w-7" />
           </div>
-          <div className="space-y-1">
-            <h1 className="text-2xl font-bold tracking-tight text-gray-900">Reset Password</h1>
-            <p className="text-sm text-gray-600">Enter your new password</p>
+          <div className="space-y-2">
+            <h1 className="text-3xl font-bold text-gray-900">Reset Password</h1>
+            <p className="text-gray-600">Enter your new password</p>
           </div>
         </div>
 
-        <div className="rounded-xl border bg-white p-6 shadow-sm">
-          <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="rounded-2xl border bg-white p-8 shadow-lg">
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-gray-700">New Password</Label>
+              <Label htmlFor="password" className="text-sm font-medium text-gray-700">New Password</Label>
               <Input
                 id="password"
                 type="password"
-                placeholder="Enter new password"
+                placeholder="Min 8 characters"
                 required
+                minLength={8}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="focus:border-[#007A78] focus:ring-[#007A78]"
+                className="h-11 focus:border-[#007A78] focus:ring-[#007A78]"
+                autoComplete="new-password"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword" className="text-gray-700">Confirm Password</Label>
+              <Label htmlFor="confirmPassword" className="text-sm font-medium text-gray-700">Confirm Password</Label>
               <Input
                 id="confirmPassword"
                 type="password"
                 placeholder="Confirm new password"
                 required
+                minLength={8}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="focus:border-[#007A78] focus:ring-[#007A78]"
+                className="h-11 focus:border-[#007A78] focus:ring-[#007A78]"
+                autoComplete="new-password"
               />
             </div>
 
             {error && (
-              <Alert variant="destructive" className="py-2 bg-[#FFF5F3] border-[#FF6E50]">
-                <AlertDescription className="text-[#FF6E50]">{error}</AlertDescription>
+              <Alert variant="destructive" className="py-3 bg-[#FFF5F3] border-[#FF6E50]">
+                <AlertDescription className="text-sm text-[#FF6E50]">{error}</AlertDescription>
               </Alert>
             )}
 
-            <button type="submit" className="cloudact-btn-primary w-full" disabled={isLoading}>
+            <button type="submit" className="cloudact-btn-primary w-full h-11 text-base font-semibold" disabled={isLoading}>
               {isLoading ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                   Resetting...
                 </>
               ) : (

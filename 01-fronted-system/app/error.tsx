@@ -21,13 +21,13 @@ export default function GlobalError({
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="max-w-md w-full text-center space-y-6">
         <div className="flex justify-center">
-          <div className="h-16 w-16 rounded-full bg-destructive/10 flex items-center justify-center">
-            <AlertTriangle className="h-8 w-8 text-destructive" />
+          <div className="h-16 w-16 rounded-full bg-[#FF6E50]/10 flex items-center justify-center">
+            <AlertTriangle className="h-8 w-8 text-[#FF6E50]" />
           </div>
         </div>
 
         <div className="space-y-2">
-          <h1 className="text-2xl font-bold tracking-tight">Something went wrong</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Something went wrong</h1>
           <p className="text-muted-foreground">
             An unexpected error occurred. Our team has been notified.
           </p>
@@ -47,7 +47,7 @@ export default function GlobalError({
         )}
 
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          <Button onClick={reset} variant="default">
+          <Button onClick={reset} className="bg-[#007A78] hover:bg-[#005F5D] text-white">
             <RefreshCw className="h-4 w-4 mr-2" />
             Try again
           </Button>
@@ -59,8 +59,14 @@ export default function GlobalError({
           </Button>
         </div>
 
-        <p className="text-xs text-muted-foreground">
-          If this problem persists, please contact support.
+        <p className="text-sm text-muted-foreground">
+          If this problem persists, please contact{" "}
+          <a
+            href={`mailto:${process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "support@cloudact.ai"}`}
+            className="text-[#007A78] hover:text-[#005F5D] hover:underline font-medium"
+          >
+            support
+          </a>
         </p>
       </div>
     </div>

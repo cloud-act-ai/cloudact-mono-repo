@@ -216,7 +216,7 @@ export default function OnboardingPage() {
 
         <div className="rounded-xl border bg-white p-6 shadow-sm">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="name" className="text-gray-700">Organization Name</Label>
                 <Input id="name" placeholder="Acme Inc." {...register("name")} className="focus:border-[#007A78] focus:ring-[#007A78]" />
@@ -252,7 +252,7 @@ export default function OnboardingPage() {
                   No plans available. Please configure products in Stripe.
                 </div>
               ) : (
-                <div className="grid gap-4 md:grid-cols-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                   {plans.map((plan) => (
                     <div
                       key={plan.id}

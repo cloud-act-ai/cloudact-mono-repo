@@ -39,44 +39,38 @@ export function DatePicker({
     setOpen(false)
   }
 
-  // Format date for native input
-  const formatDateForInput = (d: Date | undefined) => {
-    if (!d) return ""
-    return format(d, "yyyy-MM-dd")
-  }
-
-  // Handle native input change
-  const handleNativeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value
-    if (value) {
-      const [year, month, day] = value.split("-").map(Number)
-      onSelect(new Date(year, month - 1, day))
-    } else {
-      onSelect(undefined)
-    }
+  // Disable dates outside the allowed range
+  const disabledDates = (day: Date) => {
+    if (minDate && day < minDate) return true
+    if (maxDate && day > maxDate) return true
+    return false
   }
 
   return (
-    <div className={cn("relative", className)}>
-      {/* Native date input - always works */}
-      <div className="flex gap-2">
-        <input
-          type="date"
-          value={formatDateForInput(date)}
-          onChange={handleNativeChange}
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
           disabled={disabled}
-          min={minDate ? formatDateForInput(minDate) : undefined}
-          max={maxDate ? formatDateForInput(maxDate) : undefined}
-          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+          className={cn(
+            "w-full justify-start text-left font-normal",
+            !date && "text-muted-foreground",
+            className
+          )}
+        >
+          <CalendarIcon className="mr-2 h-4 w-4" />
+          {date ? format(date, "PPP") : <span>{placeholder}</span>}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="start">
+        <Calendar
+          mode="single"
+          selected={date}
+          onSelect={handleSelect}
+          disabled={disabledDates}
+          initialFocus
         />
-      </div>
-
-      {/* Show selected date in readable format */}
-      {date && (
-        <p className="text-xs text-muted-foreground mt-1">
-          Selected: {format(date, "PPP")}
-        </p>
-      )}
-    </div>
+      </PopoverContent>
+    </Popover>
   )
 }

@@ -107,12 +107,24 @@
   border-radius: 0.75rem;
   border: 1px solid #E5E7EB;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  cursor: default;
 }
 
 .cloudact-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 8px 24px rgba(0, 122, 120, 0.12);
+  border-color: rgba(0, 122, 120, 0.2);
+}
+
+.cloudact-card:active {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 122, 120, 0.1);
+}
+
+.cloudact-card:focus-visible {
+  outline: 2px solid var(--cloudact-teal);
+  outline-offset: 2px;
 }
 
 .cloudact-card-featured {
@@ -120,6 +132,13 @@
   border-radius: 0.75rem;
   border: 2px solid var(--cloudact-teal);
   box-shadow: 0 4px 16px rgba(0, 122, 120, 0.15);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.cloudact-card-featured:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 122, 120, 0.25);
+  border-color: var(--cloudact-teal-dark);
 }
 
 /* CloudAct Feature Icon Box */
@@ -199,18 +218,34 @@
   color: var(--cloudact-coral);
 }
 
-/* CloudAct Link */
+/* CloudAct Link - Teal (Default) */
 .cloudact-link {
   color: var(--cloudact-teal);
   font-family: var(--font-dm-sans), sans-serif;
   font-weight: 600;
   text-decoration: none;
-  transition: color 0.2s ease;
+  transition: color 0.2s ease, text-decoration 0.2s ease;
+  cursor: pointer;
 }
 
 .cloudact-link:hover {
   color: var(--cloudact-teal-dark);
   text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.cloudact-link:visited {
+  color: #006462;
+}
+
+.cloudact-link:focus-visible {
+  outline: 2px solid var(--cloudact-teal);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.cloudact-link:active {
+  color: var(--cloudact-teal-dark);
 }
 
 /* Text Colors */
@@ -345,6 +380,50 @@ html {
   scroll-behavior: smooth;
 }
 
+/* ============================================
+   LANDING PAGE SCROLLBARS - Brand Colors
+   Smooth teal scrollbars matching design
+   ============================================ */
+
+/* Webkit scrollbars (Chrome, Safari, Edge) */
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: #F8FAFC;
+  border-radius: 4px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--cloudact-teal);
+}
+
+*::-webkit-scrollbar-corner {
+  background: #F8FAFC;
+}
+
+/* Firefox scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #CBD5E1 #F8FAFC;
+}
+
+/* Mobile: Thinner scrollbars */
+@media (max-width: 768px) {
+  *::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+}
+
 @media (min-width: 1400px) {
   .container {
     max-width: 1280px;
@@ -368,17 +447,36 @@ html {
   padding: 2rem;
   border: 1px solid #E5E7EB;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  cursor: default;
 }
 
 .cloudact-pricing-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 12px 32px rgba(0, 122, 120, 0.15);
+  border-color: rgba(0, 122, 120, 0.3);
+}
+
+.cloudact-pricing-card:active {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 122, 120, 0.12);
+}
+
+.cloudact-pricing-card:focus-visible {
+  outline: 2px solid var(--cloudact-teal);
+  outline-offset: 2px;
 }
 
 .cloudact-pricing-card-featured {
   border: 2px solid var(--cloudact-teal);
   box-shadow: 0 8px 24px rgba(0, 122, 120, 0.2);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.cloudact-pricing-card-featured:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 36px rgba(0, 122, 120, 0.3);
+  border-color: var(--cloudact-teal-dark);
 }
 
 .cloudact-pricing-value {
@@ -490,4 +588,215 @@ html {
   .animate-fade-in-up {
     animation: none;
   }
+}
+
+/* ============================================
+   ADDITIONAL BRAND COLOR UTILITIES
+   ============================================ */
+
+/* CTA Button with Coral - for primary actions/accents */
+.cloudact-btn-coral {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.625rem 1.5rem;
+  background: var(--cloudact-coral);
+  color: white;
+  border-radius: 0.375rem;
+  font-family: var(--font-dm-sans), sans-serif;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  border: none;
+  cursor: pointer;
+}
+
+.cloudact-btn-coral:hover {
+  background: var(--cloudact-coral-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(255, 110, 80, 0.3);
+}
+
+/* Form Input Styles */
+.cloudact-input {
+  width: 100%;
+  padding: 0.625rem 1rem;
+  background: white;
+  border: 1.5px solid #D1D5DB;
+  border-radius: 0.375rem;
+  font-family: var(--font-dm-sans), sans-serif;
+  font-size: 0.9375rem;
+  color: #111827;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.cloudact-input:focus-visible {
+  outline: 2px solid var(--cloudact-teal);
+  outline-offset: 2px;
+  border-color: var(--cloudact-teal);
+  box-shadow: 0 0 0 3px rgba(0, 122, 120, 0.1);
+}
+
+.cloudact-input::placeholder {
+  color: #9CA3AF;
+}
+
+/* Textarea Styles */
+.cloudact-textarea {
+  width: 100%;
+  padding: 0.625rem 1rem;
+  background: white;
+  border: 1.5px solid #D1D5DB;
+  border-radius: 0.375rem;
+  font-family: var(--font-dm-sans), sans-serif;
+  font-size: 0.9375rem;
+  color: #111827;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  min-height: 120px;
+  resize: vertical;
+}
+
+.cloudact-textarea:focus-visible {
+  outline: 2px solid var(--cloudact-teal);
+  outline-offset: 2px;
+  border-color: var(--cloudact-teal);
+  box-shadow: 0 0 0 3px rgba(0, 122, 120, 0.1);
+}
+
+.cloudact-textarea::placeholder {
+  color: #9CA3AF;
+}
+
+/* Select/Dropdown Styles */
+.cloudact-select {
+  width: 100%;
+  padding: 0.625rem 1rem;
+  background: white;
+  border: 1.5px solid #D1D5DB;
+  border-radius: 0.375rem;
+  font-family: var(--font-dm-sans), sans-serif;
+  font-size: 0.9375rem;
+  color: #111827;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+}
+
+.cloudact-select:focus-visible {
+  outline: 2px solid var(--cloudact-teal);
+  outline-offset: 2px;
+  border-color: var(--cloudact-teal);
+  box-shadow: 0 0 0 3px rgba(0, 122, 120, 0.1);
+}
+
+/* Checkbox Styles */
+.cloudact-checkbox {
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 1.5px solid #D1D5DB;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.cloudact-checkbox:checked {
+  background: var(--cloudact-teal);
+  border-color: var(--cloudact-teal);
+}
+
+.cloudact-checkbox:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(0, 122, 120, 0.1);
+}
+
+/* Link Variations - Coral (Cost/Billing) */
+.cloudact-link-coral {
+  color: var(--cloudact-coral);
+  font-family: var(--font-dm-sans), sans-serif;
+  font-weight: 600;
+  text-decoration: none;
+  transition: color 0.2s ease, text-decoration 0.2s ease;
+  cursor: pointer;
+}
+
+.cloudact-link-coral:hover {
+  color: var(--cloudact-coral-dark);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.cloudact-link-coral:visited {
+  color: #CC4F35;
+}
+
+.cloudact-link-coral:focus-visible {
+  outline: 2px solid var(--cloudact-coral);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.cloudact-link-coral:active {
+  color: var(--cloudact-coral-dark);
+}
+
+/* Accent Borders */
+.border-cloudact-teal {
+  border-color: var(--cloudact-teal);
+}
+
+.border-cloudact-coral {
+  border-color: var(--cloudact-coral);
+}
+
+/* Gradient Backgrounds */
+.bg-gradient-teal {
+  background: linear-gradient(135deg, var(--cloudact-teal), var(--cloudact-teal-light));
+}
+
+.bg-gradient-coral {
+  background: linear-gradient(135deg, var(--cloudact-coral), var(--cloudact-coral-light));
+}
+
+.bg-gradient-teal-coral {
+  background: linear-gradient(135deg, var(--cloudact-teal), var(--cloudact-coral));
+}
+
+/* Shadow Utilities with Brand Colors */
+.shadow-teal {
+  box-shadow: 0 4px 16px rgba(0, 122, 120, 0.15);
+}
+
+.shadow-teal-lg {
+  box-shadow: 0 8px 24px rgba(0, 122, 120, 0.2);
+}
+
+.shadow-coral {
+  box-shadow: 0 4px 16px rgba(255, 110, 80, 0.15);
+}
+
+.shadow-coral-lg {
+  box-shadow: 0 8px 24px rgba(255, 110, 80, 0.2);
+}
+
+/* Hover States for Cards */
+.cloudact-card-hover-teal:hover {
+  border-color: var(--cloudact-teal);
+  box-shadow: 0 8px 24px rgba(0, 122, 120, 0.15);
+}
+
+.cloudact-card-hover-coral:hover {
+  border-color: var(--cloudact-coral);
+  box-shadow: 0 8px 24px rgba(255, 110, 80, 0.15);
+}
+
+/* Active/Selected States */
+.cloudact-active-teal {
+  background: var(--cloudact-bg-teal);
+  border-color: var(--cloudact-teal);
+  color: var(--cloudact-teal);
+}
+
+.cloudact-active-coral {
+  background: var(--cloudact-bg-coral);
+  border-color: var(--cloudact-coral);
+  color: var(--cloudact-coral);
 }

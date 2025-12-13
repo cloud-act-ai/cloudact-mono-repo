@@ -178,7 +178,7 @@ export default function CloudProvidersPage() {
         </Alert>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {CLOUD_PROVIDERS.map((provider) => {
           const integration = integrations[provider.backendKey]
           const isConnected = integration?.status === "VALID"

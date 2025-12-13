@@ -11,10 +11,10 @@ org_slug,subscription_id,provider,plan_name,display_name,category,status,start_d
 ,sub_canva_pro,canva,PRO,Canva Pro,design,active,,,monthly,USD,0,FLAT_FEE,12.99,155.88,,,TRUE,,,,,,,Pro features with premium templates and brand kit
 ,sub_canva_pro_annual,canva,PRO,Canva Pro Annual,design,active,,,annual,USD,0,FLAT_FEE,119.99,119.99,percent,17,TRUE,,,,,,,Annual billing with 17% discount
 ,sub_canva_team,canva,TEAM,Canva for Teams,design,active,,,monthly,USD,0,PER_SEAT,14.99,179.88,,,TRUE,,,,,,,Team collaboration with shared brand assets
-,sub_slack_free,slack,FREE,Slack Free,collaboration,active,,,monthly,USD,0,FLAT_FEE,0,0,,,TRUE,,,,,,,Free tier with 90-day message history
-,sub_slack_pro,slack,PRO,Slack Pro,collaboration,active,,,monthly,USD,0,PER_SEAT,8.75,105,,,TRUE,,,,,,,Unlimited message history and apps
-,sub_slack_business,slack,BUSINESS_PLUS,Slack Business+,collaboration,active,,,monthly,USD,0,PER_SEAT,15,180,,,TRUE,,,,,,,Advanced admin and compliance features
-,sub_slack_enterprise,slack,ENTERPRISE_GRID,Slack Enterprise Grid,collaboration,active,,,annual,USD,0,PER_SEAT,20,240,,,TRUE,,,,,,,Enterprise-grade security and unlimited workspaces
+,sub_slack_free,slack,FREE,Slack Free,communication,active,,,monthly,USD,0,FLAT_FEE,0,0,,,TRUE,,,,,,,Free tier with 90-day message history
+,sub_slack_pro,slack,PRO,Slack Pro,communication,active,,,monthly,USD,0,PER_SEAT,8.75,105,,,TRUE,,,,,,,Unlimited message history and apps
+,sub_slack_business,slack,BUSINESS_PLUS,Slack Business+,communication,active,,,monthly,USD,0,PER_SEAT,15,180,,,TRUE,,,,,,,Advanced admin and compliance features
+,sub_slack_enterprise,slack,ENTERPRISE_GRID,Slack Enterprise Grid,communication,active,,,annual,USD,0,PER_SEAT,20,240,,,TRUE,,,,,,,Enterprise-grade security and unlimited workspaces
 ,sub_figma_free,figma,FREE,Figma Free,design,active,,,monthly,USD,0,FLAT_FEE,0,0,,,TRUE,,,,,,,Starter plan with 3 Figma and FigJam files
 ,sub_figma_pro,figma,PROFESSIONAL,Figma Professional,design,active,,,monthly,USD,0,PER_SEAT,15,180,,,TRUE,,,,,,,Unlimited Figma files and version history
 ,sub_figma_org,figma,ORGANIZATION,Figma Organization,design,active,,,monthly,USD,0,PER_SEAT,45,540,,,TRUE,,,,,,,Organization-wide design system and libraries
@@ -46,8 +46,8 @@ org_slug,subscription_id,provider,plan_name,display_name,category,status,start_d
 ,sub_jira_free,jira,FREE,Jira Free,project_management,active,,,monthly,USD,0,FLAT_FEE,0,0,,,TRUE,,,,,,,Free for up to 10 users
 ,sub_jira_standard,jira,STANDARD,Jira Standard,project_management,active,,,monthly,USD,0,PER_SEAT,8.15,97.8,,,TRUE,,,,,,,Standard features with 250GB storage
 ,sub_jira_premium,jira,PREMIUM,Jira Premium,project_management,active,,,monthly,USD,0,PER_SEAT,16,192,,,TRUE,,,,,,,Advanced roadmaps and 24/7 support
-,sub_confluence_standard,confluence,STANDARD,Confluence Standard,collaboration,active,,,monthly,USD,0,PER_SEAT,6.05,72.6,,,TRUE,,,,,,,Team collaboration with unlimited pages
-,sub_confluence_premium,confluence,PREMIUM,Confluence Premium,collaboration,active,,,monthly,USD,0,PER_SEAT,11.55,138.6,,,TRUE,,,,,,,Premium features with analytics and automation
+,sub_confluence_standard,confluence,STANDARD,Confluence Standard,communication,active,,,monthly,USD,0,PER_SEAT,6.05,72.6,,,TRUE,,,,,,,Team collaboration with unlimited pages
+,sub_confluence_premium,confluence,PREMIUM,Confluence Premium,communication,active,,,monthly,USD,0,PER_SEAT,11.55,138.6,,,TRUE,,,,,,,Premium features with analytics and automation
 ,sub_copilot_free,copilot,FREE,Copilot Free,ai,active,,,monthly,USD,0,FLAT_FEE,0,0,,,TRUE,,,,,,,Limited AI code suggestions
 ,sub_copilot_individual,copilot,INDIVIDUAL,Copilot Individual,ai,active,,,monthly,USD,0,FLAT_FEE,10,100,percent,17,TRUE,,,,,,,Unlimited AI code suggestions
 ,sub_copilot_business,copilot,BUSINESS,Copilot Business,ai,active,,,monthly,USD,0,PER_SEAT,19,228,,,TRUE,,,,,,,Organization features with SSO

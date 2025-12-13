@@ -18,6 +18,34 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import { ProviderLogo } from "@/components/ui/optimized-image"
+
+// ============================================
+// Brand Colors (Integrations = Features = Teal)
+// ============================================
+const BRAND_COLORS = {
+  // Teal (Integrations/Features)
+  teal: "#007A78",
+  tealLight: "#14B8A6",
+  tealDark: "#005F5D",
+  tealBg: "#F0FDFA",
+
+  // Coral (Destructive/Warning)
+  coral: "#FF6E50",
+  coralLight: "#FF8A73",
+  coralDark: "#E55A3C",
+  coralBg: "#FFF5F3",
+
+  // Status Colors
+  success: "#34C759",
+  successBg: "#F0FDF4",
+  warning: "#FF9500",
+  warningBg: "#FFF8E6",
+  error: "#FF3B30",
+  errorBg: "#FEF2F2",
+  gray: "#8E8E93",
+  grayBg: "#F9FAFB",
+}
 
 // ============================================
 // Types
@@ -36,7 +64,8 @@ export interface IntegrationConfigCardProps {
   provider: string
   providerName: string
   providerDescription: string
-  icon: React.ReactNode
+  /** @deprecated Use provider prop instead - logo will be auto-loaded */
+  icon?: React.ReactNode
   placeholder: string
   inputType: "text" | "textarea"
   helperText: string
@@ -60,10 +89,25 @@ function StatusBadge({ status }: { status: string }) {
     return null
   }
 
-  const variants: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; text: string; className?: string }> = {
-    VALID: { variant: "default", text: "Connected", className: "console-badge console-badge-success" },
-    INVALID: { variant: "destructive", text: "Invalid", className: "console-badge console-badge-coral" },
-    PENDING: { variant: "secondary", text: "Validating...", className: "console-badge console-badge-warning" },
+  const variants: Record<
+    string,
+    { variant: "default" | "secondary" | "destructive" | "outline"; text: string; className?: string }
+  > = {
+    VALID: {
+      variant: "default",
+      text: "Connected",
+      className: "bg-[#F0FDF4] text-[#34C759] border-[#34C759] hover:bg-[#E6FCF0]",
+    },
+    INVALID: {
+      variant: "destructive",
+      text: "Invalid",
+      className: "bg-[#FEF2F2] text-[#FF3B30] border-[#FF3B30] hover:bg-[#FEE8E7]",
+    },
+    PENDING: {
+      variant: "secondary",
+      text: "Validating...",
+      className: "bg-[#FFF8E6] text-[#FF9500] border-[#FF9500] hover:bg-[#FFF3D6]",
+    },
   }
 
   const config = variants[status]
@@ -156,11 +200,28 @@ export function IntegrationConfigCard({
   }
 
   return (
-    <Card className={status === "INVALID" ? "border-[#FF6E50]" : "console-stat-card"}>
+    <Card
+      className={
+        status === "INVALID"
+          ? "border-2 border-[#FF3B30] shadow-sm hover:shadow-md transition-shadow"
+          : "console-stat-card border shadow-sm hover:shadow-md transition-shadow"
+      }
+    >
       <CardHeader>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="h-12 w-12 rounded-lg bg-[#F0FDFA] flex items-center justify-center">{icon}</div>
+            {/* Integration icon - Auto-loaded provider logo with consistent sizing */}
+            {icon ? (
+              <div className="h-12 w-12 rounded-lg bg-[#F0FDFA] flex items-center justify-center shadow-sm border border-[#14B8A6]/20">
+                {icon}
+              </div>
+            ) : (
+              <ProviderLogo
+                provider={provider as any}
+                size="md"
+                showLabel={false}
+              />
+            )}
             <div>
               <CardTitle className="console-card-title">{providerName}</CardTitle>
               <CardDescription className="console-subheading mt-1">{providerDescription}</CardDescription>
@@ -171,26 +232,26 @@ export function IntegrationConfigCard({
       </CardHeader>
 
       <CardContent className="space-y-4">
-        {/* Error Alert */}
+        {/* Error Alert - Use Error Red */}
         {integration?.last_error && status === "INVALID" && (
-          <Alert variant="destructive" className="border-[#FF6E50] bg-[#FFF5F3]">
-            <AlertCircle className="h-4 w-4 text-[#FF6E50]" />
-            <AlertTitle className="text-[#FF6E50]">Validation Error</AlertTitle>
-            <AlertDescription className="text-gray-700">{integration.last_error}</AlertDescription>
+          <Alert variant="destructive" className="border-2 border-[#FF3B30] bg-[#FEF2F2]">
+            <AlertCircle className="h-4 w-4 text-[#FF3B30]" />
+            <AlertTitle className="text-[#FF3B30] font-semibold">Validation Error</AlertTitle>
+            <AlertDescription className="text-foreground/90 mt-1">{integration.last_error}</AlertDescription>
           </Alert>
         )}
 
         {/* Setup Form or Status Display */}
         {showSetup ? (
-          <div className="space-y-4 p-4 border rounded-lg bg-gray-50">
+          <div className="space-y-4 p-5 border-2 border-[#14B8A6]/20 rounded-lg bg-[#F9FAFB]">
             <div className="space-y-2">
-              <Label htmlFor={`${provider}-credential`} className="console-label">
+              <Label htmlFor={`${provider}-credential`} className="console-label text-foreground font-medium">
                 {provider === "gcp" ? "Service Account JSON" : "API Key"}
               </Label>
               {inputType === "textarea" ? (
                 <textarea
                   id={`${provider}-credential`}
-                  className="flex min-h-[150px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 font-mono"
+                  className="flex min-h-[150px] w-full rounded-md border-2 border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#14B8A6] focus-visible:border-[#14B8A6] disabled:cursor-not-allowed disabled:opacity-50 font-mono transition-colors"
                   placeholder={placeholder}
                   value={credential}
                   onChange={(e) => setCredential(e.target.value)}
@@ -202,20 +263,31 @@ export function IntegrationConfigCard({
                   placeholder={placeholder}
                   value={credential}
                   onChange={(e) => setCredential(e.target.value)}
-                  className="console-input font-mono"
+                  className="console-input font-mono border-2 border-input focus-visible:ring-2 focus-visible:ring-[#14B8A6] focus-visible:border-[#14B8A6] transition-colors"
                 />
               )}
-              <p className="console-small text-gray-600">{helperText}</p>
+              <p className="console-small text-muted-foreground">{helperText}</p>
               {validationError && (
-                <p className="console-small text-[#FF6E50] mt-1">{validationError}</p>
+                <p className="console-small text-[#FF3B30] mt-1 font-medium">{validationError}</p>
               )}
             </div>
             <div className="flex gap-2">
-              <Button onClick={handleSetup} disabled={!credential.trim() || localLoading} className="console-button-primary">
+              <Button
+                onClick={handleSetup}
+                disabled={!credential.trim() || localLoading}
+                className="bg-[#007A78] hover:bg-[#005F5D] text-white font-medium shadow-sm hover:shadow transition-all"
+              >
                 {localLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {isConfigured ? "Update Credential" : "Connect"}
               </Button>
-              <Button variant="outline" onClick={() => { setShowSetup(false); setCredential(""); }} className="console-button-secondary">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowSetup(false)
+                  setCredential("")
+                }}
+                className="console-button-secondary border-2 hover:bg-muted transition-colors"
+              >
                 Cancel
               </Button>
             </div>
@@ -223,19 +295,22 @@ export function IntegrationConfigCard({
         ) : isConfigured ? (
           <div className="space-y-4">
             {/* Credential Info */}
-            <div className="flex items-center gap-4 p-4 border rounded-lg bg-gray-50">
-              <div className="h-10 w-10 rounded-lg bg-[#F0FDFA] flex items-center justify-center">
-                <Key className="h-5 w-5 text-[#007A78]" />
+            <div className="flex items-center gap-4 p-4 border-2 border-[#14B8A6]/20 rounded-lg bg-[#F0FDFA] shadow-sm">
+              <div className="h-10 w-10 rounded-lg bg-white flex items-center justify-center shadow-sm border border-[#14B8A6]/30">
+                <Key className="h-5 w-5 text-[#14B8A6]" />
               </div>
               <div className="flex-1">
-                <p className="console-card-title">{integration?.credential_name || `${providerName} Credential`}</p>
-                <div className="flex items-center gap-4 mt-1 console-small text-gray-600">
-                  <span className="flex items-center gap-1">
-                    <Clock className="h-3.5 w-3.5" />
+                <p className="console-card-title text-foreground">
+                  {integration?.credential_name || `${providerName} Credential`}
+                </p>
+                <div className="flex flex-wrap items-center gap-3 mt-1.5 console-small text-muted-foreground">
+                  <span className="flex items-center gap-1.5">
+                    <Clock className="h-3.5 w-3.5 text-[#007A78]" />
                     Last validated: {formatDate(integration?.last_validated_at)}
                   </span>
                   {integration?.created_at && (
-                    <span className="flex items-center gap-1">
+                    <span className="flex items-center gap-1.5">
+                      <span className="text-muted-foreground/50">•</span>
                       Added: {formatDate(integration?.created_at)}
                     </span>
                   )}
@@ -244,17 +319,24 @@ export function IntegrationConfigCard({
             </div>
 
             {/* Security Note */}
-            <div className="flex items-start gap-2 console-small text-gray-600">
-              <Shield className="h-4 w-4 mt-0.5 flex-shrink-0 text-[#007A78]" />
+            <div className="flex items-start gap-2.5 console-small text-muted-foreground bg-muted/50 p-3 rounded-lg border border-border">
+              <Shield className="h-4 w-4 mt-0.5 flex-shrink-0 text-[#14B8A6]" />
               <span>Credentials are encrypted using Google Cloud KMS and never stored in plain text.</span>
             </div>
           </div>
         ) : (
-          <div className="text-center py-8">
-            <p className="console-body text-gray-600 mb-4">
+          <div className="text-center py-10 px-4">
+            <div className="inline-flex items-center justify-center h-16 w-16 rounded-full bg-[#F0FDFA] mb-4 shadow-sm border border-[#14B8A6]/20">
+              <Key className="h-8 w-8 text-[#14B8A6]" />
+            </div>
+            <p className="console-body text-muted-foreground mb-6 max-w-md mx-auto">
               No {providerName} integration configured. Click below to add your credentials.
             </p>
-            <Button onClick={() => setShowSetup(true)} size="lg" className="console-button-primary">
+            <Button
+              onClick={() => setShowSetup(true)}
+              size="lg"
+              className="bg-[#007A78] hover:bg-[#005F5D] text-white font-medium shadow-sm hover:shadow transition-all"
+            >
               <Key className="h-4 w-4 mr-2" />
               Connect {providerName}
             </Button>
@@ -264,19 +346,19 @@ export function IntegrationConfigCard({
 
       {/* Actions Footer */}
       {isConfigured && !showSetup && (
-        <CardFooter className="flex justify-between border-t pt-4">
+        <CardFooter className="flex justify-between border-t pt-5 bg-[#FAFAFA]">
           <div className="flex gap-2">
             <Button
               variant="outline"
               size="sm"
               onClick={handleValidate}
               disabled={isLoading || localLoading}
-              className="console-button-secondary"
+              className="border-2 border-[#14B8A6] text-[#007A78] hover:bg-[#F0FDFA] hover:text-[#005F5D] font-medium transition-colors shadow-sm"
             >
               {localLoading ? (
-                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
               ) : (
-                <RefreshCw className="h-4 w-4 mr-1" />
+                <RefreshCw className="h-4 w-4 mr-1.5" />
               )}
               Re-validate
             </Button>
@@ -284,8 +366,9 @@ export function IntegrationConfigCard({
               variant="outline"
               size="sm"
               onClick={() => setShowSetup(true)}
-              className="console-button-secondary"
+              className="console-button-secondary border-2 hover:bg-muted transition-colors shadow-sm"
             >
+              <Key className="h-4 w-4 mr-1.5" />
               Update Credential
             </Button>
           </div>
@@ -293,24 +376,39 @@ export function IntegrationConfigCard({
           {/* Delete Dialog */}
           <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
             <DialogTrigger asChild>
-              <Button variant="ghost" size="sm" className="text-[#FF6E50] hover:text-[#FF6E50] hover:bg-[#FFF5F3]">
-                <Trash2 className="h-4 w-4 mr-1" />
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-[#FF6E50] hover:text-[#E55A3C] hover:bg-[#FFF5F3] font-medium transition-colors"
+              >
+                <Trash2 className="h-4 w-4 mr-1.5" />
                 Remove
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="sm:max-w-[500px]">
               <DialogHeader>
-                <DialogTitle>Remove {providerName} Integration</DialogTitle>
-                <DialogDescription>
-                  Are you sure you want to remove this integration? This will delete the stored credentials
-                  and any pipelines using this integration will stop working.
+                <DialogTitle className="text-xl font-semibold text-foreground">
+                  Remove {providerName} Integration
+                </DialogTitle>
+                <DialogDescription className="text-muted-foreground mt-2">
+                  Are you sure you want to remove this integration? This will delete the stored credentials and any
+                  pipelines using this integration will stop working.
                 </DialogDescription>
               </DialogHeader>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setShowDeleteDialog(false)} className="console-button-secondary">
+              <DialogFooter className="gap-2 sm:gap-0">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowDeleteDialog(false)}
+                  className="console-button-secondary border-2 hover:bg-muted transition-colors"
+                >
                   Cancel
                 </Button>
-                <Button variant="destructive" onClick={handleDelete} disabled={localLoading} className="console-button-coral">
+                <Button
+                  variant="destructive"
+                  onClick={handleDelete}
+                  disabled={localLoading}
+                  className="bg-[#FF6E50] hover:bg-[#E55A3C] text-white font-medium shadow-sm hover:shadow transition-all"
+                >
                   {localLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Remove Integration
                 </Button>

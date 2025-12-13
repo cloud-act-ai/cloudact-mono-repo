@@ -1,8 +1,6 @@
 "use client"
 
 import { useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { AlertTriangle, RefreshCw, Home } from "lucide-react"
 import Link from "next/link"
 
@@ -23,47 +21,66 @@ export default function PipelinesError({
   }, [error])
 
   return (
-    <div className="container mx-auto py-10 max-w-2xl">
-      <Card className="border-destructive/50">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-destructive/10 flex items-center justify-center">
-            <AlertTriangle className="h-6 w-6 text-destructive" />
+    <div className="space-y-6 sm:space-y-8 max-w-2xl mx-auto">
+      {/* Header */}
+      <div>
+        <h1 className="text-[32px] sm:text-[34px] font-bold text-black tracking-tight">Pipelines Error</h1>
+        <p className="text-[15px] text-[#8E8E93] mt-1">
+          Something went wrong while loading your pipelines.
+        </p>
+      </div>
+
+      {/* Error Card - Apple Health Style */}
+      <div className="health-card bg-[#FF6E50]/10 border-[#FF6E50]/20">
+        <div className="flex items-start gap-4">
+          <div className="flex-shrink-0 w-12 h-12 rounded-full bg-[#FF6E50]/15 flex items-center justify-center">
+            <AlertTriangle className="h-6 w-6 text-[#FF6E50]" />
           </div>
-          <CardTitle className="text-xl">Something went wrong</CardTitle>
-          <CardDescription>
-            We encountered an error while loading your pipelines. This could be a temporary issue.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="text-center">
-          {error.digest && (
-            <div className="rounded-lg bg-muted p-4 text-sm text-muted-foreground">
-              <p className="font-medium text-foreground mb-1">Error Reference ID:</p>
-              <p className="font-mono text-xs">{error.digest}</p>
-            </div>
-          )}
-        </CardContent>
-        <CardFooter className="flex justify-center gap-4">
-          <Button onClick={reset} variant="default">
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Try Again
-          </Button>
-          <Button variant="outline" asChild>
-            <Link href="/">
-              <Home className="mr-2 h-4 w-4" />
-              Go Home
-            </Link>
-          </Button>
-        </CardFooter>
-      </Card>
-      <p className="text-center text-sm text-muted-foreground mt-6">
-        If this problem persists, please contact{" "}
-        <a
-          href={`mailto:${process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "support@cloudact.ai"}`}
-          className="text-primary hover:underline"
+          <div className="flex-1 space-y-3">
+            <h3 className="text-[17px] font-semibold text-black">An Error Occurred</h3>
+            <p className="text-[15px] text-[#8E8E93]">
+              We encountered an error while loading your pipelines. This could be a temporary issue.
+              Please try refreshing the page or contact support if the problem persists.
+            </p>
+            {error.digest && (
+              <div className="bg-[#F5F5F7] rounded-xl p-3 border border-[#E5E5EA]">
+                <p className="text-[13px] font-semibold text-black mb-1">Error Reference ID:</p>
+                <p className="text-[11px] font-mono text-[#8E8E93]">{error.digest}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <button
+          onClick={reset}
+          className="inline-flex items-center justify-center gap-2 h-[44px] px-6 bg-[#007A78] text-white text-[15px] font-semibold rounded-xl hover:bg-[#005F5D] transition-colors"
         >
-          {process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "support@cloudact.ai"}
-        </a>
-      </p>
+          <RefreshCw className="h-4 w-4" />
+          Try Again
+        </button>
+        <Link href="/">
+          <button className="inline-flex items-center justify-center gap-2 h-[44px] px-6 bg-[#F5F5F7] text-[#8E8E93] text-[15px] font-semibold rounded-xl hover:bg-[#E8E8ED] transition-colors w-full sm:w-auto">
+            <Home className="h-4 w-4" />
+            Go Home
+          </button>
+        </Link>
+      </div>
+
+      {/* Support Contact */}
+      <div className="text-center pt-4">
+        <p className="text-[13px] text-[#8E8E93]">
+          If this problem persists, please contact{" "}
+          <a
+            href={`mailto:${process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "support@cloudact.ai"}`}
+            className="text-[#007A78] font-semibold hover:underline"
+          >
+            support
+          </a>
+        </p>
+      </div>
     </div>
   )
 }

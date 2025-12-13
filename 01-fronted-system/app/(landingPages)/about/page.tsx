@@ -101,7 +101,7 @@ export default function AboutPage() {
               <p className="cloudact-body text-base sm:text-lg">What drives us every day</p>
             </div>
 
-            <div className="grid gap-6 sm:gap-8 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-6 sm:gap-8 md:grid-cols-2">
               <div className="cloudact-card group p-6 sm:p-8">
                 <div className="space-y-4 sm:space-y-6">
                   <div className="cloudact-icon-box-coral">

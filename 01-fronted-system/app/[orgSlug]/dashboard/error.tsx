@@ -24,10 +24,10 @@ export default function DashboardError({
 
   return (
     <div className="container mx-auto py-10 max-w-2xl">
-      <Card className="border-destructive/50">
+      <Card className="border-[#FF6E50]/30">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-destructive/10 flex items-center justify-center">
-            <AlertTriangle className="h-6 w-6 text-destructive" />
+          <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-[#FF6E50]/10 flex items-center justify-center">
+            <AlertTriangle className="h-6 w-6 text-[#FF6E50]" />
           </div>
           <CardTitle className="text-xl">Something went wrong</CardTitle>
           <CardDescription>
@@ -43,7 +43,7 @@ export default function DashboardError({
           )}
         </CardContent>
         <CardFooter className="flex justify-center gap-4">
-          <Button onClick={reset} variant="default">
+          <Button onClick={reset} className="bg-[#007A78] hover:bg-[#005F5D] text-white">
             <RefreshCw className="mr-2 h-4 w-4" />
             Try Again
           </Button>
@@ -59,9 +59,9 @@ export default function DashboardError({
         If this problem persists, please contact{" "}
         <a
           href={`mailto:${process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "support@cloudact.ai"}`}
-          className="text-primary hover:underline"
+          className="text-[#007A78] hover:text-[#005F5D] hover:underline font-medium"
         >
-          {process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "support@cloudact.ai"}
+          support
         </a>
       </p>
     </div>

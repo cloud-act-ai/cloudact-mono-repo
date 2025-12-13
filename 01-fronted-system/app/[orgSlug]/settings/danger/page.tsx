@@ -266,20 +266,20 @@ export default function DangerPage() {
 
       {/* Owned Organizations Management */}
       {loadingOwnedOrgs ? (
-        <Card className="console-stat-card">
+        <Card className="console-stat-card shadow-sm">
           <CardContent className="py-8">
             <div className="flex items-center justify-center">
-              <Loader2 className="h-6 w-6 animate-spin text-[#007A78]" />
+              <Loader2 className="h-6 w-6 animate-spin text-[#FF6E50]" />
               <span className="ml-2 console-body text-gray-500">Loading organizations...</span>
             </div>
           </CardContent>
         </Card>
       ) : ownedOrgs.length > 0 ? (
-        <Card className="console-stat-card border-amber-500/50">
+        <Card className="console-stat-card shadow-sm border-[#FF6E50]/30">
           <CardHeader>
             <div className="flex items-center gap-2">
-              <Building2 className="h-5 w-5 text-amber-500" />
-              <CardTitle className="console-card-title text-amber-500">Organizations You Own</CardTitle>
+              <Building2 className="h-5 w-5 text-[#FF6E50]" />
+              <CardTitle className="console-card-title text-[#FF6E50]">Organizations You Own</CardTitle>
             </div>
             <CardDescription className="console-subheading">
               You must transfer ownership or delete these organizations before you can delete your account.
@@ -289,16 +289,16 @@ export default function DangerPage() {
             {ownedOrgs.map((org) => (
               <div
                 key={org.id}
-                className="flex items-center justify-between p-4 border rounded-lg bg-muted/30"
+                className="flex items-center justify-between p-4 border border-[#E5E5EA] rounded-lg bg-gray-50"
               >
                 <div className="flex items-center gap-3">
-                  <Building2 className="h-5 w-5 text-[#007A78]" />
+                  <Building2 className="h-5 w-5 text-[#8E8E93]" />
                   <div>
                     <p className="console-body font-medium">{org.org_name}</p>
                     <div className="flex items-center gap-2 console-small text-gray-500">
                       <Users className="h-3 w-3" />
                       <span>{org.member_count} member{org.member_count !== 1 ? "s" : ""}</span>
-                      <Badge variant="outline" className="console-badge console-badge-teal ml-2">Owner</Badge>
+                      <Badge variant="outline" className="bg-[#007A78]/10 text-[#007A78] border-0 ml-2">Owner</Badge>
                     </div>
                   </div>
                 </div>
@@ -308,7 +308,7 @@ export default function DangerPage() {
                       variant="outline"
                       size="sm"
                       onClick={() => openTransferDialog(org)}
-                      className="console-button-secondary"
+                      className="border border-[#E5E5EA] hover:bg-white"
                     >
                       <ArrowRightLeft className="h-4 w-4 mr-2" />
                       Transfer
@@ -318,7 +318,7 @@ export default function DangerPage() {
                     variant="destructive"
                     size="sm"
                     onClick={() => openDeleteOrgDialog(org)}
-                    className="console-button-coral"
+                    className="bg-[#FF6E50] hover:bg-[#E55A3C] text-white shadow-sm"
                   >
                     <Trash2 className="h-4 w-4 mr-2" />
                     Delete
@@ -458,7 +458,7 @@ export default function DangerPage() {
       </Dialog>
 
       {/* Account Deletion Card */}
-      <Card className="console-stat-card border-[#FF6E50]/50">
+      <Card className="console-stat-card shadow-sm border-[#FF6E50]/30">
         <CardHeader>
           <div className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-[#FF6E50]" />
@@ -502,7 +502,7 @@ export default function DangerPage() {
               <Button
                 variant="destructive"
                 disabled={ownedOrgs.length > 0 || isRequestingDeletion || deletionRequested}
-                className="console-button-coral"
+                className="bg-[#FF6E50] hover:bg-[#E55A3C] text-white shadow-sm"
               >
                 {isRequestingDeletion ? (
                   <>

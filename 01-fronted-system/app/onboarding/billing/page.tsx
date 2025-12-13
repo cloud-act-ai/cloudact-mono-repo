@@ -175,7 +175,7 @@ export default function BillingPage() {
         {/* Error Alert */}
         {error && (
           <Alert variant="destructive" className="mx-auto max-w-md bg-[#FFF5F3] border-[#FF6E50]">
-            <AlertDescription className="text-[#FF6E50]">{error}</AlertDescription>
+            <AlertDescription className="text-sm text-[#FF6E50]">{error}</AlertDescription>
           </Alert>
         )}
 
@@ -190,7 +190,7 @@ export default function BillingPage() {
             No plans available. Please configure products in Stripe.
           </div>
         ) : (
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
             {plans.map((plan, index) => {
               const isSelected = selectedPlan === plan.priceId
               // Middle plan (index 1) is always highlighted as "Most Popular"

@@ -321,9 +321,9 @@ export default function PipelinesPage() {
             <div className="health-card p-0 overflow-hidden">
               <div className="px-4 sm:px-6 py-4 border-b border-[#E5E5EA]">
                 <div className="flex items-center gap-3">
-                  <div className="health-card-label health-card-label-purple">
+                  <div className="flex items-center gap-2 text-[#005F5D]">
                     <Play className="h-[18px] w-[18px]" />
-                    <span>Run data pipelines to sync your costs</span>
+                    <span className="text-[15px] font-semibold">Run data pipelines to sync your costs</span>
                   </div>
                 </div>
               </div>
@@ -343,12 +343,15 @@ export default function PipelinesPage() {
                     <TableRow>
                       <TableCell colSpan={5} className="px-4 sm:px-6 py-12 text-center">
                         <div className="space-y-4">
-                          <p className="text-[15px] text-black font-medium">No pipelines available.</p>
-                          <p className="text-[13px] text-[#8E8E93]">
+                          <div className="inline-flex p-4 rounded-2xl bg-[#005F5D]/10 mb-2">
+                            <Plug className="h-12 w-12 text-[#005F5D]" />
+                          </div>
+                          <h3 className="text-[20px] font-semibold text-black">No pipelines available</h3>
+                          <p className="text-[15px] text-[#8E8E93] max-w-md mx-auto">
                             Connect a provider to see available pipelines.
                           </p>
                           <Link href={`/${orgSlug}/settings/integrations`}>
-                            <button className="inline-flex items-center gap-2 h-[36px] px-4 bg-[#007A78] text-white text-[15px] font-semibold rounded-xl hover:bg-[#006664] transition-colors mt-2">
+                            <button className="inline-flex items-center gap-2 h-[44px] px-6 bg-[#005F5D] text-white text-[15px] font-semibold rounded-xl hover:bg-[#004846] transition-colors shadow-sm">
                               <Plug className="h-4 w-4" />
                               Add New Provider
                             </button>
@@ -397,7 +400,7 @@ export default function PipelinesPage() {
                             <button
                               onClick={() => handleRun(pipeline.id)}
                               disabled={isRunning}
-                              className="inline-flex items-center gap-2 h-[36px] px-4 bg-[#FF6E50] text-white text-[15px] font-semibold rounded-xl hover:bg-[#E55A3C] disabled:bg-[#E5E5EA] disabled:text-[#C7C7CC] disabled:cursor-not-allowed transition-all"
+                              className="inline-flex items-center gap-2 h-[36px] px-4 bg-[#005F5D] text-white text-[15px] font-semibold rounded-xl hover:bg-[#004846] disabled:bg-[#E5E5EA] disabled:text-[#C7C7CC] disabled:cursor-not-allowed transition-all"
                             >
                               {isRunning ? (
                                 <>
@@ -468,7 +471,13 @@ export default function PipelinesPage() {
                 ) : pipelineRuns.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="px-4 sm:px-6 py-12 text-center">
-                      <p className="text-[15px] text-[#8E8E93]">No pipeline runs yet. Run a pipeline to see history.</p>
+                      <div className="space-y-3">
+                        <div className="inline-flex p-3 rounded-2xl bg-[#8E8E93]/10 mb-2">
+                          <History className="h-10 w-10 text-[#8E8E93]" />
+                        </div>
+                        <h3 className="text-[17px] font-semibold text-black">No pipeline runs yet</h3>
+                        <p className="text-[15px] text-[#8E8E93]">Run a pipeline to see history</p>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ) : (

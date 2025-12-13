@@ -141,7 +141,7 @@ export default function FeaturesPage() {
       <section className="py-12 sm:py-16 md:py-24 bg-white">
         <div className="container px-4 md:px-12">
           <div className="mx-auto max-w-7xl">
-            <div className="grid gap-5 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-5 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
               {features.map((feature, index) => {
                 const Icon = feature.icon
                 const isCoralIcon = index % 3 === 1
@@ -174,7 +174,7 @@ export default function FeaturesPage() {
               <p className="cloudact-body text-base sm:text-lg">Security, compliance, and scale you can trust</p>
             </div>
 
-            <div className="grid gap-6 sm:gap-8 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-6 sm:gap-8 md:grid-cols-2">
               <div className="cloudact-card group p-6 sm:p-8 md:p-10">
                 <div className="space-y-4 sm:space-y-6">
                   <div className="cloudact-icon-box">

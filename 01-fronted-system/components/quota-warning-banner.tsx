@@ -17,9 +17,9 @@ function getAlertVariant(level: string): "destructive" | undefined {
 function getAlertStyles(level: string): string {
   switch (level) {
     case 'critical':
-      return 'border-orange-500 bg-orange-50 dark:bg-orange-950'
+      return 'border-[#FF6E50] bg-[#FF6E50]/10 dark:bg-[#FF6E50]/20'
     case 'warning':
-      return 'border-yellow-500 bg-yellow-50 dark:bg-yellow-950'
+      return 'border-[#007A78] bg-[#007A78]/10 dark:bg-[#14B8A6]/20'
     default:
       return ''
   }
@@ -28,9 +28,9 @@ function getAlertStyles(level: string): string {
 function getTitleStyles(level: string): string {
   switch (level) {
     case 'critical':
-      return 'text-orange-800 dark:text-orange-200'
+      return 'text-[#E55A3C] dark:text-[#FF8A73]'
     case 'warning':
-      return 'text-yellow-800 dark:text-yellow-200'
+      return 'text-[#005F5D] dark:text-[#14B8A6]'
     default:
       return ''
   }
@@ -39,9 +39,9 @@ function getTitleStyles(level: string): string {
 function getDescStyles(level: string): string {
   switch (level) {
     case 'critical':
-      return 'text-orange-700 dark:text-orange-300'
+      return 'text-[#E55A3C] dark:text-[#FF8A73]'
     case 'warning':
-      return 'text-yellow-700 dark:text-yellow-300'
+      return 'text-[#005F5D] dark:text-[#14B8A6]'
     default:
       return ''
   }
@@ -204,7 +204,7 @@ export function QuotaWarningBanner({
                       asChild
                       size="sm"
                       variant={warning.level === 'exceeded' ? 'default' : 'outline'}
-                      className={warning.level === 'warning' ? 'border-yellow-600 text-yellow-800 hover:bg-yellow-100 dark:border-yellow-400 dark:text-yellow-200 dark:hover:bg-yellow-900' : ''}
+                      className={warning.level === 'warning' ? 'border-[#007A78] text-[#005F5D] hover:bg-[#007A78]/10 dark:border-[#14B8A6] dark:text-[#14B8A6] dark:hover:bg-[#14B8A6]/20' : ''}
                     >
                       <Link href={warning.action.href}>{warning.action.label}</Link>
                     </Button>

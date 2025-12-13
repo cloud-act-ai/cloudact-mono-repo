@@ -432,7 +432,7 @@ export default function BillingPage() {
   if (!isLoadingBilling && userRole && userRole !== "owner") {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
-        <Card className="max-w-md">
+        <Card className="max-w-md border border-[#E5E7EB] shadow-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-destructive" />
@@ -444,7 +444,7 @@ export default function BillingPage() {
               Only organization owners can access billing settings.
             </p>
             <Link href={`/${orgSlug}/dashboard`}>
-              <button className="console-button-primary">Go to Dashboard</button>
+              <button className="h-[36px] px-4 bg-[#007A78] text-white hover:bg-[#006664] rounded-xl text-[15px] font-semibold shadow-sm transition-colors">Go to Dashboard</button>
             </Link>
           </CardContent>
         </Card>
@@ -453,7 +453,7 @@ export default function BillingPage() {
   }
 
   return (
-    <div className="space-y-8 max-w-6xl">
+    <div className="space-y-6 sm:space-y-8 max-w-7xl mx-auto">
       {reason === "subscription_required" && (
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
@@ -472,11 +472,11 @@ export default function BillingPage() {
 
       {/* Current Subscription Status Banner (for existing subscribers) */}
       {hasStripeSubscription && billingInfo?.subscription && (
-        <div className="health-card bg-[#F0FDFA]">
+        <div className="health-card bg-[#FFF5F3] border border-[#FF6E50]/20 shadow-sm">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3 sm:gap-4">
-              <div className="h-10 w-10 rounded-full bg-[#007A78]/10 flex items-center justify-center flex-shrink-0">
-                <CreditCard className="h-5 w-5 text-[#007A78]" />
+              <div className="h-10 w-10 rounded-full bg-[#FF6E50]/10 flex items-center justify-center flex-shrink-0">
+                <CreditCard className="h-5 w-5 text-[#FF6E50]" />
               </div>
               <div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -492,7 +492,7 @@ export default function BillingPage() {
               </div>
             </div>
             {isOwner && (
-              <button onClick={handleManageSubscription} disabled={isPortalLoading} className="h-[36px] px-4 bg-[#007A78] text-white hover:bg-[#006664] rounded-xl text-[15px] font-semibold inline-flex items-center whitespace-nowrap">
+              <button onClick={handleManageSubscription} disabled={isPortalLoading} className="h-[36px] px-4 bg-[#FF6E50] text-white hover:bg-[#E55A3C] rounded-xl text-[15px] font-semibold inline-flex items-center whitespace-nowrap shadow-sm transition-colors">
                 {isPortalLoading ? (
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
                 ) : (
@@ -654,7 +654,7 @@ export default function BillingPage() {
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {plans.map((plan, index) => {
               // Only show "Current Plan" if user has an active Stripe subscription
               const isCurrentPlan = hasStripeSubscription && currentPlan === plan.id
@@ -666,10 +666,10 @@ export default function BillingPage() {
               return (
                 <div
                   key={plan.priceId}
-                  className={`flex flex-col health-card ${isCurrentPlan ? "border-[#007A78] shadow-lg relative" : ""}`}
+                  className={`flex flex-col health-card border shadow-sm ${isCurrentPlan ? "border-[#FF6E50] shadow-lg relative" : "border-[#E5E7EB]"}`}
                 >
                   {isCurrentPlan && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#007A78] text-white px-3 py-1 rounded-full text-[11px] font-semibold">
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#FF6E50] text-white px-3 py-1 rounded-full text-[11px] font-semibold">
                       Current Plan
                     </div>
                   )}
@@ -683,7 +683,7 @@ export default function BillingPage() {
                       <span className="text-[13px] sm:text-[15px] font-normal text-[#8E8E93]">/{plan.interval}</span>
                     </div>
                     {plan.trialDays && !hasStripeSubscription && (
-                      <p className="text-[13px] text-[#007A78] mb-4 font-medium">
+                      <p className="text-[13px] text-[#FF6E50] mb-4 font-medium">
                         {plan.trialDays}-day free trial included
                       </p>
                     )}
@@ -691,7 +691,7 @@ export default function BillingPage() {
                       <ul className="space-y-2">
                         {plan.features.map((feature, i) => (
                           <li key={i} className="flex items-start gap-2 text-[13px] sm:text-[15px]">
-                            <Check className="h-4 w-4 text-[#007A78] flex-shrink-0 mt-0.5" />
+                            <Check className="h-4 w-4 text-[#FF6E50] flex-shrink-0 mt-0.5" />
                             <span className="text-[#3C3C43]">{feature}</span>
                           </li>
                         ))}
@@ -709,7 +709,7 @@ export default function BillingPage() {
                       </button>
                     ) : (
                       <button
-                        className={`h-[36px] px-4 w-full rounded-xl text-[15px] font-semibold ${isUpgrade ? "bg-[#007A78] text-white hover:bg-[#006664]" : "text-[#007A78] bg-white border border-[#007A78]/30 hover:bg-[#007A78]/5"}`}
+                        className={`h-[36px] px-4 w-full rounded-xl text-[15px] font-semibold shadow-sm transition-colors ${isUpgrade ? "bg-[#FF6E50] text-white hover:bg-[#E55A3C]" : "text-[#FF6E50] bg-white border border-[#FF6E50]/30 hover:bg-[#FF6E50]/5"}`}
                         onClick={
                           hasStripeSubscription
                             ? () => showPlanChangeConfirmation(plan, !!isUpgrade)
@@ -744,15 +744,15 @@ export default function BillingPage() {
         {/* Trust Badges */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-8 mt-8 console-small">
           <div className="flex items-center gap-2">
-            <CreditCard className="h-4 w-4 text-[#007A78]" />
+            <CreditCard className="h-4 w-4 text-[#FF6E50]" />
             <span>Secure payments via Stripe</span>
           </div>
           <div className="flex items-center gap-2">
-            <Lock className="h-4 w-4 text-[#007A78]" />
+            <Lock className="h-4 w-4 text-[#FF6E50]" />
             <span>256-bit SSL encryption</span>
           </div>
           <div className="flex items-center gap-2">
-            <Shield className="h-4 w-4 text-[#007A78]" />
+            <Shield className="h-4 w-4 text-[#FF6E50]" />
             <span>GDPR compliant</span>
           </div>
         </div>
@@ -763,7 +763,7 @@ export default function BillingPage() {
             Need enterprise pricing?{" "}
             <a
               href={`mailto:${process.env.NEXT_PUBLIC_MARKETING_EMAIL || "marketing@cloudact.ai"}`}
-              className="text-[#007A78] hover:underline"
+              className="text-[#FF6E50] hover:underline transition-colors"
             >
               Contact {process.env.NEXT_PUBLIC_MARKETING_EMAIL || "marketing@cloudact.ai"}
             </a>
@@ -805,10 +805,10 @@ export default function BillingPage() {
 
       {/* Payment Method Card */}
       {hasStripeSubscription && billingInfo?.paymentMethod && (
-        <Card>
+        <Card className="border border-[#E5E7EB] shadow-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <CreditCard className="h-5 w-5" />
+              <CreditCard className="h-5 w-5 text-[#FF6E50]" />
               Payment Method
             </CardTitle>
             <CardDescription>Your default payment method for this subscription</CardDescription>
@@ -838,7 +838,7 @@ export default function BillingPage() {
                 </div>
               </div>
               {isOwner && (
-                <button className="console-button-secondary" onClick={handleManageSubscription} disabled={isPortalLoading}>
+                <button className="h-[36px] px-4 text-[#FF6E50] bg-white border border-[#FF6E50]/30 hover:bg-[#FF6E50]/5 rounded-xl text-[15px] font-semibold shadow-sm transition-colors" onClick={handleManageSubscription} disabled={isPortalLoading}>
                   Update
                 </button>
               )}
@@ -850,10 +850,10 @@ export default function BillingPage() {
       <Separator />
 
       {/* Invoice History */}
-      <div className="health-card">
+      <div className="health-card border border-[#E5E7EB] shadow-sm">
         <div className="mb-6">
           <h3 className="text-[17px] font-semibold text-black flex items-center gap-2">
-            <Receipt className="h-5 w-5 text-[#007A78]" />
+            <Receipt className="h-5 w-5 text-[#FF6E50]" />
             Invoice History
           </h3>
           <p className="text-[13px] text-[#8E8E93] mt-1">Download your past invoices and receipts</p>
@@ -866,7 +866,7 @@ export default function BillingPage() {
           ) : billingInfo?.invoices && billingInfo.invoices.length > 0 ? (
             <div className="overflow-x-auto -mx-4 sm:mx-0">
               <div className="min-w-[600px] space-y-1">
-                <div className="grid grid-cols-5 gap-3 sm:gap-4 console-table-header px-4">
+                <div className="grid grid-cols-5 gap-3 sm:gap-4 console-table-header px-4 border-b border-[#E5E7EB] pb-2">
                   <span>Invoice</span>
                   <span>Date</span>
                   <span>Amount</span>
@@ -876,7 +876,7 @@ export default function BillingPage() {
                 {billingInfo.invoices.map((invoice) => (
                   <div
                     key={invoice.id}
-                    className="console-table-row grid grid-cols-5 gap-3 sm:gap-4 items-center px-4 py-3"
+                    className="console-table-row grid grid-cols-5 gap-3 sm:gap-4 items-center px-4 py-3 border-b border-[#F5F5F7] hover:bg-[#FFF5F3] transition-colors"
                   >
                   <span className="console-table-cell font-medium text-[13px] sm:text-[15px]">{invoice.number || invoice.id.slice(-8)}</span>
                   <span className="console-table-cell text-[13px] sm:text-[15px]">{formatDate(invoice.created)}</span>
@@ -896,7 +896,7 @@ export default function BillingPage() {
                   <div className="flex justify-end gap-2">
                     {invoice.hostedInvoiceUrl && (
                       <button
-                        className="h-8 w-8 rounded-lg hover:bg-[#007A78]/10 text-[#007A78] inline-flex items-center justify-center"
+                        className="h-8 w-8 rounded-lg hover:bg-[#FF6E50]/10 text-[#FF6E50] inline-flex items-center justify-center transition-colors"
                         onClick={() => window.open(invoice.hostedInvoiceUrl!, "_blank")}
                         aria-label="View invoice"
                       >
@@ -905,7 +905,7 @@ export default function BillingPage() {
                     )}
                     {invoice.invoicePdf && (
                       <button
-                        className="h-8 w-8 rounded-lg hover:bg-[#007A78]/10 text-[#007A78] inline-flex items-center justify-center"
+                        className="h-8 w-8 rounded-lg hover:bg-[#FF6E50]/10 text-[#FF6E50] inline-flex items-center justify-center transition-colors"
                         onClick={() => window.open(invoice.invoicePdf!, "_blank")}
                         aria-label="Download invoice PDF"
                       >
@@ -919,9 +919,11 @@ export default function BillingPage() {
             </div>
           ) : (
             <div className="text-center py-12">
-              <Receipt className="h-12 w-12 mx-auto text-[#8E8E93] mb-4" />
-              <p className="text-[15px] font-medium text-black mb-1">No invoices yet</p>
-              <p className="text-[13px] text-[#8E8E93]">Invoices will appear here once you subscribe</p>
+              <div className="inline-flex p-4 rounded-2xl bg-[#8E8E93]/10 mb-4">
+                <Receipt className="h-12 w-12 text-[#8E8E93]" />
+              </div>
+              <h3 className="text-[20px] font-semibold text-black mb-2">No invoices yet</h3>
+              <p className="text-[15px] text-[#8E8E93]">Invoices will appear here once you subscribe</p>
             </div>
           )}
         </div>

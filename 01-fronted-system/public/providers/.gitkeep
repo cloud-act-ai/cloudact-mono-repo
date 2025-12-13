@@ -1,0 +1,16 @@
+# Provider Logos Directory
+
+Place provider logo SVG files here:
+- openai.svg
+- anthropic.svg
+- gcp.svg
+- gemini.svg
+- deepseek.svg
+- slack.svg
+- github.svg
+
+Each logo should be:
+- SVG format (scalable)
+- Square aspect ratio (or will be contained in square)
+- Optimized for web (< 10KB)
+- Monochrome or brand colors

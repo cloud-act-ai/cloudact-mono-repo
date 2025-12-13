@@ -43,30 +43,28 @@ export default function ForgotPasswordPage() {
 
   if (success) {
     return (
-      <div className="flex min-h-svh w-full flex-col items-center justify-center bg-white p-6 font-sans antialiased">
-        <div className="w-full max-w-[400px] space-y-6">
-          <div className="flex flex-col items-center gap-2 text-center">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#007A78] text-white">
-              <CheckCircle2 className="h-5 w-5" />
+      <div className="flex min-h-svh w-full flex-col items-center justify-center bg-gradient-to-br from-background via-muted/20 to-background p-6">
+        <div className="w-full max-w-[420px] space-y-6">
+          <div className="flex flex-col items-center gap-3 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#007A78] text-white shadow-lg">
+              <CheckCircle2 className="h-7 w-7" />
             </div>
-            <div className="space-y-1">
-              <h1 className="text-2xl font-bold tracking-tight text-gray-900">Check your email</h1>
-              <p className="text-sm text-gray-600">
+            <div className="space-y-2">
+              <h1 className="text-3xl font-bold text-gray-900">Check your email</h1>
+              <p className="text-gray-600">
                 We've sent a password reset link to <span className="font-medium text-gray-900">{email}</span>
               </p>
             </div>
           </div>
 
-          <div className="rounded-xl border bg-white p-6 shadow-sm">
+          <div className="rounded-2xl border bg-white p-8 shadow-lg">
             <p className="text-sm text-gray-600 mb-4">
               Click the link in the email to reset your password. The link will expire in 1 hour.
             </p>
-            <button className="cloudact-btn-secondary w-full">
-              <Link href="/login" className="flex items-center justify-center">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Login
-              </Link>
-            </button>
+            <Link href="/login" className="cloudact-btn-secondary w-full h-11 text-base font-semibold">
+              <ArrowLeft className="mr-2 h-5 w-5" />
+              Back to Login
+            </Link>
           </div>
         </div>
       </div>
@@ -74,43 +72,43 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="flex min-h-svh w-full flex-col items-center justify-center bg-white p-6 font-sans antialiased">
-      <div className="w-full max-w-[400px] space-y-6">
-        <div className="flex flex-col items-center gap-2 text-center">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#007A78] text-white shadow-sm">
-            <Command className="h-5 w-5" />
+    <div className="flex min-h-svh w-full flex-col items-center justify-center bg-gradient-to-br from-background via-muted/20 to-background p-6">
+      <div className="w-full max-w-[420px] space-y-6">
+        <div className="flex flex-col items-center gap-3 text-center">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#007A78] text-white shadow-lg">
+            <Command className="h-7 w-7" />
           </div>
-          <div className="space-y-1">
-            <h1 className="text-2xl font-bold tracking-tight text-gray-900">Forgot Password?</h1>
-            <p className="text-sm text-gray-600">Enter your email and we'll send you a reset link</p>
+          <div className="space-y-2">
+            <h1 className="text-3xl font-bold text-gray-900">Forgot Password?</h1>
+            <p className="text-gray-600">Enter your email and we'll send you a reset link</p>
           </div>
         </div>
 
-        <div className="rounded-xl border bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border bg-white p-8 shadow-lg">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-gray-700">Email address</Label>
+              <Label htmlFor="email" className="text-sm font-medium text-gray-700">Email address</Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="name@example.com"
+                placeholder="you@company.com"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="focus:border-[#007A78] focus:ring-[#007A78]"
+                className="h-11 focus:border-[#007A78] focus:ring-[#007A78]"
               />
             </div>
 
             {error && (
-              <Alert variant="destructive" className="py-2 bg-[#FFF5F3] border-[#FF6E50]">
-                <AlertDescription className="text-[#FF6E50]">{error}</AlertDescription>
+              <Alert variant="destructive" className="py-3 bg-[#FFF5F3] border-[#FF6E50]">
+                <AlertDescription className="text-sm text-[#FF6E50]">{error}</AlertDescription>
               </Alert>
             )}
 
-            <button type="submit" className="cloudact-btn-primary w-full" disabled={isLoading}>
+            <button type="submit" className="cloudact-btn-primary w-full h-11 text-base font-semibold" disabled={isLoading}>
               {isLoading ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                   Sending...
                 </>
               ) : (
@@ -120,10 +118,10 @@ export default function ForgotPasswordPage() {
           </form>
         </div>
 
-        <div className="text-center">
-          <Link href="/login" className="inline-flex items-center text-sm text-[#007A78] hover:text-[#005F5D] hover:underline">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Login
+        <div className="text-center text-sm text-gray-600">
+          Remember your password?{" "}
+          <Link href="/login" className="font-semibold text-[#007A78] hover:text-[#005F5D] hover:underline">
+            Sign in
           </Link>
         </div>
       </div>

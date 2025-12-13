@@ -273,7 +273,7 @@ export default function OnboardingPage() {
       )}
 
       {/* Organization Info Card */}
-      <Card className="console-stat-card">
+      <Card className="console-stat-card shadow-sm">
         <CardHeader>
           <div className="flex items-center gap-2">
             <Building2 className="h-5 w-5 text-[#007A78]" />
@@ -326,7 +326,7 @@ export default function OnboardingPage() {
       </Card>
 
       {/* Subscription Limits Card */}
-      <Card className="console-stat-card">
+      <Card className="console-stat-card shadow-sm">
         <CardHeader>
           <div className="flex items-center gap-2">
             <Key className="h-5 w-5 text-[#007A78]" />
@@ -381,7 +381,7 @@ export default function OnboardingPage() {
       </Card>
 
       {/* Backend Integration Status Card */}
-      <Card className={`console-stat-card ${!backendOnboarded && !loadingBackendStatus ? "border-amber-500/50" : ""}`}>
+      <Card className={`console-stat-card shadow-sm ${!backendOnboarded && !loadingBackendStatus ? "border-amber-500/50" : ""}`}>
         <CardHeader>
           <div className="flex items-center gap-2">
             <Cloud className="h-5 w-5 text-[#007A78]" />
@@ -509,13 +509,13 @@ export default function OnboardingPage() {
                     placeholder={`${orgSlug.replace(/-/g, "_")}_api_...`}
                     value={manualApiKey}
                     onChange={(e) => setManualApiKey(e.target.value)}
-                    className="console-input font-mono"
+                    className="console-input font-mono border border-[#E5E5EA] rounded-lg"
                   />
                   <Button
                     variant="outline"
                     onClick={handleSaveApiKey}
                     disabled={isSavingApiKey || !manualApiKey.trim()}
-                    className="console-button-secondary"
+                    className="console-button-secondary border border-[#E5E5EA]"
                   >
                     {isSavingApiKey ? (
                       <Loader2 className="h-4 w-4 animate-spin" />

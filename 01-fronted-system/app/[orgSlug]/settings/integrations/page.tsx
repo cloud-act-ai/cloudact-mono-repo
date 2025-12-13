@@ -133,7 +133,7 @@ function IntegrationOverviewCard({
   }
 
   return (
-    <div className={`bg-white border border-gray-200 rounded-xl p-4 sm:p-5 transition-all duration-200 hover:border-gray-300 ${!isEnabled && isConnected ? 'opacity-50' : ''}`}>
+    <div className={`bg-white border border-gray-200 rounded-xl p-4 sm:p-5 shadow-sm transition-all duration-200 hover:shadow-md hover:border-gray-300 ${!isEnabled && isConnected ? 'opacity-50' : ''}`}>
       {/* Header with icon, title, description, and status */}
       <div className="flex items-start justify-between gap-3 mb-4">
         <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -250,7 +250,7 @@ function SubscriptionProviderCard({
 
   return (
     <div
-      className={`bg-white border border-gray-200 rounded-xl p-4 sm:p-5 transition-all duration-200 hover:border-gray-300 ${provider.is_enabled ? 'cursor-pointer' : 'opacity-50'}`}
+      className={`bg-white border border-gray-200 rounded-xl p-4 sm:p-5 shadow-sm transition-all duration-200 hover:shadow-md hover:border-gray-300 ${provider.is_enabled ? 'cursor-pointer' : 'opacity-50'}`}
       onClick={() => {
         if (provider.is_enabled) {
           router.push(`/${orgSlug}/subscriptions/${provider.provider}`)
@@ -277,7 +277,14 @@ function SubscriptionProviderCard({
 
       {/* Action button */}
       {provider.is_enabled && (
-        <button className="w-full py-2 px-4 bg-[#007A78] hover:bg-[#005F5D] text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2">
+        <button
+          className="w-full py-2 px-4 bg-[#007A78] hover:bg-[#005F5D] text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+          onClick={(e) => {
+            e.stopPropagation()
+            router.push(`/${orgSlug}/subscriptions/${provider.provider}`)
+          }}
+          data-testid={`manage-plans-btn-${provider.provider}`}
+        >
           Manage Plans
           <ChevronRight className="h-4 w-4" />
         </button>
@@ -489,11 +496,10 @@ export default function IntegrationsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
+    <div className="space-y-6 sm:space-y-8 max-w-7xl mx-auto">
         {/* Header Section */}
-        <div className="space-y-2">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">Integrations</h1>
+      <div className="space-y-2">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">Integrations</h1>
           <p className="text-sm sm:text-base text-gray-600">
             Connect your LLM providers and cloud accounts. Credentials are encrypted using Google Cloud KMS.
           </p>
@@ -560,7 +566,7 @@ export default function IntegrationsPage() {
             <h2 className="text-lg sm:text-xl font-bold text-gray-900">Cloud Providers</h2>
             <p className="text-xs sm:text-sm text-gray-600 mt-1">Connect your cloud infrastructure</p>
           </div>
-          <div className="grid gap-4 sm:gap-5 grid-cols-1 sm:grid-cols-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
             {PROVIDERS.filter((p) => p.id === "gcp").map((provider) => (
               <IntegrationOverviewCard
                 key={provider.id}
@@ -582,7 +588,7 @@ export default function IntegrationsPage() {
             <h2 className="text-lg sm:text-xl font-bold text-gray-900">LLM Providers</h2>
             <p className="text-xs sm:text-sm text-gray-600 mt-1">Connect API keys for per-token usage tracking and cost analysis</p>
           </div>
-          <div className="grid gap-4 sm:gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
             {PROVIDERS.filter((p) => p.id !== "gcp").map((provider) => (
               <IntegrationOverviewCard
                 key={provider.id}
@@ -619,14 +625,19 @@ export default function IntegrationsPage() {
             </div>
           ) : subscriptionProviders.length === 0 ? (
             <div className="border-2 border-dashed border-gray-200 bg-white rounded-xl py-12 text-center">
-              <CreditCard className="h-10 w-10 sm:h-12 sm:w-12 mx-auto text-gray-300 mb-4" />
-              <p className="text-sm sm:text-base text-gray-500 font-medium">
-                No subscription providers available.
+              <div className="inline-flex p-4 rounded-2xl bg-[#8E8E93]/10 mb-4">
+                <CreditCard className="h-12 w-12 text-[#8E8E93]" />
+              </div>
+              <h3 className="text-[20px] font-semibold text-black mb-2">
+                No subscription providers available
+              </h3>
+              <p className="text-[15px] text-[#8E8E93]">
+                Add providers to start tracking SaaS subscriptions
               </p>
             </div>
           ) : (
             <>
-              <div className="grid gap-4 sm:gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
                 {(showAllProviders ? subscriptionProviders : subscriptionProviders.slice(0, INITIAL_PROVIDERS_COUNT)).map((provider) => (
                   <SubscriptionProviderCard
                     key={provider.provider}

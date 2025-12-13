@@ -93,7 +93,7 @@ export default function ResourcesPage() {
       <section className="pb-16 sm:pb-20 md:pb-24 bg-white">
         <div className="container px-4 md:px-12">
           <div className="mx-auto max-w-6xl">
-            <div className="grid gap-5 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-5 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
               {resources.map((resource) => {
                 const Icon = resource.icon
                 return (

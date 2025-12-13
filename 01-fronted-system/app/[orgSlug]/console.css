@@ -1,18 +1,40 @@
 /* ============================================
-   CLOUDACT CONSOLE - APPLE HEALTH STYLE
-   Exact replica of Apple Health UI patterns
+   CLOUDACT CONSOLE - APPLE HEALTH DESIGN SYSTEM
+   Teal + Coral branded with visual depth
    ============================================ */
 
 :root {
   /* Brand Colors */
   --cloudact-teal: #007A78;
   --cloudact-teal-light: #14B8A6;
+  --cloudact-teal-dark: #005F5D;
   --cloudact-coral: #FF6E50;
   --cloudact-coral-light: #FF8A73;
+  --cloudact-coral-dark: #E55A3C;
 
-  /* Apple Health-style gradient colors */
-  --gradient-start: #FFE5DC;
-  --gradient-end: #E8D5F0;
+  /* Teal/Coral gradient colors */
+  --gradient-start: #E6F7F7;  /* Teal tint */
+  --gradient-end: #FFE5DC;     /* Coral tint */
+
+  /* Surface colors for depth */
+  --surface-primary: #FFFFFF;
+  --surface-secondary: #FAFAFA;
+  --surface-tertiary: #F5F5F7;
+  --surface-hover: #F0F0F2;
+
+  /* Border colors */
+  --border-light: rgba(0, 0, 0, 0.06);
+  --border-medium: rgba(0, 0, 0, 0.1);
+
+  /* Shadow system */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-elevated: 0 4px 16px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04);
+
+  /* Scrollbar colors - console specific */
+  --scrollbar-track: #FAFAFA;
+  --scrollbar-thumb: #CBD5E1;
+  --scrollbar-thumb-hover: #007A78;
 }
 
 /* ============================================
@@ -84,23 +106,30 @@
 }
 
 /* ============================================
-   PINNED CARDS - Apple Health Style
-   Clean, modern, color-coded
+   HEALTH CARDS - Apple Health Style
+   Minimal cards with shadows and borders
    ============================================ */
 
 .health-card {
-  background: #FFFFFF;
+  background: var(--surface-primary);
   border-radius: 16px;
   padding: 16px;
-  box-shadow: none;
-  border: none;
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--border-light);
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
 }
 
 .health-card-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
+}
+
+.health-card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .health-card-label {
@@ -111,28 +140,8 @@
   gap: 6px;
 }
 
-.health-card-label-teal { color: #007A78; }
+.health-card-label-teal { color: #005F5D; }
 .health-card-label-coral { color: #FF6E50; }
-.health-card-label-pink { color: #FF2D55; }
-.health-card-label-blue { color: #007AFF; }
-.health-card-label-purple { color: #AF52DE; }
-.health-card-label-orange { color: #FF9500; }
-.health-card-label-green { color: #34C759; }
-.health-card-label-indigo { color: #5856D6; }
-
-.health-card-time {
-  font-size: 0.8125rem;
-  color: #8E8E93;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.health-card-content {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
 
 .health-card-value {
   font-size: 1.75rem;
@@ -141,140 +150,298 @@
   line-height: 1.1;
 }
 
-.health-card-value-row {
+.health-card-description {
+  font-size: 0.8125rem;
+  color: #8E8E93;
+}
+
+/* ============================================
+   METRIC CARDS - Apple Health Style
+   White cards with subtle depth and polish
+   ============================================ */
+
+.metric-card {
+  background: var(--surface-primary);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--border-light);
+  transition: all 0.15s ease;
+  cursor: default;
+}
+
+.metric-card:hover {
+  box-shadow: var(--shadow-elevated);
+  transform: translateY(-1px);
+  border-color: rgba(0, 122, 120, 0.15);
+}
+
+.metric-card:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-card);
+}
+
+.metric-card:focus-visible {
+  outline: 2px solid var(--cloudact-teal);
+  outline-offset: 2px;
+}
+
+/* Clickable metric cards */
+.metric-card.clickable {
+  cursor: pointer;
+}
+
+.metric-card.clickable:hover {
+  box-shadow: var(--shadow-elevated);
+  transform: translateY(-2px);
+  border-color: rgba(0, 122, 120, 0.25);
+}
+
+.metric-card.clickable:active {
+  transform: translateY(-1px);
+}
+
+/* Disabled state */
+.metric-card.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Loading state */
+.metric-card.loading {
+  opacity: 0.7;
+  pointer-events: none;
+  position: relative;
+}
+
+.metric-card.loading::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent);
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.metric-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.metric-card-label {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Teal family (features/analytics) */
+.metric-card-label-teal { color: #007A78; }
+.metric-card-label-secondary { color: #14B8A6; }  /* Teal-light */
+.metric-card-label-tertiary { color: #005F5D; }   /* Teal-dark */
+
+/* Coral family (costs/billing) */
+.metric-card-label-coral { color: #FF6E50; }
+.metric-card-label-coral-light { color: #FF8A73; }
+.metric-card-label-coral-dark { color: #E55A3C; }
+
+.metric-card-time {
+  font-size: 0.8125rem;
+  color: #8E8E93;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.metric-card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.metric-card-value {
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: #000000;
+  line-height: 1.1;
+}
+
+.metric-card-value-row {
   display: flex;
   align-items: baseline;
   gap: 16px;
 }
 
-.health-card-metric {
+.metric-card-metric {
   display: flex;
   flex-direction: column;
 }
 
-.health-card-metric-label {
+.metric-card-metric-label {
   font-size: 0.6875rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.02em;
 }
 
-.health-card-metric-value {
+.metric-card-metric-value {
   font-size: 1.25rem;
   font-weight: 600;
   color: #000000;
 }
 
-.health-card-subtitle {
+.metric-card-subtitle {
   font-size: 0.9375rem;
   color: #000000;
   font-weight: 400;
 }
 
-.health-card-description {
+.metric-card-description {
   font-size: 0.8125rem;
   color: #8E8E93;
 }
 
-/* Activity Ring placeholder */
-.health-card-visual {
+/* Metric ring visual */
+.metric-card-visual {
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background: conic-gradient(#FF2D55 0deg 120deg, #A8FF00 120deg 240deg, #00D4FF 240deg 360deg);
+  background: #007A78;
   opacity: 0.9;
 }
 
 /* Mini bar chart */
-.health-card-bars {
+.metric-card-bars {
   display: flex;
   align-items: flex-end;
   gap: 2px;
   height: 32px;
 }
 
-.health-card-bar {
+.metric-card-bar {
   width: 4px;
-  background: #007AFF;
+  background: #007A78;
   border-radius: 2px;
   opacity: 0.6;
 }
 
 /* ============================================
-   STAT CARDS - Clean modern style
+   STAT CARDS - Apple Health Style
    ============================================ */
 
 .console-stat-card {
-  background: #FFFFFF;
-  padding: 16px;
+  background: var(--surface-primary);
+  padding: 20px;
   border-radius: 16px;
-  border: none;
-  box-shadow: none;
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow-card);
+  transition: all 0.15s ease;
+  cursor: default;
+}
+
+.console-stat-card:hover {
+  box-shadow: var(--shadow-elevated);
+  transform: translateY(-1px);
+  border-color: rgba(0, 122, 120, 0.15);
+}
+
+.console-stat-card:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-card);
+}
+
+.console-stat-card:focus-visible {
+  outline: 2px solid var(--cloudact-teal);
+  outline-offset: 2px;
+}
+
+.console-stat-card.clickable {
+  cursor: pointer;
+}
+
+.console-stat-card.clickable:hover {
+  transform: translateY(-2px);
+  border-color: rgba(0, 122, 120, 0.25);
 }
 
 .console-chart-card {
-  background: #FFFFFF;
+  background: var(--surface-primary);
   border-radius: 16px;
-  border: none;
-  box-shadow: none;
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow-card);
   overflow: hidden;
 }
 
 /* ============================================
    TABLES - Apple Health Style
-   Clean, no borders
+   Clean with subtle row separators
    ============================================ */
 
 .console-table-card {
-  background: #FFFFFF;
+  background: var(--surface-primary);
   border-radius: 16px;
-  border: none;
-  box-shadow: none;
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow-card);
   overflow: hidden;
 }
 
 .console-table-header-row {
-  background: transparent;
+  background: var(--surface-tertiary);
+  border-bottom: 1px solid var(--border-light);
 }
 
 .console-table-header {
   font-size: 0.75rem;
-  font-weight: 500;
+  font-weight: 600;
   color: #8E8E93;
-  padding: 12px 16px;
+  padding: 14px 16px;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
   border: none;
 }
 
 .console-table-row {
-  border: none;
+  border-bottom: 1px solid var(--border-light);
+  transition: background 0.15s ease;
+}
+
+.console-table-row:last-child {
+  border-bottom: none;
 }
 
 .console-table-row:hover {
-  background: #F5F5F7;
+  background: var(--surface-hover);
 }
 
 .console-table-cell {
   font-size: 0.9375rem;
   color: #000000;
-  padding: 14px 16px;
+  padding: 16px;
   border: none;
 }
 
 /* ============================================
    SIDEBAR - Apple Health Style
-   Pure white, clean categories
+   Light gray background with visual separation
    ============================================ */
 
 [data-sidebar="sidebar"] {
-  background: #FFFFFF !important;
-  border-right: none !important;
+  background: var(--surface-secondary) !important;
+  border-right: 1px solid var(--border-light) !important;
+  box-shadow: 1px 0 4px rgba(0, 0, 0, 0.03) !important;
 }
 
 [data-sidebar="header"] {
   background: transparent !important;
-  border-bottom: none !important;
+  border-bottom: 1px solid var(--border-light) !important;
   padding: 20px !important;
 }
 
@@ -282,37 +449,104 @@
   font-size: 0.6875rem !important;
   font-weight: 600 !important;
   text-transform: uppercase !important;
-  letter-spacing: 0.04em !important;
+  letter-spacing: 0.05em !important;
   color: #8E8E93 !important;
-  padding: 20px 20px 8px !important;
+  padding: 24px 20px 10px !important;
 }
 
 [data-sidebar="menu-button"] {
-  font-size: 1.0625rem !important;
-  font-weight: 400 !important;
-  color: #000000 !important;
+  font-size: 0.9375rem !important;
+  font-weight: 500 !important;
+  color: #1C1C1E !important;
   padding: 12px 20px !important;
-  border-radius: 0 !important;
-  margin: 0 !important;
+  border-radius: 10px !important;
+  margin: 2px 12px !important;
+  transition: background 0.15s ease, color 0.15s ease !important;
 }
 
 [data-sidebar="menu-button"]:hover {
-  background: #F5F5F7 !important;
+  background: var(--surface-tertiary) !important;
+}
+
+/* Active state with teal accent */
+[data-sidebar="menu-button"][data-active="true"] {
+  background: rgba(0, 122, 120, 0.1) !important;
+  color: var(--cloudact-teal) !important;
+  font-weight: 600 !important;
+}
+
+/* Cost items active state with coral accent */
+[data-sidebar="menu-button"].cost-item[data-active="true"] {
+  background: rgba(255, 110, 80, 0.1) !important;
+  color: var(--cloudact-coral) !important;
+  font-weight: 600 !important;
 }
 
 [data-sidebar="footer"] {
   background: transparent !important;
-  border-top: none !important;
+  border-top: 1px solid var(--border-light) !important;
+  padding: 16px 12px !important;
 }
 
 [data-sidebar="content"] {
   padding: 0 !important;
 }
 
+/* Sidebar menu sub-items */
+[data-sidebar="menu-sub-button"] {
+  font-size: 0.875rem !important;
+  font-weight: 400 !important;
+  color: #3C3C43 !important;
+  padding: 10px 20px 10px 44px !important;
+  border-radius: 8px !important;
+  margin: 1px 12px !important;
+}
+
+[data-sidebar="menu-sub-button"]:hover {
+  background: var(--surface-tertiary) !important;
+}
+
+[data-sidebar="menu-sub-button"][data-active="true"] {
+  background: rgba(0, 122, 120, 0.08) !important;
+  color: var(--cloudact-teal) !important;
+  font-weight: 500 !important;
+}
+
 /* ============================================
-   BUTTONS
+   BUTTONS - CloudAct Design System
+   Primary: Teal (#007A78)
+   Destructive: Coral (#FF6E50)
+   Touch target: 44px minimum on mobile
    ============================================ */
 
+/* Base button styles */
+.console-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 12px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  min-height: 44px;
+  padding: 12px 24px;
+}
+
+/* Focus states for accessibility */
+.console-button:focus-visible {
+  outline: 2px solid var(--cloudact-teal);
+  outline-offset: 2px;
+}
+
+.console-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Primary Button - Teal */
 .console-button-primary {
   background: var(--cloudact-teal);
   color: white;
@@ -321,12 +555,23 @@
   font-weight: 600;
   padding: 12px 24px;
   border: none;
+  min-height: 44px;
 }
 
 .console-button-primary:hover {
   background: #006664;
 }
 
+.console-button-primary:focus-visible {
+  outline: 2px solid var(--cloudact-teal);
+  outline-offset: 2px;
+}
+
+.console-button-primary:active {
+  background: #005F5D;
+}
+
+/* Secondary Button - Gray */
 .console-button-secondary {
   background: #F5F5F7;
   color: #000000;
@@ -335,10 +580,195 @@
   font-weight: 600;
   padding: 12px 24px;
   border: none;
+  min-height: 44px;
 }
 
 .console-button-secondary:hover {
   background: #E8E8ED;
+}
+
+.console-button-secondary:focus-visible {
+  outline: 2px solid var(--cloudact-teal);
+  outline-offset: 2px;
+}
+
+.console-button-secondary:active {
+  background: #D1D1D6;
+}
+
+/* Destructive Button - Coral */
+.console-button-destructive {
+  background: var(--cloudact-coral);
+  color: white;
+  border-radius: 12px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  padding: 12px 24px;
+  border: none;
+  min-height: 44px;
+}
+
+.console-button-destructive:hover {
+  background: #E55A3C;
+}
+
+.console-button-destructive:focus-visible {
+  outline: 2px solid var(--cloudact-coral);
+  outline-offset: 2px;
+}
+
+.console-button-destructive:active {
+  background: #CC4F35;
+}
+
+/* Coral Button - Alias for destructive with brand name */
+.console-button-coral {
+  background: var(--cloudact-coral);
+  color: white;
+  border-radius: 12px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  padding: 12px 24px;
+  border: none;
+  min-height: 44px;
+}
+
+.console-button-coral:hover {
+  background: #E55A3C;
+}
+
+.console-button-coral:focus-visible {
+  outline: 2px solid var(--cloudact-coral);
+  outline-offset: 2px;
+}
+
+.console-button-coral:active {
+  background: #CC4F35;
+}
+
+/* Ghost Button - Transparent */
+.console-button-ghost {
+  background: transparent;
+  color: #000000;
+  border-radius: 12px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  padding: 12px 24px;
+  border: none;
+  min-height: 44px;
+}
+
+.console-button-ghost:hover {
+  background: rgba(0, 122, 120, 0.08);
+}
+
+.console-button-ghost:focus-visible {
+  outline: 2px solid var(--cloudact-teal);
+  outline-offset: 2px;
+}
+
+.console-button-ghost:active {
+  background: rgba(0, 122, 120, 0.12);
+}
+
+/* Ghost Destructive - for delete actions */
+.console-button-ghost-destructive {
+  background: transparent;
+  color: var(--cloudact-coral);
+  border-radius: 12px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  padding: 12px 24px;
+  border: none;
+  min-height: 44px;
+}
+
+.console-button-ghost-destructive:hover {
+  background: rgba(255, 110, 80, 0.1);
+}
+
+.console-button-ghost-destructive:focus-visible {
+  outline: 2px solid var(--cloudact-coral);
+  outline-offset: 2px;
+}
+
+/* Outline Button - Teal border */
+.console-button-outline {
+  background: transparent;
+  color: var(--cloudact-teal);
+  border-radius: 12px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  padding: 11px 23px;
+  border: 1px solid var(--cloudact-teal);
+  min-height: 44px;
+}
+
+.console-button-outline:hover {
+  background: rgba(0, 122, 120, 0.08);
+}
+
+.console-button-outline:focus-visible {
+  outline: 2px solid var(--cloudact-teal);
+  outline-offset: 2px;
+}
+
+/* Link Button - Text only */
+.console-button-link {
+  background: transparent;
+  color: var(--cloudact-teal);
+  border-radius: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  padding: 0;
+  border: none;
+  min-height: auto;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.console-button-link:hover {
+  color: #006664;
+}
+
+/* Icon Button Sizes */
+.console-button-icon {
+  padding: 0;
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  border-radius: 12px;
+}
+
+.console-button-icon-sm {
+  padding: 0;
+  width: 40px;
+  height: 40px;
+  min-height: 40px;
+  border-radius: 10px;
+}
+
+.console-button-icon-lg {
+  padding: 0;
+  width: 48px;
+  height: 48px;
+  min-height: 48px;
+  border-radius: 14px;
+}
+
+/* Button Sizes */
+.console-button-sm {
+  font-size: 0.8125rem;
+  padding: 8px 16px;
+  min-height: 36px;
+  border-radius: 10px;
+}
+
+.console-button-lg {
+  font-size: 1rem;
+  padding: 14px 28px;
+  min-height: 48px;
+  border-radius: 14px;
 }
 
 /* ============================================
@@ -359,14 +789,21 @@
   background: transparent;
   border: none;
   border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.15s ease;
 }
 
 .console-tab:hover {
   color: #000000;
 }
 
+.console-tab:focus-visible {
+  outline: 2px solid var(--cloudact-teal);
+  outline-offset: 2px;
+}
+
 .console-tab[data-state="active"] {
-  background: #007AFF;
+  background: #007A78;
   color: #FFFFFF;
 }
 
@@ -407,28 +844,145 @@
 }
 
 /* ============================================
-   FORMS
+   CATEGORY COLORS - Domain-based
+   ============================================ */
+
+/* Teal family - Features/Analytics */
+.category-teal { color: #007A78; }
+.category-teal-light { color: #14B8A6; }
+.category-teal-dark { color: #005F5D; }
+
+/* Coral family - Costs/Billing */
+.category-coral { color: #FF6E50; }
+.category-coral-light { color: #FF8A73; }
+.category-coral-dark { color: #E55A3C; }
+
+/* Neutral - General */
+.category-neutral { color: #8E8E93; }
+
+/* Category backgrounds */
+.category-bg-teal { background: rgba(0, 122, 120, 0.1); }
+.category-bg-coral { background: rgba(255, 110, 80, 0.1); }
+
+/* ============================================
+   FORMS - Apple Health Style
+   Clear boundaries with subtle borders
    ============================================ */
 
 .console-input {
-  background: #F5F5F7;
-  border: none;
+  background: var(--surface-primary);
+  border: 1px solid var(--border-medium);
   border-radius: 12px;
   padding: 14px 16px;
   font-size: 0.9375rem;
+  color: #1C1C1E;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.console-input:focus {
-  outline: none;
-  box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.2);
+.console-input::placeholder {
+  color: #8E8E93;
+}
+
+.console-input:hover {
+  border-color: rgba(0, 0, 0, 0.2);
+}
+
+.console-input:focus-visible {
+  outline: 2px solid var(--cloudact-teal);
+  outline-offset: 2px;
+  border-color: var(--cloudact-teal);
+  box-shadow: 0 0 0 3px rgba(0, 122, 120, 0.15);
+}
+
+.console-input:disabled {
+  background: var(--surface-tertiary);
+  color: #8E8E93;
+  cursor: not-allowed;
 }
 
 .console-label {
-  font-size: 0.9375rem;
-  font-weight: 500;
-  color: #000000;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1C1C1E;
   margin-bottom: 8px;
   display: block;
+}
+
+.console-label-hint {
+  font-size: 0.8125rem;
+  font-weight: 400;
+  color: #8E8E93;
+  margin-top: 6px;
+}
+
+/* Select dropdown */
+.console-select {
+  background: var(--surface-primary);
+  border: 1px solid var(--border-medium);
+  border-radius: 12px;
+  padding: 14px 40px 14px 16px;
+  font-size: 0.9375rem;
+  color: #1C1C1E;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238E8E93' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.console-select:hover {
+  border-color: rgba(0, 0, 0, 0.2);
+}
+
+.console-select:focus-visible {
+  outline: 2px solid var(--cloudact-teal);
+  outline-offset: 2px;
+  border-color: var(--cloudact-teal);
+  box-shadow: 0 0 0 3px rgba(0, 122, 120, 0.15);
+}
+
+/* Textarea */
+.console-textarea {
+  background: var(--surface-primary);
+  border: 1px solid var(--border-medium);
+  border-radius: 12px;
+  padding: 14px 16px;
+  font-size: 0.9375rem;
+  color: #1C1C1E;
+  resize: vertical;
+  min-height: 100px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.console-textarea:focus-visible {
+  outline: 2px solid var(--cloudact-teal);
+  outline-offset: 2px;
+  border-color: var(--cloudact-teal);
+  box-shadow: 0 0 0 3px rgba(0, 122, 120, 0.15);
+}
+
+/* Form group spacing */
+.console-form-group {
+  margin-bottom: 20px;
+}
+
+/* Input with icon */
+.console-input-wrapper {
+  position: relative;
+}
+
+.console-input-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #8E8E93;
+  pointer-events: none;
+}
+
+.console-input-with-icon {
+  padding-left: 44px;
 }
 
 /* ============================================
@@ -441,6 +995,97 @@
 .bg-cloudact-coral { background: var(--cloudact-coral); }
 
 /* ============================================
+   DIVIDERS & SECTIONS - Apple Health Style
+   ============================================ */
+
+.console-divider {
+  height: 1px;
+  background: var(--border-light);
+  margin: 24px 0;
+}
+
+.console-section {
+  margin-bottom: 32px;
+}
+
+.console-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+/* Card container with grouped items */
+.console-card-container {
+  background: var(--surface-primary);
+  border-radius: 16px;
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+.console-card-item {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-light);
+  transition: background 0.15s ease;
+}
+
+.console-card-item:last-child {
+  border-bottom: none;
+}
+
+.console-card-item:hover {
+  background: var(--surface-hover);
+}
+
+/* List item with icon */
+.console-list-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.console-list-item:last-child {
+  border-bottom: none;
+}
+
+.console-list-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.console-list-icon-teal {
+  background: rgba(0, 122, 120, 0.1);
+  color: var(--cloudact-teal);
+}
+
+.console-list-icon-coral {
+  background: rgba(255, 110, 80, 0.1);
+  color: var(--cloudact-coral);
+}
+
+/* Empty state */
+.console-empty-state {
+  text-align: center;
+  padding: 48px 24px;
+  color: #8E8E93;
+}
+
+.console-empty-icon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 16px;
+  opacity: 0.5;
+}
+
+/* ============================================
    CHARTS
    ============================================ */
 
@@ -448,67 +1093,176 @@
   height: 280px;
 }
 
+.console-chart-wrapper {
+  background: var(--surface-primary);
+  border-radius: 16px;
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow-card);
+  padding: 20px;
+}
+
+.console-chart-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #8E8E93;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 16px;
+}
+
 /* ============================================
    RESPONSIVE
    ============================================ */
 
 @media (max-width: 640px) {
+  :root {
+    --shadow-card: 0 1px 4px rgba(0, 0, 0, 0.05);
+    --shadow-elevated: 0 2px 8px rgba(0, 0, 0, 0.06);
+  }
+
   .console-main-gradient {
     background-size: 100% 200px;
-    padding: 16px;
+    padding: 12px;
   }
 
   .console-page-title {
-    font-size: 1.75rem;
+    font-size: 1.5rem;
+    line-height: 1.2;
   }
 
   .console-section-title {
-    font-size: 1.375rem;
+    font-size: 1.125rem;
+    margin-bottom: 12px;
   }
 
-  .health-card {
+  .metric-card {
     padding: 14px;
-    border-radius: 14px;
+    border-radius: 12px;
   }
 
-  .health-card-value {
+  .metric-card-value {
     font-size: 1.375rem;
   }
 
-  .health-card-label {
-    font-size: 0.8125rem;
-  }
-
-  .health-card-description {
+  .metric-card-label {
     font-size: 0.75rem;
   }
 
+  .metric-card-description {
+    font-size: 0.6875rem;
+  }
+
   .console-metric {
-    font-size: 1.5rem;
+    font-size: 1.375rem;
   }
 
   .console-stat-card {
     padding: 14px;
-    border-radius: 14px;
+    border-radius: 12px;
   }
 
   .console-table-header {
-    font-size: 0.6875rem;
-    padding: 10px 12px;
+    font-size: 0.625rem;
+    padding: 10px 8px;
   }
 
   .console-table-cell {
-    font-size: 0.8125rem;
-    padding: 12px;
+    font-size: 0.75rem;
+    padding: 10px 8px;
   }
 
   .chart-container {
-    height: 200px;
+    height: 180px;
+  }
+
+  .console-chart-wrapper {
+    padding: 14px;
+    border-radius: 12px;
+  }
+
+  .console-card-container {
+    border-radius: 12px;
+  }
+
+  .console-card-item {
+    padding: 12px 14px;
+  }
+
+  .console-input,
+  .console-select,
+  .console-textarea {
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 16px; /* Prevents iOS zoom on focus */
+  }
+
+  /* Ensure all buttons meet 44px touch target */
+  .console-button,
+  .console-button-primary,
+  .console-button-secondary,
+  .console-button-destructive,
+  .console-button-ghost,
+  .console-button-outline {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 12px 20px;
+  }
+
+  .console-button-sm {
+    min-height: 44px;
+    padding: 12px 16px;
+    font-size: 0.875rem;
+  }
+
+  /* Stack button groups vertically on mobile */
+  .console-button-group {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .console-button-group > * {
+    width: 100%;
   }
 
   [data-sidebar="menu-button"] {
-    font-size: 1rem !important;
-    padding: 10px 16px !important;
+    font-size: 0.875rem !important;
+    padding: 12px 16px !important;
+    border-radius: 8px !important;
+    margin: 2px 8px !important;
+    min-height: 44px !important;
+  }
+
+  [data-sidebar="group-label"] {
+    padding: 20px 16px 8px !important;
+  }
+
+  /* Reduce spacing between cards on mobile */
+  .console-section {
+    margin-bottom: 24px;
+  }
+
+  /* Make badges smaller on mobile */
+  .console-badge {
+    font-size: 0.625rem;
+    padding: 3px 10px;
+  }
+
+  /* List icons smaller on mobile */
+  .console-list-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+  }
+
+  /* Empty state padding reduced */
+  .console-empty-state {
+    padding: 32px 16px;
+  }
+
+  .console-empty-icon {
+    width: 48px;
+    height: 48px;
+    margin: 0 auto 12px;
   }
 }
 
@@ -520,10 +1274,144 @@
   .chart-container {
     height: 240px;
   }
+
+  .metric-card {
+    padding: 18px;
+  }
 }
 
 @media (min-width: 1025px) {
   .chart-container {
     height: 300px;
   }
+}
+
+/* ============================================
+   DARK MODE SUPPORT
+   ============================================ */
+
+.dark {
+  --surface-primary: #1C1C1E;
+  --surface-secondary: #2C2C2E;
+  --surface-tertiary: #3A3A3C;
+  --surface-hover: #48484A;
+  --border-light: rgba(255, 255, 255, 0.1);
+  --border-medium: rgba(255, 255, 255, 0.15);
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-elevated: 0 4px 16px rgba(0, 0, 0, 0.4);
+
+  /* Scrollbar colors - dark mode */
+  --scrollbar-track: #2C2C2E;
+  --scrollbar-thumb: #475569;
+  --scrollbar-thumb-hover: #14B8A6;
+}
+
+.dark .console-page-title,
+.dark .console-heading,
+.dark .console-section-title,
+.dark .console-card-title,
+.dark .metric-card-value,
+.dark .metric-card-metric-value,
+.dark .console-table-cell,
+.dark .console-input,
+.dark .console-select,
+.dark .console-textarea,
+.dark .console-label {
+  color: #F5F5F7;
+}
+
+.dark .console-body,
+.dark .metric-card-subtitle {
+  color: #AEAEB2;
+}
+
+.dark .console-small,
+.dark .metric-card-description,
+.dark .metric-card-time,
+.dark .console-table-header {
+  color: #8E8E93;
+}
+
+.dark [data-sidebar="menu-button"] {
+  color: #F5F5F7 !important;
+}
+
+/* ============================================
+   CONSOLE SCROLLBARS - Enhanced for Apple Health Style
+   Brand colors with smooth transitions
+   ============================================ */
+
+/* Console-specific scrollbar styling */
+.console-main-gradient::-webkit-scrollbar,
+[data-sidebar="sidebar"]::-webkit-scrollbar,
+.metric-card::-webkit-scrollbar,
+.console-table-card::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.console-main-gradient::-webkit-scrollbar-track,
+[data-sidebar="sidebar"]::-webkit-scrollbar-track,
+.metric-card::-webkit-scrollbar-track,
+.console-table-card::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+  border-radius: 4px;
+}
+
+.console-main-gradient::-webkit-scrollbar-thumb,
+[data-sidebar="sidebar"]::-webkit-scrollbar-thumb,
+.metric-card::-webkit-scrollbar-thumb,
+.console-table-card::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 4px;
+  transition: background-color 0.15s ease;
+}
+
+.console-main-gradient::-webkit-scrollbar-thumb:hover,
+[data-sidebar="sidebar"]::-webkit-scrollbar-thumb:hover,
+.metric-card::-webkit-scrollbar-thumb:hover,
+.console-table-card::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+/* Horizontal scrollbars for tables */
+.console-table-card::-webkit-scrollbar {
+  height: 6px;
+}
+
+/* Fade indicators for overflow */
+.console-table-card {
+  position: relative;
+}
+
+.console-table-card::before,
+.console-table-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 20px;
+  pointer-events: none;
+  z-index: 10;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.console-table-card::before {
+  left: 0;
+  background: linear-gradient(to right, var(--surface-primary), transparent);
+}
+
+.console-table-card::after {
+  right: 0;
+  background: linear-gradient(to left, var(--surface-primary), transparent);
+}
+
+/* Show fade when scrolled */
+.console-table-card.scrolled-left::before {
+  opacity: 1;
+}
+
+.console-table-card.scrolled-right::after {
+  opacity: 1;
 }

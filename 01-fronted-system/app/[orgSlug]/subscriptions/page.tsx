@@ -56,14 +56,14 @@ const CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: string }>
   other: Wallet,
 }
 
-// Category colors - Apple Health System Colors
+// Category colors - Coral family (subscriptions are costs, not features)
 const CATEGORY_COLORS: Record<string, string> = {
-  ai: "bg-[#FF2D55]/12 text-[#FF2D55] border-0",
-  design: "bg-[#AF52DE]/12 text-[#AF52DE] border-0",
-  productivity: "bg-[#007AFF]/12 text-[#007AFF] border-0",
-  communication: "bg-[#34C759]/12 text-[#34C759] border-0",
-  development: "bg-[#5856D6]/12 text-[#5856D6] border-0",
-  cloud: "bg-[#FF9500]/12 text-[#FF9500] border-0",
+  ai: "bg-[#FF6E50]/12 text-[#FF6E50] border-0",
+  design: "bg-[#FF8A73]/12 text-[#FF8A73] border-0",
+  productivity: "bg-[#E55A3C]/12 text-[#E55A3C] border-0",
+  communication: "bg-[#FF6E50]/10 text-[#FF6E50] border-0",
+  development: "bg-[#FF8A73]/10 text-[#FF8A73] border-0",
+  cloud: "bg-[#E55A3C]/10 text-[#E55A3C] border-0",
   other: "bg-[#8E8E93]/12 text-[#8E8E93] border-0",
 }
 
@@ -205,7 +205,7 @@ export default function SubscriptionsPage() {
         </div>
 
         {/* Table Skeleton */}
-        <div className="health-card p-0 overflow-hidden">
+        <div className="metric-card p-0 overflow-hidden">
           <div className="px-4 sm:px-6 py-4 sm:py-5">
             <h2 className="text-[17px] font-semibold text-black">All Subscriptions</h2>
             <p className="text-[13px] text-[#8E8E93] mt-0.5">
@@ -233,7 +233,7 @@ export default function SubscriptionsPage() {
         </div>
 
         {/* Error Card - Apple Health Style */}
-        <div className="health-card bg-[#FF9500]/10 p-4 sm:p-5">
+        <div className="metric-card p-4 sm:p-5">
           <div className="flex items-start gap-3">
             <AlertCircle className="h-5 w-5 text-[#FF9500] mt-0.5 flex-shrink-0" />
             <div>
@@ -242,7 +242,7 @@ export default function SubscriptionsPage() {
                 {error.includes("API key") ? (
                   <>
                     Please complete organization onboarding in{" "}
-                    <Link href={`/${orgSlug}/settings/onboarding`} className="text-[#007AFF] hover:underline font-medium">
+                    <Link href={`/${orgSlug}/settings/onboarding`} className="text-[#007A78] hover:underline font-medium">
                       Settings → Onboarding
                     </Link>{" "}
                     to enable subscription tracking.
@@ -296,60 +296,60 @@ export default function SubscriptionsPage() {
           {/* Row 1: Actual Costs */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Daily Cost */}
-            <div className="health-card">
-              <div className="health-card-header">
-                <div className="health-card-label health-card-label-teal">
+            <div className="metric-card">
+              <div className="metric-card-header">
+                <div className="metric-card-label metric-card-label-coral">
                   <DollarSign className="h-[18px] w-[18px]" />
                   <span>Daily Cost</span>
                 </div>
               </div>
-              <div className="health-card-content">
-                <div className="health-card-value">{formatCurrency(summary.total_daily_cost)}</div>
-                <div className="health-card-description mt-1">Current daily rate</div>
+              <div className="metric-card-content">
+                <div className="metric-card-value">{formatCurrency(summary.total_daily_cost)}</div>
+                <div className="metric-card-description mt-1">Current daily rate</div>
               </div>
             </div>
 
             {/* Month-to-Date */}
-            <div className="health-card">
-              <div className="health-card-header">
-                <div className="health-card-label health-card-label-blue">
+            <div className="metric-card">
+              <div className="metric-card-header">
+                <div className="metric-card-label metric-card-label-coral">
                   <Calendar className="h-[18px] w-[18px]" />
                   <span>Month-to-Date</span>
                 </div>
               </div>
-              <div className="health-card-content">
-                <div className="health-card-value">{formatCurrency(summary.mtd_cost || summary.total_monthly_cost)}</div>
-                <div className="health-card-description mt-1">Actual spent this month</div>
+              <div className="metric-card-content">
+                <div className="metric-card-value">{formatCurrency(summary.mtd_cost || summary.total_monthly_cost)}</div>
+                <div className="metric-card-description mt-1">Actual spent this month</div>
               </div>
             </div>
 
             {/* Year-to-Date */}
-            <div className="health-card">
-              <div className="health-card-header">
-                <div className="health-card-label health-card-label-green">
+            <div className="metric-card">
+              <div className="metric-card-header">
+                <div className="metric-card-label metric-card-label-coral-dark">
                   <TrendingUp className="h-[18px] w-[18px]" />
                   <span>YTD {new Date().getFullYear()}</span>
                 </div>
               </div>
-              <div className="health-card-content">
-                <div className="health-card-value">{formatCurrency(summary.ytd_cost || 0)}</div>
-                <div className="health-card-description mt-1">Jan 1 - today actual</div>
+              <div className="metric-card-content">
+                <div className="metric-card-value">{formatCurrency(summary.ytd_cost || 0)}</div>
+                <div className="metric-card-description mt-1">Jan 1 - today actual</div>
               </div>
             </div>
 
             {/* Active Plans */}
-            <div className="health-card">
-              <div className="health-card-header">
-                <div className="health-card-label health-card-label-coral">
+            <div className="metric-card">
+              <div className="metric-card-header">
+                <div className="metric-card-label metric-card-label-coral">
                   <Wallet className="h-[18px] w-[18px]" />
                   <span>Active Plans</span>
                 </div>
               </div>
-              <div className="health-card-content">
-                <div className="health-card-value">
+              <div className="metric-card-content">
+                <div className="metric-card-value">
                   {summary.enabled_count}<span className="text-[#8E8E93] text-[18px] font-normal"> / {summary.total_count}</span>
                 </div>
-                <div className="health-card-description mt-1">Subscriptions enabled</div>
+                <div className="metric-card-description mt-1">Subscriptions enabled</div>
               </div>
             </div>
           </div>
@@ -357,44 +357,44 @@ export default function SubscriptionsPage() {
           {/* Row 2: Forecasted Costs */}
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
             {/* Monthly Forecast */}
-            <div className="health-card">
-              <div className="health-card-header">
-                <div className="health-card-label health-card-label-purple">
+            <div className="metric-card">
+              <div className="metric-card-header">
+                <div className="metric-card-label metric-card-label-coral-light">
                   <TrendingUp className="h-[18px] w-[18px]" />
                   <span>Monthly Forecast</span>
                 </div>
               </div>
-              <div className="health-card-content">
-                <div className="health-card-value">{formatCurrency(summary.forecast_monthly_cost || summary.total_monthly_cost)}</div>
-                <div className="health-card-description mt-1">Projected full month</div>
+              <div className="metric-card-content">
+                <div className="metric-card-value">{formatCurrency(summary.forecast_monthly_cost || summary.total_monthly_cost)}</div>
+                <div className="metric-card-description mt-1">Projected full month</div>
               </div>
             </div>
 
             {/* Annual Forecast */}
-            <div className="health-card">
-              <div className="health-card-header">
-                <div className="health-card-label health-card-label-indigo">
+            <div className="metric-card">
+              <div className="metric-card-header">
+                <div className="metric-card-label metric-card-label-coral-dark">
                   <ArrowUpRight className="h-[18px] w-[18px]" />
                   <span>Annual {new Date().getFullYear()}</span>
                 </div>
               </div>
-              <div className="health-card-content">
-                <div className="health-card-value">{formatCurrency(summary.forecast_annual_cost || summary.total_annual_cost)}</div>
-                <div className="health-card-description mt-1">YTD + projected to Dec 31</div>
+              <div className="metric-card-content">
+                <div className="metric-card-value">{formatCurrency(summary.forecast_annual_cost || summary.total_annual_cost)}</div>
+                <div className="metric-card-description mt-1">YTD + projected to Dec 31</div>
               </div>
             </div>
 
             {/* Categories */}
-            <div className="health-card col-span-2 lg:col-span-1">
-              <div className="health-card-header">
-                <div className="health-card-label health-card-label-orange">
+            <div className="metric-card col-span-2 lg:col-span-1">
+              <div className="metric-card-header">
+                <div className="metric-card-label metric-card-label-neutral">
                   <List className="h-[18px] w-[18px]" />
                   <span>Categories</span>
                 </div>
               </div>
-              <div className="health-card-content">
-                <div className="health-card-value">{Object.keys(summary.count_by_category).length}</div>
-                <div className="health-card-description mt-1">Active categories</div>
+              <div className="metric-card-content">
+                <div className="metric-card-value">{Object.keys(summary.count_by_category).length}</div>
+                <div className="metric-card-description mt-1">Active categories</div>
               </div>
             </div>
           </div>
@@ -404,18 +404,18 @@ export default function SubscriptionsPage() {
       {/* Plans Table - Apple Health Style */}
       <div>
         <h2 className="text-[22px] font-bold text-black mb-4">All Subscriptions</h2>
-        <div className="health-card p-0 overflow-hidden">
+        <div className="metric-card p-0 overflow-hidden">
           {plans.length === 0 ? (
             <div className="text-center py-12 sm:py-16 px-4 sm:px-6">
-              <div className="inline-flex p-4 rounded-2xl bg-[#F5F5F7] mb-4">
-                <Wallet className="h-12 w-12 text-[#8E8E93]" />
+              <div className="inline-flex p-4 rounded-2xl bg-[#007A78]/10 mb-4">
+                <Wallet className="h-12 w-12 text-[#007A78]" />
               </div>
-              <h3 className="text-[17px] font-semibold text-black mb-2">No subscriptions yet</h3>
+              <h3 className="text-[20px] font-semibold text-black mb-2">No subscriptions yet</h3>
               <p className="text-[15px] text-[#8E8E93] mb-6 max-w-md mx-auto">
                 Enable providers from Integrations to start tracking your SaaS costs.
               </p>
               <Link href={`/${orgSlug}/settings/integrations/subscriptions`}>
-                <Button className="h-[44px] px-6 bg-[#007A78] text-white hover:bg-[#006664] rounded-xl text-[15px] font-semibold">
+                <Button className="h-[44px] px-6 bg-[#007A78] text-white hover:bg-[#006664] rounded-xl text-[15px] font-semibold shadow-sm">
                   <Plus className="h-4 w-4 mr-2" />
                   Enable Providers
                 </Button>
@@ -494,14 +494,14 @@ export default function SubscriptionsPage() {
                       <TableCell className="console-table-cell">
                         {integrationPath ? (
                           <Link href={`/${orgSlug}/settings/integrations/${integrationPath}`}>
-                            <span className="text-[#007AFF] hover:underline cursor-pointer flex items-center gap-1 font-medium text-[15px] transition-colors">
+                            <span className="text-[#007A78] hover:underline cursor-pointer flex items-center gap-1 font-medium text-[15px] transition-colors">
                               {plan.provider_name}
                               <ArrowUpRight className="h-3.5 w-3.5" />
                             </span>
                           </Link>
                         ) : (
                           <Link href={`/${orgSlug}/subscriptions/${plan.provider_name}`}>
-                            <span className="text-[#007AFF] hover:underline cursor-pointer flex items-center gap-1 font-medium text-[15px] transition-colors">
+                            <span className="text-[#007A78] hover:underline cursor-pointer flex items-center gap-1 font-medium text-[15px] transition-colors">
                               {plan.provider_name}
                               <ArrowUpRight className="h-3.5 w-3.5" />
                             </span>
@@ -533,7 +533,7 @@ export default function SubscriptionsPage() {
                       <TableCell className="console-table-cell text-right">
                         {plan.seats ? (
                           <div className="flex items-center justify-end gap-1.5 text-black font-semibold text-[15px]">
-                            <Users className="h-4 w-4 text-[#5856D6]" />
+                            <Users className="h-4 w-4 text-[#FF6E50]" />
                             <span>{plan.seats}</span>
                           </div>
                         ) : (
@@ -551,7 +551,7 @@ export default function SubscriptionsPage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-8 w-8 text-[#007A78] hover:bg-[#007A78]/10 transition-all rounded-lg"
+                              className="h-10 w-10 text-[#007A78] hover:bg-[#007A78]/10 transition-all rounded-lg"
                               title="Edit plan"
                             >
                               <Pencil className="h-4 w-4" />
@@ -561,7 +561,7 @@ export default function SubscriptionsPage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-8 w-8 text-[#FF3B30] hover:bg-[#FF3B30]/10 transition-all rounded-lg"
+                              className="h-10 w-10 text-[#FF3B30] hover:bg-[#FF3B30]/10 transition-all rounded-lg"
                               title="End subscription"
                             >
                               <CalendarX className="h-4 w-4" />

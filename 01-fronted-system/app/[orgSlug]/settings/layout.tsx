@@ -24,12 +24,14 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
       label: "Personal",
       icon: User,
       show: true,
+      color: "#8E8E93", // Neutral
     },
     {
       href: `/${orgSlug}/settings/security`,
       label: "Security",
       icon: Shield,
       show: true,
+      color: "#8E8E93", // Neutral
     },
     {
       href: `/${orgSlug}/settings/danger`,
@@ -37,6 +39,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
       icon: AlertTriangle,
       show: true,
       danger: true,
+      color: "#FF6E50", // Coral for danger
     },
   ]
 
@@ -53,7 +56,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
             </p>
           </div>
 
-          {/* Navigation Tabs - CloudAct Style with Teal/Coral */}
+          {/* Navigation Tabs - CloudAct Style with Neutral/Coral */}
           <div className="console-tabs">
             {visibleNavItems.map((item) => {
               const Icon = item.icon
@@ -66,10 +69,12 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
                   className={cn(
                     "console-tab flex items-center gap-2",
                     item.danger && "text-[#FF6E50] hover:text-[#FF6E50]",
-                    item.danger && active && "text-[#FF6E50] border-b-[#FF6E50]"
+                    item.danger && active && "text-[#FF6E50] border-b-[#FF6E50]",
+                    !item.danger && "text-[#8E8E93]",
+                    !item.danger && active && "text-[#8E8E93] border-b-[#8E8E93]"
                   )}
                 >
-                  <Icon className="h-4 w-4" />
+                  <Icon className="h-4 w-4" style={{ color: active || !item.danger ? item.color : undefined }} />
                   <span className="hidden sm:inline">{item.label}</span>
                 </Link>
               )

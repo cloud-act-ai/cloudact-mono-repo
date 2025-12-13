@@ -731,7 +731,7 @@ async def list_plans(
         contract_id, notes, updated_at
     FROM `{table_ref}`
     WHERE org_slug = @org_slug AND provider = @provider
-        AND (status = 'active' OR status = 'pending')
+        AND (status = 'active' OR status = 'pending' OR status = 'cancelled' OR status = 'expired')
     ORDER BY updated_at DESC
     """
     
@@ -1072,8 +1072,8 @@ async def create_plan(
                 bigquery.ScalarQueryParameter("currency", "STRING", plan.currency),
                 bigquery.ScalarQueryParameter("seats", "INT64", plan.seats),
                 bigquery.ScalarQueryParameter("pricing_model", "STRING", plan.pricing_model),
-                bigquery.ScalarQueryParameter("unit_price_usd", "FLOAT64", plan.unit_price_usd),
-                bigquery.ScalarQueryParameter("yearly_price_usd", "FLOAT64", plan.yearly_price_usd),
+                bigquery.ScalarQueryParameter("unit_price_usd", "FLOAT64", plan.unit_price_usd if plan.unit_price_usd is not None else 0.0),
+                bigquery.ScalarQueryParameter("yearly_price_usd", "FLOAT64", plan.yearly_price_usd if plan.yearly_price_usd is not None else 0.0),
                 bigquery.ScalarQueryParameter("discount_type", "STRING", plan.discount_type),
                 bigquery.ScalarQueryParameter("discount_value", "INT64", plan.discount_value),
                 bigquery.ScalarQueryParameter("auto_renew", "BOOL", plan.auto_renew),
@@ -1086,7 +1086,21 @@ async def create_plan(
             ],
             job_timeout_ms=30000  # 30 second timeout for user operations
         )
-        bq_client.client.query(insert_query, job_config=job_config).result()
+        # Execute insert and verify
+        query_job = bq_client.client.query(insert_query, job_config=job_config)
+        query_job.result()  # Wait for completion
+
+        # Log the insert details for debugging
+        logger.info(f"INSERT executed for plan: org={org_slug}, provider={provider}, plan_name={plan.plan_name}, "
+                    f"subscription_id={subscription_id}, unit_price={plan.unit_price_usd}, category={category}, status={initial_status}")
+
+        # Verify the insert succeeded by checking if rows were affected
+        if query_job.num_dml_affected_rows is not None and query_job.num_dml_affected_rows == 0:
+            logger.error(f"INSERT completed but 0 rows affected for subscription_id={subscription_id}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Plan creation failed: no rows inserted. Check data validity."
+            )
 
         created_plan = SubscriptionPlan(
             org_slug=org_slug,

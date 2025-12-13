@@ -63,6 +63,13 @@ export default async function OrgLayout({
     redirect("/unauthorized")
   }
 
+  // Get user profile for avatar/name
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("full_name, avatar_url")
+    .eq("id", user.id)
+    .single()
+
   // Get member count for the org
   const { count: memberCount } = await supabase
     .from("organization_members")
@@ -81,7 +88,8 @@ export default async function OrgLayout({
       {/* Skip to main content link for accessibility */}
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:top-4 focus:left-4 focus:px-4 focus:py-2 focus:bg-[#007A78] focus:text-white focus:rounded-lg focus:font-medium focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:px-4 focus:py-2 focus:bg-[#007A78] focus:text-white focus:rounded-lg focus:font-medium focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2"
+        style={{ zIndex: 'var(--z-skip-link)' }}
       >
         Skip to main content
       </a>
@@ -95,7 +103,16 @@ export default async function OrgLayout({
           userRole={membership.role}
         />
         <div className="flex flex-1 flex-col">
-          <MobileHeader orgName={org.org_name} />
+          <MobileHeader
+            orgName={org.org_name}
+            orgSlug={orgSlug}
+            user={{
+              email: user.email || "",
+              full_name: profile?.full_name || undefined,
+              avatar_url: profile?.avatar_url || undefined,
+            }}
+            userRole={membership.role}
+          />
           <main id="main-content" className="console-main-gradient flex-1 overflow-y-auto p-4 md:p-6 lg:p-8" tabIndex={-1}>
             {children}
           </main>
