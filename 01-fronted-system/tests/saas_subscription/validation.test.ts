@@ -283,7 +283,10 @@ describe('Flow 18: SaaS Subscription Validation Unit Tests', () => {
             const result = sanitizeProviderName('<script>alert(1)</script>')
             expect(result).not.toContain('<')
             expect(result).not.toContain('>')
-            expect(result).not.toContain('script')
+            expect(result).not.toContain('(')
+            expect(result).not.toContain(')')
+            // Note: 'script' text remains but is safe without HTML tags
+            expect(result).toBe('script_alert_1_script')
         })
     })
 

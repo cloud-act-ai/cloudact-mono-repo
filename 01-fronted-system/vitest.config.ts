@@ -18,7 +18,7 @@ export default defineConfig({
             '**/tests/07-*.test.ts',
             '**/tests/09-*.test.ts',
             '**/tests/13-*.test.ts',
-            '**/tests/saas_subscription_*.test.ts',
+            '**/tests/saas_subscription/**',
         ],
         browser: {
             enabled: true,
