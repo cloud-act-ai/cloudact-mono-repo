@@ -19,6 +19,7 @@ export default defineConfig({
             '**/tests/09-*.test.ts',
             '**/tests/13-*.test.ts',
             '**/tests/saas_subscription/**',
+            '**/tests/organization_onboarding/**',
         ],
         browser: {
             enabled: true,

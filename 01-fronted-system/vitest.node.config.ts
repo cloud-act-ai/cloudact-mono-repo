@@ -1,6 +1,7 @@
 import { defineConfig } from 'vitest/config'
 import { loadEnv } from 'vite'
 import * as dotenv from 'dotenv'
+import path from 'path'
 
 // Load .env.local directly for Node environment
 dotenv.config({ path: '.env.local' })
@@ -18,6 +19,8 @@ export default defineConfig(({ mode }) => {
                 '**/tests/09-*.test.ts',
                 '**/tests/13-*.test.ts',
                 '**/tests/saas_subscription/*.test.ts',
+                '**/tests/organization_onboarding/*.test.ts',
+                '**/tests/user_account/*.test.ts',
             ],
             // Allow tests to run longer for API integration flows
             testTimeout: 120000,
@@ -27,6 +30,11 @@ export default defineConfig(({ mode }) => {
                 SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
                 NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL || '',
                 CA_ROOT_API_KEY: process.env.CA_ROOT_API_KEY || '',
+            },
+        },
+        resolve: {
+            alias: {
+                '@': path.resolve(__dirname, './'),
             },
         },
     }

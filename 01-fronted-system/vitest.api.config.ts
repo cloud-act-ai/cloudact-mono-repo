@@ -12,6 +12,7 @@ export default defineConfig({
             'tests/10-pipeline-validation.unit.test.ts',
             'tests/06-backend-onboarding-sync.test.ts',
             'tests/13-saas-subscription-providers.test.ts',
+            'tests/organization_onboarding/validation.test.ts',
         ],
         environment: 'node',
         testTimeout: 120000,

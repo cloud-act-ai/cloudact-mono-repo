@@ -18,10 +18,9 @@ from typing import List, Dict, Optional
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from utils.usage_store import get_usage
+from utils.pricing_loader import calculate_cost, get_model_pricing
 
 OUTPUT_DIR = Path("output/usage")
-DATA_DIR = Path("data")
-PRICING_CSV = DATA_DIR / "llm_pricing.csv"
 RAW_USAGE_CSV = OUTPUT_DIR / "usage_raw.csv"
 
 # Comprehensive column schema (50+ columns)
@@ -142,39 +141,6 @@ COLUMNS = [
 ]
 
 
-def load_pricing() -> Dict[str, Dict]:
-    """Load pricing from CSV file."""
-    pricing = {}
-    if not PRICING_CSV.exists():
-        return pricing
-
-    with PRICING_CSV.open("r", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            key = f"{row['provider']}:{row['model']}"
-            pricing[key] = {
-                "input_per_1k": float(row.get("input_per_1k") or 0),
-                "output_per_1k": float(row.get("output_per_1k") or 0),
-                "cached_input_per_1k": float(row.get("cached_input_per_1k") or 0),
-                "context_limit": int(row.get("context_limit") or 0),
-            }
-    return pricing
-
-
-def get_pricing_for_model(pricing: Dict, provider: str, model: str) -> Dict:
-    """Get pricing rates for a model."""
-    key = f"{provider}:{model}"
-    if key in pricing:
-        return pricing[key]
-
-    # Try prefix match
-    for k, v in pricing.items():
-        if k.startswith(f"{provider}:") and v.get("model", "") in model:
-            return v
-
-    return {"input_per_1k": 0, "output_per_1k": 0, "cached_input_per_1k": 0, "context_limit": 0}
-
-
 def parse_model_info(model: str) -> Dict:
     """Extract model family, version, size from model name."""
     model_lower = model.lower()
@@ -282,25 +248,30 @@ def get_existing_row_count() -> int:
         return sum(1 for _ in f) - 1  # Subtract header
 
 
-def event_to_row(event: Dict, pricing: Dict, row_id: int) -> Dict:
+def event_to_row(event: Dict, row_id: int) -> Dict:
     """Convert a usage event to a full row with all columns."""
     provider = event.get("provider", "unknown")
     model = event.get("model", "unknown")
     metadata = event.get("metadata", {})
 
-    # Get pricing
-    rates = get_pricing_for_model(pricing, provider, model)
-
     # Parse tokens
     input_tokens = int(event.get("input_tokens", 0))
     output_tokens = int(event.get("output_tokens", 0))
     cached_tokens = int(event.get("cached_tokens", metadata.get("cached_tokens", 0)))
+    cached_write_tokens = int(metadata.get("cache_creation_tokens", metadata.get("cache_write_tokens", 0)))
 
-    # Calculate costs
-    input_cost = (input_tokens / 1000.0) * rates["input_per_1k"]
-    output_cost = (output_tokens / 1000.0) * rates["output_per_1k"]
-    cached_cost = (cached_tokens / 1000.0) * rates.get("cached_input_per_1k", 0)
-    total_cost = input_cost + output_cost + cached_cost
+    # Calculate costs using advanced pricing loader
+    cost_result = calculate_cost(
+        provider=provider,
+        model=model,
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+        cached_input_tokens=cached_tokens,
+        cached_write_tokens=cached_write_tokens,
+    )
+
+    # Get pricing info
+    pricing_info = get_model_pricing(provider, model)
 
     # Parse timestamp
     ts_info = parse_timestamp(event.get("timestamp_utc", ""))
@@ -332,20 +303,20 @@ def event_to_row(event: Dict, pricing: Dict, row_id: int) -> Dict:
         "output_tokens": output_tokens,
         "total_tokens": input_tokens + output_tokens,
         "cached_input_tokens": cached_tokens,
-        "cached_write_tokens": int(metadata.get("cache_write_tokens", 0)),
+        "cached_write_tokens": cached_write_tokens,
         "reasoning_tokens": int(metadata.get("reasoning_tokens", 0)),
         "audio_tokens": int(metadata.get("audio_tokens", 0)),
         "image_tokens": int(metadata.get("image_tokens", 0)),
         "system_tokens": int(metadata.get("system_tokens", 0)),
         "tool_tokens": int(metadata.get("tool_tokens", 0)),
 
-        # Costs
-        "input_cost_usd": round(input_cost, 10),
-        "output_cost_usd": round(output_cost, 10),
-        "cached_cost_usd": round(cached_cost, 10),
-        "total_cost_usd": round(total_cost, 10),
-        "cost_per_1k_input": rates["input_per_1k"],
-        "cost_per_1k_output": rates["output_per_1k"],
+        # Costs (from advanced pricing)
+        "input_cost_usd": cost_result["input_cost"],
+        "output_cost_usd": cost_result["output_cost"],
+        "cached_cost_usd": cost_result["cached_cost"],
+        "total_cost_usd": cost_result["total_cost"],
+        "cost_per_1k_input": cost_result.get("input_rate_per_1m", 0) / 1000,
+        "cost_per_1k_output": cost_result.get("output_rate_per_1m", 0) / 1000,
 
         # Prompt info
         "prompt_text": prompt[:2000],  # Truncate to 2000 chars
@@ -380,8 +351,8 @@ def event_to_row(event: Dict, pricing: Dict, row_id: int) -> Dict:
         "n_choices": metadata.get("n_choices", 1),
 
         # Context
-        "context_window": rates.get("context_limit", ""),
-        "context_used_pct": round((input_tokens / rates["context_limit"]) * 100, 2) if rates.get("context_limit") else "",
+        "context_window": cost_result.get("context_window", pricing_info.context_window if pricing_info else 0),
+        "context_used_pct": round((input_tokens / cost_result.get("context_window", 1)) * 100, 2) if cost_result.get("context_window") else "",
         "conversation_turns": metadata.get("conversation_turns", ""),
         "message_count": metadata.get("message_count", ""),
 
@@ -416,7 +387,7 @@ def event_to_row(event: Dict, pricing: Dict, row_id: int) -> Dict:
     return row
 
 
-def export_to_csv(events: List[Dict], pricing: Dict, append: bool = True):
+def export_to_csv(events: List[Dict], append: bool = True):
     """Export events to CSV, appending to existing file."""
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -435,7 +406,7 @@ def export_to_csv(events: List[Dict], pricing: Dict, append: bool = True):
             writer.writeheader()
 
         for i, event in enumerate(events):
-            row = event_to_row(event, pricing, start_row_id + i)
+            row = event_to_row(event, start_row_id + i)
             writer.writerow(row)
 
     return start_row_id, len(events)
@@ -465,10 +436,7 @@ def main():
     print(f"Output: {RAW_USAGE_CSV}")
     print(f"Columns: {len(COLUMNS)}")
     print(f"Mode: {'Fresh' if args.fresh else 'Append'}")
-
-    # Load pricing
-    pricing = load_pricing()
-    print(f"Pricing models loaded: {len(pricing)}")
+    print("Pricing: Advanced (llm_pricing_advanced.csv)")
 
     # Get events
     events = get_usage(provider=args.provider)
@@ -479,7 +447,7 @@ def main():
         return
 
     # Export
-    start_id, count = export_to_csv(events, pricing, append=not args.fresh)
+    start_id, count = export_to_csv(events, append=not args.fresh)
 
     print(f"\nExported {count} rows (IDs {start_id} to {start_id + count - 1})")
     print(f"File: {RAW_USAGE_CSV}")

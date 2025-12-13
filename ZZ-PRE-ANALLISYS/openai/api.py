@@ -1,22 +1,18 @@
 """
 OpenAI API Module
 
-Traffic generation and usage fetching for OpenAI.
-
-Environment Variables:
-- OPENAI_API_KEY: Standard API key for traffic generation
-- OPENAI_ADMIN_KEY: Admin API key for usage data (optional, falls back to OPENAI_API_KEY)
-
-API Endpoints:
-- Chat Completions: POST /v1/chat/completions
-- Usage/Costs: GET /v1/organization/costs (requires admin key)
+Complete usage tracking and cost calculation using advanced pricing.
 """
 import os
+import sys
+import time
 import requests
 from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Optional
+from pathlib import Path
 
-from .pricing import calculate_cost
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from utils.pricing_loader import calculate_cost, get_model_pricing
 
 # ============================================================================
 # Configuration
@@ -34,32 +30,26 @@ def get_api_key() -> str:
     return key
 
 
-def get_admin_key() -> str:
-    """Get OpenAI Admin API key (for usage data)."""
-    return os.getenv("OPENAI_ADMIN_KEY") or os.getenv("OPENAI_API_KEY")
-
-
 # ============================================================================
-# Traffic Generation
+# Traffic Generation with Complete Usage Tracking
 # ============================================================================
 
 def generate_traffic(
     prompt: str = None,
     model: str = DEFAULT_MODEL,
-    max_tokens: int = 100
+    max_tokens: int = 100,
+    temperature: float = 1.0,
+    system_prompt: str = None,
+    tools: List[Dict] = None,
+    response_format: Dict = None,
 ) -> Dict:
     """
-    Generate traffic by making a ChatCompletion request.
+    Generate traffic with complete usage tracking.
 
-    Args:
-        prompt: The prompt to send (if None, generates timestamped test prompt)
-        model: Model to use (default: gpt-4o-mini)
-        max_tokens: Maximum tokens in response
-
-    Returns:
-        Dict with request details and token usage
+    Returns comprehensive usage data for analysis.
     """
     api_key = get_api_key()
+    start_time = time.time()
 
     # Generate timestamped prompt if not provided
     if prompt is None:
@@ -72,36 +62,153 @@ def generate_traffic(
         "Content-Type": "application/json"
     }
 
+    # Build messages
+    messages = []
+    if system_prompt:
+        messages.append({"role": "system", "content": system_prompt})
+    messages.append({"role": "user", "content": prompt})
+
     payload = {
         "model": model,
-        "messages": [{"role": "user", "content": prompt}],
-        "max_tokens": max_tokens
+        "messages": messages,
+        "max_tokens": max_tokens,
+        "temperature": temperature,
     }
 
-    resp = requests.post(f"{BASE_URL}/chat/completions", headers=headers, json=payload, timeout=60)
+    if tools:
+        payload["tools"] = tools
+
+    if response_format:
+        payload["response_format"] = response_format
+
+    # Make request
+    resp = requests.post(f"{BASE_URL}/chat/completions", headers=headers, json=payload, timeout=120)
+    end_time = time.time()
+    latency_ms = (end_time - start_time) * 1000
+
     resp.raise_for_status()
     data = resp.json()
 
+    # Extract complete usage
     usage = data.get("usage", {})
     actual_model = data.get("model", model)
 
+    # Token details
+    prompt_tokens = usage.get("prompt_tokens", 0)
+    completion_tokens = usage.get("completion_tokens", 0)
+    total_tokens = usage.get("total_tokens", 0)
+
+    # Detailed token breakdown (if available)
+    prompt_details = usage.get("prompt_tokens_details", {})
+    completion_details = usage.get("completion_tokens_details", {})
+
+    cached_tokens = prompt_details.get("cached_tokens", 0)
+    audio_tokens = prompt_details.get("audio_tokens", 0)
+    reasoning_tokens = completion_details.get("reasoning_tokens", 0)
+
+    # Calculate costs using advanced pricing
+    cost_result = calculate_cost(
+        provider="openai",
+        model=actual_model,
+        input_tokens=prompt_tokens,
+        output_tokens=completion_tokens,
+        cached_input_tokens=cached_tokens,
+    )
+
+    # Extract response
+    choices = data.get("choices", [])
+    response_text = ""
+    finish_reason = ""
+    tool_calls = []
+
+    if choices:
+        choice = choices[0]
+        message = choice.get("message", {})
+        response_text = message.get("content", "") or ""
+        finish_reason = choice.get("finish_reason", "")
+        tool_calls = message.get("tool_calls", [])
+
+    # Build complete result
     result = {
+        # Identifiers
         "provider": "openai",
-        "model": actual_model,
-        "input_tokens": usage.get("prompt_tokens", 0),
-        "output_tokens": usage.get("completion_tokens", 0),
-        "total_tokens": usage.get("total_tokens", 0),
-        "cached_tokens": usage.get("prompt_tokens_details", {}).get("cached_tokens", 0),
         "request_id": data.get("id"),
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "system_fingerprint": data.get("system_fingerprint"),
+        "object_type": data.get("object"),
+        "created_timestamp": data.get("created"),
+
+        # Model info
+        "model": actual_model,
+        "model_requested": model,
+
+        # Token counts
+        "input_tokens": prompt_tokens,
+        "output_tokens": completion_tokens,
+        "total_tokens": total_tokens,
+        "cached_tokens": cached_tokens,
+        "audio_tokens": audio_tokens,
+        "reasoning_tokens": reasoning_tokens,
+
+        # Costs (from advanced pricing)
+        "total_cost_usd": cost_result["total_cost"],
+        "input_cost_usd": cost_result["input_cost"],
+        "output_cost_usd": cost_result["output_cost"],
+        "cached_cost_usd": cost_result.get("cached_cost", 0),
+        "cost_per_1m_input": cost_result.get("input_rate_per_1m", 0),
+        "cost_per_1m_output": cost_result.get("output_rate_per_1m", 0),
+
+        # Request details
         "prompt": prompt,
-        "response": data.get("choices", [{}])[0].get("message", {}).get("content", ""),
-        "estimated_cost": calculate_cost(
-            actual_model,
-            usage.get("prompt_tokens", 0),
-            usage.get("completion_tokens", 0),
-            usage.get("prompt_tokens_details", {}).get("cached_tokens", 0)
-        )
+        "prompt_length_chars": len(prompt),
+        "prompt_length_words": len(prompt.split()),
+        "system_prompt": system_prompt,
+        "has_system_prompt": bool(system_prompt),
+        "has_tools": bool(tools),
+        "has_response_format": bool(response_format),
+        "max_tokens_requested": max_tokens,
+        "temperature": temperature,
+
+        # Response details
+        "response": response_text,
+        "response_length_chars": len(response_text),
+        "response_length_words": len(response_text.split()) if response_text else 0,
+        "finish_reason": finish_reason,
+        "tool_calls_count": len(tool_calls),
+        "choices_count": len(choices),
+
+        # Performance
+        "latency_ms": round(latency_ms, 2),
+        "tokens_per_second": round(completion_tokens / (latency_ms / 1000), 2) if latency_ms > 0 else 0,
+
+        # Context
+        "context_window": cost_result.get("context_window", 0),
+        "context_used_pct": round((prompt_tokens / cost_result.get("context_window", 1)) * 100, 2) if cost_result.get("context_window") else 0,
+
+        # Timestamps
+        "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+
+        # Status
+        "status": "success",
+        "http_status": resp.status_code,
+
+        # Raw data for debugging
+        "raw_usage": usage,
+        "raw_response": data,
+
+        # Metadata for logging
+        "metadata": {
+            "request_id": data.get("id"),
+            "prompt": prompt,
+            "system_fingerprint": data.get("system_fingerprint"),
+            "latency_ms": round(latency_ms, 2),
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+            "has_system_prompt": bool(system_prompt),
+            "has_tools": bool(tools),
+            "cached_tokens": cached_tokens,
+            "reasoning_tokens": reasoning_tokens,
+            "finish_reason": finish_reason,
+        }
     }
 
     return result
@@ -111,30 +218,12 @@ def generate_traffic(
 # Usage Fetching
 # ============================================================================
 
-def fetch_usage(
-    start_date: str = None,
-    end_date: str = None,
-    limit: int = 100
-) -> List[Dict]:
-    """
-    Fetch usage data from OpenAI's organization costs endpoint.
-
-    Requires admin API key for full access.
-    Regular API keys may have limited or no access.
-
-    Args:
-        start_date: Start date (YYYY-MM-DD), defaults to 7 days ago
-        end_date: End date (YYYY-MM-DD), defaults to today
-        limit: Maximum number of records
-
-    Returns:
-        List of usage records
-    """
-    api_key = get_admin_key()
+def fetch_usage(start_date: str = None, end_date: str = None, limit: int = 100) -> List[Dict]:
+    """Fetch usage data from OpenAI's organization costs endpoint."""
+    api_key = os.getenv("OPENAI_ADMIN_KEY") or os.getenv("OPENAI_API_KEY")
     if not api_key:
         return []
 
-    # Default date range: last 7 days
     if not end_date:
         end_dt = datetime.now(timezone.utc)
         end_date = end_dt.strftime("%Y-%m-%d")
@@ -154,7 +243,6 @@ def fetch_usage(
 
     records = []
 
-    # Try the costs endpoint first (newer, more comprehensive)
     try:
         url = f"{BASE_URL}/organization/costs"
         params = {
@@ -169,52 +257,36 @@ def fetch_usage(
         if resp.status_code == 200:
             data = resp.json()
             for bucket in data.get("data", []):
+                input_tokens = bucket.get("input_tokens", 0)
+                output_tokens = bucket.get("output_tokens", 0)
+
+                cost_result = calculate_cost(
+                    provider="openai",
+                    model="gpt-4o-mini",  # Aggregate
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                )
+
                 records.append({
                     "date": datetime.fromtimestamp(bucket.get("start_time", 0)).strftime("%Y-%m-%d"),
                     "timestamp": bucket.get("start_time"),
+                    "provider": "openai",
                     "model": "aggregated",
-                    "input_tokens": bucket.get("input_tokens", 0),
-                    "output_tokens": bucket.get("output_tokens", 0),
-                    "total_tokens": bucket.get("input_tokens", 0) + bucket.get("output_tokens", 0),
-                    "requests": bucket.get("num_requests", 0),
-                    "cost_usd": bucket.get("amount", {}).get("value", 0) / 100 if isinstance(bucket.get("amount"), dict) else 0,
-                    "source": "costs_api"
-                })
-            return records
-
-        elif resp.status_code == 403:
-            print("[OpenAI] Costs API requires admin key.")
-            print("  Get admin key from: https://platform.openai.com/settings/organization/admin-keys")
-
-    except Exception as e:
-        print(f"[OpenAI] Error with costs API: {e}")
-
-    # Try the usage endpoint (legacy)
-    try:
-        url = f"{BASE_URL}/usage"
-        params = {"date": start_date}
-
-        resp = requests.get(url, headers=headers, params=params, timeout=30)
-
-        if resp.status_code == 200:
-            data = resp.json()
-            for item in data.get("data", []):
-                input_tokens = item.get("n_context_tokens_total", 0)
-                output_tokens = item.get("n_generated_tokens_total", 0)
-                records.append({
-                    "date": start_date,
-                    "timestamp": item.get("aggregation_timestamp"),
-                    "model": item.get("snapshot_id", "unknown"),
                     "input_tokens": input_tokens,
                     "output_tokens": output_tokens,
                     "total_tokens": input_tokens + output_tokens,
-                    "requests": item.get("n_requests", 0),
-                    "cost_usd": calculate_cost(item.get("snapshot_id", "gpt-4o-mini"), input_tokens, output_tokens),
-                    "source": "usage_api"
+                    "requests": bucket.get("num_requests", 0),
+                    "cost_usd": bucket.get("amount", {}).get("value", 0) / 100 if isinstance(bucket.get("amount"), dict) else 0,
+                    "calculated_cost_usd": cost_result["total_cost"],
+                    "source": "costs_api"
                 })
 
+        elif resp.status_code == 403:
+            print("[OpenAI] Costs API requires admin key.")
+            print("  Get admin key: https://platform.openai.com/settings/organization/admin-keys")
+
     except Exception as e:
-        print(f"[OpenAI] Error with usage API: {e}")
+        print(f"[OpenAI] Error: {e}")
 
     return records
 
@@ -227,27 +299,25 @@ def list_models() -> List[str]:
     """List available models."""
     api_key = get_api_key()
     headers = {"Authorization": f"Bearer {api_key}"}
-
     resp = requests.get(f"{BASE_URL}/models", headers=headers, timeout=30)
     resp.raise_for_status()
-
-    models = [m["id"] for m in resp.json().get("data", [])]
-    return sorted(models)
+    return sorted([m["id"] for m in resp.json().get("data", [])])
 
 
-def get_organization_info() -> Optional[Dict]:
-    """Get organization information (requires admin key)."""
-    api_key = get_admin_key()
-    if not api_key:
-        return None
-
-    headers = {"Authorization": f"Bearer {api_key}"}
-
-    try:
-        resp = requests.get(f"{BASE_URL}/organization", headers=headers, timeout=30)
-        if resp.status_code == 200:
-            return resp.json()
-    except Exception:
-        pass
-
-    return None
+def get_model_info(model: str = DEFAULT_MODEL) -> Dict:
+    """Get model pricing and capabilities."""
+    pricing = get_model_pricing("openai", model)
+    if pricing:
+        return {
+            "model": pricing.model,
+            "model_family": pricing.model_family,
+            "input_per_1m": pricing.input_per_1m,
+            "output_per_1m": pricing.output_per_1m,
+            "context_window": pricing.context_window,
+            "max_output_tokens": pricing.max_output_tokens,
+            "supports_vision": pricing.supports_vision,
+            "supports_audio": pricing.supports_audio,
+            "supports_tools": pricing.supports_tools,
+            "supports_json_mode": pricing.supports_json_mode,
+        }
+    return {"model": model, "error": "Pricing not found"}

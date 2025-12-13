@@ -43,7 +43,8 @@ def run_openai() -> dict:
         print(f"  Model: {result['model']}")
         print(f"  Input tokens: {result['input_tokens']}")
         print(f"  Output tokens: {result['output_tokens']}")
-        print(f"  Estimated cost: ${result['estimated_cost']:.6f}")
+        print(f"  Total cost: ${result['total_cost_usd']:.6f}")
+        print(f"  Latency: {result['latency_ms']:.2f}ms")
         print(f"  Request ID: {result.get('request_id')}")
         print("  Status: SUCCESS\n")
         return result
@@ -71,7 +72,8 @@ def run_anthropic() -> dict:
         print(f"  Model: {result['model']}")
         print(f"  Input tokens: {result['input_tokens']}")
         print(f"  Output tokens: {result['output_tokens']}")
-        print(f"  Estimated cost: ${result['estimated_cost']:.6f}")
+        print(f"  Total cost: ${result['total_cost_usd']:.6f}")
+        print(f"  Latency: {result['latency_ms']:.2f}ms")
         print(f"  Request ID: {result.get('request_id')}")
         print("  Status: SUCCESS\n")
         return result
@@ -99,7 +101,8 @@ def run_gemini() -> dict:
         print(f"  Model: {result['model']}")
         print(f"  Input tokens: {result['input_tokens']}")
         print(f"  Output tokens: {result['output_tokens']}")
-        print(f"  Estimated cost: ${result['estimated_cost']:.6f}")
+        print(f"  Total cost: ${result['total_cost_usd']:.6f}")
+        print(f"  Latency: {result['latency_ms']:.2f}ms")
         print("  Status: SUCCESS\n")
         return result
 
@@ -164,11 +167,13 @@ def main():
     if results:
         total_input = sum(r.get("input_tokens", 0) for r in results)
         total_output = sum(r.get("output_tokens", 0) for r in results)
-        total_cost = sum(r.get("estimated_cost", 0) for r in results)
+        total_cost = sum(r.get("total_cost_usd", 0) for r in results)
+        avg_latency = sum(r.get("latency_ms", 0) for r in results) / len(results)
         print(f"\nTotal tokens used:")
         print(f"  Input: {total_input}")
         print(f"  Output: {total_output}")
-        print(f"  Estimated cost: ${total_cost:.6f}")
+        print(f"  Total cost: ${total_cost:.6f}")
+        print(f"  Avg latency: {avg_latency:.2f}ms")
 
 
 if __name__ == "__main__":

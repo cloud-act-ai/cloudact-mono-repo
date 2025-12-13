@@ -1,27 +1,19 @@
 """
 Gemini (Google AI) API Module
 
-Traffic generation and usage fetching for Gemini.
-
-Environment Variables:
-- GOOGLE_API_KEY or GEMINI_API_KEY: API key for AI Studio
-- GOOGLE_APPLICATION_CREDENTIALS: Service account JSON for Cloud Monitoring
-
-API Endpoints:
-- generateContent: POST /v1beta/models/{model}:generateContent
-- Usage: Cloud Console or Cloud Monitoring API (for Vertex AI)
-
-Documentation:
-- AI Studio: https://ai.google.dev/docs
-- Vertex AI: https://cloud.google.com/vertex-ai/docs
+Complete usage tracking and cost calculation using advanced pricing.
 """
 import os
+import sys
+import time
 import json
 import requests
 from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Optional
+from pathlib import Path
 
-from .pricing import calculate_cost
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from utils.pricing_loader import calculate_cost, get_model_pricing
 
 # ============================================================================
 # Configuration
@@ -39,32 +31,25 @@ def get_api_key() -> str:
     return key
 
 
-def get_credentials_path() -> Optional[str]:
-    """Get path to service account credentials for Cloud APIs."""
-    return os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
-
-
 # ============================================================================
-# Traffic Generation
+# Traffic Generation with Complete Usage Tracking
 # ============================================================================
 
 def generate_traffic(
     prompt: str = None,
     model: str = DEFAULT_MODEL,
-    max_tokens: int = 100
+    max_tokens: int = 100,
+    temperature: float = 1.0,
+    system_instruction: str = None,
+    tools: List[Dict] = None,
 ) -> Dict:
     """
-    Generate traffic by making a generateContent request.
+    Generate traffic with complete usage tracking.
 
-    Args:
-        prompt: The prompt to send (if None, generates timestamped test prompt)
-        model: Model to use (default: gemini-2.0-flash-lite)
-        max_tokens: Maximum tokens in response
-
-    Returns:
-        Dict with request details and token usage
+    Returns comprehensive usage data for analysis.
     """
     api_key = get_api_key()
+    start_time = time.time()
 
     # Generate timestamped prompt if not provided
     if prompt is None:
@@ -73,46 +58,154 @@ def generate_traffic(
         prompt = f"[Traffic Test - {timestamp_str}] Hello, this is a test request. Please respond briefly."
 
     url = f"{AI_STUDIO_URL}/models/{model}:generateContent"
-
     headers = {"Content-Type": "application/json"}
     params = {"key": api_key}
 
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {"maxOutputTokens": max_tokens}
+        "generationConfig": {
+            "maxOutputTokens": max_tokens,
+            "temperature": temperature,
+        }
     }
 
-    resp = requests.post(url, headers=headers, params=params, json=payload, timeout=60)
+    if system_instruction:
+        payload["systemInstruction"] = {"parts": [{"text": system_instruction}]}
+
+    if tools:
+        payload["tools"] = tools
+
+    # Make request
+    resp = requests.post(url, headers=headers, params=params, json=payload, timeout=120)
+    end_time = time.time()
+    latency_ms = (end_time - start_time) * 1000
+
     resp.raise_for_status()
     data = resp.json()
 
+    # Extract usage metadata
     usage = data.get("usageMetadata", {})
 
-    # Extract response text
-    response_text = ""
-    if data.get("candidates"):
-        content = data["candidates"][0].get("content", {})
-        if content.get("parts"):
-            response_text = content["parts"][0].get("text", "")
+    prompt_tokens = usage.get("promptTokenCount", 0)
+    candidates_tokens = usage.get("candidatesTokenCount", 0)
+    total_tokens = usage.get("totalTokenCount", 0)
+    cached_tokens = usage.get("cachedContentTokenCount", 0)
 
+    # Calculate costs using advanced pricing
+    cost_result = calculate_cost(
+        provider="gemini",
+        model=model,
+        input_tokens=prompt_tokens,
+        output_tokens=candidates_tokens,
+        cached_input_tokens=cached_tokens,
+    )
+
+    # Extract response
+    candidates = data.get("candidates", [])
+    response_text = ""
+    finish_reason = ""
+    safety_ratings = []
+    function_calls = []
+
+    if candidates:
+        candidate = candidates[0]
+        content = candidate.get("content", {})
+        parts = content.get("parts", [])
+
+        for part in parts:
+            if "text" in part:
+                response_text += part["text"]
+            elif "functionCall" in part:
+                function_calls.append(part["functionCall"])
+
+        finish_reason = candidate.get("finishReason", "")
+        safety_ratings = candidate.get("safetyRatings", [])
+
+    # Check for prompt feedback
+    prompt_feedback = data.get("promptFeedback", {})
+    block_reason = prompt_feedback.get("blockReason")
+    safety_ratings_prompt = prompt_feedback.get("safetyRatings", [])
+
+    # Build complete result
     result = {
+        # Identifiers
         "provider": "gemini",
-        "model": model,
-        "input_tokens": usage.get("promptTokenCount", 0),
-        "output_tokens": usage.get("candidatesTokenCount", 0),
-        "total_tokens": usage.get("totalTokenCount", 0),
-        "cached_tokens": usage.get("cachedContentTokenCount", 0),
         "request_id": None,  # Gemini doesn't return request ID
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "model_version": data.get("modelVersion"),
+
+        # Model info
+        "model": model,
+        "model_requested": model,
+
+        # Token counts
+        "input_tokens": prompt_tokens,
+        "output_tokens": candidates_tokens,
+        "total_tokens": total_tokens,
+        "cached_tokens": cached_tokens,
+
+        # Costs (from advanced pricing)
+        "total_cost_usd": cost_result["total_cost"],
+        "input_cost_usd": cost_result["input_cost"],
+        "output_cost_usd": cost_result["output_cost"],
+        "cached_cost_usd": cost_result.get("cached_cost", 0),
+        "cost_per_1m_input": cost_result.get("input_rate_per_1m", 0),
+        "cost_per_1m_output": cost_result.get("output_rate_per_1m", 0),
+
+        # Request details
         "prompt": prompt,
+        "prompt_length_chars": len(prompt),
+        "prompt_length_words": len(prompt.split()),
+        "system_instruction": system_instruction,
+        "has_system_instruction": bool(system_instruction),
+        "has_tools": bool(tools),
+        "max_tokens_requested": max_tokens,
+        "temperature": temperature,
+
+        # Response details
         "response": response_text,
-        "finish_reason": data.get("candidates", [{}])[0].get("finishReason"),
-        "estimated_cost": calculate_cost(
-            model,
-            usage.get("promptTokenCount", 0),
-            usage.get("candidatesTokenCount", 0),
-            usage.get("cachedContentTokenCount", 0)
-        )
+        "response_length_chars": len(response_text),
+        "response_length_words": len(response_text.split()) if response_text else 0,
+        "finish_reason": finish_reason,
+        "function_calls_count": len(function_calls),
+        "candidates_count": len(candidates),
+
+        # Safety
+        "safety_ratings": safety_ratings,
+        "safety_ratings_prompt": safety_ratings_prompt,
+        "block_reason": block_reason,
+        "content_filtered": bool(block_reason),
+
+        # Performance
+        "latency_ms": round(latency_ms, 2),
+        "tokens_per_second": round(candidates_tokens / (latency_ms / 1000), 2) if latency_ms > 0 else 0,
+
+        # Context
+        "context_window": cost_result.get("context_window", 0),
+        "context_used_pct": round((prompt_tokens / cost_result.get("context_window", 1)) * 100, 2) if cost_result.get("context_window") else 0,
+
+        # Timestamps
+        "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+
+        # Status
+        "status": "success",
+        "http_status": resp.status_code,
+
+        # Raw data for debugging
+        "raw_usage": usage,
+        "raw_response": data,
+
+        # Metadata for logging
+        "metadata": {
+            "prompt": prompt,
+            "latency_ms": round(latency_ms, 2),
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+            "has_system_instruction": bool(system_instruction),
+            "has_tools": bool(tools),
+            "cached_tokens": cached_tokens,
+            "finish_reason": finish_reason,
+            "model_version": data.get("modelVersion"),
+        }
     }
 
     return result
@@ -122,33 +215,15 @@ def generate_traffic(
 # Usage Fetching
 # ============================================================================
 
-def fetch_usage(
-    start_date: str = None,
-    end_date: str = None,
-    limit: int = 100
-) -> List[Dict]:
+def fetch_usage(start_date: str = None, end_date: str = None, limit: int = 100) -> List[Dict]:
     """
-    Fetch usage data for Gemini API.
+    Fetch usage for Gemini API.
 
-    For AI Studio (generativelanguage.googleapis.com):
-    - No direct usage API available with API keys
-    - Check Cloud Console: APIs & Services > Gemini API > Metrics
-
-    For Vertex AI:
-    - Requires Cloud Monitoring API access
-    - Needs service account with monitoring.viewer role
-
-    Args:
-        start_date: Start date (YYYY-MM-DD), defaults to 7 days ago
-        end_date: End date (YYYY-MM-DD), defaults to today
-        limit: Maximum number of records
-
-    Returns:
-        List of usage records
+    Note: AI Studio doesn't have a direct usage API.
+    Check Cloud Console for usage data.
     """
     records = []
 
-    # Default date range
     if not end_date:
         end_dt = datetime.now(timezone.utc)
     else:
@@ -159,103 +234,75 @@ def fetch_usage(
     else:
         start_dt = datetime.strptime(start_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
 
-    # Try Cloud Monitoring API if credentials available
-    creds_path = get_credentials_path()
+    # Try Cloud Monitoring if credentials available
+    creds_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
 
     if creds_path:
         try:
-            cloud_records = _fetch_from_cloud_monitoring(start_dt, end_dt, creds_path)
-            if cloud_records:
-                return cloud_records
+            from google.cloud import monitoring_v3
+
+            with open(creds_path) as f:
+                creds_data = json.load(f)
+                project_id = creds_data.get("project_id")
+
+            if project_id:
+                client = monitoring_v3.MetricServiceClient()
+                project_name = f"projects/{project_id}"
+
+                interval = monitoring_v3.TimeInterval()
+                interval.end_time.FromDatetime(end_dt)
+                interval.start_time.FromDatetime(start_dt)
+
+                metrics = [
+                    "aiplatform.googleapis.com/publisher/online_serving/token_count",
+                    "serviceruntime.googleapis.com/api/request_count",
+                ]
+
+                for metric in metrics:
+                    try:
+                        results = client.list_time_series(
+                            request={
+                                "name": project_name,
+                                "filter": f'metric.type="{metric}"',
+                                "interval": interval,
+                                "view": monitoring_v3.ListTimeSeriesRequest.TimeSeriesView.FULL
+                            }
+                        )
+
+                        for series in results:
+                            model_name = series.metric.labels.get("model_id", "gemini")
+                            for point in series.points:
+                                value = point.value.int64_value or point.value.double_value or 0
+                                timestamp = point.interval.end_time.ToDatetime()
+
+                                cost_result = calculate_cost(
+                                    provider="gemini",
+                                    model=model_name,
+                                    input_tokens=value if "input" in metric.lower() else 0,
+                                    output_tokens=value if "output" in metric.lower() else 0,
+                                )
+
+                                records.append({
+                                    "date": timestamp.strftime("%Y-%m-%d"),
+                                    "timestamp": timestamp.isoformat(),
+                                    "provider": "gemini",
+                                    "model": model_name,
+                                    "metric": metric.split("/")[-1],
+                                    "value": value,
+                                    "calculated_cost_usd": cost_result["total_cost"],
+                                    "source": "cloud_monitoring"
+                                })
+                    except Exception:
+                        continue
+
+        except ImportError:
+            print("[Gemini] Install google-cloud-monitoring: pip install google-cloud-monitoring")
         except Exception as e:
             print(f"[Gemini] Cloud Monitoring error: {e}")
 
-    # If no records, provide guidance
-    print("[Gemini] Direct usage API not available for AI Studio.")
-    print("  View usage at: https://console.cloud.google.com/apis/api/generativelanguage.googleapis.com/metrics")
-    print("")
-    print("  For Vertex AI usage via Cloud Monitoring:")
-    print("    1. Set GOOGLE_APPLICATION_CREDENTIALS to service account JSON")
-    print("    2. Ensure service account has 'monitoring.viewer' role")
-    print("    3. pip install google-cloud-monitoring")
-
-    return records
-
-
-def _fetch_from_cloud_monitoring(
-    start_dt: datetime,
-    end_dt: datetime,
-    creds_path: str
-) -> List[Dict]:
-    """Fetch usage from Cloud Monitoring API (for Vertex AI)."""
-    try:
-        from google.cloud import monitoring_v3
-    except ImportError:
-        print("[Gemini] Install google-cloud-monitoring: pip install google-cloud-monitoring")
-        return []
-
-    # Read project ID from credentials
-    with open(creds_path) as f:
-        creds_data = json.load(f)
-        project_id = creds_data.get("project_id")
-
-    if not project_id:
-        print("[Gemini] Could not determine project_id from credentials")
-        return []
-
-    client = monitoring_v3.MetricServiceClient()
-    project_name = f"projects/{project_id}"
-
-    interval = monitoring_v3.TimeInterval()
-    interval.end_time.FromDatetime(end_dt)
-    interval.start_time.FromDatetime(start_dt)
-
-    records = []
-
-    # Metrics to query
-    metrics = [
-        # Vertex AI Generative AI metrics
-        "aiplatform.googleapis.com/publisher/online_serving/request_count",
-        "aiplatform.googleapis.com/publisher/online_serving/consumed_throughput",
-        "aiplatform.googleapis.com/publisher/online_serving/token_count",
-        # General API metrics
-        "serviceruntime.googleapis.com/api/request_count",
-    ]
-
-    for metric in metrics:
-        try:
-            results = client.list_time_series(
-                request={
-                    "name": project_name,
-                    "filter": f'metric.type="{metric}"',
-                    "interval": interval,
-                    "view": monitoring_v3.ListTimeSeriesRequest.TimeSeriesView.FULL
-                }
-            )
-
-            for series in results:
-                model = series.metric.labels.get("model_id", series.metric.labels.get("model", "gemini"))
-
-                for point in series.points:
-                    value = point.value.int64_value or point.value.double_value or 0
-                    timestamp = point.interval.end_time.ToDatetime()
-
-                    records.append({
-                        "date": timestamp.strftime("%Y-%m-%d"),
-                        "timestamp": timestamp.isoformat(),
-                        "model": model,
-                        "metric": metric.split("/")[-1],
-                        "value": value,
-                        "input_tokens": value if "input" in metric.lower() else 0,
-                        "output_tokens": value if "output" in metric.lower() else 0,
-                        "total_tokens": value if "token" in metric.lower() else 0,
-                        "requests": value if "request" in metric.lower() else 0,
-                        "cost_usd": 0,  # Calculate separately based on token counts
-                        "source": "cloud_monitoring"
-                    })
-        except Exception as e:
-            # Skip metrics that don't exist
-            continue
+    if not records:
+        print("[Gemini] No direct usage API for AI Studio.")
+        print("  View usage at: https://console.cloud.google.com/apis/api/generativelanguage.googleapis.com/metrics")
 
     return records
 
@@ -267,7 +314,6 @@ def _fetch_from_cloud_monitoring(
 def list_models() -> List[Dict]:
     """List available Gemini models."""
     api_key = get_api_key()
-
     url = f"{AI_STUDIO_URL}/models"
     params = {"key": api_key}
 
@@ -276,13 +322,14 @@ def list_models() -> List[Dict]:
 
     models = []
     for model in resp.json().get("models", []):
-        models.append({
-            "name": model.get("name", "").replace("models/", ""),
-            "displayName": model.get("displayName"),
-            "supportedGenerationMethods": model.get("supportedGenerationMethods", []),
-            "inputTokenLimit": model.get("inputTokenLimit"),
-            "outputTokenLimit": model.get("outputTokenLimit")
-        })
+        methods = model.get("supportedGenerationMethods", [])
+        if "generateContent" in methods:
+            models.append({
+                "name": model.get("name", "").replace("models/", ""),
+                "displayName": model.get("displayName"),
+                "inputTokenLimit": model.get("inputTokenLimit"),
+                "outputTokenLimit": model.get("outputTokenLimit"),
+            })
 
     return models
 
@@ -290,28 +337,30 @@ def list_models() -> List[Dict]:
 def count_tokens(text: str, model: str = DEFAULT_MODEL) -> Dict:
     """Count tokens in text using Gemini's countTokens endpoint."""
     api_key = get_api_key()
-
     url = f"{AI_STUDIO_URL}/models/{model}:countTokens"
     params = {"key": api_key}
 
-    payload = {
-        "contents": [{"parts": [{"text": text}]}]
-    }
+    payload = {"contents": [{"parts": [{"text": text}]}]}
 
     resp = requests.post(url, params=params, json=payload, timeout=30)
     resp.raise_for_status()
-
     return resp.json()
 
 
 def get_model_info(model: str = DEFAULT_MODEL) -> Dict:
-    """Get detailed information about a model."""
-    api_key = get_api_key()
-
-    url = f"{AI_STUDIO_URL}/models/{model}"
-    params = {"key": api_key}
-
-    resp = requests.get(url, params=params, timeout=30)
-    resp.raise_for_status()
-
-    return resp.json()
+    """Get model pricing and capabilities."""
+    pricing = get_model_pricing("gemini", model)
+    if pricing:
+        return {
+            "model": pricing.model,
+            "model_family": pricing.model_family,
+            "input_per_1m": pricing.input_per_1m,
+            "output_per_1m": pricing.output_per_1m,
+            "context_window": pricing.context_window,
+            "max_output_tokens": pricing.max_output_tokens,
+            "supports_vision": pricing.supports_vision,
+            "supports_audio": pricing.supports_audio,
+            "supports_video": pricing.supports_video,
+            "supports_tools": pricing.supports_tools,
+        }
+    return {"model": model, "error": "Pricing not found"}
