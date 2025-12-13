@@ -175,6 +175,14 @@ export default function SubscriptionProvidersPage() {
   const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">("monthly")
   const [adding, setAdding] = useState<string | null>(null)
 
+  // Disable confirmation dialog state
+  const [disableConfirmDialog, setDisableConfirmDialog] = useState<{
+    open: boolean
+    provider: string | null
+    displayName: string
+    planCount: number
+  }>({ open: false, provider: null, displayName: "", planCount: 0 })
+
   const loadSubscriptionProviders = useCallback(async (isMounted?: () => boolean) => {
     if (!isMounted || isMounted()) setProvidersLoading(true)
     const result = await getAllProviders(orgSlug)
@@ -207,6 +215,26 @@ export default function SubscriptionProvidersPage() {
   }, [warningMessage])
 
   const handleSubscriptionProviderToggle = async (provider: string, enabled: boolean) => {
+    const displayName = provider.replace(/_/g, ' ')
+
+    // For disable, show confirmation dialog first
+    if (!enabled) {
+      const providerInfo = subscriptionProviders.find(p => p.provider === provider)
+      setDisableConfirmDialog({
+        open: true,
+        provider,
+        displayName,
+        planCount: providerInfo?.plan_count || 0
+      })
+      return
+    }
+
+    // For enable, proceed directly
+    await executeProviderToggle(provider, enabled, displayName)
+  }
+
+  // Execute the actual toggle (called directly for enable, or after confirmation for disable)
+  const executeProviderToggle = async (provider: string, enabled: boolean, displayName: string) => {
     setTogglingSubscriptionProvider(provider)
     setError(null)
     setSuccessMessage(null)
@@ -219,7 +247,6 @@ export default function SubscriptionProvidersPage() {
     )
 
     try {
-      const displayName = provider.replace(/_/g, ' ')
       let success = false
       let errorMsg: string | undefined
 
@@ -285,6 +312,14 @@ export default function SubscriptionProvidersPage() {
     } finally {
       setTogglingSubscriptionProvider(null) // Clear toggle state AFTER reload completes
     }
+  }
+
+  // Handle confirmed disable
+  const handleConfirmDisable = async () => {
+    if (!disableConfirmDialog.provider) return
+    const { provider, displayName } = disableConfirmDialog
+    setDisableConfirmDialog({ open: false, provider: null, displayName: "", planCount: 0 })
+    await executeProviderToggle(provider, false, displayName)
   }
 
   // Add a completely custom provider
@@ -726,6 +761,52 @@ export default function SubscriptionProvidersPage() {
                   Add Provider
                 </>
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Disable Provider Confirmation Dialog */}
+      <Dialog
+        open={disableConfirmDialog.open}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDisableConfirmDialog({ open: false, provider: null, displayName: "", planCount: 0 })
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-600">
+              <AlertTriangle className="h-5 w-5" />
+              Disable {disableConfirmDialog.displayName}?
+            </DialogTitle>
+            <DialogDescription className="pt-2">
+              {disableConfirmDialog.planCount > 0 ? (
+                <>
+                  This will permanently delete <strong>{disableConfirmDialog.planCount} subscription plan{disableConfirmDialog.planCount !== 1 ? 's' : ''}</strong> for this provider.
+                  This action cannot be undone.
+                </>
+              ) : (
+                <>
+                  This will disable the provider. You can re-enable it later to add plans.
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setDisableConfirmDialog({ open: false, provider: null, displayName: "", planCount: 0 })}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmDisable}
+              data-testid="confirm-disable-btn"
+            >
+              {disableConfirmDialog.planCount > 0 ? "Delete Plans & Disable" : "Disable Provider"}
             </Button>
           </DialogFooter>
         </DialogContent>

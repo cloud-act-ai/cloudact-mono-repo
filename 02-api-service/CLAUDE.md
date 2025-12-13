@@ -34,7 +34,7 @@ Frontend (Next.js) → API Service (8000)
 ## FastAPI Server Commands
 
 ```bash
-cd /Users/gurukallam/prod-ready-apps/cloudact-mono-repo/02-api-service
+cd 02-api-service
 
 # Install dependencies
 pip install -r requirements.txt
@@ -582,4 +582,4 @@ curl -X GET "http://localhost:8000/api/v1/admin/dev/api-key/my_org" \
 
 ---
 
-**Last Updated:** 2025-12-10
+**Last Updated:** 2025-12-13

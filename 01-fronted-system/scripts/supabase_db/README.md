@@ -132,7 +132,7 @@ pipelinesPerDay: "6"
 order: "1"
 ```
 
-See `docs/BILLING.md` for complete Stripe setup.
+See `00-requirements-docs/01_BILLING_STRIPE.md` for complete Stripe setup.
 
 ---
 

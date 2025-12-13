@@ -8,7 +8,7 @@
  * 4. Event Cache TTL: 1 hour cleanup for processed events
  * 5. Plan ID Validation: Explicit handling, no non-null assertions
  *
- * @see docs/SECURITY.md for full security documentation
+ * @see 00-requirements-docs/05_SECURITY.md for full security documentation
  */
 
 import { stripe } from "@/lib/stripe";

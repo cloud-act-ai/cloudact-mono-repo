@@ -10,7 +10,7 @@
  * 4. Authorization: User must own account or be org owner for transfers
  * 5. Activity Logging: Fire-and-forget for ownership transfers, member leaves
  *
- * @see docs/SECURITY.md for full security documentation
+ * @see 00-requirements-docs/05_SECURITY.md for full security documentation
  */
 
 import { createClient, createServiceRoleClient } from "@/lib/supabase/server"

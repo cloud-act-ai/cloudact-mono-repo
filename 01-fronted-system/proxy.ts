@@ -12,7 +12,7 @@
  * - Auth: /login, /signup, /forgot-password, /reset-password
  * - Onboarding: /onboarding, /invite, /unauthorized
  *
- * @see docs/SECURITY.md for full security documentation
+ * @see 00-requirements-docs/05_SECURITY.md for full security documentation
  */
 
 import { updateSession } from "@/lib/supabase/middleware"

@@ -9,7 +9,7 @@
  * 3. Pagination: MAX_MEMBERS_PER_PAGE (100), MAX_INVITES_PER_PAGE (50)
  * 4. Authorization: Owner-only for invites, role changes, removals
  *
- * @see docs/SECURITY.md for full security documentation
+ * @see 00-requirements-docs/05_SECURITY.md for full security documentation
  */
 
 import { createClient, createServiceRoleClient } from "@/lib/supabase/server"

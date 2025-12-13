@@ -148,7 +148,8 @@ Port 3000                    Frontend-facing API             ETL Execution Only
 | **03 - Features** | `03_INTEGRATIONS.md` | IMPLEMENTED | Provider setup, credential encryption |
 | **03 - Features** | `03_DASHBOARD_ANALYTICS.md` | IMPLEMENTED | Charts, metrics, cost visualization |
 | **04 - UI** | `04_LANDING_PAGES.md` | IMPLEMENTED | Public marketing pages, SEO |
-| **04 - UI** | `04_CONSOLE_UI.md` | IMPLEMENTED | Dashboard layout, navigation, theming |
+| **05 - Cross** | `05_SECURITY.md` | IMPLEMENTED | Security patterns, input validation, rate limiting |
+| **05 - Cross** | `05_TESTING.md` | IMPLEMENTED | Testing guide, E2E flows, test coverage |
 
 ## Backend Services Split
 
@@ -359,4 +360,4 @@ curl -s http://localhost:8000/api/v1/validator/pipelines | python3 -m json.tool
 
 ---
 
-**Last Updated:** 2025-12-10
+**Last Updated:** 2025-12-13

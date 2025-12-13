@@ -9,7 +9,7 @@
  * 3. Length Limits: Max 100 characters for org names
  * 4. Authorization: User must be authenticated
  *
- * @see docs/SECURITY.md for full security documentation
+ * @see 00-requirements-docs/05_SECURITY.md for full security documentation
  */
 
 import { createClient, createServiceRoleClient } from "@/lib/supabase/server"

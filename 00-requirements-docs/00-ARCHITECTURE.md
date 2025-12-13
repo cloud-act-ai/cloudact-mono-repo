@@ -621,7 +621,7 @@ curl -X POST http://localhost:8001/api/v1/pipelines/run/{org}/gcp/cost/billing \
 | **Pipeline Service**  | `03-data-pipeline-service/CLAUDE.md`   | Pipeline execution, processors, ETL jobs                 |
 | **Pipeline Security** | `03-data-pipeline-service/SECURITY.md` | Security requirements, credential handling               |
 | **Frontend**          | `01-fronted-system/CLAUDE.md`          | Next.js setup, auth flow, billing, backend integration   |
-| **Billing**           | `01-fronted-system/docs/BILLING.md`    | Stripe integration, subscription flows, webhook handling |
+| **Billing**           | `00-requirements-docs/01_BILLING_STRIPE.md` | Stripe integration, subscription flows, webhook handling |
 
 ### API Endpoint Reference
 
@@ -776,7 +776,7 @@ stripe listen --forward-to localhost:3000/api/webhooks/stripe
 
 1. **For new developers:** Read backend and frontend CLAUDE.md files
 2. **For backend work:** Review backend CLAUDE.md for production requirements and security
-3. **For billing/subscriptions:** Read 01-fronted-system/docs/BILLING.md
+3. **For billing/subscriptions:** Read 00-requirements-docs/01_BILLING_STRIPE.md
 4. **For integrations:** See backend CLAUDE.md for integration endpoints
 5. **For deployment:** Follow deployment scripts in respective directories
 

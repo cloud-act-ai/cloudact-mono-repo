@@ -25,7 +25,8 @@ function getApiServiceUrl(): string {
 }
 
 /**
- * Safely parse JSON response with error handling
+ * Safely parse JSON response with error handling.
+ * Returns fallback for empty responses, throws for parse errors.
  */
 async function safeJsonParse<T>(response: Response, fallback: T): Promise<T> {
   try {
@@ -35,8 +36,12 @@ async function safeJsonParse<T>(response: Response, fallback: T): Promise<T> {
     }
     return JSON.parse(text) as T
   } catch (error) {
-    console.warn("Failed to parse JSON response:", error)
-    return fallback
+    // Log the error with context for debugging
+    console.error("Failed to parse JSON response:", error)
+    // Throw instead of silently returning fallback - this is a real error
+    throw new Error(
+      `Failed to parse backend response: ${error instanceof Error ? error.message : "Invalid JSON"}`
+    )
   }
 }
 

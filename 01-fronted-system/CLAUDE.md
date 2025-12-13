@@ -4,8 +4,8 @@
 
 Next.js 16 frontend with Supabase auth and Stripe payments. Port 3000. Connects to 02-api-service (8000) for bootstrap/onboarding and 03-data-pipeline-service (8001) for integrations/pipelines.
 
-**Full Platform Architecture:** `/Users/gurukallam/prod-ready-apps/cloudact-mono-repo/00-requirements-docs/00-ARCHITECTURE.md`
-**Root CLAUDE.md:** `/Users/gurukallam/prod-ready-apps/cloudact-mono-repo/CLAUDE.md` (platform overview, commands, architecture)
+**Full Platform Architecture:** `../00-requirements-docs/00-ARCHITECTURE.md`
+**Root CLAUDE.md:** `../CLAUDE.md` (platform overview, commands, architecture)
 
 ## Frontend Architecture
 
@@ -52,7 +52,7 @@ Stripe Checkout → Payment/trial setup
 - Never store actual credentials in Supabase (only status/fingerprints in columns)
 - Never create org before successful Stripe checkout
 - Never call backend APIs without proper auth headers
-- Never skip input validation (see `docs/SECURITY.md`)
+- Never skip input validation (see `00-requirements-docs/05_SECURITY.md`)
 
 ## Environment Variables (.env.local)
 
@@ -76,7 +76,7 @@ CA_ROOT_API_KEY=your-admin-key-min-32-chars                # Server-side only
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
-**Note:** See root `/Users/gurukallam/prod-ready-apps/cloudact-mono-repo/CLAUDE.md` for complete environment setup across all services.
+**Note:** See root `../CLAUDE.md` for complete environment setup across all services.
 
 ## Development Commands
 
@@ -112,7 +112,7 @@ npx vitest tests/user_flows_comprehensive.test.ts -t "Input Validation" --run
 
 **Test User:** `guru.kallam@gmail.com` / `guru1234`
 
-**Full documentation:** `docs/TESTING.md`
+**Full documentation:** `00-requirements-docs/05_TESTING.md`
 
 ## Next.js App Structure
 
@@ -179,12 +179,6 @@ scripts/supabase_db/            # Database migrations
 ├── 04_backend_onboarding_columns.sql  # Backend integration columns
 ├── 12_saas_subscriptions_table.sql    # SaaS subscription tracking
 └── migrate.sh                  # Migration runner
-
-docs/                           # Frontend documentation
-├── SECURITY.md                 # Security implementation details
-├── BILLING.md                  # Billing architecture
-├── TESTING.md                  # Testing guide
-└── *.md                        # Flow diagrams, API docs
 ```
 
 **Path Aliases:** Use `@/*` to import from project root (configured in `tsconfig.json`).
@@ -429,13 +423,13 @@ Updates Supabase + syncs to backend BigQuery:
 
 **Quota Enforcement:** Only `ACTIVE` and `TRIAL` allow pipeline execution.
 
-**Full documentation:** `docs/BILLING.md`
+**Full documentation:** `00-requirements-docs/01_BILLING_STRIPE.md`
 
 ---
 
 ## Security Patterns
 
-**Full documentation:** `docs/SECURITY.md`
+**Full documentation:** `00-requirements-docs/05_SECURITY.md`
 
 ### Input Validation (MANDATORY)
 
@@ -560,22 +554,23 @@ const publicPaths = [
 
 ## Documentation
 
+All documentation is centralized in `00-requirements-docs/`:
+
 | Document | Description |
 |----------|-------------|
-| `docs/SECURITY.md` | Security implementation details |
-| `docs/BILLING.md` | Billing architecture (Stripe-first) |
-| `docs/TESTING.md` | Testing guide (15 comprehensive flows) |
-| `docs/api_key_generation_flow.md` | API key generation flow |
-| `docs/integration_setup_flow.md` | Integration setup flow |
-| `docs/pipeline_execution_flow.md` | Pipeline execution flow |
-| `docs/LOCAL_SETUP.md` | Local development setup |
+| `00-ARCHITECTURE.md` | Full platform architecture |
+| `00-DESIGN_STANDARDS.md` | Design system (colors, typography) |
+| `00_CONSOLE_UI_DESIGN_STANDARDS.md` | Console UI patterns |
+| `01_BILLING_STRIPE.md` | Billing architecture (Stripe-first) |
+| `01_USER_MANAGEMENT.md` | Auth, roles, team invites |
+| `05_SECURITY.md` | Security implementation details |
+| `05_TESTING.md` | Testing guide (15 comprehensive flows) |
 
-**Root Documentation:**
-- `/Users/gurukallam/prod-ready-apps/cloudact-mono-repo/CLAUDE.md` - Platform overview, commands
-- `/Users/gurukallam/prod-ready-apps/cloudact-mono-repo/00-requirements-docs/00-ARCHITECTURE.md` - Full architecture
-- `/Users/gurukallam/prod-ready-apps/cloudact-mono-repo/02-api-service/CLAUDE.md` - API service
-- `/Users/gurukallam/prod-ready-apps/cloudact-mono-repo/03-data-pipeline-service/CLAUDE.md` - Pipeline service
+**Service CLAUDE.md files:**
+- `CLAUDE.md` (root) - Platform overview, commands
+- `02-api-service/CLAUDE.md` - API service
+- `03-data-pipeline-service/CLAUDE.md` - Pipeline service
 
 ---
 
-**Last Updated:** 2025-12-10
+**Last Updated:** 2025-12-13

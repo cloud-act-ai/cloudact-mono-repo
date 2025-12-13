@@ -19,6 +19,21 @@ Browser automation tests for SaaS subscription management using `browser_subagen
 5. **TRACK RESULTS** - Update: `PASSED: X | FAILED: Y | SKIPPED: Z | REMAINING: N`
 6. **DELETE OLD ARTIFACTS** - Delete old artifacts if exists and Create only here: `.agent/artifacts/SUBSCRIPTION_TEST_REPORT_COMPREHENSIVE.md`
 
+## CRITICAL: Follow best practices for test execution
+
+- ✅ **No over-engineering** - Simple, direct fixes
+- ✅ **Multi-tenancy support** - Proper `org_slug` isolation
+- ✅ **Enterprise-grade for 10k customers** - Must scale
+- ✅ **BigQuery best practices** - Clustering, partitioning, timeouts
+- ✅ **Supabase best practices** - RLS, connection pooling, tight integration
+- ✅ **Reusability and repeatability** - Patterns that work everywhere
+- ✅ **ZERO mock tests** - All tests must hit real services
+- ✅ **Parallel test execution** - Use `pytest-xdist`
+- ✅ **LRU in-memory cache** - NO Redis at all
+- ✅ **Check clustering/partitioning** - Add clustering/partitioning
+- ✅ **Don't break existing functionality** - Run all tests before/after
+- ✅ **Update docs with learnings** - Document fixes in `CLAUDE.md`
+
 ---
 
 ## Prerequisites

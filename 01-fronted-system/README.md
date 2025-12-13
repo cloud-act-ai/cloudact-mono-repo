@@ -408,7 +408,7 @@ See [docs/ANALYTICS_API.md](./docs/ANALYTICS_API.md) for complete API documentat
 ### Test Mode
 Use "Test Subscribe" buttons in billing to bypass Stripe for QA testing.
 
-See [docs/TESTING.md](./docs/TESTING.md) for comprehensive testing guide covering all 10 enterprise use cases.
+See [00-requirements-docs/05_TESTING.md](../00-requirements-docs/05_TESTING.md) for comprehensive testing guide covering all 10 enterprise use cases.
 
 ## Validation Testing
 
@@ -461,20 +461,17 @@ See [tests/user_flows_comprehensive.test.ts](./tests/user_flows_comprehensive.te
 
 ## Documentation
 
-All documentation is in the `docs/` folder:
+All documentation is centralized in `00-requirements-docs/`:
 
-- **[docs/LOCAL_SETUP.md](./docs/LOCAL_SETUP.md)** - Detailed local development setup
-- **[docs/TESTING.md](./docs/TESTING.md)** - Testing procedures and use cases
-- **[docs/ANALYTICS_README.md](./docs/ANALYTICS_README.md)** - Analytics system architecture
-- **[docs/ANALYTICS_API.md](./docs/ANALYTICS_API.md)** - API documentation
-- **[docs/BILLING.md](./docs/BILLING.md)** - Complete billing documentation
-- **[docs/SECURITY.md](./docs/SECURITY.md)** - Security architecture and best practices
-
-### Backend Integration Documentation
-
-- **[docs/api_key_generation_flow.md](./docs/api_key_generation_flow.md)** - Complete API key generation flow with architecture diagrams
-- **[docs/integration_setup_flow.md](./docs/integration_setup_flow.md)** - Integration setup for LLM and cloud providers
-- **[docs/pipeline_execution_flow.md](./docs/pipeline_execution_flow.md)** - Pipeline execution and monitoring guide
+| Document | Description |
+|----------|-------------|
+| `00-ARCHITECTURE.md` | Full platform architecture |
+| `00-DESIGN_STANDARDS.md` | Design system (colors, typography) |
+| `00_CONSOLE_UI_DESIGN_STANDARDS.md` | Console UI patterns |
+| `01_BILLING_STRIPE.md` | Billing architecture (Stripe-first) |
+| `01_USER_MANAGEMENT.md` | Auth, roles, team invites |
+| `05_SECURITY.md` | Security implementation details |
+| `05_TESTING.md` | Testing guide (15 comprehensive flows) |
 
 ## Deployment
 

@@ -391,8 +391,8 @@ export default function ProviderDetailPage() {
         return
       }
 
-      // Verify API returned the new version
-      if (!result.new_version_id && !result.plan) {
+      // Verify API returned the new version (action returns newPlan, not new_version_id)
+      if (!result.newPlan) {
         toast.warning(
           "Update may not have been saved correctly. Please refresh the page and verify.",
           { duration: 8000 }

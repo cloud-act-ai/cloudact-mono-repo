@@ -583,17 +583,18 @@ async def disable_provider(
     dataset_id = get_org_dataset(org_slug)
     table_ref = f"{settings.gcp_project_id}.{dataset_id}.{SAAS_SUBSCRIPTION_PLANS_TABLE}"
 
-    # First, count how many plans will be deleted
+    # First, count how many plans will be deleted (scoped to org for multi-tenant safety)
     count_query = f"""
     SELECT COUNT(*) as count
     FROM `{table_ref}`
-    WHERE provider = @provider
+    WHERE org_slug = @org_slug AND provider = @provider
     """
 
     try:
         # Get count of plans to be deleted
         job_config = bigquery.QueryJobConfig(
             query_parameters=[
+                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
                 bigquery.ScalarQueryParameter("provider", "STRING", provider),
             ],
             job_timeout_ms=30000  # 30 second timeout for user queries
@@ -603,14 +604,15 @@ async def disable_provider(
         for row in result:
             plans_count = row.count
 
-        # Delete all plans for the provider
+        # Delete all plans for the provider (scoped to org for multi-tenant safety)
         delete_query = f"""
         DELETE FROM `{table_ref}`
-        WHERE provider = @provider
+        WHERE org_slug = @org_slug AND provider = @provider
         """
 
         job_config = bigquery.QueryJobConfig(
             query_parameters=[
+                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
                 bigquery.ScalarQueryParameter("provider", "STRING", provider),
             ],
             job_timeout_ms=300000  # 5 minute timeout for admin/batch operations
@@ -988,6 +990,14 @@ async def create_plan(
     dataset_id = get_org_dataset(org_slug)
     table_ref = f"{settings.gcp_project_id}.{dataset_id}.{SAAS_SUBSCRIPTION_PLANS_TABLE}"
 
+    # Ensure table exists before any operations (prevents silent failures)
+    table_exists = await ensure_table_exists(bq_client, dataset_id)
+    if not table_exists:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create or access {SAAS_SUBSCRIPTION_PLANS_TABLE} table for {org_slug}"
+        )
+
     # Check for duplicate plan (same org + provider + plan_name)
     plan_name_upper = plan.plan_name.upper()
     check_query = f"""
@@ -1013,7 +1023,12 @@ async def create_plan(
     except HTTPException:
         raise
     except Exception as e:
-        logger.debug(f"Could not check for duplicate plan (table may not exist): {e}")
+        # Now that we've ensured table exists, this is a real error
+        logger.error(f"Failed to check for duplicate plan: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to check for duplicate plan: {e}"
+        )
 
     subscription_id = f"sub_{provider}_{plan.plan_name.lower()}_{uuid.uuid4().hex[:8]}"
     category = get_provider_category(provider).value  # Get enum value
@@ -1102,31 +1117,62 @@ async def create_plan(
                 detail=f"Plan creation failed: no rows inserted. Check data validity."
             )
 
-        created_plan = SubscriptionPlan(
-            org_slug=org_slug,
-            subscription_id=subscription_id,
-            provider=provider,
-            plan_name=plan.plan_name.upper(),
-            display_name=plan.display_name or plan.plan_name,
-            category=category,
-            status=initial_status,
-            start_date=effective_start_date,
-            billing_cycle=plan.billing_cycle,
-            currency=plan.currency,
-            seats=plan.seats,
-            pricing_model=plan.pricing_model,
-            unit_price_usd=plan.unit_price_usd,
-            yearly_price_usd=plan.yearly_price_usd,
-            discount_type=plan.discount_type,
-            discount_value=plan.discount_value,
-            auto_renew=plan.auto_renew,
-            payment_method=plan.payment_method,
-            owner_email=plan.owner_email,
-            department=plan.department,
-            renewal_date=plan.renewal_date,
-            contract_id=plan.contract_id,
-            notes=plan.notes,
+        # CRITICAL: Verify insert by fetching from database (don't trust request data)
+        verify_query = f"""
+        SELECT
+            org_slug, subscription_id, provider, plan_name, display_name,
+            category, status, start_date, end_date, billing_cycle, currency,
+            seats, pricing_model, unit_price_usd, yearly_price_usd,
+            discount_type, discount_value, auto_renew, payment_method,
+            owner_email, department, renewal_date, contract_id, notes, updated_at
+        FROM `{table_ref}`
+        WHERE org_slug = @org_slug AND subscription_id = @subscription_id
+        """
+        verify_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                bigquery.ScalarQueryParameter("subscription_id", "STRING", subscription_id),
+            ],
+            job_timeout_ms=10000
         )
+        verify_result = bq_client.client.query(verify_query, job_config=verify_config).result()
+
+        created_plan = None
+        for row in verify_result:
+            created_plan = SubscriptionPlan(
+                org_slug=row.org_slug,
+                subscription_id=row.subscription_id,
+                provider=row.provider,
+                plan_name=row.plan_name,
+                display_name=row.display_name,
+                category=row.category,
+                status=row.status,
+                start_date=row.start_date,
+                end_date=row.end_date,
+                billing_cycle=row.billing_cycle,
+                currency=row.currency,
+                seats=row.seats,
+                pricing_model=row.pricing_model,
+                unit_price_usd=row.unit_price_usd,
+                yearly_price_usd=row.yearly_price_usd,
+                discount_type=row.discount_type,
+                discount_value=row.discount_value,
+                auto_renew=row.auto_renew,
+                payment_method=row.payment_method,
+                owner_email=row.owner_email,
+                department=row.department,
+                renewal_date=row.renewal_date,
+                contract_id=row.contract_id,
+                notes=row.notes,
+            )
+            break
+
+        if created_plan is None:
+            logger.error(f"INSERT verification failed: plan not found in database for subscription_id={subscription_id}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Plan creation failed: data not persisted. Please try again."
+            )
 
         # Invalidate relevant caches after creating plan
         invalidate_provider_cache(org_slug, provider)
