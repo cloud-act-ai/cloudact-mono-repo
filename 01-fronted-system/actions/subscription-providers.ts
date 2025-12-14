@@ -285,6 +285,10 @@ export interface SubscriptionPlan {
   contract_id?: string
   notes?: string
   updated_at?: string
+  // Audit trail fields for currency conversion (v12.2)
+  source_currency?: string      // Original currency of template (e.g., "USD")
+  source_price?: number         // Original price before conversion
+  exchange_rate_used?: number   // Exchange rate at time of creation
 }
 
 export interface PlanCreate {
@@ -306,6 +310,10 @@ export interface PlanCreate {
   renewal_date?: string
   contract_id?: string
   notes?: string
+  // Audit trail fields for currency conversion (v12.2)
+  source_currency?: string      // Original currency of template (e.g., "USD")
+  source_price?: number         // Original price before conversion
+  exchange_rate_used?: number   // Exchange rate at time of creation
 }
 
 export interface PlanUpdate {
@@ -1194,6 +1202,19 @@ export async function createCustomPlan(
     }
 
     await requireRole(orgSlug, "admin")
+
+    // Validate currency matches org default (server-side check)
+    const { getOrgLocale } = await import("./organization-locale")
+    const localeResult = await getOrgLocale(orgSlug)
+    if (localeResult.success && localeResult.locale) {
+      const orgCurrency = localeResult.locale.default_currency || "USD"
+      if (plan.currency && plan.currency !== orgCurrency) {
+        return {
+          success: false,
+          error: `Plan currency '${plan.currency}' must match organization's default currency '${orgCurrency}'`
+        }
+      }
+    }
 
     const orgApiKey = await getOrgApiKeySecure(orgSlug)
     if (!orgApiKey) {

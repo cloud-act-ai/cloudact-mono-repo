@@ -1,0 +1,55 @@
+{
+  "enabled": true,
+  "description": "Root/global notification configuration (fallback for all organizations)",
+  "default_provider": "email",
+  "email": {
+    "enabled": true,
+    "smtp_host": "smtp.gmail.com",
+    "smtp_port": 587,
+    "smtp_username": "${SMTP_USERNAME}",
+    "smtp_password": "${SMTP_PASSWORD}",
+    "smtp_use_tls": true,
+    "from_email": "noreply@cloudact.io",
+    "from_name": "CloudAct Platform",
+    "to_emails": [
+      "${DEFAULT_ADMIN_EMAIL}"
+    ],
+    "subject_prefix": "[CloudAct]"
+  },
+  "event_triggers": [
+    {
+      "event": "pipeline_failure",
+      "enabled": true,
+      "severity": "error",
+      "providers": ["email"],
+      "cooldown_seconds": 300
+    },
+    {
+      "event": "pipeline_success",
+      "enabled": false,
+      "severity": "info",
+      "providers": ["email"]
+    },
+    {
+      "event": "data_quality_failure",
+      "enabled": true,
+      "severity": "warning",
+      "providers": ["email"],
+      "cooldown_seconds": 600
+    },
+    {
+      "event": "system_error",
+      "enabled": true,
+      "severity": "critical",
+      "providers": ["email"],
+      "cooldown_seconds": 180
+    }
+  ],
+  "retry_config": {
+    "max_attempts": 3,
+    "initial_delay_seconds": 5,
+    "max_delay_seconds": 300,
+    "exponential_backoff": true
+  },
+  "timeout_seconds": 30
+}

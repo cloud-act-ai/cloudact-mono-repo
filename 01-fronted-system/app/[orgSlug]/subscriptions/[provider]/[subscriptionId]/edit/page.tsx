@@ -43,7 +43,7 @@ import {
   PlanUpdate,
 } from "@/actions/subscription-providers"
 import { getOrgLocale } from "@/actions/organization-locale"
-import { formatCurrency } from "@/lib/i18n"
+import { formatCurrency, formatDateOnly } from "@/lib/i18n"
 
 // Provider display names
 const PROVIDER_DISPLAY_NAMES: Record<string, string> = {
@@ -382,7 +382,7 @@ export default function EditSubscriptionPage() {
               {currentPlan.start_date && (
                 <div>
                   <span className="text-slate-500 block text-xs uppercase tracking-wide mb-1">Start Date</span>
-                  <span className="font-medium">{format(new Date(currentPlan.start_date), 'MMM d, yyyy')}</span>
+                  <span className="font-medium">{formatDateOnly(currentPlan.start_date)}</span>
                 </div>
               )}
               <div>

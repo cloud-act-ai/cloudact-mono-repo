@@ -1,10 +1,193 @@
 # SaaS Subscription Costs
 
-**Status**: IMPLEMENTED (v12.1) | **Updated**: 2025-12-09 | **Single Source of Truth**
+**Status**: IMPLEMENTED (v12.2) | **Updated**: 2025-12-14 | **Single Source of Truth**
 
 > Track fixed-cost SaaS subscriptions (Canva, ChatGPT Plus, Slack, etc.)
 > NOT CloudAct platform billing (that's Stripe)
 > NOT LLM API tiers (OpenAI TIER1-5, Anthropic BUILD_TIER - separate flow)
+
+---
+
+## Multi-Currency Support (v12.2)
+
+Organizations can operate in any of the 16 supported currencies. Template prices are stored in USD and converted to the org's default currency on display and save.
+
+### Currency Flow Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        SEED CSV (Source of Truth)                            │
+│  File: 02-api-service/configs/saas/seed/data/saas_subscription_plans.csv    │
+│                                                                              │
+│  unit_price_usd | yearly_price_usd | currency = "USD"                       │
+│  (Always USD - single source, no multi-currency columns)                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     TEMPLATE SELECTION PAGE                                  │
+│  Route: /{orgSlug}/subscriptions/{provider}/add                             │
+│                                                                              │
+│  1. Fetch org's default currency from org_profiles                          │
+│  2. Fetch exchange rates from lib/currency/exchange-rates.ts                │
+│  3. Convert: convertFromUSD(unit_price_usd, orgCurrency)                   │
+│  4. Display: formatCurrency(convertedPrice, orgCurrency)                   │
+│                                                                              │
+│  Example: Canva PRO $15 USD → ₹1,246.80 INR (for Indian org)               │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     ADD CUSTOM FORM                                          │
+│  Route: /{orgSlug}/subscriptions/{provider}/add/custom                      │
+│                                                                              │
+│  - Currency field: LOCKED to org's default currency (read-only)             │
+│  - Price pre-filled with converted value from template                      │
+│  - User can adjust price but NOT currency                                   │
+│  - Audit fields captured: source_currency, source_price, exchange_rate     │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     BigQuery Storage                                         │
+│  Table: {org_slug}_{env}.saas_subscription_plans                            │
+│                                                                              │
+│  Stored Fields:                                                              │
+│  - currency: "INR" (org's default - what user sees and pays in)            │
+│  - unit_price_usd: 1246.80 (in org's currency, NOT USD anymore!)           │
+│  - source_currency: "USD" (original template currency for audit)           │
+│  - source_price: 15.00 (original USD price for audit)                      │
+│  - exchange_rate_used: 83.12 (rate at time of creation)                    │
+│                                                                              │
+│  NOTE: Despite column name "unit_price_usd", value is in org's currency!   │
+│  Future migration will rename to "unit_price" for clarity.                 │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Exchange Rate Service
+
+**File:** `01-fronted-system/lib/currency/exchange-rates.ts`
+
+Fixed rates relative to USD (base = 1.0). Updated monthly by admin.
+
+```typescript
+export const EXCHANGE_RATES: Record<string, number> = {
+  USD: 1.0,      // Base
+  EUR: 0.92,     GBP: 0.79,     JPY: 149.5,
+  CHF: 0.88,     CAD: 1.36,     AUD: 1.53,
+  CNY: 7.24,     INR: 83.12,    SGD: 1.34,
+  AED: 3.673,    SAR: 3.75,     QAR: 3.64,
+  KWD: 0.31,     BHD: 0.377,    OMR: 0.385,
+}
+```
+
+**Key Functions:**
+
+| Function | Purpose | Example |
+|----------|---------|---------|
+| `convertCurrency(amount, from, to)` | Convert between any currencies | `convertCurrency(100, "USD", "INR")` → 8312 |
+| `convertFromUSD(amount, to)` | Convert USD to target | `convertFromUSD(15, "INR")` → 1246.80 |
+| `convertToUSD(amount, from)` | Convert to USD | `convertToUSD(1246.80, "INR")` → 15 |
+| `convertWithAudit(amount, from, to)` | Convert with full audit trail | Returns `{ sourceCurrency, sourcePrice, convertedPrice, exchangeRateUsed, ... }` |
+
+### Import from i18n
+
+```typescript
+import {
+  convertCurrency,
+  convertFromUSD,
+  convertWithAudit,
+  formatCurrency,
+  EXCHANGE_RATES,
+} from "@/lib/i18n"
+```
+
+### Why Lock Currency to Org Default?
+
+| Benefit | Explanation |
+|---------|-------------|
+| **Consistency** | All costs in same currency → accurate totals |
+| **Reporting** | Dashboard charts don't need multi-currency aggregation |
+| **Simplicity** | No "which currency?" confusion for users |
+| **Audit Trail** | `source_currency` + `source_price` preserves original data |
+
+### Page Routing (v12.2)
+
+All subscription management uses dedicated pages (not modals):
+
+| Route | Purpose |
+|-------|---------|
+| `/{orgSlug}/subscriptions/{provider}` | Provider overview (list plans) |
+| `/{orgSlug}/subscriptions/{provider}/add` | Add from Template selection |
+| `/{orgSlug}/subscriptions/{provider}/add/custom` | Add Custom form |
+| `/{orgSlug}/subscriptions/{provider}/{subscriptionId}/edit` | Edit subscription |
+| `/{orgSlug}/subscriptions/{provider}/{subscriptionId}/end` | End subscription |
+| `/{orgSlug}/subscriptions/{provider}/success` | Success confirmation |
+
+### Pipeline Currency Flow
+
+The pipeline procedures fully support multi-currency. Currency flows end-to-end from plan creation to FOCUS 1.2 reporting:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     SUBSCRIPTION PLANS TABLE                                 │
+│  Table: {org_slug}_{env}.saas_subscription_plans                            │
+│                                                                              │
+│  currency: "INR"           ← Org's default currency                         │
+│  unit_price_usd: 1246.80   ← Price in org's currency (converted)           │
+│  source_currency: "USD"    ← Original template currency (audit)            │
+│  source_price: 15.00       ← Original USD price (audit)                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│           sp_calculate_saas_subscription_plan_costs_daily                   │
+│  File: configs/system/procedures/saas_subscription/                         │
+│        sp_calculate_saas_subscription_plan_costs_daily.sql                  │
+│                                                                              │
+│  - Reads `currency` from plans table                                        │
+│  - Calculates daily costs: COALESCE(currency, 'USD') AS currency           │
+│  - Passes currency through to daily costs output                           │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     DAILY COSTS TABLE                                        │
+│  Table: {org_slug}_{env}.saas_subscription_plan_costs_daily                 │
+│                                                                              │
+│  currency: "INR"           ← Preserved from plans table                     │
+│  daily_cost: 41.56         ← Daily cost in org's currency                  │
+│  monthly_cost: 1246.80     ← Monthly cost in org's currency                │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│               sp_convert_saas_costs_to_focus_1_2                            │
+│  File: configs/system/procedures/saas_subscription/                         │
+│        sp_convert_saas_costs_to_focus_1_2.sql                               │
+│                                                                              │
+│  Maps currency to FOCUS 1.2 standard fields:                               │
+│  - spc.currency AS BillingCurrency                                         │
+│  - spc.currency AS PricingCurrency                                         │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     FOCUS 1.2 TABLE                                          │
+│  Table: {org_slug}_{env}.cost_data_standard_1_2                             │
+│                                                                              │
+│  BillingCurrency: "INR"    ← FOCUS 1.2 standard field                      │
+│  PricingCurrency: "INR"    ← FOCUS 1.2 standard field                      │
+│  BilledCost: 41.56         ← Cost in BillingCurrency                       │
+│  EffectiveCost: 41.56      ← Cost in BillingCurrency                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Key Points:**
+- Currency is preserved end-to-end (no conversion in pipeline)
+- `COALESCE(currency, 'USD')` provides backward compatibility for null values
+- FOCUS 1.2 uses `BillingCurrency` and `PricingCurrency` (same value)
+- All cost calculations done in org's currency for accurate totals
 
 ---
 
@@ -1649,6 +1832,39 @@ To complete the architecture migration:
 
 ## Changelog
 
+### v12.2 (2025-12-14)
+
+**Multi-Currency Support:**
+- Template prices displayed in org's default currency (converted from USD)
+- Currency field locked to org default in add forms (consistency)
+- Audit trail fields added: `source_currency`, `source_price`, `exchange_rate_used`
+- Original USD price shown as reference when org uses different currency
+
+**New Files:**
+| File | Purpose |
+|------|---------|
+| `lib/currency/exchange-rates.ts` | Fixed exchange rates, conversion utilities |
+| `app/[orgSlug]/subscriptions/[provider]/add/page.tsx` | Template selection page |
+| `app/[orgSlug]/subscriptions/[provider]/add/custom/page.tsx` | Custom plan form |
+| `app/[orgSlug]/subscriptions/[provider]/[subscriptionId]/edit/page.tsx` | Edit subscription |
+| `app/[orgSlug]/subscriptions/[provider]/[subscriptionId]/end/page.tsx` | End subscription |
+| `app/[orgSlug]/subscriptions/[provider]/success/page.tsx` | Success page |
+
+**UI Changes:**
+- Replaced all modal dialogs with dedicated pages (better UX)
+- Added breadcrumb navigation
+- Added success confirmation page with action-based messaging
+- Currency conversion info card shows original USD price from templates
+
+**Interface Updates:**
+- `PlanCreate` interface: Added `source_currency`, `source_price`, `exchange_rate_used`
+- `SubscriptionPlan` interface: Added audit trail fields
+
+**Exchange Rates (USD base):**
+- 16 currencies supported: USD, EUR, GBP, JPY, CHF, CAD, AUD, CNY, INR, SGD, AED, SAR, QAR, KWD, BHD, OMR
+- Rates are fixed (update monthly via admin)
+- Conversion utility: `convertFromUSD()`, `convertCurrency()`, `convertWithAudit()`
+
 ### v12.0 (2025-12-08)
 
 **Status Value Changes:**
@@ -1684,4 +1900,4 @@ To complete the architecture migration:
 
 ---
 
-**Version**: 12.1 | **Updated**: 2025-12-09 | **Policy**: Single source of truth - no duplicate docs
+**Version**: 12.2 | **Updated**: 2025-12-14 | **Policy**: Single source of truth - no duplicate docs

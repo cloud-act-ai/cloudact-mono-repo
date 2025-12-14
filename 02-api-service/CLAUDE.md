@@ -28,7 +28,7 @@ Frontend (Next.js) → API Service (8000)
 | **Organizations** | `src/app/routers/organizations.py` | `/api/v1/organizations/*` | Onboarding, subscription management, locale settings |
 | **Integrations** | `src/app/routers/integrations.py` | `/api/v1/integrations/*` | Integration setup/validate/status |
 | **LLM Data** | `src/app/routers/llm_data.py` | `/api/v1/integrations/{org}/{provider}/pricing` | LLM pricing/subscriptions CRUD |
-| **Subscription Plans** | `src/app/routers/subscription_plans.py` | `/api/v1/subscriptions/*` | SaaS plan CRUD with version history |
+| **Subscription Plans** | `src/app/routers/subscription_plans.py` | `/api/v1/subscriptions/*` | SaaS plan CRUD with version history + audit logs |
 | **Cost Service** | `src/app/routers/cost_service.py` | `/api/v1/costs/*` | Polars-powered cost analytics |
 
 ## FastAPI Server Commands
@@ -501,6 +501,140 @@ Status Values:
   - expired: Naturally expired plan (end_date < today)
 ```
 
+### Multi-Currency Support
+
+**Currency Enforcement:** All subscription plans MUST match the organization's `default_currency` from `org_profiles`.
+
+```bash
+# Example: Organization with default_currency = "INR"
+# ✓ Valid: Creating plan with currency = "INR"
+# ✗ Invalid: Creating plan with currency = "USD" (returns 400 Bad Request)
+```
+
+**Multi-Currency Audit Fields:**
+
+When creating plans from templates or converting currencies, the following fields track the original pricing:
+
+| Field | Type | Description | Example |
+|-------|------|-------------|---------|
+| `source_currency` | STRING | Original currency of template price | "USD" |
+| `source_price` | FLOAT64 | Original price before conversion | 25.00 |
+| `exchange_rate_used` | FLOAT64 | Exchange rate at time of creation | 83.50 |
+| `currency` | STRING | Final billing currency (must match org) | "INR" |
+| `unit_price_usd` | FLOAT64 | Converted price (historical name) | 2087.50 |
+
+**Example Flow:**
+```
+Template: ChatGPT Team = $25/user/month (USD)
+Org Currency: INR
+Exchange Rate: 83.50 INR/USD
+
+Stored in BigQuery:
+  source_currency: "USD"
+  source_price: 25.00
+  exchange_rate_used: 83.50
+  currency: "INR"
+  unit_price_usd: 2087.50  # (25.00 * 83.50)
+```
+
+### Duplicate Plan Detection
+
+**Validation:** Creating a plan with the same `org_slug + provider + plan_name + status='active'` returns **409 Conflict**.
+
+```bash
+# Scenario: Organization already has active "TEAM" plan for chatgpt_plus
+curl -X POST "http://localhost:8000/api/v1/subscriptions/test_org/providers/chatgpt_plus/plans" \
+  -H "X-API-Key: $ORG_API_KEY" \
+  -d '{
+    "plan_name": "TEAM",
+    "currency": "USD",
+    "unit_price_usd": 25.00
+  }'
+
+# Response: 409 Conflict
+# {
+#   "error": "duplicate_plan",
+#   "message": "Active plan 'TEAM' already exists for provider 'chatgpt_plus'"
+# }
+```
+
+**Note:** Duplicate detection only applies to `active` plans. You can have multiple `cancelled`/`expired` versions.
+
+### Audit Logging
+
+**All plan operations are logged to `org_audit_logs` table:**
+
+| Operation | Action | Details Logged |
+|-----------|--------|----------------|
+| **CREATE** | `CREATE` | `plan_name`, `provider`, `unit_price_usd`, `currency`, `seats`, `pricing_model`, `billing_cycle`, `start_date` |
+| **UPDATE** | `UPDATE` | `changed_fields`, `new_values` (only changed fields logged) |
+| **EDIT-VERSION** | `UPDATE` | `old_subscription_id`, `new_subscription_id`, `effective_date`, `old_values`, `new_values`, `changed_fields` |
+| **DELETE** | `DELETE` | `end_date`, `final_status` (`cancelled`) |
+
+**Query Audit Logs:**
+
+```bash
+# Get all subscription plan audit logs for an organization
+curl -X GET "https://bigquery.googleapis.com/bigquery/v2/projects/{project}/queries" \
+  -H "Authorization: Bearer $(gcloud auth print-access-token)" \
+  -d '{
+    "query": "SELECT * FROM organizations.org_audit_logs WHERE resource_type = '\''SUBSCRIPTION_PLAN'\'' AND org_slug = '\''test_org'\'' ORDER BY created_at DESC LIMIT 100",
+    "useLegacySql": false
+  }'
+```
+
+**Audit Log Schema:**
+```json
+{
+  "audit_id": "uuid",
+  "org_slug": "test_org",
+  "action": "UPDATE",
+  "resource_type": "SUBSCRIPTION_PLAN",
+  "resource_id": "sub_chatgpt_plus_team_abc123",
+  "status": "SUCCESS",
+  "details": {
+    "action": "version_created",
+    "provider": "chatgpt_plus",
+    "plan_name": "TEAM",
+    "old_subscription_id": "sub_chatgpt_plus_team_abc123",
+    "new_subscription_id": "sub_chatgpt_plus_team_def456",
+    "effective_date": "2025-02-01",
+    "changed_fields": ["seats", "unit_price_usd"],
+    "old_values": {"seats": 10, "unit_price_usd": 25.00},
+    "new_values": {"seats": 15, "unit_price_usd": 30.00}
+  },
+  "created_at": "2025-01-15T10:30:00Z"
+}
+```
+
+### Historical Cost Preservation
+
+**Version history ensures historical costs are NEVER recalculated:**
+
+```
+Example: ChatGPT Team Plan History
+  v1: Jan 1 - Mar 15 | 10 seats @ $25/seat | Total: $250/day
+  v2: Mar 16 - Jun 30 | 15 seats @ $30/seat | Total: $450/day
+  v3: Jul 1 - Present | 20 seats @ $35/seat | Total: $700/day
+
+Cost Calculations (as of Aug 15):
+  YTD: (75 days × $250) + (107 days × $450) + (46 days × $700) = $99,400
+  MTD (Aug): 15 days × $700 = $10,500
+  Forecast (rest of year): remaining_days × $700
+
+Query Logic:
+  SELECT * FROM saas_subscription_plans
+  WHERE plan_name = 'TEAM'
+    AND start_date <= @cost_date
+    AND (end_date IS NULL OR end_date >= @cost_date)
+```
+
+**Key Points:**
+- Each version has its own `start_date`, `end_date`, and pricing
+- Cost service queries use date range filters to get the correct version
+- Historical costs use historical pricing (immutable)
+- Forecasts use only the latest active version
+
 ### Subscription Plan Endpoints
 
 ```bash
@@ -554,6 +688,40 @@ curl -X DELETE "http://localhost:8000/api/v1/subscriptions/test_org/providers/ch
     "end_date": "2025-03-31"
   }'
 ```
+
+### Schema Changes (Multi-Currency Support)
+
+**Location:** `configs/setup/organizations/onboarding/schemas/saas_subscription_plans.json`
+
+**New Fields Added (2025-12-14):**
+
+```json
+{
+  "name": "source_currency",
+  "type": "STRING",
+  "mode": "NULLABLE",
+  "description": "Original currency of template price (e.g., USD)"
+},
+{
+  "name": "source_price",
+  "type": "FLOAT64",
+  "mode": "NULLABLE",
+  "description": "Original price before conversion"
+},
+{
+  "name": "exchange_rate_used",
+  "type": "FLOAT64",
+  "mode": "NULLABLE",
+  "description": "Exchange rate at time of creation"
+}
+```
+
+**Purpose:**
+- Track currency conversions when using pricing templates
+- Audit trail for price changes due to exchange rate fluctuations
+- Support multi-currency organizations
+
+**Migration:** These fields are NULLABLE and backward-compatible. Existing plans without these fields will function normally.
 
 ### Seed Data
 
@@ -649,7 +817,8 @@ curl -X GET "http://localhost:8000/api/v1/costs/test_org/summary?start_date=2025
 │       ├── utils/
 │       │   ├── logging.py             # Logging configuration
 │       │   ├── cache.py               # LRU cache with TTL
-│       │   └── rate_limiter.py        # Rate limiting utilities
+│       │   ├── rate_limiter.py        # Rate limiting utilities
+│       │   └── audit_logger.py        # Centralized audit logging
 │       ├── observability/
 │       │   └── metrics.py             # Prometheus metrics
 │       └── exceptions.py              # Custom exceptions
@@ -830,4 +999,4 @@ curl -X GET "http://localhost:8000/api/v1/admin/dev/api-key/my_org" \
 
 ---
 
-**Last Updated:** 2025-12-13
+**Last Updated:** 2025-12-14

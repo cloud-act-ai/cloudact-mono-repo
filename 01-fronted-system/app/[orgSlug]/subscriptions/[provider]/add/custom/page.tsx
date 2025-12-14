@@ -37,7 +37,14 @@ import {
   type PlanCreate,
 } from "@/actions/subscription-providers"
 import { getOrgLocale } from "@/actions/organization-locale"
-import { formatCurrency, SUPPORTED_CURRENCIES } from "@/lib/i18n"
+import { formatCurrency, SUPPORTED_CURRENCIES, getCurrencySymbol } from "@/lib/i18n"
+
+// Extended form data to include audit trail from template
+interface FormDataWithAudit extends PlanCreate {
+  source_currency?: string
+  source_price?: number
+  exchange_rate_used?: number
+}
 
 // Provider display names
 const PROVIDER_DISPLAY_NAMES: Record<string, string> = {
@@ -91,8 +98,8 @@ export default function AddCustomSubscriptionPage() {
   const [error, setError] = useState<string | null>(null)
   const [startDate, setStartDate] = useState<Date | undefined>(new Date())
 
-  // Form state
-  const [formData, setFormData] = useState<PlanCreate>({
+  // Form state with audit trail
+  const [formData, setFormData] = useState<FormDataWithAudit>({
     plan_name: "",
     display_name: "",
     unit_price_usd: 0,
@@ -101,7 +108,14 @@ export default function AddCustomSubscriptionPage() {
     pricing_model: "FLAT_FEE",
     currency: "USD",
     notes: "",
+    // Audit trail fields (populated from template)
+    source_currency: undefined,
+    source_price: undefined,
+    exchange_rate_used: undefined,
   })
+
+  // Track if user came from template (to show audit info)
+  const [isFromTemplate, setIsFromTemplate] = useState(false)
 
   // Fetch org currency on mount
   useEffect(() => {
@@ -130,25 +144,42 @@ export default function AddCustomSubscriptionPage() {
     loadOrgCurrency()
   }, [orgSlug, isValidParams])
 
-  // Pre-fill form from template query param
+  // Pre-fill form from template query params
   useEffect(() => {
-    const templateParam = searchParams.get("template")
-    if (templateParam) {
-      try {
-        const template = JSON.parse(decodeURIComponent(templateParam))
-        setFormData({
-          plan_name: template.plan_name || "",
-          display_name: template.display_name || template.plan_name || "",
-          unit_price_usd: template.unit_price_usd || 0,
-          seats: template.seats || 1,
-          billing_cycle: template.billing_cycle || "monthly",
-          pricing_model: template.pricing_model || "FLAT_FEE",
-          currency: orgCurrency, // Use org currency, not template
-          notes: template.notes || "",
-        })
-      } catch (err) {
-        console.error("Failed to parse template data:", err)
-        toast.error("Failed to load template data")
+    const templateName = searchParams.get("template")
+    if (templateName) {
+      // Read individual query params (not JSON)
+      const displayName = searchParams.get("display_name") || templateName
+      const unitPrice = parseFloat(searchParams.get("unit_price") || "0")
+      const currency = searchParams.get("currency") || orgCurrency
+      const seats = parseInt(searchParams.get("seats") || "1", 10)
+      const billingCycle = searchParams.get("billing_cycle") || "monthly"
+      const pricingModel = searchParams.get("pricing_model") || "FLAT_FEE"
+      const notes = searchParams.get("notes") || ""
+
+      // Audit trail from template
+      const sourceCurrency = searchParams.get("source_currency")
+      const sourcePrice = parseFloat(searchParams.get("source_price") || "0")
+      const exchangeRateUsed = parseFloat(searchParams.get("exchange_rate_used") || "1")
+
+      setFormData({
+        plan_name: templateName,
+        display_name: displayName,
+        unit_price_usd: unitPrice,
+        seats: seats,
+        billing_cycle: billingCycle,
+        pricing_model: pricingModel,
+        currency: currency, // Use org currency from template (already converted)
+        notes: notes,
+        // Audit trail
+        source_currency: sourceCurrency || undefined,
+        source_price: sourcePrice > 0 ? sourcePrice : undefined,
+        exchange_rate_used: exchangeRateUsed > 0 ? exchangeRateUsed : undefined,
+      })
+
+      // Mark as coming from template
+      if (sourceCurrency) {
+        setIsFromTemplate(true)
       }
     }
   }, [searchParams, orgCurrency])
@@ -189,12 +220,24 @@ export default function AddCustomSubscriptionPage() {
       return
     }
 
+    // Validate currency matches org default (should never happen due to locked UI, but double-check)
+    if (formData.currency !== orgCurrency) {
+      setError(`Currency must match organization default (${orgCurrency})`)
+      return
+    }
+
     setSubmitting(true)
     setError(null)
 
     try {
       const startDateStr = format(startDate, "yyyy-MM-dd")
-      const result = await createCustomPlan(orgSlug, provider, {
+
+      // Build plan data including audit trail if from template
+      const planData: PlanCreate & {
+        source_currency?: string
+        source_price?: number
+        exchange_rate_used?: number
+      } = {
         plan_name: formData.plan_name.toUpperCase().replace(/\s+/g, "_"),
         display_name: formData.display_name || formData.plan_name,
         unit_price_usd: formData.unit_price_usd,
@@ -204,7 +247,17 @@ export default function AddCustomSubscriptionPage() {
         currency: formData.currency,
         notes: formData.notes,
         start_date: startDateStr,
-      })
+      }
+
+      // Include audit trail if from template (currency was converted)
+      // Always include if fields are present, even if source_currency === target currency
+      if (formData.source_currency && formData.source_price !== undefined && formData.exchange_rate_used) {
+        planData.source_currency = formData.source_currency
+        planData.source_price = formData.source_price
+        planData.exchange_rate_used = formData.exchange_rate_used
+      }
+
+      const result = await createCustomPlan(orgSlug, provider, planData)
 
       if (!result.success) {
         setError(result.error || "Failed to create subscription")
@@ -405,26 +458,17 @@ export default function AddCustomSubscriptionPage() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="currency">Currency *</Label>
-                <Select
-                  value={formData.currency}
-                  onValueChange={(value) => setFormData({ ...formData, currency: value })}
-                  disabled={submitting}
-                  required
-                >
-                  <SelectTrigger id="currency">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SUPPORTED_CURRENCIES.map((currency) => (
-                      <SelectItem key={currency.code} value={currency.code}>
-                        {currency.code} - {currency.name} ({currency.symbol})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="currency">Currency</Label>
+                {/* Currency is locked to org default for consistency */}
+                <div className="flex items-center h-10 px-3 rounded-md border border-slate-200 bg-slate-50 text-slate-600">
+                  <span className="font-medium">{formData.currency}</span>
+                  <span className="ml-2 text-slate-400">
+                    ({getCurrencySymbol(formData.currency)})
+                  </span>
+                  <span className="ml-auto text-xs text-slate-400">Locked to org default</span>
+                </div>
                 <p className="text-xs text-slate-500">
-                  Default: {orgCurrency} (org currency)
+                  Currency is set to your organization's default ({orgCurrency}) for consistent reporting.
                 </p>
               </div>
             </div>
@@ -482,6 +526,28 @@ export default function AddCustomSubscriptionPage() {
                 disabled={submitting}
               />
             </div>
+
+            {/* Template Conversion Info */}
+            {isFromTemplate && formData.source_currency && formData.source_price !== undefined && (
+              <Card className="bg-blue-50 border-blue-200">
+                <CardContent className="pt-6">
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-blue-700">Template Price Converted</p>
+                    <p className="text-sm text-blue-600">
+                      Original template price: <span className="font-semibold">${formData.source_price?.toFixed(2)} {formData.source_currency}</span>
+                      {formData.exchange_rate_used && formData.exchange_rate_used !== 1 && (
+                        <span className="text-blue-500 ml-2">
+                          (rate: {formData.exchange_rate_used?.toFixed(4)})
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-xs text-blue-500">
+                      This price has been automatically converted to your organization's currency ({formData.currency}).
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Cost Preview */}
             {formData.unit_price_usd > 0 && (

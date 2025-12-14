@@ -130,6 +130,24 @@
       "description": "User notes or plan description"
     },
     {
+      "name": "source_currency",
+      "type": "STRING",
+      "mode": "NULLABLE",
+      "description": "Original currency of template price (e.g., USD)"
+    },
+    {
+      "name": "source_price",
+      "type": "FLOAT64",
+      "mode": "NULLABLE",
+      "description": "Original price before conversion"
+    },
+    {
+      "name": "exchange_rate_used",
+      "type": "FLOAT64",
+      "mode": "NULLABLE",
+      "description": "Exchange rate at time of creation"
+    },
+    {
       "name": "created_at",
       "type": "TIMESTAMP",
       "mode": "NULLABLE",

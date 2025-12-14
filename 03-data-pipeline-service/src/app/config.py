@@ -65,6 +65,10 @@ class Settings(BaseSettings):
         pattern="^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$",
         description="Logging level"
     )
+    config_base_path: str = Field(
+        default="configs",
+        description="Base path for pipeline configuration files"
+    )
 
     # ============================================
     # API Configuration

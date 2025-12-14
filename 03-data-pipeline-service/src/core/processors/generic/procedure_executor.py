@@ -115,7 +115,9 @@ class ProcedureExecutorProcessor:
             "org_slug": org_slug,
             "org_dataset": org_dataset,
             "dataset": org_dataset,  # Alias for convenience
-            # Include pipeline parameters
+            # Include all top-level context values (start_date, end_date from API request)
+            **{k: v for k, v in context.items() if k not in ("config", "step_config")},
+            # Include nested pipeline parameters for backward compatibility
             **context.get("parameters", {}),
             # Include step config values
             **config
@@ -125,6 +127,43 @@ class ProcedureExecutorProcessor:
         if "date" in resolution_context and isinstance(resolution_context["date"], str):
             resolution_context["start_date"] = resolution_context.get("start_date", resolution_context["date"])
             resolution_context["end_date"] = resolution_context.get("end_date", resolution_context["date"])
+
+        # Validate date parameters
+        start_date_str = resolution_context.get("start_date")
+        end_date_str = resolution_context.get("end_date")
+
+        if start_date_str and end_date_str:
+            try:
+                # Parse dates - handle both date objects and strings
+                if isinstance(start_date_str, date):
+                    start = start_date_str
+                else:
+                    start = datetime.strptime(str(start_date_str)[:10], "%Y-%m-%d").date()
+
+                if isinstance(end_date_str, date):
+                    end = end_date_str
+                else:
+                    end = datetime.strptime(str(end_date_str)[:10], "%Y-%m-%d").date()
+
+                # Check if start_date is after end_date
+                if start > end:
+                    return {
+                        "status": "FAILED",
+                        "error": f"start_date ({start}) cannot be after end_date ({end})"
+                    }
+
+                # Warn if dates are in the future
+                today = date.today()
+                if start > today:
+                    self.logger.warning(f"start_date {start} is in the future")
+                if end > today:
+                    self.logger.warning(f"end_date {end} is in the future (projections may be inaccurate)")
+
+            except ValueError as e:
+                return {
+                    "status": "FAILED",
+                    "error": f"Invalid date format: {e}"
+                }
 
         # 3. Build parameters list
         parameters_config = config.get("parameters", [])

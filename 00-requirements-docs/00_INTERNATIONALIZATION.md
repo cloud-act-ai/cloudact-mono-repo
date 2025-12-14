@@ -1,7 +1,7 @@
 # Internationalization (i18n) Foundation
 
-**Status:** IMPLEMENTED
-**Last Updated:** 2025-12-13
+**Status:** IMPLEMENTED (v12.2)
+**Last Updated:** 2025-12-14
 
 ## Overview
 
@@ -9,7 +9,7 @@ Org-level multi-tenant internationalization attributes, implemented like `org_sl
 
 **Scope:** All at org-level (not user-level)
 **Pattern:** Set at signup, propagated everywhere
-**FX Conversion:** Display only (no currency conversion)
+**FX Conversion:** Template prices converted from USD to org currency (v12.2)
 
 ---
 
@@ -233,7 +233,8 @@ import { SUPPORTED_CURRENCIES, SUPPORTED_TIMEZONES } from "@/lib/i18n"
 |---------|------|---------|
 | Frontend | `lib/i18n/constants.ts` | Currencies, timezones, mappings |
 | Frontend | `lib/i18n/formatters.ts` | formatCurrency, formatDateTime utilities |
-| Frontend | `lib/i18n/index.ts` | Re-exports |
+| Frontend | `lib/i18n/index.ts` | Re-exports (includes currency conversion) |
+| Frontend | `lib/currency/exchange-rates.ts` | Exchange rates, conversion utilities (v12.2) |
 | Frontend | `scripts/supabase_db/16_org_internationalization.sql` | Supabase migration |
 | API | `src/app/models/i18n_models.py` | Enums, validators, metadata |
 
@@ -272,7 +273,68 @@ For existing orgs and when values not provided:
 - BigQuery best practices: Clustering on org_slug
 - Supabase best practices: CHECK constraints
 - No Redis: Values stored in databases
-- Display only: No FX conversion
+- Currency lock: All costs in org's default currency
+
+---
+
+## Currency Conversion (v12.2)
+
+SaaS subscription template prices are stored in USD and converted to the org's default currency on display.
+
+### Exchange Rate Service
+
+**File:** `01-fronted-system/lib/currency/exchange-rates.ts`
+
+Fixed rates relative to USD (base = 1.0). Updated monthly by admin.
+
+```typescript
+export const EXCHANGE_RATES: Record<string, number> = {
+  USD: 1.0,      // Base
+  EUR: 0.92,     GBP: 0.79,     JPY: 149.5,
+  CHF: 0.88,     CAD: 1.36,     AUD: 1.53,
+  CNY: 7.24,     INR: 83.12,    SGD: 1.34,
+  AED: 3.673,    SAR: 3.75,     QAR: 3.64,
+  KWD: 0.31,     BHD: 0.377,    OMR: 0.385,
+}
+```
+
+### Conversion Utilities
+
+```typescript
+import {
+  convertCurrency,
+  convertFromUSD,
+  convertToUSD,
+  convertWithAudit,
+  getExchangeRate,
+} from "@/lib/i18n"
+
+// Convert between any currencies
+convertCurrency(100, "USD", "INR") // → 8312
+
+// Convert USD to target
+convertFromUSD(15, "INR") // → 1246.80
+
+// Convert to USD
+convertToUSD(1246.80, "INR") // → 15
+
+// Convert with audit trail
+convertWithAudit(15, "USD", "INR")
+// → { sourceCurrency: "USD", sourcePrice: 15, convertedPrice: 1246.80, exchangeRateUsed: 83.12, ... }
+```
+
+### Currency Lock
+
+Currency is locked to org's default for all SaaS subscriptions:
+- **Consistency**: All costs in same currency for accurate totals
+- **Reporting**: No multi-currency aggregation needed in dashboards
+- **Audit Trail**: Original USD price preserved via `source_currency`, `source_price`, `exchange_rate_used`
+
+### Flow
+
+```
+Seed CSV (USD) → Template Page (convert to org currency) → Custom Form (locked) → BigQuery (org currency + audit)
+```
 
 ---
 
@@ -280,6 +342,6 @@ For existing orgs and when values not provided:
 
 1. **Language Support**: Enable other BCP 47 languages beyond "en"
 2. **Settings Page**: UI for org admins to update currency/timezone
-3. **Cost Display**: Use org currency in all cost displays
+3. **Real-time FX Rates**: API integration for live exchange rates
 4. **More Timezones**: Add additional IANA timezones
 5. **More Currencies**: Add additional ISO 4217 currencies

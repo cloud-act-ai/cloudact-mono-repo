@@ -170,11 +170,19 @@ lib/
 ├── stripe.ts                   # Stripe client initialization
 ├── email.ts                    # Email utilities with escapeHtml()
 ├── dashboard-data.ts           # Dashboard stats, activity logs
+├── currency/                   # Currency conversion (v12.2)
+│   └── exchange-rates.ts       # Exchange rates, convertFromUSD(), convertWithAudit()
 ├── i18n/                       # Internationalization
 │   ├── constants.ts            # Currencies, timezones, mappings
-│   ├── formatters.ts           # formatCurrency, formatDateTime
-│   └── index.ts                # Re-exports
+│   ├── formatters.ts           # formatCurrency, formatDateTime, formatDateOnly
+│   └── index.ts                # Re-exports (includes currency conversion)
+├── seed/                       # CSV seed data system
+│   └── csv-loader.ts           # Load seed data from CSV files
 └── utils.ts                    # cn(), logError()
+
+data/seed/                      # CSV seed data files
+├── exchange-rates.csv          # Currency exchange rates (16 currencies)
+└── saas-subscription-templates.csv  # Default SaaS subscription templates
 
 components/
 ├── charts/                     # Cost visualization charts (4 charts)
@@ -275,6 +283,14 @@ export function formatDateTime(
   options?: Intl.DateTimeFormatOptions
 ): string
 
+// Format DATE only (timezone-safe) - use for DATE fields like start_date, end_date
+export function formatDateOnly(
+  dateString: string | Date,
+  locale: string = "en-US"
+): string
+// Example: "2025-01-15" → "Jan 15, 2025"
+// CRITICAL: Use this for DATE fields to avoid timezone shifts
+
 // Get currency symbol only
 export function getCurrencySymbol(currencyCode: string): string
 ```
@@ -291,8 +307,16 @@ export * from "./formatters"
 import {
   formatCurrency,
   formatDateTime,
+  formatDateOnly,
   getCurrencySymbol,
-  SUPPORTED_CURRENCIES
+  SUPPORTED_CURRENCIES,
+  // Currency conversion (v12.2)
+  convertFromUSD,
+  convertCurrency,
+  getExchangeRate,
+  convertWithAudit,
+  convertFromUSDAsync,
+  getExchangeRateAsync,
 } from "@/lib/i18n"
 
 // Currency formatting
@@ -300,10 +324,27 @@ formatCurrency(100, "INR")     // "₹100.00"
 formatCurrency(100, "USD")     // "$100.00"
 formatCurrency(1234.56, "EUR") // "€1,234.56"
 
+// Currency conversion (v12.2 - synchronous, uses cached rates)
+convertFromUSD(15, "INR")      // 1246.80 (15 USD → INR)
+convertCurrency(100, "USD", "AED") // 367.30 (100 USD → AED)
+getExchangeRate("INR")         // 83.12 (rate vs USD)
+
+// Currency conversion (v12.2+ - async, checks last_updated timestamp)
+const { converted, rate, lastUpdated } = await convertFromUSDAsync(15, "INR")
+// Returns: { converted: 1246.80, rate: 83.12, lastUpdated: "2025-12-13" }
+
+const { rate, lastUpdated } = await getExchangeRateAsync("INR")
+// Returns: { rate: 83.12, lastUpdated: "2025-12-13" }
+
 // Timestamp formatting
 const date = new Date("2025-12-13T10:30:00Z")
 formatDateTime(date, "Asia/Kolkata")        // "Dec 13, 2025, 4:00 PM IST"
 formatDateTime(date, "America/New_York")    // "Dec 13, 2025, 5:30 AM EST"
+
+// DATE-only formatting (timezone-safe)
+formatDateOnly("2025-01-15")                // "Jan 15, 2025"
+formatDateOnly(new Date("2025-01-15"))      // "Jan 15, 2025"
+// CRITICAL: Always use for DATE fields (start_date, end_date, etc.)
 
 // Custom date format
 formatDateTime(date, "Europe/London", {
@@ -418,6 +459,8 @@ subscriptions.map(sub => ({
    - `org.locale_currency` = User's preference for internal cost display (INR, EUR, etc.)
    - `plan.currency` = What Stripe actually charges (from the Stripe Price object)
 4. **Stripe Checkout shows Stripe's currency** - User's locale preference doesn't change Stripe's display; Stripe uses the Price's currency
+5. **SaaS subscription templates (v12.2)** - Template prices are USD, convert using `convertFromUSD(price, orgCurrency)` before display
+6. **Currency is locked** - SaaS subscription forms lock currency to org default for consistent reporting
 
 **Data Types:**
 ```typescript
@@ -462,6 +505,825 @@ test("formats currency correctly for different locales", () => {
   expect(formatCurrency(1234.56, "EUR")).toBe("€1,234.56")
 })
 ```
+
+---
+
+## CSV Seed Data System
+
+CSV-based seed data loader for exchange rates and SaaS subscription templates. Provides default data for organizations without hardcoding in source code.
+
+### Overview
+
+- **Location:** `data/seed/` (CSV files), `lib/seed/csv-loader.ts` (loader)
+- **Purpose:** Seed default data for exchange rates and SaaS subscription templates
+- **Format:** CSV files with headers
+- **Loading:** Synchronous parser using `csv-parse/sync`
+- **Validation:** Type-safe interfaces, schema validation
+
+### CSV Files
+
+**`data/seed/exchange-rates.csv`** - Currency exchange rates (16 currencies)
+
+```csv
+currency_code,rate_vs_usd,last_updated
+USD,1.00,2025-12-13
+EUR,0.92,2025-12-13
+GBP,0.79,2025-12-13
+INR,83.12,2025-12-13
+JPY,149.50,2025-12-13
+CNY,7.24,2025-12-13
+AUD,1.52,2025-12-13
+CAD,1.36,2025-12-13
+SGD,1.34,2025-12-13
+AED,3.67,2025-12-13
+CHF,0.88,2025-12-13
+SEK,10.35,2025-12-13
+NOK,10.72,2025-12-13
+DKK,6.87,2025-12-13
+ZAR,18.25,2025-12-13
+BRL,4.95,2025-12-13
+```
+
+**Fields:**
+- `currency_code` - 3-letter currency code (ISO 4217)
+- `rate_vs_usd` - Exchange rate vs USD (1 USD = X currency)
+- `last_updated` - Date rates were last updated (YYYY-MM-DD)
+
+**`data/seed/saas-subscription-templates.csv`** - Default SaaS subscription templates
+
+```csv
+provider,plan_name,category,description,billing_cycle,price_per_unit,currency,default_quantity,features
+canva,canva_pro,design,Canva Pro Design Platform,monthly,12.99,USD,1,Premium templates|Brand kit|Unlimited storage
+slack,slack_pro,collaboration,Slack Pro Team Chat,monthly,7.25,USD,10,Unlimited message history|Screen sharing|Apps
+chatgpt_plus,chatgpt_plus,ai,ChatGPT Plus Subscription,monthly,20.00,USD,1,GPT-4 access|Faster responses|Priority access
+```
+
+**Fields:**
+- `provider` - Provider slug (lowercase, underscores)
+- `plan_name` - Plan identifier (lowercase, underscores)
+- `category` - Category (design, collaboration, ai, development, productivity, analytics)
+- `description` - Human-readable description
+- `billing_cycle` - Billing cycle (monthly, annual, quarterly)
+- `price_per_unit` - Default price per unit in USD
+- `currency` - Currency code (always USD for templates)
+- `default_quantity` - Default quantity (usually 1 or 5-10 for team plans)
+- `features` - Pipe-separated list of features
+
+### CSV Loader (`lib/seed/csv-loader.ts`)
+
+```typescript
+import { parse } from "csv-parse/sync"
+import fs from "fs"
+import path from "path"
+
+// Exchange rate schema
+interface ExchangeRateSeed {
+  currency_code: string
+  rate_vs_usd: number
+  last_updated: string
+}
+
+// SaaS subscription template schema
+interface SaaSSubscriptionTemplateSeed {
+  provider: string
+  plan_name: string
+  category: string
+  description: string
+  billing_cycle: "monthly" | "annual" | "quarterly"
+  price_per_unit: number
+  currency: string
+  default_quantity: number
+  features: string
+}
+
+// Load exchange rates from CSV
+export function loadExchangeRates(): ExchangeRateSeed[] {
+  const csvPath = path.join(process.cwd(), "data", "seed", "exchange-rates.csv")
+  const csvContent = fs.readFileSync(csvPath, "utf-8")
+
+  return parse(csvContent, {
+    columns: true,
+    skip_empty_lines: true,
+    cast: (value, context) => {
+      if (context.column === "rate_vs_usd") return parseFloat(value)
+      return value
+    }
+  })
+}
+
+// Load SaaS subscription templates from CSV
+export function loadSaaSSubscriptionTemplates(): SaaSSubscriptionTemplateSeed[] {
+  const csvPath = path.join(process.cwd(), "data", "seed", "saas-subscription-templates.csv")
+  const csvContent = fs.readFileSync(csvPath, "utf-8")
+
+  return parse(csvContent, {
+    columns: true,
+    skip_empty_lines: true,
+    cast: (value, context) => {
+      if (context.column === "price_per_unit" || context.column === "default_quantity") {
+        return parseFloat(value)
+      }
+      return value
+    }
+  })
+}
+```
+
+### Usage Examples
+
+```typescript
+import { loadExchangeRates, loadSaaSSubscriptionTemplates } from "@/lib/seed/csv-loader"
+
+// Load exchange rates
+const rates = loadExchangeRates()
+console.log(rates[0])
+// { currency_code: "USD", rate_vs_usd: 1.00, last_updated: "2025-12-13" }
+
+// Load SaaS subscription templates
+const templates = loadSaaSSubscriptionTemplates()
+console.log(templates[0])
+// {
+//   provider: "canva",
+//   plan_name: "canva_pro",
+//   category: "design",
+//   description: "Canva Pro Design Platform",
+//   billing_cycle: "monthly",
+//   price_per_unit: 12.99,
+//   currency: "USD",
+//   default_quantity: 1,
+//   features: "Premium templates|Brand kit|Unlimited storage"
+// }
+
+// Filter templates by provider
+const slackTemplates = templates.filter(t => t.provider === "slack")
+
+// Get template for specific plan
+const chatgptPlusTemplate = templates.find(
+  t => t.provider === "chatgpt_plus" && t.plan_name === "chatgpt_plus"
+)
+```
+
+### Integration with Server Actions
+
+**`actions/subscription-providers.ts`:**
+
+```typescript
+import { loadSaaSSubscriptionTemplates } from "@/lib/seed/csv-loader"
+
+// Get available templates for a provider
+export async function getAvailablePlans(orgSlug: string, provider: string) {
+  const templates = loadSaaSSubscriptionTemplates()
+  const providerTemplates = templates.filter(t => t.provider === provider)
+
+  return {
+    success: true,
+    data: providerTemplates.map(t => ({
+      plan_name: t.plan_name,
+      description: t.description,
+      billing_cycle: t.billing_cycle,
+      price_per_unit: t.price_per_unit,
+      currency: t.currency,
+      default_quantity: t.default_quantity,
+      features: t.features.split("|")
+    }))
+  }
+}
+```
+
+**`lib/currency/exchange-rates.ts`:**
+
+```typescript
+import { loadExchangeRates } from "@/lib/seed/csv-loader"
+
+// Load rates from CSV into cache
+const EXCHANGE_RATES_CACHE: Map<string, { rate: number; lastUpdated: string }> = new Map()
+
+function initializeExchangeRates() {
+  const rates = loadExchangeRates()
+  rates.forEach(({ currency_code, rate_vs_usd, last_updated }) => {
+    EXCHANGE_RATES_CACHE.set(currency_code, {
+      rate: rate_vs_usd,
+      lastUpdated: last_updated
+    })
+  })
+}
+
+// Initialize on module load
+initializeExchangeRates()
+```
+
+### Best Practices
+
+**CSV Format:**
+1. Always include headers in first row
+2. Use lowercase_with_underscores for column names
+3. Keep numeric values clean (no currency symbols, no commas)
+4. Use ISO standards (ISO 4217 for currencies, ISO 8601 for dates)
+5. Use pipe `|` as delimiter for multi-value fields (e.g., features)
+
+**Loading:**
+1. Load CSV files at module initialization (cached in memory)
+2. Use synchronous `csv-parse/sync` for simplicity (small files)
+3. Validate schema with TypeScript interfaces
+4. Handle missing files gracefully with try-catch
+
+**Updating:**
+1. Update CSV files to refresh default data
+2. No code changes needed (data-driven)
+3. Exchange rates should be updated regularly (weekly/monthly)
+4. SaaS templates updated when providers change pricing
+
+**Testing:**
+```typescript
+test("loads exchange rates from CSV", () => {
+  const rates = loadExchangeRates()
+  expect(rates.length).toBeGreaterThan(0)
+  expect(rates[0]).toHaveProperty("currency_code")
+  expect(rates[0]).toHaveProperty("rate_vs_usd")
+  expect(rates[0]).toHaveProperty("last_updated")
+})
+
+test("loads SaaS templates from CSV", () => {
+  const templates = loadSaaSSubscriptionTemplates()
+  expect(templates.length).toBeGreaterThan(0)
+  expect(templates[0]).toHaveProperty("provider")
+  expect(templates[0]).toHaveProperty("price_per_unit")
+  expect(typeof templates[0].price_per_unit).toBe("number")
+})
+```
+
+---
+
+## Multi-Currency Support
+
+Comprehensive multi-currency support with exchange rates, async conversion functions, and audit trail for all currency operations.
+
+### Overview
+
+- **Supported Currencies:** 16 currencies (USD, EUR, GBP, INR, JPY, CNY, AUD, CAD, SGD, AED, CHF, SEK, NOK, DKK, ZAR, BRL)
+- **Exchange Rates:** Loaded from CSV with `last_updated` tracking
+- **Conversion:** Synchronous (cached) and async (with timestamp check) functions
+- **Audit Trail:** Track source currency, exchange rate used, conversion timestamp
+- **Update Frequency:** Exchange rates updated weekly/monthly in CSV
+
+### Exchange Rates with Last Updated Tracking
+
+**Data Structure:**
+```typescript
+interface ExchangeRate {
+  currency_code: string
+  rate_vs_usd: number
+  last_updated: string  // YYYY-MM-DD format
+}
+```
+
+**CSV Source (`data/seed/exchange-rates.csv`):**
+```csv
+currency_code,rate_vs_usd,last_updated
+USD,1.00,2025-12-13
+EUR,0.92,2025-12-13
+INR,83.12,2025-12-13
+```
+
+**Loading Mechanism (`lib/currency/exchange-rates.ts`):**
+```typescript
+import { loadExchangeRates } from "@/lib/seed/csv-loader"
+
+const EXCHANGE_RATES_CACHE: Map<string, { rate: number; lastUpdated: string }> = new Map()
+
+function initializeExchangeRates() {
+  const rates = loadExchangeRates()
+  rates.forEach(({ currency_code, rate_vs_usd, last_updated }) => {
+    EXCHANGE_RATES_CACHE.set(currency_code, {
+      rate: rate_vs_usd,
+      lastUpdated: last_updated
+    })
+  })
+}
+
+// Initialize on module load
+initializeExchangeRates()
+```
+
+### Synchronous Conversion Functions (Cached)
+
+**Get Exchange Rate:**
+```typescript
+export function getExchangeRate(currencyCode: string): number {
+  if (currencyCode === "USD") return 1.0
+
+  const rateData = EXCHANGE_RATES_CACHE.get(currencyCode)
+  if (!rateData) {
+    console.warn(`Exchange rate not found for ${currencyCode}, defaulting to 1.0`)
+    return 1.0
+  }
+
+  return rateData.rate
+}
+```
+
+**Convert from USD:**
+```typescript
+export function convertFromUSD(amountUSD: number, targetCurrency: string): number {
+  const rate = getExchangeRate(targetCurrency)
+  return parseFloat((amountUSD * rate).toFixed(2))
+}
+```
+
+**Convert between currencies:**
+```typescript
+export function convertCurrency(
+  amount: number,
+  fromCurrency: string,
+  toCurrency: string
+): number {
+  if (fromCurrency === toCurrency) return amount
+
+  // Convert to USD first, then to target currency
+  const amountInUSD = fromCurrency === "USD" ? amount : amount / getExchangeRate(fromCurrency)
+  return convertFromUSD(amountInUSD, toCurrency)
+}
+```
+
+### Async Conversion Functions (With Last Updated)
+
+**Get Exchange Rate Async:**
+```typescript
+export async function getExchangeRateAsync(
+  currencyCode: string
+): Promise<{ rate: number; lastUpdated: string }> {
+  if (currencyCode === "USD") {
+    return { rate: 1.0, lastUpdated: new Date().toISOString().split("T")[0] }
+  }
+
+  const rateData = EXCHANGE_RATES_CACHE.get(currencyCode)
+  if (!rateData) {
+    console.warn(`Exchange rate not found for ${currencyCode}, defaulting to 1.0`)
+    return { rate: 1.0, lastUpdated: new Date().toISOString().split("T")[0] }
+  }
+
+  return {
+    rate: rateData.rate,
+    lastUpdated: rateData.lastUpdated
+  }
+}
+```
+
+**Convert from USD Async:**
+```typescript
+export async function convertFromUSDAsync(
+  amountUSD: number,
+  targetCurrency: string
+): Promise<{ converted: number; rate: number; lastUpdated: string }> {
+  const { rate, lastUpdated } = await getExchangeRateAsync(targetCurrency)
+
+  return {
+    converted: parseFloat((amountUSD * rate).toFixed(2)),
+    rate,
+    lastUpdated
+  }
+}
+```
+
+**Usage Example:**
+```typescript
+// Display template prices in org currency with last updated info
+const templates = loadSaaSSubscriptionTemplates()
+const orgCurrency = "INR"
+
+const convertedPlans = await Promise.all(
+  templates.map(async (template) => {
+    const { converted, rate, lastUpdated } = await convertFromUSDAsync(
+      template.price_per_unit,
+      orgCurrency
+    )
+
+    return {
+      ...template,
+      displayPrice: converted,
+      displayCurrency: orgCurrency,
+      exchangeRate: rate,
+      ratesUpdated: lastUpdated
+    }
+  })
+)
+
+// Show rates age to user
+console.log(`Prices shown in ${orgCurrency} (rates updated: ${convertedPlans[0].ratesUpdated})`)
+```
+
+### Audit Trail Fields
+
+All currency conversions in SaaS subscriptions include audit fields for transparency and debugging:
+
+**Database Schema (`saas_subscriptions` table):**
+```typescript
+interface SaaSSubscription {
+  // Primary fields
+  plan_name: string
+  price_per_unit: number
+  currency: string  // Organization's default currency
+
+  // Audit trail fields (added in v12.2)
+  source_currency: string  // Original template currency (usually "USD")
+  source_price: number     // Original template price (before conversion)
+  exchange_rate_used: number  // Exchange rate used for conversion
+  conversion_timestamp: string  // When conversion was performed (ISO 8601)
+}
+```
+
+**Conversion with Audit Trail:**
+```typescript
+export function convertWithAudit(
+  sourceAmount: number,
+  sourceCurrency: string,
+  targetCurrency: string
+): {
+  convertedAmount: number
+  sourceAmount: number
+  sourceCurrency: string
+  targetCurrency: string
+  exchangeRate: number
+  conversionTimestamp: string
+} {
+  const rate = getExchangeRate(targetCurrency)
+  const converted = convertFromUSD(sourceAmount, targetCurrency)
+
+  return {
+    convertedAmount: converted,
+    sourceAmount,
+    sourceCurrency,
+    targetCurrency,
+    exchangeRate: rate,
+    conversionTimestamp: new Date().toISOString()
+  }
+}
+```
+
+**Usage in SaaS Subscription Creation:**
+```typescript
+// Create subscription with audit trail
+const template = templates.find(t => t.plan_name === "canva_pro")
+const orgCurrency = await getOrgCurrency(orgSlug)
+
+const audit = convertWithAudit(
+  template.price_per_unit,
+  template.currency,  // "USD"
+  orgCurrency         // "INR"
+)
+
+await createSaaSSubscription(orgSlug, "canva", {
+  plan_name: template.plan_name,
+  price_per_unit: audit.convertedAmount,  // 1079.11
+  currency: orgCurrency,                   // "INR"
+  source_currency: audit.sourceCurrency,   // "USD"
+  source_price: audit.sourceAmount,        // 12.99
+  exchange_rate_used: audit.exchangeRate,  // 83.12
+  conversion_timestamp: audit.conversionTimestamp  // "2025-12-13T10:30:00Z"
+})
+```
+
+### Currency Enforcement
+
+All SaaS subscription plans MUST use the organization's default currency. 3-layer validation ensures consistency.
+
+**Enforcement Rules:**
+1. Plans are locked to org's `locale_currency` (set during signup or in settings)
+2. Template prices (USD) are auto-converted to org currency
+3. Manual price entry must match org currency
+4. Currency field is disabled in UI (read-only)
+5. Validation at UI, action, and API layers
+
+**Layer 1: UI Enforcement (`components/ui/currency-input.tsx`):**
+```typescript
+<CurrencyInput
+  value={pricePerUnit}
+  onChange={setPricePerUnit}
+  currency={orgCurrency}  // Locked to org currency
+  disabled={false}
+/>
+
+<Select disabled value={orgCurrency}>
+  <SelectItem value={orgCurrency}>{orgCurrency}</SelectItem>
+</Select>
+```
+
+**Layer 2: Server Action Validation (`actions/subscription-providers.ts`):**
+```typescript
+export async function createSaaSSubscription(
+  orgSlug: string,
+  provider: string,
+  data: CreateSubscriptionData
+) {
+  // Get org's default currency
+  const { currency: orgCurrency } = await getOrgLocale(orgSlug)
+
+  // Validate currency matches org default
+  if (data.currency !== orgCurrency) {
+    return {
+      success: false,
+      error: `Currency must match organization default: ${orgCurrency}`,
+    }
+  }
+
+  // Proceed with creation...
+}
+```
+
+**Layer 3: API Validation (02-api-service):**
+```python
+# Backend also validates currency matches org settings
+org_currency = get_org_currency(org_slug)
+if request.currency != org_currency:
+    raise ValidationError(f"Currency must match org default: {org_currency}")
+```
+
+**Benefits:**
+- **Consistent reporting:** All costs in single currency
+- **Simplified analytics:** No currency mixing in charts
+- **User clarity:** No confusion about which currency to use
+- **Audit trail:** Source prices preserved for reference
+
+---
+
+## SaaS Subscription Plan Features
+
+Advanced features for SaaS subscription management including duplicate detection, version history, and comprehensive audit trails.
+
+### Duplicate Detection
+
+Prevents creating multiple active subscriptions for the same provider+plan combination.
+
+**Validation Logic:**
+```typescript
+// Check for existing active subscription
+const { data: existingPlans } = await supabase
+  .from("saas_subscriptions")
+  .select("id, plan_name, status")
+  .eq("org_id", orgId)
+  .eq("provider", provider)
+  .eq("plan_name", planName)
+  .in("status", ["active", "pending"])
+  .is("end_date", null)
+
+if (existingPlans && existingPlans.length > 0) {
+  return {
+    success: false,
+    error: `An active subscription for ${planName} already exists. Please edit or end the existing subscription first.`,
+  }
+}
+```
+
+**UI Feedback:**
+```typescript
+// In subscription form
+if (duplicateError) {
+  return (
+    <Alert variant="destructive">
+      <AlertTitle>Duplicate Subscription</AlertTitle>
+      <AlertDescription>
+        An active subscription for {planName} already exists.
+        <Link href={`/${orgSlug}/settings/subscriptions/${provider}`}>
+          View existing subscription
+        </Link>
+      </AlertDescription>
+    </Alert>
+  )
+}
+```
+
+**Business Rules:**
+- Only checks `active` and `pending` status
+- Allows duplicate if existing plan has `end_date` set (soft deleted)
+- Allows same plan from different providers
+- Prevents accidental duplicate entries
+
+### Version History via Edit-Version Endpoint
+
+When editing a subscription, create a new version instead of updating in place. Preserves full audit trail.
+
+**Edit Flow:**
+```typescript
+export async function editPlanWithVersion(
+  orgSlug: string,
+  provider: string,
+  subscriptionId: string,
+  effectiveDate: string,
+  updates: Partial<SubscriptionData>
+) {
+  // Step 1: End current version (set end_date to day before effective_date)
+  const endDate = new Date(effectiveDate)
+  endDate.setDate(endDate.getDate() - 1)
+
+  // Step 2: Create new version starting from effective_date
+  // Backend handles this via edit-version endpoint
+  const response = await backendClient.editSubscriptionWithVersion(
+    orgSlug,
+    provider,
+    subscriptionId,
+    effectiveDate,
+    updates
+  )
+
+  return response
+}
+```
+
+**Backend Processing (02-api-service):**
+```python
+# POST /api/v1/subscriptions/{org}/providers/{provider}/plans/{id}/edit-version
+# 1. Find current active plan
+current_plan = get_plan_by_id(org_slug, provider, plan_id)
+
+# 2. Set end_date on current plan (day before effective_date)
+end_date = datetime.fromisoformat(effective_date) - timedelta(days=1)
+update_plan_end_date(current_plan.id, end_date.strftime("%Y-%m-%d"))
+
+# 3. Create new plan row with updated values, start_date = effective_date
+new_plan = {
+    **current_plan,  # Copy all fields
+    **updates,       # Apply updates
+    "start_date": effective_date,
+    "end_date": None,
+    "status": "active",
+    "created_at": datetime.utcnow().isoformat()
+}
+insert_new_plan(new_plan)
+```
+
+**Version History Query:**
+```typescript
+// Get all versions of a subscription
+const { data: versions } = await supabase
+  .from("saas_subscriptions")
+  .select("*")
+  .eq("org_id", orgId)
+  .eq("provider", provider)
+  .eq("plan_name", planName)
+  .order("start_date", { ascending: false })
+
+// Display timeline
+versions.map(v => ({
+  period: `${v.start_date} to ${v.end_date || "present"}`,
+  price: formatCurrency(v.price_per_unit, v.currency),
+  quantity: v.quantity,
+  status: v.status
+}))
+```
+
+**Use Cases:**
+- Price changes (keeping historical pricing)
+- Quantity changes (team size increases)
+- Billing cycle changes (monthly → annual)
+- Plan upgrades (pro → enterprise)
+
+**Benefits:**
+- Complete audit trail
+- Historical cost analysis
+- No data loss
+- Regulatory compliance (SOX, GDPR)
+
+### Comprehensive Audit Trail
+
+Every subscription includes full audit metadata for compliance and debugging.
+
+**Audit Fields:**
+```typescript
+interface SaaSSubscriptionAudit {
+  // Identity
+  id: string
+  org_id: string
+  provider: string
+  plan_name: string
+
+  // Lifecycle
+  status: "active" | "pending" | "cancelled" | "expired"
+  start_date: string  // YYYY-MM-DD
+  end_date: string | null  // YYYY-MM-DD or null
+  renewal_date: string  // YYYY-MM-DD
+
+  // Pricing
+  price_per_unit: number
+  currency: string
+  quantity: number
+  billing_cycle: "monthly" | "annual" | "quarterly"
+
+  // Currency conversion audit (v12.2)
+  source_currency: string  // Original template currency
+  source_price: number     // Original template price
+  exchange_rate_used: number  // Rate at conversion time
+  conversion_timestamp: string  // ISO 8601
+
+  // Change tracking
+  created_at: string  // ISO 8601
+  updated_at: string  // ISO 8601
+  created_by: string  // User ID
+  updated_by: string  // User ID
+}
+```
+
+**Audit Log Display:**
+```typescript
+// Subscription change history
+const auditLog = [
+  {
+    timestamp: "2025-12-13T10:30:00Z",
+    action: "CREATED",
+    user: "admin@acme.com",
+    changes: {
+      plan_name: "slack_pro",
+      price_per_unit: 725.00,
+      currency: "INR",
+      source_price: 7.25,
+      source_currency: "USD",
+      exchange_rate: 83.12
+    }
+  },
+  {
+    timestamp: "2025-12-14T14:20:00Z",
+    action: "UPDATED",
+    user: "admin@acme.com",
+    changes: {
+      quantity: { from: 10, to: 15 },
+      effective_date: "2025-12-15"
+    }
+  }
+]
+```
+
+### Status Management
+
+**Status Values:**
+- `active` - Currently active subscription
+- `pending` - Scheduled to start (start_date in future)
+- `cancelled` - Manually cancelled (has end_date)
+- `expired` - Expired (end_date in past)
+
+**Status Transitions:**
+```typescript
+// Create → active (if start_date <= today)
+// Create → pending (if start_date > today)
+
+// Edit → active (always creates new active version)
+
+// End → cancelled (sets end_date)
+
+// Auto-transition → expired (background job checks end_date < today)
+```
+
+**Status Checks:**
+```typescript
+export function getActiveSubscriptions(orgSlug: string) {
+  return supabase
+    .from("saas_subscriptions")
+    .select("*")
+    .eq("org_id", orgId)
+    .in("status", ["active", "pending"])
+    .is("end_date", null)
+}
+
+export function getExpiredSubscriptions(orgSlug: string) {
+  return supabase
+    .from("saas_subscriptions")
+    .select("*")
+    .eq("org_id", orgId)
+    .eq("status", "expired")
+    .not("end_date", "is", null)
+}
+```
+
+### Best Practices
+
+**Creating Subscriptions:**
+1. Always validate org currency before creation
+2. Check for duplicates (same provider+plan, status=active)
+3. Use templates from CSV for default values
+4. Convert template prices from USD to org currency
+5. Include audit trail fields (source_price, exchange_rate_used)
+
+**Editing Subscriptions:**
+1. Use edit-version endpoint (NOT direct update)
+2. Specify effective_date for when changes take effect
+3. Preserve historical data (old version gets end_date)
+4. Show version history timeline to users
+
+**Ending Subscriptions:**
+1. Soft delete via end_date (NOT hard delete)
+2. Allow user to specify end date (default: today)
+3. Status changes to `cancelled`
+4. Keep in database for historical reporting
+
+**Currency Handling:**
+1. Lock currency to org default (disable field in UI)
+2. Validate currency at 3 layers (UI, action, API)
+3. Always include source_currency and exchange_rate_used
+4. Show "prices as of" date for transparency
+
+**Reporting:**
+1. Query active + pending for current costs
+2. Include expired for historical analysis
+3. Sum by provider for cost breakdown
+4. Group by billing_cycle for cash flow planning
 
 ---
 
@@ -843,4 +1705,4 @@ All documentation is centralized in `00-requirements-docs/`:
 
 ---
 
-**Last Updated:** 2025-12-13
+**Last Updated:** 2025-12-14

@@ -45,7 +45,7 @@ import {
   type SaaSCostSummary,
   type SaaSCostRecord,
 } from "@/actions/subscription-providers"
-import { formatCurrency } from "@/lib/i18n"
+import { formatCurrency, formatDateOnly } from "@/lib/i18n"
 import { getOrgLocale } from "@/actions/organization-locale"
 
 // Provider display names
@@ -592,13 +592,13 @@ export default function ProviderDetailPage() {
                           {plan.start_date && (
                             <div>
                               <span className="text-slate-500 block text-xs uppercase tracking-wide mb-1">Start Date</span>
-                              <span className="font-medium">{new Date(plan.start_date).toLocaleDateString()}</span>
+                              <span className="font-medium">{formatDateOnly(plan.start_date)}</span>
                             </div>
                           )}
                           {plan.renewal_date && (
                             <div>
                               <span className="text-slate-500 block text-xs uppercase tracking-wide mb-1">Renewal Date</span>
-                              <span className="font-medium">{new Date(plan.renewal_date).toLocaleDateString()}</span>
+                              <span className="font-medium">{formatDateOnly(plan.renewal_date)}</span>
                             </div>
                           )}
                           {plan.owner_email && (

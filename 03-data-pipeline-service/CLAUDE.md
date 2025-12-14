@@ -185,6 +185,11 @@ API Request
 - File: `src/core/processors/generic/procedure_executor.py`
 - Execute stored procedures in BigQuery
 - Used by SaaS subscription cost pipeline
+- **Date Parameter Validation:**
+  - Validates `start_date <= end_date`
+  - Warns on future dates (after current date)
+  - Format validation (YYYY-MM-DD)
+  - Fails pipeline on invalid date ranges
 
 **5. Email Notification Processor (`notify_systems.email_notification`)**
 - File: `src/core/processors/notify_systems/email_notification.py`
@@ -257,6 +262,11 @@ API Request
 |--------|----------|-----------|---------------|
 | `saas_subscription/costs/saas_cost.yml` | Daily | `generic.procedure_executor` | `saas_subscription_cost_daily` |
 
+**Auto Start Date Behavior:**
+- If `start_date` not provided, stored procedure uses `MIN(effective_date)` from active subscription plans
+- Falls back to `MONTH_START` (first day of current month) if no active plans exist
+- `end_date` defaults to current date if not provided
+
 ---
 
 ## Stored Procedures
@@ -269,6 +279,40 @@ Stored procedures are managed in BigQuery and synced from SQL files.
 
 **Example:** `configs/system/procedures/saas_subscription/calculate_subscription_cost.sql`
 
+### Key Stored Procedures
+
+**1. `sp_run_saas_subscription_costs_pipeline`**
+- Location: `configs/system/procedures/saas_subscription/run_saas_subscription_costs_pipeline.sql`
+- Purpose: Execute full SaaS subscription cost calculation pipeline
+- Features:
+  - Auto start date from `MIN(effective_date)` of active plans
+  - Falls back to `MONTH_START` if no plans exist
+  - Validates date parameters before execution
+  - Orchestrates daily cost calculation
+
+**2. `sp_calculate_saas_subscription_plan_costs_daily`**
+- Location: `configs/system/procedures/saas_subscription/calculate_subscription_plan_costs_daily.sql`
+- Purpose: Calculate daily prorated costs for subscription plans
+- **Proration Logic:**
+  - **Monthly:** `cost / days_in_month` (28-31 days depending on month)
+  - **Annual:** `cost / 365` (or 366 for leap years)
+  - **Quarterly:** `cost / 91.25` (average days per quarter)
+  - **Weekly:** `cost / 7`
+- Features:
+  - Handles overlapping subscription periods
+  - Respects plan `effective_date` and `end_date`
+  - Uses `GENERATE_DATE_ARRAY` for daily rows
+  - Accounts for leap years in annual calculations
+
+**3. `sp_backfill_currency_audit_fields`**
+- Location: `configs/system/procedures/migrations/backfill_currency_audit_fields.sql`
+- Purpose: Migration to add currency and audit fields to existing records
+- Features:
+  - Backfills `currency_code` (default: 'USD')
+  - Adds `created_at`, `updated_at` timestamps
+  - Can run in dry run mode for validation
+  - Idempotent - safe to re-run
+
 ### Procedure Endpoints (X-CA-Root-Key)
 
 | Method | Endpoint | Purpose |
@@ -279,6 +323,31 @@ Stored procedures are managed in BigQuery and synced from SQL files.
 | GET | `/api/v1/procedures/{name}` | Get procedure details |
 | POST | `/api/v1/procedures/{name}` | Create/update a specific procedure |
 | DELETE | `/api/v1/procedures/{name}` | Delete a procedure |
+
+### Migration Endpoints (X-CA-Root-Key)
+
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| POST | `/api/v1/migrations/{name}/execute` | Execute a migration stored procedure |
+| POST | `/api/v1/migrations/{name}/execute?dry_run=true` | Dry run migration (preview changes) |
+
+**Migration Files Location:** `configs/system/procedures/migrations/*.sql`
+
+**Example Usage:**
+
+```bash
+# Dry run migration (preview changes)
+curl -X POST "http://localhost:8001/api/v1/migrations/sp_backfill_currency_audit_fields/execute?dry_run=true" \
+  -H "X-CA-Root-Key: $CA_ROOT_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{}'
+
+# Execute migration
+curl -X POST "http://localhost:8001/api/v1/migrations/sp_backfill_currency_audit_fields/execute" \
+  -H "X-CA-Root-Key: $CA_ROOT_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
 
 ### Syncing Procedures
 
@@ -485,6 +554,13 @@ POST /api/v1/pipelines/run/{org_slug}/{provider}/{domain}/{pipeline}
 | GET | `/api/v1/procedures/{name}` | Get procedure details |
 | POST | `/api/v1/procedures/{name}` | Create/update a specific procedure |
 | DELETE | `/api/v1/procedures/{name}` | Delete a procedure |
+
+### Migration Endpoints (X-CA-Root-Key)
+
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| POST | `/api/v1/migrations/{name}/execute` | Execute a migration stored procedure |
+| POST | `/api/v1/migrations/{name}/execute?dry_run=true` | Dry run migration (preview changes) |
 
 ---
 
@@ -745,6 +821,247 @@ curl -s -X POST "http://localhost:8001/api/v1/pipelines/run/{org_slug}/saas_subs
 
 ---
 
+## Pipeline Failure Notifications
+
+The pipeline executor automatically sends email/Slack notifications when pipelines fail or timeout.
+
+### Notification Architecture
+
+**Auto-Integration:** Notifications are integrated directly into `AsyncPipelineExecutor` - no configuration needed in pipeline YAML files.
+
+**Configuration Hierarchy:**
+1. Org-specific: `configs/{org_slug}/notifications.json`
+2. Root fallback: `configs/notifications/config.json`
+3. Disabled if neither exists
+
+### Quick Setup
+
+**1. Create root notification config:**
+
+```bash
+# Copy template
+cp configs/notifications/config.json.template configs/notifications/config.json
+
+# Set environment variables
+export SMTP_USERNAME=your-email@gmail.com
+export SMTP_PASSWORD=your-gmail-app-password
+export DEFAULT_ADMIN_EMAIL=admin@cloudact.io
+```
+
+**2. Gmail App Password Setup:**
+- Enable 2FA on Google account
+- Go to: https://myaccount.google.com/apppasswords
+- Generate app password for "Mail"
+- Use generated password in `SMTP_PASSWORD`
+
+**3. Test notification:**
+
+```bash
+# Trigger a pipeline failure to test
+curl -X POST "http://localhost:8001/api/v1/pipelines/run/{org_slug}/test/fail/test" \
+  -H "X-API-Key: $ORG_API_KEY"
+
+# Check email for failure notification
+```
+
+### Supported Events
+
+| Event | Trigger | Severity | Default Enabled |
+|-------|---------|----------|-----------------|
+| `pipeline_failure` | Pipeline exception | ERROR | Yes |
+| `pipeline_timeout` | Timeout exceeded | ERROR | Yes (same as failure) |
+| `data_quality_failure` | DQ checks fail | WARNING | Yes |
+| `pipeline_success` | Pipeline completes | INFO | No (disabled by default) |
+
+### Email Notification Format
+
+**Subject:** `[CloudAct] ERROR: Pipeline Failed: {pipeline_id}`
+
+**Body includes:**
+- Pipeline ID and logging ID
+- Organization slug
+- Error message and stack trace
+- Trigger type and user
+- Steps completed vs total
+- Timestamp
+
+### Notification Providers
+
+**Email (SMTP):**
+- Gmail, AWS SES, SendGrid supported
+- HTML and plain text formatting
+- Multiple recipients (To, CC)
+- Configurable subject prefix
+
+**Slack (Webhook):**
+- Rich formatted messages
+- Channel override
+- @mention support for critical alerts
+- Icon and username customization
+
+### Configuration Examples
+
+**Root Config (configs/notifications/config.json):**
+
+```json
+{
+  "enabled": true,
+  "email": {
+    "enabled": true,
+    "smtp_host": "smtp.gmail.com",
+    "smtp_port": 587,
+    "smtp_username": "${SMTP_USERNAME}",
+    "smtp_password": "${SMTP_PASSWORD}",
+    "from_email": "noreply@cloudact.io",
+    "to_emails": ["${DEFAULT_ADMIN_EMAIL}"]
+  },
+  "event_triggers": [
+    {
+      "event": "pipeline_failure",
+      "enabled": true,
+      "severity": "error",
+      "providers": ["email"],
+      "cooldown_seconds": 300
+    }
+  ]
+}
+```
+
+**Org-Specific Config (configs/{org_slug}/notifications.json):**
+
+```json
+{
+  "enabled": true,
+  "org_slug": "acme_corp",
+  "email": {
+    "enabled": true,
+    "to_emails": ["ops@acme.com", "admin@acme.com"],
+    "cc_emails": ["manager@acme.com"]
+  },
+  "slack": {
+    "enabled": true,
+    "webhook_url": "${SLACK_WEBHOOK_URL}",
+    "channel": "#pipeline-alerts"
+  },
+  "event_triggers": [
+    {
+      "event": "pipeline_failure",
+      "providers": ["both"]
+    }
+  ]
+}
+```
+
+### How It Works
+
+**Pipeline Executor Integration:**
+
+```python
+# src/core/pipeline/async_executor.py
+
+try:
+    # Execute pipeline steps...
+    await self._execute_pipeline_internal()
+except Exception as e:
+    self.status = "FAILED"
+    error_message = str(e)
+
+    # Automatically send failure notification
+    await self.notification_service.notify_pipeline_failure(
+        org_slug=self.org_slug,
+        pipeline_id=self.tracking_pipeline_id,
+        pipeline_logging_id=self.pipeline_logging_id,
+        error_message=error_message,
+        details={...}
+    )
+    raise
+```
+
+**Notification Flow:**
+
+```
+Pipeline Failure
+    │
+    ├─ AsyncPipelineExecutor catches exception
+    │
+    ├─ Get notification config (org → root → disabled)
+    │
+    ├─ Check event_triggers for "pipeline_failure"
+    │
+    ├─ Send to configured providers (email, slack, both)
+    │   ├─ Email: SMTP → HTML/plain text
+    │   └─ Slack: Webhook → formatted message
+    │
+    ├─ Log notification result (success/failure)
+    │
+    └─ Continue with pipeline cleanup
+```
+
+### Configuration Reference
+
+**Full documentation:** `configs/notifications/README.md`
+
+**Key features:**
+- Cooldown periods to prevent spam (e.g., 300s between failure alerts)
+- Retry with exponential backoff (max 3 attempts)
+- Configuration caching for performance
+- Multiple recipients and CC support
+- Custom subject prefixes
+- Timeout configuration (default: 30s)
+
+### Troubleshooting
+
+**Email not sending:**
+
+```bash
+# Check SMTP credentials
+echo $SMTP_USERNAME
+echo $SMTP_PASSWORD
+
+# Test SMTP connection
+python3 -c "
+import smtplib, ssl
+context = ssl.create_default_context()
+with smtplib.SMTP('smtp.gmail.com', 587) as server:
+    server.starttls(context=context)
+    server.login('$SMTP_USERNAME', '$SMTP_PASSWORD')
+    print('SMTP OK')
+"
+
+# Check notification logs
+grep -i "notification" /var/log/pipeline-service.log
+```
+
+**Notifications disabled:**
+
+```bash
+# Verify config exists
+ls -la configs/notifications/config.json
+
+# Check enabled flag
+jq '.enabled' configs/notifications/config.json
+
+# Check event trigger
+jq '.event_triggers[] | select(.event=="pipeline_failure")' configs/notifications/config.json
+```
+
+### Environment Variables
+
+```bash
+# Email (SMTP)
+export SMTP_USERNAME=your-email@gmail.com
+export SMTP_PASSWORD=your-gmail-app-password
+export DEFAULT_ADMIN_EMAIL=admin@cloudact.io
+
+# Org-specific (per-org configs)
+export ORG_ADMIN_EMAIL=org-admin@example.com
+
+# Slack (optional)
+export SLACK_WEBHOOK_URL=https://hooks.slack.com/services/YOUR/WEBHOOK/URL
+```
+
+---
+
 ## Verified Processor & Config Mapping
 
 **Last verified: 2025-12-02**
@@ -766,5 +1083,5 @@ curl -s -X POST "http://localhost:8001/api/v1/pipelines/run/{org_slug}/saas_subs
 
 ---
 
-**Last Updated:** 2025-12-13
-**Version:** 3.0
+**Last Updated:** 2025-12-14
+**Version:** 3.2 (Added Date Validation, Auto Start Dates, Proration Logic, Migration Endpoints)

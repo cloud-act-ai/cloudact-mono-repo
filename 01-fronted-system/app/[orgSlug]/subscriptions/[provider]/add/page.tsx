@@ -36,7 +36,7 @@ import {
   type AvailablePlan,
 } from "@/actions/subscription-providers"
 import { getOrgLocale } from "@/actions/organization-locale"
-import { formatCurrency } from "@/lib/i18n"
+import { formatCurrency, convertFromUSD, getExchangeRate } from "@/lib/i18n"
 
 // Provider display names
 const PROVIDER_DISPLAY_NAMES: Record<string, string> = {
@@ -159,15 +159,36 @@ export default function AddFromTemplatePage() {
 
   // Handle template selection - redirect to custom form with query params
   const handleSelectTemplate = (template: AvailablePlan) => {
+    // Convert USD price to org currency
+    const convertedPrice = convertFromUSD(template.unit_price_usd, orgCurrency)
+    const exchangeRate = getExchangeRate(orgCurrency)
+    const convertedYearlyPrice = template.yearly_price_usd
+      ? convertFromUSD(template.yearly_price_usd, orgCurrency)
+      : undefined
+
     const searchParams = new URLSearchParams({
       template: template.plan_name,
       display_name: template.display_name || template.plan_name,
-      unit_price_usd: template.unit_price_usd.toString(),
+      // Pass converted price in org's currency
+      unit_price: convertedPrice.toString(),
+      currency: orgCurrency,
       seats: (template.seats || 1).toString(),
       billing_cycle: template.billing_cycle,
       pricing_model: template.pricing_model,
       notes: template.notes || "",
+      // Audit trail - original USD price
+      source_currency: "USD",
+      source_price: template.unit_price_usd.toString(),
+      exchange_rate_used: exchangeRate.toString(),
     })
+
+    // Add yearly price if available
+    if (convertedYearlyPrice !== undefined) {
+      searchParams.set("yearly_price", convertedYearlyPrice.toString())
+      if (template.yearly_price_usd) {
+        searchParams.set("source_yearly_price", template.yearly_price_usd.toString())
+      }
+    }
 
     router.push(`/${orgSlug}/subscriptions/${provider}/add/custom?${searchParams.toString()}`)
   }
@@ -315,15 +336,21 @@ export default function AddFromTemplatePage() {
                 )}
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* Pricing */}
+                {/* Pricing - converted to org currency */}
                 <div className="flex items-baseline justify-between">
                   <div>
                     <div className="text-2xl font-bold text-[#FF6E50]">
-                      {formatCurrency(plan.unit_price_usd, orgCurrency)}
+                      {formatCurrency(convertFromUSD(plan.unit_price_usd, orgCurrency), orgCurrency)}
                     </div>
                     <div className="text-xs text-slate-500">
                       {plan.pricing_model === 'PER_SEAT' ? 'per seat' : 'flat fee'} / {plan.billing_cycle}
                     </div>
+                    {/* Show original USD price for reference if different currency */}
+                    {orgCurrency !== "USD" && (
+                      <div className="text-xs text-slate-400 mt-1">
+                        (${plan.unit_price_usd.toFixed(2)} USD)
+                      </div>
+                    )}
                   </div>
                   {plan.seats && plan.seats > 0 && (
                     <div className="text-right">
@@ -336,7 +363,7 @@ export default function AddFromTemplatePage() {
                 {/* Discount Badge */}
                 {plan.discount_type && plan.discount_value && plan.discount_value > 0 && (
                   <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
-                    {plan.discount_type === 'percent' ? `${plan.discount_value}% off` : `${formatCurrency(plan.discount_value, orgCurrency)} discount`}
+                    {plan.discount_type === 'percent' ? `${plan.discount_value}% off` : `${formatCurrency(convertFromUSD(plan.discount_value, orgCurrency), orgCurrency)} discount`}
                   </Badge>
                 )}
 

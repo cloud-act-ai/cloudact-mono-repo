@@ -74,6 +74,28 @@ class ProcedureDeleteResponse(BaseModel):
     message: str
 
 
+class MigrationExecuteRequest(BaseModel):
+    """Request to execute a migration procedure."""
+    org_dataset: str = Field(..., description="Organization dataset (e.g., 'acme_corp_prod')")
+    dry_run: bool = Field(
+        default=True,
+        description="If true, preview changes only. If false, execute migration."
+    )
+
+
+class MigrationExecuteResponse(BaseModel):
+    """Response from migration execution."""
+    success: bool
+    migration_name: str
+    org_dataset: str
+    dry_run: bool
+    query_results: Optional[List[Dict[str, Any]]] = Field(
+        default=None,
+        description="Results from the migration query"
+    )
+    message: str
+
+
 # ============================================
 # Helper Functions
 # ============================================
@@ -527,4 +549,103 @@ async def get_procedure(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get procedure details: {str(e)}"
+        )
+
+
+@router.post(
+    "/migrations/{migration_name}/execute",
+    response_model=MigrationExecuteResponse,
+    summary="Execute a migration",
+    description="Run a migration procedure with dry-run support."
+)
+async def execute_migration(
+    migration_name: str,
+    request: MigrationExecuteRequest,
+    _: None = Depends(verify_admin_key),
+    bq_client: BigQueryClient = Depends(get_bigquery_client)
+) -> MigrationExecuteResponse:
+    """
+    Execute a migration procedure.
+
+    This endpoint calls stored procedures in the migrations/ folder.
+    Use dry_run=true to preview changes before executing.
+
+    Example:
+        POST /api/v1/migrations/backfill_currency_audit_fields/execute
+        {
+            "org_dataset": "acme_corp_prod",
+            "dry_run": true
+        }
+    """
+    project_id = settings.gcp_project_id
+
+    # Add sp_ prefix if not present
+    if not migration_name.startswith("sp_"):
+        procedure_name = f"sp_{migration_name}"
+    else:
+        procedure_name = migration_name
+
+    # Validate procedure exists
+    if not procedure_exists(bq_client, procedure_name, project_id):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Migration procedure not found: {procedure_name}. "
+                   f"Sync procedures first using POST /api/v1/procedures/sync"
+        )
+
+    # Validate org_dataset format (basic validation)
+    if not re.match(r'^[a-zA-Z0-9_]+$', request.org_dataset):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid org_dataset format. Use alphanumeric and underscores only."
+        )
+
+    try:
+        # Build CALL statement
+        call_sql = f"""
+        CALL `{project_id}.organizations`.{procedure_name}(
+            '{project_id}',
+            '{request.org_dataset}',
+            {str(request.dry_run).upper()}
+        )
+        """
+
+        logger.info(
+            f"Executing migration: {procedure_name} on {request.org_dataset} "
+            f"(dry_run={request.dry_run})"
+        )
+
+        # Execute procedure
+        job = bq_client.client.query(call_sql)
+        results = job.result()
+
+        # Convert results to list of dicts
+        query_results = []
+        for row in results:
+            row_dict = dict(row.items())
+            # Convert timestamps to strings for JSON serialization
+            for key, value in row_dict.items():
+                if isinstance(value, datetime):
+                    row_dict[key] = value.isoformat()
+            query_results.append(row_dict)
+
+        mode = "dry run preview" if request.dry_run else "execution"
+
+        return MigrationExecuteResponse(
+            success=True,
+            migration_name=migration_name,
+            org_dataset=request.org_dataset,
+            dry_run=request.dry_run,
+            query_results=query_results if query_results else None,
+            message=f"Migration {mode} completed successfully. "
+                    f"{'Review dry run output before executing.' if request.dry_run else ''}"
+        )
+
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"Migration execution failed: {error_msg}", exc_info=True)
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Migration execution failed: {error_msg}"
         )

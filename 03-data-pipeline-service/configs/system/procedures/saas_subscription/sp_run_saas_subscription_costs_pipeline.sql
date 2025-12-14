@@ -10,8 +10,8 @@
 -- INPUTS:
 --   p_project_id: GCP Project ID (dynamic)
 --   p_dataset_id: Customer dataset ID (e.g., 'acme_corp_prod')
---   p_start_date: Start of processing window (inclusive)
---   p_end_date:   End of processing window (inclusive)
+--   p_start_date: Start of processing window (inclusive, defaults to earliest effective_date or month start)
+--   p_end_date:   End of processing window (inclusive, defaults to today)
 --
 -- USAGE:
 --   -- Run for a specific customer
@@ -39,14 +39,29 @@ BEGIN
   -- Declare local variables for defaulting dates
   DECLARE v_start_date DATE;
   DECLARE v_end_date DATE;
+  DECLARE v_effective_start_date DATE;
 
   -- 1. Parameter Validation (required params)
   ASSERT p_project_id IS NOT NULL AS "p_project_id cannot be NULL";
   ASSERT p_dataset_id IS NOT NULL AS "p_dataset_id cannot be NULL";
 
-  -- 2. Default dates if not provided
-  -- Default: first of current month to today
-  SET v_start_date = COALESCE(p_start_date, DATE_TRUNC(CURRENT_DATE(), MONTH));
+  -- 2. Get earliest effective_date from active subscription plans
+  -- This allows us to calculate costs from when subscriptions actually started
+  EXECUTE IMMEDIATE FORMAT("""
+    SELECT MIN(effective_date)
+    FROM `%s.%s.saas_subscription_plans`
+    WHERE status = 'active'
+      AND effective_date IS NOT NULL
+  """, p_project_id, p_dataset_id)
+  INTO v_effective_start_date;
+
+  -- 3. Default dates if not provided
+  -- Priority: provided start_date > earliest effective_date > first of current month
+  SET v_start_date = COALESCE(
+    p_start_date,
+    v_effective_start_date,
+    DATE_TRUNC(CURRENT_DATE(), MONTH)
+  );
   SET v_end_date = COALESCE(p_end_date, CURRENT_DATE());
 
   -- Validate date range

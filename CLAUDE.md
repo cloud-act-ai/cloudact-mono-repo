@@ -317,6 +317,37 @@ Bootstrap creates 15 management tables in the `organizations` dataset:
 - Soft delete via `end_date` instead of hard delete
 - Status values: `active`, `pending`, `cancelled`, `expired`
 
+## Recent Enhancements
+
+### Multi-Currency Support
+- **Frontend**: CSV-based exchange rates (`public/data/exchange_rates.csv`) with async loading and caching
+- **Backend**: Full audit trail with `source_currency`, `source_price`, `exchange_rate_used` fields
+- **Enforcement**: All subscription plans automatically converted to org's default currency
+- **Data Quality**: Historical cost preservation with timezone-safe date formatting
+
+### Subscription Plan Management
+- **Duplicate Detection**: Prevents overlapping plans for same tier/provider
+- **Version History**: Edit tracking with automatic versioning (old plan ends, new plan starts)
+- **Audit Logging**: Complete change history in `org_audit_logs` table
+- **Proration Calculations**: Automatic cost breakdown for monthly/annual/quarterly/weekly billing cycles
+- **Currency Conversion**: Real-time conversion using org's default currency at plan creation
+
+### Pipeline Improvements
+- **Date Validation**: Strict ISO 8601 format enforcement with timezone handling
+- **Auto Start Date**: Plans use `effective_date` as default start date if not specified
+- **Failure Notifications**: Email and Slack alerts for pipeline execution failures
+- **Migration Endpoint**: One-time data migration with idempotency and rollback support
+- **Provider Registry**: Dynamic pipeline discovery from `configs/system/providers.yml`
+
+### Data Quality & Observability
+- **Timezone-Safe Processing**: Consistent UTC conversion across all date operations
+- **Currency Enforcement**: Validation at API layer ensures data consistency
+- **Historical Cost Preservation**: Source currency + exchange rate tracked for audit
+- **Structured Error Responses**: Error codes, messages, and error_id for tracking
+- **Pipeline Metrics**: Execution logs in `org_meta_pipeline_runs` and `org_meta_step_logs`
+
+See service-specific CLAUDE.md files for detailed implementation guides.
+
 ## Common Debugging
 
 ### Check Services
@@ -365,4 +396,4 @@ curl -s http://localhost:8000/api/v1/validator/pipelines | python3 -m json.tool
 
 ---
 
-**Last Updated:** 2025-12-13
+**Last Updated:** 2025-12-14

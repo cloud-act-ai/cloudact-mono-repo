@@ -5,12 +5,20 @@
 # Tables: saas_subscription_plan_costs_daily, cost_data_standard_1_2
 #
 # Flow:
+#   0. Query MIN(effective_date) from active plans (auto start date detection)
 #   1. Read active subscriptions from saas_subscription_plans
 #   2. Calculate daily amortized costs (sp_calculate_saas_subscription_plan_costs_daily)
 #   3. Convert to FOCUS 1.2 standard (sp_convert_saas_costs_to_focus_1_2)
 #
 # Procedures Location: {project_id}.organizations (central dataset)
 # Data Location: {project_id}.{org_slug}_{env} (per-org dataset)
+#
+# Notifications:
+#   Pipeline failures automatically trigger email notifications if configured.
+#   To enable notifications, create a notification config file at:
+#   - Org-specific: configs/{org_slug}/notifications.json
+#   - Or use root config: configs/notifications/config.json
+#   See: configs/notifications/README.md for setup instructions
 
 pipeline_id: "{org_slug}-saas-subscription-costs"
 name: "SaaS Subscription Costs Pipeline"
@@ -56,7 +64,7 @@ steps:
         - name: p_start_date
           type: DATE
           value: "${start_date}"
-          default: "MONTH_START"  # Default to start of current month
+          default: "MONTH_START"  # Default to earliest effective_date from active plans, or month start
         - name: p_end_date
           type: DATE
           value: "${end_date}"

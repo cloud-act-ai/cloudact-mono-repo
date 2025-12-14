@@ -5,8 +5,12 @@
 --
 -- PURPOSE: Calculate daily amortized costs for ALL subscriptions that overlap
 --          with the date range, including historical costs for expired/cancelled
---          subscriptions. Simple, straightforward calculation:
---          daily_cost = cycle_cost / days_in_billing_period
+--          subscriptions. Daily cost calculation by billing cycle:
+--            - Monthly: cycle_cost / days_in_month (actual: 28-31)
+--            - Annual: cycle_cost / 365 (or 366 for leap years)
+--            - Quarterly: cycle_cost / 91.25 (average quarter)
+--            - Weekly: cycle_cost / 7
+--            - Custom: cycle_cost / 30 (fallback)
 --
 -- INPUTS:
 --   p_project_id: GCP Project ID
@@ -138,11 +142,20 @@ BEGIN
           CAST(
             CASE
               WHEN s.cycle_cost IS NULL OR s.cycle_cost = 0 THEN 0
+              -- Monthly: divide by actual days in that specific month (28-31)
               WHEN s.billing_cycle IN ('monthly', 'month')
                 THEN s.cycle_cost / EXTRACT(DAY FROM LAST_DAY(day))
+              -- Annual: divide by 365 (or 366 for leap years)
               WHEN s.billing_cycle IN ('annual', 'yearly', 'year')
                 THEN s.cycle_cost / (CASE WHEN MOD(EXTRACT(YEAR FROM day), 4) = 0 THEN 366 ELSE 365 END)
-              ELSE s.cycle_cost / 30  -- Default to 30 days
+              -- Quarterly: divide by 91.25 (average quarter = 365.25/4)
+              WHEN s.billing_cycle IN ('quarterly', 'quarter')
+                THEN s.cycle_cost / 91.25
+              -- Weekly: divide by 7 days
+              WHEN s.billing_cycle IN ('weekly', 'week')
+                THEN s.cycle_cost / 7
+              -- Default fallback: 30 days (for custom or unknown cycles)
+              ELSE s.cycle_cost / 30
             END AS NUMERIC
           ) AS daily_cost,
           s.invoice_id_last

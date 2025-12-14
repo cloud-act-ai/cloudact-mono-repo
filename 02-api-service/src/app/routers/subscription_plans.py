@@ -11,6 +11,84 @@ Each provider can have multiple plans (FREE, PRO, ENTERPRISE, etc.) with differe
 - Pricing (unit_price_usd, billing_cycle, pricing_model)
 - Status (active, cancelled, expired)
 - Seats and contract details
+
+===================================================================================
+PLAN EDIT HISTORY & AUDIT TRAIL
+===================================================================================
+
+This module implements a complete version history system for subscription plan changes.
+All edits are tracked and logged to org_audit_logs for compliance and transparency.
+
+Version History Pattern:
+------------------------
+When a plan is edited via the /edit-version endpoint:
+1. Old record gets end_date = new effective_date - 1 day
+2. Old record status changes to 'expired'
+3. New record is created with start_date = effective_date
+4. New record gets a new subscription_id but same plan_name
+5. Both records are preserved in the database (NO deletion)
+
+Audit Logging:
+--------------
+All plan operations are logged to org_audit_logs table:
+- CREATE: Logs plan_name, provider, pricing, seats, start_date
+- UPDATE: Logs changed_fields and new_values
+- DELETE: Logs soft delete (end_date + status='cancelled')
+- EDIT-VERSION: Logs old_values, new_values, effective_date, changed_fields
+
+Query audit logs:
+SELECT * FROM organizations.org_audit_logs
+WHERE resource_type = 'SUBSCRIPTION_PLAN'
+  AND org_slug = 'your_org'
+ORDER BY created_at DESC
+
+Cost Recalculation Behavior:
+-----------------------------
+CRITICAL: Historical costs (before effective_date) are NEVER recalculated.
+
+The cost service (cost_service.py) uses date-based queries to apply the correct
+pricing for each time period:
+
+1. Historical Period (before effective_date):
+   - Uses old plan's pricing (old unit_price, old seats)
+   - YTD/MTD calculations include these historical costs as-is
+
+2. Current/Future Period (on/after effective_date):
+   - Uses new plan's pricing (new unit_price, new seats)
+   - Forecast calculations use ONLY current pricing
+
+Example:
+--------
+Plan: Slack Business
+Timeline:
+- Jan 1 - Feb 28: 20 seats @ $12.50/seat = $250/day
+- Mar 1 onwards: 15 seats @ $15/seat = $225/day (price increase, seats decrease)
+
+Cost Calculations (as of Mar 15):
+- YTD: $250/day × 59 days (Jan-Feb) + $225/day × 15 days (Mar 1-15) = $18,125
+- MTD (March): $225/day × 15 days = $3,375
+- Forecast Annual: $18,125 (YTD) + $225/day × remaining_days_in_year
+
+The system automatically handles:
+- Multiple price changes in the same year
+- Seat increases/decreases
+- Mid-month changes (prorated by day)
+- Status changes (active -> cancelled)
+
+Database Schema:
+----------------
+saas_subscription_plans table includes:
+- start_date: When this version became effective
+- end_date: When this version expired (NULL for current version)
+- status: active | pending | expired | cancelled
+- subscription_id: Unique per version (changes on edit)
+- plan_name: Stays the same across versions (logical identifier)
+
+Cost queries filter by date range:
+WHERE start_date <= @cost_date
+  AND (end_date IS NULL OR end_date >= @cost_date)
+
+This ensures only the correct version is used for each date.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
@@ -55,6 +133,7 @@ from src.app.dependencies.auth import get_current_org
 from src.app.config import get_settings
 from src.core.utils.cache import get_cache, invalidate_org_cache, invalidate_provider_cache
 from src.core.utils.query_performance import QueryPerformanceMonitor, log_query_performance
+from src.core.utils.audit_logger import log_create, log_update, log_delete, AuditLogger
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -136,6 +215,9 @@ class SubscriptionPlan(BaseModel):
     renewal_date: Optional[date] = None
     contract_id: Optional[str] = None
     notes: Optional[str] = None
+    source_currency: Optional[str] = None
+    source_price: Optional[float] = None
+    exchange_rate_used: Optional[float] = None
     updated_at: Optional[datetime] = None
 
 
@@ -206,6 +288,9 @@ class PlanCreate(BaseModel):
     renewal_date: Optional[date] = None
     contract_id: Optional[str] = Field(None, max_length=100)
     notes: Optional[str] = Field(None, max_length=1000)
+    source_currency: Optional[str] = Field(None, max_length=3, description="Original currency of template price")
+    source_price: Optional[float] = Field(None, ge=0, description="Original price before conversion")
+    exchange_rate_used: Optional[float] = Field(None, ge=0, description="Exchange rate at time of creation")
 
     model_config = ConfigDict(extra="forbid")
 
@@ -229,6 +314,9 @@ class PlanUpdate(BaseModel):
     renewal_date: Optional[date] = None
     contract_id: Optional[str] = Field(None, max_length=100)
     notes: Optional[str] = Field(None, max_length=1000)
+    source_currency: Optional[str] = Field(None, max_length=3)
+    source_price: Optional[float] = Field(None, ge=0)
+    exchange_rate_used: Optional[float] = Field(None, ge=0)
     end_date: Optional[date] = None
 
     model_config = ConfigDict(extra="forbid")
@@ -267,6 +355,9 @@ class EditVersionRequest(BaseModel):
     renewal_date: Optional[date] = None
     contract_id: Optional[str] = Field(None, max_length=100)
     notes: Optional[str] = Field(None, max_length=1000)
+    source_currency: Optional[str] = Field(None, max_length=3)
+    source_price: Optional[float] = Field(None, ge=0)
+    exchange_rate_used: Optional[float] = Field(None, ge=0)
 
     model_config = ConfigDict(extra="forbid")
 
@@ -391,6 +482,9 @@ def get_saas_subscription_plans_schema() -> List[bigquery.SchemaField]:
         bigquery.SchemaField("renewal_date", "DATE", mode="NULLABLE"),
         bigquery.SchemaField("contract_id", "STRING", mode="NULLABLE"),
         bigquery.SchemaField("notes", "STRING", mode="NULLABLE"),
+        bigquery.SchemaField("source_currency", "STRING", mode="NULLABLE"),
+        bigquery.SchemaField("source_price", "FLOAT64", mode="NULLABLE"),
+        bigquery.SchemaField("exchange_rate_used", "FLOAT64", mode="NULLABLE"),
         bigquery.SchemaField("updated_at", "TIMESTAMP", mode="NULLABLE"),
     ]
 
@@ -791,6 +885,9 @@ async def list_plans(
                 renewal_date=row.renewal_date if hasattr(row, "renewal_date") else None,
                 contract_id=row.contract_id if hasattr(row, "contract_id") else None,
                 notes=row.notes if hasattr(row, "notes") else None,
+                source_currency=row.source_currency if hasattr(row, "source_currency") else None,
+                source_price=float(row.source_price) if hasattr(row, "source_price") and row.source_price else None,
+                exchange_rate_used=float(row.exchange_rate_used) if hasattr(row, "exchange_rate_used") and row.exchange_rate_used else None,
                 updated_at=row.updated_at if hasattr(row, "updated_at") else None,
             )
             plans.append(plan)
@@ -1011,11 +1108,51 @@ async def create_plan(
             detail=f"Failed to create or access {SAAS_SUBSCRIPTION_PLANS_TABLE} table for {org_slug}"
         )
 
-    # Check for duplicate plan (same org + provider + plan_name)
+    # Get org's default currency from org_profiles
+    org_currency_query = f"""
+    SELECT default_currency FROM `{settings.gcp_project_id}.organizations.org_profiles`
+    WHERE org_slug = @org_slug
+    """
+    try:
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+            ],
+            job_timeout_ms=10000
+        )
+        result = bq_client.client.query(org_currency_query, job_config=job_config).result()
+        org_currency = None
+        for row in result:
+            org_currency = row.default_currency or "USD"
+            break
+
+        if not org_currency:
+            org_currency = "USD"  # Fallback to USD if org not found
+
+        # Enforce currency matches org default
+        if plan.currency != org_currency:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Plan currency '{plan.currency}' must match organization's default currency '{org_currency}'"
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to fetch org currency: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to validate currency: {e}"
+        )
+
+    # Check for duplicate plan (same org + provider + plan_name + active status)
     plan_name_upper = plan.plan_name.upper()
-    check_query = f"""
+    duplicate_check_query = f"""
     SELECT COUNT(*) as count FROM `{table_ref}`
-    WHERE org_slug = @org_slug AND provider = @provider AND plan_name = @plan_name
+    WHERE org_slug = @org_slug
+      AND provider = @provider
+      AND plan_name = @plan_name
+      AND status = 'active'
+      AND (end_date IS NULL OR end_date > CURRENT_DATE())
     """
     try:
         job_config = bigquery.QueryJobConfig(
@@ -1026,12 +1163,12 @@ async def create_plan(
             ],
             job_timeout_ms=10000  # 10 second timeout for auth operations
         )
-        result = bq_client.client.query(check_query, job_config=job_config).result()
+        result = bq_client.client.query(duplicate_check_query, job_config=job_config).result()
         for row in result:
             if row.count > 0:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
-                    detail=f"Plan '{plan_name_upper}' already exists for provider '{provider}'"
+                    detail=f"Active plan '{plan_name_upper}' already exists for provider '{provider}'"
                 )
     except HTTPException:
         raise
@@ -1056,7 +1193,8 @@ async def create_plan(
         category, status, start_date, billing_cycle, currency, seats,
         pricing_model, unit_price_usd, yearly_price_usd, discount_type,
         discount_value, auto_renew, payment_method, owner_email, department,
-        renewal_date, contract_id, notes, updated_at
+        renewal_date, contract_id, notes, source_currency, source_price,
+        exchange_rate_used, updated_at
     ) VALUES (
         @org_slug,
         @subscription_id,
@@ -1081,6 +1219,9 @@ async def create_plan(
         @renewal_date,
         @contract_id,
         @notes,
+        @source_currency,
+        @source_price,
+        @exchange_rate_used,
         CURRENT_TIMESTAMP()
     )
     """
@@ -1111,6 +1252,9 @@ async def create_plan(
                 bigquery.ScalarQueryParameter("renewal_date", "DATE", plan.renewal_date),
                 bigquery.ScalarQueryParameter("contract_id", "STRING", plan.contract_id),
                 bigquery.ScalarQueryParameter("notes", "STRING", plan.notes or ""),
+                bigquery.ScalarQueryParameter("source_currency", "STRING", plan.source_currency),
+                bigquery.ScalarQueryParameter("source_price", "FLOAT64", plan.source_price),
+                bigquery.ScalarQueryParameter("exchange_rate_used", "FLOAT64", plan.exchange_rate_used),
             ],
             job_timeout_ms=30000  # 30 second timeout for user operations
         )
@@ -1177,6 +1321,9 @@ async def create_plan(
                 renewal_date=row.renewal_date,
                 contract_id=row.contract_id,
                 notes=row.notes,
+                source_currency=row.source_currency if hasattr(row, "source_currency") else None,
+                source_price=row.source_price if hasattr(row, "source_price") else None,
+                exchange_rate_used=row.exchange_rate_used if hasattr(row, "exchange_rate_used") else None,
             )
             break
 
@@ -1191,6 +1338,25 @@ async def create_plan(
         invalidate_provider_cache(org_slug, provider)
         invalidate_org_cache(org_slug)
         logger.debug(f"Invalidated cache for org {org_slug} provider {provider}")
+
+        # Audit log: Plan created
+        await log_create(
+            org_slug=org_slug,
+            resource_type=AuditLogger.RESOURCE_SUBSCRIPTION_PLAN,
+            resource_id=subscription_id,
+            details={
+                "provider": provider,
+                "plan_name": plan.plan_name,
+                "display_name": plan.display_name,
+                "unit_price_usd": plan.unit_price_usd,
+                "currency": plan.currency,
+                "seats": plan.seats,
+                "pricing_model": plan.pricing_model,
+                "billing_cycle": plan.billing_cycle,
+                "status": initial_status,
+                "start_date": str(effective_start_date) if effective_start_date else None
+            }
+        )
 
         return PlanResponse(
             success=True,
@@ -1235,7 +1401,7 @@ async def update_plan(
         'display_name', 'unit_price_usd', 'status', 'billing_cycle', 'currency',
         'seats', 'pricing_model', 'yearly_price_usd', 'discount_type', 'discount_value',
         'auto_renew', 'payment_method', 'owner_email', 'department', 'renewal_date',
-        'contract_id', 'notes', 'end_date'
+        'contract_id', 'notes', 'source_currency', 'source_price', 'exchange_rate_used', 'end_date'
     }
 
     set_parts = ["updated_at = CURRENT_TIMESTAMP()"]
@@ -1335,12 +1501,28 @@ async def update_plan(
                 renewal_date=row.renewal_date if hasattr(row, "renewal_date") else None,
                 contract_id=row.contract_id if hasattr(row, "contract_id") else None,
                 notes=row.notes if hasattr(row, "notes") else None,
+                source_currency=row.source_currency if hasattr(row, "source_currency") else None,
+                source_price=float(row.source_price) if hasattr(row, "source_price") and row.source_price else None,
+                exchange_rate_used=float(row.exchange_rate_used) if hasattr(row, "exchange_rate_used") and row.exchange_rate_used else None,
                 updated_at=row.updated_at if hasattr(row, "updated_at") else None,
             )
             # Invalidate relevant caches after updating plan
             invalidate_provider_cache(org_slug, provider)
             invalidate_org_cache(org_slug)
             logger.debug(f"Invalidated cache for org {org_slug} provider {provider}")
+
+            # Audit log: Plan updated (capture only changed fields)
+            await log_update(
+                org_slug=org_slug,
+                resource_type=AuditLogger.RESOURCE_SUBSCRIPTION_PLAN,
+                resource_id=subscription_id,
+                details={
+                    "provider": provider,
+                    "plan_name": updated_plan.plan_name,
+                    "changed_fields": list(updates_dict.keys()),
+                    "new_values": updates_dict
+                }
+            )
 
             return PlanResponse(
                 success=True,
@@ -1377,12 +1559,43 @@ async def edit_plan_with_version(
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """
-    Edit a plan by creating a new version.
+    Edit a plan by creating a new version with complete audit trail.
 
-    This endpoint:
+    This endpoint implements version history for subscription plan changes:
     1. Closes the old row by setting end_date = effective_date - 1 and status = 'expired'
     2. Creates a new row with start_date = effective_date and the updated fields
     3. Returns both the old and new plans
+
+    IMPORTANT - Cost Recalculation Behavior:
+    ========================================
+
+    Historical costs (before effective_date) are PRESERVED and will NOT change:
+    - Cost calculations use the date ranges (start_date, end_date) from each plan version
+    - For dates before effective_date, the old plan's pricing (old unit_price_usd, old seats) applies
+    - Example: If plan had 10 seats @ $5/seat from Jan 1 - Mar 15, those costs remain $50/day
+
+    Future costs (on/after effective_date) use NEW pricing:
+    - For dates >= effective_date, the new plan's pricing (new unit_price_usd, new seats) applies
+    - Example: After Mar 16, if seats change to 5 @ $10/seat, costs become $50/day (but different breakdown)
+
+    How Cost Service Handles Version History:
+    ------------------------------------------
+    The cost aggregation logic (see cost_service.py) automatically handles this by:
+    1. Querying saas_subscription_plans WHERE start_date <= cost_date AND (end_date IS NULL OR end_date >= cost_date)
+    2. This ensures only the active version for each date range is used
+    3. YTD/MTD calculations sum across all applicable versions
+    4. Forecast uses ONLY the latest version (current pricing)
+
+    Example Scenario:
+    -----------------
+    Plan: ChatGPT Team
+    - Jan 1 - Mar 15: 10 seats @ $25/seat = $250/day
+    - Mar 16 onwards: 5 seats @ $30/seat = $150/day
+
+    Cost Calculations:
+    - YTD (as of Mar 20): $250/day × 75 days + $150/day × 5 days = $19,500
+    - MTD (March): $250/day × 15 days + $150/day × 5 days = $4,500
+    - Forecast (rest of year): $150/day × remaining_days (uses current version only)
 
     Use this for subscription changes that need version history (e.g., price changes, seat changes).
     """
@@ -1479,6 +1692,9 @@ async def edit_plan_with_version(
         new_renewal_date = request.renewal_date if request.renewal_date is not None else (current_row.renewal_date if hasattr(current_row, "renewal_date") else None)
         new_contract_id = request.contract_id if request.contract_id is not None else (current_row.contract_id if hasattr(current_row, "contract_id") else None)
         new_notes = request.notes if request.notes is not None else (current_row.notes if hasattr(current_row, "notes") else None)
+        new_source_currency = request.source_currency if request.source_currency is not None else (current_row.source_currency if hasattr(current_row, "source_currency") else None)
+        new_source_price = request.source_price if request.source_price is not None else (current_row.source_price if hasattr(current_row, "source_price") else None)
+        new_exchange_rate_used = request.exchange_rate_used if request.exchange_rate_used is not None else (current_row.exchange_rate_used if hasattr(current_row, "exchange_rate_used") else None)
 
         insert_query = f"""
         INSERT INTO `{table_ref}` (
@@ -1486,13 +1702,15 @@ async def edit_plan_with_version(
             category, status, start_date, billing_cycle, currency, seats,
             pricing_model, unit_price_usd, yearly_price_usd, discount_type,
             discount_value, auto_renew, payment_method, owner_email, department,
-            renewal_date, contract_id, notes, updated_at
+            renewal_date, contract_id, notes, source_currency, source_price,
+            exchange_rate_used, updated_at
         ) VALUES (
             @org_slug, @subscription_id, @provider, @plan_name, @display_name,
             @category, @status, @start_date, @billing_cycle, @currency, @seats,
             @pricing_model, @unit_price_usd, @yearly_price_usd, @discount_type,
             @discount_value, @auto_renew, @payment_method, @owner_email, @department,
-            @renewal_date, @contract_id, @notes, CURRENT_TIMESTAMP()
+            @renewal_date, @contract_id, @notes, @source_currency, @source_price,
+            @exchange_rate_used, CURRENT_TIMESTAMP()
         )
         """
         insert_config = bigquery.QueryJobConfig(
@@ -1520,6 +1738,9 @@ async def edit_plan_with_version(
                 bigquery.ScalarQueryParameter("renewal_date", "DATE", new_renewal_date),
                 bigquery.ScalarQueryParameter("contract_id", "STRING", new_contract_id),
                 bigquery.ScalarQueryParameter("notes", "STRING", new_notes),
+                bigquery.ScalarQueryParameter("source_currency", "STRING", new_source_currency),
+                bigquery.ScalarQueryParameter("source_price", "FLOAT64", new_source_price),
+                bigquery.ScalarQueryParameter("exchange_rate_used", "FLOAT64", new_exchange_rate_used),
             ],
             job_timeout_ms=30000
         )
@@ -1551,6 +1772,9 @@ async def edit_plan_with_version(
             renewal_date=current_row.renewal_date if hasattr(current_row, "renewal_date") else None,
             contract_id=current_row.contract_id if hasattr(current_row, "contract_id") else None,
             notes=current_row.notes if hasattr(current_row, "notes") else None,
+            source_currency=current_row.source_currency if hasattr(current_row, "source_currency") else None,
+            source_price=float(current_row.source_price) if hasattr(current_row, "source_price") and current_row.source_price else None,
+            exchange_rate_used=float(current_row.exchange_rate_used) if hasattr(current_row, "exchange_rate_used") and current_row.exchange_rate_used else None,
         )
 
         new_plan = SubscriptionPlan(
@@ -1577,12 +1801,46 @@ async def edit_plan_with_version(
             renewal_date=new_renewal_date,
             contract_id=new_contract_id,
             notes=new_notes,
+            source_currency=new_source_currency,
+            source_price=new_source_price,
+            exchange_rate_used=new_exchange_rate_used,
         )
 
         # Invalidate caches
         invalidate_provider_cache(org_slug, provider)
         invalidate_org_cache(org_slug)
         logger.debug(f"Invalidated cache for org {org_slug} provider {provider}")
+
+        # Audit log: Plan version created (this creates audit trail for price changes)
+        # IMPORTANT: This logs both old and new values to track version history
+        await log_update(
+            org_slug=org_slug,
+            resource_type=AuditLogger.RESOURCE_SUBSCRIPTION_PLAN,
+            resource_id=new_subscription_id,
+            details={
+                "action": "version_created",
+                "provider": provider,
+                "plan_name": current_row.plan_name,
+                "old_subscription_id": subscription_id,
+                "new_subscription_id": new_subscription_id,
+                "effective_date": str(request.effective_date),
+                "old_values": {
+                    "subscription_id": subscription_id,
+                    "unit_price_usd": float(current_row.unit_price_usd or 0),
+                    "seats": current_row.seats if hasattr(current_row, "seats") else 0,
+                    "status": current_row.status if hasattr(current_row, "status") else "active",
+                    "end_date": str(old_end_date)
+                },
+                "new_values": {
+                    "subscription_id": new_subscription_id,
+                    "unit_price_usd": new_unit_price,
+                    "seats": new_seats,
+                    "status": new_status,
+                    "start_date": str(request.effective_date)
+                },
+                "changed_fields": [k for k in request.model_dump(exclude_unset=True).keys() if k != "effective_date"]
+            }
+        )
 
         return EditVersionResponse(
             success=True,
@@ -1654,6 +1912,19 @@ async def delete_plan(
         invalidate_provider_cache(org_slug, provider)
         invalidate_org_cache(org_slug)
         logger.debug(f"Invalidated cache for org {org_slug} provider {provider}")
+
+        # Audit log: Plan soft deleted (status changed to 'cancelled', end_date set)
+        await log_delete(
+            org_slug=org_slug,
+            resource_type=AuditLogger.RESOURCE_SUBSCRIPTION_PLAN,
+            resource_id=subscription_id,
+            details={
+                "provider": provider,
+                "end_date": str(end_date_value),
+                "status": "cancelled",
+                "soft_delete": True
+            }
+        )
 
         return DeletePlanResponse(
             success=True,
@@ -1904,6 +2175,9 @@ async def get_all_plans(
                 renewal_date=row.renewal_date if hasattr(row, "renewal_date") else None,
                 contract_id=row.contract_id if hasattr(row, "contract_id") else None,
                 notes=row.notes if hasattr(row, "notes") else None,
+                source_currency=row.source_currency if hasattr(row, "source_currency") else None,
+                source_price=float(row.source_price) if hasattr(row, "source_price") and row.source_price else None,
+                exchange_rate_used=float(row.exchange_rate_used) if hasattr(row, "exchange_rate_used") and row.exchange_rate_used else None,
                 updated_at=row.updated_at if hasattr(row, "updated_at") else None,
             )
             plans.append(plan)

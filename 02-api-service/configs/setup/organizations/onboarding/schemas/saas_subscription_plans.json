@@ -24,5 +24,8 @@
   {"name": "renewal_date", "type": "DATE", "mode": "NULLABLE", "description": "Next renewal date."},
   {"name": "contract_id", "type": "STRING", "mode": "NULLABLE", "description": "Reference to contract document."},
   {"name": "notes", "type": "STRING", "mode": "NULLABLE", "description": "Contract notes and comments."},
+  {"name": "source_currency", "type": "STRING", "mode": "NULLABLE", "description": "Original currency of template price (e.g., USD)"},
+  {"name": "source_price", "type": "FLOAT64", "mode": "NULLABLE", "description": "Original price before conversion"},
+  {"name": "exchange_rate_used", "type": "FLOAT64", "mode": "NULLABLE", "description": "Exchange rate at time of creation"},
   {"name": "updated_at", "type": "TIMESTAMP", "mode": "NULLABLE", "description": "Timestamp of the last row update."}
 ]

@@ -28,6 +28,7 @@ from src.core.observability.metrics import (
     observe_pipeline_duration,
     set_active_pipelines
 )
+from src.core.notifications.service import get_notification_service
 from pydantic import ValidationError
 
 # Import OpenTelemetry for distributed tracing
@@ -195,6 +196,11 @@ class AsyncPipelineExecutor:
         self.metadata_logger = MetadataLogger(
             bq_client=self.bq_client.client,
             org_slug=org_slug
+        )
+
+        # Initialize notification service
+        self.notification_service = get_notification_service(
+            config_base_path=Path(settings.config_base_path)
         )
 
         self.config: Optional[Dict[str, Any]] = None
@@ -633,6 +639,28 @@ class AsyncPipelineExecutor:
                 timeout_minutes=timeout_minutes,
                 timeout_seconds=timeout_seconds
             )
+
+            # Send timeout notification (treat as failure)
+            try:
+                await self.notification_service.notify_pipeline_failure(
+                    org_slug=self.org_slug,
+                    pipeline_id=self.tracking_pipeline_id,
+                    pipeline_logging_id=self.pipeline_logging_id,
+                    error_message=error_message,
+                    details={
+                        "trigger_type": self.trigger_type,
+                        "trigger_by": self.trigger_by,
+                        "timeout_minutes": timeout_minutes,
+                        "steps_completed": len([s for s in self.step_results if s.get('status') == 'COMPLETED']),
+                        "total_steps": len(self.step_dag) if self.step_dag else 0
+                    }
+                )
+            except Exception as notification_error:
+                self.logger.warning(
+                    f"Failed to send pipeline timeout notification: {notification_error}",
+                    exc_info=True
+                )
+
             # Cancel all running tasks
             for task in asyncio.all_tasks():
                 if task is not asyncio.current_task():
@@ -650,6 +678,27 @@ class AsyncPipelineExecutor:
             self.end_time = datetime.utcnow()
             error_message = str(e)
             self.logger.error(f"Pipeline failed: {e}", exc_info=True)
+
+            # Send failure notification
+            try:
+                await self.notification_service.notify_pipeline_failure(
+                    org_slug=self.org_slug,
+                    pipeline_id=self.tracking_pipeline_id,
+                    pipeline_logging_id=self.pipeline_logging_id,
+                    error_message=error_message,
+                    details={
+                        "trigger_type": self.trigger_type,
+                        "trigger_by": self.trigger_by,
+                        "steps_completed": len([s for s in self.step_results if s.get('status') == 'COMPLETED']),
+                        "total_steps": len(self.step_dag) if self.step_dag else 0
+                    }
+                )
+            except Exception as notification_error:
+                self.logger.warning(
+                    f"Failed to send pipeline failure notification: {notification_error}",
+                    exc_info=True
+                )
+
             # Cleanup partial resources on failure
             try:
                 if hasattr(self, 'bq_client') and self.bq_client:

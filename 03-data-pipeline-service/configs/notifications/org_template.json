@@ -1,0 +1,70 @@
+{
+  "enabled": true,
+  "description": "Organization-specific notification configuration template",
+  "org_slug": "{org_slug}",
+  "default_provider": "email",
+  "email": {
+    "enabled": true,
+    "smtp_host": "smtp.gmail.com",
+    "smtp_port": 587,
+    "smtp_username": "${SMTP_USERNAME}",
+    "smtp_password": "${SMTP_PASSWORD}",
+    "smtp_use_tls": true,
+    "from_email": "noreply@cloudact.io",
+    "from_name": "CloudAct Platform",
+    "to_emails": [
+      "${ORG_ADMIN_EMAIL}"
+    ],
+    "cc_emails": [],
+    "subject_prefix": "[CloudAct]"
+  },
+  "slack": {
+    "enabled": false,
+    "webhook_url": "${SLACK_WEBHOOK_URL}",
+    "channel": "#alerts",
+    "username": "CloudAct Bot",
+    "icon_emoji": ":robot_face:",
+    "mention_users": [],
+    "mention_channel": false
+  },
+  "event_triggers": [
+    {
+      "event": "pipeline_failure",
+      "enabled": true,
+      "severity": "error",
+      "providers": ["email"],
+      "template": "pipeline_failure",
+      "cooldown_seconds": 300
+    },
+    {
+      "event": "pipeline_success",
+      "enabled": false,
+      "severity": "info",
+      "providers": ["email"],
+      "template": "pipeline_success"
+    },
+    {
+      "event": "data_quality_failure",
+      "enabled": true,
+      "severity": "warning",
+      "providers": ["email"],
+      "template": "data_quality_failure",
+      "cooldown_seconds": 600
+    },
+    {
+      "event": "system_error",
+      "enabled": true,
+      "severity": "critical",
+      "providers": ["both"],
+      "template": "system_error",
+      "cooldown_seconds": 180
+    }
+  ],
+  "retry_config": {
+    "max_attempts": 3,
+    "initial_delay_seconds": 5,
+    "max_delay_seconds": 300,
+    "exponential_backoff": true
+  },
+  "timeout_seconds": 30
+}
