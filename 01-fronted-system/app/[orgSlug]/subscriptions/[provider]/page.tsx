@@ -10,13 +10,9 @@
 import { useEffect, useState, useCallback } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
-import { toast } from "sonner"
 import {
   ArrowLeft,
   Plus,
-  Loader2,
-  CreditCard,
-  Check,
   ChevronDown,
   ChevronUp,
   ChevronRight,
@@ -30,50 +26,27 @@ import {
   Cloud,
   CalendarX,
   Info,
+  CreditCard,
 } from "lucide-react"
 import { format } from "date-fns"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-// Switch removed - no longer using toggle
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { CardSkeleton } from "@/components/ui/card-skeleton"
 
-import { DatePicker } from "@/components/ui/date-picker"
 import {
   getProviderPlans,
   getProviderMeta,
-  createCustomPlan,
-  editPlanWithVersion,
-  endSubscription,
-  getAvailablePlans,
   getSaaSSubscriptionCosts,
   SubscriptionPlan,
-  PlanCreate,
-  PlanUpdate,
   type ProviderMeta,
-  type AvailablePlan,
   type SaaSCostSummary,
   type SaaSCostRecord,
 } from "@/actions/subscription-providers"
+import { formatCurrency } from "@/lib/i18n"
+import { getOrgLocale } from "@/actions/organization-locale"
 
 // Provider display names
 const PROVIDER_DISPLAY_NAMES: Record<string, string> = {
@@ -126,13 +99,6 @@ function getCanonicalProvider(provider: string): string {
   return PROVIDER_ALIASES[provider.toLowerCase()] || provider.toLowerCase()
 }
 
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(amount)
-}
-
 // Category icon mapping
 const categoryIcons: Record<string, React.ReactNode> = {
   ai: <Brain className="h-6 w-6" />,
@@ -164,122 +130,15 @@ export default function ProviderDetailPage() {
   const [expandedRow, setExpandedRow] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [providerMeta, setProviderMeta] = useState<ProviderMeta | null>(null)
+  const [showDeleted, setShowDeleted] = useState(false)
+  const [orgCurrency, setOrgCurrency] = useState<string>("USD")
+
   // Cost data from Polars (source of truth for costs)
   const [costSummary, setCostSummary] = useState<SaaSCostSummary | null>(null)
   const [costRecords, setCostRecords] = useState<SaaSCostRecord[]>([])
 
   // Effective monthly cost: prefer Polars data, fallback to plan calculation
   const effectiveMonthlyCost = costSummary?.total_monthly_cost ?? totalMonthlyCost
-
-  // Dialog states
-  const [showAddDialog, setShowAddDialog] = useState(false)
-  const [showTemplateDialog, setShowTemplateDialog] = useState(false)
-  const [showEditDialog, setShowEditDialog] = useState<{ open: boolean; plan: SubscriptionPlan | null }>({
-    open: false,
-    plan: null,
-  })
-  const [showEndDialog, setShowEndDialog] = useState<{ open: boolean; plan: SubscriptionPlan | null }>({
-    open: false,
-    plan: null,
-  })
-  const [adding, setAdding] = useState(false)
-  const [editing, setEditing] = useState(false)
-  const [ending, setEnding] = useState(false)
-  const [showDeleted, setShowDeleted] = useState(false)
-  const [availablePlans, setAvailablePlans] = useState<AvailablePlan[]>([])
-  const [loadingTemplates, setLoadingTemplates] = useState(false)
-
-  // Date states
-  const [addStartDate, setAddStartDate] = useState<Date | undefined>(new Date())
-  const [editEffectiveDate, setEditEffectiveDate] = useState<Date | undefined>(new Date())
-  const [endDate, setEndDate] = useState<Date | undefined>(new Date())
-
-  // Add form state
-  const [newPlan, setNewPlan] = useState<PlanCreate>({
-    plan_name: "",
-    display_name: "",
-    unit_price_usd: 0,
-    seats: 1,
-    billing_cycle: "monthly",
-    pricing_model: "FLAT_FEE",
-    currency: "USD",
-    notes: "",
-  })
-
-  // Edit form state
-  const [editPlanData, setEditPlanData] = useState<PlanUpdate>({
-    display_name: "",
-    unit_price_usd: 0,
-    seats: 0,
-    billing_cycle: "monthly",
-    pricing_model: "FLAT_FEE",
-    currency: "USD",
-    notes: "",
-  })
-
-  // Reset form to initial state
-  const resetNewPlanForm = () => {
-    setNewPlan({
-      plan_name: "",
-      display_name: "",
-      unit_price_usd: 0,
-      seats: 1,
-      billing_cycle: "monthly",
-      pricing_model: "FLAT_FEE",
-      currency: "USD",
-      notes: "",
-    })
-  }
-
-  // Handle add dialog open/close
-  const handleAddDialogOpenChange = (open: boolean) => {
-    setShowAddDialog(open)
-    if (open) {
-      // Reset date when opening
-      setAddStartDate(new Date())
-    } else {
-      // Reset form and clear error when closing
-      resetNewPlanForm()
-      setError(null)
-    }
-  }
-
-  // Load available template plans
-  const loadAvailablePlans = async () => {
-    setLoadingTemplates(true)
-    setError(null)
-    const result = await getAvailablePlans(orgSlug, provider)
-
-    if (result.success) {
-      setAvailablePlans(result.plans || [])
-    } else {
-      setError(result.error || "Failed to load available plans")
-      setAvailablePlans([])
-    }
-    setLoadingTemplates(false)
-  }
-
-  // Handle template dialog open
-  const handleTemplateDialogOpen = async () => {
-    setShowTemplateDialog(true)
-    await loadAvailablePlans()
-  }
-
-  // Handle template selection - pre-fill add form with template data
-  const handleSelectTemplate = (template: AvailablePlan) => {
-    setNewPlan({
-      plan_name: template.plan_name,
-      display_name: template.display_name || template.plan_name,
-      unit_price_usd: template.unit_price_usd,
-      seats: template.seats || 1, // Use template seats or default to 1
-      billing_cycle: template.billing_cycle,
-      pricing_model: template.pricing_model,
-      currency: "USD", // Available plans don't have currency field
-      notes: template.notes || "",
-    })
-    setShowTemplateDialog(false)
-    setShowAddDialog(true)
-  }
 
   // Load plans from BigQuery and costs from Polars (source of truth for costs)
   const loadPlans = useCallback(async (isMounted?: () => boolean) => {
@@ -295,18 +154,25 @@ export default function ProviderDetailPage() {
     if (!isMounted || isMounted()) setError(null)
 
     try {
-      // Fetch provider meta, plans, and costs in parallel - OPTIMIZED
+      // Fetch provider meta, plans, costs, and org locale in parallel - OPTIMIZED
       // - Plans from saas_subscription_plans (BigQuery) for plan details
       // - Costs from cost_data_standard_1_2 (Polars) for actual costs
-      // All three calls run simultaneously to minimize loading time
-      const [metaResult, plansResult, costsResult] = await Promise.all([
+      // - Locale for currency formatting
+      // All four calls run simultaneously to minimize loading time
+      const [metaResult, plansResult, costsResult, localeResult] = await Promise.all([
         getProviderMeta(orgSlug, provider),
         getProviderPlans(orgSlug, provider),
-        getSaaSSubscriptionCosts(orgSlug, undefined, undefined, provider)  // Filter by provider
+        getSaaSSubscriptionCosts(orgSlug, undefined, undefined, provider),  // Filter by provider
+        getOrgLocale(orgSlug)
       ])
 
       // Check if component is still mounted before updating state
       if (isMounted && !isMounted()) return
+
+      // Set org currency for formatting
+      if (localeResult.success && localeResult.locale) {
+        setOrgCurrency(localeResult.locale.default_currency)
+      }
 
       // Set provider meta (for icon display)
       if (metaResult.success && metaResult.provider) {
@@ -357,219 +223,6 @@ export default function ProviderDetailPage() {
     loadPlans(() => mounted)
     return () => { mounted = false }
   }, [loadPlans])
-
-  // Handle edit dialog open/close
-  const handleEditDialogOpenChange = (open: boolean, plan?: SubscriptionPlan) => {
-    if (open && plan) {
-      // Pre-fill form with existing plan data
-      setEditPlanData({
-        display_name: plan.display_name || plan.plan_name,
-        unit_price_usd: plan.unit_price_usd,
-        seats: plan.seats ?? 0,
-        billing_cycle: plan.billing_cycle,
-        pricing_model: plan.pricing_model || "FLAT_FEE",
-        currency: plan.currency || "USD",
-        notes: plan.notes || "",
-      })
-      setShowEditDialog({ open: true, plan })
-      setEditEffectiveDate(new Date()) // Reset effective date
-      setError(null) // Clear error when opening
-    } else {
-      setShowEditDialog({ open: false, plan: null })
-      setError(null) // Clear error when closing
-    }
-  }
-
-  // Edit plan via API service (creates new version)
-  const handleEdit = async () => {
-    if (!showEditDialog.plan) return
-    if (!editEffectiveDate) {
-      setError("Effective date is required")
-      return
-    }
-
-    // Validate inputs
-    if (editPlanData.unit_price_usd !== undefined && editPlanData.unit_price_usd < 0) {
-      setError("Price cannot be negative")
-      return
-    }
-    if (editPlanData.seats !== undefined && editPlanData.seats < 0) {
-      setError("Seats cannot be negative")
-      return
-    }
-    // Validate seats for PER_SEAT plans
-    if (editPlanData.pricing_model === 'PER_SEAT' && (editPlanData.seats ?? 0) < 1) {
-      setError("Per-seat plans require at least 1 seat")
-      return
-    }
-    // Validate upper bound for seats
-    if (editPlanData.seats !== undefined && editPlanData.seats > 10000) {
-      setError("Seats cannot exceed 10,000")
-      return
-    }
-
-    setEditing(true)
-    setError(null)
-
-    try {
-      const effectiveDateStr = format(editEffectiveDate, "yyyy-MM-dd")
-      const result = await editPlanWithVersion(
-        orgSlug,
-        provider,
-        showEditDialog.plan.subscription_id,
-        effectiveDateStr,
-        editPlanData
-      )
-
-      if (!result.success) {
-        setError(result.error || "Failed to update plan")
-        toast.error(result.error || "Failed to update plan")
-        return
-      }
-
-      // Verify API returned the new version (action returns newPlan, not new_version_id)
-      if (!result.newPlan) {
-        toast.warning(
-          "Update may not have been saved correctly. Please refresh the page and verify.",
-          { duration: 8000 }
-        )
-      } else {
-        toast.success("Subscription updated successfully")
-      }
-
-      // Close dialog via onOpenChange handler to ensure cleanup
-      handleEditDialogOpenChange(false)
-      await loadPlans()
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred"
-      setError(errorMessage)
-      toast.error(errorMessage)
-    } finally {
-      setEditing(false)
-    }
-  }
-
-  // End subscription (soft delete with end date)
-  const handleEndSubscription = async () => {
-    if (!showEndDialog.plan) return
-    if (!endDate) {
-      setError("End date is required")
-      return
-    }
-
-    setEnding(true)
-    setError(null)
-
-    try {
-      const endDateStr = format(endDate, "yyyy-MM-dd")
-      const result = await endSubscription(
-        orgSlug,
-        provider,
-        showEndDialog.plan.subscription_id,
-        endDateStr
-      )
-
-      if (!result.success) {
-        setError(result.error || "Failed to end subscription")
-        toast.error(result.error || "Failed to end subscription")
-        return
-      }
-
-      // Verify API confirmed the end
-      if (!result.plan && !result.updated) {
-        toast.warning(
-          "Subscription end may not have been saved correctly. Please refresh the page and verify.",
-          { duration: 8000 }
-        )
-      } else {
-        toast.success("Subscription ended successfully")
-      }
-
-      // Close dialog and reset state
-      setShowEndDialog({ open: false, plan: null })
-      setError(null)
-      await loadPlans()
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred"
-      setError(errorMessage)
-      toast.error(errorMessage)
-    } finally {
-      setEnding(false)
-    }
-  }
-
-  // Add custom plan via API service
-  const handleAdd = async () => {
-    if (!newPlan.plan_name.trim()) return
-    if (!addStartDate) {
-      setError("Start date is required")
-      return
-    }
-
-    // Validate inputs
-    if (newPlan.unit_price_usd < 0) {
-      setError("Price cannot be negative")
-      return
-    }
-    if ((newPlan.seats ?? 0) < 0) {
-      setError("Seats cannot be negative")
-      return
-    }
-    // Validate seats for PER_SEAT plans
-    if (newPlan.pricing_model === 'PER_SEAT' && (newPlan.seats ?? 0) < 1) {
-      setError("Per-seat plans require at least 1 seat")
-      return
-    }
-    // Validate upper bound for seats
-    if ((newPlan.seats ?? 0) > 10000) {
-      setError("Seats cannot exceed 10,000")
-      return
-    }
-
-    setAdding(true)
-    setError(null)
-
-    try {
-      const startDateStr = format(addStartDate, "yyyy-MM-dd")
-      const result = await createCustomPlan(orgSlug, provider, {
-        plan_name: newPlan.plan_name.toUpperCase().replace(/\s+/g, "_"),
-        display_name: newPlan.display_name || newPlan.plan_name,
-        unit_price_usd: newPlan.unit_price_usd,
-        seats: newPlan.seats,
-        billing_cycle: newPlan.billing_cycle,
-        pricing_model: newPlan.pricing_model,
-        currency: newPlan.currency,
-        notes: newPlan.notes,
-        start_date: startDateStr,
-      })
-
-      if (!result.success) {
-        setError(result.error || "Failed to create plan")
-        toast.error(result.error || "Failed to create plan")
-        return
-      }
-
-      // Verify API returned the created plan
-      if (!result.plan || !result.plan.subscription_id) {
-        toast.warning(
-          "Plan may not have been saved correctly. Please refresh the page and verify.",
-          { duration: 8000 }
-        )
-      } else {
-        toast.success("Subscription added successfully")
-      }
-
-      // Close dialog and reset form via onOpenChange handler
-      handleAddDialogOpenChange(false)
-      await loadPlans()
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred"
-      setError(errorMessage)
-      toast.error(errorMessage)
-    } finally {
-      setAdding(false)
-    }
-  }
 
   const providerDisplayName = getProviderDisplayName(provider)
   // Filter plans based on showDeleted toggle
@@ -674,14 +327,18 @@ export default function ProviderDetailPage() {
         </div>
         {plans.length > 0 && (
           <div className="flex items-center gap-2">
-            <Button type="button" onClick={handleTemplateDialogOpen} className="h-[36px] px-4 bg-[#FF6E50] text-white hover:bg-[#E55A3C] rounded-xl text-[15px] font-semibold" data-testid="add-from-template-btn">
-              <Plus className="h-4 w-4 mr-2" />
-              Add from Template
-            </Button>
-            <Button type="button" onClick={() => handleAddDialogOpenChange(true)} variant="outline" className="border-[#FF6E50]/30 text-[#FF6E50] hover:bg-[#FF6E50]/5 rounded-xl" data-testid="add-custom-subscription-btn">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Custom
-            </Button>
+            <Link href={`/${orgSlug}/subscriptions/${provider}/add`}>
+              <Button className="h-[36px] px-4 bg-[#FF6E50] text-white hover:bg-[#E55A3C] rounded-xl text-[15px] font-semibold" data-testid="add-from-template-btn">
+                <Plus className="h-4 w-4 mr-2" />
+                Add from Template
+              </Button>
+            </Link>
+            <Link href={`/${orgSlug}/subscriptions/${provider}/add/custom`}>
+              <Button variant="outline" className="border-[#FF6E50]/30 text-[#FF6E50] hover:bg-[#FF6E50]/5 rounded-xl" data-testid="add-custom-subscription-btn">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Custom
+              </Button>
+            </Link>
           </div>
         )}
       </div>
@@ -737,7 +394,7 @@ export default function ProviderDetailPage() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="console-stat-card border-[#FF6E50]/20">
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-[#FF6E50]">{formatCurrency(effectiveMonthlyCost)}</div>
+            <div className="text-2xl font-bold text-[#FF6E50]">{formatCurrency(effectiveMonthlyCost, orgCurrency)}</div>
             <p className="text-sm text-muted-foreground">Monthly Cost</p>
             {costSummary && (
               <p className="text-xs text-muted-foreground mt-1">From pipeline data</p>
@@ -802,14 +459,18 @@ export default function ProviderDetailPage() {
                 Choose a predefined plan or create a custom one.
               </p>
               <div className="flex items-center justify-center gap-3">
-                <Button onClick={handleTemplateDialogOpen} className="h-[44px] px-6 bg-[#007A78] text-white hover:bg-[#006664] rounded-xl text-[15px] font-semibold shadow-sm">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add from Template
-                </Button>
-                <Button onClick={() => handleAddDialogOpenChange(true)} variant="outline" className="h-[44px] px-6 border-[#007A78]/30 text-[#007A78] hover:bg-[#007A78]/5 rounded-xl" data-testid="add-custom-subscription-empty-btn">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Custom Subscription
-                </Button>
+                <Link href={`/${orgSlug}/subscriptions/${provider}/add`}>
+                  <Button className="h-[44px] px-6 bg-[#007A78] text-white hover:bg-[#006664] rounded-xl text-[15px] font-semibold shadow-sm">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add from Template
+                  </Button>
+                </Link>
+                <Link href={`/${orgSlug}/subscriptions/${provider}/add/custom`}>
+                  <Button variant="outline" className="h-[44px] px-6 border-[#007A78]/30 text-[#007A78] hover:bg-[#007A78]/5 rounded-xl" data-testid="add-custom-subscription-empty-btn">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Custom Subscription
+                  </Button>
+                </Link>
               </div>
             </div>
           ) : (
@@ -880,7 +541,7 @@ export default function ProviderDetailPage() {
                       </div>
                       <div className="col-span-2 text-right">
                         <div className="font-medium text-[#FF6E50]">
-                          {formatCurrency(plan.unit_price_usd)}
+                          {formatCurrency(plan.unit_price_usd, orgCurrency)}
                         </div>
                         {plan.pricing_model && (
                           <div className="text-xs text-slate-500">
@@ -897,33 +558,30 @@ export default function ProviderDetailPage() {
                         {plan.seats ?? 0}
                       </div>
                       <div className="col-span-2 text-right flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-[#FF6E50] hover:bg-[#FF6E50]/10"
-                          onClick={() => handleEditDialogOpenChange(true, plan)}
-                          title="Edit plan"
-                          aria-label="Edit plan"
-                          data-testid={`edit-plan-${plan.subscription_id}`}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-amber-600 hover:bg-amber-50"
-                          onClick={() => {
-                            setEndDate(new Date())
-                            setShowEndDialog({ open: true, plan })
-                          }}
-                          title="End subscription"
-                          aria-label="End subscription"
-                          data-testid={`end-plan-${plan.subscription_id}`}
-                        >
-                          <CalendarX className="h-4 w-4" />
-                        </Button>
+                        <Link href={`/${orgSlug}/subscriptions/${provider}/${plan.subscription_id}/edit`}>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-[#FF6E50] hover:bg-[#FF6E50]/10"
+                            title="Edit plan"
+                            aria-label="Edit plan"
+                            data-testid={`edit-plan-${plan.subscription_id}`}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        </Link>
+                        <Link href={`/${orgSlug}/subscriptions/${provider}/${plan.subscription_id}/end`}>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-amber-600 hover:bg-amber-50"
+                            title="End subscription"
+                            aria-label="End subscription"
+                            data-testid={`end-plan-${plan.subscription_id}`}
+                          >
+                            <CalendarX className="h-4 w-4" />
+                          </Button>
+                        </Link>
                       </div>
                     </div>
 
@@ -979,7 +637,7 @@ export default function ProviderDetailPage() {
                             <div>
                               <span className="text-slate-500 block text-xs uppercase tracking-wide mb-1">Discount</span>
                               <span className="font-medium text-green-600">
-                                {plan.discount_type === 'percent' ? `${plan.discount_value}%` : formatCurrency(plan.discount_value)}
+                                {plan.discount_type === 'percent' ? `${plan.discount_value}%` : formatCurrency(plan.discount_value, orgCurrency)}
                               </span>
                             </div>
                           )}
@@ -1009,538 +667,23 @@ export default function ProviderDetailPage() {
                   <p className="text-sm text-slate-600">
                     Don&apos;t see your subscription plan?
                   </p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleAddDialogOpenChange(true)}
-                    className="text-[#FF6E50] border-[#FF6E50]/30 hover:bg-[#FF6E50]/5 rounded-xl"
-                    data-testid="add-custom-subscription-footer-btn"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Custom Subscription
-                  </Button>
+                  <Link href={`/${orgSlug}/subscriptions/${provider}/add/custom`}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-[#FF6E50] border-[#FF6E50]/30 hover:bg-[#FF6E50]/5 rounded-xl"
+                      data-testid="add-custom-subscription-footer-btn"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Custom Subscription
+                    </Button>
+                  </Link>
                 </div>
               </div>
             </>
           )}
         </CardContent>
       </Card>
-
-      {/* Add Custom Subscription Dialog */}
-      <Dialog open={showAddDialog} onOpenChange={handleAddDialogOpenChange}>
-        <DialogContent key={showAddDialog ? 'add-dialog-open' : 'add-dialog-closed'}>
-          <DialogHeader>
-            <DialogTitle>Add Custom {providerDisplayName} Subscription</DialogTitle>
-            <DialogDescription>
-              Add a custom subscription plan for {providerDisplayName}.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="plan_name">Plan Name *</Label>
-              <Input
-                id="plan_name"
-                placeholder="e.g., Enterprise"
-                maxLength={50}
-                value={newPlan.plan_name}
-                onChange={(e) => setNewPlan({ ...newPlan, plan_name: e.target.value })}
-                disabled={adding}
-                data-testid="add-plan-name-input"
-              />
-              <p className="text-xs text-slate-500">
-                This will be converted to uppercase (e.g., ENTERPRISE). Max 50 characters.
-              </p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="display_name">Display Name (optional)</Label>
-              <Input
-                id="display_name"
-                placeholder="e.g., Enterprise Plan"
-                maxLength={100}
-                value={newPlan.display_name}
-                onChange={(e) => setNewPlan({ ...newPlan, display_name: e.target.value })}
-                disabled={adding}
-                data-testid="add-display-name-input"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="cost">Unit Price ($) *</Label>
-                <Input
-                  id="cost"
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  placeholder="0.00"
-                  value={newPlan.unit_price_usd === 0 ? "" : newPlan.unit_price_usd}
-                  onFocus={(e) => e.target.select()}
-                  onChange={(e) => {
-                    const parsed = parseFloat(e.target.value)
-                    setNewPlan({ ...newPlan, unit_price_usd: e.target.value === "" ? 0 : (isNaN(parsed) ? 0 : Math.max(0, parsed)) })
-                  }}
-                  disabled={adding}
-                  data-testid="add-price-input"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="billing">Billing Cycle</Label>
-                <Select
-                  value={newPlan.billing_cycle}
-                  onValueChange={(value) => setNewPlan({ ...newPlan, billing_cycle: value })}
-                  disabled={adding}
-                >
-                  <SelectTrigger id="billing" data-testid="add-billing-select">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="monthly">Monthly</SelectItem>
-                    <SelectItem value="annual">Annual</SelectItem>
-                    <SelectItem value="quarterly">Quarterly</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="pricing_model">Pricing Model</Label>
-                <Select
-                  key={`pricing-model-${newPlan.pricing_model}`}
-                  value={newPlan.pricing_model}
-                  onValueChange={(value) => setNewPlan({ ...newPlan, pricing_model: value as 'PER_SEAT' | 'FLAT_FEE' })}
-                  disabled={adding}
-                >
-                  <SelectTrigger id="pricing_model" data-testid="add-pricing-model-select">
-                    <SelectValue placeholder="Select pricing model" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="FLAT_FEE">Flat Fee</SelectItem>
-                    <SelectItem value="PER_SEAT">Per Seat</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="currency">Currency</Label>
-                <Select
-                  value={newPlan.currency}
-                  onValueChange={(value) => setNewPlan({ ...newPlan, currency: value })}
-                  disabled={adding}
-                >
-                  <SelectTrigger id="currency" data-testid="add-currency-select">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="USD">USD</SelectItem>
-                    <SelectItem value="EUR">EUR</SelectItem>
-                    <SelectItem value="GBP">GBP</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="seats">Seats</Label>
-              <Input
-                id="seats"
-                type="number"
-                min={0}
-                max={10000}
-                step="1"
-                placeholder="0"
-                value={newPlan.seats === 0 ? "" : newPlan.seats}
-                onFocus={(e) => e.target.select()}
-                onChange={(e) => {
-                  const parsed = parseInt(e.target.value, 10)
-                  const bounded = Math.min(10000, Math.max(0, isNaN(parsed) ? 0 : parsed))
-                  setNewPlan({ ...newPlan, seats: e.target.value === "" ? 0 : bounded })
-                }}
-                disabled={adding}
-                data-testid="add-seats-input"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Start Date *</Label>
-              <DatePicker
-                date={addStartDate}
-                onSelect={setAddStartDate}
-                placeholder="Select start date"
-                disabled={adding}
-                data-testid="add-start-date-picker"
-              />
-              <p className="text-xs text-slate-500">
-                When does this subscription start? Future dates will show as &quot;Pending&quot;.
-              </p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="notes">Notes (optional)</Label>
-              <Input
-                id="notes"
-                placeholder="e.g., Team subscription for design team"
-                maxLength={500}
-                value={newPlan.notes}
-                onChange={(e) => setNewPlan({ ...newPlan, notes: e.target.value })}
-                disabled={adding}
-                data-testid="add-notes-input"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => handleAddDialogOpenChange(false)} disabled={adding}>
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              onClick={handleAdd}
-              disabled={adding || !newPlan.plan_name.trim() || !addStartDate}
-              className="h-[36px] px-4 bg-[#FF6E50] text-white hover:bg-[#E55A3C] rounded-xl text-[15px] font-semibold disabled:bg-[#E5E5EA] disabled:text-[#C7C7CC]"
-              data-testid="add-subscription-submit-btn"
-            >
-              {adding ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Check className="h-4 w-4 mr-2" />}
-              Add Subscription
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Subscription Dialog */}
-      <Dialog
-        open={showEditDialog.open}
-        onOpenChange={(open) => handleEditDialogOpenChange(open, open ? showEditDialog.plan ?? undefined : undefined)}
-      >
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Edit {providerDisplayName} Subscription</DialogTitle>
-            <DialogDescription>
-              Changes will create a new version. Current plan ends day before effective date.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
-            {/* Current Plan Details (Read-only) */}
-            {showEditDialog.plan && (
-              <div className="bg-slate-50 rounded-lg p-4 space-y-2">
-                <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Current Plan Details</p>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                  <div>
-                    <span className="text-slate-500">Plan:</span>
-                    <span className="ml-2 font-medium">{showEditDialog.plan.display_name || showEditDialog.plan.plan_name}</span>
-                  </div>
-                  <div>
-                    <span className="text-slate-500">Status:</span>
-                    <Badge variant="outline" className="ml-2 capitalize text-xs">{showEditDialog.plan.status}</Badge>
-                  </div>
-                  {showEditDialog.plan.start_date && (
-                    <div>
-                      <span className="text-slate-500">Started:</span>
-                      <span className="ml-2">{format(new Date(showEditDialog.plan.start_date), 'MMM d, yyyy')}</span>
-                    </div>
-                  )}
-                  <div>
-                    <span className="text-slate-500">Price:</span>
-                    <span className="ml-2 font-medium text-[#FF6E50]">{formatCurrency(showEditDialog.plan.unit_price_usd)}/{showEditDialog.plan.billing_cycle}</span>
-                  </div>
-                  <div>
-                    <span className="text-slate-500">Seats:</span>
-                    <span className="ml-2">{showEditDialog.plan.seats ?? 0}</span>
-                  </div>
-                  <div>
-                    <span className="text-slate-500">Monthly Cost:</span>
-                    <span className="ml-2 font-medium">{(() => {
-                      const plan = showEditDialog.plan
-                      let monthlyCost = plan.unit_price_usd * (plan.seats ?? 1)
-                      if (plan.pricing_model === 'FLAT_FEE') monthlyCost = plan.unit_price_usd
-                      if (plan.billing_cycle === 'annual') monthlyCost = monthlyCost / 12
-                      if (plan.billing_cycle === 'quarterly') monthlyCost = monthlyCost / 3
-                      return formatCurrency(monthlyCost)
-                    })()}</span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Effective Date */}
-            <div className="space-y-2 pt-2 border-t">
-              <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Changes (creates new version)</p>
-              <Label>Effective Date *</Label>
-              <DatePicker
-                date={editEffectiveDate}
-                onSelect={setEditEffectiveDate}
-                placeholder="Select effective date"
-                minDate={new Date()}
-                disabled={editing}
-                data-testid="edit-effective-date-picker"
-              />
-              <p className="text-xs text-slate-500">
-                Current plan ends {editEffectiveDate ? format(new Date(editEffectiveDate.getTime() - 86400000), 'MMM d, yyyy') : 'day before effective date'}. New plan starts on effective date.
-              </p>
-            </div>
-
-            {/* Editable Fields */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit_cost">New Price ($)</Label>
-                <Input
-                  id="edit_cost"
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  placeholder="0.00"
-                  value={editPlanData.unit_price_usd === 0 ? "" : editPlanData.unit_price_usd}
-                  onFocus={(e) => e.target.select()}
-                  onChange={(e) => {
-                    const parsed = parseFloat(e.target.value)
-                    setEditPlanData({ ...editPlanData, unit_price_usd: e.target.value === "" ? 0 : (isNaN(parsed) ? 0 : Math.max(0, parsed)) })
-                  }}
-                  disabled={editing}
-                  data-testid="edit-price-input"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit_seats">New Seats</Label>
-                <Input
-                  id="edit_seats"
-                  type="number"
-                  min={0}
-                  max={10000}
-                  step="1"
-                  placeholder="0"
-                  value={editPlanData.seats === 0 ? "" : editPlanData.seats}
-                  onFocus={(e) => e.target.select()}
-                  onChange={(e) => {
-                    const parsed = parseInt(e.target.value, 10)
-                    const bounded = Math.min(10000, Math.max(0, isNaN(parsed) ? 0 : parsed))
-                    setEditPlanData({ ...editPlanData, seats: e.target.value === "" ? 0 : bounded })
-                  }}
-                  disabled={editing}
-                  data-testid="edit-seats-input"
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit_billing">Billing Cycle</Label>
-                <Select
-                  value={editPlanData.billing_cycle}
-                  onValueChange={(value) => setEditPlanData({ ...editPlanData, billing_cycle: value })}
-                  disabled={editing}
-                >
-                  <SelectTrigger id="edit_billing" data-testid="edit-billing-select">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="monthly">Monthly</SelectItem>
-                    <SelectItem value="annual">Annual</SelectItem>
-                    <SelectItem value="quarterly">Quarterly</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit_pricing_model">Pricing Model</Label>
-                <Select
-                  key={`edit-pricing-model-${editPlanData.pricing_model}`}
-                  value={editPlanData.pricing_model}
-                  onValueChange={(value) => setEditPlanData({ ...editPlanData, pricing_model: value as 'PER_SEAT' | 'FLAT_FEE' })}
-                  disabled={editing}
-                >
-                  <SelectTrigger id="edit_pricing_model" data-testid="edit-pricing-model-select">
-                    <SelectValue placeholder="Select pricing model" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="FLAT_FEE">Flat Fee</SelectItem>
-                    <SelectItem value="PER_SEAT">Per Seat</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit_notes">Notes (optional)</Label>
-              <Input
-                id="edit_notes"
-                placeholder="e.g., Team subscription for design team"
-                maxLength={500}
-                value={editPlanData.notes}
-                onChange={(e) => setEditPlanData({ ...editPlanData, notes: e.target.value })}
-                disabled={editing}
-                data-testid="edit-notes-input"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => handleEditDialogOpenChange(false)} disabled={editing}>
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              onClick={handleEdit}
-              disabled={editing || !editEffectiveDate}
-              className="h-[36px] px-4 bg-[#FF6E50] text-white hover:bg-[#E55A3C] rounded-xl text-[15px] font-semibold disabled:bg-[#E5E5EA] disabled:text-[#C7C7CC]"
-              data-testid="edit-subscription-submit-btn"
-            >
-              {editing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Check className="h-4 w-4 mr-2" />}
-              Update Subscription
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* End Subscription Dialog */}
-      <Dialog
-        open={showEndDialog.open}
-        onOpenChange={(open) => setShowEndDialog({ open, plan: open ? showEndDialog.plan : null })}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>End Subscription</DialogTitle>
-            <DialogDescription>
-              Set an end date for this subscription. Costs will stop being calculated after this date.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            {/* Subscription Details (Read-only) */}
-            {showEndDialog.plan && (
-              <div className="bg-slate-50 rounded-lg p-4 space-y-2">
-                <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Subscription Details</p>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                  <div>
-                    <span className="text-slate-500">Plan:</span>
-                    <span className="ml-2 font-medium">{showEndDialog.plan.display_name || showEndDialog.plan.plan_name}</span>
-                  </div>
-                  <div>
-                    <span className="text-slate-500">Status:</span>
-                    <Badge variant="outline" className="ml-2 capitalize text-xs">{showEndDialog.plan.status}</Badge>
-                  </div>
-                  {showEndDialog.plan.start_date && (
-                    <div>
-                      <span className="text-slate-500">Started:</span>
-                      <span className="ml-2">{format(new Date(showEndDialog.plan.start_date), 'MMM d, yyyy')}</span>
-                    </div>
-                  )}
-                  <div>
-                    <span className="text-slate-500">Monthly Cost:</span>
-                    <span className="ml-2 font-medium">{(() => {
-                      const plan = showEndDialog.plan
-                      let monthlyCost = plan.unit_price_usd * (plan.seats ?? 1)
-                      if (plan.pricing_model === 'FLAT_FEE') monthlyCost = plan.unit_price_usd
-                      if (plan.billing_cycle === 'annual') monthlyCost = monthlyCost / 12
-                      if (plan.billing_cycle === 'quarterly') monthlyCost = monthlyCost / 3
-                      return formatCurrency(monthlyCost)
-                    })()}</span>
-                  </div>
-                  <div>
-                    <span className="text-slate-500">Seats:</span>
-                    <span className="ml-2">{showEndDialog.plan.seats ?? 0}</span>
-                  </div>
-                  {showEndDialog.plan.owner_email && (
-                    <div>
-                      <span className="text-slate-500">Owner:</span>
-                      <span className="ml-2">{showEndDialog.plan.owner_email}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* End Date Selection */}
-            <div className="space-y-2 pt-2 border-t">
-              <Label>When should this subscription end? *</Label>
-              <DatePicker
-                date={endDate}
-                onSelect={setEndDate}
-                placeholder="Select end date"
-                disabled={ending}
-                data-testid="end-date-picker"
-              />
-              <p className="text-xs text-slate-500">
-                Costs will stop being calculated after this date.
-              </p>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setShowEndDialog({ open: false, plan: null })} disabled={ending}>
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={handleEndSubscription}
-              disabled={ending || !endDate}
-              data-testid="end-subscription-submit-btn"
-            >
-              {ending ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <CalendarX className="h-4 w-4 mr-2" />
-              )}
-              End Subscription
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Add from Template Dialog */}
-      <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Choose a Plan Template</DialogTitle>
-            <DialogDescription>
-              Select a predefined plan for {providerDisplayName}. You can customize seats and dates in the next step.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            {loadingTemplates ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin text-[#007A78]" />
-              </div>
-            ) : availablePlans.length === 0 ? (
-              <div className="text-center py-8">
-                <div className="inline-flex p-4 rounded-2xl bg-[#8E8E93]/10 mb-4">
-                  <CreditCard className="h-12 w-12 text-[#8E8E93]" />
-                </div>
-                <h3 className="text-[17px] font-semibold text-black mb-2">No templates available</h3>
-                <p className="text-[15px] text-[#8E8E93] mb-6">
-                  {error ?
-                    `Provider "${provider}" may not be supported yet. ` :
-                    "No predefined templates found for this provider. "
-                  }
-                  You can create a custom subscription plan instead.
-                </p>
-                <Button onClick={() => { setShowTemplateDialog(false); handleAddDialogOpenChange(true) }} className="h-[44px] px-6 bg-[#007A78] text-white hover:bg-[#006664] rounded-xl text-[15px] font-semibold shadow-sm">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Custom Plan
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-3 max-h-[400px] overflow-y-auto">
-                {availablePlans.map((plan, index) => (
-                  <button
-                    key={`${plan.plan_name}-${index}`}
-                    onClick={() => handleSelectTemplate(plan)}
-                    className="w-full text-left p-4 rounded-lg border border-slate-200 hover:border-[#FF6E50] hover:bg-[#FFF5F3] transition-colors"
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-semibold text-slate-900">{plan.display_name || plan.plan_name}</h4>
-                        <Badge variant="outline" className="capitalize text-xs">{plan.billing_cycle}</Badge>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-lg font-bold text-[#FF6E50]">{formatCurrency(plan.unit_price_usd)}</div>
-                        <div className="text-xs text-slate-500">
-                          {plan.pricing_model === 'PER_SEAT' ? '/seat' : 'flat fee'}
-                        </div>
-                      </div>
-                    </div>
-                    {plan.notes && (
-                      <p className="text-sm text-slate-600">{plan.notes}</p>
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setShowTemplateDialog(false)}>
-              Cancel
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

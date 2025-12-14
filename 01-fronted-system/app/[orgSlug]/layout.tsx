@@ -49,7 +49,7 @@ export default async function OrgLayout({
       }
     }
     // No existing org - redirect to onboarding
-    redirect("/onboarding/organization")
+    redirect("/onboarding/billing")
   }
 
   const { data: membership } = await supabase

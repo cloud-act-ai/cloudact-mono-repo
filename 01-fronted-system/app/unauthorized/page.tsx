@@ -59,7 +59,7 @@ export default async function UnauthorizedPage() {
                 </Button>
               ) : (
                 <Button asChild>
-                  <Link href="/onboarding/organization">Create Organization</Link>
+                  <Link href="/onboarding/billing">Create Organization</Link>
                 </Button>
               )}
               <Button asChild variant="outline">

@@ -70,7 +70,7 @@ export default function ResetPasswordPage() {
       }
 
       // No org found, go to onboarding
-      router.push("/onboarding/organization")
+      router.push("/onboarding/billing")
     } catch (err: unknown) {
       // Use generic error message for security
       console.error("[Auth] Reset password error:", err instanceof Error ? err.message : "Unknown error")

@@ -215,6 +215,51 @@ COMMENT ON POLICY "Owners can update organizations" ON organizations
 COMMENT ON POLICY "Admins can update members" ON organization_members
     IS 'Admins can update members but cannot move them to different orgs';
 
+-- ================================================
+-- FIX: organization_members SELECT policy
+-- ================================================
+-- Issue: Current policy only allows reading if already a member (circular)
+-- Fix: Allow users to also read their OWN membership rows directly
+-- This enables the billing page to find a user's org after account creation
+
+-- Drop ALL existing SELECT policies to prevent conflicts
+DROP POLICY IF EXISTS "org_members_select_member" ON organization_members;
+DROP POLICY IF EXISTS "Users can view organization members" ON organization_members;
+
+-- Create a single, correct SELECT policy
+CREATE POLICY "org_members_select_member"
+ON organization_members FOR SELECT
+TO authenticated
+USING (
+    user_is_org_member(org_id)
+    OR user_id = auth.uid()  -- Users can always read their own membership
+);
+
+COMMENT ON POLICY "org_members_select_member" ON organization_members
+    IS 'Members can view org members, users can always read their own membership';
+
+-- ================================================
+-- FIX: organizations SELECT policy
+-- ================================================
+-- Issue: organizations SELECT also uses user_is_org_member which can be circular
+-- Fix: Allow creators to read their own organizations directly
+
+-- Drop ALL existing SELECT policies to prevent conflicts
+DROP POLICY IF EXISTS "organizations_select_member" ON organizations;
+DROP POLICY IF EXISTS "Users can view their organizations" ON organizations;
+
+-- Create a single, correct SELECT policy
+CREATE POLICY "organizations_select_member"
+ON organizations FOR SELECT
+TO authenticated
+USING (
+    user_is_org_member(id)
+    OR created_by = auth.uid()  -- Creators can always read their own orgs
+);
+
+COMMENT ON POLICY "organizations_select_member" ON organizations
+    IS 'Members can view orgs, creators can always read their own orgs';
+
 COMMENT ON POLICY "Admins can update invites" ON invites
     IS 'Admins can update invites but cannot transfer them to different orgs';
 

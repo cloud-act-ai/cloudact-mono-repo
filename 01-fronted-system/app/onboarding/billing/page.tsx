@@ -10,6 +10,7 @@ import { getStripePlans, createOnboardingCheckoutSession, type DynamicPlan } fro
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { cn } from "@/lib/utils"
 import { DEFAULT_TRIAL_DAYS } from "@/lib/constants"
+import { formatCurrency } from "@/lib/i18n"
 
 export default function BillingPage() {
   const router = useRouter()
@@ -34,16 +35,20 @@ export default function BillingPage() {
         }
 
         // Check if user already has an organization
-        const { data: memberships } = await supabase
+        const { data: memberships, error: membershipError } = await supabase
           .from("organization_members")
           .select("org_id, organizations(org_slug)")
           .eq("user_id", user.id)
           .eq("status", "active")
           .limit(1)
 
+        console.log("[v0] Billing page - user:", user.id, "email:", user.email)
+        console.log("[v0] Billing page - memberships query result:", memberships, "error:", membershipError)
+
         if (memberships && memberships.length > 0) {
           // User already has an org, redirect to dashboard
           const org = memberships[0].organizations as unknown as { org_slug: string }
+          console.log("[v0] Billing page - found org:", org)
           if (org?.org_slug) {
             console.log("[v0] User already has org, redirecting to dashboard:", org.org_slug)
             router.push(`/${org.org_slug}/dashboard`)
@@ -53,6 +58,7 @@ export default function BillingPage() {
 
         // Check for pending company info from signup
         const pendingCompanyName = user.user_metadata?.pending_company_name
+        console.log("[v0] Billing page - pending_company_name:", pendingCompanyName)
         if (!pendingCompanyName) {
           console.warn("[v0] No pending company name in user metadata, redirecting to signup")
           router.push("/signup")
@@ -227,7 +233,7 @@ export default function BillingPage() {
                   </div>
 
                   <div className="flex items-baseline mb-3">
-                    <span className="text-3xl font-bold text-gray-900">${plan.price}</span>
+                    <span className="text-3xl font-bold text-gray-900">{formatCurrency(plan.price, plan.currency)}</span>
                     <span className="text-xs text-gray-600 ml-1">/{plan.interval}</span>
                   </div>
 

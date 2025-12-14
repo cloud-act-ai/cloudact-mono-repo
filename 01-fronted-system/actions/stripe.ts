@@ -86,6 +86,7 @@ export interface BillingInfo {
       id: string
       name: string
       price: number
+      currency: string
       interval: string
     }
   } | null
@@ -537,6 +538,7 @@ export async function getBillingInfo(orgSlug: string): Promise<{ data: BillingIn
             : org.plan,
           name: productData ? productData.name : org.plan.charAt(0).toUpperCase() + org.plan.slice(1),
           price: (priceItem?.unit_amount || 0) / 100,
+          currency: priceItem?.currency?.toUpperCase() || "USD",
           interval: priceItem?.recurring?.interval || "month",
         }
 
@@ -557,6 +559,7 @@ export async function getBillingInfo(orgSlug: string): Promise<{ data: BillingIn
             id: plan.id,
             name: plan.name,
             price: plan.price,
+            currency: plan.currency,
             interval: plan.interval,
           },
         }
@@ -1029,6 +1032,7 @@ export interface DynamicPlan {
   description: string
   priceId: string
   price: number
+  currency: string
   interval: "month" | "year"
   features: string[]
   limits: {
@@ -1121,6 +1125,7 @@ export async function getStripePlans(): Promise<{ data: DynamicPlan[] | null; er
         description: stripeProduct.description || "",
         priceId: price.id,
         price: (price.unit_amount || 0) / 100, // Convert from cents
+        currency: price.currency.toUpperCase(), // Get currency from Stripe price
         interval: price.recurring?.interval === "year" ? "year" : "month",
         features,
         limits,

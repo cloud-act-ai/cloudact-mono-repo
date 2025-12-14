@@ -43,13 +43,13 @@ export async function GET(request: Request) {
         if (membershipError) {
           console.error("[Auth Callback] Membership query failed:", membershipError.message)
           // Still redirect to onboarding on error - user can recover from there
-          redirectPath = "/onboarding/organization"
+          redirectPath = "/onboarding/billing"
         } else if (membership?.organizations) {
           const orgSlug = (membership.organizations as { org_slug: string })?.org_slug
-          redirectPath = orgSlug ? `/${orgSlug}/dashboard` : "/onboarding/organization"
+          redirectPath = orgSlug ? `/${orgSlug}/dashboard` : "/onboarding/billing"
         } else {
           // No org found, redirect to onboarding
-          redirectPath = "/onboarding/organization"
+          redirectPath = "/onboarding/billing"
         }
       } else {
         redirectPath = "/"

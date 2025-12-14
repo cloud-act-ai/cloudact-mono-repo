@@ -55,5 +55,5 @@ export async function GET(request: NextRequest) {
 
   // No org found, redirect to onboarding
   console.log("[v0] No org found, redirecting to onboarding")
-  return NextResponse.redirect(new URL("/onboarding/organization", request.url))
+  return NextResponse.redirect(new URL("/onboarding/billing", request.url))
 }

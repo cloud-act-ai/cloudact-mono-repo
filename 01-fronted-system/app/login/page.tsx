@@ -74,6 +74,7 @@ function LoginForm() {
 
       // Otherwise, check if user has an organization
       // Use maybeSingle() to handle 0 or 1 rows gracefully
+      console.log("[Auth] Checking org membership for user:", authData.user.id)
       const { data: orgData, error: orgError } = await supabase
         .from("organization_members")
         .select(`org_id, organizations!inner(org_slug)`)
@@ -82,15 +83,19 @@ function LoginForm() {
         .limit(1)
         .maybeSingle()
 
+      console.log("[Auth] Org membership result:", orgData, "error:", orgError?.message)
+
       if (orgError) {
         console.error("[Auth] Failed to fetch organization membership:", orgError.message)
       }
 
       if (orgData?.organizations) {
         const org = orgData.organizations as { org_slug: string }
+        console.log("[Auth] Found org, redirecting to dashboard:", org.org_slug)
         window.location.href = `/${org.org_slug}/dashboard`
       } else {
-        window.location.href = "/onboarding/organization"
+        console.log("[Auth] No org found, redirecting to billing")
+        window.location.href = "/onboarding/billing"
       }
     } catch (err: unknown) {
       // Use generic error message to prevent account enumeration attacks

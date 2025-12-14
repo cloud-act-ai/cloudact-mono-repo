@@ -1,0 +1,561 @@
+"use client"
+
+/**
+ * Add Custom Subscription Page
+ *
+ * Standalone page for adding a custom subscription plan.
+ * Supports template pre-fill via ?template= query param.
+ */
+
+import { useEffect, useState } from "react"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
+import Link from "next/link"
+import { toast } from "sonner"
+import {
+  ArrowLeft,
+  ChevronRight,
+  Check,
+  Loader2,
+} from "lucide-react"
+import { format } from "date-fns"
+
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { DatePicker } from "@/components/ui/date-picker"
+
+import {
+  createCustomPlan,
+  type PlanCreate,
+} from "@/actions/subscription-providers"
+import { getOrgLocale } from "@/actions/organization-locale"
+import { formatCurrency, SUPPORTED_CURRENCIES } from "@/lib/i18n"
+
+// Provider display names
+const PROVIDER_DISPLAY_NAMES: Record<string, string> = {
+  chatgpt_plus: "ChatGPT Plus",
+  claude_pro: "Claude Pro",
+  gemini_advanced: "Gemini Advanced",
+  copilot: "GitHub Copilot",
+  cursor: "Cursor",
+  windsurf: "Windsurf",
+  replit: "Replit",
+  v0: "v0",
+  lovable: "Lovable",
+  canva: "Canva",
+  adobe_cc: "Adobe Creative Cloud",
+  figma: "Figma",
+  miro: "Miro",
+  notion: "Notion",
+  confluence: "Confluence",
+  asana: "Asana",
+  monday: "Monday.com",
+  slack: "Slack",
+  zoom: "Zoom",
+  teams: "Microsoft Teams",
+  github: "GitHub",
+  gitlab: "GitLab",
+  jira: "Jira",
+  linear: "Linear",
+  vercel: "Vercel",
+  netlify: "Netlify",
+  railway: "Railway",
+  supabase: "Supabase",
+}
+
+function getProviderDisplayName(provider: string): string {
+  return PROVIDER_DISPLAY_NAMES[provider] || provider.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())
+}
+
+export default function AddCustomSubscriptionPage() {
+  const params = useParams<{ orgSlug: string; provider: string }>()
+  const { orgSlug, provider } = params
+  const router = useRouter()
+  const searchParams = useSearchParams()
+
+  // Validate params
+  const isValidParams = orgSlug && provider && typeof orgSlug === "string" && typeof provider === "string"
+
+  // State
+  const [orgCurrency, setOrgCurrency] = useState<string>("USD")
+  const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [startDate, setStartDate] = useState<Date | undefined>(new Date())
+
+  // Form state
+  const [formData, setFormData] = useState<PlanCreate>({
+    plan_name: "",
+    display_name: "",
+    unit_price_usd: 0,
+    seats: 1,
+    billing_cycle: "monthly",
+    pricing_model: "FLAT_FEE",
+    currency: "USD",
+    notes: "",
+  })
+
+  // Fetch org currency on mount
+  useEffect(() => {
+    async function loadOrgCurrency() {
+      if (!isValidParams) {
+        setError("Invalid page parameters")
+        setLoading(false)
+        return
+      }
+
+      try {
+        const result = await getOrgLocale(orgSlug)
+        if (result.success && result.locale) {
+          const currency = result.locale.default_currency || "USD"
+          setOrgCurrency(currency)
+          setFormData(prev => ({ ...prev, currency }))
+        }
+      } catch (err) {
+        console.error("Failed to load org currency:", err)
+        // Default to USD on error
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadOrgCurrency()
+  }, [orgSlug, isValidParams])
+
+  // Pre-fill form from template query param
+  useEffect(() => {
+    const templateParam = searchParams.get("template")
+    if (templateParam) {
+      try {
+        const template = JSON.parse(decodeURIComponent(templateParam))
+        setFormData({
+          plan_name: template.plan_name || "",
+          display_name: template.display_name || template.plan_name || "",
+          unit_price_usd: template.unit_price_usd || 0,
+          seats: template.seats || 1,
+          billing_cycle: template.billing_cycle || "monthly",
+          pricing_model: template.pricing_model || "FLAT_FEE",
+          currency: orgCurrency, // Use org currency, not template
+          notes: template.notes || "",
+        })
+      } catch (err) {
+        console.error("Failed to parse template data:", err)
+        toast.error("Failed to load template data")
+      }
+    }
+  }, [searchParams, orgCurrency])
+
+  const providerDisplayName = getProviderDisplayName(provider)
+
+  // Handle form submission
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!formData.plan_name.trim()) {
+      setError("Plan name is required")
+      return
+    }
+
+    if (!startDate) {
+      setError("Start date is required")
+      return
+    }
+
+    // Validate inputs
+    if (formData.unit_price_usd < 0) {
+      setError("Price cannot be negative")
+      return
+    }
+    if ((formData.seats ?? 0) < 0) {
+      setError("Seats cannot be negative")
+      return
+    }
+    // Validate seats for PER_SEAT plans
+    if (formData.pricing_model === 'PER_SEAT' && (formData.seats ?? 0) < 1) {
+      setError("Per-seat plans require at least 1 seat")
+      return
+    }
+    // Validate upper bound for seats
+    if ((formData.seats ?? 0) > 10000) {
+      setError("Seats cannot exceed 10,000")
+      return
+    }
+
+    setSubmitting(true)
+    setError(null)
+
+    try {
+      const startDateStr = format(startDate, "yyyy-MM-dd")
+      const result = await createCustomPlan(orgSlug, provider, {
+        plan_name: formData.plan_name.toUpperCase().replace(/\s+/g, "_"),
+        display_name: formData.display_name || formData.plan_name,
+        unit_price_usd: formData.unit_price_usd,
+        seats: formData.seats,
+        billing_cycle: formData.billing_cycle,
+        pricing_model: formData.pricing_model,
+        currency: formData.currency,
+        notes: formData.notes,
+        start_date: startDateStr,
+      })
+
+      if (!result.success) {
+        setError(result.error || "Failed to create subscription")
+        toast.error(result.error || "Failed to create subscription")
+        return
+      }
+
+      // Verify API returned the created plan
+      if (!result.plan || !result.plan.subscription_id) {
+        toast.warning(
+          "Subscription may not have been saved correctly. Please check the provider page.",
+          { duration: 8000 }
+        )
+      } else {
+        toast.success("Subscription added successfully")
+      }
+
+      // Redirect to success page
+      const planName = formData.plan_name.toUpperCase().replace(/\s+/g, "_")
+      router.push(`/${orgSlug}/subscriptions/${provider}/success?action=created&plan=${planName}`)
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "An unexpected error occurred"
+      setError(errorMessage)
+      toast.error(errorMessage)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="p-6 space-y-6">
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-[#007A78]" />
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="p-6 space-y-6 max-w-3xl mx-auto">
+      {/* Breadcrumb Navigation */}
+      <nav className="flex items-center gap-2 text-sm" aria-label="Breadcrumb">
+        <Link
+          href={`/${orgSlug}/settings/integrations/subscriptions`}
+          className="text-[#007A78] hover:text-[#005F5D] transition-colors focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2 rounded truncate max-w-[200px]"
+          title="Subscriptions"
+        >
+          Subscriptions
+        </Link>
+        <ChevronRight className="h-4 w-4 text-[#8E8E93] flex-shrink-0" aria-hidden="true" />
+        <Link
+          href={`/${orgSlug}/subscriptions/${provider}`}
+          className="text-[#007A78] hover:text-[#005F5D] transition-colors focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2 rounded truncate max-w-[200px]"
+          title={providerDisplayName}
+        >
+          {providerDisplayName}
+        </Link>
+        <ChevronRight className="h-4 w-4 text-[#8E8E93] flex-shrink-0" aria-hidden="true" />
+        <span className="text-gray-600 truncate max-w-[200px]" title="Add Subscription">Add Subscription</span>
+        <ChevronRight className="h-4 w-4 text-[#8E8E93] flex-shrink-0" aria-hidden="true" />
+        <span className="text-gray-900 font-medium truncate max-w-[300px]" title="Custom">Custom</span>
+      </nav>
+
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <Link href={`/${orgSlug}/subscriptions/${provider}`}>
+          <Button variant="ghost" size="icon" className="h-8 w-8">
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+        </Link>
+        <div>
+          <h1 className="console-page-title">Add Custom {providerDisplayName} Subscription</h1>
+          <p className="console-subheading">
+            Create a custom subscription plan for {providerDisplayName}
+          </p>
+        </div>
+      </div>
+
+      {/* Error Message */}
+      {error && (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="pt-6">
+            <p className="text-sm text-red-600">{error}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Form */}
+      <form onSubmit={handleSubmit}>
+        <Card>
+          <CardHeader>
+            <CardTitle>Subscription Details</CardTitle>
+            <CardDescription>
+              Enter the details for your custom {providerDisplayName} subscription plan.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Plan Name */}
+            <div className="space-y-2">
+              <Label htmlFor="plan_name">Plan Name *</Label>
+              <Input
+                id="plan_name"
+                placeholder="e.g., Enterprise"
+                maxLength={50}
+                value={formData.plan_name}
+                onChange={(e) => setFormData({ ...formData, plan_name: e.target.value })}
+                disabled={submitting}
+                required
+              />
+              <p className="text-xs text-slate-500">
+                This will be converted to uppercase (e.g., ENTERPRISE). Max 50 characters.
+              </p>
+            </div>
+
+            {/* Display Name */}
+            <div className="space-y-2">
+              <Label htmlFor="display_name">Display Name (optional)</Label>
+              <Input
+                id="display_name"
+                placeholder="e.g., Enterprise Plan"
+                maxLength={100}
+                value={formData.display_name}
+                onChange={(e) => setFormData({ ...formData, display_name: e.target.value })}
+                disabled={submitting}
+              />
+            </div>
+
+            {/* Price and Billing Cycle */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="unit_price">Unit Price *</Label>
+                <div className="relative">
+                  <Input
+                    id="unit_price"
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    placeholder="0.00"
+                    value={formData.unit_price_usd === 0 ? "" : formData.unit_price_usd}
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => {
+                      const parsed = parseFloat(e.target.value)
+                      setFormData({
+                        ...formData,
+                        unit_price_usd: e.target.value === "" ? 0 : (isNaN(parsed) ? 0 : Math.max(0, parsed))
+                      })
+                    }}
+                    disabled={submitting}
+                    required
+                    className="pl-8"
+                  />
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">
+                    {SUPPORTED_CURRENCIES.find(c => c.code === formData.currency)?.symbol || "$"}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500">
+                  Price in {formData.currency}
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="billing_cycle">Billing Cycle *</Label>
+                <Select
+                  value={formData.billing_cycle}
+                  onValueChange={(value) => setFormData({ ...formData, billing_cycle: value })}
+                  disabled={submitting}
+                  required
+                >
+                  <SelectTrigger id="billing_cycle">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                    <SelectItem value="annual">Annual</SelectItem>
+                    <SelectItem value="quarterly">Quarterly</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Pricing Model and Currency */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="pricing_model">Pricing Model *</Label>
+                <Select
+                  value={formData.pricing_model}
+                  onValueChange={(value) => setFormData({ ...formData, pricing_model: value as 'PER_SEAT' | 'FLAT_FEE' })}
+                  disabled={submitting}
+                  required
+                >
+                  <SelectTrigger id="pricing_model">
+                    <SelectValue placeholder="Select pricing model" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="FLAT_FEE">Flat Fee</SelectItem>
+                    <SelectItem value="PER_SEAT">Per Seat</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="currency">Currency *</Label>
+                <Select
+                  value={formData.currency}
+                  onValueChange={(value) => setFormData({ ...formData, currency: value })}
+                  disabled={submitting}
+                  required
+                >
+                  <SelectTrigger id="currency">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SUPPORTED_CURRENCIES.map((currency) => (
+                      <SelectItem key={currency.code} value={currency.code}>
+                        {currency.code} - {currency.name} ({currency.symbol})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-slate-500">
+                  Default: {orgCurrency} (org currency)
+                </p>
+              </div>
+            </div>
+
+            {/* Seats */}
+            <div className="space-y-2">
+              <Label htmlFor="seats">Seats *</Label>
+              <Input
+                id="seats"
+                type="number"
+                min={0}
+                max={10000}
+                step="1"
+                placeholder="0"
+                value={formData.seats === 0 ? "" : formData.seats}
+                onFocus={(e) => e.target.select()}
+                onChange={(e) => {
+                  const parsed = parseInt(e.target.value, 10)
+                  const bounded = Math.min(10000, Math.max(0, isNaN(parsed) ? 0 : parsed))
+                  setFormData({ ...formData, seats: e.target.value === "" ? 0 : bounded })
+                }}
+                disabled={submitting}
+                required
+              />
+              <p className="text-xs text-slate-500">
+                {formData.pricing_model === 'PER_SEAT'
+                  ? 'Number of seats for this subscription (minimum 1 for per-seat plans)'
+                  : 'Number of seats for tracking purposes'}
+              </p>
+            </div>
+
+            {/* Start Date */}
+            <div className="space-y-2">
+              <Label>Start Date *</Label>
+              <DatePicker
+                date={startDate}
+                onSelect={setStartDate}
+                placeholder="Select start date"
+                disabled={submitting}
+              />
+              <p className="text-xs text-slate-500">
+                When does this subscription start? Future dates will show as &quot;Pending&quot;.
+              </p>
+            </div>
+
+            {/* Notes */}
+            <div className="space-y-2">
+              <Label htmlFor="notes">Notes (optional)</Label>
+              <Input
+                id="notes"
+                placeholder="e.g., Team subscription for design team"
+                maxLength={500}
+                value={formData.notes}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                disabled={submitting}
+              />
+            </div>
+
+            {/* Cost Preview */}
+            {formData.unit_price_usd > 0 && (
+              <Card className="bg-slate-50 border-slate-200">
+                <CardContent className="pt-6">
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-slate-700">Cost Preview</p>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="text-slate-500">Total Cost:</span>
+                        <span className="ml-2 font-semibold text-[#FF6E50]">
+                          {(() => {
+                            let totalCost = formData.unit_price_usd
+                            if (formData.pricing_model === 'PER_SEAT') {
+                              totalCost = formData.unit_price_usd * (formData.seats || 1)
+                            }
+                            return formatCurrency(totalCost, formData.currency)
+                          })()}
+                          /{formData.billing_cycle}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500">Monthly Rate:</span>
+                        <span className="ml-2 font-semibold">
+                          {(() => {
+                            let totalCost = formData.unit_price_usd
+                            if (formData.pricing_model === 'PER_SEAT') {
+                              totalCost = formData.unit_price_usd * (formData.seats || 1)
+                            }
+                            let monthlyCost = totalCost
+                            if (formData.billing_cycle === 'annual') monthlyCost = totalCost / 12
+                            if (formData.billing_cycle === 'quarterly') monthlyCost = totalCost / 3
+                            return formatCurrency(monthlyCost, formData.currency)
+                          })()}
+                          /month
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Actions */}
+        <div className="flex items-center justify-end gap-3 mt-6">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => router.push(`/${orgSlug}/subscriptions/${provider}`)}
+            disabled={submitting}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            disabled={submitting || !formData.plan_name.trim() || !startDate}
+            className="h-[36px] px-4 bg-[#FF6E50] text-white hover:bg-[#E55A3C] rounded-xl text-[15px] font-semibold disabled:bg-[#E5E5EA] disabled:text-[#C7C7CC]"
+          >
+            {submitting ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Creating...
+              </>
+            ) : (
+              <>
+                <Check className="h-4 w-4 mr-2" />
+                Add Subscription
+              </>
+            )}
+          </Button>
+        </div>
+      </form>
+    </div>
+  )
+}

@@ -14,16 +14,19 @@ Next.js 16 frontend with Supabase auth and Stripe payments. Port 3000. Connects 
 ```
 User Signup
     ↓
-/signup → Email, password, company info (stored in user_metadata)
+/signup → Email, password, company info, currency, timezone
+         (stored in user_metadata: pending_company_name, pending_currency, etc.)
     ↓
-/onboarding/billing → Select Stripe plan (pricing table)
+/onboarding/billing → Select Stripe plan → Redirects to Stripe Checkout
     ↓
-Stripe Checkout → Payment/trial setup
+Stripe Checkout → Payment/trial setup (metadata from user_metadata passed here)
     ↓
-/onboarding/success → Creates org + backend onboarding + API key
+/onboarding/success → Creates org + applies locale + backend onboarding + API key
     ↓
 /{orgSlug}/dashboard → Welcome to app
 ```
+
+**Important:** The onboarding flow MUST go through Stripe Checkout. All company/locale info is collected at `/signup` and stored in `user_metadata`, then applied to the organization after successful Stripe checkout in `/onboarding/success`.
 
 ### Service Integration
 
@@ -408,6 +411,36 @@ subscriptions.map(sub => ({
 
 ### Best Practices
 
+**Currency Display:**
+1. **Never hardcode `$` symbol** - Always use `formatCurrency(amount, currency)` from `@/lib/i18n`
+2. **Get currency from Stripe** - Stripe prices have a `currency` field; use `plan.currency` or `subscription.plan.currency`
+3. **Org locale vs Stripe currency** - These are different:
+   - `org.locale_currency` = User's preference for internal cost display (INR, EUR, etc.)
+   - `plan.currency` = What Stripe actually charges (from the Stripe Price object)
+4. **Stripe Checkout shows Stripe's currency** - User's locale preference doesn't change Stripe's display; Stripe uses the Price's currency
+
+**Data Types:**
+```typescript
+// DynamicPlan includes currency from Stripe
+interface DynamicPlan {
+  price: number
+  currency: string  // e.g., "USD", "EUR" - from Stripe Price
+  // ...
+}
+
+// BillingInfo subscription also has currency
+interface BillingInfo {
+  subscription: {
+    plan: {
+      price: number
+      currency: string  // From Stripe subscription's price
+      // ...
+    }
+  }
+}
+```
+
+**General:**
 1. **Always fetch org locale** before displaying costs or timestamps
 2. **Default to USD/UTC** if locale not set
 3. **Validate currency codes** against `SUPPORTED_CURRENCIES` before saving
