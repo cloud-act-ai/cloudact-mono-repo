@@ -200,6 +200,9 @@ async def bootstrap_system(
             message=result.get("message", "Bootstrap completed")
         )
 
+    except HTTPException:
+        # Re-raise HTTP exceptions (like 409 Conflict) as-is
+        raise
     except Exception as e:
         logger.error(f"Bootstrap failed: {str(e)}", exc_info=True)
         raise HTTPException(
@@ -334,8 +337,8 @@ async def create_org(
                     query_parameters=[bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)]
                 )
             ).result()
-        except:
-            pass
+        except Exception as cleanup_error:
+            logger.warning(f"Cleanup failed after API key creation error for {org_slug}: {cleanup_error}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Operation failed. Please check server logs for details."
@@ -393,8 +396,8 @@ async def create_org(
                     query_parameters=[bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)]
                 )
             ).result()
-        except:
-            pass
+        except Exception as cleanup_error:
+            logger.warning(f"Cleanup failed after subscription creation error for {org_slug}: {cleanup_error}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Operation failed. Please check server logs for details."
@@ -439,8 +442,8 @@ async def create_org(
                     query_parameters=[bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)]
                 )
             ).result()
-        except:
-            pass
+        except Exception as cleanup_error:
+            logger.warning(f"Cleanup failed after dataset creation error for {org_slug}: {cleanup_error}")
 
         # Issue #29: Generic error message
         raise safe_error_response(

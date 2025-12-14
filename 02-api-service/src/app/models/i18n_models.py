@@ -229,10 +229,10 @@ def validate_timezone(timezone: str) -> bool:
 
 
 def validate_country(country: str) -> bool:
-    """Validate country code format (2 uppercase letters)."""
+    """Validate country is in supported list."""
     if not country:
         return False
-    return bool(re.match(r'^[A-Z]{2}$', country.upper()))
+    return country.upper() in SUPPORTED_COUNTRIES
 
 
 def validate_language(language: str) -> bool:
@@ -269,7 +269,7 @@ def country_validator(v: str) -> str:
         return DEFAULT_COUNTRY
     v_upper = v.upper()
     if not validate_country(v_upper):
-        raise ValueError(f'Invalid country code: {v}. Must be 2-letter ISO 3166-1 alpha-2 code')
+        raise ValueError(f'Invalid country code: {v}. Supported: {", ".join(SUPPORTED_COUNTRIES)}')
     return v_upper
 
 

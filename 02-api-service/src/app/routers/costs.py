@@ -11,7 +11,7 @@ Features:
 - Comprehensive cost analytics endpoints
 """
 
-from fastapi import APIRouter, Depends, Query, HTTPException, status
+from fastapi import APIRouter, Depends, Query, HTTPException, status, Request
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 from datetime import date
@@ -20,12 +20,16 @@ import logging
 import re
 
 from src.app.dependencies.auth import verify_api_key, OrgContext
+from src.app.dependencies.rate_limit_decorator import rate_limit_by_org
 from src.core.services.cost_service import (
     get_cost_service,
     CostQuery,
     CostResponse,
     PolarsCostService
 )
+from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
+from src.app.config import settings
+from google.cloud import bigquery
 
 logger = logging.getLogger(__name__)
 
@@ -118,6 +122,7 @@ class CostDataResponse(BaseModel):
     cache_hit: bool = False
     query_time_ms: float = 0.0
     error: Optional[str] = None
+    currency: Optional[str] = None  # Org's default currency (e.g., USD, INR, AED)
 
     class Config:
         json_schema_extra = {
@@ -133,7 +138,8 @@ class CostDataResponse(BaseModel):
                 ],
                 "pagination": {"limit": 1000, "offset": 0, "total": 1},
                 "cache_hit": False,
-                "query_time_ms": 45.2
+                "query_time_ms": 45.2,
+                "currency": "USD"
             }
         }
 
@@ -152,7 +158,42 @@ class CacheStat(BaseModel):
 # Helper Functions
 # ==============================================================================
 
-def _to_response(cost_response: CostResponse) -> CostDataResponse:
+async def _get_org_currency(org_slug: str, bq_client: BigQueryClient) -> str:
+    """
+    Fetch organization's default currency from org_profiles table.
+
+    Returns:
+        Currency code (e.g., USD, INR, AED) or "USD" if not found
+    """
+    try:
+        query = f"""
+        SELECT default_currency
+        FROM `{settings.gcp_project_id}.organizations.org_profiles`
+        WHERE org_slug = @org_slug
+        LIMIT 1
+        """
+
+        results = list(bq_client.query(
+            query,
+            parameters=[
+                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
+            ]
+        ))
+
+        if results and results[0].get("default_currency"):
+            return results[0]["default_currency"]
+
+        # Default to USD if not found
+        return "USD"
+    except Exception as e:
+        logger.warning(
+            f"Failed to fetch org currency for {org_slug}, defaulting to USD",
+            extra={"org_slug": org_slug, "error": str(e)}
+        )
+        return "USD"
+
+
+def _to_response(cost_response: CostResponse, currency: Optional[str] = None) -> CostDataResponse:
     """Convert internal CostResponse to API response model."""
     return CostDataResponse(
         success=cost_response.success,
@@ -161,7 +202,8 @@ def _to_response(cost_response: CostResponse) -> CostDataResponse:
         pagination=cost_response.pagination,
         cache_hit=cost_response.cache_hit,
         query_time_ms=cost_response.query_time_ms,
-        error=cost_response.error
+        error=cost_response.error,
+        currency=currency
     )
 
 
@@ -173,10 +215,11 @@ def _to_response(cost_response: CostResponse) -> CostDataResponse:
     "/{org_slug}",
     response_model=CostDataResponse,
     summary="Get Cost Data",
-    description="Retrieve cost data for an organization with optional filters. Uses FOCUS 1.2 standard schema."
+    description="Retrieve cost data for an organization with optional filters. Uses FOCUS 1.2 standard schema. Rate limited: 60 req/min per org."
 )
 async def get_costs(
     org_slug: str,
+    request: Request,
     start_date: Optional[date] = Query(None, description="Start date (YYYY-MM-DD)"),
     end_date: Optional[date] = Query(None, description="End date (YYYY-MM-DD)"),
     providers: Optional[str] = Query(None, description="Comma-separated list of providers"),
@@ -184,7 +227,8 @@ async def get_costs(
     limit: int = Query(1000, ge=1, le=10000, description="Max records"),
     offset: int = Query(0, ge=0, description="Offset for pagination"),
     auth_context: OrgContext = Depends(verify_api_key),
-    cost_service: PolarsCostService = Depends(get_cost_service)
+    cost_service: PolarsCostService = Depends(get_cost_service),
+    bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """
     Get cost data for an organization.
@@ -199,6 +243,14 @@ async def get_costs(
     """
     # CRITICAL: Multi-tenancy security check
     validate_org_access(org_slug, auth_context)
+
+    # Apply rate limiting (60 requests per minute per org)
+    await rate_limit_by_org(
+        request=request,
+        org_slug=org_slug,
+        limit_per_minute=60,
+        endpoint_name="get_costs"
+    )
 
     # Parse comma-separated filters
     provider_list = [p.strip() for p in providers.split(",")] if providers else None
@@ -222,22 +274,27 @@ async def get_costs(
             detail=result.error or "Failed to retrieve cost data"
         )
 
-    return _to_response(result)
+    # Fetch org currency
+    currency = await _get_org_currency(org_slug, bq_client)
+
+    return _to_response(result, currency=currency)
 
 
 @router.get(
     "/{org_slug}/summary",
     response_model=CostDataResponse,
     summary="Get Cost Summary",
-    description="Get aggregated cost summary statistics for an organization."
+    description="Get aggregated cost summary statistics for an organization. Rate limited: 60 req/min per org."
 )
 async def get_cost_summary(
     org_slug: str,
+    request: Request,
     start_date: Optional[date] = Query(None, description="Start date (YYYY-MM-DD)"),
     end_date: Optional[date] = Query(None, description="End date (YYYY-MM-DD)"),
     providers: Optional[str] = Query(None, description="Comma-separated list of providers"),
     auth_context: OrgContext = Depends(verify_api_key),
-    cost_service: PolarsCostService = Depends(get_cost_service)
+    cost_service: PolarsCostService = Depends(get_cost_service),
+    bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """
     Get cost summary statistics for an organization.
@@ -252,6 +309,14 @@ async def get_cost_summary(
     """
     # CRITICAL: Multi-tenancy security check
     validate_org_access(org_slug, auth_context)
+
+    # Apply rate limiting (60 requests per minute per org)
+    await rate_limit_by_org(
+        request=request,
+        org_slug=org_slug,
+        limit_per_minute=60,
+        endpoint_name="get_cost_summary"
+    )
 
     provider_list = [p.strip() for p in providers.split(",")] if providers else None
 
@@ -270,21 +335,26 @@ async def get_cost_summary(
             detail=result.error or "Failed to retrieve cost summary"
         )
 
-    return _to_response(result)
+    # Fetch org currency
+    currency = await _get_org_currency(org_slug, bq_client)
+
+    return _to_response(result, currency=currency)
 
 
 @router.get(
     "/{org_slug}/by-provider",
     response_model=CostDataResponse,
     summary="Get Cost by Provider",
-    description="Get cost breakdown grouped by provider (OpenAI, Anthropic, GCP, etc.)."
+    description="Get cost breakdown grouped by provider (OpenAI, Anthropic, GCP, etc.). Rate limited: 60 req/min per org."
 )
 async def get_cost_by_provider(
     org_slug: str,
+    request: Request,
     start_date: Optional[date] = Query(None, description="Start date (YYYY-MM-DD)"),
     end_date: Optional[date] = Query(None, description="End date (YYYY-MM-DD)"),
     auth_context: OrgContext = Depends(verify_api_key),
-    cost_service: PolarsCostService = Depends(get_cost_service)
+    cost_service: PolarsCostService = Depends(get_cost_service),
+    bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """
     Get cost breakdown by provider.
@@ -298,6 +368,14 @@ async def get_cost_by_provider(
     # CRITICAL: Multi-tenancy security check
     validate_org_access(org_slug, auth_context)
 
+    # Apply rate limiting (60 requests per minute per org)
+    await rate_limit_by_org(
+        request=request,
+        org_slug=org_slug,
+        limit_per_minute=60,
+        endpoint_name="get_cost_by_provider"
+    )
+
     result = await cost_service.get_cost_by_provider(org_slug, start_date, end_date)
 
     if not result.success:
@@ -306,21 +384,26 @@ async def get_cost_by_provider(
             detail=result.error or "Failed to retrieve cost by provider"
         )
 
-    return _to_response(result)
+    # Fetch org currency
+    currency = await _get_org_currency(org_slug, bq_client)
+
+    return _to_response(result, currency=currency)
 
 
 @router.get(
     "/{org_slug}/by-service",
     response_model=CostDataResponse,
     summary="Get Cost by Service",
-    description="Get cost breakdown grouped by service category and name."
+    description="Get cost breakdown grouped by service category and name. Rate limited: 60 req/min per org."
 )
 async def get_cost_by_service(
     org_slug: str,
+    request: Request,
     start_date: Optional[date] = Query(None, description="Start date (YYYY-MM-DD)"),
     end_date: Optional[date] = Query(None, description="End date (YYYY-MM-DD)"),
     auth_context: OrgContext = Depends(verify_api_key),
-    cost_service: PolarsCostService = Depends(get_cost_service)
+    cost_service: PolarsCostService = Depends(get_cost_service),
+    bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """
     Get cost breakdown by service.
@@ -335,6 +418,14 @@ async def get_cost_by_service(
     # CRITICAL: Multi-tenancy security check
     validate_org_access(org_slug, auth_context)
 
+    # Apply rate limiting (60 requests per minute per org)
+    await rate_limit_by_org(
+        request=request,
+        org_slug=org_slug,
+        limit_per_minute=60,
+        endpoint_name="get_cost_by_service"
+    )
+
     result = await cost_service.get_cost_by_service(org_slug, start_date, end_date)
 
     if not result.success:
@@ -343,21 +434,26 @@ async def get_cost_by_service(
             detail=result.error or "Failed to retrieve cost by service"
         )
 
-    return _to_response(result)
+    # Fetch org currency
+    currency = await _get_org_currency(org_slug, bq_client)
+
+    return _to_response(result, currency=currency)
 
 
 @router.get(
     "/{org_slug}/trend",
     response_model=CostDataResponse,
     summary="Get Cost Trend",
-    description="Get cost trend over time with configurable granularity."
+    description="Get cost trend over time with configurable granularity. Rate limited: 60 req/min per org."
 )
 async def get_cost_trend(
     org_slug: str,
+    request: Request,
     granularity: Granularity = Query(Granularity.DAILY, description="Time granularity"),
     days: int = Query(30, ge=1, le=365, description="Number of days to look back"),
     auth_context: OrgContext = Depends(verify_api_key),
-    cost_service: PolarsCostService = Depends(get_cost_service)
+    cost_service: PolarsCostService = Depends(get_cost_service),
+    bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """
     Get cost trend over time.
@@ -375,6 +471,14 @@ async def get_cost_trend(
     # CRITICAL: Multi-tenancy security check
     validate_org_access(org_slug, auth_context)
 
+    # Apply rate limiting (60 requests per minute per org)
+    await rate_limit_by_org(
+        request=request,
+        org_slug=org_slug,
+        limit_per_minute=60,
+        endpoint_name="get_cost_trend"
+    )
+
     result = await cost_service.get_cost_trend(org_slug, granularity.value, days)
 
     if not result.success:
@@ -383,7 +487,10 @@ async def get_cost_trend(
             detail=result.error or "Failed to retrieve cost trend"
         )
 
-    return _to_response(result)
+    # Fetch org currency
+    currency = await _get_org_currency(org_slug, bq_client)
+
+    return _to_response(result, currency=currency)
 
 
 # ==============================================================================
@@ -394,14 +501,16 @@ async def get_cost_trend(
     "/{org_slug}/saas-subscriptions",
     response_model=CostDataResponse,
     summary="Get SaaS Subscription Costs",
-    description="Get actual calculated SaaS subscription costs from cost_data_standard_1_2 (pipeline output)."
+    description="Get actual calculated SaaS subscription costs from cost_data_standard_1_2 (pipeline output). Rate limited: 60 req/min per org."
 )
 async def get_saas_subscription_costs(
     org_slug: str,
+    request: Request,
     start_date: Optional[date] = Query(None, description="Start date (YYYY-MM-DD). Defaults to first of current month."),
     end_date: Optional[date] = Query(None, description="End date (YYYY-MM-DD). Defaults to today."),
     auth_context: OrgContext = Depends(verify_api_key),
-    cost_service: PolarsCostService = Depends(get_cost_service)
+    cost_service: PolarsCostService = Depends(get_cost_service),
+    bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """
     Get SaaS subscription costs from the cost_data_standard_1_2 table.
@@ -420,6 +529,14 @@ async def get_saas_subscription_costs(
     # CRITICAL: Multi-tenancy security check
     validate_org_access(org_slug, auth_context)
 
+    # Apply rate limiting (60 requests per minute per org)
+    await rate_limit_by_org(
+        request=request,
+        org_slug=org_slug,
+        limit_per_minute=60,
+        endpoint_name="get_saas_subscription_costs"
+    )
+
     result = await cost_service.get_saas_subscription_costs(org_slug, start_date, end_date)
 
     if not result.success:
@@ -428,7 +545,10 @@ async def get_saas_subscription_costs(
             detail=result.error or "Failed to retrieve SaaS subscription costs"
         )
 
-    return _to_response(result)
+    # Fetch org currency
+    currency = await _get_org_currency(org_slug, bq_client)
+
+    return _to_response(result, currency=currency)
 
 
 # ==============================================================================
@@ -439,14 +559,16 @@ async def get_saas_subscription_costs(
     "/{org_slug}/cloud",
     response_model=CostDataResponse,
     summary="Get Cloud Costs",
-    description="Get cloud infrastructure costs (GCP, AWS, Azure) from cost_data_standard_1_2."
+    description="Get cloud infrastructure costs (GCP, AWS, Azure) from cost_data_standard_1_2. Rate limited: 60 req/min per org."
 )
 async def get_cloud_costs(
     org_slug: str,
+    request: Request,
     start_date: Optional[date] = Query(None, description="Start date (YYYY-MM-DD). Defaults to first of current month."),
     end_date: Optional[date] = Query(None, description="End date (YYYY-MM-DD). Defaults to today."),
     auth_context: OrgContext = Depends(verify_api_key),
-    cost_service: PolarsCostService = Depends(get_cost_service)
+    cost_service: PolarsCostService = Depends(get_cost_service),
+    bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """
     Get cloud infrastructure costs from cost_data_standard_1_2.
@@ -462,6 +584,14 @@ async def get_cloud_costs(
     """
     validate_org_access(org_slug, auth_context)
 
+    # Apply rate limiting (60 requests per minute per org)
+    await rate_limit_by_org(
+        request=request,
+        org_slug=org_slug,
+        limit_per_minute=60,
+        endpoint_name="get_cloud_costs"
+    )
+
     result = await cost_service.get_cloud_costs(org_slug, start_date, end_date)
 
     if not result.success:
@@ -470,7 +600,10 @@ async def get_cloud_costs(
             detail=result.error or "Failed to retrieve cloud costs"
         )
 
-    return _to_response(result)
+    # Fetch org currency
+    currency = await _get_org_currency(org_slug, bq_client)
+
+    return _to_response(result, currency=currency)
 
 
 # ==============================================================================
@@ -481,14 +614,16 @@ async def get_cloud_costs(
     "/{org_slug}/llm",
     response_model=CostDataResponse,
     summary="Get LLM API Costs",
-    description="Get LLM API costs (OpenAI, Anthropic, etc.) from cost_data_standard_1_2."
+    description="Get LLM API costs (OpenAI, Anthropic, etc.) from cost_data_standard_1_2. Rate limited: 60 req/min per org."
 )
 async def get_llm_costs(
     org_slug: str,
+    request: Request,
     start_date: Optional[date] = Query(None, description="Start date (YYYY-MM-DD). Defaults to first of current month."),
     end_date: Optional[date] = Query(None, description="End date (YYYY-MM-DD). Defaults to today."),
     auth_context: OrgContext = Depends(verify_api_key),
-    cost_service: PolarsCostService = Depends(get_cost_service)
+    cost_service: PolarsCostService = Depends(get_cost_service),
+    bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """
     Get LLM API costs from cost_data_standard_1_2.
@@ -507,6 +642,14 @@ async def get_llm_costs(
     """
     validate_org_access(org_slug, auth_context)
 
+    # Apply rate limiting (60 requests per minute per org)
+    await rate_limit_by_org(
+        request=request,
+        org_slug=org_slug,
+        limit_per_minute=60,
+        endpoint_name="get_llm_costs"
+    )
+
     result = await cost_service.get_llm_costs(org_slug, start_date, end_date)
 
     if not result.success:
@@ -515,7 +658,10 @@ async def get_llm_costs(
             detail=result.error or "Failed to retrieve LLM costs"
         )
 
-    return _to_response(result)
+    # Fetch org currency
+    currency = await _get_org_currency(org_slug, bq_client)
+
+    return _to_response(result, currency=currency)
 
 
 # ==============================================================================
@@ -530,20 +676,23 @@ class TotalCostSummary(BaseModel):
     total: Dict[str, Any]
     date_range: Dict[str, str]
     query_time_ms: float
+    currency: Optional[str] = None  # Org's default currency (e.g., USD, INR, AED)
 
 
 @router.get(
     "/{org_slug}/total",
     response_model=TotalCostSummary,
     summary="Get Total Costs",
-    description="Get aggregated costs across SaaS subscriptions, cloud infrastructure, and LLM APIs."
+    description="Get aggregated costs across SaaS subscriptions, cloud infrastructure, and LLM APIs. Rate limited: 60 req/min per org."
 )
 async def get_total_costs(
     org_slug: str,
+    request: Request,
     start_date: Optional[date] = Query(None, description="Start date (YYYY-MM-DD). Defaults to first of current month."),
     end_date: Optional[date] = Query(None, description="End date (YYYY-MM-DD). Defaults to today."),
     auth_context: OrgContext = Depends(verify_api_key),
-    cost_service: PolarsCostService = Depends(get_cost_service)
+    cost_service: PolarsCostService = Depends(get_cost_service),
+    bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """
     Get total costs aggregated from all sources.
@@ -562,6 +711,14 @@ async def get_total_costs(
 
     validate_org_access(org_slug, auth_context)
 
+    # Apply rate limiting (60 requests per minute per org)
+    await rate_limit_by_org(
+        request=request,
+        org_slug=org_slug,
+        limit_per_minute=60,
+        endpoint_name="get_total_costs"
+    )
+
     start_time = time.time()
 
     # Fetch all cost types in parallel
@@ -570,6 +727,37 @@ async def get_total_costs(
         cost_service.get_cloud_costs(org_slug, start_date, end_date),
         cost_service.get_llm_costs(org_slug, start_date, end_date)
     )
+
+    # Validate date ranges match across cost types
+    date_ranges = []
+    for result_name, result in [("saas", saas_result), ("cloud", cloud_result), ("llm", llm_result)]:
+        if result.success and result.summary and "date_range" in result.summary:
+            date_ranges.append((result_name, result.summary["date_range"]))
+        elif result.success and result.data:
+            # Warn if a cost type returned data but has empty summary
+            logger.warning(
+                f"Cost aggregation: {result_name} returned data but missing date_range in summary",
+                extra={
+                    "org_slug": org_slug,
+                    "cost_type": result_name,
+                    "record_count": len(result.data) if result.data else 0
+                }
+            )
+
+    # Log if date ranges don't match (potential data inconsistency)
+    if len(date_ranges) > 1:
+        first_range = date_ranges[0][1]
+        for cost_type, dr in date_ranges[1:]:
+            if dr != first_range:
+                logger.warning(
+                    f"Cost aggregation: Date range mismatch across cost types",
+                    extra={
+                        "org_slug": org_slug,
+                        "base_range": first_range,
+                        "mismatched_type": cost_type,
+                        "mismatched_range": dr
+                    }
+                )
 
     # Extract summaries (default to zeros if failed)
     def safe_summary(result) -> Dict[str, Any]:
@@ -607,6 +795,9 @@ async def get_total_costs(
             date_range = result.summary["date_range"]
             break
 
+    # Fetch org currency
+    currency = await _get_org_currency(org_slug, bq_client)
+
     return TotalCostSummary(
         saas=saas_summary,
         cloud=cloud_summary,
@@ -617,7 +808,8 @@ async def get_total_costs(
             "total_annual_cost": round(total_annual, 2),
         },
         date_range=date_range,
-        query_time_ms=round(query_time, 2)
+        query_time_ms=round(query_time, 2),
+        currency=currency
     )
 
 

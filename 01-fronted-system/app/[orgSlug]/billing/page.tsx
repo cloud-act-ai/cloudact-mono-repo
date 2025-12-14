@@ -488,7 +488,7 @@ export default function BillingPage() {
                   </span>
                 </div>
                 <p className="text-[13px] sm:text-[15px] text-[#8E8E93] mt-0.5">
-                  ${billingInfo.subscription.plan.price}/{billingInfo.subscription.plan.interval} ·
+                  {formatCurrency(billingInfo.subscription.plan.price, "USD")}/{billingInfo.subscription.plan.interval} ·
                   Renews {formatDate(billingInfo.subscription.currentPeriodEnd)}
                 </p>
               </div>
@@ -681,7 +681,7 @@ export default function BillingPage() {
                   </div>
                   <div className="flex-1">
                     <div className="mb-4">
-                      <span className="text-[28px] sm:text-[32px] font-bold text-[#FF6E50]">${plan.price}</span>
+                      <span className="text-[28px] sm:text-[32px] font-bold text-[#FF6E50]">{formatCurrency(plan.price, orgCurrency)}</span>
                       <span className="text-[13px] sm:text-[15px] font-normal text-[#8E8E93]">/{plan.interval}</span>
                     </div>
                     {plan.trialDays && !hasStripeSubscription && (
@@ -941,13 +941,13 @@ export default function BillingPage() {
             <DialogDescription>
               {confirmDialog.isUpgrade ? (
                 <>
-                  You're upgrading from <strong>{billingInfo?.subscription?.plan.name}</strong> (${billingInfo?.subscription?.plan.price}/{billingInfo?.subscription?.plan.interval}) to <strong>{confirmDialog.plan?.name}</strong> (${confirmDialog.plan?.price}/{confirmDialog.plan?.interval}).
+                  You're upgrading from <strong>{billingInfo?.subscription?.plan.name}</strong> ({formatCurrency(billingInfo?.subscription?.plan.price, "USD")}/{billingInfo?.subscription?.plan.interval}) to <strong>{confirmDialog.plan?.name}</strong> ({formatCurrency(confirmDialog.plan?.price, "USD")}/{confirmDialog.plan?.interval}).
                   <br /><br />
                   Your card will be charged the prorated difference immediately.
                 </>
               ) : (
                 <>
-                  You're downgrading from <strong>{billingInfo?.subscription?.plan.name}</strong> (${billingInfo?.subscription?.plan.price}/{billingInfo?.subscription?.plan.interval}) to <strong>{confirmDialog.plan?.name}</strong> (${confirmDialog.plan?.price}/{confirmDialog.plan?.interval}).
+                  You're downgrading from <strong>{billingInfo?.subscription?.plan.name}</strong> ({formatCurrency(billingInfo?.subscription?.plan.price, "USD")}/{billingInfo?.subscription?.plan.interval}) to <strong>{confirmDialog.plan?.name}</strong> ({formatCurrency(confirmDialog.plan?.price, "USD")}/{confirmDialog.plan?.interval}).
                   <br /><br />
                   You'll receive a prorated credit on your next invoice.
                   <br /><br />

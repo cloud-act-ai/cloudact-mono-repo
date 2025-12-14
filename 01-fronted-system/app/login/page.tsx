@@ -48,8 +48,11 @@ function LoginForm() {
     try {
       const supabase = createClient()
 
+      // Normalize email to match signup flow
+      const normalizedEmail = email.trim().toLowerCase()
+
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email,
+        email: normalizedEmail,
         password,
       })
 
@@ -70,21 +73,29 @@ function LoginForm() {
       }
 
       // Otherwise, check if user has an organization
-      const { data: orgData } = await supabase
+      // Use maybeSingle() to handle 0 or 1 rows gracefully
+      const { data: orgData, error: orgError } = await supabase
         .from("organization_members")
         .select(`org_id, organizations!inner(org_slug)`)
         .eq("user_id", authData.user.id)
         .eq("status", "active")
-        .single()
+        .limit(1)
+        .maybeSingle()
 
-      if (orgData) {
-        const org = orgData.organizations as unknown as { org_slug: string }
+      if (orgError) {
+        console.error("[Auth] Failed to fetch organization membership:", orgError.message)
+      }
+
+      if (orgData?.organizations) {
+        const org = orgData.organizations as { org_slug: string }
         window.location.href = `/${org.org_slug}/dashboard`
       } else {
         window.location.href = "/onboarding/organization"
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Invalid email or password")
+      // Use generic error message to prevent account enumeration attacks
+      console.error("[Auth] Login error:", err instanceof Error ? err.message : "Unknown error")
+      setError("Invalid email or password")
       setIsLoading(false)
     }
   }

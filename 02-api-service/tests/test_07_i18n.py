@@ -17,11 +17,12 @@ import pytest
 import uuid
 from httpx import AsyncClient, ASGITransport
 
-# Set environment variables BEFORE importing app
-os.environ.setdefault("GCP_PROJECT_ID", "test-project")
+# Environment variables are loaded from .env.local by conftest.py
+# Set fallback defaults only if not already set
+os.environ.setdefault("GCP_PROJECT_ID", "gac-prod-471220")
 os.environ.setdefault("ENVIRONMENT", "development")
-os.environ.setdefault("CA_ROOT_API_KEY", "test-root-key-for-testing-only-32chars")
-os.environ.setdefault("KMS_KEY_NAME", "projects/test/locations/global/keyRings/test/cryptoKeys/test")
+os.environ.setdefault("CA_ROOT_API_KEY", "test-ca-root-key-dev-32chars")
+os.environ.setdefault("KMS_KEY_NAME", "projects/gac-prod-471220/locations/us-central1/keyRings/convergence-keyring-prod/cryptoKeys/api-key-encryption")
 
 from src.app.main import app
 
@@ -30,7 +31,8 @@ from src.app.main import app
 # Test Configuration
 # ============================================
 
-ROOT_API_KEY = "test-root-key-for-testing-only-32chars"
+# Use the API key from environment (loaded from .env.local by conftest.py)
+ROOT_API_KEY = os.environ.get("CA_ROOT_API_KEY", "test-ca-root-key-dev-32chars")
 
 
 # ============================================
@@ -91,10 +93,50 @@ async def test_create_org_with_aed_and_dubai_timezone(root_headers, unique_org_s
         data = response.json()
 
         # Verify i18n fields
-        assert data["org_profile"]["default_currency"] == "AED"
-        assert data["org_profile"]["default_timezone"] == "Asia/Dubai"
-        assert data["org_profile"]["default_country"] == "AE"  # Auto-inferred from AED
-        assert data["org_profile"]["default_language"] == "en"  # Default
+        assert data["default_currency"] == "AED"
+        assert data["default_timezone"] == "Asia/Dubai"
+        assert data["default_country"] == "AE"  # Auto-inferred from AED
+        assert data["default_language"] == "en"  # Default
+
+
+@pytest.mark.asyncio
+@pytest.mark.integration
+async def test_create_org_with_inr_and_kolkata_timezone(root_headers, unique_org_slug):
+    """
+    Test creating organization with INR currency and Asia/Kolkata timezone.
+
+    Flow:
+    1. Onboard org with default_currency=INR, default_timezone=Asia/Kolkata
+    2. Verify org profile includes correct i18n settings
+    3. Verify auto-inferred country is IN (from INR)
+    4. Verify default_language is en (default)
+    """
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # Create org with INR currency and Kolkata timezone
+        response = await client.post(
+            "/api/v1/organizations/onboard",
+            headers=root_headers,
+            json={
+                "org_slug": unique_org_slug,
+                "company_name": "India Test Company",
+                "admin_email": "admin@indiatest.com",
+                "subscription_plan": "STARTER",
+                "default_currency": "INR",
+                "default_timezone": "Asia/Kolkata"
+            }
+        )
+
+        # Should succeed (200 or 201)
+        assert response.status_code in [200, 201], f"Unexpected status: {response.status_code}, body: {response.text}"
+
+        data = response.json()
+
+        # Verify i18n fields
+        assert data["default_currency"] == "INR"
+        assert data["default_timezone"] == "Asia/Kolkata"
+        assert data["default_country"] == "IN"  # Auto-inferred from INR
+        assert data["default_language"] == "en"  # Default
 
 
 @pytest.mark.asyncio
@@ -124,10 +166,10 @@ async def test_create_org_with_jpy_and_tokyo_timezone(root_headers, unique_org_s
         assert response.status_code in [200, 201]
         data = response.json()
 
-        assert data["org_profile"]["default_currency"] == "JPY"
-        assert data["org_profile"]["default_timezone"] == "Asia/Tokyo"
-        assert data["org_profile"]["default_country"] == "JP"
-        assert data["org_profile"]["default_language"] == "en"
+        assert data["default_currency"] == "JPY"
+        assert data["default_timezone"] == "Asia/Tokyo"
+        assert data["default_country"] == "JP"
+        assert data["default_language"] == "en"
 
 
 @pytest.mark.asyncio
@@ -157,8 +199,8 @@ async def test_create_org_with_kwd_currency(root_headers, unique_org_slug):
         assert response.status_code in [200, 201]
         data = response.json()
 
-        assert data["org_profile"]["default_currency"] == "KWD"
-        assert data["org_profile"]["default_country"] == "KW"
+        assert data["default_currency"] == "KWD"
+        assert data["default_country"] == "KW"
 
 
 @pytest.mark.asyncio
@@ -185,10 +227,10 @@ async def test_create_org_defaults_to_usd_utc(root_headers, unique_org_slug):
         data = response.json()
 
         # Should use defaults
-        assert data["org_profile"]["default_currency"] == "USD"
-        assert data["org_profile"]["default_timezone"] == "UTC"
-        assert data["org_profile"]["default_country"] == "US"
-        assert data["org_profile"]["default_language"] == "en"
+        assert data["default_currency"] == "USD"
+        assert data["default_timezone"] == "UTC"
+        assert data["default_country"] == "US"
+        assert data["default_language"] == "en"
 
 
 # ============================================
@@ -243,6 +285,45 @@ async def test_get_org_locale(root_headers, unique_org_slug):
         assert locale_data["currency_symbol"] == "د.إ"
         assert locale_data["currency_name"] == "UAE Dirham"
         assert locale_data["currency_decimals"] == 2
+
+
+@pytest.mark.asyncio
+@pytest.mark.integration
+async def test_get_locale_for_inr_org(root_headers, unique_org_slug):
+    """
+    Test GET locale for INR org (should show correct INR metadata).
+    """
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # Create INR org
+        await client.post(
+            "/api/v1/organizations/onboard",
+            headers=root_headers,
+            json={
+                "org_slug": unique_org_slug,
+                "company_name": "INR Test",
+                "admin_email": "admin@inrtest.com",
+                "subscription_plan": "STARTER",
+                "default_currency": "INR",
+                "default_timezone": "Asia/Kolkata"
+            }
+        )
+
+        # Get locale
+        response = await client.get(
+            f"/api/v1/organizations/{unique_org_slug}/locale",
+            headers=root_headers
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["default_currency"] == "INR"
+        assert data["default_country"] == "IN"
+        assert data["default_timezone"] == "Asia/Kolkata"
+        assert data["currency_symbol"] == "₹"
+        assert data["currency_name"] == "Indian Rupee"
+        assert data["currency_decimals"] == 2
 
 
 @pytest.mark.asyncio
@@ -365,6 +446,102 @@ async def test_update_org_locale_currency_only(root_headers, unique_org_slug):
         assert data["default_country"] == "DE"  # Auto-inferred from EUR
         assert data["default_timezone"] == "UTC"  # Unchanged
         assert data["currency_symbol"] == "€"
+        assert data["currency_decimals"] == 2
+
+
+@pytest.mark.asyncio
+@pytest.mark.integration
+async def test_update_locale_usd_to_inr(root_headers, unique_org_slug):
+    """
+    Test updating locale from USD to INR.
+
+    Flow:
+    1. Create org with USD/UTC
+    2. Update to INR/Asia/Kolkata
+    3. Verify country auto-inferred to IN
+    """
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # Create USD org
+        await client.post(
+            "/api/v1/organizations/onboard",
+            headers=root_headers,
+            json={
+                "org_slug": unique_org_slug,
+                "company_name": "USD to INR Test",
+                "admin_email": "admin@usdtoinr.com",
+                "subscription_plan": "STARTER",
+                "default_currency": "USD",
+                "default_timezone": "UTC"
+            }
+        )
+
+        # Update to INR/Asia/Kolkata
+        update_response = await client.put(
+            f"/api/v1/organizations/{unique_org_slug}/locale",
+            headers=root_headers,
+            json={
+                "default_currency": "INR",
+                "default_timezone": "Asia/Kolkata"
+            }
+        )
+
+        assert update_response.status_code == 200
+        data = update_response.json()
+
+        assert data["default_currency"] == "INR"
+        assert data["default_country"] == "IN"  # Auto-inferred from INR
+        assert data["default_timezone"] == "Asia/Kolkata"
+        assert data["currency_symbol"] == "₹"
+        assert data["currency_name"] == "Indian Rupee"
+        assert data["currency_decimals"] == 2
+
+
+@pytest.mark.asyncio
+@pytest.mark.integration
+async def test_update_locale_inr_to_usd(root_headers, unique_org_slug):
+    """
+    Test updating locale from INR to USD.
+
+    Flow:
+    1. Create org with INR/Asia/Kolkata
+    2. Update to USD/UTC
+    3. Verify country auto-inferred to US
+    """
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # Create INR org
+        await client.post(
+            "/api/v1/organizations/onboard",
+            headers=root_headers,
+            json={
+                "org_slug": unique_org_slug,
+                "company_name": "INR to USD Test",
+                "admin_email": "admin@inrtousd.com",
+                "subscription_plan": "STARTER",
+                "default_currency": "INR",
+                "default_timezone": "Asia/Kolkata"
+            }
+        )
+
+        # Update to USD/UTC
+        update_response = await client.put(
+            f"/api/v1/organizations/{unique_org_slug}/locale",
+            headers=root_headers,
+            json={
+                "default_currency": "USD",
+                "default_timezone": "UTC"
+            }
+        )
+
+        assert update_response.status_code == 200
+        data = update_response.json()
+
+        assert data["default_currency"] == "USD"
+        assert data["default_country"] == "US"  # Auto-inferred from USD
+        assert data["default_timezone"] == "UTC"
+        assert data["currency_symbol"] == "$"
+        assert data["currency_name"] == "US Dollar"
         assert data["currency_decimals"] == 2
 
 
@@ -563,32 +740,32 @@ async def test_update_locale_with_invalid_timezone(root_headers, unique_org_slug
 
 
 # ============================================
-# Test: All Supported Currencies
+# Test: All Supported Currencies (Parametrized with USD and INR)
 # ============================================
 
 @pytest.mark.asyncio
 @pytest.mark.integration
-@pytest.mark.parametrize("currency,expected_country", [
-    ("USD", "US"),
-    ("EUR", "DE"),
-    ("GBP", "GB"),
-    ("JPY", "JP"),
-    ("CHF", "CH"),
-    ("CAD", "CA"),
-    ("AUD", "AU"),
-    ("CNY", "CN"),
-    ("INR", "IN"),
-    ("SGD", "SG"),
-    ("AED", "AE"),
-    ("SAR", "SA"),
-    ("QAR", "QA"),
-    ("KWD", "KW"),
-    ("BHD", "BH"),
-    ("OMR", "OM"),
+@pytest.mark.parametrize("currency,expected_country,expected_decimals", [
+    ("USD", "US", 2),
+    ("EUR", "DE", 2),
+    ("GBP", "GB", 2),
+    ("JPY", "JP", 0),
+    ("CHF", "CH", 2),
+    ("CAD", "CA", 2),
+    ("AUD", "AU", 2),
+    ("CNY", "CN", 2),
+    ("INR", "IN", 2),
+    ("SGD", "SG", 2),
+    ("AED", "AE", 2),
+    ("SAR", "SA", 2),
+    ("QAR", "QA", 2),
+    ("KWD", "KW", 3),
+    ("BHD", "BH", 3),
+    ("OMR", "OM", 3),
 ])
-async def test_all_supported_currencies(root_headers, currency, expected_country):
+async def test_all_supported_currencies(root_headers, currency, expected_country, expected_decimals):
     """
-    Test that all supported currencies are accepted and map to correct countries.
+    Test that all supported currencies are accepted and map to correct countries and decimal places.
     """
     unique_slug = f"currency_{currency.lower()}_{str(uuid.uuid4())[:8]}"
     transport = ASGITransport(app=app)
@@ -609,12 +786,12 @@ async def test_all_supported_currencies(root_headers, currency, expected_country
         assert response.status_code in [200, 201], f"Failed for {currency}: {response.text}"
         data = response.json()
 
-        assert data["org_profile"]["default_currency"] == currency
-        assert data["org_profile"]["default_country"] == expected_country
+        assert data["default_currency"] == currency
+        assert data["default_country"] == expected_country
 
 
 # ============================================
-# Test: All Supported Timezones
+# Test: All Supported Timezones (Including Asia/Kolkata)
 # ============================================
 
 @pytest.mark.asyncio
@@ -660,7 +837,52 @@ async def test_all_supported_timezones(root_headers, timezone):
         assert response.status_code in [200, 201], f"Failed for {timezone}: {response.text}"
         data = response.json()
 
-        assert data["org_profile"]["default_timezone"] == timezone
+        assert data["default_timezone"] == timezone
+
+
+# ============================================
+# Test: Parametrized Currency + Timezone Combinations (USD and INR)
+# ============================================
+
+@pytest.mark.asyncio
+@pytest.mark.integration
+@pytest.mark.parametrize("currency,timezone,expected_country", [
+    ("USD", "UTC", "US"),
+    ("USD", "America/New_York", "US"),
+    ("INR", "Asia/Kolkata", "IN"),
+    ("INR", "UTC", "IN"),
+    ("EUR", "Europe/Berlin", "DE"),
+    ("JPY", "Asia/Tokyo", "JP"),
+    ("AED", "Asia/Dubai", "AE"),
+])
+async def test_currency_timezone_combinations(root_headers, currency, timezone, expected_country):
+    """
+    Test various currency and timezone combinations.
+    """
+    unique_id = str(uuid.uuid4())[:8]
+    unique_slug = f"combo_{currency.lower()}_{timezone.replace('/', '_').lower()}_{unique_id}"
+    transport = ASGITransport(app=app)
+
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post(
+            "/api/v1/organizations/onboard",
+            headers=root_headers,
+            json={
+                "org_slug": unique_slug,
+                "company_name": f"{currency} {timezone} Test",
+                "admin_email": f"admin{unique_id}@combotest.com",
+                "subscription_plan": "STARTER",
+                "default_currency": currency,
+                "default_timezone": timezone
+            }
+        )
+
+        assert response.status_code in [200, 201], f"Failed for {currency}/{timezone}: {response.text}"
+        data = response.json()
+
+        assert data["default_currency"] == currency
+        assert data["default_timezone"] == timezone
+        assert data["default_country"] == expected_country
 
 
 # ============================================

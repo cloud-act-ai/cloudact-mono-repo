@@ -138,6 +138,7 @@ Port 3000                    Frontend-facing API             ETL Execution Only
 
 | Category | Document | Status | Description |
 |----------|----------|--------|-------------|
+| **00 - Core** | `00_INTERNATIONALIZATION.md` | IMPLEMENTED | Org-level currency, timezone, country, language |
 | **01 - Core** | `01_USER_MANAGEMENT.md` | IMPLEMENTED | Auth, roles, team invites, permissions |
 | **01 - Core** | `01_ORGANIZATION_ONBOARDING.md` | IMPLEMENTED | Org creation, API key generation, dataset setup |
 | **01 - Core** | `01_BILLING_STRIPE.md` | IMPLEMENTED | Stripe subscriptions, webhooks, billing portal |
@@ -215,7 +216,7 @@ curl -X GET "http://localhost:8000/api/v1/admin/dev/api-key/{org_slug}" \
 
 **Admin (X-CA-Root-Key)**
 - `POST /api/v1/admin/bootstrap` - Initialize system (15 meta tables)
-- `POST /api/v1/organizations/onboard` - Create organization + API key + dataset
+- `POST /api/v1/organizations/onboard` - Create organization + API key + dataset (includes default_currency, default_timezone)
 - `POST /api/v1/organizations/dryrun` - Validate org before onboarding
 - `PUT /api/v1/organizations/{org}/subscription` - Update subscription limits
 - `GET /api/v1/admin/dev/api-key/{org_slug}` - Get org API key (dev only)
@@ -237,6 +238,10 @@ curl -X GET "http://localhost:8000/api/v1/admin/dev/api-key/{org_slug}" \
 - `PUT /api/v1/subscriptions/{org}/providers/{provider}/plans/{id}` - Update plan
 - `DELETE /api/v1/subscriptions/{org}/providers/{provider}/plans/{id}` - End plan (soft delete)
 - `POST /api/v1/subscriptions/{org}/providers/{provider}/plans/{id}/edit-version` - Edit with version history
+
+**Locale (X-API-Key)**
+- `GET /api/v1/organizations/{org}/locale` - Get org locale settings
+- `PUT /api/v1/organizations/{org}/locale` - Update org locale (currency, timezone)
 
 ### data-pipeline-service (Port 8001) - Pipeline Execution Only
 
@@ -267,7 +272,7 @@ See `00-requirements-docs/00-ARCHITECTURE.md` for complete security details.
 
 Bootstrap creates 15 management tables in the `organizations` dataset:
 
-1. org_profiles
+1. org_profiles (includes i18n fields: default_currency, default_timezone, default_country, default_language)
 2. org_api_keys (partitioned by created_at)
 3. org_subscriptions (partitioned by created_at)
 4. org_usage_quotas (partitioned by usage_date)

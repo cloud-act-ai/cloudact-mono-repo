@@ -143,6 +143,9 @@ export async function createOnboardingCheckoutSession(priceId: string) {
     // Get pending company info from user metadata (set during signup)
     const pendingCompanyName = user.user_metadata?.pending_company_name
     const pendingCompanyType = user.user_metadata?.pending_company_type || "company"
+    // i18n fields (set during signup)
+    const pendingCurrency = user.user_metadata?.pending_currency || "USD"
+    const pendingTimezone = user.user_metadata?.pending_timezone || "UTC"
 
     if (!pendingCompanyName) {
       console.error("[v0] No pending company info in user metadata")
@@ -231,6 +234,9 @@ export async function createOnboardingCheckoutSession(priceId: string) {
         pending_company_name: pendingCompanyName,
         pending_company_type: pendingCompanyType,
         pending_org_slug: orgSlug,
+        // i18n fields (from signup form via user_metadata)
+        pending_currency: pendingCurrency,
+        pending_timezone: pendingTimezone,
       },
       subscription_data: {
         metadata: {
@@ -870,9 +876,14 @@ export async function changeSubscriptionPlan(
       concurrent_pipelines_limit: safeParseInt(metadata.concurrentPipelines, 2), // Default to 2 if not set
     }
 
-    // Validate limits are reasonable (sanity check)
-    if (limits.seat_limit > 1000 || limits.providers_limit > 100 || limits.pipelines_per_day_limit > 10000 || limits.concurrent_pipelines_limit > 50) {
-      console.error("[v0] Plan limits exceed reasonable bounds")
+    // Validate limits are reasonable (sanity check - both lower and upper bounds)
+    if (
+      limits.seat_limit < 1 || limits.seat_limit > 1000 ||
+      limits.providers_limit < 1 || limits.providers_limit > 100 ||
+      limits.pipelines_per_day_limit < 1 || limits.pipelines_per_day_limit > 10000 ||
+      limits.concurrent_pipelines_limit < 1 || limits.concurrent_pipelines_limit > 50
+    ) {
+      console.error("[v0] Plan limits outside valid bounds", limits)
       return { success: false, subscription: null, error: "Plan configuration error. Please contact support." }
     }
 

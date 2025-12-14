@@ -142,6 +142,52 @@ class OrgBigQueryClient:
         """Get the underlying BigQuery client."""
         return self._base_client.client
 
+    def _determine_query_timeout(self, query: str, timeout_seconds: Optional[int] = None) -> int:
+        """
+        Determine smart timeout for query based on complexity and tier limits.
+
+        Priority:
+        1. Explicit timeout_seconds parameter (from pipeline config)
+        2. Smart defaults based on query complexity:
+           - Simple SELECT (< 100 chars): min(30s, tier_limit)
+           - INSERT/UPDATE/DELETE: min(60s, tier_limit)
+           - Complex queries (JOINs, aggregations): min(120s, tier_limit)
+        3. Tier-based timeout limit as maximum
+
+        Args:
+            query: SQL query string
+            timeout_seconds: Optional explicit timeout from pipeline config
+
+        Returns:
+            Timeout in seconds (capped by tier limit)
+        """
+        # If timeout explicitly provided (from pipeline config), cap at tier limit
+        if timeout_seconds is not None:
+            return min(timeout_seconds, self.limits.query_timeout_seconds)
+
+        # Otherwise, use smart defaults based on query complexity
+        query_upper = query.upper().strip()
+
+        # Simple SELECT queries (< 100 chars, no JOINs or aggregations)
+        if len(query) < 100 and query_upper.startswith('SELECT') and \
+           'JOIN' not in query_upper and 'GROUP BY' not in query_upper:
+            smart_timeout = 30  # 30 seconds for simple queries
+
+        # INSERT/UPDATE/DELETE operations
+        elif any(query_upper.startswith(op) for op in ['INSERT', 'UPDATE', 'DELETE', 'MERGE']):
+            smart_timeout = 60  # 60 seconds for write operations
+
+        # Complex queries (JOINs, GROUP BY, window functions, CTEs)
+        elif any(keyword in query_upper for keyword in ['JOIN', 'GROUP BY', 'OVER(', 'WITH ']):
+            smart_timeout = 120  # 120 seconds for complex queries
+
+        else:
+            # Default to tier limit for other cases
+            smart_timeout = self.limits.query_timeout_seconds
+
+        # Cap at tier limit
+        return min(smart_timeout, self.limits.query_timeout_seconds)
+
     def _track_cost(
         self,
         query_job: bigquery.QueryJob,
@@ -211,15 +257,23 @@ class OrgBigQueryClient:
         self,
         query: str,
         parameters: Optional[List[Any]] = None,
-        track_cost: bool = True
+        track_cost: bool = True,
+        timeout_seconds: Optional[int] = None
     ) -> Iterator[Dict[str, Any]]:
         """
         Execute a query with org-specific limits and tracking.
+
+        Timeout Handling:
+        - Respects timeout_seconds from pipeline config (step_config.get("timeout_minutes") * 60)
+        - Falls back to smart defaults based on query complexity if not specified
+        - Simple SELECTs: 30s, INSERT/UPDATE/DELETE: 60s, Complex queries: 120s
+        - All timeouts are capped by tier limit (STARTER: 60s, PROFESSIONAL: 180s, etc.)
 
         Args:
             query: SQL query string
             parameters: Query parameters
             track_cost: Whether to track cost (default True)
+            timeout_seconds: Optional timeout in seconds (from pipeline config)
 
         Yields:
             Row dictionaries
@@ -264,8 +318,11 @@ class OrgBigQueryClient:
             # Execute query
             query_job = self.client.query(query, job_config=job_config)
 
+            # Determine timeout using smart defaults (capped by tier limit)
+            timeout = self._determine_query_timeout(query, timeout_seconds)
+
             # Wait with timeout
-            results = query_job.result(timeout=self.limits.query_timeout_seconds)
+            results = query_job.result(timeout=timeout)
 
             # Track cost after successful execution
             if track_cost:
@@ -292,10 +349,21 @@ class OrgBigQueryClient:
     def query_to_list(
         self,
         query: str,
-        parameters: Optional[List[Any]] = None
+        parameters: Optional[List[Any]] = None,
+        timeout_seconds: Optional[int] = None
     ) -> List[Dict[str, Any]]:
-        """Execute query and return all results as list."""
-        return list(self.query(query, parameters))
+        """
+        Execute query and return all results as list.
+
+        Args:
+            query: SQL query string
+            parameters: Query parameters
+            timeout_seconds: Optional timeout in seconds (from pipeline config)
+
+        Returns:
+            List of row dictionaries
+        """
+        return list(self.query(query, parameters, timeout_seconds=timeout_seconds))
 
 
 class ResourceExhaustedError(Exception):

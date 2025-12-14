@@ -24,37 +24,11 @@
  */
 
 import { describe, it, expect } from 'vitest'
+import { sanitizeOrgName, isValidOrgName } from '@/lib/utils/validation'
 
 // ============================================
 // Test Helpers - Extracted Functions
 // ============================================
-
-/**
- * Sanitize organization name to prevent XSS and SQL injection
- * Source: actions/organization.ts
- *
- * Removes: <, >, ", ', &, ;
- * Also removes HTML tags via /<[^>]*>/g
- */
-function sanitizeOrgName(name: string): string {
-  return name
-    .replace(/<[^>]*>/g, "")  // Remove HTML tags
-    .replace(/[<>"'&;]/g, "") // Remove potentially dangerous characters
-    .trim()
-    .slice(0, 100)            // Limit length
-}
-
-/**
- * Validate organization name
- * Source: actions/organization.ts
- */
-function isValidOrgName(name: string): boolean {
-  const trimmed = name.trim()
-  // Must be 2-100 chars, no HTML or script tags
-  return trimmed.length >= 2 &&
-         trimmed.length <= 100 &&
-         !/<script|<\/script|javascript:|on\w+=/i.test(trimmed)
-}
 
 /**
  * Validate org slug format

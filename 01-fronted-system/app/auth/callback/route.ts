@@ -9,45 +9,60 @@ export async function GET(request: Request) {
 
   if (code) {
     const supabase = await createClient()
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
-    if (!error) {
-      const forwardedHost = request.headers.get("x-forwarded-host") // original origin before load balancer
-      const isLocalEnv = process.env.NODE_ENV === "development"
+    const { error: sessionError } = await supabase.auth.exchangeCodeForSession(code)
 
-      // Determine redirect URL
-      let redirectPath = next
-      if (!redirectPath || redirectPath === "/dashboard") {
-        // Get user's first org for proper redirect
-        const { data: { user } } = await supabase.auth.getUser()
-        if (user) {
-          const { data: membership } = await supabase
-            .from("organization_members")
-            .select("organizations(org_slug)")
-            .eq("user_id", user.id)
-            .eq("status", "active")
-            .limit(1)
-            .single()
+    if (sessionError) {
+      console.error("[Auth Callback] Session exchange failed:", sessionError.message)
+      return NextResponse.redirect(`${origin}/auth/auth-code-error`)
+    }
 
-          const orgSlug = (membership?.organizations as { org_slug: string } | null)?.org_slug
-          if (orgSlug) {
-            redirectPath = `/${orgSlug}/dashboard`
-          } else {
-            // No org found, redirect to onboarding
-            redirectPath = "/onboarding/organization"
-          }
+    const forwardedHost = request.headers.get("x-forwarded-host") // original origin before load balancer
+    const isLocalEnv = process.env.NODE_ENV === "development"
+
+    // Determine redirect URL
+    let redirectPath = next
+    if (!redirectPath || redirectPath === "/dashboard") {
+      // Get user's first org for proper redirect
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+
+      if (userError) {
+        console.error("[Auth Callback] Get user failed:", userError.message)
+        return NextResponse.redirect(`${origin}/auth/auth-code-error`)
+      }
+
+      if (user) {
+        // Use maybeSingle() instead of single() to handle 0 or 1 rows gracefully
+        const { data: membership, error: membershipError } = await supabase
+          .from("organization_members")
+          .select("organizations(org_slug)")
+          .eq("user_id", user.id)
+          .eq("status", "active")
+          .limit(1)
+          .maybeSingle()
+
+        if (membershipError) {
+          console.error("[Auth Callback] Membership query failed:", membershipError.message)
+          // Still redirect to onboarding on error - user can recover from there
+          redirectPath = "/onboarding/organization"
+        } else if (membership?.organizations) {
+          const orgSlug = (membership.organizations as { org_slug: string })?.org_slug
+          redirectPath = orgSlug ? `/${orgSlug}/dashboard` : "/onboarding/organization"
         } else {
-          redirectPath = "/"
+          // No org found, redirect to onboarding
+          redirectPath = "/onboarding/organization"
         }
-      }
-
-      if (isLocalEnv) {
-        // we can be sure that there is no load balancer in between, so no need to watch for X-Forwarded-Host
-        return NextResponse.redirect(`${origin}${redirectPath}`)
-      } else if (forwardedHost) {
-        return NextResponse.redirect(`https://${forwardedHost}${redirectPath}`)
       } else {
-        return NextResponse.redirect(`${origin}${redirectPath}`)
+        redirectPath = "/"
       }
+    }
+
+    if (isLocalEnv) {
+      // we can be sure that there is no load balancer in between, so no need to watch for X-Forwarded-Host
+      return NextResponse.redirect(`${origin}${redirectPath}`)
+    } else if (forwardedHost) {
+      return NextResponse.redirect(`https://${forwardedHost}${redirectPath}`)
+    } else {
+      return NextResponse.redirect(`${origin}${redirectPath}`)
     }
   }
 

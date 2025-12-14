@@ -9,6 +9,9 @@ interface OrganizationData {
   org_slug: string
   plan: string
   billing_status: string
+  // i18n fields for locale-aware formatting
+  default_currency?: string
+  default_timezone?: string
 }
 
 interface DashboardData {
@@ -45,7 +48,7 @@ export default async function DashboardPage({
       supabase.auth.getUser(),
       supabase
         .from("organizations")
-        .select("id, org_name, org_slug, plan, billing_status")
+        .select("id, org_name, org_slug, plan, billing_status, default_currency, default_timezone")
         .eq("org_slug", orgSlug)
         .single()
     ])

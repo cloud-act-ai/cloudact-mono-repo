@@ -30,6 +30,8 @@ from src.app.models.i18n_models import (
     DEFAULT_LANGUAGE,
     DEFAULT_COUNTRY,
     get_country_from_currency,
+    get_currency_symbol,
+    get_currency_decimals,
     CURRENCY_METADATA,
     timezone_validator,
 )
@@ -2140,12 +2142,16 @@ async def get_org_locale(
 
         row = result[0]
 
+        currency_code = row.get("default_currency") or DEFAULT_CURRENCY.value
         return OrgLocaleResponse(
             org_slug=row["org_slug"],
-            default_currency=row.get("default_currency") or DEFAULT_CURRENCY.value,
+            default_currency=currency_code,
             default_country=row.get("default_country") or DEFAULT_COUNTRY,
             default_language=row.get("default_language") or DEFAULT_LANGUAGE.value,
-            default_timezone=row.get("default_timezone") or DEFAULT_TIMEZONE
+            default_timezone=row.get("default_timezone") or DEFAULT_TIMEZONE,
+            currency_symbol=get_currency_symbol(currency_code),
+            currency_name=CURRENCY_METADATA.get(currency_code, {}).get("name", "Unknown"),
+            currency_decimals=get_currency_decimals(currency_code)
         )
 
     except HTTPException:
@@ -2194,23 +2200,17 @@ async def update_org_locale(
 
     logger.info(f"Updating locale settings for organization: {org_slug}")
 
-    # Derive country from currency
-    new_currency = request.default_currency
-    new_timezone = request.default_timezone
-    new_country = get_country_from_currency(new_currency)
-    new_language = DEFAULT_LANGUAGE.value  # Always "en" for now
-
     try:
-        # First verify org exists
-        check_query = f"""
-        SELECT org_slug
+        # First fetch current locale values (for partial update support)
+        fetch_query = f"""
+        SELECT org_slug, default_currency, default_timezone, default_country, default_language
         FROM `{settings.gcp_project_id}.organizations.org_profiles`
         WHERE org_slug = @org_slug
         LIMIT 1
         """
 
-        check_result = list(bq_client.client.query(
-            check_query,
+        fetch_result = list(bq_client.client.query(
+            fetch_query,
             job_config=bigquery.QueryJobConfig(
                 query_parameters=[
                     bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
@@ -2218,11 +2218,19 @@ async def update_org_locale(
             )
         ).result())
 
-        if not check_result:
+        if not fetch_result:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Organization '{org_slug}' not found"
             )
+
+        current = dict(fetch_result[0])
+
+        # Partial update: only override non-null request values
+        new_currency = request.default_currency.value if request.default_currency else current.get("default_currency", DEFAULT_CURRENCY.value)
+        new_timezone = request.default_timezone if request.default_timezone else current.get("default_timezone", DEFAULT_TIMEZONE)
+        new_country = get_country_from_currency(new_currency)
+        new_language = DEFAULT_LANGUAGE.value  # Always "en" for now
 
         # Update locale fields
         update_query = f"""
@@ -2279,7 +2287,10 @@ async def update_org_locale(
             default_currency=new_currency,
             default_country=new_country,
             default_language=new_language,
-            default_timezone=new_timezone
+            default_timezone=new_timezone,
+            currency_symbol=get_currency_symbol(new_currency),
+            currency_name=CURRENCY_METADATA.get(new_currency, {}).get("name", "Unknown"),
+            currency_decimals=get_currency_decimals(new_currency)
         )
 
     except HTTPException:

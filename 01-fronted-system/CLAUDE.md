@@ -156,6 +156,7 @@ actions/                        # Server actions
 ├── subscription-providers.ts   # SaaS subscription CRUD (Canva, Slack, etc.)
 ├── stripe.ts                   # Stripe checkout, billing portal, plan changes
 ├── organization.ts             # Org creation, post-checkout onboarding
+├── organization-locale.ts      # Org locale settings (currency, timezone)
 ├── members.ts                  # Team invites, roles
 └── account.ts                  # Account deletion, org transfer
 
@@ -166,6 +167,10 @@ lib/
 ├── stripe.ts                   # Stripe client initialization
 ├── email.ts                    # Email utilities with escapeHtml()
 ├── dashboard-data.ts           # Dashboard stats, activity logs
+├── i18n/                       # Internationalization
+│   ├── constants.ts            # Currencies, timezones, mappings
+│   ├── formatters.ts           # formatCurrency, formatDateTime
+│   └── index.ts                # Re-exports
 └── utils.ts                    # cn(), logError()
 
 components/
@@ -178,6 +183,7 @@ scripts/supabase_db/            # Database migrations
 ├── 01_production_setup.sql     # Base schema + RLS
 ├── 04_backend_onboarding_columns.sql  # Backend integration columns
 ├── 12_saas_subscriptions_table.sql    # SaaS subscription tracking
+├── 16_org_internationalization.sql    # i18n columns (currency, timezone)
 └── migrate.sh                  # Migration runner
 ```
 
@@ -192,7 +198,237 @@ scripts/supabase_db/            # Database migrations
 - `integration_{openai,anthropic,gcp}_status`
 - `integration_{openai,anthropic,gcp}_configured_at`
 
+**Internationalization Columns (in organizations table):**
+- `locale_currency` - Organization's default currency (e.g., "USD", "INR")
+- `locale_timezone` - Organization's timezone (e.g., "America/New_York", "Asia/Kolkata")
+- `locale_country` - Country code (e.g., "US", "IN")
+- `locale_language` - Language code (e.g., "en", "hi")
+
 **Migration Scripts:** `scripts/supabase_db/*.sql` (see Migration Runner section above)
+
+---
+
+## Internationalization (i18n)
+
+Organization-level internationalization settings for currency, timezone, country, and language. All cost data and timestamps are formatted according to the organization's locale preferences.
+
+### Overview
+
+- **Scope:** Organization-level (not user-level)
+- **Settings:** Currency, timezone, country, language
+- **Storage:** Supabase `organizations` table (`locale_*` columns)
+- **Usage:** Cost formatting, timestamp display, regional defaults
+- **Configuration:** Set during signup or updated in organization settings
+
+### Supported Options
+
+**Currencies (16):** USD, EUR, GBP, INR, JPY, CNY, AUD, CAD, SGD, AED, CHF, SEK, NOK, DKK, ZAR, BRL
+
+**Timezones (15):** America/New_York, America/Los_Angeles, America/Chicago, Europe/London, Europe/Paris, Europe/Berlin, Asia/Kolkata, Asia/Tokyo, Asia/Singapore, Asia/Shanghai, Australia/Sydney, Pacific/Auckland, America/Sao_Paulo, Africa/Johannesburg, Asia/Dubai
+
+**Countries (16):** US, GB, IN, JP, CN, AU, CA, SG, AE, CH, SE, NO, DK, ZA, BR, EU
+
+**Languages (16):** en, es, fr, de, hi, ja, zh, pt, ar, ru, it, nl, sv, no, da, ko
+
+### Frontend Utilities (`lib/i18n/`)
+
+**Constants (`constants.ts`):**
+```typescript
+export const SUPPORTED_CURRENCIES = [
+  { code: "USD", name: "US Dollar", symbol: "$", country: "US" },
+  { code: "EUR", name: "Euro", symbol: "€", country: "EU" },
+  { code: "GBP", name: "British Pound", symbol: "£", country: "GB" },
+  { code: "INR", name: "Indian Rupee", symbol: "₹", country: "IN" },
+  // ... 12 more
+]
+
+export const SUPPORTED_TIMEZONES = [
+  { value: "America/New_York", label: "Eastern Time (US)", offset: "UTC-5/4" },
+  { value: "America/Los_Angeles", label: "Pacific Time (US)", offset: "UTC-8/7" },
+  { value: "Asia/Kolkata", label: "India Standard Time", offset: "UTC+5:30" },
+  // ... 12 more
+]
+
+export const SUPPORTED_COUNTRIES = [...]
+export const SUPPORTED_LANGUAGES = [...]
+
+// Helper mappings
+export const CURRENCY_BY_COUNTRY: Record<string, string>
+export const TIMEZONE_BY_COUNTRY: Record<string, string>
+```
+
+**Formatters (`formatters.ts`):**
+```typescript
+// Format currency with proper symbol and decimals
+export function formatCurrency(
+  amount: number,
+  currencyCode: string = "USD"
+): string
+
+// Format date/time in organization's timezone
+export function formatDateTime(
+  date: Date | string,
+  timezone: string = "UTC",
+  options?: Intl.DateTimeFormatOptions
+): string
+
+// Get currency symbol only
+export function getCurrencySymbol(currencyCode: string): string
+```
+
+**Re-exports (`index.ts`):**
+```typescript
+export * from "./constants"
+export * from "./formatters"
+```
+
+### Usage Examples
+
+```typescript
+import {
+  formatCurrency,
+  formatDateTime,
+  getCurrencySymbol,
+  SUPPORTED_CURRENCIES
+} from "@/lib/i18n"
+
+// Currency formatting
+formatCurrency(100, "INR")     // "₹100.00"
+formatCurrency(100, "USD")     // "$100.00"
+formatCurrency(1234.56, "EUR") // "€1,234.56"
+
+// Timestamp formatting
+const date = new Date("2025-12-13T10:30:00Z")
+formatDateTime(date, "Asia/Kolkata")        // "Dec 13, 2025, 4:00 PM IST"
+formatDateTime(date, "America/New_York")    // "Dec 13, 2025, 5:30 AM EST"
+
+// Custom date format
+formatDateTime(date, "Europe/London", {
+  dateStyle: "full",
+  timeStyle: "short"
+})  // "Friday, 13 December 2025 at 10:30"
+
+// Currency symbol only
+getCurrencySymbol("JPY")  // "¥"
+getCurrencySymbol("AED")  // "د.إ"
+
+// Dropdown options
+<Select>
+  {SUPPORTED_CURRENCIES.map(({ code, name, symbol }) => (
+    <option value={code}>{name} ({symbol})</option>
+  ))}
+</Select>
+```
+
+### Server Actions (`actions/organization-locale.ts`)
+
+```typescript
+// Fetch organization locale settings
+const locale = await getOrgLocale(orgSlug)
+// Returns: { currency: "USD", timezone: "America/New_York", country: "US", language: "en" }
+
+// Update organization locale
+await updateOrgLocale(orgSlug, {
+  currency: "INR",
+  timezone: "Asia/Kolkata",
+  country: "IN",
+  language: "hi"
+})
+```
+
+### Settings Page (`app/[orgSlug]/settings/organization/`)
+
+**Page Structure:**
+- `page.tsx` - Organization settings UI with locale dropdowns
+- Currency dropdown (16 options)
+- Timezone dropdown (15 options)
+- Country dropdown (16 options)
+- Language dropdown (16 options)
+- Auto-population: Currency/timezone default based on country selection
+
+**Features:**
+- Saves to Supabase `organizations.locale_*` columns
+- Validates against supported options
+- Shows current settings on load
+- Updates in real-time
+
+### Signup Form Integration
+
+**Signup Page (`app/signup/page.tsx`):**
+- Currency dropdown (defaults to USD)
+- Timezone dropdown (defaults to UTC)
+- Stored in Supabase user metadata during signup
+- Applied to organization during onboarding
+
+**Onboarding Flow:**
+```
+Signup → Billing → Checkout → Organization Creation
+  ↓         ↓         ↓              ↓
+Currency  Plan    Payment       locale_currency
+Timezone  Select  Success       locale_timezone
+```
+
+### Database Schema
+
+**Migration:** `scripts/supabase_db/16_org_internationalization.sql`
+
+```sql
+ALTER TABLE organizations
+  ADD COLUMN locale_currency VARCHAR(3) DEFAULT 'USD',
+  ADD COLUMN locale_timezone VARCHAR(50) DEFAULT 'UTC',
+  ADD COLUMN locale_country VARCHAR(2) DEFAULT 'US',
+  ADD COLUMN locale_language VARCHAR(2) DEFAULT 'en';
+```
+
+### Integration Points
+
+**Dashboard Charts:**
+```typescript
+// Use org locale for cost display
+const { currency } = await getOrgLocale(orgSlug)
+const formattedCost = formatCurrency(totalCost, currency)
+```
+
+**Activity Logs:**
+```typescript
+// Format timestamps in org timezone
+const { timezone } = await getOrgLocale(orgSlug)
+const displayTime = formatDateTime(log.created_at, timezone)
+```
+
+**Billing Pages:**
+```typescript
+// Show subscription costs in org currency
+const { currency } = await getOrgLocale(orgSlug)
+subscriptions.map(sub => ({
+  ...sub,
+  displayPrice: formatCurrency(sub.price, currency)
+}))
+```
+
+### Best Practices
+
+1. **Always fetch org locale** before displaying costs or timestamps
+2. **Default to USD/UTC** if locale not set
+3. **Validate currency codes** against `SUPPORTED_CURRENCIES` before saving
+4. **Use timezone-aware date pickers** for scheduling
+5. **Store all dates in UTC** in database, format on display only
+6. **Cache locale settings** in client-side state to reduce DB calls
+
+### Testing
+
+**Test Coverage:**
+- `tests/i18n/locale-formatting.test.ts` - Currency/date formatting
+- `tests/i18n/locale-settings.test.ts` - Update/fetch locale settings
+
+**Example:**
+```typescript
+test("formats currency correctly for different locales", () => {
+  expect(formatCurrency(100, "USD")).toBe("$100.00")
+  expect(formatCurrency(100, "INR")).toBe("₹100.00")
+  expect(formatCurrency(1234.56, "EUR")).toBe("€1,234.56")
+})
+```
 
 ---
 
@@ -561,6 +797,7 @@ All documentation is centralized in `00-requirements-docs/`:
 | `00-ARCHITECTURE.md` | Full platform architecture |
 | `00-DESIGN_STANDARDS.md` | Design system (colors, typography) |
 | `00_CONSOLE_UI_DESIGN_STANDARDS.md` | Console UI patterns |
+| `00_INTERNATIONALIZATION.md` | i18n implementation guide |
 | `01_BILLING_STRIPE.md` | Billing architecture (Stripe-first) |
 | `01_USER_MANAGEMENT.md` | Auth, roles, team invites |
 | `05_SECURITY.md` | Security implementation details |

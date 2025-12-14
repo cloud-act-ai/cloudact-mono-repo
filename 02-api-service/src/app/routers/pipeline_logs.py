@@ -188,7 +188,8 @@ async def list_pipeline_runs(
                 import json
                 try:
                     params = json.loads(row["parameters"]) if isinstance(row["parameters"], str) else row["parameters"]
-                except:
+                except Exception as e:
+                    logger.warning(f"Failed to parse parameters JSON: {e}")
                     params = {"raw": row["parameters"]}
 
             runs.append(PipelineRunSummary(
@@ -218,7 +219,7 @@ async def list_pipeline_runs(
         logger.error(f"Error fetching pipeline runs: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to fetch pipeline runs: {str(e)}"
+            detail="Failed to fetch pipeline runs. Please check server logs for details."
         )
 
 
@@ -286,14 +287,16 @@ async def get_pipeline_run_detail(
         if row.get("parameters"):
             try:
                 params = json.loads(row["parameters"]) if isinstance(row["parameters"], str) else row["parameters"]
-            except:
+            except Exception as e:
+                logger.warning(f"Failed to parse parameters JSON: {e}")
                 params = {"raw": row["parameters"]}
 
         run_metadata = None
         if row.get("run_metadata"):
             try:
                 run_metadata = json.loads(row["run_metadata"]) if isinstance(row["run_metadata"], str) else row["run_metadata"]
-            except:
+            except Exception as e:
+                logger.warning(f"Failed to parse run_metadata JSON: {e}")
                 run_metadata = {"raw": row["run_metadata"]}
 
         # Get step logs (only COMPLETED status to avoid duplicates)
@@ -325,7 +328,8 @@ async def get_pipeline_run_detail(
             if step_row.get("metadata"):
                 try:
                     step_metadata = json.loads(step_row["metadata"]) if isinstance(step_row["metadata"], str) else step_row["metadata"]
-                except:
+                except Exception as e:
+                    logger.warning(f"Failed to parse step metadata JSON: {e}")
                     step_metadata = {"raw": step_row["metadata"]}
 
             steps.append(StepLogSummary(
@@ -366,7 +370,7 @@ async def get_pipeline_run_detail(
         logger.error(f"Error fetching pipeline run details: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to fetch pipeline run details: {str(e)}"
+            detail="Failed to fetch pipeline run details. Please check server logs for details."
         )
 
 
@@ -465,7 +469,8 @@ async def get_step_logs(
             if row.get("metadata"):
                 try:
                     step_metadata = json.loads(row["metadata"]) if isinstance(row["metadata"], str) else row["metadata"]
-                except:
+                except Exception as e:
+                    logger.warning(f"Failed to parse step metadata JSON: {e}")
                     step_metadata = {"raw": row["metadata"]}
 
             steps.append(StepLogSummary(
@@ -495,7 +500,7 @@ async def get_step_logs(
         logger.error(f"Error fetching step logs: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to fetch step logs: {str(e)}"
+            detail="Failed to fetch step logs. Please check server logs for details."
         )
 
 
@@ -576,7 +581,8 @@ async def retry_pipeline_run(
         if original_params and isinstance(original_params, str):
             try:
                 original_params = json.loads(original_params)
-            except:
+            except Exception as e:
+                logger.warning(f"Failed to parse original parameters JSON: {e}")
                 original_params = {}
 
         # Note: This is a placeholder - actual retry should call the pipeline service
@@ -596,7 +602,7 @@ async def retry_pipeline_run(
         logger.error(f"Error retrying pipeline run: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retry pipeline run: {str(e)}"
+            detail="Failed to retry pipeline run. Please check server logs for details."
         )
 
 
@@ -701,5 +707,5 @@ async def download_pipeline_logs(
         logger.error(f"Error downloading pipeline logs: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to download pipeline logs: {str(e)}"
+            detail="Failed to download pipeline logs. Please check server logs for details."
         )

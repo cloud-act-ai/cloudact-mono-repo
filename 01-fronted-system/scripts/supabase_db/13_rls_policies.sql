@@ -275,13 +275,21 @@ USING (
   )
 );
 
--- Policy: All authenticated users can insert activity logs
--- This is needed because activity logs are created by various server actions
+-- Policy: Members can insert activity logs for their own organizations only
+-- This prevents cross-org activity log injection
 DROP POLICY IF EXISTS "Authenticated users can create activity logs" ON activity_logs;
-CREATE POLICY "Authenticated users can create activity logs"
+CREATE POLICY "Members can insert activity logs for own org"
 ON activity_logs
 FOR INSERT
-WITH CHECK (auth.uid() IS NOT NULL);
+WITH CHECK (
+  auth.uid() IS NOT NULL
+  AND org_id IN (
+    SELECT org_id
+    FROM organization_members
+    WHERE user_id = auth.uid()
+    AND status = 'active'
+  )
+);
 
 -- Policy: Owners can delete activity logs (for cleanup)
 DROP POLICY IF EXISTS "Owners can delete activity logs" ON activity_logs;

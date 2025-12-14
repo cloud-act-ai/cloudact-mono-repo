@@ -11,7 +11,10 @@ import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DEFAULT_TRIAL_DAYS } from "@/lib/constants"
-import { SUPPORTED_CURRENCIES, SUPPORTED_TIMEZONES } from "@/lib/i18n"
+import { SUPPORTED_CURRENCIES, SUPPORTED_TIMEZONES, isValidCurrency, isValidTimezone, DEFAULT_CURRENCY, DEFAULT_TIMEZONE } from "@/lib/i18n"
+import { COUNTRY_CODES } from "@/lib/constants/countries"
+import { isValidPhone, getPhoneHint } from "@/lib/utils/phone"
+import { sanitizeOrgName, isValidOrgName } from "@/lib/utils/validation"
 
 const ORG_TYPES = [
   { value: "personal", label: "Personal" },
@@ -20,197 +23,6 @@ const ORG_TYPES = [
   { value: "company", label: "Company" },
   { value: "educational", label: "Educational" },
 ]
-
-// Comprehensive country codes for phone number selection
-// Order: US/CA first, India second, popular countries, then alphabetical
-const COUNTRY_CODES = [
-  // Top countries
-  { code: "+1", country: "US/Canada" },
-  { code: "+91", country: "India" },
-  { code: "+44", country: "UK" },
-  { code: "+61", country: "Australia" },
-  { code: "+49", country: "Germany" },
-  { code: "+33", country: "France" },
-  { code: "+81", country: "Japan" },
-  { code: "+86", country: "China" },
-  { code: "+65", country: "Singapore" },
-  { code: "+971", country: "UAE" },
-  { code: "+55", country: "Brazil" },
-  { code: "+52", country: "Mexico" },
-  { code: "+31", country: "Netherlands" },
-  { code: "+34", country: "Spain" },
-  { code: "+39", country: "Italy" },
-  // Separator - rest alphabetical
-  { code: "+93", country: "Afghanistan" },
-  { code: "+355", country: "Albania" },
-  { code: "+213", country: "Algeria" },
-  { code: "+376", country: "Andorra" },
-  { code: "+244", country: "Angola" },
-  { code: "+54", country: "Argentina" },
-  { code: "+374", country: "Armenia" },
-  { code: "+43", country: "Austria" },
-  { code: "+994", country: "Azerbaijan" },
-  { code: "+973", country: "Bahrain" },
-  { code: "+880", country: "Bangladesh" },
-  { code: "+375", country: "Belarus" },
-  { code: "+32", country: "Belgium" },
-  { code: "+501", country: "Belize" },
-  { code: "+229", country: "Benin" },
-  { code: "+975", country: "Bhutan" },
-  { code: "+591", country: "Bolivia" },
-  { code: "+387", country: "Bosnia" },
-  { code: "+267", country: "Botswana" },
-  { code: "+673", country: "Brunei" },
-  { code: "+359", country: "Bulgaria" },
-  { code: "+855", country: "Cambodia" },
-  { code: "+237", country: "Cameroon" },
-  { code: "+56", country: "Chile" },
-  { code: "+57", country: "Colombia" },
-  { code: "+506", country: "Costa Rica" },
-  { code: "+385", country: "Croatia" },
-  { code: "+53", country: "Cuba" },
-  { code: "+357", country: "Cyprus" },
-  { code: "+420", country: "Czech Rep" },
-  { code: "+45", country: "Denmark" },
-  { code: "+593", country: "Ecuador" },
-  { code: "+20", country: "Egypt" },
-  { code: "+503", country: "El Salvador" },
-  { code: "+372", country: "Estonia" },
-  { code: "+251", country: "Ethiopia" },
-  { code: "+358", country: "Finland" },
-  { code: "+995", country: "Georgia" },
-  { code: "+233", country: "Ghana" },
-  { code: "+30", country: "Greece" },
-  { code: "+502", country: "Guatemala" },
-  { code: "+504", country: "Honduras" },
-  { code: "+852", country: "Hong Kong" },
-  { code: "+36", country: "Hungary" },
-  { code: "+354", country: "Iceland" },
-  { code: "+62", country: "Indonesia" },
-  { code: "+98", country: "Iran" },
-  { code: "+964", country: "Iraq" },
-  { code: "+353", country: "Ireland" },
-  { code: "+972", country: "Israel" },
-  { code: "+225", country: "Ivory Coast" },
-  { code: "+962", country: "Jordan" },
-  { code: "+7", country: "Russia/Kazakhstan" },
-  { code: "+254", country: "Kenya" },
-  { code: "+82", country: "South Korea" },
-  { code: "+965", country: "Kuwait" },
-  { code: "+996", country: "Kyrgyzstan" },
-  { code: "+856", country: "Laos" },
-  { code: "+371", country: "Latvia" },
-  { code: "+961", country: "Lebanon" },
-  { code: "+218", country: "Libya" },
-  { code: "+370", country: "Lithuania" },
-  { code: "+352", country: "Luxembourg" },
-  { code: "+853", country: "Macau" },
-  { code: "+60", country: "Malaysia" },
-  { code: "+960", country: "Maldives" },
-  { code: "+356", country: "Malta" },
-  { code: "+373", country: "Moldova" },
-  { code: "+377", country: "Monaco" },
-  { code: "+976", country: "Mongolia" },
-  { code: "+382", country: "Montenegro" },
-  { code: "+212", country: "Morocco" },
-  { code: "+95", country: "Myanmar" },
-  { code: "+977", country: "Nepal" },
-  { code: "+64", country: "New Zealand" },
-  { code: "+505", country: "Nicaragua" },
-  { code: "+234", country: "Nigeria" },
-  { code: "+389", country: "N. Macedonia" },
-  { code: "+47", country: "Norway" },
-  { code: "+968", country: "Oman" },
-  { code: "+92", country: "Pakistan" },
-  { code: "+507", country: "Panama" },
-  { code: "+595", country: "Paraguay" },
-  { code: "+51", country: "Peru" },
-  { code: "+63", country: "Philippines" },
-  { code: "+48", country: "Poland" },
-  { code: "+351", country: "Portugal" },
-  { code: "+974", country: "Qatar" },
-  { code: "+40", country: "Romania" },
-  { code: "+966", country: "Saudi Arabia" },
-  { code: "+381", country: "Serbia" },
-  { code: "+421", country: "Slovakia" },
-  { code: "+386", country: "Slovenia" },
-  { code: "+27", country: "South Africa" },
-  { code: "+94", country: "Sri Lanka" },
-  { code: "+46", country: "Sweden" },
-  { code: "+41", country: "Switzerland" },
-  { code: "+886", country: "Taiwan" },
-  { code: "+992", country: "Tajikistan" },
-  { code: "+255", country: "Tanzania" },
-  { code: "+66", country: "Thailand" },
-  { code: "+216", country: "Tunisia" },
-  { code: "+90", country: "Turkey" },
-  { code: "+993", country: "Turkmenistan" },
-  { code: "+256", country: "Uganda" },
-  { code: "+380", country: "Ukraine" },
-  { code: "+598", country: "Uruguay" },
-  { code: "+998", country: "Uzbekistan" },
-  { code: "+58", country: "Venezuela" },
-  { code: "+84", country: "Vietnam" },
-  { code: "+967", country: "Yemen" },
-  { code: "+260", country: "Zambia" },
-  { code: "+263", country: "Zimbabwe" },
-]
-
-// Sanitize organization name to prevent XSS and SQL injection
-function sanitizeOrgName(name: string): string {
-  return name
-    .replace(/<[^>]*>/g, "")  // Remove HTML tags
-    .replace(/[<>"'&;]/g, "") // Remove potentially dangerous characters
-    .trim()
-    .slice(0, 100)            // Limit length
-}
-
-// Validate organization name
-function isValidOrgName(name: string): boolean {
-  const trimmed = name.trim()
-  return trimmed.length >= 2 &&
-         trimmed.length <= 100 &&
-         !/<script|<\/script|javascript:|on\w+=/i.test(trimmed)
-}
-
-// Phone number length requirements by country code
-const PHONE_LENGTH_BY_COUNTRY: Record<string, { min: number; max: number }> = {
-  '+1': { min: 10, max: 10 },      // US/Canada
-  '+91': { min: 10, max: 10 },     // India
-  '+44': { min: 10, max: 11 },     // UK
-  '+61': { min: 9, max: 9 },       // Australia
-  '+49': { min: 10, max: 11 },     // Germany
-  '+33': { min: 9, max: 9 },       // France
-  '+81': { min: 10, max: 10 },     // Japan
-  '+86': { min: 11, max: 11 },     // China
-  '+65': { min: 8, max: 8 },       // Singapore
-  '+971': { min: 9, max: 9 },      // UAE
-  '+55': { min: 10, max: 11 },     // Brazil
-  '+52': { min: 10, max: 10 },     // Mexico
-  '+7': { min: 10, max: 10 },      // Russia/Kazakhstan
-}
-
-// Validate phone number with country-specific rules
-function isValidPhone(phone: string, countryCode: string): boolean {
-  // Extract digits only (allows formatting like spaces, dashes, parens)
-  const digitsOnly = phone.replace(/\D/g, "")
-
-  // Must have at least some digits
-  if (digitsOnly.length === 0) return false
-
-  // Get expected length for this country code
-  const expected = PHONE_LENGTH_BY_COUNTRY[countryCode] || { min: 7, max: 15 }
-
-  return digitsOnly.length >= expected.min && digitsOnly.length <= expected.max
-}
-
-// Get expected phone format hint for country
-function getPhoneHint(countryCode: string): string {
-  const expected = PHONE_LENGTH_BY_COUNTRY[countryCode]
-  if (!expected) return "7-15 digits"
-  if (expected.min === expected.max) return `${expected.min} digits`
-  return `${expected.min}-${expected.max} digits`
-}
 
 /**
  * Validate redirect URL to prevent open redirect attacks.
@@ -256,7 +68,16 @@ function SignupForm() {
   // Pre-fill email from query param (e.g., from invite link)
   useEffect(() => {
     if (prefillEmail) {
-      setEmail(decodeURIComponent(prefillEmail))
+      try {
+        const decoded = decodeURIComponent(prefillEmail)
+        // Basic email validation before pre-filling
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+        if (emailRegex.test(decoded) && decoded.length <= 254) {
+          setEmail(decoded)
+        }
+      } catch {
+        // Invalid URL encoding, ignore
+      }
     }
   }, [prefillEmail])
 
@@ -303,8 +124,9 @@ function SignupForm() {
       if (!isInviteFlow) {
         userData.pending_company_name = sanitizedCompanyName
         userData.pending_company_type = companyType
-        userData.pending_currency = currency
-        userData.pending_timezone = timezone
+        // Validate and fallback to defaults for i18n fields
+        userData.pending_currency = isValidCurrency(currency) ? currency : DEFAULT_CURRENCY
+        userData.pending_timezone = isValidTimezone(timezone) ? timezone : DEFAULT_TIMEZONE
       }
 
       // Signup with user_metadata (use normalizedEmail for consistency)
@@ -327,15 +149,16 @@ function SignupForm() {
         console.log("[v0] Company info stored in metadata:", sanitizedCompanyName, companyType)
       }
 
-      // Sign in to establish session
+      // Sign in to establish session (use normalized email to match signup)
       const { error: signinError } = await supabase.auth.signInWithPassword({
-        email,
+        email: normalizedEmail,
         password,
       })
 
       if (signinError) {
         console.error("[v0] Auto-signin failed:", signinError.message)
         const loginUrl = `/login?redirect=${encodeURIComponent(finalRedirect)}&message=Please sign in to continue`
+        setIsLoading(false)
         router.push(loginUrl)
         return
       }

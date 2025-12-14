@@ -49,16 +49,21 @@ export default function ResetPasswordPage() {
       } = await supabase.auth.getUser()
 
       if (user) {
-        const { data: memberData } = await supabase
+        // Use maybeSingle() to handle 0 or 1 rows gracefully
+        const { data: memberData, error: memberError } = await supabase
           .from("organization_members")
           .select("org_id, organizations(org_slug)")
           .eq("user_id", user.id)
           .eq("status", "active")
           .limit(1)
-          .single()
+          .maybeSingle()
 
-        if (memberData && memberData.organizations) {
-          const org = memberData.organizations as unknown as { org_slug: string }
+        if (memberError) {
+          console.error("[Auth] Failed to fetch membership:", memberError.message)
+        }
+
+        if (memberData?.organizations) {
+          const org = memberData.organizations as { org_slug: string }
           router.push(`/${org.org_slug}/dashboard?password_reset=true`)
           return
         }
@@ -67,7 +72,9 @@ export default function ResetPasswordPage() {
       // No org found, go to onboarding
       router.push("/onboarding/organization")
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to reset password")
+      // Use generic error message for security
+      console.error("[Auth] Reset password error:", err instanceof Error ? err.message : "Unknown error")
+      setError("Failed to reset password. Please request a new reset link.")
     } finally {
       setIsLoading(false)
     }

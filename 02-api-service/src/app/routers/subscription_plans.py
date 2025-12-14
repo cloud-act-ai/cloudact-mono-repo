@@ -798,17 +798,30 @@ async def list_plans(
             # Calculation Logic
             # Note: unit_price_usd is actually in the plan's currency (historically named _usd)
             # We use the 'currency' field to distinguish.
-            
+
             # Calculate Monthly Equivalent
             monthly_val = 0.0
             annual_val = 0.0
-            
+
             # Determine base annual/monthly cost for this plan
+            # Ensure seats is at least 1 to avoid zero calculations for per-seat plans
+            effective_seats = max(plan.seats, 1) if plan.pricing_model == "PER_SEAT" else 1
+
             if plan.pricing_model == "PER_SEAT":
-                 base_cost = plan.unit_price_usd * plan.seats
+                 base_cost = plan.unit_price_usd * effective_seats
             else:
                  base_cost = plan.unit_price_usd # Flat fee
-            
+
+            # Apply discount if present
+            if plan.discount_type and plan.discount_value:
+                if plan.discount_type == "percent" and 0 < plan.discount_value <= 100:
+                    discount_amount = base_cost * (plan.discount_value / 100)
+                    base_cost = base_cost - discount_amount
+                elif plan.discount_type == "fixed" and plan.discount_value > 0:
+                    # Fixed discount cannot exceed base cost
+                    discount_amount = min(plan.discount_value, base_cost)
+                    base_cost = base_cost - discount_amount
+
             if plan.billing_cycle == "monthly":
                 monthly_val = base_cost
                 annual_val = base_cost * 12
@@ -816,8 +829,8 @@ async def list_plans(
                 monthly_val = base_cost / 3
                 annual_val = base_cost * 4
             elif plan.billing_cycle == "annual":
-                # For annual, unit_price_usd usually stores the FULL annual price in some systems, 
-                # OR the monthly equivalent. 
+                # For annual, unit_price_usd usually stores the FULL annual price in some systems,
+                # OR the monthly equivalent.
                 # Let's check how 'yearly_price_usd' is used.
                 # If yearly_price_usd is set, that is the total annual cost.
                 if plan.yearly_price_usd:

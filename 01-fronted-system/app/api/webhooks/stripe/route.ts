@@ -4,9 +4,10 @@
  * SECURITY MEASURES IMPLEMENTED:
  * 1. Signature Verification: stripe.webhooks.constructEvent()
  * 2. Content-Type Validation: Blocks non-JSON/text requests
- * 3. Idempotency: In-memory + database deduplication
- * 4. Event Cache TTL: 1 hour cleanup for processed events
- * 5. Plan ID Validation: Explicit handling, no non-null assertions
+ * 3. Idempotency: In-memory + database deduplication with async-safe processing tracking
+ * 4. Event Cache Management: 1-hour TTL + LRU eviction (max 1000 events)
+ * 5. Plan ID Validation: Explicit handling with lower bound validation for all limits
+ * 6. Backend Sync Retry: 2 retries with 1s exponential backoff for backend sync failures
  *
  * @see 00-requirements-docs/05_SECURITY.md for full security documentation
  */
@@ -22,14 +23,35 @@ import type Stripe from "stripe";
 // In-memory cache for idempotency (fast path for same-instance duplicates)
 // Database-backed idempotency provides cross-instance protection (via stripe_webhook_last_event_id)
 const processedEvents = new Map<string, number>();
+const processingEvents = new Set<string>(); // Track events currently being processed
 const EVENT_CACHE_TTL = 60 * 60 * 1000; // 1 hour
+const MAX_CACHE_SIZE = 1000; // Prevent unbounded growth
 
-// Clean old events periodically
+// Clean old events periodically - async-safe with LRU eviction
 function cleanOldEvents() {
   const now = Date.now();
+
+  // 1. Remove expired events
   for (const [eventId, timestamp] of processedEvents.entries()) {
     if (now - timestamp > EVENT_CACHE_TTL) {
       processedEvents.delete(eventId);
+      processingEvents.delete(eventId);
+    }
+  }
+
+  // 2. LRU eviction if over max size
+  if (processedEvents.size > MAX_CACHE_SIZE) {
+    const sortedEntries = Array.from(processedEvents.entries()).sort(
+      (a, b) => a[1] - b[1],
+    ); // Sort by timestamp (oldest first)
+
+    const toRemove = sortedEntries.slice(
+      0,
+      processedEvents.size - MAX_CACHE_SIZE,
+    );
+    for (const [eventId] of toRemove) {
+      processedEvents.delete(eventId);
+      processingEvents.delete(eventId);
     }
   }
 }
@@ -44,6 +66,59 @@ function safeTimestampToISO(
   } catch {
     return null;
   }
+}
+
+// Safe integer parsing with lower bound validation
+function safeParseInt(value: string | undefined, defaultValue: number): number {
+  if (!value) return defaultValue;
+  const parsed = parseInt(value, 10);
+  if (isNaN(parsed) || parsed < 0) return defaultValue;
+  return parsed;
+}
+
+// Retry backend sync with exponential backoff
+async function syncWithRetry(
+  syncFn: () => Promise<{ success: boolean; error?: string }>,
+  context: { orgSlug: string; operation: string },
+  maxRetries: number = 2,
+  delayMs: number = 1000,
+): Promise<{ success: boolean; error?: string }> {
+  let lastError: string | undefined;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const result = await syncFn();
+      if (result.success) {
+        if (attempt > 0) {
+          console.log(
+            `[Webhook] Backend sync succeeded on retry ${attempt} for ${context.orgSlug} (${context.operation})`,
+          );
+        }
+        return result;
+      }
+      lastError = result.error;
+    } catch (err) {
+      lastError = err instanceof Error ? err.message : String(err);
+    }
+
+    // Don't delay after last attempt
+    if (attempt < maxRetries) {
+      await new Promise((resolve) =>
+        setTimeout(resolve, delayMs * (attempt + 1)),
+      );
+    }
+  }
+
+  // Log final failure with structured data for monitoring
+  console.error("[Webhook] Backend sync failed after retries", {
+    orgSlug: context.orgSlug,
+    operation: context.operation,
+    attempts: maxRetries + 1,
+    finalError: lastError,
+    timestamp: new Date().toISOString(),
+  });
+
+  return { success: false, error: lastError };
 }
 
 // Helper to get subscription ID from invoice (handles API version differences)
@@ -101,38 +176,36 @@ async function getPlanDetailsFromStripe(priceId: string): Promise<{
     if (!planId) {
       throw new Error(
         `[Stripe Webhook] CONFIGURATION ERROR: Product ${product.id} (${product.name}) is missing plan_id metadata. ` +
-        `Add plan_id to Stripe product metadata. No fallback allowed.`,
+          `Add plan_id to Stripe product metadata. No fallback allowed.`,
       );
     }
 
     // Validate ALL required metadata exists - REQUIRED, no fallback
-    if (!metadata.teamMembers || !metadata.providers || !metadata.pipelinesPerDay) {
+    if (
+      !metadata.teamMembers ||
+      !metadata.providers ||
+      !metadata.pipelinesPerDay
+    ) {
       throw new Error(
         `[Stripe Webhook] CONFIGURATION ERROR: Product ${product.id} missing required metadata. ` +
-        `teamMembers: ${metadata.teamMembers}, providers: ${metadata.providers}, pipelinesPerDay: ${metadata.pipelinesPerDay}. ` +
-        `All fields are required in Stripe product metadata.`,
+          `teamMembers: ${metadata.teamMembers}, providers: ${metadata.providers}, pipelinesPerDay: ${metadata.pipelinesPerDay}. ` +
+          `All fields are required in Stripe product metadata.`,
       );
     }
 
-    // Parse and validate numeric values - must be valid integers
-    const seatLimit = parseInt(metadata.teamMembers, 10);
-    const providersLimit = parseInt(metadata.providers, 10);
-    const pipelinesLimit = parseInt(metadata.pipelinesPerDay, 10);
+    // Parse and validate numeric values with lower bound validation
+    const seatLimit = safeParseInt(metadata.teamMembers, 0);
+    const providersLimit = safeParseInt(metadata.providers, 0);
+    const pipelinesLimit = safeParseInt(metadata.pipelinesPerDay, 0);
 
-    if (isNaN(seatLimit) || isNaN(providersLimit) || isNaN(pipelinesLimit)) {
-      throw new Error(
-        `[Stripe Webhook] CONFIGURATION ERROR: Product ${product.id} has invalid numeric metadata. ` +
-        `teamMembers: "${metadata.teamMembers}" (parsed: ${seatLimit}), ` +
-        `providers: "${metadata.providers}" (parsed: ${providersLimit}), ` +
-        `pipelinesPerDay: "${metadata.pipelinesPerDay}" (parsed: ${pipelinesLimit}). ` +
-        `All values must be valid integers.`,
-      );
-    }
-
+    // Validate all limits are positive after parsing
     if (seatLimit <= 0 || providersLimit <= 0 || pipelinesLimit <= 0) {
       throw new Error(
-        `[Stripe Webhook] CONFIGURATION ERROR: Product ${product.id} has non-positive limits. ` +
-        `All limits must be positive integers. Got: seats=${seatLimit}, providers=${providersLimit}, pipelines=${pipelinesLimit}`,
+        `[Stripe Webhook] CONFIGURATION ERROR: Product ${product.id} has invalid limits. ` +
+          `teamMembers: "${metadata.teamMembers}" (parsed: ${seatLimit}), ` +
+          `providers: "${metadata.providers}" (parsed: ${providersLimit}), ` +
+          `pipelinesPerDay: "${metadata.pipelinesPerDay}" (parsed: ${pipelinesLimit}). ` +
+          `All values must be positive integers (>0).`,
       );
     }
 
@@ -154,9 +227,16 @@ async function getPlanDetailsFromStripe(priceId: string): Promise<{
 export async function POST(request: NextRequest) {
   // Security headers check - ensure request comes from expected source
   const contentType = request.headers.get("content-type");
-  if (contentType && !contentType.includes("application/json") && !contentType.includes("text/")) {
+  if (
+    contentType &&
+    !contentType.includes("application/json") &&
+    !contentType.includes("text/")
+  ) {
     console.error("[Webhook] Unexpected content-type:", contentType);
-    return NextResponse.json({ error: "Invalid content type" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid content type" },
+      { status: 400 },
+    );
   }
 
   const body = await request.text();
@@ -184,12 +264,15 @@ export async function POST(request: NextRequest) {
   // Idempotency check - prevent duplicate processing
   // First check in-memory (fast path for same-instance duplicates)
   cleanOldEvents();
-  if (processedEvents.has(event.id)) {
+  if (processedEvents.has(event.id) || processingEvents.has(event.id)) {
     console.log(
-      `[Stripe Webhook] Event ${event.id} already processed (in-memory)`,
+      `[Stripe Webhook] Event ${event.id} already processed/processing (in-memory)`,
     );
     return NextResponse.json({ received: true, skipped: "duplicate" });
   }
+
+  // Mark event as being processed
+  processingEvents.add(event.id);
 
   // Get database client for cross-instance idempotency
   const supabase = getServiceClient();
@@ -211,15 +294,21 @@ export async function POST(request: NextRequest) {
         `[Stripe Webhook] Event ${event.id} already claimed by another instance`,
       );
       processedEvents.set(event.id, Date.now());
+      processingEvents.delete(event.id);
       return NextResponse.json({ received: true, skipped: "duplicate" });
     }
     // For other errors, log and fail fast (no fallback)
-    console.error(`[Stripe Webhook] Failed to claim event ${event.id}:`, claimError);
+    console.error(
+      `[Stripe Webhook] Failed to claim event ${event.id}:`,
+      claimError,
+    );
+    processingEvents.delete(event.id);
     throw new Error(`Failed to claim webhook event: ${claimError.message}`);
   }
 
   // Successfully claimed - mark in memory too
   processedEvents.set(event.id, Date.now());
+  processingEvents.delete(event.id);
 
   try {
     console.log(`[Webhook] Processing event: ${event.type} (${event.id})`);
@@ -234,7 +323,9 @@ export async function POST(request: NextRequest) {
 
         // Handle onboarding checkouts (org created on success page, not here)
         if (metadata?.is_onboarding === "true") {
-          console.log(`[Webhook] Onboarding checkout completed for user: ${metadata.user_id}`);
+          console.log(
+            `[Webhook] Onboarding checkout completed for user: ${metadata.user_id}`,
+          );
           console.log(`[Webhook] Org will be created on success page redirect`);
           // Skip processing - org creation happens on /onboarding/success page
           // via completeOnboarding() which verifies the session and creates the org
@@ -316,39 +407,36 @@ export async function POST(request: NextRequest) {
           `[Webhook] Organization ${metadata.org_id} activated with plan: ${planDetails.planId}`,
         );
 
-        // Sync subscription limits to backend BigQuery
+        // Sync subscription limits to backend BigQuery (with retry)
         if (updatedOrg[0]?.org_slug && updatedOrg[0]?.backend_onboarded) {
-          try {
-            // Determine billing status from subscription
-            let checkoutBillingStatus = "active";
-            if (subscription.status === "trialing") checkoutBillingStatus = "trialing";
+          // Determine billing status from subscription
+          let checkoutBillingStatus = "active";
+          if (subscription.status === "trialing")
+            checkoutBillingStatus = "trialing";
 
-            const syncResult = await syncSubscriptionToBackend({
+          const syncResult = await syncWithRetry(
+            () =>
+              syncSubscriptionToBackend({
+                orgSlug: updatedOrg[0].org_slug,
+                planName: planDetails.planId,
+                billingStatus: checkoutBillingStatus,
+                trialEndsAt: subscription.trial_end
+                  ? new Date(subscription.trial_end * 1000).toISOString()
+                  : undefined,
+                dailyLimit: planDetails.limits.pipelines_per_day_limit,
+                monthlyLimit: planDetails.limits.pipelines_per_day_limit * 30,
+                seatLimit: planDetails.limits.seat_limit,
+                providersLimit: planDetails.limits.providers_limit,
+              }),
+            {
               orgSlug: updatedOrg[0].org_slug,
-              planName: planDetails.planId,
-              billingStatus: checkoutBillingStatus,
-              trialEndsAt: subscription.trial_end
-                ? new Date(subscription.trial_end * 1000).toISOString()
-                : undefined,
-              dailyLimit: planDetails.limits.pipelines_per_day_limit,
-              monthlyLimit: planDetails.limits.pipelines_per_day_limit * 30,
-              seatLimit: planDetails.limits.seat_limit,
-              providersLimit: planDetails.limits.providers_limit,
-            });
-            if (syncResult.success) {
-              console.log(
-                `[Webhook] Backend subscription synced for org: ${updatedOrg[0].org_slug}`,
-              );
-            } else {
-              console.warn(
-                `[Webhook] Backend sync failed for org ${updatedOrg[0].org_slug}: ${syncResult.error}`,
-              );
-            }
-          } catch (syncErr) {
-            // Non-blocking - don't fail the webhook if backend sync fails
-            console.error(
-              `[Webhook] Backend sync error for org ${updatedOrg[0].org_slug}:`,
-              syncErr,
+              operation: "checkout.session.completed",
+            },
+          );
+
+          if (syncResult.success) {
+            console.log(
+              `[Webhook] Backend subscription synced for org: ${updatedOrg[0].org_slug}`,
             );
           }
         }
@@ -450,34 +538,32 @@ export async function POST(request: NextRequest) {
               `[Webhook] Updated org via customer ID fallback: ${customerId}`,
             );
 
-            // Sync backend for fallback path
+            // Sync backend for fallback path (with retry)
             if (fallbackOrg[0]?.org_slug && fallbackOrg[0]?.backend_onboarded) {
-              try {
-                const syncResult = await syncSubscriptionToBackend({
+              const syncResult = await syncWithRetry(
+                () =>
+                  syncSubscriptionToBackend({
+                    orgSlug: fallbackOrg[0].org_slug,
+                    planName: planDetails.planId,
+                    billingStatus: billingStatus,
+                    trialEndsAt: subscription.trial_end
+                      ? new Date(subscription.trial_end * 1000).toISOString()
+                      : undefined,
+                    dailyLimit: planDetails.limits.pipelines_per_day_limit,
+                    monthlyLimit:
+                      planDetails.limits.pipelines_per_day_limit * 30,
+                    seatLimit: planDetails.limits.seat_limit,
+                    providersLimit: planDetails.limits.providers_limit,
+                  }),
+                {
                   orgSlug: fallbackOrg[0].org_slug,
-                  planName: planDetails.planId,
-                  billingStatus: billingStatus,
-                  trialEndsAt: subscription.trial_end
-                    ? new Date(subscription.trial_end * 1000).toISOString()
-                    : undefined,
-                  dailyLimit: planDetails.limits.pipelines_per_day_limit,
-                  monthlyLimit: planDetails.limits.pipelines_per_day_limit * 30,
-                  seatLimit: planDetails.limits.seat_limit,
-                  providersLimit: planDetails.limits.providers_limit,
-                });
-                if (syncResult.success) {
-                  console.log(
-                    `[Webhook] Backend subscription synced (fallback) for org: ${fallbackOrg[0].org_slug}`,
-                  );
-                } else {
-                  console.warn(
-                    `[Webhook] Backend sync failed (fallback) for org ${fallbackOrg[0].org_slug}: ${syncResult.error}`,
-                  );
-                }
-              } catch (syncErr) {
-                console.error(
-                  `[Webhook] Backend sync error (fallback) for org ${fallbackOrg[0].org_slug}:`,
-                  syncErr,
+                  operation: "customer.subscription.updated (fallback)",
+                },
+              );
+
+              if (syncResult.success) {
+                console.log(
+                  `[Webhook] Backend subscription synced (fallback) for org: ${fallbackOrg[0].org_slug}`,
                 );
               }
             }
@@ -497,37 +583,33 @@ export async function POST(request: NextRequest) {
           `[Webhook] Subscription updated: ${subscription.id}, plan: ${planDetails.planId}, status: ${billingStatus}`,
         );
 
-        // Sync subscription limits to backend BigQuery
+        // Sync subscription limits to backend BigQuery (with retry)
         // Get org slug from either updatedOrg or fallbackOrg (whichever succeeded)
         const orgForSync = updatedOrg?.[0] || null;
         if (orgForSync?.org_slug && orgForSync?.backend_onboarded) {
-          try {
-            const syncResult = await syncSubscriptionToBackend({
+          const syncResult = await syncWithRetry(
+            () =>
+              syncSubscriptionToBackend({
+                orgSlug: orgForSync.org_slug,
+                planName: planDetails.planId,
+                billingStatus: billingStatus,
+                trialEndsAt: subscription.trial_end
+                  ? new Date(subscription.trial_end * 1000).toISOString()
+                  : undefined,
+                dailyLimit: planDetails.limits.pipelines_per_day_limit,
+                monthlyLimit: planDetails.limits.pipelines_per_day_limit * 30,
+                seatLimit: planDetails.limits.seat_limit,
+                providersLimit: planDetails.limits.providers_limit,
+              }),
+            {
               orgSlug: orgForSync.org_slug,
-              planName: planDetails.planId,
-              billingStatus: billingStatus,
-              trialEndsAt: subscription.trial_end
-                ? new Date(subscription.trial_end * 1000).toISOString()
-                : undefined,
-              dailyLimit: planDetails.limits.pipelines_per_day_limit,
-              monthlyLimit: planDetails.limits.pipelines_per_day_limit * 30,
-              seatLimit: planDetails.limits.seat_limit,
-              providersLimit: planDetails.limits.providers_limit,
-            });
-            if (syncResult.success) {
-              console.log(
-                `[Webhook] Backend subscription synced for org: ${orgForSync.org_slug}`,
-              );
-            } else {
-              console.warn(
-                `[Webhook] Backend sync failed for org ${orgForSync.org_slug}: ${syncResult.error}`,
-              );
-            }
-          } catch (syncErr) {
-            // Non-blocking - don't fail the webhook if backend sync fails
-            console.error(
-              `[Webhook] Backend sync error for org ${orgForSync.org_slug}:`,
-              syncErr,
+              operation: "customer.subscription.updated",
+            },
+          );
+
+          if (syncResult.success) {
+            console.log(
+              `[Webhook] Backend subscription synced for org: ${orgForSync.org_slug}`,
             );
           }
         }
@@ -662,8 +744,7 @@ export async function POST(request: NextRequest) {
 
           // Send payment failed email to customer
           if (invoice.customer_email && org) {
-            const appUrl =
-              process.env.NEXT_PUBLIC_APP_URL!;
+            const appUrl = process.env.NEXT_PUBLIC_APP_URL!;
             const billingLink = `${appUrl}/${org.org_slug}/billing`;
 
             await sendPaymentFailedEmail({
@@ -725,8 +806,7 @@ export async function POST(request: NextRequest) {
 
           // Send notification email to customer about action required
           if (invoice.customer_email && org) {
-            const appUrl =
-              process.env.NEXT_PUBLIC_APP_URL!;
+            const appUrl = process.env.NEXT_PUBLIC_APP_URL!;
             const billingLink = `${appUrl}/${org.org_slug}/billing`;
 
             await sendPaymentFailedEmail({
@@ -801,8 +881,7 @@ export async function POST(request: NextRequest) {
               try {
                 const customer = await stripe.customers.retrieve(customerId);
                 if (customer && !customer.deleted && customer.email) {
-                  const appUrl =
-                    process.env.NEXT_PUBLIC_APP_URL!;
+                  const appUrl = process.env.NEXT_PUBLIC_APP_URL!;
                   const billingLink = `${appUrl}/${org.org_slug}/billing`;
 
                   await sendTrialEndingEmail({

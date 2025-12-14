@@ -113,12 +113,19 @@ export default function InvitePage() {
   }
 
   const handleSignIn = () => {
-    router.push("/login?redirect=/invite/" + token)
+    // Use URLSearchParams for proper URL encoding
+    const params = new URLSearchParams({ redirect: `/invite/${token}` })
+    router.push(`/login?${params.toString()}`)
   }
 
   const handleSignUp = () => {
+    // Use URLSearchParams for proper URL encoding
     const email = inviteData?.email || ""
-    router.push("/signup?redirect=/invite/" + token + "&email=" + encodeURIComponent(email))
+    const params = new URLSearchParams({
+      redirect: `/invite/${token}`,
+      email: email
+    })
+    router.push(`/signup?${params.toString()}`)
   }
 
   if (isLoading) {

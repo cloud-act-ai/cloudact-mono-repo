@@ -12,7 +12,7 @@ This module provides:
 from datetime import datetime, date
 from enum import Enum
 from typing import Optional, List, Dict, Any
-from pydantic import BaseModel, Field, EmailStr, field_validator, computed_field, ConfigDict
+from pydantic import BaseModel, Field, EmailStr, field_validator, computed_field, ConfigDict, model_validator
 import re
 
 # Import i18n models
@@ -528,6 +528,13 @@ class UpdateOrgLocaleRequest(BaseModel):
         if v is None:
             return v
         return timezone_validator(v)
+
+    @model_validator(mode='after')
+    def at_least_one_field_required(self) -> 'UpdateOrgLocaleRequest':
+        """Ensure at least one field is provided for update."""
+        if self.default_currency is None and self.default_timezone is None:
+            raise ValueError("At least one of 'default_currency' or 'default_timezone' must be provided")
+        return self
 
     @computed_field
     @property

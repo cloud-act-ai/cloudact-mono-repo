@@ -1,66 +1,27 @@
 "use client"
 
-import { useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { AlertCircle, RefreshCw, Home } from "lucide-react"
-import Link from "next/link"
+import { AlertCircle } from "lucide-react"
 
-export default function MembersError({
+export default function Error({
   error,
   reset,
 }: {
   error: Error & { digest?: string }
   reset: () => void
 }) {
-  useEffect(() => {
-    // Log the error to an error reporting service
-    console.error("[Settings/Members] Page error:", error)
-  }, [error])
-
   return (
-    <div className="container mx-auto py-10 max-w-2xl">
-      <Card className="border-[#FF6E50]/30">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-[#FF6E50]/10 flex items-center justify-center">
-            <AlertCircle className="h-6 w-6 text-[#FF6E50]" />
-          </div>
-          <CardTitle className="text-xl">Something went wrong</CardTitle>
-          <CardDescription>
-            We encountered an error while loading team members. This could be a temporary issue.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="text-center">
-          <div className="rounded-lg bg-muted p-4 text-sm text-muted-foreground">
-            <p className="font-medium text-foreground mb-1">Unable to load team members</p>
-            <p>Please try again or contact support if the problem persists.</p>
-            {error.digest && (
-              <p className="mt-2 text-xs">Reference ID: {error.digest}</p>
-            )}
-          </div>
-        </CardContent>
-        <CardFooter className="flex justify-center gap-4">
-          <Button onClick={reset} className="bg-[#007A78] hover:bg-[#005F5D] text-white">
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Try Again
-          </Button>
-          <Button variant="outline" asChild>
-            <Link href="/">
-              <Home className="mr-2 h-4 w-4" />
-              Go to Dashboard
-            </Link>
-          </Button>
-        </CardFooter>
-      </Card>
-      <p className="text-center text-sm text-muted-foreground mt-6">
-        If this problem persists, please contact{" "}
-        <a
-          href={`mailto:${process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "support@cloudact.ai"}`}
-          className="text-[#007A78] hover:text-[#005F5D] hover:underline font-medium"
-        >
-          support
-        </a>
+    <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+      <AlertCircle className="h-12 w-12 text-red-500" />
+      <h2 className="text-lg font-semibold text-gray-900">Something went wrong</h2>
+      <p className="text-sm text-gray-600 max-w-md text-center">
+        {error.message || "An unexpected error occurred. Please try again."}
       </p>
+      <button
+        onClick={reset}
+        className="px-4 py-2 bg-[#007A78] text-white rounded-lg hover:bg-[#005F5D] transition-colors"
+      >
+        Try again
+      </button>
     </div>
   )
 }

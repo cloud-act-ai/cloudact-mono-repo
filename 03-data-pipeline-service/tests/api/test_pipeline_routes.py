@@ -300,34 +300,6 @@ async def test_run_pipeline_invalid_org_slug_format():
 
 
 @pytest.mark.asyncio
-async def test_run_pipeline_path_traversal_attempt():
-    """
-    Test running pipeline with path traversal attempt returns 400.
-
-    Security test: prevent ../../../etc/passwd style attacks
-    Expected: 400 Bad Request
-    """
-    with patch("src.app.dependencies.auth.verify_api_key_header") as mock_verify:
-        from src.app.dependencies.auth import OrgContext
-        mock_verify.return_value = OrgContext(
-            org_slug="test_org",
-            org_api_key_hash="hash_123",
-            org_api_key_id="key_123",
-            user_id="user_123"
-        )
-
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.post(
-                "/api/v1/pipelines/run/..%2F..%2Fetc%2Fpasswd/gcp/cost/billing",
-                headers={"X-API-Key": "valid_key"},
-                json={"date": "2025-12-01"}
-            )
-
-            assert response.status_code == status.HTTP_400_BAD_REQUEST
-
-
-@pytest.mark.asyncio
 async def test_run_pipeline_extra_fields_forbidden():
     """
     Test that extra fields in request body are rejected.

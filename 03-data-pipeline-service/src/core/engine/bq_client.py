@@ -526,6 +526,48 @@ class BigQueryClient:
     # Query Execution
     # ============================================
 
+    def _determine_query_timeout(self, query: str, timeout_seconds: Optional[int] = None) -> int:
+        """
+        Determine smart timeout for query based on complexity and configuration.
+
+        Priority:
+        1. Explicit timeout_seconds parameter (from pipeline config)
+        2. Smart defaults based on query complexity:
+           - Simple SELECT (< 100 chars): 30 seconds
+           - INSERT/UPDATE/DELETE: 60 seconds
+           - Complex queries (JOINs, aggregations): 120 seconds
+        3. settings.bq_query_timeout_seconds as fallback
+
+        Args:
+            query: SQL query string
+            timeout_seconds: Optional explicit timeout from pipeline config
+
+        Returns:
+            Timeout in seconds
+        """
+        # If timeout explicitly provided (from pipeline config), use it
+        if timeout_seconds is not None:
+            return timeout_seconds
+
+        # Otherwise, use smart defaults based on query complexity
+        query_upper = query.upper().strip()
+
+        # Simple SELECT queries (< 100 chars, no JOINs or aggregations)
+        if len(query) < 100 and query_upper.startswith('SELECT') and \
+           'JOIN' not in query_upper and 'GROUP BY' not in query_upper:
+            return 30  # 30 seconds for simple queries
+
+        # INSERT/UPDATE/DELETE operations
+        if any(query_upper.startswith(op) for op in ['INSERT', 'UPDATE', 'DELETE', 'MERGE']):
+            return 60  # 60 seconds for write operations
+
+        # Complex queries (JOINs, GROUP BY, window functions, CTEs)
+        if any(keyword in query_upper for keyword in ['JOIN', 'GROUP BY', 'OVER(', 'WITH ']):
+            return 120  # 120 seconds for complex queries
+
+        # Default to settings value for other cases
+        return settings.bq_query_timeout_seconds
+
     @circuit(
         failure_threshold=5,
         recovery_timeout=60,
@@ -541,7 +583,8 @@ class BigQueryClient:
         self,
         query: str,
         parameters: Optional[List[Any]] = None,
-        use_legacy_sql: bool = False
+        use_legacy_sql: bool = False,
+        timeout_seconds: Optional[int] = None
     ) -> Iterator[Dict[str, Any]]:
         """
         Execute a BigQuery SQL query with circuit breaker protection.
@@ -551,10 +594,16 @@ class BigQueryClient:
         - recovery_timeout: 60 seconds before attempting recovery
         - Logs circuit state changes for monitoring
 
+        Timeout Handling:
+        - Respects timeout_seconds from pipeline config (step_config.get("timeout_minutes") * 60)
+        - Falls back to smart defaults based on query complexity if not specified
+        - Simple SELECTs: 30s, INSERT/UPDATE/DELETE: 60s, Complex queries: 120s
+
         Args:
             query: SQL query string
             parameters: Query parameters for parameterized queries
             use_legacy_sql: Whether to use legacy SQL (default: False)
+            timeout_seconds: Optional timeout in seconds (from pipeline config)
 
         Yields:
             Row dictionaries
@@ -573,8 +622,11 @@ class BigQueryClient:
 
             logger.debug(f"Executing query: {query[:100]}...")
 
+            # Determine timeout using smart defaults
+            timeout = self._determine_query_timeout(query, timeout_seconds)
+
             # Wait for query to complete
-            results = query_job.result(timeout=settings.bq_query_timeout_seconds)
+            results = query_job.result(timeout=timeout)
 
             logger.info(
                 f"Query completed",
@@ -601,7 +653,8 @@ class BigQueryClient:
     def query_to_list(
         self,
         query: str,
-        parameters: Optional[List[Any]] = None
+        parameters: Optional[List[Any]] = None,
+        timeout_seconds: Optional[int] = None
     ) -> List[Dict[str, Any]]:
         """
         Execute query and return all results as a list.
@@ -609,11 +662,12 @@ class BigQueryClient:
         Args:
             query: SQL query string
             parameters: Query parameters
+            timeout_seconds: Optional timeout in seconds (from pipeline config)
 
         Returns:
             List of row dictionaries
         """
-        return list(self.query(query, parameters))
+        return list(self.query(query, parameters, timeout_seconds=timeout_seconds))
 
     # ============================================
     # Table Operations

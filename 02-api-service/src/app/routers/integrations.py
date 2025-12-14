@@ -1042,7 +1042,10 @@ async def _initialize_openai_pricing(org_slug: str, force: bool = False) -> Dict
 
     except Exception as e:
         logger.error(f"Error initializing OpenAI pricing: {e}", exc_info=True)
-        return {"status": "FAILED", "error": str(e)}
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to initialize OpenAI pricing. Please check server logs for details."
+        ) from e
 
 
 async def _initialize_openai_subscriptions(org_slug: str, force: bool = False) -> Dict:

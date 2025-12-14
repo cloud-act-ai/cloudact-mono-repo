@@ -689,7 +689,6 @@ export default function IntegrationsPage() {
             Credentials are decrypted only when needed to make API calls on your behalf.
           </p>
         </div>
-      </div>
     </div>
   )
 }

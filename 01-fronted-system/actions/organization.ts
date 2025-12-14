@@ -16,7 +16,8 @@ import { createClient, createServiceRoleClient } from "@/lib/supabase/server"
 import { onboardToBackend } from "@/actions/backend-onboarding"
 import { stripe } from "@/lib/stripe"
 import { DEFAULT_TRIAL_DAYS } from "@/lib/constants"
-import { getCountryFromCurrency } from "@/lib/i18n"
+import { getCountryFromCurrency, isValidCurrency, isValidTimezone, DEFAULT_CURRENCY, DEFAULT_TIMEZONE } from "@/lib/i18n"
+import { sanitizeOrgName, isValidOrgName } from "@/lib/utils/validation"
 
 interface CreateOrganizationInput {
   name: string
@@ -32,25 +33,6 @@ interface CreateOrganizationInput {
   // i18n fields (from signup form via user_metadata)
   defaultCurrency?: string  // ISO 4217 (e.g., USD, AED)
   defaultTimezone?: string  // IANA timezone (e.g., UTC, Asia/Dubai)
-}
-
-// Sanitize organization name to prevent XSS and SQL injection
-function sanitizeOrgName(name: string): string {
-  // Remove any HTML tags, trim, and limit length
-  return name
-    .replace(/<[^>]*>/g, "")  // Remove HTML tags
-    .replace(/[<>"'&;]/g, "") // Remove potentially dangerous characters
-    .trim()
-    .slice(0, 100)            // Limit length
-}
-
-// Validate organization name
-function isValidOrgName(name: string): boolean {
-  const trimmed = name.trim()
-  // Must be 2-100 chars, no HTML or script tags
-  return trimmed.length >= 2 &&
-         trimmed.length <= 100 &&
-         !/<script|<\/script|javascript:|on\w+=/i.test(trimmed)
 }
 
 export async function createOrganization(input: CreateOrganizationInput) {
@@ -120,9 +102,12 @@ export async function createOrganization(input: CreateOrganizationInput) {
     // Set to end of day UTC to be generous
     trialEndsAt.setUTCHours(23, 59, 59, 999)
 
-    // Derive i18n fields
-    const defaultCurrency = input.defaultCurrency || "USD"
-    const defaultTimezone = input.defaultTimezone || "UTC"
+    // Derive and validate i18n fields
+    const rawCurrency = input.defaultCurrency || DEFAULT_CURRENCY
+    const rawTimezone = input.defaultTimezone || DEFAULT_TIMEZONE
+    // Validate and fallback to defaults if invalid
+    const defaultCurrency = isValidCurrency(rawCurrency) ? rawCurrency : DEFAULT_CURRENCY
+    const defaultTimezone = isValidTimezone(rawTimezone) ? rawTimezone : DEFAULT_TIMEZONE
     const defaultCountry = getCountryFromCurrency(defaultCurrency)
     const defaultLanguage = "en"  // Always English for now
 

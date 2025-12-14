@@ -54,9 +54,8 @@ async function verifyOrgMembership(orgSlug: string): Promise<{
   }
 
   // Extract org_id from the joined result
-  const orgData = Array.isArray(membership.organizations)
-    ? membership.organizations[0]
-    : membership.organizations as { id: string; org_slug: string }
+  // Supabase single() returns object directly, not array
+  const orgData = membership.organizations as { id: string; org_slug: string } | null
 
   if (!orgData || !orgData.id) {
     return { authorized: false, userId: user.id, error: "Organization data incomplete" }
@@ -72,11 +71,16 @@ async function verifyOrgMembership(orgSlug: string): Promise<{
 /**
  * Validate org slug format.
  * Prevents path traversal and injection attacks.
+ * Backend requires: ^[a-zA-Z0-9_]{3,50}$ (alphanumeric with underscores)
  */
 function isValidOrgSlug(orgSlug: string): boolean {
   if (!orgSlug || typeof orgSlug !== "string") return false
+  // Match backend validation pattern
   return /^[a-zA-Z0-9_]{3,50}$/.test(orgSlug)
 }
+
+/** ORG_SLUG_PATTERN constant for validation */
+const ORG_SLUG_PATTERN = /^[a-zA-Z0-9_]{3,50}$/
 
 /**
  * Validate currency code (ISO 4217).

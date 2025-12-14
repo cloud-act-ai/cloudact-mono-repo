@@ -56,6 +56,17 @@ BEGIN
     END IF;
 END $$;
 
+-- Timezone must be non-empty string (IANA format validated at app layer)
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'chk_org_timezone'
+    ) THEN
+        ALTER TABLE organizations
+        ADD CONSTRAINT chk_org_timezone CHECK (default_timezone IS NOT NULL AND length(default_timezone) > 0);
+    END IF;
+END $$;
+
 -- ============================================
 -- ADD INDEXES (Enterprise Scale)
 -- ============================================
@@ -67,6 +78,10 @@ ON organizations(default_currency, default_country);
 -- Index for currency-specific queries
 CREATE INDEX IF NOT EXISTS idx_organizations_currency
 ON organizations(default_currency);
+
+-- Index for timezone-specific queries
+CREATE INDEX IF NOT EXISTS idx_organizations_timezone
+ON organizations(default_timezone);
 
 -- ============================================
 -- UPDATE EXISTING ROWS

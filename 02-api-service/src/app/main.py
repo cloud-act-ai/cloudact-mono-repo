@@ -10,7 +10,7 @@ This service handles:
 Pipeline execution is handled by the separate data-pipeline-service.
 """
 
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI, Request, status, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
@@ -587,9 +587,35 @@ def sanitize_error_message(exc: Exception) -> str:
     return error_str
 
 
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    """Handler for HTTPException - preserves the intended status code."""
+    request_id = request.headers.get("x-request-id") or getattr(request.state, "request_id", None)
+
+    # Extract origin from request headers for CORS
+    origin = request.headers.get("origin", "")
+
+    # Build response headers with CORS support
+    response_headers = {}
+    if origin in settings.cors_origins or "*" in settings.cors_origins:
+        response_headers["Access-Control-Allow-Origin"] = origin if origin in settings.cors_origins else "*"
+        response_headers["Access-Control-Allow-Credentials"] = str(settings.cors_allow_credentials).lower()
+        response_headers["Access-Control-Allow-Methods"] = ", ".join(settings.cors_allow_methods)
+        response_headers["Access-Control-Allow-Headers"] = ", ".join(settings.cors_allow_headers)
+
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "detail": exc.detail,
+            "request_id": request_id
+        },
+        headers=response_headers
+    )
+
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    """Global exception handler for unhandled errors."""
+    """Global exception handler for unhandled errors (non-HTTP exceptions only)."""
     # Generate request ID if not provided
     request_id = request.headers.get("x-request-id") or getattr(request.state, "request_id", None)
 
@@ -610,13 +636,27 @@ async def global_exception_handler(request: Request, exc: Exception):
     else:
         error_message = "An unexpected error occurred. Please try again or contact support."
 
+    # Extract origin from request headers for CORS
+    origin = request.headers.get("origin", "")
+
+    # Build response headers with CORS support
+    response_headers = {}
+
+    # Add CORS headers if origin is allowed
+    if origin in settings.cors_origins or "*" in settings.cors_origins:
+        response_headers["Access-Control-Allow-Origin"] = origin if origin in settings.cors_origins else "*"
+        response_headers["Access-Control-Allow-Credentials"] = str(settings.cors_allow_credentials).lower()
+        response_headers["Access-Control-Allow-Methods"] = ", ".join(settings.cors_allow_methods)
+        response_headers["Access-Control-Allow-Headers"] = ", ".join(settings.cors_allow_headers)
+
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={
             "error": "Internal server error",
             "message": error_message,
             "request_id": request_id
-        }
+        },
+        headers=response_headers
     )
 
 
