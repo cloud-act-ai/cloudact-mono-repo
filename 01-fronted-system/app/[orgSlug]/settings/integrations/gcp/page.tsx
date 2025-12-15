@@ -38,7 +38,7 @@ interface IntegrationStatus {
 // Status Badge Component
 function StatusBadge({ status }: { status: string }) {
   const variants: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; text: string; className?: string }> = {
-    VALID: { variant: "default", text: "Connected", className: "bg-green-500/10 text-green-600 border-green-500/20" },
+    VALID: { variant: "default", text: "Connected", className: "bg-[#F0FDFA] text-[#007A78] border-[#007A78]/20" },
     INVALID: { variant: "destructive", text: "Invalid" },
     PENDING: { variant: "secondary", text: "Validating..." },
     NOT_CONFIGURED: { variant: "outline", text: "Not Configured" },
@@ -272,7 +272,7 @@ export default function GCPIntegrationPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <Loader2 className="h-8 w-8 animate-spin text-[#007A78]" />
       </div>
     )
   }
@@ -298,9 +298,9 @@ export default function GCPIntegrationPage() {
 
       {/* Alerts */}
       {error && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Error</AlertTitle>
+        <Alert variant="destructive" className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
+          <AlertCircle className="h-4 w-4 text-[#FF6E50]" />
+          <AlertTitle className="text-[#FF6E50]">Error</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
@@ -335,9 +335,9 @@ export default function GCPIntegrationPage() {
         <CardContent className="space-y-4">
           {/* Error Alert */}
           {integration?.last_error && status === "INVALID" && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Validation Error</AlertTitle>
+            <Alert variant="destructive" className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
+              <AlertCircle className="h-4 w-4 text-[#FF6E50]" />
+              <AlertTitle className="text-[#FF6E50]">Validation Error</AlertTitle>
               <AlertDescription>{integration.last_error}</AlertDescription>
             </Alert>
           )}
@@ -370,15 +370,15 @@ export default function GCPIntegrationPage() {
                     border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors
                     ${isDragging
                       ? "border-primary bg-primary/5"
-                      : "border-muted-foreground/25 hover:border-primary/50 hover:bg-muted/50"
+                      : "border-[#8E8E93]/25 hover:border-primary/50 hover:bg-muted/50"
                     }
                   `}
                 >
-                  <Upload className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
+                  <Upload className="h-10 w-10 mx-auto mb-3 text-[#8E8E93]" />
                   <p className="text-sm font-medium">
                     Drop your Service Account JSON here
                   </p>
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <p className="text-xs text-[#8E8E93] mt-1">
                     or click to browse
                   </p>
                 </div>
@@ -388,21 +388,21 @@ export default function GCPIntegrationPage() {
                   <div className="flex items-start justify-between">
                     <div className="flex items-start gap-3">
                       <div className="p-2 bg-muted rounded-md">
-                        <FileJson className="h-5 w-5 text-blue-500" />
+                        <FileJson className="h-5 w-5 text-[#007A78]" />
                       </div>
                       <div>
                         <p className="font-medium text-sm">{uploadedFile.name}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">
+                        <p className="text-xs text-[#8E8E93] mt-0.5">
                           {(uploadedFile.size / 1024).toFixed(1)} KB
                         </p>
                         {parsedSA && (
                           <div className="mt-2 space-y-1">
                             <p className="text-xs">
-                              <span className="text-muted-foreground">Project:</span>{" "}
+                              <span className="text-[#8E8E93]">Project:</span>{" "}
                               <span className="font-mono">{parsedSA.project_id}</span>
                             </p>
                             <p className="text-xs">
-                              <span className="text-muted-foreground">Service Account:</span>{" "}
+                              <span className="text-[#8E8E93]">Service Account:</span>{" "}
                               <span className="font-mono text-xs">{parsedSA.client_email}</span>
                             </p>
                           </div>
@@ -451,11 +451,11 @@ export default function GCPIntegrationPage() {
             <div className="space-y-4">
               <div className="flex items-center gap-4 p-4 border rounded-lg bg-muted/30">
                 <div className="p-2 bg-background rounded-md">
-                  <Key className="h-5 w-5 text-muted-foreground" />
+                  <Key className="h-5 w-5 text-[#8E8E93]" />
                 </div>
                 <div className="flex-1">
                   <p className="font-medium">{integration?.credential_name || "GCP Service Account"}</p>
-                  <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
+                  <div className="flex items-center gap-4 mt-1 text-sm text-[#8E8E93]">
                     <span className="flex items-center gap-1">
                       <Clock className="h-3.5 w-3.5" />
                       Last validated: {formatDate(integration?.last_validated_at)}

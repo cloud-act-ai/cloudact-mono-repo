@@ -61,7 +61,7 @@ const Progress = React.forwardRef<HTMLDivElement, ProgressProps>(
           />
         </div>
         {showLabel && (
-          <div className="text-xs text-muted-foreground text-right">
+          <div className="text-xs text-[#8E8E93] text-right">
             {percentage.toFixed(0)}%
           </div>
         )}

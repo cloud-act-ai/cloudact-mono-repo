@@ -259,15 +259,15 @@ export default function OnboardingPage() {
   return (
     <div className="space-y-6">
       {error && (
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
+        <Alert variant="destructive" className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
+          <AlertTriangle className="h-4 w-4 text-[#FF6E50]" />
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
       {success && (
-        <Alert className="bg-muted border-green-500/50">
-          <CheckCircle2 className="h-4 w-4 text-green-500" />
+        <Alert className="bg-muted border-[#007A78]/30">
+          <CheckCircle2 className="h-4 w-4 text-[#007A78]" />
           <AlertDescription className="text-foreground">{success}</AlertDescription>
         </Alert>
       )}
@@ -303,7 +303,7 @@ export default function OnboardingPage() {
                     orgData?.billing_status === "active"
                       ? "console-badge console-badge-success"
                       : orgData?.billing_status === "trialing"
-                        ? "bg-blue-500/10 text-blue-600 border-blue-500/30"
+                        ? "bg-[#FF6E50]/10 text-[#FF6E50] border-[#FF6E50]/30"
                         : "console-badge console-badge-warning"
                   }
                 >
@@ -381,7 +381,7 @@ export default function OnboardingPage() {
       </Card>
 
       {/* Backend Integration Status Card */}
-      <Card className={`console-stat-card shadow-sm ${!backendOnboarded && !loadingBackendStatus ? "border-amber-500/50" : ""}`}>
+      <Card className={`console-stat-card shadow-sm ${!backendOnboarded && !loadingBackendStatus ? "border-[#FF6E50]/30" : ""}`}>
         <CardHeader>
           <div className="flex items-center gap-2">
             <Cloud className="h-5 w-5 text-[#007A78]" />
@@ -399,14 +399,14 @@ export default function OnboardingPage() {
             </div>
           ) : backendOnboarded ? (
             <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 border rounded-lg bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800">
+              <div className="flex items-center justify-between p-4 border rounded-lg bg-[#F0FDFA] border-[#007A78]/30">
                 <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-green-500/10 flex items-center justify-center">
-                    <CheckCircle2 className="h-5 w-5 text-green-600" />
+                  <div className="h-10 w-10 rounded-full bg-[#007A78]/10 flex items-center justify-center">
+                    <CheckCircle2 className="h-5 w-5 text-[#007A78]" />
                   </div>
                   <div>
-                    <p className="console-body font-medium text-green-800 dark:text-green-200">Connected</p>
-                    <p className="console-small text-green-600 dark:text-green-400">
+                    <p className="console-body font-medium text-[#007A78]">Connected</p>
+                    <p className="console-small text-[#007A78]/70">
                       Backend services are ready for pipeline operations
                     </p>
                   </div>
@@ -453,14 +453,14 @@ export default function OnboardingPage() {
             </div>
           ) : (
             <>
-              <div className="flex items-center justify-between p-4 border rounded-lg bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800">
+              <div className="flex items-center justify-between p-4 border rounded-lg bg-[#FFF5F3] border-[#FF6E50]/30">
                 <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-amber-500/10 flex items-center justify-center">
-                    <AlertTriangle className="h-5 w-5 text-amber-600" />
+                  <div className="h-10 w-10 rounded-full bg-[#FF6E50]/10 flex items-center justify-center">
+                    <AlertTriangle className="h-5 w-5 text-[#FF6E50]" />
                   </div>
                   <div>
-                    <p className="console-body font-medium text-amber-800 dark:text-amber-200">Not Connected</p>
-                    <p className="console-small text-amber-600 dark:text-amber-400">
+                    <p className="console-body font-medium text-[#FF6E50]">Not Connected</p>
+                    <p className="console-small text-[#FF6E50]/70">
                       Backend onboarding is required for pipeline operations
                     </p>
                   </div>
@@ -471,8 +471,8 @@ export default function OnboardingPage() {
               </div>
 
               {backendOnboardingError && (
-                <Alert variant="destructive">
-                  <AlertTriangle className="h-4 w-4" />
+                <Alert variant="destructive" className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
+                  <AlertTriangle className="h-4 w-4 text-[#FF6E50]" />
                   <AlertDescription>{backendOnboardingError}</AlertDescription>
                 </Alert>
               )}

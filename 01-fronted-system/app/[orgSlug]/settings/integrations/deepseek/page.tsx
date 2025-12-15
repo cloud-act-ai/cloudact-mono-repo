@@ -281,7 +281,7 @@ export default function DeepSeekIntegrationPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <Loader2 className="h-8 w-8 animate-spin text-[#007A78]" />
       </div>
     )
   }
@@ -309,9 +309,9 @@ export default function DeepSeekIntegrationPage() {
 
       {/* Alerts */}
       {error && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Error</AlertTitle>
+        <Alert variant="destructive" className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
+          <AlertCircle className="h-4 w-4 text-[#FF6E50]" />
+          <AlertTitle className="text-[#FF6E50]">Error</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}

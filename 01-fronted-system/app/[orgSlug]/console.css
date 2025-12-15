@@ -3,39 +3,7 @@
    Teal + Coral branded with visual depth
    ============================================ */
 
-:root {
-  /* Brand Colors */
-  --cloudact-teal: #007A78;
-  --cloudact-teal-light: #14B8A6;
-  --cloudact-teal-dark: #005F5D;
-  --cloudact-coral: #FF6E50;
-  --cloudact-coral-light: #FF8A73;
-  --cloudact-coral-dark: #E55A3C;
-
-  /* Teal/Coral gradient colors */
-  --gradient-start: #E6F7F7;  /* Teal tint */
-  --gradient-end: #FFE5DC;     /* Coral tint */
-
-  /* Surface colors for depth */
-  --surface-primary: #FFFFFF;
-  --surface-secondary: #FAFAFA;
-  --surface-tertiary: #F5F5F7;
-  --surface-hover: #F0F0F2;
-
-  /* Border colors */
-  --border-light: rgba(0, 0, 0, 0.06);
-  --border-medium: rgba(0, 0, 0, 0.1);
-
-  /* Shadow system */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-elevated: 0 4px 16px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04);
-
-  /* Scrollbar colors - console specific */
-  --scrollbar-track: #FAFAFA;
-  --scrollbar-thumb: #CBD5E1;
-  --scrollbar-thumb-hover: #007A78;
-}
+/* :root block removed - using globals.css variables */
 
 /* ============================================
    BACKGROUND - Apple Health Style
@@ -829,18 +797,18 @@
 }
 
 .console-badge-success {
-  background: rgba(52, 199, 89, 0.12);
-  color: #34C759;
+  background: rgba(0, 122, 120, 0.12);
+  color: #007A78;
 }
 
 .console-badge-warning {
-  background: rgba(255, 149, 0, 0.12);
-  color: #FF9500;
+  background: rgba(255, 110, 80, 0.12);
+  color: #FF6E50;
 }
 
 .console-badge-error {
-  background: rgba(255, 59, 48, 0.12);
-  color: #FF3B30;
+  background: rgba(255, 110, 80, 0.12);
+  color: #FF6E50;
 }
 
 /* ============================================
@@ -929,6 +897,21 @@
   background-position: right 14px center;
   cursor: pointer;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* Select trigger text overflow - prevents long timezone/currency text from overflowing */
+[data-slot="select-trigger"],
+button[role="combobox"] {
+  overflow: hidden;
+}
+
+[data-slot="select-trigger"] > span,
+button[role="combobox"] > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+  max-width: 100%;
 }
 
 .console-select:hover {

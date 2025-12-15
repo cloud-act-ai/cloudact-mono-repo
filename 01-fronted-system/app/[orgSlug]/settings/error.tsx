@@ -31,7 +31,7 @@ export default function SettingsError({
           </CardDescription>
         </CardHeader>
         <CardContent className="text-center">
-          <div className="rounded-lg bg-muted p-4 text-sm text-muted-foreground">
+          <div className="rounded-lg bg-muted p-4 text-sm text-[#8E8E93]">
             <p className="font-medium text-foreground mb-1">Unable to load settings</p>
             <p>Please try again or contact support if the problem persists.</p>
             {error.digest && (
@@ -52,7 +52,7 @@ export default function SettingsError({
           </Button>
         </CardFooter>
       </Card>
-      <p className="text-center text-sm text-muted-foreground mt-6">
+      <p className="text-center text-sm text-[#8E8E93] mt-6">
         If this problem persists, please contact{" "}
         <a
           href={`mailto:${process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "support@cloudact.ai"}`}

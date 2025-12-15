@@ -437,7 +437,7 @@ export default function BillingPage() {
         <Card className="max-w-md border border-[#E5E7EB] shadow-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-destructive" />
+              <AlertTriangle className="h-5 w-5 text-[#FF6E50]" />
               Access Denied
             </CardTitle>
           </CardHeader>
@@ -457,8 +457,8 @@ export default function BillingPage() {
   return (
     <div className="space-y-6 sm:space-y-8 max-w-7xl mx-auto">
       {reason === "subscription_required" && (
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
+        <Alert className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
+          <AlertTriangle className="h-4 w-4 text-[#FF6E50]" />
           <AlertTitle>Subscription Required</AlertTitle>
           <AlertDescription>
             Your subscription is not active. Please activate a plan to access your organization dashboard.
@@ -474,16 +474,16 @@ export default function BillingPage() {
 
       {/* Current Subscription Status Banner (for existing subscribers) */}
       {hasStripeSubscription && billingInfo?.subscription && (
-        <div className="health-card bg-[#FFF5F3] border border-[#FF6E50]/20 shadow-sm">
+        <div className="metric-card bg-[#FFF5F3] border border-[#FF6E50]/20 shadow-sm">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3 sm:gap-4">
-              <div className="h-10 w-10 rounded-full bg-[#FF6E50]/10 flex items-center justify-center flex-shrink-0">
-                <CreditCard className="h-5 w-5 text-[#FF6E50]" />
+              <div className="h-10 w-10 rounded-full bg-[#007A78]/10 flex items-center justify-center flex-shrink-0">
+                <CreditCard className="h-5 w-5 text-[#007A78]" />
               </div>
               <div>
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-[15px] sm:text-[17px] font-semibold text-black">{billingInfo.subscription.plan.name} Plan</span>
-                  <span className={isCanceledButActive ? "bg-[#FF9500]/12 text-[#FF9500] text-[11px] font-semibold px-2.5 py-1 rounded-full" : "bg-[#34C759]/12 text-[#34C759] text-[11px] font-semibold px-2.5 py-1 rounded-full"}>
+                  <span className={isCanceledButActive ? "bg-[#FF6E50]/10 text-[#FF6E50] text-[11px] font-semibold px-2.5 py-1 rounded-full" : "bg-[#F0FDFA] text-[#007A78] text-[11px] font-semibold px-2.5 py-1 rounded-full"}>
                     {isCanceledButActive ? "Cancels at period end" : billingInfo.subscription.status}
                   </span>
                 </div>
@@ -494,7 +494,7 @@ export default function BillingPage() {
               </div>
             </div>
             {isOwner && (
-              <button onClick={handleManageSubscription} disabled={isPortalLoading} className="h-[36px] px-4 bg-[#FF6E50] text-white hover:bg-[#E55A3C] rounded-xl text-[15px] font-semibold inline-flex items-center whitespace-nowrap shadow-sm transition-colors">
+              <button onClick={handleManageSubscription} disabled={isPortalLoading} className="cloudact-btn-secondary h-[36px] text-[15px] px-4">
                 {isPortalLoading ? (
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
                 ) : (
@@ -506,8 +506,8 @@ export default function BillingPage() {
             )}
           </div>
           {isCanceledButActive && (
-            <Alert className="mt-4" variant="destructive">
-              <AlertTriangle className="h-4 w-4" />
+            <Alert className="mt-4 border-[#FF6E50]/30 bg-[#FF6E50]/5">
+              <AlertTriangle className="h-4 w-4 text-[#FF6E50]" />
               <AlertDescription className="text-[13px] sm:text-[15px]">
                 Your subscription will end on <strong>{formatDate(billingInfo.subscription.currentPeriodEnd)}</strong>.
                 Click "Manage Subscription" to resume.
@@ -519,14 +519,14 @@ export default function BillingPage() {
 
       {/* Past Due Payment Warning */}
       {billingStatus === "past_due" && (
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
+        <Alert className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
+          <AlertTriangle className="h-4 w-4 text-[#FF6E50]" />
           <AlertTitle>Payment Past Due</AlertTitle>
           <AlertDescription className="console-body">
             Your last payment failed. Please update your payment method to avoid service interruption.
             {isOwner && (
               <button
-                className="console-button-coral ml-4 inline-flex items-center"
+                className="ml-4 inline-flex items-center h-[36px] text-[15px] px-4 bg-[#FF6E50] text-white hover:bg-[#E55A3C] rounded-xl font-semibold shadow-sm transition-colors"
                 onClick={handleManageSubscription}
                 disabled={isPortalLoading}
               >
@@ -555,13 +555,13 @@ export default function BillingPage() {
         const isUrgent = daysRemaining <= 7 && daysRemaining > 0
         const isWarning = daysRemaining <= 14 && daysRemaining > 7
         return (
-          <Alert variant={isTrialExpired || isUrgent ? "destructive" : undefined} className={isWarning ? "border-yellow-500 bg-yellow-50 dark:bg-yellow-950" : ""}>
+          <Alert className={isTrialExpired || isUrgent ? "border-[#FF6E50]/30 bg-[#FF6E50]/5" : isWarning ? "border-[#FF6E50]/30 bg-[#FF6E50]/5" : ""}>
             <Calendar className="h-4 w-4" />
-            <AlertTitle className={isWarning ? "text-yellow-800 dark:text-yellow-200" : ""}>
+            <AlertTitle className={isWarning ? "text-[#E55A3C]" : ""}>
               {isTrialExpired ? "Trial Expired" : isUrgent ? "Trial Ending Soon!" : "Free Trial"}
-              {!isTrialExpired && <span className={isUrgent ? "console-badge console-badge-coral ml-2" : isWarning ? "console-badge console-badge-warning ml-2" : "console-badge ml-2"}>{daysRemaining} days left</span>}
+              {!isTrialExpired && <span className={isUrgent ? "console-badge console-badge-coral ml-2" : isWarning ? "console-badge console-badge-coral ml-2" : "console-badge ml-2"}>{daysRemaining} days left</span>}
             </AlertTitle>
-            <AlertDescription className={isWarning ? "text-yellow-700 dark:text-yellow-300" : ""}>
+            <AlertDescription className={isWarning ? "text-[#FF6E50]" : ""}>
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <span>
                   {isTrialExpired ? (
@@ -577,7 +577,7 @@ export default function BillingPage() {
                 </span>
                 {isOwner && (
                   <button
-                    className={isTrialExpired || isUrgent ? "console-button-primary inline-flex items-center" : isWarning ? "console-button-secondary inline-flex items-center border-yellow-600 text-yellow-800 hover:bg-yellow-100 dark:border-yellow-400 dark:text-yellow-200 dark:hover:bg-yellow-900" : "console-button-secondary inline-flex items-center"}
+                    className={isTrialExpired || isUrgent ? "cloudact-btn-primary inline-flex items-center h-[36px] text-[15px] px-4" : isWarning ? "cloudact-btn-secondary inline-flex items-center h-[36px] text-[15px] px-4 border-[#FF6E50] text-[#FF6E50] hover:bg-[#FF6E50]/10" : "cloudact-btn-secondary inline-flex items-center h-[36px] text-[15px] px-4"}
                     onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })}
                   >
                     <CreditCard className="h-4 w-4 mr-2" />
@@ -592,10 +592,10 @@ export default function BillingPage() {
 
       {/* Plan Change Success Message */}
       {planChangeSuccess && (
-        <Alert className="border-green-500 bg-green-50 dark:bg-green-950">
-          <Check className="h-4 w-4 text-green-600" />
-          <AlertTitle className="text-green-800 dark:text-green-200">Plan Changed</AlertTitle>
-          <AlertDescription className="text-green-700 dark:text-green-300">
+        <Alert className="border-[#007A78]/30 bg-[#007A78]/5">
+          <Check className="h-4 w-4 text-[#007A78]" />
+          <AlertTitle className="text-[#007A78]">Plan Changed</AlertTitle>
+          <AlertDescription className="text-[#005F5D]">
             {planChangeSuccess}
           </AlertDescription>
         </Alert>
@@ -603,14 +603,14 @@ export default function BillingPage() {
 
       {/* Downgrade Limit Error */}
       {downgradeLimitError && (
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
+        <Alert className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
+          <AlertTriangle className="h-4 w-4 text-[#FF6E50]" />
           <AlertTitle>Cannot Downgrade</AlertTitle>
           <AlertDescription className="flex items-start justify-between gap-4">
             <span>{downgradeLimitError}</span>
             <button
               onClick={() => setDowngradeLimitError(null)}
-              className="shrink-0 h-auto p-1 hover:bg-destructive/20 text-sm"
+              className="shrink-0 h-auto p-1 hover:bg-[#FF6E50]/10 text-sm text-[#8E8E93] hover:text-[#FF6E50]"
             >
               Dismiss
             </button>
@@ -630,15 +630,15 @@ export default function BillingPage() {
           }
         </p>
         {billingError && (
-          <Alert variant="destructive" className="mb-6">
-            <AlertTriangle className="h-4 w-4" />
+          <Alert className="border-[#FF6E50]/30 bg-[#FF6E50]/5 mb-6">
+            <AlertTriangle className="h-4 w-4 text-[#FF6E50]" />
             <AlertTitle>Error Loading Billing Info</AlertTitle>
             <AlertDescription>{billingError}</AlertDescription>
           </Alert>
         )}
         {plansError ? (
-          <Alert variant="destructive">
-            <AlertTriangle className="h-4 w-4" />
+          <Alert className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
+            <AlertTriangle className="h-4 w-4 text-[#FF6E50]" />
             <AlertTitle>Error Loading Plans</AlertTitle>
             <AlertDescription>
               {plansError}
@@ -653,7 +653,7 @@ export default function BillingPage() {
           </Alert>
         ) : plans.length === 0 ? (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            <Loader2 className="h-8 w-8 animate-spin text-[#007A78]" />
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
@@ -668,10 +668,10 @@ export default function BillingPage() {
               return (
                 <div
                   key={plan.priceId}
-                  className={`flex flex-col health-card border shadow-sm ${isCurrentPlan ? "border-[#FF6E50] shadow-lg relative" : "border-[#E5E7EB]"}`}
+                  className={`flex flex-col metric-card border shadow-sm ${isCurrentPlan ? "border-[#007A78] shadow-lg relative" : "border-[#E5E7EB]"}`}
                 >
                   {isCurrentPlan && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#FF6E50] text-white px-3 py-1 rounded-full text-[11px] font-semibold">
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#007A78] text-white px-3 py-1 rounded-full text-[11px] font-semibold">
                       Current Plan
                     </div>
                   )}
@@ -693,7 +693,7 @@ export default function BillingPage() {
                       <ul className="space-y-2">
                         {plan.features.map((feature, i) => (
                           <li key={i} className="flex items-start gap-2 text-[13px] sm:text-[15px]">
-                            <Check className="h-4 w-4 text-[#FF6E50] flex-shrink-0 mt-0.5" />
+                            <Check className="h-4 w-4 text-[#007A78] flex-shrink-0 mt-0.5" />
                             <span className="text-[#3C3C43]">{feature}</span>
                           </li>
                         ))}
@@ -706,12 +706,12 @@ export default function BillingPage() {
                   </div>
                   <div className="mt-6">
                     {isCurrentPlan ? (
-                      <button className="h-[36px] px-4 w-full text-[#8E8E93] bg-[#F5F5F7] rounded-xl text-[15px] font-semibold opacity-50 cursor-not-allowed" disabled>
+                      <button className="h-[36px] px-4 w-full text-[#8E8E93] bg-[#F5F5F7] rounded-xl text-[15px] font-semibold opacity-50 cursor-not-allowed border-none" disabled>
                         Current Plan
                       </button>
                     ) : (
                       <button
-                        className={`h-[36px] px-4 w-full rounded-xl text-[15px] font-semibold shadow-sm transition-colors ${isUpgrade ? "bg-[#FF6E50] text-white hover:bg-[#E55A3C]" : "text-[#FF6E50] bg-white border border-[#FF6E50]/30 hover:bg-[#FF6E50]/5"}`}
+                        className={isUpgrade ? "cloudact-btn-primary w-full h-[36px] text-[15px] px-4 shadow-sm" : "cloudact-btn-secondary w-full h-[36px] text-[15px] px-4 shadow-sm"}
                         onClick={
                           hasStripeSubscription
                             ? () => showPlanChangeConfirmation(plan, !!isUpgrade)
@@ -746,15 +746,15 @@ export default function BillingPage() {
         {/* Trust Badges */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-8 mt-8 console-small">
           <div className="flex items-center gap-2">
-            <CreditCard className="h-4 w-4 text-[#FF6E50]" />
+            <CreditCard className="h-4 w-4 text-[#007A78]" />
             <span>Secure payments via Stripe</span>
           </div>
           <div className="flex items-center gap-2">
-            <Lock className="h-4 w-4 text-[#FF6E50]" />
+            <Lock className="h-4 w-4 text-[#007A78]" />
             <span>256-bit SSL encryption</span>
           </div>
           <div className="flex items-center gap-2">
-            <Shield className="h-4 w-4 text-[#FF6E50]" />
+            <Shield className="h-4 w-4 text-[#007A78]" />
             <span>GDPR compliant</span>
           </div>
         </div>
@@ -810,7 +810,7 @@ export default function BillingPage() {
         <Card className="border border-[#E5E7EB] shadow-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <CreditCard className="h-5 w-5 text-[#FF6E50]" />
+              <CreditCard className="h-5 w-5 text-[#007A78]" />
               Payment Method
             </CardTitle>
             <CardDescription>Your default payment method for this subscription</CardDescription>
@@ -855,7 +855,7 @@ export default function BillingPage() {
       <div className="health-card border border-[#E5E7EB] shadow-sm">
         <div className="mb-6">
           <h3 className="text-[17px] font-semibold text-black flex items-center gap-2">
-            <Receipt className="h-5 w-5 text-[#FF6E50]" />
+            <Receipt className="h-5 w-5 text-[#007A78]" />
             Invoice History
           </h3>
           <p className="text-[13px] text-[#8E8E93] mt-1">Download your past invoices and receipts</p>
@@ -863,7 +863,7 @@ export default function BillingPage() {
         <div>
           {isLoadingBilling ? (
             <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <Loader2 className="h-6 w-6 animate-spin text-[#007A78]" />
             </div>
           ) : billingInfo?.invoices && billingInfo.invoices.length > 0 ? (
             <div className="overflow-x-auto -mx-4 sm:mx-0">
@@ -885,10 +885,10 @@ export default function BillingPage() {
                   <span className="console-table-cell text-[13px] sm:text-[15px]">{formatCurrency(invoice.amountPaid, invoice.currency)}</span>
                   <span
                     className={
-                      invoice.status === "paid" ? "bg-[#34C759]/12 text-[#34C759] text-[11px] font-semibold px-2.5 py-1 rounded-full inline-flex" :
-                      invoice.status === "open" ? "bg-[#FF9500]/12 text-[#FF9500] text-[11px] font-semibold px-2.5 py-1 rounded-full inline-flex" :
-                      (invoice.status === "uncollectible" || invoice.status === "void") ? "bg-[#FF3B30]/12 text-[#FF3B30] text-[11px] font-semibold px-2.5 py-1 rounded-full inline-flex" :
-                      invoice.amountDue > 0 && invoice.status !== "paid" ? "bg-[#FF9500]/12 text-[#FF9500] text-[11px] font-semibold px-2.5 py-1 rounded-full inline-flex" :
+                      invoice.status === "paid" ? "bg-[#F0FDFA] text-[#007A78] text-[11px] font-semibold px-2.5 py-1 rounded-full inline-flex" :
+                      invoice.status === "open" ? "bg-[#FF6E50]/10 text-[#FF6E50] text-[11px] font-semibold px-2.5 py-1 rounded-full inline-flex" :
+                      (invoice.status === "uncollectible" || invoice.status === "void") ? "bg-[#FF6E50]/10 text-[#E55A3C] text-[11px] font-semibold px-2.5 py-1 rounded-full inline-flex" :
+                      invoice.amountDue > 0 && invoice.status !== "paid" ? "bg-[#FF6E50]/10 text-[#FF6E50] text-[11px] font-semibold px-2.5 py-1 rounded-full inline-flex" :
                       "bg-[#8E8E93]/12 text-[#8E8E93] text-[11px] font-semibold px-2.5 py-1 rounded-full inline-flex"
                     }
                   >
@@ -951,7 +951,7 @@ export default function BillingPage() {
                   <br /><br />
                   You'll receive a prorated credit on your next invoice.
                   <br /><br />
-                  <span className="text-destructive font-medium">Note: Your plan limits will be reduced. Ensure you're within the new plan's limits before downgrading.</span>
+                  <span className="text-[#FF6E50] font-medium">Note: Your plan limits will be reduced. Ensure you're within the new plan's limits before downgrading.</span>
                 </>
               )}
             </DialogDescription>
@@ -964,7 +964,7 @@ export default function BillingPage() {
               Cancel
             </button>
             <button
-              className={confirmDialog.isUpgrade ? "console-button-primary" : "console-button-coral"}
+              className={confirmDialog.isUpgrade ? "console-button-primary" : "console-button-secondary"}
               onClick={() => confirmDialog.plan && handleChangePlan(confirmDialog.plan.priceId, confirmDialog.plan.name)}
             >
               {confirmDialog.isUpgrade ? "Confirm Upgrade" : "Confirm Downgrade"}

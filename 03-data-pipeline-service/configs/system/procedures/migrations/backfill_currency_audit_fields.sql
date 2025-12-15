@@ -99,7 +99,7 @@ BEGIN
             THEN COALESCE(source_price, unit_price_usd) / unit_price_usd
           ELSE NULL
         END AS new_exchange_rate_used,
-        effective_date,
+        start_date,
         status
       FROM `%s.%s.saas_subscription_plans`
       WHERE (source_currency IS NULL
@@ -107,7 +107,7 @@ BEGIN
              OR exchange_rate_used IS NULL)
         AND unit_price_usd IS NOT NULL
         AND unit_price_usd > 0
-      ORDER BY provider, subscription_id, effective_date DESC
+      ORDER BY provider, subscription_id, start_date DESC
     """, p_project_id, p_dataset_id);
 
     SELECT
@@ -166,12 +166,12 @@ BEGIN
         source_currency,
         source_price,
         exchange_rate_used,
-        effective_date,
+        start_date,
         status,
         updated_at
       FROM `%s.%s.saas_subscription_plans`
       WHERE updated_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 5 MINUTE)
-      ORDER BY provider, subscription_id, effective_date DESC
+      ORDER BY provider, subscription_id, start_date DESC
       LIMIT 20
     """, p_project_id, p_dataset_id);
   END IF;

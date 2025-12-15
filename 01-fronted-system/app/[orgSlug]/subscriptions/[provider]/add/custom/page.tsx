@@ -339,9 +339,9 @@ export default function AddCustomSubscriptionPage() {
 
       {/* Error Message */}
       {error && (
-        <Card className="border-red-200 bg-red-50">
+        <Card className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
           <CardContent className="pt-6">
-            <p className="text-sm text-red-600">{error}</p>
+            <p className="text-sm text-[#FF6E50]">{error}</p>
           </CardContent>
         </Card>
       )}
@@ -529,19 +529,19 @@ export default function AddCustomSubscriptionPage() {
 
             {/* Template Conversion Info */}
             {isFromTemplate && formData.source_currency && formData.source_price !== undefined && (
-              <Card className="bg-blue-50 border-blue-200">
+              <Card className="bg-[#007A78]/5 border-[#007A78]/20">
                 <CardContent className="pt-6">
                   <div className="space-y-2">
-                    <p className="text-sm font-medium text-blue-700">Template Price Converted</p>
-                    <p className="text-sm text-blue-600">
+                    <p className="text-sm font-medium text-[#005F5D]">Template Price Converted</p>
+                    <p className="text-sm text-[#007A78]">
                       Original template price: <span className="font-semibold">${formData.source_price?.toFixed(2)} {formData.source_currency}</span>
                       {formData.exchange_rate_used && formData.exchange_rate_used !== 1 && (
-                        <span className="text-blue-500 ml-2">
+                        <span className="text-[#14B8A6] ml-2">
                           (rate: {formData.exchange_rate_used?.toFixed(4)})
                         </span>
                       )}
                     </p>
-                    <p className="text-xs text-blue-500">
+                    <p className="text-xs text-[#14B8A6]">
                       This price has been automatically converted to your organization's currency ({formData.currency}).
                     </p>
                   </div>
@@ -606,7 +606,7 @@ export default function AddCustomSubscriptionPage() {
           <Button
             type="submit"
             disabled={submitting || !formData.plan_name.trim() || !startDate}
-            className="h-[36px] px-4 bg-[#FF6E50] text-white hover:bg-[#E55A3C] rounded-xl text-[15px] font-semibold disabled:bg-[#E5E5EA] disabled:text-[#C7C7CC]"
+            className="h-[36px] px-4 bg-[#007A78] text-white hover:bg-[#006664] rounded-xl text-[15px] font-semibold disabled:bg-[#E5E5EA] disabled:text-[#C7C7CC]"
           >
             {submitting ? (
               <>

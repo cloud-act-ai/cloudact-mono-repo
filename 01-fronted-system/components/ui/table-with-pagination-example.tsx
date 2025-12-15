@@ -101,11 +101,11 @@ export function TableWithPaginationExample() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "active":
-        return "bg-green-100 text-green-700 border-green-200"
+        return "bg-[#007A78]/10 text-[#007A78] border-[#007A78]/30"
       case "cancelled":
         return "bg-gray-100 text-gray-700 border-gray-200"
       case "pending":
-        return "bg-yellow-100 text-yellow-700 border-yellow-200"
+        return "bg-[#FF6E50]/10 text-[#FF6E50] border-[#FF6E50]/30"
       default:
         return "bg-gray-100 text-gray-700 border-gray-200"
     }

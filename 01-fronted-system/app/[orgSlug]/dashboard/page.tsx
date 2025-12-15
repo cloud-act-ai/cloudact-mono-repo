@@ -1,7 +1,8 @@
 import { Metadata } from "next"
 import { createClient } from "@/lib/supabase/server"
 import Link from "next/link"
-import { CheckCircle2, AlertCircle, LogIn, Users, Building2, Shield, ArrowRight } from "lucide-react"
+import { CheckCircle2, AlertCircle, LogIn, Users, Building2, Shield, ArrowRight, CreditCard, Play, Settings } from "lucide-react"
+import { CostChart } from "@/components/dashboard/cost-chart"
 
 interface OrganizationData {
   id: string
@@ -150,31 +151,39 @@ export default async function DashboardPage({
   }
 
   return (
-    <div className="space-y-6 sm:space-y-8">
+    <div className="space-y-8">
       {success === "true" && (
-        <div className="flex items-start gap-3 sm:gap-4 p-4 sm:p-5 rounded-2xl bg-[#007A78]/10">
-          <CheckCircle2 className="h-5 w-5 sm:h-6 sm:w-6 text-[#007A78] mt-0.5 flex-shrink-0" />
+        <div className="flex items-center gap-3 p-4 rounded-xl bg-[#007A78]/10 border border-[#007A78]/20 animate-fade-in">
+          <CheckCircle2 className="h-5 w-5 text-[#007A78] flex-shrink-0" />
           <div>
-            <h3 className="text-[15px] font-semibold text-black">Subscription Successful!</h3>
-            <p className="text-[13px] text-[#8E8E93] mt-1 leading-relaxed">
-              Your subscription has been activated. You now have full access to all features.
+            <h3 className="text-[15px] font-semibold text-[#007A78]">Subscription Successful!</h3>
+            <p className="text-[13px] text-[#007A78]/80 leading-relaxed">
+              Your subscription has been activated. You now have full access.
             </p>
           </div>
         </div>
       )}
 
       {/* Page Header */}
-      <div className="pb-2">
-        <h1 className="text-[32px] sm:text-[34px] font-bold text-black tracking-tight">Dashboard</h1>
-        <p className="text-[15px] text-[#8E8E93] mt-1">Welcome to {data.organization.org_name}</p>
+      <div className="flex flex-col gap-1 pb-2">
+        <h1 className="text-[34px] font-bold text-[#1C1C1E] tracking-tight">Summary</h1>
+        <p className="text-[15px] text-[#8E8E93] font-medium">
+          Welcome to <span className="text-[#1C1C1E]">{data.organization.org_name}</span>
+        </p>
       </div>
 
-      {/* Pinned Section */}
-      <div>
-        <h2 className="text-[22px] font-bold text-black mb-4">Pinned</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {/* Card 1: Organization */}
-          <div className="metric-card">
+      {/* Masonry Grid Layout */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        
+        {/* Featured: Spending Trend (Span 2 on Desktop) */}
+        <div className="col-span-1 md:col-span-2 xl:col-span-2 h-[320px]">
+          <CostChart />
+        </div>
+
+        {/* Stacked Stats: Org & Members */}
+        <div className="col-span-1 md:col-span-2 xl:col-span-1 flex flex-col gap-6">
+          {/* Organization Card */}
+          <div className="metric-card flex-1 flex flex-col justify-center">
             <div className="metric-card-header">
               <div className="metric-card-label metric-card-label-teal">
                 <Building2 className="h-[18px] w-[18px]" />
@@ -182,100 +191,83 @@ export default async function DashboardPage({
               </div>
             </div>
             <div className="metric-card-content">
-              <div className="metric-card-value">{data.organization.org_name}</div>
-              <div className="mt-3 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[13px] text-[#8E8E93]">Plan</span>
-                  <span className="text-[13px] font-semibold text-[#007A78] uppercase">{data.organization.plan}</span>
+              <div className="metric-card-value text-2xl truncate">{data.organization.org_name}</div>
+              <div className="mt-4 flex items-center gap-3">
+                <div className="flex items-center gap-2 bg-[#F5F5F7] px-3 py-1.5 rounded-lg">
+                  <span className="text-[12px] font-semibold text-[#8E8E93] uppercase tracking-wide">Plan</span>
+                  <span className="text-[13px] font-bold text-[#007A78] uppercase">{data.organization.plan}</span>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[13px] text-[#8E8E93]">Status</span>
-                  <span className={`text-[13px] font-semibold capitalize ${
-                    data.organization.billing_status === 'active' || data.organization.billing_status === 'trialing'
-                      ? 'text-[#007A78]'
-                      : data.organization.billing_status === 'past_due'
-                      ? 'text-[#FF9500]'
-                      : 'text-[#FF6E50]'
+                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border ${
+                   data.organization.billing_status === 'active' || data.organization.billing_status === 'trialing'
+                      ? 'bg-[#007A78]/5 border-[#007A78]/20 text-[#007A78]'
+                      : 'bg-[#FF6E50]/5 border-[#FF6E50]/20 text-[#FF6E50]'
                   }`}>
-                    {data.organization.billing_status}
-                  </span>
+                   <span className="text-[12px] font-bold capitalize">{data.organization.billing_status}</span>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Card 2: Members */}
-          <div className="metric-card">
-            <div className="metric-card-header">
-              <div className="metric-card-label metric-card-label-secondary">
-                <Users className="h-[18px] w-[18px]" />
-                <span>Team Members</span>
-              </div>
+          {/* Members / Role Row */}
+          <div className="flex-1 grid grid-cols-2 gap-6">
+            <div className="metric-card flex flex-col justify-center">
+               <div className="metric-card-header mb-2">
+                 <div className="metric-card-label metric-card-label-secondary">
+                   <Users className="h-[16px] w-[16px]" />
+                   <span>Team</span>
+                 </div>
+               </div>
+               <div className="metric-card-value">{data.memberCount}</div>
             </div>
-            <div className="metric-card-content">
-              <div className="metric-card-value">{data.memberCount}</div>
-              <div className="metric-card-description mt-1">Active users in your workspace</div>
-            </div>
-          </div>
 
-          {/* Card 3: Your Role */}
-          <div className="metric-card">
-            <div className="metric-card-header">
-              <div className="metric-card-label metric-card-label-tertiary">
-                <Shield className="h-[18px] w-[18px]" />
-                <span>Your Role</span>
-              </div>
-            </div>
-            <div className="metric-card-content">
-              <div className="metric-card-value capitalize">{data.userRole.replace("_", " ")}</div>
-              <div className="metric-card-description mt-1">
-                {data.userRole === "owner" && "Full access to all features"}
-                {data.userRole === "collaborator" && "Can edit data, no billing access"}
-                {data.userRole === "read_only" && "View-only access"}
-              </div>
+            <div className="metric-card flex flex-col justify-center">
+               <div className="metric-card-header mb-2">
+                 <div className="metric-card-label metric-card-label-tertiary">
+                   <Shield className="h-[16px] w-[16px]" />
+                   <span>Role</span>
+                 </div>
+               </div>
+               <div className="metric-card-value text-xl capitalize">{data.userRole.replace("_", " ")}</div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Quick Actions */}
-      <div>
-        <h2 className="text-[22px] font-bold text-black mb-4">Quick Actions</h2>
-        <div className="metric-card">
-          <div className="space-y-2">
-            <Link
-              href={`/${orgSlug}/settings/members`}
-              className="w-full px-4 py-3.5 bg-[#F5F5F7] hover:bg-[#E8E8ED] text-black rounded-xl font-medium text-[15px] inline-flex items-center justify-between transition-colors group focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#007A78] focus-visible:outline-offset-2"
-            >
-              <div className="flex items-center gap-3">
+        {/* Quick Actions Grid - Full Width / Span 3 */}
+        <div className="col-span-1 md:col-span-2 xl:col-span-3">
+          <h2 className="text-[20px] font-bold text-[#1C1C1E] mb-4 tracking-tight">Quick Actions</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Link href={`/${orgSlug}/settings/members`} className="group metric-card p-5 !shadow-sm hover:!shadow-md border-transparent bg-[#FFFFFF] hover:bg-[#F5F5F7]">
+              <div className="h-10 w-10 rounded-full bg-[#007A78]/10 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
                 <Users className="h-5 w-5 text-[#007A78]" />
-                <span>Manage Members</span>
               </div>
-              <ArrowRight className="h-4 w-4 text-[#8E8E93] transition-transform group-hover:translate-x-1" />
+              <h3 className="text-[15px] font-bold text-[#1C1C1E]">Teammates</h3>
+              <p className="text-[13px] text-[#8E8E93] mt-1">Manage access</p>
             </Link>
+
             {data.userRole === "owner" && (
-              <Link
-                href={`/${orgSlug}/billing`}
-                className="w-full px-4 py-3.5 bg-[#F5F5F7] hover:bg-[#E8E8ED] text-black rounded-xl font-medium text-[15px] inline-flex items-center justify-between transition-colors group focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#007A78] focus-visible:outline-offset-2"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-5 h-5 flex items-center justify-center">
-                    <div className="w-4 h-4 rounded-sm bg-[#FF6E50]" />
-                  </div>
-                  <span>Billing & Subscription</span>
+              <Link href={`/${orgSlug}/billing`} className="group metric-card p-5 !shadow-sm hover:!shadow-md border-transparent bg-[#FFFFFF] hover:bg-[#F5F5F7]">
+                <div className="h-10 w-10 rounded-full bg-[#FF6E50]/10 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                  <CreditCard className="h-5 w-5 text-[#FF6E50]" />
                 </div>
-                <ArrowRight className="h-4 w-4 text-[#8E8E93] transition-transform group-hover:translate-x-1" />
+                <h3 className="text-[15px] font-bold text-[#1C1C1E]">Billing</h3>
+                <p className="text-[13px] text-[#8E8E93] mt-1">Invoices & plans</p>
               </Link>
             )}
-            <Link
-              href={`/${orgSlug}/settings/profile`}
-              className="w-full px-4 py-3.5 bg-[#F5F5F7] hover:bg-[#E8E8ED] text-black rounded-xl font-medium text-[15px] inline-flex items-center justify-between transition-colors group focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#007A78] focus-visible:outline-offset-2"
-            >
-              <div className="flex items-center gap-3">
-                <Shield className="h-5 w-5 text-[#8E8E93]" />
-                <span>Settings</span>
-              </div>
-              <ArrowRight className="h-4 w-4 text-[#8E8E93] transition-transform group-hover:translate-x-1" />
+
+            <Link href={`/${orgSlug}/settings/profile`} className="group metric-card p-5 !shadow-sm hover:!shadow-md border-transparent bg-[#FFFFFF] hover:bg-[#F5F5F7]">
+               <div className="h-10 w-10 rounded-full bg-[#8E8E93]/10 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                 <Settings className="h-5 w-5 text-[#8E8E93]" />
+               </div>
+               <h3 className="text-[15px] font-bold text-[#1C1C1E]">Settings</h3>
+               <p className="text-[13px] text-[#8E8E93] mt-1">Preferences</p>
+            </Link>
+
+             <Link href={`/${orgSlug}/pipelines`} className="group metric-card p-5 !shadow-sm hover:!shadow-md border-transparent bg-[#FFFFFF] hover:bg-[#F5F5F7]">
+               <div className="h-10 w-10 rounded-full bg-[#005F5D]/10 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                 <Play className="h-5 w-5 text-[#005F5D]" />
+               </div>
+               <h3 className="text-[15px] font-bold text-[#1C1C1E]">Pipelines</h3>
+               <p className="text-[13px] text-[#8E8E93] mt-1">Run automation</p>
             </Link>
           </div>
         </div>

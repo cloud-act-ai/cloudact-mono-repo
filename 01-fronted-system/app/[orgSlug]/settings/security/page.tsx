@@ -88,15 +88,15 @@ export default function SecurityPage() {
   return (
     <div className="space-y-4 sm:space-y-6">
       {error && (
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
+        <Alert variant="destructive" className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
+          <AlertTriangle className="h-4 w-4 text-[#FF6E50]" />
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
       {success && (
-        <Alert className="bg-muted border-green-500/50">
-          <CheckCircle2 className="h-4 w-4 text-green-500" />
+        <Alert className="bg-muted border-[#007A78]/30">
+          <CheckCircle2 className="h-4 w-4 text-[#007A78]" />
           <AlertDescription className="text-foreground">{success}</AlertDescription>
         </Alert>
       )}

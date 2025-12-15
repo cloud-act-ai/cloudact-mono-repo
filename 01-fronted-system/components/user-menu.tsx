@@ -148,7 +148,7 @@ export function UserMenu({ user, orgSlug, userRole, className }: UserMenuProps) 
         <DropdownMenuItem
           onClick={handleLogout}
           disabled={isLoading}
-          className="px-3 py-2.5 text-sm text-[#FF3B30] hover:bg-[#FF3B30]/10 hover:text-[#FF3B30] cursor-pointer rounded-lg focus:bg-[#FF3B30]/10 focus:text-[#FF3B30]"
+          className="px-3 py-2.5 text-sm text-[#FF6E50] hover:bg-[#FF6E50]/10 hover:text-[#FF6E50] cursor-pointer rounded-lg focus:bg-[#FF6E50]/10 focus:text-[#FF6E50]"
         >
           {isLoading ? (
             <>

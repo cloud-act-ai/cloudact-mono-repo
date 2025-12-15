@@ -18,9 +18,9 @@ const badgeVariants = cva(
         outline:
           'text-foreground border-border bg-background [a&]:hover:bg-accent [a&]:hover:text-accent-foreground [a&]:hover:border-ring',
         success:
-          'border-transparent bg-teal-500 text-white shadow-sm [a&]:hover:bg-teal-600 dark:bg-teal-600 dark:[a&]:hover:bg-teal-700',
+          'border-transparent bg-[#007A78] text-white shadow-sm [a&]:hover:bg-[#005F5D] dark:bg-[#007A78] dark:[a&]:hover:bg-[#005F5D]',
         warning:
-          'border-transparent bg-amber-500 text-white shadow-sm [a&]:hover:bg-amber-600 dark:bg-amber-600 dark:[a&]:hover:bg-amber-700',
+          'border-transparent bg-[#FF6E50] text-white shadow-sm [a&]:hover:bg-[#E55A3C] dark:bg-[#FF6E50] dark:[a&]:hover:bg-[#E55A3C]',
       },
     },
     defaultVariants: {

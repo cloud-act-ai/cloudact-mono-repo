@@ -533,7 +533,7 @@ export default function IntegrationsPage() {
               )}
               <div className="mt-3">
                 <Link href={`/${orgSlug}/settings/onboarding`}>
-                  <Button variant="outline" size="sm" className="bg-white border border-[#FF6E50] text-[#FF6E50] hover:bg-[#FFF5F3] font-medium text-xs sm:text-sm">
+                  <Button variant="outline" size="sm" className="bg-white border border-[#007A78] text-[#007A78] hover:bg-[#007A78]/5 font-medium text-xs sm:text-sm">
                     <Cloud className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
                     Go to Onboarding Settings
                   </Button>

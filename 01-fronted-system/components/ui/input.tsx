@@ -20,7 +20,7 @@ function Input({ className, type, ...props }: React.ComponentProps<'input'>) {
         'aria-invalid:border-[#FF6E50] aria-invalid:ring-2 aria-invalid:ring-[#FF6E50]/20',
         'aria-invalid:focus-visible:border-[#FF6E50] aria-invalid:focus-visible:ring-[#FF6E50]/20',
         // Placeholder
-        'placeholder:text-muted-foreground',
+        'placeholder:text-[#8E8E93]',
         // Selection
         'selection:bg-primary selection:text-primary-foreground',
         // Disabled state

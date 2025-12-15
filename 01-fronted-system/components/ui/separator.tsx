@@ -32,7 +32,7 @@ function Separator({
         <div className="flex-1 h-px bg-black/[0.06] dark:bg-white/10" />
         <span
           className={cn(
-            'px-3 text-sm font-medium text-muted-foreground',
+            'px-3 text-sm font-medium text-[#8E8E93]',
             labelClassName,
           )}
         >

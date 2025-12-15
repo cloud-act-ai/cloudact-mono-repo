@@ -37,7 +37,7 @@ const DropdownMenuSubTrigger = React.forwardRef<
     {...props}
   >
     {children}
-    <ChevronRightIcon className="ml-auto h-4 w-4 text-muted-foreground" />
+    <ChevronRightIcon className="ml-auto h-4 w-4 text-[#8E8E93]" />
   </DropdownMenuPrimitive.SubTrigger>
 ))
 DropdownMenuSubTrigger.displayName =
@@ -170,7 +170,7 @@ const DropdownMenuLabel = React.forwardRef<
   <DropdownMenuPrimitive.Label
     ref={ref}
     className={cn(
-      "px-2 py-1.5 text-xs font-semibold text-muted-foreground",
+      "px-2 py-1.5 text-xs font-semibold text-[#8E8E93]",
       inset && "pl-8",
       className
     )}
@@ -197,7 +197,7 @@ const DropdownMenuShortcut = ({
 }: React.HTMLAttributes<HTMLSpanElement>) => {
   return (
     <span
-      className={cn("ml-auto text-xs tracking-widest text-muted-foreground opacity-60", className)}
+      className={cn("ml-auto text-xs tracking-widest text-[#8E8E93] opacity-60", className)}
       {...props}
     />
   )

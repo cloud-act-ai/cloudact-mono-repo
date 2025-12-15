@@ -250,7 +250,7 @@ export default function MembersPage() {
   return (
     <div className="space-y-6">
       {!seatLimit && (
-        <Alert variant="destructive">
+        <Alert variant="destructive" className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
           <AlertDescription>
             Seat limit is not configured for this organization. Please contact support to configure your seat limit.
           </AlertDescription>
@@ -267,7 +267,7 @@ export default function MembersPage() {
         {isOwner && (
           <Dialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen}>
             <DialogTrigger asChild>
-              <Button disabled={!seatLimit || seatsAvailable <= 0} className="h-[36px] px-4 bg-[#14B8A6] text-white rounded-xl text-[15px] font-semibold hover:bg-[#0F9C8C] shadow-sm transition-colors">
+              <Button disabled={!seatLimit || seatsAvailable <= 0} className="cloudact-btn-primary h-[36px] px-4">
                 <UserPlus className="mr-2 h-4 w-4" />
                 Invite Member
               </Button>
@@ -296,7 +296,7 @@ export default function MembersPage() {
                     </Button>
                   </div>
                   <Button
-                    className="w-full"
+                    className="w-full cloudact-btn-primary"
                     onClick={() => {
                       setInviteLink(null)
                       setIsInviteDialogOpen(false)
@@ -339,16 +339,16 @@ export default function MembersPage() {
                   </div>
 
                   {error && (
-                    <Alert variant="destructive">
+                    <Alert variant="destructive" className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
                       <AlertDescription>{error}</AlertDescription>
                     </Alert>
                   )}
 
                   <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsInviteDialogOpen(false)} className="h-[36px] px-4 rounded-xl text-[15px] border border-[#E5E5EA]">
+                    <Button variant="outline" onClick={() => setIsInviteDialogOpen(false)} className="cloudact-btn-secondary h-[36px] px-4">
                       Cancel
                     </Button>
-                    <Button onClick={handleInvite} disabled={isInviting || !inviteEmail || !validateEmail(inviteEmail)} className="h-[36px] px-4 bg-[#14B8A6] text-white rounded-xl text-[15px] font-semibold hover:bg-[#0F9C8C] shadow-sm transition-colors">
+                    <Button onClick={handleInvite} disabled={isInviting || !inviteEmail || !validateEmail(inviteEmail)} className="cloudact-btn-primary h-[36px] px-4">
                       {isInviting ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       ) : (
@@ -377,15 +377,15 @@ export default function MembersPage() {
         </Alert>
       )}
 
-      <div className="health-card shadow-sm">
-        <div className="health-card-header mb-4">
+      <div className="metric-card shadow-sm">
+        <div className="metric-card-header mb-4">
           <div className="flex items-center gap-2">
-            <Users className="h-5 w-5 text-[#14B8A6]" />
+            <Users className="h-5 w-5 text-[#007A78]" />
             <h2 className="text-[22px] font-bold text-black">Active Members ({members.length})</h2>
           </div>
           <p className="text-[13px] sm:text-[15px] text-[#8E8E93] mt-1">People who have access to this organization</p>
         </div>
-        <div className="health-card-content">
+        <div className="metric-card-content">
           {members.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <div className="inline-flex p-4 rounded-2xl bg-[#007A78]/10 mb-4">
@@ -396,7 +396,7 @@ export default function MembersPage() {
                 Get started by inviting your first team member
               </p>
               {isOwner && (
-                <Button onClick={() => setIsInviteDialogOpen(true)} disabled={!seatLimit || seatsAvailable <= 0} className="h-[44px] px-6 bg-[#007A78] text-white rounded-xl text-[15px] font-semibold hover:bg-[#006664] shadow-sm">
+                <Button onClick={() => setIsInviteDialogOpen(true)} disabled={!seatLimit || seatsAvailable <= 0} className="cloudact-btn-primary h-[44px] px-6">
                   <UserPlus className="mr-2 h-4 w-4" />
                   Invite Member
                 </Button>
@@ -422,7 +422,7 @@ export default function MembersPage() {
                         </SelectContent>
                       </Select>
                     ) : (
-                      <Badge variant={member.role === "owner" ? "default" : "secondary"} className={member.role === "owner" ? "bg-[#14B8A6]/12 text-[#14B8A6] border-0 capitalize" : "bg-[#8E8E93]/12 text-[#8E8E93] border-0 capitalize"}>
+                      <Badge variant={member.role === "owner" ? "default" : "secondary"} className={member.role === "owner" ? "bg-[#007A78]/12 text-[#007A78] border-0 capitalize" : "bg-[#8E8E93]/12 text-[#8E8E93] border-0 capitalize"}>
                         {member.role === "read_only" ? "Read Only" : member.role}
                       </Badge>
                     )}
@@ -431,7 +431,7 @@ export default function MembersPage() {
                         variant="ghost"
                         size="icon"
                         onClick={() => setMemberToRemove(member.user_id)}
-                        className="h-8 w-8 rounded-lg text-[#FF3B30] hover:text-[#FF3B30] hover:bg-[#FF3B30]/10"
+                        className="h-8 w-8 rounded-lg text-[#FF6E50] hover:text-[#FF6E50] hover:bg-[#FF6E50]/10"
                         aria-label="Remove member"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -453,8 +453,8 @@ export default function MembersPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setMemberToRemove(null)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleRemoveMember} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogCancel onClick={() => setMemberToRemove(null)} className="cloudact-btn-secondary">Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRemoveMember} className="cloudact-btn-destructive">
               Remove
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -463,15 +463,15 @@ export default function MembersPage() {
 
 
       {invites.length > 0 && (
-        <div className="health-card shadow-sm">
-          <div className="health-card-header mb-4">
+        <div className="metric-card shadow-sm">
+          <div className="metric-card-header mb-4">
             <div className="flex items-center gap-2">
-              <Mail className="h-5 w-5 text-[#14B8A6]" />
+              <Mail className="h-5 w-5 text-[#007A78]" />
               <h2 className="text-[22px] font-bold text-black">Pending Invites ({invites.length})</h2>
             </div>
             <p className="text-[13px] sm:text-[15px] text-[#8E8E93] mt-1">Invitations that haven't been accepted yet</p>
           </div>
-          <div className="health-card-content">
+          <div className="metric-card-content">
             <div className="divide-y divide-[#E5E5EA]">
               {invites.map((invite) => (
                 <div key={invite.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 py-4">
@@ -483,7 +483,7 @@ export default function MembersPage() {
                     </p>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    <Badge variant="outline" className="bg-[#FF9500]/12 text-[#FF9500] border-0 capitalize">
+                    <Badge variant="outline" className="bg-[#FF6E50]/10 text-[#FF6E50] border-0 capitalize">
                       {invite.role === "read_only" ? "Read Only" : invite.role}
                     </Badge>
                     {isOwner && (
@@ -499,15 +499,15 @@ export default function MembersPage() {
         </div>
       )}
 
-      <div className="health-card shadow-sm">
-        <div className="health-card-header mb-4">
+      <div className="metric-card shadow-sm">
+        <div className="metric-card-header mb-4">
           <div className="flex items-center gap-2">
-            <Shield className="h-5 w-5 text-[#14B8A6]" />
+            <Shield className="h-5 w-5 text-[#007A78]" />
             <h2 className="text-[22px] font-bold text-black">Role Permissions</h2>
           </div>
           <p className="text-[13px] sm:text-[15px] text-[#8E8E93] mt-1">What each role can do in your organization</p>
         </div>
-        <div className="health-card-content">
+        <div className="metric-card-content">
           <div className="overflow-x-auto -mx-4 sm:-mx-6 px-4 sm:px-6">
             <div className="min-w-[400px] space-y-3 sm:space-y-4">
               <div className="console-table-header grid grid-cols-4 gap-3 sm:gap-4 border-b border-[#E5E5EA] pb-2">
@@ -525,9 +525,9 @@ export default function MembersPage() {
               ].map((perm) => (
                 <div key={perm.label} className="console-table-row grid grid-cols-4 gap-3 sm:gap-4 py-3 hover:bg-[#F5F5F7] rounded-lg px-3 transition-colors border-b border-[#E5E5EA] last:border-0">
                   <div className="console-table-cell text-[13px] sm:text-[15px] text-gray-800">{perm.label}</div>
-                  <div className="console-table-cell text-center text-[13px] sm:text-[15px]">{perm.owner ? <span className="text-[#14B8A6]">✓</span> : <span className="text-gray-300">✗</span>}</div>
-                  <div className="console-table-cell text-center text-[13px] sm:text-[15px]">{perm.collab ? <span className="text-[#14B8A6]">✓</span> : <span className="text-gray-300">✗</span>}</div>
-                  <div className="console-table-cell text-center text-[13px] sm:text-[15px]">{perm.readonly ? <span className="text-[#14B8A6]">✓</span> : <span className="text-gray-300">✗</span>}</div>
+                  <div className="console-table-cell text-center text-[13px] sm:text-[15px]">{perm.owner ? <span className="text-[#007A78]">✓</span> : <span className="text-gray-300">✗</span>}</div>
+                  <div className="console-table-cell text-center text-[13px] sm:text-[15px]">{perm.collab ? <span className="text-[#007A78]">✓</span> : <span className="text-gray-300">✗</span>}</div>
+                  <div className="console-table-cell text-center text-[13px] sm:text-[15px]">{perm.readonly ? <span className="text-[#007A78]">✓</span> : <span className="text-gray-300">✗</span>}</div>
                 </div>
               ))}
             </div>

@@ -135,24 +135,24 @@ export default function CloudProvidersPage() {
       </div>
 
       <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-muted console-small w-fit">
-        <Check className="h-4 w-4 text-green-600" />
+        <Check className="h-4 w-4 text-[#007A78]" />
         <span className="text-gray-500">Connected:</span>
-        <span className="font-medium text-green-600">{connectedCount} / {CLOUD_PROVIDERS.length}</span>
+        <span className="font-medium text-[#007A78]">{connectedCount} / {CLOUD_PROVIDERS.length}</span>
       </div>
 
       {(!backendConnected || !hasApiKey) && (
-        <Alert className="border-amber-500/50 bg-amber-50">
-          <AlertCircle className="h-4 w-4 text-amber-600" />
-          <AlertTitle className="text-amber-800">
+        <Alert className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
+          <AlertCircle className="h-4 w-4 text-[#FF6E50]" />
+          <AlertTitle className="text-[#E55A3C]">
             {!backendConnected ? "Backend Not Connected" : "API Key Missing"}
           </AlertTitle>
-          <AlertDescription className="text-amber-700">
+          <AlertDescription className="text-[#FF6E50]">
             {!backendConnected
               ? "Your organization is not connected to the pipeline backend."
               : "Your organization API key is missing."}
             <div className="mt-3">
               <Link href={`/${orgSlug}/settings/onboarding`}>
-                <Button variant="outline" size="sm" className="border-amber-500 text-amber-700 hover:bg-amber-100">
+                <Button variant="outline" size="sm" className="border-[#007A78] text-[#007A78] hover:bg-[#007A78]/10">
                   <Cloud className="h-4 w-4 mr-2" />
                   Go to Onboarding Settings
                 </Button>
@@ -163,17 +163,17 @@ export default function CloudProvidersPage() {
       )}
 
       {error && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Error</AlertTitle>
+        <Alert variant="destructive" className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
+          <AlertCircle className="h-4 w-4 text-[#FF6E50]" />
+          <AlertTitle className="text-[#FF6E50]">Error</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
       {successMessage && (
-        <Alert className="border-green-500/20 bg-green-500/5">
-          <Check className="h-4 w-4 text-green-600" />
-          <AlertTitle className="text-green-600">Success</AlertTitle>
+        <Alert className="border-[#007A78]/30 bg-[#007A78]/5">
+          <Check className="h-4 w-4 text-[#007A78]" />
+          <AlertTitle className="text-[#007A78]">Success</AlertTitle>
           <AlertDescription>{successMessage}</AlertDescription>
         </Alert>
       )}
@@ -202,7 +202,7 @@ export default function CloudProvidersPage() {
               <CardContent className="pt-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Badge variant={isConnected ? "default" : "secondary"} className={isConnected ? "bg-green-100 text-green-700" : ""}>
+                    <Badge variant={isConnected ? "default" : "secondary"} className={isConnected ? "bg-[#F0FDFA] text-[#007A78]" : ""}>
                       {isConnected ? "Connected" : "Not Connected"}
                     </Badge>
                     {isConnected && (

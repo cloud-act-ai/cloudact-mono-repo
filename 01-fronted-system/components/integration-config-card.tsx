@@ -37,12 +37,12 @@ const BRAND_COLORS = {
   coralBg: "#FFF5F3",
 
   // Status Colors
-  success: "#34C759",
-  successBg: "#F0FDF4",
-  warning: "#FF9500",
-  warningBg: "#FFF8E6",
-  error: "#FF3B30",
-  errorBg: "#FEF2F2",
+  success: "#007A78",
+  successBg: "#F0FDFA",
+  warning: "#FF6E50",
+  warningBg: "#FFF5F3",
+  error: "#FF6E50",
+  errorBg: "#FFF5F3",
   gray: "#8E8E93",
   grayBg: "#F9FAFB",
 }
@@ -96,17 +96,17 @@ function StatusBadge({ status }: { status: string }) {
     VALID: {
       variant: "default",
       text: "Connected",
-      className: "bg-[#F0FDF4] text-[#34C759] border-[#34C759] hover:bg-[#E6FCF0]",
+      className: "bg-[#F0FDFA] text-[#007A78] border-[#007A78] hover:bg-[#E5F9F8]",
     },
     INVALID: {
       variant: "destructive",
       text: "Invalid",
-      className: "bg-[#FEF2F2] text-[#FF3B30] border-[#FF3B30] hover:bg-[#FEE8E7]",
+      className: "bg-[#FFF5F3] text-[#FF6E50] border-[#FF6E50] hover:bg-[#FFE8E3]",
     },
     PENDING: {
       variant: "secondary",
       text: "Validating...",
-      className: "bg-[#FFF8E6] text-[#FF9500] border-[#FF9500] hover:bg-[#FFF3D6]",
+      className: "bg-[#FFF5F3] text-[#FF6E50] border-[#FF6E50] hover:bg-[#FFE8E3]",
     },
   }
 
@@ -203,7 +203,7 @@ export function IntegrationConfigCard({
     <Card
       className={
         status === "INVALID"
-          ? "border-2 border-[#FF3B30] shadow-sm hover:shadow-md transition-shadow"
+          ? "border-2 border-[#FF6E50] shadow-sm hover:shadow-md transition-shadow"
           : "console-stat-card border shadow-sm hover:shadow-md transition-shadow"
       }
     >
@@ -232,11 +232,11 @@ export function IntegrationConfigCard({
       </CardHeader>
 
       <CardContent className="space-y-4">
-        {/* Error Alert - Use Error Red */}
+        {/* Error Alert - Use Coral */}
         {integration?.last_error && status === "INVALID" && (
-          <Alert variant="destructive" className="border-2 border-[#FF3B30] bg-[#FEF2F2]">
-            <AlertCircle className="h-4 w-4 text-[#FF3B30]" />
-            <AlertTitle className="text-[#FF3B30] font-semibold">Validation Error</AlertTitle>
+          <Alert variant="destructive" className="border-2 border-[#FF6E50] bg-[#FFF5F3]">
+            <AlertCircle className="h-4 w-4 text-[#FF6E50]" />
+            <AlertTitle className="text-[#FF6E50] font-semibold">Validation Error</AlertTitle>
             <AlertDescription className="text-foreground/90 mt-1">{integration.last_error}</AlertDescription>
           </Alert>
         )}
@@ -251,7 +251,7 @@ export function IntegrationConfigCard({
               {inputType === "textarea" ? (
                 <textarea
                   id={`${provider}-credential`}
-                  className="flex min-h-[150px] w-full rounded-md border-2 border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#14B8A6] focus-visible:border-[#14B8A6] disabled:cursor-not-allowed disabled:opacity-50 font-mono transition-colors"
+                  className="flex min-h-[150px] w-full rounded-md border-2 border-input bg-background px-3 py-2 text-sm placeholder:text-[#8E8E93] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#14B8A6] focus-visible:border-[#14B8A6] disabled:cursor-not-allowed disabled:opacity-50 font-mono transition-colors"
                   placeholder={placeholder}
                   value={credential}
                   onChange={(e) => setCredential(e.target.value)}
@@ -266,9 +266,9 @@ export function IntegrationConfigCard({
                   className="console-input font-mono border-2 border-input focus-visible:ring-2 focus-visible:ring-[#14B8A6] focus-visible:border-[#14B8A6] transition-colors"
                 />
               )}
-              <p className="console-small text-muted-foreground">{helperText}</p>
+              <p className="console-small text-[#8E8E93]">{helperText}</p>
               {validationError && (
-                <p className="console-small text-[#FF3B30] mt-1 font-medium">{validationError}</p>
+                <p className="console-small text-[#FF6E50] mt-1 font-medium">{validationError}</p>
               )}
             </div>
             <div className="flex gap-2">
@@ -303,14 +303,14 @@ export function IntegrationConfigCard({
                 <p className="console-card-title text-foreground">
                   {integration?.credential_name || `${providerName} Credential`}
                 </p>
-                <div className="flex flex-wrap items-center gap-3 mt-1.5 console-small text-muted-foreground">
+                <div className="flex flex-wrap items-center gap-3 mt-1.5 console-small text-[#8E8E93]">
                   <span className="flex items-center gap-1.5">
                     <Clock className="h-3.5 w-3.5 text-[#007A78]" />
                     Last validated: {formatDate(integration?.last_validated_at)}
                   </span>
                   {integration?.created_at && (
                     <span className="flex items-center gap-1.5">
-                      <span className="text-muted-foreground/50">•</span>
+                      <span className="text-[#8E8E93]/50">•</span>
                       Added: {formatDate(integration?.created_at)}
                     </span>
                   )}
@@ -319,7 +319,7 @@ export function IntegrationConfigCard({
             </div>
 
             {/* Security Note */}
-            <div className="flex items-start gap-2.5 console-small text-muted-foreground bg-muted/50 p-3 rounded-lg border border-border">
+            <div className="flex items-start gap-2.5 console-small text-[#8E8E93] bg-muted/50 p-3 rounded-lg border border-border">
               <Shield className="h-4 w-4 mt-0.5 flex-shrink-0 text-[#14B8A6]" />
               <span>Credentials are encrypted using Google Cloud KMS and never stored in plain text.</span>
             </div>
@@ -329,7 +329,7 @@ export function IntegrationConfigCard({
             <div className="inline-flex items-center justify-center h-16 w-16 rounded-full bg-[#F0FDFA] mb-4 shadow-sm border border-[#14B8A6]/20">
               <Key className="h-8 w-8 text-[#14B8A6]" />
             </div>
-            <p className="console-body text-muted-foreground mb-6 max-w-md mx-auto">
+            <p className="console-body text-[#8E8E93] mb-6 max-w-md mx-auto">
               No {providerName} integration configured. Click below to add your credentials.
             </p>
             <Button
@@ -390,7 +390,7 @@ export function IntegrationConfigCard({
                 <DialogTitle className="text-xl font-semibold text-foreground">
                   Remove {providerName} Integration
                 </DialogTitle>
-                <DialogDescription className="text-muted-foreground mt-2">
+                <DialogDescription className="text-[#8E8E93] mt-2">
                   Are you sure you want to remove this integration? This will delete the stored credentials and any
                   pipelines using this integration will stop working.
                 </DialogDescription>

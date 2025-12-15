@@ -270,7 +270,7 @@ export default function AddFromTemplatePage() {
         <Link href={`/${orgSlug}/subscriptions/${provider}/add/custom`}>
           <Button
             variant="outline"
-            className="border-[#FF6E50]/30 text-[#FF6E50] hover:bg-[#FF6E50]/5 rounded-xl"
+            className="border-[#007A78]/30 text-[#007A78] hover:bg-[#007A78]/5 rounded-xl"
           >
             <Plus className="h-4 w-4 mr-2" />
             Create Custom
@@ -280,10 +280,10 @@ export default function AddFromTemplatePage() {
 
       {/* Error Message */}
       {error && (
-        <Card className="border-red-200 bg-red-50">
+        <Card className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
           <CardContent className="pt-6">
-            <p className="text-sm text-red-600">{error}</p>
-            <p className="text-xs text-red-500 mt-1">
+            <p className="text-sm text-[#FF6E50]">{error}</p>
+            <p className="text-xs text-[#FF6E50] mt-1">
               Make sure the provider is enabled and API service is running.
             </p>
           </CardContent>
@@ -314,12 +314,12 @@ export default function AddFromTemplatePage() {
           {availablePlans.map((plan, index) => (
             <Card
               key={`${plan.plan_name}-${index}`}
-              className="console-table-card hover:border-[#FF6E50] hover:shadow-md transition-all cursor-pointer group"
+              className="console-table-card hover:border-[#007A78] hover:shadow-md transition-all cursor-pointer group"
               onClick={() => handleSelectTemplate(plan)}
             >
               <CardHeader>
                 <div className="flex items-start justify-between mb-3">
-                  <div className="p-2.5 rounded-lg bg-gradient-to-br from-[#FF6E50]/10 to-[#FF8A73]/10 text-[#FF6E50]">
+                  <div className="p-2.5 rounded-lg bg-gradient-to-br from-[#007A78]/10 to-[#14B8A6]/10 text-[#007A78]">
                     {plan.category && categoryIcons[plan.category] ? categoryIcons[plan.category] : categoryIcons.other}
                   </div>
                   <Badge variant="outline" className="capitalize text-xs">
@@ -362,14 +362,14 @@ export default function AddFromTemplatePage() {
 
                 {/* Discount Badge */}
                 {plan.discount_type && plan.discount_value && plan.discount_value > 0 && (
-                  <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                  <Badge variant="outline" className="text-xs bg-[#F0FDFA] text-[#007A78] border-[#007A78]/20">
                     {plan.discount_type === 'percent' ? `${plan.discount_value}% off` : `${formatCurrency(convertFromUSD(plan.discount_value, orgCurrency), orgCurrency)} discount`}
                   </Badge>
                 )}
 
                 {/* Select Button */}
                 <Button
-                  className="w-full h-[40px] bg-[#FF6E50] text-white hover:bg-[#E55A3C] rounded-xl text-[15px] font-semibold group-hover:bg-[#E55A3C]"
+                  className="w-full h-[40px] bg-[#007A78] text-white hover:bg-[#006664] rounded-xl text-[15px] font-semibold group-hover:bg-[#006664]"
                   onClick={(e) => {
                     e.stopPropagation()
                     handleSelectTemplate(plan)

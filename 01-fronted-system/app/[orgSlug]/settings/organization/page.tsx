@@ -122,21 +122,21 @@ export default function OrganizationSettingsPage() {
   return (
     <div className="space-y-4 sm:space-y-6">
       {error && (
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
+        <Alert variant="destructive" className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
+          <AlertTriangle className="h-4 w-4 text-[#FF6E50]" />
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
       {success && (
-        <Alert className="bg-muted border-green-500/50">
-          <CheckCircle2 className="h-4 w-4 text-green-500" />
+        <Alert className="bg-[#007A78]/5 border-[#007A78]/30">
+          <CheckCircle2 className="h-4 w-4 text-[#007A78]" />
           <AlertDescription className="text-foreground">{success}</AlertDescription>
         </Alert>
       )}
 
-      <div className="health-card shadow-sm">
-        <div className="health-card-header mb-6">
+      <div className="metric-card shadow-sm">
+        <div className="metric-card-header mb-6">
           <div className="flex items-center gap-2">
             <Globe className="h-5 w-5 text-[#8E8E93]" />
             <h2 className="text-[22px] font-bold text-black">Organization Locale</h2>
@@ -147,12 +147,12 @@ export default function OrganizationSettingsPage() {
           </p>
         </div>
 
-        <div className="health-card-content space-y-4 sm:space-y-6">
+        <div className="metric-card-content space-y-4 sm:space-y-6">
           {/* Currency Selection */}
           <div className="space-y-2">
             <Label htmlFor="currency" className="text-[13px] sm:text-[15px] font-medium text-gray-700 flex items-center gap-2">
               <DollarSign className="h-4 w-4 text-[#8E8E93]" />
-              Currency <span className="text-[#FF3B30]">*</span>
+              Currency <span className="text-[#FF6E50]">*</span>
             </Label>
             <Select value={currency} onValueChange={setCurrency}>
               <SelectTrigger id="currency" className="h-10 text-[15px] border border-[#E5E5EA] rounded-lg">
@@ -178,7 +178,7 @@ export default function OrganizationSettingsPage() {
           <div className="space-y-2">
             <Label htmlFor="timezone" className="text-[13px] sm:text-[15px] font-medium text-gray-700 flex items-center gap-2">
               <Clock className="h-4 w-4 text-[#8E8E93]" />
-              Timezone <span className="text-[#FF3B30]">*</span>
+              Timezone <span className="text-[#FF6E50]">*</span>
             </Label>
             <Select value={timezone} onValueChange={setTimezone}>
               <SelectTrigger id="timezone" className="h-10 text-[15px] border border-[#E5E5EA] rounded-lg">
@@ -199,9 +199,9 @@ export default function OrganizationSettingsPage() {
           </div>
 
           {hasChanges && (
-            <Alert className="bg-blue-50 border-blue-200">
-              <AlertTriangle className="h-4 w-4 text-blue-600" />
-              <AlertDescription className="text-blue-800">
+            <Alert className="bg-[#007A78]/5 border-[#007A78]/20">
+              <AlertTriangle className="h-4 w-4 text-[#007A78]" />
+              <AlertDescription className="text-[#005F5D]">
                 You have unsaved changes. Click Save to apply or Reset to discard.
               </AlertDescription>
             </Alert>
@@ -212,7 +212,7 @@ export default function OrganizationSettingsPage() {
           <Button
             onClick={handleSave}
             disabled={isSaving || !hasChanges}
-            className="h-[36px] px-4 bg-[#8E8E93] text-white rounded-xl text-[15px] font-semibold hover:bg-[#6E6E73] shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="cloudact-btn-primary h-[36px] px-4"
           >
             {isSaving ? (
               <>
@@ -232,7 +232,7 @@ export default function OrganizationSettingsPage() {
               onClick={handleReset}
               disabled={isSaving}
               variant="outline"
-              className="h-[36px] px-4 border-[#E5E5EA] text-[#8E8E93] rounded-xl text-[15px] font-semibold hover:bg-gray-50 transition-colors"
+              className="cloudact-btn-secondary h-[36px] px-4"
             >
               Reset
             </Button>
@@ -241,13 +241,13 @@ export default function OrganizationSettingsPage() {
       </div>
 
       {/* Information Card */}
-      <div className="health-card shadow-sm bg-blue-50 border-blue-200">
-        <div className="health-card-content">
+      <div className="metric-card shadow-sm bg-[#007A78]/5 border-[#007A78]/20">
+        <div className="metric-card-content">
           <div className="flex items-start gap-3">
-            <AlertTriangle className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+            <AlertTriangle className="h-5 w-5 text-[#007A78] mt-0.5 flex-shrink-0" />
             <div className="space-y-2">
-              <h3 className="text-[15px] font-semibold text-blue-900">Important Notes</h3>
-              <ul className="text-[13px] text-blue-800 space-y-1 list-disc list-inside">
+              <h3 className="text-[15px] font-semibold text-[#005F5D]">Important Notes</h3>
+              <ul className="text-[13px] text-[#007A78] space-y-1 list-disc list-inside">
                 <li>
                   Currency changes affect how costs are displayed but do not convert historical data.
                 </li>

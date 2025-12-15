@@ -455,7 +455,7 @@ export default function OpenAIIntegrationPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <Loader2 className="h-8 w-8 animate-spin text-[#007A78]" />
       </div>
     )
   }
@@ -467,7 +467,7 @@ export default function OpenAIIntegrationPage() {
       {/* Header with back link */}
       <div className="flex items-center gap-3">
         <Link href={`/${orgSlug}/settings/integrations`}>
-          <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+          <Button variant="ghost" size="sm" className="text-[#8E8E93] hover:text-foreground">
             <ArrowLeft className="h-4 w-4 mr-1.5" />
             All Integrations
           </Button>
@@ -476,7 +476,7 @@ export default function OpenAIIntegrationPage() {
 
       <div className="space-y-2">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-lg bg-gradient-to-br from-[#007A78]/10 to-[#14B8A6]/10">
+          <div className="p-2.5 rounded-lg bg-gradient-to-br from-[#007A78]/10 to-[#007A78]/5">
             <Brain className="h-6 w-6 text-[#007A78]" />
           </div>
           <h1 className="console-page-title">OpenAI Integration</h1>
@@ -488,9 +488,9 @@ export default function OpenAIIntegrationPage() {
 
       {/* Alerts */}
       {error && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Error</AlertTitle>
+        <Alert variant="destructive" className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
+          <AlertCircle className="h-4 w-4 text-[#FF6E50]" />
+          <AlertTitle className="text-[#FF6E50]">Error</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
@@ -668,7 +668,7 @@ export default function OpenAIIntegrationPage() {
                                 <Button
                                   size="sm"
                                   variant="ghost"
-                                  className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                  className="text-[#FF6E50] hover:text-[#E55A3C] hover:bg-[#FF6E50]/10"
                                   onClick={() => setDeletePricingDialog({ open: true, model })}
                                   disabled={deletingPricing === model.model_id}
                                 >
@@ -814,7 +814,7 @@ export default function OpenAIIntegrationPage() {
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="sub-plan" className="text-right">
-                Plan Name <span className="text-red-500">*</span>
+                Plan Name <span className="text-[#FF6E50]">*</span>
               </Label>
               <div className="col-span-3">
                 <Input

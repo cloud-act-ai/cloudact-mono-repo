@@ -137,8 +137,9 @@ export default function ProviderDetailPage() {
   const [costSummary, setCostSummary] = useState<SaaSCostSummary | null>(null)
   const [costRecords, setCostRecords] = useState<SaaSCostRecord[]>([])
 
-  // Effective monthly cost: prefer Polars data, fallback to plan calculation
-  const effectiveMonthlyCost = costSummary?.total_monthly_cost ?? totalMonthlyCost
+  // Monthly cost from pipeline data (cost_data_standard_1_2 table)
+  // No fallback - pipeline must run to populate costs
+  const effectiveMonthlyCost = costSummary?.total_monthly_cost ?? 0
 
   // Load plans from BigQuery and costs from Polars (source of truth for costs)
   const loadPlans = useCallback(async (isMounted?: () => boolean) => {
@@ -314,7 +315,7 @@ export default function ProviderDetailPage() {
               <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>
-          <div className="p-2.5 rounded-lg bg-gradient-to-br from-[#FF6E50]/10 to-[#FF8A73]/10 text-[#FF6E50]">
+          <div className="p-2.5 rounded-lg bg-gradient-to-br from-[#007A78]/10 to-[#14B8A6]/10 text-[#007A78]">
             {/* Get category from first plan if available, otherwise use default icon */}
             {plans.length > 0 && plans[0].category ? categoryIcons[plans[0].category] || categoryIcons.other : <CreditCard className="h-6 w-6" />}
           </div>
@@ -328,13 +329,13 @@ export default function ProviderDetailPage() {
         {plans.length > 0 && (
           <div className="flex items-center gap-2">
             <Link href={`/${orgSlug}/subscriptions/${provider}/add`}>
-              <Button className="h-[36px] px-4 bg-[#FF6E50] text-white hover:bg-[#E55A3C] rounded-xl text-[15px] font-semibold" data-testid="add-from-template-btn">
+              <Button className="h-[36px] px-4 bg-[#007A78] text-white hover:bg-[#006664] rounded-xl text-[15px] font-semibold" data-testid="add-from-template-btn">
                 <Plus className="h-4 w-4 mr-2" />
                 Add from Template
               </Button>
             </Link>
             <Link href={`/${orgSlug}/subscriptions/${provider}/add/custom`}>
-              <Button variant="outline" className="border-[#FF6E50]/30 text-[#FF6E50] hover:bg-[#FF6E50]/5 rounded-xl" data-testid="add-custom-subscription-btn">
+              <Button variant="outline" className="border-[#007A78]/30 text-[#007A78] hover:bg-[#007A78]/5 rounded-xl" data-testid="add-custom-subscription-btn">
                 <Plus className="h-4 w-4 mr-2" />
                 Add Custom
               </Button>
@@ -345,11 +346,11 @@ export default function ProviderDetailPage() {
 
       {/* Provider Alias Info Banner */}
       {isAliased && (
-        <Card className="border-blue-200 bg-blue-50">
+        <Card className="border-[#007A78]/20 bg-[#007A78]/5">
           <CardContent className="py-3 px-4">
             <div className="flex items-center gap-3">
-              <Info className="h-5 w-5 text-blue-600 flex-shrink-0" />
-              <p className="text-sm text-blue-700">
+              <Info className="h-5 w-5 text-[#007A78] flex-shrink-0" />
+              <p className="text-sm text-[#005F5D]">
                 All {rawProvider.replace(/_/g, " ")} plans are managed under <strong>{getProviderDisplayName(provider)}</strong>.
                 You&apos;re viewing the correct provider page.
               </p>
@@ -360,18 +361,18 @@ export default function ProviderDetailPage() {
 
       {/* Error Message */}
       {error && (
-        <Card className="border-red-200 bg-red-50 relative">
+        <Card className="border-[#FF6E50]/30 bg-[#FF6E50]/5 relative">
           <Button
             variant="ghost"
             size="icon"
-            className="absolute top-2 right-2 h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-100"
+            className="absolute top-2 right-2 h-6 w-6 text-[#FF6E50] hover:text-[#E55A3C] hover:bg-[#FF6E50]/10"
             onClick={() => setError(null)}
           >
             <X className="h-4 w-4" />
           </Button>
           <CardContent className="pt-6 pr-10">
-            <p className="text-sm text-red-600">{error}</p>
-            <p className="text-xs text-red-500 mt-1">
+            <p className="text-sm text-[#FF6E50]">{error}</p>
+            <p className="text-xs text-[#FF6E50] mt-1">
               Make sure the provider is enabled and API service is running.
             </p>
           </CardContent>
@@ -379,11 +380,11 @@ export default function ProviderDetailPage() {
       )}
 
       {/* Info Banner - Cost Update Timing */}
-      <Card className="border-blue-200 bg-blue-50">
+      <Card className="border-[#007A78]/20 bg-[#007A78]/5">
         <CardContent className="py-3 px-4">
           <div className="flex items-center gap-3">
-            <Info className="h-5 w-5 text-blue-600 flex-shrink-0" />
-            <p className="text-sm text-blue-700">
+            <Info className="h-5 w-5 text-[#007A78] flex-shrink-0" />
+            <p className="text-sm text-[#005F5D]">
               New changes to subscription costs will be reflected within 24 hours once the scheduler runs every day at midnight.
             </p>
           </div>
@@ -395,28 +396,28 @@ export default function ProviderDetailPage() {
         <Card className="console-stat-card border-[#FF6E50]/20">
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-[#FF6E50]">{formatCurrency(effectiveMonthlyCost, orgCurrency)}</div>
-            <p className="text-sm text-muted-foreground">Monthly Cost</p>
+            <p className="text-sm text-[#8E8E93]">Monthly Cost</p>
             {costSummary && (
-              <p className="text-xs text-muted-foreground mt-1">From pipeline data</p>
+              <p className="text-xs text-[#8E8E93] mt-1">From pipeline data</p>
             )}
           </CardContent>
         </Card>
         <Card className="console-stat-card border-[#FF6E50]/20">
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-[#FF6E50]">{totalActiveSeats}</div>
-            <p className="text-sm text-muted-foreground">Total Active Seats</p>
+            <p className="text-sm text-[#8E8E93]">Total Active Seats</p>
           </CardContent>
         </Card>
         <Card className="console-stat-card border-[#FF6E50]/20">
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-[#FF6E50]">{activeSubscriptionsCount}</div>
-            <p className="text-sm text-muted-foreground">Active Subscriptions</p>
+            <p className="text-sm text-[#8E8E93]">Active Subscriptions</p>
           </CardContent>
         </Card>
         <Card className="console-stat-card border-[#FF6E50]/20">
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-[#FF6E50]">{visiblePlans.length}</div>
-            <p className="text-sm text-muted-foreground">Available Plans</p>
+            <p className="text-sm text-[#8E8E93]">Available Plans</p>
           </CardContent>
         </Card>
       </div>
@@ -495,11 +496,11 @@ export default function ProviderDetailPage() {
                   // Display status: show "inactive" for plans with 0 seats
                   const displayStatus = hasActiveSeats ? plan.status : 'inactive'
                   const statusColors: Record<string, string> = {
-                    active: "bg-green-100 text-green-700 border-green-200",
+                    active: "bg-[#F0FDFA] text-[#007A78] border-[#007A78]/20",
                     inactive: "bg-slate-100 text-slate-600 border-slate-200",
-                    pending: "bg-yellow-100 text-yellow-700 border-yellow-200",
+                    pending: "bg-[#FF6E50]/10 text-[#FF6E50] border-[#FF6E50]/20",
                     cancelled: "bg-gray-100 text-gray-700 border-gray-200",
-                    expired: "bg-red-100 text-red-700 border-red-200"
+                    expired: "bg-[#8E8E93]/12 text-[#8E8E93] border-[#8E8E93]/20"
                   }
 
                   return (
@@ -526,7 +527,7 @@ export default function ProviderDetailPage() {
                           {isPending && (
                             <Badge
                               variant="outline"
-                              className="text-xs bg-yellow-50 text-yellow-700 border-yellow-200"
+                              className="text-xs bg-[#FF6E50]/10 text-[#FF6E50] border-[#FF6E50]/20"
                               title="This plan will become active when the start date arrives"
                             >
                               Pending {plan.start_date && `(${format(new Date(plan.start_date), 'MMM d')})`}
@@ -562,7 +563,7 @@ export default function ProviderDetailPage() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-[#FF6E50] hover:bg-[#FF6E50]/10"
+                            className="h-8 w-8 text-[#007A78] hover:bg-[#007A78]/10"
                             title="Edit plan"
                             aria-label="Edit plan"
                             data-testid={`edit-plan-${plan.subscription_id}`}
@@ -574,7 +575,7 @@ export default function ProviderDetailPage() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-amber-600 hover:bg-amber-50"
+                            className="h-8 w-8 text-[#8E8E93] hover:text-[#FF6E50] hover:bg-[#FF6E50]/10"
                             title="End subscription"
                             aria-label="End subscription"
                             data-testid={`end-plan-${plan.subscription_id}`}
@@ -619,10 +620,11 @@ export default function ProviderDetailPage() {
                               <span className="font-medium">{plan.contract_id}</span>
                             </div>
                           )}
-                          {plan.currency && plan.currency !== 'USD' && (
+                          {plan.currency && plan.currency !== orgCurrency && (
                             <div>
                               <span className="text-slate-500 block text-xs uppercase tracking-wide mb-1">Currency</span>
-                              <span className="font-medium">{plan.currency}</span>
+                              <span className="font-medium text-[#FF6E50]">{plan.currency}</span>
+                              <span className="text-xs text-[#FF6E50] ml-1">(differs from org default: {orgCurrency})</span>
                             </div>
                           )}
                           {plan.auto_renew !== undefined && (
@@ -636,7 +638,7 @@ export default function ProviderDetailPage() {
                           {plan.discount_type && plan.discount_value !== undefined && plan.discount_value > 0 && (
                             <div>
                               <span className="text-slate-500 block text-xs uppercase tracking-wide mb-1">Discount</span>
-                              <span className="font-medium text-green-600">
+                              <span className="font-medium text-[#007A78]">
                                 {plan.discount_type === 'percent' ? `${plan.discount_value}%` : formatCurrency(plan.discount_value, orgCurrency)}
                               </span>
                             </div>
@@ -671,7 +673,7 @@ export default function ProviderDetailPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="text-[#FF6E50] border-[#FF6E50]/30 hover:bg-[#FF6E50]/5 rounded-xl"
+                      className="text-[#007A78] border-[#007A78]/30 hover:bg-[#007A78]/5 rounded-xl"
                       data-testid="add-custom-subscription-footer-btn"
                     >
                       <Plus className="h-4 w-4 mr-2" />

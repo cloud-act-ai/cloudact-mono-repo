@@ -175,18 +175,259 @@ export async function getOrgLocale(orgSlug: string): Promise<GetOrgLocaleResult>
 }
 
 // ============================================
-// Update Org Locale (Supabase + Backend)
+// Update Org Locale (BigQuery + Supabase - Atomic)
 // ============================================
+
+/**
+ * Helper: Sync locale to BigQuery backend with retry logic.
+ * Returns true if sync succeeded, false otherwise.
+ */
+async function syncLocaleToBackend(
+  orgSlug: string,
+  currency: string,
+  timezone: string,
+  maxRetries: number = 3
+): Promise<{ success: boolean; error?: string }> {
+  const backendUrl = process.env.API_SERVICE_URL || process.env.NEXT_PUBLIC_API_SERVICE_URL
+
+  if (!backendUrl) {
+    console.warn("[Org Locale] No backend URL configured, skipping BigQuery sync")
+    return { success: true } // Skip if no backend configured
+  }
+
+  // Get org API key
+  const { getOrgApiKeySecure } = await import("./backend-onboarding")
+  const orgApiKey = await getOrgApiKeySecure(orgSlug)
+
+  if (!orgApiKey) {
+    return {
+      success: false,
+      error: "Organization API key not found. Please ensure backend onboarding is complete."
+    }
+  }
+
+  let lastError: string | undefined
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 15000) // 15s timeout
+
+      const response = await fetch(
+        `${backendUrl}/api/v1/organizations/${orgSlug}/locale`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            "X-API-Key": orgApiKey,
+          },
+          body: JSON.stringify({
+            default_currency: currency,
+            default_timezone: timezone,
+          }),
+          signal: controller.signal,
+        }
+      )
+
+      clearTimeout(timeoutId)
+
+      if (response.ok) {
+        console.log(`[Org Locale] Backend sync succeeded (attempt ${attempt})`)
+        return { success: true }
+      }
+
+      // Parse error response
+      const errorData = await response.json().catch(() => ({ detail: "Unknown error" }))
+      lastError = errorData.detail || `HTTP ${response.status}`
+      console.warn(`[Org Locale] Backend sync attempt ${attempt} failed: ${lastError}`)
+
+    } catch (fetchErr: unknown) {
+      const error = fetchErr as { name?: string; message?: string }
+      if (error.name === "AbortError") {
+        lastError = "Request timed out"
+      } else {
+        lastError = error.message || "Network error"
+      }
+      console.warn(`[Org Locale] Backend sync attempt ${attempt} error: ${lastError}`)
+    }
+
+    // Wait before retry (exponential backoff)
+    if (attempt < maxRetries) {
+      await new Promise(resolve => setTimeout(resolve, 1000 * attempt))
+    }
+  }
+
+  return { success: false, error: lastError || "Backend sync failed after retries" }
+}
 
 /**
  * Update organization locale settings.
  *
+ * IMPORTANT: Updates BigQuery FIRST, then Supabase.
+ * This ensures both systems stay in sync - if BigQuery fails, Supabase is not updated.
+ *
  * Updates both:
- * 1. Supabase organizations table (for frontend display)
- * 2. BigQuery org_profiles table (via backend API for cost calculations)
+ * 1. BigQuery org_profiles table (via backend API - source of truth for cost calculations)
+ * 2. Supabase organizations table (for frontend display)
  *
  * SECURITY: Requires org membership.
  */
+/**
+ * Validate that Supabase and BigQuery locale settings are in sync.
+ * Returns detailed sync status for debugging.
+ *
+ * SECURITY: Requires org membership.
+ */
+export async function validateLocaleSync(orgSlug: string): Promise<{
+  inSync: boolean
+  supabase?: OrgLocale
+  bigquery?: OrgLocale
+  mismatch?: string[]
+  error?: string
+}> {
+  try {
+    // Validate input
+    if (!isValidOrgSlug(orgSlug)) {
+      return { inSync: false, error: "Invalid organization identifier" }
+    }
+
+    // Verify authentication
+    const authResult = await verifyOrgMembership(orgSlug)
+    if (!authResult.authorized) {
+      return { inSync: false, error: authResult.error || "Not authorized" }
+    }
+
+    // Get Supabase locale
+    const supabase = await createClient()
+    const { data: supabaseData, error: supabaseError } = await supabase
+      .from("organizations")
+      .select("default_currency, default_timezone, default_country, default_language")
+      .eq("org_slug", orgSlug)
+      .single()
+
+    if (supabaseError || !supabaseData) {
+      return { inSync: false, error: "Failed to fetch Supabase locale" }
+    }
+
+    const supabaseLocale: OrgLocale = {
+      default_currency: supabaseData.default_currency || "USD",
+      default_timezone: supabaseData.default_timezone || "UTC",
+      default_country: supabaseData.default_country || undefined,
+      default_language: supabaseData.default_language || undefined,
+    }
+
+    // Get BigQuery locale
+    const backendUrl = process.env.API_SERVICE_URL || process.env.NEXT_PUBLIC_API_SERVICE_URL
+    if (!backendUrl) {
+      return { inSync: true, supabase: supabaseLocale } // No backend to check
+    }
+
+    const { getOrgApiKeySecure } = await import("./backend-onboarding")
+    const orgApiKey = await getOrgApiKeySecure(orgSlug)
+
+    if (!orgApiKey) {
+      return { inSync: true, supabase: supabaseLocale } // No API key, can't check backend
+    }
+
+    try {
+      const response = await fetch(
+        `${backendUrl}/api/v1/organizations/${orgSlug}/locale`,
+        {
+          method: "GET",
+          headers: { "X-API-Key": orgApiKey },
+        }
+      )
+
+      if (!response.ok) {
+        return { inSync: false, supabase: supabaseLocale, error: "Failed to fetch BigQuery locale" }
+      }
+
+      const bigqueryData = await response.json()
+      const bigqueryLocale: OrgLocale = {
+        default_currency: bigqueryData.default_currency || "USD",
+        default_timezone: bigqueryData.default_timezone || "UTC",
+        default_country: bigqueryData.default_country || undefined,
+        default_language: bigqueryData.default_language || undefined,
+      }
+
+      // Compare
+      const mismatch: string[] = []
+      if (supabaseLocale.default_currency !== bigqueryLocale.default_currency) {
+        mismatch.push(`currency: Supabase=${supabaseLocale.default_currency}, BigQuery=${bigqueryLocale.default_currency}`)
+      }
+      if (supabaseLocale.default_timezone !== bigqueryLocale.default_timezone) {
+        mismatch.push(`timezone: Supabase=${supabaseLocale.default_timezone}, BigQuery=${bigqueryLocale.default_timezone}`)
+      }
+
+      if (mismatch.length > 0) {
+        console.warn(`[Org Locale] Sync mismatch for ${orgSlug}:`, mismatch)
+      }
+
+      return {
+        inSync: mismatch.length === 0,
+        supabase: supabaseLocale,
+        bigquery: bigqueryLocale,
+        mismatch: mismatch.length > 0 ? mismatch : undefined,
+      }
+
+    } catch (fetchErr) {
+      console.error("[Org Locale] Failed to validate sync:", fetchErr)
+      return { inSync: false, supabase: supabaseLocale, error: "Failed to connect to backend" }
+    }
+
+  } catch (err: unknown) {
+    console.error("[Org Locale] Validate sync error:", err)
+    return { inSync: false, error: err instanceof Error ? err.message : "Validation failed" }
+  }
+}
+
+/**
+ * Repair locale sync by copying Supabase locale to BigQuery.
+ * Use this to fix sync issues caused by previous silent failures.
+ *
+ * SECURITY: Requires org membership.
+ */
+export async function repairLocaleSync(orgSlug: string): Promise<{
+  success: boolean
+  repaired?: boolean
+  error?: string
+}> {
+  try {
+    // First validate
+    const validation = await validateLocaleSync(orgSlug)
+
+    if (validation.error) {
+      return { success: false, error: validation.error }
+    }
+
+    if (validation.inSync) {
+      return { success: true, repaired: false } // Already in sync
+    }
+
+    // Get Supabase locale and sync to BigQuery
+    if (!validation.supabase) {
+      return { success: false, error: "Could not read Supabase locale" }
+    }
+
+    const result = await syncLocaleToBackend(
+      orgSlug,
+      validation.supabase.default_currency,
+      validation.supabase.default_timezone
+    )
+
+    if (!result.success) {
+      return { success: false, error: result.error }
+    }
+
+    console.log(`[Org Locale] Repaired sync for ${orgSlug}`)
+    return { success: true, repaired: true }
+
+  } catch (err: unknown) {
+    console.error("[Org Locale] Repair sync error:", err)
+    return { success: false, error: err instanceof Error ? err.message : "Repair failed" }
+  }
+}
+
 export async function updateOrgLocale(
   orgSlug: string,
   currency: string,
@@ -212,7 +453,19 @@ export async function updateOrgLocale(
       return { success: false, error: authResult.error || "Not authorized" }
     }
 
-    // Step 3: Update Supabase first (optimistic update)
+    // Step 3: Update BigQuery FIRST (source of truth for cost calculations)
+    // If this fails, we don't update Supabase to keep them in sync
+    const backendResult = await syncLocaleToBackend(orgSlug, currency, timezone)
+
+    if (!backendResult.success) {
+      console.error("[Org Locale] Backend sync failed, aborting Supabase update")
+      return {
+        success: false,
+        error: `Failed to sync locale to backend: ${backendResult.error}. Please try again.`
+      }
+    }
+
+    // Step 4: Update Supabase (only after BigQuery succeeds)
     const supabase = await createClient()
     const { error: supabaseError } = await supabase
       .from("organizations")
@@ -224,66 +477,16 @@ export async function updateOrgLocale(
 
     if (supabaseError) {
       console.error("[Org Locale] Failed to update Supabase:", supabaseError)
-      return { success: false, error: "Failed to update organization locale" }
-    }
-
-    // Step 4: Update backend BigQuery (if configured)
-    const backendUrl = process.env.API_SERVICE_URL || process.env.NEXT_PUBLIC_API_SERVICE_URL
-    if (backendUrl) {
-      try {
-        // Get org API key from secure storage
-        const { getOrgApiKeySecure } = await import("./backend-onboarding")
-        const orgApiKey = await getOrgApiKeySecure(orgSlug)
-
-        if (orgApiKey) {
-          const controller = new AbortController()
-          const timeoutId = setTimeout(() => controller.abort(), 30000)
-
-          try {
-            const response = await fetch(
-              `${backendUrl}/api/v1/organizations/${orgSlug}/locale`,
-              {
-                method: "PUT",
-                headers: {
-                  "Content-Type": "application/json",
-                  "X-API-Key": orgApiKey,
-                },
-                body: JSON.stringify({
-                  default_currency: currency,
-                  default_timezone: timezone,
-                }),
-                signal: controller.signal,
-              }
-            )
-
-            clearTimeout(timeoutId)
-
-            if (!response.ok) {
-              const errorData = await response.json().catch(() => ({}))
-              console.error("[Org Locale] Backend update failed:", response.status, errorData)
-              // Don't fail the operation - Supabase already updated
-              console.warn("[Org Locale] Supabase updated but backend sync failed")
-            } else {
-              console.log("[Org Locale] Backend locale updated successfully")
-            }
-          } catch (fetchErr: unknown) {
-            clearTimeout(timeoutId)
-            const error = fetchErr as { name?: string }
-            if (error.name === "AbortError") {
-              console.error("[Org Locale] Backend update timed out")
-            } else {
-              console.error("[Org Locale] Backend update error:", fetchErr)
-            }
-            // Don't fail - Supabase is the source of truth for frontend
-          }
-        } else {
-          console.log("[Org Locale] No API key found, skipping backend sync")
-        }
-      } catch (backendErr) {
-        console.error("[Org Locale] Backend sync error:", backendErr)
-        // Don't fail - Supabase update succeeded
+      // BigQuery was updated but Supabase failed - log warning but still return success
+      // because BigQuery is the source of truth for cost calculations
+      console.warn("[Org Locale] BigQuery updated but Supabase failed - may need manual sync")
+      return {
+        success: false,
+        error: "Failed to update frontend settings. Backend was updated successfully."
       }
     }
+
+    console.log("[Org Locale] Both BigQuery and Supabase updated successfully")
 
     // Step 5: Return success with updated locale
     return {

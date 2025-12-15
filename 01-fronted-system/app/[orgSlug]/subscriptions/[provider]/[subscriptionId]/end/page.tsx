@@ -240,9 +240,9 @@ export default function EndSubscriptionPage() {
           <span className="text-gray-900 font-medium">End Subscription</span>
         </nav>
 
-        <Card className="border-red-200 bg-red-50">
+        <Card className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
           <CardContent className="pt-6">
-            <p className="text-sm text-red-600">{error}</p>
+            <p className="text-sm text-[#FF6E50]">{error}</p>
           </CardContent>
         </Card>
       </div>
@@ -289,15 +289,15 @@ export default function EndSubscriptionPage() {
       </div>
 
       {/* Warning Banner */}
-      <Card className="border-amber-200 bg-amber-50">
+      <Card className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
         <CardContent className="py-4 px-4">
           <div className="flex items-start gap-3">
-            <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+            <AlertTriangle className="h-5 w-5 text-[#FF6E50] flex-shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm font-medium text-amber-900 mb-1">
+              <p className="text-sm font-medium text-[#E55A3C] mb-1">
                 This action will end your subscription
               </p>
-              <p className="text-sm text-amber-700">
+              <p className="text-sm text-[#FF6E50]">
                 Cost calculations will stop after the end date you select. This change cannot be undone automatically - you'll need to create a new subscription to resume tracking.
               </p>
             </div>
@@ -369,7 +369,7 @@ export default function EndSubscriptionPage() {
           {/* End Date Picker */}
           <div className="space-y-2 pt-4 border-t">
             <label className="text-sm font-medium text-slate-900">
-              End Date <span className="text-red-500">*</span>
+              End Date <span className="text-[#FF6E50]">*</span>
             </label>
             <DatePicker
               date={endDate}
@@ -385,8 +385,8 @@ export default function EndSubscriptionPage() {
 
           {/* Error Display */}
           {error && (
-            <div className="rounded-lg bg-red-50 border border-red-200 p-3">
-              <p className="text-sm text-red-600">{error}</p>
+            <div className="rounded-lg bg-[#FF6E50]/5 border border-[#FF6E50]/30 p-3">
+              <p className="text-sm text-[#FF6E50]">{error}</p>
             </div>
           )}
 
@@ -402,10 +402,9 @@ export default function EndSubscriptionPage() {
             </Button>
             <Button
               type="button"
-              variant="destructive"
               onClick={handleEndSubscription}
               disabled={ending || !endDate}
-              className="min-w-[160px]"
+              className="min-w-[160px] bg-[#FF6E50] text-white hover:bg-[#E55A3C] rounded-xl"
             >
               {ending ? (
                 <>

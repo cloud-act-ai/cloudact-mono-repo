@@ -71,7 +71,7 @@ const PaginationLink = ({
       ],
       // Disabled state
       disabled && [
-        "bg-muted text-muted-foreground border-border",
+        "bg-muted text-[#8E8E93] border-border",
         "cursor-not-allowed pointer-events-none",
         "opacity-50",
       ],
@@ -133,7 +133,7 @@ const PaginationEllipsis = ({
   <span
     aria-hidden
     className={cn(
-      "flex h-[44px] w-[44px] items-center justify-center text-muted-foreground",
+      "flex h-[44px] w-[44px] items-center justify-center text-[#8E8E93]",
       className
     )}
     {...props}

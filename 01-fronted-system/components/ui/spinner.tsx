@@ -15,7 +15,7 @@ const sizeClasses = {
 const variantClasses = {
   teal: 'border-[#007A78] border-t-transparent',
   coral: 'border-[#FF6E50] border-t-transparent',
-  default: 'border-muted-foreground border-t-transparent',
+  default: 'border-[#007A78] border-t-transparent',
 }
 
 function Spinner({

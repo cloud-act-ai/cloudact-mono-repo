@@ -10,11 +10,11 @@ const alertVariants = cva(
       variant: {
         default: 'bg-card text-card-foreground border-border',
         destructive:
-          'bg-red-50 dark:bg-red-950 border-[#FF6E50] text-red-900 dark:text-red-200 [&>svg]:text-[#FF6E50]',
+          'bg-[#FF6E50]/5 dark:bg-[#FF6E50]/10 border-[#FF6E50] text-[#FF6E50] dark:text-[#FF6E50] [&>svg]:text-[#FF6E50]',
         success:
-          'bg-green-50 dark:bg-green-950 border-[#34C759] text-green-900 dark:text-green-200 [&>svg]:text-[#34C759]',
+          'bg-[#007A78]/5 dark:bg-[#007A78]/10 border-[#007A78] text-[#007A78] dark:text-[#007A78] [&>svg]:text-[#007A78]',
         warning:
-          'bg-amber-50 dark:bg-amber-950 border-[#FF9500] text-amber-900 dark:text-amber-200 [&>svg]:text-[#FF9500]',
+          'bg-[#FF6E50]/5 dark:bg-[#FF6E50]/10 border-[#FF6E50] text-[#FF6E50] dark:text-[#FF6E50] [&>svg]:text-[#FF6E50]',
         info:
           'bg-teal-50 dark:bg-teal-950 border-[#007A78] text-teal-900 dark:text-teal-200 [&>svg]:text-[#007A78]',
       },
@@ -61,7 +61,7 @@ function AlertDescription({
     <div
       data-slot="alert-description"
       className={cn(
-        'text-muted-foreground col-start-2 grid justify-items-start gap-1 text-sm [&_p]:leading-relaxed',
+        'text-[#8E8E93] col-start-2 grid justify-items-start gap-1 text-sm [&_p]:leading-relaxed',
         className,
       )}
       {...props}

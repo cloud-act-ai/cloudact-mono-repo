@@ -176,20 +176,20 @@ function SignupForm() {
   return (
     <div className="w-full max-w-[480px] space-y-3">
       <div className="flex flex-col items-center gap-2 text-center">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#007A78] text-white shadow-lg">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#007A78] text-white shadow-lg shadow-[#007A78]/20">
           <Cloud className="h-5 w-5" />
         </div>
         <div className="space-y-1">
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-2xl font-bold text-[#1C1C1E] tracking-tight">
             {isInviteFlow ? "Create your account" : "Create your account"}
           </h1>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-[#8E8E93] font-medium">
             {isInviteFlow ? "Sign up to accept your team invite" : `Start your ${DEFAULT_TRIAL_DAYS}-day free trial`}
           </p>
         </div>
       </div>
 
-      <div className="rounded-xl border bg-white p-5 shadow-lg">
+      <div className="glass-card p-6">
         <form onSubmit={onSubmit} className="space-y-4">
           {/* Account Section */}
           <div className="space-y-3">
@@ -402,8 +402,8 @@ function SignupFormFallback() {
           <p className="text-sm text-gray-600">Start your {DEFAULT_TRIAL_DAYS}-day free trial</p>
         </div>
       </div>
-      <div className="rounded-xl border bg-white p-5 shadow-lg flex items-center justify-center min-h-[300px]">
-        <Loader2 className="h-6 w-6 animate-spin text-gray-600" />
+      <div className="glass-card p-5 flex items-center justify-center min-h-[300px]">
+        <Loader2 className="h-6 w-6 animate-spin text-[#007A78]" />
       </div>
     </div>
   )
@@ -411,7 +411,7 @@ function SignupFormFallback() {
 
 export default function SignupPage() {
   return (
-    <div className="flex min-h-svh w-full flex-col items-center justify-center bg-gradient-to-br from-background via-muted/20 to-background p-4">
+    <div className="flex min-h-svh w-full flex-col items-center justify-center mesh-gradient p-4">
       <Suspense fallback={<SignupFormFallback />}>
         <SignupForm />
       </Suspense>

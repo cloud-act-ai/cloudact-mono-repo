@@ -282,9 +282,9 @@ export default function EditSubscriptionPage() {
   if (!currentPlan) {
     return (
       <div className="p-6 space-y-6">
-        <Card className="border-red-200 bg-red-50">
+        <Card className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
           <CardContent className="pt-6">
-            <p className="text-sm text-red-600">{error || "Subscription not found"}</p>
+            <p className="text-sm text-[#FF6E50]">{error || "Subscription not found"}</p>
             <div className="mt-4">
               <Link href={`/${orgSlug}/subscriptions/${provider}`}>
                 <Button variant="outline">
@@ -343,19 +343,19 @@ export default function EditSubscriptionPage() {
 
       {/* Error Message */}
       {error && (
-        <Card className="border-red-200 bg-red-50">
+        <Card className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
           <CardContent className="pt-6">
-            <p className="text-sm text-red-600">{error}</p>
+            <p className="text-sm text-[#FF6E50]">{error}</p>
           </CardContent>
         </Card>
       )}
 
       {/* Info Banner - Version History */}
-      <Card className="border-blue-200 bg-blue-50">
+      <Card className="border-[#007A78]/20 bg-[#007A78]/5">
         <CardContent className="py-3 px-4">
           <div className="flex items-center gap-3">
-            <Info className="h-5 w-5 text-blue-600 flex-shrink-0" />
-            <p className="text-sm text-blue-700">
+            <Info className="h-5 w-5 text-[#007A78] flex-shrink-0" />
+            <p className="text-sm text-[#005F5D]">
               Changes will create a new version. Current plan ends the day before the effective date, and the new plan starts on the effective date.
             </p>
           </div>
@@ -436,7 +436,7 @@ export default function EditSubscriptionPage() {
             {/* Editable Fields */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="unit_price_usd">Unit Price (USD) *</Label>
+                <Label htmlFor="unit_price_usd">Unit Price ({orgCurrency}) *</Label>
                 <Input
                   id="unit_price_usd"
                   type="number"
@@ -535,7 +535,7 @@ export default function EditSubscriptionPage() {
               <Button
                 type="submit"
                 disabled={saving || !effectiveDate}
-                className="h-[36px] px-4 bg-[#FF6E50] text-white hover:bg-[#E55A3C] rounded-xl text-[15px] font-semibold disabled:bg-[#E5E5EA] disabled:text-[#C7C7CC]"
+                className="h-[36px] px-4 bg-[#007A78] text-white hover:bg-[#006664] rounded-xl text-[15px] font-semibold disabled:bg-[#E5E5EA] disabled:text-[#C7C7CC]"
                 data-testid="edit-subscription-submit-btn"
               >
                 {saving ? (

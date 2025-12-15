@@ -85,7 +85,7 @@ function SubscriptionProviderCard({
           </div>
           <div onClick={(e) => e.stopPropagation()}>
             {provider.is_enabled ? (
-              <Badge className="bg-green-100 text-green-700 border-green-200 hover:bg-green-100" data-testid={`provider-enabled-badge-${provider.provider}`}>
+              <Badge className="bg-[#F0FDFA] text-[#007A78] border-[#007A78]/20 hover:bg-[#F0FDFA]" data-testid={`provider-enabled-badge-${provider.provider}`}>
                 <Check className="h-3 w-3 mr-1" />
                 Enabled
               </Badge>
@@ -119,7 +119,7 @@ function SubscriptionProviderCard({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-7 w-7 text-gray-400 hover:text-red-500 hover:bg-red-50"
+                  className="h-7 w-7 text-gray-400 hover:text-[#FF6E50] hover:bg-[#FF6E50]/10"
                   onClick={(e) => {
                     e.stopPropagation()
                     onToggle(provider.provider, false)
@@ -488,7 +488,7 @@ export default function SubscriptionProvidersPage() {
 
       <div className="space-y-2">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-lg bg-gradient-to-br from-[#007A78]/10 to-[#14B8A6]/10">
+          <div className="p-2.5 rounded-lg bg-gradient-to-br from-[#007A78]/10 to-[#007A78]/5">
             <CreditCard className="h-6 w-6 text-[#007A78]" />
           </div>
           <h1 className="console-page-title">Subscription Providers</h1>
@@ -499,28 +499,28 @@ export default function SubscriptionProvidersPage() {
       </div>
 
       <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-muted console-small w-fit">
-        <Check className="h-4 w-4 text-green-600" />
+        <Check className="h-4 w-4 text-[#007A78]" />
         <span className="text-gray-500">Enabled:</span>
-        <span className="font-medium text-green-600">{enabledCount} / {subscriptionProviders.length}</span>
+        <span className="font-medium text-[#007A78]">{enabledCount} / {subscriptionProviders.length}</span>
       </div>
 
       {error && (
-        <Alert variant="destructive">
+        <Alert variant="destructive" className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
       {successMessage && (
-        <Alert className="border-green-500/20 bg-green-500/5">
-          <Check className="h-4 w-4 text-green-600" />
+        <Alert className="border-[#007A78]/30 bg-[#007A78]/5">
+          <Check className="h-4 w-4 text-[#007A78]" />
           <AlertDescription>{successMessage}</AlertDescription>
         </Alert>
       )}
 
       {warningMessage && (
-        <Alert className="border-amber-500/20 bg-amber-500/5">
-          <AlertTriangle className="h-4 w-4 text-amber-600" />
-          <AlertDescription className="text-amber-900">{warningMessage}</AlertDescription>
+        <Alert className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
+          <AlertTriangle className="h-4 w-4 text-[#FF6E50]" />
+          <AlertDescription className="text-[#E55A3C]">{warningMessage}</AlertDescription>
         </Alert>
       )}
 
@@ -680,7 +680,7 @@ export default function SubscriptionProvidersPage() {
                 Cost
               </Label>
               <div className="col-span-3 flex items-center gap-2">
-                <span className="text-muted-foreground">$</span>
+                <span className="text-[#8E8E93]">$</span>
                 <Input
                   id="customCost"
                   type="number"
@@ -779,7 +779,7 @@ export default function SubscriptionProvidersPage() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-amber-600">
+            <DialogTitle className="flex items-center gap-2 text-[#FF6E50]">
               <AlertTriangle className="h-5 w-5" />
               Disable {disableConfirmDialog.displayName}?
             </DialogTitle>

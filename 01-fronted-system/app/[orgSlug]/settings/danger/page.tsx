@@ -252,15 +252,15 @@ export default function DangerPage() {
   return (
     <div className="space-y-6">
       {error && (
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
+        <Alert variant="destructive" className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
+          <AlertTriangle className="h-4 w-4 text-[#FF6E50]" />
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
       {success && (
-        <Alert className="bg-muted border-green-500/50">
-          <CheckCircle2 className="h-4 w-4 text-green-500" />
+        <Alert className="bg-muted border-[#007A78]/30">
+          <CheckCircle2 className="h-4 w-4 text-[#007A78]" />
           <AlertDescription className="text-foreground">{success}</AlertDescription>
         </Alert>
       )}
@@ -270,7 +270,7 @@ export default function DangerPage() {
         <Card className="console-stat-card shadow-sm">
           <CardContent className="py-8">
             <div className="flex items-center justify-center">
-              <Loader2 className="h-6 w-6 animate-spin text-[#FF6E50]" />
+              <Loader2 className="h-6 w-6 animate-spin text-[#007A78]" />
               <span className="ml-2 console-body text-gray-500">Loading organizations...</span>
             </div>
           </CardContent>
@@ -299,7 +299,7 @@ export default function DangerPage() {
                     <div className="flex items-center gap-2 console-small text-gray-500">
                       <Users className="h-3 w-3" />
                       <span>{org.member_count} member{org.member_count !== 1 ? "s" : ""}</span>
-                      <Badge variant="outline" className="bg-[#007A78]/10 text-[#007A78] border-0 ml-2">Owner</Badge>
+                      <Badge variant="outline" className="bg-[#007A78]/12 text-[#007A78] border-0 ml-2">Owner</Badge>
                     </div>
                   </div>
                 </div>
@@ -366,7 +366,7 @@ export default function DangerPage() {
                         <div className="flex items-center gap-2">
                           <UserCog className="h-4 w-4" />
                           <span>{member.full_name || member.email}</span>
-                          <span className="text-muted-foreground">({member.role})</span>
+                          <span className="text-[#8E8E93]">({member.role})</span>
                         </div>
                       </SelectItem>
                     ))}
@@ -407,8 +407,8 @@ export default function DangerPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
-            <Alert variant="destructive" className="mb-4">
-              <AlertTriangle className="h-4 w-4" />
+            <Alert variant="destructive" className="mb-4 border-[#FF6E50]/30 bg-[#FF6E50]/5">
+              <AlertTriangle className="h-4 w-4 text-[#FF6E50]" />
               <AlertDescription>
                 All organization data, members, invites, and settings will be permanently deleted.
                 {selectedOrgForDelete?.member_count && selectedOrgForDelete.member_count > 1 && (
@@ -469,8 +469,8 @@ export default function DangerPage() {
         </CardHeader>
         <CardContent>
           {deletionRequested ? (
-            <Alert className="bg-muted border-green-500/50">
-              <Mail className="h-4 w-4 text-green-500" />
+            <Alert className="bg-muted border-[#007A78]/30">
+              <Mail className="h-4 w-4 text-[#007A78]" />
               <AlertDescription>
                 <p className="font-medium text-foreground">Verification email sent!</p>
                 <p className="text-sm mt-1">
@@ -480,16 +480,16 @@ export default function DangerPage() {
               </AlertDescription>
             </Alert>
           ) : ownedOrgs.length > 0 ? (
-            <Alert variant="destructive">
-              <AlertTriangle className="h-4 w-4" />
+            <Alert variant="destructive" className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
+              <AlertTriangle className="h-4 w-4 text-[#FF6E50]" />
               <AlertDescription>
                 You own {ownedOrgs.length} organization{ownedOrgs.length !== 1 ? "s" : ""}.
                 Please transfer ownership or delete them before deleting your account.
               </AlertDescription>
             </Alert>
           ) : (
-            <Alert variant="destructive">
-              <AlertTriangle className="h-4 w-4" />
+            <Alert variant="destructive" className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
+              <AlertTriangle className="h-4 w-4 text-[#FF6E50]" />
               <AlertDescription>
                 Deleting your account will permanently remove you from all organizations and cannot be
                 undone. Your data will be lost forever.

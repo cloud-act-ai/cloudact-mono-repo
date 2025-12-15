@@ -58,14 +58,14 @@ const CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: string }>
   other: Wallet,
 }
 
-// Category colors - Coral family (subscriptions are costs, not features)
+// Category colors - Teal family for categories (NOT coral)
 const CATEGORY_COLORS: Record<string, string> = {
-  ai: "bg-[#FF6E50]/12 text-[#FF6E50] border-0",
-  design: "bg-[#FF8A73]/12 text-[#FF8A73] border-0",
-  productivity: "bg-[#E55A3C]/12 text-[#E55A3C] border-0",
-  communication: "bg-[#FF6E50]/10 text-[#FF6E50] border-0",
-  development: "bg-[#FF8A73]/10 text-[#FF8A73] border-0",
-  cloud: "bg-[#E55A3C]/10 text-[#E55A3C] border-0",
+  ai: "bg-[#007A78]/12 text-[#007A78] border-0",
+  design: "bg-[#14B8A6]/12 text-[#14B8A6] border-0",
+  productivity: "bg-[#005F5D]/12 text-[#005F5D] border-0",
+  communication: "bg-[#007A78]/10 text-[#007A78] border-0",
+  development: "bg-[#14B8A6]/10 text-[#14B8A6] border-0",
+  cloud: "bg-[#005F5D]/10 text-[#005F5D] border-0",
   other: "bg-[#8E8E93]/12 text-[#8E8E93] border-0",
 }
 
@@ -91,7 +91,8 @@ export default function SubscriptionsPage() {
   // Cost summary from Polars API (cost_data_standard_1_2) - SOURCE OF TRUTH for costs
   const [costSummary, setCostSummary] = useState<SaaSCostSummary | null>(null)
 
-  // Merged summary: costs from Polars API, counts from plans
+  // Summary: costs from pipeline data (cost_data_standard_1_2 table) - no fallback
+  // Pipeline must run to populate costs. Plan summary provides metadata (counts, categories)
   const summary = costSummary
     ? {
         total_daily_cost: costSummary.total_daily_cost,
@@ -105,7 +106,20 @@ export default function SubscriptionsPage() {
         enabled_count: planSummary?.enabled_count || 0,
         total_count: planSummary?.total_count || 0,
       }
-    : planSummary ? { ...planSummary, total_daily_cost: 0, ytd_cost: 0, mtd_cost: 0, forecast_monthly_cost: 0, forecast_annual_cost: 0 } : null
+    : planSummary
+      ? {
+          total_daily_cost: 0,
+          total_monthly_cost: 0,
+          total_annual_cost: 0,
+          ytd_cost: 0,
+          mtd_cost: 0,
+          forecast_monthly_cost: 0,
+          forecast_annual_cost: 0,
+          count_by_category: planSummary.count_by_category,
+          enabled_count: planSummary.enabled_count,
+          total_count: planSummary.total_count,
+        }
+      : null
 
   const loadData = useCallback(async () => {
     setIsLoading(true)
@@ -252,7 +266,7 @@ export default function SubscriptionsPage() {
         {/* Error Card - Apple Health Style */}
         <div className="metric-card p-4 sm:p-5">
           <div className="flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 text-[#FF9500] mt-0.5 flex-shrink-0" />
+            <AlertCircle className="h-5 w-5 text-[#FF6E50] mt-0.5 flex-shrink-0" />
             <div>
               <h3 className="font-semibold text-black text-[15px]">{error}</h3>
               <p className="text-[13px] text-[#8E8E93] mt-1">
@@ -471,12 +485,12 @@ export default function SubscriptionsPage() {
                   }
                   const integrationPath = providerMapping[plan.provider_name]
 
-                  // Status badge color mapping - Apple Health System Colors
+                  // Status badge color mapping - CloudAct Design System
                   const statusColors: Record<string, string> = {
-                    active: "bg-[#34C759]/12 text-[#34C759] border-0",
-                    pending: "bg-[#FF9500]/12 text-[#FF9500] border-0",
+                    active: "bg-[#F0FDFA] text-[#007A78] border-0",
+                    pending: "bg-[#FF6E50]/10 text-[#FF6E50] border-0",
                     cancelled: "bg-[#8E8E93]/12 text-[#8E8E93] border-0",
-                    expired: "bg-[#FF3B30]/12 text-[#FF3B30] border-0"
+                    expired: "bg-[#FF6E50]/10 text-[#E55A3C] border-0"
                   }
 
                   return (
@@ -489,7 +503,7 @@ export default function SubscriptionsPage() {
                             {plan.status}
                           </Badge>
                           {isPending && plan.start_date && (
-                            <span className="text-[11px] text-[#FF9500] font-medium whitespace-nowrap">
+                            <span className="text-[11px] text-[#FF6E50] font-medium whitespace-nowrap">
                               Starts {format(new Date(plan.start_date), 'MMM d')}
                             </span>
                           )}
@@ -578,7 +592,7 @@ export default function SubscriptionsPage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-10 w-10 text-[#FF3B30] hover:bg-[#FF3B30]/10 transition-all rounded-lg"
+                              className="h-10 w-10 text-[#8E8E93] hover:text-[#FF6E50] hover:bg-[#FF6E50]/10 transition-all rounded-lg"
                               title="End subscription"
                             >
                               <CalendarX className="h-4 w-4" />

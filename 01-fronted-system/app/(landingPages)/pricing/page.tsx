@@ -35,7 +35,7 @@ export default async function PricingPage() {
         <div className="container px-4">
           <div className="mx-auto max-w-3xl text-center space-y-6">
             <h1 className="cloudact-heading-xl">Simple, Transparent Pricing</h1>
-            <p className="text-xl text-red-600">
+            <p className="text-xl text-[#FF6E50]">
               {error || "Unable to load pricing plans. Please try again later."}
             </p>
           </div>
@@ -67,7 +67,7 @@ export default async function PricingPage() {
       <section className="pb-16 sm:pb-20 bg-white">
         <div className="container px-4 md:px-12">
           {error && (
-            <div className="mx-auto max-w-md mb-6 sm:mb-8 p-4 bg-red-50 text-red-600 rounded-lg text-center text-sm">
+            <div className="mx-auto max-w-md mb-6 sm:mb-8 p-4 bg-[#FF6E50]/5 text-[#FF6E50] rounded-lg text-center text-sm">
               Failed to load pricing plans. Please try again later.
             </div>
           )}

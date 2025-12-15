@@ -17,7 +17,7 @@ export default function NotFound() {
         <div className="space-y-2">
           <h1 className="text-6xl font-bold text-[#FF6E50]">404</h1>
           <h2 className="text-2xl font-bold tracking-tight text-foreground">Page not found</h2>
-          <p className="text-muted-foreground">
+          <p className="text-[#8E8E93]">
             The page you are looking for does not exist or has been moved.
           </p>
         </div>
@@ -37,7 +37,7 @@ export default function NotFound() {
           </Button>
         </div>
 
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-[#8E8E93]">
           Need help? Contact{" "}
           <a
             href={`mailto:${process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "support@cloudact.ai"}`}

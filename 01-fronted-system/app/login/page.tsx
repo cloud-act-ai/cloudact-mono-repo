@@ -90,7 +90,11 @@ function LoginForm() {
       }
 
       if (orgData?.organizations) {
-        const org = orgData.organizations as { org_slug: string }
+        // Handle case where it might be returned as an array or object depending on relationship inference
+        const org = (Array.isArray(orgData.organizations) 
+          ? orgData.organizations[0] 
+          : orgData.organizations) as { org_slug: string }
+        
         console.log("[Auth] Found org, redirecting to dashboard:", org.org_slug)
         window.location.href = `/${org.org_slug}/dashboard`
       } else {
@@ -117,10 +121,10 @@ function LoginForm() {
         </div>
       </div>
 
-      <div className="rounded-2xl border bg-white p-8 shadow-lg">
+      <div className="glass-card p-8">
         <form onSubmit={handlePasswordLogin} className="space-y-5">
           <div className="space-y-2">
-            <Label htmlFor="email" className="text-sm font-medium text-gray-700">
+            <Label htmlFor="email" className="text-sm font-semibold text-[#1C1C1E]">
               Email address
             </Label>
             <Input
@@ -130,14 +134,14 @@ function LoginForm() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="h-11 focus:border-[#007A78] focus:ring-[#007A78]"
+              className="h-11 bg-white/50 border-black/5 focus:border-[#007A78] focus:ring-[#007A78]/20 transition-all"
               disabled={isLoading}
               autoComplete="email"
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="password" className="text-sm font-medium text-gray-700">
+            <Label htmlFor="password" className="text-sm font-semibold text-[#1C1C1E]">
               Password
             </Label>
             <Input
@@ -147,21 +151,21 @@ function LoginForm() {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="h-11 focus:border-[#007A78] focus:ring-[#007A78]"
+              className="h-11 bg-white/50 border-black/5 focus:border-[#007A78] focus:ring-[#007A78]/20 transition-all"
               disabled={isLoading}
               autoComplete="current-password"
             />
           </div>
 
           {error && (
-            <Alert variant="destructive" className="py-3 bg-[#FFF5F3] border-[#FF6E50]">
-              <AlertDescription className="text-sm text-[#FF6E50]">{error}</AlertDescription>
+            <Alert variant="destructive" className="py-3 bg-[#FFF5F3] border-[#FF6E50]/30 text-[#FF6E50]">
+              <AlertDescription className="text-sm font-medium">{error}</AlertDescription>
             </Alert>
           )}
 
           <button
             type="submit"
-            className="cloudact-btn-primary w-full h-11 text-base font-semibold"
+            className="cloudact-btn-primary w-full h-11 text-[15px] shadow-lg shadow-[#007A78]/20 hover:shadow-[#007A78]/30 hover:-translate-y-0.5 transition-all"
             disabled={isLoading}
           >
             {isLoading ? (
@@ -175,7 +179,7 @@ function LoginForm() {
           </button>
 
           <div className="text-center">
-            <Link href="/forgot-password" className="text-sm text-[#007A78] hover:text-[#005F5D] hover:underline">
+            <Link href="/forgot-password" className="text-sm font-medium text-[#007A78] hover:text-[#005F5D] hover:underline">
               Forgot password?
             </Link>
           </div>
@@ -192,31 +196,31 @@ function LoginForm() {
   )
 }
 
-function LoginFormFallback() {
+export default function LoginPage() {
   return (
-    <div className="w-full max-w-[420px] space-y-6">
-      <div className="flex flex-col items-center gap-3 text-center">
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#007A78] text-white shadow-lg">
-          <Cloud className="h-7 w-7" />
-        </div>
-        <div className="space-y-2">
-          <h1 className="text-3xl font-bold text-gray-900">Welcome back</h1>
-          <p className="text-gray-600">Sign in to access your CloudAct console</p>
-        </div>
-      </div>
-      <div className="rounded-2xl border bg-white p-8 shadow-lg flex items-center justify-center min-h-[300px]">
-        <Loader2 className="h-8 w-8 animate-spin text-gray-600" />
-      </div>
+    <div className="flex min-h-svh w-full flex-col items-center justify-center mesh-gradient p-6">
+      <Suspense fallback={<LoginFormFallback />}>
+        <LoginForm />
+      </Suspense>
     </div>
   )
 }
 
-export default function LoginPage() {
+function LoginFormFallback() {
   return (
-    <div className="flex min-h-svh w-full flex-col items-center justify-center bg-gradient-to-br from-background via-muted/20 to-background p-6">
-      <Suspense fallback={<LoginFormFallback />}>
-        <LoginForm />
-      </Suspense>
+    <div className="w-full max-w-[420px] space-y-6">
+      <div className="flex flex-col items-center gap-3 text-center">
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#007A78] text-white shadow-xl shadow-[#007A78]/20">
+          <Cloud className="h-7 w-7" />
+        </div>
+        <div className="space-y-2">
+          <h1 className="text-3xl font-bold text-[#1C1C1E] tracking-tight">Welcome back</h1>
+          <p className="text-[#8E8E93] font-medium">Sign in to access your CloudAct console</p>
+        </div>
+      </div>
+      <div className="glass-card p-8 flex items-center justify-center min-h-[300px]">
+        <Loader2 className="h-8 w-8 animate-spin text-[#007A78]" />
+      </div>
     </div>
   )
 }

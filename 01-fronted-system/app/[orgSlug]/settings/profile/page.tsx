@@ -183,15 +183,15 @@ export default function ProfilePage() {
   return (
     <div className="space-y-4 sm:space-y-6">
       {error && (
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
+        <Alert variant="destructive" className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
+          <AlertTriangle className="h-4 w-4 text-[#FF6E50]" />
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
       {success && (
-        <Alert className="bg-muted border-green-500/50">
-          <CheckCircle2 className="h-4 w-4 text-green-500" />
+        <Alert className="bg-muted border-[#007A78]/30">
+          <CheckCircle2 className="h-4 w-4 text-[#007A78]" />
           <AlertDescription className="text-foreground">{success}</AlertDescription>
         </Alert>
       )}
@@ -255,7 +255,7 @@ export default function ProfilePage() {
           <div className="space-y-2">
             <Label htmlFor="phone" className="text-[13px] sm:text-[15px] font-medium text-gray-700 flex items-center gap-2">
               <Phone className="h-4 w-4 text-[#8E8E93]" />
-              Phone Number <span className="text-[#FF3B30]">*</span>
+              Phone Number <span className="text-[#FF6E50]">*</span>
             </Label>
             <div className="flex gap-2">
               <Select value={countryCode} onValueChange={setCountryCode}>
@@ -308,7 +308,7 @@ export default function ProfilePage() {
           </div>
         </div>
         <div className="pt-4 sm:pt-6 border-t border-[#E5E5EA]">
-          <Button onClick={handleSave} disabled={isSaving} className="h-[36px] px-4 bg-[#8E8E93] text-white rounded-xl text-[15px] font-semibold hover:bg-[#6E6E73] shadow-sm transition-colors">
+          <Button onClick={handleSave} disabled={isSaving} className="cloudact-btn-primary h-[36px] px-4">
             {isSaving ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

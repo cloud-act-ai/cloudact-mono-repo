@@ -208,16 +208,16 @@ export default function PipelinesPage() {
     return `${Math.floor(ms / 60000)}m ${Math.floor((ms % 60000) / 1000)}s`
   }
 
-  // Helper: Get status color - Apple Health System Colors
+  // Helper: Get status color - CloudAct Standards
   const getStatusColor = (status: string) => {
     switch (status.toUpperCase()) {
       case "COMPLETED":
-        return "bg-[#34C759]/12 text-[#34C759]"
+        return "bg-[#F0FDFA] text-[#007A78]"
       case "FAILED":
-        return "bg-[#FF3B30]/12 text-[#FF3B30]"
+        return "bg-[#FF6E50]/10 text-[#FF6E50]"
       case "RUNNING":
       case "PENDING":
-        return "bg-[#007AFF]/12 text-[#007AFF]"
+        return "bg-[#007A78]/10 text-[#007A78]"
       case "SKIPPED":
         return "bg-[#8E8E93]/12 text-[#8E8E93]"
       default:
@@ -228,7 +228,7 @@ export default function PipelinesPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-10 w-10 animate-spin text-gray-400" />
+        <Loader2 className="h-10 w-10 animate-spin text-[#007A78]" />
       </div>
     )
   }
@@ -245,9 +245,9 @@ export default function PipelinesPage() {
 
       {/* Backend Connection Warning - Apple Health Style */}
       {(!backendConnected || !hasApiKey) && (
-        <div className="health-card bg-[#FF3B30]/10 p-4 sm:p-5">
+        <div className="health-card bg-[#FF6E50]/10 p-4 sm:p-5">
           <div className="flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 text-[#FF3B30] mt-0.5 flex-shrink-0" />
+            <AlertCircle className="h-5 w-5 text-[#FF6E50] mt-0.5 flex-shrink-0" />
             <div className="space-y-3">
               <h3 className="text-[15px] font-semibold text-black">
                 {!backendConnected ? "Backend Not Connected" : "API Key Missing"}
@@ -266,7 +266,7 @@ export default function PipelinesPage() {
                 )}
               </p>
               <Link href={`/${orgSlug}/settings/onboarding`}>
-                <button className="inline-flex items-center gap-2 h-[36px] px-4 bg-[#FF3B30] text-white text-[15px] font-semibold rounded-xl hover:bg-[#D63029] transition-colors">
+                <button className="inline-flex items-center gap-2 h-[36px] px-4 bg-[#007A78] text-white text-[15px] font-semibold rounded-xl hover:bg-[#005F5D] transition-colors">
                   <Cloud className="h-4 w-4" />
                   Go to Onboarding Settings
                 </button>
@@ -277,9 +277,9 @@ export default function PipelinesPage() {
       )}
 
       {/* Info Alert - Apple Health Style */}
-      <div className="health-card bg-[#007AFF]/10 p-4">
+      <div className="health-card bg-[#007A78]/5 p-4">
         <div className="flex items-center gap-3">
-          <Info className="h-5 w-5 text-[#007AFF] flex-shrink-0" />
+          <Info className="h-5 w-5 text-[#007A78] flex-shrink-0" />
           <p className="text-[15px] text-black">
             Pipelines run daily automatically. Use "Run Now" for manual runs or backfills.
           </p>
@@ -288,14 +288,14 @@ export default function PipelinesPage() {
 
       {/* Result Alert - Apple Health Style */}
       {lastResult && (
-        <div className={`health-card p-4 ${lastResult.success ? 'bg-[#34C759]/10' : 'bg-[#FF3B30]/10'}`}>
+        <div className={`health-card p-4 ${lastResult.success ? 'bg-[#007A78]/10' : 'bg-[#FF6E50]/10'}`}>
           <div className="flex items-center gap-3">
             {lastResult.success ? (
-              <CheckCircle2 className="h-5 w-5 text-[#34C759] flex-shrink-0" />
+              <CheckCircle2 className="h-5 w-5 text-[#007A78] flex-shrink-0" />
             ) : (
-              <AlertCircle className="h-5 w-5 text-[#FF3B30] flex-shrink-0" />
+              <AlertCircle className="h-5 w-5 text-[#FF6E50] flex-shrink-0" />
             )}
-            <p className={`text-[15px] font-medium ${lastResult.success ? 'text-[#34C759]' : 'text-[#FF3B30]'}`}>
+            <p className={`text-[15px] font-medium ${lastResult.success ? 'text-[#007A78]' : 'text-[#FF6E50]'}`}>
               {lastResult.message}
             </p>
           </div>
@@ -321,7 +321,7 @@ export default function PipelinesPage() {
             <div className="health-card p-0 overflow-hidden">
               <div className="px-4 sm:px-6 py-4 border-b border-[#E5E5EA]">
                 <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2 text-[#005F5D]">
+                  <div className="flex items-center gap-2 text-[#007A78]">
                     <Play className="h-[18px] w-[18px]" />
                     <span className="text-[15px] font-semibold">Run data pipelines to sync your costs</span>
                   </div>
@@ -343,15 +343,15 @@ export default function PipelinesPage() {
                     <TableRow>
                       <TableCell colSpan={5} className="px-4 sm:px-6 py-12 text-center">
                         <div className="space-y-4">
-                          <div className="inline-flex p-4 rounded-2xl bg-[#005F5D]/10 mb-2">
-                            <Plug className="h-12 w-12 text-[#005F5D]" />
+                          <div className="inline-flex p-4 rounded-2xl bg-[#007A78]/10 mb-2">
+                            <Plug className="h-12 w-12 text-[#007A78]" />
                           </div>
                           <h3 className="text-[20px] font-semibold text-black">No pipelines available</h3>
                           <p className="text-[15px] text-[#8E8E93] max-w-md mx-auto">
                             Connect a provider to see available pipelines.
                           </p>
                           <Link href={`/${orgSlug}/settings/integrations`}>
-                            <button className="inline-flex items-center gap-2 h-[44px] px-6 bg-[#005F5D] text-white text-[15px] font-semibold rounded-xl hover:bg-[#004846] transition-colors shadow-sm">
+                            <button className="inline-flex items-center gap-2 h-[44px] px-6 bg-[#007A78] text-white text-[15px] font-semibold rounded-xl hover:bg-[#005F5D] transition-colors shadow-sm">
                               <Plug className="h-4 w-4" />
                               Add New Provider
                             </button>
@@ -385,12 +385,12 @@ export default function PipelinesPage() {
                           </TableCell>
                           <TableCell className="console-table-cell">
                             {!pipeline.required_integration || pipeline.required_integration === "" ? (
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#34C759]/12 text-[#34C759]">
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#007A78]/10 text-[#007A78]">
                                 <CheckCircle2 className="h-3 w-3" />
                                 Ready
                               </span>
                             ) : (
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#34C759]/12 text-[#34C759]">
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#007A78]/10 text-[#007A78]">
                                 <CheckCircle2 className="h-3 w-3" />
                                 Connected
                               </span>
@@ -400,7 +400,7 @@ export default function PipelinesPage() {
                             <button
                               onClick={() => handleRun(pipeline.id)}
                               disabled={isRunning}
-                              className="inline-flex items-center gap-2 h-[36px] px-4 bg-[#005F5D] text-white text-[15px] font-semibold rounded-xl hover:bg-[#004846] disabled:bg-[#E5E5EA] disabled:text-[#C7C7CC] disabled:cursor-not-allowed transition-all"
+                              className="inline-flex items-center gap-2 h-[36px] px-4 bg-[#007A78] text-white text-[15px] font-semibold rounded-xl hover:bg-[#005F5D] disabled:bg-[#E5E5EA] disabled:text-[#C7C7CC] disabled:cursor-not-allowed transition-all"
                             >
                               {isRunning ? (
                                 <>
@@ -465,7 +465,7 @@ export default function PipelinesPage() {
                 {runsLoading && pipelineRuns.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="px-4 sm:px-6 py-12 text-center">
-                      <Loader2 className="h-8 w-8 animate-spin mx-auto text-[#C7C7CC]" />
+                      <Loader2 className="h-8 w-8 animate-spin mx-auto text-[#007A78]" />
                     </TableCell>
                   </TableRow>
                 ) : pipelineRuns.length === 0 ? (
@@ -507,10 +507,10 @@ export default function PipelinesPage() {
                           </TableCell>
                           <TableCell className="console-table-cell">
                             <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold rounded-full ${
-                              run.status === "COMPLETED" ? "bg-[#34C759]/12 text-[#34C759]" :
-                              run.status === "FAILED" ? "bg-[#FF3B30]/12 text-[#FF3B30]" :
-                              run.status === "RUNNING" ? "bg-[#007AFF]/12 text-[#007AFF]" :
-                              run.status === "PENDING" ? "bg-[#FF9500]/12 text-[#FF9500]" :
+                              run.status === "COMPLETED" ? "bg-[#F0FDFA] text-[#007A78]" :
+                              run.status === "FAILED" ? "bg-[#FF6E50]/10 text-[#FF6E50]" :
+                              run.status === "RUNNING" ? "bg-[#007A78]/10 text-[#007A78]" :
+                              run.status === "PENDING" ? "bg-[#007A78]/10 text-[#007A78]" :
                               "bg-[#8E8E93]/12 text-[#8E8E93]"
                             }`}>
                               {run.status === "COMPLETED" && <CheckCircle2 className="h-3 w-3" />}
@@ -542,15 +542,15 @@ export default function PipelinesPage() {
                             <TableCell colSpan={6} className="px-4 sm:px-6 py-6">
                               {isLoadingThisDetail ? (
                                 <div className="flex items-center justify-center py-6">
-                                  <Loader2 className="h-6 w-6 animate-spin text-[#C7C7CC]" />
+                                  <Loader2 className="h-6 w-6 animate-spin text-[#007A78]" />
                                 </div>
                               ) : detail ? (
                                 <div className="space-y-4">
                                   {/* Error Message - Apple Health Style */}
                                   {run.error_message && (
-                                    <div className="health-card bg-[#FF3B30]/10 p-4">
+                                    <div className="health-card bg-[#FF6E50]/10 p-4">
                                       <div className="flex items-start gap-3">
-                                        <AlertCircle className="h-5 w-5 text-[#FF3B30] mt-0.5 flex-shrink-0" />
+                                        <AlertCircle className="h-5 w-5 text-[#FF6E50] mt-0.5 flex-shrink-0" />
                                         <div>
                                           <p className="text-[15px] font-semibold text-black">Error</p>
                                           <p className="text-[13px] text-[#8E8E93] mt-1">{run.error_message}</p>
@@ -611,9 +611,9 @@ export default function PipelinesPage() {
 
                                     {/* Show step errors if any - Apple Health Style */}
                                     {detail.steps.filter(s => s.error_message).map((step) => (
-                                      <div key={step.step_logging_id} className="health-card bg-[#FF3B30]/10 p-4">
+                                      <div key={step.step_logging_id} className="health-card bg-[#FF6E50]/10 p-4">
                                         <div className="flex items-start gap-3">
-                                          <AlertCircle className="h-5 w-5 text-[#FF3B30] mt-0.5 flex-shrink-0" />
+                                          <AlertCircle className="h-5 w-5 text-[#FF6E50] mt-0.5 flex-shrink-0" />
                                           <div>
                                             <p className="text-[15px] font-semibold text-black">{step.step_name} Error</p>
                                             <p className="text-[13px] text-[#8E8E93] mt-1">{step.error_message}</p>

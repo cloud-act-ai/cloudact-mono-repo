@@ -36,7 +36,7 @@ export default function IntegrationsError({
         </CardHeader>
         <CardContent className="text-center">
           {error.digest && (
-            <div className="rounded-lg bg-muted p-4 text-sm text-muted-foreground">
+            <div className="rounded-lg bg-muted p-4 text-sm text-[#8E8E93]">
               <p className="font-medium text-foreground mb-1">Error Reference ID:</p>
               <p className="font-mono text-xs">{error.digest}</p>
             </div>
@@ -55,7 +55,7 @@ export default function IntegrationsError({
           </Button>
         </CardFooter>
       </Card>
-      <p className="text-center text-sm text-muted-foreground mt-6">
+      <p className="text-center text-sm text-[#8E8E93] mt-6">
         If this problem persists, please contact{" "}
         <a
           href={`mailto:${process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "support@cloudact.ai"}`}

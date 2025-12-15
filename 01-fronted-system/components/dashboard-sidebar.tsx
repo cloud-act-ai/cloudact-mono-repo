@@ -128,11 +128,11 @@ function getBillingStatusColor(status: string): string {
     case "active":
       return "bg-[#007A78]/10 text-[#007A78] border-[#007A78]/30 font-medium"
     case "trialing":
-      return "bg-amber-500/15 text-amber-700 border-amber-500/40 font-semibold"
+      return "bg-[#FF6E50]/10 text-[#FF6E50] border-[#FF6E50]/30 font-semibold"
     case "past_due":
       return "bg-[#FF6E50]/10 text-[#FF6E50] border-[#FF6E50]/30 font-medium"
     case "canceled":
-      return "bg-red-500/10 text-red-500 border-red-500/30 font-medium"
+      return "bg-[#FF6E50]/10 text-[#FF6E50] border-[#FF6E50]/30 font-medium"
     default:
       return "bg-gray-100 text-gray-500"
   }
@@ -255,12 +255,12 @@ export function DashboardSidebar({
                   asChild
                   tooltip="Subscription Costs"
                   className={cn(
-                    "h-[42px] px-5 text-[14px] font-medium text-black hover:bg-[#FF6E50]/5 rounded-none",
-                    isActive(`/${orgSlug}/subscriptions`, true) && "bg-[#FF6E50]/10 text-[#FF6E50] font-semibold",
+                    "h-[42px] px-5 text-[14px] font-medium text-black hover:bg-[#007A78]/5 rounded-none",
+                    isActive(`/${orgSlug}/subscriptions`, true) && "bg-[#007A78]/10 text-[#007A78] font-semibold",
                   )}
                 >
                   <Link href={`/${orgSlug}/subscriptions`}>
-                    <Wallet className="h-5 w-5 text-[#FF6E50]" />
+                    <Wallet className="h-5 w-5 text-[#007A78]" />
                     <span>Subscription Costs</span>
                   </Link>
                 </SidebarMenuButton>
@@ -376,15 +376,15 @@ export function DashboardSidebar({
                     <SidebarMenuButton
                       onClick={() => setSubscriptionsExpanded(!subscriptionsExpanded)}
                       className={cn(
-                        "h-[32px] pl-4 pr-5 text-[12px] text-[#8E8E93] hover:bg-[#FF6E50]/5 hover:text-[#FF6E50] justify-between rounded-none",
-                        isActive(`/${orgSlug}/settings/integrations/subscriptions`) && "text-[#FF6E50] font-semibold bg-[#FF6E50]/10",
+                        "h-[32px] pl-4 pr-5 text-[12px] text-[#8E8E93] hover:bg-[#007A78]/5 hover:text-[#007A78] justify-between rounded-none",
+                        isActive(`/${orgSlug}/settings/integrations/subscriptions`) && "text-[#007A78] font-semibold bg-[#007A78]/10",
                       )}
                     >
                       <div className="flex items-center gap-2">
-                        <Wallet className="h-3.5 w-3.5 text-[#FF6E50]" />
+                        <Wallet className="h-3.5 w-3.5 text-[#007A78]" />
                         <span>Subscriptions</span>
                         {enabledProviders.length > 0 && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#FF6E50]/12 text-[#FF6E50] font-semibold">
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#007A78]/12 text-[#007A78] font-semibold">
                             {enabledProviders.length}
                           </span>
                         )}
@@ -405,8 +405,8 @@ export function DashboardSidebar({
                         <SidebarMenuButton
                           asChild
                           className={cn(
-                            "h-[28px] pl-3 pr-5 text-[11px] text-[#8E8E93] hover:bg-[#FF6E50]/5 hover:text-[#FF6E50] rounded-none",
-                            pathname === `/${orgSlug}/settings/integrations/subscriptions` && "text-[#FF6E50] font-semibold",
+                            "h-[28px] pl-3 pr-5 text-[11px] text-[#8E8E93] hover:bg-[#007A78]/5 hover:text-[#007A78] rounded-none",
+                            pathname === `/${orgSlug}/settings/integrations/subscriptions` && "text-[#007A78] font-semibold",
                           )}
                         >
                           <Link href={`/${orgSlug}/settings/integrations/subscriptions`}>
@@ -427,8 +427,8 @@ export function DashboardSidebar({
                             <SidebarMenuButton
                               asChild
                               className={cn(
-                                "h-[28px] pl-3 pr-5 text-[11px] text-[#8E8E93] hover:bg-[#FF6E50]/5 hover:text-[#FF6E50] rounded-none",
-                                pathname === `/${orgSlug}/subscriptions/${provider.provider_name}` && "text-[#FF6E50] font-semibold",
+                                "h-[28px] pl-3 pr-5 text-[11px] text-[#8E8E93] hover:bg-[#007A78]/5 hover:text-[#007A78] rounded-none",
+                                pathname === `/${orgSlug}/subscriptions/${provider.provider_name}` && "text-[#007A78] font-semibold",
                               )}
                             >
                               <Link href={`/${orgSlug}/subscriptions/${provider.provider_name}`}>
@@ -509,13 +509,13 @@ export function DashboardSidebar({
               variant="ghost"
               asChild
               className={cn(
-                "w-full justify-start gap-3 px-5 h-[42px] text-[14px] font-medium text-black hover:bg-[#FF6E50]/5 rounded-none",
-                isActive(`/${orgSlug}/billing`, true) && "bg-[#FF6E50]/10 text-[#FF6E50] font-semibold",
+                "w-full justify-start gap-3 px-5 h-[42px] text-[14px] font-medium text-black hover:bg-[#007A78]/5 rounded-none",
+                isActive(`/${orgSlug}/billing`, true) && "bg-[#007A78]/10 text-[#007A78] font-semibold",
                 isCollapsed && "w-10 h-10 px-0 justify-center rounded-lg"
               )}
             >
               <Link href={`/${orgSlug}/billing`} title="Billing">
-                <CreditCard className="h-5 w-5 text-[#FF8A73]" />
+                <CreditCard className="h-5 w-5 text-[#007A78]" />
                 {!isCollapsed && <span>Billing</span>}
               </Link>
             </Button>
@@ -571,11 +571,11 @@ export function DashboardSidebar({
             disabled={isLoading}
             title="Sign Out"
             className={cn(
-              "w-full justify-start gap-3 px-5 h-[44px] text-[17px] font-medium text-black hover:bg-[#FF3B30]/10 hover:text-[#FF3B30] rounded-none",
+              "w-full justify-start gap-3 px-5 h-[44px] text-[17px] font-medium text-black hover:bg-[#FF6E50]/10 hover:text-[#FF6E50] rounded-none",
               isCollapsed && "w-10 h-10 px-0 justify-center rounded-lg"
             )}
           >
-            <LogOut className="h-5 w-5 text-[#FF3B30]" />
+            <LogOut className="h-5 w-5 text-[#FF6E50]" />
             {!isCollapsed && (isLoading ? "Signing out..." : "Sign Out")}
           </Button>
         </div>

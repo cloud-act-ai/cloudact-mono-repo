@@ -1203,8 +1203,8 @@ export async function createCustomPlan(
 
     await requireRole(orgSlug, "admin")
 
-    // Validate currency matches org default (server-side check)
-    const { getOrgLocale } = await import("./organization-locale")
+    // Validate currency matches org default AND ensure Supabase/BigQuery are in sync
+    const { getOrgLocale, validateLocaleSync, repairLocaleSync } = await import("./organization-locale")
     const localeResult = await getOrgLocale(orgSlug)
     if (localeResult.success && localeResult.locale) {
       const orgCurrency = localeResult.locale.default_currency || "USD"
@@ -1213,6 +1213,20 @@ export async function createCustomPlan(
           success: false,
           error: `Plan currency '${plan.currency}' must match organization's default currency '${orgCurrency}'`
         }
+      }
+
+      // Check if Supabase and BigQuery are in sync, auto-repair if needed
+      const syncCheck = await validateLocaleSync(orgSlug)
+      if (!syncCheck.inSync && syncCheck.mismatch) {
+        console.warn(`[CreatePlan] Locale sync mismatch detected, auto-repairing: ${syncCheck.mismatch.join(", ")}`)
+        const repairResult = await repairLocaleSync(orgSlug)
+        if (!repairResult.success) {
+          return {
+            success: false,
+            error: `Locale sync failed: ${repairResult.error}. Please update your organization settings and try again.`
+          }
+        }
+        console.log(`[CreatePlan] Locale sync repaired successfully`)
       }
     }
 

@@ -23,7 +23,7 @@ export default function PaginationDemoPage() {
           <p className="text-lg text-gray-600">
             Interactive examples of pagination components with CloudAct brand styling.
           </p>
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm text-yellow-800">
+          <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 text-sm text-orange-800">
             <strong>Note:</strong> This page is for development/testing purposes. Remove or protect before deploying to production.
           </div>
         </div>
@@ -82,23 +82,23 @@ export default function PaginationDemoPage() {
               <h3 className="font-semibold text-lg mb-4">Accessibility</h3>
               <ul className="space-y-2 text-sm">
                 <li className="flex items-start gap-2">
-                  <span className="text-green-600">✓</span>
+                  <span className="text-[#007A78]">✓</span>
                   <span>Touch targets: 44px minimum</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-green-600">✓</span>
+                  <span className="text-[#007A78]">✓</span>
                   <span>Keyboard navigation supported</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-green-600">✓</span>
+                  <span className="text-[#007A78]">✓</span>
                   <span>Screen reader friendly (ARIA labels)</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-green-600">✓</span>
+                  <span className="text-[#007A78]">✓</span>
                   <span>Focus indicators visible</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-green-600">✓</span>
+                  <span className="text-[#007A78]">✓</span>
                   <span>Color contrast compliant (WCAG AA)</span>
                 </li>
               </ul>
@@ -136,9 +136,9 @@ export default function PaginationDemoPage() {
           </div>
         </section>
 
-        <section className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-          <h2 className="text-xl font-bold text-blue-900 mb-3">Usage Instructions</h2>
-          <p className="text-blue-800 mb-4">
+        <section className="bg-[#007A78]/5 border border-[#007A78]/20 rounded-lg p-6">
+          <h2 className="text-xl font-bold text-[#005F5D] mb-3">Usage Instructions</h2>
+          <p className="text-[#007A78] mb-4">
             Import the pagination components in your pages:
           </p>
           <pre className="bg-white rounded-lg p-4 overflow-x-auto text-sm border">
@@ -152,7 +152,7 @@ export default function PaginationDemoPage() {
   PaginationPrevious,
 } from "@/components/ui/pagination"`}</code>
           </pre>
-          <p className="text-blue-800 mt-4">
+          <p className="text-[#007A78] mt-4">
             See <code className="bg-white px-2 py-1 rounded">components/ui/PAGINATION_README.md</code> for full documentation.
           </p>
         </section>

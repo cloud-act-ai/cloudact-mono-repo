@@ -36,7 +36,7 @@ function Calendar({
         month_grid: "w-full border-collapse space-y-1",
         weekdays: "flex",
         weekday:
-          "text-muted-foreground rounded-md w-9 font-semibold text-[0.75rem] uppercase tracking-wide",
+          "text-[#8E8E93] rounded-md w-9 font-semibold text-[0.75rem] uppercase tracking-wide",
         week: "flex w-full mt-2",
         day: "h-9 w-9 text-center text-sm p-0 relative [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-outside)]:bg-[#F0FDFA]/50 [&:has([aria-selected])]:bg-[#F0FDFA] first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
         day_button: cn(
@@ -48,8 +48,8 @@ function Calendar({
           "bg-[#007A78] text-white hover:bg-[#005F5D] hover:text-white focus:bg-[#007A78] focus:text-white font-semibold",
         today: "border-2 border-[#007A78] text-[#007A78] font-semibold bg-transparent",
         outside:
-          "day-outside text-muted-foreground/40 aria-selected:bg-[#F0FDFA]/30 aria-selected:text-muted-foreground/40",
-        disabled: "text-muted-foreground/30 opacity-50 cursor-not-allowed hover:bg-transparent",
+          "day-outside text-[#8E8E93]/40 aria-selected:bg-[#F0FDFA]/30 aria-selected:text-[#8E8E93]/40",
+        disabled: "text-[#8E8E93]/30 opacity-50 cursor-not-allowed hover:bg-transparent",
         range_middle:
           "aria-selected:bg-[#F0FDFA] aria-selected:text-[#007A78]",
         hidden: "invisible",
