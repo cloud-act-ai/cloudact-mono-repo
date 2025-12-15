@@ -38,7 +38,6 @@ providers:
       subscriptions_table: "saas_subscription_plans"
       seed_path: "configs/llm/seed"
       pricing_schema: "llm_model_pricing.json"
-      subscriptions_schema: "llm_subscriptions.json"
 
   ANTHROPIC:
     type: llm
@@ -63,7 +62,6 @@ providers:
       subscriptions_table: "saas_subscription_plans"
       seed_path: "configs/llm/seed"
       pricing_schema: "llm_model_pricing.json"
-      subscriptions_schema: "llm_subscriptions.json"
 
   CLAUDE:
     # Alias for ANTHROPIC (for backward compatibility)
@@ -108,7 +106,6 @@ providers:
       subscriptions_table: "saas_subscription_plans"
       seed_path: "configs/llm/seed"
       pricing_schema: "llm_model_pricing.json"
-      subscriptions_schema: "llm_subscriptions.json"
 
   # Cloud Providers
   GCP_SA:

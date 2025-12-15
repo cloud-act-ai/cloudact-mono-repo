@@ -14,7 +14,7 @@
 |-------------|---------|---------|
 | `{org_slug}` | Organization identifier | `acme_corp` |
 | `{env}` | Environment suffix | `prod`, `stage`, `local` |
-| `{project_id}` | GCP project ID | `gac-prod-471220` |
+| `{project_id}` | GCP project ID | `your-gcp-project-id` |
 | `{billing_account_id}` | GCP billing account | `01ABCD-EFGHIJ-KLMNOP` |
 | `{service_account}` | GCP service account email | `sa@project.iam.gserviceaccount.com` |
 

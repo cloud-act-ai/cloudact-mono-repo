@@ -8,6 +8,15 @@
  * 4. Event Cache Management: 1-hour TTL + LRU eviction (max 1000 events)
  * 5. Plan ID Validation: Explicit handling with lower bound validation for all limits
  * 6. Backend Sync Retry: 2 retries with 1s exponential backoff for backend sync failures
+ * 7. Backend Quota Sync: Always syncs when org_slug exists (not dependent on backend_onboarded)
+ * 8. Sync Status Tracking: backend_quota_synced flag tracks successful syncs to BigQuery
+ *
+ * BACKEND SYNC BEHAVIOR:
+ * - checkout.session.completed: Syncs subscription quotas to BigQuery org_subscriptions table
+ * - customer.subscription.updated: Syncs plan changes and quota updates
+ * - customer.subscription.deleted: Syncs cancellation with zero quotas
+ * - All syncs include retry logic and proper error handling
+ * - Sync status tracked in organizations.backend_quota_synced column
  *
  * @see 00-requirements-docs/05_SECURITY.md for full security documentation
  */
@@ -408,7 +417,9 @@ export async function POST(request: NextRequest) {
         );
 
         // Sync subscription limits to backend BigQuery (with retry)
-        if (updatedOrg[0]?.org_slug && updatedOrg[0]?.backend_onboarded) {
+        // IMPORTANT: Always attempt sync when org_slug exists (not dependent on backend_onboarded)
+        // Backend will handle cases where org doesn't exist yet
+        if (updatedOrg[0]?.org_slug) {
           // Determine billing status from subscription
           let checkoutBillingStatus = "active";
           if (subscription.status === "trialing")
@@ -438,7 +449,28 @@ export async function POST(request: NextRequest) {
             console.log(
               `[Webhook] Backend subscription synced for org: ${updatedOrg[0].org_slug}`,
             );
+
+            // Update backend_quota_synced flag in Supabase
+            await supabase
+              .from("organizations")
+              .update({ backend_quota_synced: true })
+              .eq("id", metadata.org_id);
+          } else {
+            console.error(
+              `[Webhook] Backend sync failed for org: ${updatedOrg[0].org_slug}`,
+              syncResult.error
+            );
+
+            // Update backend_quota_synced flag to false
+            await supabase
+              .from("organizations")
+              .update({ backend_quota_synced: false })
+              .eq("id", metadata.org_id);
           }
+        } else {
+          console.warn(
+            `[Webhook] Cannot sync to backend: org_slug missing for org_id ${metadata.org_id}`,
+          );
         }
         break;
       }
@@ -539,7 +571,8 @@ export async function POST(request: NextRequest) {
             );
 
             // Sync backend for fallback path (with retry)
-            if (fallbackOrg[0]?.org_slug && fallbackOrg[0]?.backend_onboarded) {
+            // IMPORTANT: Always attempt sync when org_slug exists
+            if (fallbackOrg[0]?.org_slug) {
               const syncResult = await syncWithRetry(
                 () =>
                   syncSubscriptionToBackend({
@@ -565,7 +598,28 @@ export async function POST(request: NextRequest) {
                 console.log(
                   `[Webhook] Backend subscription synced (fallback) for org: ${fallbackOrg[0].org_slug}`,
                 );
+
+                // Update backend_quota_synced flag
+                await supabase
+                  .from("organizations")
+                  .update({ backend_quota_synced: true })
+                  .eq("stripe_customer_id", customerId);
+              } else {
+                console.error(
+                  `[Webhook] Backend sync failed (fallback) for org: ${fallbackOrg[0].org_slug}`,
+                  syncResult.error
+                );
+
+                // Update backend_quota_synced flag to false
+                await supabase
+                  .from("organizations")
+                  .update({ backend_quota_synced: false })
+                  .eq("stripe_customer_id", customerId);
               }
+            } else {
+              console.warn(
+                `[Webhook] Cannot sync to backend: org_slug missing for customer ${customerId}`,
+              );
             }
           } else {
             throw new Error(`Database update failed: ${updateError.message}`);
@@ -585,8 +639,9 @@ export async function POST(request: NextRequest) {
 
         // Sync subscription limits to backend BigQuery (with retry)
         // Get org slug from either updatedOrg or fallbackOrg (whichever succeeded)
+        // IMPORTANT: Always attempt sync when org_slug exists
         const orgForSync = updatedOrg?.[0] || null;
-        if (orgForSync?.org_slug && orgForSync?.backend_onboarded) {
+        if (orgForSync?.org_slug) {
           const syncResult = await syncWithRetry(
             () =>
               syncSubscriptionToBackend({
@@ -611,7 +666,28 @@ export async function POST(request: NextRequest) {
             console.log(
               `[Webhook] Backend subscription synced for org: ${orgForSync.org_slug}`,
             );
+
+            // Update backend_quota_synced flag
+            await supabase
+              .from("organizations")
+              .update({ backend_quota_synced: true })
+              .eq("stripe_subscription_id", subscription.id);
+          } else {
+            console.error(
+              `[Webhook] Backend sync failed for org: ${orgForSync.org_slug}`,
+              syncResult.error
+            );
+
+            // Update backend_quota_synced flag to false
+            await supabase
+              .from("organizations")
+              .update({ backend_quota_synced: false })
+              .eq("stripe_subscription_id", subscription.id);
           }
+        } else {
+          console.warn(
+            `[Webhook] Cannot sync to backend: org_slug missing for subscription ${subscription.id}`,
+          );
         }
         break;
       }
@@ -634,6 +710,8 @@ export async function POST(request: NextRequest) {
           .update(cancelPayload)
           .eq("stripe_subscription_id", subscription.id)
           .select();
+
+        let orgForCancelSync = updatedOrg?.[0] || null;
 
         if (updateError) {
           console.error(
@@ -666,6 +744,8 @@ export async function POST(request: NextRequest) {
               );
             }
 
+            orgForCancelSync = fallbackOrg[0];
+
             console.log(
               `[Webhook] Canceled subscription via customer ID fallback: ${customerId}`,
             );
@@ -682,6 +762,55 @@ export async function POST(request: NextRequest) {
         }
 
         console.log(`[Webhook] Subscription canceled: ${subscription.id}`);
+
+        // Sync cancellation to backend BigQuery (with retry)
+        // IMPORTANT: Always attempt sync when org_slug exists
+        if (orgForCancelSync?.org_slug) {
+          const syncResult = await syncWithRetry(
+            () =>
+              syncSubscriptionToBackend({
+                orgSlug: orgForCancelSync.org_slug,
+                planName: orgForCancelSync.plan || "free",
+                billingStatus: "canceled",
+                trialEndsAt: undefined,
+                dailyLimit: 0,
+                monthlyLimit: 0,
+                seatLimit: 0,
+                providersLimit: 0,
+              }),
+            {
+              orgSlug: orgForCancelSync.org_slug,
+              operation: "customer.subscription.deleted",
+            },
+          );
+
+          if (syncResult.success) {
+            console.log(
+              `[Webhook] Backend cancellation synced for org: ${orgForCancelSync.org_slug}`,
+            );
+
+            // Update backend_quota_synced flag
+            await supabase
+              .from("organizations")
+              .update({ backend_quota_synced: true })
+              .eq("stripe_subscription_id", subscription.id);
+          } else {
+            console.error(
+              `[Webhook] Backend cancellation sync failed for org: ${orgForCancelSync.org_slug}`,
+              syncResult.error
+            );
+
+            // Update backend_quota_synced flag to false
+            await supabase
+              .from("organizations")
+              .update({ backend_quota_synced: false })
+              .eq("stripe_subscription_id", subscription.id);
+          }
+        } else {
+          console.warn(
+            `[Webhook] Cannot sync cancellation to backend: org_slug missing for subscription ${subscription.id}`,
+          );
+        }
         break;
       }
 

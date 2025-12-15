@@ -124,7 +124,7 @@ pytest -m performance --run-integration tests/performance/test_query_timeouts.py
 ### Environment Variables
 
 ```bash
-export GCP_PROJECT_ID="gac-prod-471220"
+export GCP_PROJECT_ID="your-gcp-project-id"
 export GOOGLE_APPLICATION_CREDENTIALS="/path/to/service-account.json"
 export CA_ROOT_API_KEY="your-admin-key"
 export ENVIRONMENT="development"
@@ -225,11 +225,11 @@ These are NOT automatically deleted. To clean up:
 
 ```bash
 # List test organizations
-bq ls --project_id=gac-prod-471220 --max_results=1000 | grep test_org
+bq ls --project_id=your-gcp-project-id --max_results=1000 | grep test_org
 
 # Delete test datasets
-bq rm -r -f -d gac-prod-471220:test_org_list_providers_perf_prod
-bq rm -r -f -d gac-prod-471220:test_org_concurrent_prod
+bq rm -r -f -d your-gcp-project-id:test_org_list_providers_perf_prod
+bq rm -r -f -d your-gcp-project-id:test_org_concurrent_prod
 ```
 
 ## Troubleshooting
@@ -239,7 +239,7 @@ bq rm -r -f -d gac-prod-471220:test_org_concurrent_prod
 Set `GOOGLE_APPLICATION_CREDENTIALS` and `GCP_PROJECT_ID`:
 
 ```bash
-export GCP_PROJECT_ID="gac-prod-471220"
+export GCP_PROJECT_ID="your-gcp-project-id"
 export GOOGLE_APPLICATION_CREDENTIALS="/path/to/sa.json"
 ```
 

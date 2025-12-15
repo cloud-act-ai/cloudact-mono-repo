@@ -20,15 +20,15 @@
 --
 -- USAGE:
 --   -- Dry run (preview changes)
---   CALL `gac-prod-471220.organizations`.sp_backfill_currency_audit_fields(
---     'gac-prod-471220',
+--   CALL `your-project-id.organizations`.sp_backfill_currency_audit_fields(
+--     'your-project-id',
 --     'acme_corp_prod',
 --     TRUE
 --   );
 --
 --   -- Execute backfill
---   CALL `gac-prod-471220.organizations`.sp_backfill_currency_audit_fields(
---     'gac-prod-471220',
+--   CALL `your-project-id.organizations`.sp_backfill_currency_audit_fields(
+--     'your-project-id',
 --     'acme_corp_prod',
 --     FALSE
 --   );

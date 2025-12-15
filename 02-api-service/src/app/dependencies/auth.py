@@ -753,6 +753,10 @@ async def reserve_pipeline_quota_atomic(
     This prevents race conditions where multiple concurrent requests pass quota checks
     before any increments happen. Uses UPDATE with WHERE clause that includes quota limits.
 
+    FALLBACK BEHAVIOR:
+    - If quota record doesn't exist for today, auto-creates it with subscription limits
+    - If subscription limits are NULL (Stripe sync failed), uses SUBSCRIPTION_LIMITS defaults
+
     Args:
         org_slug: Organization identifier
         subscription: Subscription info with max_pipelines_per_day, etc.
@@ -768,9 +772,32 @@ async def reserve_pipeline_quota_atomic(
         HTTPException: 429 if quota exceeded
     """
     today = get_utc_date()
-    daily_limit = subscription["max_pipelines_per_day"]
-    monthly_limit = subscription["max_pipelines_per_month"]
-    concurrent_limit = subscription["max_concurrent_pipelines"]
+
+    # Use subscription limits if available, fallback to SUBSCRIPTION_LIMITS
+    daily_limit = subscription.get("max_pipelines_per_day")
+    monthly_limit = subscription.get("max_pipelines_per_month")
+    concurrent_limit = subscription.get("max_concurrent_pipelines")
+
+    # Fallback to SUBSCRIPTION_LIMITS if any limit is None (Stripe sync failure)
+    if daily_limit is None or monthly_limit is None or concurrent_limit is None:
+        from src.app.models.org_models import SUBSCRIPTION_LIMITS, SubscriptionPlan
+
+        plan_name = subscription.get("plan_name", "STARTER")
+        try:
+            plan_enum = SubscriptionPlan(plan_name)
+            defaults = SUBSCRIPTION_LIMITS[plan_enum]
+        except (ValueError, KeyError):
+            logger.warning(f"Unknown plan '{plan_name}' for org {org_slug}, using STARTER defaults")
+            defaults = SUBSCRIPTION_LIMITS[SubscriptionPlan.STARTER]
+
+        daily_limit = daily_limit or defaults["max_pipelines_per_day"]
+        monthly_limit = monthly_limit or defaults["max_pipelines_per_month"]
+        concurrent_limit = concurrent_limit or defaults["max_concurrent_pipelines"]
+
+        logger.info(
+            f"Using fallback limits for org {org_slug}: "
+            f"daily={daily_limit}, monthly={monthly_limit}, concurrent={concurrent_limit}"
+        )
 
     # ATOMIC check-and-increment: Only increments if ALL limits are not exceeded
     # The WHERE clause checks all limits BEFORE incrementing
@@ -805,7 +832,8 @@ async def reserve_pipeline_quota_atomic(
 
         # Check if any rows were updated (quota was available)
         if job.num_dml_affected_rows == 0:
-            # No rows updated = quota exceeded. Query to determine which limit was hit.
+            # No rows updated - either quota exceeded OR record doesn't exist yet
+            # Query to determine which case we're in
             check_query = f"""
             SELECT
                 pipelines_run_today,
@@ -829,6 +857,7 @@ async def reserve_pipeline_quota_atomic(
             ).result())
 
             if check_results:
+                # Record exists but quota exceeded - determine which limit was hit
                 usage = check_results[0]
                 run_today = usage["pipelines_run_today"] or 0
                 run_month = usage["pipelines_run_month"] or 0
@@ -855,6 +884,74 @@ async def reserve_pipeline_quota_atomic(
                         detail=f"Concurrent pipeline limit reached ({concurrent_limit} pipelines). Wait for running pipelines to complete.",
                         headers={"Retry-After": "300"}
                     )
+            else:
+                # Record doesn't exist - create it and retry the atomic reservation
+                logger.info(f"Quota record not found for org {org_slug} on {today}, creating with limits from subscription")
+
+                usage_id = f"{org_slug}_{today.strftime('%Y%m%d')}"
+                insert_query = f"""
+                INSERT INTO `{settings.gcp_project_id}.organizations.org_usage_quotas`
+                (usage_id, org_slug, usage_date, pipelines_run_today, pipelines_failed_today,
+                 pipelines_succeeded_today, pipelines_run_month, concurrent_pipelines_running,
+                 daily_limit, monthly_limit, concurrent_limit, created_at, last_updated)
+                VALUES (
+                    @usage_id,
+                    @org_slug,
+                    @usage_date,
+                    0, 0, 0, 0, 0,
+                    @daily_limit,
+                    @monthly_limit,
+                    @concurrent_limit,
+                    CURRENT_TIMESTAMP(),
+                    CURRENT_TIMESTAMP()
+                )
+                """
+
+                bq_client.client.query(
+                    insert_query,
+                    job_config=bigquery.QueryJobConfig(
+                        query_parameters=[
+                            bigquery.ScalarQueryParameter("usage_id", "STRING", usage_id),
+                            bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                            bigquery.ScalarQueryParameter("usage_date", "DATE", today),
+                            bigquery.ScalarQueryParameter("daily_limit", "INT64", daily_limit),
+                            bigquery.ScalarQueryParameter("monthly_limit", "INT64", monthly_limit),
+                            bigquery.ScalarQueryParameter("concurrent_limit", "INT64", concurrent_limit)
+                        ],
+                        job_timeout_ms=10000
+                    )
+                ).result()
+
+                logger.info(f"Created quota record for org {org_slug}, now retrying atomic reservation")
+
+                # Retry the atomic UPDATE now that record exists
+                retry_job = bq_client.client.query(
+                    atomic_update_query,
+                    job_config=bigquery.QueryJobConfig(
+                        query_parameters=[
+                            bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                            bigquery.ScalarQueryParameter("usage_date", "DATE", today),
+                            bigquery.ScalarQueryParameter("daily_limit", "INT64", daily_limit),
+                            bigquery.ScalarQueryParameter("monthly_limit", "INT64", monthly_limit),
+                            bigquery.ScalarQueryParameter("concurrent_limit", "INT64", concurrent_limit)
+                        ]
+                    )
+                )
+                retry_job.result()
+
+                if retry_job.num_dml_affected_rows == 0:
+                    logger.error(f"Atomic reservation retry failed for org {org_slug} even after creating record")
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail="Quota reservation failed after record creation. Please try again."
+                    )
+
+                logger.info(f"Pipeline quota reserved successfully for org {org_slug} (new record)")
+                return {
+                    "success": True,
+                    "rows_affected": retry_job.num_dml_affected_rows,
+                    "quota_record_created": True
+                }
 
             # Fallback if we couldn't determine the specific limit
             raise HTTPException(
@@ -1333,6 +1430,19 @@ async def verify_api_key(
             headers={"WWW-Authenticate": "ApiKey"},
         )
 
+    # Check for test API keys (development/QA mode)
+    enable_dev_mode = os.getenv("ENABLE_DEV_MODE", "false").lower() == "true"
+    if enable_dev_mode or settings.is_development:
+        test_org = get_test_org_from_api_key(x_api_key)
+        if test_org:
+            logger.info(f"[DEV MODE] Using test API key for org: {test_org['org_slug']}")
+            return OrgContext(
+                org_slug=test_org["org_slug"],
+                org_api_key_hash="test-key",
+                user_id=x_user_id,
+                org_api_key_id=test_org.get("org_api_key_id", "test-key")
+            )
+
     # Hash the API key
     org_api_key_hash = hash_api_key(x_api_key)
 
@@ -1385,6 +1495,19 @@ async def verify_api_key_header(
     if settings.disable_auth:
         logger.warning(f"Authentication is disabled - using default org '{settings.default_org_slug}'")
         return OrgContext(org_slug=settings.default_org_slug, org_api_key_hash="disabled", user_id=x_user_id)
+
+    # Check for test API keys (development/QA mode)
+    enable_dev_mode = os.getenv("ENABLE_DEV_MODE", "false").lower() == "true"
+    if enable_dev_mode or settings.is_development:
+        test_org = get_test_org_from_api_key(x_api_key)
+        if test_org:
+            logger.info(f"[DEV MODE] Using test API key for org: {test_org['org_slug']}")
+            return OrgContext(
+                org_slug=test_org["org_slug"],
+                org_api_key_hash="test-key",
+                user_id=x_user_id,
+                org_api_key_id=test_org.get("org_api_key_id", "test-key")
+            )
 
     # Hash the API key
     org_api_key_hash = hash_api_key(x_api_key)
@@ -1545,6 +1668,18 @@ async def get_org_or_admin_auth(
                 return AuthResult(is_admin=True, org_slug=None)
         logger.warning("Invalid root API key provided")
         # Don't fail yet - maybe they also provided a valid org key
+
+    # Check for test API keys (development/QA mode)
+    enable_dev_mode = os.getenv("ENABLE_DEV_MODE", "false").lower() == "true"
+    if (enable_dev_mode or settings.is_development) and x_api_key:
+        test_org = get_test_org_from_api_key(x_api_key)
+        if test_org:
+            logger.info(f"[DEV MODE] Using test API key for org: {test_org['org_slug']}")
+            return AuthResult(
+                is_admin=False,
+                org_slug=test_org["org_slug"],
+                org_data=test_org
+            )
 
     # Try org API key
     if x_api_key:

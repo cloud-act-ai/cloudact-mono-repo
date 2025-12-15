@@ -288,6 +288,8 @@ Bootstrap creates 15 management tables in the `organizations` dataset:
 14. org_kms_keys
 15. org_idempotency_keys
 
+Note: All subscription plan changes are logged to org_audit_logs (not a separate audit table).
+
 ## Key Patterns
 
 **BigQuery Partitioning:**

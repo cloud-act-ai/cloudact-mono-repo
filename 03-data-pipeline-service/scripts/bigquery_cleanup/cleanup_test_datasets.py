@@ -15,7 +15,7 @@ Usage:
     python cleanup_test_datasets.py --sa-file /path/to/sa.json
 
     # Specify project
-    python cleanup_test_datasets.py --project gac-prod-471220
+    python cleanup_test_datasets.py --project your-project-id
 """
 
 import argparse
@@ -86,17 +86,25 @@ def categorize_datasets(datasets: List) -> Tuple[List[str], List[str], List[str]
 
 def main():
     parser = argparse.ArgumentParser(description="Cleanup test BigQuery datasets")
-    parser.add_argument("--project", default="gac-prod-471220", help="GCP Project ID")
+    parser.add_argument("--project", default=None, help="GCP Project ID (or set GCP_PROJECT_ID env var)")
     parser.add_argument("--sa-file", help="Service account JSON file path")
     parser.add_argument("--delete", action="store_true", help="Actually delete (default is dry-run)")
     parser.add_argument("--include-unknown", action="store_true", help="Include unknown datasets in deletion")
     args = parser.parse_args()
 
-    # Find default SA file if not specified
+    import os
+
+    # Get project from arg or env var
+    project = args.project or os.environ.get("GCP_PROJECT_ID")
+    if not project:
+        print("Error: --project argument or GCP_PROJECT_ID env var required")
+        sys.exit(1)
+    args.project = project
+
+    # Find SA file from env var or arg
     if not args.sa_file:
-        default_sa = Path.home() / ".gcp" / "gac-prod-471220-7a1eb8cb0a6a.json"
-        if default_sa.exists():
-            args.sa_file = str(default_sa)
+        args.sa_file = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+        if args.sa_file:
             print(f"Using service account: {args.sa_file}")
 
     try:

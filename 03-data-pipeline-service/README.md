@@ -30,7 +30,7 @@ Organization must be onboarded via `api-service` first.
 ### Environment Variables
 
 ```bash
-export GCP_PROJECT_ID="gac-prod-471220"
+export GCP_PROJECT_ID="your-gcp-project-id"
 export CA_ROOT_API_KEY="your-secure-admin-key"
 export ENVIRONMENT="development"
 export KMS_KEY_NAME="projects/{project}/locations/{loc}/keyRings/{ring}/cryptoKeys/{key}"

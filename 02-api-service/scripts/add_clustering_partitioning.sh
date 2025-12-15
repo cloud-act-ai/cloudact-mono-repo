@@ -356,7 +356,7 @@ EXAMPLES:
     $0 --rollback
 
 ENVIRONMENT VARIABLES:
-    GCP_PROJECT_ID    Required. GCP project ID (e.g., gac-prod-471220)
+    GCP_PROJECT_ID    Required. GCP project ID (e.g., your-project-id)
 
 TABLES OPTIMIZED (15 total):
     Clustering only (5):

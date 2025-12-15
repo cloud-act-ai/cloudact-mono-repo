@@ -146,7 +146,7 @@ WHERE org_slug = 'test_e2e_YYYYMMDD_HHMMSS';
 
 ```bash
 # Delete test dataset
-bq rm -r -f -d gac-prod-471220.test_e2e_YYYYMMDD_HHMMSS
+bq rm -r -f -d your-gcp-project-id.test_e2e_YYYYMMDD_HHMMSS
 ```
 
 ## Support

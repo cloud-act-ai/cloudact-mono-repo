@@ -19,10 +19,10 @@ from httpx import AsyncClient, ASGITransport
 
 # Environment variables are loaded from .env.local by conftest.py
 # Set fallback defaults only if not already set
-os.environ.setdefault("GCP_PROJECT_ID", "gac-prod-471220")
+os.environ.setdefault("GCP_PROJECT_ID", "test-project")
 os.environ.setdefault("ENVIRONMENT", "development")
 os.environ.setdefault("CA_ROOT_API_KEY", "test-ca-root-key-dev-32chars")
-os.environ.setdefault("KMS_KEY_NAME", "projects/gac-prod-471220/locations/us-central1/keyRings/convergence-keyring-prod/cryptoKeys/api-key-encryption")
+os.environ.setdefault("KMS_KEY_NAME", "projects/test-project/locations/us-central1/keyRings/test-keyring/cryptoKeys/api-key-encryption")
 
 from src.app.main import app
 

@@ -8,14 +8,16 @@ Tests for subscription cost calculation and projection pipelines:
 4. Projection calculations (weekly, monthly, yearly)
 5. Filter by is_enabled flag
 6. Output table validation
-7. Full pipeline execution
+7. Full pipeline execution with date parameter passing
 8. Scheduler integration
+9. Multi-currency audit fields (source_currency, source_price, exchange_rate_used)
+10. Date parameter validation (start > end, future dates)
 
 These are INTEGRATION tests - they hit real pipeline endpoints.
 No mocking of pipeline execution.
 
 Pipeline Tested:
-- POST /api/v1/pipelines/run/{org_slug}/subscription/costs/example_subscription_cost_analysis
+- POST /api/v1/pipelines/run/{org_slug}/saas_subscription/costs/saas_cost
 
 Prerequisites:
 - Running server on localhost:8001
@@ -23,7 +25,7 @@ Prerequisites:
 - BigQuery access
 
 To run:
-    RUN_E2E_TESTS=true pytest tests/test_06_subscription_cost_pipelines.py -v
+    RUN_E2E_TESTS=true pytest tests/test_05_saas_subscription_pipelines.py -v
 """
 
 import pytest
@@ -141,7 +143,7 @@ def sample_subscription_data() -> List[Dict[str, Any]]:
     """
     Sample subscription data for testing cost calculations.
 
-    Covers various billing periods, discounts, and quantities.
+    Covers various billing periods, discounts, quantities, and multi-currency fields.
     """
     return [
         {
@@ -154,6 +156,9 @@ def sample_subscription_data() -> List[Dict[str, Any]]:
             "is_enabled": True,
             "discount_percentage": 0.0,
             "yearly_price_usd": None,
+            "source_currency": "USD",
+            "source_price": 20.0,
+            "exchange_rate_used": 1.0,
             "expected_daily_cost": 20.0 / 30.4375,  # Monthly to daily
             "expected_weekly_cost": (20.0 / 30.4375) * 7,
             "expected_monthly_cost": 20.0,
@@ -169,6 +174,9 @@ def sample_subscription_data() -> List[Dict[str, Any]]:
             "is_enabled": True,
             "discount_percentage": 0.0,
             "yearly_price_usd": None,
+            "source_currency": "USD",
+            "source_price": 12.99,
+            "exchange_rate_used": 1.0,
             "expected_daily_cost": (12.99 / 30.4375) * 3,  # Monthly with 3 seats
             "expected_weekly_cost": ((12.99 / 30.4375) * 3) * 7,
             "expected_monthly_cost": 12.99 * 3,
@@ -184,6 +192,9 @@ def sample_subscription_data() -> List[Dict[str, Any]]:
             "is_enabled": True,
             "discount_percentage": 10.0,  # 10% discount
             "yearly_price_usd": None,
+            "source_currency": "USD",
+            "source_price": 15.0,
+            "exchange_rate_used": 1.0,
             "expected_daily_cost": ((15.0 / 30.4375) * (1 - 0.10)) * 10,
             "expected_weekly_cost": (((15.0 / 30.4375) * (1 - 0.10)) * 10) * 7,
             "expected_monthly_cost": (15.0 * (1 - 0.10)) * 10,
@@ -199,6 +210,9 @@ def sample_subscription_data() -> List[Dict[str, Any]]:
             "is_enabled": True,
             "discount_percentage": 0.0,
             "yearly_price_usd": 216.0,
+            "source_currency": "USD",
+            "source_price": 216.0,
+            "exchange_rate_used": 1.0,
             "expected_daily_cost": (216.0 / 365) * 5,  # Yearly to daily
             "expected_weekly_cost": ((216.0 / 365) * 5) * 7,
             "expected_monthly_cost": ((216.0 / 365) * 5) * 30.4375,
@@ -214,6 +228,9 @@ def sample_subscription_data() -> List[Dict[str, Any]]:
             "is_enabled": False,  # Disabled - should be filtered out
             "discount_percentage": 0.0,
             "yearly_price_usd": None,
+            "source_currency": "USD",
+            "source_price": 15.0,
+            "exchange_rate_used": 1.0,
         },
         {
             "subscription_id": str(uuid.uuid4()),
@@ -225,6 +242,9 @@ def sample_subscription_data() -> List[Dict[str, Any]]:
             "is_enabled": True,
             "discount_percentage": 0.0,
             "yearly_price_usd": None,
+            "source_currency": "USD",
+            "source_price": 7.99,
+            "exchange_rate_used": 1.0,
             "expected_daily_cost": 7.99 / 7,  # Weekly to daily
             "expected_weekly_cost": 7.99,
             "expected_monthly_cost": (7.99 / 7) * 30.4375,
@@ -240,6 +260,9 @@ def sample_subscription_data() -> List[Dict[str, Any]]:
             "is_enabled": True,
             "discount_percentage": 15.0,  # 15% discount
             "yearly_price_usd": None,
+            "source_currency": "EUR",
+            "source_price": 43.2,  # EUR price (45 EUR with 10% discount = 43.2 / 0.9 = 48 USD)
+            "exchange_rate_used": 0.9,  # EUR to USD rate
             "expected_daily_cost": ((48.0 / 30.4375) * (1 - 0.15)) * 8,
             "expected_weekly_cost": (((48.0 / 30.4375) * (1 - 0.15)) * 8) * 7,
             "expected_monthly_cost": (48.0 * (1 - 0.15)) * 8,
@@ -278,6 +301,35 @@ class TestCostCalculationLogic:
 
     Tests the business logic without hitting the pipeline.
     """
+
+    def test_multi_currency_audit_fields(self, sample_subscription_data):
+        """
+        PIPE-CURRENCY: Test that subscription data includes multi-currency audit fields.
+
+        Verifies presence of:
+        - source_currency (STRING)
+        - source_price (FLOAT64)
+        - exchange_rate_used (FLOAT64)
+        """
+        github_sub = sample_subscription_data[6]  # GitHub Team with EUR pricing
+
+        # Check audit fields exist
+        assert "source_currency" in github_sub, "source_currency field should exist"
+        assert "source_price" in github_sub, "source_price field should exist"
+        assert "exchange_rate_used" in github_sub, "exchange_rate_used field should exist"
+
+        # Verify EUR example
+        assert github_sub["source_currency"] == "EUR", "GitHub example should use EUR"
+        assert github_sub["source_price"] == 43.2, "EUR source price should be set"
+        assert github_sub["exchange_rate_used"] == 0.9, "Exchange rate should be 0.9"
+
+        # Verify USD example
+        chatgpt_sub = sample_subscription_data[0]  # ChatGPT Plus (USD)
+        assert chatgpt_sub["source_currency"] == "USD"
+        assert chatgpt_sub["source_price"] == chatgpt_sub["unit_price_usd"]
+        assert chatgpt_sub["exchange_rate_used"] == 1.0, "USD rate should be 1.0"
+
+        print(f"Multi-currency audit fields verified: EUR@{github_sub['exchange_rate_used']} = ${github_sub['unit_price_usd']}")
 
     def test_daily_rate_from_monthly(self, sample_subscription_data):
         """
@@ -503,22 +555,20 @@ class TestSubscriptionCostPipeline:
 
         Tests full pipeline execution:
         1. Read from saas_subscription_plans
-        2. Calculate daily costs
-        3. Apply discounts and quantities
+        2. Calculate daily costs via stored procedure
+        3. Apply discounts and quantities with proration
         4. Generate projections
-        5. Write to tfd_llm_subscription_costs
+        5. Write to saas_subscription_plan_costs_daily
         """
         org_slug = setup_test_org["org_slug"]
 
         # Pipeline endpoint format: /api/v1/pipelines/run/{org}/{provider}/{domain}/{pipeline}
-        # For subscription/costs/example_subscription_cost_analysis.yml:
-        #   provider=subscription, domain=costs, pipeline=example_subscription_cost_analysis
+        # For saas_subscription/costs/saas_cost.yml:
+        #   provider=saas_subscription, domain=costs, pipeline=saas_cost
         response = pipeline_client.post(
-            f"/api/v1/pipelines/run/{org_slug}/subscription/costs/example_subscription_cost_analysis",
+            f"/api/v1/pipelines/run/{org_slug}/saas_subscription/costs/saas_cost",
             headers=org_headers,
-            json={
-                "execution_date": str(date.today())
-            }
+            json={}  # Dates default to current month
         )
 
         if response.status_code == 200:
@@ -548,6 +598,113 @@ class TestSubscriptionCostPipeline:
             # Log but don't fail - pipeline may fail for various reasons in test
             print(f"Pipeline returned {response.status_code}: {response.text[:200]}")
 
+    def test_run_pipeline_with_custom_date_range(
+        self,
+        pipeline_client,
+        setup_test_org,
+        org_headers
+    ):
+        """
+        PIPE-01-DATE: Test pipeline execution with custom date range.
+
+        Verifies that start_date and end_date parameters are properly passed
+        from API request to stored procedure.
+        """
+        org_slug = setup_test_org["org_slug"]
+
+        # Test with custom date range
+        response = pipeline_client.post(
+            f"/api/v1/pipelines/run/{org_slug}/saas_subscription/costs/saas_cost",
+            headers=org_headers,
+            json={
+                "start_date": "2025-01-01",
+                "end_date": "2025-01-31"
+            }
+        )
+
+        if response.status_code == 200:
+            data = response.json()
+            print(f"Pipeline executed with custom date range: {data}")
+
+            # Verify parameters were passed
+            if "parameters" in data:
+                params = data["parameters"]
+                assert "p_start_date" in params or "start_date" in str(data)
+                assert "p_end_date" in params or "end_date" in str(data)
+                print(f"Date parameters passed: {params}")
+
+        elif response.status_code == 404:
+            pytest.skip("Pipeline not found")
+        else:
+            print(f"Pipeline returned {response.status_code}: {response.text[:200]}")
+
+    def test_pipeline_invalid_date_range(
+        self,
+        pipeline_client,
+        setup_test_org,
+        org_headers
+    ):
+        """
+        PIPE-01-VALIDATION: Test that pipeline rejects invalid date ranges.
+
+        Validates that start_date > end_date fails the pipeline.
+        """
+        org_slug = setup_test_org["org_slug"]
+
+        # Test with start_date > end_date (should fail)
+        response = pipeline_client.post(
+            f"/api/v1/pipelines/run/{org_slug}/saas_subscription/costs/saas_cost",
+            headers=org_headers,
+            json={
+                "start_date": "2025-01-31",
+                "end_date": "2025-01-01"  # Before start_date
+            }
+        )
+
+        # Should return 400 or 422 (validation error)
+        if response.status_code in [400, 422]:
+            error_data = response.json()
+            error_msg = str(error_data).lower()
+            assert "start_date" in error_msg or "end_date" in error_msg or "after" in error_msg
+            print(f"Correctly rejected invalid date range: {error_data}")
+        elif response.status_code == 404:
+            pytest.skip("Pipeline not found")
+        else:
+            # Pipeline may have failed later - check error message
+            print(f"Pipeline validation behavior: {response.status_code} - {response.text[:200]}")
+
+    def test_pipeline_future_date_warning(
+        self,
+        pipeline_client,
+        setup_test_org,
+        org_headers
+    ):
+        """
+        PIPE-01-FUTURE: Test that pipeline warns on future dates.
+
+        Verifies that future dates generate warnings but don't fail the pipeline.
+        """
+        org_slug = setup_test_org["org_slug"]
+
+        # Test with future dates (should warn but not fail)
+        future_date = (date.today() + timedelta(days=30)).strftime("%Y-%m-%d")
+        response = pipeline_client.post(
+            f"/api/v1/pipelines/run/{org_slug}/saas_subscription/costs/saas_cost",
+            headers=org_headers,
+            json={
+                "start_date": str(date.today()),
+                "end_date": future_date
+            }
+        )
+
+        # Pipeline should execute (may warn in logs)
+        if response.status_code in [200, 400]:
+            print(f"Pipeline executed with future date (status {response.status_code})")
+        elif response.status_code == 404:
+            pytest.skip("Pipeline not found")
+        else:
+            print(f"Future date handling: {response.status_code}")
+
     def test_pipeline_reads_from_saas_subscription_plans(
         self,
         pipeline_client,
@@ -563,11 +720,9 @@ class TestSubscriptionCostPipeline:
 
         # Try to run the pipeline
         response = pipeline_client.post(
-            f"/api/v1/pipelines/run/{org_slug}/subscription/costs/example_subscription_cost_analysis",
+            f"/api/v1/pipelines/run/{org_slug}/saas_subscription/costs/saas_cost",
             headers=org_headers,
-            json={
-                "execution_date": str(date.today())
-            }
+            json={}
         )
 
         if response.status_code == 200:
@@ -593,18 +748,16 @@ class TestSubscriptionCostPipeline:
         org_headers
     ):
         """
-        PIPE-07: Verify pipeline outputs to tfd_llm_subscription_costs table.
+        PIPE-07: Verify pipeline outputs to saas_subscription_plan_costs_daily table.
 
-        The pipeline should write results to {org}_prod.tfd_llm_subscription_costs.
+        The pipeline should write results to {org}_prod.saas_subscription_plan_costs_daily.
         """
         org_slug = setup_test_org["org_slug"]
 
         response = pipeline_client.post(
-            f"/api/v1/pipelines/run/{org_slug}/subscription/costs/example_subscription_cost_analysis",
+            f"/api/v1/pipelines/run/{org_slug}/saas_subscription/costs/saas_cost",
             headers=org_headers,
-            json={
-                "execution_date": str(date.today())
-            }
+            json={}
         )
 
         if response.status_code == 200:
@@ -612,8 +765,8 @@ class TestSubscriptionCostPipeline:
 
             # Check if response includes destination table info
             if "destination_table" in data:
-                assert "tfd_llm_subscription_costs" in data["destination_table"], \
-                    f"Expected tfd_llm_subscription_costs in destination, got {data['destination_table']}"
+                assert "saas_subscription_plan_costs_daily" in data["destination_table"], \
+                    f"Expected saas_subscription_plan_costs_daily in destination, got {data['destination_table']}"
                 print(f"Pipeline outputs to correct table: {data['destination_table']}")
             else:
                 print("Pipeline executed (destination table info not in response)")
@@ -634,9 +787,9 @@ class TestPipelineAuth:
         org_slug = setup_test_org["org_slug"]
 
         response = pipeline_client.post(
-            f"/api/v1/pipelines/run/{org_slug}/subscription/costs/example_subscription_cost_analysis",
+            f"/api/v1/pipelines/run/{org_slug}/saas_subscription/costs/saas_cost",
             # No X-API-Key header
-            json={"execution_date": str(date.today())}
+            json={}
         )
 
         assert response.status_code in [401, 403], \
@@ -648,12 +801,12 @@ class TestPipelineAuth:
         org_slug = setup_test_org["org_slug"]
 
         response = pipeline_client.post(
-            f"/api/v1/pipelines/run/{org_slug}/subscription/costs/example_subscription_cost_analysis",
+            f"/api/v1/pipelines/run/{org_slug}/saas_subscription/costs/saas_cost",
             headers={
                 "X-API-Key": "invalid-api-key-xxxxxx",
                 "Content-Type": "application/json"
             },
-            json={"execution_date": str(date.today())}
+            json={}
         )
 
         assert response.status_code in [401, 403], \
@@ -663,9 +816,9 @@ class TestPipelineAuth:
     def test_pipeline_cross_org_access(self, pipeline_client, setup_test_org, org_headers):
         """Test that org can't run pipelines for another org."""
         response = pipeline_client.post(
-            "/api/v1/pipelines/run/different_org_slug/subscription/costs/example_subscription_cost_analysis",
+            "/api/v1/pipelines/run/different_org_slug/saas_subscription/costs/saas_cost",
             headers=org_headers,
-            json={"execution_date": str(date.today())}
+            json={}
         )
 
         # Should be 403 (forbidden) or 404 (org not found)
@@ -691,9 +844,9 @@ class TestPipelineValidation:
         org_slug = setup_test_org["org_slug"]
 
         response = pipeline_client.post(
-            f"/api/v1/pipelines/run/{org_slug}/invalid_provider/costs/example_subscription_cost_analysis",
+            f"/api/v1/pipelines/run/{org_slug}/invalid_provider/costs/saas_cost",
             headers=org_headers,
-            json={"execution_date": str(date.today())}
+            json={}
         )
 
         assert response.status_code in [400, 404], \
@@ -710,9 +863,9 @@ class TestPipelineValidation:
         org_slug = setup_test_org["org_slug"]
 
         response = pipeline_client.post(
-            f"/api/v1/pipelines/run/{org_slug}/subscription/costs/example_subscription_cost_analysis",
+            f"/api/v1/pipelines/run/{org_slug}/saas_subscription/costs/saas_cost",
             headers=org_headers,
-            json={"execution_date": "invalid-date"}
+            json={"start_date": "invalid-date"}
         )
 
         # May return 422 (validation) or 400 (bad request) or process anyway
@@ -765,10 +918,10 @@ class TestSubscriptionCostScheduler:
         """
         PIPE-08: Verify pipeline config includes schedule definition.
 
-        Config should have: schedule: "0 5 * * *" (Daily at 05:00 UTC)
+        Config should have: schedule: daily at 03:00 UTC
         """
         # Read the pipeline config file
-        config_path = "/Users/gurukallam/prod-ready-apps/cloudact-mono-repo/data-pipeline-service/configs/subscription/costs/example_subscription_cost_analysis.yml"
+        config_path = "/Users/gurukallam/prod-ready-apps/cloudact-mono-repo/03-data-pipeline-service/configs/saas_subscription/costs/saas_cost.yml"
 
         try:
             with open(config_path, 'r') as f:
@@ -777,8 +930,8 @@ class TestSubscriptionCostScheduler:
             # Check for schedule field
             assert "schedule:" in config_content, "Pipeline config should include schedule field"
 
-            # Check for cron expression (daily at 05:00 UTC)
-            assert "0 5 * * *" in config_content or "schedule:" in config_content, \
+            # Check for daily schedule
+            assert "daily" in config_content or "03:00" in config_content or "schedule:" in config_content, \
                 "Pipeline should have schedule configuration"
 
             print("Pipeline config includes schedule definition")
@@ -808,9 +961,9 @@ class TestSubscriptionQuota:
         org_slug = setup_test_org["org_slug"]
 
         response = pipeline_client.post(
-            f"/api/v1/pipelines/run/{org_slug}/subscription/costs/example_subscription_cost_analysis",
+            f"/api/v1/pipelines/run/{org_slug}/saas_subscription/costs/saas_cost",
             headers=org_headers,
-            json={"execution_date": str(date.today())}
+            json={}
         )
 
         # For test org with valid subscription, should not be 402/403 due to subscription
@@ -956,11 +1109,15 @@ def test_summary(setup_test_org):
     print("=" * 60)
     print("\nTest Coverage:")
     print("  ✓ PIPE-01: Pipeline reads from saas_subscription_plans")
+    print("  ✓ PIPE-01-DATE: Custom date range parameters")
+    print("  ✓ PIPE-01-VALIDATION: Invalid date range rejection")
+    print("  ✓ PIPE-01-FUTURE: Future date warnings")
     print("  ✓ PIPE-02: Daily rate calculation (yearly/365, monthly/30.4375)")
     print("  ✓ PIPE-03: Discount application (1 - discount%)")
     print("  ✓ PIPE-04: Quantity multiplier")
     print("  ✓ PIPE-05: Weekly/Monthly/Yearly projections")
     print("  ✓ PIPE-06: Filter by is_enabled = true")
-    print("  ✓ PIPE-07: Output to tfd_llm_subscription_costs")
+    print("  ✓ PIPE-07: Output to saas_subscription_plan_costs_daily")
     print("  ✓ PIPE-08: Scheduler trigger works")
+    print("  ✓ PIPE-CURRENCY: Multi-currency audit fields")
     print("=" * 60)

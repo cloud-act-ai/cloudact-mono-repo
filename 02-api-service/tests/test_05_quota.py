@@ -1,47 +1,64 @@
 """
-Tests for Quota API Endpoints
+Unit Tests for Quota API Endpoints
 
-Tests quota usage retrieval endpoint.
+Tests quota usage retrieval endpoint with MOCKED BigQuery and Auth.
+These are unit tests - for integration tests see: tests/quota_enforcement/
+
+Test Coverage:
+- Quota response structure validation
+- Usage percentage calculations
+- NULL value handling
+- Zero division edge cases
 """
 
 import os
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import MagicMock
 from datetime import date
 from httpx import AsyncClient, ASGITransport
 
 # Set environment variables BEFORE importing app
-# Use real values from .env.local if available
-os.environ.setdefault("GCP_PROJECT_ID", "gac-prod-471220")
+os.environ.setdefault("GCP_PROJECT_ID", "test-project")
 os.environ.setdefault("ENVIRONMENT", "development")
 if "CA_ROOT_API_KEY" not in os.environ:
     os.environ["CA_ROOT_API_KEY"] = "test-root-key-for-testing-only-32chars"
-# Auth is always enabled - use test_api_keys.json for test credentials
-os.environ.setdefault("KMS_KEY_NAME", "projects/gac-prod-471220/locations/us-central1/keyRings/convergence-keyring-prod/cryptoKeys/api-key-encryption")
+os.environ.setdefault("KMS_KEY_NAME", "projects/test-project/locations/us-central1/keyRings/test-keyring/cryptoKeys/api-key-encryption")
 
 from src.app.main import app
+from src.app.dependencies.auth import get_org_or_admin_auth, AuthResult
 
-ROOT_API_KEY = os.environ.get("CA_ROOT_API_KEY", "test-root-key-for-testing-only-32chars")
-# Test org API key (must be in test_api_keys.json)
-TEST_ORG_API_KEY = "test_org_123_api_testkey1234567890"
+# Test constants
 TEST_ORG_SLUG = "test_org_123"
 
 
-@pytest.fixture(autouse=True)
-def clear_test_api_keys_cache():
-    """Clear and reload test API keys cache before each test."""
-    import src.app.dependencies.auth as auth_module
-    auth_module._test_api_keys = None  # Clear cached value
-    auth_module.load_test_api_keys()  # Reload from file
-    yield
+# ============================================
+# Mock Auth Dependency
+# ============================================
 
+def get_mock_auth():
+    """Return a mock auth result for testing."""
+    return AuthResult(
+        is_admin=False,
+        org_slug=TEST_ORG_SLUG,
+        org_data={
+            "org_slug": TEST_ORG_SLUG,
+            "company_name": "Test Organization",
+            "admin_email": "test@test.com",
+            "status": "ACTIVE"
+        }
+    )
+
+
+# ============================================
+# Unit Tests with Mocked Dependencies
+# ============================================
 
 @pytest.mark.asyncio
 async def test_get_quota_success():
     """Test getting quota with mocked BigQuery response."""
     today = date.today()
 
-    # Mock the BigQuery client using dependency override
+    # Mock the BigQuery client
     mock_client = MagicMock()
     mock_client.query.return_value = [
         {
@@ -56,17 +73,18 @@ async def test_get_quota_success():
         }
     ]
 
-    # Import here to override dependency
     from src.core.engine.bq_client import get_bigquery_client
 
+    # Override both auth and BigQuery client
     app.dependency_overrides[get_bigquery_client] = lambda: mock_client
+    app.dependency_overrides[get_org_or_admin_auth] = get_mock_auth
 
     try:
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             response = await client.get(
                 f"/api/v1/organizations/{TEST_ORG_SLUG}/quota",
-                headers={"X-API-Key": TEST_ORG_API_KEY}
+                headers={"X-API-Key": "mock-api-key"}
             )
 
         assert response.status_code == 200
@@ -82,26 +100,26 @@ async def test_get_quota_success():
         assert "dailyUsagePercent" in data
         assert "monthlyUsagePercent" in data
     finally:
-        # Clean up dependency override
         app.dependency_overrides.clear()
 
 
 @pytest.mark.asyncio
 async def test_get_quota_org_not_found():
-    """Test getting quota for non-existent org."""
+    """Test getting quota when org subscription not found in BigQuery."""
     from src.core.engine.bq_client import get_bigquery_client
 
     mock_client = MagicMock()
-    mock_client.query.return_value = []  # No results from query
+    mock_client.query.return_value = []  # No results
 
     app.dependency_overrides[get_bigquery_client] = lambda: mock_client
+    app.dependency_overrides[get_org_or_admin_auth] = get_mock_auth
 
     try:
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             response = await client.get(
                 f"/api/v1/organizations/{TEST_ORG_SLUG}/quota",
-                headers={"X-API-Key": TEST_ORG_API_KEY}
+                headers={"X-API-Key": "mock-api-key"}
             )
 
         assert response.status_code == 404
@@ -133,13 +151,14 @@ async def test_get_quota_no_usage_record():
     ]
 
     app.dependency_overrides[get_bigquery_client] = lambda: mock_client
+    app.dependency_overrides[get_org_or_admin_auth] = get_mock_auth
 
     try:
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             response = await client.get(
                 f"/api/v1/organizations/{TEST_ORG_SLUG}/quota",
-                headers={"X-API-Key": TEST_ORG_API_KEY}
+                headers={"X-API-Key": "mock-api-key"}
             )
 
         assert response.status_code == 200
@@ -177,13 +196,14 @@ async def test_get_quota_usage_percentages():
     ]
 
     app.dependency_overrides[get_bigquery_client] = lambda: mock_client
+    app.dependency_overrides[get_org_or_admin_auth] = get_mock_auth
 
     try:
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             response = await client.get(
                 f"/api/v1/organizations/{TEST_ORG_SLUG}/quota",
-                headers={"X-API-Key": TEST_ORG_API_KEY}
+                headers={"X-API-Key": "mock-api-key"}
             )
 
         assert response.status_code == 200
@@ -219,13 +239,14 @@ async def test_get_quota_zero_limits_no_division_error():
     ]
 
     app.dependency_overrides[get_bigquery_client] = lambda: mock_client
+    app.dependency_overrides[get_org_or_admin_auth] = get_mock_auth
 
     try:
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             response = await client.get(
                 f"/api/v1/organizations/{TEST_ORG_SLUG}/quota",
-                headers={"X-API-Key": TEST_ORG_API_KEY}
+                headers={"X-API-Key": "mock-api-key"}
             )
 
         assert response.status_code == 200

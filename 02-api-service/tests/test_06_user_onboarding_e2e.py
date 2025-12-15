@@ -2,11 +2,39 @@
 End-to-End Integration Test: Complete User Onboarding Journey
 
 This test validates the entire user onboarding flow from bootstrap to pipeline execution:
-1. Bootstrap (system initialization)
-2. Organization onboarding (create org + API key + dataset)
+1. Bootstrap (system initialization) - Creates 15 meta tables
+2. Organization onboarding (create org + API key + dataset) - Creates 4 org tables
 3. Integration setup (store encrypted credentials)
 4. Pipeline execution (run usage pipeline)
 5. Data verification (check data in org dataset)
+
+BOOTSTRAP TABLES (15 total):
+- org_profiles (includes i18n fields)
+- org_api_keys
+- org_subscriptions
+- org_usage_quotas
+- org_integration_credentials
+- org_pipeline_configs
+- org_scheduled_pipeline_runs
+- org_pipeline_execution_queue
+- org_meta_pipeline_runs
+- org_meta_step_logs
+- org_meta_dq_results
+- org_audit_logs (includes subscription audits)
+- org_cost_tracking
+- org_kms_keys
+- org_idempotency_keys
+
+ONBOARDING TABLES (4 per org):
+- llm_model_pricing
+- saas_subscription_plans (29 columns with 3 multi-currency fields: source_currency, source_price, exchange_rate_used)
+- saas_subscription_plan_costs_daily
+- cost_data_standard_1_2
+
+REMOVED TABLES (no longer exist):
+- org_subscription_audit (replaced by org_audit_logs)
+- llm_subscriptions
+- subscription_analysis
 
 REQUIRES:
 - Real BigQuery connection
@@ -166,7 +194,7 @@ async def cleanup_test_org(
 
     # Delete org dataset
     try:
-        project_id = os.environ.get("GCP_PROJECT_ID", "gac-prod-471220")
+        project_id = os.environ.get("GCP_PROJECT_ID", "test-project")
         dataset_id = f"{project_id}.{org_slug}"
         bq_client.delete_dataset(
             dataset_id,
@@ -196,7 +224,7 @@ def verify_bigquery_data(
     Returns:
         Dict with verification results
     """
-    project_id = os.environ.get("GCP_PROJECT_ID", "gac-prod-471220")
+    project_id = os.environ.get("GCP_PROJECT_ID", "test-project")
     full_table_id = f"{project_id}.{org_slug}.{table_name}"
 
     try:
@@ -282,7 +310,7 @@ async def test_complete_user_onboarding_e2e(
 
         bootstrap_data = response.json()
         assert bootstrap_data["status"] == "SUCCESS"
-        assert bootstrap_data["total_tables"] == 15  # Expected 15 meta tables
+        assert bootstrap_data["total_tables"] == 15  # Expected 15 meta tables (removed org_subscription_audit)
 
         logger.info(f"✓ Bootstrap completed: {len(bootstrap_data.get('tables_created', []))} tables created, "
                    f"{len(bootstrap_data.get('tables_existed', []))} tables existed")
@@ -550,7 +578,7 @@ async def test_bootstrap_only(
 
     data = response.json()
     assert data["status"] == "SUCCESS"
-    assert data["total_tables"] == 15
+    assert data["total_tables"] == 15  # 15 meta tables (removed org_subscription_audit)
 
     # Either tables were created or already existed (idempotent)
     assert len(data["tables_created"]) + len(data["tables_existed"]) == 15

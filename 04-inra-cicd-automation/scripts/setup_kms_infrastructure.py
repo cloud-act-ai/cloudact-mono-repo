@@ -20,22 +20,25 @@ from google.api_core import exceptions
 def setup_kms(environment: str):
     """Set up KMS keyring and encryption key for the specified environment."""
 
-    # Environment configurations
+    # Environment configurations - use GCP_PROJECT_ID env var or default
+    import os
+    project_id_default = os.environ.get("GCP_PROJECT_ID", "cloudact-testing-1")
+
     configs = {
         "local": {
-            "project_id": "gac-prod-471220",
-            "keyring_name": "convergence-keyring-dev",
-            "service_account": "cloudact-common@gac-prod-471220.iam.gserviceaccount.com"
+            "project_id": project_id_default,
+            "keyring_name": "cloudact-keyring-dev",
+            "service_account": f"cloudact-dev@{project_id_default}.iam.gserviceaccount.com"
         },
         "staging": {
-            "project_id": "gac-stage-471220",
-            "keyring_name": "convergence-keyring-stage",
-            "service_account": "convergence-api@gac-stage-471220.iam.gserviceaccount.com"
+            "project_id": project_id_default,
+            "keyring_name": "cloudact-keyring-stage",
+            "service_account": f"cloudact-sa-stage@{project_id_default}.iam.gserviceaccount.com"
         },
         "production": {
-            "project_id": "gac-prod-471220",
-            "keyring_name": "convergence-keyring-prod",
-            "service_account": "convergence-api@gac-prod-471220.iam.gserviceaccount.com"
+            "project_id": project_id_default,
+            "keyring_name": "cloudact-keyring",
+            "service_account": f"cloudact-sa-prod@{project_id_default}.iam.gserviceaccount.com"
         }
     }
 

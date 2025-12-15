@@ -15,8 +15,8 @@
 --
 -- USAGE:
 --   -- Run for a specific customer
---   CALL `gac-prod-471220.organizations`.sp_run_saas_subscription_costs_pipeline(
---     'gac-prod-471220',
+--   CALL `your-project-id.organizations`.sp_run_saas_subscription_costs_pipeline(
+--     'your-project-id',
 --     'acme_corp_prod',
 --     DATE('2024-01-01'),
 --     DATE('2024-01-31')

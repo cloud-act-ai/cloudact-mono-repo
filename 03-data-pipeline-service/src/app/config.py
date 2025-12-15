@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     # ============================================
     # GCP Configuration
     # ============================================
-    gcp_project_id: str = Field(default="local-dev-project", description="Google Cloud Project ID")
+    gcp_project_id: str = Field(default="local-dev-project", description="Google Cloud Project ID - set via GCP_PROJECT_ID env var")
     bigquery_location: str = Field(default="US", description="BigQuery dataset location")
     google_application_credentials: Optional[str] = Field(
         default=None,

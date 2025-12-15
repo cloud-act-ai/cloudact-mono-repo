@@ -20,7 +20,11 @@ from src.app.dependencies.auth import get_org_or_admin_auth, AuthResult
 from src.app.dependencies.rate_limit_decorator import rate_limit_by_org
 from src.core.utils.error_handling import safe_error_response, handle_not_found, handle_forbidden
 from src.core.utils.validators import validate_org_slug
+from src.app.models.org_models import SUBSCRIPTION_LIMITS, SubscriptionPlan
 from google.cloud import bigquery
+
+# Default limits from STARTER plan (used when subscription limits are missing)
+_DEFAULT_LIMITS = SUBSCRIPTION_LIMITS[SubscriptionPlan.STARTER]
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -153,12 +157,26 @@ async def get_quota(
         row = results[0]
 
         # Extract values (handle NULL from LEFT JOIN when no usage record exists yet)
-        pipelines_run_today = row.get("pipelines_run_today") or 0
-        pipelines_run_month = row.get("pipelines_run_month") or 0
-        concurrent_running = row.get("concurrent_pipelines_running") or 0
-        daily_limit = row.get("daily_limit") or 10
-        monthly_limit = row.get("monthly_limit") or 300
-        concurrent_limit = row.get("concurrent_limit") or 1
+        # Use explicit None checks to preserve 0 values (0 means disabled, not "use default")
+        pipelines_run_today = row.get("pipelines_run_today")
+        pipelines_run_today = pipelines_run_today if pipelines_run_today is not None else 0
+
+        pipelines_run_month = row.get("pipelines_run_month")
+        pipelines_run_month = pipelines_run_month if pipelines_run_month is not None else 0
+
+        concurrent_running = row.get("concurrent_pipelines_running")
+        concurrent_running = concurrent_running if concurrent_running is not None else 0
+
+        # For limits, use SUBSCRIPTION_LIMITS defaults when NULL (not when 0)
+        daily_limit = row.get("daily_limit")
+        daily_limit = daily_limit if daily_limit is not None else _DEFAULT_LIMITS["max_pipelines_per_day"]
+
+        monthly_limit = row.get("monthly_limit")
+        monthly_limit = monthly_limit if monthly_limit is not None else _DEFAULT_LIMITS["max_pipelines_per_month"]
+
+        concurrent_limit = row.get("concurrent_limit")
+        concurrent_limit = concurrent_limit if concurrent_limit is not None else _DEFAULT_LIMITS["max_concurrent_pipelines"]
+
         usage_date = row.get("usage_date")
 
         # Calculate usage percentages

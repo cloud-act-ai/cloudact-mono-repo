@@ -37,8 +37,8 @@ pytestmark = [
 # For integration tests, we MUST use the real project.
 # ============================================
 
-# Real GCP project for integration tests
-INTEGRATION_TEST_PROJECT = "gac-prod-471220"
+# Real GCP project for integration tests - read from environment
+INTEGRATION_TEST_PROJECT = os.environ.get("GCP_PROJECT_ID", "cloudact-testing-1")
 INTEGRATION_TEST_LOCATION = "US"
 INTEGRATION_TEST_ENVIRONMENT = "development"
 

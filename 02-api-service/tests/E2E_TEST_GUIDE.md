@@ -89,7 +89,7 @@ Set these environment variables before running tests:
 export REQUIRES_INTEGRATION_TESTS=true
 
 # Required: GCP Configuration
-export GCP_PROJECT_ID="gac-prod-471220"
+export GCP_PROJECT_ID="your-gcp-project-id"
 export GOOGLE_APPLICATION_CREDENTIALS="/path/to/service-account.json"
 
 # Required: Authentication
@@ -325,11 +325,11 @@ Manual cleanup if needed:
 
 ```bash
 # Delete org from BigQuery
-bq rm -r -f -d gac-prod-471220.test_e2e_YYYYMMDD_HHMMSS
+bq rm -r -f -d your-gcp-project-id.test_e2e_YYYYMMDD_HHMMSS
 
 # Delete org records
 bq query --use_legacy_sql=false "
-DELETE FROM \`gac-prod-471220.organizations.org_profiles\`
+DELETE FROM \`your-gcp-project-id.organizations.org_profiles\`
 WHERE org_slug LIKE 'test_e2e_%'
 "
 ```

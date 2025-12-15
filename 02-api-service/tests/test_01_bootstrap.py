@@ -23,9 +23,9 @@ import httpx
 
 # Set environment variables BEFORE any imports that might load settings
 # Use real values from .env.local if available, fall back to test defaults
-os.environ.setdefault("GCP_PROJECT_ID", "gac-prod-471220")
+os.environ.setdefault("GCP_PROJECT_ID", "test-project")
 os.environ.setdefault("ENVIRONMENT", "development")
-os.environ.setdefault("KMS_KEY_NAME", "projects/gac-prod-471220/locations/us-central1/keyRings/convergence-keyring-prod/cryptoKeys/api-key-encryption")
+os.environ.setdefault("KMS_KEY_NAME", "projects/test-project/locations/us-central1/keyRings/test-keyring/cryptoKeys/api-key-encryption")
 # CA_ROOT_API_KEY should come from .env.local - don't override if already set
 if "CA_ROOT_API_KEY" not in os.environ:
     os.environ["CA_ROOT_API_KEY"] = "test-ca-root-key-secure-32chars"

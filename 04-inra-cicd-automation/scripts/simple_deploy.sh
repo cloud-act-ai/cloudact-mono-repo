@@ -26,25 +26,25 @@ ENV=$1
 
 # Load environment config
 if [ "$ENV" = "stage" ]; then
-    PROJECT_ID="gac-stage-471220"
-    SERVICE_NAME="convergence-pipeline-stage"
-    SERVICE_ACCOUNT="convergence-sa-stage@gac-stage-471220.iam.gserviceaccount.com"
+    PROJECT_ID="${GCP_PROJECT_ID:-cloudact-testing-1}"
+    SERVICE_NAME="cloudact-pipeline-stage"
+    SERVICE_ACCOUNT="cloudact-sa-stage@${PROJECT_ID}.iam.gserviceaccount.com"
     DEPLOY_ENV="staging"
-    # KMS Config for Staging (uses production KMS for shared encryption)
-    KMS_PROJECT_ID="gac-prod-471220"
+    # KMS Config for Staging
+    KMS_PROJECT_ID="${PROJECT_ID}"
     KMS_LOCATION="us-central1"
-    KMS_KEYRING="convergence-keyring-prod"
+    KMS_KEYRING="cloudact-keyring"
     KMS_KEY="api-key-encryption"
     echo -e "${YELLOW}Deploying to STAGING${NC}"
 elif [ "$ENV" = "prod" ]; then
-    PROJECT_ID="gac-prod-471220"
-    SERVICE_NAME="convergence-pipeline-prod"
-    SERVICE_ACCOUNT="convergence-sa-prod@gac-prod-471220.iam.gserviceaccount.com"
+    PROJECT_ID="${GCP_PROJECT_ID:-cloudact-testing-1}"
+    SERVICE_NAME="cloudact-pipeline-prod"
+    SERVICE_ACCOUNT="cloudact-sa-prod@${PROJECT_ID}.iam.gserviceaccount.com"
     DEPLOY_ENV="production"
     # KMS Config for Production
-    KMS_PROJECT_ID="gac-prod-471220"
+    KMS_PROJECT_ID="${PROJECT_ID}"
     KMS_LOCATION="us-central1"
-    KMS_KEYRING="convergence-keyring-prod"
+    KMS_KEYRING="cloudact-keyring"
     KMS_KEY="api-key-encryption"
     echo -e "${YELLOW}Deploying to PRODUCTION${NC}"
 else

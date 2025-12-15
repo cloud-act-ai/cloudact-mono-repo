@@ -21,7 +21,9 @@ schedule: "0 4 * * *"
 variables:
   org_slug: "{org_slug}"
   provider: "gcp"
-  source_billing_table: "gac-prod-471220.cloudact_cost_usage.gcp_billing_export_resource_v1_01ECB7_6EE0BA_7357F1"
+  # NOTE: source_billing_table should be configured per-org via integration settings
+  # This default is for development/testing only
+  source_billing_table: "{billing_export_table}"
   use_org_credentials: "false"
 
 steps:
@@ -45,7 +47,8 @@ steps:
     timeout_minutes: 20
 
     source:
-      bq_project_id: "gac-prod-471220"
+      # bq_project_id is resolved from org credentials or env var
+      bq_project_id: "{gcp_project_id}"
       query: |
         SELECT
           billing_account_id,

@@ -462,22 +462,8 @@ Source: configs/saas/seed/data/saas_subscription_plans.csv (read-only, not store
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                     BIGQUERY CENTRAL DATASET (organizations)                │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│  {project_id}.organizations.org_subscription_audit (11 columns) - BOOTSTRAP │
-│  ├── audit_id: STRING           (UUID, unique per audit entry)             │
-│  ├── org_slug: STRING           (organization identifier)                  │
-│  ├── subscription_id: STRING    (FK to saas_subscription_plans)            │
-│  ├── action: STRING             (created, updated, deleted, status_change) │
-│  ├── changed_field: STRING      (field name that changed, nullable)        │
-│  ├── old_value: STRING          (previous value, nullable)                 │
-│  ├── new_value: STRING          (new value, nullable)                      │
-│  ├── changed_by: STRING         (user email or system)                     │
-│  ├── changed_at: TIMESTAMP      (when change occurred)                     │
-│  ├── reason: STRING             (reason for change, nullable)              │
-│  └── source: STRING             (api, pipeline, manual, system)            │
-│                                                                             │
-│  Purpose: Centralized audit trail for ALL subscription changes (all orgs)  │
-│  Location: Created during bootstrap, NOT per-org onboarding                │
-│  Partition: DAY on changed_at | Cluster: org_slug, subscription_id         │
+│  NOTE: Subscription audit trail is now in org_audit_logs (centralized)     │
+│  See 02-api-service/CLAUDE.md for full audit logging documentation         │
 │                                                                             │
 │  {project_id}.organizations Procedures (Central - operate on per-org data) │
 │  ├── sp_calculate_saas_subscription_plan_costs_daily                        │
@@ -770,24 +756,16 @@ The schema was expanded from 14 columns to 25 columns to support enterprise-grad
 | `yearly_discount_pct` | `discount_type` + `discount_value` | Supports both percentage and fixed discounts |
 | `effective_date` | `start_date` | Clearer meaning |
 
-### New Audit Table
+### Audit Logging
 
-**Table:** `org_subscription_audit` (11 columns)
+**Audit trail is now centralized in `org_audit_logs` table** (created during bootstrap).
 
-Created via pipeline procedures to track all subscription changes:
-- `audit_id` - Unique audit entry ID
-- `org_slug` - Organization identifier
-- `subscription_id` - FK to saas_subscription_plans
-- `action` - Action type (created, updated, deleted, status_change)
-- `changed_field` - Field that changed
-- `old_value` - Previous value
-- `new_value` - New value
-- `changed_by` - User or system
-- `changed_at` - Timestamp
-- `reason` - Reason for change
-- `source` - Source (api, pipeline, manual, system)
+All subscription plan operations (CREATE, UPDATE, DELETE) are automatically logged with:
+- Resource type: `SUBSCRIPTION_PLAN`
+- Details JSON: contains `changed_fields`, `old_values`, `new_values`
+- Full audit trail for SOC2/HIPAA compliance
 
-**Note:** This table is NOT created during org onboarding. It's created via pipeline procedures when first subscription audit is needed.
+**See:** `02-api-service/CLAUDE.md` for detailed audit logging documentation.
 
 ### Migration Impact
 
@@ -1180,10 +1158,9 @@ GET    /costs/{org}/saas-subscriptions/{subscription_id}
 | Sidebar with Subscriptions menu | Frontend | components/dashboard-sidebar.tsx |
 | Subscription Plans router | API Service | src/app/routers/subscription_plans.py |
 | CSV seed data (25 cols, 76 plans, status=pending) | API Service | configs/saas/seed/data/saas_subscription_plans.csv |
-| Schema: saas_subscription_plans (25 cols) | API Service | configs/setup/organizations/onboarding/schemas/ |
+| Schema: saas_subscription_plans (28 cols, +3 multi-currency) | API Service | configs/setup/organizations/onboarding/schemas/ |
 | Schema: saas_subscription_plan_costs_daily (18 cols) | API Service | configs/setup/organizations/onboarding/schemas/ |
 | Schema: cost_data_standard_1_2 (67 cols FOCUS 1.2) | API Service | configs/setup/organizations/onboarding/schemas/ |
-| Schema: org_subscription_audit (11 cols) | Bootstrap | configs/setup/bootstrap/schemas/ |
 | Procedure: sp_calculate_saas_subscription_plan_costs_daily | Pipeline | configs/system/procedures/subscription/ |
 | Procedure: sp_convert_saas_costs_to_focus_1_2 | Pipeline | configs/system/procedures/subscription/ |
 | Procedure: sp_run_saas_subscription_costs_pipeline | Pipeline | configs/system/procedures/subscription/ |
@@ -1271,7 +1248,7 @@ All procedures live in the central `{project_id}.organizations` dataset but oper
 │  │   └── sp_run_saas_subscription_costs_pipeline (orchestrator)                 │
 │  │                                                                               │
 │  └── Bootstrap Tables                                                            │
-│      └── org_subscription_audit (centralized audit trail for all orgs)          │
+│      └── org_audit_logs (centralized audit trail for all orgs - 15 tables)      │
 │                                                                                  │
 │  PER-CUSTOMER DATASETS: {project_id}.{org_slug}_prod                            │
 │  └── Tables (created during onboarding):                                         │
@@ -1290,7 +1267,7 @@ All procedures live in the central `{project_id}.organizations` dataset but oper
 
 ```sql
 CALL `{project_id}.organizations`.sp_calculate_saas_subscription_plan_costs_daily(
-  'gac-prod-471220',    -- p_project_id
+  'your-gcp-project-id',    -- p_project_id
   'acme_corp_prod',     -- p_dataset_id (customer dataset)
   DATE('2024-01-01'),   -- p_start_date
   DATE('2024-01-31')    -- p_end_date
@@ -1316,7 +1293,7 @@ Annual:  cycle_cost / days_in_year (365 or 366 for leap years)
 
 ```sql
 CALL `{project_id}.organizations`.sp_convert_saas_costs_to_focus_1_2(
-  'gac-prod-471220',    -- p_project_id
+  'your-gcp-project-id',    -- p_project_id
   'acme_corp_prod',     -- p_dataset_id (customer dataset)
   DATE('2024-01-01'),   -- p_start_date
   DATE('2024-01-31')    -- p_end_date
@@ -1339,7 +1316,7 @@ CALL `{project_id}.organizations`.sp_convert_saas_costs_to_focus_1_2(
 
 ```sql
 CALL `{project_id}.organizations`.sp_run_saas_subscription_costs_pipeline(
-  'gac-prod-471220',    -- p_project_id
+  'your-gcp-project-id',    -- p_project_id
   'acme_corp_prod',     -- p_dataset_id (customer dataset)
   DATE('2024-01-01'),   -- p_start_date
   DATE('2024-01-31')    -- p_end_date
@@ -1407,7 +1384,7 @@ sp_run_saas_subscription_costs_pipeline
 │  │                                                                                  │    │
 │  │  1. Load pipeline configuration                                                  │    │
 │  │  2. Resolve context variables:                                                   │    │
-│  │     • ${project_id} → gac-prod-471220                                           │    │
+│  │     • ${project_id} → your-gcp-project-id                                           │    │
 │  │     • ${org_dataset} → {org_slug}_prod                                          │    │
 │  │     • ${start_date} → Pipeline parameter or yesterday                           │    │
 │  │     • ${end_date} → Pipeline parameter or yesterday                             │    │
@@ -1426,7 +1403,7 @@ sp_run_saas_subscription_costs_pipeline
 │  │  3. Execute BigQuery procedure call                                              │    │
 │  │                                                                                  │    │
 │  │  CALL `{project_id}.organizations`.sp_run_saas_subscription_costs_pipeline(      │    │
-│  │    @p_project_id,   -- 'gac-prod-471220'                                         │    │
+│  │    @p_project_id,   -- 'your-gcp-project-id'                                         │    │
 │  │    @p_dataset_id,   -- '{org_slug}_prod'                                         │    │
 │  │    @p_start_date,   -- DATE('2024-01-15')                                        │    │
 │  │    @p_end_date      -- DATE('2024-01-15')                                        │    │
@@ -1616,8 +1593,8 @@ Pipeline service scheduler calls for each active customer:
 
 ```sql
 -- For each active org
-CALL `gac-prod-471220.organizations`.sp_run_saas_subscription_costs_pipeline(
-  'gac-prod-471220',
+CALL `your-gcp-project-id.organizations`.sp_run_saas_subscription_costs_pipeline(
+  'your-gcp-project-id',
   'acme_corp_prod',
   DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY),
   DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)
@@ -1639,8 +1616,8 @@ curl -X POST http://localhost:8001/api/v1/pipelines/run/acme_corp/subscription/c
 #### Backfill Run (Full Year)
 
 ```sql
-CALL `gac-prod-471220.organizations`.sp_run_saas_subscription_costs_pipeline(
-  'gac-prod-471220',
+CALL `your-gcp-project-id.organizations`.sp_run_saas_subscription_costs_pipeline(
+  'your-gcp-project-id',
   'acme_corp_prod',
   DATE('2024-01-01'),
   DATE('2024-12-31')
@@ -1768,10 +1745,10 @@ To complete the architecture migration:
 - [x] Delete `actions/saas-subscriptions.ts`
 
 ### Schema (v10.0)
-- [x] Create `saas_subscription_plans.json` (25 columns)
+- [x] Create `saas_subscription_plans.json` (28 columns, +3 multi-currency audit fields)
 - [x] Create `saas_subscription_plan_costs_daily.json` (18 columns)
 - [x] Create `cost_data_standard_1_2.json` (67 columns FOCUS 1.2)
-- [x] Create `org_subscription_audit.json` (11 columns) in bootstrap
+- [x] Audit logging via centralized `org_audit_logs` table (15 bootstrap tables)
 - [x] Update seed CSV to 25 columns
 
 ### Pipeline Procedures
@@ -1798,10 +1775,9 @@ To complete the architecture migration:
 | File | Purpose |
 |------|---------|
 | `02-api-service/src/app/routers/subscription_plans.py` | API endpoints for plan CRUD |
-| `02-api-service/configs/setup/organizations/onboarding/schemas/saas_subscription_plans.json` | BigQuery schema (25 cols) |
+| `02-api-service/configs/setup/organizations/onboarding/schemas/saas_subscription_plans.json` | BigQuery schema (28 cols, +3 multi-currency) |
 | `02-api-service/configs/setup/organizations/onboarding/schemas/saas_subscription_plan_costs_daily.json` | Daily costs schema (18 cols) |
 | `02-api-service/configs/setup/organizations/onboarding/schemas/cost_data_standard_1_2.json` | FOCUS 1.2 schema (67 cols) |
-| `02-api-service/configs/setup/bootstrap/schemas/org_subscription_audit.json` | Audit table schema (11 cols) |
 | `02-api-service/configs/saas/seed/data/saas_subscription_plans.csv` | Seed data (25 cols, 76 plans, status=pending) |
 | `02-api-service/src/app/routers/costs.py` | Costs API endpoints (Polars-powered) |
 | `02-api-service/src/core/utils/audit_logger.py` | Audit logging with JSON column support |

@@ -731,6 +731,123 @@ async def _setup_integration(
 ) -> SetupIntegrationResponse:
     """Common logic for setting up any integration."""
     try:
+        # INTEGRATION LIMITS ENFORCEMENT: Check if adding a new integration would exceed the org's provider limit
+        bq_client = get_bigquery_client()
+
+        # Check if this is a new integration (not an update to existing one)
+        existing_integration_query = f"""
+        SELECT COUNT(*) as cnt
+        FROM `{settings.gcp_project_id}.organizations.org_integration_credentials`
+        WHERE org_slug = @org_slug AND provider = @provider AND is_active = TRUE
+        """
+
+        existing_result = list(bq_client.client.query(
+            existing_integration_query,
+            job_config=bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                    bigquery.ScalarQueryParameter("provider", "STRING", provider),
+                ]
+            )
+        ).result())
+
+        is_new_integration = existing_result[0]["cnt"] == 0
+
+        # Only enforce limits for NEW integrations (not updates)
+        if is_new_integration:
+            # Count current active integrations
+            count_query = f"""
+            SELECT COUNT(DISTINCT provider) as provider_count
+            FROM `{settings.gcp_project_id}.organizations.org_integration_credentials`
+            WHERE org_slug = @org_slug AND is_active = TRUE
+            """
+
+            count_result = list(bq_client.client.query(
+                count_query,
+                job_config=bigquery.QueryJobConfig(
+                    query_parameters=[
+                        bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                    ]
+                )
+            ).result())
+
+            current_integration_count = count_result[0]["provider_count"]
+
+            # Get org's provider limit from subscription
+            limit_query = f"""
+            SELECT providers_limit
+            FROM `{settings.gcp_project_id}.organizations.org_subscriptions`
+            WHERE org_slug = @org_slug AND status = 'ACTIVE'
+            ORDER BY created_at DESC
+            LIMIT 1
+            """
+
+            limit_result = list(bq_client.client.query(
+                limit_query,
+                job_config=bigquery.QueryJobConfig(
+                    query_parameters=[
+                        bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                    ]
+                )
+            ).result())
+
+            if not limit_result:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="No active subscription found for organization"
+                )
+
+            providers_limit = limit_result[0]["providers_limit"]
+
+            # Fallback to SUBSCRIPTION_LIMITS if providers_limit is NULL
+            if providers_limit is None:
+                from src.app.models.org_models import SUBSCRIPTION_LIMITS, SubscriptionPlan
+                # Get plan name to look up default limits
+                plan_query = f"""
+                SELECT plan_name FROM `{settings.gcp_project_id}.organizations.org_subscriptions`
+                WHERE org_slug = @org_slug AND status = 'ACTIVE'
+                ORDER BY created_at DESC LIMIT 1
+                """
+                plan_result = list(bq_client.client.query(
+                    plan_query,
+                    job_config=bigquery.QueryJobConfig(
+                        query_parameters=[
+                            bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                        ]
+                    )
+                ).result())
+                if plan_result:
+                    plan_name = plan_result[0]["plan_name"]
+                    try:
+                        plan_enum = SubscriptionPlan(plan_name)
+                        providers_limit = SUBSCRIPTION_LIMITS[plan_enum]["max_providers"]
+                        logger.info(f"Using fallback providers_limit={providers_limit} for plan {plan_name}")
+                    except (ValueError, KeyError):
+                        providers_limit = 3  # Default to STARTER limit
+                        logger.warning(f"Unknown plan {plan_name}, using default providers_limit=3")
+                else:
+                    providers_limit = 3  # Default to STARTER limit
+
+            # Check if adding new integration would exceed limit
+            if current_integration_count >= providers_limit:
+                # Handle unlimited (999999) case
+                if providers_limit == 999999:
+                    pass  # Unlimited, allow integration
+                else:
+                    logger.warning(
+                        f"Integration limit reached for {org_slug}",
+                        extra={
+                            "org_slug": org_slug,
+                            "current_count": current_integration_count,
+                            "limit": providers_limit,
+                            "attempted_provider": provider
+                        }
+                    )
+                    raise HTTPException(
+                        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                        detail=f"Integration limit reached. Your plan allows {providers_limit} integrations. Upgrade to add more."
+                    )
+
         from src.core.processors.integrations.kms_store import KMSStoreIntegrationProcessor
 
         processor = KMSStoreIntegrationProcessor()

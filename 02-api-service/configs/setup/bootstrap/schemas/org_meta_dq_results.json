@@ -21,7 +21,7 @@
     "name": "target_table",
     "type": "STRING",
     "mode": "REQUIRED",
-    "description": "Fully qualified BigQuery table that was validated. Format: 'project.dataset.table' or 'dataset.table'. The table whose data quality was checked. Used for table-specific DQ trend analysis, identifying problematic tables, and compliance reporting. Example: 'gac-prod-471220.acme1281_silver_cost.customer_usage'."
+    "description": "Fully qualified BigQuery table that was validated. Format: 'project.dataset.table' or 'dataset.table'. The table whose data quality was checked. Used for table-specific DQ trend analysis, identifying problematic tables, and compliance reporting. Example: 'your-project.acme_prod.customer_usage'."
   },
   {
     "name": "dq_config_id",

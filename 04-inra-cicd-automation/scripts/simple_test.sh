@@ -36,8 +36,8 @@ if [ "$ENV" = "local" ]; then
         exit 1
     fi
 elif [ "$ENV" = "stage" ]; then
-    API_URL="https://convergence-pipeline-stage-526075321773.us-central1.run.app"
-    PROJECT_ID="gac-stage-471220"
+    PROJECT_ID="${GCP_PROJECT_ID:-cloudact-testing-1}"
+    API_URL="${API_SERVICE_URL:-https://cloudact-pipeline-stage.us-central1.run.app}"
 
     if [ -z "$CA_ROOT_API_KEY" ]; then
         echo "Fetching CA Root API Key from Secret Manager (stage)..."
@@ -55,8 +55,8 @@ elif [ "$ENV" = "stage" ]; then
         echo "CA Root Key fetched successfully."
     fi
 elif [ "$ENV" = "prod" ]; then
-    API_URL="https://convergence-pipeline-prod-820784027009.us-central1.run.app"
-    PROJECT_ID="gac-prod-471220"
+    PROJECT_ID="${GCP_PROJECT_ID:-cloudact-testing-1}"
+    API_URL="${API_SERVICE_URL:-https://cloudact-pipeline-prod.us-central1.run.app}"
 
     if [ -z "$CA_ROOT_API_KEY" ]; then
         echo "Fetching CA Root API Key from Secret Manager (prod)..."

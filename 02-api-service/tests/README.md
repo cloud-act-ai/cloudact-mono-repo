@@ -91,11 +91,11 @@ E2E tests require **real external services**:
 export REQUIRES_INTEGRATION_TESTS=true
 
 # GCP Configuration
-export GCP_PROJECT_ID="gac-prod-471220"
+export GCP_PROJECT_ID="your-gcp-project-id"
 export GOOGLE_APPLICATION_CREDENTIALS="/path/to/service-account.json"
 
 # KMS Encryption
-export KMS_KEY_NAME="projects/gac-prod-471220/locations/us-central1/keyRings/cloudact-keyring/cryptoKeys/cloudact-key"
+export KMS_KEY_NAME="projects/your-gcp-project-id/locations/us-central1/keyRings/your-keyring/cryptoKeys/your-key"
 
 # API Keys
 export CA_ROOT_API_KEY="your-admin-key-min-32-chars"
@@ -324,8 +324,8 @@ DELETE FROM \`organizations.org_profiles\` WHERE org_slug LIKE 'test_e2e_%'
 "
 
 # Delete test datasets
-bq ls --project_id=gac-prod-471220 | grep test_e2e | while read dataset; do
-  bq rm -r -f -d "gac-prod-471220:$dataset"
+bq ls --project_id=your-gcp-project-id | grep test_e2e | while read dataset; do
+  bq rm -r -f -d "your-gcp-project-id:$dataset"
 done
 ```
 

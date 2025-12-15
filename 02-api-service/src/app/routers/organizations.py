@@ -545,8 +545,8 @@ async def onboard_org(
                         bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
                         bigquery.ScalarQueryParameter("plan_name", "STRING", request.subscription_plan),
                         bigquery.ScalarQueryParameter("daily_limit", "INT64", plan_limits["max_daily"]),
-                        # Bug fix #12: Add bounds check to prevent integer overflow
-                        bigquery.ScalarQueryParameter("monthly_limit", "INT64", min(plan_limits["max_daily"] * 30, 999999999)),
+                        # Use max_monthly from SUBSCRIPTION_LIMITS (single source of truth)
+                        bigquery.ScalarQueryParameter("monthly_limit", "INT64", plan_limits["max_monthly"]),
                         bigquery.ScalarQueryParameter("concurrent_limit", "INT64", plan_limits["max_concurrent"])
                     ]
                 )
@@ -818,10 +818,10 @@ async def onboard_org(
         insert_subscription_query = f"""
         INSERT INTO `{settings.gcp_project_id}.organizations.org_subscriptions`
         (subscription_id, org_slug, plan_name, status, daily_limit, monthly_limit,
-         concurrent_limit, trial_end_date, created_at)
+         concurrent_limit, seat_limit, providers_limit, trial_end_date, created_at)
         VALUES
         (@subscription_id, @org_slug, @plan_name, 'ACTIVE', @daily_limit, @monthly_limit,
-         @concurrent_limit, @trial_end_date, CURRENT_TIMESTAMP())
+         @concurrent_limit, @seat_limit, @providers_limit, @trial_end_date, CURRENT_TIMESTAMP())
         """
 
         bq_client.client.query(
@@ -832,8 +832,10 @@ async def onboard_org(
                     bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
                     bigquery.ScalarQueryParameter("plan_name", "STRING", request.subscription_plan),
                     bigquery.ScalarQueryParameter("daily_limit", "INT64", plan_limits["max_daily"]),
-                    bigquery.ScalarQueryParameter("monthly_limit", "INT64", plan_limits["max_daily"] * 30),
+                    bigquery.ScalarQueryParameter("monthly_limit", "INT64", plan_limits["max_monthly"]),
                     bigquery.ScalarQueryParameter("concurrent_limit", "INT64", plan_limits["max_concurrent"]),
+                    bigquery.ScalarQueryParameter("seat_limit", "INT64", plan_limits["seat_limit"]),
+                    bigquery.ScalarQueryParameter("providers_limit", "INT64", plan_limits["providers_limit"]),
                     bigquery.ScalarQueryParameter("trial_end_date", "DATE", trial_end)
                 ]
             )
@@ -958,7 +960,7 @@ async def onboard_org(
                     # LLM tables created empty - customers add custom plans via UI
                     "seed_llm_data": False,
                     "default_daily_limit": plan_limits["max_daily"],
-                    "default_monthly_limit": plan_limits["max_daily"] * 30,
+                    "default_monthly_limit": plan_limits["max_monthly"],
                     "default_concurrent_limit": plan_limits["max_concurrent"]
                 }
             },

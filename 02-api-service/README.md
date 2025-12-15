@@ -11,7 +11,7 @@ cd api-service
 pip install -r requirements.txt
 
 # Environment variables
-export GCP_PROJECT_ID="gac-prod-471220"
+export GCP_PROJECT_ID="your-gcp-project-id"
 export CA_ROOT_API_KEY="your-secure-admin-key"
 export ENVIRONMENT="development"
 export DISABLE_AUTH="true"  # LOCAL ONLY
@@ -169,7 +169,7 @@ pytest tests/ -v -m integration
 **Environment Setup:**
 ```bash
 export REQUIRES_INTEGRATION_TESTS=true
-export GCP_PROJECT_ID="gac-prod-471220"
+export GCP_PROJECT_ID="your-gcp-project-id"
 export CA_ROOT_API_KEY="your-admin-key"
 export OPENAI_API_KEY="sk-your-openai-key"
 export KMS_KEY_NAME="projects/.../cryptoKeys/..."

@@ -40,8 +40,9 @@ if [ -z "$CA_ROOT_API_KEY" ]; then
 fi
 
 if [ -z "$GCP_PROJECT_ID" ]; then
-  echo -e "${YELLOW}Warning: GCP_PROJECT_ID not set, defaulting to 'gac-prod-471220'${NC}"
-  GCP_PROJECT_ID="gac-prod-471220"
+  echo -e "${RED}Error: GCP_PROJECT_ID environment variable not set${NC}"
+  echo "Export your GCP project: export GCP_PROJECT_ID='your-project-id'"
+  exit 1
 fi
 
 # Help text
@@ -68,7 +69,7 @@ show_help() {
   echo ""
   echo "Environment Variables:"
   echo "  CA_ROOT_API_KEY      Root API key (required)"
-  echo "  GCP_PROJECT_ID       GCP project ID (default: gac-prod-471220)"
+  echo "  GCP_PROJECT_ID       GCP project ID (required)"
   echo "  API_SERVICE_URL      Pipeline service URL (default: http://localhost:8001)"
 }
 
