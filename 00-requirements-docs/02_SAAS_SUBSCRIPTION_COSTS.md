@@ -1,6 +1,6 @@
 # SaaS Subscription Costs
 
-**Status**: IMPLEMENTED (v12.2) | **Updated**: 2025-12-14 | **Single Source of Truth**
+**Status**: IMPLEMENTED (v12.3) | **Updated**: 2025-12-17 | **Single Source of Truth**
 
 > Track fixed-cost SaaS subscriptions (Canva, ChatGPT Plus, Slack, etc.)
 > NOT CloudAct platform billing (that's Stripe)
@@ -1623,6 +1623,118 @@ CALL `your-gcp-project-id.organizations`.sp_run_saas_subscription_costs_pipeline
   DATE('2024-12-31')
 );
 ```
+
+#### Automatic Cost Pipeline Triggering (v12.3)
+
+**ALL subscription changes automatically trigger the cost pipeline** to keep YTD costs up-to-date. This ensures dashboard data is always accurate without manual intervention.
+
+**Triggered On:**
+
+| Action | Date Range | Description |
+|--------|------------|-------------|
+| **Create Plan** | `start_date` → today | New plan added (backdated or future) |
+| **Create Provider+Plan** | `start_date` → today | New provider enabled with initial plan |
+| **Edit Plan** | Month start → today | Plan price, quantity, or billing cycle changed |
+| **End Subscription** | Month start → today | Plan cancelled (recalculates without ended plan) |
+
+**How It Works:**
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     USER MODIFIES SUBSCRIPTION                              │
+│                                                                             │
+│  Actions: Create | Edit | End                                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     CHANGE APPLIED IN BigQuery                              │
+│                                                                             │
+│  saas_subscription_plans updated/inserted                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     DETERMINE PIPELINE DATE RANGE                           │
+│                                                                             │
+│  CREATE:  start_date (from plan) → today                                   │
+│  EDIT:    month start (1st of current month) → today                       │
+│  END:     month start (1st of current month) → today                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     TRIGGER COST PIPELINE                                   │
+│                                                                             │
+│  POST /api/v1/pipelines/run/{org}/saas_subscription/costs/saas_cost        │
+│  Body: { "start_date": "{date_range_start}", "end_date": "{today}" }       │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     DAILY COSTS REGENERATED                                 │
+│                                                                             │
+│  saas_subscription_plan_costs_daily rows updated                           │
+│  (reflects new/edited/ended plans)                                         │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     DASHBOARD SHOWS ACCURATE YTD                            │
+│                                                                             │
+│  Cost charts immediately reflect the change                                │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Implementation Files:**
+
+| File | Function | Purpose |
+|------|----------|---------|
+| `01-fronted-system/actions/subscription-providers.ts` | `triggerCostBackfill()` | Triggers pipeline with date range |
+| `01-fronted-system/actions/subscription-providers.ts` | `getMonthStart()` | Returns 1st day of current month |
+| `01-fronted-system/actions/subscription-providers.ts` | `isDateInPast()` | Detects backdated start dates |
+| `01-fronted-system/actions/subscription-providers.ts` | `createCustomPlan()` | Triggers pipeline after creation |
+| `01-fronted-system/actions/subscription-providers.ts` | `createCustomProviderWithPlan()` | Triggers pipeline for new providers |
+| `01-fronted-system/actions/subscription-providers.ts` | `editPlanWithVersion()` | Triggers pipeline after edit |
+| `01-fronted-system/actions/subscription-providers.ts` | `endSubscription()` | Triggers pipeline after ending |
+| `01-fronted-system/actions/subscription-providers.ts` | `runCostBackfill()` | Manual backfill server action |
+
+**Server Action - Manual Backfill:**
+
+```typescript
+import { runCostBackfill } from "@/actions/subscription-providers"
+
+// Backfill from Jan 1, 2025 to today
+const result = await runCostBackfill("acme_corp", "2025-01-01")
+// Result: { success: true, message: "Cost backfill triggered from 2025-01-01 to 2025-12-17" }
+```
+
+**API - Manual Backfill:**
+
+```bash
+# Get org API key first
+ORG_API_KEY=$(curl -s "http://localhost:8000/api/v1/admin/dev/api-key/{org_slug}" \
+  -H "X-CA-Root-Key: $CA_ROOT_API_KEY" | jq -r '.api_key')
+
+# Run backfill pipeline
+curl -X POST "http://localhost:8001/api/v1/pipelines/run/{org_slug}/saas_subscription/costs/saas_cost" \
+  -H "X-API-Key: $ORG_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"start_date": "2025-01-01", "end_date": "2025-12-17"}'
+```
+
+**User Feedback:**
+
+The UI shows pipeline status after each action:
+- **Create:** "Subscription added! Costs calculated from {start_date} to today"
+- **Edit:** "Subscription updated! Costs recalculated for this month"
+- **End:** "Subscription ended! Costs recalculated (subscription ended on {end_date})"
+
+**Error Handling:**
+
+If pipeline fails, the subscription change is still applied but a warning is shown:
+- Toast: "{action} completed but cost update failed: {error}"
+- User can manually trigger backfill later via API or wait for daily scheduled run
 
 ### Handling Subscription Changes (SCD Type 2)
 

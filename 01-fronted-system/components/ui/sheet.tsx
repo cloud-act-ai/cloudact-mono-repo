@@ -36,7 +36,7 @@ function SheetOverlay({
     <SheetPrimitive.Overlay
       data-slot="sheet-overlay"
       className={cn(
-        'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 bg-black/80 backdrop-blur-sm',
+        'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 bg-black/30 backdrop-blur-[2px]',
         className,
       )}
       style={{ zIndex: 'var(--z-sidebar)' }}
@@ -49,21 +49,32 @@ function SheetContent({
   className,
   children,
   side = 'right',
+  size = 'default',
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Content> & {
   side?: 'top' | 'right' | 'bottom' | 'left'
+  size?: 'default' | 'sm' | 'lg' | 'xl' | 'full'
 }) {
+  // Size classes for right/left side sheets
+  const sizeClasses = {
+    sm: 'sm:max-w-sm',
+    default: 'sm:max-w-md',
+    lg: 'sm:max-w-lg',
+    xl: 'sm:max-w-xl md:max-w-2xl',
+    full: 'sm:max-w-[50vw]',
+  }
+
   return (
     <SheetPortal>
       <SheetOverlay />
       <SheetPrimitive.Content
         data-slot="sheet-content"
         className={cn(
-          'bg-background data-[state=open]:animate-in data-[state=closed]:animate-out fixed flex flex-col gap-4 shadow-xl transition ease-in-out data-[state-closed]:duration-200 data-[state-open]:duration-200',
+          'bg-background data-[state=open]:animate-in data-[state=closed]:animate-out fixed flex flex-col shadow-xl transition ease-in-out data-[state-closed]:duration-200 data-[state-open]:duration-200',
           side === 'right' &&
-            'data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right inset-y-0 right-0 h-full w-3/4 border-l border-border sm:max-w-sm',
+            `data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right inset-y-0 right-0 h-full w-full border-l border-border ${sizeClasses[size]}`,
           side === 'left' &&
-            'data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left inset-y-0 left-0 h-full w-3/4 border-r border-border sm:max-w-sm',
+            `data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left inset-y-0 left-0 h-full w-full border-r border-border ${sizeClasses[size]}`,
           side === 'top' &&
             'data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top inset-x-0 top-0 h-auto border-b border-border',
           side === 'bottom' &&

@@ -181,7 +181,7 @@ export default function EditSubscriptionPage() {
     }
 
     if (!effectiveDate) {
-      setError("Effective date is required")
+      setError("Start date is required")
       return
     }
 
@@ -236,7 +236,7 @@ export default function EditSubscriptionPage() {
 
       // Redirect to success page
       const planName = editData.display_name || currentPlan.plan_name
-      router.push(`/${orgSlug}/subscriptions/${provider}/success?action=updated&plan=${encodeURIComponent(planName)}`)
+      router.push(`/${orgSlug}/integrations/subscriptions/${provider}/success?action=updated&plan=${encodeURIComponent(planName)}`)
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "An unexpected error occurred"
       setError(errorMessage)
@@ -286,7 +286,7 @@ export default function EditSubscriptionPage() {
           <CardContent className="pt-6">
             <p className="text-sm text-[#FF6E50]">{error || "Subscription not found"}</p>
             <div className="mt-4">
-              <Link href={`/${orgSlug}/subscriptions/${provider}`}>
+              <Link href={`/${orgSlug}/integrations/subscriptions/${provider}`}>
                 <Button variant="outline">
                   <ArrowLeft className="h-4 w-4 mr-2" />
                   Back to {providerDisplayName}
@@ -304,15 +304,15 @@ export default function EditSubscriptionPage() {
       {/* Breadcrumb Navigation */}
       <nav className="flex items-center gap-2 text-sm" aria-label="Breadcrumb">
         <Link
-          href={`/${orgSlug}/settings/integrations/subscriptions`}
+          href={`/${orgSlug}/integrations/subscriptions`}
           className="text-[#007A78] hover:text-[#005F5D] transition-colors focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2 rounded truncate max-w-[200px]"
-          title="Subscriptions"
+          title="Subscription Providers"
         >
-          Subscriptions
+          Subscription Providers
         </Link>
         <ChevronRight className="h-4 w-4 text-[#8E8E93] flex-shrink-0" aria-hidden="true" />
         <Link
-          href={`/${orgSlug}/subscriptions/${provider}`}
+          href={`/${orgSlug}/integrations/subscriptions/${provider}`}
           className="text-[#007A78] hover:text-[#005F5D] transition-colors focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2 rounded truncate max-w-[200px]"
           title={providerDisplayName}
         >
@@ -328,7 +328,7 @@ export default function EditSubscriptionPage() {
 
       {/* Header */}
       <div className="flex items-center gap-3">
-        <Link href={`/${orgSlug}/subscriptions/${provider}`}>
+        <Link href={`/${orgSlug}/integrations/subscriptions/${provider}`}>
           <Button variant="ghost" size="icon" className="h-8 w-8">
             <ArrowLeft className="h-4 w-4" />
           </Button>
@@ -356,7 +356,7 @@ export default function EditSubscriptionPage() {
           <div className="flex items-center gap-3">
             <Info className="h-5 w-5 text-[#007A78] flex-shrink-0" />
             <p className="text-sm text-[#005F5D]">
-              Changes will create a new version. Current plan ends the day before the effective date, and the new plan starts on the effective date.
+              Changes will create a new version. Current plan ends the day before the start date, and the new version starts on the selected date.
             </p>
           </div>
         </CardContent>
@@ -413,23 +413,23 @@ export default function EditSubscriptionPage() {
         <Card>
           <CardHeader>
             <CardTitle className="console-card-title">New Version Details</CardTitle>
-            <CardDescription>Changes will take effect on the date you specify below</CardDescription>
+            <CardDescription>Changes will take effect on the start date you select below</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* Effective Date */}
+            {/* Start Date for New Version */}
             <div className="space-y-2">
-              <Label htmlFor="effective_date">Effective Date *</Label>
+              <Label htmlFor="start_date">Start Date *</Label>
               <DatePicker
                 date={effectiveDate}
                 onSelect={setEffectiveDate}
-                placeholder="Select effective date"
+                placeholder="Select start date"
                 minDate={new Date()}
                 disabled={saving}
-                data-testid="edit-effective-date-picker"
+                data-testid="edit-start-date-picker"
               />
               <p className="text-xs text-slate-500">
                 <Calendar className="h-3 w-3 inline mr-1" />
-                Current plan ends {effectiveDate ? format(new Date(effectiveDate.getTime() - 86400000), 'MMM d, yyyy') : 'day before effective date'}. New plan starts on effective date.
+                Current plan ends {effectiveDate ? format(new Date(effectiveDate.getTime() - 86400000), 'MMM d, yyyy') : 'day before start date'}. New version starts on this date.
               </p>
             </div>
 
@@ -527,7 +527,7 @@ export default function EditSubscriptionPage() {
 
             {/* Action Buttons */}
             <div className="flex items-center justify-end gap-3 pt-4 border-t">
-              <Link href={`/${orgSlug}/subscriptions/${provider}`}>
+              <Link href={`/${orgSlug}/integrations/subscriptions/${provider}`}>
                 <Button type="button" variant="outline" disabled={saving}>
                   Cancel
                 </Button>

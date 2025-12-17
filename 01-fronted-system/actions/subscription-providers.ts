@@ -24,6 +24,14 @@ function getApiServiceUrl(): string {
   return url
 }
 
+function getPipelineServiceUrl(): string {
+  const url = process.env.PIPELINE_SERVICE_URL || process.env.NEXT_PUBLIC_PIPELINE_SERVICE_URL
+  if (!url) {
+    throw new Error("PIPELINE_SERVICE_URL is not configured")
+  }
+  return url
+}
+
 /**
  * Fetch with timeout to prevent hanging requests
  * Default timeout: 30 seconds (backend can be slow for large datasets)
@@ -114,6 +122,135 @@ const VALID_BILLING_CYCLES = new Set(["monthly", "annual", "quarterly"])
 const VALID_PRICING_MODELS = new Set(["PER_SEAT", "FLAT_FEE"])
 const VALID_DISCOUNT_TYPES = new Set(["percent", "fixed"])
 const VALID_STATUS_VALUES = new Set(["active", "cancelled", "expired", "pending"])
+
+// ============================================
+// Auto-Backfill Helper
+// ============================================
+
+/**
+ * Trigger SaaS subscription costs pipeline backfill for backdated plans.
+ * This is called automatically when a plan is created with a start_date in the past.
+ * Can also be called manually to backfill costs for any date range.
+ *
+ * @param orgSlug - Organization slug
+ * @param orgApiKey - Organization API key (optional, will fetch if not provided)
+ * @param startDate - Start date for backfill (YYYY-MM-DD)
+ * @param endDate - End date for backfill (YYYY-MM-DD), defaults to today
+ * @returns Result of backfill trigger
+ */
+export async function triggerCostBackfill(
+  orgSlug: string,
+  orgApiKey: string,
+  startDate: string,
+  endDate?: string
+): Promise<{
+  success: boolean
+  message?: string
+  error?: string
+}> {
+  try {
+    const pipelineUrl = getPipelineServiceUrl()
+    const today = new Date().toISOString().split("T")[0]
+    const actualEndDate = endDate || today
+
+    console.log(`[AutoBackfill] Triggering backfill for ${orgSlug} from ${startDate} to ${actualEndDate}`)
+
+    const response = await fetchWithTimeout(
+      `${pipelineUrl}/api/v1/pipelines/run/${orgSlug}/saas_subscription/costs/saas_cost`,
+      {
+        method: "POST",
+        headers: {
+          "X-API-Key": orgApiKey,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          start_date: startDate,
+          end_date: actualEndDate,
+        }),
+      },
+      60000 // 60 second timeout for backfill (can be slow for large date ranges)
+    )
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.warn(`[AutoBackfill] Pipeline trigger failed: ${errorText}`)
+      return {
+        success: false,
+        error: `Backfill pipeline failed: ${errorText}`,
+      }
+    }
+
+    const result = await safeJsonParse<{ status?: string; message?: string }>(
+      response,
+      { status: "unknown" }
+    )
+
+    console.log(`[AutoBackfill] Pipeline triggered successfully for ${orgSlug}`)
+    return {
+      success: true,
+      message: `Cost backfill triggered from ${startDate} to ${actualEndDate}`,
+    }
+  } catch (error) {
+    console.error(`[AutoBackfill] Error triggering backfill:`, error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error triggering backfill",
+    }
+  }
+}
+
+/**
+ * Check if a date is in the past (before today)
+ */
+function isDateInPast(dateStr: string): boolean {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const checkDate = new Date(dateStr)
+  checkDate.setHours(0, 0, 0, 0)
+  return checkDate < today
+}
+
+/**
+ * Get the first day of the current month (YYYY-MM-DD)
+ */
+function getMonthStart(): string {
+  const today = new Date()
+  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-01`
+}
+
+/**
+ * Manually trigger cost backfill for an organization.
+ * Use this to backfill costs after creating backdated plans, or to recalculate costs.
+ *
+ * @param orgSlug - Organization slug
+ * @param startDate - Start date for backfill (YYYY-MM-DD)
+ * @param endDate - End date for backfill (YYYY-MM-DD), defaults to today
+ */
+export async function runCostBackfill(
+  orgSlug: string,
+  startDate: string,
+  endDate?: string
+): Promise<{
+  success: boolean
+  message?: string
+  error?: string
+}> {
+  try {
+    await requireRole(orgSlug, "admin")
+
+    const orgApiKey = await getOrgApiKeySecure(orgSlug)
+    if (!orgApiKey) {
+      return { success: false, error: "Organization API key not found" }
+    }
+
+    return await triggerCostBackfill(orgSlug, orgApiKey, startDate, endDate)
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    }
+  }
+}
 
 /**
  * Validate plan data before sending to API
@@ -510,6 +647,150 @@ export async function enableProvider(
     }
   } catch (error) {
     return { success: false, plans_seeded: 0, error: logError("enableProvider", error) }
+  }
+}
+
+/**
+ * Create a custom provider with its first plan
+ * Used for adding SaaS providers not in the default list
+ *
+ * If the plan has a start_date in the past, automatically triggers a cost backfill
+ * to generate daily cost rows from start_date to today.
+ */
+export async function createCustomProviderWithPlan(
+  orgSlug: string,
+  data: {
+    provider: string
+    display_name: string
+    category: string
+    plan: PlanCreate
+  }
+): Promise<{
+  success: boolean
+  backfillTriggered?: boolean
+  backfillMessage?: string
+  error?: string
+}> {
+  try {
+    // Validate provider name
+    const sanitizedProvider = sanitizeProviderName(data.provider)
+    if (!sanitizedProvider || sanitizedProvider.length < 2) {
+      return { success: false, error: "Invalid provider name" }
+    }
+
+    // Validate plan data
+    const planValidation = validatePlanData(data.plan)
+    if (!planValidation.valid) {
+      return { success: false, error: planValidation.error }
+    }
+
+    const { orgId } = await requireRole(orgSlug, "admin")
+    const supabase = await createClient()
+
+    // 1. Enable the provider in Supabase meta table (with custom flag and display_name)
+    const { error: metaError } = await supabase
+      .from("saas_subscription_providers_meta")
+      .upsert(
+        {
+          org_id: orgId,
+          provider_name: sanitizedProvider,
+          is_enabled: true,
+          enabled_at: new Date().toISOString(),
+          display_name: data.display_name,
+          category: data.category,
+          is_custom: true,  // Mark as custom provider
+        },
+        { onConflict: "org_id,provider_name" }
+      )
+
+    if (metaError) {
+      return { success: false, error: `Failed to enable provider: ${metaError.message}` }
+    }
+
+    // 2. Validate currency matches org default
+    const { getOrgLocale, validateLocaleSync, repairLocaleSync } = await import("./organization-locale")
+    const localeResult = await getOrgLocale(orgSlug)
+    if (localeResult.success && localeResult.locale) {
+      const orgCurrency = localeResult.locale.default_currency || "USD"
+      if (data.plan.currency && data.plan.currency !== orgCurrency) {
+        return {
+          success: false,
+          error: `Plan currency '${data.plan.currency}' must match organization's default currency '${orgCurrency}'`
+        }
+      }
+
+      // Check if Supabase and BigQuery are in sync, auto-repair if needed
+      const syncCheck = await validateLocaleSync(orgSlug)
+      if (!syncCheck.inSync && syncCheck.mismatch) {
+        console.warn(`[CreateCustomProvider] Locale sync mismatch detected, auto-repairing`)
+        const repairResult = await repairLocaleSync(orgSlug)
+        if (!repairResult.success) {
+          return {
+            success: false,
+            error: `Locale sync failed: ${repairResult.error}`
+          }
+        }
+      }
+    }
+
+    // 3. Create the first plan via API service
+    const orgApiKey = await getOrgApiKeySecure(orgSlug)
+    if (!orgApiKey) {
+      return { success: false, error: "Organization API key not found" }
+    }
+
+    const apiUrl = getApiServiceUrl()
+    const response = await fetchWithTimeout(
+      `${apiUrl}/api/v1/subscriptions/${orgSlug}/providers/${sanitizedProvider}/plans`,
+      {
+        method: "POST",
+        headers: {
+          "X-API-Key": orgApiKey,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data.plan),
+      }
+    )
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      return { success: false, error: `Failed to create plan: ${errorText}` }
+    }
+
+    // 4. Always trigger cost pipeline to keep costs up-to-date
+    let pipelineTriggered = false
+    let pipelineMessage: string | undefined
+
+    const startDateStr = data.plan.start_date || new Date().toISOString().split("T")[0]
+    const pipelineStartDate = isDateInPast(startDateStr)
+      ? startDateStr
+      : getMonthStart()
+
+    console.log(`[CreateCustomProvider] Triggering cost pipeline from ${pipelineStartDate}`)
+    const pipelineResult = await triggerCostBackfill(orgSlug, orgApiKey, pipelineStartDate)
+    pipelineTriggered = pipelineResult.success
+
+    if (isDateInPast(startDateStr)) {
+      pipelineMessage = pipelineResult.success
+        ? `Historical costs calculated from ${startDateStr} to today`
+        : `Plan created but cost calculation failed: ${pipelineResult.error}`
+    } else {
+      pipelineMessage = pipelineResult.success
+        ? `Costs updated for current period`
+        : `Plan created but cost calculation failed: ${pipelineResult.error}`
+    }
+
+    if (!pipelineResult.success) {
+      console.warn(`[CreateCustomProvider] Pipeline trigger failed: ${pipelineResult.error}`)
+    }
+
+    return {
+      success: true,
+      backfillTriggered: pipelineTriggered,
+      backfillMessage: pipelineMessage,
+    }
+  } catch (error) {
+    return { success: false, error: logError("createCustomProviderWithPlan", error) }
   }
 }
 
@@ -1178,6 +1459,9 @@ export async function getSaaSSubscriptionCosts(
 
 /**
  * Create a custom plan
+ *
+ * If the plan has a start_date in the past, automatically triggers a cost backfill
+ * to generate daily cost rows from start_date to today.
  */
 export async function createCustomPlan(
   orgSlug: string,
@@ -1186,6 +1470,8 @@ export async function createCustomPlan(
 ): Promise<{
   success: boolean
   plan?: SubscriptionPlan
+  backfillTriggered?: boolean
+  backfillMessage?: string
   error?: string
 }> {
   try {
@@ -1254,7 +1540,41 @@ export async function createCustomPlan(
     }
 
     const result = await safeJsonParse<{ plan?: SubscriptionPlan }>(response, { plan: undefined })
-    return { success: true, plan: result.plan }
+
+    // Always trigger cost pipeline to keep costs up-to-date
+    // Uses start_date for backdated plans, or current month start for new plans
+    let pipelineTriggered = false
+    let pipelineMessage: string | undefined
+
+    const startDateStr = plan.start_date || new Date().toISOString().split("T")[0]
+    const pipelineStartDate = isDateInPast(startDateStr)
+      ? startDateStr
+      : getMonthStart() // Use month start for current/future plans
+
+    console.log(`[CreatePlan] Triggering cost pipeline from ${pipelineStartDate}`)
+    const pipelineResult = await triggerCostBackfill(orgSlug, orgApiKey, pipelineStartDate)
+    pipelineTriggered = pipelineResult.success
+
+    if (isDateInPast(startDateStr)) {
+      pipelineMessage = pipelineResult.success
+        ? `Historical costs calculated from ${startDateStr} to today`
+        : `Plan created but cost calculation failed: ${pipelineResult.error}`
+    } else {
+      pipelineMessage = pipelineResult.success
+        ? `Costs updated for current period`
+        : `Plan created but cost calculation failed: ${pipelineResult.error}`
+    }
+
+    if (!pipelineResult.success) {
+      console.warn(`[CreatePlan] Pipeline trigger failed: ${pipelineResult.error}`)
+    }
+
+    return {
+      success: true,
+      plan: result.plan,
+      backfillTriggered: pipelineTriggered,
+      backfillMessage: pipelineMessage,
+    }
   } catch (error) {
     return { success: false, error: logError("createCustomPlan", error) }
   }
@@ -1458,6 +1778,8 @@ export async function editPlanWithVersion(
   success: boolean
   newPlan?: SubscriptionPlan
   oldPlan?: SubscriptionPlan
+  pipelineTriggered?: boolean
+  pipelineMessage?: string
   error?: string
 }> {
   try {
@@ -1515,10 +1837,28 @@ export async function editPlanWithVersion(
       response,
       { new_plan: undefined, old_plan: undefined }
     )
+
+    // Trigger cost pipeline to recalculate costs with the new version
+    // Start from the effective date if in past, or month start otherwise
+    const pipelineStartDate = isDateInPast(effectiveDate) ? effectiveDate : getMonthStart()
+
+    console.log(`[EditPlanWithVersion] Plan updated, triggering cost pipeline from ${pipelineStartDate}`)
+    const pipelineResult = await triggerCostBackfill(orgSlug, orgApiKey, pipelineStartDate)
+
+    const pipelineMessage = pipelineResult.success
+      ? `Costs recalculated from ${pipelineStartDate}`
+      : `Plan updated but cost recalculation failed: ${pipelineResult.error}`
+
+    if (!pipelineResult.success) {
+      console.warn(`[EditPlanWithVersion] Pipeline trigger failed: ${pipelineResult.error}`)
+    }
+
     return {
       success: true,
       newPlan: result.new_plan,
       oldPlan: result.old_plan,
+      pipelineTriggered: pipelineResult.success,
+      pipelineMessage,
     }
   } catch (error) {
     return { success: false, error: logError("editPlanWithVersion", error) }
@@ -1528,6 +1868,7 @@ export async function editPlanWithVersion(
 /**
  * End a subscription (soft delete)
  * Sets end_date and status='cancelled' instead of hard deleting
+ * Triggers cost pipeline to recalculate costs excluding future dates
  *
  * @param orgSlug - Organization slug
  * @param provider - Provider name
@@ -1542,6 +1883,8 @@ export async function endSubscription(
 ): Promise<{
   success: boolean
   plan?: SubscriptionPlan
+  pipelineTriggered?: boolean
+  pipelineMessage?: string
   error?: string
 }> {
   try {
@@ -1591,7 +1934,27 @@ export async function endSubscription(
     }
 
     const result = await safeJsonParse<{ plan?: SubscriptionPlan }>(response, { plan: undefined })
-    return { success: true, plan: result.plan }
+
+    // Trigger cost pipeline to recalculate costs (will exclude dates after end_date)
+    const pipelineStartDate = getMonthStart()
+
+    console.log(`[EndSubscription] Subscription ended, triggering cost pipeline from ${pipelineStartDate}`)
+    const pipelineResult = await triggerCostBackfill(orgSlug, orgApiKey, pipelineStartDate)
+
+    const pipelineMessage = pipelineResult.success
+      ? `Costs recalculated (subscription ended on ${endDate})`
+      : `Subscription ended but cost recalculation failed: ${pipelineResult.error}`
+
+    if (!pipelineResult.success) {
+      console.warn(`[EndSubscription] Pipeline trigger failed: ${pipelineResult.error}`)
+    }
+
+    return {
+      success: true,
+      plan: result.plan,
+      pipelineTriggered: pipelineResult.success,
+      pipelineMessage,
+    }
   } catch (error) {
     return { success: false, error: logError("endSubscription", error) }
   }

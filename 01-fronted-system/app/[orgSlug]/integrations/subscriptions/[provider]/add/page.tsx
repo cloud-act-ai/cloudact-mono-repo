@@ -190,7 +190,7 @@ export default function AddFromTemplatePage() {
       }
     }
 
-    router.push(`/${orgSlug}/subscriptions/${provider}/add/custom?${searchParams.toString()}`)
+    router.push(`/${orgSlug}/integrations/subscriptions/${provider}/add/custom?${searchParams.toString()}`)
   }
 
   const providerDisplayName = getProviderDisplayName(provider)
@@ -232,15 +232,15 @@ export default function AddFromTemplatePage() {
       {/* Breadcrumb Navigation */}
       <nav className="flex items-center gap-2 text-sm" aria-label="Breadcrumb">
         <Link
-          href={`/${orgSlug}/subscriptions`}
+          href={`/${orgSlug}/integrations/subscriptions`}
           className="text-[#007A78] hover:text-[#005F5D] transition-colors focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2 rounded truncate max-w-[200px]"
-          title="Subscriptions"
+          title="Subscription Providers"
         >
-          Subscriptions
+          Subscription Providers
         </Link>
         <ChevronRight className="h-4 w-4 text-[#8E8E93] flex-shrink-0" aria-hidden="true" />
         <Link
-          href={`/${orgSlug}/subscriptions/${provider}`}
+          href={`/${orgSlug}/integrations/subscriptions/${provider}`}
           className="text-[#007A78] hover:text-[#005F5D] transition-colors focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2 rounded truncate max-w-[200px]"
           title={providerDisplayName}
         >
@@ -255,7 +255,7 @@ export default function AddFromTemplatePage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Link href={`/${orgSlug}/subscriptions/${provider}`}>
+          <Link href={`/${orgSlug}/integrations/subscriptions/${provider}`}>
             <Button variant="ghost" size="icon" className="h-8 w-8">
               <ArrowLeft className="h-4 w-4" />
             </Button>
@@ -267,7 +267,7 @@ export default function AddFromTemplatePage() {
             </p>
           </div>
         </div>
-        <Link href={`/${orgSlug}/subscriptions/${provider}/add/custom`}>
+        <Link href={`/${orgSlug}/integrations/subscriptions/${provider}/add/custom`}>
           <Button
             variant="outline"
             className="border-[#007A78]/30 text-[#007A78] hover:bg-[#007A78]/5 rounded-xl"
@@ -301,7 +301,7 @@ export default function AddFromTemplatePage() {
             <p className="text-[15px] text-[#8E8E93] mb-6">
               No predefined templates found for {providerDisplayName}. You can create a custom subscription plan instead.
             </p>
-            <Link href={`/${orgSlug}/subscriptions/${provider}/add/custom`}>
+            <Link href={`/${orgSlug}/integrations/subscriptions/${provider}/add/custom`}>
               <Button className="h-[44px] px-6 bg-[#007A78] text-white hover:bg-[#006664] rounded-xl text-[15px] font-semibold shadow-sm">
                 <Plus className="h-4 w-4 mr-2" />
                 Create Custom Plan
@@ -394,7 +394,7 @@ export default function AddFromTemplatePage() {
                   Create a custom subscription plan with your own pricing and details.
                 </p>
               </div>
-              <Link href={`/${orgSlug}/subscriptions/${provider}/add/custom`}>
+              <Link href={`/${orgSlug}/integrations/subscriptions/${provider}/add/custom`}>
                 <Button
                   variant="outline"
                   className="border-[#007A78]/30 text-[#007A78] hover:bg-[#007A78]/5 rounded-xl"

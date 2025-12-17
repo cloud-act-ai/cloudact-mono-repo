@@ -263,6 +263,16 @@ const FALLBACK_PIPELINES: PipelineConfig[] = [
     required_integration: "ANTHROPIC",
     enabled: true,
   },
+  {
+    id: "saas_subscription_costs",
+    name: "SaaS Subscription Costs",
+    description: "Calculate daily amortized costs from SaaS subscription plans",
+    provider: "saas_subscription",
+    domain: "costs",  // configs/saas_subscription/costs/saas_cost.yml
+    pipeline: "saas_cost",
+    required_integration: "",  // No external integration needed
+    enabled: true,
+  },
 ]
 
 // ============================================

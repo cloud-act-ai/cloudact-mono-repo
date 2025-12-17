@@ -238,15 +238,27 @@ export async function inviteMember(orgSlug: string, email: string, role: "collab
       .eq("org_id", org.id)
       .eq("status", "active")
 
+    // Also count pending invites - they reserve seats
+    const { count: pendingInvites } = await adminClient
+      .from("invites")
+      .select("*", { count: "exact", head: true })
+      .eq("org_id", org.id)
+      .eq("status", "pending")
+
     if (!org.seat_limit) {
       return { success: false, error: "Organization seat limit not configured. Please contact support." }
     }
     const seatLimit = org.seat_limit
+    const totalReserved = (currentMembers || 0) + (pendingInvites || 0)
 
-    if ((currentMembers || 0) >= seatLimit) {
+    if (totalReserved >= seatLimit) {
+      const pendingCount = pendingInvites || 0
+      const memberCount = currentMembers || 0
       return {
         success: false,
-        error: `Seat limit reached (${seatLimit} seats). Upgrade your plan to add more members.`,
+        error: pendingCount > 0
+          ? `Seat limit reached (${memberCount} members + ${pendingCount} pending invites = ${totalReserved}/${seatLimit} seats). Cancel pending invites or upgrade your plan.`
+          : `Seat limit reached (${seatLimit} seats). Upgrade your plan to add more members.`,
       }
     }
 
@@ -579,7 +591,9 @@ export async function acceptInvite(token: string) {
 
     // Check if expired
     if (new Date(invite.expires_at) < new Date()) {
-      return { success: false, error: "This invite has expired" }
+      // Mark as expired in database
+      await adminClient.from("invites").update({ status: "expired" }).eq("id", invite.id)
+      return { success: false, error: "This invite has expired. Please ask the organization owner for a new invite." }
     }
 
     // Verify email matches (case-insensitive)
@@ -604,8 +618,49 @@ export async function acceptInvite(token: string) {
       return { success: false, error: "You are already a member of this organization" }
     }
 
-    // If previously inactive, reactivate
+    // SECURITY: Enforce seat limit at acceptance time
+    // This is critical because seats may have been filled between invite creation and acceptance
+    const { data: org, error: orgError } = await adminClient
+      .from("organizations")
+      .select("id, org_slug, seat_limit")
+      .eq("id", invite.org_id)
+      .single()
+
+    if (orgError || !org) {
+      console.error("[v0] Accept invite - org fetch error:", orgError)
+      return { success: false, error: "Organization not found" }
+    }
+
+    if (!org.seat_limit) {
+      return { success: false, error: "Organization seat limit not configured. Please contact support." }
+    }
+
+    // Get current active member count
+    const { count: currentMembers } = await adminClient
+      .from("organization_members")
+      .select("*", { count: "exact", head: true })
+      .eq("org_id", invite.org_id)
+      .eq("status", "active")
+
+    // For reactivation, the user is already counted if they were previously inactive
+    // so we only check for NEW members
+    if (!existingMember && (currentMembers || 0) >= org.seat_limit) {
+      return {
+        success: false,
+        error: `Seat limit reached (${org.seat_limit} seats). The organization owner needs to upgrade the plan to add more members.`,
+      }
+    }
+
+    // If previously inactive, reactivate (also check seat limit for reactivation)
     if (existingMember && existingMember.status === "inactive") {
+      // Check if reactivation would exceed seat limit
+      if ((currentMembers || 0) >= org.seat_limit) {
+        return {
+          success: false,
+          error: `Seat limit reached (${org.seat_limit} seats). The organization owner needs to upgrade the plan to add more members.`,
+        }
+      }
+
       const { error: reactivateError } = await adminClient
         .from("organization_members")
         .update({ status: "active", role: invite.role })
@@ -613,9 +668,13 @@ export async function acceptInvite(token: string) {
 
       if (reactivateError) {
         console.error("[v0] Accept invite - reactivate error:", reactivateError)
+        // Check if it's a seat limit error from database trigger
+        if (reactivateError.message?.includes("Seat limit")) {
+          return { success: false, error: reactivateError.message }
+        }
         return { success: false, error: "Failed to rejoin organization" }
       }
-    } else {
+    } else if (!existingMember) {
       // Create new membership
       const { error: memberError } = await adminClient.from("organization_members").insert({
         org_id: invite.org_id,
@@ -626,24 +685,21 @@ export async function acceptInvite(token: string) {
 
       if (memberError) {
         console.error("[v0] Accept invite - member insert error:", memberError)
+        // Check if it's a seat limit error from database trigger
+        if (memberError.message?.includes("Seat limit")) {
+          return { success: false, error: memberError.message }
+        }
         return { success: false, error: "Failed to join organization" }
       }
     }
 
     // Update invite status to accepted
-    await adminClient.from("invites").update({ status: "accepted" }).eq("id", invite.id)
-
-    // Get org slug for redirect
-    const { data: org } = await adminClient
-      .from("organizations")
-      .select("org_slug")
-      .eq("id", invite.org_id)
-      .single()
+    await adminClient.from("invites").update({ status: "accepted", accepted_at: new Date().toISOString(), accepted_by: user.id }).eq("id", invite.id)
 
     return {
       success: true,
       message: "You have joined the organization!",
-      orgSlug: org?.org_slug || null,
+      orgSlug: org.org_slug || null,
     }
   } catch (err: unknown) {
     console.error("[v0] Accept invite error:", err)
@@ -657,37 +713,40 @@ export async function getInviteInfo(token: string) {
   try {
     // Validate token format before database query
     if (!isValidInviteToken(token)) {
-      return { success: false, error: "Invalid invite link" }
+      console.warn("[v0] Invalid token format:", token?.substring(0, 10) + "...")
+      return { success: false, error: "Invalid invite link format. Please check the link and try again." }
     }
 
     const adminClient = createServiceRoleClient()
 
-    const { data: invite, error } = await adminClient
+    // First, fetch the invite without the join to get better error context
+    const { data: invite, error: inviteError } = await adminClient
       .from("invites")
-      .select(`
-        id,
-        email,
-        role,
-        status,
-        expires_at,
-        created_at,
-        org_id,
-        organizations!inner (
-          id,
-          org_name,
-          org_slug
-        )
-      `)
+      .select("id, email, role, status, expires_at, created_at, org_id")
       .eq("token", token)
-      .single()
+      .maybeSingle()
 
-    if (error || !invite) {
-      return { success: false, error: "Invalid invite link" }
+    if (inviteError) {
+      console.error("[v0] Invite fetch error:", inviteError)
+      return { success: false, error: "Failed to fetch invite. Please try again." }
     }
 
-    // With .single(), Supabase returns the joined data as an object, not an array
-    // Cast through unknown to satisfy TypeScript type checker
-    const orgData = invite.organizations as unknown as { id: string; org_name: string; org_slug: string }
+    if (!invite) {
+      console.warn("[v0] Invite not found for token:", token?.substring(0, 10) + "...")
+      return { success: false, error: "This invite link is invalid or has been removed." }
+    }
+
+    // Now fetch the organization separately
+    const { data: org, error: orgError } = await adminClient
+      .from("organizations")
+      .select("id, org_name, org_slug")
+      .eq("id", invite.org_id)
+      .single()
+
+    if (orgError || !org) {
+      console.error("[v0] Organization not found for invite:", invite.id, orgError)
+      return { success: false, error: "The organization for this invite no longer exists." }
+    }
 
     return {
       success: true,
@@ -698,14 +757,14 @@ export async function getInviteInfo(token: string) {
         expiresAt: invite.expires_at,
         isExpired: new Date(invite.expires_at) < new Date(),
         organization: {
-          name: orgData.org_name,
-          slug: orgData.org_slug,
+          name: org.org_name,
+          slug: org.org_slug,
         },
       },
     }
   } catch (err: unknown) {
     console.error("[v0] Get invite info error:", err)
-    return { success: false, error: "Failed to fetch invite" }
+    return { success: false, error: "Failed to fetch invite. Please try again." }
   }
 }
 

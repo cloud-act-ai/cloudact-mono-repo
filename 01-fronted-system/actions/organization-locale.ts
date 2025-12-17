@@ -505,3 +505,197 @@ export async function updateOrgLocale(
     }
   }
 }
+
+// ============================================
+// Organization Logo Functions
+// ============================================
+
+export interface GetOrgLogoResult {
+  success: boolean
+  logoUrl?: string | null
+  error?: string
+}
+
+export interface UpdateOrgLogoResult {
+  success: boolean
+  logoUrl?: string
+  error?: string
+}
+
+/**
+ * Validate logo URL format.
+ * Must be a valid HTTPS URL pointing to an image.
+ */
+function isValidLogoUrl(url: string): boolean {
+  if (!url || typeof url !== "string") return false
+
+  try {
+    const parsed = new URL(url)
+    // Must be HTTPS for security
+    if (parsed.protocol !== "https:") return false
+    // Basic image extension check (optional but helpful)
+    const pathname = parsed.pathname.toLowerCase()
+    const validExtensions = [".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".ico"]
+    const hasValidExtension = validExtensions.some(ext => pathname.endsWith(ext))
+    // Also allow URLs without extension (CDN URLs like Cloudinary, imgix)
+    return hasValidExtension || pathname.length > 0
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Get organization logo URL from Supabase.
+ * Returns null if no logo is set.
+ *
+ * SECURITY: Requires org membership.
+ */
+export async function getOrgLogo(orgSlug: string): Promise<GetOrgLogoResult> {
+  try {
+    // Validate input
+    if (!isValidOrgSlug(orgSlug)) {
+      return { success: false, error: "Invalid organization identifier" }
+    }
+
+    // Verify authentication AND org membership
+    const authResult = await verifyOrgMembership(orgSlug)
+    if (!authResult.authorized) {
+      return { success: false, error: authResult.error || "Not authorized" }
+    }
+
+    // Fetch logo URL from Supabase
+    const supabase = await createClient()
+    const { data, error } = await supabase
+      .from("organizations")
+      .select("logo_url")
+      .eq("org_slug", orgSlug)
+      .single()
+
+    if (error || !data) {
+      console.error("[Org Logo] Failed to fetch logo:", error)
+      return { success: false, error: "Failed to fetch organization logo" }
+    }
+
+    return {
+      success: true,
+      logoUrl: data.logo_url || null,
+    }
+  } catch (err: unknown) {
+    console.error("[Org Logo] Get logo error:", err)
+    const errorMessage = err instanceof Error ? err.message : "Failed to get organization logo"
+    return { success: false, error: errorMessage }
+  }
+}
+
+/**
+ * Update organization logo URL.
+ * Pass null or empty string to remove the logo.
+ *
+ * SECURITY: Requires org membership.
+ */
+export async function updateOrgLogo(
+  orgSlug: string,
+  logoUrl: string | null
+): Promise<UpdateOrgLogoResult> {
+  try {
+    // Validate input
+    if (!isValidOrgSlug(orgSlug)) {
+      return { success: false, error: "Invalid organization identifier" }
+    }
+
+    // Validate logo URL if provided
+    if (logoUrl && logoUrl.trim() !== "") {
+      if (!isValidLogoUrl(logoUrl)) {
+        return { success: false, error: "Invalid logo URL. Must be a valid HTTPS URL." }
+      }
+    }
+
+    // Verify authentication AND org membership
+    const authResult = await verifyOrgMembership(orgSlug)
+    if (!authResult.authorized) {
+      return { success: false, error: authResult.error || "Not authorized" }
+    }
+
+    // Update logo URL in Supabase
+    const supabase = await createClient()
+    const { error: updateError } = await supabase
+      .from("organizations")
+      .update({ logo_url: logoUrl?.trim() || null })
+      .eq("org_slug", orgSlug)
+
+    if (updateError) {
+      console.error("[Org Logo] Failed to update logo:", updateError)
+      return { success: false, error: "Failed to update organization logo" }
+    }
+
+    console.log(`[Org Logo] Updated logo for ${orgSlug}`)
+
+    return {
+      success: true,
+      logoUrl: logoUrl?.trim() || undefined,
+    }
+  } catch (err: unknown) {
+    console.error("[Org Logo] Update logo error:", err)
+    const errorMessage = err instanceof Error ? err.message : "Failed to update organization logo"
+    return { success: false, error: errorMessage }
+  }
+}
+
+/**
+ * Get organization details including logo and name.
+ * Convenience function for sidebar display.
+ *
+ * SECURITY: Requires org membership.
+ */
+export async function getOrgDetails(orgSlug: string): Promise<{
+  success: boolean
+  org?: {
+    name: string
+    slug: string
+    logoUrl: string | null
+    currency: string
+    timezone: string
+  }
+  error?: string
+}> {
+  try {
+    // Validate input
+    if (!isValidOrgSlug(orgSlug)) {
+      return { success: false, error: "Invalid organization identifier" }
+    }
+
+    // Verify authentication AND org membership
+    const authResult = await verifyOrgMembership(orgSlug)
+    if (!authResult.authorized) {
+      return { success: false, error: authResult.error || "Not authorized" }
+    }
+
+    // Fetch org details from Supabase
+    const supabase = await createClient()
+    const { data, error } = await supabase
+      .from("organizations")
+      .select("org_name, org_slug, logo_url, default_currency, default_timezone")
+      .eq("org_slug", orgSlug)
+      .single()
+
+    if (error || !data) {
+      console.error("[Org Details] Failed to fetch org:", error)
+      return { success: false, error: "Failed to fetch organization details" }
+    }
+
+    return {
+      success: true,
+      org: {
+        name: data.org_name || orgSlug,
+        slug: data.org_slug,
+        logoUrl: data.logo_url || null,
+        currency: data.default_currency || "USD",
+        timezone: data.default_timezone || "UTC",
+      },
+    }
+  } catch (err: unknown) {
+    console.error("[Org Details] Get details error:", err)
+    const errorMessage = err instanceof Error ? err.message : "Failed to get organization details"
+    return { success: false, error: errorMessage }
+  }
+}

@@ -124,14 +124,14 @@ function SuccessContent() {
 
       {/* Action Buttons */}
       <div className="flex flex-col sm:flex-row gap-3 w-full">
-        <Link href={`/${orgSlug}/subscriptions/${provider}/add`} className="flex-1">
+        <Link href={`/${orgSlug}/integrations/subscriptions/${provider}/add`} className="flex-1">
           <Button
             className="w-full h-[44px] px-6 bg-[#007A78] text-white hover:bg-[#006664] rounded-xl text-[15px] font-semibold shadow-sm"
           >
             Add Another Subscription
           </Button>
         </Link>
-        <Link href={`/${orgSlug}/subscriptions/${provider}`} className="flex-1">
+        <Link href={`/${orgSlug}/integrations/subscriptions/${provider}`} className="flex-1">
           <Button
             variant="outline"
             className="w-full h-[44px] px-6 border-[#007A78]/30 text-[#007A78] hover:bg-[#007A78]/5 rounded-xl text-[15px] font-semibold"
@@ -141,12 +141,12 @@ function SuccessContent() {
         </Link>
       </div>
 
-      <Link href={`/${orgSlug}/subscriptions`} className="w-full">
+      <Link href={`/${orgSlug}/integrations/subscriptions`} className="w-full">
         <Button
           variant="ghost"
           className="w-full h-[44px] px-6 text-[#8E8E93] hover:bg-[#F5F5F7] rounded-xl text-[15px] font-medium"
         >
-          View All Subscriptions
+          View All Providers
         </Button>
       </Link>
     </div>
@@ -211,15 +211,15 @@ export default function SubscriptionSuccessPage() {
       <div className="px-6 pt-6">
         <nav className="flex items-center gap-2 text-sm" aria-label="Breadcrumb">
           <Link
-            href={`/${orgSlug}/subscriptions`}
+            href={`/${orgSlug}/integrations/subscriptions`}
             className="text-[#007A78] hover:text-[#005F5D] transition-colors focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2 rounded truncate max-w-[200px]"
-            title="Subscriptions"
+            title="Subscription Providers"
           >
-            Subscriptions
+            Subscription Providers
           </Link>
           <ChevronRight className="h-4 w-4 text-[#8E8E93] flex-shrink-0" aria-hidden="true" />
           <Link
-            href={`/${orgSlug}/subscriptions/${provider}`}
+            href={`/${orgSlug}/integrations/subscriptions/${provider}`}
             className="text-[#007A78] hover:text-[#005F5D] transition-colors focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2 rounded truncate max-w-[200px]"
             title={providerDisplayName}
           >

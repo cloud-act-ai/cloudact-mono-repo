@@ -2,11 +2,33 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useRouter, useParams } from "next/navigation"
+import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
+import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import {
   Loader2,
   Save,
@@ -15,10 +37,50 @@ import {
   DollarSign,
   CheckCircle2,
   Clock,
+  Building2,
+  Trash2,
+  ArrowRightLeft,
+  Users,
+  Mail,
+  UserCog,
+  RefreshCw,
+  Server,
+  Key,
+  ImageIcon,
+  Link as LinkIcon,
 } from "lucide-react"
+import Image from "next/image"
 import { logError } from "@/lib/utils"
 import { SUPPORTED_CURRENCIES, SUPPORTED_TIMEZONES } from "@/lib/i18n/constants"
-import { getOrgLocale, updateOrgLocale } from "@/actions/organization-locale"
+import { getOrgLocale, updateOrgLocale, getOrgLogo, updateOrgLogo } from "@/actions/organization-locale"
+import {
+  getOwnedOrganizations,
+  getEligibleTransferMembers,
+  transferOwnership,
+  deleteOrganization,
+  requestAccountDeletion,
+} from "@/actions/account"
+import {
+  checkBackendOnboarding,
+  syncSubscriptionToBackend,
+  onboardToBackend,
+  getOrgDataForReonboarding,
+} from "@/actions/backend-onboarding"
+
+interface OwnedOrg {
+  id: string
+  org_name: string
+  org_slug: string
+  member_count: number
+  has_other_members: boolean
+}
+
+interface TransferMember {
+  user_id: string
+  email: string
+  full_name: string | null
+  role: string
+}
 
 export default function OrganizationSettingsPage() {
   const router = useRouter()
@@ -33,32 +95,178 @@ export default function OrganizationSettingsPage() {
   // Locale fields
   const [currency, setCurrency] = useState("USD")
   const [timezone, setTimezone] = useState("UTC")
+  const [logoUrl, setLogoUrl] = useState("")
 
   // Track original values to detect changes
   const [originalCurrency, setOriginalCurrency] = useState("USD")
   const [originalTimezone, setOriginalTimezone] = useState("UTC")
+  const [originalLogoUrl, setOriginalLogoUrl] = useState("")
+  const [isSavingLogo, setIsSavingLogo] = useState(false)
+
+  // Danger zone state
+  const [email, setEmail] = useState("")
+  const [ownedOrgs, setOwnedOrgs] = useState<OwnedOrg[]>([])
+  const [loadingOwnedOrgs, setLoadingOwnedOrgs] = useState(false)
+
+  // Transfer ownership state
+  const [transferDialogOpen, setTransferDialogOpen] = useState(false)
+  const [selectedOrgForTransfer, setSelectedOrgForTransfer] = useState<OwnedOrg | null>(null)
+  const [transferMembers, setTransferMembers] = useState<TransferMember[]>([])
+  const [loadingTransferMembers, setLoadingTransferMembers] = useState(false)
+  const [selectedNewOwner, setSelectedNewOwner] = useState<string>("")
+  const [isTransferring, setIsTransferring] = useState(false)
+
+  // Delete org state
+  const [deleteOrgDialogOpen, setDeleteOrgDialogOpen] = useState(false)
+  const [selectedOrgForDelete, setSelectedOrgForDelete] = useState<OwnedOrg | null>(null)
+  const [deleteConfirmName, setDeleteConfirmName] = useState("")
+  const [isDeletingOrg, setIsDeletingOrg] = useState(false)
+
+  // Account deletion state
+  const [isRequestingDeletion, setIsRequestingDeletion] = useState(false)
+  const [deletionRequested, setDeletionRequested] = useState(false)
+
+  // Backend connection state
+  const [backendOnboarded, setBackendOnboarded] = useState(false)
+  const [apiKeyFingerprint, setApiKeyFingerprint] = useState<string | null>(null)
+  const [apiKeyValid, setApiKeyValid] = useState<boolean | undefined>(undefined)
+  const [backendError, setBackendError] = useState<string | null>(null)
+  const [isResyncing, setIsResyncing] = useState(false)
+  const [loadingBackendStatus, setLoadingBackendStatus] = useState(true)
 
   useEffect(() => {
     document.title = "Organization Settings | CloudAct.ai"
   }, [])
 
+  // Load backend connection status
+  const loadBackendStatus = useCallback(async () => {
+    setLoadingBackendStatus(true)
+    setBackendError(null)
+    try {
+      const result = await checkBackendOnboarding(orgSlug)
+      setBackendOnboarded(result.onboarded)
+      setApiKeyFingerprint(result.apiKeyFingerprint || null)
+      setApiKeyValid(result.apiKeyValid)
+      setBackendError(result.error || null)
+    } catch (err: unknown) {
+      console.error("Failed to load backend status:", err)
+      setBackendError("Failed to check backend connection status")
+    } finally {
+      setLoadingBackendStatus(false)
+    }
+  }, [orgSlug])
+
+  // Handle resync backend connection
+  const handleResync = async () => {
+    setIsResyncing(true)
+    setError(null)
+    setSuccess(null)
+
+    try {
+      // Check if we need to re-onboard (not onboarded or API key invalid)
+      const needsOnboarding = !backendOnboarded || apiKeyValid === false
+
+      if (needsOnboarding) {
+        // Get org data using server action (bypasses RLS)
+        const orgDataResult = await getOrgDataForReonboarding(orgSlug)
+
+        if (!orgDataResult.success || !orgDataResult.data) {
+          setError(orgDataResult.error || "Failed to get organization data for re-onboarding")
+          return
+        }
+
+        const { orgName, adminEmail, currency: orgCurrency, timezone: orgTimezone } = orgDataResult.data
+
+        // Call onboardToBackend to regenerate API key
+        const onboardResult = await onboardToBackend({
+          orgSlug,
+          companyName: orgName,
+          adminEmail,
+          subscriptionPlan: "STARTER",
+          defaultCurrency: orgCurrency,
+          defaultTimezone: orgTimezone,
+        })
+
+        if (onboardResult.success) {
+          // Show the new API key to the user (they should save it)
+          if (onboardResult.apiKey) {
+            setSuccess(`Backend connection restored! New API key: ${onboardResult.apiKey.slice(0, 20)}... (Save this key!)`)
+          } else {
+            setSuccess("Backend connection restored successfully!")
+          }
+          await loadBackendStatus()
+          // Keep success message longer for API key display
+          setTimeout(() => setSuccess(null), 10000)
+        } else {
+          setError(onboardResult.error || "Failed to re-onboard organization")
+        }
+      } else {
+        // Just sync subscription/locale data to backend
+        const result = await syncSubscriptionToBackend({
+          orgSlug,
+          billingStatus: "active", // Default to active, actual status from Stripe
+          planName: "starter",
+          dailyLimit: 6,
+          monthlyLimit: 100,
+          syncType: "reconciliation",
+        })
+
+        if (result.success) {
+          setSuccess("Backend connection resynced successfully!")
+          await loadBackendStatus()
+          setTimeout(() => setSuccess(null), 4000)
+        } else {
+          setError(result.error || "Failed to resync backend connection")
+        }
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to resync backend connection")
+    } finally {
+      setIsResyncing(false)
+    }
+  }
+
+  // Load owned organizations
+  const loadOwnedOrganizations = useCallback(async () => {
+    setLoadingOwnedOrgs(true)
+    try {
+      const result = await getOwnedOrganizations()
+      if (result.success && result.data) {
+        setOwnedOrgs(result.data)
+      }
+    } catch (err: unknown) {
+      console.error("Failed to load owned orgs:", err)
+    } finally {
+      setLoadingOwnedOrgs(false)
+    }
+  }, [])
+
   const fetchLocale = useCallback(async () => {
     try {
       setIsLoading(true)
-      const result = await getOrgLocale(orgSlug)
+      const [localeResult, logoResult] = await Promise.all([
+        getOrgLocale(orgSlug),
+        getOrgLogo(orgSlug)
+      ])
 
-      if (!result.success || !result.locale) {
-        setError(result.error || "Failed to fetch organization locale")
+      if (!localeResult.success || !localeResult.locale) {
+        setError(localeResult.error || "Failed to fetch organization locale")
         return
       }
 
       // Set current values
-      setCurrency(result.locale.default_currency)
-      setTimezone(result.locale.default_timezone)
+      setCurrency(localeResult.locale.default_currency)
+      setTimezone(localeResult.locale.default_timezone)
 
       // Track original values
-      setOriginalCurrency(result.locale.default_currency)
-      setOriginalTimezone(result.locale.default_timezone)
+      setOriginalCurrency(localeResult.locale.default_currency)
+      setOriginalTimezone(localeResult.locale.default_timezone)
+
+      // Set logo URL
+      if (logoResult.success) {
+        setLogoUrl(logoResult.logoUrl || "")
+        setOriginalLogoUrl(logoResult.logoUrl || "")
+      }
     } catch (err: unknown) {
       const errorMessage = logError("OrganizationSettingsPage:fetchLocale", err)
       setError(errorMessage)
@@ -67,14 +275,59 @@ export default function OrganizationSettingsPage() {
     }
   }, [orgSlug])
 
+  const loadUserAndOrgs = useCallback(async () => {
+    try {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+
+      if (!user) {
+        router.push("/login")
+        return
+      }
+
+      setEmail(user.email || "")
+      await loadOwnedOrganizations()
+    } catch (err: unknown) {
+      console.error("Error loading user:", err)
+    }
+  }, [loadOwnedOrganizations, router])
+
   useEffect(() => {
     void fetchLocale()
-  }, [fetchLocale])
+    void loadUserAndOrgs()
+    void loadBackendStatus()
+  }, [fetchLocale, loadUserAndOrgs, loadBackendStatus])
 
-  const hasChanges = currency !== originalCurrency || timezone !== originalTimezone
+  const hasLocaleChanges = currency !== originalCurrency || timezone !== originalTimezone
+  const hasLogoChanges = logoUrl !== originalLogoUrl
+
+  const handleSaveLogo = async () => {
+    if (!hasLogoChanges) return
+
+    setIsSavingLogo(true)
+    setError(null)
+    setSuccess(null)
+
+    try {
+      const result = await updateOrgLogo(orgSlug, logoUrl || null)
+
+      if (!result.success) {
+        setError(result.error || "Failed to update logo")
+        return
+      }
+
+      setOriginalLogoUrl(logoUrl)
+      setSuccess("Logo updated successfully!")
+      setTimeout(() => setSuccess(null), 4000)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "An error occurred")
+    } finally {
+      setIsSavingLogo(false)
+    }
+  }
 
   const handleSave = async () => {
-    if (!hasChanges) {
+    if (!hasLocaleChanges) {
       setError("No changes to save")
       return
     }
@@ -111,6 +364,109 @@ export default function OrganizationSettingsPage() {
     setSuccess(null)
   }
 
+  // Open transfer dialog and load members
+  const openTransferDialog = async (org: OwnedOrg) => {
+    setSelectedOrgForTransfer(org)
+    setTransferDialogOpen(true)
+    setLoadingTransferMembers(true)
+    setSelectedNewOwner("")
+
+    try {
+      const result = await getEligibleTransferMembers(org.id)
+      if (result.success && result.data) {
+        setTransferMembers(result.data)
+      } else {
+        setTransferMembers([])
+      }
+    } catch (err: unknown) {
+      console.error("Failed to load transfer members:", err)
+      setTransferMembers([])
+    } finally {
+      setLoadingTransferMembers(false)
+    }
+  }
+
+  // Handle ownership transfer
+  const handleTransferOwnership = async () => {
+    if (!selectedOrgForTransfer || !selectedNewOwner) return
+
+    setIsTransferring(true)
+    setError(null)
+
+    try {
+      const result = await transferOwnership(selectedOrgForTransfer.id, selectedNewOwner)
+      if (result.success) {
+        setSuccess(`Ownership of "${selectedOrgForTransfer.org_name}" transferred successfully!`)
+        setTransferDialogOpen(false)
+        setSelectedOrgForTransfer(null)
+        await loadOwnedOrganizations()
+        setTimeout(() => setSuccess(null), 4000)
+      } else {
+        setError(result.error || "Failed to transfer ownership")
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to transfer ownership")
+    } finally {
+      setIsTransferring(false)
+    }
+  }
+
+  // Open delete org dialog
+  const openDeleteOrgDialog = (org: OwnedOrg) => {
+    setSelectedOrgForDelete(org)
+    setDeleteConfirmName("")
+    setDeleteOrgDialogOpen(true)
+  }
+
+  // Handle org deletion
+  const handleDeleteOrg = async () => {
+    if (!selectedOrgForDelete) return
+
+    setIsDeletingOrg(true)
+    setError(null)
+
+    try {
+      const result = await deleteOrganization(selectedOrgForDelete.id, deleteConfirmName)
+      if (result.success) {
+        setSuccess(`Organization "${selectedOrgForDelete.org_name}" deleted successfully!`)
+        setDeleteOrgDialogOpen(false)
+        setSelectedOrgForDelete(null)
+        await loadOwnedOrganizations()
+        if (selectedOrgForDelete.org_slug === orgSlug) {
+          // Redirect to home since current org was deleted
+          router.push("/")
+        }
+        setTimeout(() => setSuccess(null), 4000)
+      } else {
+        setError(result.error || "Failed to delete organization")
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to delete organization")
+    } finally {
+      setIsDeletingOrg(false)
+    }
+  }
+
+  // Request account deletion
+  const handleRequestAccountDeletion = async () => {
+    setIsRequestingDeletion(true)
+    setError(null)
+
+    try {
+      const result = await requestAccountDeletion()
+      if (result.success) {
+        setDeletionRequested(true)
+        setSuccess(result.message || "Verification email sent!")
+      } else {
+        setError(result.error || "Failed to request account deletion")
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to request account deletion")
+    } finally {
+      setIsRequestingDeletion(false)
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -120,7 +476,14 @@ export default function OrganizationSettingsPage() {
   }
 
   return (
-    <div className="space-y-4 sm:space-y-6">
+    <div className="space-y-6 sm:space-y-8">
+      <div>
+        <h1 className="text-[32px] sm:text-[34px] font-bold text-black tracking-tight">Organization Settings</h1>
+        <p className="text-[15px] text-[#8E8E93] mt-1">
+          Manage your organization locale and settings
+        </p>
+      </div>
+
       {error && (
         <Alert variant="destructive" className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
           <AlertTriangle className="h-4 w-4 text-[#FF6E50]" />
@@ -135,6 +498,106 @@ export default function OrganizationSettingsPage() {
         </Alert>
       )}
 
+      {/* Organization Branding */}
+      <div className="metric-card shadow-sm">
+        <div className="metric-card-header mb-6">
+          <div className="flex items-center gap-2">
+            <Building2 className="h-5 w-5 text-[#8E8E93]" />
+            <h2 className="text-[22px] font-bold text-black">Organization Branding</h2>
+          </div>
+          <p className="text-[13px] sm:text-[15px] text-[#8E8E93] mt-1">
+            Customize your organization&apos;s appearance in the sidebar
+          </p>
+        </div>
+
+        <div className="metric-card-content space-y-4 sm:space-y-6">
+          {/* Logo Preview & URL Input */}
+          <div className="flex flex-col sm:flex-row gap-6">
+            {/* Logo Preview */}
+            <div className="flex-shrink-0">
+              <Label className="text-[13px] sm:text-[15px] font-medium text-gray-700 mb-2 block">
+                Logo Preview
+              </Label>
+              <div className="h-20 w-20 rounded-lg border-2 border-dashed border-[#E5E5EA] flex items-center justify-center bg-gray-50 overflow-hidden">
+                {logoUrl ? (
+                  <Image
+                    src={logoUrl}
+                    alt="Organization logo"
+                    width={80}
+                    height={80}
+                    className="object-contain"
+                    onError={() => setLogoUrl("")}
+                  />
+                ) : (
+                  <ImageIcon className="h-8 w-8 text-[#8E8E93]" />
+                )}
+              </div>
+            </div>
+
+            {/* Logo URL Input */}
+            <div className="flex-1 space-y-2">
+              <Label htmlFor="logoUrl" className="text-[13px] sm:text-[15px] font-medium text-gray-700 flex items-center gap-2">
+                <LinkIcon className="h-4 w-4 text-[#8E8E93]" />
+                Logo URL
+              </Label>
+              <Input
+                id="logoUrl"
+                type="url"
+                value={logoUrl}
+                onChange={(e) => setLogoUrl(e.target.value)}
+                placeholder="https://example.com/logo.png"
+                className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg focus:border-[#007A78] focus:ring-1 focus:ring-[#007A78]"
+              />
+              <p className="text-[13px] text-[#8E8E93]">
+                Enter a URL to your organization&apos;s logo (PNG, JPG, SVG). Must be HTTPS.
+                The logo will appear in the sidebar next to your organization name.
+              </p>
+            </div>
+          </div>
+
+          {hasLogoChanges && (
+            <Alert className="bg-[#007A78]/5 border-[#007A78]/20">
+              <AlertTriangle className="h-4 w-4 text-[#007A78]" />
+              <AlertDescription className="text-[#005F5D]">
+                Logo URL has been changed. Click Save Logo to apply.
+              </AlertDescription>
+            </Alert>
+          )}
+        </div>
+
+        <div className="pt-4 sm:pt-6 border-t border-[#E5E5EA] flex gap-3">
+          <Button
+            onClick={handleSaveLogo}
+            disabled={isSavingLogo || !hasLogoChanges}
+            className="cloudact-btn-primary h-[36px] px-4"
+          >
+            {isSavingLogo ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save className="mr-2 h-4 w-4" />
+                Save Logo
+              </>
+            )}
+          </Button>
+
+          {hasLogoChanges && (
+            <Button
+              onClick={() => setLogoUrl(originalLogoUrl)}
+              disabled={isSavingLogo}
+              variant="outline"
+              className="cloudact-btn-secondary h-[36px] px-4"
+            >
+              Reset
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Organization Locale */}
       <div className="metric-card shadow-sm">
         <div className="metric-card-header mb-6">
           <div className="flex items-center gap-2">
@@ -198,7 +661,7 @@ export default function OrganizationSettingsPage() {
             </p>
           </div>
 
-          {hasChanges && (
+          {hasLocaleChanges && (
             <Alert className="bg-[#007A78]/5 border-[#007A78]/20">
               <AlertTriangle className="h-4 w-4 text-[#007A78]" />
               <AlertDescription className="text-[#005F5D]">
@@ -211,7 +674,7 @@ export default function OrganizationSettingsPage() {
         <div className="pt-4 sm:pt-6 border-t border-[#E5E5EA] flex gap-3">
           <Button
             onClick={handleSave}
-            disabled={isSaving || !hasChanges}
+            disabled={isSaving || !hasLocaleChanges}
             className="cloudact-btn-primary h-[36px] px-4"
           >
             {isSaving ? (
@@ -227,7 +690,7 @@ export default function OrganizationSettingsPage() {
             )}
           </Button>
 
-          {hasChanges && (
+          {hasLocaleChanges && (
             <Button
               onClick={handleReset}
               disabled={isSaving}
@@ -263,6 +726,432 @@ export default function OrganizationSettingsPage() {
                 </li>
               </ul>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Backend Connection */}
+      <div className="metric-card shadow-sm">
+        <div className="metric-card-header mb-6">
+          <div className="flex items-center gap-2">
+            <Server className="h-5 w-5 text-[#8E8E93]" />
+            <h2 className="text-[22px] font-bold text-black">Backend Connection</h2>
+          </div>
+          <p className="text-[13px] sm:text-[15px] text-[#8E8E93] mt-1">
+            Status of your BigQuery backend connection and API key
+          </p>
+        </div>
+
+        <div className="metric-card-content space-y-4">
+          {loadingBackendStatus ? (
+            <div className="flex items-center gap-3">
+              <Loader2 className="h-5 w-5 animate-spin text-[#007A78]" />
+              <span className="text-[15px] text-[#8E8E93]">Checking connection status...</span>
+            </div>
+          ) : (
+            <>
+              {/* Backend Error Alert */}
+              {backendError && (
+                <Alert variant="destructive" className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
+                  <AlertTriangle className="h-4 w-4 text-[#FF6E50]" />
+                  <AlertDescription className="text-[#FF6E50]">
+                    {backendError}
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {/* Connection Status */}
+              <div className={`flex items-center justify-between p-4 border rounded-lg ${
+                backendOnboarded && apiKeyValid !== false
+                  ? 'border-[#E5E5EA] bg-gray-50'
+                  : 'border-[#FF6E50]/30 bg-[#FF6E50]/5'
+              }`}>
+                <div className="flex items-center gap-3">
+                  <div className={`h-3 w-3 rounded-full ${
+                    backendOnboarded && apiKeyValid !== false ? 'bg-[#007A78]' : 'bg-[#FF6E50]'
+                  }`} />
+                  <div>
+                    <p className="text-[15px] font-medium text-black">
+                      {backendOnboarded && apiKeyValid !== false ? "Connected" : "Not Connected"}
+                    </p>
+                    <p className="text-[13px] text-[#8E8E93]">
+                      {apiKeyValid === false
+                        ? "API key is invalid or inactive in backend"
+                        : backendOnboarded
+                          ? "BigQuery dataset is active and synced"
+                          : "Backend onboarding required"}
+                    </p>
+                  </div>
+                </div>
+                {backendOnboarded && apiKeyValid !== false && (
+                  <Badge className="bg-[#007A78]/10 text-[#007A78] border-0">
+                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                    Active
+                  </Badge>
+                )}
+                {apiKeyValid === false && (
+                  <Badge className="bg-[#FF6E50]/10 text-[#FF6E50] border-0">
+                    <AlertTriangle className="h-3 w-3 mr-1" />
+                    Invalid
+                  </Badge>
+                )}
+              </div>
+
+              {/* API Key Fingerprint */}
+              {apiKeyFingerprint && (
+                <div className={`flex items-center justify-between p-4 border rounded-lg ${
+                  apiKeyValid === false ? 'border-[#FF6E50]/30 bg-[#FF6E50]/5' : 'border-[#E5E5EA] bg-gray-50'
+                }`}>
+                  <div className="flex items-center gap-3">
+                    <Key className={`h-5 w-5 ${apiKeyValid === false ? 'text-[#FF6E50]' : 'text-[#8E8E93]'}`} />
+                    <div>
+                      <p className="text-[15px] font-medium text-black">API Key</p>
+                      <p className={`text-[13px] font-mono ${apiKeyValid === false ? 'text-[#FF6E50]' : 'text-[#8E8E93]'}`}>
+                        ••••••••{apiKeyFingerprint}
+                        {apiKeyValid === false && " (invalid)"}
+                      </p>
+                    </div>
+                  </div>
+                  {apiKeyValid === true && (
+                    <Badge className="bg-[#007A78]/10 text-[#007A78] border-0">
+                      <CheckCircle2 className="h-3 w-3 mr-1" />
+                      Valid
+                    </Badge>
+                  )}
+                </div>
+              )}
+
+              {/* Help text for invalid API key */}
+              {apiKeyValid === false && (
+                <div className="p-4 border border-[#007A78]/20 rounded-lg bg-[#007A78]/5">
+                  <p className="text-[13px] text-[#005F5D]">
+                    <strong>How to fix:</strong> Your API key may have been rotated or deactivated.
+                    Try clicking &quot;Resync Connection&quot; below, or contact support if the issue persists.
+                  </p>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        <div className="pt-4 sm:pt-6 border-t border-[#E5E5EA]">
+          <Button
+            onClick={handleResync}
+            disabled={isResyncing || loadingBackendStatus}
+            variant={(!backendOnboarded || apiKeyValid === false) ? "default" : "outline"}
+            className={`h-[36px] px-4 ${
+              (!backendOnboarded || apiKeyValid === false)
+                ? "bg-[#007A78] text-white hover:bg-[#006664]"
+                : "border border-[#E5E5EA] hover:bg-white"
+            }`}
+          >
+            {isResyncing ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {(!backendOnboarded || apiKeyValid === false) ? "Re-onboarding..." : "Resyncing..."}
+              </>
+            ) : (
+              <>
+                <RefreshCw className="mr-2 h-4 w-4" />
+                {(!backendOnboarded || apiKeyValid === false) ? "Re-onboard & Regenerate API Key" : "Resync Connection"}
+              </>
+            )}
+          </Button>
+          <p className="text-[12px] text-[#8E8E93] mt-2">
+            {(!backendOnboarded || apiKeyValid === false)
+              ? "Re-onboard your organization to generate a new API key and restore backend connection"
+              : "Re-synchronize your organization's locale and subscription data with the backend"}
+          </p>
+        </div>
+      </div>
+
+      {/* Danger Zone Section */}
+      <div className="pt-4 sm:pt-6">
+        <h2 className="text-[22px] font-bold text-[#FF6E50] mb-4 flex items-center gap-2">
+          <AlertTriangle className="h-5 w-5" />
+          Danger Zone
+        </h2>
+
+        {/* Owned Organizations Management */}
+        {loadingOwnedOrgs ? (
+          <div className="metric-card shadow-sm border-[#FF6E50]/30">
+            <div className="metric-card-content py-8">
+              <div className="flex items-center justify-center">
+                <Loader2 className="h-6 w-6 animate-spin text-[#007A78]" />
+                <span className="ml-2 text-[15px] text-[#8E8E93]">Loading organizations...</span>
+              </div>
+            </div>
+          </div>
+        ) : ownedOrgs.length > 0 ? (
+          <div className="metric-card shadow-sm border-[#FF6E50]/30 mb-6">
+            <div className="metric-card-header mb-4">
+              <div className="flex items-center gap-2">
+                <Building2 className="h-5 w-5 text-[#FF6E50]" />
+                <h3 className="text-[18px] font-bold text-[#FF6E50]">Organizations You Own</h3>
+              </div>
+              <p className="text-[13px] sm:text-[15px] text-[#8E8E93] mt-1">
+                You must transfer ownership or delete these organizations before you can delete your account.
+              </p>
+            </div>
+            <div className="metric-card-content space-y-4">
+              {ownedOrgs.map((org) => (
+                <div
+                  key={org.id}
+                  className="flex items-center justify-between p-4 border border-[#E5E5EA] rounded-lg bg-gray-50"
+                >
+                  <div className="flex items-center gap-3">
+                    <Building2 className="h-5 w-5 text-[#8E8E93]" />
+                    <div>
+                      <p className="text-[15px] font-medium text-black">{org.org_name}</p>
+                      <div className="flex items-center gap-2 text-[13px] text-[#8E8E93]">
+                        <Users className="h-3 w-3" />
+                        <span>{org.member_count} member{org.member_count !== 1 ? "s" : ""}</span>
+                        <Badge variant="outline" className="bg-[#007A78]/12 text-[#007A78] border-0 ml-2">Owner</Badge>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {org.has_other_members ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openTransferDialog(org)}
+                        className="h-[36px] border border-[#E5E5EA] hover:bg-white"
+                      >
+                        <ArrowRightLeft className="h-4 w-4 mr-2" />
+                        Transfer
+                      </Button>
+                    ) : null}
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => openDeleteOrgDialog(org)}
+                      className="h-[36px] bg-[#FF6E50] hover:bg-[#E55A3C] text-white shadow-sm"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {/* Transfer Ownership Dialog */}
+        <Dialog open={transferDialogOpen} onOpenChange={setTransferDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Transfer Ownership</DialogTitle>
+              <DialogDescription>
+                Transfer ownership of &quot;{selectedOrgForTransfer?.org_name}&quot; to another member.
+                You will become a collaborator after the transfer.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              {loadingTransferMembers ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                </div>
+              ) : transferMembers.length === 0 ? (
+                <Alert>
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    No other members available. Invite someone to the organization first, or delete the organization instead.
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                <div className="space-y-3">
+                  <Label>Select new owner</Label>
+                  <Select value={selectedNewOwner} onValueChange={setSelectedNewOwner}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose a member" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {transferMembers.map((member) => (
+                        <SelectItem key={member.user_id} value={member.user_id}>
+                          <div className="flex items-center gap-2">
+                            <UserCog className="h-4 w-4" />
+                            <span>{member.full_name || member.email}</span>
+                            <span className="text-[#8E8E93]">({member.role})</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setTransferDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleTransferOwnership}
+                disabled={!selectedNewOwner || isTransferring}
+              >
+                {isTransferring ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Transferring...
+                  </>
+                ) : (
+                  "Transfer Ownership"
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Organization Dialog */}
+        <Dialog open={deleteOrgDialogOpen} onOpenChange={setDeleteOrgDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="text-destructive">Delete Organization</DialogTitle>
+              <DialogDescription>
+                This will permanently delete &quot;{selectedOrgForDelete?.org_name}&quot; and all associated data.
+                This action cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              <Alert variant="destructive" className="mb-4 border-[#FF6E50]/30 bg-[#FF6E50]/5">
+                <AlertTriangle className="h-4 w-4 text-[#FF6E50]" />
+                <AlertDescription>
+                  All organization data, members, invites, and settings will be permanently deleted.
+                  {selectedOrgForDelete?.member_count && selectedOrgForDelete.member_count > 1 && (
+                    <span className="block mt-1">
+                      This will affect {selectedOrgForDelete.member_count - 1} other member(s).
+                    </span>
+                  )}
+                </AlertDescription>
+              </Alert>
+              <div className="space-y-2">
+                <Label htmlFor="confirmName">
+                  Type <span className="font-bold">{selectedOrgForDelete?.org_name}</span> to confirm
+                </Label>
+                <Input
+                  id="confirmName"
+                  value={deleteConfirmName}
+                  onChange={(e) => setDeleteConfirmName(e.target.value)}
+                  placeholder="Type organization name"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDeleteOrgDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleDeleteOrg}
+                disabled={
+                  deleteConfirmName.toLowerCase() !== selectedOrgForDelete?.org_name.toLowerCase() ||
+                  isDeletingOrg
+                }
+              >
+                {isDeletingOrg ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete Organization
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Account Deletion Card */}
+        <div className="metric-card shadow-sm border-[#FF6E50]/30">
+          <div className="metric-card-header mb-4">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-[#FF6E50]" />
+              <h3 className="text-[18px] font-bold text-[#FF6E50]">Delete Account</h3>
+            </div>
+            <p className="text-[13px] sm:text-[15px] text-[#8E8E93] mt-1">Permanently delete your account and all associated data</p>
+          </div>
+          <div className="metric-card-content">
+            {deletionRequested ? (
+              <Alert className="bg-muted border-[#007A78]/30">
+                <Mail className="h-4 w-4 text-[#007A78]" />
+                <AlertDescription>
+                  <p className="font-medium text-foreground">Verification email sent!</p>
+                  <p className="text-sm mt-1">
+                    Please check your inbox and click the confirmation link to complete account deletion.
+                    The link will expire in 30 minutes.
+                  </p>
+                </AlertDescription>
+              </Alert>
+            ) : ownedOrgs.length > 0 ? (
+              <Alert variant="destructive" className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
+                <AlertTriangle className="h-4 w-4 text-[#FF6E50]" />
+                <AlertDescription>
+                  You own {ownedOrgs.length} organization{ownedOrgs.length !== 1 ? "s" : ""}.
+                  Please transfer ownership or delete them before deleting your account.
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <Alert variant="destructive" className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
+                <AlertTriangle className="h-4 w-4 text-[#FF6E50]" />
+                <AlertDescription>
+                  Deleting your account will permanently remove you from all organizations and cannot be
+                  undone. Your data will be lost forever.
+                </AlertDescription>
+              </Alert>
+            )}
+          </div>
+          <div className="pt-4 border-t border-[#E5E5EA]">
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="destructive"
+                  disabled={ownedOrgs.length > 0 || isRequestingDeletion || deletionRequested}
+                  className="bg-[#FF6E50] hover:bg-[#E55A3C] text-white shadow-sm"
+                >
+                  {isRequestingDeletion ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Requesting...
+                    </>
+                  ) : deletionRequested ? (
+                    <>
+                      <Mail className="mr-2 h-4 w-4" />
+                      Check Email
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete Account
+                    </>
+                  )}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Request Account Deletion</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    We will send a verification email to <span className="font-medium">{email}</span>.
+                    You must click the link in the email to confirm the deletion.
+                    <span className="block mt-2 text-destructive">
+                      This action is permanent and cannot be undone.
+                    </span>
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleRequestAccountDeletion}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    Send Verification Email
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </div>
       </div>

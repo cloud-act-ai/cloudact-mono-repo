@@ -163,7 +163,7 @@ export default function BillingPage() {
   const companyName = user?.user_metadata?.pending_company_name || "Your Company"
 
   return (
-    <div className="flex min-h-svh w-full flex-col items-center justify-center bg-white p-4">
+    <div className="flex min-h-svh w-full flex-col items-center bg-white p-4 py-8 md:py-12">
       <div className="w-full max-w-[900px] space-y-4">
         {/* Header */}
         <div className="flex flex-col items-center gap-2 text-center">
@@ -207,10 +207,9 @@ export default function BillingPage() {
                 <div
                   key={plan.priceId}
                   className={cn(
-                    "relative cursor-pointer rounded-xl border bg-white p-4 shadow-md transition-all hover:shadow-lg flex flex-col",
-                    isSelected && "border-[#007A78] opacity-60 scale-[0.98]",
-                    !isSelected && "hover:border-[#007A78] hover:ring-2 hover:ring-[#007A78]/30 hover:scale-[1.02]",
-                    isPopular && !isSelected && "border-[#007A78]/50 ring-1 ring-[#007A78]/20"
+                    "relative cursor-pointer rounded-xl border bg-white p-4 shadow-sm transition-all hover:shadow-md flex flex-col",
+                    isSelected ? "border-[#007A78] ring-1 ring-[#007A78] bg-[#007A78]/5" : "hover:border-[#007A78]/50 hover:ring-2 hover:ring-[#007A78]/10",
+                    isPopular && !isSelected && "border-[#007A78]/30"
                   )}
                   onClick={() => handleSelectPlan(plan.priceId)}
                 >
@@ -263,7 +262,7 @@ export default function BillingPage() {
                     className={cn(
                       "w-full text-sm py-2 px-4 rounded-md font-medium transition-all",
                       isSelected ? "cloudact-btn-primary" : "cloudact-btn-secondary",
-                      hasSelection && !isSelected && "opacity-60"
+                      !isSelected && hasSelection && "opacity-75"
                     )}
                     onClick={(e) => {
                       e.stopPropagation()

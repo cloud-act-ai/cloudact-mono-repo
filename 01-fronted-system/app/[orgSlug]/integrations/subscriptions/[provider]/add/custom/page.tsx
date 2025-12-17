@@ -272,12 +272,27 @@ export default function AddCustomSubscriptionPage() {
           { duration: 8000 }
         )
       } else {
-        toast.success("Subscription added successfully")
+        // Show success message with backfill status
+        if (result.backfillTriggered) {
+          toast.success(
+            `Subscription added! ${result.backfillMessage}`,
+            { duration: 6000 }
+          )
+        } else {
+          toast.success("Subscription added successfully")
+        }
       }
 
-      // Redirect to success page
+      // Redirect to success page with backfill info
       const planName = formData.plan_name.toUpperCase().replace(/\s+/g, "_")
-      router.push(`/${orgSlug}/subscriptions/${provider}/success?action=created&plan=${planName}`)
+      const successUrl = new URL(`/${orgSlug}/integrations/subscriptions/${provider}/success`, window.location.origin)
+      successUrl.searchParams.set("action", "created")
+      successUrl.searchParams.set("plan", planName)
+      if (result.backfillTriggered) {
+        successUrl.searchParams.set("backfill", "true")
+        successUrl.searchParams.set("backfill_start", startDateStr)
+      }
+      router.push(successUrl.pathname + successUrl.search)
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "An unexpected error occurred"
       setError(errorMessage)
@@ -302,15 +317,15 @@ export default function AddCustomSubscriptionPage() {
       {/* Breadcrumb Navigation */}
       <nav className="flex items-center gap-2 text-sm" aria-label="Breadcrumb">
         <Link
-          href={`/${orgSlug}/settings/integrations/subscriptions`}
+          href={`/${orgSlug}/integrations/subscriptions`}
           className="text-[#007A78] hover:text-[#005F5D] transition-colors focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2 rounded truncate max-w-[200px]"
-          title="Subscriptions"
+          title="Subscription Providers"
         >
-          Subscriptions
+          Subscription Providers
         </Link>
         <ChevronRight className="h-4 w-4 text-[#8E8E93] flex-shrink-0" aria-hidden="true" />
         <Link
-          href={`/${orgSlug}/subscriptions/${provider}`}
+          href={`/${orgSlug}/integrations/subscriptions/${provider}`}
           className="text-[#007A78] hover:text-[#005F5D] transition-colors focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2 rounded truncate max-w-[200px]"
           title={providerDisplayName}
         >
@@ -324,7 +339,7 @@ export default function AddCustomSubscriptionPage() {
 
       {/* Header */}
       <div className="flex items-center gap-3">
-        <Link href={`/${orgSlug}/subscriptions/${provider}`}>
+        <Link href={`/${orgSlug}/integrations/subscriptions/${provider}`}>
           <Button variant="ghost" size="icon" className="h-8 w-8">
             <ArrowLeft className="h-4 w-4" />
           </Button>
@@ -508,10 +523,8 @@ export default function AddCustomSubscriptionPage() {
                 onSelect={setStartDate}
                 placeholder="Select start date"
                 disabled={submitting}
+                showPresets={true}
               />
-              <p className="text-xs text-slate-500">
-                When does this subscription start? Future dates will show as &quot;Pending&quot;.
-              </p>
             </div>
 
             {/* Notes */}
@@ -598,7 +611,7 @@ export default function AddCustomSubscriptionPage() {
           <Button
             type="button"
             variant="outline"
-            onClick={() => router.push(`/${orgSlug}/subscriptions/${provider}`)}
+            onClick={() => router.push(`/${orgSlug}/integrations/subscriptions/${provider}`)}
             disabled={submitting}
           >
             Cancel

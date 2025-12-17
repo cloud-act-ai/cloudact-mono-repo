@@ -157,7 +157,7 @@ export default function EndSubscriptionPage() {
 
       toast.success("Subscription ended successfully")
       // Redirect to success page
-      router.push(`/${orgSlug}/subscriptions/${provider}?action=ended&plan=${encodeURIComponent(plan.plan_name)}`)
+      router.push(`/${orgSlug}/integrations/subscriptions/${provider}?action=ended&plan=${encodeURIComponent(plan.plan_name)}`)
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "An unexpected error occurred"
       setError(errorMessage)
@@ -224,14 +224,14 @@ export default function EndSubscriptionPage() {
         {/* Breadcrumb Navigation */}
         <nav className="flex items-center gap-2 text-sm" aria-label="Breadcrumb">
           <Link
-            href={`/${orgSlug}/settings/integrations/subscriptions`}
+            href={`/${orgSlug}/integrations/subscriptions`}
             className="text-[#007A78] hover:text-[#005F5D] transition-colors"
           >
-            Subscriptions
+            Subscription Providers
           </Link>
           <ChevronRight className="h-4 w-4 text-[#8E8E93]" />
           <Link
-            href={`/${orgSlug}/subscriptions/${provider}`}
+            href={`/${orgSlug}/integrations/subscriptions/${provider}`}
             className="text-[#007A78] hover:text-[#005F5D] transition-colors"
           >
             {providerDisplayName}
@@ -256,15 +256,15 @@ export default function EndSubscriptionPage() {
       {/* Breadcrumb Navigation */}
       <nav className="flex items-center gap-2 text-sm" aria-label="Breadcrumb">
         <Link
-          href={`/${orgSlug}/settings/integrations/subscriptions`}
+          href={`/${orgSlug}/integrations/subscriptions`}
           className="text-[#007A78] hover:text-[#005F5D] transition-colors focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2 rounded truncate max-w-[200px]"
-          title="Subscriptions"
+          title="Subscription Providers"
         >
-          Subscriptions
+          Subscription Providers
         </Link>
         <ChevronRight className="h-4 w-4 text-[#8E8E93] flex-shrink-0" aria-hidden="true" />
         <Link
-          href={`/${orgSlug}/subscriptions/${provider}`}
+          href={`/${orgSlug}/integrations/subscriptions/${provider}`}
           className="text-[#007A78] hover:text-[#005F5D] transition-colors focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2 rounded truncate max-w-[200px]"
           title={providerDisplayName}
         >
@@ -280,7 +280,7 @@ export default function EndSubscriptionPage() {
 
       {/* Header */}
       <div className="flex items-center gap-3">
-        <Link href={`/${orgSlug}/subscriptions/${provider}`}>
+        <Link href={`/${orgSlug}/integrations/subscriptions/${provider}`}>
           <Button variant="ghost" size="icon" className="h-8 w-8">
             <ArrowLeft className="h-4 w-4" />
           </Button>
@@ -395,7 +395,7 @@ export default function EndSubscriptionPage() {
             <Button
               type="button"
               variant="outline"
-              onClick={() => router.push(`/${orgSlug}/subscriptions/${provider}`)}
+              onClick={() => router.push(`/${orgSlug}/integrations/subscriptions/${provider}`)}
               disabled={ending}
             >
               Cancel

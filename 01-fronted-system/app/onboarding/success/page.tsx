@@ -73,7 +73,7 @@ function SuccessContent() {
       }
 
       hasProcessedRef.current = true
-      setOrgSlug(result.orgSlug)
+      setOrgSlug(result.orgSlug || null)
       setStatus("success")
 
       // Show success toast
@@ -226,17 +226,21 @@ function SuccessFallback() {
 
 export default function SuccessPage() {
   return (
-    <div className="flex min-h-svh w-full flex-col items-center justify-center bg-white p-6">
-      <div className="absolute top-8 left-8 flex items-center gap-2">
+    <div className="flex min-h-svh w-full flex-col bg-white">
+      {/* Header with Logo */}
+      <div className="flex items-center gap-2 p-6 md:p-8">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#007A78] text-white shadow">
           <Cloud className="h-5 w-5" />
         </div>
         <span className="font-semibold text-gray-900">CloudAct.ai</span>
       </div>
 
-      <Suspense fallback={<SuccessFallback />}>
-        <SuccessContent />
-      </Suspense>
+      {/* Main Content Centered */}
+      <div className="flex-1 flex flex-col items-center justify-center p-6 -mt-20">
+        <Suspense fallback={<SuccessFallback />}>
+          <SuccessContent />
+        </Suspense>
+      </div>
     </div>
   )
 }

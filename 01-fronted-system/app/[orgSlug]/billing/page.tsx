@@ -378,7 +378,7 @@ export default function BillingPage() {
             ...prev.subscription!,
             id: result.subscription!.id,
             status: result.subscription!.status,
-            plan: result.subscription!.plan,
+            plan: { ...result.subscription!.plan, currency: orgCurrency },
             currentPeriodEnd: result.subscription!.currentPeriodEnd,
             currentPeriodStart: prev.subscription?.currentPeriodStart || new Date(),
             cancelAtPeriodEnd: false,
@@ -457,10 +457,10 @@ export default function BillingPage() {
   return (
     <div className="space-y-6 sm:space-y-8 max-w-7xl mx-auto">
       {reason === "subscription_required" && (
-        <Alert className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
+        <Alert className="border-[#FF6E50]/20 bg-[#FF6E50]/5 shadow-sm">
           <AlertTriangle className="h-4 w-4 text-[#FF6E50]" />
-          <AlertTitle>Subscription Required</AlertTitle>
-          <AlertDescription>
+          <AlertTitle className="text-[#FF6E50]">Subscription Required</AlertTitle>
+          <AlertDescription className="text-[#1C1C1E]">
             Your subscription is not active. Please activate a plan to access your organization dashboard.
           </AlertDescription>
         </Alert>
@@ -522,16 +522,18 @@ export default function BillingPage() {
         <Alert className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
           <AlertTriangle className="h-4 w-4 text-[#FF6E50]" />
           <AlertTitle>Payment Past Due</AlertTitle>
-          <AlertDescription className="console-body">
+          <AlertDescription className="text-[#1C1C1E] mt-1">
             Your last payment failed. Please update your payment method to avoid service interruption.
             {isOwner && (
-              <button
-                className="ml-4 inline-flex items-center h-[36px] text-[15px] px-4 bg-[#FF6E50] text-white hover:bg-[#E55A3C] rounded-xl font-semibold shadow-sm transition-colors"
-                onClick={handleManageSubscription}
-                disabled={isPortalLoading}
-              >
-                Update Payment Method
-              </button>
+              <div className="mt-3">
+                <button
+                  className="inline-flex items-center h-[36px] text-[14px] px-4 bg-[#FF6E50] text-white hover:bg-[#E55A3C] rounded-lg font-medium shadow-sm transition-colors"
+                  onClick={handleManageSubscription}
+                  disabled={isPortalLoading}
+                >
+                  Update Payment Method
+                </button>
+              </div>
             )}
           </AlertDescription>
         </Alert>
@@ -577,7 +579,7 @@ export default function BillingPage() {
                 </span>
                 {isOwner && (
                   <button
-                    className={isTrialExpired || isUrgent ? "cloudact-btn-primary inline-flex items-center h-[36px] text-[15px] px-4" : isWarning ? "cloudact-btn-secondary inline-flex items-center h-[36px] text-[15px] px-4 border-[#FF6E50] text-[#FF6E50] hover:bg-[#FF6E50]/10" : "cloudact-btn-secondary inline-flex items-center h-[36px] text-[15px] px-4"}
+                    className={isTrialExpired || isUrgent ? "cloudact-btn-primary inline-flex items-center h-[36px] text-[14px] px-4 mt-2 sm:mt-0" : isWarning ? "inline-flex items-center h-[36px] text-[14px] px-4 font-medium text-[#FF6E50] border border-[#FF6E50] rounded-lg hover:bg-[#FF6E50]/10 mt-2 sm:mt-0" : "cloudact-btn-secondary inline-flex items-center h-[36px] text-[14px] px-4 mt-2 sm:mt-0"}
                     onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })}
                   >
                     <CreditCard className="h-4 w-4 mr-2" />
@@ -952,6 +954,23 @@ export default function BillingPage() {
                   You'll receive a prorated credit on your next invoice.
                   <br /><br />
                   <span className="text-[#FF6E50] font-medium">Note: Your plan limits will be reduced. Ensure you're within the new plan's limits before downgrading.</span>
+                  {confirmDialog.plan?.limits && (
+                    <div className="mt-4 space-y-2 text-[13px] sm:text-[15px]">
+                      <p>Current usage vs. new plan limits:</p>
+                      <ul>
+                        <li className="flex items-center gap-2">
+                          <span className="w-24 text-[#8E8E93]">Team Members:</span>
+                          <span className={`font-medium ${
+                            currentMemberCount > (confirmDialog.plan?.limits?.teamMembers ?? 0)
+                              ? "text-[#FF6E50] font-bold"
+                              : "text-black"
+                          }`}>
+                            {currentMemberCount} / {confirmDialog.plan?.limits?.teamMembers ?? 0}
+                          </span>
+                        </li>
+                      </ul>
+                    </div>
+                  )}
                 </>
               )}
             </DialogDescription>

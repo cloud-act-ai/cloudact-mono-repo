@@ -212,18 +212,29 @@ export default function PipelinesPage() {
   const getStatusColor = (status: string) => {
     switch (status.toUpperCase()) {
       case "COMPLETED":
-        return "bg-[#F0FDFA] text-[#007A78]"
+        return "bg-[#F0FDFA] text-[#007A78] border border-[#007A78]/10"
       case "FAILED":
-        return "bg-[#FF6E50]/10 text-[#FF6E50]"
+        return "bg-[#FF6E50]/10 text-[#FF6E50] border border-[#FF6E50]/10"
       case "RUNNING":
       case "PENDING":
-        return "bg-[#007A78]/10 text-[#007A78]"
+        return "bg-[#007A78]/5 text-[#007A78] border border-[#007A78]/10"
       case "SKIPPED":
-        return "bg-[#8E8E93]/12 text-[#8E8E93]"
+        return "bg-[#F5F5F7] text-[#8E8E93] border border-[#E5E5EA]"
       default:
-        return "bg-[#8E8E93]/12 text-[#8E8E93]"
+        return "bg-[#F5F5F7] text-[#8E8E93] border border-[#E5E5EA]"
     }
   }
+
+  // Category colors - CloudAct Standard (Teal/Coral/Neutral)
+  const CATEGORY_COLORS: Record<string, string> = {
+    ai: "bg-[#007A78]/10 text-[#007A78] border border-[#007A78]/10",
+    design: "bg-[#007A78]/5 text-[#007A78] border border-[#007A78]/10",
+    productivity: "bg-[#F0FDFA] text-[#007A78] border border-[#007A78]/10",
+    communication: "bg-[#007A78]/5 text-[#005F5D] border border-[#007A78]/10",
+    development: "bg-[#F0FDFA] text-[#005F5D] border border-[#007A78]/10",
+    cloud: "bg-[#007A78]/10 text-[#007A78] border border-[#007A78]/10",
+    other: "bg-[#F5F5F7] text-[#8E8E93] border border-[#E5E5EA]",
+  };
 
   if (isLoading) {
     return (
@@ -265,10 +276,10 @@ export default function PipelinesPage() {
                   </>
                 )}
               </p>
-              <Link href={`/${orgSlug}/settings/onboarding`}>
+              <Link href={`/${orgSlug}/settings/organization`}>
                 <button className="inline-flex items-center gap-2 h-[36px] px-4 bg-[#007A78] text-white text-[15px] font-semibold rounded-xl hover:bg-[#005F5D] transition-colors">
                   <Cloud className="h-4 w-4" />
-                  Go to Onboarding Settings
+                  Go to Organization Settings
                 </button>
               </Link>
             </div>
@@ -350,7 +361,7 @@ export default function PipelinesPage() {
                           <p className="text-[15px] text-[#8E8E93] max-w-md mx-auto">
                             Connect a provider to see available pipelines.
                           </p>
-                          <Link href={`/${orgSlug}/settings/integrations`}>
+                          <Link href={`/${orgSlug}/integrations/cloud-providers`}>
                             <button className="inline-flex items-center gap-2 h-[44px] px-6 bg-[#007A78] text-white text-[15px] font-semibold rounded-xl hover:bg-[#005F5D] transition-colors shadow-sm">
                               <Plug className="h-4 w-4" />
                               Add New Provider
@@ -385,12 +396,12 @@ export default function PipelinesPage() {
                           </TableCell>
                           <TableCell className="console-table-cell">
                             {!pipeline.required_integration || pipeline.required_integration === "" ? (
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#007A78]/10 text-[#007A78]">
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#F0FDFA] text-[#007A78] border border-[#007A78]/10">
                                 <CheckCircle2 className="h-3 w-3" />
                                 Ready
                               </span>
                             ) : (
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#007A78]/10 text-[#007A78]">
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#F0FDFA] text-[#007A78] border border-[#007A78]/10">
                                 <CheckCircle2 className="h-3 w-3" />
                                 Connected
                               </span>
@@ -506,12 +517,12 @@ export default function PipelinesPage() {
                             </div>
                           </TableCell>
                           <TableCell className="console-table-cell">
-                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold rounded-full ${
-                              run.status === "COMPLETED" ? "bg-[#F0FDFA] text-[#007A78]" :
-                              run.status === "FAILED" ? "bg-[#FF6E50]/10 text-[#FF6E50]" :
-                              run.status === "RUNNING" ? "bg-[#007A78]/10 text-[#007A78]" :
-                              run.status === "PENDING" ? "bg-[#007A78]/10 text-[#007A78]" :
-                              "bg-[#8E8E93]/12 text-[#8E8E93]"
+                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium rounded-full border ${
+                              run.status === "COMPLETED" ? "bg-[#F0FDFA] text-[#007A78] border-[#007A78]/10" :
+                              run.status === "FAILED" ? "bg-[#FF6E50]/10 text-[#FF6E50] border-[#FF6E50]/10" :
+                              run.status === "RUNNING" ? "bg-[#007A78]/5 text-[#007A78] border-[#007A78]/10" :
+                              run.status === "PENDING" ? "bg-[#007A78]/5 text-[#007A78] border-[#007A78]/10" :
+                              "bg-[#F5F5F7] text-[#8E8E93] border-[#E5E5EA]"
                             }`}>
                               {run.status === "COMPLETED" && <CheckCircle2 className="h-3 w-3" />}
                               {run.status === "FAILED" && <XCircle className="h-3 w-3" />}

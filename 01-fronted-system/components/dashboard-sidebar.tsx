@@ -1,5 +1,15 @@
 "use client"
 
+/**
+ * BigQuery-Style Dashboard Sidebar
+ *
+ * Clean, compact navigation:
+ * - Always expanded main sections (Cost Dashboards, Pipelines, Integrations)
+ * - Settings section collapsible with chevron
+ * - Rounded coral hover/active highlight (no left line)
+ * - Icons on all menu items
+ */
+
 import type * as React from "react"
 import {
   Sidebar,
@@ -8,77 +18,44 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarRail,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { Button } from "@/components/ui/button"
 import {
-  LayoutDashboard,
   LogOut,
-  Settings,
-  Users,
-  CreditCard,
   Building2,
+  CreditCard,
+  User,
+  Building,
+  UserPlus,
+  Shield,
   ChevronDown,
-  ChevronUp,
   ChevronRight,
-  Plug,
-  Brain,
+  // Cost Dashboards icons
+  LayoutDashboard,
+  Receipt,
+  Sparkles,
   Cloud,
-  Play,
-  List,
-  Wallet,
+  // Pipelines icons
+  RefreshCw,
+  Workflow,
+  Cpu,
+  // Integrations icons
+  Server,
+  Brain,
+  CreditCard as SubscriptionIcon,
 } from "lucide-react"
 import Link from "next/link"
+import Image from "next/image"
 import { createClient } from "@/lib/supabase/client"
 import { usePathname } from "next/navigation"
 import { useState, useEffect } from "react"
 import { cn } from "@/lib/utils"
-import { Badge } from "@/components/ui/badge"
-import { listEnabledProviders, ProviderMeta } from "@/actions/subscription-providers"
-
-// Provider display names mapping
-const PROVIDER_DISPLAY_NAMES: Record<string, string> = {
-  chatgpt_plus: "ChatGPT Plus",
-  claude_pro: "Claude Pro",
-  gemini_advanced: "Gemini Advanced",
-  copilot: "GitHub Copilot",
-  cursor: "Cursor",
-  windsurf: "Windsurf",
-  replit: "Replit",
-  v0: "v0",
-  lovable: "Lovable",
-  canva: "Canva",
-  adobe_cc: "Adobe Creative Cloud",
-  figma: "Figma",
-  miro: "Miro",
-  notion: "Notion",
-  confluence: "Confluence",
-  asana: "Asana",
-  monday: "Monday.com",
-  slack: "Slack",
-  zoom: "Zoom",
-  teams: "Microsoft Teams",
-  github: "GitHub",
-  gitlab: "GitLab",
-  jira: "Jira",
-  linear: "Linear",
-  vercel: "Vercel",
-  netlify: "Netlify",
-  railway: "Railway",
-  supabase: "Supabase",
-  custom: "Custom",
-}
+import { getOrgDetails } from "@/actions/organization-locale"
 
 // Format org name: "guruInc_11242025" → "Guru Inc"
-// Preserves common acronyms: SaaS, API, AI, LLM, GCP, AWS, etc.
 function formatOrgName(name: string): string {
   const withoutDate = name.replace(/_\d{8}$/, "")
-
-  // Common acronyms to preserve (case-insensitive)
   const acronymPatterns = [
     { pattern: /saas/gi, replacement: "SaaS" },
     { pattern: /\bapi\b/gi, replacement: "API" },
@@ -86,56 +63,24 @@ function formatOrgName(name: string): string {
     { pattern: /\bllm\b/gi, replacement: "LLM" },
     { pattern: /\bgcp\b/gi, replacement: "GCP" },
     { pattern: /\baws\b/gi, replacement: "AWS" },
-    { pattern: /\bml\b/gi, replacement: "ML" },
-    { pattern: /\bui\b/gi, replacement: "UI" },
-    { pattern: /\bux\b/gi, replacement: "UX" },
   ]
-
-  // First, replace underscores and hyphens with spaces
   let processed = withoutDate.replace(/[_-]/g, " ")
-
-  // Preserve acronyms BEFORE camelCase split
   for (const { pattern, replacement } of acronymPatterns) {
     processed = processed.replace(pattern, replacement)
   }
-
-  // Then handle camelCase (but skip consecutive capitals like "SaaS")
   processed = processed.replace(/([a-z])([A-Z])/g, "$1 $2")
-
-  // Split and title-case each word (but preserve already-cased acronyms)
   const words = processed
     .split(/\s+/)
     .filter(Boolean)
     .map((word) => {
-      // Check if word is an acronym (all caps or known pattern like "SaaS")
       const isAcronym = acronymPatterns.some(({ replacement }) =>
         word === replacement || word.toUpperCase() === word
       )
-      if (isAcronym) {
-        return word // Keep as-is
-      }
-      // Otherwise title case
+      if (isAcronym) return word
       return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
     })
     .join(" ")
-
   return words
-}
-
-// Billing status color mapping - defined outside component
-function getBillingStatusColor(status: string): string {
-  switch (status) {
-    case "active":
-      return "bg-[#007A78]/10 text-[#007A78] border-[#007A78]/30 font-medium"
-    case "trialing":
-      return "bg-[#FF6E50]/10 text-[#FF6E50] border-[#FF6E50]/30 font-semibold"
-    case "past_due":
-      return "bg-[#FF6E50]/10 text-[#FF6E50] border-[#FF6E50]/30 font-medium"
-    case "canceled":
-      return "bg-[#FF6E50]/10 text-[#FF6E50] border-[#FF6E50]/30 font-medium"
-    default:
-      return "bg-gray-100 text-gray-500"
-  }
 }
 
 interface DashboardSidebarProps extends React.ComponentProps<typeof Sidebar> {
@@ -158,428 +103,437 @@ export function DashboardSidebar({
 }: DashboardSidebarProps) {
   const pathname = usePathname()
   const [isLoading, setIsLoading] = useState(false)
-  const [orgExpanded, setOrgExpanded] = useState(false)
+  const [logoUrl, setLogoUrl] = useState<string | null>(null)
   const [integrationsExpanded, setIntegrationsExpanded] = useState(
-    pathname?.includes("/settings/integrations") || false
+    pathname?.includes("/integrations") || true  // Open by default
   )
-  const [pipelinesExpanded, setPipelinesExpanded] = useState(
-    pathname?.includes("/pipelines") || false
+  const [settingsExpanded, setSettingsExpanded] = useState(
+    pathname?.includes("/settings") || pathname?.includes("/billing") || true  // Expanded by default
   )
-  const [subscriptionsExpanded, setSubscriptionsExpanded] = useState(
-    pathname?.includes("/subscriptions") || false
-  )
-  const [enabledProviders, setEnabledProviders] = useState<ProviderMeta[]>([])
-  const formattedOrgName = formatOrgName(orgName)
 
-  // Fetch enabled subscription providers for sidebar
+  const formattedOrgName = formatOrgName(orgName)
+  const { state } = useSidebar()
+  const isCollapsed = state === "collapsed"
+
+  // Fetch org logo
   useEffect(() => {
-    const fetchProviders = async () => {
+    const fetchLogo = async () => {
       try {
-        const result = await listEnabledProviders(orgSlug)
-        if (result.success && result.providers) {
-          setEnabledProviders(result.providers)
+        const result = await getOrgDetails(orgSlug)
+        if (result.success && result.org?.logoUrl) {
+          setLogoUrl(result.org.logoUrl)
         }
       } catch (error) {
-        console.error("Failed to fetch providers:", error)
+        console.error("Failed to fetch org logo:", error)
       }
     }
-    fetchProviders()
-
-    // Also poll every 10 seconds when subscriptions are expanded
-    let interval: NodeJS.Timeout | null = null
-    if (subscriptionsExpanded) {
-      interval = setInterval(fetchProviders, 10000) // Refresh every 10 seconds
-    }
-
-    return () => {
-      if (interval) clearInterval(interval)
-    }
-  }, [orgSlug, subscriptionsExpanded, pathname])
+    fetchLogo()
+  }, [orgSlug])
 
   const handleLogout = async () => {
     setIsLoading(true)
     const supabase = createClient()
     await supabase.auth.signOut()
-    // Use hard redirect to avoid race conditions with auth state changes
     window.location.href = "/login"
   }
 
-  // More specific active state logic - only highlight exact matches
+  // Active state helper
   const isActive = (path: string, exact = false) => {
     if (!pathname) return false
-
-    if (exact) {
-      // Exact match only
-      return pathname === path
-    }
-
-    // For non-exact matches, ensure we don't highlight parent paths
-    // when on a child path. E.g., don't highlight /subscriptions when on /subscriptions/chatgpt_plus
+    if (exact) return pathname === path
     return pathname === path || pathname.startsWith(path + "/")
   }
 
-  const { state } = useSidebar()
-  const isCollapsed = state === "collapsed"
+  // Rounded coral hover/active styles (no left line)
+  const hoverClass = "hover:bg-[#FF6E50]/10 rounded-md mx-2 transition-all duration-150"
+  const activeClass = "bg-[#FF6E50]/15 text-[#FF6E50] font-medium rounded-md mx-2"
 
   return (
-    <Sidebar collapsible="icon" className="border-r-0" {...props}>
-      {/* Header removed - hamburger menu already shows company/logo */}
-
-      <SidebarContent className="px-0 py-0">
-        {/* Main Navigation */}
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-[11px] uppercase tracking-wider font-semibold text-[#8E8E93] px-5 pt-5 pb-2">
-            Navigation
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu className="gap-0">
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  tooltip="Dashboard"
-                  className={cn(
-                    "h-[42px] px-5 text-[14px] font-medium text-black hover:bg-[#007A78]/5 rounded-none",
-                    isActive(`/${orgSlug}/dashboard`, true) && "bg-[#007A78]/10 text-[#007A78] font-semibold",
-                  )}
-                >
-                  <Link href={`/${orgSlug}/dashboard`}>
-                    <LayoutDashboard className="h-5 w-5 text-[#007A78]" />
-                    <span>Dashboard</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-
-              {/* Subscription Costs - Top Level Menu */}
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  tooltip="Subscription Costs"
-                  className={cn(
-                    "h-[42px] px-5 text-[14px] font-medium text-black hover:bg-[#007A78]/5 rounded-none",
-                    isActive(`/${orgSlug}/subscriptions`, true) && "bg-[#007A78]/10 text-[#007A78] font-semibold",
-                  )}
-                >
-                  <Link href={`/${orgSlug}/subscriptions`}>
-                    <Wallet className="h-5 w-5 text-[#007A78]" />
-                    <span>Subscription Costs</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-
-              {/* Pipelines Menu with Sub-menus */}
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  onClick={() => setPipelinesExpanded(!pipelinesExpanded)}
-                  aria-expanded={pipelinesExpanded}
-                  aria-controls="pipelines-submenu"
-                  tooltip="Pipelines"
-                  className={cn(
-                    "h-[42px] px-5 text-[14px] font-medium text-black hover:bg-[#007A78]/5 justify-between rounded-none",
-                    pipelinesExpanded && "font-semibold",
-                    isActive(`/${orgSlug}/pipelines`) && "bg-[#007A78]/10 text-[#007A78] font-semibold",
-                  )}
-                >
-                  <div className="flex items-center gap-3">
-                    <Play className="h-5 w-5 text-[#005F5D]" />
-                    <span>Pipelines</span>
-                  </div>
-                  <ChevronRight
-                    className={cn(
-                      "h-4 w-4 transition-transform duration-150 text-[#C7C7CC] group-data-[collapsible=icon]:hidden",
-                      pipelinesExpanded && "rotate-90"
-                    )}
-                  />
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-
-              {/* Pipeline Sub-menus - hidden when collapsed */}
-              {pipelinesExpanded && !isCollapsed && (
-                <div id="pipelines-submenu" className="group-data-[collapsible=icon]:hidden ml-8 border-l border-[#E5E5EA] pl-0">
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      asChild
-                      className={cn(
-                        "h-[32px] pl-4 pr-5 text-[12px] text-[#8E8E93] hover:bg-[#007A78]/5 hover:text-[#007A78] rounded-none",
-                        isActive(`/${orgSlug}/pipelines`, true) && "text-[#007A78] font-semibold bg-[#007A78]/10",
-                      )}
-                    >
-                      <Link href={`/${orgSlug}/pipelines`}>
-                        <List className="h-3.5 w-3.5 text-[#005F5D]" />
-                        <span>List / Run</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                </div>
-              )}
-
-              {/* Integrations Menu with Sub-menus */}
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  onClick={() => setIntegrationsExpanded(!integrationsExpanded)}
-                  aria-expanded={integrationsExpanded}
-                  aria-controls="integrations-submenu"
-                  tooltip="Integrations"
-                  className={cn(
-                    "h-[42px] px-5 text-[14px] font-medium text-black hover:bg-[#007A78]/5 justify-between rounded-none",
-                    integrationsExpanded && "font-semibold",
-                    isActive(`/${orgSlug}/settings/integrations`) && "bg-[#007A78]/10 text-[#007A78] font-semibold",
-                  )}
-                >
-                  <div className="flex items-center gap-3">
-                    <Plug className="h-5 w-5 text-[#14B8A6]" />
-                    <span>Integrations</span>
-                  </div>
-                  <ChevronRight
-                    className={cn(
-                      "h-4 w-4 transition-transform duration-150 text-[#C7C7CC] group-data-[collapsible=icon]:hidden",
-                      integrationsExpanded && "rotate-90"
-                    )}
-                  />
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-
-              {/* Integration Sub-menus - 3 Categories - hidden when collapsed */}
-              {integrationsExpanded && !isCollapsed && (
-                <div id="integrations-submenu" className="group-data-[collapsible=icon]:hidden ml-8 border-l border-[#E5E5EA] pl-0">
-                  {/* Cloud Providers */}
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      asChild
-                      className={cn(
-                        "h-[32px] pl-4 pr-5 text-[12px] text-[#8E8E93] hover:bg-[#007A78]/5 hover:text-[#007A78] rounded-none",
-                        isActive(`/${orgSlug}/settings/integrations/cloud`, true) && "text-[#007A78] font-semibold bg-[#007A78]/10",
-                      )}
-                    >
-                      <Link href={`/${orgSlug}/settings/integrations/cloud`}>
-                        <Cloud className="h-3.5 w-3.5 text-[#007A78]" />
-                        <span>Cloud Providers</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                  {/* LLM Providers */}
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      asChild
-                      className={cn(
-                        "h-[32px] pl-4 pr-5 text-[12px] text-[#8E8E93] hover:bg-[#007A78]/5 hover:text-[#007A78] rounded-none",
-                        isActive(`/${orgSlug}/settings/integrations/llm`, true) && "text-[#007A78] font-semibold bg-[#007A78]/10",
-                      )}
-                    >
-                      <Link href={`/${orgSlug}/settings/integrations/llm`}>
-                        <Brain className="h-3.5 w-3.5 text-[#005F5D]" />
-                        <span>LLM Providers</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                  {/* Subscription Providers - Expandable submenu */}
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      onClick={() => setSubscriptionsExpanded(!subscriptionsExpanded)}
-                      className={cn(
-                        "h-[32px] pl-4 pr-5 text-[12px] text-[#8E8E93] hover:bg-[#007A78]/5 hover:text-[#007A78] justify-between rounded-none",
-                        isActive(`/${orgSlug}/settings/integrations/subscriptions`) && "text-[#007A78] font-semibold bg-[#007A78]/10",
-                      )}
-                    >
-                      <div className="flex items-center gap-2">
-                        <Wallet className="h-3.5 w-3.5 text-[#007A78]" />
-                        <span>Subscriptions</span>
-                        {enabledProviders.length > 0 && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#007A78]/12 text-[#007A78] font-semibold">
-                            {enabledProviders.length}
-                          </span>
-                        )}
-                      </div>
-                      <ChevronRight
-                        className={cn(
-                          "h-3 w-3 transition-transform duration-150 text-[#C7C7CC]",
-                          subscriptionsExpanded && "rotate-90"
-                        )}
-                      />
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                  {/* Subscription Providers Sub-menu (third level) - hidden when collapsed */}
-                  {subscriptionsExpanded && !isCollapsed && (
-                    <div className="group-data-[collapsible=icon]:hidden ml-4 border-l border-[#E5E5EA]/50 pl-0">
-                      {/* Manage Subscriptions - main provider management page */}
-                      <SidebarMenuItem>
-                        <SidebarMenuButton
-                          asChild
-                          className={cn(
-                            "h-[28px] pl-3 pr-5 text-[11px] text-[#8E8E93] hover:bg-[#007A78]/5 hover:text-[#007A78] rounded-none",
-                            pathname === `/${orgSlug}/settings/integrations/subscriptions` && "text-[#007A78] font-semibold",
-                          )}
-                        >
-                          <Link href={`/${orgSlug}/settings/integrations/subscriptions`}>
-                            <Settings className="h-3 w-3" />
-                            <span>Manage</span>
-                          </Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                      {/* Show each enabled provider */}
-                      {enabledProviders.map((provider) => {
-                        // Use PROVIDER_DISPLAY_NAMES mapping for proper capitalization
-                        const providerDisplayName = PROVIDER_DISPLAY_NAMES[provider.provider_name] ||
-                          provider.provider_name
-                            .replace(/_/g, " ")
-                            .replace(/\b\w/g, (l: string) => l.toUpperCase())
-                        return (
-                          <SidebarMenuItem key={provider.id}>
-                            <SidebarMenuButton
-                              asChild
-                              className={cn(
-                                "h-[28px] pl-3 pr-5 text-[11px] text-[#8E8E93] hover:bg-[#007A78]/5 hover:text-[#007A78] rounded-none",
-                                pathname === `/${orgSlug}/subscriptions/${provider.provider_name}` && "text-[#007A78] font-semibold",
-                              )}
-                            >
-                              <Link href={`/${orgSlug}/subscriptions/${provider.provider_name}`}>
-                                <CreditCard className="h-3 w-3" />
-                                <span>{providerDisplayName}</span>
-                              </Link>
-                            </SidebarMenuButton>
-                          </SidebarMenuItem>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
-
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-      </SidebarContent>
-
-      <SidebarFooter className="px-0 py-0 mt-auto">
-        {/* Organization Section - Expandable - hidden when collapsed */}
-        {!isCollapsed && (
-          <div className="px-5 py-4 group-data-[collapsible=icon]:hidden">
-            <button
-              onClick={() => setOrgExpanded(!orgExpanded)}
-              aria-expanded={orgExpanded}
-              aria-controls="org-details-panel"
-              className="w-full flex items-center justify-between py-2 text-black hover:bg-[#007A78]/5 rounded-xl px-3 -mx-3 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#007A78] focus-visible:outline-offset-2"
-            >
-              <div className="flex items-center gap-3">
-                <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-[#007A78] to-[#14B8A6] flex items-center justify-center">
-                  <Building2 className="h-4 w-4 text-white" />
-                </div>
-                <span className="text-[15px] font-medium text-black truncate max-w-[130px]">{formattedOrgName}</span>
-              </div>
-              <ChevronRight
-                className={cn(
-                  "h-4 w-4 text-[#C7C7CC] transition-transform duration-150",
-                  orgExpanded && "rotate-90"
-                )}
+    <Sidebar collapsible="icon" className="border-r border-[#E5E5EA] bg-white" {...props}>
+      {/* Header: Logo + Org Name */}
+      <div className={cn(
+        "border-b border-[#E5E5EA]",
+        isCollapsed ? "p-2" : "px-4 py-3"
+      )}>
+        <Link
+          href={`/${orgSlug}/cost-dashboards/overview`}
+          className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+        >
+          <div className={cn(
+            "flex-shrink-0 rounded-md overflow-hidden bg-gradient-to-br from-[#007A78] to-[#14B8A6] flex items-center justify-center",
+            "h-8 w-8"
+          )}>
+            {logoUrl ? (
+              <Image
+                src={logoUrl}
+                alt={formattedOrgName}
+                width={32}
+                height={32}
+                className="object-contain"
               />
-            </button>
-
-            {orgExpanded && (
-              <div id="org-details-panel" className="mt-3 p-4 rounded-2xl bg-[#F5F5F7] space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-[13px] text-[#8E8E93]">Plan</span>
-                  <span className="text-[13px] font-semibold text-[#007A78] capitalize">{orgPlan}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[13px] text-[#8E8E93]">Status</span>
-                  <span className={cn("text-[13px] font-semibold capitalize",
-                    billingStatus === "active" ? "text-[#007A78]" :
-                    billingStatus === "trialing" ? "text-[#FF8A73]" : "text-[#8E8E93]"
-                  )}>{billingStatus}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[13px] text-[#8E8E93]">Members</span>
-                  <span className="text-[13px] font-semibold text-black">{memberCount}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[13px] text-[#8E8E93]">Role</span>
-                  <span className="text-[13px] font-medium text-[#8E8E93] capitalize">
-                    {userRole === "read_only" ? "Read Only" : userRole}
-                  </span>
-                </div>
-              </div>
+            ) : (
+              <Building2 className="h-4 w-4 text-white" />
             )}
           </div>
-        )}
+          {!isCollapsed && (
+            <span className="text-[14px] font-semibold text-[#1C1C1E] truncate max-w-[160px]">
+              {formattedOrgName}
+            </span>
+          )}
+        </Link>
+      </div>
 
-        {/* Account Navigation - Apple Health Style */}
-        <div className={cn("", isCollapsed && "flex flex-col items-center py-2")}>
-          {/* Only show Billing for owners */}
-          {userRole === "owner" && (
-            <Button
-              variant="ghost"
-              asChild
+      <SidebarContent className="px-0 py-1 overflow-y-auto">
+        <SidebarMenu className="gap-0">
+
+          {/* Cost Dashboards Section */}
+          {!isCollapsed && (
+            <div className="pt-2 pb-1 px-4">
+              <span className="text-[13px] font-semibold text-[#8E8E93] uppercase tracking-wider">
+                Cost Dashboards
+              </span>
+            </div>
+          )}
+          {isCollapsed && (
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild className="h-[32px] justify-center px-2">
+                <Link href={`/${orgSlug}/cost-dashboards/overview`}>
+                  <LayoutDashboard className="h-4 w-4 text-[#8E8E93]" />
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
+          {!isCollapsed && (
+            <>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  className={cn(
+                    "h-[28px] px-3 text-[13px] font-normal text-[#3C3C43]",
+                    hoverClass,
+                    isActive(`/${orgSlug}/cost-dashboards/overview`, true) && activeClass
+                  )}
+                >
+                  <Link href={`/${orgSlug}/cost-dashboards/overview`}>
+                    <LayoutDashboard className="h-4 w-4 mr-2" />
+                    Cost Overview
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  className={cn(
+                    "h-[28px] px-3 text-[13px] font-normal text-[#3C3C43]",
+                    hoverClass,
+                    isActive(`/${orgSlug}/cost-dashboards/subscription-costs`) && activeClass
+                  )}
+                >
+                  <Link href={`/${orgSlug}/cost-dashboards/subscription-costs`}>
+                    <Receipt className="h-4 w-4 mr-2" />
+                    Subscription Costs
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  className={cn(
+                    "h-[28px] px-3 text-[13px] font-normal text-[#3C3C43]",
+                    hoverClass,
+                    isActive(`/${orgSlug}/cost-dashboards/genai-costs`) && activeClass
+                  )}
+                >
+                  <Link href={`/${orgSlug}/cost-dashboards/genai-costs`}>
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    GenAI Costs
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  className={cn(
+                    "h-[28px] px-3 text-[13px] font-normal text-[#3C3C43]",
+                    hoverClass,
+                    isActive(`/${orgSlug}/cost-dashboards/cloud-costs`) && activeClass
+                  )}
+                >
+                  <Link href={`/${orgSlug}/cost-dashboards/cloud-costs`}>
+                    <Cloud className="h-4 w-4 mr-2" />
+                    Cloud Costs
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </>
+          )}
+
+          {/* Pipelines Section */}
+          {!isCollapsed && (
+            <div className="pt-3 pb-1 px-4">
+              <span className="text-[13px] font-semibold text-[#8E8E93] uppercase tracking-wider">
+                Pipelines
+              </span>
+            </div>
+          )}
+          {isCollapsed && (
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild className="h-[32px] justify-center px-2">
+                <Link href={`/${orgSlug}/pipelines/subscription-runs`}>
+                  <Workflow className="h-4 w-4 text-[#8E8E93]" />
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
+          {!isCollapsed && (
+            <>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  className={cn(
+                    "h-[28px] px-3 text-[13px] font-normal text-[#3C3C43]",
+                    hoverClass,
+                    isActive(`/${orgSlug}/pipelines/subscription-runs`) && activeClass
+                  )}
+                >
+                  <Link href={`/${orgSlug}/pipelines/subscription-runs`}>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Subscription Runs
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  className={cn(
+                    "h-[28px] px-3 text-[13px] font-normal text-[#3C3C43]",
+                    hoverClass,
+                    isActive(`/${orgSlug}/pipelines/cost-runs`) && activeClass
+                  )}
+                >
+                  <Link href={`/${orgSlug}/pipelines/cost-runs`}>
+                    <Workflow className="h-4 w-4 mr-2" />
+                    Cost Runs
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  className={cn(
+                    "h-[28px] px-3 text-[13px] font-normal text-[#3C3C43]",
+                    hoverClass,
+                    isActive(`/${orgSlug}/pipelines/genai-runs`) && activeClass
+                  )}
+                >
+                  <Link href={`/${orgSlug}/pipelines/genai-runs`}>
+                    <Cpu className="h-4 w-4 mr-2" />
+                    GenAI Runs
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </>
+          )}
+
+
+        </SidebarMenu>
+      </SidebarContent>
+
+      {/* Footer: Integrations + Settings + Sign Out */}
+      <SidebarFooter className="px-0 py-1 mt-auto border-t border-[#E5E5EA]">
+        <SidebarMenu className="gap-0">
+
+          {/* Integrations Section - Same style as top sections */}
+          {!isCollapsed && (
+            <div
+              className="pt-3 pb-1 px-4 flex items-center justify-between cursor-pointer hover:bg-[#F5F5F7]/50 transition-all duration-150"
+              onClick={() => setIntegrationsExpanded(!integrationsExpanded)}
+            >
+              <span className="text-[13px] font-semibold text-[#8E8E93] uppercase tracking-wider">
+                Integrations
+              </span>
+              {integrationsExpanded ? (
+                <ChevronDown className="h-3.5 w-3.5 text-[#8E8E93]" />
+              ) : (
+                <ChevronRight className="h-3.5 w-3.5 text-[#8E8E93]" />
+              )}
+            </div>
+          )}
+          {/* Integrations Sub-items */}
+          {integrationsExpanded && !isCollapsed && (
+            <>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  className={cn(
+                    "h-[28px] px-3 text-[13px] font-normal text-[#3C3C43]",
+                    hoverClass,
+                    isActive(`/${orgSlug}/integrations/cloud-providers`) && activeClass
+                  )}
+                >
+                  <Link href={`/${orgSlug}/integrations/cloud-providers`}>
+                    <Server className="h-4 w-4 mr-2" />
+                    Cloud Providers
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  className={cn(
+                    "h-[28px] px-3 text-[13px] font-normal text-[#3C3C43]",
+                    hoverClass,
+                    isActive(`/${orgSlug}/integrations/llm`) && activeClass
+                  )}
+                >
+                  <Link href={`/${orgSlug}/integrations/llm`}>
+                    <Brain className="h-4 w-4 mr-2" />
+                    LLM Providers
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  className={cn(
+                    "h-[28px] px-3 text-[13px] font-normal text-[#3C3C43]",
+                    hoverClass,
+                    isActive(`/${orgSlug}/integrations/subscriptions`) && activeClass
+                  )}
+                >
+                  <Link href={`/${orgSlug}/integrations/subscriptions`}>
+                    <SubscriptionIcon className="h-4 w-4 mr-2" />
+                    Subscriptions
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </>
+          )}
+
+          {/* Settings Section - Same style as top sections */}
+          {!isCollapsed && (
+            <div
+              className="pt-3 pb-1 px-4 flex items-center justify-between cursor-pointer hover:bg-[#F5F5F7]/50 transition-all duration-150"
+              onClick={() => setSettingsExpanded(!settingsExpanded)}
+            >
+              <span className="text-[13px] font-semibold text-[#8E8E93] uppercase tracking-wider">
+                Settings
+              </span>
+              {settingsExpanded ? (
+                <ChevronDown className="h-3.5 w-3.5 text-[#8E8E93]" />
+              ) : (
+                <ChevronRight className="h-3.5 w-3.5 text-[#8E8E93]" />
+              )}
+            </div>
+          )}
+          {/* Settings Sub-items */}
+          {settingsExpanded && !isCollapsed && (
+            <>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  className={cn(
+                    "h-[28px] px-3 text-[13px] font-normal text-[#3C3C43]",
+                    hoverClass,
+                    isActive(`/${orgSlug}/settings/personal`) && activeClass
+                  )}
+                >
+                  <Link href={`/${orgSlug}/settings/personal`}>
+                    <User className="h-4 w-4 mr-2" />
+                    Personal
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              {userRole === "owner" && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    className={cn(
+                      "h-[28px] px-3 text-[13px] font-normal text-[#3C3C43]",
+                      hoverClass,
+                      isActive(`/${orgSlug}/settings/organization`) && activeClass
+                    )}
+                  >
+                    <Link href={`/${orgSlug}/settings/organization`}>
+                      <Building className="h-4 w-4 mr-2" />
+                      Organization
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  className={cn(
+                    "h-[28px] px-3 text-[13px] font-normal text-[#3C3C43]",
+                    hoverClass,
+                    isActive(`/${orgSlug}/settings/invite`) && activeClass
+                  )}
+                >
+                  <Link href={`/${orgSlug}/settings/invite`}>
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Invite
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  className={cn(
+                    "h-[28px] px-3 text-[13px] font-normal text-[#3C3C43]",
+                    hoverClass,
+                    isActive(`/${orgSlug}/settings/security`) && activeClass
+                  )}
+                >
+                  <Link href={`/${orgSlug}/settings/security`}>
+                    <Shield className="h-4 w-4 mr-2" />
+                    Security
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              {userRole === "owner" && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    className={cn(
+                      "h-[28px] px-3 text-[13px] font-normal text-[#3C3C43]",
+                      hoverClass,
+                      isActive(`/${orgSlug}/billing`, true) && activeClass
+                    )}
+                  >
+                    <Link href={`/${orgSlug}/billing`}>
+                      <CreditCard className="h-4 w-4 mr-2" />
+                      Billing
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+            </>
+          )}
+
+          {/* Sign Out - Always visible */}
+          <SidebarMenuItem className="mt-2">
+            <SidebarMenuButton
+              onClick={handleLogout}
+              disabled={isLoading}
               className={cn(
-                "w-full justify-start gap-3 px-5 h-[42px] text-[14px] font-medium text-black hover:bg-[#007A78]/5 rounded-none",
-                isActive(`/${orgSlug}/billing`, true) && "bg-[#007A78]/10 text-[#007A78] font-semibold",
-                isCollapsed && "w-10 h-10 px-0 justify-center rounded-lg"
+                "h-[32px] px-3 text-[13px] font-normal text-[#FF6E50]",
+                "hover:bg-[#FF6E50]/10 rounded-md mx-2 transition-all duration-150",
+                isCollapsed && "justify-center px-2"
               )}
             >
-              <Link href={`/${orgSlug}/billing`} title="Billing">
-                <CreditCard className="h-5 w-5 text-[#007A78]" />
-                {!isCollapsed && <span>Billing</span>}
-              </Link>
-            </Button>
-          )}
-          <Button
-            variant="ghost"
-            asChild
-            className={cn(
-              "w-full justify-start gap-3 px-5 h-[42px] text-[14px] font-medium text-black hover:bg-[#007A78]/5 rounded-none",
-              isActive(`/${orgSlug}/settings/members`, true) && "bg-[#007A78]/10 text-[#007A78] font-semibold",
-              isCollapsed && "w-10 h-10 px-0 justify-center rounded-lg"
-            )}
-          >
-            <Link href={`/${orgSlug}/settings/members`} title="Invite">
-              <Users className="h-5 w-5 text-[#14B8A6]" />
-              {!isCollapsed && <span>Invite</span>}
-            </Link>
-          </Button>
-          {/* Only show Organization for owners */}
-          {userRole === "owner" && (
-            <Button
-              variant="ghost"
-              asChild
-              className={cn(
-                "w-full justify-start gap-3 px-5 h-[42px] text-[14px] font-medium text-black hover:bg-[#007A78]/5 rounded-none",
-                isActive(`/${orgSlug}/settings/onboarding`, true) && "bg-[#007A78]/10 text-[#007A78] font-semibold",
-                isCollapsed && "w-10 h-10 px-0 justify-center rounded-lg"
-              )}
-            >
-              <Link href={`/${orgSlug}/settings/onboarding`} title="Organization">
-                <Building2 className="h-5 w-5 text-[#007A78]" />
-                {!isCollapsed && <span>Organization</span>}
-              </Link>
-            </Button>
-          )}
-          <Button
-            variant="ghost"
-            asChild
-            className={cn(
-              "w-full justify-start gap-3 px-5 h-[42px] text-[14px] font-medium text-black hover:bg-[#8E8E93]/5 rounded-none",
-              isActive(`/${orgSlug}/settings/profile`, true) && "bg-[#8E8E93]/10 text-[#8E8E93] font-semibold",
-              isCollapsed && "w-10 h-10 px-0 justify-center rounded-lg"
-            )}
-          >
-            <Link href={`/${orgSlug}/settings/profile`} title="Settings">
-              <Settings className="h-5 w-5 text-[#8E8E93]" />
-              {!isCollapsed && <span>Settings</span>}
-            </Link>
-          </Button>
-          <Button
-            variant="ghost"
-            onClick={handleLogout}
-            disabled={isLoading}
-            title="Sign Out"
-            className={cn(
-              "w-full justify-start gap-3 px-5 h-[44px] text-[17px] font-medium text-black hover:bg-[#FF6E50]/10 hover:text-[#FF6E50] rounded-none",
-              isCollapsed && "w-10 h-10 px-0 justify-center rounded-lg"
-            )}
-          >
-            <LogOut className="h-5 w-5 text-[#FF6E50]" />
-            {!isCollapsed && (isLoading ? "Signing out..." : "Sign Out")}
-          </Button>
-        </div>
+              <LogOut className={cn("h-4 w-4", isCollapsed ? "" : "mr-2")} />
+              {!isCollapsed && (isLoading ? "Signing out..." : "Sign Out")}
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+
+        </SidebarMenu>
       </SidebarFooter>
+
       <SidebarRail />
     </Sidebar>
   )

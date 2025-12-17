@@ -4,7 +4,7 @@ import type React from "react"
 import Link from "next/link"
 import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Cloud, Loader2, Phone, Globe, DollarSign } from "lucide-react"
+import { Cloud, Loader2, Phone, Globe, DollarSign, Mail, Lock, Building2, Briefcase } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -193,11 +193,12 @@ function SignupForm() {
         <form onSubmit={onSubmit} className="space-y-4">
           {/* Account Section */}
           <div className="space-y-3">
-            <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Account</div>
+            <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Your Details</div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="space-y-1.5 md:col-span-2">
-                <Label htmlFor="email" className="text-sm font-medium text-gray-700">
+                <Label htmlFor="email" className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+                  <Mail className="h-3.5 w-3.5" />
                   Email address
                 </Label>
                 <Input
@@ -214,7 +215,8 @@ function SignupForm() {
               </div>
 
               <div className="space-y-1.5 md:col-span-2">
-                <Label htmlFor="password" className="text-sm font-medium text-gray-700">
+                <Label htmlFor="password" className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+                  <Lock className="h-3.5 w-3.5" />
                   Password
                 </Label>
                 <Input
@@ -269,11 +271,12 @@ function SignupForm() {
           {/* Company Section - Only show for non-invite flow */}
           {!isInviteFlow && (
             <div className="space-y-3 pt-3 border-t">
-              <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Company</div>
+              <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Organization Details</div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label htmlFor="companyName" className="text-sm font-medium text-gray-700">
+                  <Label htmlFor="companyName" className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+                    <Building2 className="h-3.5 w-3.5" />
                     Company name
                   </Label>
                   <Input
@@ -292,7 +295,8 @@ function SignupForm() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="companyType" className="text-sm font-medium text-gray-700">
+                  <Label htmlFor="companyType" className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+                    <Briefcase className="h-3.5 w-3.5" />
                     Company type
                   </Label>
                   <select

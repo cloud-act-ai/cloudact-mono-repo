@@ -8,8 +8,9 @@
  */
 
 import { useEffect, useState, useCallback } from "react"
-import { useParams } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
+import { toast } from "sonner"
 import {
   ArrowLeft,
   Plus,
@@ -27,6 +28,8 @@ import {
   CalendarX,
   Info,
   CreditCard,
+  Loader2,
+  Check,
 } from "lucide-react"
 import { format } from "date-fns"
 
@@ -35,17 +38,35 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { CardSkeleton } from "@/components/ui/card-skeleton"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { DatePicker } from "@/components/ui/date-picker"
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet"
 
 import {
   getProviderPlans,
   getProviderMeta,
-  getSaaSSubscriptionCosts,
+  getAvailablePlans,
+  createCustomPlan,
   SubscriptionPlan,
   type ProviderMeta,
-  type SaaSCostSummary,
-  type SaaSCostRecord,
+  type AvailablePlan,
+  type PlanCreate,
 } from "@/actions/subscription-providers"
-import { formatCurrency, formatDateOnly } from "@/lib/i18n"
+import { formatCurrency, formatDateOnly, convertFromUSD, getExchangeRate, SUPPORTED_CURRENCIES, getCurrencySymbol } from "@/lib/i18n"
 import { getOrgLocale } from "@/actions/organization-locale"
 
 // Provider display names
@@ -110,8 +131,16 @@ const categoryIcons: Record<string, React.ReactNode> = {
   other: <CreditCard className="h-6 w-6" />,
 }
 
+// Extended form data to include audit trail from template
+interface FormDataWithAudit extends PlanCreate {
+  source_currency?: string
+  source_price?: number
+  exchange_rate_used?: number
+}
+
 export default function ProviderDetailPage() {
   const params = useParams<{ orgSlug: string; provider: string }>()
+  const router = useRouter()
   const { orgSlug, provider: rawProvider } = params
 
   // Canonicalize provider name (handle aliases like chatgpt_enterprise → chatgpt_plus)
@@ -125,7 +154,7 @@ export default function ProviderDetailPage() {
 
   // State
   const [plans, setPlans] = useState<SubscriptionPlan[]>([])
-  const [totalMonthlyCost, setTotalMonthlyCost] = useState(0)  // From plan data (fallback)
+  const [totalMonthlyCost, setTotalMonthlyCost] = useState(0)  // From plan data
   const [loading, setLoading] = useState(true)
   const [expandedRow, setExpandedRow] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -133,15 +162,31 @@ export default function ProviderDetailPage() {
   const [showDeleted, setShowDeleted] = useState(false)
   const [orgCurrency, setOrgCurrency] = useState<string>("USD")
 
-  // Cost data from Polars (source of truth for costs)
-  const [costSummary, setCostSummary] = useState<SaaSCostSummary | null>(null)
-  const [costRecords, setCostRecords] = useState<SaaSCostRecord[]>([])
+  // Sheet state
+  const [templateSheetOpen, setTemplateSheetOpen] = useState(false)
+  const [customSheetOpen, setCustomSheetOpen] = useState(false)
+  const [availablePlans, setAvailablePlans] = useState<AvailablePlan[]>([])
+  const [loadingTemplates, setLoadingTemplates] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [startDate, setStartDate] = useState<Date | undefined>(new Date())
 
-  // Monthly cost from pipeline data (cost_data_standard_1_2 table)
-  // No fallback - pipeline must run to populate costs
-  const effectiveMonthlyCost = costSummary?.total_monthly_cost ?? 0
+  // Custom form state
+  const [formData, setFormData] = useState<FormDataWithAudit>({
+    plan_name: "",
+    display_name: "",
+    unit_price_usd: 0,
+    seats: 1,
+    billing_cycle: "monthly",
+    pricing_model: "FLAT_FEE",
+    currency: "USD",
+    notes: "",
+    source_currency: undefined,
+    source_price: undefined,
+    exchange_rate_used: undefined,
+  })
+  const [isFromTemplate, setIsFromTemplate] = useState(false)
 
-  // Load plans from BigQuery and costs from Polars (source of truth for costs)
+  // Load plans from BigQuery
   const loadPlans = useCallback(async (isMounted?: () => boolean) => {
     if (!isValidParams) {
       if (!isMounted || isMounted()) {
@@ -155,15 +200,10 @@ export default function ProviderDetailPage() {
     if (!isMounted || isMounted()) setError(null)
 
     try {
-      // Fetch provider meta, plans, costs, and org locale in parallel - OPTIMIZED
-      // - Plans from saas_subscription_plans (BigQuery) for plan details
-      // - Costs from cost_data_standard_1_2 (Polars) for actual costs
-      // - Locale for currency formatting
-      // All four calls run simultaneously to minimize loading time
-      const [metaResult, plansResult, costsResult, localeResult] = await Promise.all([
+      // Fetch provider meta, plans, and org locale in parallel
+      const [metaResult, plansResult, localeResult] = await Promise.all([
         getProviderMeta(orgSlug, provider),
         getProviderPlans(orgSlug, provider),
-        getSaaSSubscriptionCosts(orgSlug, undefined, undefined, provider),  // Filter by provider
         getOrgLocale(orgSlug)
       ])
 
@@ -180,18 +220,9 @@ export default function ProviderDetailPage() {
         setProviderMeta(metaResult.provider)
       }
 
-      // Set cost data from Polars (source of truth for costs)
-      if (costsResult.success) {
-        setCostSummary(costsResult.summary)
-        setCostRecords(costsResult.data || [])
-      } else {
-        setCostSummary(null)
-        setCostRecords([])
-      }
-
       if (plansResult.success) {
         setPlans(plansResult.plans || [])
-        setTotalMonthlyCost(plansResult.total_monthly_cost || 0)  // Fallback if no Polars data
+        setTotalMonthlyCost(plansResult.total_monthly_cost || 0)
       } else {
         setPlans([])
         setTotalMonthlyCost(0)
@@ -211,8 +242,6 @@ export default function ProviderDetailPage() {
         setError("Failed to load provider data. Please try again.")
         setPlans([])
         setTotalMonthlyCost(0)
-        setCostSummary(null)
-        setCostRecords([])
       }
     } finally {
       if (!isMounted || isMounted()) setLoading(false)
@@ -224,6 +253,155 @@ export default function ProviderDetailPage() {
     loadPlans(() => mounted)
     return () => { mounted = false }
   }, [loadPlans])
+
+  // Open template sheet and load available templates
+  const openTemplateSheet = async () => {
+    setTemplateSheetOpen(true)
+    setLoadingTemplates(true)
+    try {
+      const result = await getAvailablePlans(orgSlug, provider)
+      if (result.success) {
+        setAvailablePlans(result.plans || [])
+      } else {
+        setAvailablePlans([])
+      }
+    } catch (err) {
+      console.error("Failed to load templates:", err)
+      setAvailablePlans([])
+    } finally {
+      setLoadingTemplates(false)
+    }
+  }
+
+  // Handle template selection - populate form and open custom sheet
+  const handleSelectTemplate = (template: AvailablePlan) => {
+    const convertedPrice = convertFromUSD(template.unit_price_usd, orgCurrency)
+    const exchangeRate = getExchangeRate(orgCurrency)
+
+    setFormData({
+      plan_name: template.plan_name,
+      display_name: template.display_name || template.plan_name,
+      unit_price_usd: convertedPrice,
+      seats: template.seats || 1,
+      billing_cycle: template.billing_cycle,
+      pricing_model: template.pricing_model,
+      currency: orgCurrency,
+      notes: template.notes || "",
+      source_currency: "USD",
+      source_price: template.unit_price_usd,
+      exchange_rate_used: exchangeRate,
+    })
+    setIsFromTemplate(true)
+    setStartDate(new Date())
+    setTemplateSheetOpen(false)
+    setCustomSheetOpen(true)
+  }
+
+  // Open custom sheet with empty form
+  const openCustomSheet = () => {
+    resetForm()
+    setCustomSheetOpen(true)
+  }
+
+  // Reset form to initial state
+  const resetForm = () => {
+    setFormData({
+      plan_name: "",
+      display_name: "",
+      unit_price_usd: 0,
+      seats: 1,
+      billing_cycle: "monthly",
+      pricing_model: "FLAT_FEE",
+      currency: orgCurrency,
+      notes: "",
+      source_currency: undefined,
+      source_price: undefined,
+      exchange_rate_used: undefined,
+    })
+    setIsFromTemplate(false)
+    setStartDate(new Date())
+  }
+
+  // Handle form submission
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!formData.plan_name.trim()) {
+      setError("Plan name is required")
+      return
+    }
+
+    if (!startDate) {
+      setError("Start date is required")
+      return
+    }
+
+    if (formData.unit_price_usd < 0) {
+      setError("Price cannot be negative")
+      return
+    }
+    if ((formData.seats ?? 0) < 0) {
+      setError("Seats cannot be negative")
+      return
+    }
+    if (formData.pricing_model === 'PER_SEAT' && (formData.seats ?? 0) < 1) {
+      setError("Per-seat plans require at least 1 seat")
+      return
+    }
+    if ((formData.seats ?? 0) > 10000) {
+      setError("Seats cannot exceed 10,000")
+      return
+    }
+
+    setSubmitting(true)
+    setError(null)
+
+    try {
+      const startDateStr = format(startDate, "yyyy-MM-dd")
+
+      const planData: PlanCreate & {
+        source_currency?: string
+        source_price?: number
+        exchange_rate_used?: number
+      } = {
+        plan_name: formData.plan_name.toUpperCase().replace(/\s+/g, "_"),
+        display_name: formData.display_name || formData.plan_name,
+        unit_price_usd: formData.unit_price_usd,
+        seats: formData.seats,
+        billing_cycle: formData.billing_cycle,
+        pricing_model: formData.pricing_model,
+        currency: formData.currency,
+        notes: formData.notes,
+        start_date: startDateStr,
+      }
+
+      if (formData.source_currency && formData.source_price !== undefined && formData.exchange_rate_used) {
+        planData.source_currency = formData.source_currency
+        planData.source_price = formData.source_price
+        planData.exchange_rate_used = formData.exchange_rate_used
+      }
+
+      const result = await createCustomPlan(orgSlug, provider, planData)
+
+      if (!result.success) {
+        setError(result.error || "Failed to create subscription")
+        toast.error(result.error || "Failed to create subscription")
+        return
+      }
+
+      toast.success("Subscription added successfully")
+      setCustomSheetOpen(false)
+      resetForm()
+      // Reload plans
+      loadPlans()
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "An unexpected error occurred"
+      setError(errorMessage)
+      toast.error(errorMessage)
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   const providerDisplayName = getProviderDisplayName(provider)
   // Filter plans based on showDeleted toggle
@@ -297,11 +475,11 @@ export default function ProviderDetailPage() {
       {/* Breadcrumb Navigation */}
       <nav className="flex items-center gap-2 text-sm" aria-label="Breadcrumb">
         <Link
-          href={`/${orgSlug}/settings/integrations/subscriptions`}
+          href={`/${orgSlug}/integrations/subscriptions`}
           className="text-[#007A78] hover:text-[#005F5D] transition-colors focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2 rounded truncate max-w-[200px]"
-          title="Subscriptions"
+          title="Subscription Providers"
         >
-          Subscriptions
+          Subscription Providers
         </Link>
         <ChevronRight className="h-4 w-4 text-[#8E8E93] flex-shrink-0" aria-hidden="true" />
         <span className="text-gray-900 font-medium truncate max-w-[300px]" title={providerDisplayName}>{providerDisplayName}</span>
@@ -310,7 +488,7 @@ export default function ProviderDetailPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Link href={`/${orgSlug}/subscriptions`}>
+          <Link href={`/${orgSlug}/integrations/subscriptions`}>
             <Button variant="ghost" size="icon" className="h-8 w-8">
               <ArrowLeft className="h-4 w-4" />
             </Button>
@@ -328,18 +506,23 @@ export default function ProviderDetailPage() {
         </div>
         {plans.length > 0 && (
           <div className="flex items-center gap-2">
-            <Link href={`/${orgSlug}/subscriptions/${provider}/add`}>
-              <Button className="h-[36px] px-4 bg-[#007A78] text-white hover:bg-[#006664] rounded-xl text-[15px] font-semibold" data-testid="add-from-template-btn">
-                <Plus className="h-4 w-4 mr-2" />
-                Add from Template
-              </Button>
-            </Link>
-            <Link href={`/${orgSlug}/subscriptions/${provider}/add/custom`}>
-              <Button variant="outline" className="border-[#007A78]/30 text-[#007A78] hover:bg-[#007A78]/5 rounded-xl" data-testid="add-custom-subscription-btn">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Custom
-              </Button>
-            </Link>
+            <Button
+              onClick={openTemplateSheet}
+              className="h-[36px] px-4 bg-[#007A78] text-white hover:bg-[#006664] rounded-xl text-[15px] font-semibold"
+              data-testid="add-from-template-btn"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add from Template
+            </Button>
+            <Button
+              onClick={openCustomSheet}
+              variant="outline"
+              className="border-[#007A78]/30 text-[#007A78] hover:bg-[#007A78]/5 rounded-xl"
+              data-testid="add-custom-subscription-btn"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Custom
+            </Button>
           </div>
         )}
       </div>
@@ -379,29 +562,8 @@ export default function ProviderDetailPage() {
         </Card>
       )}
 
-      {/* Info Banner - Cost Update Timing */}
-      <Card className="border-[#007A78]/20 bg-[#007A78]/5">
-        <CardContent className="py-3 px-4">
-          <div className="flex items-center gap-3">
-            <Info className="h-5 w-5 text-[#007A78] flex-shrink-0" />
-            <p className="text-sm text-[#005F5D]">
-              New changes to subscription costs will be reflected within 24 hours once the scheduler runs every day at midnight.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="console-stat-card border-[#FF6E50]/20">
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-[#FF6E50]">{formatCurrency(effectiveMonthlyCost, orgCurrency)}</div>
-            <p className="text-sm text-[#8E8E93]">Monthly Cost</p>
-            {costSummary && (
-              <p className="text-xs text-[#8E8E93] mt-1">From pipeline data</p>
-            )}
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="console-stat-card border-[#FF6E50]/20">
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-[#FF6E50]">{totalActiveSeats}</div>
@@ -460,18 +622,22 @@ export default function ProviderDetailPage() {
                 Choose a predefined plan or create a custom one.
               </p>
               <div className="flex items-center justify-center gap-3">
-                <Link href={`/${orgSlug}/subscriptions/${provider}/add`}>
-                  <Button className="h-[44px] px-6 bg-[#007A78] text-white hover:bg-[#006664] rounded-xl text-[15px] font-semibold shadow-sm">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add from Template
-                  </Button>
-                </Link>
-                <Link href={`/${orgSlug}/subscriptions/${provider}/add/custom`}>
-                  <Button variant="outline" className="h-[44px] px-6 border-[#007A78]/30 text-[#007A78] hover:bg-[#007A78]/5 rounded-xl" data-testid="add-custom-subscription-empty-btn">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Custom Subscription
-                  </Button>
-                </Link>
+                <Button
+                  onClick={openTemplateSheet}
+                  className="h-[44px] px-6 bg-[#007A78] text-white hover:bg-[#006664] rounded-xl text-[15px] font-semibold shadow-sm"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add from Template
+                </Button>
+                <Button
+                  onClick={openCustomSheet}
+                  variant="outline"
+                  className="h-[44px] px-6 border-[#007A78]/30 text-[#007A78] hover:bg-[#007A78]/5 rounded-xl"
+                  data-testid="add-custom-subscription-empty-btn"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Custom Subscription
+                </Button>
               </div>
             </div>
           ) : (
@@ -559,7 +725,7 @@ export default function ProviderDetailPage() {
                         {plan.seats ?? 0}
                       </div>
                       <div className="col-span-2 text-right flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-                        <Link href={`/${orgSlug}/subscriptions/${provider}/${plan.subscription_id}/edit`}>
+                        <Link href={`/${orgSlug}/integrations/subscriptions/${provider}/${plan.subscription_id}/edit`}>
                           <Button
                             variant="ghost"
                             size="icon"
@@ -571,7 +737,7 @@ export default function ProviderDetailPage() {
                             <Pencil className="h-4 w-4" />
                           </Button>
                         </Link>
-                        <Link href={`/${orgSlug}/subscriptions/${provider}/${plan.subscription_id}/end`}>
+                        <Link href={`/${orgSlug}/integrations/subscriptions/${provider}/${plan.subscription_id}/end`}>
                           <Button
                             variant="ghost"
                             size="icon"
@@ -669,23 +835,347 @@ export default function ProviderDetailPage() {
                   <p className="text-sm text-slate-600">
                     Don&apos;t see your subscription plan?
                   </p>
-                  <Link href={`/${orgSlug}/subscriptions/${provider}/add/custom`}>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-[#007A78] border-[#007A78]/30 hover:bg-[#007A78]/5 rounded-xl"
-                      data-testid="add-custom-subscription-footer-btn"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Custom Subscription
-                    </Button>
-                  </Link>
+                  <Button
+                    onClick={openCustomSheet}
+                    variant="outline"
+                    size="sm"
+                    className="text-[#007A78] border-[#007A78]/30 hover:bg-[#007A78]/5 rounded-xl"
+                    data-testid="add-custom-subscription-footer-btn"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Custom Subscription
+                  </Button>
                 </div>
               </div>
             </>
           )}
         </CardContent>
       </Card>
+
+      {/* Template Sheet - Select from predefined templates */}
+      <Sheet open={templateSheetOpen} onOpenChange={setTemplateSheetOpen}>
+        <SheetContent side="right" size="xl" className="overflow-y-auto bg-white flex flex-col">
+          <SheetHeader className="px-6 pt-6 pb-4 border-b border-slate-100 shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-gradient-to-br from-[#007A78]/10 to-[#14B8A6]/10">
+                <CreditCard className="h-5 w-5 text-[#007A78]" />
+              </div>
+              <div>
+                <SheetTitle className="text-xl font-semibold text-slate-900">Select a Template</SheetTitle>
+                <SheetDescription className="mt-0.5">
+                  Choose a plan for {providerDisplayName}
+                </SheetDescription>
+              </div>
+            </div>
+          </SheetHeader>
+
+          <div className="px-6 py-5 flex-1 overflow-y-auto">
+            {loadingTemplates ? (
+              <div className="flex items-center justify-center py-16">
+                <div className="text-center">
+                  <Loader2 className="h-10 w-10 animate-spin text-[#007A78] mx-auto mb-3" />
+                  <p className="text-sm text-slate-500">Loading templates...</p>
+                </div>
+              </div>
+            ) : availablePlans.length === 0 ? (
+              <div className="text-center py-16 px-4">
+                <div className="inline-flex p-4 rounded-2xl bg-slate-50 mb-4">
+                  <CreditCard className="h-12 w-12 text-slate-300" />
+                </div>
+                <h3 className="text-lg font-semibold text-slate-900 mb-2">No Templates Available</h3>
+                <p className="text-sm text-slate-500 mb-6 max-w-xs mx-auto">
+                  There are no predefined templates for this provider. Create a custom plan instead.
+                </p>
+                <Button
+                  onClick={() => {
+                    setTemplateSheetOpen(false)
+                    openCustomSheet()
+                  }}
+                  className="h-11 px-6 bg-[#007A78] hover:bg-[#006664] rounded-xl font-semibold"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Custom Subscription
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {availablePlans.map((template) => {
+                  const convertedPrice = convertFromUSD(template.unit_price_usd, orgCurrency)
+                  return (
+                    <div
+                      key={template.plan_name}
+                      className="border border-slate-200 rounded-2xl p-5 hover:border-[#007A78] hover:shadow-md hover:shadow-[#007A78]/5 cursor-pointer transition-all duration-200 group bg-white"
+                      onClick={() => handleSelectTemplate(template)}
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h4 className="font-semibold text-slate-900 group-hover:text-[#007A78] truncate transition-colors">
+                              {template.display_name || template.plan_name}
+                            </h4>
+                            <Badge variant="outline" className="capitalize text-[11px] shrink-0 bg-slate-50">
+                              {template.billing_cycle}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-slate-500">
+                            {template.pricing_model === 'PER_SEAT' ? 'Per seat pricing' : 'Flat fee'}
+                            {template.seats && template.seats > 1 && ` • ${template.seats} seats included`}
+                          </p>
+                          {template.notes && (
+                            <p className="text-xs text-slate-400 mt-2 line-clamp-2">{template.notes}</p>
+                          )}
+                        </div>
+                        <div className="text-right shrink-0">
+                          <div className="text-xl font-bold text-[#FF6E50]">
+                            {formatCurrency(convertedPrice, orgCurrency)}
+                          </div>
+                          <p className="text-xs text-slate-400 mt-0.5">
+                            /{template.billing_cycle === 'monthly' ? 'mo' : template.billing_cycle === 'annual' ? 'yr' : template.billing_cycle}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-xs bg-[#007A78]/5 text-[#007A78] border-[#007A78]/20">
+                            {template.seats || 1} seat{(template.seats || 1) > 1 ? 's' : ''}
+                          </Badge>
+                          {template.category && (
+                            <Badge variant="outline" className="text-xs capitalize bg-slate-50">
+                              {template.category}
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1 text-sm font-medium text-[#007A78] opacity-0 group-hover:opacity-100 transition-opacity">
+                          Select
+                          <ChevronRight className="h-4 w-4" />
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
+          <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 shrink-0">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setTemplateSheetOpen(false)
+                openCustomSheet()
+              }}
+              className="w-full h-11 border-[#007A78]/30 text-[#007A78] hover:bg-[#007A78]/5 rounded-xl font-medium"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Create Custom Instead
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Custom Sheet - Add/Edit subscription form */}
+      <Sheet open={customSheetOpen} onOpenChange={setCustomSheetOpen}>
+        <SheetContent side="right" size="xl" className="overflow-y-auto bg-white flex flex-col">
+          <SheetHeader className="px-6 pt-6 pb-4 border-b border-slate-100 shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-gradient-to-br from-[#007A78]/10 to-[#14B8A6]/10">
+                <Plus className="h-5 w-5 text-[#007A78]" />
+              </div>
+              <div>
+                <SheetTitle className="text-xl font-semibold text-slate-900">
+                  {isFromTemplate ? 'Customize Subscription' : 'Add Custom Subscription'}
+                </SheetTitle>
+                <SheetDescription className="mt-0.5">
+                  {isFromTemplate
+                    ? 'Review and customize before adding'
+                    : `Create a plan for ${providerDisplayName}`}
+                </SheetDescription>
+              </div>
+            </div>
+          </SheetHeader>
+
+          <form onSubmit={handleSubmit} className="px-6 py-5 space-y-5 flex-1 overflow-y-auto">
+            {/* Plan Name */}
+            <div className="space-y-2">
+              <Label htmlFor="plan_name">Plan Name *</Label>
+              <Input
+                id="plan_name"
+                value={formData.plan_name}
+                onChange={(e) => setFormData({ ...formData, plan_name: e.target.value })}
+                placeholder="e.g., PRO, TEAM, ENTERPRISE"
+                className="uppercase"
+                required
+              />
+              <p className="text-xs text-slate-500">Internal identifier (will be uppercased)</p>
+            </div>
+
+            {/* Display Name */}
+            <div className="space-y-2">
+              <Label htmlFor="display_name">Display Name</Label>
+              <Input
+                id="display_name"
+                value={formData.display_name}
+                onChange={(e) => setFormData({ ...formData, display_name: e.target.value })}
+                placeholder="e.g., Professional Plan"
+              />
+              <p className="text-xs text-slate-500">User-friendly name shown in reports</p>
+            </div>
+
+            {/* Price and Currency */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="price">Price ({getCurrencySymbol(orgCurrency)}) *</Label>
+                <Input
+                  id="price"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={formData.unit_price_usd}
+                  onChange={(e) => setFormData({ ...formData, unit_price_usd: parseFloat(e.target.value) || 0 })}
+                  required
+                />
+                {isFromTemplate && formData.source_price !== undefined && (
+                  <p className="text-xs text-slate-500">
+                    Original: {formatCurrency(formData.source_price, formData.source_currency || 'USD')}
+                    {formData.exchange_rate_used && ` (rate: ${formData.exchange_rate_used})`}
+                  </p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label>Currency</Label>
+                <Select value={orgCurrency} disabled>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={orgCurrency}>{orgCurrency}</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-slate-500">Locked to org currency</p>
+              </div>
+            </div>
+
+            {/* Billing Cycle and Pricing Model */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Billing Cycle *</Label>
+                <Select
+                  value={formData.billing_cycle}
+                  onValueChange={(value) => setFormData({ ...formData, billing_cycle: value as 'monthly' | 'annual' | 'quarterly' | 'weekly' })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                    <SelectItem value="quarterly">Quarterly</SelectItem>
+                    <SelectItem value="annual">Annual</SelectItem>
+                    <SelectItem value="weekly">Weekly</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Pricing Model *</Label>
+                <Select
+                  value={formData.pricing_model}
+                  onValueChange={(value) => setFormData({ ...formData, pricing_model: value as 'FLAT_FEE' | 'PER_SEAT' })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="FLAT_FEE">Flat Fee</SelectItem>
+                    <SelectItem value="PER_SEAT">Per Seat</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Seats */}
+            <div className="space-y-2">
+              <Label htmlFor="seats">Number of Seats *</Label>
+              <Input
+                id="seats"
+                type="number"
+                min={formData.pricing_model === 'PER_SEAT' ? 1 : 0}
+                max="10000"
+                value={formData.seats}
+                onChange={(e) => setFormData({ ...formData, seats: parseInt(e.target.value) || 0 })}
+                required
+              />
+              {formData.pricing_model === 'PER_SEAT' && (
+                <p className="text-xs text-slate-500">
+                  Total: {formatCurrency(formData.unit_price_usd * (formData.seats || 0), orgCurrency)}/{formData.billing_cycle}
+                </p>
+              )}
+            </div>
+
+            {/* Start Date */}
+            <div className="space-y-2">
+              <Label>Start Date *</Label>
+              <DatePicker
+                date={startDate}
+                onSelect={setStartDate}
+              />
+              <p className="text-xs text-slate-500">When does this subscription become active?</p>
+            </div>
+
+            {/* Notes */}
+            <div className="space-y-2">
+              <Label htmlFor="notes">Notes</Label>
+              <Input
+                id="notes"
+                value={formData.notes}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                placeholder="Optional notes about this subscription"
+              />
+            </div>
+
+            {/* Error Message */}
+            {error && (
+              <div className="p-3 bg-[#FF6E50]/10 border border-[#FF6E50]/30 rounded-lg">
+                <p className="text-sm text-[#FF6E50]">{error}</p>
+              </div>
+            )}
+
+          </form>
+
+          {/* Submit Buttons - Fixed Footer */}
+          <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 shrink-0 flex gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setCustomSheetOpen(false)
+                resetForm()
+              }}
+              className="flex-1 h-11 rounded-xl"
+              disabled={submitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="subscription-form"
+              className="flex-1 h-11 bg-[#007A78] hover:bg-[#006664] rounded-xl font-semibold"
+              disabled={submitting}
+              onClick={handleSubmit}
+            >
+              {submitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Adding...
+                </>
+              ) : (
+                <>
+                  <Check className="h-4 w-4 mr-2" />
+                  Add Subscription
+                </>
+              )}
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }

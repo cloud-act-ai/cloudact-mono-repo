@@ -4,12 +4,10 @@ import { useState, useEffect, useCallback } from "react"
 import { useRouter, useParams } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   Loader2,
   AlertTriangle,
-  Shield,
   Key,
   CheckCircle2,
 } from "lucide-react"
@@ -87,6 +85,13 @@ export default function SecurityPage() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
+      <div>
+        <h1 className="text-[32px] sm:text-[34px] font-bold text-black tracking-tight">Security</h1>
+        <p className="text-[15px] text-[#8E8E93] mt-1">
+          Manage your password and security settings
+        </p>
+      </div>
+
       {error && (
         <Alert variant="destructive" className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
           <AlertTriangle className="h-4 w-4 text-[#FF6E50]" />
@@ -102,13 +107,6 @@ export default function SecurityPage() {
       )}
 
       <div className="health-card shadow-sm">
-        <div className="health-card-header mb-6">
-          <div className="flex items-center gap-2">
-            <Shield className="h-5 w-5 text-[#8E8E93]" />
-            <h2 className="text-[22px] font-bold text-black">Security</h2>
-          </div>
-          <p className="text-[13px] sm:text-[15px] text-[#8E8E93] mt-1">Manage your password and security settings</p>
-        </div>
         <div className="health-card-content space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border border-[#E5E5EA] rounded-xl bg-gray-50">
             <div className="flex items-center gap-3">

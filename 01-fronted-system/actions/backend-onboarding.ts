@@ -377,10 +377,13 @@ export async function onboardToBackend(input: {
 
 /**
  * Check if organization has been onboarded to backend.
+ * Now also verifies the API key is actually valid in BigQuery.
  */
 export async function checkBackendOnboarding(orgSlug: string): Promise<{
   onboarded: boolean
   apiKeyFingerprint?: string
+  apiKeyValid?: boolean
+  error?: string
 }> {
   try {
     // Validate orgSlug format to prevent injection
@@ -400,6 +403,65 @@ export async function checkBackendOnboarding(orgSlug: string): Promise<{
       return { onboarded: false }
     }
 
+    // If Supabase says not onboarded, return early
+    if (!data.backend_onboarded) {
+      return { onboarded: false }
+    }
+
+    // Verify the API key is actually valid in BigQuery by making a test call
+    const orgApiKey = await getOrgApiKeySecure(orgSlug)
+    if (!orgApiKey) {
+      console.warn("[Backend Onboarding] No API key found in secure table for:", orgSlug)
+      return {
+        onboarded: false,
+        apiKeyFingerprint: data.backend_api_key_fingerprint,
+        apiKeyValid: false,
+        error: "API key not found in secure storage. Please re-onboard.",
+      }
+    }
+
+    // Make a lightweight API call to verify the key is valid in BigQuery
+    const backendUrl = process.env.API_SERVICE_URL || process.env.NEXT_PUBLIC_API_SERVICE_URL
+    if (backendUrl) {
+      try {
+        const response = await fetch(`${backendUrl}/api/v1/organizations/${orgSlug}/locale`, {
+          method: "GET",
+          headers: {
+            "X-API-Key": orgApiKey,
+            "Content-Type": "application/json",
+          },
+        })
+
+        if (response.status === 401 || response.status === 403) {
+          const errorData = await response.json().catch(() => ({}))
+          console.warn("[Backend Onboarding] API key invalid in BigQuery:", orgSlug, errorData)
+          return {
+            onboarded: false,
+            apiKeyFingerprint: data.backend_api_key_fingerprint,
+            apiKeyValid: false,
+            error: "API key is invalid or inactive in backend. Please re-onboard the organization.",
+          }
+        }
+
+        // API key is valid
+        return {
+          onboarded: true,
+          apiKeyFingerprint: data.backend_api_key_fingerprint,
+          apiKeyValid: true,
+        }
+      } catch (fetchErr) {
+        // Network error - backend might be down, but don't mark as not onboarded
+        console.warn("[Backend Onboarding] Backend unreachable:", fetchErr)
+        return {
+          onboarded: data.backend_onboarded || false,
+          apiKeyFingerprint: data.backend_api_key_fingerprint,
+          apiKeyValid: undefined, // Unknown - backend unreachable
+          error: "Backend service unreachable. Please check if API service is running.",
+        }
+      }
+    }
+
+    // No backend URL configured - just return Supabase status
     return {
       onboarded: data.backend_onboarded || false,
       apiKeyFingerprint: data.backend_api_key_fingerprint,
@@ -407,6 +469,67 @@ export async function checkBackendOnboarding(orgSlug: string): Promise<{
   } catch (err) {
     console.error("[Backend Onboarding] Check error:", err)
     return { onboarded: false }
+  }
+}
+
+/**
+ * Get organization data needed for re-onboarding.
+ * SECURITY: Requires org membership.
+ */
+export async function getOrgDataForReonboarding(orgSlug: string): Promise<{
+  success: boolean
+  data?: {
+    orgName: string
+    adminEmail: string
+    currency: string
+    timezone: string
+  }
+  error?: string
+}> {
+  try {
+    // Validate input
+    if (!isValidOrgSlug(orgSlug)) {
+      return { success: false, error: "Invalid organization identifier" }
+    }
+
+    // Verify authentication AND org membership
+    const authResult = await verifyOrgMembership(orgSlug)
+    if (!authResult.authorized) {
+      return { success: false, error: authResult.error || "Not authorized" }
+    }
+
+    // Get user email
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user?.email) {
+      return { success: false, error: "User email not found" }
+    }
+
+    // Get org data using service role client to bypass RLS
+    const adminClient = createServiceRoleClient()
+    const { data: orgData, error: orgError } = await adminClient
+      .from("organizations")
+      .select("org_name, default_currency, default_timezone")
+      .eq("org_slug", orgSlug)
+      .single()
+
+    if (orgError || !orgData) {
+      console.error("[Backend Onboarding] Failed to get org data:", orgError)
+      return { success: false, error: "Failed to get organization data" }
+    }
+
+    return {
+      success: true,
+      data: {
+        orgName: orgData.org_name || orgSlug,
+        adminEmail: user.email,
+        currency: orgData.default_currency || "USD",
+        timezone: orgData.default_timezone || "UTC",
+      },
+    }
+  } catch (err) {
+    console.error("[Backend Onboarding] Get org data error:", err)
+    return { success: false, error: "Failed to get organization data" }
   }
 }
 
