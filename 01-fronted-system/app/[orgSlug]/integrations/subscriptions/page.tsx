@@ -97,6 +97,9 @@ export default function SubscriptionIntegrationsPage() {
   const params = useParams()
   const orgSlug = params.orgSlug as string
 
+  // Validate orgSlug early to prevent API calls with undefined/invalid values
+  const isValidOrgSlug = orgSlug && typeof orgSlug === 'string' && /^[a-zA-Z0-9_-]{2,100}$/.test(orgSlug)
+
   const [subscriptionProviders, setSubscriptionProviders] = useState<ProviderInfo[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -108,6 +111,13 @@ export default function SubscriptionIntegrationsPage() {
   const INITIAL_PROVIDERS_COUNT = 20
 
   const loadData = useCallback(async () => {
+    // Guard against invalid orgSlug
+    if (!isValidOrgSlug) {
+      setError("Invalid organization. Please check the URL.")
+      setIsLoading(false)
+      return
+    }
+
     setIsLoading(true)
     setError(null)
 
@@ -127,7 +137,7 @@ export default function SubscriptionIntegrationsPage() {
     }
 
     setIsLoading(false)
-  }, [orgSlug])
+  }, [orgSlug, isValidOrgSlug])
 
   useEffect(() => {
     loadData()

@@ -152,6 +152,7 @@ export default function EndSubscriptionPage() {
       if (!result.success) {
         setError(result.error || "Failed to end subscription")
         toast.error(result.error || "Failed to end subscription")
+        setEnding(false)
         return
       }
 

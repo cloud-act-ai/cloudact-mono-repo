@@ -262,6 +262,7 @@ export default function AddCustomSubscriptionPage() {
       if (!result.success) {
         setError(result.error || "Failed to create subscription")
         toast.error(result.error || "Failed to create subscription")
+        setSubmitting(false)
         return
       }
 
@@ -413,7 +414,15 @@ export default function AddCustomSubscriptionPage() {
                     step="0.01"
                     placeholder="0.00"
                     value={formData.unit_price === 0 ? "" : formData.unit_price}
-                    onFocus={(e) => e.target.select()}
+                    onFocus={(e) => {
+                      // Select all text to allow immediate replacement when typing
+                      e.target.select()
+                      // For number inputs, also explicitly set selection range
+                      const input = e.target as HTMLInputElement
+                      if (input.value) {
+                        setTimeout(() => input.setSelectionRange(0, input.value.length), 0)
+                      }
+                    }}
                     onChange={(e) => {
                       const parsed = parseFloat(e.target.value)
                       setFormData({
@@ -499,7 +508,15 @@ export default function AddCustomSubscriptionPage() {
                 step="1"
                 placeholder="0"
                 value={formData.seats === 0 ? "" : formData.seats}
-                onFocus={(e) => e.target.select()}
+                onFocus={(e) => {
+                  // Select all text to allow immediate replacement when typing
+                  e.target.select()
+                  // For number inputs, also explicitly set selection range
+                  const input = e.target as HTMLInputElement
+                  if (input.value) {
+                    setTimeout(() => input.setSelectionRange(0, input.value.length), 0)
+                  }
+                }}
                 onChange={(e) => {
                   const parsed = parseInt(e.target.value, 10)
                   const bounded = Math.min(10000, Math.max(0, isNaN(parsed) ? 0 : parsed))

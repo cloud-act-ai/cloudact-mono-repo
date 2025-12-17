@@ -872,11 +872,12 @@ export async function disableProvider(
         const apiUrl = getApiServiceUrl()
 
         // Get all plans for this provider
-        const plansResponse = await fetch(
+        const plansResponse = await fetchWithTimeout(
           `${apiUrl}/api/v1/subscriptions/${orgSlug}/providers/${sanitizedProvider}/plans`,
           {
             headers: { "X-API-Key": orgApiKey },
-          }
+          },
+          30000
         )
 
         if (plansResponse.ok) {
@@ -893,12 +894,13 @@ export async function disableProvider(
               continue
             }
             try {
-              const deleteResponse = await fetch(
+              const deleteResponse = await fetchWithTimeout(
                 `${apiUrl}/api/v1/subscriptions/${orgSlug}/providers/${sanitizedProvider}/plans/${plan.subscription_id}`,
                 {
                   method: "DELETE",
                   headers: { "X-API-Key": orgApiKey },
-                }
+                },
+                30000
               )
               if (deleteResponse.ok) {
                 plansDeleted++
@@ -1995,7 +1997,7 @@ export async function endSubscription(
 
     // Use the existing update endpoint with end_date and status
     const apiUrl = getApiServiceUrl()
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `${apiUrl}/api/v1/subscriptions/${orgSlug}/providers/${sanitizedProvider}/plans/${subscriptionId}`,
       {
         method: "PUT",
@@ -2007,7 +2009,8 @@ export async function endSubscription(
           end_date: endDate,
           status: 'cancelled',
         }),
-      }
+      },
+      30000
     )
 
     if (!response.ok) {

@@ -246,7 +246,10 @@ export async function createOnboardingCheckoutSession(priceId: string) {
           pending_org_slug: orgSlug,
         },
       },
-      // Skip payment collection during trial - card not required until trial ends
+      // Skip payment collection during trial - matches "No credit card required" UX promise
+      // Options: "always" (always collect), "if_required" (only if amount due > $0)
+      // Using "if_required" for trial signups - should skip payment form when trial makes amount $0
+      // Note: If Stripe still shows billing fields, it's due to fraud prevention or future usage setup
       payment_method_collection: "if_required",
       allow_promotion_codes: true,
     }

@@ -21,18 +21,78 @@ Browser automation tests for SaaS subscription management using `browser_subagen
 
 ## CRITICAL: Follow best practices for test execution
 
-- ✅ **No over-engineering** - Simple, direct fixes
-- ✅ **Multi-tenancy support** - Proper `org_slug` isolation
-- ✅ **Enterprise-grade for 10k customers** - Must scale
-- ✅ **BigQuery best practices** - Clustering, partitioning, timeouts
-- ✅ **Supabase best practices** - RLS, connection pooling, tight integration
-- ✅ **Reusability and repeatability** - Patterns that work everywhere
-- ✅ **ZERO mock tests** - All tests must hit real services
-- ✅ **Parallel test execution** - Use `pytest-xdist`
-- ✅ **LRU in-memory cache** - NO Redis at all
-- ✅ **Check clustering/partitioning** - Add clustering/partitioning
-- ✅ **Don't break existing functionality** - Run all tests before/after
-- ✅ **Update docs with learnings** - Document fixes in `CLAUDE.md`
+- No over-engineering - Simple, direct fixes
+- Multi-tenancy support - Proper `org_slug` isolation
+- Enterprise-grade for 10k customers - Must scale
+- BigQuery best practices - Clustering, partitioning, timeouts
+- Supabase best practices - RLS, connection pooling, tight integration
+- ZERO mock tests - All tests must hit real services
+- Don't break existing functionality - Run all tests before/after
+
+---
+
+## STEP 0: Pre-Test Review (MANDATORY FIRST)
+
+**Before running ANY tests, the agent MUST complete these checks:**
+
+### 0.1 Code Gap Analysis
+```
+Review and fix code gaps in:
+1. FRONTEND (01-fronted-system):
+   - actions/subscription-providers.ts - All CRUD operations
+   - app/[orgSlug]/integrations/subscriptions/* - All subscription pages
+   - Check setSubmitting/setSaving state resets in error paths
+   - Check fetchWithTimeout usage (no bare fetch calls)
+   - Verify onFocus handlers for input selection
+
+2. BACKEND (02-api-service):
+   - /api/v1/subscriptions endpoints
+   - Duplicate detection logic
+   - Version history on edits
+   - Soft delete on end
+
+3. PIPELINE (03-data-pipeline-service):
+   - SaaS cost calculation pipeline
+   - Provider enable/disable logic
+```
+
+### 0.2 URL & Link Validation
+```
+Verify all URLs/routes exist and are accessible:
+- [ ] /{orgSlug}/integrations/subscriptions - Provider list
+- [ ] /{orgSlug}/integrations/subscriptions/{provider} - Provider detail
+- [ ] /{orgSlug}/integrations/subscriptions/{provider}/add - Add from template
+- [ ] /{orgSlug}/integrations/subscriptions/{provider}/add/custom - Custom add
+- [ ] /{orgSlug}/integrations/subscriptions/{provider}/{id}/edit - Edit plan
+- [ ] /{orgSlug}/integrations/subscriptions/{provider}/{id}/end - End plan
+- [ ] /{orgSlug}/integrations/subscriptions/{provider}/success - Success page
+
+Fix any broken routes before proceeding.
+```
+
+### 0.3 Schema Validation
+```
+Verify database schemas match expected structure:
+- [ ] Supabase: saas_subscriptions table
+- [ ] BigQuery: saas_subscriptions table with all columns
+- [ ] BigQuery: Audit fields (source_currency, exchange_rate_used)
+- [ ] CSV: data/seed/exchange-rates.csv exists
+- [ ] CSV: data/seed/saas-subscription-templates.csv exists
+
+Run migrations if needed.
+```
+
+### 0.4 Pre-Test Report
+```
+Create: .agent/artifacts/SUBSCRIPTION_PRETEST_REVIEW.md
+Include:
+- Code gaps found and fixed
+- Broken URLs found and fixed
+- Schema issues found and fixed
+- Ready for testing: YES/NO
+```
+
+**Only proceed to tests after Step 0 is complete!**
 
 ---
 

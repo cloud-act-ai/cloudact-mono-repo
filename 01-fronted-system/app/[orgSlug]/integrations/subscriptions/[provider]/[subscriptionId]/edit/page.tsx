@@ -221,6 +221,7 @@ export default function EditSubscriptionPage() {
       if (!result.success) {
         setError(result.error || "Failed to update subscription")
         toast.error(result.error || "Failed to update subscription")
+        setSaving(false)
         return
       }
 
@@ -444,7 +445,15 @@ export default function EditSubscriptionPage() {
                   step="0.01"
                   placeholder="0.00"
                   value={editData.unit_price === 0 ? "" : editData.unit_price}
-                  onFocus={(e) => e.target.select()}
+                  onFocus={(e) => {
+                    // Select all text to allow immediate replacement when typing
+                    e.target.select()
+                    // For number inputs, also explicitly set selection range
+                    const input = e.target as HTMLInputElement
+                    if (input.value) {
+                      setTimeout(() => input.setSelectionRange(0, input.value.length), 0)
+                    }
+                  }}
                   onChange={(e) => {
                     const parsed = parseFloat(e.target.value)
                     setEditData({ ...editData, unit_price: e.target.value === "" ? 0 : (isNaN(parsed) ? 0 : Math.max(0, parsed)) })
@@ -464,7 +473,15 @@ export default function EditSubscriptionPage() {
                   step="1"
                   placeholder="0"
                   value={editData.seats === 0 ? "" : editData.seats}
-                  onFocus={(e) => e.target.select()}
+                  onFocus={(e) => {
+                    // Select all text to allow immediate replacement when typing
+                    e.target.select()
+                    // For number inputs, also explicitly set selection range
+                    const input = e.target as HTMLInputElement
+                    if (input.value) {
+                      setTimeout(() => input.setSelectionRange(0, input.value.length), 0)
+                    }
+                  }}
                   onChange={(e) => {
                     const parsed = parseInt(e.target.value, 10)
                     const bounded = Math.min(10000, Math.max(0, isNaN(parsed) ? 0 : parsed))
@@ -496,7 +513,6 @@ export default function EditSubscriptionPage() {
               <div className="space-y-2">
                 <Label htmlFor="pricing_model">Pricing Model</Label>
                 <Select
-                  key={`edit-pricing-model-${editData.pricing_model}`}
                   value={editData.pricing_model}
                   onValueChange={(value) => setEditData({ ...editData, pricing_model: value as 'PER_SEAT' | 'FLAT_FEE' })}
                   disabled={saving}
