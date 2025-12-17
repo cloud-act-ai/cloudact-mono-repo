@@ -68,7 +68,7 @@ async function checkStripe(): Promise<ServiceHealth> {
       return { status: "unhealthy", error: "Missing Stripe configuration" }
     }
 
-    const stripe = new Stripe(stripeKey, { apiVersion: "2025-04-30.basil" })
+    const stripe = new Stripe(stripeKey, { apiVersion: "2025-11-17.clover" })
 
     // Simple API call to verify connection
     await stripe.balance.retrieve()

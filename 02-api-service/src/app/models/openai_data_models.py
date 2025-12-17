@@ -307,7 +307,7 @@ class OpenAISubscriptionCreate(BaseModel):
         ge=0,
         description="Number of seats/units"
     )
-    unit_price_usd: float = Field(
+    unit_price: float = Field(
         ...,
         ge=0,
         description="Price per unit in USD"
@@ -390,7 +390,7 @@ class OpenAISubscriptionCreate(BaseModel):
         default=BillingPeriodEnum.MONTHLY,
         description="Billing period: weekly, monthly, quarterly, yearly, pay_as_you_go"
     )
-    yearly_price_usd: Optional[float] = Field(
+    yearly_price: Optional[float] = Field(
         None,
         ge=0,
         description="Annual price in USD (typically discounted vs monthly)"
@@ -412,7 +412,7 @@ class OpenAISubscriptionUpdate(BaseModel):
         ge=0,
         description="Number of seats/units"
     )
-    unit_price_usd: Optional[float] = Field(
+    unit_price: Optional[float] = Field(
         None,
         ge=0,
         description="Price per unit in USD"
@@ -495,7 +495,7 @@ class OpenAISubscriptionUpdate(BaseModel):
         None,
         description="Billing period: weekly, monthly, quarterly, yearly, pay_as_you_go"
     )
-    yearly_price_usd: Optional[float] = Field(
+    yearly_price: Optional[float] = Field(
         None,
         ge=0,
         description="Annual price in USD (typically discounted vs monthly)"
@@ -517,7 +517,7 @@ class OpenAISubscriptionResponse(BaseModel):
     plan_name: str
     is_custom: bool = False
     quantity: int
-    unit_price_usd: float
+    unit_price: float
     effective_date: date
     end_date: Optional[date] = None
     is_enabled: bool = True
@@ -543,7 +543,7 @@ class OpenAISubscriptionResponse(BaseModel):
     commitment_term_months: Optional[int] = None
     discount_percentage: Optional[float] = None
     billing_period: Optional[str] = "monthly"  # weekly, monthly, quarterly, yearly, pay_as_you_go
-    yearly_price_usd: Optional[float] = None
+    yearly_price: Optional[float] = None
     yearly_discount_percentage: Optional[float] = None
     created_at: datetime
     updated_at: datetime

@@ -177,6 +177,12 @@ async function getPlanDetailsFromStripe(priceId: string): Promise<{
       return null;
     }
 
+    // Check if product is deleted
+    if (product.deleted) {
+      console.error(`[Webhook] Product ${product.id} has been deleted`);
+      return null;
+    }
+
     // Get metadata from product
     const metadata = product.metadata || {};
 

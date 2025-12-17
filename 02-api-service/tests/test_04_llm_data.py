@@ -128,7 +128,7 @@ def test_subscription_openai():
         "subscription_id": f"sub_test_{uuid.uuid4().hex[:8]}",
         "plan_name": f"TEST_PLAN_{uuid.uuid4().hex[:6].upper()}",
         "quantity": 1,
-        "unit_price_usd": 0.0,
+        "unit_price": 0.0,
         "effective_date": "2024-12-01",
         "notes": "Test subscription for integration tests",
         "tier_type": "paid",
@@ -146,7 +146,7 @@ def test_subscription_anthropic():
         "subscription_id": f"sub_test_{uuid.uuid4().hex[:8]}",
         "plan_name": f"TEST_ANTHROPIC_{uuid.uuid4().hex[:6].upper()}",
         "quantity": 1,
-        "unit_price_usd": 0.0,
+        "unit_price": 0.0,
         "effective_date": "2024-12-01",
         "notes": "Test Anthropic subscription",
         "tier_type": "paid",
@@ -164,7 +164,7 @@ def test_subscription_gemini():
         "subscription_id": f"sub_test_{uuid.uuid4().hex[:8]}",
         "plan_name": f"TEST_GEMINI_{uuid.uuid4().hex[:6].upper()}",
         "quantity": 1,
-        "unit_price_usd": 0.0,
+        "unit_price": 0.0,
         "effective_date": "2024-12-01",
         "notes": "Test Gemini subscription",
         "tier_type": "paid",
@@ -182,12 +182,12 @@ def test_subscription_with_yearly_billing():
         "subscription_id": f"sub_yearly_{uuid.uuid4().hex[:8]}",
         "plan_name": f"YEARLY_PLAN_{uuid.uuid4().hex[:6].upper()}",
         "quantity": 5,
-        "unit_price_usd": 20.0,
+        "unit_price": 20.0,
         "effective_date": "2024-12-01",
         "notes": "Test yearly billing",
         "tier_type": "paid",
         "billing_period": "yearly",
-        "yearly_price_usd": 960.0,
+        "yearly_price": 960.0,
         "yearly_discount_percentage": 20.0,
         "rpm_limit": 500,
         "tpm_limit": 100000
@@ -201,7 +201,7 @@ def test_subscription_trial():
         "subscription_id": f"sub_trial_{uuid.uuid4().hex[:8]}",
         "plan_name": f"TRIAL_PLAN_{uuid.uuid4().hex[:6].upper()}",
         "quantity": 1,
-        "unit_price_usd": 0.0,
+        "unit_price": 0.0,
         "effective_date": "2024-12-01",
         "notes": "Test trial subscription",
         "tier_type": "trial",
@@ -220,7 +220,7 @@ def test_subscription_committed_use():
         "subscription_id": f"sub_cud_{uuid.uuid4().hex[:8]}",
         "plan_name": f"CUD_PLAN_{uuid.uuid4().hex[:6].upper()}",
         "quantity": 1,
-        "unit_price_usd": 0.0,
+        "unit_price": 0.0,
         "effective_date": "2024-12-01",
         "notes": "Test CUD subscription",
         "tier_type": "committed_use",
@@ -679,10 +679,10 @@ class TestSubscriptionBillingPeriods:
         data = response.json()
 
         assert data["billing_period"] == "yearly"
-        assert data["yearly_price_usd"] == 960.0
+        assert data["yearly_price"] == 960.0
         assert data["yearly_discount_percentage"] == 20.0
         assert data["quantity"] == 5
-        assert data["unit_price_usd"] == 20.0
+        assert data["unit_price"] == 20.0
 
     @pytest.mark.integration
     @pytest.mark.asyncio
@@ -791,7 +791,7 @@ class TestValidation:
             "subscription_id": "sub_invalid",
             "plan_name": "INVALID_PLAN",
             "quantity": 1,
-            "unit_price_usd": 10.0,
+            "unit_price": 10.0,
             "effective_date": "2024-12-01",
             "billing_period": "biweekly"  # Invalid - not in enum
         }
@@ -816,7 +816,7 @@ class TestValidation:
             "subscription_id": "sub_invalid",
             "plan_name": "INVALID_TIER",
             "quantity": 1,
-            "unit_price_usd": 10.0,
+            "unit_price": 10.0,
             "effective_date": "2024-12-01",
             "tier_type": "premium"  # Invalid - not in enum
         }
@@ -841,7 +841,7 @@ class TestValidation:
             "subscription_id": "sub_neg",
             "plan_name": "NEG_QTY",
             "quantity": -5,  # Negative - invalid
-            "unit_price_usd": 10.0,
+            "unit_price": 10.0,
             "effective_date": "2024-12-01"
         }
 
@@ -987,7 +987,7 @@ class TestRateLimitFields:
             "subscription_id": f"sub_rate_{uuid.uuid4().hex[:8]}",
             "plan_name": f"RATE_TEST_{uuid.uuid4().hex[:6].upper()}",
             "quantity": 1,
-            "unit_price_usd": 0.0,
+            "unit_price": 0.0,
             "effective_date": "2024-12-01",
             "billing_period": "pay_as_you_go",
             "tier_type": "paid",
@@ -1026,7 +1026,7 @@ class TestRateLimitFields:
             "subscription_id": f"sub_token_{uuid.uuid4().hex[:8]}",
             "plan_name": f"TOKEN_TEST_{uuid.uuid4().hex[:6].upper()}",
             "quantity": 1,
-            "unit_price_usd": 0.0,
+            "unit_price": 0.0,
             "effective_date": "2024-12-01",
             "billing_period": "monthly",
             "tier_type": "paid",

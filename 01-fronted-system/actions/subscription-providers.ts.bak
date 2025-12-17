@@ -787,7 +787,7 @@ export async function createCustomProviderWithPlan(
 
     if (!response.ok) {
       const errorText = await response.text()
-      return { success: false, error: `Failed to create plan: ${extractErrorMessage(errorText)}` }
+      return { success: false, error: `Failed to create plan: ${errorText}` }
     }
 
     // 4. Always trigger cost pipeline to keep costs up-to-date
@@ -1006,7 +1006,7 @@ export async function getAllProviders(orgSlug: string): Promise<{
     const allProviders = Object.keys(PROVIDER_DISPLAY_NAMES).filter(p => p !== "custom")
     const providers: ProviderInfo[] = allProviders.map(provider => ({
       provider,
-      display_name: escapeDisplayName(getProviderDisplayName(provider)),
+      display_name: getProviderDisplayName(provider),
       category: getProviderCategory(provider),
       is_enabled: enabledMap.get(provider) ?? false,
       plan_count: planCounts.get(provider) ?? 0,
@@ -1082,7 +1082,7 @@ export async function getProviderPlans(
         total_monthly_cost: 0,
         active_subscriptions_count: 0,
         total_plans_count: 0,
-        error: `Failed to get plans: ${extractErrorMessage(errorText)}`
+        error: `Failed to get plans: ${errorText}`
       }
     }
 
@@ -1194,7 +1194,7 @@ export async function getAllPlansForCostDashboard(orgSlug: string): Promise<{
           enabled_count: 0,
           total_count: 0,
         },
-        error: `Failed to fetch plans: ${extractErrorMessage(errorText)}`,
+        error: `Failed to fetch plans: ${errorText}`,
       }
     }
 
@@ -1430,7 +1430,7 @@ export async function getSaaSSubscriptionCosts(
         summary: null,
         cache_hit: false,
         query_time_ms: 0,
-        error: `Failed to fetch subscription costs: ${extractErrorMessage(errorText)}`,
+        error: `Failed to fetch subscription costs: ${errorText}`,
       }
     }
 
@@ -1606,7 +1606,7 @@ export async function createCustomPlan(
 
     if (!response.ok) {
       const errorText = await response.text()
-      return { success: false, error: `Failed to create plan: ${extractErrorMessage(errorText)}` }
+      return { success: false, error: `Failed to create plan: ${errorText}` }
     }
 
     const result = await safeJsonParse<{ plan?: SubscriptionPlan }>(response, { plan: undefined })
@@ -1703,7 +1703,7 @@ export async function updatePlan(
 
     if (!response.ok) {
       const errorText = await response.text()
-      return { success: false, error: `Failed to update plan: ${extractErrorMessage(errorText)}` }
+      return { success: false, error: `Failed to update plan: ${errorText}` }
     }
 
     const result = await safeJsonParse<{ plan?: SubscriptionPlan }>(response, { plan: undefined })
@@ -1772,7 +1772,7 @@ export async function deletePlan(
 
     if (!response.ok) {
       const errorText = await response.text()
-      return { success: false, error: `Failed to delete plan: ${extractErrorMessage(errorText)}` }
+      return { success: false, error: `Failed to delete plan: ${errorText}` }
     }
 
     return { success: true }
@@ -1822,7 +1822,7 @@ export async function resetProvider(
 
     if (!response.ok) {
       const errorText = await response.text()
-      return { success: false, plans_seeded: 0, error: `Failed to reset: ${extractErrorMessage(errorText)}` }
+      return { success: false, plans_seeded: 0, error: `Failed to reset: ${errorText}` }
     }
 
     const result = await safeJsonParse<{ plans_seeded?: number }>(response, { plans_seeded: 0 })
@@ -1912,7 +1912,7 @@ export async function editPlanWithVersion(
 
     if (!response.ok) {
       const errorText = await response.text()
-      return { success: false, error: `Failed to create plan version: ${extractErrorMessage(errorText)}` }
+      return { success: false, error: `Failed to create plan version: ${errorText}` }
     }
 
     const result = await safeJsonParse<{ new_plan?: SubscriptionPlan; old_plan?: SubscriptionPlan }>(
@@ -2012,7 +2012,7 @@ export async function endSubscription(
 
     if (!response.ok) {
       const errorText = await response.text()
-      return { success: false, error: `Failed to end subscription: ${extractErrorMessage(errorText)}` }
+      return { success: false, error: `Failed to end subscription: ${errorText}` }
     }
 
     const result = await safeJsonParse<{ plan?: SubscriptionPlan }>(response, { plan: undefined })
@@ -2104,7 +2104,7 @@ export async function getAvailablePlans(
       return {
         success: false,
         plans: [],
-        error: `Failed to get available plans: ${extractErrorMessage(errorText)}`
+        error: `Failed to get available plans: ${errorText}`
       }
     }
 

@@ -751,7 +751,10 @@ describe('Stripe Billing Management Tests', () => {
     })
 
     it('should skip products with missing required metadata', () => {
-      const productWithoutMetadata = {
+      const productWithoutMetadata: {
+        name: string
+        metadata: { teamMembers: string; providers?: string; pipelinesPerDay?: string }
+      } = {
         name: "Invalid Plan",
         metadata: {
           teamMembers: "5"

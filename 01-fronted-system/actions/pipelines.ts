@@ -159,7 +159,9 @@ class LRUCache<K, V> {
     // Evict oldest if over max size
     if (this.cache.size > this.maxSize) {
       const firstKey = this.cache.keys().next().value
-      this.cache.delete(firstKey)
+      if (firstKey !== undefined) {
+        this.cache.delete(firstKey)
+      }
     }
   }
 
@@ -309,7 +311,7 @@ export async function runPipeline(
   try {
     // Step 1: Validate inputs with zod (Issue #23)
     const validation = validateInput(pipelineRunParamsSchema, { orgSlug, pipelineId, params })
-    if (!validation.success) {
+    if (!validation.success || !validation.data) {
       return {
         success: false,
         error: validation.error || "Invalid input parameters",
@@ -342,8 +344,8 @@ export async function runPipeline(
       }
     }
 
-    // Step 3: Get API key
-    const apiKey = await getOrgApiKey(orgSlug)
+    // Step 3: Get API key using validated orgSlug
+    const apiKey = await getOrgApiKey(validOrgSlug)
 
     if (!apiKey) {
       return {
@@ -397,7 +399,7 @@ export async function runPipeline(
       }
     }
 
-    // Step 7: Execute pipeline
+    // Step 7: Execute pipeline with validated parameters
     const backend = new BackendClient({ orgApiKey: apiKey })
 
     const response = await backend.runPipeline(
@@ -405,7 +407,7 @@ export async function runPipeline(
       pipeline.provider,
       pipeline.domain,
       pipeline.pipeline,
-      validParams
+      validParams || {}
     )
 
     // Backend returns PENDING for async pipelines (background execution)
@@ -444,7 +446,7 @@ export async function runGcpBillingPipeline(
 ): Promise<PipelineRunResult> {
   // Validate with zod (Issue #23)
   const validation = validateInput(pipelineRunWithDateSchema, { orgSlug, date })
-  if (!validation.success) {
+  if (!validation.success || !validation.data) {
     return {
       success: false,
       error: validation.error || "Invalid input parameters",

@@ -4,6 +4,7 @@
 -- OPERATES ON: {project_id}.{p_dataset_id} (per-customer dataset)
 --
 -- PURPOSE: Maps daily SaaS subscription costs to FinOps FOCUS 1.2 standard.
+--          JOINs with saas_subscription_plans to include all provider/plan metadata.
 --
 -- FOCUS 1.2 MAPPING:
 --   - PricingQuantity/ConsumedQuantity: seats for PER_SEAT, 1 for FLAT_FEE
@@ -11,6 +12,8 @@
 --   - BilledCost: daily_cost (amortized)
 --   - EffectiveCost: daily_cost (same for subscriptions)
 --   - ListCost: cycle_cost (full billing period cost)
+--   - ContractedCost: monthly_run_rate (projected monthly cost)
+--   - ResourceId/ResourceName/ResourceType: subscription metadata
 --
 -- ================================================================================
 
@@ -30,7 +33,6 @@ BEGIN
   ASSERT p_start_date IS NOT NULL AS "p_start_date cannot be NULL";
   ASSERT p_end_date IS NOT NULL AS "p_end_date cannot be NULL";
   ASSERT p_end_date >= p_start_date AS "p_end_date must be >= p_start_date";
-  ASSERT DATE_DIFF(p_end_date, p_start_date, DAY) <= 366 AS "Date range cannot exceed 366 days";
 
   BEGIN TRANSACTION;
 
@@ -42,18 +44,21 @@ BEGIN
     """, p_project_id, p_dataset_id)
     USING p_start_date AS p_start, p_end_date AS p_end;
 
-    -- 3. Insert mapped data (derive quantity/unit from seats/pricing_model)
+    -- 3. Insert mapped data with metadata from subscription plans
     EXECUTE IMMEDIATE FORMAT("""
       INSERT INTO `%s.%s.cost_data_standard_1_2` (
         BillingAccountId, BillingAccountName, BillingAccountType,
         SubAccountId, SubAccountName, SubAccountType,
-        BilledCost, BillingCurrency,
-        EffectiveCost, ListCost, PricingCurrency,
-        PricingQuantity, PricingUnit, UnitPrice,
+        BilledCost, BillingCurrency, ContractedCost, EffectiveCost, ListCost,
+        ContractedUnitPrice, EffectiveUnitPrice, ListUnitPrice, UnitPrice,
+        PricingCurrency, PricingQuantity, PricingUnit,
         ConsumedQuantity, ConsumedUnit,
         ChargeCategory, ChargeClass, ChargeDescription, ChargeFrequency, ChargeOrigination,
         InvoiceId, InvoiceIssuer, Provider, Publisher,
+        CommitmentDiscountCategory, CommitmentDiscountId, CommitmentDiscountName,
+        CommitmentDiscountQuantity, CommitmentDiscountStatus, CommitmentDiscountType, CommitmentDiscountUnit,
         AvailabilityZone, RegionId, RegionName,
+        PricingCategory, ResourceId, ResourceName, ResourceType,
         ServiceCategory, ServiceName, ServiceSubcategory,
         x_ServiceModel, x_AmortizationClass, UsageType,
         SkuId, SkuMeter, SkuPriceDetails, SkuPriceId,
@@ -61,58 +66,94 @@ BEGIN
         SourceSystem, SourceRecordId, UpdatedAt
       )
       SELECT
-        -- Billing Account (NULL for SaaS)
-        NULL, NULL, NULL,
+        -- Billing Account (Contract-based for SaaS with contract_id)
+        sp.contract_id AS BillingAccountId,
+        CASE WHEN sp.contract_id IS NOT NULL THEN CONCAT(sp.provider, ' Contract') ELSE NULL END AS BillingAccountName,
+        CASE WHEN sp.contract_id IS NOT NULL THEN 'Contract' ELSE NULL END AS BillingAccountType,
         -- Sub Account (Org)
-        spc.org_slug, 'Organization', 'Organization',
+        spc.org_slug AS SubAccountId,
+        spc.org_slug AS SubAccountName,
+        'Organization' AS SubAccountType,
         -- Costs
         spc.daily_cost AS BilledCost,
         spc.currency AS BillingCurrency,
+        spc.monthly_run_rate AS ContractedCost,
         spc.daily_cost AS EffectiveCost,
         spc.cycle_cost AS ListCost,
-        spc.currency AS PricingCurrency,
-        -- Quantity: seats for PER_SEAT, 1 for FLAT_FEE
-        CASE WHEN spc.pricing_model = 'PER_SEAT' THEN CAST(spc.seats AS NUMERIC) ELSE 1 END AS PricingQuantity,
-        -- Unit: "seat" for PER_SEAT, "subscription" for FLAT_FEE
-        CASE WHEN spc.pricing_model = 'PER_SEAT' THEN 'seat' ELSE 'subscription' END AS PricingUnit,
-        -- UnitPrice: cycle_cost / seats for PER_SEAT, cycle_cost for FLAT_FEE
+        -- Unit Prices (cast to NUMERIC for FOCUS schema)
+        -- Handle NULL and negative seats safely for division
+        CAST(sp.unit_price AS NUMERIC) AS ContractedUnitPrice,
         CASE
-          WHEN spc.pricing_model = 'PER_SEAT' AND spc.seats > 0 THEN spc.cycle_cost / spc.seats
-          ELSE spc.cycle_cost
+          WHEN spc.pricing_model = 'PER_SEAT' AND COALESCE(spc.seats, 0) > 0 THEN spc.cycle_cost / spc.seats
+          WHEN spc.pricing_model = 'FLAT_FEE' THEN spc.cycle_cost
+          ELSE 0  -- Fallback for invalid data (seats <= 0 with PER_SEAT)
+        END AS EffectiveUnitPrice,
+        CAST(sp.unit_price AS NUMERIC) AS ListUnitPrice,
+        CASE
+          WHEN spc.pricing_model = 'PER_SEAT' AND COALESCE(spc.seats, 0) > 0 THEN spc.cycle_cost / spc.seats
+          WHEN spc.pricing_model = 'FLAT_FEE' THEN spc.cycle_cost
+          ELSE 0  -- Fallback for invalid data
         END AS UnitPrice,
-        -- Consumed (same as Pricing for subscriptions)
+        -- Pricing
+        spc.currency AS PricingCurrency,
+        CASE WHEN spc.pricing_model = 'PER_SEAT' THEN CAST(spc.seats AS NUMERIC) ELSE 1 END AS PricingQuantity,
+        CASE WHEN spc.pricing_model = 'PER_SEAT' THEN 'seat' ELSE 'subscription' END AS PricingUnit,
+        -- Consumed
         CASE WHEN spc.pricing_model = 'PER_SEAT' THEN CAST(spc.seats AS NUMERIC) ELSE 1 END AS ConsumedQuantity,
         CASE WHEN spc.pricing_model = 'PER_SEAT' THEN 'seat' ELSE 'subscription' END AS ConsumedUnit,
         -- Charge metadata
         'Subscription' AS ChargeCategory,
-        'Recurring' AS ChargeClass,
-        CONCAT(spc.display_name, ' (', spc.plan_name, ')') AS ChargeDescription,
-        CASE WHEN spc.billing_cycle IN ('annual', 'yearly', 'year') THEN 'Annual' ELSE 'Monthly' END AS ChargeFrequency,
+        CASE WHEN sp.auto_renew = TRUE THEN 'Recurring (Auto-Renew)' ELSE 'Recurring' END AS ChargeClass,
+        COALESCE(sp.notes, CONCAT(spc.display_name, ' (', spc.plan_name, ')')) AS ChargeDescription,
+        CASE
+          WHEN spc.billing_cycle IN ('annual', 'yearly', 'year') THEN 'Annual'
+          WHEN spc.billing_cycle IN ('quarterly', 'quarter') THEN 'Quarterly'
+          WHEN spc.billing_cycle IN ('weekly', 'week') THEN 'Weekly'
+          ELSE 'Monthly'
+        END AS ChargeFrequency,
         'Calculated' AS ChargeOrigination,
         -- Invoice & Provider
         spc.invoice_id_last AS InvoiceId,
         spc.provider AS InvoiceIssuer,
         spc.provider AS Provider,
-        NULL AS Publisher,
+        INITCAP(REPLACE(spc.provider, '_', ' ')) AS Publisher,
+        -- Commitment/Discount fields
+        sp.discount_type AS CommitmentDiscountCategory,
+        CASE WHEN sp.discount_value IS NOT NULL THEN CONCAT(spc.subscription_id, '_discount') ELSE NULL END AS CommitmentDiscountId,
+        CASE
+          WHEN sp.discount_type = 'percent' THEN CONCAT(CAST(sp.discount_value AS STRING), ' percent discount')
+          WHEN sp.discount_type = 'fixed' THEN CONCAT(CAST(sp.discount_value AS STRING), ' off')
+          ELSE NULL
+        END AS CommitmentDiscountName,
+        CAST(sp.discount_value AS NUMERIC) AS CommitmentDiscountQuantity,
+        CASE WHEN sp.discount_value IS NOT NULL THEN 'Applied' ELSE NULL END AS CommitmentDiscountStatus,
+        sp.discount_type AS CommitmentDiscountType,
+        CASE WHEN sp.discount_type = 'percent' THEN 'percent' WHEN sp.discount_type = 'fixed' THEN spc.currency ELSE NULL END AS CommitmentDiscountUnit,
         -- Region (Global for SaaS)
         NULL AS AvailabilityZone,
         'Global' AS RegionId,
         'Global' AS RegionName,
+        -- Pricing details
+        spc.pricing_model AS PricingCategory,
+        -- Resource identification
+        spc.subscription_id AS ResourceId,
+        COALESCE(spc.display_name, spc.plan_name) AS ResourceName,
+        'SaaS Subscription' AS ResourceType,
         -- Service
         'SaaS' AS ServiceCategory,
-        spc.display_name AS ServiceName,
-        spc.plan_name AS ServiceSubcategory,
+        COALESCE(spc.display_name, spc.provider) AS ServiceName,
+        COALESCE(sp.category, spc.plan_name) AS ServiceSubcategory,
         'SaaS' AS x_ServiceModel,
         'Amortized' AS x_AmortizationClass,
         CASE WHEN spc.pricing_model = 'FLAT_FEE' THEN 'Flat-fee Subscription' ELSE 'Seat-based Subscription' END AS UsageType,
         -- SKU
-        spc.plan_name AS SkuId,
-        NULL AS SkuMeter,
-        NULL AS SkuPriceDetails,
-        NULL AS SkuPriceId,
+        CONCAT(spc.provider, '/', spc.plan_name) AS SkuId,
+        spc.billing_cycle AS SkuMeter,
+        CONCAT(spc.pricing_model, ' - ', CAST(spc.seats AS STRING), ' seats') AS SkuPriceDetails,
+        spc.subscription_id AS SkuPriceId,
         -- Periods
         DATE_TRUNC(spc.cost_date, MONTH) AS BillingPeriodStart,
-        DATE_SUB(DATE_ADD(DATE_TRUNC(spc.cost_date, MONTH), INTERVAL 1 MONTH), INTERVAL 1 DAY) AS BillingPeriodEnd,
+        LAST_DAY(spc.cost_date) AS BillingPeriodEnd,
         spc.cost_date AS ChargePeriodStart,
         spc.cost_date AS ChargePeriodEnd,
         -- Source
@@ -120,8 +161,11 @@ BEGIN
         spc.subscription_id AS SourceRecordId,
         CURRENT_TIMESTAMP() AS UpdatedAt
       FROM `%s.%s.saas_subscription_plan_costs_daily` spc
+      LEFT JOIN `%s.%s.saas_subscription_plans` sp
+        ON spc.subscription_id = sp.subscription_id
+        AND spc.org_slug = sp.org_slug
       WHERE spc.cost_date BETWEEN @p_start AND @p_end
-    """, p_project_id, p_dataset_id, p_project_id, p_dataset_id)
+    """, p_project_id, p_dataset_id, p_project_id, p_dataset_id, p_project_id, p_dataset_id)
     USING p_start_date AS p_start, p_end_date AS p_end;
 
   COMMIT TRANSACTION;

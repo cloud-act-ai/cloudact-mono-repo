@@ -152,6 +152,14 @@ class ProcedureExecutorProcessor:
                         "error": f"start_date ({start}) cannot be after end_date ({end})"
                     }
 
+                # Add max date range check (365 days)
+                date_diff = (end - start).days
+                if date_diff > 365:
+                    return {
+                        "status": "FAILED",
+                        "error": f"Date range too large ({date_diff} days). Maximum is 365 days."
+                    }
+
                 # Warn if dates are in the future
                 today = date.today()
                 if start > today:
@@ -199,13 +207,12 @@ class ProcedureExecutorProcessor:
 
             if resolved_value is None:
                 if is_optional:
-                    # Pass NULL explicitly for optional parameters
-                    self.logger.info(f"Parameter {param_name} is optional and resolved to None - passing NULL")
                     bq_param = bigquery.ScalarQueryParameter(param_name, param_type, None)
                     query_parameters.append(bq_param)
+                    continue  # Skip to next parameter after appending
                 else:
-                    self.logger.warning(f"Parameter {param_name} resolved to None (skipping)")
-                continue
+                    self.logger.warning(f"Required parameter {param_name} resolved to None")
+                    return {"status": "FAILED", "error": f"Missing required parameter: {param_name}"}
 
             # Convert to appropriate BigQuery parameter type
             bq_param = self._create_bq_parameter(param_name, param_type, resolved_value)
@@ -236,9 +243,16 @@ class ProcedureExecutorProcessor:
         # 5. Execute the procedure with timeout and retry
         bq_client = BigQueryClient(project_id=project_id)
 
-        # Get timeout from step config (default 10 minutes, max 60 minutes)
-        timeout_minutes = min(step_config.get("timeout_minutes", 10), 60)
-        timeout_ms = timeout_minutes * 60 * 1000
+        # Get timeout from step config (default 10 minutes, min 1 minute, max 60 minutes)
+        raw_timeout = step_config.get("timeout_minutes", 10)
+        if not isinstance(raw_timeout, (int, float)) or raw_timeout <= 0:
+            self.logger.warning(
+                f"Invalid timeout_minutes={raw_timeout}, using default of 10",
+                extra={"procedure": procedure_name, "org_slug": org_slug}
+            )
+            raw_timeout = 10
+        timeout_minutes = max(1, min(raw_timeout, 60))  # Clamp to [1, 60]
+        timeout_ms = int(timeout_minutes * 60 * 1000)
 
         job_config = bigquery.QueryJobConfig(
             query_parameters=query_parameters,

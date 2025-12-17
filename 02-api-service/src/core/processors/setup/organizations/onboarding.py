@@ -145,8 +145,8 @@ class OrgOnboardingProcessor:
                         elif key in ('quantity', 'seats', 'discount_value'):
                             # Convert integer fields
                             cleaned_row[key] = int(value) if value else 0
-                        elif key in ('input_price_per_1k', 'output_price_per_1k', 'unit_price_usd',
-                                     'yearly_price_usd', 'x_openai_batch_input_price',
+                        elif key in ('input_price_per_1k', 'output_price_per_1k', 'unit_price',
+                                     'yearly_price', 'x_openai_batch_input_price',
                                      'x_openai_batch_output_price', 'base_input_price_per_1k',
                                      'base_output_price_per_1k', 'discount_percentage'):
                             # Convert float fields
@@ -206,7 +206,7 @@ class OrgOnboardingProcessor:
                             "plan_name": sub.get("plan_name"),
                             "is_custom": sub.get("is_custom", False),
                             "quantity": sub.get("quantity", 0),
-                            "unit_price_usd": sub.get("unit_price_usd", 0.0),
+                            "unit_price": sub.get("unit_price", 0.0),
                             "effective_date": sub.get("effective_date"),
                             "end_date": sub.get("end_date"),
                             "is_enabled": sub.get("is_enabled", True),

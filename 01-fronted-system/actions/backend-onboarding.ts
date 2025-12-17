@@ -922,35 +922,62 @@ export async function processPendingSyncs(limit: number = 10): Promise<{
 
     for (const sync of pendingSyncs) {
       results.processed++
-      const payload = sync.payload as SyncSubscriptionInput
 
-      // Attempt the sync (without queueing on failure to avoid infinite loop)
-      const syncResult = await syncSubscriptionToBackendInternal({
-        orgSlug: sync.org_slug,
-        orgId: sync.org_id,
-        planName: payload.planName,
-        billingStatus: payload.billingStatus,
-        dailyLimit: payload.dailyLimit,
-        monthlyLimit: payload.monthlyLimit,
-        seatLimit: payload.seatLimit,
-        providersLimit: payload.providersLimit,
-        trialEndsAt: payload.trialEndsAt,
-      }, false) // Don't queue on failure
+      try {
+        const payload = sync.payload as SyncSubscriptionInput
 
-      if (syncResult.success) {
-        // Mark as completed
-        await adminClient.rpc('complete_billing_sync', { p_id: sync.id })
-        results.succeeded++
-        console.log(`[Backend Sync] Retry succeeded for org: ${sync.org_slug}`)
-      } else {
-        // Mark as failed and schedule retry
-        await adminClient.rpc('fail_billing_sync', {
-          p_id: sync.id,
-          p_error_message: syncResult.error || 'Unknown error'
-        })
+        // Attempt the sync (without queueing on failure to avoid infinite loop)
+        const syncResult = await syncSubscriptionToBackendInternal({
+          orgSlug: sync.org_slug,
+          orgId: sync.org_id,
+          planName: payload.planName,
+          billingStatus: payload.billingStatus,
+          dailyLimit: payload.dailyLimit,
+          monthlyLimit: payload.monthlyLimit,
+          seatLimit: payload.seatLimit,
+          providersLimit: payload.providersLimit,
+          trialEndsAt: payload.trialEndsAt,
+        }, false) // Don't queue on failure
+
+        if (syncResult.success) {
+          // Mark as completed
+          const { error: completeError } = await adminClient.rpc('complete_billing_sync', { p_id: sync.id })
+          if (completeError) {
+            console.error(`[Backend Sync] Failed to mark sync as completed:`, completeError)
+            results.errors.push(`${sync.org_slug}: Failed to mark as completed - ${completeError.message}`)
+          } else {
+            results.succeeded++
+            console.log(`[Backend Sync] Retry succeeded for org: ${sync.org_slug}`)
+          }
+        } else {
+          // Mark as failed and schedule retry
+          const { error: failError } = await adminClient.rpc('fail_billing_sync', {
+            p_id: sync.id,
+            p_error_message: syncResult.error || 'Unknown error'
+          })
+          if (failError) {
+            console.error(`[Backend Sync] Failed to mark sync as failed:`, failError)
+          }
+          results.failed++
+          results.errors.push(`${sync.org_slug}: ${syncResult.error}`)
+          console.warn(`[Backend Sync] Retry failed for org: ${sync.org_slug}`)
+        }
+      } catch (syncErr: unknown) {
+        // Catch any unexpected errors in the sync loop
+        const errorMessage = syncErr instanceof Error ? syncErr.message : "Unknown error processing sync"
+        console.error(`[Backend Sync] Error processing sync for ${sync.org_slug}:`, syncErr)
         results.failed++
-        results.errors.push(`${sync.org_slug}: ${syncResult.error}`)
-        console.warn(`[Backend Sync] Retry failed for org: ${sync.org_slug}`)
+        results.errors.push(`${sync.org_slug}: ${errorMessage}`)
+
+        // Attempt to mark as failed in database
+        try {
+          await adminClient.rpc('fail_billing_sync', {
+            p_id: sync.id,
+            p_error_message: errorMessage
+          })
+        } catch (dbErr) {
+          console.error(`[Backend Sync] Failed to update database for failed sync:`, dbErr)
+        }
       }
     }
 

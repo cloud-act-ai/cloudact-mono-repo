@@ -503,7 +503,7 @@ async def list_subscriptions(
             subscription_id,
             plan_name,
             quantity,
-            unit_price_usd,
+            unit_price,
             effective_date,
             notes,
             created_at,
@@ -566,7 +566,7 @@ async def get_subscription(
             subscription_id,
             plan_name,
             quantity,
-            unit_price_usd,
+            unit_price,
             effective_date,
             notes,
             created_at,
@@ -651,7 +651,7 @@ async def create_subscription(
             "subscription_id": subscription.subscription_id,
             "plan_name": subscription.plan_name,
             "quantity": subscription.quantity,
-            "unit_price_usd": subscription.unit_price_usd,
+            "unit_price": subscription.unit_price,
             "effective_date": str(subscription.effective_date),
             "notes": subscription.notes,
             "created_at": now,
@@ -672,7 +672,7 @@ async def create_subscription(
             subscription_id=subscription.subscription_id,
             plan_name=subscription.plan_name,
             quantity=subscription.quantity,
-            unit_price_usd=subscription.unit_price_usd,
+            unit_price=subscription.unit_price,
             effective_date=subscription.effective_date,
             notes=subscription.notes,
             created_at=datetime.fromisoformat(now),
@@ -725,9 +725,9 @@ async def update_subscription(
             update_fields.append("quantity = @quantity")
             query_params.append(bigquery.ScalarQueryParameter("quantity", "INT64", subscription.quantity))
 
-        if subscription.unit_price_usd is not None:
-            update_fields.append("unit_price_usd = @unit_price")
-            query_params.append(bigquery.ScalarQueryParameter("unit_price", "FLOAT64", subscription.unit_price_usd))
+        if subscription.unit_price is not None:
+            update_fields.append("unit_price = @unit_price")
+            query_params.append(bigquery.ScalarQueryParameter("unit_price", "FLOAT64", subscription.unit_price))
 
         if subscription.effective_date is not None:
             update_fields.append("effective_date = @effective_date")

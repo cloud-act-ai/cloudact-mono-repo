@@ -243,7 +243,7 @@ For each subscription plan without audit fields:
 | Field | Old Value | New Value |
 |-------|-----------|-----------|
 | `source_currency` | NULL | Current `currency` (e.g., "USD") |
-| `source_price` | NULL | Current `unit_price_usd` |
+| `source_price` | NULL | Current `unit_price` |
 | `exchange_rate_used` | NULL | 1.0 (if USD) or calculated ratio |
 
 **Example:**
@@ -251,14 +251,14 @@ For each subscription plan without audit fields:
 ```
 Before:
   currency: "USD"
-  unit_price_usd: 20.0
+  unit_price: 20.0
   source_currency: NULL
   source_price: NULL
   exchange_rate_used: NULL
 
 After:
   currency: "USD"
-  unit_price_usd: 20.0
+  unit_price: 20.0
   source_currency: "USD"
   source_price: 20.0
   exchange_rate_used: 1.0

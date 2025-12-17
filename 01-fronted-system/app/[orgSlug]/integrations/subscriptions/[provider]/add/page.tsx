@@ -160,10 +160,10 @@ export default function AddFromTemplatePage() {
   // Handle template selection - redirect to custom form with query params
   const handleSelectTemplate = (template: AvailablePlan) => {
     // Convert USD price to org currency
-    const convertedPrice = convertFromUSD(template.unit_price_usd, orgCurrency)
+    const convertedPrice = convertFromUSD(template.unit_price, orgCurrency)
     const exchangeRate = getExchangeRate(orgCurrency)
-    const convertedYearlyPrice = template.yearly_price_usd
-      ? convertFromUSD(template.yearly_price_usd, orgCurrency)
+    const convertedYearlyPrice = template.yearly_price
+      ? convertFromUSD(template.yearly_price, orgCurrency)
       : undefined
 
     const searchParams = new URLSearchParams({
@@ -178,15 +178,15 @@ export default function AddFromTemplatePage() {
       notes: template.notes || "",
       // Audit trail - original USD price
       source_currency: "USD",
-      source_price: template.unit_price_usd.toString(),
+      source_price: template.unit_price.toString(),
       exchange_rate_used: exchangeRate.toString(),
     })
 
     // Add yearly price if available
     if (convertedYearlyPrice !== undefined) {
       searchParams.set("yearly_price", convertedYearlyPrice.toString())
-      if (template.yearly_price_usd) {
-        searchParams.set("source_yearly_price", template.yearly_price_usd.toString())
+      if (template.yearly_price) {
+        searchParams.set("source_yearly_price", template.yearly_price.toString())
       }
     }
 
@@ -340,7 +340,7 @@ export default function AddFromTemplatePage() {
                 <div className="flex items-baseline justify-between">
                   <div>
                     <div className="text-2xl font-bold text-[#FF6E50]">
-                      {formatCurrency(convertFromUSD(plan.unit_price_usd, orgCurrency), orgCurrency)}
+                      {formatCurrency(convertFromUSD(plan.unit_price, orgCurrency), orgCurrency)}
                     </div>
                     <div className="text-xs text-slate-500">
                       {plan.pricing_model === 'PER_SEAT' ? 'per seat' : 'flat fee'} / {plan.billing_cycle}
@@ -348,7 +348,7 @@ export default function AddFromTemplatePage() {
                     {/* Show original USD price for reference if different currency */}
                     {orgCurrency !== "USD" && (
                       <div className="text-xs text-slate-400 mt-1">
-                        (${plan.unit_price_usd.toFixed(2)} USD)
+                        (${plan.unit_price.toFixed(2)} USD)
                       </div>
                     )}
                   </div>

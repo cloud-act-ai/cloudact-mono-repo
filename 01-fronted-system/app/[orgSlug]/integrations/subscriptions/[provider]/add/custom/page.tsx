@@ -102,7 +102,7 @@ export default function AddCustomSubscriptionPage() {
   const [formData, setFormData] = useState<FormDataWithAudit>({
     plan_name: "",
     display_name: "",
-    unit_price_usd: 0,
+    unit_price: 0,
     seats: 1,
     billing_cycle: "monthly",
     pricing_model: "FLAT_FEE",
@@ -154,7 +154,7 @@ export default function AddCustomSubscriptionPage() {
       const currency = searchParams.get("currency") || orgCurrency
       const seats = parseInt(searchParams.get("seats") || "1", 10)
       const billingCycle = searchParams.get("billing_cycle") || "monthly"
-      const pricingModel = searchParams.get("pricing_model") || "FLAT_FEE"
+      const pricingModel = (searchParams.get("pricing_model") || "FLAT_FEE") as "PER_SEAT" | "FLAT_FEE"
       const notes = searchParams.get("notes") || ""
 
       // Audit trail from template
@@ -165,7 +165,7 @@ export default function AddCustomSubscriptionPage() {
       setFormData({
         plan_name: templateName,
         display_name: displayName,
-        unit_price_usd: unitPrice,
+        unit_price: unitPrice,
         seats: seats,
         billing_cycle: billingCycle,
         pricing_model: pricingModel,
@@ -201,7 +201,7 @@ export default function AddCustomSubscriptionPage() {
     }
 
     // Validate inputs
-    if (formData.unit_price_usd < 0) {
+    if (formData.unit_price < 0) {
       setError("Price cannot be negative")
       return
     }
@@ -240,7 +240,7 @@ export default function AddCustomSubscriptionPage() {
       } = {
         plan_name: formData.plan_name.toUpperCase().replace(/\s+/g, "_"),
         display_name: formData.display_name || formData.plan_name,
-        unit_price_usd: formData.unit_price_usd,
+        unit_price: formData.unit_price,
         seats: formData.seats,
         billing_cycle: formData.billing_cycle,
         pricing_model: formData.pricing_model,
@@ -412,13 +412,13 @@ export default function AddCustomSubscriptionPage() {
                     min={0}
                     step="0.01"
                     placeholder="0.00"
-                    value={formData.unit_price_usd === 0 ? "" : formData.unit_price_usd}
+                    value={formData.unit_price === 0 ? "" : formData.unit_price}
                     onFocus={(e) => e.target.select()}
                     onChange={(e) => {
                       const parsed = parseFloat(e.target.value)
                       setFormData({
                         ...formData,
-                        unit_price_usd: e.target.value === "" ? 0 : (isNaN(parsed) ? 0 : Math.max(0, parsed))
+                        unit_price: e.target.value === "" ? 0 : (isNaN(parsed) ? 0 : Math.max(0, parsed))
                       })
                     }}
                     disabled={submitting}
@@ -563,7 +563,7 @@ export default function AddCustomSubscriptionPage() {
             )}
 
             {/* Cost Preview */}
-            {formData.unit_price_usd > 0 && (
+            {formData.unit_price > 0 && (
               <Card className="bg-slate-50 border-slate-200">
                 <CardContent className="pt-6">
                   <div className="space-y-2">
@@ -573,9 +573,9 @@ export default function AddCustomSubscriptionPage() {
                         <span className="text-slate-500">Total Cost:</span>
                         <span className="ml-2 font-semibold text-[#FF6E50]">
                           {(() => {
-                            let totalCost = formData.unit_price_usd
+                            let totalCost = formData.unit_price
                             if (formData.pricing_model === 'PER_SEAT') {
-                              totalCost = formData.unit_price_usd * (formData.seats || 1)
+                              totalCost = formData.unit_price * (formData.seats || 1)
                             }
                             return formatCurrency(totalCost, formData.currency)
                           })()}
@@ -586,9 +586,9 @@ export default function AddCustomSubscriptionPage() {
                         <span className="text-slate-500">Monthly Rate:</span>
                         <span className="ml-2 font-semibold">
                           {(() => {
-                            let totalCost = formData.unit_price_usd
+                            let totalCost = formData.unit_price
                             if (formData.pricing_model === 'PER_SEAT') {
-                              totalCost = formData.unit_price_usd * (formData.seats || 1)
+                              totalCost = formData.unit_price * (formData.seats || 1)
                             }
                             let monthlyCost = totalCost
                             if (formData.billing_cycle === 'annual') monthlyCost = totalCost / 12

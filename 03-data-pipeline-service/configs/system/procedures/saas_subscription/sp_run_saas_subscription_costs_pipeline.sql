@@ -86,6 +86,19 @@ BEGIN
          v_end_date AS end_date;
 
 EXCEPTION WHEN ERROR THEN
-  SELECT @@error.message AS error_message;
-  RAISE USING MESSAGE = CONCAT('Pipeline Failed: ', @@error.message);
+  -- Log error details for debugging
+  SELECT
+    'ERROR' AS status,
+    p_project_id AS project_id,
+    p_dataset_id AS dataset_id,
+    v_start_date AS start_date,
+    v_end_date AS end_date,
+    @@error.message AS error_message,
+    @@error.statement_text AS failed_statement;
+  -- Re-raise with context
+  RAISE USING MESSAGE = CONCAT(
+    'sp_run_saas_subscription_costs_pipeline Failed for dataset=', p_dataset_id,
+    ', date_range=[', CAST(v_start_date AS STRING), ' to ', CAST(v_end_date AS STRING), ']: ',
+    @@error.message
+  );
 END;

@@ -47,8 +47,8 @@ class AvailablePlan(BaseModel):
     display_name: str
     billing_cycle: str
     pricing_model: str
-    unit_price_usd: float
-    yearly_price_usd: Optional[float] = None
+    unit_price: float
+    yearly_price: Optional[float] = None
     notes: Optional[str] = None
     seats: int = 0
     category: str = "other"
@@ -92,8 +92,8 @@ curl -X GET "http://localhost:8000/api/v1/subscriptions/my_org/providers/chatgpt
       "display_name": "ChatGPT Free",
       "billing_cycle": "monthly",
       "pricing_model": "FLAT_FEE",
-      "unit_price_usd": 0.0,
-      "yearly_price_usd": 0.0,
+      "unit_price": 0.0,
+      "yearly_price": 0.0,
       "notes": "Basic ChatGPT access with GPT-3.5",
       "seats": 0,
       "category": "ai",
@@ -105,8 +105,8 @@ curl -X GET "http://localhost:8000/api/v1/subscriptions/my_org/providers/chatgpt
       "display_name": "ChatGPT Plus",
       "billing_cycle": "monthly",
       "pricing_model": "FLAT_FEE",
-      "unit_price_usd": 20.0,
-      "yearly_price_usd": 240.0,
+      "unit_price": 20.0,
+      "yearly_price": 240.0,
       "notes": "ChatGPT Plus with GPT-4 access and priority",
       "seats": 0,
       "category": "ai",
@@ -126,7 +126,7 @@ curl -X POST "http://localhost:8000/api/v1/subscriptions/my_org/providers/chatgp
   -d '{
     "plan_name": "PLUS",
     "display_name": "ChatGPT Plus",
-    "unit_price_usd": 20.0,
+    "unit_price": 20.0,
     "billing_cycle": "monthly",
     "pricing_model": "FLAT_FEE",
     "seats": 0,

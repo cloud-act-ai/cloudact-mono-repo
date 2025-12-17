@@ -184,6 +184,7 @@ class AsyncPipelineExecutor:
         self.org_api_key_id = org_api_key_id
 
         self.bq_client = get_bigquery_client()
+        self._bq_client_closed = False  # FIX: Track if client has been closed to prevent double-close
         self.dq_validator = DataQualityValidator()
         self.logger = create_structured_logger(
             __name__,
@@ -216,6 +217,23 @@ class AsyncPipelineExecutor:
         # Thread-safe storage for step execution results (keyed by step_id)
         # This replaces the problematic _last_step_result instance variable
         self._step_execution_results: Dict[str, Dict[str, Any]] = {}
+
+    def _close_bq_client(self) -> None:
+        """
+        Close BigQuery client connection safely (idempotent).
+        FIX: Prevents resource leaks and double-close errors.
+        """
+        if self._bq_client_closed:
+            return  # Already closed
+
+        try:
+            if hasattr(self, 'bq_client') and self.bq_client:
+                if hasattr(self.bq_client, 'client') and self.bq_client.client:
+                    self.bq_client.client.close()
+                    self._bq_client_closed = True
+                    self.logger.debug("BigQuery client closed successfully")
+        except Exception as cleanup_error:
+            self.logger.error(f"Error closing BigQuery client: {cleanup_error}", exc_info=True)
 
     async def load_config(self, parameters: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
@@ -412,8 +430,10 @@ class AsyncPipelineExecutor:
                 tracking_pipeline_id=self.tracking_pipeline_id
             )
 
-            # Increment concurrent counter after successful status update
-            await self._increment_concurrent_counter()
+            # FIX: Removed double-increment race condition
+            # Concurrent counter is already incremented by api-service during validation
+            # (see pipelines.py line 452 comment). No need to increment again here.
+            # OLD CODE: await self._increment_concurrent_counter()
 
         except Exception as e:
             # Don't fail the pipeline if status update fails, just log it
@@ -427,17 +447,25 @@ class AsyncPipelineExecutor:
 
     async def _increment_concurrent_counter(self) -> None:
         """
-        Increment concurrent_pipelines_running counter and update related metrics.
+        DEPRECATED: This method is no longer used.
 
-        Updates:
-        - concurrent_pipelines_running: Incremented by 1
-        - max_concurrent_reached: Updated to maximum value seen
-        - last_updated: Set to current timestamp
+        Concurrent counter is now incremented by api-service during validation
+        to prevent race conditions. See pipelines.py validate_pipeline_with_api_service().
+
+        Kept for reference only. Do not call this method.
+
+        Old behavior:
+        - Incremented concurrent_pipelines_running by 1
+        - Updated max_concurrent_reached to maximum value seen
+        - Set last_updated to current timestamp
         """
         from google.cloud import bigquery
         from src.app.config import settings
 
         try:
+            # BigQuery UPDATE is atomic: all SET expressions evaluate OLD values first,
+            # then apply updates transactionally. This prevents race conditions when
+            # multiple pipeline instances increment counters concurrently.
             update_query = f"""
             UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
             SET
@@ -666,12 +694,7 @@ class AsyncPipelineExecutor:
                 if task is not asyncio.current_task():
                     task.cancel()
             # Cleanup partial resources on timeout
-            try:
-                if hasattr(self, 'bq_client') and self.bq_client:
-                    if hasattr(self.bq_client, 'client') and self.bq_client.client:
-                        self.bq_client.client.close()
-            except Exception as cleanup_error:
-                self.logger.error(f"Error during timeout cleanup: {cleanup_error}", exc_info=True)
+            self._close_bq_client()
 
         except Exception as e:
             self.status = "FAILED"
@@ -700,12 +723,7 @@ class AsyncPipelineExecutor:
                 )
 
             # Cleanup partial resources on failure
-            try:
-                if hasattr(self, 'bq_client') and self.bq_client:
-                    if hasattr(self.bq_client, 'client') and self.bq_client.client:
-                        self.bq_client.client.close()
-            except Exception as cleanup_error:
-                self.logger.error(f"Error during failure cleanup: {cleanup_error}", exc_info=True)
+            self._close_bq_client()
             raise
 
         finally:
@@ -760,14 +778,9 @@ class AsyncPipelineExecutor:
             except Exception as quota_error:
                 self.logger.error(f"Error updating customer usage quotas: {quota_error}", exc_info=True)
 
-            # Clean up BigQuery client resources (thread pool cleaned up at app exit via atexit)
-            try:
-                if hasattr(self, 'bq_client') and self.bq_client:
-                    if hasattr(self.bq_client, 'client') and self.bq_client.client:
-                        self.bq_client.client.close()
-                        self.logger.debug("BigQuery client closed successfully")
-            except Exception as cleanup_error:
-                self.logger.error(f"Error closing BigQuery client: {cleanup_error}", exc_info=True)
+            # FIX: Clean up BigQuery client resources (idempotent)
+            # Thread pool cleaned up at app exit via atexit
+            self._close_bq_client()
 
         return self._get_execution_summary()
 

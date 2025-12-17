@@ -182,6 +182,7 @@ export function TableWithPaginationExample() {
                 <PaginationItem key={page}>
                   <PaginationLink
                     href="#"
+                    size="icon"
                     isActive={currentPage === page}
                     onClick={(e) => {
                       e.preventDefault()
@@ -319,6 +320,7 @@ export function TableWithItemsPerPage() {
             <PaginationItem key={page}>
               <PaginationLink
                 href="#"
+                size="icon"
                 isActive={currentPage === page}
                 onClick={(e) => {
                   e.preventDefault()
@@ -336,7 +338,7 @@ export function TableWithItemsPerPage() {
                 <PaginationEllipsis />
               </PaginationItem>
               <PaginationItem>
-                <PaginationLink href="#">{totalPages}</PaginationLink>
+                <PaginationLink href="#" size="icon">{totalPages}</PaginationLink>
               </PaginationItem>
             </>
           )}

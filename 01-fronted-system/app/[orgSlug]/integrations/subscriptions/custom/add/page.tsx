@@ -63,7 +63,7 @@ interface FormData {
   // Plan fields
   plan_name: string
   display_name: string
-  unit_price_usd: number
+  unit_price: number
   seats: number
   billing_cycle: string
   pricing_model: string
@@ -91,7 +91,7 @@ export default function AddCustomProviderPage() {
     category: "other",
     plan_name: "",
     display_name: "",
-    unit_price_usd: 0,
+    unit_price: 0,
     seats: 1,
     billing_cycle: "monthly",
     pricing_model: "FLAT_FEE",
@@ -144,7 +144,7 @@ export default function AddCustomProviderPage() {
       return
     }
 
-    if (formData.unit_price_usd < 0) {
+    if (formData.unit_price < 0) {
       setError("Price cannot be negative")
       return
     }
@@ -188,10 +188,10 @@ export default function AddCustomProviderPage() {
         plan: {
           plan_name: formData.plan_name.toUpperCase().replace(/\s+/g, "_"),
           display_name: formData.display_name || formData.plan_name,
-          unit_price_usd: formData.unit_price_usd,
+          unit_price: formData.unit_price,
           seats: formData.seats,
           billing_cycle: formData.billing_cycle,
-          pricing_model: formData.pricing_model,
+          pricing_model: formData.pricing_model as "PER_SEAT" | "FLAT_FEE",
           currency: formData.currency,
           notes: formData.notes,
           start_date: startDateStr,
@@ -370,13 +370,13 @@ export default function AddCustomProviderPage() {
                     min={0}
                     step="0.01"
                     placeholder="0.00"
-                    value={formData.unit_price_usd === 0 ? "" : formData.unit_price_usd}
+                    value={formData.unit_price === 0 ? "" : formData.unit_price}
                     onFocus={(e) => e.target.select()}
                     onChange={(e) => {
                       const parsed = parseFloat(e.target.value)
                       setFormData({
                         ...formData,
-                        unit_price_usd: e.target.value === "" ? 0 : (isNaN(parsed) ? 0 : Math.max(0, parsed))
+                        unit_price: e.target.value === "" ? 0 : (isNaN(parsed) ? 0 : Math.max(0, parsed))
                       })
                     }}
                     disabled={submitting}
@@ -476,9 +476,9 @@ export default function AddCustomProviderPage() {
             <div className="space-y-2">
               <Label htmlFor="start_date">Start Date *</Label>
               <DatePicker
-                id="start_date"
                 date={startDate}
-                setDate={setStartDate}
+                onSelect={setStartDate}
+                placeholder="Select start date"
                 disabled={submitting}
               />
               <p className="text-xs text-slate-500">

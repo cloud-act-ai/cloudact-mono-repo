@@ -186,7 +186,7 @@ export default function SubscriptionCostsPage() {
   }
 
   const getTotalCost = (plan: PlanWithProvider): number => {
-    const basePrice = plan.unit_price_usd ?? 0
+    const basePrice = plan.unit_price ?? 0
     if (plan.pricing_model === 'PER_SEAT' && plan.seats) {
       return basePrice * plan.seats
     }
@@ -521,7 +521,7 @@ export default function SubscriptionCostsPage() {
                         </TableCell>
                         <TableCell className="console-table-cell text-right">
                           <div className="whitespace-nowrap">
-                            <span className="font-semibold text-black text-[15px]">{formatCurrency(plan.unit_price_usd ?? 0, orgCurrency)}</span>
+                            <span className="font-semibold text-black text-[15px]">{formatCurrency(plan.unit_price ?? 0, orgCurrency)}</span>
                             {plan.pricing_model && (
                               <div className="text-[11px] text-[#8E8E93] font-medium">
                                 {plan.pricing_model === 'PER_SEAT' ? '/seat' : 'flat fee'}
@@ -676,7 +676,7 @@ export default function SubscriptionCostsPage() {
                                     {formatCurrency(totalCost, orgCurrency)}
                                     {plan.seats && plan.seats > 1 && (
                                       <span className="text-[11px] text-[#8E8E93] font-normal ml-1">
-                                        ({plan.seats} × {formatCurrency(plan.unit_price_usd ?? 0, orgCurrency)})
+                                        ({plan.seats} × {formatCurrency(plan.unit_price ?? 0, orgCurrency)})
                                       </span>
                                     )}
                                   </p>

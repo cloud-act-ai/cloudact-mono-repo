@@ -391,7 +391,7 @@ class TestSeedingBehavior:
         data = response.json()
 
         # Check if any free plans exist (may or may not, depending on seed data)
-        free_plans = [p for p in data["plans"] if p.get("unit_price_usd", 0) == 0]
+        free_plans = [p for p in data["plans"] if p.get("unit_price", 0) == 0]
         print(f"Found {len(free_plans)} free plans for Figma")
 
     def test_api10_reenable_skips_reseed(
@@ -546,7 +546,7 @@ class TestCreatePlan:
             "plan_name": f"CUSTOM_{uuid.uuid4().hex[:6].upper()}",
             "display_name": "Custom Slack Enterprise",
             "seats": 50,
-            "unit_price_usd": 12.50,
+            "unit_price": 12.50,
             "billing_cycle": "monthly",
             "currency": "USD",
             "pricing_model": "PER_SEAT",
@@ -568,7 +568,7 @@ class TestCreatePlan:
         assert data["success"] is True
         assert "plan" in data
         assert data["plan"]["plan_name"] == plan_data["plan_name"]
-        assert data["plan"]["unit_price_usd"] == 12.50
+        assert data["plan"]["unit_price"] == 12.50
         assert data["plan"]["billing_cycle"] == "monthly"
         assert data["plan"]["status"] == "active"
 
@@ -588,7 +588,7 @@ class TestCreatePlan:
             "plan_name": f"ANNUAL_{uuid.uuid4().hex[:6].upper()}",
             "display_name": "Annual Subscription",
             "seats": 1,
-            "unit_price_usd": 99.00,
+            "unit_price": 99.00,
             "billing_cycle": "annual",
             "currency": "USD",
             "pricing_model": "FLAT_FEE",
@@ -628,7 +628,7 @@ class TestCreatePlan:
         # Missing required field
         invalid_data = {
             "plan_name": "TEST",
-            # Missing unit_price_usd
+            # Missing unit_price
             "seats": 1
         }
 
@@ -651,7 +651,7 @@ class TestCreatePlan:
 
         invalid_data = {
             "plan_name": "invalid-plan-name-with-dashes",  # Should be alphanumeric + underscores
-            "unit_price_usd": 10.00,
+            "unit_price": 10.00,
             "seats": 1,
             "billing_cycle": "monthly"
         }
@@ -686,7 +686,7 @@ class TestUpdatePlan:
         plan_data = {
             "plan_name": f"UPDATE_TEST_{uuid.uuid4().hex[:6].upper()}",
             "seats": 5,
-            "unit_price_usd": 10.00,
+            "unit_price": 10.00,
             "billing_cycle": "monthly",
             "currency": "USD",
             "pricing_model": "PER_SEAT",
@@ -709,7 +709,7 @@ class TestUpdatePlan:
         # Update the plan
         update_data = {
             "seats": 20,
-            "unit_price_usd": 15.00
+            "unit_price": 15.00
         }
 
         response = client.put(
@@ -723,7 +723,7 @@ class TestUpdatePlan:
         data = response.json()
         assert data["success"] is True
         assert data["plan"]["seats"] == 20
-        assert data["plan"]["unit_price_usd"] == 15.00
+        assert data["plan"]["unit_price"] == 15.00
 
         created_subscription_ids.append(subscription_id)
         print(f"Updated plan: {subscription_id}")
@@ -741,7 +741,7 @@ class TestUpdatePlan:
         plan_data = {
             "plan_name": f"DISABLE_TEST_{uuid.uuid4().hex[:6].upper()}",
             "seats": 1,
-            "unit_price_usd": 5.00,
+            "unit_price": 5.00,
             "billing_cycle": "monthly",
             "currency": "USD",
             "pricing_model": "FLAT_FEE",
@@ -815,7 +815,7 @@ class TestDeletePlan:
         plan_data = {
             "plan_name": f"DELETE_TEST_{uuid.uuid4().hex[:6].upper()}",
             "seats": 1,
-            "unit_price_usd": 5.00,
+            "unit_price": 5.00,
             "billing_cycle": "monthly",
             "currency": "USD",
             "pricing_model": "FLAT_FEE",
@@ -1378,7 +1378,7 @@ class TestMultiCurrencyAuditFields:
             "plan_name": f"MULTICURRENCY_{uuid.uuid4().hex[:6].upper()}",
             "display_name": "Multi-Currency Test Plan",
             "seats": 10,
-            "unit_price_usd": 2087.50,  # Converted from USD to INR
+            "unit_price": 2087.50,  # Converted from USD to INR
             "billing_cycle": "monthly",
             "currency": "INR",
             "pricing_model": "PER_SEAT",
@@ -1409,12 +1409,12 @@ class TestMultiCurrencyAuditFields:
         assert plan.get("source_price") == 25.00
         assert plan.get("exchange_rate_used") == 83.50
         assert plan["currency"] == "INR"
-        assert plan["unit_price_usd"] == 2087.50
+        assert plan["unit_price"] == 2087.50
 
         created_subscription_ids.append(plan["subscription_id"])
         print(f"Created plan with multi-currency fields: {plan['subscription_id']}")
         print(f"  Template: ${plan.get('source_price')} {plan.get('source_currency')}")
-        print(f"  Converted: {plan['unit_price_usd']} {plan['currency']} @ rate {plan.get('exchange_rate_used')}")
+        print(f"  Converted: {plan['unit_price']} {plan['currency']} @ rate {plan.get('exchange_rate_used')}")
 
     def test_create_plan_without_audit_fields(
         self,
@@ -1435,7 +1435,7 @@ class TestMultiCurrencyAuditFields:
             "plan_name": f"NO_AUDIT_{uuid.uuid4().hex[:6].upper()}",
             "display_name": "No Audit Fields Plan",
             "seats": 5,
-            "unit_price_usd": 15.00,
+            "unit_price": 15.00,
             "billing_cycle": "monthly",
             "currency": "USD",
             "pricing_model": "PER_SEAT",
@@ -1513,7 +1513,7 @@ class TestCurrencyEnforcement:
             "plan_name": f"MATCH_CURR_{uuid.uuid4().hex[:6].upper()}",
             "display_name": "Matching Currency Plan",
             "seats": 5,
-            "unit_price_usd": 10.00,
+            "unit_price": 10.00,
             "billing_cycle": "monthly",
             "currency": org_default_currency,  # Matches org
             "pricing_model": "PER_SEAT",
@@ -1541,7 +1541,7 @@ class TestCurrencyEnforcement:
             "plan_name": f"MISMATCH_CURR_{uuid.uuid4().hex[:6].upper()}",
             "display_name": "Mismatched Currency Plan",
             "seats": 5,
-            "unit_price_usd": 10.00,
+            "unit_price": 10.00,
             "billing_cycle": "monthly",
             "currency": mismatched_currency,  # Does NOT match org
             "pricing_model": "PER_SEAT",
@@ -1602,7 +1602,7 @@ class TestDuplicatePlanDetection:
             "plan_name": plan_name,
             "display_name": "Duplicate Test Plan",
             "seats": 5,
-            "unit_price_usd": 15.00,
+            "unit_price": 15.00,
             "billing_cycle": "monthly",
             "currency": "USD",
             "pricing_model": "PER_SEAT",
@@ -1627,7 +1627,7 @@ class TestDuplicatePlanDetection:
             "plan_name": plan_name,  # Same plan_name as above
             "display_name": "Duplicate Plan Attempt",
             "seats": 10,  # Different seats
-            "unit_price_usd": 20.00,  # Different price
+            "unit_price": 20.00,  # Different price
             "billing_cycle": "monthly",
             "currency": "USD",
             "pricing_model": "PER_SEAT",
@@ -1675,7 +1675,7 @@ class TestDuplicatePlanDetection:
             "plan_name": plan_name,
             "display_name": "Cancellable Plan",
             "seats": 5,
-            "unit_price_usd": 10.00,
+            "unit_price": 10.00,
             "billing_cycle": "monthly",
             "currency": "USD",
             "pricing_model": "PER_SEAT",
@@ -1714,7 +1714,7 @@ class TestDuplicatePlanDetection:
             "plan_name": plan_name,  # Same plan_name
             "display_name": "New Plan After Cancellation",
             "seats": 10,
-            "unit_price_usd": 15.00,
+            "unit_price": 15.00,
             "billing_cycle": "monthly",
             "currency": "USD",
             "pricing_model": "PER_SEAT",
@@ -1756,7 +1756,7 @@ class TestAuditLogging:
         Verifies:
         - CREATE action is logged to org_audit_logs
         - resource_type = 'SUBSCRIPTION_PLAN'
-        - details contain plan_name, provider, unit_price_usd, etc.
+        - details contain plan_name, provider, unit_price, etc.
         """
         org_slug = setup_test_org["org_slug"]
 
@@ -1773,7 +1773,7 @@ class TestAuditLogging:
             "plan_name": plan_name,
             "display_name": "Audit Log Test Plan",
             "seats": 8,
-            "unit_price_usd": 12.00,
+            "unit_price": 12.00,
             "billing_cycle": "monthly",
             "currency": "USD",
             "pricing_model": "PER_SEAT",
@@ -1824,7 +1824,7 @@ class TestAuditLogging:
         plan_data = {
             "plan_name": plan_name,
             "seats": 5,
-            "unit_price_usd": 10.00,
+            "unit_price": 10.00,
             "billing_cycle": "monthly",
             "currency": "USD",
             "pricing_model": "PER_SEAT",
@@ -1848,7 +1848,7 @@ class TestAuditLogging:
         # Update the plan
         update_data = {
             "seats": 15,  # Changed
-            "unit_price_usd": 18.00  # Changed
+            "unit_price": 18.00  # Changed
         }
 
         update_response = client.put(
@@ -1861,11 +1861,11 @@ class TestAuditLogging:
 
         # Audit log should contain:
         # - action = 'UPDATE'
-        # - changed_fields = ['seats', 'unit_price_usd']
-        # - new_values = {seats: 15, unit_price_usd: 18.00}
+        # - changed_fields = ['seats', 'unit_price']
+        # - new_values = {seats: 15, unit_price: 18.00}
 
         print(f"✓ Updated plan with audit logging: {subscription_id}")
-        print("  Audit log should contain: action=UPDATE, changed_fields=['seats', 'unit_price_usd']")
+        print("  Audit log should contain: action=UPDATE, changed_fields=['seats', 'unit_price']")
 
     def test_audit_log_on_plan_delete(
         self,
@@ -1888,7 +1888,7 @@ class TestAuditLogging:
         plan_data = {
             "plan_name": plan_name,
             "seats": 3,
-            "unit_price_usd": 8.00,
+            "unit_price": 8.00,
             "billing_cycle": "monthly",
             "currency": "USD",
             "pricing_model": "PER_SEAT",

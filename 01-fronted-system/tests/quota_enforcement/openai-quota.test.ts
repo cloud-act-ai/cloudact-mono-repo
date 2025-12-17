@@ -12,7 +12,7 @@
  */
 
 import { describe, it, expect, beforeAll } from 'vitest'
-import { ApiClient } from './utils/api-client'
+import { ApiClient } from '../utils/api-client'
 
 // Use a unique org slug for this test run
 const TEST_ORG_SLUG = `openai_test_${Date.now()}`

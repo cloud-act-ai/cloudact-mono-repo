@@ -17,7 +17,7 @@ Migrations are stored procedures that run against customer datasets to update ex
 **Logic:**
 - For plans without audit fields:
   - `source_currency` = current `currency` (assume it was the source)
-  - `source_price` = current `unit_price_usd`
+  - `source_price` = current `unit_price`
   - `exchange_rate_used` = 1.0 (if USD) or calculated ratio
 
 **Procedure:** `sp_backfill_currency_audit_fields`
@@ -188,7 +188,7 @@ echo "Migration complete for all organizations"
    - WHERE clause prevents unnecessary updates
 
 3. **Validation:**
-   - Only updates plans with `unit_price_usd > 0`
+   - Only updates plans with `unit_price > 0`
    - Validates project_id and dataset_id parameters
    - Transaction-based (atomic operation)
 
@@ -231,7 +231,7 @@ curl -X POST "http://localhost:8001/api/v1/procedures/sync" \
 
 - All rows may already have audit fields populated
 - Check dry run output to see affected rows
-- Verify `unit_price_usd > 0` for plans
+- Verify `unit_price > 0` for plans
 
 ### Migration failed mid-execution
 

@@ -169,8 +169,8 @@ export default function EndSubscriptionPage() {
 
   // Calculate monthly cost for display
   const getMonthlyDisplayCost = (p: SubscriptionPlan): number => {
-    let monthlyCost = p.unit_price_usd * (p.seats ?? 1)
-    if (p.pricing_model === 'FLAT_FEE') monthlyCost = p.unit_price_usd
+    let monthlyCost = p.unit_price * (p.seats ?? 1)
+    if (p.pricing_model === 'FLAT_FEE') monthlyCost = p.unit_price
     if (p.billing_cycle === 'annual') monthlyCost = monthlyCost / 12
     if (p.billing_cycle === 'quarterly') monthlyCost = monthlyCost / 3
     return monthlyCost

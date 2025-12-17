@@ -19,7 +19,7 @@ Organizations can operate in any of the 16 supported currencies. Template prices
 │                        SEED CSV (Source of Truth)                            │
 │  File: 02-api-service/configs/saas/seed/data/saas_subscription_plans.csv    │
 │                                                                              │
-│  unit_price_usd | yearly_price_usd | currency = "USD"                       │
+│  unit_price | yearly_price | currency = "USD"                       │
 │  (Always USD - single source, no multi-currency columns)                    │
 └─────────────────────────────────────────────────────────────────────────────┘
                                     │
@@ -30,7 +30,7 @@ Organizations can operate in any of the 16 supported currencies. Template prices
 │                                                                              │
 │  1. Fetch org's default currency from org_profiles                          │
 │  2. Fetch exchange rates from lib/currency/exchange-rates.ts                │
-│  3. Convert: convertFromUSD(unit_price_usd, orgCurrency)                   │
+│  3. Convert: convertFromUSD(unit_price, orgCurrency)                   │
 │  4. Display: formatCurrency(convertedPrice, orgCurrency)                   │
 │                                                                              │
 │  Example: Canva PRO $15 USD → ₹1,246.80 INR (for Indian org)               │
@@ -54,12 +54,12 @@ Organizations can operate in any of the 16 supported currencies. Template prices
 │                                                                              │
 │  Stored Fields:                                                              │
 │  - currency: "INR" (org's default - what user sees and pays in)            │
-│  - unit_price_usd: 1246.80 (in org's currency, NOT USD anymore!)           │
+│  - unit_price: 1246.80 (in org's currency, NOT USD anymore!)           │
 │  - source_currency: "USD" (original template currency for audit)           │
 │  - source_price: 15.00 (original USD price for audit)                      │
 │  - exchange_rate_used: 83.12 (rate at time of creation)                    │
 │                                                                              │
-│  NOTE: Despite column name "unit_price_usd", value is in org's currency!   │
+│  NOTE: Despite column name "unit_price", value is in org's currency!   │
 │  Future migration will rename to "unit_price" for clarity.                 │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -134,7 +134,7 @@ The pipeline procedures fully support multi-currency. Currency flows end-to-end 
 │  Table: {org_slug}_{env}.saas_subscription_plans                            │
 │                                                                              │
 │  currency: "INR"           ← Org's default currency                         │
-│  unit_price_usd: 1246.80   ← Price in org's currency (converted)           │
+│  unit_price: 1246.80   ← Price in org's currency (converted)           │
 │  source_currency: "USD"    ← Original template currency (audit)            │
 │  source_price: 15.00       ← Original USD price (audit)                    │
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -340,10 +340,10 @@ Response:
   "success": true,
   "provider": "chatgpt_plus",
   "plans": [
-    {"plan_name": "FREE", "display_name": "ChatGPT Free", "unit_price_usd": 0, ...},
-    {"plan_name": "PLUS", "display_name": "ChatGPT Plus", "unit_price_usd": 20, ...},
-    {"plan_name": "TEAM", "display_name": "ChatGPT Team", "unit_price_usd": 25, ...},
-    {"plan_name": "ENTERPRISE", "display_name": "ChatGPT Enterprise", "unit_price_usd": 60, ...}
+    {"plan_name": "FREE", "display_name": "ChatGPT Free", "unit_price": 0, ...},
+    {"plan_name": "PLUS", "display_name": "ChatGPT Plus", "unit_price": 20, ...},
+    {"plan_name": "TEAM", "display_name": "ChatGPT Team", "unit_price": 25, ...},
+    {"plan_name": "ENTERPRISE", "display_name": "ChatGPT Enterprise", "unit_price": 60, ...}
   ]
 }
 
@@ -408,8 +408,8 @@ Source: configs/saas/seed/data/saas_subscription_plans.csv (read-only, not store
 │  ├── currency: STRING           (USD, EUR, GBP, etc.)                      │
 │  ├── seats: INT                 (number of seats/licenses)                 │
 │  ├── pricing_model: STRING      (per_seat, flat_rate, tiered)             │
-│  ├── unit_price_usd: FLOAT      (monthly cost per unit)                    │
-│  ├── yearly_price_usd: FLOAT    (annual cost, nullable)                    │
+│  ├── unit_price: FLOAT      (monthly cost per unit)                    │
+│  ├── yearly_price: FLOAT    (annual cost, nullable)                    │
 │  ├── discount_type: STRING      (percentage, fixed, none)                  │
 │  ├── discount_value: FLOAT      (discount amount or %, nullable)           │
 │  ├── auto_renew: BOOLEAN        (auto-renewal enabled)                     │
@@ -661,7 +661,7 @@ User toggles provider OFF
 
 **Columns (25):**
 ```
-org_slug,subscription_id,provider,plan_name,display_name,category,status,start_date,end_date,billing_cycle,currency,seats,pricing_model,unit_price_usd,yearly_price_usd,discount_type,discount_value,auto_renew,payment_method,invoice_id_last,owner_email,department,renewal_date,contract_id,notes
+org_slug,subscription_id,provider,plan_name,display_name,category,status,start_date,end_date,billing_cycle,currency,seats,pricing_model,unit_price,yearly_price,discount_type,discount_value,auto_renew,payment_method,invoice_id_last,owner_email,department,renewal_date,contract_id,notes
 ```
 
 **Column Descriptions:**
@@ -680,8 +680,8 @@ org_slug,subscription_id,provider,plan_name,display_name,category,status,start_d
 | currency | STRING | USD, EUR, GBP, etc. |
 | seats | INT | Number of seats/licenses (seed data uses 0 - users set their own) |
 | pricing_model | STRING | per_seat, flat_rate, tiered |
-| unit_price_usd | FLOAT | Monthly price per unit |
-| yearly_price_usd | FLOAT | Annual price (nullable) |
+| unit_price | FLOAT | Monthly price per unit |
+| yearly_price | FLOAT | Annual price (nullable) |
 | discount_type | STRING | percentage, fixed, none |
 | discount_value | FLOAT | Discount amount or percentage (nullable) |
 | auto_renew | BOOLEAN | Auto-renewal enabled |
@@ -742,8 +742,8 @@ The schema was expanded from 14 columns to 25 columns to support enterprise-grad
 - `display_name` - Human-readable name
 - `category` - Category classification
 - `seats` - Number of seats
-- `unit_price_usd` - Monthly price
-- `yearly_price_usd` - Annual price
+- `unit_price` - Monthly price
+- `yearly_price` - Annual price
 - `notes` - Additional notes
 - `updated_at` - Last update timestamp
 
@@ -895,8 +895,8 @@ export interface SubscriptionPlan {
   currency: string // USD, EUR, GBP, etc.
   seats: number
   pricing_model: string // per_seat, flat_rate, tiered
-  unit_price_usd: number
-  yearly_price_usd?: number
+  unit_price: number
+  yearly_price?: number
   discount_type: string // percentage, fixed, none
   discount_value?: number
   auto_renew: boolean
@@ -921,8 +921,8 @@ export interface PlanCreate {
   currency?: string // USD, EUR, GBP (default: USD)
   seats?: number
   pricing_model?: string // per_seat, flat_rate, tiered (default: flat_rate)
-  unit_price_usd: number
-  yearly_price_usd?: number
+  unit_price: number
+  yearly_price?: number
   discount_type?: string // percentage, fixed, none (default: none)
   discount_value?: number
   auto_renew?: boolean // default: false
@@ -945,8 +945,8 @@ export interface PlanUpdate {
   currency?: string
   seats?: number
   pricing_model?: string
-  unit_price_usd?: number
-  yearly_price_usd?: number
+  unit_price?: number
+  yearly_price?: number
   discount_type?: string
   discount_value?: number
   auto_renew?: boolean
@@ -990,7 +990,7 @@ export interface PlanUpdate {
 ```typescript
 const handleAdd = async () => {
   // Validate inputs
-  if (newPlan.unit_price_usd < 0) {
+  if (newPlan.unit_price < 0) {
     setError("Price cannot be negative")
     return
   }
@@ -1209,11 +1209,11 @@ else: // none
 **Final Cost:**
 ```
 if pricing_model == "per_seat":
-    base_cost = unit_price_usd × seats
+    base_cost = unit_price × seats
 elif pricing_model == "flat_rate":
-    base_cost = unit_price_usd
+    base_cost = unit_price
 elif pricing_model == "tiered":
-    base_cost = unit_price_usd (calculated externally)
+    base_cost = unit_price (calculated externally)
 
 if discount_type == "percentage":
     final_cost = base_cost × discount_multiplier

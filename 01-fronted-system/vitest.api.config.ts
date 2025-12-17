@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitest/config'
+import { defineConfig } from 'vite'
 import * as dotenv from 'dotenv'
 
 // Load .env.local for API integration tests

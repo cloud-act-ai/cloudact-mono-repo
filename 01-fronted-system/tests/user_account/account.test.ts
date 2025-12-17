@@ -303,7 +303,10 @@ describe('Account Management Functions', () => {
         password: TEST_PASSWORD,
         email_confirm: true,
       })
-      deleteOwnerId = userData!.user.id
+      if (!userData.user) {
+        throw new Error('Failed to create delete test user')
+      }
+      deleteOwnerId = userData.user.id
 
       deleteOrgSlug = `delete_test_${Date.now()}`
       const { data: org } = await supabase
@@ -317,7 +320,7 @@ describe('Account Management Functions', () => {
         })
         .select()
         .single()
-      deleteOrgId = org!.id
+      deleteOrgId = org.id
 
       await supabase
         .from('organization_members')
@@ -481,8 +484,10 @@ describe('Account Management Functions', () => {
         .eq('status', 'active')
 
       expect(ownerships).not.toBeNull()
-      expect(ownerships!.length).toBeGreaterThan(0)
-      console.log(`✓ User owns ${ownerships!.length} organization(s)`)
+      if (ownerships) {
+        expect(ownerships.length).toBeGreaterThan(0)
+        console.log(`✓ User owns ${ownerships.length} organization(s)`)
+      }
 
       // The function would reject this
       // We can't directly test without mocking session
@@ -554,7 +559,10 @@ describe('Account Management Functions', () => {
         email_confirm: true,
         user_metadata: { full_name: 'Delete Test User' }
       })
-      testUserId = userData!.user.id
+      if (!userData.user) {
+        throw new Error('Failed to create account deletion test user')
+      }
+      testUserId = userData.user.id
 
       // Create deletion token
       testToken = 'test_deletion_token_' + Date.now()
@@ -563,7 +571,7 @@ describe('Account Management Functions', () => {
         .insert({
           token: testToken,
           user_id: testUserId,
-          email: userData!.user.email!,
+          email: userData.user.email || '',
           expires_at: new Date(Date.now() + 1800000).toISOString(), // 30 min
         })
 

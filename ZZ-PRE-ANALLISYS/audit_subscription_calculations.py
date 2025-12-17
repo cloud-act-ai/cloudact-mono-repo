@@ -54,7 +54,7 @@ def run_audit():
         # Plan 1: Monthly USD
         {
             "plan_name": "Monthly_USD",
-            "unit_price_usd": 10.00,
+            "unit_price": 10.00,
             "seats": 5,
             "billing_cycle": "monthly",
             "currency": "USD",
@@ -63,7 +63,7 @@ def run_audit():
         # Plan 2: Annual USD (High Value)
         {
             "plan_name": "Annual_USD",
-            "unit_price_usd": 1200.00, # Assuming this means $1200/year if annual? Or $1200/month billed annually? 
+            "unit_price": 1200.00, # Assuming this means $1200/year if annual? Or $1200/month billed annually? 
                                        # Code divides by 12, so it treats this as "Total Annual Cost".
             "seats": 1,
             "billing_cycle": "annual",
@@ -73,7 +73,7 @@ def run_audit():
         # Plan 3: EUR Currency (Check Mixing)
         {
             "plan_name": "Monthly_EUR",
-            "unit_price_usd": 10.00, # Sending 10.00 but Labeling as EUR
+            "unit_price": 10.00, # Sending 10.00 but Labeling as EUR
             "seats": 2,
             "billing_cycle": "monthly",
             "currency": "EUR", # This should ideally convert, but we suspect it simply sums 10+10
@@ -82,7 +82,7 @@ def run_audit():
          # Plan 4: GBP Annual
         {
             "plan_name": "Annual_GBP",
-            "unit_price_usd": 2400.00, 
+            "unit_price": 2400.00, 
             "seats": 1,
             "billing_cycle": "annual",
             "currency": "GBP",
@@ -110,7 +110,7 @@ def run_audit():
     # Test A: Invalid Currency (XYZ) - Expected: Success (Validation Gap) or Failure (if validated)
     plan_invalid_curr = {
         "plan_name": "Edge_Currency_XYZ",
-        "unit_price_usd": 10.0,
+        "unit_price": 10.0,
         "seats": 1,
         "currency": "XYZ",
         "billing_cycle": "monthly",
@@ -125,7 +125,7 @@ def run_audit():
     # Test B: Negative Price - Expected: 422
     plan_neg_price = {
         "plan_name": "Edge_Negative_Price",
-        "unit_price_usd": -50.0,
+        "unit_price": -50.0,
         "seats": 1,
         "currency": "USD",
         "billing_cycle": "monthly",
@@ -142,7 +142,7 @@ def run_audit():
     # Test C: Huge Seats - Expected: Success (but risky)
     plan_huge_seats = {
         "plan_name": "Edge_Huge_Seats",
-        "unit_price_usd": 1.0,
+        "unit_price": 1.0,
         "seats": 999999999,
         "currency": "USD",
         "billing_cycle": "monthly",

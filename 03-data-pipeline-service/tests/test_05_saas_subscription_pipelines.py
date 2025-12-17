@@ -151,11 +151,11 @@ def sample_subscription_data() -> List[Dict[str, Any]]:
             "provider": "chatgpt_plus",
             "plan_name": "PLUS",
             "quantity": 1,
-            "unit_price_usd": 20.0,
+            "unit_price": 20.0,
             "billing_period": "month",
             "is_enabled": True,
             "discount_percentage": 0.0,
-            "yearly_price_usd": None,
+            "yearly_price": None,
             "source_currency": "USD",
             "source_price": 20.0,
             "exchange_rate_used": 1.0,
@@ -169,11 +169,11 @@ def sample_subscription_data() -> List[Dict[str, Any]]:
             "provider": "canva",
             "plan_name": "PRO",
             "quantity": 3,
-            "unit_price_usd": 12.99,
+            "unit_price": 12.99,
             "billing_period": "month",
             "is_enabled": True,
             "discount_percentage": 0.0,
-            "yearly_price_usd": None,
+            "yearly_price": None,
             "source_currency": "USD",
             "source_price": 12.99,
             "exchange_rate_used": 1.0,
@@ -187,11 +187,11 @@ def sample_subscription_data() -> List[Dict[str, Any]]:
             "provider": "slack",
             "plan_name": "BUSINESS_PLUS",
             "quantity": 10,
-            "unit_price_usd": 15.0,
+            "unit_price": 15.0,
             "billing_period": "month",
             "is_enabled": True,
             "discount_percentage": 10.0,  # 10% discount
-            "yearly_price_usd": None,
+            "yearly_price": None,
             "source_currency": "USD",
             "source_price": 15.0,
             "exchange_rate_used": 1.0,
@@ -205,11 +205,11 @@ def sample_subscription_data() -> List[Dict[str, Any]]:
             "provider": "notion",
             "plan_name": "BUSINESS",
             "quantity": 5,
-            "unit_price_usd": 216.0,  # Annual price
+            "unit_price": 216.0,  # Annual price
             "billing_period": "year",
             "is_enabled": True,
             "discount_percentage": 0.0,
-            "yearly_price_usd": 216.0,
+            "yearly_price": 216.0,
             "source_currency": "USD",
             "source_price": 216.0,
             "exchange_rate_used": 1.0,
@@ -223,11 +223,11 @@ def sample_subscription_data() -> List[Dict[str, Any]]:
             "provider": "figma",
             "plan_name": "PROFESSIONAL",
             "quantity": 2,
-            "unit_price_usd": 15.0,
+            "unit_price": 15.0,
             "billing_period": "month",
             "is_enabled": False,  # Disabled - should be filtered out
             "discount_percentage": 0.0,
-            "yearly_price_usd": None,
+            "yearly_price": None,
             "source_currency": "USD",
             "source_price": 15.0,
             "exchange_rate_used": 1.0,
@@ -237,11 +237,11 @@ def sample_subscription_data() -> List[Dict[str, Any]]:
             "provider": "zoom",
             "plan_name": "PRO",
             "quantity": 1,
-            "unit_price_usd": 7.99,
+            "unit_price": 7.99,
             "billing_period": "week",
             "is_enabled": True,
             "discount_percentage": 0.0,
-            "yearly_price_usd": None,
+            "yearly_price": None,
             "source_currency": "USD",
             "source_price": 7.99,
             "exchange_rate_used": 1.0,
@@ -255,11 +255,11 @@ def sample_subscription_data() -> List[Dict[str, Any]]:
             "provider": "github",
             "plan_name": "TEAM",
             "quantity": 8,
-            "unit_price_usd": 48.0,
+            "unit_price": 48.0,
             "billing_period": "month",
             "is_enabled": True,
             "discount_percentage": 15.0,  # 15% discount
-            "yearly_price_usd": None,
+            "yearly_price": None,
             "source_currency": "EUR",
             "source_price": 43.2,  # EUR price (45 EUR with 10% discount = 43.2 / 0.9 = 48 USD)
             "exchange_rate_used": 0.9,  # EUR to USD rate
@@ -326,10 +326,10 @@ class TestCostCalculationLogic:
         # Verify USD example
         chatgpt_sub = sample_subscription_data[0]  # ChatGPT Plus (USD)
         assert chatgpt_sub["source_currency"] == "USD"
-        assert chatgpt_sub["source_price"] == chatgpt_sub["unit_price_usd"]
+        assert chatgpt_sub["source_price"] == chatgpt_sub["unit_price"]
         assert chatgpt_sub["exchange_rate_used"] == 1.0, "USD rate should be 1.0"
 
-        print(f"Multi-currency audit fields verified: EUR@{github_sub['exchange_rate_used']} = ${github_sub['unit_price_usd']}")
+        print(f"Multi-currency audit fields verified: EUR@{github_sub['exchange_rate_used']} = ${github_sub['unit_price']}")
 
     def test_daily_rate_from_monthly(self, sample_subscription_data):
         """
@@ -339,13 +339,13 @@ class TestCostCalculationLogic:
         """
         monthly_sub = sample_subscription_data[0]  # ChatGPT Plus
 
-        expected_daily = monthly_sub["unit_price_usd"] / 30.4375
+        expected_daily = monthly_sub["unit_price"] / 30.4375
         actual_daily = monthly_sub["expected_daily_cost"]
 
         assert abs(expected_daily - actual_daily) < 0.0001, \
             f"Daily rate mismatch: expected {expected_daily}, got {actual_daily}"
 
-        print(f"Monthly ${monthly_sub['unit_price_usd']} → Daily ${expected_daily:.4f}")
+        print(f"Monthly ${monthly_sub['unit_price']} → Daily ${expected_daily:.4f}")
 
     def test_daily_rate_from_yearly(self, sample_subscription_data):
         """
@@ -355,13 +355,13 @@ class TestCostCalculationLogic:
         """
         yearly_sub = sample_subscription_data[3]  # Notion Business
 
-        expected_daily = yearly_sub["unit_price_usd"] / 365
+        expected_daily = yearly_sub["unit_price"] / 365
         actual_daily = yearly_sub["expected_daily_cost"] / yearly_sub["quantity"]
 
         assert abs(expected_daily - actual_daily) < 0.0001, \
             f"Daily rate mismatch: expected {expected_daily}, got {actual_daily}"
 
-        print(f"Yearly ${yearly_sub['unit_price_usd']} → Daily ${expected_daily:.4f}")
+        print(f"Yearly ${yearly_sub['unit_price']} → Daily ${expected_daily:.4f}")
 
     def test_daily_rate_from_weekly(self, sample_subscription_data):
         """
@@ -371,13 +371,13 @@ class TestCostCalculationLogic:
         """
         weekly_sub = sample_subscription_data[5]  # Zoom Pro
 
-        expected_daily = weekly_sub["unit_price_usd"] / 7
+        expected_daily = weekly_sub["unit_price"] / 7
         actual_daily = weekly_sub["expected_daily_cost"]
 
         assert abs(expected_daily - actual_daily) < 0.0001, \
             f"Daily rate mismatch: expected {expected_daily}, got {actual_daily}"
 
-        print(f"Weekly ${weekly_sub['unit_price_usd']} → Daily ${expected_daily:.4f}")
+        print(f"Weekly ${weekly_sub['unit_price']} → Daily ${expected_daily:.4f}")
 
     def test_discount_application(self, sample_subscription_data):
         """
@@ -387,7 +387,7 @@ class TestCostCalculationLogic:
         """
         discounted_sub = sample_subscription_data[2]  # Slack with 10% discount
 
-        base_daily = discounted_sub["unit_price_usd"] / 30.4375
+        base_daily = discounted_sub["unit_price"] / 30.4375
         discount_multiplier = 1 - (discounted_sub["discount_percentage"] / 100)
         expected_with_discount = base_daily * discount_multiplier
 
@@ -406,7 +406,7 @@ class TestCostCalculationLogic:
         """
         multi_seat_sub = sample_subscription_data[1]  # Canva Pro, 3 seats
 
-        base_daily = multi_seat_sub["unit_price_usd"] / 30.4375
+        base_daily = multi_seat_sub["unit_price"] / 30.4375
         expected_total = base_daily * multi_seat_sub["quantity"]
         actual_total = multi_seat_sub["expected_daily_cost"]
 
@@ -472,7 +472,7 @@ class TestCostCalculationLogic:
         github_sub = sample_subscription_data[6]  # GitHub Team
 
         # Step 1: Normalize to daily
-        base_daily = github_sub["unit_price_usd"] / 30.4375
+        base_daily = github_sub["unit_price"] / 30.4375
 
         # Step 2: Apply discount
         discount_multiplier = 1 - (github_sub["discount_percentage"] / 100)
@@ -492,7 +492,7 @@ class TestCostCalculationLogic:
         assert abs(expected_monthly - github_sub["expected_monthly_cost"]) < 0.01
         assert abs(expected_yearly - github_sub["expected_yearly_cost"]) < 0.01
 
-        print(f"GitHub Team: ${github_sub['unit_price_usd']}/mo × {github_sub['quantity']} × 85% = "
+        print(f"GitHub Team: ${github_sub['unit_price']}/mo × {github_sub['quantity']} × 85% = "
               f"${final_daily:.2f}/day → ${expected_monthly:.2f}/mo")
 
     def test_disabled_subscription_excluded(self, sample_subscription_data):
@@ -1069,7 +1069,7 @@ class TestEndToEndScenario:
             total_yearly += sub["expected_yearly_cost"]
 
             print(f"\n{sub['provider'].upper()} - {sub['plan_name']}")
-            print(f"  Billing: ${sub['unit_price_usd']}/{sub['billing_period']}")
+            print(f"  Billing: ${sub['unit_price']}/{sub['billing_period']}")
             print(f"  Quantity: {sub['quantity']}")
             if sub.get("discount_percentage", 0) > 0:
                 print(f"  Discount: {sub['discount_percentage']}%")

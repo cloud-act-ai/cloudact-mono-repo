@@ -637,8 +637,10 @@ class ApiExtractorProcessor:
                     has_more = False
 
                 # Safety: prevent infinite loops
+                if page_number > 9900:  # Warn at 99% of limit
+                    self.logger.warning(f"Approaching pagination limit: {page_number}/10000 pages")
                 if page_number > 10000:
-                    self.logger.warning("Pagination limit reached (10000 pages)")
+                    self.logger.error("Pagination limit reached (10000 pages) - data may be truncated")
                     has_more = False
 
     async def _make_request_with_retry(

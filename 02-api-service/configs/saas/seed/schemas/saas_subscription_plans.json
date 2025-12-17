@@ -40,16 +40,16 @@
       "description": "Number of units purchased"
     },
     {
-      "name": "unit_price_usd",
+      "name": "unit_price",
       "type": "FLOAT64",
       "mode": "REQUIRED",
-      "description": "Monthly price per unit in USD"
+      "description": "Price per billing cycle in org's currency. For monthly=monthly price, annual=annual price. PER_SEAT: price per user, FLAT_FEE: total price."
     },
     {
-      "name": "yearly_price_usd",
+      "name": "yearly_price",
       "type": "FLOAT64",
       "mode": "NULLABLE",
-      "description": "Annual price in USD"
+      "description": "Optional override for annual plans. If set and >0, used instead of unit_price for annual billing cycles."
     },
     {
       "name": "yearly_discount_pct",

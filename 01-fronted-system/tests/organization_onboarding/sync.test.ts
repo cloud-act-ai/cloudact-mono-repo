@@ -377,7 +377,7 @@ describe('Subscription Sync: error handling', () => {
   })
 
   it('should handle network timeout (30s)', async () => {
-    global.fetch = vi.fn(() => createMockFetchTimeout())
+    global.fetch = vi.fn(() => createMockFetchTimeout() as unknown as Promise<Response>)
 
     const result = {
       success: false,
@@ -496,7 +496,7 @@ describe('Subscription Sync: retry queue', () => {
   })
 
   it('should queue timeout errors for retry', async () => {
-    global.fetch = vi.fn(() => createMockFetchTimeout())
+    global.fetch = vi.fn(() => createMockFetchTimeout() as unknown as Promise<Response>)
 
     const result = {
       success: false,
@@ -742,7 +742,7 @@ describe('Subscription Sync: edge cases', () => {
       json: async () => {
         throw new Error('Invalid JSON')
       },
-    } as Response))
+    } as unknown as Response))
 
     // Should catch JSON parsing error
     try {

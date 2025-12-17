@@ -1,12 +1,16 @@
 import * as React from 'react'
-import { Button, ButtonProps } from './button'
+import { Button, buttonVariants } from './button'
 import { Spinner } from './spinner'
 import { cn } from '@/lib/utils'
+import { VariantProps } from 'class-variance-authority'
 
-interface LoadingButtonProps extends ButtonProps {
+interface LoadingButtonProps
+  extends React.ComponentProps<'button'>,
+    VariantProps<typeof buttonVariants> {
   isLoading?: boolean
   loadingText?: string
   spinnerVariant?: 'teal' | 'coral' | 'default'
+  asChild?: boolean
 }
 
 const LoadingButton = React.forwardRef<HTMLButtonElement, LoadingButtonProps>(

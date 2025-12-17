@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitest/config'
+import { defineConfig } from 'vite'
 import { loadEnv } from 'vite'
 import * as dotenv from 'dotenv'
 import path from 'path'
@@ -6,7 +6,7 @@ import path from 'path'
 // Load .env.local directly for Node environment
 dotenv.config({ path: '.env.local' })
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ mode }: { mode: string }) => {
     const env = loadEnv(mode, process.cwd(), ['NEXT_PUBLIC_', 'CA_ROOT_', 'API_', 'SUPABASE_'])
     return {
         test: {

@@ -25,6 +25,7 @@ from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
 from src.app.config import settings
 from src.core.exceptions import classify_exception
 from src.core.security.kms_encryption import decrypt_value
+from src.core.utils.rate_limiter import get_rate_limiter
 
 logger = logging.getLogger(__name__)
 
@@ -395,6 +396,30 @@ async def get_current_org(
         ))
 
         if not results:
+            # Rate limit failed authentication attempts to prevent brute force attacks
+            # Use partial hash as identifier to track failed attempts per key
+            rate_limiter = get_rate_limiter()
+            key_identifier = f"auth_fail:{org_api_key_hash[:16]}"
+            is_allowed, _ = await rate_limiter.check_global_limit(
+                endpoint=key_identifier,
+                limit_per_minute=10,  # Max 10 failed attempts per minute
+                limit_per_hour=50     # Max 50 failed attempts per hour
+            )
+
+            if not is_allowed:
+                logger.error(
+                    f"Rate limit exceeded for failed authentication attempts",
+                    extra={
+                        "event_type": "auth_rate_limit_exceeded",
+                        "org_api_key_hash": org_api_key_hash[:16] + "...",
+                    }
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail="Too many failed authentication attempts. Please try again later.",
+                    headers={"Retry-After": "60"},
+                )
+
             logger.warning(
                 f"Authentication failed - invalid or inactive API key",
                 extra={
@@ -1140,6 +1165,23 @@ async def verify_api_key(
     org_data = await get_org_from_api_key(org_api_key_hash, bq_client)
 
     if not org_data:
+        # Rate limit failed authentication attempts
+        rate_limiter = get_rate_limiter()
+        key_identifier = f"auth_fail:{org_api_key_hash[:16]}"
+        is_allowed, _ = await rate_limiter.check_global_limit(
+            endpoint=key_identifier,
+            limit_per_minute=10,
+            limit_per_hour=50
+        )
+
+        if not is_allowed:
+            logger.error(f"Rate limit exceeded for failed auth in verify_api_key")
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Too many failed authentication attempts. Please try again later.",
+                headers={"Retry-After": "60"},
+            )
+
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or inactive API key",
@@ -1193,6 +1235,23 @@ async def verify_api_key_header(
     org_data = await get_org_from_api_key(org_api_key_hash, bq_client)
 
     if not org_data:
+        # Rate limit failed authentication attempts
+        rate_limiter = get_rate_limiter()
+        key_identifier = f"auth_fail:{org_api_key_hash[:16]}"
+        is_allowed, _ = await rate_limiter.check_global_limit(
+            endpoint=key_identifier,
+            limit_per_minute=10,
+            limit_per_hour=50
+        )
+
+        if not is_allowed:
+            logger.error(f"Rate limit exceeded for failed auth in verify_api_key_header")
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Too many failed authentication attempts. Please try again later.",
+                headers={"Retry-After": "60"},
+            )
+
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or inactive API key",

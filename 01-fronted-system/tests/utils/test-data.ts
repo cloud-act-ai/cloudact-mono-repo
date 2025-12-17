@@ -22,7 +22,7 @@ export function generateOrgName(prefix: string): string {
 export function generateTestUser(flowName: string) {
     return {
         email: generateTestEmail(flowName),
-        password: (import.meta.env?.TEST_PASSWORD as string) || 'testpass123',
+        password: process.env.TEST_PASSWORD || 'testpass123',
         orgName: generateOrgName(`testorg_${flowName}`),
         // Phone number fields
         countryCode: '+1',
@@ -38,9 +38,9 @@ export function generateInviteEmail(baseEmail: string): string {
 }
 
 export const TEST_CONFIG = {
-    baseUrl: (import.meta.env?.TEST_BASE_URL as string) || 'http://localhost:3000',
-    timeout: parseInt((import.meta.env?.TEST_TIMEOUT as string) || '60000'),
-    headless: import.meta.env?.TEST_HEADLESS === 'true',
-    cleanup: import.meta.env?.TEST_CLEANUP !== 'false',
-    password: (import.meta.env?.TEST_PASSWORD as string) || 'testpass123',
+    baseUrl: process.env.TEST_BASE_URL || 'http://localhost:3000',
+    timeout: parseInt(process.env.TEST_TIMEOUT || '60000'),
+    headless: process.env.TEST_HEADLESS === 'true',
+    cleanup: process.env.TEST_CLEANUP !== 'false',
+    password: process.env.TEST_PASSWORD || 'testpass123',
 }

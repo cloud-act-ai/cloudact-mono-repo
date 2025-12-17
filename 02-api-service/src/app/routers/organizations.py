@@ -7,7 +7,7 @@ TWO-DATASET ARCHITECTURE:
 2. {org_slug} dataset: Operational data (pipeline_runs, step_logs, dq_results)
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status, Header
+from fastapi import APIRouter, Depends, HTTPException, status, Header, Query
 from pydantic import BaseModel, Field, field_validator, EmailStr, ConfigDict
 from typing import List, Optional, Dict, Any, Union
 from datetime import datetime, date, timedelta
@@ -2302,4 +2302,150 @@ async def update_org_locale(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to update locale settings. Please check server logs for details."
+        )
+
+
+# ============================================
+# List Organizations Endpoint (Admin Only)
+# ============================================
+
+class OrgListItem(BaseModel):
+    """Organization list item."""
+    org_slug: str
+    company_name: str
+    admin_email: str
+    subscription_plan: str
+    status: str
+    default_currency: str
+    default_timezone: str
+    created_at: Optional[str] = None
+
+
+class OrgListResponse(BaseModel):
+    """Response for organization listing."""
+    organizations: List[OrgListItem]
+    total: int
+    page: int
+    page_size: int
+    has_next: bool
+
+
+@router.get(
+    "/organizations",
+    response_model=OrgListResponse,
+    summary="List all organizations (admin only)",
+    description="List all organizations with pagination support"
+)
+async def list_organizations(
+    page: int = Query(1, ge=1, description="Page number (starting from 1)"),
+    page_size: int = Query(50, ge=1, le=100, description="Number of items per page (max 100)"),
+    status: Optional[str] = Query(None, description="Filter by status (ACTIVE, SUSPENDED, etc.)"),
+    _: None = Depends(verify_admin_key),
+    bq_client: BigQueryClient = Depends(get_bigquery_client)
+):
+    """
+    List all organizations with pagination.
+
+    This endpoint provides paginated access to all organizations in the system.
+    Requires admin authentication (X-CA-Root-Key).
+
+    Query Parameters:
+    - page: Page number (starting from 1)
+    - page_size: Number of items per page (max 100)
+    - status: Optional filter by organization status
+
+    Returns paginated list with:
+    - organizations: List of organization details
+    - total: Total number of organizations (matching filter)
+    - page: Current page number
+    - page_size: Items per page
+    - has_next: Whether there are more pages
+    """
+    logger.info(f"Listing organizations: page={page}, page_size={page_size}, status={status}")
+
+    try:
+        # Calculate offset for pagination
+        offset = (page - 1) * page_size
+
+        # Build query with optional status filter
+        where_clause = ""
+        query_params = []
+
+        if status:
+            where_clause = "WHERE status = @status"
+            query_params.append(bigquery.ScalarQueryParameter("status", "STRING", status.upper()))
+
+        # Count total organizations
+        count_query = f"""
+        SELECT COUNT(*) as total
+        FROM `{settings.gcp_project_id}.organizations.org_profiles`
+        {where_clause}
+        """
+
+        count_result = list(bq_client.client.query(
+            count_query,
+            job_config=bigquery.QueryJobConfig(query_parameters=query_params)
+        ).result())
+
+        total = count_result[0]["total"] if count_result else 0
+
+        # Fetch paginated results
+        list_query = f"""
+        SELECT
+            org_slug,
+            company_name,
+            admin_email,
+            subscription_plan,
+            status,
+            default_currency,
+            default_timezone,
+            created_at
+        FROM `{settings.gcp_project_id}.organizations.org_profiles`
+        {where_clause}
+        ORDER BY created_at DESC
+        LIMIT @limit OFFSET @offset
+        """
+
+        query_params.extend([
+            bigquery.ScalarQueryParameter("limit", "INT64", page_size),
+            bigquery.ScalarQueryParameter("offset", "INT64", offset)
+        ])
+
+        result = list(bq_client.client.query(
+            list_query,
+            job_config=bigquery.QueryJobConfig(query_parameters=query_params)
+        ).result())
+
+        # Convert to response objects
+        organizations = []
+        for row in result:
+            organizations.append(OrgListItem(
+                org_slug=row["org_slug"],
+                company_name=row["company_name"],
+                admin_email=row["admin_email"],
+                subscription_plan=row["subscription_plan"],
+                status=row["status"],
+                default_currency=row.get("default_currency", "USD"),
+                default_timezone=row.get("default_timezone", "UTC"),
+                created_at=row["created_at"].isoformat() if row.get("created_at") else None
+            ))
+
+        # Calculate if there's a next page
+        has_next = (offset + page_size) < total
+
+        logger.info(f"Listed {len(organizations)} organizations (total: {total}, page: {page})")
+
+        return OrgListResponse(
+            organizations=organizations,
+            total=total,
+            page=page,
+            page_size=page_size,
+            has_next=has_next
+        )
+
+    except Exception as e:
+        logger.error(f"Failed to list organizations: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to list organizations. Please check server logs for details."
         )

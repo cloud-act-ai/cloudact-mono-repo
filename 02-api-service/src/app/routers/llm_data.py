@@ -844,7 +844,7 @@ async def list_subscriptions(
         query = f"""
         SELECT
             subscription_id, provider, plan_name, display_name, is_custom,
-            quantity, unit_price_usd, yearly_price_usd, yearly_discount_pct,
+            quantity, unit_price, yearly_price, yearly_discount_pct,
             billing_period, category, seats, storage_limit_gb,
             monthly_limit, daily_limit, projects_limit, members_limit,
             effective_date, end_date, is_enabled, auth_type, notes,
@@ -908,7 +908,7 @@ async def get_subscription(
         query = f"""
         SELECT
             subscription_id, provider, plan_name, display_name, is_custom,
-            quantity, unit_price_usd, yearly_price_usd, yearly_discount_pct,
+            quantity, unit_price, yearly_price, yearly_discount_pct,
             billing_period, category, seats, storage_limit_gb,
             monthly_limit, daily_limit, projects_limit, members_limit,
             effective_date, end_date, is_enabled, auth_type, notes,
@@ -988,24 +988,24 @@ async def create_subscription(
         # Streaming inserts can't be modified/deleted for ~90 minutes
         insert_query = f"""
         INSERT INTO `{table_id}` (
-            subscription_id, provider, plan_name, is_custom, quantity, unit_price_usd,
+            subscription_id, provider, plan_name, is_custom, quantity, unit_price,
             effective_date, end_date, is_enabled, auth_type, notes,
             x_gemini_project_id, x_gemini_region, x_anthropic_workspace_id, x_openai_org_id,
             tier_type, trial_end_date, trial_credit_usd,
             monthly_token_limit, daily_token_limit, rpm_limit, tpm_limit,
             rpd_limit, tpd_limit, concurrent_limit,
             committed_spend_usd, commitment_term_months, discount_percentage,
-            billing_period, yearly_price_usd, yearly_discount_percentage,
+            billing_period, yearly_price, yearly_discount_percentage,
             created_at, updated_at
         ) VALUES (
-            @subscription_id, @provider, @plan_name, @is_custom, @quantity, @unit_price_usd,
+            @subscription_id, @provider, @plan_name, @is_custom, @quantity, @unit_price,
             @effective_date, NULL, TRUE, NULL, @notes,
             NULL, NULL, NULL, NULL,
             @tier_type, @trial_end_date, @trial_credit_usd,
             @monthly_token_limit, @daily_token_limit, @rpm_limit, @tpm_limit,
             @rpd_limit, @tpd_limit, @concurrent_limit,
             @committed_spend_usd, @commitment_term_months, @discount_percentage,
-            @billing_period, @yearly_price_usd, @yearly_discount_percentage,
+            @billing_period, @yearly_price, @yearly_discount_percentage,
             @created_at, @updated_at
         )
         """
@@ -1016,7 +1016,7 @@ async def create_subscription(
                 bigquery.ScalarQueryParameter("plan_name", "STRING", subscription.plan_name),
                 bigquery.ScalarQueryParameter("is_custom", "BOOL", is_custom),
                 bigquery.ScalarQueryParameter("quantity", "INT64", subscription.quantity),
-                bigquery.ScalarQueryParameter("unit_price_usd", "FLOAT64", subscription.unit_price_usd),
+                bigquery.ScalarQueryParameter("unit_price", "FLOAT64", subscription.unit_price),
                 bigquery.ScalarQueryParameter("effective_date", "DATE", str(subscription.effective_date)),
                 bigquery.ScalarQueryParameter("notes", "STRING", subscription.notes),
                 bigquery.ScalarQueryParameter("tier_type", "STRING", subscription.tier_type.value if subscription.tier_type else "paid"),
@@ -1033,7 +1033,7 @@ async def create_subscription(
                 bigquery.ScalarQueryParameter("commitment_term_months", "INT64", subscription.commitment_term_months),
                 bigquery.ScalarQueryParameter("discount_percentage", "FLOAT64", subscription.discount_percentage),
                 bigquery.ScalarQueryParameter("billing_period", "STRING", subscription.billing_period.value if subscription.billing_period else "monthly"),
-                bigquery.ScalarQueryParameter("yearly_price_usd", "FLOAT64", subscription.yearly_price_usd),
+                bigquery.ScalarQueryParameter("yearly_price", "FLOAT64", subscription.yearly_price),
                 bigquery.ScalarQueryParameter("yearly_discount_percentage", "FLOAT64", subscription.yearly_discount_percentage),
                 bigquery.ScalarQueryParameter("created_at", "TIMESTAMP", now),
                 bigquery.ScalarQueryParameter("updated_at", "TIMESTAMP", now),
@@ -1050,7 +1050,7 @@ async def create_subscription(
             plan_name=subscription.plan_name,
             is_custom=is_custom,
             quantity=subscription.quantity,
-            unit_price_usd=subscription.unit_price_usd,
+            unit_price=subscription.unit_price,
             effective_date=subscription.effective_date,
             notes=subscription.notes,
             tier_type=subscription.tier_type.value if subscription.tier_type else "paid",
@@ -1067,7 +1067,7 @@ async def create_subscription(
             commitment_term_months=subscription.commitment_term_months,
             discount_percentage=subscription.discount_percentage,
             billing_period=subscription.billing_period.value if subscription.billing_period else "monthly",
-            yearly_price_usd=subscription.yearly_price_usd,
+            yearly_price=subscription.yearly_price,
             yearly_discount_percentage=subscription.yearly_discount_percentage,
             created_at=datetime.fromisoformat(now.rstrip("Z")),
             updated_at=datetime.fromisoformat(now.rstrip("Z")),
@@ -1114,9 +1114,9 @@ async def update_subscription(
         if subscription.quantity is not None:
             update_fields.append("quantity = @quantity")
             query_params.append(bigquery.ScalarQueryParameter("quantity", "INT64", subscription.quantity))
-        if subscription.unit_price_usd is not None:
-            update_fields.append("unit_price_usd = @unit_price")
-            query_params.append(bigquery.ScalarQueryParameter("unit_price", "FLOAT64", subscription.unit_price_usd))
+        if subscription.unit_price is not None:
+            update_fields.append("unit_price = @unit_price")
+            query_params.append(bigquery.ScalarQueryParameter("unit_price", "FLOAT64", subscription.unit_price))
         if subscription.effective_date is not None:
             update_fields.append("effective_date = @effective_date")
             query_params.append(bigquery.ScalarQueryParameter("effective_date", "DATE", str(subscription.effective_date)))
@@ -1173,9 +1173,9 @@ async def update_subscription(
         if subscription.billing_period is not None:
             update_fields.append("billing_period = @billing_period")
             query_params.append(bigquery.ScalarQueryParameter("billing_period", "STRING", subscription.billing_period.value))
-        if subscription.yearly_price_usd is not None:
-            update_fields.append("yearly_price_usd = @yearly_price_usd")
-            query_params.append(bigquery.ScalarQueryParameter("yearly_price_usd", "FLOAT64", subscription.yearly_price_usd))
+        if subscription.yearly_price is not None:
+            update_fields.append("yearly_price = @yearly_price")
+            query_params.append(bigquery.ScalarQueryParameter("yearly_price", "FLOAT64", subscription.yearly_price))
         if subscription.yearly_discount_percentage is not None:
             update_fields.append("yearly_discount_percentage = @yearly_discount_percentage")
             query_params.append(bigquery.ScalarQueryParameter("yearly_discount_percentage", "FLOAT64", subscription.yearly_discount_percentage))
@@ -1286,7 +1286,7 @@ async def reset_subscriptions(
         query = f"""
         SELECT
             subscription_id, provider, plan_name, display_name, is_custom,
-            quantity, unit_price_usd, yearly_price_usd, yearly_discount_pct,
+            quantity, unit_price, yearly_price, yearly_discount_pct,
             billing_period, category, seats, storage_limit_gb,
             monthly_limit, daily_limit, projects_limit, members_limit,
             effective_date, end_date, is_enabled, auth_type, notes,
@@ -1317,7 +1317,7 @@ async def reset_subscriptions(
                 "plan_name": row.get("plan_name"),
                 "is_custom": row.get("is_custom", False),
                 "quantity": row.get("quantity", 0),
-                "unit_price_usd": float(row.get("unit_price_usd", 0)),
+                "unit_price": float(row.get("unit_price", 0)),
                 "effective_date": str(row.get("effective_date")) if row.get("effective_date") else None,
                 "end_date": str(row.get("end_date")) if row.get("end_date") else None,
                 "is_enabled": row.get("is_enabled", True),
@@ -1337,7 +1337,7 @@ async def reset_subscriptions(
                 "commitment_term_months": row.get("commitment_term_months"),
                 "discount_percentage": float(row.get("discount_percentage")) if row.get("discount_percentage") else None,
                 "billing_period": row.get("billing_period", "pay_as_you_go"),
-                "yearly_price_usd": float(row.get("yearly_price_usd")) if row.get("yearly_price_usd") else None,
+                "yearly_price": float(row.get("yearly_price")) if row.get("yearly_price") else None,
                 "yearly_discount_percentage": float(row.get("yearly_discount_percentage")) if row.get("yearly_discount_percentage") else None,
                 "created_at": row.get("created_at").isoformat() if row.get("created_at") else None,
                 "updated_at": row.get("updated_at").isoformat() if row.get("updated_at") else None,

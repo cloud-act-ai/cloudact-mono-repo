@@ -45,7 +45,8 @@ export async function GET(request: Request) {
           // Still redirect to onboarding on error - user can recover from there
           redirectPath = "/onboarding/billing"
         } else if (membership?.organizations) {
-          const orgSlug = (membership.organizations as { org_slug: string })?.org_slug
+          const orgs = Array.isArray(membership.organizations) ? membership.organizations[0] : membership.organizations
+          const orgSlug = (orgs as { org_slug: string })?.org_slug
           redirectPath = orgSlug ? `/${orgSlug}/dashboard` : "/onboarding/billing"
         } else {
           // No org found, redirect to onboarding

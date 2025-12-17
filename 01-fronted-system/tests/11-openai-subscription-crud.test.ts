@@ -106,7 +106,7 @@ describe('Flow 11: OpenAI Subscription CRUD', () => {
                 subscription_id: `sub_${Date.now()}_test`,
                 plan_name: TEST_PLAN_NAME,
                 quantity: 5,
-                unit_price_usd: 29.99,
+                unit_price: 29.99,
                 effective_date: new Date().toISOString().split('T')[0],
                 tier_type: 'paid',
                 rpm_limit: 3000,
@@ -136,7 +136,7 @@ describe('Flow 11: OpenAI Subscription CRUD', () => {
                 subscription_id: `sub_${Date.now()}_spaces`,
                 plan_name: 'Plan With Spaces', // Backend allows this
                 quantity: 1,
-                unit_price_usd: 0,
+                unit_price: 0,
                 effective_date: new Date().toISOString().split('T')[0]
             }
 
@@ -159,7 +159,7 @@ describe('Flow 11: OpenAI Subscription CRUD', () => {
                 // Missing subscription_id
                 plan_name: `NO_ID_PLAN_${Date.now()}`,
                 quantity: 1,
-                unit_price_usd: 0,
+                unit_price: 0,
                 effective_date: new Date().toISOString().split('T')[0]
             }
 
@@ -182,7 +182,7 @@ describe('Flow 11: OpenAI Subscription CRUD', () => {
                 subscription_id: `sub_${Date.now()}_nodate`,
                 plan_name: `NO_DATE_PLAN_${Date.now()}`,
                 quantity: 1,
-                unit_price_usd: 0
+                unit_price: 0
                 // Missing effective_date
             }
 
@@ -217,7 +217,7 @@ describe('Flow 11: OpenAI Subscription CRUD', () => {
                     subscription_id: `sub_update_${Date.now()}`,
                     plan_name: createdPlanName,
                     quantity: 1,
-                    unit_price_usd: 10,
+                    unit_price: 10,
                     effective_date: new Date().toISOString().split('T')[0]
                 })
             })
@@ -226,7 +226,7 @@ describe('Flow 11: OpenAI Subscription CRUD', () => {
         it('should update subscription quantity and price', async () => {
             const updateData = {
                 quantity: 10,
-                unit_price_usd: 49.99
+                unit_price: 49.99
             }
 
             const response = await fetch(`${API_BASE_URL}/api/v1/integrations/${TEST_ORG_SLUG}/openai/subscriptions/${createdPlanName}`, {
@@ -241,7 +241,7 @@ describe('Flow 11: OpenAI Subscription CRUD', () => {
             expect(response.ok).toBe(true)
             const data = await response.json()
             expect(data.quantity).toBe(10)
-            expect(data.unit_price_usd).toBe(49.99)
+            expect(data.unit_price).toBe(49.99)
             console.log(`Updated subscription: ${createdPlanName}`)
         })
 
@@ -299,7 +299,7 @@ describe('Flow 11: OpenAI Subscription CRUD', () => {
                     subscription_id: `sub_delete_${Date.now()}`,
                     plan_name: deletePlanName,
                     quantity: 1,
-                    unit_price_usd: 0,
+                    unit_price: 0,
                     effective_date: new Date().toISOString().split('T')[0]
                 })
             })

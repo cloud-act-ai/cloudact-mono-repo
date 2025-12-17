@@ -243,7 +243,11 @@ export async function setupIntegration(
     // Save integration status to Supabase (all states: VALID, INVALID, PENDING)
     // This ensures UI reflects actual state even when validation fails
     if (response.validation_status) {
-      await saveIntegrationStatus(input.orgSlug, input.provider, response.validation_status)
+      const statusResult = await saveIntegrationStatus(input.orgSlug, input.provider, response.validation_status)
+      if (!statusResult.success) {
+        console.warn(`[Integrations] Failed to save status to Supabase: ${statusResult.error}`)
+        // Continue - backend setup succeeded, only status update failed
+      }
     }
 
     return {
@@ -486,7 +490,11 @@ export async function validateIntegration(
 
     // Update Supabase status to reflect validation result (VALID/INVALID)
     if (response.validation_status) {
-      await saveIntegrationStatus(orgSlug, provider as IntegrationProvider, response.validation_status)
+      const statusResult = await saveIntegrationStatus(orgSlug, provider as IntegrationProvider, response.validation_status)
+      if (!statusResult.success) {
+        console.warn(`[Integrations] Failed to save validation status to Supabase: ${statusResult.error}`)
+        // Continue - validation succeeded, only status update failed
+      }
     }
 
     // Return success based on validation status, not always true
@@ -554,7 +562,11 @@ export async function deleteIntegration(
     const response = await backend.deleteIntegration(orgSlug, provider)
 
     // Update status to NOT_CONFIGURED in Supabase
-    await saveIntegrationStatus(orgSlug, provider as IntegrationProvider, "NOT_CONFIGURED")
+    const statusResult = await saveIntegrationStatus(orgSlug, provider as IntegrationProvider, "NOT_CONFIGURED")
+    if (!statusResult.success) {
+      console.warn(`[Integrations] Failed to save deletion status to Supabase: ${statusResult.error}`)
+      // Continue - deletion succeeded, only status update failed
+    }
 
     return {
       success: response.success,
@@ -581,7 +593,7 @@ async function saveIntegrationStatus(
   orgSlug: string,
   provider: IntegrationProvider,
   status: string
-) {
+): Promise<{ success: boolean; error?: string }> {
   try {
     const adminClient = createServiceRoleClient()
 
@@ -597,8 +609,9 @@ async function saveIntegrationStatus(
 
     const columnPrefix = columnMap[provider]
     if (!columnPrefix) {
-      console.warn(`[Integrations] Unknown provider: ${provider}`)
-      return
+      const error = `Unknown provider: ${provider}`
+      console.warn(`[Integrations] ${error}`)
+      return { success: false, error }
     }
 
     const updateData: Record<string, string> = {
@@ -610,19 +623,22 @@ async function saveIntegrationStatus(
       updateData[`${columnPrefix}_configured_at`] = new Date().toISOString()
     }
 
-    const { error } = await adminClient
+    const { error: dbError } = await adminClient
       .from("organizations")
       .update(updateData)
       .eq("org_slug", orgSlug)
 
-    if (error) {
-      console.error("[Integrations] Failed to save status:", error)
-    } else {
-      console.log(`[Integrations] Saved ${provider} status=${status} for ${orgSlug}`)
+    if (dbError) {
+      console.error("[Integrations] Failed to save status:", dbError)
+      return { success: false, error: dbError.message }
     }
+
+    console.log(`[Integrations] Saved ${provider} status=${status} for ${orgSlug}`)
+    return { success: true }
   } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : "Unknown error"
     console.error("[Integrations] Save status error:", err)
-    // Don't fail the main operation
+    return { success: false, error: errorMessage }
   }
 }
 

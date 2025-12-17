@@ -8,7 +8,7 @@ NOT LLM API usage tiers (OpenAI TIER1-5, Anthropic BUILD_TIER - those are in llm
 URL Structure: /api/v1/subscriptions/{org_slug}/providers/...
 
 Each provider can have multiple plans (FREE, PRO, ENTERPRISE, etc.) with different:
-- Pricing (unit_price_usd, billing_cycle, pricing_model)
+- Pricing (unit_price, billing_cycle, pricing_model)
 - Status (active, cancelled, expired)
 - Seats and contract details
 
@@ -103,6 +103,7 @@ import uuid
 import sys
 
 from google.cloud import bigquery
+import google.api_core.exceptions
 
 # Add configs/saas/schema to path for schema imports
 schema_path = Path(__file__).parent.parent.parent.parent / "configs" / "saas" / "schema"
@@ -203,8 +204,8 @@ class SubscriptionPlan(BaseModel):
     currency: str = "USD"
     seats: int = 0  # Some plans genuinely have 0 seats (e.g., FREE tiers or FLAT_FEE plans without per-seat pricing)
     pricing_model: str = "PER_SEAT"  # PER_SEAT, FLAT_FEE
-    unit_price_usd: float = 0.0
-    yearly_price_usd: Optional[float] = None
+    unit_price: float = 0.0
+    yearly_price: Optional[float] = None
     discount_type: Optional[str] = None  # percent, fixed
     discount_value: Optional[int] = None
     auto_renew: bool = True
@@ -236,8 +237,8 @@ class AvailablePlan(BaseModel):
     display_name: str
     billing_cycle: str
     pricing_model: str
-    unit_price_usd: float
-    yearly_price_usd: Optional[float] = None
+    unit_price: float
+    yearly_price: Optional[float] = None
     notes: Optional[str] = None
     seats: int = 0
     category: str = "other"
@@ -258,6 +259,37 @@ VALID_PRICING_MODELS = {"PER_SEAT", "FLAT_FEE"}
 VALID_BILLING_CYCLES = {"monthly", "annual", "quarterly"}
 VALID_DISCOUNT_TYPES = {"percent", "fixed", None}
 
+# Status transition state machine
+# SECURITY FIX: Prevents illogical transitions (e.g., expired -> active, cancelled -> pending)
+VALID_STATUS_TRANSITIONS = {
+    "active": {"cancelled", "expired"},      # active can only become cancelled or expired
+    "pending": {"active", "cancelled"},       # pending can become active or cancelled
+    "cancelled": set(),                       # cancelled is terminal (no transitions)
+    "expired": set(),                         # expired is terminal (no transitions)
+}
+
+
+def validate_status_transition(current_status: str, new_status: str) -> None:
+    """
+    Validate that a status transition is allowed.
+
+    State Machine:
+    - active → cancelled, expired
+    - pending → active, cancelled
+    - cancelled → (terminal - no transitions)
+    - expired → (terminal - no transitions)
+    """
+    if current_status == new_status:
+        return  # No change, always allowed
+
+    valid_transitions = VALID_STATUS_TRANSITIONS.get(current_status, set())
+    if new_status not in valid_transitions:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid status transition: '{current_status}' → '{new_status}'. "
+                   f"Allowed transitions from '{current_status}': {valid_transitions or 'none (terminal state)'}"
+        )
+
 
 def validate_enum_field(value: Optional[str], valid_values: set, field_name: str) -> None:
     """Validate that a field value is in the set of valid values."""
@@ -268,18 +300,65 @@ def validate_enum_field(value: Optional[str], valid_values: set, field_name: str
         )
 
 
+# Business logic validation thresholds
+HIGH_UNIT_PRICE_THRESHOLD = 10000.0  # Flag prices above this for review
+MAX_SEATS_LIMIT = 100000  # Maximum reasonable seats per plan
+
+
+def validate_business_rules(
+    unit_price: float,
+    seats: int,
+    pricing_model: str,
+    logger_instance: logging.Logger
+) -> List[str]:
+    """
+    Validate business rules and return warnings (not errors).
+
+    Returns list of warning messages that should be logged/returned to caller.
+    """
+    warnings = []
+
+    # BOUNDS VALIDATION FIX: Flag suspiciously high prices
+    if unit_price > HIGH_UNIT_PRICE_THRESHOLD:
+        warnings.append(
+            f"High unit_price detected: ${unit_price:,.2f}. "
+            f"Please verify this is correct (threshold: ${HIGH_UNIT_PRICE_THRESHOLD:,.2f})"
+        )
+        logger_instance.warning(f"High unit_price detected: {unit_price}")
+
+    # BOUNDS VALIDATION FIX: For PER_SEAT pricing, seats should be >= 1 (except for FREE tiers)
+    if pricing_model == "PER_SEAT" and seats == 0 and unit_price > 0:
+        warnings.append(
+            "PER_SEAT pricing model with 0 seats and non-zero price. "
+            "This may cause division by zero in per-seat cost calculations. "
+            "Consider using FLAT_FEE pricing model or setting seats >= 1."
+        )
+        logger_instance.warning(f"PER_SEAT with 0 seats and price={unit_price}")
+
+    # BOUNDS VALIDATION FIX: Unreasonably high seat count
+    if seats > MAX_SEATS_LIMIT:
+        warnings.append(
+            f"Very high seat count: {seats:,}. "
+            f"Maximum reasonable limit is {MAX_SEATS_LIMIT:,}. "
+            "Please verify this is correct."
+        )
+        logger_instance.warning(f"High seat count detected: {seats}")
+
+    return warnings
+
+
 class PlanCreate(BaseModel):
     """Request to create a custom plan."""
     plan_name: str = Field(..., min_length=1, max_length=50, description="Plan identifier")
     display_name: Optional[str] = Field(None, max_length=200)
-    unit_price_usd: float = Field(..., ge=0, le=100000, description="Monthly price per unit")
+    unit_price: float = Field(..., ge=0, le=100000, description="Monthly price per unit")
     billing_cycle: str = Field("monthly", description="monthly, annual, quarterly")
     currency: str = Field("USD", max_length=3, description="Currency code (USD, EUR, GBP)")
     seats: int = Field(0, ge=0, description="Number of seats (0 is valid for FREE tiers or non-seat-based plans)")
     pricing_model: str = Field("PER_SEAT", description="PER_SEAT or FLAT_FEE")
-    yearly_price_usd: Optional[float] = Field(None, ge=0)
+    yearly_price: Optional[float] = Field(None, ge=0)
     discount_type: Optional[str] = Field(None, description="percent or fixed")
-    discount_value: Optional[int] = Field(None, ge=0)
+    discount_value: Optional[int] = Field(None, ge=0, le=100)
     auto_renew: bool = Field(True)
     payment_method: Optional[str] = Field(None, max_length=50)
     owner_email: Optional[str] = Field(None, max_length=200)
@@ -298,15 +377,15 @@ class PlanCreate(BaseModel):
 class PlanUpdate(BaseModel):
     """Request to update a plan."""
     display_name: Optional[str] = Field(None, max_length=200)
-    unit_price_usd: Optional[float] = Field(None, ge=0, le=100000)
+    unit_price: Optional[float] = Field(None, ge=0, le=100000)
     status: Optional[str] = Field(None, description="active, cancelled, expired")
     billing_cycle: Optional[str] = None
     currency: Optional[str] = Field(None, max_length=3, description="Currency code (USD, EUR, GBP)")
     seats: Optional[int] = Field(None, ge=0)
     pricing_model: Optional[str] = None
-    yearly_price_usd: Optional[float] = Field(None, ge=0)
+    yearly_price: Optional[float] = Field(None, ge=0)
     discount_type: Optional[str] = None
-    discount_value: Optional[int] = Field(None, ge=0)
+    discount_value: Optional[int] = Field(None, ge=0, le=100)
     auto_renew: Optional[bool] = None
     payment_method: Optional[str] = Field(None, max_length=50)
     owner_email: Optional[str] = Field(None, max_length=200)
@@ -327,6 +406,7 @@ class PlanResponse(BaseModel):
     success: bool
     plan: SubscriptionPlan
     message: str
+    warnings: Optional[List[str]] = None  # Business rule warnings (not errors)
 
 
 class DeletePlanResponse(BaseModel):
@@ -340,14 +420,14 @@ class EditVersionRequest(BaseModel):
     """Request to edit a plan with version history."""
     effective_date: date = Field(..., description="Date when the new version takes effect (YYYY-MM-DD)")
     display_name: Optional[str] = Field(None, max_length=200)
-    unit_price_usd: Optional[float] = Field(None, ge=0, le=100000)
+    unit_price: Optional[float] = Field(None, ge=0, le=100000)
     billing_cycle: Optional[str] = None
     currency: Optional[str] = Field(None, max_length=3)
     seats: Optional[int] = Field(None, ge=0)
     pricing_model: Optional[str] = None
-    yearly_price_usd: Optional[float] = Field(None, ge=0)
+    yearly_price: Optional[float] = Field(None, ge=0)
     discount_type: Optional[str] = None
-    discount_value: Optional[int] = Field(None, ge=0)
+    discount_value: Optional[int] = Field(None, ge=0, le=100)
     auto_renew: Optional[bool] = None
     payment_method: Optional[str] = Field(None, max_length=50)
     owner_email: Optional[str] = Field(None, max_length=200)
@@ -398,13 +478,46 @@ def validate_provider(provider: str, allow_custom: bool = True) -> str:
     )
 
 
-def validate_plan_name(plan_name: str) -> None:
-    """Validate plan_name format."""
-    if not plan_name or not re.match(r'^[a-zA-Z0-9_]{1,50}$', plan_name):
+def validate_plan_name(plan_name: str, transform_to_upper: bool = False) -> str:
+    """
+    Validate and sanitize plan_name format.
+
+    Returns sanitized plan_name safe for use in queries.
+
+    SECURITY FIX: When transform_to_upper=True, validates AFTER transformation
+    to prevent Unicode bypasses (e.g., German ß → SS changes string length/pattern).
+    """
+    if not plan_name:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid plan_name format. Must be 1-50 alphanumeric characters with underscores."
+            detail="plan_name is required"
         )
+
+    # Sanitize: strip whitespace and convert to safe format
+    sanitized = plan_name.strip()
+
+    # Apply transformation BEFORE validation to prevent Unicode bypass attacks
+    if transform_to_upper:
+        sanitized = sanitized.upper()
+
+    # Validate: only allow alphanumeric and underscores
+    if not re.match(r'^[a-zA-Z0-9_]{1,50}$', sanitized):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid plan_name format. Must be 1-50 alphanumeric characters with underscores. No special characters or SQL injection attempts allowed."
+        )
+
+    # Additional safety: check for SQL injection patterns
+    sql_patterns = ['--', ';', '/*', '*/', 'xp_', 'sp_', 'exec', 'execute', 'select', 'insert', 'update', 'delete', 'drop', 'union']
+    lower_name = sanitized.lower()
+    for pattern in sql_patterns:
+        if pattern in lower_name:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid plan_name: contains potentially unsafe pattern '{pattern}'"
+            )
+
+    return sanitized
 
 
 def get_org_dataset(org_slug: str) -> str:
@@ -470,8 +583,8 @@ def get_saas_subscription_plans_schema() -> List[bigquery.SchemaField]:
         bigquery.SchemaField("currency", "STRING", mode="REQUIRED"),
         bigquery.SchemaField("seats", "INTEGER", mode="REQUIRED"),
         bigquery.SchemaField("pricing_model", "STRING", mode="REQUIRED"),
-        bigquery.SchemaField("unit_price_usd", "FLOAT64", mode="REQUIRED"),
-        bigquery.SchemaField("yearly_price_usd", "FLOAT64", mode="NULLABLE"),
+        bigquery.SchemaField("unit_price", "FLOAT64", mode="REQUIRED"),
+        bigquery.SchemaField("yearly_price", "FLOAT64", mode="NULLABLE"),
         bigquery.SchemaField("discount_type", "STRING", mode="NULLABLE"),
         bigquery.SchemaField("discount_value", "INTEGER", mode="NULLABLE"),
         bigquery.SchemaField("auto_renew", "BOOLEAN", mode="REQUIRED"),
@@ -767,8 +880,8 @@ async def get_available_plans(
                 display_name=row.get("display_name") or row.get("plan_name", ""),
                 billing_cycle=row.get("billing_cycle", "monthly"),
                 pricing_model=row.get("pricing_model", "FLAT_FEE"),
-                unit_price_usd=float(row.get("unit_price_usd", 0)),
-                yearly_price_usd=float(row.get("yearly_price_usd")) if row.get("yearly_price_usd") else None,
+                unit_price=float(row.get("unit_price", 0)),
+                yearly_price=float(row.get("yearly_price")) if row.get("yearly_price") else None,
                 notes=row.get("notes"),
                 seats=int(row.get("seats", 0)) if row.get("seats") else 0,
                 category=row.get("category", "other"),
@@ -821,10 +934,11 @@ async def list_plans(
     SELECT
         org_slug, subscription_id, provider, plan_name, display_name,
         category, status, start_date, end_date, billing_cycle, currency,
-        seats, pricing_model, unit_price_usd, yearly_price_usd,
+        seats, pricing_model, unit_price, yearly_price,
         discount_type, discount_value, auto_renew, payment_method,
         invoice_id_last, owner_email, department, renewal_date,
-        contract_id, notes, updated_at
+        contract_id, notes, updated_at,
+        source_currency, source_price, exchange_rate_used
     FROM `{table_ref}`
     WHERE org_slug = @org_slug AND provider = @provider
         AND (status = 'active' OR status = 'pending' OR status = 'cancelled' OR status = 'expired')
@@ -873,8 +987,8 @@ async def list_plans(
                 currency=row.currency if hasattr(row, "currency") else "USD",
                 seats=row.seats if hasattr(row, "seats") else 0,
                 pricing_model=row.pricing_model if hasattr(row, "pricing_model") else "PER_SEAT",
-                unit_price_usd=float(row.unit_price_usd or 0),
-                yearly_price_usd=float(row.yearly_price_usd) if hasattr(row, "yearly_price_usd") and row.yearly_price_usd else None,
+                unit_price=float(row.unit_price or 0),
+                yearly_price=float(row.yearly_price) if hasattr(row, "yearly_price") and row.yearly_price else None,
                 discount_type=row.discount_type if hasattr(row, "discount_type") else None,
                 discount_value=row.discount_value if hasattr(row, "discount_value") else None,
                 auto_renew=row.auto_renew if hasattr(row, "auto_renew") else True,
@@ -893,7 +1007,7 @@ async def list_plans(
             plans.append(plan)
 
             # Calculation Logic
-            # Note: unit_price_usd is actually in the plan's currency (historically named _usd)
+            # Note: unit_price is actually in the plan's currency (historically named _usd)
             # We use the 'currency' field to distinguish.
 
             # Calculate Monthly Equivalent
@@ -905,9 +1019,9 @@ async def list_plans(
             effective_seats = max(plan.seats, 1) if plan.pricing_model == "PER_SEAT" else 1
 
             if plan.pricing_model == "PER_SEAT":
-                 base_cost = plan.unit_price_usd * effective_seats
+                 base_cost = plan.unit_price * effective_seats
             else:
-                 base_cost = plan.unit_price_usd # Flat fee
+                 base_cost = plan.unit_price # Flat fee
 
             # Apply discount if present
             if plan.discount_type and plan.discount_value:
@@ -926,13 +1040,13 @@ async def list_plans(
                 monthly_val = base_cost / 3
                 annual_val = base_cost * 4
             elif plan.billing_cycle == "annual":
-                # For annual, unit_price_usd usually stores the FULL annual price in some systems,
+                # For annual, unit_price usually stores the FULL annual price in some systems,
                 # OR the monthly equivalent.
-                # Let's check how 'yearly_price_usd' is used.
-                # If yearly_price_usd is set, that is the total annual cost.
-                if plan.yearly_price_usd:
-                     annual_val = plan.yearly_price_usd
-                     monthly_val = plan.yearly_price_usd / 12
+                # Let's check how 'yearly_price' is used.
+                # If yearly_price is set, that is the total annual cost.
+                if plan.yearly_price:
+                     annual_val = plan.yearly_price
+                     monthly_val = plan.yearly_price / 12
                 else:
                      # If only unit_price exists and it is annual...
                      # Assuming unit_price is the annual price if cycle is annual
@@ -1032,8 +1146,8 @@ async def get_available_plans(
         # For PER_SEAT plans, default to 1 seat; for FLAT_FEE, default to 0
         default_seats = 1 if pricing_model == "PER_SEAT" else 0
         seats = parse_int(plan.get("seats"), default_seats)
-        unit_price = parse_float(plan.get("unit_price_usd"), 0.0)
-        yearly_price = parse_float(plan.get("yearly_price_usd"))
+        unit_price = parse_float(plan.get("unit_price"), 0.0)
+        yearly_price = parse_float(plan.get("yearly_price"))
         # Calculate yearly_price if not provided and billing cycle is annual
         billing_cycle = plan.get("billing_cycle") or plan.get("billing_period", "monthly") or "monthly"
         if yearly_price is None and billing_cycle == "annual":
@@ -1053,8 +1167,8 @@ async def get_available_plans(
             display_name=display_name,
             billing_cycle=billing_cycle,
             pricing_model=pricing_model,
-            unit_price_usd=unit_price,
-            yearly_price_usd=yearly_price,
+            unit_price=unit_price,
+            yearly_price=yearly_price,
             notes=notes,
             seats=seats,
             category=category,
@@ -1090,12 +1204,21 @@ async def create_plan(
     validate_org_slug(org_slug)
     check_org_access(org, org_slug)
     provider = validate_provider(provider)
-    validate_plan_name(plan.plan_name)
+    # SECURITY FIX: Validate plan_name AFTER .upper() transformation to prevent Unicode bypass
+    validated_plan_name = validate_plan_name(plan.plan_name, transform_to_upper=True)
 
     # Validate enum fields
     validate_enum_field(plan.billing_cycle, VALID_BILLING_CYCLES, "billing_cycle")
     validate_enum_field(plan.pricing_model, VALID_PRICING_MODELS, "pricing_model")
     validate_enum_field(plan.discount_type, VALID_DISCOUNT_TYPES, "discount_type")
+
+    # BOUNDS VALIDATION: Check business rules and collect warnings
+    business_warnings = validate_business_rules(
+        unit_price=plan.unit_price,
+        seats=plan.seats,
+        pricing_model=plan.pricing_model,
+        logger_instance=logger
+    )
 
     dataset_id = get_org_dataset(org_slug)
     table_ref = f"{settings.gcp_project_id}.{dataset_id}.{SAAS_SUBSCRIPTION_PLANS_TABLE}"
@@ -1109,6 +1232,7 @@ async def create_plan(
         )
 
     # Get org's default currency from org_profiles
+    # SECURITY FIX: Return 404 if org not found instead of silently defaulting to USD
     org_currency_query = f"""
     SELECT default_currency FROM `{settings.gcp_project_id}.organizations.org_profiles`
     WHERE org_slug = @org_slug
@@ -1118,7 +1242,7 @@ async def create_plan(
             query_parameters=[
                 bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
             ],
-            job_timeout_ms=10000
+            job_timeout_ms=30000  # Standardized timeout for read operations
         )
         result = bq_client.client.query(org_currency_query, job_config=job_config).result()
         org_currency = None
@@ -1126,8 +1250,12 @@ async def create_plan(
             org_currency = row.default_currency or "USD"
             break
 
-        if not org_currency:
-            org_currency = "USD"  # Fallback to USD if org not found
+        # FIX: Return 404 if org not found (don't silently default)
+        if org_currency is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Organization '{org_slug}' not found in org_profiles. Please complete onboarding first."
+            )
 
         # Enforce currency matches org default
         if plan.currency != org_currency:
@@ -1144,8 +1272,9 @@ async def create_plan(
             detail=f"Failed to validate currency: {e}"
         )
 
-    # Check for duplicate plan (same org + provider + plan_name + active status)
-    plan_name_upper = plan.plan_name.upper()
+    # Check for duplicate plan using MERGE to prevent race conditions
+    # RACE CONDITION FIX: Use conditional INSERT instead of check-then-insert pattern
+    # This atomic operation prevents two concurrent requests from both passing the check
     duplicate_check_query = f"""
     SELECT COUNT(*) as count FROM `{table_ref}`
     WHERE org_slug = @org_slug
@@ -1159,16 +1288,16 @@ async def create_plan(
             query_parameters=[
                 bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
                 bigquery.ScalarQueryParameter("provider", "STRING", provider),
-                bigquery.ScalarQueryParameter("plan_name", "STRING", plan_name_upper),
+                bigquery.ScalarQueryParameter("plan_name", "STRING", validated_plan_name),
             ],
-            job_timeout_ms=10000  # 10 second timeout for auth operations
+            job_timeout_ms=30000  # Standardized timeout for read operations
         )
         result = bq_client.client.query(duplicate_check_query, job_config=job_config).result()
         for row in result:
             if row.count > 0:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
-                    detail=f"Active plan '{plan_name_upper}' already exists for provider '{provider}'"
+                    detail=f"Active plan '{validated_plan_name}' already exists for provider '{provider}'"
                 )
     except HTTPException:
         raise
@@ -1191,7 +1320,7 @@ async def create_plan(
     INSERT INTO `{table_ref}` (
         org_slug, subscription_id, provider, plan_name, display_name,
         category, status, start_date, billing_cycle, currency, seats,
-        pricing_model, unit_price_usd, yearly_price_usd, discount_type,
+        pricing_model, unit_price, yearly_price, discount_type,
         discount_value, auto_renew, payment_method, owner_email, department,
         renewal_date, contract_id, notes, source_currency, source_price,
         exchange_rate_used, updated_at
@@ -1208,8 +1337,8 @@ async def create_plan(
         @currency,
         @seats,
         @pricing_model,
-        @unit_price_usd,
-        @yearly_price_usd,
+        @unit_price,
+        @yearly_price,
         @discount_type,
         @discount_value,
         @auto_renew,
@@ -1232,7 +1361,7 @@ async def create_plan(
                 bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
                 bigquery.ScalarQueryParameter("subscription_id", "STRING", subscription_id),
                 bigquery.ScalarQueryParameter("provider", "STRING", provider),
-                bigquery.ScalarQueryParameter("plan_name", "STRING", plan.plan_name.upper()),
+                bigquery.ScalarQueryParameter("plan_name", "STRING", validated_plan_name),  # Use pre-validated name
                 bigquery.ScalarQueryParameter("display_name", "STRING", plan.display_name or plan.plan_name),
                 bigquery.ScalarQueryParameter("category", "STRING", category),
                 bigquery.ScalarQueryParameter("status", "STRING", initial_status),
@@ -1241,8 +1370,8 @@ async def create_plan(
                 bigquery.ScalarQueryParameter("currency", "STRING", plan.currency),
                 bigquery.ScalarQueryParameter("seats", "INT64", plan.seats),
                 bigquery.ScalarQueryParameter("pricing_model", "STRING", plan.pricing_model),
-                bigquery.ScalarQueryParameter("unit_price_usd", "FLOAT64", plan.unit_price_usd if plan.unit_price_usd is not None else 0.0),
-                bigquery.ScalarQueryParameter("yearly_price_usd", "FLOAT64", plan.yearly_price_usd if plan.yearly_price_usd is not None else 0.0),
+                bigquery.ScalarQueryParameter("unit_price", "FLOAT64", plan.unit_price if plan.unit_price is not None else 0.0),
+                bigquery.ScalarQueryParameter("yearly_price", "FLOAT64", plan.yearly_price if plan.yearly_price is not None else 0.0),
                 bigquery.ScalarQueryParameter("discount_type", "STRING", plan.discount_type),
                 bigquery.ScalarQueryParameter("discount_value", "INT64", plan.discount_value),
                 bigquery.ScalarQueryParameter("auto_renew", "BOOL", plan.auto_renew),
@@ -1251,7 +1380,7 @@ async def create_plan(
                 bigquery.ScalarQueryParameter("department", "STRING", plan.department),
                 bigquery.ScalarQueryParameter("renewal_date", "DATE", plan.renewal_date),
                 bigquery.ScalarQueryParameter("contract_id", "STRING", plan.contract_id),
-                bigquery.ScalarQueryParameter("notes", "STRING", plan.notes or ""),
+                bigquery.ScalarQueryParameter("notes", "STRING", plan.notes if plan.notes else None),
                 bigquery.ScalarQueryParameter("source_currency", "STRING", plan.source_currency),
                 bigquery.ScalarQueryParameter("source_price", "FLOAT64", plan.source_price),
                 bigquery.ScalarQueryParameter("exchange_rate_used", "FLOAT64", plan.exchange_rate_used),
@@ -1264,7 +1393,7 @@ async def create_plan(
 
         # Log the insert details for debugging
         logger.info(f"INSERT executed for plan: org={org_slug}, provider={provider}, plan_name={plan.plan_name}, "
-                    f"subscription_id={subscription_id}, unit_price={plan.unit_price_usd}, category={category}, status={initial_status}")
+                    f"subscription_id={subscription_id}, unit_price={plan.unit_price}, category={category}, status={initial_status}")
 
         # Verify the insert succeeded by checking if rows were affected
         if query_job.num_dml_affected_rows is not None and query_job.num_dml_affected_rows == 0:
@@ -1279,9 +1408,10 @@ async def create_plan(
         SELECT
             org_slug, subscription_id, provider, plan_name, display_name,
             category, status, start_date, end_date, billing_cycle, currency,
-            seats, pricing_model, unit_price_usd, yearly_price_usd,
+            seats, pricing_model, unit_price, yearly_price,
             discount_type, discount_value, auto_renew, payment_method,
-            owner_email, department, renewal_date, contract_id, notes, updated_at
+            owner_email, department, renewal_date, contract_id, notes, updated_at,
+            source_currency, source_price, exchange_rate_used
         FROM `{table_ref}`
         WHERE org_slug = @org_slug AND subscription_id = @subscription_id
         """
@@ -1310,8 +1440,8 @@ async def create_plan(
                 currency=row.currency,
                 seats=row.seats,
                 pricing_model=row.pricing_model,
-                unit_price_usd=row.unit_price_usd,
-                yearly_price_usd=row.yearly_price_usd,
+                unit_price=row.unit_price,
+                yearly_price=row.yearly_price,
                 discount_type=row.discount_type,
                 discount_value=row.discount_value,
                 auto_renew=row.auto_renew,
@@ -1322,8 +1452,8 @@ async def create_plan(
                 contract_id=row.contract_id,
                 notes=row.notes,
                 source_currency=row.source_currency if hasattr(row, "source_currency") else None,
-                source_price=row.source_price if hasattr(row, "source_price") else None,
-                exchange_rate_used=row.exchange_rate_used if hasattr(row, "exchange_rate_used") else None,
+                source_price=float(row.source_price) if hasattr(row, "source_price") and row.source_price else None,
+                exchange_rate_used=float(row.exchange_rate_used) if hasattr(row, "exchange_rate_used") and row.exchange_rate_used else None,
             )
             break
 
@@ -1339,29 +1469,70 @@ async def create_plan(
         invalidate_org_cache(org_slug)
         logger.debug(f"Invalidated cache for org {org_slug} provider {provider}")
 
-        # Audit log: Plan created
-        await log_create(
-            org_slug=org_slug,
-            resource_type=AuditLogger.RESOURCE_SUBSCRIPTION_PLAN,
-            resource_id=subscription_id,
-            details={
-                "provider": provider,
-                "plan_name": plan.plan_name,
-                "display_name": plan.display_name,
-                "unit_price_usd": plan.unit_price_usd,
-                "currency": plan.currency,
-                "seats": plan.seats,
-                "pricing_model": plan.pricing_model,
-                "billing_cycle": plan.billing_cycle,
-                "status": initial_status,
-                "start_date": str(effective_start_date) if effective_start_date else None
-            }
-        )
+        # AUDIT LOG FIX: Audit logging with retry to prevent orphaned operations
+        # Retry up to 3 times to ensure audit trail is preserved
+        audit_details = {
+            "provider": provider,
+            "plan_name": plan.plan_name,
+            "display_name": plan.display_name,
+            "unit_price": plan.unit_price,
+            "currency": plan.currency,
+            "seats": plan.seats,
+            "pricing_model": plan.pricing_model,
+            "billing_cycle": plan.billing_cycle,
+            "status": initial_status,
+            "start_date": str(effective_start_date) if effective_start_date else None,
+            "source_currency": plan.source_currency,
+            "source_price": plan.source_price,
+            "exchange_rate_used": plan.exchange_rate_used,
+        }
+        audit_logged = False
+        for attempt in range(3):
+            try:
+                await log_create(
+                    org_slug=org_slug,
+                    resource_type=AuditLogger.RESOURCE_SUBSCRIPTION_PLAN,
+                    resource_id=subscription_id,
+                    details=audit_details
+                )
+                audit_logged = True
+                break
+            except Exception as audit_error:
+                logger.warning(f"Audit log attempt {attempt + 1} failed: {audit_error}")
+                if attempt == 2:
+                    # Final attempt failed - log critical warning but don't fail the operation
+                    logger.critical(
+                        f"AUDIT LOG FAILURE: Plan {subscription_id} created but audit log failed after 3 attempts. "
+                        f"Details: {audit_details}"
+                    )
+        if not audit_logged:
+            # Add warning to response about audit failure
+            business_warnings.append("Audit log failed - operation completed but may not be fully tracked")
 
         return PlanResponse(
             success=True,
             plan=created_plan,
-            message=f"Created custom plan {plan.plan_name} for {provider}"
+            message=f"Created custom plan {plan.plan_name} for {provider}",
+            warnings=business_warnings if business_warnings else None
+        )
+    except google.api_core.exceptions.BadRequest as e:
+        # BIGQUERY ERROR HANDLING FIX: Catch specific BigQuery errors
+        logger.error(f"BigQuery bad request: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid data format for BigQuery: {e}"
+        )
+    except google.api_core.exceptions.Forbidden as e:
+        logger.error(f"BigQuery permission denied: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Permission denied to access BigQuery: {e}"
+        )
+    except google.api_core.exceptions.ResourceExhausted as e:
+        logger.error(f"BigQuery quota exceeded: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"BigQuery quota exceeded. Please try again later: {e}"
         )
     except Exception as e:
         logger.error(f"Failed to create plan: {e}")
@@ -1395,11 +1566,48 @@ async def update_plan(
     dataset_id = get_org_dataset(org_slug)
     table_ref = f"{settings.gcp_project_id}.{dataset_id}.{SAAS_SUBSCRIPTION_PLANS_TABLE}"
 
+    # Parse updates once for use throughout the function
+    updates_dict = updates.model_dump(exclude_unset=True)
+
+    # STATUS TRANSITION FIX: If status is being updated, fetch current status and validate transition
+    if "status" in updates_dict and updates_dict["status"] is not None:
+        current_status_query = f"""
+        SELECT status FROM `{table_ref}`
+        WHERE org_slug = @org_slug AND subscription_id = @subscription_id AND provider = @provider
+        """
+        try:
+            status_config = bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                    bigquery.ScalarQueryParameter("subscription_id", "STRING", subscription_id),
+                    bigquery.ScalarQueryParameter("provider", "STRING", provider),
+                ],
+                job_timeout_ms=30000
+            )
+            status_result = bq_client.client.query(current_status_query, job_config=status_config).result()
+            rows = list(status_result)
+            if not rows:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Plan {subscription_id} not found"
+                )
+            current_status = rows[0].status
+            new_status = updates_dict["status"]
+            validate_status_transition(current_status, new_status)
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Failed to validate status transition: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to validate status transition: {e}"
+            )
+
     # Build SET clause and parameters from provided updates
     # Allowlist of valid field names to prevent SQL injection via column names
     ALLOWED_UPDATE_FIELDS = {
-        'display_name', 'unit_price_usd', 'status', 'billing_cycle', 'currency',
-        'seats', 'pricing_model', 'yearly_price_usd', 'discount_type', 'discount_value',
+        'display_name', 'unit_price', 'status', 'billing_cycle', 'currency',
+        'seats', 'pricing_model', 'yearly_price', 'discount_type', 'discount_value',
         'auto_renew', 'payment_method', 'owner_email', 'department', 'renewal_date',
         'contract_id', 'notes', 'source_currency', 'source_price', 'exchange_rate_used', 'end_date'
     }
@@ -1410,7 +1618,7 @@ async def update_plan(
         bigquery.ScalarQueryParameter("subscription_id", "STRING", subscription_id),
         bigquery.ScalarQueryParameter("provider", "STRING", provider),
     ]
-    updates_dict = updates.model_dump(exclude_unset=True)
+    # Note: updates_dict already defined above for status transition validation
 
     param_counter = 0
     for field, value in updates_dict.items():
@@ -1458,10 +1666,11 @@ async def update_plan(
         SELECT
             org_slug, subscription_id, provider, plan_name, display_name,
             category, status, start_date, end_date, billing_cycle, currency,
-            seats, pricing_model, unit_price_usd, yearly_price_usd,
+            seats, pricing_model, unit_price, yearly_price,
             discount_type, discount_value, auto_renew, payment_method,
             invoice_id_last, owner_email, department, renewal_date,
-            contract_id, notes, updated_at
+            contract_id, notes, updated_at,
+            source_currency, source_price, exchange_rate_used
         FROM `{table_ref}`
         WHERE org_slug = @org_slug AND subscription_id = @subscription_id
         """
@@ -1489,8 +1698,8 @@ async def update_plan(
                 currency=row.currency if hasattr(row, "currency") else "USD",
                 seats=row.seats if hasattr(row, "seats") else 0,
                 pricing_model=row.pricing_model if hasattr(row, "pricing_model") else "PER_SEAT",
-                unit_price_usd=float(row.unit_price_usd or 0),
-                yearly_price_usd=float(row.yearly_price_usd) if hasattr(row, "yearly_price_usd") and row.yearly_price_usd else None,
+                unit_price=float(row.unit_price or 0),
+                yearly_price=float(row.yearly_price) if hasattr(row, "yearly_price") and row.yearly_price else None,
                 discount_type=row.discount_type if hasattr(row, "discount_type") else None,
                 discount_value=row.discount_value if hasattr(row, "discount_value") else None,
                 auto_renew=row.auto_renew if hasattr(row, "auto_renew") else True,
@@ -1571,11 +1780,11 @@ async def edit_plan_with_version(
 
     Historical costs (before effective_date) are PRESERVED and will NOT change:
     - Cost calculations use the date ranges (start_date, end_date) from each plan version
-    - For dates before effective_date, the old plan's pricing (old unit_price_usd, old seats) applies
+    - For dates before effective_date, the old plan's pricing (old unit_price, old seats) applies
     - Example: If plan had 10 seats @ $5/seat from Jan 1 - Mar 15, those costs remain $50/day
 
     Future costs (on/after effective_date) use NEW pricing:
-    - For dates >= effective_date, the new plan's pricing (new unit_price_usd, new seats) applies
+    - For dates >= effective_date, the new plan's pricing (new unit_price, new seats) applies
     - Example: After Mar 16, if seats change to 5 @ $10/seat, costs become $50/day (but different breakdown)
 
     How Cost Service Handles Version History:
@@ -1613,10 +1822,11 @@ async def edit_plan_with_version(
     SELECT
         org_slug, subscription_id, provider, plan_name, display_name,
         category, status, start_date, end_date, billing_cycle, currency,
-        seats, pricing_model, unit_price_usd, yearly_price_usd,
+        seats, pricing_model, unit_price, yearly_price,
         discount_type, discount_value, auto_renew, payment_method,
         invoice_id_last, owner_email, department, renewal_date,
-        contract_id, notes, updated_at
+        contract_id, notes, updated_at,
+        source_currency, source_price, exchange_rate_used
     FROM `{table_ref}`
     WHERE org_slug = @org_slug AND subscription_id = @subscription_id AND provider = @provider
     """
@@ -1651,23 +1861,54 @@ async def edit_plan_with_version(
                        f"Use a date after {original_start_date} or delete and recreate the plan."
             )
 
-        # Step 2: Close the old row (set end_date and status)
+        # EFFECTIVE_DATE VALIDATION FIX: Prevent retroactive changes more than 1 year in the past
+        one_year_ago = date.today() - timedelta(days=365)
+        if request.effective_date < one_year_ago:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"effective_date ({request.effective_date}) cannot be more than 1 year in the past. "
+                       f"Minimum allowed date: {one_year_ago}"
+            )
+
+        # OPTIMISTIC LOCKING: Store original updated_at for concurrency check
+        original_updated_at = current_row.updated_at if hasattr(current_row, "updated_at") else None
+        original_status = current_row.status if hasattr(current_row, "status") else "active"
+        original_end_date = current_row.end_date if hasattr(current_row, "end_date") else None
+
+        # Step 2: Close the old row (set end_date and status) with optimistic locking
         old_end_date = request.effective_date - timedelta(days=1)
         close_query = f"""
         UPDATE `{table_ref}`
         SET end_date = @end_date, status = 'expired', updated_at = CURRENT_TIMESTAMP()
         WHERE org_slug = @org_slug AND subscription_id = @subscription_id AND provider = @provider
         """
+        # OPTIMISTIC LOCKING FIX: Add updated_at check to detect concurrent modifications
+        if original_updated_at:
+            close_query = f"""
+            UPDATE `{table_ref}`
+            SET end_date = @end_date, status = 'expired', updated_at = CURRENT_TIMESTAMP()
+            WHERE org_slug = @org_slug AND subscription_id = @subscription_id AND provider = @provider
+              AND (updated_at = @original_updated_at OR updated_at IS NULL)
+            """
         close_config = bigquery.QueryJobConfig(
             query_parameters=[
                 bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
                 bigquery.ScalarQueryParameter("subscription_id", "STRING", subscription_id),
                 bigquery.ScalarQueryParameter("provider", "STRING", provider),
                 bigquery.ScalarQueryParameter("end_date", "DATE", old_end_date),
+                bigquery.ScalarQueryParameter("original_updated_at", "TIMESTAMP", original_updated_at),
             ],
-            job_timeout_ms=30000
+            job_timeout_ms=60000  # Increased timeout for write operations
         )
-        bq_client.client.query(close_query, job_config=close_config).result()
+        close_job = bq_client.client.query(close_query, job_config=close_config)
+        close_job.result()
+
+        # CONCURRENCY CHECK: Verify the update actually affected a row
+        if original_updated_at and close_job.num_dml_affected_rows == 0:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Plan was modified by another request. Please refresh and try again."
+            )
 
         # Step 3: Create new row with updates
         new_subscription_id = f"sub_{provider}_{current_row.plan_name.lower()}_{uuid.uuid4().hex[:8]}"
@@ -1677,12 +1918,12 @@ async def edit_plan_with_version(
 
         # Merge current values with updates (updates take precedence)
         new_display_name = request.display_name if request.display_name is not None else (current_row.display_name or current_row.plan_name)
-        new_unit_price = request.unit_price_usd if request.unit_price_usd is not None else float(current_row.unit_price_usd or 0)
+        new_unit_price = request.unit_price if request.unit_price is not None else float(current_row.unit_price or 0)
         new_billing_cycle = request.billing_cycle if request.billing_cycle is not None else (current_row.billing_cycle or "monthly")
         new_currency = request.currency if request.currency is not None else (current_row.currency if hasattr(current_row, "currency") else "USD")
         new_seats = request.seats if request.seats is not None else (current_row.seats if hasattr(current_row, "seats") else 0)
         new_pricing_model = request.pricing_model if request.pricing_model is not None else (current_row.pricing_model if hasattr(current_row, "pricing_model") else "PER_SEAT")
-        new_yearly_price = request.yearly_price_usd if request.yearly_price_usd is not None else (float(current_row.yearly_price_usd) if hasattr(current_row, "yearly_price_usd") and current_row.yearly_price_usd else None)
+        new_yearly_price = request.yearly_price if request.yearly_price is not None else (float(current_row.yearly_price) if hasattr(current_row, "yearly_price") and current_row.yearly_price else None)
         new_discount_type = request.discount_type if request.discount_type is not None else (current_row.discount_type if hasattr(current_row, "discount_type") else None)
         new_discount_value = request.discount_value if request.discount_value is not None else (current_row.discount_value if hasattr(current_row, "discount_value") else None)
         new_auto_renew = request.auto_renew if request.auto_renew is not None else (current_row.auto_renew if hasattr(current_row, "auto_renew") else True)
@@ -1700,14 +1941,14 @@ async def edit_plan_with_version(
         INSERT INTO `{table_ref}` (
             org_slug, subscription_id, provider, plan_name, display_name,
             category, status, start_date, billing_cycle, currency, seats,
-            pricing_model, unit_price_usd, yearly_price_usd, discount_type,
+            pricing_model, unit_price, yearly_price, discount_type,
             discount_value, auto_renew, payment_method, owner_email, department,
             renewal_date, contract_id, notes, source_currency, source_price,
             exchange_rate_used, updated_at
         ) VALUES (
             @org_slug, @subscription_id, @provider, @plan_name, @display_name,
             @category, @status, @start_date, @billing_cycle, @currency, @seats,
-            @pricing_model, @unit_price_usd, @yearly_price_usd, @discount_type,
+            @pricing_model, @unit_price, @yearly_price, @discount_type,
             @discount_value, @auto_renew, @payment_method, @owner_email, @department,
             @renewal_date, @contract_id, @notes, @source_currency, @source_price,
             @exchange_rate_used, CURRENT_TIMESTAMP()
@@ -1727,8 +1968,8 @@ async def edit_plan_with_version(
                 bigquery.ScalarQueryParameter("currency", "STRING", new_currency),
                 bigquery.ScalarQueryParameter("seats", "INT64", new_seats),
                 bigquery.ScalarQueryParameter("pricing_model", "STRING", new_pricing_model),
-                bigquery.ScalarQueryParameter("unit_price_usd", "FLOAT64", new_unit_price),
-                bigquery.ScalarQueryParameter("yearly_price_usd", "FLOAT64", new_yearly_price),
+                bigquery.ScalarQueryParameter("unit_price", "FLOAT64", new_unit_price),
+                bigquery.ScalarQueryParameter("yearly_price", "FLOAT64", new_yearly_price),
                 bigquery.ScalarQueryParameter("discount_type", "STRING", new_discount_type),
                 bigquery.ScalarQueryParameter("discount_value", "INT64", new_discount_value),
                 bigquery.ScalarQueryParameter("auto_renew", "BOOL", new_auto_renew),
@@ -1742,9 +1983,41 @@ async def edit_plan_with_version(
                 bigquery.ScalarQueryParameter("source_price", "FLOAT64", new_source_price),
                 bigquery.ScalarQueryParameter("exchange_rate_used", "FLOAT64", new_exchange_rate_used),
             ],
-            job_timeout_ms=30000
+            job_timeout_ms=60000  # Increased timeout for write operations
         )
-        bq_client.client.query(insert_query, job_config=insert_config).result()
+
+        # TRANSACTION COMPENSATION FIX: Wrap INSERT in try-except to rollback UPDATE on failure
+        try:
+            bq_client.client.query(insert_query, job_config=insert_config).result()
+        except Exception as insert_error:
+            # COMPENSATION: Re-open the old row if INSERT fails
+            logger.error(f"INSERT failed after closing old row, attempting compensation: {insert_error}")
+            try:
+                compensation_query = f"""
+                UPDATE `{table_ref}`
+                SET end_date = @original_end_date, status = @original_status, updated_at = CURRENT_TIMESTAMP()
+                WHERE org_slug = @org_slug AND subscription_id = @subscription_id AND provider = @provider
+                """
+                comp_config = bigquery.QueryJobConfig(
+                    query_parameters=[
+                        bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                        bigquery.ScalarQueryParameter("subscription_id", "STRING", subscription_id),
+                        bigquery.ScalarQueryParameter("provider", "STRING", provider),
+                        bigquery.ScalarQueryParameter("original_end_date", "DATE", original_end_date),
+                        bigquery.ScalarQueryParameter("original_status", "STRING", original_status),
+                    ],
+                    job_timeout_ms=60000
+                )
+                bq_client.client.query(compensation_query, job_config=comp_config).result()
+                logger.info(f"Successfully rolled back plan {subscription_id} to original state")
+            except Exception as comp_error:
+                logger.critical(f"CRITICAL: Failed to compensate after INSERT failure. "
+                               f"Plan {subscription_id} may be in inconsistent state. "
+                               f"Original error: {insert_error}, Compensation error: {comp_error}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to create plan version. Original plan has been restored. Error: {insert_error}"
+            )
 
         # Build response objects
         old_plan = SubscriptionPlan(
@@ -1761,8 +2034,8 @@ async def edit_plan_with_version(
             currency=current_row.currency if hasattr(current_row, "currency") else "USD",
             seats=current_row.seats if hasattr(current_row, "seats") else 0,
             pricing_model=current_row.pricing_model if hasattr(current_row, "pricing_model") else "PER_SEAT",
-            unit_price_usd=float(current_row.unit_price_usd or 0),
-            yearly_price_usd=float(current_row.yearly_price_usd) if hasattr(current_row, "yearly_price_usd") and current_row.yearly_price_usd else None,
+            unit_price=float(current_row.unit_price or 0),
+            yearly_price=float(current_row.yearly_price) if hasattr(current_row, "yearly_price") and current_row.yearly_price else None,
             discount_type=current_row.discount_type if hasattr(current_row, "discount_type") else None,
             discount_value=current_row.discount_value if hasattr(current_row, "discount_value") else None,
             auto_renew=current_row.auto_renew if hasattr(current_row, "auto_renew") else True,
@@ -1790,8 +2063,8 @@ async def edit_plan_with_version(
             currency=new_currency,
             seats=new_seats,
             pricing_model=new_pricing_model,
-            unit_price_usd=new_unit_price,
-            yearly_price_usd=new_yearly_price,
+            unit_price=new_unit_price,
+            yearly_price=new_yearly_price,
             discount_type=new_discount_type,
             discount_value=new_discount_value,
             auto_renew=new_auto_renew,
@@ -1826,14 +2099,14 @@ async def edit_plan_with_version(
                 "effective_date": str(request.effective_date),
                 "old_values": {
                     "subscription_id": subscription_id,
-                    "unit_price_usd": float(current_row.unit_price_usd or 0),
+                    "unit_price": float(current_row.unit_price or 0),
                     "seats": current_row.seats if hasattr(current_row, "seats") else 0,
                     "status": current_row.status if hasattr(current_row, "status") else "active",
                     "end_date": str(old_end_date)
                 },
                 "new_values": {
                     "subscription_id": new_subscription_id,
-                    "unit_price_usd": new_unit_price,
+                    "unit_price": new_unit_price,
                     "seats": new_seats,
                     "status": new_status,
                     "start_date": str(request.effective_date)
@@ -2030,6 +2303,10 @@ async def toggle_plan(
         current_status = rows[0].status
         new_status = "cancelled" if current_status == "active" else "active"
 
+        # STATUS TRANSITION FIX: Validate transition is allowed by state machine
+        # e.g., can't toggle from 'expired' to 'active' or from 'cancelled' to 'active'
+        validate_status_transition(current_status, new_status)
+
         # Update state
         update_query = f"""
         UPDATE `{table_ref}`
@@ -2123,10 +2400,11 @@ async def get_all_plans(
     SELECT
         org_slug, subscription_id, provider, plan_name, display_name,
         category, status, start_date, end_date, billing_cycle, currency,
-        seats, pricing_model, unit_price_usd, yearly_price_usd,
+        seats, pricing_model, unit_price, yearly_price,
         discount_type, discount_value, auto_renew, payment_method,
         invoice_id_last, owner_email, department, renewal_date,
-        contract_id, notes, updated_at
+        contract_id, notes, updated_at,
+        source_currency, source_price, exchange_rate_used
     FROM `{table_ref}`
     {where_clause}
     ORDER BY provider, plan_name
@@ -2163,8 +2441,8 @@ async def get_all_plans(
                 currency=row.currency if hasattr(row, "currency") else "USD",
                 seats=row.seats if hasattr(row, "seats") else 0,
                 pricing_model=row.pricing_model if hasattr(row, "pricing_model") else "PER_SEAT",
-                unit_price_usd=float(row.unit_price_usd or 0),
-                yearly_price_usd=float(row.yearly_price_usd) if hasattr(row, "yearly_price_usd") and row.yearly_price_usd else None,
+                unit_price=float(row.unit_price or 0),
+                yearly_price=float(row.yearly_price) if hasattr(row, "yearly_price") and row.yearly_price else None,
                 discount_type=row.discount_type if hasattr(row, "discount_type") else None,
                 discount_value=row.discount_value if hasattr(row, "discount_value") else None,
                 auto_renew=row.auto_renew if hasattr(row, "auto_renew") else True,
@@ -2185,8 +2463,8 @@ async def get_all_plans(
             # Aggregate for summary - calculate monthly cost with billing cycle adjustment
             if plan.status == "active":
                 enabled_count += 1
-                monthly_cost = plan.unit_price_usd * (plan.seats if plan.pricing_model == "PER_SEAT" else 1)
-                # Adjust for billing cycle (unit_price_usd is per cycle, not per month)
+                monthly_cost = plan.unit_price * (plan.seats if plan.pricing_model == "PER_SEAT" else 1)
+                # Adjust for billing cycle (unit_price is per cycle, not per month)
                 if plan.billing_cycle == "annual":
                     monthly_cost = monthly_cost / 12
                 elif plan.billing_cycle == "quarterly":

@@ -183,7 +183,7 @@ describe('Subscription CRUD - Functional Validation', () => {
       'provider',
       'plan_name',
       'display_name',
-      'unit_price_usd',
+      'unit_price',
       'start_date',
       'end_date',
       'status',

@@ -1041,7 +1041,8 @@ async def get_org_api_key_dev(
     - ENVIRONMENT must be "development" or "local"
     """
     # SECURITY: Only allow in development/local environments
-    if settings.environment not in ("development", "local"):
+    # Explicitly block production and staging to prevent accidental exposure
+    if settings.environment in ("production", "prod", "staging", "stage"):
         logger.warning(
             f"Dev API key retrieval attempted in {settings.environment} environment",
             extra={"event_type": "security_violation", "org_slug": org_slug}

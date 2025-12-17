@@ -1,4 +1,4 @@
-template_id,org_slug,subscription_id,provider,plan_name,display_name,category,status,start_date,end_date,billing_cycle,currency,source_currency,seats,pricing_model,unit_price_usd,yearly_price_usd,discount_type,discount_value,auto_renew,payment_method,invoice_id_last,owner_email,department,renewal_date,contract_id,notes
+template_id,org_slug,subscription_id,provider,plan_name,display_name,category,status,start_date,end_date,billing_cycle,currency,source_currency,seats,pricing_model,unit_price,yearly_price,discount_type,discount_value,auto_renew,payment_method,invoice_id_last,owner_email,department,renewal_date,contract_id,notes
 tmpl_chatgpt_free,,sub_chatgpt_free,chatgpt_plus,FREE,ChatGPT Free,ai,active,,,monthly,USD,USD,0,FLAT_FEE,0,0,,,TRUE,,,,,,,Basic ChatGPT access with GPT-3.5
 tmpl_chatgpt_plus,,sub_chatgpt_plus,chatgpt_plus,PLUS,ChatGPT Plus,ai,active,,,monthly,USD,USD,0,FLAT_FEE,20,240,,,TRUE,,,,,,,ChatGPT Plus with GPT-4 access and priority
 tmpl_chatgpt_team,,sub_chatgpt_team,chatgpt_plus,TEAM,ChatGPT Team,ai,active,,,monthly,USD,USD,0,PER_SEAT,25,300,,,TRUE,,,,,,,Team workspace with GPT-4 and collaboration features

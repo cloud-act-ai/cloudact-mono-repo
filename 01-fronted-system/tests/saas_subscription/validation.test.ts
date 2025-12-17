@@ -46,8 +46,8 @@ const VALID_STATUS_VALUES = new Set(['active', 'cancelled', 'expired', 'pending'
 
 interface PlanData {
     plan_name?: string
-    unit_price_usd?: number
-    yearly_price_usd?: number
+    unit_price?: number
+    yearly_price?: number
     seats?: number
     billing_cycle?: string
     pricing_model?: string
@@ -59,10 +59,10 @@ function validatePlanData(plan: PlanData): { valid: boolean; error?: string } {
     if (plan.plan_name && plan.plan_name.length > 50) {
         return { valid: false, error: `Plan name too long. Maximum 50 characters allowed.` }
     }
-    if (plan.unit_price_usd !== undefined && plan.unit_price_usd < 0) {
+    if (plan.unit_price !== undefined && plan.unit_price < 0) {
         return { valid: false, error: `Unit price cannot be negative` }
     }
-    if (plan.yearly_price_usd !== undefined && plan.yearly_price_usd < 0) {
+    if (plan.yearly_price !== undefined && plan.yearly_price < 0) {
         return { valid: false, error: `Yearly price cannot be negative` }
     }
     if (plan.seats !== undefined && plan.seats < 0) {
@@ -298,7 +298,7 @@ describe('Flow 18: SaaS Subscription Validation Unit Tests', () => {
             it('should accept valid complete plan', () => {
                 const result = validatePlanData({
                     plan_name: 'PRO',
-                    unit_price_usd: 20.00,
+                    unit_price: 20.00,
                     seats: 10,
                     billing_cycle: 'monthly',
                     pricing_model: 'PER_SEAT',
@@ -308,7 +308,7 @@ describe('Flow 18: SaaS Subscription Validation Unit Tests', () => {
             })
 
             it('should accept zero price (free plan)', () => {
-                const result = validatePlanData({ unit_price_usd: 0 })
+                const result = validatePlanData({ unit_price: 0 })
                 expect(result.valid).toBe(true)
             })
 
@@ -325,13 +325,13 @@ describe('Flow 18: SaaS Subscription Validation Unit Tests', () => {
 
         describe('Invalid prices', () => {
             it('should reject negative unit price', () => {
-                const result = validatePlanData({ unit_price_usd: -10 })
+                const result = validatePlanData({ unit_price: -10 })
                 expect(result.valid).toBe(false)
                 expect(result.error).toContain('negative')
             })
 
             it('should reject negative yearly price', () => {
-                const result = validatePlanData({ yearly_price_usd: -100 })
+                const result = validatePlanData({ yearly_price: -100 })
                 expect(result.valid).toBe(false)
                 expect(result.error).toContain('negative')
             })

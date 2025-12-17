@@ -55,7 +55,7 @@ async function verifyOrgMembership(orgSlug: string): Promise<{
 
   // Extract org_id from the joined result
   // Supabase single() returns object directly, not array
-  const orgData = membership.organizations as { id: string; org_slug: string } | null
+  const orgData = membership.organizations as unknown as { id: string; org_slug: string } | null
 
   if (!orgData || !orgData.id) {
     return { authorized: false, userId: user.id, error: "Organization data incomplete" }
@@ -236,9 +236,15 @@ async function syncLocaleToBackend(
         return { success: true }
       }
 
-      // Parse error response
-      const errorData = await response.json().catch(() => ({ detail: "Unknown error" }))
-      lastError = errorData.detail || `HTTP ${response.status}`
+      // Parse error response with validation
+      try {
+        const errorData = await response.json()
+        lastError = (errorData && typeof errorData === 'object' && 'detail' in errorData)
+          ? String(errorData.detail)
+          : `HTTP ${response.status}`
+      } catch {
+        lastError = `HTTP ${response.status} - Unable to parse error response`
+      }
       console.warn(`[Org Locale] Backend sync attempt ${attempt} failed: ${lastError}`)
 
     } catch (fetchErr: unknown) {
@@ -343,6 +349,11 @@ export async function validateLocaleSync(orgSlug: string): Promise<{
       }
 
       const bigqueryData = await response.json()
+
+      // Validate response structure
+      if (!bigqueryData || typeof bigqueryData !== 'object') {
+        return { inSync: false, supabase: supabaseLocale, error: "Invalid BigQuery locale response" }
+      }
       const bigqueryLocale: OrgLocale = {
         default_currency: bigqueryData.default_currency || "USD",
         default_timezone: bigqueryData.default_timezone || "UTC",

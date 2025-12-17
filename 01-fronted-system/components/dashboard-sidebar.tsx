@@ -104,10 +104,11 @@ export function DashboardSidebar({
   const pathname = usePathname()
   const [isLoading, setIsLoading] = useState(false)
   const [logoUrl, setLogoUrl] = useState<string | null>(null)
-  const [integrationsExpanded, setIntegrationsExpanded] = useState(
+  const [logoLoading, setLogoLoading] = useState(true)
+  const [integrationsExpanded, setIntegrationsExpanded] = useState<boolean>(
     pathname?.includes("/integrations") || true  // Open by default
   )
-  const [settingsExpanded, setSettingsExpanded] = useState(
+  const [settingsExpanded, setSettingsExpanded] = useState<boolean>(
     pathname?.includes("/settings") || pathname?.includes("/billing") || true  // Expanded by default
   )
 
@@ -115,16 +116,25 @@ export function DashboardSidebar({
   const { state } = useSidebar()
   const isCollapsed = state === "collapsed"
 
-  // Fetch org logo
+  // Fetch org logo with loading state
   useEffect(() => {
     const fetchLogo = async () => {
+      if (!orgSlug) {
+        setLogoLoading(false)
+        return
+      }
+
       try {
+        setLogoLoading(true)
         const result = await getOrgDetails(orgSlug)
         if (result.success && result.org?.logoUrl) {
           setLogoUrl(result.org.logoUrl)
         }
       } catch (error) {
         console.error("Failed to fetch org logo:", error)
+        // Don't throw - gracefully fall back to default icon
+      } finally {
+        setLogoLoading(false)
       }
     }
     fetchLogo()
@@ -163,7 +173,9 @@ export function DashboardSidebar({
             "flex-shrink-0 rounded-md overflow-hidden bg-gradient-to-br from-[#007A78] to-[#14B8A6] flex items-center justify-center",
             "h-8 w-8"
           )}>
-            {logoUrl ? (
+            {logoLoading ? (
+              <div className="h-4 w-4 animate-pulse bg-white/20 rounded" />
+            ) : logoUrl ? (
               <Image
                 src={logoUrl}
                 alt={formattedOrgName}

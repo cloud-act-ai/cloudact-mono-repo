@@ -260,10 +260,10 @@ class OpenAISubscriptionCreate(BaseModel):
         ge=0,
         description="Number of subscriptions"
     )
-    unit_price_usd: float = Field(
+    unit_price: float = Field(
         ...,
         ge=0,
-        description="Price per unit in USD"
+        description="Price per unit in org's currency"
     )
     effective_date: date = Field(
         ...,
@@ -350,10 +350,10 @@ class OpenAISubscriptionUpdate(BaseModel):
         ge=0,
         description="Number of subscriptions"
     )
-    unit_price_usd: Optional[float] = Field(
+    unit_price: Optional[float] = Field(
         None,
         ge=0,
-        description="Price per unit in USD"
+        description="Price per unit in org's currency"
     )
     effective_date: Optional[date] = Field(
         None,
@@ -438,7 +438,7 @@ class OpenAISubscriptionResponse(BaseModel):
     subscription_id: str
     plan_name: str
     quantity: int
-    unit_price_usd: float
+    unit_price: float
     effective_date: date
     notes: Optional[str]
     # New fields for tier type, rate limits, and commitments

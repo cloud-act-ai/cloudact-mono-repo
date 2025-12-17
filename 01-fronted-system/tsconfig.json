@@ -37,6 +37,8 @@
     ".source/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "vitest.*.config.ts",
+    "vitest.config.ts"
   ]
 }

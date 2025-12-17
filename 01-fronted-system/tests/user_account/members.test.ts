@@ -515,7 +515,10 @@ describe.skipIf(SKIP_TESTS)('Flow 18: Member Management Comprehensive Tests', ()
                 email_confirm: true
             })
 
-            testMemberToRemove = userData!.user.id
+            if (!userData.user) {
+                throw new Error('Failed to create user for removal test')
+            }
+            testMemberToRemove = userData.user.id
 
             await supabase
                 .from('organization_members')
@@ -644,7 +647,10 @@ describe.skipIf(SKIP_TESTS)('Flow 18: Member Management Comprehensive Tests', ()
                 email_confirm: true
             })
 
-            testMemberToUpdate = userData!.user.id
+            if (!userData.user) {
+                throw new Error('Failed to create user for role update test')
+            }
+            testMemberToUpdate = userData.user.id
 
             await supabase
                 .from('organization_members')
@@ -753,7 +759,10 @@ describe.skipIf(SKIP_TESTS)('Flow 18: Member Management Comprehensive Tests', ()
                 email_confirm: true
             })
 
-            inviteUserForAccept = userData!.user.id
+            if (!userData.user) {
+                throw new Error('Failed to create user for invite acceptance test')
+            }
+            inviteUserForAccept = userData.user.id
 
             // Create invite for this user
             const { randomBytes } = await import('crypto')
@@ -896,7 +905,10 @@ describe.skipIf(SKIP_TESTS)('Flow 18: Member Management Comprehensive Tests', ()
                 email_confirm: true
             })
 
-            const inactiveUserId = inactiveUser!.user.id
+            if (!inactiveUser.user) {
+                throw new Error('Failed to create inactive user')
+            }
+            const inactiveUserId = inactiveUser.user.id
 
             const { data: inactiveMember } = await supabase
                 .from('organization_members')

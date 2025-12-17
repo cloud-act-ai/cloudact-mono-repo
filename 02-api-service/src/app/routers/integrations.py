@@ -1250,7 +1250,7 @@ async def _initialize_openai_subscriptions(org_slug: str, force: bool = False) -
                     "subscription_id": row["subscription_id"],
                     "plan_name": row["plan_name"],
                     "quantity": int(row["quantity"]),
-                    "unit_price_usd": float(row["unit_price_usd"]),
+                    "unit_price": float(row["unit_price"]),
                     "effective_date": row["effective_date"],
                     "notes": row.get("notes"),
                     "created_at": now,
@@ -1574,7 +1574,7 @@ async def _initialize_saas_subscriptions(org_slug: str, provider: str, force: bo
                 # Validate int/float parsing with error handling
                 try:
                     quantity = int(row["quantity"])
-                    unit_price = float(row["unit_price_usd"])
+                    unit_price = float(row["unit_price"])
                     is_custom = row.get("is_custom", "false").lower() == "true"
                     is_enabled = row.get("is_enabled", "true").lower() == "true"
                 except (ValueError, KeyError) as e:
@@ -1604,7 +1604,7 @@ async def _initialize_saas_subscriptions(org_slug: str, provider: str, force: bo
                     "plan_name": row["plan_name"],
                     "is_custom": is_custom,
                     "quantity": quantity,
-                    "unit_price_usd": unit_price,
+                    "unit_price": unit_price,
                     "effective_date": parse_date(row["effective_date"]),
                     "end_date": parse_date(row.get("end_date")),
                     "is_enabled": is_enabled,
@@ -1624,7 +1624,7 @@ async def _initialize_saas_subscriptions(org_slug: str, provider: str, force: bo
                     "commitment_term_months": parse_int(row.get("commitment_term_months")),
                     "discount_percentage": parse_float(row.get("discount_percentage")),
                     "billing_period": row.get("billing_period", "pay_as_you_go"),
-                    "yearly_price_usd": parse_float(row.get("yearly_price_usd")),
+                    "yearly_price": parse_float(row.get("yearly_price")),
                     "yearly_discount_percentage": parse_float(row.get("yearly_discount_percentage")),
                     "created_at": now,
                     "updated_at": now,
@@ -1636,20 +1636,20 @@ async def _initialize_saas_subscriptions(org_slug: str, provider: str, force: bo
             for row in rows:
                 insert_query = f"""
                 INSERT INTO `{table_id}` (
-                    subscription_id, provider, plan_name, is_custom, quantity, unit_price_usd,
+                    subscription_id, provider, plan_name, is_custom, quantity, unit_price,
                     effective_date, end_date, is_enabled, auth_type, notes, tier_type,
                     trial_end_date, trial_credit_usd, monthly_token_limit, daily_token_limit,
                     rpm_limit, tpm_limit, rpd_limit, tpd_limit, concurrent_limit,
                     committed_spend_usd, commitment_term_months, discount_percentage,
-                    billing_period, yearly_price_usd, yearly_discount_percentage,
+                    billing_period, yearly_price, yearly_discount_percentage,
                     created_at, updated_at
                 ) VALUES (
-                    @subscription_id, @provider, @plan_name, @is_custom, @quantity, @unit_price_usd,
+                    @subscription_id, @provider, @plan_name, @is_custom, @quantity, @unit_price,
                     @effective_date, @end_date, @is_enabled, @auth_type, @notes, @tier_type,
                     @trial_end_date, @trial_credit_usd, @monthly_token_limit, @daily_token_limit,
                     @rpm_limit, @tpm_limit, @rpd_limit, @tpd_limit, @concurrent_limit,
                     @committed_spend_usd, @commitment_term_months, @discount_percentage,
-                    @billing_period, @yearly_price_usd, @yearly_discount_percentage,
+                    @billing_period, @yearly_price, @yearly_discount_percentage,
                     @created_at, @updated_at
                 )
                 """
@@ -1660,7 +1660,7 @@ async def _initialize_saas_subscriptions(org_slug: str, provider: str, force: bo
                         bigquery.ScalarQueryParameter("plan_name", "STRING", row["plan_name"]),
                         bigquery.ScalarQueryParameter("is_custom", "BOOL", row["is_custom"]),
                         bigquery.ScalarQueryParameter("quantity", "INT64", row["quantity"]),
-                        bigquery.ScalarQueryParameter("unit_price_usd", "FLOAT64", row["unit_price_usd"]),
+                        bigquery.ScalarQueryParameter("unit_price", "FLOAT64", row["unit_price"]),
                         bigquery.ScalarQueryParameter("effective_date", "DATE", row["effective_date"]),
                         bigquery.ScalarQueryParameter("end_date", "DATE", row.get("end_date")),
                         bigquery.ScalarQueryParameter("is_enabled", "BOOL", row["is_enabled"]),
@@ -1680,7 +1680,7 @@ async def _initialize_saas_subscriptions(org_slug: str, provider: str, force: bo
                         bigquery.ScalarQueryParameter("commitment_term_months", "INT64", row.get("commitment_term_months")),
                         bigquery.ScalarQueryParameter("discount_percentage", "FLOAT64", row.get("discount_percentage")),
                         bigquery.ScalarQueryParameter("billing_period", "STRING", row["billing_period"]),
-                        bigquery.ScalarQueryParameter("yearly_price_usd", "FLOAT64", row.get("yearly_price_usd")),
+                        bigquery.ScalarQueryParameter("yearly_price", "FLOAT64", row.get("yearly_price")),
                         bigquery.ScalarQueryParameter("yearly_discount_percentage", "FLOAT64", row.get("yearly_discount_percentage")),
                         bigquery.ScalarQueryParameter("created_at", "TIMESTAMP", row["created_at"]),
                         bigquery.ScalarQueryParameter("updated_at", "TIMESTAMP", row["updated_at"]),
@@ -1874,7 +1874,7 @@ async def _initialize_gemini_subscriptions(org_slug: str, force: bool = False) -
                 # Bug fix #6: Wrap int/float conversions in try-except
                 try:
                     quantity = int(row["quantity"])
-                    unit_price = float(row["unit_price_usd"])
+                    unit_price = float(row["unit_price"])
                 except (ValueError, KeyError) as e:
                     logger.warning(f"Invalid Gemini subscription data in CSV row {row.get('subscription_id', 'unknown')}: {e}")
                     continue
@@ -1883,7 +1883,7 @@ async def _initialize_gemini_subscriptions(org_slug: str, force: bool = False) -
                     "subscription_id": row["subscription_id"],
                     "plan_name": row["plan_name"],
                     "quantity": quantity,
-                    "unit_price_usd": unit_price,
+                    "unit_price": unit_price,
                     "effective_date": row["effective_date"],
                     "notes": row.get("notes"),
                     "created_at": now,

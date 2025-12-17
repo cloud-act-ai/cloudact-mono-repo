@@ -39,6 +39,7 @@ export function PaginationDemo() {
               <PaginationItem>
                 <PaginationPrevious
                   href="#"
+                  size="icon"
                   disabled={currentPage === 1}
                   onClick={(e) => {
                     e.preventDefault()
@@ -47,13 +48,14 @@ export function PaginationDemo() {
                 />
               </PaginationItem>
               <PaginationItem>
-                <PaginationLink href="#" isActive>
+                <PaginationLink href="#" isActive size="icon">
                   {currentPage}
                 </PaginationLink>
               </PaginationItem>
               <PaginationItem>
                 <PaginationNext
                   href="#"
+                  size="icon"
                   disabled={currentPage === totalPages}
                   onClick={(e) => {
                     e.preventDefault()
@@ -77,6 +79,7 @@ export function PaginationDemo() {
               <PaginationItem>
                 <PaginationPrevious
                   href="#"
+                  size="icon"
                   disabled={currentPage === 1}
                   onClick={(e) => {
                     e.preventDefault()
@@ -90,6 +93,7 @@ export function PaginationDemo() {
                 <PaginationLink
                   href="#"
                   isActive={currentPage === 1}
+                  size="icon"
                   onClick={(e) => {
                     e.preventDefault()
                     setCurrentPage(1)
@@ -111,6 +115,7 @@ export function PaginationDemo() {
                 <PaginationItem>
                   <PaginationLink
                     href="#"
+                    size="icon"
                     onClick={(e) => {
                       e.preventDefault()
                       setCurrentPage(currentPage - 1)
@@ -124,7 +129,7 @@ export function PaginationDemo() {
               {/* Current page */}
               {currentPage !== 1 && currentPage !== totalPages && (
                 <PaginationItem>
-                  <PaginationLink href="#" isActive>
+                  <PaginationLink href="#" isActive size="icon">
                     {currentPage}
                   </PaginationLink>
                 </PaginationItem>
@@ -135,6 +140,7 @@ export function PaginationDemo() {
                 <PaginationItem>
                   <PaginationLink
                     href="#"
+                    size="icon"
                     onClick={(e) => {
                       e.preventDefault()
                       setCurrentPage(currentPage + 1)
@@ -157,6 +163,7 @@ export function PaginationDemo() {
                 <PaginationLink
                   href="#"
                   isActive={currentPage === totalPages}
+                  size="icon"
                   onClick={(e) => {
                     e.preventDefault()
                     setCurrentPage(totalPages)
@@ -169,6 +176,7 @@ export function PaginationDemo() {
               <PaginationItem>
                 <PaginationNext
                   href="#"
+                  size="icon"
                   disabled={currentPage === totalPages}
                   onClick={(e) => {
                     e.preventDefault()
@@ -190,15 +198,15 @@ export function PaginationDemo() {
           <Pagination>
             <PaginationContent>
               <PaginationItem>
-                <PaginationPrevious href="#" disabled />
+                <PaginationPrevious href="#" size="icon" disabled />
               </PaginationItem>
               <PaginationItem>
-                <PaginationLink href="#" isActive>
+                <PaginationLink href="#" isActive size="icon">
                   1
                 </PaginationLink>
               </PaginationItem>
               <PaginationItem>
-                <PaginationLink href="#" disabled>
+                <PaginationLink href="#" disabled size="icon">
                   2
                 </PaginationLink>
               </PaginationItem>
@@ -206,12 +214,12 @@ export function PaginationDemo() {
                 <PaginationEllipsis />
               </PaginationItem>
               <PaginationItem>
-                <PaginationLink href="#" disabled>
+                <PaginationLink href="#" disabled size="icon">
                   10
                 </PaginationLink>
               </PaginationItem>
               <PaginationItem>
-                <PaginationNext href="#" disabled />
+                <PaginationNext href="#" size="icon" disabled />
               </PaginationItem>
             </PaginationContent>
           </Pagination>

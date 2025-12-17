@@ -137,10 +137,10 @@ class SaaSSubscriptionBase(BaseModel):
         description="Plan identifier (FREE, TIER1, PRO, TEAM, ENTERPRISE, etc.)"
     )
 
-    unit_price_usd: float = Field(
+    unit_price: float = Field(
         ...,
         ge=0.0,
-        description="Monthly subscription cost per unit in USD"
+        description="Price per billing cycle in org's currency"
     )
 
     status: StatusEnum = Field(
@@ -265,7 +265,7 @@ class SaaSSubscriptionUpdate(BaseModel):
     """Schema for updating an existing SaaS subscription (partial updates)."""
 
     plan_name: Optional[str] = Field(None, min_length=1, max_length=50)
-    unit_price_usd: Optional[float] = Field(None, ge=0.0)
+    unit_price: Optional[float] = Field(None, ge=0.0)
     status: Optional[StatusEnum] = None
     start_date: Optional[date] = None
     end_date: Optional[date] = None

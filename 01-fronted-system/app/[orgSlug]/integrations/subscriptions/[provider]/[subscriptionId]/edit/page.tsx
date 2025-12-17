@@ -101,7 +101,7 @@ export default function EditSubscriptionPage() {
   // Edit form state
   const [editData, setEditData] = useState<PlanUpdate>({
     display_name: "",
-    unit_price_usd: 0,
+    unit_price: 0,
     seats: 0,
     billing_cycle: "monthly",
     pricing_model: "FLAT_FEE",
@@ -144,7 +144,7 @@ export default function EditSubscriptionPage() {
             // Pre-fill form with current plan data
             setEditData({
               display_name: plan.display_name || plan.plan_name,
-              unit_price_usd: plan.unit_price_usd,
+              unit_price: plan.unit_price,
               seats: plan.seats ?? 0,
               billing_cycle: plan.billing_cycle,
               pricing_model: plan.pricing_model || "FLAT_FEE",
@@ -186,7 +186,7 @@ export default function EditSubscriptionPage() {
     }
 
     // Validate inputs
-    if (editData.unit_price_usd !== undefined && editData.unit_price_usd < 0) {
+    if (editData.unit_price !== undefined && editData.unit_price < 0) {
       setError("Price cannot be negative")
       return
     }
@@ -388,7 +388,7 @@ export default function EditSubscriptionPage() {
               <div>
                 <span className="text-slate-500 block text-xs uppercase tracking-wide mb-1">Current Price</span>
                 <span className="font-medium text-[#FF6E50]">
-                  {formatCurrency(currentPlan.unit_price_usd, orgCurrency)}/{currentPlan.billing_cycle}
+                  {formatCurrency(currentPlan.unit_price, orgCurrency)}/{currentPlan.billing_cycle}
                 </span>
               </div>
               <div>
@@ -398,8 +398,8 @@ export default function EditSubscriptionPage() {
               <div>
                 <span className="text-slate-500 block text-xs uppercase tracking-wide mb-1">Current Monthly Cost</span>
                 <span className="font-medium">{(() => {
-                  let monthlyCost = currentPlan.unit_price_usd * (currentPlan.seats ?? 1)
-                  if (currentPlan.pricing_model === 'FLAT_FEE') monthlyCost = currentPlan.unit_price_usd
+                  let monthlyCost = currentPlan.unit_price * (currentPlan.seats ?? 1)
+                  if (currentPlan.pricing_model === 'FLAT_FEE') monthlyCost = currentPlan.unit_price
                   if (currentPlan.billing_cycle === 'annual') monthlyCost = monthlyCost / 12
                   if (currentPlan.billing_cycle === 'quarterly') monthlyCost = monthlyCost / 3
                   return formatCurrency(monthlyCost, orgCurrency)
@@ -436,18 +436,18 @@ export default function EditSubscriptionPage() {
             {/* Editable Fields */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="unit_price_usd">Unit Price ({orgCurrency}) *</Label>
+                <Label htmlFor="unit_price">Unit Price ({orgCurrency}) *</Label>
                 <Input
-                  id="unit_price_usd"
+                  id="unit_price"
                   type="number"
                   min={0}
                   step="0.01"
                   placeholder="0.00"
-                  value={editData.unit_price_usd === 0 ? "" : editData.unit_price_usd}
+                  value={editData.unit_price === 0 ? "" : editData.unit_price}
                   onFocus={(e) => e.target.select()}
                   onChange={(e) => {
                     const parsed = parseFloat(e.target.value)
-                    setEditData({ ...editData, unit_price_usd: e.target.value === "" ? 0 : (isNaN(parsed) ? 0 : Math.max(0, parsed)) })
+                    setEditData({ ...editData, unit_price: e.target.value === "" ? 0 : (isNaN(parsed) ? 0 : Math.max(0, parsed)) })
                   }}
                   disabled={saving}
                   data-testid="edit-price-input"

@@ -166,7 +166,7 @@ describe.skipIf(SKIP_TESTS)('Flow 17: SaaS Subscription Plans CRUD', () => {
                 display_name: expect.any(String),
                 billing_cycle: expect.stringMatching(/^(monthly|annual|quarterly)$/),
                 pricing_model: expect.stringMatching(/^(PER_SEAT|FLAT_FEE)$/),
-                unit_price_usd: expect.any(Number),
+                unit_price: expect.any(Number),
             }
 
             console.log('✓ Template plans API endpoint validated')
@@ -179,7 +179,7 @@ describe.skipIf(SKIP_TESTS)('Flow 17: SaaS Subscription Plans CRUD', () => {
                 'display_name',
                 'billing_cycle',
                 'pricing_model',
-                'unit_price_usd',
+                'unit_price',
                 'seats',
                 'category'
             ]
@@ -196,7 +196,7 @@ describe.skipIf(SKIP_TESTS)('Flow 17: SaaS Subscription Plans CRUD', () => {
             const mockTemplate = {
                 plan_name: 'PRO',
                 display_name: 'Pro Plan',
-                unit_price_usd: 12.99,
+                unit_price: 12.99,
                 seats: 1,
                 billing_cycle: 'monthly',
                 pricing_model: 'PER_SEAT' as const,
@@ -207,7 +207,7 @@ describe.skipIf(SKIP_TESTS)('Flow 17: SaaS Subscription Plans CRUD', () => {
             const formData = {
                 plan_name: mockTemplate.plan_name,
                 display_name: mockTemplate.display_name || mockTemplate.plan_name,
-                unit_price_usd: mockTemplate.unit_price_usd,
+                unit_price: mockTemplate.unit_price,
                 seats: mockTemplate.seats || 1,
                 billing_cycle: mockTemplate.billing_cycle,
                 pricing_model: mockTemplate.pricing_model,
@@ -217,7 +217,7 @@ describe.skipIf(SKIP_TESTS)('Flow 17: SaaS Subscription Plans CRUD', () => {
 
             expect(formData.plan_name).toBe('PRO')
             expect(formData.display_name).toBe('Pro Plan')
-            expect(formData.unit_price_usd).toBe(12.99)
+            expect(formData.unit_price).toBe(12.99)
             expect(formData.seats).toBe(1)
             expect(formData.billing_cycle).toBe('monthly')
             expect(formData.pricing_model).toBe('PER_SEAT')
@@ -262,7 +262,7 @@ describe.skipIf(SKIP_TESTS)('Flow 17: SaaS Subscription Plans CRUD', () => {
             const validPlanData = {
                 plan_name: 'CUSTOM_TEAM',
                 display_name: 'Custom Team Plan',
-                unit_price_usd: 25.00,
+                unit_price: 25.00,
                 seats: 10,
                 billing_cycle: 'monthly',
                 pricing_model: 'PER_SEAT' as const,
@@ -273,7 +273,7 @@ describe.skipIf(SKIP_TESTS)('Flow 17: SaaS Subscription Plans CRUD', () => {
 
             // Validate plan structure
             expect(validPlanData.plan_name).toMatch(/^[A-Z0-9_]+$/)
-            expect(validPlanData.unit_price_usd).toBeGreaterThanOrEqual(0)
+            expect(validPlanData.unit_price).toBeGreaterThanOrEqual(0)
             expect(validPlanData.seats).toBeGreaterThanOrEqual(1)
             expect(validPlanData.start_date).toMatch(/^\d{4}-\d{2}-\d{2}$/)
 
@@ -283,18 +283,18 @@ describe.skipIf(SKIP_TESTS)('Flow 17: SaaS Subscription Plans CRUD', () => {
 
             console.log('✓ Custom plan creation data validated')
             console.log(`  Plan: ${validPlanData.display_name}`)
-            console.log(`  Price: $${validPlanData.unit_price_usd}/seat`)
+            console.log(`  Price: $${validPlanData.unit_price}/seat`)
             console.log(`  Seats: ${validPlanData.seats}`)
         })
 
         it('should reject negative price', () => {
             const invalidPlanData = {
                 plan_name: 'INVALID_PLAN',
-                unit_price_usd: -10.00, // Invalid
+                unit_price: -10.00, // Invalid
                 seats: 5
             }
 
-            const isValid = invalidPlanData.unit_price_usd >= 0
+            const isValid = invalidPlanData.unit_price >= 0
             expect(isValid).toBe(false)
 
             // Expected error message
@@ -307,7 +307,7 @@ describe.skipIf(SKIP_TESTS)('Flow 17: SaaS Subscription Plans CRUD', () => {
         it('should reject negative seats', () => {
             const invalidPlanData = {
                 plan_name: 'INVALID_PLAN',
-                unit_price_usd: 10.00,
+                unit_price: 10.00,
                 seats: -5 // Invalid
             }
 
@@ -320,7 +320,7 @@ describe.skipIf(SKIP_TESTS)('Flow 17: SaaS Subscription Plans CRUD', () => {
         it('should reject zero seats for PER_SEAT pricing model', () => {
             const invalidPlanData = {
                 plan_name: 'ZERO_SEATS',
-                unit_price_usd: 10.00,
+                unit_price: 10.00,
                 seats: 0,
                 pricing_model: 'PER_SEAT' as const
             }
@@ -338,7 +338,7 @@ describe.skipIf(SKIP_TESTS)('Flow 17: SaaS Subscription Plans CRUD', () => {
         it('should allow zero seats for FLAT_FEE pricing model', () => {
             const validPlanData = {
                 plan_name: 'FLAT_PLAN',
-                unit_price_usd: 100.00,
+                unit_price: 100.00,
                 seats: 0, // Valid for FLAT_FEE
                 pricing_model: 'FLAT_FEE' as const
             }
@@ -352,7 +352,7 @@ describe.skipIf(SKIP_TESTS)('Flow 17: SaaS Subscription Plans CRUD', () => {
         it('should reject seats exceeding 10000', () => {
             const invalidPlanData = {
                 plan_name: 'HUGE_SEATS',
-                unit_price_usd: 10.00,
+                unit_price: 10.00,
                 seats: 99999 // Invalid - exceeds max
             }
 
@@ -380,7 +380,7 @@ describe.skipIf(SKIP_TESTS)('Flow 17: SaaS Subscription Plans CRUD', () => {
         it('should require plan name', () => {
             const invalidPlanData = {
                 plan_name: '', // Empty - invalid
-                unit_price_usd: 10.00,
+                unit_price: 10.00,
                 seats: 5
             }
 
@@ -393,7 +393,7 @@ describe.skipIf(SKIP_TESTS)('Flow 17: SaaS Subscription Plans CRUD', () => {
         it('should require start date', () => {
             const invalidPlanData = {
                 plan_name: 'NO_DATE_PLAN',
-                unit_price_usd: 10.00,
+                unit_price: 10.00,
                 seats: 5,
                 start_date: undefined
             }
@@ -454,13 +454,13 @@ describe.skipIf(SKIP_TESTS)('Flow 17: SaaS Subscription Plans CRUD', () => {
 
         it('should calculate monthly cost correctly for PER_SEAT', () => {
             const plan = {
-                unit_price_usd: 20.00,
+                unit_price: 20.00,
                 seats: 10,
                 pricing_model: 'PER_SEAT' as const,
                 billing_cycle: 'monthly'
             }
 
-            const monthlyCost = plan.unit_price_usd * plan.seats
+            const monthlyCost = plan.unit_price * plan.seats
             expect(monthlyCost).toBe(200.00)
 
             console.log(`✓ PER_SEAT monthly cost: $${monthlyCost}`)
@@ -468,13 +468,13 @@ describe.skipIf(SKIP_TESTS)('Flow 17: SaaS Subscription Plans CRUD', () => {
 
         it('should calculate monthly cost correctly for FLAT_FEE', () => {
             const plan = {
-                unit_price_usd: 100.00,
+                unit_price: 100.00,
                 seats: 0,
                 pricing_model: 'FLAT_FEE' as const,
                 billing_cycle: 'monthly'
             }
 
-            const monthlyCost = plan.unit_price_usd // Flat fee ignores seats
+            const monthlyCost = plan.unit_price // Flat fee ignores seats
             expect(monthlyCost).toBe(100.00)
 
             console.log(`✓ FLAT_FEE monthly cost: $${monthlyCost}`)
@@ -482,13 +482,13 @@ describe.skipIf(SKIP_TESTS)('Flow 17: SaaS Subscription Plans CRUD', () => {
 
         it('should calculate monthly cost from annual billing', () => {
             const plan = {
-                unit_price_usd: 240.00,
+                unit_price: 240.00,
                 seats: 1,
                 pricing_model: 'PER_SEAT' as const,
                 billing_cycle: 'annual'
             }
 
-            const annualCost = plan.unit_price_usd * plan.seats
+            const annualCost = plan.unit_price * plan.seats
             const monthlyCost = annualCost / 12
             expect(monthlyCost).toBe(20.00)
 
@@ -497,13 +497,13 @@ describe.skipIf(SKIP_TESTS)('Flow 17: SaaS Subscription Plans CRUD', () => {
 
         it('should calculate monthly cost from quarterly billing', () => {
             const plan = {
-                unit_price_usd: 60.00,
+                unit_price: 60.00,
                 seats: 1,
                 pricing_model: 'PER_SEAT' as const,
                 billing_cycle: 'quarterly'
             }
 
-            const quarterlyCost = plan.unit_price_usd * plan.seats
+            const quarterlyCost = plan.unit_price * plan.seats
             const monthlyCost = quarterlyCost / 3
             expect(monthlyCost).toBe(20.00)
 
@@ -518,7 +518,7 @@ describe.skipIf(SKIP_TESTS)('Flow 17: SaaS Subscription Plans CRUD', () => {
     describe('Edit Plan with Version History', () => {
         it('should require effective date for edit', () => {
             const editData = {
-                unit_price_usd: 30.00,
+                unit_price: 30.00,
                 seats: 15,
                 effective_date: undefined // Missing - invalid
             }
@@ -543,14 +543,14 @@ describe.skipIf(SKIP_TESTS)('Flow 17: SaaS Subscription Plans CRUD', () => {
         it('should create new version with updated values', () => {
             const originalPlan = {
                 subscription_id: 'plan_123',
-                unit_price_usd: 20.00,
+                unit_price: 20.00,
                 seats: 10,
                 start_date: '2025-01-01'
             }
 
             const editRequest = {
                 effective_date: '2025-12-15',
-                unit_price_usd: 25.00,
+                unit_price: 25.00,
                 seats: 15
             }
 
@@ -572,7 +572,7 @@ describe.skipIf(SKIP_TESTS)('Flow 17: SaaS Subscription Plans CRUD', () => {
             const originalPlan = {
                 plan_name: 'PRO',
                 display_name: 'Pro Plan',
-                unit_price_usd: 20.00,
+                unit_price: 20.00,
                 seats: 10,
                 billing_cycle: 'monthly',
                 pricing_model: 'PER_SEAT',
@@ -580,7 +580,7 @@ describe.skipIf(SKIP_TESTS)('Flow 17: SaaS Subscription Plans CRUD', () => {
             }
 
             const editRequest = {
-                unit_price_usd: 25.00 // Only price changed
+                unit_price: 25.00 // Only price changed
             }
 
             // New version should inherit unchanged fields
@@ -591,7 +591,7 @@ describe.skipIf(SKIP_TESTS)('Flow 17: SaaS Subscription Plans CRUD', () => {
 
             expect(newVersion.plan_name).toBe('PRO')
             expect(newVersion.display_name).toBe('Pro Plan')
-            expect(newVersion.unit_price_usd).toBe(25.00) // Changed
+            expect(newVersion.unit_price).toBe(25.00) // Changed
             expect(newVersion.seats).toBe(10) // Unchanged
             expect(newVersion.billing_cycle).toBe('monthly') // Unchanged
 

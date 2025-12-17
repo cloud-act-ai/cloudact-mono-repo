@@ -475,7 +475,7 @@ describe.skipIf(SKIP_TESTS)('Flow 13: Subscription Providers - Comprehensive Tes
             const customPlan = {
                 plan_name: 'CUSTOM',
                 display_name: 'Custom Tool Pro',
-                unit_price_usd: 25.00,
+                unit_price: 25.00,
                 billing_cycle: 'monthly',
                 notes: 'Custom enterprise tool',
                 seats: 10,
@@ -491,7 +491,7 @@ describe.skipIf(SKIP_TESTS)('Flow 13: Subscription Providers - Comprehensive Tes
             // Verify custom plan structure
             expect(customPlan.plan_name).toBe('CUSTOM')
             expect(customPlan.status).toBe('active')
-            expect(customPlan.unit_price_usd).toBeGreaterThan(0)
+            expect(customPlan.unit_price).toBeGreaterThan(0)
             expect(customPlan.seats).toBeGreaterThan(0)
 
             console.log('✓ Custom provider created successfully')
@@ -647,11 +647,11 @@ describe.skipIf(SKIP_TESTS)('Flow 13: Subscription Providers - Comprehensive Tes
             const mockAllPlansResponse = {
                 success: true,
                 plans: [
-                    { provider: 'canva', plan_name: 'PRO', unit_price_usd: 12.99, billing_cycle: 'monthly', status: 'active', category: 'design' },
-                    { provider: 'canva', plan_name: 'ENTERPRISE', unit_price_usd: 30.00, billing_cycle: 'monthly', status: 'active', category: 'design' },
-                    { provider: 'chatgpt_plus', plan_name: 'PLUS', unit_price_usd: 20.00, billing_cycle: 'monthly', status: 'active', category: 'ai' },
-                    { provider: 'slack', plan_name: 'BUSINESS', unit_price_usd: 12.50, billing_cycle: 'monthly', status: 'active', category: 'communication' },
-                    { provider: 'notion', plan_name: 'TEAM', unit_price_usd: 15.00, billing_cycle: 'monthly', status: 'cancelled', category: 'productivity' }
+                    { provider: 'canva', plan_name: 'PRO', unit_price: 12.99, billing_cycle: 'monthly', status: 'active', category: 'design' },
+                    { provider: 'canva', plan_name: 'ENTERPRISE', unit_price: 30.00, billing_cycle: 'monthly', status: 'active', category: 'design' },
+                    { provider: 'chatgpt_plus', plan_name: 'PLUS', unit_price: 20.00, billing_cycle: 'monthly', status: 'active', category: 'ai' },
+                    { provider: 'slack', plan_name: 'BUSINESS', unit_price: 12.50, billing_cycle: 'monthly', status: 'active', category: 'communication' },
+                    { provider: 'notion', plan_name: 'TEAM', unit_price: 15.00, billing_cycle: 'monthly', status: 'cancelled', category: 'productivity' }
                 ],
                 summary: {
                     total_monthly_cost: 90.49, // Only active plans
@@ -826,7 +826,7 @@ describe.skipIf(SKIP_TESTS)('Flow 13: Subscription Providers - Comprehensive Tes
             // 4. Simulate adding custom plan (would call API)
             const customPlan = {
                 plan_name: 'CUSTOM_SLACK_PLAN',
-                unit_price_usd: 15.00,
+                unit_price: 15.00,
                 seats: 50,
                 billing_cycle: 'monthly',
                 status: 'active',

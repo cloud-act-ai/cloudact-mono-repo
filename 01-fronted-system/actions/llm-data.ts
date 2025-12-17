@@ -153,10 +153,10 @@ function validateSubscriptionData(subscription: SaaSSubscriptionCreate | SaaSSub
     }
   }
 
-  // Validate yearly_price_usd (must be non-negative if provided)
-  if ('yearly_price_usd' in subscription && subscription.yearly_price_usd !== undefined) {
-    if (typeof subscription.yearly_price_usd !== 'number' || subscription.yearly_price_usd < 0) {
-      return "yearly_price_usd must be a non-negative number"
+  // Validate yearly_price (must be non-negative if provided)
+  if ('yearly_price' in subscription && subscription.yearly_price !== undefined) {
+    if (typeof subscription.yearly_price !== 'number' || subscription.yearly_price < 0) {
+      return "yearly_price must be a non-negative number"
     }
   }
 

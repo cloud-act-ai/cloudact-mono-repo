@@ -241,32 +241,37 @@ class AuthMetricsAggregator:
         self.is_running = True
         logger.info("Starting auth metrics background flush task")
 
-        while self.is_running:
-            try:
-                await asyncio.sleep(self.flush_interval)
-                # Add timeout to flush operation to prevent blocking
+        try:
+            while self.is_running:
                 try:
-                    await asyncio.wait_for(
-                        self.flush_updates(bq_client),
-                        timeout=30.0  # 30 second timeout for flush
-                    )
-                except asyncio.TimeoutError:
-                    logger.warning("Background flush timed out (30s)")
-            except asyncio.CancelledError:
-                logger.info("Background flush task cancelled")
-                # Perform cleanup before exiting
-                try:
-                    await asyncio.wait_for(
-                        self.flush_updates(bq_client),
-                        timeout=5.0
-                    )
-                    logger.info("Final flush completed on cancellation")
-                except Exception as cleanup_error:
-                    logger.warning(f"Final flush failed on cancellation: {cleanup_error}")
-                break
-            except Exception as e:
-                logger.error(f"Error in background flush task: {e}", exc_info=True)
-                # Continue running even on error
+                    await asyncio.sleep(self.flush_interval)
+                    # Add timeout to flush operation to prevent blocking
+                    try:
+                        await asyncio.wait_for(
+                            self.flush_updates(bq_client),
+                            timeout=30.0  # 30 second timeout for flush
+                        )
+                    except asyncio.TimeoutError:
+                        logger.warning("Background flush timed out (30s)")
+                except asyncio.CancelledError:
+                    logger.info("Background flush task cancelled")
+                    # Perform cleanup before exiting
+                    try:
+                        await asyncio.wait_for(
+                            self.flush_updates(bq_client),
+                            timeout=5.0
+                        )
+                        logger.info("Final flush completed on cancellation")
+                    except Exception as cleanup_error:
+                        logger.warning(f"Final flush failed on cancellation: {cleanup_error}")
+                    break
+                except Exception as e:
+                    logger.error(f"Error in background flush task: {e}", exc_info=True)
+                    # Continue running even on error
+        finally:
+            # Ensure cleanup happens even if loop exits unexpectedly
+            self.is_running = False
+            logger.info("Background flush task stopped")
 
     def stop_background_flush(self) -> None:
         """Stop background flush task."""

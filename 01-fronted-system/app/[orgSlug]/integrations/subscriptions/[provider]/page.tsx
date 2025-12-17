@@ -174,7 +174,7 @@ export default function ProviderDetailPage() {
   const [formData, setFormData] = useState<FormDataWithAudit>({
     plan_name: "",
     display_name: "",
-    unit_price_usd: 0,
+    unit_price: 0,
     seats: 1,
     billing_cycle: "monthly",
     pricing_model: "FLAT_FEE",
@@ -275,20 +275,20 @@ export default function ProviderDetailPage() {
 
   // Handle template selection - populate form and open custom sheet
   const handleSelectTemplate = (template: AvailablePlan) => {
-    const convertedPrice = convertFromUSD(template.unit_price_usd, orgCurrency)
+    const convertedPrice = convertFromUSD(template.unit_price, orgCurrency)
     const exchangeRate = getExchangeRate(orgCurrency)
 
     setFormData({
       plan_name: template.plan_name,
       display_name: template.display_name || template.plan_name,
-      unit_price_usd: convertedPrice,
+      unit_price: convertedPrice,
       seats: template.seats || 1,
       billing_cycle: template.billing_cycle,
       pricing_model: template.pricing_model,
       currency: orgCurrency,
       notes: template.notes || "",
       source_currency: "USD",
-      source_price: template.unit_price_usd,
+      source_price: template.unit_price,
       exchange_rate_used: exchangeRate,
     })
     setIsFromTemplate(true)
@@ -308,7 +308,7 @@ export default function ProviderDetailPage() {
     setFormData({
       plan_name: "",
       display_name: "",
-      unit_price_usd: 0,
+      unit_price: 0,
       seats: 1,
       billing_cycle: "monthly",
       pricing_model: "FLAT_FEE",
@@ -336,7 +336,7 @@ export default function ProviderDetailPage() {
       return
     }
 
-    if (formData.unit_price_usd < 0) {
+    if (formData.unit_price < 0) {
       setError("Price cannot be negative")
       return
     }
@@ -366,7 +366,7 @@ export default function ProviderDetailPage() {
       } = {
         plan_name: formData.plan_name.toUpperCase().replace(/\s+/g, "_"),
         display_name: formData.display_name || formData.plan_name,
-        unit_price_usd: formData.unit_price_usd,
+        unit_price: formData.unit_price,
         seats: formData.seats,
         billing_cycle: formData.billing_cycle,
         pricing_model: formData.pricing_model,
@@ -708,7 +708,7 @@ export default function ProviderDetailPage() {
                       </div>
                       <div className="col-span-2 text-right">
                         <div className="font-medium text-[#FF6E50]">
-                          {formatCurrency(plan.unit_price_usd, orgCurrency)}
+                          {formatCurrency(plan.unit_price, orgCurrency)}
                         </div>
                         {plan.pricing_model && (
                           <div className="text-xs text-slate-500">
@@ -900,7 +900,7 @@ export default function ProviderDetailPage() {
             ) : (
               <div className="space-y-3">
                 {availablePlans.map((template) => {
-                  const convertedPrice = convertFromUSD(template.unit_price_usd, orgCurrency)
+                  const convertedPrice = convertFromUSD(template.unit_price, orgCurrency)
                   return (
                     <div
                       key={template.plan_name}
@@ -1030,8 +1030,8 @@ export default function ProviderDetailPage() {
                   type="number"
                   min="0"
                   step="0.01"
-                  value={formData.unit_price_usd}
-                  onChange={(e) => setFormData({ ...formData, unit_price_usd: parseFloat(e.target.value) || 0 })}
+                  value={formData.unit_price}
+                  onChange={(e) => setFormData({ ...formData, unit_price: parseFloat(e.target.value) || 0 })}
                   required
                 />
                 {isFromTemplate && formData.source_price !== undefined && (
@@ -1105,7 +1105,7 @@ export default function ProviderDetailPage() {
               />
               {formData.pricing_model === 'PER_SEAT' && (
                 <p className="text-xs text-slate-500">
-                  Total: {formatCurrency(formData.unit_price_usd * (formData.seats || 0), orgCurrency)}/{formData.billing_cycle}
+                  Total: {formatCurrency(formData.unit_price * (formData.seats || 0), orgCurrency)}/{formData.billing_cycle}
                 </p>
               )}
             </div>

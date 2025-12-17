@@ -943,13 +943,13 @@ export default function BillingPage() {
             <DialogDescription>
               {confirmDialog.isUpgrade ? (
                 <>
-                  You're upgrading from <strong>{billingInfo?.subscription?.plan.name}</strong> ({formatCurrency(billingInfo?.subscription?.plan.price, billingInfo?.subscription?.plan.currency || "USD")}/{billingInfo?.subscription?.plan.interval}) to <strong>{confirmDialog.plan?.name}</strong> ({formatCurrency(confirmDialog.plan?.price, confirmDialog.plan?.currency || "USD")}/{confirmDialog.plan?.interval}).
+                  You're upgrading from <strong>{billingInfo?.subscription?.plan.name}</strong> ({formatCurrency(billingInfo?.subscription?.plan.price ?? 0, billingInfo?.subscription?.plan.currency || "USD")}/{billingInfo?.subscription?.plan.interval}) to <strong>{confirmDialog.plan?.name}</strong> ({formatCurrency(confirmDialog.plan?.price ?? 0, confirmDialog.plan?.currency || "USD")}/{confirmDialog.plan?.interval}).
                   <br /><br />
                   Your card will be charged the prorated difference immediately.
                 </>
               ) : (
                 <>
-                  You're downgrading from <strong>{billingInfo?.subscription?.plan.name}</strong> ({formatCurrency(billingInfo?.subscription?.plan.price, billingInfo?.subscription?.plan.currency || "USD")}/{billingInfo?.subscription?.plan.interval}) to <strong>{confirmDialog.plan?.name}</strong> ({formatCurrency(confirmDialog.plan?.price, confirmDialog.plan?.currency || "USD")}/{confirmDialog.plan?.interval}).
+                  You're downgrading from <strong>{billingInfo?.subscription?.plan.name}</strong> ({formatCurrency(billingInfo?.subscription?.plan.price ?? 0, billingInfo?.subscription?.plan.currency || "USD")}/{billingInfo?.subscription?.plan.interval}) to <strong>{confirmDialog.plan?.name}</strong> ({formatCurrency(confirmDialog.plan?.price ?? 0, confirmDialog.plan?.currency || "USD")}/{confirmDialog.plan?.interval}).
                   <br /><br />
                   You'll receive a prorated credit on your next invoice.
                   <br /><br />

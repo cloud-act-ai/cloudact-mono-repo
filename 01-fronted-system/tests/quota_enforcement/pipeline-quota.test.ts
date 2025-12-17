@@ -11,7 +11,7 @@
  */
 
 import { describe, it, expect, beforeAll } from 'vitest'
-import { ApiClient } from './utils/api-client'
+import { ApiClient } from '../utils/api-client'
 // Use a unique org slug for this test run to avoid conflicts
 const TEST_ORG_SLUG = `quota_test_${Date.now()}`
 const TEST_EMAIL = `quota_test_${Date.now()}@example.com`

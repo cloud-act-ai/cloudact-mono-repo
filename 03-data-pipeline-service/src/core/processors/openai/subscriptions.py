@@ -9,6 +9,7 @@ Usage in pipeline:
 """
 
 import logging
+import json
 from datetime import datetime
 from typing import Dict, Any, List
 
@@ -87,13 +88,26 @@ class SubscriptionsProcessor:
                 }
 
                 if org_response.status_code == 200:
-                    org_data = org_response.json()
+                    try:
+                        org_data = org_response.json()
+                    except json.JSONDecodeError as e:
+                        self.logger.error(f"Invalid JSON from OpenAI org API: {e}")
+                        return {"status": "FAILED", "error": "Invalid response format from OpenAI"}
+
                     subscription_data.update({
                         "openai_org_id": org_data.get("id"),
                         "openai_org_name": org_data.get("name"),
                         "is_default": org_data.get("is_default", False),
                         "tier": org_data.get("tier", "unknown"),
                     })
+                else:
+                    self.logger.error(f"OpenAI org API error: {org_response.status_code}")
+                    if org_response.status_code in (401, 403):
+                        return {"status": "FAILED", "error": f"Authentication failed: {org_response.status_code}"}
+                    elif org_response.status_code == 429:
+                        return {"status": "FAILED", "error": "Rate limited by OpenAI API"}
+                    else:
+                        return {"status": "FAILED", "error": f"OpenAI API error: {org_response.status_code}"}
 
                 # Fetch billing/subscription info if available
                 if include_limits:
@@ -102,7 +116,12 @@ class SubscriptionsProcessor:
                         headers=headers
                     )
                     if limits_response.status_code == 200:
-                        limits_data = limits_response.json()
+                        try:
+                            limits_data = limits_response.json()
+                        except json.JSONDecodeError as e:
+                            self.logger.error(f"Invalid JSON from OpenAI billing API: {e}")
+                            return {"status": "FAILED", "error": "Invalid response format from OpenAI billing API"}
+
                         subscription_data.update({
                             "plan_id": limits_data.get("plan", {}).get("id"),
                             "plan_name": limits_data.get("plan", {}).get("name"),
@@ -110,6 +129,14 @@ class SubscriptionsProcessor:
                             "soft_limit_usd": limits_data.get("soft_limit_usd"),
                             "system_hard_limit_usd": limits_data.get("system_hard_limit_usd"),
                         })
+                    else:
+                        self.logger.error(f"OpenAI billing API error: {limits_response.status_code}")
+                        if limits_response.status_code in (401, 403):
+                            return {"status": "FAILED", "error": f"Authentication failed: {limits_response.status_code}"}
+                        elif limits_response.status_code == 429:
+                            return {"status": "FAILED", "error": "Rate limited by OpenAI API"}
+                        else:
+                            return {"status": "FAILED", "error": f"OpenAI billing API error: {limits_response.status_code}"}
 
                 # Store to BigQuery
                 await self._store_subscription_data(
@@ -154,9 +181,12 @@ class SubscriptionsProcessor:
         try:
             errors = bq_client.client.insert_rows_json(table_id, [subscription_data])
             if errors:
-                self.logger.error(f"Failed to insert subscription data: {errors}")
+                error_msg = f"Failed to insert subscription data: {errors}"
+                self.logger.error(error_msg)
+                raise RuntimeError(error_msg)
         except Exception as e:
             self.logger.warning(f"Could not store subscription data: {e}")
+            raise
 
 
 def get_engine():

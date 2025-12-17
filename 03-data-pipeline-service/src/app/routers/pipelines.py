@@ -607,19 +607,9 @@ async def trigger_templated_pipeline(
     query_job = bq_client.client.query(insert_query, job_config=job_config)
     result = query_job.result()
 
-    # Immediate verification that insert succeeded
-    verify_query = f"""
-    SELECT pipeline_logging_id
-    FROM `{org_pipeline_runs_table}`
-    WHERE pipeline_logging_id = @pipeline_logging_id
-    LIMIT 1
-    """
-    verify_result = list(bq_client.client.query(
-        verify_query,
-        job_config=bigquery.QueryJobConfig(query_parameters=[
-            bigquery.ScalarQueryParameter("pipeline_logging_id", "STRING", pipeline_logging_id)
-        ])
-    ).result())
+    # FIX: Removed verification query to eliminate TOCTOU race condition
+    # The atomic INSERT already tells us via num_dml_affected_rows whether it succeeded
+    # Adding a separate SELECT introduces a race condition window
 
     # Check if row was inserted
     if query_job.num_dml_affected_rows > 0:

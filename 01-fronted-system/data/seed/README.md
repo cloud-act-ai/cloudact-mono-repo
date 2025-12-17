@@ -52,8 +52,8 @@ SaaS subscription plan templates for seeding organization-specific subscription 
 - `source_currency` - Original pricing currency (always "USD")
 - `seats` - Number of seats (0 for templates, set by user)
 - `pricing_model` - Pricing type (FLAT_FEE, PER_SEAT)
-- `unit_price_usd` - Monthly price per unit in USD
-- `yearly_price_usd` - Annual price in USD
+- `unit_price` - Monthly price per unit in USD
+- `yearly_price` - Annual price in USD
 - `discount_type` - Discount type (percent, fixed)
 - `discount_value` - Discount amount
 - `notes` - Plan description
@@ -207,7 +207,7 @@ const slackTemplates = await getTemplatesByProvider("slack")
 
 // Get specific template
 const template = await getTemplateById("tmpl_chatgpt_plus")
-// { template_id: "tmpl_chatgpt_plus", plan_name: "PLUS", unit_price_usd: 20, ... }
+// { template_id: "tmpl_chatgpt_plus", plan_name: "PLUS", unit_price: 20, ... }
 
 // Get all available providers
 const providers = await getAvailableProviders()

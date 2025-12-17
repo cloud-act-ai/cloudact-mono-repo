@@ -521,7 +521,7 @@ When creating plans from templates or converting currencies, the following field
 | `source_price` | FLOAT64 | Original price before conversion | 25.00 |
 | `exchange_rate_used` | FLOAT64 | Exchange rate at time of creation | 83.50 |
 | `currency` | STRING | Final billing currency (must match org) | "INR" |
-| `unit_price_usd` | FLOAT64 | Converted price (historical name) | 2087.50 |
+| `unit_price` | FLOAT64 | Converted price (historical name) | 2087.50 |
 
 **Example Flow:**
 ```
@@ -534,7 +534,7 @@ Stored in BigQuery:
   source_price: 25.00
   exchange_rate_used: 83.50
   currency: "INR"
-  unit_price_usd: 2087.50  # (25.00 * 83.50)
+  unit_price: 2087.50  # (25.00 * 83.50)
 ```
 
 ### Duplicate Plan Detection
@@ -548,7 +548,7 @@ curl -X POST "http://localhost:8000/api/v1/subscriptions/test_org/providers/chat
   -d '{
     "plan_name": "TEAM",
     "currency": "USD",
-    "unit_price_usd": 25.00
+    "unit_price": 25.00
   }'
 
 # Response: 409 Conflict
@@ -566,7 +566,7 @@ curl -X POST "http://localhost:8000/api/v1/subscriptions/test_org/providers/chat
 
 | Operation | Action | Details Logged |
 |-----------|--------|----------------|
-| **CREATE** | `CREATE` | `plan_name`, `provider`, `unit_price_usd`, `currency`, `seats`, `pricing_model`, `billing_cycle`, `start_date` |
+| **CREATE** | `CREATE` | `plan_name`, `provider`, `unit_price`, `currency`, `seats`, `pricing_model`, `billing_cycle`, `start_date` |
 | **UPDATE** | `UPDATE` | `changed_fields`, `new_values` (only changed fields logged) |
 | **EDIT-VERSION** | `UPDATE` | `old_subscription_id`, `new_subscription_id`, `effective_date`, `old_values`, `new_values`, `changed_fields` |
 | **DELETE** | `DELETE` | `end_date`, `final_status` (`cancelled`) |
@@ -599,9 +599,9 @@ curl -X GET "https://bigquery.googleapis.com/bigquery/v2/projects/{project}/quer
     "old_subscription_id": "sub_chatgpt_plus_team_abc123",
     "new_subscription_id": "sub_chatgpt_plus_team_def456",
     "effective_date": "2025-02-01",
-    "changed_fields": ["seats", "unit_price_usd"],
-    "old_values": {"seats": 10, "unit_price_usd": 25.00},
-    "new_values": {"seats": 15, "unit_price_usd": 30.00}
+    "changed_fields": ["seats", "unit_price"],
+    "old_values": {"seats": 10, "unit_price": 25.00},
+    "new_values": {"seats": 15, "unit_price": 30.00}
   },
   "created_at": "2025-01-15T10:30:00Z"
 }

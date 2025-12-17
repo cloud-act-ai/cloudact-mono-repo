@@ -118,6 +118,7 @@ class InMemoryCache:
     def _stop_eviction_thread(self) -> None:
         """Stop the background cleanup thread gracefully."""
         if self._cleanup_thread and self._cleanup_thread.is_alive():
+            logger.debug("Stopping cache cleanup thread...")
             self._stop_cleanup.set()
             self._cleanup_thread.join(timeout=2)
             try:
@@ -125,6 +126,19 @@ class InMemoryCache:
             except (ValueError, OSError):
                 # Logger may be closed during shutdown - ignore
                 pass
+
+    def shutdown(self) -> None:
+        """
+        Explicitly shutdown the cache and cleanup thread.
+
+        Call this method during application shutdown to ensure clean resource cleanup.
+        This is in addition to the atexit handler for extra safety.
+
+        Usage:
+            cache = get_cache()
+            cache.shutdown()
+        """
+        self._stop_eviction_thread()
 
     def _validate_cache_key(self, key: str) -> None:
         """
