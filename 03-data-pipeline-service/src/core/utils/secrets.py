@@ -88,6 +88,25 @@ class SecretsManager:
 
         return secret_value
 
+    def _validate_identifier(self, value: str, name: str) -> None:
+        """
+        Validate identifier to prevent path traversal attacks (CWE-22).
+
+        Args:
+            value: The identifier to validate
+            name: Name for error messages
+
+        Raises:
+            ValueError: If identifier contains path traversal characters
+        """
+        import re
+        # Only allow alphanumeric, underscore, and hyphen
+        if not re.match(r'^[a-zA-Z0-9_-]+$', value):
+            raise ValueError(
+                f"{name} contains invalid characters. "
+                f"Only alphanumeric, underscore, and hyphen are allowed. Got: {value}"
+            )
+
     def _get_secret_from_filesystem(
         self,
         org_slug: str,
@@ -104,9 +123,25 @@ class SecretsManager:
 
         Returns:
             Secret value or None if file doesn't exist
+
+        Raises:
+            ValueError: If org_slug or secret_name contain path traversal characters
         """
+        # SECURITY: Validate inputs to prevent path traversal (CWE-22)
+        self._validate_identifier(org_slug, "org_slug")
+        self._validate_identifier(secret_name, "secret_name")
+
         secrets_path = settings.get_org_secrets_path(org_slug)
         secret_file = Path(secrets_path) / f"{secret_name}.txt"
+
+        # SECURITY: Verify resolved path is within expected directory
+        base_path = Path(settings.configs_base_path).resolve()
+        resolved_file = secret_file.resolve()
+        try:
+            resolved_file.relative_to(base_path)
+        except ValueError:
+            logger.error(f"Path traversal attempt detected: {secret_file} escapes {base_path}")
+            raise ValueError(f"Invalid secret path: escapes base directory")
 
         if not secret_file.exists():
             logger.debug(f"Secret file not found: {secret_file}")

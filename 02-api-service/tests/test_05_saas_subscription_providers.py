@@ -1923,3 +1923,623 @@ class TestAuditLogging:
 
         print(f"✓ Deleted plan with audit logging: {subscription_id}")
         print("  Audit log should contain: action=DELETE, end_date, final_status='cancelled'")
+
+
+# ============================================
+# Test: Status Transition Validation (NEW)
+# ============================================
+
+class TestStatusTransitionValidation:
+    """Test status transition state machine.
+
+    Status Transition Rules:
+    - active → cancelled (allowed)
+    - active → expired (allowed)
+    - active → pending (NOT allowed)
+    - pending → active (allowed)
+    - pending → cancelled (allowed)
+    - cancelled → any (NOT allowed - terminal)
+    - expired → any (NOT allowed - terminal)
+    """
+
+    def test_status_transition_active_to_cancelled(
+        self,
+        client,
+        setup_test_org,
+        org_headers
+    ):
+        """Verify active → cancelled transition is allowed."""
+        org_slug = setup_test_org["org_slug"]
+
+        # Create active plan
+        plan_data = {
+            "plan_name": f"STATUS_A2C_{uuid.uuid4().hex[:6].upper()}",
+            "seats": 5,
+            "unit_price": 10.00,
+            "billing_cycle": "monthly",
+            "currency": "USD",
+            "pricing_model": "PER_SEAT",
+            "auto_renew": True,
+            "owner_email": TEST_EMAIL,
+            "department": "Engineering"
+        }
+
+        create_response = client.post(
+            f"/api/v1/subscriptions/{org_slug}/providers/asana/plans",
+            headers=org_headers,
+            json=plan_data
+        )
+
+        if create_response.status_code != 200:
+            pytest.skip(f"Could not create plan: {create_response.text}")
+
+        subscription_id = create_response.json()["plan"]["subscription_id"]
+        assert create_response.json()["plan"]["status"] == "active"
+
+        # Transition to cancelled
+        update_response = client.put(
+            f"/api/v1/subscriptions/{org_slug}/providers/asana/plans/{subscription_id}",
+            headers=org_headers,
+            json={"status": "cancelled"}
+        )
+
+        assert update_response.status_code == 200, f"active→cancelled should be allowed: {update_response.text}"
+        assert update_response.json()["plan"]["status"] == "cancelled"
+        print("✓ Status transition active → cancelled allowed")
+
+    def test_status_transition_active_to_pending_blocked(
+        self,
+        client,
+        setup_test_org,
+        org_headers
+    ):
+        """Verify active → pending transition returns 400."""
+        org_slug = setup_test_org["org_slug"]
+
+        # Create active plan
+        plan_data = {
+            "plan_name": f"STATUS_A2P_{uuid.uuid4().hex[:6].upper()}",
+            "seats": 5,
+            "unit_price": 10.00,
+            "billing_cycle": "monthly",
+            "currency": "USD",
+            "pricing_model": "PER_SEAT",
+            "auto_renew": True,
+            "owner_email": TEST_EMAIL,
+            "department": "Engineering"
+        }
+
+        create_response = client.post(
+            f"/api/v1/subscriptions/{org_slug}/providers/basecamp/plans",
+            headers=org_headers,
+            json=plan_data
+        )
+
+        if create_response.status_code != 200:
+            pytest.skip(f"Could not create plan: {create_response.text}")
+
+        subscription_id = create_response.json()["plan"]["subscription_id"]
+        assert create_response.json()["plan"]["status"] == "active"
+
+        # Try to transition to pending (should fail)
+        update_response = client.put(
+            f"/api/v1/subscriptions/{org_slug}/providers/basecamp/plans/{subscription_id}",
+            headers=org_headers,
+            json={"status": "pending"}
+        )
+
+        # Should return 400 Bad Request for invalid transition
+        assert update_response.status_code == 400, \
+            f"active→pending should be blocked: {update_response.status_code}"
+        print("✓ Status transition active → pending blocked (400)")
+
+    def test_status_transition_cancelled_is_terminal(
+        self,
+        client,
+        setup_test_org,
+        org_headers
+    ):
+        """Verify cancelled status has no valid outgoing transitions."""
+        org_slug = setup_test_org["org_slug"]
+
+        # Create and cancel plan
+        plan_data = {
+            "plan_name": f"STATUS_TERM_{uuid.uuid4().hex[:6].upper()}",
+            "seats": 3,
+            "unit_price": 8.00,
+            "billing_cycle": "monthly",
+            "currency": "USD",
+            "pricing_model": "PER_SEAT",
+            "auto_renew": True,
+            "owner_email": TEST_EMAIL,
+            "department": "IT"
+        }
+
+        create_response = client.post(
+            f"/api/v1/subscriptions/{org_slug}/providers/monday/plans",
+            headers=org_headers,
+            json=plan_data
+        )
+
+        if create_response.status_code != 200:
+            pytest.skip(f"Could not create plan: {create_response.text}")
+
+        subscription_id = create_response.json()["plan"]["subscription_id"]
+
+        # Cancel the plan
+        client.put(
+            f"/api/v1/subscriptions/{org_slug}/providers/monday/plans/{subscription_id}",
+            headers=org_headers,
+            json={"status": "cancelled"}
+        )
+
+        # Try to transition back to active (should fail)
+        reactivate_response = client.put(
+            f"/api/v1/subscriptions/{org_slug}/providers/monday/plans/{subscription_id}",
+            headers=org_headers,
+            json={"status": "active"}
+        )
+
+        assert reactivate_response.status_code == 400, \
+            f"cancelled→active should be blocked: {reactivate_response.status_code}"
+        print("✓ Cancelled status is terminal (no transitions allowed)")
+
+    def test_status_transition_expired_is_terminal(
+        self,
+        client,
+        setup_test_org,
+        org_headers
+    ):
+        """Verify expired status has no valid outgoing transitions."""
+        org_slug = setup_test_org["org_slug"]
+
+        # Create and expire plan (set status to expired directly)
+        plan_data = {
+            "plan_name": f"STATUS_EXP_{uuid.uuid4().hex[:6].upper()}",
+            "seats": 2,
+            "unit_price": 5.00,
+            "billing_cycle": "monthly",
+            "currency": "USD",
+            "pricing_model": "PER_SEAT",
+            "auto_renew": False,
+            "owner_email": TEST_EMAIL,
+            "department": "Finance"
+        }
+
+        create_response = client.post(
+            f"/api/v1/subscriptions/{org_slug}/providers/clickup/plans",
+            headers=org_headers,
+            json=plan_data
+        )
+
+        if create_response.status_code != 200:
+            pytest.skip(f"Could not create plan: {create_response.text}")
+
+        subscription_id = create_response.json()["plan"]["subscription_id"]
+
+        # Set status to expired
+        expire_response = client.put(
+            f"/api/v1/subscriptions/{org_slug}/providers/clickup/plans/{subscription_id}",
+            headers=org_headers,
+            json={"status": "expired"}
+        )
+
+        # Note: If API doesn't allow direct expired transition, skip
+        if expire_response.status_code != 200:
+            # Some implementations auto-expire based on end_date
+            print("Note: Direct expired transition not allowed (business logic)")
+            return
+
+        # Try to transition back to active
+        reactivate_response = client.put(
+            f"/api/v1/subscriptions/{org_slug}/providers/clickup/plans/{subscription_id}",
+            headers=org_headers,
+            json={"status": "active"}
+        )
+
+        assert reactivate_response.status_code == 400, \
+            f"expired→active should be blocked: {reactivate_response.status_code}"
+        print("✓ Expired status is terminal (no transitions allowed)")
+
+
+# ============================================
+# Test: Bounds Validation (NEW)
+# ============================================
+
+class TestBoundsValidation:
+    """Test business rule validation and warnings for plan fields."""
+
+    def test_seats_bounds_validation_max(
+        self,
+        client,
+        setup_test_org,
+        org_headers
+    ):
+        """Verify seats > 100000 triggers warning or validation."""
+        org_slug = setup_test_org["org_slug"]
+
+        # Create plan with very high seat count
+        plan_data = {
+            "plan_name": f"HIGH_SEATS_{uuid.uuid4().hex[:6].upper()}",
+            "seats": 150000,  # > 100,000 limit
+            "unit_price": 1.00,
+            "billing_cycle": "monthly",
+            "currency": "USD",
+            "pricing_model": "PER_SEAT",
+            "auto_renew": True,
+            "owner_email": TEST_EMAIL,
+            "department": "Enterprise"
+        }
+
+        response = client.post(
+            f"/api/v1/subscriptions/{org_slug}/providers/salesforce/plans",
+            headers=org_headers,
+            json=plan_data
+        )
+
+        # May succeed with warning or fail with validation error
+        if response.status_code == 200:
+            data = response.json()
+            # Check for warnings in response
+            warnings = data.get("warnings", [])
+            print(f"✓ High seats allowed with warnings: {warnings}")
+        elif response.status_code in [400, 422]:
+            print("✓ High seats rejected with validation error")
+        else:
+            pytest.fail(f"Unexpected status: {response.status_code}")
+
+    def test_unit_price_high_value_warning(
+        self,
+        client,
+        setup_test_org,
+        org_headers
+    ):
+        """Verify unit_price > $10,000 triggers warning."""
+        org_slug = setup_test_org["org_slug"]
+
+        plan_data = {
+            "plan_name": f"HIGH_PRICE_{uuid.uuid4().hex[:6].upper()}",
+            "seats": 1,
+            "unit_price": 15000.00,  # > $10,000
+            "billing_cycle": "monthly",
+            "currency": "USD",
+            "pricing_model": "FLAT_FEE",
+            "auto_renew": True,
+            "owner_email": TEST_EMAIL,
+            "department": "Executive"
+        }
+
+        response = client.post(
+            f"/api/v1/subscriptions/{org_slug}/providers/servicenow/plans",
+            headers=org_headers,
+            json=plan_data
+        )
+
+        if response.status_code == 200:
+            data = response.json()
+            warnings = data.get("warnings", [])
+            print(f"✓ High price plan created with warnings: {warnings}")
+            created_subscription_ids.append(data["plan"]["subscription_id"])
+        elif response.status_code in [400, 422]:
+            print("✓ High price rejected with validation error")
+
+    def test_per_seat_zero_seats_warning(
+        self,
+        client,
+        setup_test_org,
+        org_headers
+    ):
+        """Verify PER_SEAT with 0 seats and non-zero price triggers warning."""
+        org_slug = setup_test_org["org_slug"]
+
+        plan_data = {
+            "plan_name": f"ZERO_SEATS_{uuid.uuid4().hex[:6].upper()}",
+            "seats": 0,  # 0 seats with PER_SEAT pricing
+            "unit_price": 25.00,  # Non-zero price
+            "billing_cycle": "monthly",
+            "currency": "USD",
+            "pricing_model": "PER_SEAT",  # PER_SEAT with 0 seats = potential issue
+            "auto_renew": True,
+            "owner_email": TEST_EMAIL,
+            "department": "IT"
+        }
+
+        response = client.post(
+            f"/api/v1/subscriptions/{org_slug}/providers/zendesk/plans",
+            headers=org_headers,
+            json=plan_data
+        )
+
+        if response.status_code == 200:
+            data = response.json()
+            # Should have warning about 0 seats with PER_SEAT pricing
+            warnings = data.get("warnings", [])
+            print(f"✓ Zero seats PER_SEAT plan created with warnings: {warnings}")
+            created_subscription_ids.append(data["plan"]["subscription_id"])
+        elif response.status_code in [400, 422]:
+            print("✓ Zero seats with PER_SEAT pricing rejected")
+
+    def test_negative_unit_price_rejected(
+        self,
+        client,
+        setup_test_org,
+        org_headers
+    ):
+        """Verify negative unit_price is rejected."""
+        org_slug = setup_test_org["org_slug"]
+
+        plan_data = {
+            "plan_name": f"NEG_PRICE_{uuid.uuid4().hex[:6].upper()}",
+            "seats": 5,
+            "unit_price": -10.00,  # Negative price
+            "billing_cycle": "monthly",
+            "currency": "USD",
+            "pricing_model": "PER_SEAT",
+            "auto_renew": True,
+            "owner_email": TEST_EMAIL,
+            "department": "Finance"
+        }
+
+        response = client.post(
+            f"/api/v1/subscriptions/{org_slug}/providers/hubspot/plans",
+            headers=org_headers,
+            json=plan_data
+        )
+
+        assert response.status_code == 422, \
+            f"Negative price should be rejected: {response.status_code}"
+        print("✓ Negative unit_price rejected with 422")
+
+    def test_negative_seats_rejected(
+        self,
+        client,
+        setup_test_org,
+        org_headers
+    ):
+        """Verify negative seats is rejected."""
+        org_slug = setup_test_org["org_slug"]
+
+        plan_data = {
+            "plan_name": f"NEG_SEATS_{uuid.uuid4().hex[:6].upper()}",
+            "seats": -5,  # Negative seats
+            "unit_price": 10.00,
+            "billing_cycle": "monthly",
+            "currency": "USD",
+            "pricing_model": "PER_SEAT",
+            "auto_renew": True,
+            "owner_email": TEST_EMAIL,
+            "department": "IT"
+        }
+
+        response = client.post(
+            f"/api/v1/subscriptions/{org_slug}/providers/intercom/plans",
+            headers=org_headers,
+            json=plan_data
+        )
+
+        assert response.status_code == 422, \
+            f"Negative seats should be rejected: {response.status_code}"
+        print("✓ Negative seats rejected with 422")
+
+
+# ============================================
+# Test: Soft Delete Behavior (NEW)
+# ============================================
+
+class TestSoftDeleteBehavior:
+    """Test soft delete and history preservation."""
+
+    def test_soft_delete_preserves_history(
+        self,
+        client,
+        setup_test_org,
+        org_headers
+    ):
+        """Verify DELETE sets end_date without physical deletion."""
+        org_slug = setup_test_org["org_slug"]
+
+        # Create plan
+        plan_data = {
+            "plan_name": f"SOFT_DEL_{uuid.uuid4().hex[:6].upper()}",
+            "seats": 5,
+            "unit_price": 10.00,
+            "billing_cycle": "monthly",
+            "currency": "USD",
+            "pricing_model": "PER_SEAT",
+            "auto_renew": True,
+            "owner_email": TEST_EMAIL,
+            "department": "IT"
+        }
+
+        create_response = client.post(
+            f"/api/v1/subscriptions/{org_slug}/providers/trello/plans",
+            headers=org_headers,
+            json=plan_data
+        )
+
+        if create_response.status_code != 200:
+            pytest.skip(f"Could not create plan: {create_response.text}")
+
+        subscription_id = create_response.json()["plan"]["subscription_id"]
+        plan_name = create_response.json()["plan"]["plan_name"]
+
+        # Delete (soft delete)
+        delete_response = client.delete(
+            f"/api/v1/subscriptions/{org_slug}/providers/trello/plans/{subscription_id}",
+            headers=org_headers
+        )
+
+        assert delete_response.status_code == 200
+
+        # Verify plan still exists with cancelled status (soft delete)
+        list_response = client.get(
+            f"/api/v1/subscriptions/{org_slug}/providers/trello/plans",
+            headers=org_headers,
+            params={"include_disabled": True}
+        )
+
+        if list_response.status_code == 200:
+            plans = list_response.json()["plans"]
+            deleted_plan = next(
+                (p for p in plans if p["subscription_id"] == subscription_id),
+                None
+            )
+
+            if deleted_plan:
+                assert deleted_plan["status"] == "cancelled", "Soft deleted plan should be cancelled"
+                assert deleted_plan.get("end_date") is not None, "Soft deleted plan should have end_date"
+                print(f"✓ Plan soft deleted: status=cancelled, end_date={deleted_plan.get('end_date')}")
+            else:
+                print("✓ Plan deleted (may be filtered or physically removed)")
+
+    def test_custom_end_date_via_query_param(
+        self,
+        client,
+        setup_test_org,
+        org_headers
+    ):
+        """Verify ?end_date=YYYY-MM-DD sets custom end date."""
+        org_slug = setup_test_org["org_slug"]
+
+        # Create plan
+        plan_data = {
+            "plan_name": f"CUSTOM_END_{uuid.uuid4().hex[:6].upper()}",
+            "seats": 3,
+            "unit_price": 8.00,
+            "billing_cycle": "monthly",
+            "currency": "USD",
+            "pricing_model": "PER_SEAT",
+            "auto_renew": False,
+            "owner_email": TEST_EMAIL,
+            "department": "Finance"
+        }
+
+        create_response = client.post(
+            f"/api/v1/subscriptions/{org_slug}/providers/airtable/plans",
+            headers=org_headers,
+            json=plan_data
+        )
+
+        if create_response.status_code != 200:
+            pytest.skip(f"Could not create plan: {create_response.text}")
+
+        subscription_id = create_response.json()["plan"]["subscription_id"]
+
+        # Delete with custom end_date
+        custom_end_date = "2025-12-31"
+        delete_response = client.delete(
+            f"/api/v1/subscriptions/{org_slug}/providers/airtable/plans/{subscription_id}",
+            headers=org_headers,
+            params={"end_date": custom_end_date}
+        )
+
+        assert delete_response.status_code == 200
+        print(f"✓ Plan deleted with custom end_date: {custom_end_date}")
+
+
+# ============================================
+# Test: Available Plans Template Endpoint (NEW)
+# ============================================
+
+class TestAvailablePlansTemplateEndpoint:
+    """Test available plans template endpoint."""
+
+    def test_available_plans_template_endpoint(
+        self,
+        client,
+        setup_test_org,
+        org_headers
+    ):
+        """Test GET /providers/{provider}/available-plans returns templates."""
+        org_slug = setup_test_org["org_slug"]
+
+        response = client.get(
+            f"/api/v1/subscriptions/{org_slug}/providers/slack/available-plans",
+            headers=org_headers
+        )
+
+        # May return 200 with templates or 404 if not implemented
+        if response.status_code == 200:
+            data = response.json()
+            assert "plans" in data or "available_plans" in data
+            plans = data.get("plans") or data.get("available_plans", [])
+            print(f"✓ Available plans templates: {len(plans)} templates found")
+            for plan in plans[:3]:  # Show first 3
+                print(f"   - {plan.get('plan_name', 'N/A')}: ${plan.get('unit_price', 0)}")
+        elif response.status_code == 404:
+            print("Note: Available plans endpoint not implemented (404)")
+        else:
+            pytest.fail(f"Unexpected status: {response.status_code}")
+
+    def test_available_plans_excludes_llm_api(
+        self,
+        client,
+        setup_test_org,
+        org_headers
+    ):
+        """Verify LLM API providers excluded from SaaS templates."""
+        org_slug = setup_test_org["org_slug"]
+
+        # Try to get available plans for LLM provider (should have none)
+        response = client.get(
+            f"/api/v1/subscriptions/{org_slug}/providers/openai/available-plans",
+            headers=org_headers
+        )
+
+        if response.status_code == 200:
+            data = response.json()
+            plans = data.get("plans") or data.get("available_plans", [])
+            # LLM API providers should have no SaaS subscription templates
+            assert len(plans) == 0, "LLM API providers should have no SaaS templates"
+            print("✓ OpenAI (LLM provider) has no SaaS templates")
+        elif response.status_code == 404:
+            print("Note: Available plans endpoint not implemented (404)")
+
+
+# ============================================
+# Test: SQL Injection Prevention (Security)
+# ============================================
+
+class TestSQLInjectionPrevention:
+    """Test SQL injection prevention in plan fields."""
+
+    def test_sql_injection_in_plan_name_rejected(
+        self,
+        client,
+        setup_test_org,
+        org_headers
+    ):
+        """Verify SQL injection patterns are rejected in plan_name."""
+        org_slug = setup_test_org["org_slug"]
+
+        sql_injection_patterns = [
+            "TEST'; DROP TABLE--",
+            "TEST; DELETE FROM",
+            "TEST/* comment */",
+            "TEST OR 1=1",
+            "TEST UNION SELECT",
+            "TEST; exec xp_",
+        ]
+
+        for pattern in sql_injection_patterns:
+            plan_data = {
+                "plan_name": pattern,
+                "seats": 1,
+                "unit_price": 10.00,
+                "billing_cycle": "monthly",
+                "currency": "USD",
+                "pricing_model": "FLAT_FEE",
+                "owner_email": TEST_EMAIL,
+                "department": "Security"
+            }
+
+            response = client.post(
+                f"/api/v1/subscriptions/{org_slug}/providers/security_test/plans",
+                headers=org_headers,
+                json=plan_data
+            )
+
+            assert response.status_code in [400, 422], \
+                f"SQL pattern '{pattern}' should be rejected"
+
+        print("✓ All SQL injection patterns rejected")

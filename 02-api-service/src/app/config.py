@@ -164,9 +164,10 @@ class Settings(BaseSettings):
     )
 
     # CORS settings
+    # SECURITY: credentials=true with wildcard origin is blocked by browsers (CWE-942)
     cors_origins: List[str] = Field(
         default=["http://localhost:3000"],
-        description="Allowed CORS origins. Add production domains via CORS_ORIGINS env var."
+        description="Allowed CORS origins. Add production domains via CORS_ORIGINS env var. Wildcard '*' is NOT allowed when credentials=true."
     )
     cors_allow_credentials: bool = Field(default=True)
     cors_allow_methods: List[str] = Field(
@@ -177,6 +178,22 @@ class Settings(BaseSettings):
         default=["Content-Type", "Authorization", "X-API-Key", "X-CA-Root-Key", "X-User-ID", "X-Request-ID"],
         description="Allowed HTTP headers for CORS. Explicit list is safer than wildcard."
     )
+
+    @field_validator('cors_origins')
+    @classmethod
+    def validate_cors_no_wildcard_with_credentials(cls, v: List[str]) -> List[str]:
+        """
+        Validate CORS origins - wildcard '*' is insecure with credentials.
+
+        SECURITY: Browsers block 'Access-Control-Allow-Credentials: true'
+        when 'Access-Control-Allow-Origin: *' (CWE-942: Overly Permissive CORS).
+        """
+        if '*' in v and len(v) == 1:
+            raise ValueError(
+                "CORS wildcard '*' is not allowed when cors_allow_credentials=true. "
+                "Specify explicit origins instead (e.g., ['https://app.cloudact.io'])"
+            )
+        return v
 
     # ============================================
     # Security Configuration

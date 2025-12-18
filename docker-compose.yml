@@ -1,0 +1,205 @@
+# =============================================
+# CloudAct Platform - Local Development
+# =============================================
+# Usage:
+#   docker-compose up -d                    # Start all services
+#   docker-compose up -d api-service        # Start specific service
+#   docker-compose logs -f api-service      # View logs
+#   docker-compose down                     # Stop all services
+#   docker-compose down -v                  # Stop and remove volumes
+# =============================================
+
+version: "3.8"
+
+services:
+  # =============================================
+  # Frontend - Next.js (Port 3000)
+  # =============================================
+  frontend:
+    build:
+      context: ./01-fronted-system
+      dockerfile: Dockerfile
+    container_name: cloudact-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      # Supabase (required)
+      - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      # Stripe (required)
+      - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+      # Backend Services
+      - NEXT_PUBLIC_API_SERVICE_URL=http://api-service:8000
+      - NEXT_PUBLIC_PIPELINE_SERVICE_URL=http://pipeline-service:8001
+      - CA_ROOT_API_KEY=${CA_ROOT_API_KEY}
+      # App
+      - NEXT_PUBLIC_APP_URL=http://localhost:3000
+    volumes:
+      - ./01-fronted-system:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      api-service:
+        condition: service_healthy
+    networks:
+      - cloudact-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # =============================================
+  # API Service - FastAPI (Port 8000)
+  # =============================================
+  api-service:
+    build:
+      context: ./02-api-service
+      dockerfile: Dockerfile
+    container_name: cloudact-api-service
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=development
+      # GCP Configuration (required)
+      - GCP_PROJECT_ID=${GCP_PROJECT_ID}
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/credentials/service-account.json
+      # KMS Encryption (required)
+      - KMS_KEY_NAME=${KMS_KEY_NAME}
+      # Security
+      - CA_ROOT_API_KEY=${CA_ROOT_API_KEY}
+      - API_KEY_SECRET_KEY=${API_KEY_SECRET_KEY}
+      - DISABLE_AUTH=false
+      - RATE_LIMIT_ENABLED=true
+      # Application
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+      - API_WORKERS=4
+      - LOG_LEVEL=INFO
+      - DEBUG=false
+      - ENABLE_API_DOCS=true
+      # BigQuery
+      - BIGQUERY_LOCATION=US
+      # Pipeline Service URL
+      - PIPELINE_SERVICE_URL=http://pipeline-service:8001
+      # CORS (allow frontend)
+      - CORS_ORIGINS=["http://localhost:3000","http://frontend:3000"]
+    volumes:
+      - ./02-api-service:/app
+      - ${GOOGLE_APPLICATION_CREDENTIALS}:/app/credentials/service-account.json:ro
+    networks:
+      - cloudact-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    command: >
+      python3 -m uvicorn src.app.main:app
+      --host 0.0.0.0
+      --port 8000
+      --reload
+
+  # =============================================
+  # Pipeline Service - FastAPI (Port 8001)
+  # =============================================
+  pipeline-service:
+    build:
+      context: ./03-data-pipeline-service
+      dockerfile: Dockerfile
+    container_name: cloudact-pipeline-service
+    ports:
+      - "8001:8001"
+    environment:
+      - ENVIRONMENT=development
+      # GCP Configuration (required)
+      - GCP_PROJECT_ID=${GCP_PROJECT_ID}
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/credentials/service-account.json
+      # KMS Encryption (required)
+      - KMS_KEY_NAME=${KMS_KEY_NAME}
+      # Security
+      - CA_ROOT_API_KEY=${CA_ROOT_API_KEY}
+      - DISABLE_AUTH=false
+      - RATE_LIMIT_ENABLED=true
+      - ENABLE_DEV_MODE=false
+      # Application
+      - API_HOST=0.0.0.0
+      - API_PORT=8001
+      - API_WORKERS=4
+      - LOG_LEVEL=INFO
+      - DEBUG=false
+      - ENABLE_API_DOCS=true
+      # BigQuery
+      - BIGQUERY_LOCATION=US
+      # Pipeline Execution
+      - PIPELINE_MAX_PARALLEL_STEPS=10
+      - PIPELINE_GLOBAL_CONCURRENT_LIMIT=100
+      # Fallback Quotas
+      - FALLBACK_DAILY_LIMIT=6
+      - FALLBACK_MONTHLY_LIMIT=180
+      - FALLBACK_CONCURRENT_LIMIT=6
+    volumes:
+      - ./03-data-pipeline-service:/app
+      - ${GOOGLE_APPLICATION_CREDENTIALS}:/app/credentials/service-account.json:ro
+    depends_on:
+      api-service:
+        condition: service_healthy
+    networks:
+      - cloudact-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    command: >
+      python3 -m uvicorn src.app.main:app
+      --host 0.0.0.0
+      --port 8001
+      --reload
+
+networks:
+  cloudact-network:
+    driver: bridge
+
+# =============================================
+# SETUP INSTRUCTIONS:
+# =============================================
+# 1. Copy .env.example to .env and fill in values:
+#    cp .env.example .env
+#
+# 2. Required environment variables in .env:
+#    - GCP_PROJECT_ID
+#    - GOOGLE_APPLICATION_CREDENTIALS (path to service account JSON)
+#    - KMS_KEY_NAME
+#    - CA_ROOT_API_KEY (minimum 32 characters)
+#    - API_KEY_SECRET_KEY
+#    - NEXT_PUBLIC_SUPABASE_URL
+#    - NEXT_PUBLIC_SUPABASE_ANON_KEY
+#    - SUPABASE_SERVICE_ROLE_KEY
+#    - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+#    - STRIPE_SECRET_KEY
+#    - STRIPE_WEBHOOK_SECRET
+#
+# 3. Start services:
+#    docker-compose up -d
+#
+# 4. Access services:
+#    - Frontend: http://localhost:3000
+#    - API Service: http://localhost:8000
+#    - Pipeline Service: http://localhost:8001
+#    - API Docs: http://localhost:8000/docs
+#    - Pipeline Docs: http://localhost:8001/docs
+#
+# 5. View logs:
+#    docker-compose logs -f
+#
+# 6. Stop services:
+#    docker-compose down
+# =============================================

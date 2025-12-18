@@ -14,11 +14,30 @@ on:
         options:
           - staging
           - production
+      skip_tests:
+        description: 'Skip test workflow (emergency only)'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
+  # ==================================================
+  # Run Tests Before Deployment
+  # ==================================================
+  test:
+    name: Run Tests
+    if: ${{ !inputs.skip_tests }}
+    uses: ./.github/workflows/test.yml
+    secrets: inherit
+
+  # ==================================================
+  # Deploy to Cloud Run
+  # ==================================================
   deploy:
     name: Deploy to ${{ github.event.inputs.environment || 'staging' }}
     runs-on: ubuntu-latest
+    needs: [test]
+    if: ${{ always() && (needs.test.result == 'success' || needs.test.result == 'skipped') }}
 
     env:
       ENVIRONMENT: ${{ github.event.inputs.environment || 'staging' }}
@@ -78,7 +97,7 @@ jobs:
             --timeout=300 \
             --max-instances=10 \
             --port=8080 \
-            --set-env-vars="GCP_PROJECT_ID=${{ env.GCP_PROJECT_ID }},BIGQUERY_LOCATION=US,ENVIRONMENT=${{ env.ENVIRONMENT }},DISABLE_AUTH=true"
+            --set-env-vars="GCP_PROJECT_ID=${{ env.GCP_PROJECT_ID }},BIGQUERY_LOCATION=US,ENVIRONMENT=${{ env.ENVIRONMENT }},DISABLE_AUTH=false"
 
       - name: Get Service URL
         id: get-url

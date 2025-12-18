@@ -31,6 +31,9 @@ def retry_on_transient_error(max_retries=3, backoff_seconds=1):
     """
     Decorator to retry BigQuery operations on transient errors.
 
+    Supports both sync and async functions - uses asyncio.sleep for async
+    to avoid blocking the event loop.
+
     Retries on:
     - InternalServerError (500)
     - BadGateway (502)
@@ -38,8 +41,43 @@ def retry_on_transient_error(max_retries=3, backoff_seconds=1):
     - GatewayTimeout (504)
     - TooManyRequests (429)
     """
+    import functools
+    import inspect
+
     def decorator(func):
-        def wrapper(*args, **kwargs):
+        @functools.wraps(func)
+        async def async_wrapper(*args, **kwargs):
+            retries = 0
+            delay = backoff_seconds
+
+            while retries < max_retries:
+                try:
+                    return await func(*args, **kwargs)
+                except (
+                    core_exceptions.InternalServerError,
+                    core_exceptions.BadGateway,
+                    core_exceptions.ServiceUnavailable,
+                    core_exceptions.GatewayTimeout,
+                    core_exceptions.TooManyRequests
+                ) as e:
+                    retries += 1
+                    if retries >= max_retries:
+                        raise
+
+                    logging.warning(
+                        f"BigQuery transient error (attempt {retries}/{max_retries}): {e}. "
+                        f"Retrying in {delay}s..."
+                    )
+                    # Use asyncio.sleep to avoid blocking event loop
+                    await asyncio.sleep(delay)
+                    delay *= 2  # Exponential backoff
+                except Exception:
+                    raise
+
+            return None
+
+        @functools.wraps(func)
+        def sync_wrapper(*args, **kwargs):
             retries = 0
             delay = backoff_seconds
 
@@ -57,20 +95,21 @@ def retry_on_transient_error(max_retries=3, backoff_seconds=1):
                     if retries >= max_retries:
                         raise
 
-                    # Log retry attempt
                     logging.warning(
                         f"BigQuery transient error (attempt {retries}/{max_retries}): {e}. "
                         f"Retrying in {delay}s..."
                     )
-
                     time.sleep(delay)
                     delay *= 2  # Exponential backoff
                 except Exception:
-                    # Non-transient error, raise immediately
                     raise
 
-            return None  # Should never reach here
-        return wrapper
+            return None
+
+        # Return appropriate wrapper based on function type
+        if inspect.iscoroutinefunction(func):
+            return async_wrapper
+        return sync_wrapper
     return decorator
 
 

@@ -373,8 +373,13 @@ export async function runPipeline(
     }
 
     const org = authResult.orgData
-    const validSubscriptionStatuses = ["active", "trialing"]
-    if (!validSubscriptionStatuses.includes(org.billing_status || "")) {
+    // IMPORTANT: Status values are case-insensitive to handle both frontend (lowercase)
+    // and backend (UPPERCASE) conventions. Backend uses ACTIVE/TRIAL, Supabase uses active/trialing.
+    const validSubscriptionStatuses = ["active", "trialing", "ACTIVE", "TRIAL"]
+    const billingStatus = org.billing_status?.toLowerCase() || ""
+    const isValidStatus = billingStatus === "active" || billingStatus === "trialing" ||
+                          billingStatus === "trial"  // Backend uses TRIAL, not TRIALING
+    if (!isValidStatus) {
       return {
         success: false,
         error: `Subscription is not active. Current status: ${org.billing_status || "unknown"}. Please update your billing.`,

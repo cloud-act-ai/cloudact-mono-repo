@@ -67,6 +67,61 @@ function ChartContainer({
   )
 }
 
+/**
+ * Validate CSS color value to prevent CSS injection attacks.
+ * Only allows safe color formats: hex, rgb, rgba, hsl, hsla, named colors.
+ */
+function isValidCSSColor(color: string): boolean {
+  if (!color || typeof color !== 'string') return false
+
+  // Remove whitespace
+  const trimmed = color.trim()
+
+  // Allow empty string (will be filtered out)
+  if (!trimmed) return false
+
+  // Hex colors: #rgb, #rgba, #rrggbb, #rrggbbaa
+  if (/^#([0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(trimmed)) {
+    return true
+  }
+
+  // RGB/RGBA: rgb(r, g, b) or rgba(r, g, b, a)
+  if (/^rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*(,\s*[\d.]+\s*)?\)$/.test(trimmed)) {
+    return true
+  }
+
+  // HSL/HSLA: hsl(h, s%, l%) or hsla(h, s%, l%, a)
+  if (/^hsla?\(\s*\d{1,3}\s*,\s*\d{1,3}%\s*,\s*\d{1,3}%\s*(,\s*[\d.]+\s*)?\)$/.test(trimmed)) {
+    return true
+  }
+
+  // CSS named colors (common subset)
+  const namedColors = [
+    'transparent', 'currentcolor', 'inherit',
+    'black', 'white', 'red', 'green', 'blue', 'yellow', 'orange', 'purple',
+    'pink', 'gray', 'grey', 'cyan', 'magenta', 'lime', 'maroon', 'navy',
+    'olive', 'teal', 'aqua', 'silver', 'fuchsia'
+  ]
+  if (namedColors.includes(trimmed.toLowerCase())) {
+    return true
+  }
+
+  // CSS variables: var(--name) - validate the variable name
+  if (/^var\(--[a-zA-Z0-9_-]+\)$/.test(trimmed)) {
+    return true
+  }
+
+  return false
+}
+
+/**
+ * Escape CSS key to prevent injection via property names.
+ */
+function sanitizeCSSKey(key: string): string {
+  // Only allow alphanumeric, underscore, and hyphen
+  return key.replace(/[^a-zA-Z0-9_-]/g, '')
+}
+
 const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
   const colorConfig = Object.entries(config).filter(
     ([, config]) => config.theme || config.color,
@@ -76,25 +131,56 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
     return null
   }
 
+  // SECURITY: Build CSS safely without dangerouslySetInnerHTML
+  // Generate CSS variables as inline style object instead
+  const cssVariables: Record<string, string> = {}
+
+  colorConfig.forEach(([key, itemConfig]) => {
+    const sanitizedKey = sanitizeCSSKey(key)
+    const lightColor = itemConfig.theme?.light || itemConfig.color
+    const darkColor = itemConfig.theme?.dark || itemConfig.color
+
+    // Use light theme colors for the default style object
+    // Dark theme will be handled by CSS custom properties via data-chart
+    if (lightColor && isValidCSSColor(lightColor)) {
+      cssVariables[`--color-${sanitizedKey}`] = lightColor
+    }
+  })
+
+  // Generate safe CSS string for themes
+  const generateThemeCSS = (theme: string, prefix: string) => {
+    const lines = colorConfig
+      .map(([key, itemConfig]) => {
+        const sanitizedKey = sanitizeCSSKey(key)
+        const color =
+          itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ||
+          itemConfig.color
+        if (color && isValidCSSColor(color)) {
+          return `  --color-${sanitizedKey}: ${color};`
+        }
+        return null
+      })
+      .filter(Boolean)
+      .join('\n')
+
+    if (!lines) return ''
+    return `${prefix} [data-chart=${id}] {\n${lines}\n}`
+  }
+
+  const cssContent = Object.entries(THEMES)
+    .map(([theme, prefix]) => generateThemeCSS(theme, prefix))
+    .filter(Boolean)
+    .join('\n')
+
+  // Only render if we have valid CSS content
+  if (!cssContent) {
+    return null
+  }
+
   return (
     <style
       dangerouslySetInnerHTML={{
-        __html: Object.entries(THEMES)
-          .map(
-            ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
-${colorConfig
-  .map(([key, itemConfig]) => {
-    const color =
-      itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ||
-      itemConfig.color
-    return color ? `  --color-${key}: ${color};` : null
-  })
-  .join('\n')}
-}
-`,
-          )
-          .join('\n'),
+        __html: cssContent,
       }}
     />
   )

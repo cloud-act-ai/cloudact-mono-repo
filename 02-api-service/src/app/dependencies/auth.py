@@ -359,24 +359,29 @@ async def get_current_org(
     Raises:
         HTTPException: If API key invalid, inactive, or org suspended
     """
-    # Check if authentication is disabled (development mode)
+    # SECURITY: DISABLE_AUTH is blocked in production by validate_production_config()
+    # In development, use realistic quota limits to catch quota-related bugs early
     if settings.disable_auth:
-        # In dev mode, extract org_slug from URL path if present, else use default
-        # This allows testing any org without real auth
+        if settings.is_production:
+            logger.critical("DISABLE_AUTH=true in production - this should never happen!")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Authentication misconfiguration"
+            )
         dev_org_slug = settings.default_org_slug
-        logger.warning(f"Authentication disabled - using default org '{dev_org_slug}'")
-        # Return mock org for development
+        logger.warning(f"[DEV ONLY] Authentication disabled - using default org '{dev_org_slug}'")
+        # Return mock org with REALISTIC limits (not unlimited) to catch quota bugs
         return {
             "org_slug": dev_org_slug,
             "company_name": "Development Organization",
             "admin_email": "dev@example.com",
             "status": "ACTIVE",
             "subscription": {
-                "plan_name": "ENTERPRISE",
+                "plan_name": "STARTER",
                 "status": "ACTIVE",
-                "max_pipelines_per_day": 999999,
-                "max_pipelines_per_month": 999999,
-                "max_concurrent_pipelines": 999999
+                "max_pipelines_per_day": settings.fallback_daily_limit,
+                "max_pipelines_per_month": settings.fallback_monthly_limit,
+                "max_concurrent_pipelines": settings.fallback_concurrent_limit
             },
             "org_api_key_id": "dev-key"
         }
@@ -1383,8 +1388,10 @@ async def get_org_from_api_key(
         results = list(bq_client.client.query(query, job_config=job_config).result())
 
         if not results:
-            logger.warning(f"API key not found in organizations dataset, trying local files")
-            return await get_org_from_local_file(org_api_key_hash)
+            # SECURITY: Do NOT fall back to local files - this bypasses proper auth
+            # Local file fallback was removed to prevent auth bypass vulnerabilities
+            logger.warning(f"API key not found in organizations dataset")
+            return None
 
         row = results[0]
 
@@ -1405,11 +1412,8 @@ async def get_org_from_api_key(
         return result
 
     except Exception as e:
-        logger.warning(f"Centralized auth lookup failed: {e}, trying local files")
-        # Fallback to local file lookup for development
-        org_slug = await get_org_from_local_file(org_api_key_hash)
-        if org_slug:
-            return {"org_slug": org_slug, "org_api_key_id": "local-dev-key"}
+        # SECURITY: Do NOT fall back to local files - log error and return None
+        logger.error(f"Centralized auth lookup failed: {e}", exc_info=True)
         return None
 
 

@@ -519,6 +519,40 @@ async def rate_limit_middleware(request: Request, call_next):
     return response
 
 
+# Security headers middleware (OWASP recommended)
+@app.middleware("http")
+async def security_headers_middleware(request: Request, call_next):
+    """
+    Add security headers to all responses (OWASP recommendations).
+    These headers help prevent XSS, clickjacking, MIME-type sniffing, and other attacks.
+    """
+    response = await call_next(request)
+
+    # Prevent clickjacking
+    response.headers["X-Frame-Options"] = "DENY"
+
+    # Prevent MIME-type sniffing
+    response.headers["X-Content-Type-Options"] = "nosniff"
+
+    # Enable XSS protection (legacy browsers)
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+
+    # Control referrer information
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+
+    # Content Security Policy for API responses
+    response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
+
+    # Permissions Policy (formerly Feature-Policy)
+    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+
+    # Strict Transport Security (HSTS) - only in production
+    if settings.environment == "production":
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+
+    return response
+
+
 # Request logging middleware
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
