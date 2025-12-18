@@ -6,93 +6,38 @@
  * Actions for managing SaaS subscription providers:
  * - Supabase: saas_subscription_providers_meta (which providers are enabled)
  * - API Service: BigQuery plans (seeded + custom plans)
+ *
+ * Fixes applied:
+ * - #9: Use shared helpers from lib/api/helpers.ts
  */
 
 import { createClient, createServiceRoleClient } from "@/lib/supabase/server"
 import { logError } from "@/lib/utils"
 import { getOrgApiKeySecure } from "@/actions/backend-onboarding"
+import {
+  getApiServiceUrl,
+  fetchWithTimeout,
+  safeJsonParse,
+  getMonthStartUTC,
+  getTodayDateUTC,
+  isDateInPastUTC,
+  isValidOrgSlug as isValidOrgSlugHelper,
+  isValidSubscriptionId as isValidSubscriptionIdHelper,
+} from "@/lib/api/helpers"
 
-// ============================================
-// API Config
-// ============================================
-
-function getApiServiceUrl(): string {
-  const url = process.env.API_SERVICE_URL || process.env.NEXT_PUBLIC_API_SERVICE_URL
-  if (!url) {
-    throw new Error("API_SERVICE_URL is not configured")
-  }
-  return url
-}
-
-function getPipelineServiceUrl(): string {
-  const url = process.env.PIPELINE_SERVICE_URL || process.env.NEXT_PUBLIC_PIPELINE_SERVICE_URL
-  if (!url) {
-    throw new Error("PIPELINE_SERVICE_URL is not configured")
-  }
-  return url
-}
-
-/**
- * Fetch with timeout to prevent hanging requests
- * Default timeout: 30 seconds (backend can be slow for large datasets)
- */
-async function fetchWithTimeout(
-  url: string,
-  options: RequestInit = {},
-  timeoutMs = 30000
-): Promise<Response> {
-  const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
-
-  try {
-    const response = await fetch(url, {
-      ...options,
-      signal: controller.signal,
-    })
-    clearTimeout(timeoutId)
-    return response
-  } catch (error) {
-    clearTimeout(timeoutId)
-    if (error instanceof Error && error.name === "AbortError") {
-      throw new Error(`Request timeout after ${timeoutMs}ms: ${url}`)
-    }
-    throw error
-  }
-}
-
-/**
- * Safely parse JSON response with error handling.
- * Returns fallback for empty responses, throws for parse errors.
- */
-async function safeJsonParse<T>(response: Response, fallback: T): Promise<T> {
-  try {
-    const text = await response.text()
-    if (!text || text.trim() === "") {
-      return fallback
-    }
-    // Add size check (Issue 4: Response body size limit)
-    if (text.length > 10 * 1024 * 1024) { // 10MB limit
-      console.warn("Response body too large, returning fallback")
-      return fallback
-    }
-    return JSON.parse(text) as T
-  } catch (error) {
-    // Log the error with context for debugging
-    console.error("Failed to parse JSON response:", error)
-    // Throw instead of silently returning fallback - this is a real error
-    throw new Error(
-      `Failed to parse backend response: ${error instanceof Error ? error.message : "Invalid JSON"}`
-    )
-  }
-}
+// REMOVED: Local helper functions - now imported from lib/api/helpers.ts
+// - getApiServiceUrl
+// - fetchWithTimeout
+// - safeJsonParse
+// - getMonthStart (now getMonthStartUTC)
+// - isDateInPast (now isDateInPastUTC)
 
 // ============================================
 // Auth Helpers
 // ============================================
 
-const isValidOrgSlug = (slug: string): boolean => {
-  return /^[a-zA-Z0-9_]{3,50}$/.test(slug)
-}
+// Use isValidOrgSlugHelper from shared helpers, aliased for backwards compatibility
+const isValidOrgSlug = isValidOrgSlugHelper
 
 /**
  * Validate provider name
@@ -159,8 +104,10 @@ const VALID_STATUS_VALUES = new Set(["active", "cancelled", "expired", "pending"
  * This is called automatically when a plan is created with a start_date in the past.
  * Can also be called manually to backfill costs for any date range.
  *
+ * NOW ROUTES THROUGH API SERVICE (8000) instead of pipeline service (8001) directly.
+ *
  * @param orgSlug - Organization slug
- * @param orgApiKey - Organization API key (optional, will fetch if not provided)
+ * @param orgApiKey - Organization API key (used for auth)
  * @param startDate - Start date for backfill (YYYY-MM-DD)
  * @param endDate - End date for backfill (YYYY-MM-DD), defaults to today
  * @returns Result of backfill trigger
@@ -176,14 +123,15 @@ export async function triggerCostBackfill(
   error?: string
 }> {
   try {
-    const pipelineUrl = getPipelineServiceUrl()
+    // Use API service (8000) instead of pipeline service (8001)
+    const apiUrl = getApiServiceUrl()
     const today = new Date().toISOString().split("T")[0]
     const actualEndDate = endDate || today
 
-    console.log(`[AutoBackfill] Triggering backfill for ${orgSlug} from ${startDate} to ${actualEndDate}`)
+    console.log(`[AutoBackfill] Triggering backfill via API service for ${orgSlug} from ${startDate} to ${actualEndDate}`)
 
     const response = await fetchWithTimeout(
-      `${pipelineUrl}/api/v1/pipelines/run/${orgSlug}/saas_subscription/costs/saas_cost`,
+      `${apiUrl}/api/v1/pipelines/trigger/${orgSlug}/saas_subscription/costs/saas_cost`,
       {
         method: "POST",
         headers: {
@@ -207,12 +155,12 @@ export async function triggerCostBackfill(
       }
     }
 
-    const result = await safeJsonParse<{ status?: string; message?: string }>(
+    const result = await safeJsonParse<{ status?: string; message?: string; pipeline_logging_id?: string }>(
       response,
       { status: "unknown" }
     )
 
-    console.log(`[AutoBackfill] Pipeline triggered successfully for ${orgSlug}`)
+    console.log(`[AutoBackfill] Pipeline triggered successfully for ${orgSlug}:`, result)
     return {
       success: true,
       message: `Cost backfill triggered from ${startDate} to ${actualEndDate}`,
@@ -226,24 +174,9 @@ export async function triggerCostBackfill(
   }
 }
 
-/**
- * Check if a date is in the past (before today)
- */
-function isDateInPast(dateStr: string): boolean {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const checkDate = new Date(dateStr)
-  checkDate.setHours(0, 0, 0, 0)
-  return checkDate < today
-}
-
-/**
- * Get the first day of the current month (YYYY-MM-DD)
- */
-function getMonthStart(): string {
-  const today = new Date()
-  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-01`
-}
+// Use shared helpers (UTC-based for consistency with backend)
+const isDateInPast = isDateInPastUTC
+const getMonthStart = getMonthStartUTC
 
 /**
  * Manually trigger cost backfill for an organization.
@@ -316,14 +249,8 @@ function validatePlanData(plan: PlanCreate | PlanUpdate): { valid: boolean; erro
   return { valid: true }
 }
 
-/**
- * Validate subscription ID format
- */
-const isValidSubscriptionId = (id: string): boolean => {
-  if (!id || typeof id !== "string") return false
-  // Subscription IDs should be alphanumeric with underscores/hyphens, reasonable length
-  return /^[a-zA-Z0-9_-]{5,100}$/.test(id)
-}
+// Use shared helper for subscription ID validation
+const isValidSubscriptionId = isValidSubscriptionIdHelper
 
 interface AuthResult {
   user: { id: string; user_metadata?: Record<string, unknown> }

@@ -1232,11 +1232,14 @@ async def delete_subscription(
         dataset_id = get_org_dataset(org_slug)
         table_id = f"{settings.gcp_project_id}.{dataset_id}.{UNIFIED_SUBSCRIPTIONS_TABLE}"
 
-        query = f"DELETE FROM `{table_id}` WHERE plan_name = @plan_name AND provider = @provider"
+        # SECURITY: Include org_slug in WHERE clause for defense in depth
+        # Even though dataset is org-scoped, this prevents any potential cross-tenant deletion
+        query = f"DELETE FROM `{table_id}` WHERE plan_name = @plan_name AND provider = @provider AND org_slug = @org_slug"
         job_config = bigquery.QueryJobConfig(
             query_parameters=[
                 bigquery.ScalarQueryParameter("plan_name", "STRING", plan_name),
-                bigquery.ScalarQueryParameter("provider", "STRING", provider_value)
+                bigquery.ScalarQueryParameter("provider", "STRING", provider_value),
+                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
             ],
             job_timeout_ms=30000  # 30 second timeout for user operations
         )

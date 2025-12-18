@@ -315,6 +315,14 @@ class Settings(BaseSettings):
     )
 
     # ============================================
+    # Pipeline Service Configuration
+    # ============================================
+    pipeline_service_url: str = Field(
+        default="http://localhost:8001",
+        description="URL of the pipeline service for proxying pipeline triggers. In production, set to internal service URL."
+    )
+
+    # ============================================
     # Maintenance Mode (#44)
     # ============================================
     maintenance_mode: bool = Field(

@@ -60,13 +60,25 @@ class InMemoryRateLimitStore(RateLimitStore):
     Uses sliding window counter algorithm.
 
     CRITICAL: Not suitable for distributed systems - use Redis for production.
+
+    MULTI-TENANCY NOTE: This implementation uses a single global lock for all
+    rate limit operations. While this ensures thread-safety, it means that
+    high-volume requests from one org can cause slight delays for other orgs
+    waiting for the lock. This is acceptable for:
+    - Development environments
+    - Single-instance deployments with low concurrency
+    - Scenarios where Redis is not available
+
+    For production multi-tenant systems with high concurrency, use Redis-backed
+    rate limiting with per-key atomic operations (INCR/EXPIRE).
     """
 
     def __init__(self):
         """Initialize in-memory rate limit store."""
         # Structure: {key: [(timestamp, count), ...]}
+        # Keys are org-prefixed (e.g., "org:acme:minute") ensuring org isolation at data level
         self._store: Dict[str, list] = defaultdict(list)
-        self._lock = asyncio.Lock()
+        self._lock = asyncio.Lock()  # Global lock - see MULTI-TENANCY NOTE above
 
     async def check_and_increment(
         self,

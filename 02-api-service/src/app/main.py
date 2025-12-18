@@ -212,6 +212,14 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Error stopping auth aggregator: {e}")
 
+    # FIX #13: Close pipeline proxy httpx client
+    try:
+        from src.app.routers.pipelines_proxy import close_http_client
+        await close_http_client()
+        logger.info("Pipeline proxy HTTP client closed")
+    except Exception as e:
+        logger.warning(f"Error closing pipeline proxy HTTP client: {e}")
+
     await graceful_shutdown()
 
 
@@ -292,6 +300,10 @@ tags_metadata = [
     {
         "name": "Costs",
         "description": "High-performance, Polars-powered read-only cost analytics endpoints. Retrieve cost data, summaries, and trends using FOCUS 1.3 standard schema with org-specific extension fields."
+    },
+    {
+        "name": "Pipeline Proxy",
+        "description": "Centralized pipeline trigger endpoints. Frontend calls these endpoints instead of pipeline service directly. Handles status checks and proxies triggers to pipeline-service (8001)."
     }
 ]
 
@@ -805,7 +817,7 @@ async def metrics():
 # API Routers (NO PIPELINES OR SCHEDULER)
 # ============================================
 
-from src.app.routers import admin, organizations, integrations, llm_data, pipeline_validator, pipeline_logs, subscription_plans, quota, costs
+from src.app.routers import admin, organizations, integrations, llm_data, pipeline_validator, pipeline_logs, subscription_plans, quota, costs, pipelines_proxy
 
 app.include_router(admin.router, prefix="/api/v1", tags=["Admin"])
 app.include_router(organizations.router, prefix="/api/v1", tags=["Organizations"])
@@ -816,6 +828,7 @@ app.include_router(pipeline_validator.router, prefix="/api/v1", tags=["Pipeline 
 app.include_router(pipeline_logs.router, prefix="/api/v1", tags=["Pipeline Logs"])
 app.include_router(quota.router, prefix="/api/v1", tags=["Quota"])
 app.include_router(costs.router, prefix="/api/v1", tags=["Costs"])
+app.include_router(pipelines_proxy.router, prefix="/api/v1", tags=["Pipeline Proxy"])
 
 
 if __name__ == "__main__":

@@ -278,6 +278,10 @@ class PolarsCostService:
             env_suffix = settings.environment
         return f"{org_slug}_{env_suffix}"
 
+    def _is_valid_org_slug(self, org_slug: str) -> bool:
+        """Validate org_slug format to prevent SQL injection."""
+        return bool(org_slug and ORG_SLUG_PATTERN.match(org_slug))
+
     def _build_cost_query(self, query: CostQuery) -> str:
         """
         Build optimized BigQuery SQL for cost data.
@@ -315,10 +319,10 @@ class PolarsCostService:
         where_conditions = [f"SubAccountId = '{query.org_slug}'"]
 
         if query.start_date:
-            where_conditions.append(f"ChargePeriodStart >= '{query.start_date}'")
+            where_conditions.append(f"DATE(ChargePeriodStart) >= '{query.start_date}'")
 
         if query.end_date:
-            where_conditions.append(f"ChargePeriodEnd <= '{query.end_date}'")
+            where_conditions.append(f"DATE(ChargePeriodEnd) <= '{query.end_date}'")
 
         if query.providers:
             providers_list = ", ".join(f"'{p}'" for p in query.providers)
@@ -350,9 +354,9 @@ class PolarsCostService:
         where_conditions = [f"SubAccountId = '{query.org_slug}'"]
 
         if query.start_date:
-            where_conditions.append(f"ChargePeriodStart >= '{query.start_date}'")
+            where_conditions.append(f"DATE(ChargePeriodStart) >= '{query.start_date}'")
         if query.end_date:
-            where_conditions.append(f"ChargePeriodEnd <= '{query.end_date}'")
+            where_conditions.append(f"DATE(ChargePeriodEnd) <= '{query.end_date}'")
         if query.providers:
             providers_list = ", ".join(f"'{p}'" for p in query.providers)
             where_conditions.append(f"ServiceProviderName IN ({providers_list})")
@@ -543,9 +547,9 @@ class PolarsCostService:
 
             where_conditions = [f"SubAccountId = '{org_slug}'"]
             if start_date:
-                where_conditions.append(f"ChargePeriodStart >= '{start_date}'")
+                where_conditions.append(f"DATE(ChargePeriodStart) >= '{start_date}'")
             if end_date:
-                where_conditions.append(f"ChargePeriodEnd <= '{end_date}'")
+                where_conditions.append(f"DATE(ChargePeriodEnd) <= '{end_date}'")
 
             where_clause = " AND ".join(where_conditions)
 
@@ -604,9 +608,9 @@ class PolarsCostService:
 
             where_conditions = [f"SubAccountId = '{org_slug}'"]
             if start_date:
-                where_conditions.append(f"ChargePeriodStart >= '{start_date}'")
+                where_conditions.append(f"DATE(ChargePeriodStart) >= '{start_date}'")
             if end_date:
-                where_conditions.append(f"ChargePeriodEnd <= '{end_date}'")
+                where_conditions.append(f"DATE(ChargePeriodEnd) <= '{end_date}'")
 
             where_clause = " AND ".join(where_conditions)
 
@@ -691,7 +695,7 @@ class PolarsCostService:
                 ARRAY_AGG(DISTINCT ServiceProviderName IGNORE NULLS) as providers
             FROM {table_ref}
             WHERE SubAccountId = '{org_slug}'
-              AND ChargePeriodStart >= '{start_date}'
+              AND DATE(ChargePeriodStart) >= '{start_date}'
             GROUP BY period
             ORDER BY period ASC
             """
@@ -816,18 +820,17 @@ class PolarsCostService:
                 CAST(ContractedCost AS FLOAT64) AS ContractedCost,
                 BillingCurrency,
 
-                -- Pricing
-                CAST(UnitPrice AS FLOAT64) AS UnitPrice,
+                -- Pricing (FOCUS 1.3)
+                CAST(ContractedUnitPrice AS FLOAT64) AS ContractedUnitPrice,
                 CAST(ListUnitPrice AS FLOAT64) AS ListUnitPrice,
                 PricingCategory,
                 PricingCurrency,
                 CAST(PricingQuantity AS FLOAT64) AS PricingQuantity,
                 PricingUnit,
 
-                -- Quantity & Usage
+                -- Quantity & Usage (FOCUS 1.3)
                 CAST(ConsumedQuantity AS FLOAT64) AS ConsumedQuantity,
                 ConsumedUnit,
-                UsageType,
 
                 -- Charge Details
                 ChargeCategory,
@@ -851,22 +854,22 @@ class PolarsCostService:
                 ChargePeriodStart,
                 ChargePeriodEnd,
 
-                -- Metadata
-                SourceSystem,
-                SourceRecordId,
-                UpdatedAt,
+                -- Metadata (FOCUS 1.3 extension fields use x_ prefix)
+                x_SourceSystem,
+                x_SourceRecordId,
+                x_UpdatedAt,
 
                 -- Calculated Run Rates (use actual days in period for accurate projection)
                 -- Monthly: daily_cost × days_in_current_month
-                CAST(BilledCost AS FLOAT64) * EXTRACT(DAY FROM LAST_DAY(ChargePeriodStart)) AS MonthlyRunRate,
+                CAST(BilledCost AS FLOAT64) * EXTRACT(DAY FROM LAST_DAY(DATE(ChargePeriodStart))) AS MonthlyRunRate,
                 -- Annual: daily_cost × days_in_current_year (365 or 366)
-                CAST(BilledCost AS FLOAT64) * (CASE WHEN MOD(EXTRACT(YEAR FROM ChargePeriodStart), 4) = 0 THEN 366 ELSE 365 END) AS AnnualRunRate
+                CAST(BilledCost AS FLOAT64) * (CASE WHEN MOD(EXTRACT(YEAR FROM DATE(ChargePeriodStart)), 4) = 0 THEN 366 ELSE 365 END) AS AnnualRunRate
 
             FROM {table_ref}
             WHERE SubAccountId = @org_slug
-              AND SourceSystem = @source_system
-              AND ChargePeriodStart >= @start_date
-              AND ChargePeriodEnd <= @end_date
+              AND x_SourceSystem = @source_system
+              AND DATE(ChargePeriodStart) >= @start_date
+              AND DATE(ChargePeriodEnd) <= @end_date
             ORDER BY BilledCost DESC
             """
 
@@ -952,23 +955,23 @@ class PolarsCostService:
                 BillingPeriodEnd,
                 ChargePeriodStart,
                 ChargePeriodEnd,
-                SourceSystem,
-                SourceRecordId,
-                UpdatedAt,
+                x_SourceSystem,
+                x_SourceRecordId,
+                x_UpdatedAt,
                 BilledCost,
-                CAST(BilledCost AS FLOAT64) * EXTRACT(DAY FROM LAST_DAY(ChargePeriodStart)) AS MonthlyRunRate,
-                CAST(BilledCost AS FLOAT64) * (CASE WHEN MOD(EXTRACT(YEAR FROM ChargePeriodStart), 4) = 0 THEN 366 ELSE 365 END) AS AnnualRunRate
+                CAST(BilledCost AS FLOAT64) * EXTRACT(DAY FROM LAST_DAY(DATE(ChargePeriodStart))) AS MonthlyRunRate,
+                CAST(BilledCost AS FLOAT64) * (CASE WHEN MOD(EXTRACT(YEAR FROM DATE(ChargePeriodStart)), 4) = 0 THEN 366 ELSE 365 END) AS AnnualRunRate
             FROM {table_ref}
             WHERE SubAccountId = @org_slug
               AND (
-                LOWER(SourceSystem) LIKE '%cloud%'
-                OR LOWER(SourceSystem) LIKE '%gcp%'
-                OR LOWER(SourceSystem) LIKE '%aws%'
-                OR LOWER(SourceSystem) LIKE '%azure%'
+                LOWER(x_SourceSystem) LIKE '%cloud%'
+                OR LOWER(x_SourceSystem) LIKE '%gcp%'
+                OR LOWER(x_SourceSystem) LIKE '%aws%'
+                OR LOWER(x_SourceSystem) LIKE '%azure%'
                 OR LOWER(ServiceProviderName) IN ('gcp', 'aws', 'azure', 'google', 'amazon', 'microsoft')
               )
-              AND ChargePeriodStart >= @start_date
-              AND ChargePeriodEnd <= @end_date
+              AND DATE(ChargePeriodStart) >= @start_date
+              AND DATE(ChargePeriodEnd) <= @end_date
             ORDER BY BilledCost DESC
             """
 
@@ -1050,26 +1053,26 @@ class PolarsCostService:
                 BillingPeriodEnd,
                 ChargePeriodStart,
                 ChargePeriodEnd,
-                SourceSystem,
-                SourceRecordId,
-                UpdatedAt,
+                x_SourceSystem,
+                x_SourceRecordId,
+                x_UpdatedAt,
                 BilledCost,
-                CAST(BilledCost AS FLOAT64) * EXTRACT(DAY FROM LAST_DAY(ChargePeriodStart)) AS MonthlyRunRate,
-                CAST(BilledCost AS FLOAT64) * (CASE WHEN MOD(EXTRACT(YEAR FROM ChargePeriodStart), 4) = 0 THEN 366 ELSE 365 END) AS AnnualRunRate
+                CAST(BilledCost AS FLOAT64) * EXTRACT(DAY FROM LAST_DAY(DATE(ChargePeriodStart))) AS MonthlyRunRate,
+                CAST(BilledCost AS FLOAT64) * (CASE WHEN MOD(EXTRACT(YEAR FROM DATE(ChargePeriodStart)), 4) = 0 THEN 366 ELSE 365 END) AS AnnualRunRate
             FROM {table_ref}
             WHERE SubAccountId = @org_slug
               AND (
-                LOWER(SourceSystem) LIKE '%llm%'
-                OR LOWER(SourceSystem) LIKE '%openai%'
-                OR LOWER(SourceSystem) LIKE '%anthropic%'
-                OR LOWER(SourceSystem) LIKE '%gemini%'
-                OR LOWER(SourceSystem) LIKE '%cohere%'
+                LOWER(x_SourceSystem) LIKE '%llm%'
+                OR LOWER(x_SourceSystem) LIKE '%openai%'
+                OR LOWER(x_SourceSystem) LIKE '%anthropic%'
+                OR LOWER(x_SourceSystem) LIKE '%gemini%'
+                OR LOWER(x_SourceSystem) LIKE '%cohere%'
                 OR LOWER(ServiceProviderName) IN ('openai', 'anthropic', 'google', 'cohere', 'mistral', 'meta')
                 OR LOWER(ServiceCategory) = 'llm'
                 OR LOWER(ServiceCategory) = 'ai'
               )
-              AND ChargePeriodStart >= @start_date
-              AND ChargePeriodEnd <= @end_date
+              AND DATE(ChargePeriodStart) >= @start_date
+              AND DATE(ChargePeriodEnd) <= @end_date
             ORDER BY BilledCost DESC
             """
 
@@ -1147,9 +1150,12 @@ class PolarsCostService:
             charge_date_str = row.get('ChargePeriodStart', '')
             if charge_date_str:
                 try:
-                    # Parse date string (YYYY-MM-DD format)
+                    # Parse date string (YYYY-MM-DD format) or convert datetime to date
                     if isinstance(charge_date_str, str):
                         charge_date = date.fromisoformat(charge_date_str.split('T')[0])
+                    elif hasattr(charge_date_str, 'date'):
+                        # It's a datetime object, convert to date
+                        charge_date = charge_date_str.date()
                     else:
                         charge_date = charge_date_str
 
@@ -1167,6 +1173,9 @@ class PolarsCostService:
                 try:
                     if isinstance(charge_date_str, str):
                         charge_date = date.fromisoformat(charge_date_str.split('T')[0])
+                    elif hasattr(charge_date_str, 'date'):
+                        # It's a datetime object, convert to date
+                        charge_date = charge_date_str.date()
                     else:
                         charge_date = charge_date_str
 

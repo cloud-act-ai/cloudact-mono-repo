@@ -14,6 +14,8 @@ import base64
 import os
 import json
 import logging
+import threading
+import hashlib
 from typing import Optional, Tuple, Dict, Any
 from google.cloud import kms
 from cryptography.fernet import Fernet
@@ -43,9 +45,23 @@ class OrgKMSEncryption:
     def __init__(self):
         self.settings = get_settings()
         self._kms_client: Optional[kms.KeyManagementServiceClient] = None
-        self._dek_cache: Dict[str, Tuple[Fernet, float]] = {}  # org_slug -> (Fernet, expiry)
+        # SECURITY: Cache key is org_slug:dek_hash to prevent cross-org DEK confusion
+        self._dek_cache: Dict[str, Tuple[Fernet, float]] = {}  # cache_key -> (Fernet, expiry)
+        self._cache_lock = threading.RLock()  # Thread-safe cache access
         self._cache_ttl_seconds = 300  # 5 minutes
         self._kms_timeout_seconds = 30  # Timeout for KMS operations
+
+    def _get_cache_key(self, org_slug: str, wrapped_dek: bytes) -> str:
+        """
+        Generate a composite cache key from org_slug and wrapped DEK hash.
+
+        SECURITY: Using only org_slug as cache key could cause DEK confusion
+        if the same org has multiple DEKs (during rotation) or if there's
+        any cache key collision. The hash ensures we return the correct Fernet
+        for the exact wrapped_dek provided.
+        """
+        dek_hash = hashlib.sha256(wrapped_dek).hexdigest()[:16]
+        return f"{org_slug}:{dek_hash}"
 
     @property
     def kms_client(self) -> kms.KeyManagementServiceClient:
@@ -144,7 +160,10 @@ class OrgKMSEncryption:
 
     def get_org_fernet(self, org_slug: str, wrapped_dek: bytes) -> Fernet:
         """
-        Get Fernet instance for an org, with caching.
+        Get Fernet instance for an org, with thread-safe caching.
+
+        SECURITY: Uses composite cache key (org_slug:dek_hash) and thread lock
+        to prevent race conditions and cross-org DEK confusion.
 
         Args:
             org_slug: Organization identifier
@@ -155,25 +174,30 @@ class OrgKMSEncryption:
         """
         import time
 
-        # Check cache
-        if org_slug in self._dek_cache:
-            fernet, expiry = self._dek_cache[org_slug]
-            if time.time() < expiry:
-                return fernet
-            else:
-                # Cache expired
-                del self._dek_cache[org_slug]
+        cache_key = self._get_cache_key(org_slug, wrapped_dek)
 
-        # Unwrap DEK
+        # Thread-safe cache access
+        with self._cache_lock:
+            # Check cache with composite key
+            if cache_key in self._dek_cache:
+                fernet, expiry = self._dek_cache[cache_key]
+                if time.time() < expiry:
+                    return fernet
+                else:
+                    # Cache expired - remove within lock
+                    del self._dek_cache[cache_key]
+
+        # Unwrap DEK outside of lock (KMS call can be slow)
         dek = self.unwrap_dek(wrapped_dek)
         fernet = Fernet(dek)
 
-        # Cache it
-        self._dek_cache[org_slug] = (fernet, time.time() + self._cache_ttl_seconds)
+        # Cache it with thread safety
+        with self._cache_lock:
+            self._dek_cache[cache_key] = (fernet, time.time() + self._cache_ttl_seconds)
 
         logger.debug(
             f"Unwrapped and cached DEK for org",
-            extra={"org_slug": org_slug}
+            extra={"org_slug": org_slug, "cache_key": cache_key[:20] + "..."}
         )
 
         return fernet
@@ -210,15 +234,19 @@ class OrgKMSEncryption:
 
     def clear_cache(self, org_slug: Optional[str] = None) -> None:
         """
-        Clear DEK cache.
+        Clear DEK cache with thread safety.
 
         Args:
-            org_slug: If provided, clear only this org's cache. Otherwise clear all.
+            org_slug: If provided, clear only this org's cache entries. Otherwise clear all.
         """
-        if org_slug:
-            self._dek_cache.pop(org_slug, None)
-        else:
-            self._dek_cache.clear()
+        with self._cache_lock:
+            if org_slug:
+                # Clear all cache entries for this org (cache key starts with org_slug:)
+                keys_to_delete = [k for k in self._dek_cache.keys() if k.startswith(f"{org_slug}:")]
+                for key in keys_to_delete:
+                    del self._dek_cache[key]
+            else:
+                self._dek_cache.clear()
 
     def rotate_org_dek(self, org_slug: str, old_wrapped_dek: bytes) -> Tuple[bytes, bytes]:
         """

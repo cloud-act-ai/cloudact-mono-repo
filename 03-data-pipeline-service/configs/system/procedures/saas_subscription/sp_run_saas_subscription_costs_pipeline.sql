@@ -87,18 +87,21 @@ BEGIN
 
 EXCEPTION WHEN ERROR THEN
   -- Log error details for debugging
+  -- Note: Using parameters (p_start_date, p_end_date) instead of local vars
+  -- to avoid scoping issues in BigQuery exception handlers
   SELECT
     'ERROR' AS status,
     p_project_id AS project_id,
     p_dataset_id AS dataset_id,
-    v_start_date AS start_date,
-    v_end_date AS end_date,
+    p_start_date AS start_date,
+    p_end_date AS end_date,
     @@error.message AS error_message,
     @@error.statement_text AS failed_statement;
   -- Re-raise with context
   RAISE USING MESSAGE = CONCAT(
     'sp_run_saas_subscription_costs_pipeline Failed for dataset=', p_dataset_id,
-    ', date_range=[', CAST(v_start_date AS STRING), ' to ', CAST(v_end_date AS STRING), ']: ',
+    ', date_range=[', COALESCE(CAST(p_start_date AS STRING), 'AUTO'),
+    ' to ', COALESCE(CAST(p_end_date AS STRING), 'TODAY'), ']: ',
     @@error.message
   );
 END;

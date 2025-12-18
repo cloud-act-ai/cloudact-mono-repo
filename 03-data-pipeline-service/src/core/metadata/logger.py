@@ -553,22 +553,89 @@ class MetadataLogger:
             # Wait for query to complete
             await loop.run_in_executor(None, query_job.result)
 
-            logger.debug(
-                f"Updated pipeline end log",
-                extra={
-                    "pipeline_logging_id": pipeline_logging_id,
-                    "status": status,
-                    "duration_ms": duration_ms,
-                    "num_updated_rows": query_job.num_dml_affected_rows
-                }
-            )
+            # CRITICAL FIX: Check if UPDATE actually affected any rows
+            rows_updated = query_job.num_dml_affected_rows or 0
+
+            if rows_updated == 0:
+                # UPDATE failed - row doesn't exist, try INSERT as fallback
+                logger.warning(
+                    f"UPDATE affected 0 rows - pipeline row may not exist, attempting INSERT fallback",
+                    extra={
+                        "pipeline_logging_id": pipeline_logging_id,
+                        "status": status,
+                        "org_slug": self.org_slug
+                    }
+                )
+
+                # Fallback: INSERT a new row with all the data
+                insert_query = f"""
+                INSERT INTO `{table_id}`
+                (pipeline_logging_id, pipeline_id, org_slug, status, trigger_type, trigger_by,
+                 start_time, end_time, duration_ms, error_message, parameters, run_date)
+                VALUES
+                (@pipeline_logging_id, @pipeline_id, @org_slug, @status, @trigger_type, @trigger_by,
+                 @start_time, @end_time, @duration_ms, @error_message, PARSE_JSON(@parameters), CURRENT_DATE())
+                """
+
+                insert_job_config = bigquery.QueryJobConfig(
+                    query_parameters=[
+                        bigquery.ScalarQueryParameter("pipeline_logging_id", "STRING", pipeline_logging_id),
+                        bigquery.ScalarQueryParameter("pipeline_id", "STRING", pipeline_id),
+                        bigquery.ScalarQueryParameter("org_slug", "STRING", self.org_slug),
+                        bigquery.ScalarQueryParameter("status", "STRING", status),
+                        bigquery.ScalarQueryParameter("trigger_type", "STRING", trigger_type),
+                        bigquery.ScalarQueryParameter("trigger_by", "STRING", trigger_by),
+                        bigquery.ScalarQueryParameter("start_time", "TIMESTAMP", start_time),
+                        bigquery.ScalarQueryParameter("end_time", "TIMESTAMP", end_time),
+                        bigquery.ScalarQueryParameter("duration_ms", "INT64", duration_ms),
+                        bigquery.ScalarQueryParameter("error_message", "STRING", error_message),
+                        bigquery.ScalarQueryParameter("parameters", "STRING", parameters_json_str),
+                    ]
+                )
+
+                insert_job = await loop.run_in_executor(
+                    None,
+                    lambda: self.client.query(insert_query, job_config=insert_job_config)
+                )
+                await loop.run_in_executor(None, insert_job.result)
+
+                logger.info(
+                    f"INSERT fallback succeeded for pipeline end log",
+                    extra={
+                        "pipeline_logging_id": pipeline_logging_id,
+                        "status": status,
+                        "duration_ms": duration_ms
+                    }
+                )
+            else:
+                # Log at INFO level for visibility, especially for FAILED status
+                log_level = logger.warning if status == "FAILED" else logger.info
+                log_level(
+                    f"Pipeline end logged: status={status}",
+                    extra={
+                        "pipeline_logging_id": pipeline_logging_id,
+                        "status": status,
+                        "duration_ms": duration_ms,
+                        "num_updated_rows": rows_updated,
+                        "error_message": error_message[:200] if error_message else None
+                    }
+                )
 
         except Exception as e:
+            # CRITICAL: Log at ERROR level and include all context for debugging
             logger.error(
-                f"Error queuing pipeline end log: {e}",
-                extra={"pipeline_logging_id": pipeline_logging_id},
+                f"CRITICAL: Failed to log pipeline end - status may be incorrect in BigQuery: {e}",
+                extra={
+                    "pipeline_logging_id": pipeline_logging_id,
+                    "pipeline_id": pipeline_id,
+                    "status": status,
+                    "org_slug": self.org_slug,
+                    "error_message": error_message[:200] if error_message else None
+                },
                 exc_info=True
             )
+            # Re-raise so caller knows the logging failed
+            raise
 
     async def log_step_start(
         self,

@@ -17,6 +17,7 @@ from google.cloud import bigquery
 
 from src.core.engine.bq_client import BigQueryClient
 from src.app.config import get_settings
+from src.core.services.pricing_service import get_pricing_service
 
 
 class CostProcessor:
@@ -159,54 +160,18 @@ class CostProcessor:
         dataset_id: str,
         pricing_table: str
     ) -> Dict[str, Dict]:
-        """Load pricing from per-org openai_model_pricing table."""
-        table_id = f"{project_id}.{dataset_id}.{pricing_table}"
-
-        query = f"""
-            SELECT
-                model_id,
-                input_price_per_1k,
-                output_price_per_1k
-            FROM `{table_id}`
-            WHERE effective_date <= CURRENT_DATE()
-            ORDER BY model_id, effective_date DESC
-        """
-
+        """Load pricing via PricingService (standardizes table usage)."""
+        # Note: 'pricing_table' arg is deprecated in favor of standard ref_model_pricing
+        # but kept for signature compatibility during migration.
         try:
-            result = bq_client.client.query(query).result()
-            pricing = {}
-            for row in result:
-                # Null check before accessing pricing data
-                if not row or not hasattr(row, 'model_id'):
-                    continue
-
-                # Only keep the most recent pricing per model
-                if row.model_id not in pricing:
-                    # Check for null pricing values
-                    input_price = row.input_price_per_1k
-                    output_price = row.output_price_per_1k
-
-                    # Skip if pricing is null or invalid
-                    if input_price is None or output_price is None:
-                        self.logger.warning(
-                            f"Skipping model {row.model_id} - null pricing data"
-                        )
-                        continue
-
-                    pricing[row.model_id] = {
-                        "input": float(input_price),
-                        "output": float(output_price)
-                    }
-
-            if pricing:
-                self.logger.info(
-                    f"Loaded pricing for {len(pricing)} OpenAI models from {table_id}"
-                )
-
-            return pricing
-
+            pricing_service = get_pricing_service()
+            return await pricing_service.get_pricing(
+                provider="OPENAI",
+                bq_client=bq_client,
+                project_id=project_id
+            )
         except Exception as e:
-            self.logger.error(f"Failed to load pricing from {table_id}: {e}")
+            self.logger.error(f"Failed to load pricing: {e}")
             return {}
 
     async def _read_usage_data(
@@ -264,10 +229,13 @@ class CostProcessor:
             # Get pricing for model
             model_pricing = pricing.get(model)
 
+            # Get pricing for model
+            model_pricing = pricing.get(model)
+            
+            # If still missing (should be rare with fallbacks), try default
             if not model_pricing:
-                unknown_models.add(model)
-                # Skip records with unknown models - user must add pricing
-                continue
+                model_pricing = pricing.get("default", {"input": 0.001, "output": 0.002})
+                unknown_models.add(model) # Track it, but don't skip calculation completely if we have default
 
             # Calculate cost (pricing is per 1K tokens)
             # Add zero check to prevent division by zero issues

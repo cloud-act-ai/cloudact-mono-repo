@@ -31,6 +31,26 @@ class QueueManager:
 
     Provides FIFO queue with priority ordering and atomic dequeue operations
     to prevent race conditions in distributed systems.
+
+    MULTI-TENANCY DESIGN NOTE:
+    This is a shared worker pool architecture where ANY worker can claim ANY queued job.
+    Org isolation is enforced at the EXECUTION level, not the queue level:
+
+    1. Jobs are queued with their org_slug stored in the queue record
+    2. Any available worker claims the next job (dequeue is global)
+    3. Worker extracts org_slug from the claimed job
+    4. Pipeline execution is scoped to that org (credentials, datasets, etc.)
+
+    This design enables:
+    - Efficient resource utilization across all orgs
+    - No dedicated workers per org (cost savings)
+    - Automatic load balancing across the worker pool
+
+    Security is maintained because:
+    - Workers don't have persistent org context
+    - Each execution gets org context from the job
+    - Credentials are fetched per-execution with org_slug filter
+    - Data writes go to org-specific datasets ({org_slug}_prod)
     """
 
     def __init__(self, bq_client: bigquery.Client):

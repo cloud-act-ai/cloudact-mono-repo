@@ -910,6 +910,24 @@ class AsyncPipelineExecutor:
                 timeout=step_timeout_seconds
             )
 
+            # FIX: Check processor result status - processors may return {"status": "FAILED", "error": "..."}
+            # instead of raising exceptions (e.g., procedure_executor.py catches BigQuery errors)
+            processor_status = result.get('status', 'SUCCESS')
+            if processor_status == "FAILED":
+                # Processor reported failure - extract error and fail the step
+                error_message = result.get('error', 'Unknown error from processor')
+                error_type = result.get('error_type', 'ProcessorError')
+                self.logger.error(
+                    f"Processor reported failure for step {step_id}",
+                    extra={
+                        "error": error_message,
+                        "error_type": error_type,
+                        "processor_result": result
+                    }
+                )
+                # Raise exception to trigger step failure handling
+                raise ValueError(f"Processor failed: {error_message}")
+
             if step_type == "gcp.bq_etl":
                 # bq_etl processor returns 'rows_processed', fallback to 'rows_written' for compatibility
                 rows_processed = result.get('rows_processed') or result.get('rows_written', 0)

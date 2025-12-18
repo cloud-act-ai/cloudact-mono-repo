@@ -62,7 +62,7 @@ BEGIN
   EXECUTE IMMEDIATE FORMAT("""
     SELECT default_currency
     FROM `%s.organizations.org_profiles`
-    WHERE REGEXP_REPLACE(@p_ds, '_prod$|_stage$|_dev$', '') = org_slug
+    WHERE REGEXP_REPLACE(@p_ds, '_prod$|_stage$|_dev$|_local$', '') = org_slug
     LIMIT 1
   """, p_project_id)
   INTO v_org_currency

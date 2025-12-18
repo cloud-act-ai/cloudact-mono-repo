@@ -351,6 +351,7 @@ class PlanCreate(BaseModel):
     """Request to create a custom plan."""
     plan_name: str = Field(..., min_length=1, max_length=50, description="Plan identifier")
     display_name: Optional[str] = Field(None, max_length=200)
+    category: str = Field("general", max_length=50, description="Functional category (AI, DevOps, Design, etc.)")
     unit_price: float = Field(..., ge=0, le=100000, description="Monthly price per unit")
     billing_cycle: str = Field("monthly", description="monthly, annual, quarterly")
     currency: str = Field("USD", max_length=3, description="Currency code (USD, EUR, GBP)")
@@ -1310,7 +1311,8 @@ async def create_plan(
         )
 
     subscription_id = f"sub_{provider}_{plan.plan_name.lower()}_{uuid.uuid4().hex[:8]}"
-    category = get_provider_category(provider).value  # Get enum value
+    # Use plan.category if provided, otherwise fall back to provider's default category
+    category = plan.category if plan.category and plan.category != "general" else get_provider_category(provider).value
 
     # Determine start_date and status
     effective_start_date = plan.start_date or date.today()

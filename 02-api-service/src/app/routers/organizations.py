@@ -692,7 +692,7 @@ async def onboard_org(
                     bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
                     bigquery.ScalarQueryParameter("company_name", "STRING", request.company_name),
                     bigquery.ScalarQueryParameter("admin_email", "STRING", request.admin_email),
-                    bigquery.ScalarQueryParameter("org_dataset_id", "STRING", org_slug),
+                    bigquery.ScalarQueryParameter("org_dataset_id", "STRING", settings.get_org_dataset_name(org_slug)),
                     bigquery.ScalarQueryParameter("subscription_plan", "STRING", request.subscription_plan),
                     bigquery.ScalarQueryParameter("default_currency", "STRING", default_currency),
                     bigquery.ScalarQueryParameter("default_country", "STRING", default_country),
@@ -710,7 +710,7 @@ async def onboard_org(
                 "company_name": request.company_name,
                 "admin_email": request.admin_email,
                 "subscription_plan": request.subscription_plan,
-                "dataset_id": org_slug
+                "dataset_id": settings.get_org_dataset_name(org_slug)
             }
         )
 
@@ -919,7 +919,7 @@ async def onboard_org(
         processor_result = await processor.execute(
             step_config={
                 "config": {
-                    "dataset_id": org_slug,
+                    "dataset_id": settings.get_org_dataset_name(org_slug),
                     "location": dataset_location,
                     "metadata_tables": [
                         # ========================================
@@ -1011,7 +1011,7 @@ async def onboard_org(
             response_data = json.dumps({
                 "api_key": "[redacted]",  # Don't store actual key
                 "api_key_id": api_key_id if 'api_key_id' in dir() else "",
-                "dataset_id": f"{org_slug}_{settings.environment[:4]}",
+                "dataset_id": settings.get_org_dataset_name(org_slug),
                 "subscription_id": subscription_id if 'subscription_id' in dir() else "",
                 "tables_created": tables_created
             })
@@ -1911,7 +1911,8 @@ async def delete_organization(
         # Optionally delete the org's dataset
         if request.delete_dataset:
             try:
-                dataset_id = f"{settings.gcp_project_id}.{org_slug}"
+                dataset_name = settings.get_org_dataset_name(org_slug)
+                dataset_id = f"{settings.gcp_project_id}.{dataset_name}"
                 bq_client.client.delete_dataset(
                     dataset_id,
                     delete_contents=True,  # Delete all tables in the dataset
@@ -1920,7 +1921,7 @@ async def delete_organization(
                 dataset_deleted = True
                 logger.info(f"Deleted dataset: {dataset_id}")
             except Exception as e:
-                logger.error(f"Failed to delete dataset {org_slug}: {e}")
+                logger.error(f"Failed to delete dataset {dataset_name}: {e}")
                 # Don't fail the entire operation - meta data is already cleaned
 
         logger.info(
@@ -2457,3 +2458,177 @@ async def list_organizations(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to list organizations. Please check server logs for details."
         )
+
+
+# ============================================
+# Organization Repair/Migration Endpoints
+# ============================================
+
+class RepairOrgTablesResponse(BaseModel):
+    """Response for repair org tables operation."""
+    org_slug: str
+    dataset_id: str
+    tables_created: List[str] = Field(default_factory=list)
+    tables_existing: List[str] = Field(default_factory=list)
+    tables_failed: List[str] = Field(default_factory=list)
+    message: str
+
+
+@router.post(
+    "/{org_slug}/repair-tables",
+    response_model=RepairOrgTablesResponse,
+    summary="Repair missing org tables",
+    description="Creates missing tables in an organization's dataset. Used for migrating existing orgs to new schemas."
+)
+async def repair_org_tables(
+    org_slug: str,
+    _: None = Depends(verify_admin_key)
+):
+    """
+    Create missing tables in an existing organization's dataset.
+
+    This is useful when:
+    - New tables are added to the schema (e.g., FOCUS 1.3 migration)
+    - An org was created before certain tables were added
+    - Tables were accidentally deleted
+
+    Requires X-CA-Root-Key authentication.
+    """
+    logger.info(f"Repairing tables for organization: {org_slug}")
+
+    # Validate org exists
+    bq_client = get_bigquery_client()
+    check_query = f"""
+    SELECT org_slug FROM `{settings.gcp_project_id}.organizations.org_profiles`
+    WHERE org_slug = @org_slug
+    LIMIT 1
+    """
+    result = bq_client.client.query(
+        check_query,
+        job_config=bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
+            ]
+        )
+    ).result()
+
+    if len(list(result)) == 0:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Organization '{org_slug}' not found"
+        )
+
+    # Get dataset name
+    dataset_id = settings.get_org_dataset_name(org_slug)
+    dataset_ref = f"{settings.gcp_project_id}.{dataset_id}"
+
+    # Define all required org tables
+    ORG_TABLES = [
+        {
+            "table_name": "saas_subscription_plans",
+            "schema_file": "saas_subscription_plans.json",
+            "partition_field": "start_date",
+            "clustering_fields": ["org_slug", "provider"]
+        },
+        {
+            "table_name": "saas_subscription_plan_costs_daily",
+            "schema_file": "saas_subscription_plan_costs_daily.json",
+            "partition_field": "cost_date",
+            "clustering_fields": ["org_slug", "subscription_id"]
+        },
+        {
+            "table_name": "cost_data_standard_1_3",
+            "schema_file": "cost_data_standard_1_3.json",
+            "partition_field": "ChargePeriodStart",
+            "clustering_fields": ["SubAccountId", "ServiceProviderName", "ServiceCategory"]
+        },
+        {
+            "table_name": "contract_commitment_1_3",
+            "schema_file": "contract_commitment_1_3.json",
+            "partition_field": "ContractPeriodStart",
+            "clustering_fields": ["ContractId", "x_SubAccountId"]
+        },
+        {
+            "table_name": "llm_model_pricing",
+            "schema_file": "llm_model_pricing.json",
+            "clustering_fields": ["provider", "model_id"]
+        }
+    ]
+
+    tables_created = []
+    tables_existing = []
+    tables_failed = []
+
+    # Schema base path
+    schema_base_path = Path(__file__).parent.parent.parent.parent / "configs" / "setup" / "organizations" / "onboarding" / "schemas"
+
+    for table_config in ORG_TABLES:
+        table_name = table_config["table_name"]
+        table_ref = f"{dataset_ref}.{table_name}"
+
+        try:
+            # Check if table exists
+            try:
+                bq_client.client.get_table(table_ref)
+                tables_existing.append(table_name)
+                logger.info(f"Table already exists: {table_ref}")
+                continue
+            except Exception:
+                pass  # Table doesn't exist, create it
+
+            # Load schema
+            schema_path = schema_base_path / table_config["schema_file"]
+            if not schema_path.exists():
+                logger.error(f"Schema file not found: {schema_path}")
+                tables_failed.append(table_name)
+                continue
+
+            import json
+            with open(schema_path) as f:
+                schema_json = json.load(f)
+
+            # Convert to BigQuery schema
+            schema = [bigquery.SchemaField.from_api_repr(field) for field in schema_json]
+
+            # Create table
+            table = bigquery.Table(table_ref, schema=schema)
+
+            # Add partitioning if specified
+            if "partition_field" in table_config:
+                partition_field = table_config["partition_field"]
+                # Determine partition type based on field
+                field_type = next((f["type"] for f in schema_json if f["name"] == partition_field), None)
+                if field_type in ("TIMESTAMP", "DATETIME"):
+                    table.time_partitioning = bigquery.TimePartitioning(
+                        type_=bigquery.TimePartitioningType.DAY,
+                        field=partition_field
+                    )
+                elif field_type == "DATE":
+                    table.time_partitioning = bigquery.TimePartitioning(
+                        type_=bigquery.TimePartitioningType.DAY,
+                        field=partition_field
+                    )
+
+            # Add clustering if specified
+            if "clustering_fields" in table_config:
+                table.clustering_fields = table_config["clustering_fields"]
+
+            bq_client.client.create_table(table)
+            tables_created.append(table_name)
+            logger.info(f"Created table: {table_ref}")
+
+        except Exception as e:
+            logger.error(f"Failed to create table {table_name}: {e}", exc_info=True)
+            tables_failed.append(table_name)
+
+    message = f"Repair complete. Created: {len(tables_created)}, Existing: {len(tables_existing)}, Failed: {len(tables_failed)}"
+    logger.info(message)
+
+    return RepairOrgTablesResponse(
+        org_slug=org_slug,
+        dataset_id=dataset_id,
+        tables_created=tables_created,
+        tables_existing=tables_existing,
+        tables_failed=tables_failed,
+        message=message
+    )

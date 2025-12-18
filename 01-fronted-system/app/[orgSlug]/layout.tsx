@@ -5,6 +5,7 @@ import { headers } from "next/headers"
 import { DashboardSidebar } from "@/components/dashboard-sidebar"
 import { MobileHeader } from "@/components/mobile-header"
 import { SidebarProvider } from "@/components/ui/sidebar"
+import { PipelineAutoTrigger } from "@/components/pipeline-auto-trigger"
 import "./console.css"
 
 export default async function OrgLayout({
@@ -92,6 +93,8 @@ export default async function OrgLayout({
 
   return (
     <SidebarProvider>
+      {/* Silent background pipeline auto-trigger on dashboard load */}
+      <PipelineAutoTrigger orgSlug={orgSlug} />
       {/* Skip to main content link for accessibility */}
       <a
         href="#main-content"

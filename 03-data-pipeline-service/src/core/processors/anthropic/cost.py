@@ -18,13 +18,7 @@ from src.core.engine.bq_client import BigQueryClient
 from src.app.config import get_settings
 
 
-# Fallback pricing if ref_model_pricing table is not available
-FALLBACK_PRICING = {
-    "claude-3-5-sonnet-20241022": {"input": 0.003, "output": 0.015},
-    "claude-3-opus-20240229": {"input": 0.015, "output": 0.075},
-    "claude-3-haiku-20240307": {"input": 0.00025, "output": 0.00125},
-    "default": {"input": 0.003, "output": 0.015},
-}
+from src.core.services.pricing_service import get_pricing_service
 
 
 class CostProcessor:
@@ -190,38 +184,18 @@ class CostProcessor:
         bq_client: BigQueryClient,
         project_id: str
     ) -> Dict[str, Dict]:
-        """Load pricing from ref_model_pricing table."""
-        query = f"""
-            SELECT
-                model_id,
-                input_price_per_1k,
-                output_price_per_1k
-            FROM `{project_id}.organizations.ref_model_pricing`
-            WHERE provider = 'ANTHROPIC'
-              AND effective_date <= CURRENT_DATE()
-            ORDER BY model_id, effective_date DESC
-        """
-
+        """Load pricing from ref_model_pricing table via PricingService."""
         try:
-            result = bq_client.client.query(query).result()
-            pricing = {}
-            for row in result:
-                if row.model_id not in pricing:
-                    pricing[row.model_id] = {
-                        "input": float(row.input_price_per_1k),
-                        "output": float(row.output_price_per_1k)
-                    }
-
-            if pricing:
-                self.logger.info(f"Loaded pricing for {len(pricing)} Anthropic models from ref_model_pricing")
-                return pricing
-            else:
-                self.logger.warning("No pricing found in ref_model_pricing, using fallback")
-                return FALLBACK_PRICING
-
+            pricing_service = get_pricing_service()
+            # Pass bq_client to allow DB lookup
+            return await pricing_service.get_pricing(
+                provider="ANTHROPIC",
+                bq_client=bq_client,
+                project_id=project_id
+            )
         except Exception as e:
-            self.logger.warning(f"Could not load pricing from BQ: {e}, using fallback")
-            return FALLBACK_PRICING
+            self.logger.warning(f"Could not load pricing: {e}")
+            return {}
 
     def _calculate_costs(
         self,
@@ -231,7 +205,8 @@ class CostProcessor:
     ) -> List[Dict]:
         """Calculate cost for each usage record using provided pricing."""
         cost_records = []
-        default_pricing = pricing.get("default", FALLBACK_PRICING["default"])
+        # Pricing service guarantees fallbacks, but safety check:
+        default_pricing = pricing.get("default", {"input": 0.003, "output": 0.015})
 
         for usage in usage_data:
             model = usage.get("model", "unknown")
