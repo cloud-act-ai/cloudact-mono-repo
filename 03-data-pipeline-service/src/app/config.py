@@ -484,7 +484,7 @@ class Settings(BaseSettings):
         description="URL of api-service for validation and centralized operations"
     )
     api_service_timeout: float = Field(
-        default=10.0,
+        default=30.0,
         description="HTTP timeout for api-service calls in seconds"
     )
 

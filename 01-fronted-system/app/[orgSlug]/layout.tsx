@@ -108,6 +108,8 @@ export default async function OrgLayout({
           billingStatus={org.billing_status}
           memberCount={memberCount || 0}
           userRole={membership.role}
+          userName={profile?.full_name || user.email?.split('@')[0] || 'User'}
+          userEmail={user.email || ''}
         />
         <div className="flex flex-1 flex-col">
           <MobileHeader

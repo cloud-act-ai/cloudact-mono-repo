@@ -31,6 +31,7 @@ import {
   Shield,
   ChevronDown,
   ChevronRight,
+  HelpCircle,
   // Cost Dashboards icons
   LayoutDashboard,
   Receipt,
@@ -83,6 +84,26 @@ function formatOrgName(name: string): string {
   return words
 }
 
+// Get user initials from name (first letter of first name + first letter of last name)
+function getUserInitials(name: string): string {
+  if (!name) return "U"
+  const parts = name.trim().split(/\s+/)
+  if (parts.length === 1) {
+    return parts[0].charAt(0).toUpperCase()
+  }
+  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase()
+}
+
+// Capitalize first letter of each word in name
+function formatUserName(name: string): string {
+  if (!name) return "User"
+  return name
+    .trim()
+    .split(/\s+/)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ")
+}
+
 interface DashboardSidebarProps extends React.ComponentProps<typeof Sidebar> {
   orgSlug: string
   orgName: string
@@ -90,6 +111,8 @@ interface DashboardSidebarProps extends React.ComponentProps<typeof Sidebar> {
   billingStatus: string
   memberCount: number
   userRole: string
+  userName: string
+  userEmail: string
 }
 
 export function DashboardSidebar({
@@ -99,6 +122,8 @@ export function DashboardSidebar({
   billingStatus,
   memberCount,
   userRole,
+  userName,
+  userEmail,
   ...props
 }: DashboardSidebarProps) {
   const pathname = usePathname()
@@ -351,9 +376,32 @@ export function DashboardSidebar({
         </SidebarMenu>
       </SidebarContent>
 
-      {/* Footer: Integrations + Settings + Sign Out */}
+      {/* Footer: User Profile + Integrations + Settings + Get Help + Sign Out */}
       <SidebarFooter className="px-0 py-1 mt-auto border-t border-[#E5E5EA]">
         <SidebarMenu className="gap-0">
+
+          {/* User Profile Section */}
+          {!isCollapsed && (
+            <div className="px-4 py-3 flex items-center gap-3">
+              <div className="h-9 w-9 rounded-full bg-gradient-to-br from-[#007A78] to-[#14B8A6] flex items-center justify-center flex-shrink-0">
+                <span className="text-white text-sm font-semibold">
+                  {getUserInitials(userName)}
+                </span>
+              </div>
+              <span className="text-[15px] font-semibold text-[#1C1C1E] truncate">
+                {formatUserName(userName)}
+              </span>
+            </div>
+          )}
+          {isCollapsed && (
+            <div className="flex justify-center py-2">
+              <div className="h-8 w-8 rounded-full bg-gradient-to-br from-[#007A78] to-[#14B8A6] flex items-center justify-center">
+                <span className="text-white text-xs font-semibold">
+                  {getUserInitials(userName)}
+                </span>
+              </div>
+            </div>
+          )}
 
           {/* Integrations Section - Same style as top sections */}
           {!isCollapsed && (
@@ -527,8 +575,25 @@ export function DashboardSidebar({
             </>
           )}
 
-          {/* Sign Out - Always visible */}
+          {/* Get Help - Inline with other footer items */}
           <SidebarMenuItem className="mt-2">
+            <SidebarMenuButton
+              asChild
+              className={cn(
+                "h-[32px] px-3 text-[13px] font-normal text-[#007A78]",
+                "hover:bg-[#007A78]/10 rounded-md mx-2 transition-all duration-150",
+                isCollapsed && "justify-center px-2"
+              )}
+            >
+              <Link href="/user-docs" target="_blank">
+                <HelpCircle className={cn("h-4 w-4", isCollapsed ? "" : "mr-2")} />
+                {!isCollapsed && "Get Help"}
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+
+          {/* Sign Out - Always visible */}
+          <SidebarMenuItem>
             <SidebarMenuButton
               onClick={handleLogout}
               disabled={isLoading}
