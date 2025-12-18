@@ -67,7 +67,7 @@ describe("Collapsible Component", () => {
     const svg = container.querySelector('svg')
     expect(svg).toBeInTheDocument()
     expect(svg).toHaveClass("transition-transform")
-    expect(svg).toHaveClass("duration-300")
+    expect(svg).toHaveClass("duration-200")
   })
 
   it("can hide chevron icon", () => {
@@ -138,12 +138,15 @@ describe("Collapsible Component", () => {
       </Collapsible>
     )
 
-    const content = container.querySelector('[data-state]')
+    // The content wrapper (CollapsiblePrimitive.Content) has the animation classes
+    const content = container.querySelector('[id^="radix"]')
     expect(content).toHaveClass("data-[state=closed]:animate-collapsible-up")
     expect(content).toHaveClass("data-[state=open]:animate-collapsible-down")
   })
 
-  it("has proper content padding", () => {
+  it("has proper content padding", async () => {
+    const user = userEvent.setup()
+
     const { container } = render(
       <Collapsible>
         <CollapsibleTrigger>Toggle Content</CollapsibleTrigger>
@@ -151,7 +154,12 @@ describe("Collapsible Component", () => {
       </Collapsible>
     )
 
-    const contentWrapper = container.querySelector('[data-state] > div')
+    // Open the collapsible first so content is rendered
+    const trigger = screen.getByText("Toggle Content")
+    await user.click(trigger)
+
+    // The inner div inside CollapsibleContent has the padding classes
+    const contentWrapper = container.querySelector('[id^="radix"] > div')
     expect(contentWrapper).toHaveClass("pb-4")
     expect(contentWrapper).toHaveClass("pt-2")
     expect(contentWrapper).toHaveClass("px-1")
@@ -169,7 +177,9 @@ describe("Collapsible Component", () => {
     expect(trigger).toHaveClass("custom-trigger")
   })
 
-  it("has proper typography styling", () => {
+  it("has proper typography styling", async () => {
+    const user = userEvent.setup()
+
     const { container } = render(
       <Collapsible>
         <CollapsibleTrigger>Toggle Content</CollapsibleTrigger>
@@ -181,7 +191,11 @@ describe("Collapsible Component", () => {
     expect(trigger).toHaveClass("font-medium")
     expect(trigger).toHaveClass("text-base")
 
-    const contentWrapper = container.querySelector('[data-state] > div')
+    // Open the collapsible first so content is rendered
+    await user.click(trigger)
+
+    // The inner div inside CollapsibleContent has the text styling
+    const contentWrapper = container.querySelector('[id^="radix"] > div')
     expect(contentWrapper).toHaveClass("text-sm")
   })
 

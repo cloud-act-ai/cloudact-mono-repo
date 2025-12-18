@@ -13,48 +13,6 @@ version: "3.8"
 
 services:
   # =============================================
-  # Frontend - Next.js (Port 3000)
-  # =============================================
-  frontend:
-    build:
-      context: ./01-fronted-system
-      dockerfile: Dockerfile
-    container_name: cloudact-frontend
-    ports:
-      - "3000:3000"
-    environment:
-      - NODE_ENV=development
-      # Supabase (required)
-      - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
-      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
-      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
-      # Stripe (required)
-      - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
-      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
-      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
-      # Backend Services
-      - NEXT_PUBLIC_API_SERVICE_URL=http://api-service:8000
-      - NEXT_PUBLIC_PIPELINE_SERVICE_URL=http://pipeline-service:8001
-      - CA_ROOT_API_KEY=${CA_ROOT_API_KEY}
-      # App
-      - NEXT_PUBLIC_APP_URL=http://localhost:3000
-    volumes:
-      - ./01-fronted-system:/app
-      - /app/node_modules
-      - /app/.next
-    depends_on:
-      api-service:
-        condition: service_healthy
-    networks:
-      - cloudact-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-
-  # =============================================
   # API Service - FastAPI (Port 8000)
   # =============================================
   api-service:
@@ -73,25 +31,26 @@ services:
       - KMS_KEY_NAME=${KMS_KEY_NAME}
       # Security
       - CA_ROOT_API_KEY=${CA_ROOT_API_KEY}
-      - API_KEY_SECRET_KEY=${API_KEY_SECRET_KEY}
+      - API_KEY_SECRET_KEY=${API_KEY_SECRET_KEY:-dev-secret-key-for-testing}
       - DISABLE_AUTH=false
       - RATE_LIMIT_ENABLED=true
       # Application
       - API_HOST=0.0.0.0
       - API_PORT=8000
-      - API_WORKERS=4
+      - API_WORKERS=1
       - LOG_LEVEL=INFO
       - DEBUG=false
       - ENABLE_API_DOCS=true
       # BigQuery
       - BIGQUERY_LOCATION=US
-      # Pipeline Service URL
+      # Pipeline Service URL (internal Docker network)
       - PIPELINE_SERVICE_URL=http://pipeline-service:8001
       # CORS (allow frontend)
       - CORS_ORIGINS=["http://localhost:3000","http://frontend:3000"]
     volumes:
-      - ./02-api-service:/app
-      - ${GOOGLE_APPLICATION_CREDENTIALS}:/app/credentials/service-account.json:ro
+      - ./02-api-service/src:/app/src:ro
+      - ./02-api-service/configs:/app/configs:ro
+      - ${GOOGLE_APPLICATION_CREDENTIALS:-./credentials/service-account.json}:/app/credentials/service-account.json:ro
     networks:
       - cloudact-network
     healthcheck:
@@ -100,11 +59,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 20s
-    command: >
-      python3 -m uvicorn src.app.main:app
-      --host 0.0.0.0
-      --port 8000
-      --reload
 
   # =============================================
   # Pipeline Service - FastAPI (Port 8001)
@@ -118,6 +72,7 @@ services:
       - "8001:8001"
     environment:
       - ENVIRONMENT=development
+      - PORT=8001
       # GCP Configuration (required)
       - GCP_PROJECT_ID=${GCP_PROJECT_ID}
       - GOOGLE_APPLICATION_CREDENTIALS=/app/credentials/service-account.json
@@ -131,7 +86,7 @@ services:
       # Application
       - API_HOST=0.0.0.0
       - API_PORT=8001
-      - API_WORKERS=4
+      - API_WORKERS=1
       - LOG_LEVEL=INFO
       - DEBUG=false
       - ENABLE_API_DOCS=true
@@ -145,11 +100,9 @@ services:
       - FALLBACK_MONTHLY_LIMIT=180
       - FALLBACK_CONCURRENT_LIMIT=6
     volumes:
-      - ./03-data-pipeline-service:/app
-      - ${GOOGLE_APPLICATION_CREDENTIALS}:/app/credentials/service-account.json:ro
-    depends_on:
-      api-service:
-        condition: service_healthy
+      - ./03-data-pipeline-service/src:/app/src:ro
+      - ./03-data-pipeline-service/configs:/app/configs:ro
+      - ${GOOGLE_APPLICATION_CREDENTIALS:-./credentials/service-account.json}:/app/credentials/service-account.json:ro
     networks:
       - cloudact-network
     healthcheck:
@@ -159,10 +112,54 @@ services:
       retries: 3
       start_period: 20s
     command: >
-      python3 -m uvicorn src.app.main:app
-      --host 0.0.0.0
-      --port 8001
-      --reload
+      uvicorn src.app.main:app --host 0.0.0.0 --port 8001 --workers 1
+
+  # =============================================
+  # Frontend - Next.js (Port 3000)
+  # =============================================
+  frontend:
+    build:
+      context: ./01-fronted-system
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL:-https://placeholder.supabase.co}
+        - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY:-placeholder}
+        - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:-pk_test_placeholder}
+        - NEXT_PUBLIC_API_SERVICE_URL=http://api-service:8000
+        - NEXT_PUBLIC_PIPELINE_SERVICE_URL=http://pipeline-service:8001
+        - NEXT_PUBLIC_APP_URL=http://localhost:3000
+    container_name: cloudact-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      # Supabase
+      - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL:-https://placeholder.supabase.co}
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY:-placeholder}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY:-placeholder}
+      # Stripe
+      - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:-pk_test_placeholder}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-sk_test_placeholder}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-whsec_placeholder}
+      # Backend Services (internal Docker network)
+      - NEXT_PUBLIC_API_SERVICE_URL=http://api-service:8000
+      - NEXT_PUBLIC_PIPELINE_SERVICE_URL=http://pipeline-service:8001
+      - CA_ROOT_API_KEY=${CA_ROOT_API_KEY}
+      # App
+      - NEXT_PUBLIC_APP_URL=http://localhost:3000
+    depends_on:
+      api-service:
+        condition: service_healthy
+      pipeline-service:
+        condition: service_healthy
+    networks:
+      - cloudact-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
 
 networks:
   cloudact-network:
@@ -179,7 +176,8 @@ networks:
 #    - GOOGLE_APPLICATION_CREDENTIALS (path to service account JSON)
 #    - KMS_KEY_NAME
 #    - CA_ROOT_API_KEY (minimum 32 characters)
-#    - API_KEY_SECRET_KEY
+#
+# 3. Optional (for full functionality):
 #    - NEXT_PUBLIC_SUPABASE_URL
 #    - NEXT_PUBLIC_SUPABASE_ANON_KEY
 #    - SUPABASE_SERVICE_ROLE_KEY
@@ -187,19 +185,17 @@ networks:
 #    - STRIPE_SECRET_KEY
 #    - STRIPE_WEBHOOK_SECRET
 #
-# 3. Start services:
+# 4. Start services:
 #    docker-compose up -d
 #
-# 4. Access services:
+# 5. Access services:
 #    - Frontend: http://localhost:3000
-#    - API Service: http://localhost:8000
-#    - Pipeline Service: http://localhost:8001
-#    - API Docs: http://localhost:8000/docs
-#    - Pipeline Docs: http://localhost:8001/docs
+#    - API Service: http://localhost:8000/docs
+#    - Pipeline Service: http://localhost:8001/docs
 #
-# 5. View logs:
+# 6. View logs:
 #    docker-compose logs -f
 #
-# 6. Stop services:
+# 7. Stop services:
 #    docker-compose down
 # =============================================

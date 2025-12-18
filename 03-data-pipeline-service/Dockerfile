@@ -44,7 +44,6 @@ COPY --from=builder /root/.local /home/appuser/.local
 # Copy application code
 COPY --chown=appuser:appuser src/ ./src/
 COPY --chown=appuser:appuser configs/ ./configs/
-COPY --chown=appuser:appuser ps_templates/ ./ps_templates/
 
 # Create necessary directories with proper permissions
 RUN mkdir -p /app/logs /app/tmp && \

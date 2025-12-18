@@ -21,6 +21,16 @@ export default defineConfig(({ mode }: { mode: string }) => {
                 '**/tests/saas_subscription/*.test.ts',
                 '**/tests/organization_onboarding/*.test.ts',
                 '**/tests/user_account/*.test.ts',
+                // E2E tests that require Node.js modules
+                '**/tests/01-*.test.ts',
+                '**/tests/02-*.test.ts',
+                '**/tests/03-*.test.ts',
+                '**/tests/04-*.test.ts',
+                '**/tests/05-*.test.ts',
+                '**/tests/06-*.test.ts',
+                '**/tests/14-*.test.ts',
+                '**/tests/15-*.test.ts',
+                '**/tests/quota_enforcement/*.test.ts',
             ],
             // Allow tests to run longer for API integration flows
             testTimeout: 120000,

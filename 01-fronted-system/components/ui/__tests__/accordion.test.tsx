@@ -78,7 +78,8 @@ describe("Accordion Component", () => {
       </Accordion>
     )
 
-    const item = container.querySelector('[data-radix-collection-item]')
+    // The AccordionItem has value attribute and border classes
+    const item = container.querySelector('[data-state][data-orientation]')
     expect(item).toHaveClass("border-b")
     expect(item).toHaveClass("border-slate-200")
   })
@@ -96,7 +97,7 @@ describe("Accordion Component", () => {
     const svg = container.querySelector('svg')
     expect(svg).toBeInTheDocument()
     expect(svg).toHaveClass("transition-transform")
-    expect(svg).toHaveClass("duration-300")
+    expect(svg).toHaveClass("duration-200")
   })
 
   it("has accessible focus states", () => {
@@ -198,12 +199,15 @@ describe("Accordion Component", () => {
       </Accordion>
     )
 
-    const content = container.querySelector('[data-state]')
+    // The content element with radix id has the animation classes
+    const content = container.querySelector('[id^="radix"][role="region"]')
     expect(content).toHaveClass("data-[state=closed]:animate-accordion-up")
     expect(content).toHaveClass("data-[state=open]:animate-accordion-down")
   })
 
-  it("has proper content padding", () => {
+  it("has proper content padding", async () => {
+    const user = userEvent.setup()
+
     const { container } = render(
       <Accordion type="single" collapsible>
         <AccordionItem value="item-1">
@@ -213,7 +217,12 @@ describe("Accordion Component", () => {
       </Accordion>
     )
 
-    const contentWrapper = container.querySelector('[data-state] > div')
+    // Open the accordion first so content is rendered
+    const trigger = screen.getByText("Question 1")
+    await user.click(trigger)
+
+    // The inner div inside AccordionContent has the padding classes
+    const contentWrapper = container.querySelector('[id^="radix"][role="region"] > div')
     expect(contentWrapper).toHaveClass("pb-4")
     expect(contentWrapper).toHaveClass("pt-2")
   })

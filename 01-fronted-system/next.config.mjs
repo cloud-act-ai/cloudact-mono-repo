@@ -4,6 +4,8 @@ const withMDX = createMDX()
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Enable standalone output for Docker builds
+  output: "standalone",
   typescript: {
     ignoreBuildErrors: true,
   },

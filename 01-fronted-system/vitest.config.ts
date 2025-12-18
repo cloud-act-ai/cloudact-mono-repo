@@ -9,10 +9,13 @@ dotenv.config({ path: '.env.local' })
 
 export default defineConfig({
     test: {
+        // Setup file for DOM cleanup between tests
+        setupFiles: ['./vitest.setup.ts'],
         // Exclude API integration tests from browser mode - they run with --pool=forks
         // Also exclude tests that require Node.js features (fs, process.env)
         exclude: [
             '**/node_modules/**',
+            // API integration tests - run with --pool=forks in node env
             '**/tests/*-openai-*.test.ts',
             '**/tests/*-api-*.test.ts',
             '**/tests/07-*.test.ts',
@@ -20,6 +23,17 @@ export default defineConfig({
             '**/tests/13-*.test.ts',
             '**/tests/saas_subscription/**',
             '**/tests/organization_onboarding/**',
+            '**/tests/user_account/**',
+            // E2E tests that require Node.js modules (fs, crypto)
+            '**/tests/01-*.test.ts',
+            '**/tests/02-*.test.ts',
+            '**/tests/03-*.test.ts',
+            '**/tests/04-*.test.ts',
+            '**/tests/05-*.test.ts',
+            '**/tests/06-*.test.ts',
+            '**/tests/14-*.test.ts',
+            '**/tests/15-*.test.ts',
+            '**/tests/quota_enforcement/**',
         ],
         browser: {
             enabled: true,
