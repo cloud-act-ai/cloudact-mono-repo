@@ -11,7 +11,7 @@ import os
 import secrets
 import asyncio
 from dataclasses import dataclass
-from typing import Optional, Dict, Any, Set
+from typing import Optional, Dict, Any, Set, List
 from pathlib import Path
 from datetime import datetime, date
 from fastapi import Header, HTTPException, status, Depends, BackgroundTasks
@@ -294,16 +294,25 @@ def get_auth_aggregator() -> AuthMetricsAggregator:
 class OrgContext:
     """Container for organization context extracted from API key."""
 
-    def __init__(self, org_slug: str, org_api_key_hash: str, user_id: Optional[str] = None, org_api_key_id: Optional[str] = None):
+    def __init__(
+        self,
+        org_slug: str,
+        org_api_key_hash: str,
+        user_id: Optional[str] = None,
+        org_api_key_id: Optional[str] = None,
+        scopes: Optional[List[str]] = None
+    ):
         self.org_slug = org_slug
         self.org_api_key_hash = org_api_key_hash
         self.user_id = user_id
         self.org_api_key_id = org_api_key_id
+        self.scopes = scopes or []  # E4: API key scopes for permission enforcement
 
     def __repr__(self) -> str:
         user_info = f", user_id='{self.user_id}'" if self.user_id else ""
         key_info = f", key_id='{self.org_api_key_id}'" if self.org_api_key_id else ""
-        return f"OrgContext(org_slug='{self.org_slug}'{user_info}{key_info})"
+        scope_info = f", scopes={self.scopes}" if self.scopes else ""
+        return f"OrgContext(org_slug='{self.org_slug}'{user_info}{key_info}{scope_info})"
 
 
 def hash_api_key(api_key: str) -> str:
@@ -1463,6 +1472,7 @@ async def verify_api_key(
 
     org_slug = org_data["org_slug"]
     org_api_key_id = org_data.get("org_api_key_id")
+    scopes = org_data.get("scopes", [])  # E4: Extract scopes (empty = all permissions)
 
     logger.info(f"Authenticated request for org: {org_slug}, user: {x_user_id or 'N/A'}")
 
@@ -1470,7 +1480,8 @@ async def verify_api_key(
         org_slug=org_slug,
         org_api_key_hash=org_api_key_hash,
         user_id=x_user_id,
-        org_api_key_id=org_api_key_id
+        org_api_key_id=org_api_key_id,
+        scopes=scopes  # E4: Backward compatible - empty scopes = all permissions
     )
 
 
@@ -1529,6 +1540,7 @@ async def verify_api_key_header(
 
     org_slug = org_data["org_slug"]
     org_api_key_id = org_data.get("org_api_key_id")
+    scopes = org_data.get("scopes", [])  # E4: Extract scopes (empty = all permissions)
 
     logger.info(f"Authenticated request for org: {org_slug}, user: {x_user_id or 'N/A'}")
 
@@ -1536,7 +1548,8 @@ async def verify_api_key_header(
         org_slug=org_slug,
         org_api_key_hash=org_api_key_hash,
         user_id=x_user_id,
-        org_api_key_id=org_api_key_id
+        org_api_key_id=org_api_key_id,
+        scopes=scopes  # E4: Backward compatible - empty scopes = all permissions
     )
 
 

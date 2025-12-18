@@ -27,17 +27,23 @@ Fixes Applied:
 - #12: Cache invalidation after trigger
 - #13: httpx client shutdown hook
 - #14: Thread-safe cache operations
+
+Enhancements:
+- E1: X-RateLimit-* headers on responses
+- E2: X-Request-ID for distributed tracing
+- E3: Cache hit/miss metrics
+- E4: API key scope enforcement (backward compatible)
 """
 
 import httpx
 import logging
 import re
 import asyncio
-import atexit
-from contextlib import asynccontextmanager
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+import uuid
+from dataclasses import dataclass, field
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
 from pydantic import BaseModel, Field
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from datetime import datetime, timezone
 from cachetools import TTLCache
 from threading import Lock
@@ -50,6 +56,15 @@ from google.cloud import bigquery
 
 
 logger = logging.getLogger(__name__)
+
+
+# ==============================================================================
+# Constants
+# ==============================================================================
+
+# Required scope for pipeline operations (E4)
+PIPELINE_EXECUTE_SCOPE = "pipelines:execute"
+PIPELINE_READ_SCOPE = "pipelines:read"
 
 
 # ==============================================================================
@@ -115,6 +130,58 @@ def validate_org_access(url_org_slug: str, auth_context: OrgContext) -> None:
         )
 
 
+def validate_scope(auth_context: OrgContext, required_scope: str) -> None:
+    """
+    Validate API key has required scope. (E4)
+
+    Backward compatible: If scopes is empty/None, allow all operations.
+    This ensures existing API keys without scopes continue to work.
+
+    Args:
+        auth_context: Authenticated org context with scopes
+        required_scope: The scope required for this operation
+
+    Raises:
+        HTTPException: If scope is required but not present
+    """
+    scopes = auth_context.scopes or []
+
+    # Backward compatible: empty scopes means all permissions (legacy keys)
+    if not scopes:
+        return
+
+    # Check if required scope is present
+    if required_scope not in scopes and "*" not in scopes:
+        logger.warning(
+            f"SECURITY: Scope violation blocked",
+            extra={
+                "org_slug": auth_context.org_slug,
+                "required_scope": required_scope,
+                "available_scopes": scopes
+            }
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"API key lacks required scope: {required_scope}"
+        )
+
+
+# ==============================================================================
+# Request ID Helper (E2)
+# ==============================================================================
+
+def get_request_id(request: Request) -> str:
+    """
+    Get or generate request ID for distributed tracing.
+
+    Checks for existing X-Request-ID header, generates UUID if not present.
+    """
+    request_id = request.headers.get("x-request-id")
+    if not request_id:
+        request_id = str(uuid.uuid4())
+    return request_id
+
+
 # ==============================================================================
 # HTTP Client (Shared Singleton with Shutdown)
 # ==============================================================================
@@ -160,47 +227,110 @@ async def close_http_client() -> None:
 
 
 # ==============================================================================
-# Thread-Safe Status Cache (30 second TTL)
-# FIX #14: Use threading Lock for thread-safe cache operations
+# Thread-Safe Status Cache with Metrics (E3)
 # ==============================================================================
 
 _status_cache: TTLCache = TTLCache(maxsize=1000, ttl=30)
-_cache_lock = Lock()  # Use threading.Lock for sync access (TTLCache is sync)
+_cache_lock = Lock()
+
+
+@dataclass
+class CacheMetrics:
+    """Cache performance metrics (E3)."""
+    hits: int = 0
+    misses: int = 0
+    invalidations: int = 0
+
+    @property
+    def hit_rate(self) -> float:
+        total = self.hits + self.misses
+        return self.hits / total if total > 0 else 0.0
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "hits": self.hits,
+            "misses": self.misses,
+            "invalidations": self.invalidations,
+            "hit_rate": round(self.hit_rate, 4),
+            "total_requests": self.hits + self.misses
+        }
+
+
+_cache_metrics = CacheMetrics()
 
 
 def cache_get(key: str) -> Optional[Any]:
-    """Thread-safe cache get. FIX #14."""
+    """Thread-safe cache get with metrics (E3)."""
+    global _cache_metrics
     with _cache_lock:
-        return _status_cache.get(key)
+        value = _status_cache.get(key)
+        if value is not None:
+            _cache_metrics.hits += 1
+        else:
+            _cache_metrics.misses += 1
+        return value
 
 
 def cache_set(key: str, value: Any) -> None:
-    """Thread-safe cache set. FIX #14."""
+    """Thread-safe cache set."""
     with _cache_lock:
         _status_cache[key] = value
 
 
 def cache_delete(key: str) -> None:
-    """Thread-safe cache delete. FIX #12: For invalidation after trigger."""
+    """Thread-safe cache delete with metrics (E3)."""
+    global _cache_metrics
     with _cache_lock:
-        _status_cache.pop(key, None)
+        if key in _status_cache:
+            _status_cache.pop(key, None)
+            _cache_metrics.invalidations += 1
 
 
 def cache_delete_for_org(org_slug: str) -> None:
     """
-    Delete all cache entries for an org.
+    Delete all cache entries for an org with metrics (E3).
     FIX #12: Called after pipeline trigger to invalidate stale status.
     """
+    global _cache_metrics
     with _cache_lock:
         # Find and delete all keys for this org
         keys_to_delete = [k for k in _status_cache.keys() if k.startswith(f"pipeline_status:{org_slug}:")]
         for key in keys_to_delete:
             _status_cache.pop(key, None)
         if keys_to_delete:
+            _cache_metrics.invalidations += len(keys_to_delete)
             logger.debug(f"Invalidated {len(keys_to_delete)} cache entries for {org_slug}")
 
 
+def get_cache_metrics() -> Dict[str, Any]:
+    """Get current cache metrics (E3)."""
+    with _cache_lock:
+        return _cache_metrics.to_dict()
+
+
 router = APIRouter(prefix="/pipelines", tags=["Pipeline Proxy"])
+
+
+# ==============================================================================
+# Rate Limit Headers Helper (E1)
+# ==============================================================================
+
+def add_rate_limit_headers(response: Response, rate_metadata: Dict[str, Any], limit: int) -> None:
+    """
+    Add X-RateLimit-* headers to response (E1).
+
+    Headers:
+    - X-RateLimit-Limit: Max requests allowed per minute
+    - X-RateLimit-Remaining: Requests remaining in current window
+    - X-RateLimit-Reset: Seconds until limit resets
+    """
+    minute_data = rate_metadata.get("minute", {})
+    remaining = max(0, limit - minute_data.get("count", 0))
+    reset = minute_data.get("reset", 60)
+
+    response.headers["X-RateLimit-Limit"] = str(limit)
+    response.headers["X-RateLimit-Remaining"] = str(remaining)
+    response.headers["X-RateLimit-Reset"] = str(int(reset))
 
 
 # ==============================================================================
@@ -236,6 +366,7 @@ class PipelineStatusResponse(BaseModel):
     check_date: str
     pipelines: Dict[str, PipelineRunStatus]
     cached: bool = False
+    request_id: Optional[str] = None  # E2: For distributed tracing
 
     def with_cached(self, cached: bool) -> "PipelineStatusResponse":
         """
@@ -246,7 +377,8 @@ class PipelineStatusResponse(BaseModel):
             org_slug=self.org_slug,
             check_date=self.check_date,
             pipelines=self.pipelines,
-            cached=cached
+            cached=cached,
+            request_id=self.request_id
         )
 
 
@@ -257,6 +389,46 @@ class PipelineTriggerResponse(BaseModel):
     org_slug: str
     status: str
     message: str
+    request_id: Optional[str] = None  # E2: For distributed tracing
+
+
+class CacheMetricsResponse(BaseModel):
+    """Response for cache metrics endpoint (E3)."""
+    hits: int
+    misses: int
+    invalidations: int
+    hit_rate: float
+    total_requests: int
+
+
+# ==============================================================================
+# Cache Metrics Endpoint (E3)
+# ==============================================================================
+
+@router.get(
+    "/metrics/cache",
+    response_model=CacheMetricsResponse,
+    summary="Get cache metrics",
+    description="Returns cache hit/miss statistics for monitoring."
+)
+async def get_cache_metrics_endpoint(
+    request: Request,
+    org_context: OrgContext = Depends(verify_api_key)
+) -> CacheMetricsResponse:
+    """Get cache performance metrics (E3)."""
+    request_id = get_request_id(request)
+    metrics = get_cache_metrics()
+
+    logger.info(
+        "Cache metrics requested",
+        extra={
+            "request_id": request_id,
+            "org_slug": org_context.org_slug,
+            "metrics": metrics
+        }
+    )
+
+    return CacheMetricsResponse(**metrics)
 
 
 # ==============================================================================
@@ -277,18 +449,28 @@ class PipelineTriggerResponse(BaseModel):
     - llm_costs: LLM API usage costs (future)
 
     Results are cached for 30 seconds to reduce BigQuery costs.
+
+    Required scope: pipelines:read (or no scopes for legacy keys)
     """
 )
 async def get_pipeline_status(
     org_slug: str,
     request: Request,
+    response: Response,
     org_context: OrgContext = Depends(verify_api_key),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ) -> PipelineStatusResponse:
     """Check which pipelines ran today for org."""
 
+    # E2: Get request ID for tracing
+    request_id = get_request_id(request)
+    response.headers["X-Request-ID"] = request_id
+
     # Validate access
     validate_org_access(org_slug, org_context)
+
+    # E4: Validate scope (backward compatible)
+    validate_scope(org_context, PIPELINE_READ_SCOPE)
 
     # Apply rate limiting (60 requests per minute per org)
     is_allowed, rate_metadata = await rate_limit_by_org(
@@ -298,23 +480,36 @@ async def get_pipeline_status(
         endpoint_name="pipeline_status"
     )
 
+    # E1: Add rate limit headers
+    add_rate_limit_headers(response, rate_metadata, 60)
+
     if not is_allowed:
         retry_after = int(rate_metadata.get("minute", {}).get("reset", 60))
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="Rate limit exceeded for pipeline status checks",
-            headers={"Retry-After": str(retry_after)}
+            headers={
+                "Retry-After": str(retry_after),
+                "X-Request-ID": request_id
+            }
         )
 
     # Use UTC consistently for date checks
     today_utc = datetime.now(timezone.utc).date().isoformat()
 
-    # Check cache first (thread-safe)
+    # Check cache first (thread-safe with metrics)
     cache_key = f"pipeline_status:{org_slug}:{today_utc}"
     cached_response = cache_get(cache_key)
     if cached_response is not None:
         # FIX #11: Return copy with cached=True, don't mutate cached object
-        return cached_response.with_cached(True)
+        result = cached_response.with_cached(True)
+        result.request_id = request_id
+
+        logger.debug(
+            "Cache hit for pipeline status",
+            extra={"request_id": request_id, "org_slug": org_slug}
+        )
+        return result
 
     # Query org_meta_pipeline_runs for today's runs (UTC)
     # Uses date partition filter for efficient querying
@@ -340,7 +535,10 @@ async def get_pipeline_status(
     try:
         results = list(bq_client.client.query(query, job_config=job_config).result())
     except Exception as e:
-        logger.warning(f"Failed to query pipeline status: {e}")
+        logger.warning(
+            f"Failed to query pipeline status",
+            extra={"request_id": request_id, "error": str(e)}
+        )
         results = []
 
     # Build status dict from query results
@@ -373,17 +571,23 @@ async def get_pipeline_status(
                 succeeded_today=False
             )
 
-    response = PipelineStatusResponse(
+    result = PipelineStatusResponse(
         org_slug=org_slug,
         check_date=today_utc,
         pipelines=pipeline_status,
-        cached=False
+        cached=False,
+        request_id=request_id
     )
 
     # Cache the response (thread-safe)
-    cache_set(cache_key, response)
+    cache_set(cache_key, result)
 
-    return response
+    logger.debug(
+        "Cache miss for pipeline status, cached new response",
+        extra={"request_id": request_id, "org_slug": org_slug}
+    )
+
+    return result
 
 
 def _normalize_pipeline_id(pipeline_id: str) -> str:
@@ -481,6 +685,8 @@ async def _call_pipeline_service_with_retry(
 
     Includes retry logic for transient failures (502, 503, 504).
 
+    Required scope: pipelines:execute (or no scopes for legacy keys)
+
     Example paths:
     - /trigger/acme/saas_subscription/costs/saas_cost
     - /trigger/acme/gcp/cost/billing
@@ -492,13 +698,21 @@ async def trigger_pipeline(
     domain: str,
     pipeline: str,
     request: Request,
+    response: Response,
     body: PipelineTriggerRequest = PipelineTriggerRequest(),
     org_context: OrgContext = Depends(verify_api_key)
 ) -> PipelineTriggerResponse:
     """Proxy pipeline trigger to pipeline-service."""
 
+    # E2: Get request ID for tracing
+    request_id = get_request_id(request)
+    response.headers["X-Request-ID"] = request_id
+
     # Validate access
     validate_org_access(org_slug, org_context)
+
+    # E4: Validate scope (backward compatible)
+    validate_scope(org_context, PIPELINE_EXECUTE_SCOPE)
 
     # Validate path segments to prevent path traversal/injection
     validate_path_segment(provider, "provider")
@@ -513,12 +727,18 @@ async def trigger_pipeline(
         endpoint_name="pipeline_trigger"
     )
 
+    # E1: Add rate limit headers
+    add_rate_limit_headers(response, rate_metadata, 30)
+
     if not is_allowed:
         retry_after = int(rate_metadata.get("minute", {}).get("reset", 60))
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="Rate limit exceeded for pipeline triggers",
-            headers={"Retry-After": str(retry_after)}
+            headers={
+                "Retry-After": str(retry_after),
+                "X-Request-ID": request_id
+            }
         )
 
     # Get API key from request headers for forwarding
@@ -530,6 +750,7 @@ async def trigger_pipeline(
     logger.info(
         f"Proxying pipeline trigger",
         extra={
+            "request_id": request_id,
             "org_slug": org_slug,
             "provider": provider,
             "domain": domain,
@@ -547,19 +768,20 @@ async def trigger_pipeline(
 
     try:
         client = await get_http_client()
-        response = await _call_pipeline_service_with_retry(
+        proxy_response = await _call_pipeline_service_with_retry(
             client=client,
             url=pipeline_url,
             headers={
                 "X-API-Key": api_key,
+                "X-Request-ID": request_id,  # E2: Forward request ID
                 "Content-Type": "application/json"
             },
             body=request_body
         )
 
         # Parse response
-        if response.status_code == 200:
-            data = response.json()
+        if proxy_response.status_code == 200:
+            data = proxy_response.json()
 
             # FIX #12: Invalidate cache after successful trigger
             # so next status check shows the new pipeline run
@@ -570,43 +792,55 @@ async def trigger_pipeline(
                 pipeline_id=data.get("pipeline_id"),
                 org_slug=org_slug,
                 status=data.get("status", "PENDING"),
-                message=data.get("message", "Pipeline triggered successfully")
+                message=data.get("message", "Pipeline triggered successfully"),
+                request_id=request_id
             )
-        elif response.status_code == 429:
+        elif proxy_response.status_code == 429:
             # Rate limit or concurrent limit from pipeline service
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail=response.json().get("detail", "Pipeline rate limit exceeded")
+                detail=proxy_response.json().get("detail", "Pipeline rate limit exceeded"),
+                headers={"X-Request-ID": request_id}
             )
         else:
             # Other errors
             try:
-                error_detail = response.json().get("detail", response.text)
+                error_detail = proxy_response.json().get("detail", proxy_response.text)
             except Exception:
-                error_detail = response.text
+                error_detail = proxy_response.text
 
             logger.error(
                 f"Pipeline service returned error",
                 extra={
-                    "status_code": response.status_code,
+                    "request_id": request_id,
+                    "status_code": proxy_response.status_code,
                     "detail": error_detail,
                     "org_slug": org_slug
                 }
             )
             raise HTTPException(
-                status_code=response.status_code,
-                detail=f"Pipeline service error: {error_detail}"
+                status_code=proxy_response.status_code,
+                detail=f"Pipeline service error: {error_detail}",
+                headers={"X-Request-ID": request_id}
             )
 
     except httpx.TimeoutException:
-        logger.error(f"Pipeline service timeout for {org_slug} after retries")
+        logger.error(
+            f"Pipeline service timeout after retries",
+            extra={"request_id": request_id, "org_slug": org_slug}
+        )
         raise HTTPException(
             status_code=status.HTTP_504_GATEWAY_TIMEOUT,
-            detail="Pipeline service timed out after retries"
+            detail="Pipeline service timed out after retries",
+            headers={"X-Request-ID": request_id}
         )
     except httpx.RequestError as e:
-        logger.error(f"Pipeline service connection error after retries: {e}")
+        logger.error(
+            f"Pipeline service connection error after retries",
+            extra={"request_id": request_id, "org_slug": org_slug, "error": str(e)}
+        )
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Failed to connect to pipeline service after retries: {str(e)}"
+            detail=f"Failed to connect to pipeline service after retries: {str(e)}",
+            headers={"X-Request-ID": request_id}
         )
