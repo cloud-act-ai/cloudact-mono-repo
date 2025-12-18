@@ -8,7 +8,19 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import {
   Loader2,
   Save,
@@ -18,9 +30,18 @@ import {
   Phone,
   Globe,
   CheckCircle2,
+  Key,
+  Shield,
+  Trash2,
+  Building2,
+  Users,
 } from "lucide-react"
 import { logError } from "@/lib/utils"
 import { COUNTRY_CODES } from "@/lib/constants/countries"
+import {
+  getOwnedOrganizations,
+  requestAccountDeletion,
+} from "@/actions/account"
 
 // Parse phone to extract country code and number
 function parsePhone(phone: string | null): { countryCode: string; phoneNumber: string } {
@@ -76,6 +97,22 @@ export default function PersonalSettingsPage() {
   const [countryCode, setCountryCode] = useState("+1")
   const [phoneNumber, setPhoneNumber] = useState("")
   const [timezone, setTimezone] = useState("UTC")
+
+  // Security fields
+  const [isResettingPassword, setIsResettingPassword] = useState(false)
+
+  // Account deletion state
+  interface OwnedOrg {
+    id: string
+    org_name: string
+    org_slug: string
+    member_count: number
+    has_other_members: boolean
+  }
+  const [ownedOrgs, setOwnedOrgs] = useState<OwnedOrg[]>([])
+  const [loadingOwnedOrgs, setLoadingOwnedOrgs] = useState(false)
+  const [isRequestingDeletion, setIsRequestingDeletion] = useState(false)
+  const [deletionRequested, setDeletionRequested] = useState(false)
 
   useEffect(() => {
     document.title = "Personal Settings | CloudAct.ai"
@@ -171,6 +208,73 @@ export default function PersonalSettingsPage() {
     }
   }
 
+  const handleResetPassword = async () => {
+    setIsResettingPassword(true)
+    setError(null)
+    setSuccess(null)
+
+    try {
+      const response = await fetch("/api/auth/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to send reset email")
+      }
+
+      setSuccess(data.message || "Password reset email sent! Check your inbox.")
+      setTimeout(() => setSuccess(null), 6000)
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : "An error occurred")
+    } finally {
+      setIsResettingPassword(false)
+    }
+  }
+
+  // Load owned organizations
+  const loadOwnedOrganizations = useCallback(async () => {
+    setLoadingOwnedOrgs(true)
+    try {
+      const result = await getOwnedOrganizations()
+      if (result.success && result.data) {
+        setOwnedOrgs(result.data)
+      }
+    } catch (err: unknown) {
+      console.error("Failed to load owned orgs:", err)
+    } finally {
+      setLoadingOwnedOrgs(false)
+    }
+  }, [])
+
+  // Load owned orgs when viewing danger zone
+  useEffect(() => {
+    void loadOwnedOrganizations()
+  }, [loadOwnedOrganizations])
+
+  // Request account deletion
+  const handleRequestAccountDeletion = async () => {
+    setIsRequestingDeletion(true)
+    setError(null)
+
+    try {
+      const result = await requestAccountDeletion()
+      if (result.success) {
+        setDeletionRequested(true)
+        setSuccess(result.message || "Verification email sent!")
+      } else {
+        setError(result.error || "Failed to request account deletion")
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to request account deletion")
+    } finally {
+      setIsRequestingDeletion(false)
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -184,7 +288,7 @@ export default function PersonalSettingsPage() {
       <div>
         <h1 className="text-[32px] sm:text-[34px] font-bold text-black tracking-tight">Personal Settings</h1>
         <p className="text-[15px] text-[#8E8E93] mt-1">
-          Manage your personal profile and preferences
+          Manage your personal profile and security settings
         </p>
       </div>
 
@@ -202,133 +306,343 @@ export default function PersonalSettingsPage() {
         </Alert>
       )}
 
-      <div className="metric-card shadow-sm">
-        <div className="metric-card-header mb-6">
-          <div className="flex items-center gap-2">
-            <User className="h-5 w-5 text-[#8E8E93]" />
-            <h2 className="text-[22px] font-bold text-black">Personal Information</h2>
-          </div>
-          <p className="text-[13px] sm:text-[15px] text-[#8E8E93] mt-1">Update your personal details and preferences</p>
-        </div>
-        <div className="metric-card-content space-y-4 sm:space-y-6">
-          {/* Email - Read Only */}
-          <div className="space-y-2">
-            <Label htmlFor="email" className="text-[13px] sm:text-[15px] font-medium text-gray-700 flex items-center gap-2">
-              <Mail className="h-4 w-4 text-[#8E8E93]" />
-              Email Address
-            </Label>
-            <Input
-              id="email"
-              type="email"
-              value={email}
-              disabled
-              className="h-10 px-3 text-[15px] bg-gray-50 text-gray-500 border border-[#E5E5EA] rounded-lg"
-            />
-            <p className="text-[13px] text-[#8E8E93]">
-              Email address cannot be changed. Contact support if you need to update it.
-            </p>
-          </div>
+      <Tabs defaultValue="profile" className="w-full">
+        <TabsList className="w-full sm:w-auto flex-wrap">
+          <TabsTrigger value="profile">Profile</TabsTrigger>
+          <TabsTrigger value="security">Security</TabsTrigger>
+          <TabsTrigger value="danger" className="text-[#FF6E50] data-[state=active]:text-[#FF6E50]">Danger Zone</TabsTrigger>
+        </TabsList>
 
-          <Separator />
-
-          {/* Name Fields */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="firstName" className="text-[13px] sm:text-[15px] font-medium text-gray-700">First Name</Label>
-              <Input
-                id="firstName"
-                type="text"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                placeholder="Enter your first name"
-                className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg focus:border-[#8E8E93] focus:ring-1 focus:ring-[#8E8E93]"
-              />
+        <TabsContent value="profile" className="space-y-6">
+          <div className="metric-card shadow-sm">
+            <div className="metric-card-header mb-6">
+              <div className="flex items-center gap-2">
+                <User className="h-5 w-5 text-[#8E8E93]" />
+                <h2 className="text-[22px] font-bold text-black">Personal Information</h2>
+              </div>
+              <p className="text-[13px] sm:text-[15px] text-[#8E8E93] mt-1">Update your personal details and preferences</p>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="lastName" className="text-[13px] sm:text-[15px] font-medium text-gray-700">Last Name</Label>
-              <Input
-                id="lastName"
-                type="text"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                placeholder="Enter your last name"
-                className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg focus:border-[#8E8E93] focus:ring-1 focus:ring-[#8E8E93]"
-              />
+            <div className="metric-card-content space-y-4 sm:space-y-6">
+              {/* Email - Read Only */}
+              <div className="space-y-2">
+                <Label htmlFor="email" className="text-[13px] sm:text-[15px] font-medium text-gray-700 flex items-center gap-2">
+                  <Mail className="h-4 w-4 text-[#8E8E93]" />
+                  Email Address
+                </Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  disabled
+                  className="h-10 px-3 text-[15px] bg-gray-50 text-gray-500 border border-[#E5E5EA] rounded-lg"
+                />
+                <p className="text-[13px] text-[#8E8E93]">
+                  Email address cannot be changed. Contact support if you need to update it.
+                </p>
+              </div>
+
+              <Separator />
+
+              {/* Name Fields */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="firstName" className="text-[13px] sm:text-[15px] font-medium text-gray-700">First Name</Label>
+                  <Input
+                    id="firstName"
+                    type="text"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    placeholder="Enter your first name"
+                    className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg focus:border-[#8E8E93] focus:ring-1 focus:ring-[#8E8E93]"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="lastName" className="text-[13px] sm:text-[15px] font-medium text-gray-700">Last Name</Label>
+                  <Input
+                    id="lastName"
+                    type="text"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    placeholder="Enter your last name"
+                    className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg focus:border-[#8E8E93] focus:ring-1 focus:ring-[#8E8E93]"
+                  />
+                </div>
+              </div>
+
+              {/* Phone Number with Country Code */}
+              <div className="space-y-2">
+                <Label htmlFor="phone" className="text-[13px] sm:text-[15px] font-medium text-gray-700 flex items-center gap-2">
+                  <Phone className="h-4 w-4 text-[#8E8E93]" />
+                  Phone Number <span className="text-[#FF6E50]">*</span>
+                </Label>
+                <div className="flex gap-2">
+                  <Select value={countryCode} onValueChange={setCountryCode}>
+                    <SelectTrigger className="w-[90px] sm:w-24 h-10 text-[15px] border border-[#E5E5EA] rounded-lg">
+                      <SelectValue>{countryCode}</SelectValue>
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[300px]">
+                      {COUNTRY_CODES.map((c) => (
+                        <SelectItem key={`${c.code}-${c.country}`} value={c.code}>
+                          {c.country} ({c.code})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    placeholder="555 123 4567"
+                    className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg flex-1 focus:border-[#8E8E93] focus:ring-1 focus:ring-[#8E8E93]"
+                  />
+                </div>
+                <p className="text-[13px] text-[#8E8E93]">
+                  Used for account recovery and notifications.
+                </p>
+              </div>
+
+              {/* Timezone */}
+              <div className="space-y-2">
+                <Label htmlFor="timezone" className="text-[13px] sm:text-[15px] font-medium text-gray-700 flex items-center gap-2">
+                  <Globe className="h-4 w-4 text-[#8E8E93]" />
+                  Timezone
+                </Label>
+                <Select value={timezone} onValueChange={setTimezone}>
+                  <SelectTrigger id="timezone" className="h-10 text-[15px] border border-[#E5E5EA] rounded-lg">
+                    <SelectValue placeholder="Select your timezone" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TIMEZONES.map((tz) => (
+                      <SelectItem key={tz.value} value={tz.value}>
+                        {tz.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[13px] text-[#8E8E93]">
+                  Used for displaying times in your local timezone.
+                </p>
+              </div>
+            </div>
+            <div className="pt-4 sm:pt-6 border-t border-[#E5E5EA]">
+              <Button onClick={handleSave} disabled={isSaving} className="cloudact-btn-primary h-[36px] px-4">
+                {isSaving ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="mr-2 h-4 w-4" />
+                    Save Changes
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="security" className="space-y-6">
+          <div className="metric-card shadow-sm">
+            <div className="metric-card-header mb-6">
+              <div className="flex items-center gap-2">
+                <Shield className="h-5 w-5 text-[#8E8E93]" />
+                <h2 className="text-[22px] font-bold text-black">Security</h2>
+              </div>
+              <p className="text-[13px] sm:text-[15px] text-[#8E8E93] mt-1">Manage your password and security settings</p>
+            </div>
+            <div className="metric-card-content space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border border-[#E5E5EA] rounded-xl bg-gray-50">
+                <div className="flex items-center gap-3">
+                  <Key className="h-5 w-5 text-[#8E8E93]" />
+                  <div>
+                    <p className="text-[15px] font-medium text-black">Password</p>
+                    <p className="text-[13px] text-[#8E8E93]">Reset your password via email</p>
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={handleResetPassword}
+                  disabled={isResettingPassword}
+                  className="h-[36px] px-4 rounded-xl text-[15px] border border-[#E5E5EA] hover:bg-white shadow-sm transition-colors"
+                >
+                  {isResettingPassword ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Sending...
+                    </>
+                  ) : (
+                    "Reset Password"
+                  )}
+                </Button>
+              </div>
             </div>
           </div>
 
-          {/* Phone Number with Country Code */}
-          <div className="space-y-2">
-            <Label htmlFor="phone" className="text-[13px] sm:text-[15px] font-medium text-gray-700 flex items-center gap-2">
-              <Phone className="h-4 w-4 text-[#8E8E93]" />
-              Phone Number <span className="text-[#FF6E50]">*</span>
-            </Label>
-            <div className="flex gap-2">
-              <Select value={countryCode} onValueChange={setCountryCode}>
-                <SelectTrigger className="w-[90px] sm:w-24 h-10 text-[15px] border border-[#E5E5EA] rounded-lg">
-                  <SelectValue>{countryCode}</SelectValue>
-                </SelectTrigger>
-                <SelectContent className="max-h-[300px]">
-                  {COUNTRY_CODES.map((c) => (
-                    <SelectItem key={`${c.code}-${c.country}`} value={c.code}>
-                      {c.country} ({c.code})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Input
-                id="phone"
-                type="tel"
-                value={phoneNumber}
-                onChange={(e) => setPhoneNumber(e.target.value)}
-                placeholder="555 123 4567"
-                className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg flex-1 focus:border-[#8E8E93] focus:ring-1 focus:ring-[#8E8E93]"
-              />
+          {/* Security Info Card */}
+          <div className="metric-card shadow-sm bg-[#007A78]/5 border-[#007A78]/20">
+            <div className="metric-card-content">
+              <div className="flex items-start gap-3">
+                <Shield className="h-5 w-5 text-[#007A78] mt-0.5 flex-shrink-0" />
+                <div className="space-y-2">
+                  <h3 className="text-[15px] font-semibold text-[#005F5D]">Security Tips</h3>
+                  <ul className="text-[13px] text-[#007A78] space-y-1 list-disc list-inside">
+                    <li>Use a strong, unique password for your account</li>
+                    <li>Never share your password or reset links with anyone</li>
+                    <li>Check your email regularly for security notifications</li>
+                    <li>Log out when using shared or public devices</li>
+                  </ul>
+                </div>
+              </div>
             </div>
-            <p className="text-[13px] text-[#8E8E93]">
-              Used for account recovery and notifications.
-            </p>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="danger" className="space-y-6">
+          {/* Danger Zone Header */}
+          <div className="pt-4 sm:pt-6">
+            <h2 className="text-[22px] font-bold text-[#FF6E50] mb-4 flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5" />
+              Danger Zone
+            </h2>
           </div>
 
-          {/* Timezone */}
-          <div className="space-y-2">
-            <Label htmlFor="timezone" className="text-[13px] sm:text-[15px] font-medium text-gray-700 flex items-center gap-2">
-              <Globe className="h-4 w-4 text-[#8E8E93]" />
-              Timezone
-            </Label>
-            <Select value={timezone} onValueChange={setTimezone}>
-              <SelectTrigger id="timezone" className="h-10 text-[15px] border border-[#E5E5EA] rounded-lg">
-                <SelectValue placeholder="Select your timezone" />
-              </SelectTrigger>
-              <SelectContent>
-                {TIMEZONES.map((tz) => (
-                  <SelectItem key={tz.value} value={tz.value}>
-                    {tz.label}
-                  </SelectItem>
+          {/* Owned Organizations Warning */}
+          {loadingOwnedOrgs ? (
+            <div className="metric-card shadow-sm border-[#FF6E50]/30">
+              <div className="metric-card-content py-8">
+                <div className="flex items-center justify-center">
+                  <Loader2 className="h-6 w-6 animate-spin text-[#007A78]" />
+                  <span className="ml-2 text-[15px] text-[#8E8E93]">Loading organizations...</span>
+                </div>
+              </div>
+            </div>
+          ) : ownedOrgs.length > 0 ? (
+            <div className="metric-card shadow-sm border-[#FF6E50]/30 mb-6">
+              <div className="metric-card-header mb-4">
+                <div className="flex items-center gap-2">
+                  <Building2 className="h-5 w-5 text-[#FF6E50]" />
+                  <h3 className="text-[18px] font-bold text-[#FF6E50]">Organizations You Own</h3>
+                </div>
+                <p className="text-[13px] sm:text-[15px] text-[#8E8E93] mt-1">
+                  You must transfer ownership or delete these organizations before you can delete your account.
+                  Go to Organization Settings &gt; Danger Zone to manage them.
+                </p>
+              </div>
+              <div className="metric-card-content space-y-3">
+                {ownedOrgs.map((org) => (
+                  <div
+                    key={org.id}
+                    className="flex items-center justify-between p-3 border border-[#E5E5EA] rounded-lg bg-gray-50"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Building2 className="h-4 w-4 text-[#8E8E93]" />
+                      <div>
+                        <p className="text-[15px] font-medium text-black">{org.org_name}</p>
+                        <div className="flex items-center gap-2 text-[13px] text-[#8E8E93]">
+                          <Users className="h-3 w-3" />
+                          <span>{org.member_count} member{org.member_count !== 1 ? "s" : ""}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 ))}
-              </SelectContent>
-            </Select>
-            <p className="text-[13px] text-[#8E8E93]">
-              Used for displaying times in your local timezone.
-            </p>
+              </div>
+            </div>
+          ) : null}
+
+          {/* Account Deletion Card */}
+          <div className="metric-card shadow-sm border-[#FF6E50]/30">
+            <div className="metric-card-header mb-4">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-[#FF6E50]" />
+                <h3 className="text-[18px] font-bold text-[#FF6E50]">Delete Account</h3>
+              </div>
+              <p className="text-[13px] sm:text-[15px] text-[#8E8E93] mt-1">Permanently delete your account and all associated data</p>
+            </div>
+            <div className="metric-card-content">
+              {deletionRequested ? (
+                <Alert className="bg-muted border-[#007A78]/30">
+                  <Mail className="h-4 w-4 text-[#007A78]" />
+                  <AlertDescription>
+                    <p className="font-medium text-foreground">Verification email sent!</p>
+                    <p className="text-sm mt-1">
+                      Please check your inbox and click the confirmation link to complete account deletion.
+                      The link will expire in 30 minutes.
+                    </p>
+                  </AlertDescription>
+                </Alert>
+              ) : ownedOrgs.length > 0 ? (
+                <Alert variant="destructive" className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
+                  <AlertTriangle className="h-4 w-4 text-[#FF6E50]" />
+                  <AlertDescription>
+                    You own {ownedOrgs.length} organization{ownedOrgs.length !== 1 ? "s" : ""}.
+                    Please transfer ownership or delete them before deleting your account.
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                <Alert variant="destructive" className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
+                  <AlertTriangle className="h-4 w-4 text-[#FF6E50]" />
+                  <AlertDescription>
+                    Deleting your account will permanently remove you from all organizations and cannot be
+                    undone. Your data will be lost forever.
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
+            <div className="pt-4 border-t border-[#E5E5EA]">
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="destructive"
+                    disabled={ownedOrgs.length > 0 || isRequestingDeletion || deletionRequested}
+                    className="bg-[#FF6E50] hover:bg-[#E55A3C] text-white shadow-sm"
+                  >
+                    {isRequestingDeletion ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Requesting...
+                      </>
+                    ) : deletionRequested ? (
+                      <>
+                        <Mail className="mr-2 h-4 w-4" />
+                        Check Email
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete Account
+                      </>
+                    )}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Request Account Deletion</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      We will send a verification email to <span className="font-medium">{email}</span>.
+                      You must click the link in the email to confirm the deletion.
+                      <span className="block mt-2 text-destructive">
+                        This action is permanent and cannot be undone.
+                      </span>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleRequestAccountDeletion}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      Send Verification Email
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
           </div>
-        </div>
-        <div className="pt-4 sm:pt-6 border-t border-[#E5E5EA]">
-          <Button onClick={handleSave} disabled={isSaving} className="cloudact-btn-primary h-[36px] px-4">
-            {isSaving ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              <>
-                <Save className="mr-2 h-4 w-4" />
-                Save Changes
-              </>
-            )}
-          </Button>
-        </div>
-      </div>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

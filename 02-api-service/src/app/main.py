@@ -291,7 +291,7 @@ tags_metadata = [
     },
     {
         "name": "Costs",
-        "description": "High-performance, Polars-powered read-only cost analytics endpoints. Retrieve cost data, summaries, and trends using FOCUS 1.2 standard schema."
+        "description": "High-performance, Polars-powered read-only cost analytics endpoints. Retrieve cost data, summaries, and trends using FOCUS 1.3 standard schema with org-specific extension fields."
     }
 ]
 

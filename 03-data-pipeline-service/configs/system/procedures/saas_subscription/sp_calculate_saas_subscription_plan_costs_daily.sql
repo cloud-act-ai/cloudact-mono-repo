@@ -41,14 +41,14 @@ CREATE OR REPLACE PROCEDURE `{project_id}.organizations`.sp_calculate_saas_subsc
   p_project_id STRING,
   p_dataset_id STRING,
   p_start_date DATE,
-  p_end_date DATE,
-  p_default_currency STRING DEFAULT 'USD'
+  p_end_date DATE
 )
 OPTIONS(strict_mode=TRUE)
 BEGIN
   DECLARE v_rows_inserted INT64 DEFAULT 0;
   DECLARE v_org_currency STRING DEFAULT NULL;
   DECLARE v_zero_seat_count INT64 DEFAULT 0;
+  DECLARE v_default_currency STRING DEFAULT 'USD';
 
   -- 1. Validation
   ASSERT p_project_id IS NOT NULL AS "p_project_id cannot be NULL";
@@ -62,10 +62,11 @@ BEGIN
   EXECUTE IMMEDIATE FORMAT("""
     SELECT default_currency
     FROM `%s.organizations.org_profiles`
-    WHERE REGEXP_REPLACE(p_dataset_id, '_prod$|_stage$|_dev$', '') = org_slug
+    WHERE REGEXP_REPLACE(@p_ds, '_prod$|_stage$|_dev$', '') = org_slug
     LIMIT 1
   """, p_project_id)
-  INTO v_org_currency;
+  INTO v_org_currency
+  USING p_dataset_id AS p_ds;
 
   BEGIN TRANSACTION;
 
@@ -94,8 +95,8 @@ BEGIN
           plan_name,
           display_name,
           LOWER(COALESCE(billing_cycle, 'monthly')) AS billing_cycle,
-          -- Use org's default_currency from org_profiles (v_org_currency), then p_default_currency, then USD
-          COALESCE(currency, v_org_currency, p_default_currency, 'USD') AS currency,
+          -- Use org's default_currency from org_profiles (@org_currency), then @default_currency, then USD
+          COALESCE(currency, @org_currency, @default_currency, 'USD') AS currency,
           -- NOTE: NULL seats treated as 1 for backward compatibility, but logged as DQ issue
           CASE
             WHEN seats IS NULL OR seats <= 0 THEN 1
@@ -238,7 +239,7 @@ BEGIN
       FROM daily_expanded
       WHERE daily_cost > 0  -- Skip zero-cost rows (FREE plans)
     """, p_project_id, p_dataset_id, p_project_id, p_dataset_id)
-    USING p_start_date AS p_start, p_end_date AS p_end;
+    USING p_start_date AS p_start, p_end_date AS p_end, v_org_currency AS org_currency, v_default_currency AS default_currency;
 
   COMMIT TRANSACTION;
 

@@ -126,7 +126,7 @@ POST /api/v1/organizations/onboard
   ├─ 4. Generate org API key (encrypted, stored in org_api_keys)
   ├─ 5. Create org subscription record
   ├─ 6. Create BigQuery dataset: {org_slug}_prod
-  ├─ 7. Create 4 org-specific tables (llm_model_pricing, saas_subscription_plans, saas_subscription_plan_costs_daily, cost_data_standard_1_2)
+  ├─ 7. Create 5 org-specific tables (llm_model_pricing, saas_subscription_plans, saas_subscription_plan_costs_daily, cost_data_standard_1_3, contract_commitment_1_3)
   └─ 8. Return org profile + API key (dev only)
 ```
 

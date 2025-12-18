@@ -1264,12 +1264,12 @@ export async function getAllPlansForCostDashboard(orgSlug: string): Promise<{
 }
 
 // ============================================
-// FOCUS 1.2 Cost Data (Polars API)
+// FOCUS 1.3 Cost Data (Polars API)
 // ============================================
 
 /**
- * SaaS Subscription Cost record from FOCUS 1.2 standard table
- * Source: cost_data_standard_1_2 (Polars API endpoint)
+ * SaaS Subscription Cost record from FOCUS 1.3 standard table
+ * Source: cost_data_standard_1_3 (Polars API endpoint)
  */
 export interface SaaSCostRecord {
   // Identity
@@ -1278,9 +1278,12 @@ export interface SaaSCostRecord {
   SubAccountId: string
   SubAccountName: string | null
 
-  // Provider & Service (FOCUS 1.2)
-  Provider: string
-  Publisher: string | null
+  // Provider & Service (FOCUS 1.3)
+  ServiceProviderName: string           // New in FOCUS 1.3 (replaces Provider)
+  HostProviderName: string              // New in FOCUS 1.3
+  InvoiceIssuerName: string             // New in FOCUS 1.3 (replaces InvoiceIssuer)
+  ProviderName: string | null           // Deprecated in FOCUS 1.3, kept for backward compat
+  PublisherName: string | null          // Deprecated in FOCUS 1.3, kept for backward compat
   ServiceCategory: string
   ServiceName: string
   ServiceSubcategory: string  // Plan name
@@ -1327,10 +1330,29 @@ export interface SaaSCostRecord {
   ChargePeriodStart: string
   ChargePeriodEnd: string
 
-  // Metadata
-  SourceSystem: string
-  SourceRecordId: string
-  UpdatedAt: string
+  // Metadata (FOCUS 1.3 x_ prefix extension fields)
+  x_SourceSystem: string
+  x_SourceRecordId: string
+  x_UpdatedAt: string
+  x_AmortizationClass: string
+  x_ServiceModel: string
+  x_ExchangeRateUsed: number | null
+  x_OriginalCurrency: string | null
+  x_OriginalCost: number | null
+  x_CreatedAt: string
+
+  // Org-specific extension fields (FOCUS 1.3)
+  x_OrgSlug: string
+  x_OrgName: string | null
+  x_OrgOwnerEmail: string | null
+  x_OrgDefaultCurrency: string | null
+  x_OrgDefaultTimezone: string | null
+  x_OrgDefaultCountry: string | null
+  x_OrgSubscriptionPlan: string | null
+  x_OrgSubscriptionStatus: string | null
+  x_PipelineId: string | null
+  x_PipelineRunId: string | null
+  x_DataQualityScore: number | null
 
   // Calculated Run Rates
   MonthlyRunRate: number
@@ -1359,10 +1381,10 @@ export interface SaaSCostSummary {
 }
 
 /**
- * Get SaaS subscription costs from Polars API (cost_data_standard_1_2)
+ * Get SaaS subscription costs from Polars API (cost_data_standard_1_3)
  *
  * This is the SOURCE OF TRUTH for actual calculated subscription costs.
- * Data comes from the pipeline that calculates daily amortized costs.
+ * Data comes from the pipeline that calculates daily amortized costs in FOCUS 1.3 format.
  *
  * Use this for:
  * - Monthly/Annual cost display

@@ -107,6 +107,48 @@ export interface OrgLocale {
   default_language?: string
 }
 
+export interface OrgContactDetails {
+  business_person_name: string | null
+  business_person_position: string | null
+  business_person_department: string | null
+  contact_email: string | null
+  contact_phone: string | null
+  business_address_line1: string | null
+  business_address_line2: string | null
+  business_city: string | null
+  business_state: string | null
+  business_postal_code: string | null
+  business_country: string | null
+}
+
+export interface OrgQuotaLimits {
+  seat_limit: number
+  providers_limit: number
+  pipelines_per_day_limit: number
+  pipelines_per_week_limit: number
+  pipelines_per_month_limit: number
+  team_members_count: number
+  configured_providers_count: number
+}
+
+export interface GetOrgContactDetailsResult {
+  success: boolean
+  contactDetails?: OrgContactDetails
+  error?: string
+}
+
+export interface UpdateOrgContactDetailsResult {
+  success: boolean
+  contactDetails?: OrgContactDetails
+  error?: string
+}
+
+export interface GetOrgQuotaLimitsResult {
+  success: boolean
+  quotaLimits?: OrgQuotaLimits
+  error?: string
+}
+
 export interface GetOrgLocaleResult {
   success: boolean
   locale?: OrgLocale
@@ -707,6 +749,309 @@ export async function getOrgDetails(orgSlug: string): Promise<{
   } catch (err: unknown) {
     console.error("[Org Details] Get details error:", err)
     const errorMessage = err instanceof Error ? err.message : "Failed to get organization details"
+    return { success: false, error: errorMessage }
+  }
+}
+
+// ============================================
+// Organization Contact Details Functions
+// ============================================
+
+/**
+ * Get organization contact details from Supabase.
+ * Returns business contact email, phone, and address information.
+ *
+ * SECURITY: Requires org membership.
+ */
+export async function getOrgContactDetails(orgSlug: string): Promise<GetOrgContactDetailsResult> {
+  try {
+    // Validate input
+    if (!isValidOrgSlug(orgSlug)) {
+      return { success: false, error: "Invalid organization identifier" }
+    }
+
+    // Verify authentication AND org membership
+    const authResult = await verifyOrgMembership(orgSlug)
+    if (!authResult.authorized) {
+      return { success: false, error: authResult.error || "Not authorized" }
+    }
+
+    // Fetch contact details from Supabase
+    const supabase = await createClient()
+    const { data, error } = await supabase
+      .from("organizations")
+      .select(`
+        business_person_name,
+        business_person_position,
+        business_person_department,
+        contact_email,
+        contact_phone,
+        business_address_line1,
+        business_address_line2,
+        business_city,
+        business_state,
+        business_postal_code,
+        business_country
+      `)
+      .eq("org_slug", orgSlug)
+      .single()
+
+    if (error || !data) {
+      console.error("[Org Contact] Failed to fetch contact details:", error)
+      return { success: false, error: "Failed to fetch organization contact details" }
+    }
+
+    return {
+      success: true,
+      contactDetails: {
+        business_person_name: data.business_person_name || null,
+        business_person_position: data.business_person_position || null,
+        business_person_department: data.business_person_department || null,
+        contact_email: data.contact_email || null,
+        contact_phone: data.contact_phone || null,
+        business_address_line1: data.business_address_line1 || null,
+        business_address_line2: data.business_address_line2 || null,
+        business_city: data.business_city || null,
+        business_state: data.business_state || null,
+        business_postal_code: data.business_postal_code || null,
+        business_country: data.business_country || null,
+      },
+    }
+  } catch (err: unknown) {
+    console.error("[Org Contact] Get contact details error:", err)
+    const errorMessage = err instanceof Error ? err.message : "Failed to get organization contact details"
+    return { success: false, error: errorMessage }
+  }
+}
+
+/**
+ * Validate email format.
+ */
+function isValidEmail(email: string): boolean {
+  if (!email) return true // Empty is allowed (optional field)
+  return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email)
+}
+
+/**
+ * Validate phone format (international formats allowed).
+ */
+function isValidPhone(phone: string): boolean {
+  if (!phone) return true // Empty is allowed (optional field)
+  return /^\+?[0-9\s\-()]{7,20}$/.test(phone)
+}
+
+/**
+ * Validate country code (ISO 3166-1 alpha-2).
+ */
+function isValidCountryCode(country: string): boolean {
+  if (!country) return true // Empty is allowed (optional field)
+  return /^[A-Z]{2}$/.test(country)
+}
+
+/**
+ * Update organization contact details in Supabase.
+ *
+ * SECURITY: Requires org membership.
+ */
+export async function updateOrgContactDetails(
+  orgSlug: string,
+  contactDetails: Partial<OrgContactDetails>
+): Promise<UpdateOrgContactDetailsResult> {
+  try {
+    // Validate input
+    if (!isValidOrgSlug(orgSlug)) {
+      return { success: false, error: "Invalid organization identifier" }
+    }
+
+    // Validate email if provided
+    if (contactDetails.contact_email && !isValidEmail(contactDetails.contact_email)) {
+      return { success: false, error: "Invalid email format" }
+    }
+
+    // Validate phone if provided
+    if (contactDetails.contact_phone && !isValidPhone(contactDetails.contact_phone)) {
+      return { success: false, error: "Invalid phone format. Use international format (e.g., +1 234-567-8900)" }
+    }
+
+    // Validate country code if provided
+    if (contactDetails.business_country && !isValidCountryCode(contactDetails.business_country.toUpperCase())) {
+      return { success: false, error: "Invalid country code. Use ISO 3166-1 alpha-2 format (e.g., US, GB, IN)" }
+    }
+
+    // Verify authentication AND org membership
+    const authResult = await verifyOrgMembership(orgSlug)
+    if (!authResult.authorized) {
+      return { success: false, error: authResult.error || "Not authorized" }
+    }
+
+    // Prepare update data (normalize empty strings to null)
+    const updateData: Record<string, string | null> = {}
+    if (contactDetails.business_person_name !== undefined) {
+      updateData.business_person_name = contactDetails.business_person_name?.trim() || null
+    }
+    if (contactDetails.business_person_position !== undefined) {
+      updateData.business_person_position = contactDetails.business_person_position?.trim() || null
+    }
+    if (contactDetails.business_person_department !== undefined) {
+      updateData.business_person_department = contactDetails.business_person_department?.trim() || null
+    }
+    if (contactDetails.contact_email !== undefined) {
+      updateData.contact_email = contactDetails.contact_email?.trim() || null
+    }
+    if (contactDetails.contact_phone !== undefined) {
+      updateData.contact_phone = contactDetails.contact_phone?.trim() || null
+    }
+    if (contactDetails.business_address_line1 !== undefined) {
+      updateData.business_address_line1 = contactDetails.business_address_line1?.trim() || null
+    }
+    if (contactDetails.business_address_line2 !== undefined) {
+      updateData.business_address_line2 = contactDetails.business_address_line2?.trim() || null
+    }
+    if (contactDetails.business_city !== undefined) {
+      updateData.business_city = contactDetails.business_city?.trim() || null
+    }
+    if (contactDetails.business_state !== undefined) {
+      updateData.business_state = contactDetails.business_state?.trim() || null
+    }
+    if (contactDetails.business_postal_code !== undefined) {
+      updateData.business_postal_code = contactDetails.business_postal_code?.trim() || null
+    }
+    if (contactDetails.business_country !== undefined) {
+      updateData.business_country = contactDetails.business_country?.toUpperCase().trim() || null
+    }
+
+    // Update in Supabase
+    const supabase = await createClient()
+    const { error: updateError } = await supabase
+      .from("organizations")
+      .update(updateData)
+      .eq("org_slug", orgSlug)
+
+    if (updateError) {
+      console.error("[Org Contact] Failed to update contact details:", updateError)
+      return { success: false, error: "Failed to update organization contact details" }
+    }
+
+    console.log(`[Org Contact] Updated contact details for ${orgSlug}`)
+
+    // Return updated data
+    return {
+      success: true,
+      contactDetails: {
+        business_person_name: updateData.business_person_name ?? null,
+        business_person_position: updateData.business_person_position ?? null,
+        business_person_department: updateData.business_person_department ?? null,
+        contact_email: updateData.contact_email ?? null,
+        contact_phone: updateData.contact_phone ?? null,
+        business_address_line1: updateData.business_address_line1 ?? null,
+        business_address_line2: updateData.business_address_line2 ?? null,
+        business_city: updateData.business_city ?? null,
+        business_state: updateData.business_state ?? null,
+        business_postal_code: updateData.business_postal_code ?? null,
+        business_country: updateData.business_country ?? null,
+      },
+    }
+  } catch (err: unknown) {
+    console.error("[Org Contact] Update contact details error:", err)
+    const errorMessage = err instanceof Error ? err.message : "Failed to update organization contact details"
+    return { success: false, error: errorMessage }
+  }
+}
+
+// ============================================
+// Organization Quota Limits Functions
+// ============================================
+
+/**
+ * Get organization quota limits and current usage.
+ *
+ * Limits are populated from Stripe via webhook (dynamic, never hardcoded):
+ * - seat_limit: from Stripe product metadata "teamMembers"
+ * - providers_limit: from Stripe product metadata "providers"
+ * - pipelines_per_day_limit: from Stripe product metadata "pipelinesPerDay"
+ *
+ * Usage counts are calculated from actual data:
+ * - team_members_count: count from organization_members table
+ * - configured_providers_count: count of configured integrations
+ *
+ * SECURITY: Requires org membership.
+ */
+export async function getOrgQuotaLimits(orgSlug: string): Promise<GetOrgQuotaLimitsResult> {
+  try {
+    // Validate input
+    if (!isValidOrgSlug(orgSlug)) {
+      return { success: false, error: "Invalid organization identifier" }
+    }
+
+    // Verify authentication AND org membership
+    const authResult = await verifyOrgMembership(orgSlug)
+    if (!authResult.authorized) {
+      return { success: false, error: authResult.error || "Not authorized" }
+    }
+
+    const supabase = await createClient()
+
+    // Fetch organization with quota limits (populated by Stripe webhook)
+    const { data: org, error: orgError } = await supabase
+      .from("organizations")
+      .select(`
+        id,
+        seat_limit,
+        providers_limit,
+        pipelines_per_day_limit,
+        pipelines_per_week_limit,
+        pipelines_per_month_limit,
+        integration_openai_status,
+        integration_anthropic_status,
+        integration_gcp_status,
+        integration_gemini_status,
+        integration_deepseek_status
+      `)
+      .eq("org_slug", orgSlug)
+      .single()
+
+    if (orgError || !org) {
+      console.error("[Org Quota] Failed to fetch organization:", orgError)
+      return { success: false, error: "Failed to fetch organization quota limits" }
+    }
+
+    // Count active team members
+    const { count: memberCount, error: memberError } = await supabase
+      .from("organization_members")
+      .select("*", { count: "exact", head: true })
+      .eq("org_id", org.id)
+      .eq("status", "active")
+
+    if (memberError) {
+      console.error("[Org Quota] Failed to count members:", memberError)
+      return { success: false, error: "Failed to count team members" }
+    }
+
+    // Count configured providers (status = 'configured')
+    let configuredProviders = 0
+    if (org.integration_openai_status === "configured") configuredProviders++
+    if (org.integration_anthropic_status === "configured") configuredProviders++
+    if (org.integration_gcp_status === "configured") configuredProviders++
+    if (org.integration_gemini_status === "configured") configuredProviders++
+    if (org.integration_deepseek_status === "configured") configuredProviders++
+
+    return {
+      success: true,
+      quotaLimits: {
+        // Limits from Stripe (via webhook) - defaults indicate no limit set
+        seat_limit: org.seat_limit ?? 0,
+        providers_limit: org.providers_limit ?? 0,
+        pipelines_per_day_limit: org.pipelines_per_day_limit ?? 0,
+        pipelines_per_week_limit: org.pipelines_per_week_limit ?? 0,
+        pipelines_per_month_limit: org.pipelines_per_month_limit ?? 0,
+        // Current usage counts
+        team_members_count: memberCount ?? 0,
+        configured_providers_count: configuredProviders,
+      },
+    }
+  } catch (err: unknown) {
+    console.error("[Org Quota] Get quota limits error:", err)
+    const errorMessage = err instanceof Error ? err.message : "Failed to get organization quota limits"
     return { success: false, error: errorMessage }
   }
 }

@@ -1,0 +1,134 @@
+[
+  {
+    "name": "ContractId",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Unique identifier for the overall contract/agreement between the provider and customer. May encompass multiple commitments. Links to ContractApplied in cost_data_standard_1_3."
+  },
+  {
+    "name": "ContractPeriodStart",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "Inclusive start date/time of the overall contract's duration. ISO 8601 format."
+  },
+  {
+    "name": "ContractPeriodEnd",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "Exclusive end date/time of the overall contract's duration. ISO 8601 format."
+  },
+  {
+    "name": "ContractCommitmentId",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Unique identifier for the specific contract commitment within the contract (as assigned by the provider)."
+  },
+  {
+    "name": "ContractCommitmentCategory",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Highest-level classification of how the commitment is applied. Values: 'Usage' (usage-based commitment), 'Spend' (spend-based commitment)."
+  },
+  {
+    "name": "ContractCommitmentDescription",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Self-contained summary of the contract commitment's terms and conditions. Human-readable description."
+  },
+  {
+    "name": "ContractCommitmentType",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Provider-assigned name for the type of commitment (e.g., '3-year Reserved Instance', '1-year CUD', 'Enterprise Discount Program')."
+  },
+  {
+    "name": "ContractCommitmentQuantity",
+    "type": "NUMERIC",
+    "mode": "NULLABLE",
+    "description": "The amount of usage committed under the contract (for usage-based commitments), expressed in ContractCommitmentUnit."
+  },
+  {
+    "name": "ContractCommitmentUnit",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "The unit of measure for the commitment quantity (e.g., 'Hours', 'GB', 'vCPU-hours', 'Credits'). As defined by the provider."
+  },
+  {
+    "name": "ContractCommitmentCost",
+    "type": "NUMERIC",
+    "mode": "NULLABLE",
+    "description": "The monetary value of the contract commitment (for spend-based commitments). Used to track committed spend amount."
+  },
+  {
+    "name": "ContractCommitmentPeriodStart",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "Inclusive start date/time when this specific commitment period begins. May differ from ContractPeriodStart for multi-year contracts."
+  },
+  {
+    "name": "ContractCommitmentPeriodEnd",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "Exclusive end date/time when this specific commitment period ends. May differ from ContractPeriodEnd for phased commitments."
+  },
+  {
+    "name": "x_SubAccountId",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "[Extension] Organization/sub-account to which this commitment applies. Maps to org_slug for tenant isolation."
+  },
+  {
+    "name": "x_ServiceProviderName",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "[Extension] Name of the service provider offering the commitment. Examples: 'Google Cloud', 'AWS', 'Azure'."
+  },
+  {
+    "name": "x_CommitmentStatus",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "[Extension] Current status of the commitment. Values: 'Active', 'Expired', 'Cancelled', 'Pending'."
+  },
+  {
+    "name": "x_CommitmentUtilization",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "[Extension] Percentage of commitment utilized (0.0 to 100.0). Calculated from usage data."
+  },
+  {
+    "name": "x_CommitmentSavings",
+    "type": "NUMERIC",
+    "mode": "NULLABLE",
+    "description": "[Extension] Total savings achieved from this commitment compared to on-demand pricing."
+  },
+  {
+    "name": "x_Currency",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "[Extension] ISO 4217 currency code for monetary values (e.g., USD, EUR, INR)."
+  },
+  {
+    "name": "x_SourceSystem",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "[Extension] System that generated the record. Examples: 'gcp_billing', 'aws_cur', 'manual_import'."
+  },
+  {
+    "name": "x_SourceRecordId",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "[Extension] Unique identifier in the source system for traceability."
+  },
+  {
+    "name": "x_CreatedAt",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "[Extension] Timestamp when the record was first created in the data warehouse."
+  },
+  {
+    "name": "x_UpdatedAt",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "[Extension] Timestamp when the record was last updated in the data warehouse."
+  }
+]

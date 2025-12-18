@@ -28,10 +28,10 @@ import {
   User,
   Building,
   UserPlus,
-  Shield,
   ChevronDown,
   ChevronRight,
   HelpCircle,
+  BarChart3,
   // Cost Dashboards icons
   LayoutDashboard,
   Receipt,
@@ -529,12 +529,12 @@ export function DashboardSidebar({
                   className={cn(
                     "h-[28px] px-3 text-[13px] font-normal text-[#3C3C43]",
                     hoverClass,
-                    isActive(`/${orgSlug}/settings/invite`) && activeClass
+                    isActive(`/${orgSlug}/settings/quota-usage`) && activeClass
                   )}
                 >
-                  <Link href={`/${orgSlug}/settings/invite`}>
-                    <UserPlus className="h-4 w-4 mr-2" />
-                    Invite
+                  <Link href={`/${orgSlug}/settings/quota-usage`}>
+                    <BarChart3 className="h-4 w-4 mr-2" />
+                    Usage & Quotas
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -545,12 +545,12 @@ export function DashboardSidebar({
                   className={cn(
                     "h-[28px] px-3 text-[13px] font-normal text-[#3C3C43]",
                     hoverClass,
-                    isActive(`/${orgSlug}/settings/security`) && activeClass
+                    isActive(`/${orgSlug}/settings/invite`) && activeClass
                   )}
                 >
-                  <Link href={`/${orgSlug}/settings/security`}>
-                    <Shield className="h-4 w-4 mr-2" />
-                    Security
+                  <Link href={`/${orgSlug}/settings/invite`}>
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Invite
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

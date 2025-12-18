@@ -148,8 +148,8 @@ export function DatePicker({
   const presets = getPresets()
 
   return (
-    <div className={cn("relative", className)}>
-      <Popover open={open} onOpenChange={setOpen}>
+    <div className={cn("relative", className)} onClick={(e) => e.stopPropagation()}>
+      <Popover open={open} onOpenChange={setOpen} modal={true}>
         <div className="flex gap-2">
           {/* Manual input field */}
           <div className="relative flex-1">
@@ -194,8 +194,48 @@ export function DatePicker({
           </div>
         </div>
 
-        <PopoverContent className="w-auto p-0" align="start">
-          <div className="flex">
+        <PopoverContent
+          className="w-auto p-0 z-[9999]"
+          align="start"
+          side="bottom"
+          sideOffset={8}
+          avoidCollisions={true}
+          collisionPadding={16}
+          onPointerDownOutside={(e) => {
+            // Prevent sheet from closing when clicking inside popover
+            // Check if the click is on a calendar navigation button or day
+            const target = e.target as HTMLElement
+            if (target.closest('[data-slot="calendar"]') ||
+                target.closest('.rdp') ||
+                target.closest('[data-radix-popper-content-wrapper]')) {
+              e.preventDefault()
+            }
+          }}
+          onInteractOutside={(e) => {
+            // Prevent closing when interacting with calendar elements
+            const target = e.target as HTMLElement
+            if (target.closest('[data-slot="calendar"]') ||
+                target.closest('.rdp') ||
+                target.closest('[data-radix-popper-content-wrapper]')) {
+              e.preventDefault()
+            }
+          }}
+          onFocusOutside={(e) => {
+            // Prevent focus outside from closing the popover while inside calendar
+            const target = e.target as HTMLElement
+            if (target.closest('[data-slot="calendar"]') ||
+                target.closest('.rdp') ||
+                target.closest('[data-radix-popper-content-wrapper]')) {
+              e.preventDefault()
+            }
+          }}
+        >
+          <div
+            className="flex"
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
             {/* Presets sidebar */}
             {showPresets && (
               <div className="border-r border-[#E5E5EA] p-3 space-y-1 min-w-[120px]">
@@ -205,8 +245,13 @@ export function DatePicker({
                     key={preset.label}
                     variant="ghost"
                     size="sm"
+                    type="button"
                     className="w-full justify-start text-left h-8 px-2 text-sm font-normal hover:bg-[#007A78]/10 hover:text-[#007A78]"
-                    onClick={() => handlePresetClick(preset.getValue)}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      e.preventDefault()
+                      handlePresetClick(preset.getValue)
+                    }}
                   >
                     {preset.label}
                   </Button>

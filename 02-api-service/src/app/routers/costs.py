@@ -501,7 +501,7 @@ async def get_cost_trend(
     "/{org_slug}/saas-subscriptions",
     response_model=CostDataResponse,
     summary="Get SaaS Subscription Costs",
-    description="Get actual calculated SaaS subscription costs from cost_data_standard_1_2 (pipeline output). Rate limited: 60 req/min per org."
+    description="Get actual calculated SaaS subscription costs from cost_data_standard_1_3 (pipeline output). Rate limited: 60 req/min per org."
 )
 async def get_saas_subscription_costs(
     org_slug: str,
@@ -513,7 +513,7 @@ async def get_saas_subscription_costs(
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """
-    Get SaaS subscription costs from the cost_data_standard_1_2 table.
+    Get SaaS subscription costs from the cost_data_standard_1_3 table.
 
     This is the **source of truth** for subscription costs, calculated by the
     SaaS subscription costs pipeline (sp_run_saas_subscription_costs_pipeline).
@@ -559,7 +559,7 @@ async def get_saas_subscription_costs(
     "/{org_slug}/cloud",
     response_model=CostDataResponse,
     summary="Get Cloud Costs",
-    description="Get cloud infrastructure costs (GCP, AWS, Azure) from cost_data_standard_1_2. Rate limited: 60 req/min per org."
+    description="Get cloud infrastructure costs (GCP, AWS, Azure) from cost_data_standard_1_3. Rate limited: 60 req/min per org."
 )
 async def get_cloud_costs(
     org_slug: str,
@@ -571,7 +571,7 @@ async def get_cloud_costs(
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """
-    Get cloud infrastructure costs from cost_data_standard_1_2.
+    Get cloud infrastructure costs from cost_data_standard_1_3.
 
     Includes costs from:
     - Google Cloud Platform (GCP)
@@ -614,7 +614,7 @@ async def get_cloud_costs(
     "/{org_slug}/llm",
     response_model=CostDataResponse,
     summary="Get LLM API Costs",
-    description="Get LLM API costs (OpenAI, Anthropic, etc.) from cost_data_standard_1_2. Rate limited: 60 req/min per org."
+    description="Get LLM API costs (OpenAI, Anthropic, etc.) from cost_data_standard_1_3. Rate limited: 60 req/min per org."
 )
 async def get_llm_costs(
     org_slug: str,
@@ -626,7 +626,7 @@ async def get_llm_costs(
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """
-    Get LLM API costs from cost_data_standard_1_2.
+    Get LLM API costs from cost_data_standard_1_3.
 
     Includes costs from:
     - OpenAI (GPT-4, GPT-3.5, embeddings, etc.)

@@ -1154,3 +1154,203 @@ export async function getStripePlans(): Promise<{ data: DynamicPlan[] | null; er
     return { data: null, error: errorMessage }
   }
 }
+
+/**
+ * Re-sync billing data from Stripe to Supabase and Backend
+ *
+ * This function performs a manual hard refresh of billing data:
+ * 1. Fetches latest subscription from Stripe (source of truth)
+ * 2. Updates Supabase organization record
+ * 3. Syncs subscription limits to BigQuery backend
+ *
+ * Use cases:
+ * - Webhook missed or delayed
+ * - Manual reconciliation after backend changes
+ * - User reports billing data is out of sync
+ *
+ * SECURITY: Only owners can trigger re-sync
+ */
+export async function resyncBillingFromStripe(orgSlug: string): Promise<{
+  success: boolean
+  error?: string
+  message?: string
+}> {
+  try {
+    console.log("[Billing Resync] Starting manual resync for:", orgSlug)
+
+    // Validate orgSlug format (prevent path traversal/injection)
+    if (!isValidOrgSlug(orgSlug)) {
+      console.error("[Billing Resync] Invalid org slug format")
+      return { success: false, error: "Invalid organization" }
+    }
+
+    const supabase = await createClient()
+    const adminClient = createServiceRoleClient()
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (!user) {
+      return { success: false, error: "Unauthorized" }
+    }
+
+    // Get organization with Stripe info
+    const { data: org, error: orgError } = await adminClient
+      .from("organizations")
+      .select("id, stripe_customer_id, stripe_subscription_id")
+      .eq("org_slug", orgSlug)
+      .single()
+
+    if (orgError || !org) {
+      console.error("[Billing Resync] Organization not found:", orgError)
+      return { success: false, error: "Organization not found" }
+    }
+
+    // Verify user is owner
+    const { data: membership } = await adminClient
+      .from("organization_members")
+      .select("role")
+      .eq("org_id", org.id)
+      .eq("user_id", user.id)
+      .eq("status", "active")
+      .single()
+
+    if (membership?.role !== "owner") {
+      console.error("[Billing Resync] User is not owner")
+      return { success: false, error: "Only the owner can resync billing data" }
+    }
+
+    // Check if org has Stripe customer
+    if (!org.stripe_customer_id) {
+      console.log("[Billing Resync] No Stripe customer found")
+      return {
+        success: true,
+        message: "No Stripe subscription to sync. Please subscribe first."
+      }
+    }
+
+    // Fetch latest subscription from Stripe
+    let subscription: Stripe.Subscription | null = null
+    try {
+      if (org.stripe_subscription_id) {
+        subscription = await stripe.subscriptions.retrieve(org.stripe_subscription_id, {
+          expand: ["default_payment_method", "items.data.price.product"],
+        })
+      } else {
+        // Fallback: Find subscription by customer ID
+        const subscriptions = await stripe.subscriptions.list({
+          customer: org.stripe_customer_id,
+          status: "all",
+          limit: 1,
+        })
+        if (subscriptions.data.length > 0) {
+          subscription = await stripe.subscriptions.retrieve(subscriptions.data[0].id, {
+            expand: ["default_payment_method", "items.data.price.product"],
+          })
+        }
+      }
+    } catch (stripeError: unknown) {
+      const errorMessage = stripeError instanceof Error ? stripeError.message : "Unknown Stripe error"
+      console.error("[Billing Resync] Failed to fetch from Stripe:", errorMessage)
+      return { success: false, error: `Failed to fetch subscription from Stripe: ${errorMessage}` }
+    }
+
+    if (!subscription) {
+      console.log("[Billing Resync] No active subscription found in Stripe")
+      return {
+        success: true,
+        message: "No active subscription found in Stripe."
+      }
+    }
+
+    console.log("[Billing Resync] Found subscription in Stripe:", subscription.id)
+
+    // Extract plan info from Stripe (single source of truth)
+    const priceItem = subscription.items.data[0]?.price
+    const product = priceItem?.product
+
+    const isValidProduct = product && typeof product === "object" && !("deleted" in product && product.deleted)
+    const productData = isValidProduct ? product as Stripe.Product : null
+    const planId = productData
+      ? (productData.metadata?.plan_id || productData.name.toLowerCase().replace(/\s+/g, "_"))
+      : "starter"
+
+    // Get limits from Stripe product metadata
+    const metadata = productData?.metadata || {}
+    const limits = {
+      seat_limit: safeParseInt(metadata.teamMembers, 2),
+      providers_limit: safeParseInt(metadata.providers, 3),
+      pipelines_per_day_limit: safeParseInt(metadata.pipelinesPerDay, 6),
+      concurrent_pipelines_limit: safeParseInt(metadata.concurrentPipelines, 2),
+    }
+
+    // Update Supabase with latest Stripe data
+    const periodStart = subscription.current_period_start
+    const periodEnd = subscription.current_period_end
+
+    const { error: updateError } = await adminClient
+      .from("organizations")
+      .update({
+        stripe_subscription_id: subscription.id,
+        billing_status: subscription.status,
+        plan: planId,
+        stripe_price_id: priceItem?.id,
+        current_period_start: new Date(periodStart * 1000).toISOString(),
+        current_period_end: new Date(periodEnd * 1000).toISOString(),
+        trial_ends_at: subscription.trial_end ? new Date(subscription.trial_end * 1000).toISOString() : null,
+        ...limits,
+      })
+      .eq("id", org.id)
+
+    if (updateError) {
+      console.error("[Billing Resync] Failed to update Supabase:", updateError)
+      return { success: false, error: `Failed to update database: ${updateError.message}` }
+    }
+
+    console.log("[Billing Resync] Supabase updated successfully")
+
+    // Sync to backend BigQuery
+    try {
+      const syncResult = await syncSubscriptionToBackend({
+        orgSlug,
+        orgId: org.id,
+        planName: planId,
+        billingStatus: subscription.status,
+        trialEndsAt: subscription.trial_end
+          ? new Date(subscription.trial_end * 1000).toISOString()
+          : undefined,
+        dailyLimit: limits.pipelines_per_day_limit,
+        monthlyLimit: limits.pipelines_per_day_limit * 30,
+        seatLimit: limits.seat_limit,
+        providersLimit: limits.providers_limit,
+        syncType: 'reconciliation',
+      })
+
+      if (syncResult.success) {
+        console.log("[Billing Resync] Backend sync successful")
+        return {
+          success: true,
+          message: "Billing data successfully synced from Stripe to Supabase and backend."
+        }
+      } else {
+        console.warn("[Billing Resync] Backend sync failed:", syncResult.error)
+        return {
+          success: true,
+          message: `Supabase updated, but backend sync ${syncResult.queued ? 'queued for retry' : 'failed'}. ${syncResult.error || ''}`
+        }
+      }
+    } catch (syncErr: unknown) {
+      const errorMessage = syncErr instanceof Error ? syncErr.message : "Backend sync error"
+      console.error("[Billing Resync] Backend sync error:", syncErr)
+      return {
+        success: true,
+        message: `Supabase updated successfully, but backend sync failed: ${errorMessage}`
+      }
+    }
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Failed to resync billing data"
+    console.error("[Billing Resync] Error:", error)
+    return { success: false, error: errorMessage }
+  }
+}

@@ -281,16 +281,16 @@ class PolarsCostService:
     def _build_cost_query(self, query: CostQuery) -> str:
         """
         Build optimized BigQuery SQL for cost data.
-        Uses FOCUS 1.2 standard schema (cost_data_standard_1_2).
+        Uses FOCUS 1.3 standard schema (cost_data_standard_1_3).
         """
         dataset_id = self._get_dataset_id(query.org_slug)
         project_id = settings.gcp_project_id
-        table_ref = f"`{project_id}.{dataset_id}.cost_data_standard_1_2`"
+        table_ref = f"`{project_id}.{dataset_id}.cost_data_standard_1_3`"
 
-        # Select essential columns for performance
+        # Select essential columns for performance (FOCUS 1.3 column names)
         columns = [
             "SubAccountId",
-            "Provider",
+            "ServiceProviderName",
             "ServiceCategory",
             "ServiceName",
             "ResourceName",
@@ -306,7 +306,7 @@ class PolarsCostService:
             "BillingPeriodEnd",
             "ChargePeriodStart",
             "ChargePeriodEnd",
-            "UpdatedAt"
+            "x_UpdatedAt"
         ]
 
         select_clause = ", ".join(columns)
@@ -322,7 +322,7 @@ class PolarsCostService:
 
         if query.providers:
             providers_list = ", ".join(f"'{p}'" for p in query.providers)
-            where_conditions.append(f"Provider IN ({providers_list})")
+            where_conditions.append(f"ServiceProviderName IN ({providers_list})")
 
         if query.service_categories:
             categories_list = ", ".join(f"'{c}'" for c in query.service_categories)
@@ -345,7 +345,7 @@ class PolarsCostService:
         """Build summary aggregation query."""
         dataset_id = self._get_dataset_id(query.org_slug)
         project_id = settings.gcp_project_id
-        table_ref = f"`{project_id}.{dataset_id}.cost_data_standard_1_2`"
+        table_ref = f"`{project_id}.{dataset_id}.cost_data_standard_1_3`"
 
         where_conditions = [f"SubAccountId = '{query.org_slug}'"]
 
@@ -355,7 +355,7 @@ class PolarsCostService:
             where_conditions.append(f"ChargePeriodEnd <= '{query.end_date}'")
         if query.providers:
             providers_list = ", ".join(f"'{p}'" for p in query.providers)
-            where_conditions.append(f"Provider IN ({providers_list})")
+            where_conditions.append(f"ServiceProviderName IN ({providers_list})")
 
         where_clause = " AND ".join(where_conditions)
 
@@ -366,7 +366,7 @@ class PolarsCostService:
             COUNT(*) as record_count,
             MIN(ChargePeriodStart) as min_date,
             MAX(ChargePeriodEnd) as max_date,
-            ARRAY_AGG(DISTINCT Provider IGNORE NULLS) as providers,
+            ARRAY_AGG(DISTINCT ServiceProviderName IGNORE NULLS) as providers,
             ARRAY_AGG(DISTINCT ServiceCategory IGNORE NULLS) as service_categories
         FROM {table_ref}
         WHERE {where_clause}
@@ -539,7 +539,7 @@ class PolarsCostService:
         try:
             dataset_id = self._get_dataset_id(org_slug)
             project_id = settings.gcp_project_id
-            table_ref = f"`{project_id}.{dataset_id}.cost_data_standard_1_2`"
+            table_ref = f"`{project_id}.{dataset_id}.cost_data_standard_1_3`"
 
             where_conditions = [f"SubAccountId = '{org_slug}'"]
             if start_date:
@@ -551,14 +551,14 @@ class PolarsCostService:
 
             sql = f"""
             SELECT
-                Provider,
+                ServiceProviderName,
                 SUM(CAST(BilledCost AS FLOAT64)) as total_billed_cost,
                 SUM(CAST(EffectiveCost AS FLOAT64)) as total_effective_cost,
                 COUNT(*) as record_count,
                 ARRAY_AGG(DISTINCT ServiceCategory IGNORE NULLS) as service_categories
             FROM {table_ref}
             WHERE {where_clause}
-            GROUP BY Provider
+            GROUP BY ServiceProviderName
             ORDER BY total_billed_cost DESC
             """
 
@@ -600,7 +600,7 @@ class PolarsCostService:
         try:
             dataset_id = self._get_dataset_id(org_slug)
             project_id = settings.gcp_project_id
-            table_ref = f"`{project_id}.{dataset_id}.cost_data_standard_1_2`"
+            table_ref = f"`{project_id}.{dataset_id}.cost_data_standard_1_3`"
 
             where_conditions = [f"SubAccountId = '{org_slug}'"]
             if start_date:
@@ -614,13 +614,13 @@ class PolarsCostService:
             SELECT
                 ServiceCategory,
                 ServiceName,
-                Provider,
+                ServiceProviderName,
                 SUM(CAST(BilledCost AS FLOAT64)) as total_billed_cost,
                 SUM(CAST(EffectiveCost AS FLOAT64)) as total_effective_cost,
                 COUNT(*) as record_count
             FROM {table_ref}
             WHERE {where_clause}
-            GROUP BY ServiceCategory, ServiceName, Provider
+            GROUP BY ServiceCategory, ServiceName, ServiceProviderName
             ORDER BY total_billed_cost DESC
             LIMIT 100
             """
@@ -670,7 +670,7 @@ class PolarsCostService:
         try:
             dataset_id = self._get_dataset_id(org_slug)
             project_id = settings.gcp_project_id
-            table_ref = f"`{project_id}.{dataset_id}.cost_data_standard_1_2`"
+            table_ref = f"`{project_id}.{dataset_id}.cost_data_standard_1_3`"
 
             # Date truncation based on granularity
             if granularity == "weekly":
@@ -688,7 +688,7 @@ class PolarsCostService:
                 SUM(CAST(BilledCost AS FLOAT64)) as total_billed_cost,
                 SUM(CAST(EffectiveCost AS FLOAT64)) as total_effective_cost,
                 COUNT(*) as record_count,
-                ARRAY_AGG(DISTINCT Provider IGNORE NULLS) as providers
+                ARRAY_AGG(DISTINCT ServiceProviderName IGNORE NULLS) as providers
             FROM {table_ref}
             WHERE SubAccountId = '{org_slug}'
               AND ChargePeriodStart >= '{start_date}'
@@ -741,7 +741,7 @@ class PolarsCostService:
         end_date: Optional[date] = None
     ) -> CostResponse:
         """
-        Get SaaS subscription costs from cost_data_standard_1_2.
+        Get SaaS subscription costs from cost_data_standard_1_3.
         Returns monthly run rate and annual projection based on actual daily costs.
 
         This is the source of truth for subscription costs (from pipeline output).
@@ -789,7 +789,7 @@ class PolarsCostService:
             # SECURITY: org_slug is validated above, safe for dataset name construction
             dataset_id = self._get_dataset_id(org_slug)
             project_id = settings.gcp_project_id
-            table_ref = f"`{project_id}.{dataset_id}.cost_data_standard_1_2`"
+            table_ref = f"`{project_id}.{dataset_id}.cost_data_standard_1_3`"
 
             # SECURITY: Use parameterized query to prevent SQL injection
             # Note: Table names cannot be parameterized in BigQuery, but org_slug is
@@ -802,14 +802,14 @@ class PolarsCostService:
                 SubAccountId,
                 SubAccountName,
 
-                -- Provider & Service (FOCUS 1.2)
-                Provider,
-                Publisher,
+                -- Provider & Service (FOCUS 1.3)
+                ServiceProviderName,
+                HostProviderName,
                 ServiceCategory,
                 ServiceName,
                 ServiceSubcategory,
 
-                -- Cost Columns (FOCUS 1.2)
+                -- Cost Columns (FOCUS 1.3)
                 CAST(BilledCost AS FLOAT64) AS BilledCost,
                 CAST(EffectiveCost AS FLOAT64) AS EffectiveCost,
                 CAST(ListCost AS FLOAT64) AS ListCost,
@@ -845,7 +845,7 @@ class PolarsCostService:
                 RegionId,
                 RegionName,
 
-                -- Time Periods (FOCUS 1.2)
+                -- Time Periods (FOCUS 1.3)
                 BillingPeriodStart,
                 BillingPeriodEnd,
                 ChargePeriodStart,
@@ -903,7 +903,7 @@ class PolarsCostService:
         end_date: Optional[date] = None
     ) -> CostResponse:
         """
-        Get cloud costs (GCP, AWS, Azure) from cost_data_standard_1_2.
+        Get cloud costs (GCP, AWS, Azure) from cost_data_standard_1_3.
 
         Filters by SourceSystem containing 'cloud' or 'gcp' or 'aws' or 'azure'.
         Returns daily, monthly, and annual projections.
@@ -931,11 +931,11 @@ class PolarsCostService:
         try:
             dataset_id = self._get_dataset_id(org_slug)
             project_id = settings.gcp_project_id
-            table_ref = f"`{project_id}.{dataset_id}.cost_data_standard_1_2`"
+            table_ref = f"`{project_id}.{dataset_id}.cost_data_standard_1_3`"
 
             sql = f"""
             SELECT
-                Provider,
+                ServiceProviderName,
                 ServiceCategory,
                 ServiceName,
                 ChargeCategory,
@@ -965,7 +965,7 @@ class PolarsCostService:
                 OR LOWER(SourceSystem) LIKE '%gcp%'
                 OR LOWER(SourceSystem) LIKE '%aws%'
                 OR LOWER(SourceSystem) LIKE '%azure%'
-                OR LOWER(Provider) IN ('gcp', 'aws', 'azure', 'google', 'amazon', 'microsoft')
+                OR LOWER(ServiceProviderName) IN ('gcp', 'aws', 'azure', 'google', 'amazon', 'microsoft')
               )
               AND ChargePeriodStart >= @start_date
               AND ChargePeriodEnd <= @end_date
@@ -1001,9 +1001,9 @@ class PolarsCostService:
         end_date: Optional[date] = None
     ) -> CostResponse:
         """
-        Get LLM API costs (OpenAI, Anthropic, etc.) from cost_data_standard_1_2.
+        Get LLM API costs (OpenAI, Anthropic, etc.) from cost_data_standard_1_3.
 
-        Filters by SourceSystem or Provider containing LLM provider names.
+        Filters by SourceSystem or ServiceProviderName containing LLM provider names.
         Returns daily, monthly, and annual projections.
         """
         start_time = time.time()
@@ -1029,11 +1029,11 @@ class PolarsCostService:
         try:
             dataset_id = self._get_dataset_id(org_slug)
             project_id = settings.gcp_project_id
-            table_ref = f"`{project_id}.{dataset_id}.cost_data_standard_1_2`"
+            table_ref = f"`{project_id}.{dataset_id}.cost_data_standard_1_3`"
 
             sql = f"""
             SELECT
-                Provider,
+                ServiceProviderName,
                 ServiceCategory,
                 ServiceName,
                 ChargeCategory,
@@ -1064,7 +1064,7 @@ class PolarsCostService:
                 OR LOWER(SourceSystem) LIKE '%anthropic%'
                 OR LOWER(SourceSystem) LIKE '%gemini%'
                 OR LOWER(SourceSystem) LIKE '%cohere%'
-                OR LOWER(Provider) IN ('openai', 'anthropic', 'google', 'cohere', 'mistral', 'meta')
+                OR LOWER(ServiceProviderName) IN ('openai', 'anthropic', 'google', 'cohere', 'mistral', 'meta')
                 OR LOWER(ServiceCategory) = 'llm'
                 OR LOWER(ServiceCategory) = 'ai'
               )
@@ -1194,7 +1194,7 @@ class PolarsCostService:
                 "mtd_cost": round(mtd_cost, 2),
                 "forecast_monthly_cost": round(forecast_monthly_cost, 2),
                 "forecast_annual_cost": round(forecast_annual_cost, 2),
-                "providers": list(set(row.get('Provider', '') for row in data if row.get('Provider'))),
+                "providers": list(set(row.get('ServiceProviderName', '') for row in data if row.get('ServiceProviderName'))),
                 "service_categories": list(set(row.get('ServiceCategory', '') for row in data if row.get('ServiceCategory'))),
                 "record_count": len(data),
                 "date_range": {"start": str(start_date), "end": str(end_date)}

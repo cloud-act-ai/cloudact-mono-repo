@@ -1030,8 +1030,9 @@ export default function ProviderDetailPage() {
                   type="number"
                   min="0"
                   step="0.01"
-                  value={formData.unit_price}
-                  onChange={(e) => setFormData({ ...formData, unit_price: parseFloat(e.target.value) || 0 })}
+                  value={formData.unit_price === 0 ? '' : formData.unit_price}
+                  onChange={(e) => setFormData({ ...formData, unit_price: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
+                  placeholder="0.00"
                   required
                 />
                 {isFromTemplate && formData.source_price !== undefined && (
@@ -1099,8 +1100,9 @@ export default function ProviderDetailPage() {
                 type="number"
                 min={formData.pricing_model === 'PER_SEAT' ? 1 : 0}
                 max="10000"
-                value={formData.seats}
-                onChange={(e) => setFormData({ ...formData, seats: parseInt(e.target.value) || 0 })}
+                value={formData.seats === 0 ? '' : formData.seats}
+                onChange={(e) => setFormData({ ...formData, seats: e.target.value === '' ? 0 : parseInt(e.target.value) })}
+                placeholder="1"
                 required
               />
               {formData.pricing_model === 'PER_SEAT' && (

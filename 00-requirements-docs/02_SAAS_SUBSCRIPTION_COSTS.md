@@ -126,7 +126,7 @@ All subscription management uses dedicated pages (not modals):
 
 ### Pipeline Currency Flow
 
-The pipeline procedures fully support multi-currency. Currency flows end-to-end from plan creation to FOCUS 1.2 reporting:
+The pipeline procedures fully support multi-currency. Currency flows end-to-end from plan creation to FOCUS 1.3 reporting:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -162,22 +162,22 @@ The pipeline procedures fully support multi-currency. Currency flows end-to-end 
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│               sp_convert_saas_costs_to_focus_1_2                            │
+│               sp_convert_saas_costs_to_focus_1_3                            │
 │  File: configs/system/procedures/saas_subscription/                         │
-│        sp_convert_saas_costs_to_focus_1_2.sql                               │
+│        sp_convert_saas_costs_to_focus_1_3.sql                               │
 │                                                                              │
-│  Maps currency to FOCUS 1.2 standard fields:                               │
+│  Maps currency to FOCUS 1.3 standard fields:                               │
 │  - spc.currency AS BillingCurrency                                         │
 │  - spc.currency AS PricingCurrency                                         │
 └─────────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                     FOCUS 1.2 TABLE                                          │
-│  Table: {org_slug}_{env}.cost_data_standard_1_2                             │
+│                     FOCUS 1.3 TABLE                                          │
+│  Table: {org_slug}_{env}.cost_data_standard_1_3                             │
 │                                                                              │
-│  BillingCurrency: "INR"    ← FOCUS 1.2 standard field                      │
-│  PricingCurrency: "INR"    ← FOCUS 1.2 standard field                      │
+│  BillingCurrency: "INR"    ← FOCUS 1.3 standard field                      │
+│  PricingCurrency: "INR"    ← FOCUS 1.3 standard field                      │
 │  BilledCost: 41.56         ← Cost in BillingCurrency                       │
 │  EffectiveCost: 41.56      ← Cost in BillingCurrency                       │
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -186,7 +186,7 @@ The pipeline procedures fully support multi-currency. Currency flows end-to-end 
 **Key Points:**
 - Currency is preserved end-to-end (no conversion in pipeline)
 - `COALESCE(currency, 'USD')` provides backward compatibility for null values
-- FOCUS 1.2 uses `BillingCurrency` and `PricingCurrency` (same value)
+- FOCUS 1.3 uses `BillingCurrency` and `PricingCurrency` (same value)
 - All cost calculations done in org's currency for accurate totals
 
 ---
@@ -447,13 +447,13 @@ Source: configs/saas/seed/data/saas_subscription_plans.csv (read-only, not store
 │  Purpose: Daily amortized costs calculated by pipeline procedures          │
 │  Partition: DAY on cost_date | Cluster: org_slug, subscription_id          │
 │                                                                             │
-│  {org_slug}_{env}.cost_data_standard_1_2 (67 columns) - FOCUS 1.2 STANDARD │
-│  ├── (See FOCUS 1.2 specification for full column list)                    │
+│  {org_slug}_{env}.cost_data_standard_1_3 (78 columns) - FOCUS 1.3 STANDARD │
+│  ├── (See FOCUS 1.3 specification for full column list)                    │
 │  ├── SourceSystem: STRING = 'saas_subscription_costs_daily'                │
 │  └── ChargeCategory: STRING = 'Subscription'                               │
 │                                                                             │
-│  Purpose: Standardized cost data conforming to FinOps FOCUS 1.2 schema     │
-│  Partition: DAY on ChargePeriodStart | Cluster: SubAccountId, Provider     │
+│  Purpose: Standardized cost data conforming to FinOps FOCUS 1.3 schema     │
+│  Partition: DAY on ChargePeriodStart | Cluster: SubAccountId, ServiceProviderName     │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
                                     │
@@ -467,7 +467,7 @@ Source: configs/saas/seed/data/saas_subscription_plans.csv (read-only, not store
 │                                                                             │
 │  {project_id}.organizations Procedures (Central - operate on per-org data) │
 │  ├── sp_calculate_saas_subscription_plan_costs_daily                        │
-│  ├── sp_convert_saas_costs_to_focus_1_2                                     │
+│  ├── sp_convert_saas_costs_to_focus_1_3                                     │
 │  └── sp_run_saas_subscription_costs_pipeline (orchestrator)                 │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -1160,9 +1160,9 @@ GET    /costs/{org}/saas-subscriptions/{subscription_id}
 | CSV seed data (25 cols, 76 plans, status=pending) | API Service | configs/saas/seed/data/saas_subscription_plans.csv |
 | Schema: saas_subscription_plans (28 cols, +3 multi-currency) | API Service | configs/setup/organizations/onboarding/schemas/ |
 | Schema: saas_subscription_plan_costs_daily (18 cols) | API Service | configs/setup/organizations/onboarding/schemas/ |
-| Schema: cost_data_standard_1_2 (67 cols FOCUS 1.2) | API Service | configs/setup/organizations/onboarding/schemas/ |
+| Schema: cost_data_standard_1_3 (78 cols FOCUS 1.3) | API Service | configs/setup/organizations/onboarding/schemas/ |
 | Procedure: sp_calculate_saas_subscription_plan_costs_daily | Pipeline | configs/system/procedures/subscription/ |
-| Procedure: sp_convert_saas_costs_to_focus_1_2 | Pipeline | configs/system/procedures/subscription/ |
+| Procedure: sp_convert_saas_costs_to_focus_1_3 | Pipeline | configs/system/procedures/subscription/ |
 | Procedure: sp_run_saas_subscription_costs_pipeline | Pipeline | configs/system/procedures/subscription/ |
 | Info banner - cost update timing | Frontend | app/[orgSlug]/subscriptions/[provider]/page.tsx |
 | Status validation in enable_provider | API Service | src/app/routers/subscription_plans.py:615-619 |
@@ -1244,7 +1244,7 @@ All procedures live in the central `{project_id}.organizations` dataset but oper
 │  CENTRAL DATASET: {project_id}.organizations                                     │
 │  ├── Procedures (created ONCE, called for each customer):                        │
 │  │   ├── sp_calculate_saas_subscription_plan_costs_daily                        │
-│  │   ├── sp_convert_saas_costs_to_focus_1_2                                     │
+│  │   ├── sp_convert_saas_costs_to_focus_1_3                                     │
 │  │   └── sp_run_saas_subscription_costs_pipeline (orchestrator)                 │
 │  │                                                                               │
 │  └── Bootstrap Tables                                                            │
@@ -1254,7 +1254,7 @@ All procedures live in the central `{project_id}.organizations` dataset but oper
 │  └── Tables (created during onboarding):                                         │
 │      ├── saas_subscription_plans (dimension - user-managed subscriptions)        │
 │      ├── saas_subscription_plan_costs_daily (fact - calculated by pipeline)      │
-│      └── cost_data_standard_1_2 (FOCUS 1.2 - standardized costs)                │
+│      └── cost_data_standard_1_3 (FOCUS 1.3 - standardized costs)                │
 │                                                                                  │
 └─────────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -1287,12 +1287,12 @@ Monthly: cycle_cost / EXTRACT(DAY FROM LAST_DAY(day))
 Annual:  cycle_cost / days_in_year (365 or 366 for leap years)
 ```
 
-#### 2. sp_convert_saas_costs_to_focus_1_2 (Stage 2)
+#### 2. sp_convert_saas_costs_to_focus_1_3 (Stage 2)
 
-**Purpose:** Maps daily SaaS subscription costs to FinOps FOCUS 1.2 standard schema.
+**Purpose:** Maps daily SaaS subscription costs to FinOps FOCUS 1.3 standard schema.
 
 ```sql
-CALL `{project_id}.organizations`.sp_convert_saas_costs_to_focus_1_2(
+CALL `{project_id}.organizations`.sp_convert_saas_costs_to_focus_1_3(
   'your-gcp-project-id',    -- p_project_id
   'acme_corp_prod',     -- p_dataset_id (customer dataset)
   DATE('2024-01-01'),   -- p_start_date
@@ -1302,13 +1302,13 @@ CALL `{project_id}.organizations`.sp_convert_saas_costs_to_focus_1_2(
 
 **Logic:**
 1. Read from `saas_subscription_plan_costs_daily`
-2. Map fields to FOCUS 1.2 columns:
+2. Map fields to FOCUS 1.3 columns:
    - `ChargeCategory = 'Subscription'`
    - `ChargeClass = 'Recurring'`
    - `ServiceCategory = 'SaaS'`
    - `SourceSystem = 'saas_subscription_costs_daily'`
 3. DELETE existing records for date range WHERE SourceSystem = 'saas_subscription_costs_daily'
-4. INSERT mapped data to `cost_data_standard_1_2`
+4. INSERT mapped data to `cost_data_standard_1_3`
 
 #### 3. sp_run_saas_subscription_costs_pipeline (Orchestrator)
 
@@ -1332,8 +1332,8 @@ sp_run_saas_subscription_costs_pipeline
     ├── 2. CALL sp_calculate_saas_subscription_plan_costs_daily
     │       └── Stage 1: Calculate daily amortized costs
     │
-    ├── 3. CALL sp_convert_saas_costs_to_focus_1_2
-    │       └── Stage 2: Convert to FOCUS 1.2 standard
+    ├── 3. CALL sp_convert_saas_costs_to_focus_1_3
+    │       └── Stage 2: Convert to FOCUS 1.3 standard
     │
     └── 4. Return completion status
 ```
@@ -1433,8 +1433,8 @@ sp_run_saas_subscription_costs_pipeline
 │              │                                                      │                    │
 │              v                                                      v                    │
 │  ┌───────────────────────────────────────────┐  ┌───────────────────────────────────────┐
-│  │  STAGE 1: Calculate Daily Costs           │  │  STAGE 2: Convert to FOCUS 1.2       │
-│  │  sp_calculate_saas_subscription_plan_     │  │  sp_convert_saas_costs_to_focus_1_2  │
+│  │  STAGE 1: Calculate Daily Costs           │  │  STAGE 2: Convert to FOCUS 1.3       │
+│  │  sp_calculate_saas_subscription_plan_     │  │  sp_convert_saas_costs_to_focus_1_3  │
 │  │  costs_daily                              │  │                                       │
 │  │                                           │  │  INPUT:                               │
 │  │  INPUT:                                   │  │  └── saas_subscription_plan_costs_   │
@@ -1453,7 +1453,7 @@ sp_run_saas_subscription_costs_pipeline
 │  │  │    • WHERE status = 'active'        │  │  │  │                                 │ │
 │  │  │    • start_date <= end_date param   │  │  │  │ 3. INSERT mapped data:          │ │
 │  │  │    • end_date >= start_date param   │  │  │  │    ┌───────────────────────────┐│ │
-│  │  │                                     │  │  │  │    │ FOCUS 1.2 Mapping:        ││ │
+│  │  │                                     │  │  │  │    │ FOCUS 1.3 Mapping:        ││ │
 │  │  │ 4. Apply pricing model:             │  │  │  │    │ • ChargeCategory =        ││ │
 │  │  │    ┌─────────────────────────────┐  │  │  │  │    │   'Subscription'          ││ │
 │  │  │    │ PER_SEAT:                   │  │  │  │  │    │ • ChargeClass =           ││ │
@@ -1473,8 +1473,8 @@ sp_run_saas_subscription_costs_pipeline
 │  │  │    │   discount_value            │  │  │  │  └─────────────────────────────────┘ │
 │  │  │    └─────────────────────────────┘  │  │  │                                       │
 │  │  │                                     │  │  │  OUTPUT:                              │
-│  │  │ 6. Calculate daily cost:            │  │  │  └── cost_data_standard_1_2          │
-│  │  │    ┌─────────────────────────────┐  │  │  │      (67 columns FOCUS 1.2)          │
+│  │  │ 6. Calculate daily cost:            │  │  │  └── cost_data_standard_1_3          │
+│  │  │    ┌─────────────────────────────┐  │  │  │      (78 columns FOCUS 1.3)          │
 │  │  │    │ monthly:                    │  │  │  │                                       │
 │  │  │    │   daily = cycle_cost /      │  │  │  │  IDEMPOTENCY:                         │
 │  │  │    │     days_in_month           │  │  │  │  └── Only affects records where      │
@@ -1536,11 +1536,11 @@ sp_run_saas_subscription_costs_pipeline
 │                                         │                                                │
 │                                         v                                                │
 │  ┌─────────────────────────────────────────────────────────────────────────────────┐    │
-│  │                         cost_data_standard_1_2                                   │    │
-│  │                      (FinOps FOCUS 1.2 Standard)                                 │    │
+│  │                         cost_data_standard_1_3                                   │    │
+│  │                      (FinOps FOCUS 1.3 Standard)                                 │    │
 │  │                                                                                  │    │
 │  │  Partition: DAY on ChargePeriodStart                                             │    │
-│  │  Cluster: SubAccountId, Provider                                                 │    │
+│  │  Cluster: SubAccountId, ServiceProviderName                                      │    │
 │  │                                                                                  │    │
 │  │  Unified Cost View - Aggregates:                                                 │    │
 │  │  ┌─────────────────────────────────────────────────────────────────────────┐    │    │
@@ -1552,7 +1552,7 @@ sp_run_saas_subscription_costs_pipeline
 │  │  │ anthropic_usage_daily           │ Anthropic API usage costs             │    │    │
 │  │  └─────────────────────────────────┴───────────────────────────────────────┘    │    │
 │  │                                                                                  │    │
-│  │  All sources conform to FOCUS 1.2 → Single dashboard for all costs              │    │
+│  │  All sources conform to FOCUS 1.3 → Single dashboard for all costs              │    │
 │  │                                                                                  │    │
 │  └─────────────────────────────────────────────────────────────────────────────────┘    │
 │                                                                                          │
@@ -1576,7 +1576,7 @@ sp_run_saas_subscription_costs_pipeline
 │  Query Example:                                                                          │
 │  ┌─────────────────────────────────────────────────────────────────────────────────┐    │
 │  │  SELECT ServiceName, SUM(BilledCost) as total_cost                              │    │
-│  │  FROM cost_data_standard_1_2                                                     │    │
+│  │  FROM cost_data_standard_1_3                                                     │    │
 │  │  WHERE ChargePeriodStart BETWEEN '2024-01-01' AND '2024-01-31'                  │    │
 │  │  GROUP BY ServiceName                                                            │    │
 │  │  ORDER BY total_cost DESC                                                        │    │
@@ -1765,7 +1765,7 @@ To change seat count (preserve cost accuracy):
 | File | Purpose |
 |------|---------|
 | `03-data-pipeline-service/configs/system/procedures/saas_subscription/sp_calculate_saas_subscription_plan_costs_daily.sql` | Stage 1 procedure |
-| `03-data-pipeline-service/configs/system/procedures/saas_subscription/sp_convert_saas_costs_to_focus_1_2.sql` | Stage 2 procedure |
+| `03-data-pipeline-service/configs/system/procedures/saas_subscription/sp_convert_saas_costs_to_focus_1_3.sql` | Stage 2 procedure |
 | `03-data-pipeline-service/configs/system/procedures/saas_subscription/sp_run_saas_subscription_costs_pipeline.sql` | Orchestrator procedure |
 
 ### Pipeline Service Integration
@@ -1859,13 +1859,13 @@ To complete the architecture migration:
 ### Schema (v10.0)
 - [x] Create `saas_subscription_plans.json` (28 columns, +3 multi-currency audit fields)
 - [x] Create `saas_subscription_plan_costs_daily.json` (18 columns)
-- [x] Create `cost_data_standard_1_2.json` (67 columns FOCUS 1.2)
+- [x] Create `cost_data_standard_1_3.json` (78 columns FOCUS 1.3)
 - [x] Audit logging via centralized `org_audit_logs` table (15 bootstrap tables)
 - [x] Update seed CSV to 25 columns
 
 ### Pipeline Procedures
 - [x] Create `sp_calculate_saas_subscription_plan_costs_daily.sql`
-- [x] Create `sp_convert_saas_costs_to_focus_1_2.sql`
+- [x] Create `sp_convert_saas_costs_to_focus_1_3.sql`
 - [x] Create `sp_run_saas_subscription_costs_pipeline.sql`
 - [x] Create procedure management API endpoint (`/api/v1/procedures/*`)
 - [x] Create pipeline config `saas_cost.yml`
@@ -1889,7 +1889,7 @@ To complete the architecture migration:
 | `02-api-service/src/app/routers/subscription_plans.py` | API endpoints for plan CRUD |
 | `02-api-service/configs/setup/organizations/onboarding/schemas/saas_subscription_plans.json` | BigQuery schema (28 cols, +3 multi-currency) |
 | `02-api-service/configs/setup/organizations/onboarding/schemas/saas_subscription_plan_costs_daily.json` | Daily costs schema (18 cols) |
-| `02-api-service/configs/setup/organizations/onboarding/schemas/cost_data_standard_1_2.json` | FOCUS 1.2 schema (67 cols) |
+| `02-api-service/configs/setup/organizations/onboarding/schemas/cost_data_standard_1_3.json` | FOCUS 1.3 schema (67 cols) |
 | `02-api-service/configs/saas/seed/data/saas_subscription_plans.csv` | Seed data (25 cols, 76 plans, status=pending) |
 | `02-api-service/src/app/routers/costs.py` | Costs API endpoints (Polars-powered) |
 | `02-api-service/src/core/utils/audit_logger.py` | Audit logging with JSON column support |
@@ -1899,7 +1899,7 @@ To complete the architecture migration:
 | File | Purpose |
 |------|---------|
 | `03-data-pipeline-service/configs/system/procedures/saas_subscription/sp_calculate_saas_subscription_plan_costs_daily.sql` | Stage 1: Daily cost calculation |
-| `03-data-pipeline-service/configs/system/procedures/saas_subscription/sp_convert_saas_costs_to_focus_1_2.sql` | Stage 2: FOCUS 1.2 conversion |
+| `03-data-pipeline-service/configs/system/procedures/saas_subscription/sp_convert_saas_costs_to_focus_1_3.sql` | Stage 2: FOCUS 1.3 conversion |
 | `03-data-pipeline-service/configs/system/procedures/saas_subscription/sp_run_saas_subscription_costs_pipeline.sql` | Orchestrator procedure |
 | `03-data-pipeline-service/configs/saas_subscription/costs/saas_cost.yml` | Pipeline config |
 | `03-data-pipeline-service/src/core/processors/generic/procedure_executor.py` | Procedure executor processor |
@@ -1982,7 +1982,7 @@ To complete the architecture migration:
 - Cache performance: ✅ PASS (38,361x faster on cache hits)
 
 ### v11.0 (2025-12-06)
-- Initial FOCUS 1.2 integration
+- Initial FOCUS 1.3 integration
 - Pipeline procedures for cost calculation
 - 25-column schema migration
 

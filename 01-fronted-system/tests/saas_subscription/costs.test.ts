@@ -4,7 +4,7 @@
  * Test 19: SaaS Subscription Cost Calculations
  *
  * Tests cost calculation logic for SaaS subscriptions including:
- * - FOCUS 1.2 standard cost data integration
+ * - FOCUS 1.3 standard cost data integration (with org-specific extension fields)
  * - Pricing models: PER_SEAT vs FLAT_FEE
  * - Billing cycles: monthly, annual, quarterly
  * - Discount calculations: percent and fixed
@@ -21,10 +21,11 @@ import type { SaaSCostRecord, SaaSCostSummary } from '@/actions/subscription-pro
 // ============================================
 
 /**
- * Create a mock FOCUS 1.2 cost record
+ * Create a mock FOCUS 1.3 cost record
  */
 function createMockCostRecord(overrides: Partial<SaaSCostRecord> = {}): SaaSCostRecord {
   const today = new Date().toISOString().split('T')[0]
+  const now = new Date().toISOString()
 
   return {
     // Identity
@@ -33,9 +34,12 @@ function createMockCostRecord(overrides: Partial<SaaSCostRecord> = {}): SaaSCost
     SubAccountId: 'sub_123',
     SubAccountName: 'Engineering Team',
 
-    // Provider & Service (FOCUS 1.2)
-    Provider: 'slack',
-    Publisher: 'Slack Technologies',
+    // Provider & Service (FOCUS 1.3)
+    ServiceProviderName: 'Slack',
+    HostProviderName: 'Self-Hosted',
+    InvoiceIssuerName: 'Slack Technologies',
+    ProviderName: 'slack',  // Deprecated, kept for backward compat
+    PublisherName: 'Slack Technologies',  // Deprecated, kept for backward compat
     ServiceCategory: 'communication',
     ServiceName: 'Slack Business',
     ServiceSubcategory: 'business_plus',
@@ -82,10 +86,29 @@ function createMockCostRecord(overrides: Partial<SaaSCostRecord> = {}): SaaSCost
     ChargePeriodStart: today,
     ChargePeriodEnd: today,
 
-    // Metadata
-    SourceSystem: 'cloudact-pipeline',
-    SourceRecordId: `record_${Date.now()}`,
-    UpdatedAt: new Date().toISOString(),
+    // Metadata (FOCUS 1.3 x_ prefix extension fields)
+    x_SourceSystem: 'saas_subscription_costs_daily',
+    x_SourceRecordId: `record_${Date.now()}`,
+    x_UpdatedAt: now,
+    x_AmortizationClass: 'Amortized',
+    x_ServiceModel: 'SaaS',
+    x_ExchangeRateUsed: 1.0,
+    x_OriginalCurrency: 'USD',
+    x_OriginalCost: 12.99,
+    x_CreatedAt: now,
+
+    // Org-specific extension fields (FOCUS 1.3)
+    x_OrgSlug: 'test_org',
+    x_OrgName: 'Test Organization',
+    x_OrgOwnerEmail: 'admin@test.com',
+    x_OrgDefaultCurrency: 'USD',
+    x_OrgDefaultTimezone: 'America/New_York',
+    x_OrgDefaultCountry: 'US',
+    x_OrgSubscriptionPlan: 'PRO',
+    x_OrgSubscriptionStatus: 'ACTIVE',
+    x_PipelineId: 'saas_subscription_costs_pipeline',
+    x_PipelineRunId: `run_${Date.now()}`,
+    x_DataQualityScore: 1.0,
 
     // Calculated Run Rates
     MonthlyRunRate: 12.99 * 30,
@@ -767,17 +790,19 @@ describe('Test 19: SaaS Subscription Cost Calculations', () => {
     })
   })
 
-  describe('FOCUS 1.2 Standard Compliance', () => {
+  describe('FOCUS 1.3 Standard Compliance', () => {
 
-    it('should include all required FOCUS 1.2 fields', () => {
+    it('should include all required FOCUS 1.3 fields', () => {
       const record = createMockCostRecord()
 
       // Identity fields
       expect(record).toHaveProperty('BillingAccountId')
       expect(record).toHaveProperty('SubAccountId')
 
-      // Provider fields
-      expect(record).toHaveProperty('Provider')
+      // Provider fields (FOCUS 1.3)
+      expect(record).toHaveProperty('ServiceProviderName')
+      expect(record).toHaveProperty('HostProviderName')
+      expect(record).toHaveProperty('InvoiceIssuerName')
       expect(record).toHaveProperty('ServiceCategory')
       expect(record).toHaveProperty('ServiceName')
 
@@ -789,6 +814,14 @@ describe('Test 19: SaaS Subscription Cost Calculations', () => {
       // Charge fields
       expect(record).toHaveProperty('ChargeCategory')
       expect(record).toHaveProperty('ChargeFrequency')
+
+      // Org-specific extension fields (FOCUS 1.3)
+      expect(record).toHaveProperty('x_OrgSlug')
+      expect(record).toHaveProperty('x_OrgName')
+      expect(record).toHaveProperty('x_OrgOwnerEmail')
+      expect(record).toHaveProperty('x_OrgDefaultCurrency')
+      expect(record).toHaveProperty('x_SourceSystem')
+      expect(record).toHaveProperty('x_UpdatedAt')
 
       // Time fields
       expect(record).toHaveProperty('BillingPeriodStart')

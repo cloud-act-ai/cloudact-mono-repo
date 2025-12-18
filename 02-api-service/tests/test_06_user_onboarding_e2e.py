@@ -25,11 +25,12 @@ BOOTSTRAP TABLES (15 total):
 - org_kms_keys
 - org_idempotency_keys
 
-ONBOARDING TABLES (4 per org):
+ONBOARDING TABLES (5 per org):
 - llm_model_pricing
 - saas_subscription_plans (29 columns with 3 multi-currency fields: source_currency, source_price, exchange_rate_used)
 - saas_subscription_plan_costs_daily
-- cost_data_standard_1_2
+- cost_data_standard_1_3 (FOCUS 1.3 with org-specific extension fields)
+- contract_commitment_1_3 (FOCUS 1.3 commitment tracking)
 
 REMOVED TABLES (no longer exist):
 - org_subscription_audit (replaced by org_audit_logs)

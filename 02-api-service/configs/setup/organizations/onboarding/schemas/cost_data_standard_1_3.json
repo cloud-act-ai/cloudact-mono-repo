@@ -1,0 +1,512 @@
+[
+  {
+    "name": "BillingAccountId",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Unique identifier assigned to a billing account by the provider (invoice issuer). Maps to GCP billing account ID, AWS payer account ID, or SaaS account ID."
+  },
+  {
+    "name": "BillingAccountName",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Display name assigned to a billing account by the provider."
+  },
+  {
+    "name": "BillingAccountType",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Provider-specific label for the type of billing account (e.g., Enterprise Agreement, Pay-As-You-Go, Reseller)."
+  },
+  {
+    "name": "SubAccountId",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Unique identifier for a grouping of resources (sub-account). Maps to org_slug for tenant isolation. Used for access control and cost allocation."
+  },
+  {
+    "name": "SubAccountName",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Display name of the sub-account/tenant organization."
+  },
+  {
+    "name": "SubAccountType",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Provider-specific sub-account type. Examples: 'Organization', 'Project', 'Subscription'."
+  },
+  {
+    "name": "AllocatedMethodId",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Unique identifier for the allocation method used for splitting a shared charge in data generator-calculated cost allocation."
+  },
+  {
+    "name": "AllocatedMethodDetails",
+    "type": "JSON",
+    "mode": "NULLABLE",
+    "description": "Information about how a cost was allocated when usage records are split (JSON object with allocation details like ratio, basis, rule name)."
+  },
+  {
+    "name": "AllocatedResourceId",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Identifier of the resource to which a portion of cost is allocated in a split cost allocation."
+  },
+  {
+    "name": "AllocatedResourceName",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Display name of the resource to which cost is allocated in a split cost allocation."
+  },
+  {
+    "name": "AllocatedTags",
+    "type": "JSON",
+    "mode": "NULLABLE",
+    "description": "Tags (key-value pairs) assigned to the allocated charge's resources in a split cost allocation (JSON object of tags relevant to the allocated portion)."
+  },
+  {
+    "name": "BilledCost",
+    "type": "NUMERIC",
+    "mode": "REQUIRED",
+    "description": "The charge amount used as the basis for invoicing, inclusive of all usage-based discounts (excluding upfront prepayments). This is the actual invoiced amount."
+  },
+  {
+    "name": "BillingCurrency",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "ISO 4217 currency code that the charge was billed in (e.g., USD, EUR, INR). Must match org's default_currency."
+  },
+  {
+    "name": "BillingPeriodStart",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "Inclusive start date and time of the billing period for the charge. ISO 8601 format."
+  },
+  {
+    "name": "BillingPeriodEnd",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "Exclusive end date and time of the billing period for the charge. ISO 8601 format."
+  },
+  {
+    "name": "CapacityReservationId",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Identifier assigned to a capacity reservation by the provider (if the charge is related to reserved capacity)."
+  },
+  {
+    "name": "CapacityReservationStatus",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Indicates whether the charge represents consumption of a capacity reservation or unused reserved capacity. Values: 'Used', 'Unused'."
+  },
+  {
+    "name": "ChargeCategory",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Highest-level classification based on how it is billed. Values: 'Usage', 'Purchase', 'Tax', 'Credit', 'Adjustment', 'Subscription'."
+  },
+  {
+    "name": "ChargeClass",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Indicates if the row is a correction or adjustment from a previous billing period. Values: 'Correction', null (for non-adjustments)."
+  },
+  {
+    "name": "ChargeDescription",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Self-contained summary of the charge's purpose and price. Human-readable description for cost transparency."
+  },
+  {
+    "name": "ChargeFrequency",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "How often the charge occurs. Values: 'One-Time', 'Recurring', 'Usage-Based'."
+  },
+  {
+    "name": "ChargePeriodStart",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "Inclusive start date and time of the charge period (the specific usage period). ISO 8601 format. Used as partition field."
+  },
+  {
+    "name": "ChargePeriodEnd",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "Exclusive end date and time of the charge period. ISO 8601 format."
+  },
+  {
+    "name": "CommitmentDiscountCategory",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Whether the commitment-based discount is based on usage quantity ('Usage') or cost/spend ('Spend')."
+  },
+  {
+    "name": "CommitmentDiscountId",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Unique identifier for a commitment-based discount (e.g., Savings Plan ID, Reserved Instance ID, CUD ID)."
+  },
+  {
+    "name": "CommitmentDiscountName",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Display name of the commitment-based discount."
+  },
+  {
+    "name": "CommitmentDiscountQuantity",
+    "type": "NUMERIC",
+    "mode": "NULLABLE",
+    "description": "Amount of the commitment purchased or applied (in units of the commitment discount). For discount-related rows."
+  },
+  {
+    "name": "CommitmentDiscountStatus",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Whether the row represents consumption of a commitment or unused portion. Values: 'Used', 'Unused'."
+  },
+  {
+    "name": "CommitmentDiscountType",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Provider-assigned label for the commitment type. Examples: 'Reserved Instance', 'Savings Plan', 'CUD', 'EDP'."
+  },
+  {
+    "name": "CommitmentDiscountUnit",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Unit of measure for commitment discount quantity (e.g., 'Hours', 'GB', 'USD'). Corresponds to CommitmentDiscountQuantity."
+  },
+  {
+    "name": "ConsumedQuantity",
+    "type": "NUMERIC",
+    "mode": "NULLABLE",
+    "description": "The volume of resource/service usage measured, in units specified by ConsumedUnit. The raw usage quantity for the SKU."
+  },
+  {
+    "name": "ConsumedUnit",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "The measurement unit for consumed usage (e.g., 'GB-hours', 'Requests', 'Tokens', 'Seats', 'vCPU-hours')."
+  },
+  {
+    "name": "ContractApplied",
+    "type": "JSON",
+    "mode": "NULLABLE",
+    "description": "Properties associating this charge with contract commitments (JSON with ContractId, ContractCommitmentId references). Links to contract_commitment_1_3 table."
+  },
+  {
+    "name": "ContractedCost",
+    "type": "NUMERIC",
+    "mode": "REQUIRED",
+    "description": "Cost calculated by multiplying contracted unit price by PricingQuantity. The agreed-upon cost excluding commitment-based discounts."
+  },
+  {
+    "name": "ContractedUnitPrice",
+    "type": "NUMERIC",
+    "mode": "NULLABLE",
+    "description": "The agreed-upon unit price per PricingUnit, inclusive of negotiated discounts (except commitment-based discounts)."
+  },
+  {
+    "name": "EffectiveCost",
+    "type": "NUMERIC",
+    "mode": "REQUIRED",
+    "description": "The effective cost after all applicable discounts and amortized upfront payments. This is the true cost for FinOps analysis."
+  },
+  {
+    "name": "HostProviderName",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Name of the entity providing the underlying infrastructure (the host platform/cloud). Examples: 'Google Cloud', 'AWS', 'Azure', 'Self-Hosted'."
+  },
+  {
+    "name": "InvoiceId",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Unique identifier of the invoice on which this charge appears."
+  },
+  {
+    "name": "InvoiceIssuerName",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Name of the entity responsible for issuing the invoice (the billing entity). Could be the provider or a reseller."
+  },
+  {
+    "name": "ListCost",
+    "type": "NUMERIC",
+    "mode": "REQUIRED",
+    "description": "Cost calculated by multiplying list unit price by PricingQuantity. The charge at published list rates before any discounts."
+  },
+  {
+    "name": "ListUnitPrice",
+    "type": "NUMERIC",
+    "mode": "NULLABLE",
+    "description": "The provider's list (undiscounted) unit price per PricingUnit of the SKU."
+  },
+  {
+    "name": "PricingCategory",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "The pricing model used. Values: 'On-Demand', 'Reserved', 'Spot', 'Preemptible', 'Subscription', 'Committed Use'."
+  },
+  {
+    "name": "PricingCurrency",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "The currency in which pricing columns are denominated (original pricing currency, if different from BillingCurrency)."
+  },
+  {
+    "name": "PricingCurrencyContractedUnitPrice",
+    "type": "NUMERIC",
+    "mode": "NULLABLE",
+    "description": "Contracted unit price per PricingUnit in the original pricing currency (for multi-currency scenarios)."
+  },
+  {
+    "name": "PricingCurrencyEffectiveCost",
+    "type": "NUMERIC",
+    "mode": "NULLABLE",
+    "description": "Effective cost in the original pricing currency after all discounts and amortization."
+  },
+  {
+    "name": "PricingCurrencyListUnitPrice",
+    "type": "NUMERIC",
+    "mode": "NULLABLE",
+    "description": "List unit price per PricingUnit in the original pricing currency (undiscounted rate)."
+  },
+  {
+    "name": "PricingQuantity",
+    "type": "NUMERIC",
+    "mode": "NULLABLE",
+    "description": "The quantity of the SKU used after applying pricing schemas like tiering or block sizing. Often derived from ConsumedQuantity."
+  },
+  {
+    "name": "PricingUnit",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "The unit of measure for pricing (how usage is billed after pricing rules). Examples: '100 requests', '1 hour', 'GB-month'."
+  },
+  {
+    "name": "ProviderName",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "[DEPRECATED in FOCUS 1.3] Use ServiceProviderName and HostProviderName instead. Kept for backward compatibility."
+  },
+  {
+    "name": "PublisherName",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "[DEPRECATED in FOCUS 1.3] Use ServiceProviderName instead. Previously used for third-party publishers in marketplace scenarios."
+  },
+  {
+    "name": "RegionId",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Provider-assigned identifier for the geographic region/zone. Examples: 'us-central1', 'us-east-1', 'global'."
+  },
+  {
+    "name": "RegionName",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Human-readable name of the geographic region. Examples: 'Iowa', 'N. Virginia', 'Global'."
+  },
+  {
+    "name": "ResourceId",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Unique identifier of the resource that incurred the charge. Examples: VM instance ID, subscription ID, storage bucket name."
+  },
+  {
+    "name": "ResourceName",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Display name of the resource that incurred the charge."
+  },
+  {
+    "name": "ResourceType",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "The type/category of resource. Examples: 'Virtual Machine', 'Storage Bucket', 'SaaS Subscription', 'API Call'."
+  },
+  {
+    "name": "ServiceCategory",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Highest-level classification based on core function. Values: 'Compute', 'Storage', 'Database', 'Networking', 'AI/ML', 'SaaS', 'Support', 'Other'."
+  },
+  {
+    "name": "ServiceName",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Name of the specific service or offering. Examples: 'Compute Engine', 'Cloud Storage', 'ChatGPT Plus', 'Slack Business+'."
+  },
+  {
+    "name": "ServiceProviderName",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Name of the entity that provides the service (the seller). Examples: 'Google Cloud', 'OpenAI', 'Anthropic', 'Slack', 'Canva'."
+  },
+  {
+    "name": "ServiceSubcategory",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Secondary classification within ServiceCategory. Examples: 'General Purpose VM', 'Object Storage', 'Team Plan', 'API Usage'."
+  },
+  {
+    "name": "SkuId",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Unique identifier for the SKU (stock keeping unit) representing a set of pricing properties for the service."
+  },
+  {
+    "name": "SkuMeter",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Name of the usage meter or SKU unit that has a defined price. Not applicable for one-time purchases."
+  },
+  {
+    "name": "SkuPriceDetails",
+    "type": "JSON",
+    "mode": "NULLABLE",
+    "description": "Additional properties of the SKU's price (JSON object) common to all instances of that SkuPriceId (pricing metadata)."
+  },
+  {
+    "name": "SkuPriceId",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Unique identifier for the specific price rate used to calculate this charge."
+  },
+  {
+    "name": "Tags",
+    "type": "JSON",
+    "mode": "NULLABLE",
+    "description": "Key-value tags associated with the resource for cost allocation and grouping. Includes user-defined and provider-defined tags (JSON object)."
+  },
+  {
+    "name": "x_SourceSystem",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "[Extension] System that generated the record. Examples: 'gcp_billing', 'saas_subscription_pipeline', 'openai_usage', 'manual_import'."
+  },
+  {
+    "name": "x_SourceRecordId",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "[Extension] Unique identifier in the source system for traceability and deduplication."
+  },
+  {
+    "name": "x_AmortizationClass",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "[Extension] Amortization status. Values: 'Amortized', 'Non-Amortized', 'Prorated'. Indicates cost spreading method."
+  },
+  {
+    "name": "x_ServiceModel",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "[Extension] Service delivery model. Values: 'IaaS', 'PaaS', 'SaaS', 'FaaS', 'LLM-API'. Maps to cloud service taxonomy."
+  },
+  {
+    "name": "x_CostAllocationKey",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "[Extension] Key used for cost allocation to business units or cost centers."
+  },
+  {
+    "name": "x_ExchangeRateUsed",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "[Extension] Exchange rate applied when converting from PricingCurrency to BillingCurrency."
+  },
+  {
+    "name": "x_OriginalCurrency",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "[Extension] Original currency before conversion (for audit trail in multi-currency orgs)."
+  },
+  {
+    "name": "x_OriginalCost",
+    "type": "NUMERIC",
+    "mode": "NULLABLE",
+    "description": "[Extension] Original cost amount before currency conversion (for historical accuracy)."
+  },
+  {
+    "name": "x_UpdatedAt",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "[Extension] Timestamp when the record was last created or updated in the data warehouse."
+  },
+  {
+    "name": "x_OrgSlug",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "[Extension] Organization slug (tenant identifier). Redundant with SubAccountId but included for clarity in multi-tenant queries."
+  },
+  {
+    "name": "x_OrgName",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "[Extension] Organization display name from org_profiles. Human-readable tenant name."
+  },
+  {
+    "name": "x_OrgOwnerEmail",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "[Extension] Primary admin email for the organization. Used for billing contact and notifications."
+  },
+  {
+    "name": "x_OrgDefaultCurrency",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "[Extension] Organization's default currency from org_profiles (ISO 4217). Used for currency conversion validation."
+  },
+  {
+    "name": "x_OrgDefaultTimezone",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "[Extension] Organization's default timezone from org_profiles (IANA). Used for period boundary calculations."
+  },
+  {
+    "name": "x_OrgDefaultCountry",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "[Extension] Organization's default country from org_profiles (ISO 3166-1 alpha-2). Used for tax and compliance."
+  },
+  {
+    "name": "x_OrgSubscriptionPlan",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "[Extension] Organization's subscription plan (FREE, STARTER, PRO, ENTERPRISE). Affects quota limits."
+  },
+  {
+    "name": "x_OrgSubscriptionStatus",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "[Extension] Organization's subscription status (ACTIVE, TRIAL, SUSPENDED, CANCELLED). Affects pipeline execution."
+  },
+  {
+    "name": "x_PipelineId",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "[Extension] Pipeline ID that generated this record. Used for lineage and debugging."
+  },
+  {
+    "name": "x_PipelineRunId",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "[Extension] Specific pipeline run ID from org_meta_pipeline_runs. Used for audit trail."
+  },
+  {
+    "name": "x_DataQualityScore",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "[Extension] Data quality score (0.0 to 1.0) from DQ validation. Higher is better."
+  },
+  {
+    "name": "x_CreatedAt",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "[Extension] Timestamp when the record was first created in the data warehouse."
+  }
+]

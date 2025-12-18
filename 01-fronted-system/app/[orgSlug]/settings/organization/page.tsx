@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
@@ -41,6 +42,7 @@ import {
   Trash2,
   ArrowRightLeft,
   Users,
+  User,
   Mail,
   UserCog,
   RefreshCw,
@@ -48,11 +50,21 @@ import {
   Key,
   ImageIcon,
   Link as LinkIcon,
+  Phone,
+  MapPin,
 } from "lucide-react"
 import Image from "next/image"
 import { logError } from "@/lib/utils"
 import { SUPPORTED_CURRENCIES, SUPPORTED_TIMEZONES } from "@/lib/i18n/constants"
-import { getOrgLocale, updateOrgLocale, getOrgLogo, updateOrgLogo } from "@/actions/organization-locale"
+import {
+  getOrgLocale,
+  updateOrgLocale,
+  getOrgLogo,
+  updateOrgLogo,
+  getOrgContactDetails,
+  updateOrgContactDetails,
+  type OrgContactDetails,
+} from "@/actions/organization-locale"
 import {
   getOwnedOrganizations,
   getEligibleTransferMembers,
@@ -66,6 +78,7 @@ import {
   onboardToBackend,
   getOrgDataForReonboarding,
 } from "@/actions/backend-onboarding"
+import { getBillingInfo } from "@/actions/stripe"
 
 interface OwnedOrg {
   id: string
@@ -133,6 +146,37 @@ export default function OrganizationSettingsPage() {
   const [backendError, setBackendError] = useState<string | null>(null)
   const [isResyncing, setIsResyncing] = useState(false)
   const [loadingBackendStatus, setLoadingBackendStatus] = useState(true)
+  const [isBillingSyncing, setIsBillingSyncing] = useState(false)
+
+  // Contact details state
+  const [contactDetails, setContactDetails] = useState<OrgContactDetails>({
+    business_person_name: null,
+    business_person_position: null,
+    business_person_department: null,
+    contact_email: null,
+    contact_phone: null,
+    business_address_line1: null,
+    business_address_line2: null,
+    business_city: null,
+    business_state: null,
+    business_postal_code: null,
+    business_country: null,
+  })
+  const [originalContactDetails, setOriginalContactDetails] = useState<OrgContactDetails>({
+    business_person_name: null,
+    business_person_position: null,
+    business_person_department: null,
+    contact_email: null,
+    contact_phone: null,
+    business_address_line1: null,
+    business_address_line2: null,
+    business_city: null,
+    business_state: null,
+    business_postal_code: null,
+    business_country: null,
+  })
+  const [loadingContactDetails, setLoadingContactDetails] = useState(true)
+  const [isSavingContactDetails, setIsSavingContactDetails] = useState(false)
 
   useEffect(() => {
     document.title = "Organization Settings | CloudAct.ai"
@@ -188,12 +232,72 @@ export default function OrganizationSettingsPage() {
         })
 
         if (onboardResult.success) {
-          // Show the new API key to the user (they should save it)
-          if (onboardResult.apiKey) {
-            setSuccess(`Backend connection restored! New API key: ${onboardResult.apiKey.slice(0, 20)}... (Save this key!)`)
-          } else {
-            setSuccess("Backend connection restored successfully!")
+          // After successful re-onboarding, sync Stripe billing data to BigQuery
+          try {
+            // Fetch current billing info from Stripe
+            const { data: billingInfo, error: billingError } = await getBillingInfo(orgSlug)
+
+            if (billingError || !billingInfo) {
+              console.warn("[Re-onboarding] Failed to fetch billing info:", billingError)
+              // Non-blocking - show success but warn about billing sync
+              setSuccess(
+                onboardResult.apiKey
+                  ? `Backend connection restored! New API key: ${onboardResult.apiKey.slice(0, 20)}... (Save this key!) Warning: Billing sync failed - ${billingError || "no billing data"}`
+                  : `Backend connection restored! Warning: Billing sync failed - ${billingError || "no billing data"}`
+              )
+              await loadBackendStatus()
+              setTimeout(() => setSuccess(null), 10000)
+              return
+            }
+
+            // Extract subscription details if available
+            if (billingInfo.subscription) {
+              const sub = billingInfo.subscription
+
+              // Sync billing data to backend
+              const syncResult = await syncSubscriptionToBackend({
+                orgSlug,
+                planName: sub.plan.id,
+                billingStatus: sub.status,
+                // Note: Stripe doesn't provide daily/monthly limits directly in getBillingInfo
+                // These come from Stripe product metadata, but getBillingInfo doesn't expand that far
+                // For re-onboarding, we'll use defaults and let webhooks update them properly
+                dailyLimit: 6,    // Default for starter
+                monthlyLimit: 100, // Default for starter
+                syncType: 'reconciliation',
+              })
+
+              if (syncResult.success) {
+                setSuccess(
+                  onboardResult.apiKey
+                    ? `Backend connection restored! New API key: ${onboardResult.apiKey.slice(0, 20)}... (Save this key!) Billing data synced.`
+                    : "Backend connection restored and billing data synced successfully!"
+                )
+              } else {
+                console.warn("[Re-onboarding] Billing sync failed:", syncResult.error)
+                setSuccess(
+                  onboardResult.apiKey
+                    ? `Backend connection restored! New API key: ${onboardResult.apiKey.slice(0, 20)}... (Save this key!) Warning: Billing sync ${syncResult.queued ? 'queued for retry' : 'failed'}.`
+                    : `Backend connection restored! Warning: Billing sync ${syncResult.queued ? 'queued for retry' : 'failed'}.`
+                )
+              }
+            } else {
+              // No active subscription - just show re-onboarding success
+              setSuccess(
+                onboardResult.apiKey
+                  ? `Backend connection restored! New API key: ${onboardResult.apiKey.slice(0, 20)}... (Save this key!) No active subscription to sync.`
+                  : "Backend connection restored successfully! No active subscription to sync."
+              )
+            }
+          } catch (syncErr: unknown) {
+            console.error("[Re-onboarding] Billing sync error:", syncErr)
+            setSuccess(
+              onboardResult.apiKey
+                ? `Backend connection restored! New API key: ${onboardResult.apiKey.slice(0, 20)}... (Save this key!) Warning: Billing sync error.`
+                : "Backend connection restored! Warning: Billing sync error."
+            )
           }
+
           await loadBackendStatus()
           // Keep success message longer for API key display
           setTimeout(() => setSuccess(null), 10000)
@@ -225,6 +329,68 @@ export default function OrganizationSettingsPage() {
       setIsResyncing(false)
     }
   }
+
+  // Handle billing sync only (without re-onboarding)
+  const handleSyncBilling = async () => {
+    setIsBillingSyncing(true)
+    setError(null)
+    setSuccess(null)
+
+    try {
+      // Fetch current billing info from Stripe
+      const { data: billingInfo, error: billingError } = await getBillingInfo(orgSlug)
+
+      if (billingError || !billingInfo) {
+        setError(`Failed to fetch billing info: ${billingError || "no billing data"}`)
+        return
+      }
+
+      // If there's an active subscription, sync to backend
+      if (billingInfo.subscription) {
+        const sub = billingInfo.subscription
+
+        // Sync billing data to backend
+        const syncResult = await syncSubscriptionToBackend({
+          orgSlug,
+          planName: sub.plan.id,
+          billingStatus: sub.status,
+          dailyLimit: 6,    // Default for starter
+          monthlyLimit: 100, // Default for starter
+          syncType: 'reconciliation',
+        })
+
+        if (syncResult.success) {
+          setSuccess("Billing data synced successfully!")
+        } else {
+          setError(`Billing sync failed: ${syncResult.error || "Unknown error"}`)
+        }
+      } else {
+        setSuccess("No active subscription to sync.")
+      }
+
+      setTimeout(() => setSuccess(null), 4000)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to sync billing data")
+    } finally {
+      setIsBillingSyncing(false)
+    }
+  }
+
+  // Load contact details
+  const loadContactDetails = useCallback(async () => {
+    setLoadingContactDetails(true)
+    try {
+      const result = await getOrgContactDetails(orgSlug)
+      if (result.success && result.contactDetails) {
+        setContactDetails(result.contactDetails)
+        setOriginalContactDetails(result.contactDetails)
+      }
+    } catch (err: unknown) {
+      console.error("Failed to load contact details:", err)
+    } finally {
+      setLoadingContactDetails(false)
+    }
+  }, [orgSlug])
 
   // Load owned organizations
   const loadOwnedOrganizations = useCallback(async () => {
@@ -296,10 +462,23 @@ export default function OrganizationSettingsPage() {
     void fetchLocale()
     void loadUserAndOrgs()
     void loadBackendStatus()
-  }, [fetchLocale, loadUserAndOrgs, loadBackendStatus])
+    void loadContactDetails()
+  }, [fetchLocale, loadUserAndOrgs, loadBackendStatus, loadContactDetails])
 
   const hasLocaleChanges = currency !== originalCurrency || timezone !== originalTimezone
   const hasLogoChanges = logoUrl !== originalLogoUrl
+  const hasContactChanges =
+    contactDetails.business_person_name !== originalContactDetails.business_person_name ||
+    contactDetails.business_person_position !== originalContactDetails.business_person_position ||
+    contactDetails.business_person_department !== originalContactDetails.business_person_department ||
+    contactDetails.contact_email !== originalContactDetails.contact_email ||
+    contactDetails.contact_phone !== originalContactDetails.contact_phone ||
+    contactDetails.business_address_line1 !== originalContactDetails.business_address_line1 ||
+    contactDetails.business_address_line2 !== originalContactDetails.business_address_line2 ||
+    contactDetails.business_city !== originalContactDetails.business_city ||
+    contactDetails.business_state !== originalContactDetails.business_state ||
+    contactDetails.business_postal_code !== originalContactDetails.business_postal_code ||
+    contactDetails.business_country !== originalContactDetails.business_country
 
   const handleSaveLogo = async () => {
     if (!hasLogoChanges) return
@@ -362,6 +541,50 @@ export default function OrganizationSettingsPage() {
     setTimezone(originalTimezone)
     setError(null)
     setSuccess(null)
+  }
+
+  const handleSaveContactDetails = async () => {
+    if (!hasContactChanges) {
+      setError("No changes to save")
+      return
+    }
+
+    setIsSavingContactDetails(true)
+    setError(null)
+    setSuccess(null)
+
+    try {
+      const result = await updateOrgContactDetails(orgSlug, contactDetails)
+
+      if (!result.success) {
+        setError(result.error || "Failed to update contact details")
+        return
+      }
+
+      // Update original values after successful save
+      setOriginalContactDetails(contactDetails)
+
+      setSuccess("Contact details updated successfully!")
+      setTimeout(() => setSuccess(null), 4000)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "An error occurred")
+    } finally {
+      setIsSavingContactDetails(false)
+    }
+  }
+
+  const handleResetContactDetails = () => {
+    setContactDetails(originalContactDetails)
+    setError(null)
+    setSuccess(null)
+  }
+
+  // Helper to update a single contact field
+  const updateContactField = (field: keyof OrgContactDetails, value: string) => {
+    setContactDetails(prev => ({
+      ...prev,
+      [field]: value || null,
+    }))
   }
 
   // Open transfer dialog and load members
@@ -498,6 +721,15 @@ export default function OrganizationSettingsPage() {
         </Alert>
       )}
 
+      <Tabs defaultValue="general" className="w-full">
+        <TabsList className="w-full sm:w-auto flex-wrap">
+          <TabsTrigger value="general">General</TabsTrigger>
+          <TabsTrigger value="contact">Contact Details</TabsTrigger>
+          <TabsTrigger value="backend">Backend</TabsTrigger>
+          <TabsTrigger value="danger" className="text-[#FF6E50] data-[state=active]:text-[#FF6E50]">Danger Zone</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="general" className="space-y-6">
       {/* Organization Branding */}
       <div className="metric-card shadow-sm">
         <div className="metric-card-header mb-6">
@@ -729,7 +961,262 @@ export default function OrganizationSettingsPage() {
           </div>
         </div>
       </div>
+        </TabsContent>
 
+        <TabsContent value="contact" className="space-y-6">
+      {/* Contact Details */}
+      <div className="metric-card shadow-sm">
+        <div className="metric-card-header mb-6">
+          <div className="flex items-center gap-2">
+            <User className="h-5 w-5 text-[#8E8E93]" />
+            <h2 className="text-[22px] font-bold text-black">Contact Details</h2>
+          </div>
+          <p className="text-[13px] sm:text-[15px] text-[#8E8E93] mt-1">
+            Business contact person and address for your organization
+          </p>
+        </div>
+
+        <div className="metric-card-content space-y-6">
+          {loadingContactDetails ? (
+            <div className="flex items-center gap-3">
+              <Loader2 className="h-5 w-5 animate-spin text-[#007A78]" />
+              <span className="text-[15px] text-[#8E8E93]">Loading contact details...</span>
+            </div>
+          ) : (
+            <>
+              {/* Business Person Section */}
+              <div className="space-y-4">
+                <h3 className="text-[15px] font-medium text-black flex items-center gap-2">
+                  <UserCog className="h-4 w-4 text-[#8E8E93]" />
+                  Business Contact Person
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="businessPersonName" className="text-[13px] font-medium text-gray-700">
+                      Full Name
+                    </Label>
+                    <Input
+                      id="businessPersonName"
+                      type="text"
+                      value={contactDetails.business_person_name || ""}
+                      onChange={(e) => updateContactField("business_person_name", e.target.value)}
+                      placeholder="John Smith"
+                      className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg focus:border-[#007A78] focus:ring-1 focus:ring-[#007A78]"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="businessPersonPosition" className="text-[13px] font-medium text-gray-700">
+                      Position / Title
+                    </Label>
+                    <Input
+                      id="businessPersonPosition"
+                      type="text"
+                      value={contactDetails.business_person_position || ""}
+                      onChange={(e) => updateContactField("business_person_position", e.target.value)}
+                      placeholder="CTO, Finance Manager"
+                      className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg focus:border-[#007A78] focus:ring-1 focus:ring-[#007A78]"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="businessPersonDepartment" className="text-[13px] font-medium text-gray-700">
+                      Department
+                    </Label>
+                    <Input
+                      id="businessPersonDepartment"
+                      type="text"
+                      value={contactDetails.business_person_department || ""}
+                      onChange={(e) => updateContactField("business_person_department", e.target.value)}
+                      placeholder="Engineering, Finance"
+                      className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg focus:border-[#007A78] focus:ring-1 focus:ring-[#007A78]"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Contact Info Row */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="contactEmail" className="text-[13px] sm:text-[15px] font-medium text-gray-700 flex items-center gap-2">
+                    <Mail className="h-4 w-4 text-[#8E8E93]" />
+                    Business Email
+                  </Label>
+                  <Input
+                    id="contactEmail"
+                    type="email"
+                    value={contactDetails.contact_email || ""}
+                    onChange={(e) => updateContactField("contact_email", e.target.value)}
+                    placeholder="contact@company.com"
+                    className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg focus:border-[#007A78] focus:ring-1 focus:ring-[#007A78]"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="contactPhone" className="text-[13px] sm:text-[15px] font-medium text-gray-700 flex items-center gap-2">
+                    <Phone className="h-4 w-4 text-[#8E8E93]" />
+                    Business Phone
+                  </Label>
+                  <Input
+                    id="contactPhone"
+                    type="tel"
+                    value={contactDetails.contact_phone || ""}
+                    onChange={(e) => updateContactField("contact_phone", e.target.value)}
+                    placeholder="+1 234-567-8900"
+                    className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg focus:border-[#007A78] focus:ring-1 focus:ring-[#007A78]"
+                  />
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Address Section */}
+              <div className="space-y-4">
+                <h3 className="text-[15px] font-medium text-black flex items-center gap-2">
+                  <Building2 className="h-4 w-4 text-[#8E8E93]" />
+                  Business Address
+                </h3>
+
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="addressLine1" className="text-[13px] font-medium text-gray-700">
+                      Street Address
+                    </Label>
+                    <Input
+                      id="addressLine1"
+                      type="text"
+                      value={contactDetails.business_address_line1 || ""}
+                      onChange={(e) => updateContactField("business_address_line1", e.target.value)}
+                      placeholder="123 Main Street"
+                      className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg focus:border-[#007A78] focus:ring-1 focus:ring-[#007A78]"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="addressLine2" className="text-[13px] font-medium text-gray-700">
+                      Address Line 2 <span className="text-[#8E8E93]">(Optional)</span>
+                    </Label>
+                    <Input
+                      id="addressLine2"
+                      type="text"
+                      value={contactDetails.business_address_line2 || ""}
+                      onChange={(e) => updateContactField("business_address_line2", e.target.value)}
+                      placeholder="Suite 100, Floor 2"
+                      className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg focus:border-[#007A78] focus:ring-1 focus:ring-[#007A78]"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="city" className="text-[13px] font-medium text-gray-700">
+                        City
+                      </Label>
+                      <Input
+                        id="city"
+                        type="text"
+                        value={contactDetails.business_city || ""}
+                        onChange={(e) => updateContactField("business_city", e.target.value)}
+                        placeholder="San Francisco"
+                        className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg focus:border-[#007A78] focus:ring-1 focus:ring-[#007A78]"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="state" className="text-[13px] font-medium text-gray-700">
+                        State / Province
+                      </Label>
+                      <Input
+                        id="state"
+                        type="text"
+                        value={contactDetails.business_state || ""}
+                        onChange={(e) => updateContactField("business_state", e.target.value)}
+                        placeholder="CA"
+                        className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg focus:border-[#007A78] focus:ring-1 focus:ring-[#007A78]"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="postalCode" className="text-[13px] font-medium text-gray-700">
+                        Postal Code
+                      </Label>
+                      <Input
+                        id="postalCode"
+                        type="text"
+                        value={contactDetails.business_postal_code || ""}
+                        onChange={(e) => updateContactField("business_postal_code", e.target.value)}
+                        placeholder="94102"
+                        className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg focus:border-[#007A78] focus:ring-1 focus:ring-[#007A78]"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="country" className="text-[13px] font-medium text-gray-700">
+                        Country Code
+                      </Label>
+                      <Input
+                        id="country"
+                        type="text"
+                        value={contactDetails.business_country || ""}
+                        onChange={(e) => updateContactField("business_country", e.target.value.toUpperCase())}
+                        placeholder="US"
+                        maxLength={2}
+                        className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg focus:border-[#007A78] focus:ring-1 focus:ring-[#007A78] uppercase"
+                      />
+                      <p className="text-[11px] text-[#8E8E93]">ISO 3166-1 (e.g., US, GB, IN)</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {hasContactChanges && (
+                <Alert className="bg-[#007A78]/5 border-[#007A78]/20">
+                  <AlertTriangle className="h-4 w-4 text-[#007A78]" />
+                  <AlertDescription className="text-[#005F5D]">
+                    You have unsaved changes. Click Save to apply or Reset to discard.
+                  </AlertDescription>
+                </Alert>
+              )}
+            </>
+          )}
+        </div>
+
+        <div className="pt-4 sm:pt-6 border-t border-[#E5E5EA] flex gap-3">
+          <Button
+            onClick={handleSaveContactDetails}
+            disabled={isSavingContactDetails || !hasContactChanges}
+            className="cloudact-btn-primary h-[36px] px-4"
+          >
+            {isSavingContactDetails ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save className="mr-2 h-4 w-4" />
+                Save Contact Details
+              </>
+            )}
+          </Button>
+
+          {hasContactChanges && (
+            <Button
+              onClick={handleResetContactDetails}
+              disabled={isSavingContactDetails}
+              variant="outline"
+              className="cloudact-btn-secondary h-[36px] px-4"
+            >
+              Reset
+            </Button>
+          )}
+        </div>
+      </div>
+        </TabsContent>
+
+        <TabsContent value="backend" className="space-y-6">
       {/* Backend Connection */}
       <div className="metric-card shadow-sm">
         <div className="metric-card-header mb-6">
@@ -864,7 +1351,9 @@ export default function OrganizationSettingsPage() {
           </p>
         </div>
       </div>
+        </TabsContent>
 
+        <TabsContent value="danger" className="space-y-6">
       {/* Danger Zone Section */}
       <div className="pt-4 sm:pt-6">
         <h2 className="text-[22px] font-bold text-[#FF6E50] mb-4 flex items-center gap-2">
@@ -1155,6 +1644,8 @@ export default function OrganizationSettingsPage() {
           </div>
         </div>
       </div>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

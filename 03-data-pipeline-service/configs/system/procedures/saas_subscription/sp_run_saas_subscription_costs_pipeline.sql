@@ -5,7 +5,7 @@
 --
 -- PURPOSE: Orchestrates the SaaS subscription cost calculation pipeline.
 --          Stage 1: Calculate daily amortized costs
---          Stage 2: Convert to FOCUS 1.2 standard format
+--          Stage 2: Convert to FOCUS 1.3 standard format (with org-specific fields)
 --
 -- INPUTS:
 --   p_project_id: GCP Project ID (dynamic)
@@ -73,8 +73,8 @@ BEGIN
     p_project_id, p_dataset_id, v_start_date, v_end_date
   );
 
-  -- 3. Stage 2: Convert to FOCUS 1.2 Standard
-  CALL `{project_id}.organizations`.sp_convert_saas_costs_to_focus_1_2(
+  -- 3. Stage 2: Convert to FOCUS 1.3 Standard (with org-specific fields)
+  CALL `{project_id}.organizations`.sp_convert_saas_costs_to_focus_1_3(
     p_project_id, p_dataset_id, v_start_date, v_end_date
   );
 

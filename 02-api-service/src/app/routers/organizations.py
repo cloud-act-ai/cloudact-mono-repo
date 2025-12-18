@@ -941,13 +941,21 @@ async def onboard_org(
                             "partition_field": "cost_date",
                             "clustering_fields": ["org_slug", "subscription_id"]
                         },
-                        # FOCUS 1.2 Standardized Cost Data (common table for all cost sources)
+                        # FOCUS 1.3 Standardized Cost Data (common table for all cost sources)
                         {
-                            "table_name": "cost_data_standard_1_2",
-                            "schema_file": "cost_data_standard_1_2.json",
-                            "description": "Standardized billing data adhering to FinOps FOCUS 1.2 for cross-cloud cost reporting.",
+                            "table_name": "cost_data_standard_1_3",
+                            "schema_file": "cost_data_standard_1_3.json",
+                            "description": "Standardized billing data adhering to FinOps FOCUS 1.3 specification. Supports cloud (GCP/AWS/Azure), SaaS subscriptions, and LLM API costs with full cost allocation, commitment tracking, and multi-currency support.",
                             "partition_field": "ChargePeriodStart",
-                            "clustering_fields": ["SubAccountId", "Provider"]
+                            "clustering_fields": ["SubAccountId", "ServiceProviderName", "ServiceCategory"]
+                        },
+                        # FOCUS 1.3 Contract Commitment Data (tracks reserved instances, savings plans, CUDs)
+                        {
+                            "table_name": "contract_commitment_1_3",
+                            "schema_file": "contract_commitment_1_3.json",
+                            "description": "Contract commitment tracking for reserved capacity, savings plans, and committed use discounts. Links to cost_data_standard_1_3 via ContractApplied field.",
+                            "partition_field": "ContractPeriodStart",
+                            "clustering_fields": ["ContractId", "x_SubAccountId"]
                         },
                         # LLM Model Pricing table (unified for all providers)
                         {

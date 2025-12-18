@@ -1,14 +1,20 @@
 # SaaS Subscription Costs Pipeline
-# Calculates daily amortized costs from subscription plans and converts to FOCUS 1.2 format
+# Calculates daily amortized costs from subscription plans and converts to FOCUS 1.3 format
 #
 # Schedule: Daily at 03:00 UTC (after other cost pipelines)
-# Tables: saas_subscription_plan_costs_daily, cost_data_standard_1_2
+# Tables: saas_subscription_plan_costs_daily, cost_data_standard_1_3
 #
 # Flow:
 #   0. Query MIN(effective_date) from active plans (auto start date detection)
 #   1. Read active subscriptions from saas_subscription_plans
 #   2. Calculate daily amortized costs (sp_calculate_saas_subscription_plan_costs_daily)
-#   3. Convert to FOCUS 1.2 standard (sp_convert_saas_costs_to_focus_1_2)
+#   3. Convert to FOCUS 1.3 standard (sp_convert_saas_costs_to_focus_1_3)
+#
+# FOCUS 1.3 Key Changes:
+#   - ServiceProviderName/HostProviderName/InvoiceIssuerName replace deprecated ProviderName/PublisherName
+#   - Org-specific extension fields (x_OrgSlug, x_OrgOwnerEmail, x_OrgDefaultCurrency, etc.)
+#   - Tags as JSON instead of REPEATED RECORD
+#   - ContractApplied for linking to contract_commitment_1_3
 #
 # Procedures Location: {project_id}.organizations (central dataset)
 # Data Location: {project_id}.{org_slug}_{env} (per-org dataset)
@@ -22,7 +28,7 @@
 
 pipeline_id: "{org_slug}-saas-subscription-costs"
 name: "SaaS Subscription Costs Pipeline"
-description: "Calculate daily amortized SaaS subscription costs and convert to FOCUS 1.2 format"
+description: "Calculate daily amortized SaaS subscription costs and convert to FOCUS 1.3 format"
 version: "1.0.0"
 
 # Pipeline-level timeout (minutes)
@@ -45,10 +51,10 @@ steps:
   # Single step that runs the orchestrator procedure
   # The procedure internally calls:
   #   1. sp_calculate_saas_subscription_plan_costs_daily (Stage 1)
-  #   2. sp_convert_saas_costs_to_focus_1_2 (Stage 2)
+  #   2. sp_convert_saas_costs_to_focus_1_3 (Stage 2)
   - step_id: "run_cost_pipeline"
     ps_type: "generic.procedure_executor"
-    description: "Execute SaaS subscription cost calculation and FOCUS 1.2 conversion"
+    description: "Execute SaaS subscription cost calculation and FOCUS 1.3 conversion"
     timeout_minutes: 10
     config:
       procedure:
@@ -96,9 +102,10 @@ output_tables:
     cluster_fields:
       - org_slug
       - subscription_id
-  - name: cost_data_standard_1_2
-    description: "FOCUS 1.2 standardized costs (SourceSystem = 'saas_subscription_costs_daily')"
+  - name: cost_data_standard_1_3
+    description: "FOCUS 1.3 standardized costs (x_SourceSystem = 'saas_subscription_costs_daily'). Includes org-specific fields."
     partition_field: ChargePeriodStart
     cluster_fields:
       - SubAccountId
-      - Provider
+      - ServiceProviderName
+      - ServiceCategory
