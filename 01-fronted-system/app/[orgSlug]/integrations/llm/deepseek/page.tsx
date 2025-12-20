@@ -107,14 +107,14 @@ export default function DeepSeekIntegrationPage() {
   }, [orgSlug])
 
   useEffect(() => {
-    loadIntegration()
+    void loadIntegration()
   }, [loadIntegration])
 
   // Load pricing and subscriptions when integration is valid
   useEffect(() => {
     if (integration?.status === "VALID") {
-      loadPricing()
-      loadSubscriptions()
+      void loadPricing()
+      void loadSubscriptions()
     }
   }, [integration?.status, loadPricing, loadSubscriptions])
 

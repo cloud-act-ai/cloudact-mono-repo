@@ -1286,8 +1286,9 @@ export async function resyncBillingFromStripe(orgSlug: string): Promise<{
     }
 
     // Update Supabase with latest Stripe data
-    const periodStart = subscription.current_period_start
-    const periodEnd = subscription.current_period_end
+    // Type assertion needed for Stripe SDK v20+ compatibility
+    const periodStart = (subscription as unknown as { current_period_start: number }).current_period_start
+    const periodEnd = (subscription as unknown as { current_period_end: number }).current_period_end
 
     const { error: updateError } = await adminClient
       .from("organizations")

@@ -51,7 +51,7 @@ function SubscriptionProviderCard({
       }}
     >
       <div className="flex items-center gap-3 mb-4">
-        <div className={`h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0 ${provider.is_enabled ? 'bg-[#007A78]/10' : 'bg-[#F5F5F7]'}`}>
+        <div className={`h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0 ${provider.is_enabled ? 'bg-[#007A78]/10' : 'bg-[#007A78]/5'}`}>
           <div className={provider.is_enabled ? 'text-[#007A78]' : 'text-[#8E8E93]'}>
             {icon}
           </div>
@@ -274,7 +274,7 @@ export default function SubscriptionIntegrationsPage() {
 
       {subscriptionProviders.length === 0 ? (
         <div className="metric-card py-12 text-center">
-          <div className="inline-flex p-4 rounded-2xl bg-[#8E8E93]/10 mb-4">
+          <div className="inline-flex p-4 rounded-2xl bg-[#007A78]/8 mb-4">
             <CreditCard className="h-12 w-12 text-[#8E8E93]" />
           </div>
           <h3 className="text-[20px] font-semibold text-black mb-2">
@@ -303,7 +303,7 @@ export default function SubscriptionIntegrationsPage() {
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowAllProviders(true)}
-                className="h-[36px] px-4 bg-[#F5F5F7] hover:bg-[#E8E8ED] text-[#8E8E93] text-[15px] font-medium rounded-xl border-0"
+                className="h-[36px] px-4 bg-white hover:bg-[#007A78]/5 text-[#8E8E93] text-[15px] font-medium rounded-xl border border-[#007A78]/10"
               >
                 Show {subscriptionProviders.length - INITIAL_PROVIDERS_COUNT} more providers
                 <ChevronDown className="h-4 w-4 ml-2" />
@@ -316,7 +316,7 @@ export default function SubscriptionIntegrationsPage() {
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowAllProviders(false)}
-                className="h-[36px] px-4 bg-[#F5F5F7] hover:bg-[#E8E8ED] text-[#8E8E93] text-[15px] font-medium rounded-xl border-0"
+                className="h-[36px] px-4 bg-white hover:bg-[#007A78]/5 text-[#8E8E93] text-[15px] font-medium rounded-xl border border-[#007A78]/10"
               >
                 Show less
                 <ChevronUp className="h-4 w-4 ml-2" />

@@ -1,7 +1,10 @@
 import { afterEach } from 'vitest'
-import { cleanup } from '@testing-library/react'
+import '@testing-library/jest-dom/vitest'
 
-// Cleanup after each test to prevent DOM pollution
-afterEach(() => {
-  cleanup()
+// Import cleanup from react package directly
+// Note: In @testing-library/react v14+, cleanup is auto-registered
+// but we can still manually call it if needed
+afterEach(async () => {
+  // Cleanup is automatic in modern @testing-library/react
+  // This file ensures jest-dom matchers are available
 })

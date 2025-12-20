@@ -60,6 +60,12 @@
     "description": "IANA timezone identifier (e.g., UTC, Asia/Dubai). Default: UTC"
   },
   {
+    "name": "fiscal_year_start_month",
+    "type": "INTEGER",
+    "mode": "NULLABLE",
+    "description": "Month when fiscal year starts (1-12). 1=January (calendar year, default), 4=April (India/UK/Japan), 7=July (Australia). Used for quarterly/annual cost calculations."
+  },
+  {
     "name": "created_at",
     "type": "TIMESTAMP",
     "mode": "REQUIRED",

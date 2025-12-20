@@ -406,7 +406,7 @@ export function DashboardSidebar({
           {/* Integrations Section - Same style as top sections */}
           {!isCollapsed && (
             <div
-              className="pt-3 pb-1 px-4 flex items-center justify-between cursor-pointer hover:bg-[#F5F5F7]/50 transition-all duration-150"
+              className="pt-3 pb-1 px-4 flex items-center justify-between cursor-pointer hover:bg-[#007A78]/5 transition-all duration-150"
               onClick={() => setIntegrationsExpanded(!integrationsExpanded)}
             >
               <span className="text-[13px] font-semibold text-[#8E8E93] uppercase tracking-wider">
@@ -473,7 +473,7 @@ export function DashboardSidebar({
           {/* Settings Section - Same style as top sections */}
           {!isCollapsed && (
             <div
-              className="pt-3 pb-1 px-4 flex items-center justify-between cursor-pointer hover:bg-[#F5F5F7]/50 transition-all duration-150"
+              className="pt-3 pb-1 px-4 flex items-center justify-between cursor-pointer hover:bg-[#007A78]/5 transition-all duration-150"
               onClick={() => setSettingsExpanded(!settingsExpanded)}
             >
               <span className="text-[13px] font-semibold text-[#8E8E93] uppercase tracking-wider">

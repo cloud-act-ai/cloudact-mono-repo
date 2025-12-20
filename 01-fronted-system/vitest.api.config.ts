@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite'
 import * as dotenv from 'dotenv'
+import path from 'path'
 
 // Load .env.local for API integration tests
 dotenv.config({ path: '.env.local' })
@@ -25,6 +26,11 @@ export default defineConfig({
             NEXT_PUBLIC_API_SERVICE_URL: process.env.NEXT_PUBLIC_API_SERVICE_URL || 'http://localhost:8000',
             API_SERVICE_URL: process.env.API_SERVICE_URL || 'http://localhost:8000',
             CA_ROOT_API_KEY: process.env.CA_ROOT_API_KEY || '',
+        },
+    },
+    resolve: {
+        alias: {
+            '@': path.resolve(__dirname, './'),
         },
     },
 })

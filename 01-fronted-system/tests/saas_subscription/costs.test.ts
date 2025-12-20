@@ -223,7 +223,7 @@ function filterByProvider(
   provider?: string
 ): SaaSCostRecord[] {
   if (!provider) return records
-  return records.filter(r => r.Provider.toLowerCase() === provider.toLowerCase())
+  return records.filter(r => (r.ServiceProviderName || r.ProviderName || '').toLowerCase() === provider.toLowerCase())
 }
 
 /**
@@ -268,7 +268,7 @@ function calculateSummary(records: SaaSCostRecord[]): SaaSCostSummary {
   const forecastAnnual = totalDaily * daysInYear
 
   // Get unique providers and categories
-  const providers = Array.from(new Set(records.map(r => r.Provider).filter(Boolean)))
+  const providers = Array.from(new Set(records.map(r => r.ServiceProviderName || r.ProviderName).filter((p): p is string => !!p)))
   const categories = Array.from(new Set(records.map(r => r.ServiceCategory).filter(Boolean)))
 
   // Get date range
@@ -480,24 +480,24 @@ describe('Test 19: SaaS Subscription Cost Calculations', () => {
 
     it('should filter records by provider', () => {
       const records = [
-        createMockCostRecord({ Provider: 'slack' }),
-        createMockCostRecord({ Provider: 'notion' }),
-        createMockCostRecord({ Provider: 'slack' }),
+        createMockCostRecord({ ServiceProviderName: 'slack', ProviderName: 'slack' }),
+        createMockCostRecord({ ServiceProviderName: 'notion', ProviderName: 'notion' }),
+        createMockCostRecord({ ServiceProviderName: 'slack', ProviderName: 'slack' }),
       ]
 
       const filtered = filterByProvider(records, 'slack')
 
       expect(filtered).toHaveLength(2)
       filtered.forEach(record => {
-        expect(record.Provider.toLowerCase()).toBe('slack')
+        expect((record.ServiceProviderName || record.ProviderName || '').toLowerCase()).toBe('slack')
       })
     })
 
     it('should be case-insensitive for provider filtering', () => {
       const records = [
-        createMockCostRecord({ Provider: 'Slack' }),
-        createMockCostRecord({ Provider: 'SLACK' }),
-        createMockCostRecord({ Provider: 'notion' }),
+        createMockCostRecord({ ServiceProviderName: 'Slack', ProviderName: 'Slack' }),
+        createMockCostRecord({ ServiceProviderName: 'SLACK', ProviderName: 'SLACK' }),
+        createMockCostRecord({ ServiceProviderName: 'notion', ProviderName: 'notion' }),
       ]
 
       const filtered = filterByProvider(records, 'slack')
@@ -507,8 +507,8 @@ describe('Test 19: SaaS Subscription Cost Calculations', () => {
 
     it('should return all records when no provider filter provided', () => {
       const records = [
-        createMockCostRecord({ Provider: 'slack' }),
-        createMockCostRecord({ Provider: 'notion' }),
+        createMockCostRecord({ ServiceProviderName: 'slack', ProviderName: 'slack' }),
+        createMockCostRecord({ ServiceProviderName: 'notion', ProviderName: 'notion' }),
       ]
 
       const filtered = filterByProvider(records)
@@ -598,9 +598,9 @@ describe('Test 19: SaaS Subscription Cost Calculations', () => {
 
     it('should extract unique providers', () => {
       const records = [
-        createMockCostRecord({ Provider: 'slack' }),
-        createMockCostRecord({ Provider: 'notion' }),
-        createMockCostRecord({ Provider: 'slack' }),
+        createMockCostRecord({ ServiceProviderName: 'slack', ProviderName: 'slack' }),
+        createMockCostRecord({ ServiceProviderName: 'notion', ProviderName: 'notion' }),
+        createMockCostRecord({ ServiceProviderName: 'slack', ProviderName: 'slack' }),
       ]
 
       const summary = calculateSummary(records)
@@ -759,19 +759,22 @@ describe('Test 19: SaaS Subscription Cost Calculations', () => {
     it('should handle multiple subscriptions with filtering', () => {
       const records = [
         createMockCostRecord({
-          Provider: 'slack',
+          ServiceProviderName: 'slack',
+          ProviderName: 'slack',
           ResourceId: 'slack_sub',
           BilledCost: 112.50,
           ChargePeriodStart: '2025-12-01'
         }),
         createMockCostRecord({
-          Provider: 'github',
+          ServiceProviderName: 'github',
+          ProviderName: 'github',
           ResourceId: 'github_sub',
           BilledCost: 18.33,
           ChargePeriodStart: '2025-12-01'
         }),
         createMockCostRecord({
-          Provider: 'slack',
+          ServiceProviderName: 'slack',
+          ProviderName: 'slack',
           ResourceId: 'slack_sub',
           BilledCost: 112.50,
           ChargePeriodStart: '2025-12-02'

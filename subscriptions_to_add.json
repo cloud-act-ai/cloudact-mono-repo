@@ -1,0 +1,12 @@
+[
+  { "provider": "slack", "plan_name": "Pro", "price": 15, "seats": 5, "model": "PER_SEAT" },
+  { "provider": "jira", "plan_name": "Standard", "price": 10, "seats": 20, "model": "PER_SEAT" },
+  { "provider": "zoom", "plan_name": "Business", "price": 20, "seats": 3, "model": "PER_SEAT" },
+  { "provider": "notion", "plan_name": "Plus", "price": 8, "seats": 10, "model": "PER_SEAT" },
+  { "provider": "figma", "plan_name": "Professional", "price": 12, "seats": 2, "model": "PER_SEAT" },
+  { "provider": "datadog", "plan_name": "Pro", "price": 15, "seats": 1, "model": "PER_SEAT" },
+  { "provider": "aws", "plan_name": "Developer Support", "price": 29, "seats": 1, "model": "FLAT_FEE", "is_custom": true },
+  { "provider": "google_workspace", "plan_name": "Business Standard", "price": 12, "seats": 5, "model": "PER_SEAT" },
+  { "provider": "salesforce", "plan_name": "Essentials", "price": 25, "seats": 2, "model": "PER_SEAT" },
+  { "provider": "asana", "plan_name": "Premium", "price": 11, "seats": 5, "model": "PER_SEAT" }
+]

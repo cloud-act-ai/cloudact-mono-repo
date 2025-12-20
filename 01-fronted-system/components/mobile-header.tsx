@@ -86,7 +86,7 @@ export function MobileHeader({ orgName, orgSlug, user, userRole }: MobileHeaderP
           variant="ghost"
           size="icon"
           onClick={() => setOpenMobile(!openMobile)}
-          className="h-9 w-9 text-[#1C1C1E] hover:bg-[#F5F5F7] focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2"
+          className="h-9 w-9 text-[#1C1C1E] hover:bg-[#007A78]/5 focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2"
           aria-label={openMobile ? "Close menu" : "Open menu"}
           aria-expanded={openMobile}
         >

@@ -210,7 +210,7 @@ export default function GenAIRunsPage() {
       case "PENDING":
         return "bg-[#007A78]/5 text-[#007A78] border border-[#007A78]/10"
       default:
-        return "bg-[#F5F5F7] text-[#8E8E93] border border-[#E5E5EA]"
+        return "bg-[#007A78]/5 text-[#8E8E93] border border-[#E5E5EA]"
     }
   }
 
@@ -338,7 +338,7 @@ export default function GenAIRunsPage() {
                           </div>
                         </TableCell>
                         <TableCell className="console-table-cell">
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#F5F5F7] text-[#8E8E93]">
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#007A78]/5 text-[#8E8E93]">
                             {pipeline.provider}
                           </span>
                         </TableCell>
@@ -352,7 +352,7 @@ export default function GenAIRunsPage() {
                           <button
                             onClick={() => handleRun(pipeline.id)}
                             disabled={isRunning}
-                            className="inline-flex items-center gap-2 h-[36px] px-4 bg-[#007A78] text-white text-[15px] font-semibold rounded-xl hover:bg-[#005F5D] disabled:bg-[#E5E5EA] disabled:text-[#C7C7CC] disabled:cursor-not-allowed transition-all"
+                            className="inline-flex items-center gap-2 h-[36px] px-4 bg-[#007A78] text-white text-[15px] font-semibold rounded-xl hover:bg-[#005F5D] disabled:bg-[#E5E5EA] disabled:text-[#C7C7CC] disabled:cursor-not-allowed disabled:opacity-70 transition-all touch-manipulation"
                           >
                             {isRunning ? (
                               <>
@@ -384,7 +384,7 @@ export default function GenAIRunsPage() {
             <button
               onClick={loadPipelineRuns}
               disabled={runsLoading}
-              className="inline-flex items-center justify-center gap-2 h-[36px] px-4 bg-[#F5F5F7] text-[#8E8E93] text-[15px] font-medium rounded-xl hover:bg-[#E8E8ED] disabled:text-[#C7C7CC] disabled:cursor-not-allowed transition-colors"
+              className="inline-flex items-center justify-center gap-2 h-[36px] px-4 bg-[#007A78]/5 text-[#8E8E93] text-[15px] font-medium rounded-xl hover:bg-[#007A78]/8 disabled:text-[#C7C7CC] disabled:cursor-not-allowed disabled:opacity-50 transition-colors touch-manipulation"
             >
               {runsLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -435,7 +435,7 @@ export default function GenAIRunsPage() {
                       return (
                         <React.Fragment key={run.pipeline_logging_id}>
                           <TableRow
-                            className="console-table-row cursor-pointer"
+                            className="console-table-row cursor-pointer touch-manipulation hover:bg-[#007A78]/5 transition-colors"
                             onClick={() => toggleRunExpansion(run.pipeline_logging_id)}
                           >
                             <TableCell className="console-table-cell">
@@ -473,7 +473,7 @@ export default function GenAIRunsPage() {
                           </TableRow>
 
                           {isExpanded && (
-                            <TableRow className="bg-[#F5F5F7]">
+                            <TableRow className="bg-[#007A78]/5">
                               <TableCell colSpan={5} className="px-4 sm:px-6 py-6">
                                 {isLoadingThisDetail ? (
                                   <div className="flex items-center justify-center py-6">

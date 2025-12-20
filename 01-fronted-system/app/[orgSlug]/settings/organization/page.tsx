@@ -55,10 +55,11 @@ import {
 } from "lucide-react"
 import Image from "next/image"
 import { logError } from "@/lib/utils"
-import { SUPPORTED_CURRENCIES, SUPPORTED_TIMEZONES } from "@/lib/i18n/constants"
+import { SUPPORTED_CURRENCIES, SUPPORTED_TIMEZONES, FISCAL_YEAR_OPTIONS, getFiscalYearFromTimezone } from "@/lib/i18n/constants"
 import {
   getOrgLocale,
   updateOrgLocale,
+  updateFiscalYear,
   getOrgLogo,
   updateOrgLogo,
   getOrgContactDetails,
@@ -109,12 +110,15 @@ export default function OrganizationSettingsPage() {
   const [currency, setCurrency] = useState("USD")
   const [timezone, setTimezone] = useState("UTC")
   const [logoUrl, setLogoUrl] = useState("")
+  const [fiscalYearStart, setFiscalYearStart] = useState(1) // 1=Jan, 4=Apr, 7=Jul, 10=Oct
 
   // Track original values to detect changes
   const [originalCurrency, setOriginalCurrency] = useState("USD")
   const [originalTimezone, setOriginalTimezone] = useState("UTC")
   const [originalLogoUrl, setOriginalLogoUrl] = useState("")
+  const [originalFiscalYearStart, setOriginalFiscalYearStart] = useState(1)
   const [isSavingLogo, setIsSavingLogo] = useState(false)
+  const [isSavingFiscalYear, setIsSavingFiscalYear] = useState(false)
 
   // Danger zone state
   const [email, setEmail] = useState("")
@@ -477,6 +481,11 @@ export default function OrganizationSettingsPage() {
       setOriginalCurrency(localeResult.locale.default_currency)
       setOriginalTimezone(localeResult.locale.default_timezone)
 
+      // Set fiscal year (default based on timezone if not set)
+      const fiscalYear = localeResult.locale.fiscal_year_start_month || getFiscalYearFromTimezone(localeResult.locale.default_timezone)
+      setFiscalYearStart(fiscalYear)
+      setOriginalFiscalYearStart(fiscalYear)
+
       // Set logo URL
       if (logoResult.success) {
         setLogoUrl(logoResult.logoUrl || "")
@@ -508,14 +517,15 @@ export default function OrganizationSettingsPage() {
   }, [loadOwnedOrganizations, router])
 
   useEffect(() => {
-    void fetchLocale()
-    void loadUserAndOrgs()
-    void loadBackendStatus()
-    void loadContactDetails()
+    fetchLocale()
+    loadUserAndOrgs()
+    loadBackendStatus()
+    loadContactDetails()
   }, [fetchLocale, loadUserAndOrgs, loadBackendStatus, loadContactDetails])
 
   const hasLocaleChanges = currency !== originalCurrency || timezone !== originalTimezone
   const hasLogoChanges = logoUrl !== originalLogoUrl
+  const hasFiscalYearChanges = fiscalYearStart !== originalFiscalYearStart
   const hasContactChanges =
     contactDetails.business_person_name !== originalContactDetails.business_person_name ||
     contactDetails.business_person_position !== originalContactDetails.business_person_position ||
@@ -554,15 +564,52 @@ export default function OrganizationSettingsPage() {
     }
   }
 
+  const handleSaveFiscalYear = async () => {
+    if (!hasFiscalYearChanges) return
+
+    setIsSavingFiscalYear(true)
+    setError(null)
+    setSuccess(null)
+
+    try {
+      const result = await updateFiscalYear(orgSlug, fiscalYearStart)
+
+      if (!result.success) {
+        setError(result.error || "Failed to update fiscal year")
+        return
+      }
+
+      setOriginalFiscalYearStart(fiscalYearStart)
+      setSuccess("Fiscal year updated successfully!")
+      setTimeout(() => setSuccess(null), 4000)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "An error occurred")
+    } finally {
+      setIsSavingFiscalYear(false)
+    }
+  }
+
+  // Auto-update fiscal year when timezone changes
+  const handleTimezoneChange = (newTimezone: string) => {
+    setTimezone(newTimezone)
+    setError(null)
+    // If fiscal year hasn't been manually changed, auto-update based on timezone
+    if (fiscalYearStart === originalFiscalYearStart) {
+      const suggestedFiscalYear = getFiscalYearFromTimezone(newTimezone)
+      setFiscalYearStart(suggestedFiscalYear)
+    }
+  }
+
   const handleSave = async () => {
+    setError(null)
+    setSuccess(null)
+
     if (!hasLocaleChanges) {
       setError("No changes to save")
       return
     }
 
     setIsSaving(true)
-    setError(null)
-    setSuccess(null)
 
     try {
       const result = await updateOrgLocale(orgSlug, currency, timezone)
@@ -593,14 +640,15 @@ export default function OrganizationSettingsPage() {
   }
 
   const handleSaveContactDetails = async () => {
+    setError(null)
+    setSuccess(null)
+
     if (!hasContactChanges) {
       setError("No changes to save")
       return
     }
 
     setIsSavingContactDetails(true)
-    setError(null)
-    setSuccess(null)
 
     try {
       const result = await updateOrgContactDetails(orgSlug, contactDetails)
@@ -630,6 +678,7 @@ export default function OrganizationSettingsPage() {
 
   // Helper to update a single contact field
   const updateContactField = (field: keyof OrgContactDetails, value: string) => {
+    setError(null)
     setContactDetails(prev => ({
       ...prev,
       [field]: value || null,
@@ -771,11 +820,11 @@ export default function OrganizationSettingsPage() {
       )}
 
       <Tabs defaultValue="general" className="w-full">
-        <TabsList className="w-full sm:w-auto flex-wrap">
-          <TabsTrigger value="general">General</TabsTrigger>
-          <TabsTrigger value="contact">Contact Details</TabsTrigger>
-          <TabsTrigger value="backend">Backend</TabsTrigger>
-          <TabsTrigger value="danger" className="text-[#FF6E50] data-[state=active]:text-[#FF6E50]">Danger Zone</TabsTrigger>
+        <TabsList className="w-full sm:w-auto flex-wrap touch-manipulation">
+          <TabsTrigger value="general" className="cursor-pointer">General</TabsTrigger>
+          <TabsTrigger value="contact" className="cursor-pointer">Contact Details</TabsTrigger>
+          <TabsTrigger value="backend" className="cursor-pointer">Backend</TabsTrigger>
+          <TabsTrigger value="danger" className="text-[#FF6E50] data-[state=active]:text-[#FF6E50] cursor-pointer">Danger Zone</TabsTrigger>
         </TabsList>
 
         <TabsContent value="general" className="space-y-6">
@@ -801,13 +850,16 @@ export default function OrganizationSettingsPage() {
               </Label>
               <div className="h-20 w-20 rounded-lg border-2 border-dashed border-[#E5E5EA] flex items-center justify-center bg-gray-50 overflow-hidden">
                 {logoUrl ? (
-                  <Image
+                  <img
                     src={logoUrl}
                     alt="Organization logo"
                     width={80}
                     height={80}
-                    className="object-contain"
-                    onError={() => setLogoUrl("")}
+                    className="object-contain max-h-full max-w-full"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none'
+                      setLogoUrl("")
+                    }}
                   />
                 ) : (
                   <ImageIcon className="h-8 w-8 text-[#8E8E93]" />
@@ -825,7 +877,7 @@ export default function OrganizationSettingsPage() {
                 id="logoUrl"
                 type="url"
                 value={logoUrl}
-                onChange={(e) => setLogoUrl(e.target.value)}
+                onChange={(e) => { setLogoUrl(e.target.value); setError(null); }}
                 placeholder="https://example.com/logo.png"
                 className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg focus:border-[#007A78] focus:ring-1 focus:ring-[#007A78]"
               />
@@ -898,7 +950,7 @@ export default function OrganizationSettingsPage() {
               <DollarSign className="h-4 w-4 text-[#8E8E93]" />
               Currency <span className="text-[#FF6E50]">*</span>
             </Label>
-            <Select value={currency} onValueChange={setCurrency}>
+            <Select value={currency} onValueChange={(val) => { setCurrency(val); setError(null); }}>
               <SelectTrigger id="currency" className="h-10 text-[15px] border border-[#E5E5EA] rounded-lg">
                 <SelectValue placeholder="Select currency" />
               </SelectTrigger>
@@ -924,7 +976,7 @@ export default function OrganizationSettingsPage() {
               <Clock className="h-4 w-4 text-[#8E8E93]" />
               Timezone <span className="text-[#FF6E50]">*</span>
             </Label>
-            <Select value={timezone} onValueChange={setTimezone}>
+            <Select value={timezone} onValueChange={handleTimezoneChange}>
               <SelectTrigger id="timezone" className="h-10 text-[15px] border border-[#E5E5EA] rounded-lg">
                 <SelectValue placeholder="Select timezone" />
               </SelectTrigger>
@@ -939,6 +991,43 @@ export default function OrganizationSettingsPage() {
             <p className="text-[13px] text-[#8E8E93]">
               Used for displaying timestamps in dashboards, reports, and activity logs. Pipeline
               schedules and billing dates use this timezone.
+            </p>
+          </div>
+
+          {/* Fiscal Year Start */}
+          <div className="space-y-2">
+            <Label htmlFor="fiscal-year" className="text-[13px] sm:text-[15px] font-medium text-gray-700 flex items-center gap-2">
+              <Globe className="h-4 w-4 text-[#8E8E93]" />
+              Fiscal Year Start
+            </Label>
+            <div className="flex gap-3">
+              <Select value={fiscalYearStart.toString()} onValueChange={(val) => { setFiscalYearStart(parseInt(val)); setError(null); }}>
+                <SelectTrigger id="fiscal-year" className="h-10 text-[15px] border border-[#E5E5EA] rounded-lg flex-1">
+                  <SelectValue placeholder="Select fiscal year start" />
+                </SelectTrigger>
+                <SelectContent>
+                  {FISCAL_YEAR_OPTIONS.map((fy) => (
+                    <SelectItem key={fy.month} value={fy.month.toString()}>
+                      {fy.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                onClick={handleSaveFiscalYear}
+                disabled={isSavingFiscalYear || !hasFiscalYearChanges}
+                className="cloudact-btn-primary h-10 px-4"
+              >
+                {isSavingFiscalYear ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
+            <p className="text-[13px] text-[#8E8E93]">
+              When your fiscal year begins. Auto-suggested based on timezone: India/Japan/UK = April, Australia = July, others = January.
+              Affects cost analytics reporting periods.
             </p>
           </div>
 
@@ -1320,13 +1409,13 @@ export default function OrganizationSettingsPage() {
                   </div>
                 </div>
                 {backendOnboarded && apiKeyValid !== false && (
-                  <Badge className="bg-[#007A78]/10 text-[#007A78] border-0">
+                  <Badge className="flex-shrink-0 bg-[#007A78]/10 text-[#007A78] border-0">
                     <CheckCircle2 className="h-3 w-3 mr-1" />
                     Active
                   </Badge>
                 )}
                 {apiKeyValid === false && (
-                  <Badge className="bg-[#FF6E50]/10 text-[#FF6E50] border-0">
+                  <Badge className="flex-shrink-0 bg-[#FF6E50]/10 text-[#FF6E50] border-0">
                     <AlertTriangle className="h-3 w-3 mr-1" />
                     Invalid
                   </Badge>
@@ -1338,18 +1427,18 @@ export default function OrganizationSettingsPage() {
                 <div className={`flex items-center justify-between p-4 border rounded-lg ${
                   apiKeyValid === false ? 'border-[#FF6E50]/30 bg-[#FF6E50]/5' : 'border-[#E5E5EA] bg-gray-50'
                 }`}>
-                  <div className="flex items-center gap-3">
-                    <Key className={`h-5 w-5 ${apiKeyValid === false ? 'text-[#FF6E50]' : 'text-[#8E8E93]'}`} />
-                    <div>
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <Key className={`h-5 w-5 flex-shrink-0 ${apiKeyValid === false ? 'text-[#FF6E50]' : 'text-[#8E8E93]'}`} />
+                    <div className="flex-1 min-w-0">
                       <p className="text-[15px] font-medium text-black">API Key</p>
-                      <p className={`text-[13px] font-mono ${apiKeyValid === false ? 'text-[#FF6E50]' : 'text-[#8E8E93]'}`}>
+                      <p className={`text-[13px] font-mono truncate ${apiKeyValid === false ? 'text-[#FF6E50]' : 'text-[#8E8E93]'}`}>
                         ••••••••{apiKeyFingerprint}
                         {apiKeyValid === false && " (invalid)"}
                       </p>
                     </div>
                   </div>
                   {apiKeyValid === true && (
-                    <Badge className="bg-[#007A78]/10 text-[#007A78] border-0">
+                    <Badge className="flex-shrink-0 ml-3 bg-[#007A78]/10 text-[#007A78] border-0">
                       <CheckCircle2 className="h-3 w-3 mr-1" />
                       Valid
                     </Badge>
@@ -1473,7 +1562,7 @@ export default function OrganizationSettingsPage() {
                       <div className="flex items-center gap-2 text-[13px] text-[#8E8E93]">
                         <Users className="h-3 w-3" />
                         <span>{org.member_count} member{org.member_count !== 1 ? "s" : ""}</span>
-                        <Badge variant="outline" className="bg-[#007A78]/12 text-[#007A78] border-0 ml-2">Owner</Badge>
+                        <Badge variant="outline" className="flex-shrink-0 ml-2 bg-[#007A78]/12 text-[#007A78] border-0">Owner</Badge>
                       </div>
                     </div>
                   </div>

@@ -1650,6 +1650,8 @@ const publicPaths = [
 
 **Brand:** Teal (#007A78) + Coral (#FF6E50) | **Font:** DM Sans | **Spacing:** 8px base
 
+**CRITICAL:** Premium white theme - NO gray backgrounds (`#F5F5F7`, `#FAFAFA`, `#E8E8ED`). Use white surfaces with teal tints (`rgba(0,122,120,0.04)`) or shadows for separation. See `00-requirements-docs/00_CONSOLE_UI_DESIGN_STANDARDS.md` section 1.1 for complete requirements.
+
 ### Colors
 
 ```css

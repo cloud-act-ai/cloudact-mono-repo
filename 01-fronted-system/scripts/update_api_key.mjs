@@ -1,4 +1,3 @@
-/* eslint-env node */
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = 'https://kwroaccbrxppfiysqlzs.supabase.co';

@@ -186,7 +186,7 @@ export default async function CostOverviewPage({
             <div className="metric-card-content">
               <div className="metric-card-value text-2xl truncate">{data.organization.org_name}</div>
               <div className="mt-4 flex items-center gap-3">
-                <div className="flex items-center gap-2 bg-[#F5F5F7] px-3 py-1.5 rounded-lg">
+                <div className="flex items-center gap-2 bg-[#007A78]/8 px-3 py-1.5 rounded-lg">
                   <span className="text-[12px] font-semibold text-[#8E8E93] uppercase tracking-wide">Plan</span>
                   <span className="text-[13px] font-bold text-[#007A78] uppercase">{data.organization.plan}</span>
                 </div>
@@ -229,7 +229,7 @@ export default async function CostOverviewPage({
         <div className="col-span-1 md:col-span-2 xl:col-span-3">
           <h2 className="text-[20px] font-bold text-[#1C1C1E] mb-4 tracking-tight">Cost Categories</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Link href={`/${orgSlug}/cost-dashboards/subscription-costs`} className="group metric-card p-5 !shadow-sm hover:!shadow-md border-transparent bg-[#FFFFFF] hover:bg-[#F5F5F7]">
+            <Link href={`/${orgSlug}/cost-dashboards/subscription-costs`} className="group metric-card p-5 !shadow-sm hover:!shadow-md border-transparent bg-[#FFFFFF] hover:bg-[#007A78]/5">
               <div className="h-10 w-10 rounded-full bg-[#FF6E50]/10 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
                 <Wallet className="h-5 w-5 text-[#FF6E50]" />
               </div>
@@ -237,7 +237,7 @@ export default async function CostOverviewPage({
               <p className="text-[13px] text-[#8E8E93] mt-1">SaaS & software</p>
             </Link>
 
-            <Link href={`/${orgSlug}/cost-dashboards/genai-costs`} className="group metric-card p-5 !shadow-sm hover:!shadow-md border-transparent bg-[#FFFFFF] hover:bg-[#F5F5F7]">
+            <Link href={`/${orgSlug}/cost-dashboards/genai-costs`} className="group metric-card p-5 !shadow-sm hover:!shadow-md border-transparent bg-[#FFFFFF] hover:bg-[#007A78]/5">
               <div className="h-10 w-10 rounded-full bg-[#FF6E50]/10 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
                 <Brain className="h-5 w-5 text-[#FF6E50]" />
               </div>
@@ -245,7 +245,7 @@ export default async function CostOverviewPage({
               <p className="text-[13px] text-[#8E8E93] mt-1">LLM API usage</p>
             </Link>
 
-            <Link href={`/${orgSlug}/cost-dashboards/cloud-costs`} className="group metric-card p-5 !shadow-sm hover:!shadow-md border-transparent bg-[#FFFFFF] hover:bg-[#F5F5F7]">
+            <Link href={`/${orgSlug}/cost-dashboards/cloud-costs`} className="group metric-card p-5 !shadow-sm hover:!shadow-md border-transparent bg-[#FFFFFF] hover:bg-[#007A78]/5">
               <div className="h-10 w-10 rounded-full bg-[#FF6E50]/10 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
                 <Cloud className="h-5 w-5 text-[#FF6E50]" />
               </div>
@@ -254,7 +254,7 @@ export default async function CostOverviewPage({
             </Link>
 
             {data.userRole === "owner" && (
-              <Link href={`/${orgSlug}/billing`} className="group metric-card p-5 !shadow-sm hover:!shadow-md border-transparent bg-[#FFFFFF] hover:bg-[#F5F5F7]">
+              <Link href={`/${orgSlug}/billing`} className="group metric-card p-5 !shadow-sm hover:!shadow-md border-transparent bg-[#FFFFFF] hover:bg-[#007A78]/5">
                 <div className="h-10 w-10 rounded-full bg-[#007A78]/10 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
                   <CreditCard className="h-5 w-5 text-[#007A78]" />
                 </div>
@@ -269,7 +269,7 @@ export default async function CostOverviewPage({
         <div className="col-span-1 md:col-span-2 xl:col-span-3">
           <h2 className="text-[20px] font-bold text-[#1C1C1E] mb-4 tracking-tight">Quick Actions</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Link href={`/${orgSlug}/settings/invite`} className="group metric-card p-5 !shadow-sm hover:!shadow-md border-transparent bg-[#FFFFFF] hover:bg-[#F5F5F7]">
+            <Link href={`/${orgSlug}/settings/invite`} className="group metric-card p-5 !shadow-sm hover:!shadow-md border-transparent bg-[#FFFFFF] hover:bg-[#007A78]/5">
               <div className="h-10 w-10 rounded-full bg-[#007A78]/10 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
                 <Users className="h-5 w-5 text-[#007A78]" />
               </div>
@@ -277,7 +277,7 @@ export default async function CostOverviewPage({
               <p className="text-[13px] text-[#8E8E93] mt-1">Manage access</p>
             </Link>
 
-            <Link href={`/${orgSlug}/settings/personal`} className="group metric-card p-5 !shadow-sm hover:!shadow-md border-transparent bg-[#FFFFFF] hover:bg-[#F5F5F7]">
+            <Link href={`/${orgSlug}/settings/personal`} className="group metric-card p-5 !shadow-sm hover:!shadow-md border-transparent bg-[#FFFFFF] hover:bg-[#007A78]/5">
                <div className="h-10 w-10 rounded-full bg-[#8E8E93]/10 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
                  <Settings className="h-5 w-5 text-[#8E8E93]" />
                </div>
@@ -285,7 +285,7 @@ export default async function CostOverviewPage({
                <p className="text-[13px] text-[#8E8E93] mt-1">Preferences</p>
             </Link>
 
-            <Link href={`/${orgSlug}/pipelines/subscription-runs`} className="group metric-card p-5 !shadow-sm hover:!shadow-md border-transparent bg-[#FFFFFF] hover:bg-[#F5F5F7]">
+            <Link href={`/${orgSlug}/pipelines/subscription-runs`} className="group metric-card p-5 !shadow-sm hover:!shadow-md border-transparent bg-[#FFFFFF] hover:bg-[#007A78]/5">
                <div className="h-10 w-10 rounded-full bg-[#005F5D]/10 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
                  <Play className="h-5 w-5 text-[#005F5D]" />
                </div>
@@ -293,7 +293,7 @@ export default async function CostOverviewPage({
                <p className="text-[13px] text-[#8E8E93] mt-1">Run automation</p>
             </Link>
 
-            <Link href={`/${orgSlug}/integrations/subscriptions`} className="group metric-card p-5 !shadow-sm hover:!shadow-md border-transparent bg-[#FFFFFF] hover:bg-[#F5F5F7]">
+            <Link href={`/${orgSlug}/integrations/subscriptions`} className="group metric-card p-5 !shadow-sm hover:!shadow-md border-transparent bg-[#FFFFFF] hover:bg-[#007A78]/5">
                <div className="h-10 w-10 rounded-full bg-[#007A78]/10 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
                  <TrendingUp className="h-5 w-5 text-[#007A78]" />
                </div>

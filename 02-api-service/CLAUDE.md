@@ -11,7 +11,7 @@ Frontend-facing API for org management, auth, and integrations. Handles bootstra
 ```
 Frontend (Next.js) → API Service (8000)
     │
-    ├─ Bootstrap: Create 15 meta tables (one-time)
+    ├─ Bootstrap: Create 14 meta tables (one-time)
     ├─ Onboarding: Create org + dataset + API key
     ├─ Integrations: Setup/validate credentials (OpenAI, Anthropic, GCP)
     ├─ Subscription Plans: CRUD with version history
@@ -54,9 +54,9 @@ python -m pytest tests/ -k "test_health"      # Pattern match
 
 ## Bootstrap Process
 
-### 15 Meta Tables
+### 14 Meta Tables
 
-Bootstrap creates **15 central tables** in the `organizations` dataset:
+Bootstrap creates **14 central tables** in the `organizations` dataset:
 
 | Table | Purpose | Partitioned By |
 |-------|---------|----------------|
@@ -73,7 +73,6 @@ Bootstrap creates **15 central tables** in the `organizations` dataset:
 | `org_pipeline_execution_queue` | Pipeline queue management | `scheduled_time` |
 | `org_cost_tracking` | Cost analytics data | `usage_date` |
 | `org_audit_logs` | Audit trail for all operations | `created_at` |
-| `org_kms_keys` | KMS key management | - |
 | `org_idempotency_keys` | Webhook deduplication (24h TTL) | - |
 
 **Schema Location:** `configs/setup/bootstrap/schemas/*.json`
@@ -836,7 +835,7 @@ curl -X GET "http://localhost:8000/api/v1/costs/test_org/summary?start_date=2025
 │       └── providers.yml              # Provider configurations
 ├── tests/
 │   ├── test_00_health.py              # Health check tests
-│   ├── test_01_bootstrap.py           # Bootstrap tests (15 tables)
+│   ├── test_01_bootstrap.py           # Bootstrap tests (14 tables)
 │   ├── test_02_organizations.py       # Onboarding tests
 │   ├── test_03_integrations.py        # Integration tests
 │   ├── test_04_subscription_plans.py  # SaaS plan CRUD tests
@@ -881,7 +880,7 @@ OPENAI_API_KEY=sk-...  # For E2E testing
 
 ### E2E Test Flow
 
-1. **Bootstrap** - Create 15 meta tables in BigQuery
+1. **Bootstrap** - Create 14 meta tables in BigQuery
 2. **Organization Onboarding** - Create org profile + API key + dataset
 3. **Integration Setup** - Store encrypted OpenAI credentials (KMS)
 4. **Pipeline Execution** - Run OpenAI usage pipeline (via port 8001)

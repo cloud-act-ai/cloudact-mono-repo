@@ -125,8 +125,9 @@ services:
         - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL:-https://placeholder.supabase.co}
         - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY:-placeholder}
         - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:-pk_test_placeholder}
-        - NEXT_PUBLIC_API_SERVICE_URL=http://api-service:8000
-        - NEXT_PUBLIC_PIPELINE_SERVICE_URL=http://pipeline-service:8001
+        # IMPORTANT: NEXT_PUBLIC_* URLs must be localhost for browser access
+        - NEXT_PUBLIC_API_SERVICE_URL=http://localhost:8000
+        - NEXT_PUBLIC_PIPELINE_SERVICE_URL=http://localhost:8001
         - NEXT_PUBLIC_APP_URL=http://localhost:3000
     container_name: cloudact-frontend
     ports:
@@ -141,9 +142,9 @@ services:
       - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:-pk_test_placeholder}
       - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-sk_test_placeholder}
       - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-whsec_placeholder}
-      # Backend Services (internal Docker network)
-      - NEXT_PUBLIC_API_SERVICE_URL=http://api-service:8000
-      - NEXT_PUBLIC_PIPELINE_SERVICE_URL=http://pipeline-service:8001
+      # Backend Services (localhost for browser access)
+      - NEXT_PUBLIC_API_SERVICE_URL=http://localhost:8000
+      - NEXT_PUBLIC_PIPELINE_SERVICE_URL=http://localhost:8001
       - CA_ROOT_API_KEY=${CA_ROOT_API_KEY}
       # App
       - NEXT_PUBLIC_APP_URL=http://localhost:3000
@@ -155,7 +156,7 @@ services:
     networks:
       - cloudact-network
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/"]
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/', (r) => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
       interval: 30s
       timeout: 10s
       retries: 3

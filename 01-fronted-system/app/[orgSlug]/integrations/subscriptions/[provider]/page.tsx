@@ -132,7 +132,15 @@ const categoryIcons: Record<string, React.ReactNode> = {
 }
 
 // Extended form data to include audit trail from template
-interface FormDataWithAudit extends PlanCreate {
+interface FormDataWithAudit {
+  plan_name: string
+  display_name: string
+  unit_price: number | undefined
+  seats: number | undefined
+  billing_cycle: string
+  pricing_model: 'PER_SEAT' | 'FLAT_FEE'
+  currency: string
+  notes: string
   source_currency?: string
   source_price?: number
   exchange_rate_used?: number
@@ -174,8 +182,8 @@ export default function ProviderDetailPage() {
   const [formData, setFormData] = useState<FormDataWithAudit>({
     plan_name: "",
     display_name: "",
-    unit_price: 0,
-    seats: 1,
+    unit_price: undefined,
+    seats: undefined,
     billing_cycle: "monthly",
     pricing_model: "FLAT_FEE",
     currency: "USD",
@@ -308,8 +316,8 @@ export default function ProviderDetailPage() {
     setFormData({
       plan_name: "",
       display_name: "",
-      unit_price: 0,
-      seats: 1,
+      unit_price: undefined,
+      seats: undefined,
       billing_cycle: "monthly",
       pricing_model: "FLAT_FEE",
       currency: orgCurrency,
@@ -320,6 +328,7 @@ export default function ProviderDetailPage() {
     })
     setIsFromTemplate(false)
     setStartDate(new Date())
+    setError(null)
   }
 
   // Handle form submission
@@ -328,28 +337,37 @@ export default function ProviderDetailPage() {
 
     if (!formData.plan_name.trim()) {
       setError("Plan name is required")
+      toast.error("Plan name is required")
       return
     }
 
     if (!startDate) {
       setError("Start date is required")
+      toast.error("Start date is required")
       return
     }
 
-    if (formData.unit_price < 0) {
-      setError("Price cannot be negative")
+    if (formData.unit_price === undefined || formData.unit_price < 0) {
+      setError("Price must be a valid positive number")
+      toast.error("Price must be a valid positive number")
       return
     }
-    if ((formData.seats ?? 0) < 0) {
-      setError("Seats cannot be negative")
+
+    if (formData.seats === undefined || formData.seats < 0) {
+      setError("Seats must be a valid positive number")
+      toast.error("Seats must be a valid positive number")
       return
     }
-    if (formData.pricing_model === 'PER_SEAT' && (formData.seats ?? 0) < 1) {
+
+    if (formData.pricing_model === 'PER_SEAT' && formData.seats < 1) {
       setError("Per-seat plans require at least 1 seat")
+      toast.error("Per-seat plans require at least 1 seat")
       return
     }
-    if ((formData.seats ?? 0) > 10000) {
+
+    if (formData.seats > 10000) {
       setError("Seats cannot exceed 10,000")
+      toast.error("Seats cannot exceed 10,000")
       return
     }
 
@@ -358,6 +376,13 @@ export default function ProviderDetailPage() {
 
     try {
       const startDateStr = format(startDate, "yyyy-MM-dd")
+
+      // Ensure required fields are defined
+      if (formData.unit_price === undefined || formData.seats === undefined) {
+        setError("Price and seats are required")
+        toast.error("Price and seats are required")
+        return
+      }
 
       const planData: PlanCreate & {
         source_currency?: string
@@ -1001,7 +1026,10 @@ export default function ProviderDetailPage() {
               <Input
                 id="plan_name"
                 value={formData.plan_name}
-                onChange={(e) => setFormData({ ...formData, plan_name: e.target.value })}
+                onChange={(e) => {
+                  setFormData({ ...formData, plan_name: e.target.value })
+                  setError(null)
+                }}
                 placeholder="e.g., PRO, TEAM, ENTERPRISE"
                 className="uppercase"
                 required
@@ -1030,8 +1058,17 @@ export default function ProviderDetailPage() {
                   type="number"
                   min="0"
                   step="0.01"
-                  value={formData.unit_price === 0 ? '' : formData.unit_price}
-                  onChange={(e) => setFormData({ ...formData, unit_price: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
+                  value={formData.unit_price ?? ''}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    if (value === "") {
+                      setFormData({ ...formData, unit_price: undefined })
+                    } else {
+                      const parsed = parseFloat(value)
+                      setFormData({ ...formData, unit_price: isNaN(parsed) ? undefined : Math.max(0, parsed) })
+                    }
+                    setError(null)
+                  }}
                   placeholder="0.00"
                   required
                 />
@@ -1100,14 +1137,24 @@ export default function ProviderDetailPage() {
                 type="number"
                 min={formData.pricing_model === 'PER_SEAT' ? 1 : 0}
                 max="10000"
-                value={formData.seats === 0 ? '' : formData.seats}
-                onChange={(e) => setFormData({ ...formData, seats: e.target.value === '' ? 0 : parseInt(e.target.value) })}
+                value={formData.seats ?? ''}
+                onChange={(e) => {
+                  const value = e.target.value
+                  if (value === "") {
+                    setFormData({ ...formData, seats: undefined })
+                  } else {
+                    const parsed = parseInt(value, 10)
+                    const bounded = Math.min(10000, Math.max(0, isNaN(parsed) ? 0 : parsed))
+                    setFormData({ ...formData, seats: bounded })
+                  }
+                  setError(null)
+                }}
                 placeholder="1"
                 required
               />
-              {formData.pricing_model === 'PER_SEAT' && (
+              {formData.pricing_model === 'PER_SEAT' && formData.unit_price !== undefined && formData.seats !== undefined && (
                 <p className="text-xs text-slate-500">
-                  Total: {formatCurrency(formData.unit_price * (formData.seats || 0), orgCurrency)}/{formData.billing_cycle}
+                  Total: {formatCurrency(formData.unit_price * formData.seats, orgCurrency)}/{formData.billing_cycle}
                 </p>
               )}
             </div>

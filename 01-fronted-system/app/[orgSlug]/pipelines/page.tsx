@@ -411,7 +411,7 @@ export default function PipelinesPage() {
                             <button
                               onClick={() => handleRun(pipeline.id)}
                               disabled={isRunning}
-                              className="inline-flex items-center gap-2 h-[36px] px-4 bg-[#007A78] text-white text-[15px] font-semibold rounded-xl hover:bg-[#005F5D] disabled:bg-[#E5E5EA] disabled:text-[#C7C7CC] disabled:cursor-not-allowed transition-all"
+                              className="inline-flex items-center gap-2 h-[36px] px-4 bg-[#007A78] text-white text-[15px] font-semibold rounded-xl hover:bg-[#005F5D] disabled:bg-[#E5E5EA] disabled:text-[#C7C7CC] disabled:cursor-not-allowed disabled:opacity-70 transition-all touch-manipulation"
                             >
                               {isRunning ? (
                                 <>
@@ -448,7 +448,7 @@ export default function PipelinesPage() {
             <button
               onClick={loadPipelineRuns}
               disabled={runsLoading}
-              className="inline-flex items-center justify-center gap-2 h-[36px] px-4 bg-[#F5F5F7] text-[#8E8E93] text-[15px] font-medium rounded-xl hover:bg-[#E8E8ED] disabled:text-[#C7C7CC] disabled:cursor-not-allowed transition-colors"
+              className="inline-flex items-center justify-center gap-2 h-[36px] px-4 bg-[#F5F5F7] text-[#8E8E93] text-[15px] font-medium rounded-xl hover:bg-[#E8E8ED] disabled:text-[#C7C7CC] disabled:cursor-not-allowed disabled:opacity-50 transition-colors touch-manipulation"
             >
               {runsLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -500,7 +500,7 @@ export default function PipelinesPage() {
                     return (
                       <React.Fragment key={run.pipeline_logging_id}>
                         <TableRow
-                          className="console-table-row cursor-pointer"
+                          className="console-table-row cursor-pointer touch-manipulation hover:bg-[#F5F5F7]/50 transition-colors"
                           onClick={() => toggleRunExpansion(run.pipeline_logging_id)}
                         >
                           <TableCell className="console-table-cell">

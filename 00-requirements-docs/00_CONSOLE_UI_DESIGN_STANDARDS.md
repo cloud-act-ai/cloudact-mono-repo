@@ -1,6 +1,6 @@
 # CloudAct Console UI Design Guide
 
-**Version 2.5** | **Status:** Final | **Updated:** 2025-12-13
+**Version 2.6** | **Status:** Final | **Updated:** 2025-12-19
 
 ---
 
@@ -60,6 +60,40 @@ CloudAct follows the **Apple Health design style** adapted for **FinOps and GenA
 | Features & Tools | Teal | Primary brand, productivity |
 | Costs & Money | Coral | Attention, spending alerts |
 | Status | Semantic | Success/Warning/Error |
+
+---
+
+## 1.1 Premium White Theme Requirements
+
+**CRITICAL: NO GRAY BACKGROUNDS**
+
+The console uses a premium shiny white theme. Never use gray backgrounds like `#F5F5F7`, `#FAFAFA`, `#E8E8ED`.
+
+### What to Use Instead
+
+| Old Gray Value | Replacement | Usage |
+|----------------|-------------|-------|
+| `#F5F5F7` | `rgba(0, 122, 120, 0.04)` or `bg-[#007A78]/5` | Subtle backgrounds |
+| `#FAFAFA` | `#FFFFFF` | Surface backgrounds |
+| `#E8E8ED` | `rgba(0, 122, 120, 0.06)` or `bg-[#007A78]/8` | Hover states |
+| `#8E8E93/10` | `rgba(0, 122, 120, 0.06)` or `bg-[#007A78]/8` | Icon backgrounds |
+
+### CSS Classes (console.css)
+
+Use these instead of hardcoded values:
+- `.hover-premium` - Hover with subtle teal tint
+- `.bg-neutral-premium` - Neutral background with teal tint
+- `.row-hover-premium` - Table row hover
+- `.icon-bg-neutral` - Icon container background
+- `.status-neutral` - Neutral status badge
+- `.console-badge-neutral` - Neutral badge
+
+### Separation Without Gray
+
+Use shadows instead of gray backgrounds for visual separation:
+- Sidebar: White background + right shadow (`box-shadow: 2px 0 12px rgba(0, 0, 0, 0.04)`)
+- Cards: White background + subtle shadow (`var(--shadow-premium-sm)`)
+- Borders: Ultra-subtle (`rgba(0, 0, 0, 0.04)`)
 
 ---
 
@@ -181,14 +215,15 @@ CloudAct follows the **Apple Health design style** adapted for **FinOps and GenA
   --error: #FF3B30;
   --neutral: #8E8E93;
 
-  /* Surfaces */
+  /* Surfaces - Premium White (NO GRAY) */
   --surface-primary: #FFFFFF;
-  --surface-secondary: #FAFAFA;
-  --surface-tertiary: #F5F5F7;
+  --surface-secondary: #FFFFFF;
+  --surface-tertiary: rgba(0, 122, 120, 0.02);  /* Subtle teal tint */
+  --surface-hover: rgba(0, 122, 120, 0.03);     /* Hover state */
 
   /* Borders */
-  --border-light: rgba(0, 0, 0, 0.06);
-  --border-medium: rgba(0, 0, 0, 0.1);
+  --border-light: rgba(0, 0, 0, 0.04);  /* Very subtle */
+  --border-medium: rgba(0, 0, 0, 0.08);
 
   /* Shadows */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);

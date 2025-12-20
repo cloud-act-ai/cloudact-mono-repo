@@ -99,11 +99,12 @@ export default function AddCustomSubscriptionPage() {
   const [startDate, setStartDate] = useState<Date | undefined>(new Date())
 
   // Form state with audit trail
+  // CRITICAL FIX: Initialize with null/undefined for numeric fields to avoid 0 validation issues
   const [formData, setFormData] = useState<FormDataWithAudit>({
     plan_name: "",
     display_name: "",
-    unit_price: 0,
-    seats: 1,
+    unit_price: undefined as any, // Will be set to org currency default or template value
+    seats: undefined as any, // Will be set to 1 or template value
     billing_cycle: "monthly",
     pricing_model: "FLAT_FEE",
     currency: "USD",
@@ -131,11 +132,22 @@ export default function AddCustomSubscriptionPage() {
         if (result.success && result.locale) {
           const currency = result.locale.default_currency || "USD"
           setOrgCurrency(currency)
-          setFormData(prev => ({ ...prev, currency }))
+          setFormData(prev => ({
+            ...prev,
+            currency,
+            // CRITICAL FIX: Set default values for numeric fields if still undefined
+            unit_price: prev.unit_price !== undefined ? prev.unit_price : 0,
+            seats: prev.seats !== undefined ? prev.seats : 1,
+          }))
         }
       } catch (err) {
         console.error("Failed to load org currency:", err)
-        // Default to USD on error
+        // Default to USD on error, and set default numeric values
+        setFormData(prev => ({
+          ...prev,
+          unit_price: prev.unit_price !== undefined ? prev.unit_price : 0,
+          seats: prev.seats !== undefined ? prev.seats : 1,
+        }))
       } finally {
         setLoading(false)
       }
@@ -190,62 +202,84 @@ export default function AddCustomSubscriptionPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!formData.plan_name.trim()) {
+    // CRITICAL FIX: Clear previous errors
+    setError(null)
+
+    // Validate plan name
+    if (!formData.plan_name || !formData.plan_name.trim()) {
       setError("Plan name is required")
+      toast.error("Plan name is required")
       return
     }
 
+    if (formData.plan_name.trim().length > 50) {
+      setError("Plan name cannot exceed 50 characters")
+      toast.error("Plan name cannot exceed 50 characters")
+      return
+    }
+
+    // Validate start date
     if (!startDate) {
       setError("Start date is required")
+      toast.error("Start date is required")
       return
     }
 
+    // CRITICAL FIX: Ensure numeric fields have valid values before validation
+    const finalUnitPrice = formData.unit_price ?? 0
+    const finalSeats = formData.seats ?? (formData.pricing_model === 'PER_SEAT' ? 1 : 0)
+
     // Validate inputs
-    if (formData.unit_price < 0) {
+    if (finalUnitPrice < 0) {
       setError("Price cannot be negative")
+      toast.error("Price cannot be negative")
       return
     }
-    if ((formData.seats ?? 0) < 0) {
+    if (finalSeats < 0) {
       setError("Seats cannot be negative")
+      toast.error("Seats cannot be negative")
       return
     }
     // Validate seats for PER_SEAT plans
-    if (formData.pricing_model === 'PER_SEAT' && (formData.seats ?? 0) < 1) {
+    if (formData.pricing_model === 'PER_SEAT' && finalSeats < 1) {
       setError("Per-seat plans require at least 1 seat")
+      toast.error("Per-seat plans require at least 1 seat")
       return
     }
     // Validate upper bound for seats
-    if ((formData.seats ?? 0) > 10000) {
+    if (finalSeats > 10000) {
       setError("Seats cannot exceed 10,000")
+      toast.error("Seats cannot exceed 10,000")
       return
     }
 
     // Validate currency matches org default (should never happen due to locked UI, but double-check)
     if (formData.currency !== orgCurrency) {
       setError(`Currency must match organization default (${orgCurrency})`)
+      toast.error(`Currency must match organization default (${orgCurrency})`)
       return
     }
 
     setSubmitting(true)
-    setError(null)
 
     try {
       const startDateStr = format(startDate, "yyyy-MM-dd")
 
       // Build plan data including audit trail if from template
+      // CRITICAL FIX: Use final validated values
       const planData: PlanCreate & {
         source_currency?: string
         source_price?: number
         exchange_rate_used?: number
       } = {
-        plan_name: formData.plan_name.toUpperCase().replace(/\s+/g, "_"),
-        display_name: formData.display_name || formData.plan_name,
-        unit_price: formData.unit_price,
-        seats: formData.seats,
+        plan_name: formData.plan_name.trim().toUpperCase().replace(/\s+/g, "_"),
+        display_name: formData.display_name?.trim() || formData.plan_name.trim(),
+        unit_price: finalUnitPrice,
+        seats: finalSeats,
         billing_cycle: formData.billing_cycle,
         pricing_model: formData.pricing_model,
         currency: formData.currency,
-        notes: formData.notes,
+        notes: formData.notes?.trim() || "",
         start_date: startDateStr,
       }
 
@@ -257,6 +291,7 @@ export default function AddCustomSubscriptionPage() {
         planData.exchange_rate_used = formData.exchange_rate_used
       }
 
+      console.log("[CreateCustomPlan] Submitting plan data:", planData)
       const result = await createCustomPlan(orgSlug, provider, planData)
 
       if (!result.success) {
@@ -380,9 +415,16 @@ export default function AddCustomSubscriptionPage() {
                 placeholder="e.g., Enterprise"
                 maxLength={50}
                 value={formData.plan_name}
-                onChange={(e) => setFormData({ ...formData, plan_name: e.target.value })}
+                onChange={(e) => {
+                  // CRITICAL FIX: Clear error when user starts typing
+                  if (error && error.includes("Plan name")) {
+                    setError(null)
+                  }
+                  setFormData({ ...formData, plan_name: e.target.value })
+                }}
                 disabled={submitting}
                 required
+                data-testid="plan-name-input"
               />
               <p className="text-xs text-slate-500">
                 This will be converted to uppercase (e.g., ENTERPRISE). Max 50 characters.
@@ -413,8 +455,12 @@ export default function AddCustomSubscriptionPage() {
                     min={0}
                     step="0.01"
                     placeholder="0.00"
-                    value={formData.unit_price === 0 ? "" : formData.unit_price}
+                    value={formData.unit_price ?? ""}
                     onFocus={(e) => {
+                      // CRITICAL FIX: Clear error on focus
+                      if (error && error.includes("price")) {
+                        setError(null)
+                      }
                       // Select all text to allow immediate replacement when typing
                       e.target.select()
                       // For number inputs, also explicitly set selection range
@@ -424,15 +470,27 @@ export default function AddCustomSubscriptionPage() {
                       }
                     }}
                     onChange={(e) => {
-                      const parsed = parseFloat(e.target.value)
-                      setFormData({
-                        ...formData,
-                        unit_price: e.target.value === "" ? 0 : (isNaN(parsed) ? 0 : Math.max(0, parsed))
-                      })
+                      // CRITICAL FIX: Handle empty string properly, don't convert to 0 immediately
+                      const value = e.target.value
+                      if (value === "") {
+                        setFormData({ ...formData, unit_price: undefined as any })
+                      } else {
+                        const parsed = parseFloat(value)
+                        if (!isNaN(parsed) && parsed >= 0) {
+                          setFormData({ ...formData, unit_price: parsed })
+                        }
+                      }
+                    }}
+                    onBlur={(e) => {
+                      // CRITICAL FIX: Set to 0 only on blur if still empty
+                      if (e.target.value === "" || formData.unit_price === undefined) {
+                        setFormData({ ...formData, unit_price: 0 })
+                      }
                     }}
                     disabled={submitting}
                     required
                     className="pl-8"
+                    data-testid="unit-price-input"
                   />
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">
                     {SUPPORTED_CURRENCIES.find(c => c.code === formData.currency)?.symbol || "$"}
@@ -506,9 +564,13 @@ export default function AddCustomSubscriptionPage() {
                 min={0}
                 max={10000}
                 step="1"
-                placeholder="0"
-                value={formData.seats === 0 ? "" : formData.seats}
+                placeholder="1"
+                value={formData.seats ?? ""}
                 onFocus={(e) => {
+                  // CRITICAL FIX: Clear error on focus
+                  if (error && error.includes("seat")) {
+                    setError(null)
+                  }
                   // Select all text to allow immediate replacement when typing
                   e.target.select()
                   // For number inputs, also explicitly set selection range
@@ -518,12 +580,28 @@ export default function AddCustomSubscriptionPage() {
                   }
                 }}
                 onChange={(e) => {
-                  const parsed = parseInt(e.target.value, 10)
-                  const bounded = Math.min(10000, Math.max(0, isNaN(parsed) ? 0 : parsed))
-                  setFormData({ ...formData, seats: e.target.value === "" ? 0 : bounded })
+                  // CRITICAL FIX: Handle empty string properly, don't convert to 0 immediately
+                  const value = e.target.value
+                  if (value === "") {
+                    setFormData({ ...formData, seats: undefined as any })
+                  } else {
+                    const parsed = parseInt(value, 10)
+                    if (!isNaN(parsed) && parsed >= 0 && parsed <= 10000) {
+                      setFormData({ ...formData, seats: parsed })
+                    }
+                  }
+                }}
+                onBlur={(e) => {
+                  // CRITICAL FIX: Set to default on blur if still empty
+                  if (e.target.value === "" || formData.seats === undefined) {
+                    // For PER_SEAT plans, default to 1; for FLAT_FEE, default to 0
+                    const defaultSeats = formData.pricing_model === 'PER_SEAT' ? 1 : 0
+                    setFormData({ ...formData, seats: defaultSeats })
+                  }
                 }}
                 disabled={submitting}
                 required
+                data-testid="seats-input"
               />
               <p className="text-xs text-slate-500">
                 {formData.pricing_model === 'PER_SEAT'
@@ -537,11 +615,21 @@ export default function AddCustomSubscriptionPage() {
               <Label>Start Date *</Label>
               <DatePicker
                 date={startDate}
-                onSelect={setStartDate}
+                onSelect={(date) => {
+                  // CRITICAL FIX: Clear date-related errors when user selects a date
+                  if (error && (error.includes("date") || error.includes("past"))) {
+                    setError(null)
+                  }
+                  setStartDate(date)
+                }}
                 placeholder="Select start date"
                 disabled={submitting}
                 showPresets={true}
+                data-testid="start-date-picker"
               />
+              <p className="text-xs text-slate-500">
+                Can be in the past for backdated subscriptions. Historical costs will be calculated automatically.
+              </p>
             </div>
 
             {/* Notes */}

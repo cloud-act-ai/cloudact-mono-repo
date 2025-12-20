@@ -6,66 +6,81 @@
 /* :root block removed - using globals.css variables */
 
 /* ============================================
-   BACKGROUND - Apple Health Style
-   Gradient ONLY at top, pure white below
+   BACKGROUND - Premium Shiny White
+   Pure white with subtle top glow
    ============================================ */
 
 .console-main-gradient {
-  background:
-    radial-gradient(ellipse 80% 50% at 90% 0%, rgba(0, 122, 120, 0.06) 0%, transparent 60%),
-    radial-gradient(ellipse 50% 40% at 100% 5%, rgba(255, 110, 80, 0.04) 0%, transparent 50%),
-    linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(250, 250, 252, 1) 100%);
-  background-color: #FFFFFF;
+  background: #ffffff;
+  background-image:
+    radial-gradient(ellipse 120% 40% at 50% -10%, rgba(0, 122, 120, 0.04) 0%, transparent 60%);
   min-height: 100%;
-  box-shadow: inset 0 1px 3px rgba(255, 255, 255, 0.8);
 }
 
 /* ============================================
-   TYPOGRAPHY
+   TYPOGRAPHY - Premium Apple-inspired
+   Enhanced font rendering and subtle depth
    ============================================ */
 
 .console-page-title {
   font-size: 2rem;
   font-weight: 700;
   color: #000000;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .console-heading {
   font-size: 1.375rem;
   font-weight: 700;
   color: #000000;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
 }
 
 .console-section-title {
   font-size: 1.375rem;
   font-weight: 700;
   color: #000000;
+  letter-spacing: -0.015em;
   margin-bottom: 16px;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
 }
 
 .console-card-title {
   font-size: 0.9375rem;
   font-weight: 600;
   line-height: 1.3;
+  letter-spacing: -0.01em;
+  -webkit-font-smoothing: antialiased;
 }
 
 .console-body {
   font-size: 0.9375rem;
   color: #3C3C43;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
 }
 
 .console-small {
   font-size: 0.8125rem;
   color: #8E8E93;
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
 }
 
 .console-metric {
   font-size: 2.25rem;
   font-weight: 600;
   color: #000000;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums;
 }
 
 .console-metric-unit {
@@ -73,6 +88,7 @@
   font-weight: 500;
   color: #3C3C43;
   margin-left: 2px;
+  letter-spacing: -0.01em;
 }
 
 /* ============================================
@@ -81,12 +97,18 @@
    ============================================ */
 
 .health-card {
-  background: var(--surface-primary);
-  border-radius: 16px;
-  padding: 16px;
-  box-shadow: var(--shadow-card);
-  border: 1px solid var(--border-light);
-  transition: box-shadow 0.15s ease, transform 0.15s ease;
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 18px;
+  box-shadow: var(--shadow-premium-sm);
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+}
+
+.health-card:hover {
+  box-shadow: var(--shadow-premium-md);
+  transform: translateY(-2px);
 }
 
 .health-card-header {
@@ -131,29 +153,45 @@
    ============================================ */
 
 .metric-card {
-  background: var(--surface-primary);
-  border-radius: 16px;
-  padding: 20px;
-  box-shadow: var(--shadow-card);
-  border: 1px solid var(--border-light);
-  transition: all 0.15s ease;
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 22px;
+  box-shadow: var(--shadow-premium-sm);
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: default;
+  position: relative;
+}
+
+/* Premium inner highlight */
+.metric-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 20px;
+  padding: 1px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0) 50%);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
 }
 
 .metric-card:hover {
-  box-shadow: var(--shadow-elevated);
-  transform: translateY(-1px);
-  border-color: rgba(0, 122, 120, 0.15);
+  box-shadow: var(--shadow-premium-md);
+  transform: translateY(-2px);
+  border-color: rgba(0, 122, 120, 0.08);
 }
 
 .metric-card:active {
-  transform: translateY(0);
-  box-shadow: var(--shadow-card);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-premium-sm);
 }
 
 .metric-card:focus-visible {
   outline: 2px solid var(--cloudact-teal);
   outline-offset: 2px;
+  box-shadow: var(--shadow-premium-glow-teal);
 }
 
 /* Clickable metric cards */
@@ -162,13 +200,14 @@
 }
 
 .metric-card.clickable:hover {
-  box-shadow: var(--shadow-elevated);
-  transform: translateY(-2px);
-  border-color: rgba(0, 122, 120, 0.25);
+  box-shadow: var(--shadow-premium-lg);
+  transform: translateY(-3px);
+  border-color: rgba(0, 122, 120, 0.12);
 }
 
 .metric-card.clickable:active {
   transform: translateY(-1px);
+  box-shadow: var(--shadow-premium-sm);
 }
 
 /* Disabled state */
@@ -308,29 +347,31 @@
    ============================================ */
 
 .console-stat-card {
-  background: var(--surface-primary);
-  padding: 20px;
-  border-radius: 16px;
-  border: 1px solid var(--border-light);
-  box-shadow: var(--shadow-card);
-  transition: all 0.15s ease;
+  background: #ffffff;
+  padding: 22px;
+  border-radius: 20px;
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  box-shadow: var(--shadow-premium-sm);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: default;
+  position: relative;
 }
 
 .console-stat-card:hover {
-  box-shadow: var(--shadow-elevated);
-  transform: translateY(-1px);
-  border-color: rgba(0, 122, 120, 0.15);
+  box-shadow: var(--shadow-premium-md);
+  transform: translateY(-2px);
+  border-color: rgba(0, 122, 120, 0.08);
 }
 
 .console-stat-card:active {
-  transform: translateY(0);
-  box-shadow: var(--shadow-card);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-premium-sm);
 }
 
 .console-stat-card:focus-visible {
   outline: 2px solid var(--cloudact-teal);
   outline-offset: 2px;
+  box-shadow: var(--shadow-premium-glow-teal);
 }
 
 .console-stat-card.clickable {
@@ -338,16 +379,22 @@
 }
 
 .console-stat-card.clickable:hover {
-  transform: translateY(-2px);
-  border-color: rgba(0, 122, 120, 0.25);
+  transform: translateY(-3px);
+  border-color: rgba(0, 122, 120, 0.12);
+  box-shadow: var(--shadow-premium-lg);
 }
 
 .console-chart-card {
-  background: var(--surface-primary);
-  border-radius: 16px;
-  border: 1px solid var(--border-light);
-  box-shadow: var(--shadow-card);
+  background: #ffffff;
+  border-radius: 20px;
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  box-shadow: var(--shadow-premium-sm);
   overflow: hidden;
+  transition: box-shadow 0.2s ease;
+}
+
+.console-chart-card:hover {
+  box-shadow: var(--shadow-premium-md);
 }
 
 /* ============================================
@@ -356,11 +403,16 @@
    ============================================ */
 
 .console-table-card {
-  background: var(--surface-primary);
-  border-radius: 16px;
-  border: 1px solid var(--border-light);
-  box-shadow: var(--shadow-card);
+  background: #ffffff;
+  border-radius: 20px;
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  box-shadow: var(--shadow-premium-sm);
   overflow: hidden;
+  transition: box-shadow 0.2s ease;
+}
+
+.console-table-card:hover {
+  box-shadow: var(--shadow-premium-md);
 }
 
 .console-table-header-row {
@@ -399,19 +451,19 @@
 }
 
 /* ============================================
-   SIDEBAR - Apple Health Style
-   Light gray background with visual separation
+   SIDEBAR - Premium White with Shadow Separation
+   Clean white with subtle shadow divider
    ============================================ */
 
 [data-sidebar="sidebar"] {
-  background: var(--surface-secondary) !important;
-  border-right: 1px solid var(--border-light) !important;
-  box-shadow: 1px 0 4px rgba(0, 0, 0, 0.03) !important;
+  background: #ffffff !important;
+  border-right: none !important;
+  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.04) !important;
 }
 
 [data-sidebar="header"] {
   background: transparent !important;
-  border-bottom: 1px solid var(--border-light) !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04) !important;
   padding: 20px !important;
 }
 
@@ -431,30 +483,32 @@
   padding: 12px 20px !important;
   border-radius: 10px !important;
   margin: 2px 12px !important;
-  transition: background 0.15s ease, color 0.15s ease !important;
+  width: calc(100% - 24px) !important;
+  max-width: calc(100% - 24px) !important;
+  transition: all 0.15s ease !important;
 }
 
 [data-sidebar="menu-button"]:hover {
-  background: var(--surface-tertiary) !important;
+  background: rgba(0, 122, 120, 0.04) !important;
 }
 
 /* Active state with teal accent */
 [data-sidebar="menu-button"][data-active="true"] {
-  background: rgba(0, 122, 120, 0.1) !important;
+  background: rgba(0, 122, 120, 0.08) !important;
   color: var(--cloudact-teal) !important;
   font-weight: 600 !important;
 }
 
 /* Cost items active state with coral accent */
 [data-sidebar="menu-button"].cost-item[data-active="true"] {
-  background: rgba(255, 110, 80, 0.1) !important;
+  background: rgba(255, 110, 80, 0.08) !important;
   color: var(--cloudact-coral) !important;
   font-weight: 600 !important;
 }
 
 [data-sidebar="footer"] {
   background: transparent !important;
-  border-top: 1px solid var(--border-light) !important;
+  border-top: 1px solid rgba(0, 0, 0, 0.04) !important;
   padding: 16px 12px !important;
 }
 
@@ -520,167 +574,216 @@
 .console-button-primary {
   background: var(--cloudact-teal);
   color: white;
-  border-radius: 12px;
+  border-radius: 14px;
   font-size: 0.9375rem;
   font-weight: 600;
   padding: 12px 24px;
   border: none;
   min-height: 44px;
+  box-shadow: var(--shadow-button-teal);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .console-button-primary:hover {
   background: #006664;
+  box-shadow: var(--shadow-button-teal-hover);
+  transform: translateY(-1px);
 }
 
 .console-button-primary:focus-visible {
   outline: 2px solid var(--cloudact-teal);
   outline-offset: 2px;
+  box-shadow: var(--shadow-premium-glow-teal);
 }
 
 .console-button-primary:active {
   background: #005F5D;
+  transform: scale(0.98);
+  box-shadow: var(--shadow-button-teal);
 }
 
 /* Secondary Button - Gray */
 .console-button-secondary {
   background: #F5F5F7;
   color: #000000;
-  border-radius: 12px;
+  border-radius: 14px;
   font-size: 0.9375rem;
   font-weight: 600;
   padding: 12px 24px;
   border: none;
   min-height: 44px;
+  box-shadow: var(--shadow-premium-xs);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .console-button-secondary:hover {
   background: #E8E8ED;
+  box-shadow: var(--shadow-premium-sm);
+  transform: translateY(-1px);
 }
 
 .console-button-secondary:focus-visible {
   outline: 2px solid var(--cloudact-teal);
   outline-offset: 2px;
+  box-shadow: var(--shadow-premium-glow-teal);
 }
 
 .console-button-secondary:active {
   background: #D1D1D6;
+  transform: scale(0.98);
 }
 
 /* Destructive Button - Coral */
 .console-button-destructive {
   background: var(--cloudact-coral);
   color: white;
-  border-radius: 12px;
+  border-radius: 14px;
   font-size: 0.9375rem;
   font-weight: 600;
   padding: 12px 24px;
   border: none;
   min-height: 44px;
+  box-shadow: var(--shadow-button-coral);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .console-button-destructive:hover {
   background: #E55A3C;
+  box-shadow: var(--shadow-button-coral-hover);
+  transform: translateY(-1px);
 }
 
 .console-button-destructive:focus-visible {
   outline: 2px solid var(--cloudact-coral);
   outline-offset: 2px;
+  box-shadow: var(--shadow-premium-glow-coral);
 }
 
 .console-button-destructive:active {
   background: #CC4F35;
+  transform: scale(0.98);
+  box-shadow: var(--shadow-button-coral);
 }
 
 /* Coral Button - Alias for destructive with brand name */
 .console-button-coral {
   background: var(--cloudact-coral);
   color: white;
-  border-radius: 12px;
+  border-radius: 14px;
   font-size: 0.9375rem;
   font-weight: 600;
   padding: 12px 24px;
   border: none;
   min-height: 44px;
+  box-shadow: var(--shadow-button-coral);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .console-button-coral:hover {
   background: #E55A3C;
+  box-shadow: var(--shadow-button-coral-hover);
+  transform: translateY(-1px);
 }
 
 .console-button-coral:focus-visible {
   outline: 2px solid var(--cloudact-coral);
   outline-offset: 2px;
+  box-shadow: var(--shadow-premium-glow-coral);
 }
 
 .console-button-coral:active {
   background: #CC4F35;
+  transform: scale(0.98);
 }
 
 /* Ghost Button - Transparent */
 .console-button-ghost {
   background: transparent;
   color: #000000;
-  border-radius: 12px;
+  border-radius: 14px;
   font-size: 0.9375rem;
   font-weight: 600;
   padding: 12px 24px;
   border: none;
   min-height: 44px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .console-button-ghost:hover {
-  background: rgba(0, 122, 120, 0.08);
+  background: rgba(0, 122, 120, 0.06);
+  transform: translateY(-1px);
 }
 
 .console-button-ghost:focus-visible {
   outline: 2px solid var(--cloudact-teal);
   outline-offset: 2px;
+  box-shadow: var(--shadow-premium-glow-teal);
 }
 
 .console-button-ghost:active {
-  background: rgba(0, 122, 120, 0.12);
+  background: rgba(0, 122, 120, 0.1);
+  transform: scale(0.98);
 }
 
 /* Ghost Destructive - for delete actions */
 .console-button-ghost-destructive {
   background: transparent;
   color: var(--cloudact-coral);
-  border-radius: 12px;
+  border-radius: 14px;
   font-size: 0.9375rem;
   font-weight: 600;
   padding: 12px 24px;
   border: none;
   min-height: 44px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .console-button-ghost-destructive:hover {
   background: rgba(255, 110, 80, 0.1);
+  transform: translateY(-1px);
 }
 
 .console-button-ghost-destructive:focus-visible {
   outline: 2px solid var(--cloudact-coral);
   outline-offset: 2px;
+  box-shadow: var(--shadow-premium-glow-coral);
+}
+
+.console-button-ghost-destructive:active {
+  background: rgba(255, 110, 80, 0.15);
+  transform: scale(0.98);
 }
 
 /* Outline Button - Teal border */
 .console-button-outline {
   background: transparent;
   color: var(--cloudact-teal);
-  border-radius: 12px;
+  border-radius: 14px;
   font-size: 0.9375rem;
   font-weight: 600;
   padding: 11px 23px;
-  border: 1px solid var(--cloudact-teal);
+  border: 1.5px solid var(--cloudact-teal);
   min-height: 44px;
+  box-shadow: var(--shadow-premium-xs);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .console-button-outline:hover {
-  background: rgba(0, 122, 120, 0.08);
+  background: rgba(0, 122, 120, 0.06);
+  box-shadow: var(--shadow-premium-sm);
+  transform: translateY(-1px);
+  border-color: #006664;
 }
 
 .console-button-outline:focus-visible {
   outline: 2px solid var(--cloudact-teal);
   outline-offset: 2px;
+  box-shadow: var(--shadow-premium-glow-teal);
+}
+
+.console-button-outline:active {
+  background: rgba(0, 122, 120, 0.1);
+  transform: scale(0.98);
 }
 
 /* Link Button - Text only */
@@ -811,6 +914,49 @@
 .console-badge-error {
   background: rgba(255, 110, 80, 0.12);
   color: #FF6E50;
+}
+
+/* Neutral badge - Premium white (NO gray) */
+.console-badge-neutral {
+  background: rgba(0, 122, 120, 0.06);
+  color: #8E8E93;
+  border: 1px solid rgba(0, 122, 120, 0.08);
+}
+
+/* ============================================
+   PREMIUM THEME UTILITIES
+   Use these instead of hardcoded grays
+   ============================================ */
+
+/* Hover backgrounds - subtle teal tint instead of gray */
+.hover-premium:hover {
+  background: rgba(0, 122, 120, 0.04) !important;
+}
+
+/* Neutral/muted backgrounds - very subtle teal instead of gray */
+.bg-neutral-premium {
+  background: rgba(0, 122, 120, 0.04);
+}
+
+/* Table row hover - premium */
+.row-hover-premium:hover {
+  background: rgba(0, 122, 120, 0.03);
+}
+
+/* Icon container backgrounds */
+.icon-bg-neutral {
+  background: rgba(0, 122, 120, 0.06);
+}
+
+.icon-bg-active {
+  background: rgba(0, 122, 120, 0.1);
+}
+
+/* Status backgrounds - neutral/unknown/other */
+.status-neutral {
+  background: rgba(0, 122, 120, 0.06);
+  color: #8E8E93;
+  border: 1px solid rgba(0, 122, 120, 0.08);
 }
 
 /* ============================================
@@ -1212,9 +1358,11 @@ button[role="combobox"] > span:first-child {
   [data-sidebar="menu-button"] {
     font-size: 0.875rem !important;
     padding: 12px 16px !important;
-    border-radius: 8px !important;
-    margin: 2px 8px !important;
+    border-radius: 10px !important;
+    margin: 2px 12px !important;
     min-height: 44px !important;
+    width: calc(100% - 24px) !important;
+    max-width: calc(100% - 24px) !important;
   }
 
   [data-sidebar="group-label"] {

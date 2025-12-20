@@ -93,7 +93,7 @@ Port 3000                    Frontend-facing API             ETL Execution Only
 
                              ↓                               ↓
                              BigQuery (Shared)
-                             ├─ organizations dataset (15 meta tables)
+                             ├─ organizations dataset (14 meta tables)
                              └─ {org_slug}_prod datasets (data tables)
 ```
 
@@ -175,7 +175,7 @@ API Request → configs/ → Processor → BigQuery API
 ```
 
 ### Key Paths
-- **Bootstrap Schemas**: `02-api-service/configs/setup/bootstrap/schemas/*.json` (15 tables)
+- **Bootstrap Schemas**: `02-api-service/configs/setup/bootstrap/schemas/*.json` (14 tables)
 - **Pipeline Configs**: `03-data-pipeline-service/configs/{provider}/{domain}/*.yml`
 - **Processors**: `03-data-pipeline-service/src/core/processors/{provider}/{domain}.py`
 - **Frontend Actions**: `01-fronted-system/actions/*.ts`
@@ -187,7 +187,7 @@ API Request → configs/ → Processor → BigQuery API
 CA_ROOT_API_KEY (system admin)
     │
     ├── Bootstrap: POST /api/v1/admin/bootstrap
-    │   └── One-time system initialization (15 meta tables)
+    │   └── One-time system initialization (14 meta tables)
     │
     └── Creates → Org API Keys (per-organization)
                     │
@@ -215,7 +215,7 @@ curl -X GET "http://localhost:8000/api/v1/admin/dev/api-key/{org_slug}" \
 ### api-service (Port 8000) - All Frontend Operations
 
 **Admin (X-CA-Root-Key)**
-- `POST /api/v1/admin/bootstrap` - Initialize system (15 meta tables)
+- `POST /api/v1/admin/bootstrap` - Initialize system (14 meta tables)
 - `POST /api/v1/organizations/onboard` - Create organization + API key + dataset (includes default_currency, default_timezone)
 - `POST /api/v1/organizations/dryrun` - Validate org before onboarding
 - `PUT /api/v1/organizations/{org}/subscription` - Update subscription limits
@@ -270,7 +270,7 @@ See `00-requirements-docs/00-ARCHITECTURE.md` for complete security details.
 
 ## Bootstrap System Tables
 
-Bootstrap creates 15 management tables in the `organizations` dataset:
+Bootstrap creates 14 management tables in the `organizations` dataset:
 
 1. org_profiles (includes i18n fields: default_currency, default_timezone, default_country, default_language)
 2. org_api_keys (partitioned by created_at)
@@ -285,8 +285,7 @@ Bootstrap creates 15 management tables in the `organizations` dataset:
 11. org_meta_dq_results (partitioned by ingestion_date)
 12. org_audit_logs (partitioned by created_at)
 13. org_cost_tracking (partitioned by usage_date)
-14. org_kms_keys
-15. org_idempotency_keys
+14. org_idempotency_keys
 
 Note: All subscription plan changes are logged to org_audit_logs (not a separate audit table).
 

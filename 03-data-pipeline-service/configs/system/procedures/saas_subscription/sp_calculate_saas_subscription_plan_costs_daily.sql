@@ -6,11 +6,24 @@
 -- PURPOSE: Calculate daily amortized costs for ALL subscriptions that overlap
 --          with the date range, including historical costs for expired/cancelled
 --          subscriptions. Daily cost calculation by billing cycle:
---            - Monthly: cycle_cost / days_in_month (actual: 28-31)
---            - Annual: cycle_cost / 365 (or 366 for leap years)
---            - Quarterly: cycle_cost / 91.25 (average quarter)
+--            - Monthly: cycle_cost / days_in_billing_period (anchor-aware)
+--            - Annual: cycle_cost / fiscal_year_days (365 or 366)
+--            - Quarterly: cycle_cost / fiscal_quarter_days (FQ1-FQ4)
+--            - Semi-Annual: cycle_cost / fiscal_half_days (FH1-FH2)
 --            - Weekly: cycle_cost / 7
 --            - Custom: cycle_cost / 30 (fallback)
+--
+-- FISCAL YEAR SUPPORT:
+--   - Reads fiscal_year_start_month from org_profiles (default: 1 = January)
+--   - Common values: 1=Calendar, 4=India/UK/Japan, 7=Australia
+--   - Annual/Quarterly/Semi-Annual calculations use fiscal periods
+--   - Example: fiscal_year_start_month=4 means FY Apr 1, 2025 - Mar 31, 2026
+--
+-- INDUSTRY STANDARDS COMPLIANCE:
+--   - FinOps FOCUS 1.3: Amortization of upfront fees across commitment period
+--   - ASC 606 / IFRS 15: Revenue recognition over service period with proration
+--   - GAAP/Statutory: Fiscal year aligned calculations for India, UK, Japan, Australia
+--   - Leap year handling: Proper 400/100/4 rule for accurate daily rates
 --
 -- INPUTS:
 --   p_project_id: GCP Project ID
@@ -49,6 +62,8 @@ BEGIN
   DECLARE v_org_currency STRING DEFAULT NULL;
   DECLARE v_zero_seat_count INT64 DEFAULT 0;
   DECLARE v_default_currency STRING DEFAULT 'USD';
+  -- Fiscal year support: Month when FY starts (1=Jan/calendar, 4=Apr/India, 7=Jul/Australia)
+  DECLARE v_fiscal_year_start_month INT64 DEFAULT 1;
 
   -- 1. Validation
   ASSERT p_project_id IS NOT NULL AS "p_project_id cannot be NULL";
@@ -58,14 +73,16 @@ BEGIN
   ASSERT p_end_date >= p_start_date AS "p_end_date must be >= p_start_date";
   ASSERT DATE_DIFF(p_end_date, p_start_date, DAY) <= 366 AS "Date range cannot exceed 366 days";
 
-  -- 1b. Get org's default currency from org_profiles (resolves TODO from line 86-87)
+  -- 1b. Get org settings from org_profiles (currency + fiscal year)
   EXECUTE IMMEDIATE FORMAT("""
-    SELECT default_currency
+    SELECT
+      default_currency,
+      COALESCE(fiscal_year_start_month, 1) AS fiscal_year_start_month
     FROM `%s.organizations.org_profiles`
     WHERE REGEXP_REPLACE(@p_ds, '_prod$|_stage$|_dev$|_local$', '') = org_slug
     LIMIT 1
   """, p_project_id)
-  INTO v_org_currency
+  INTO v_org_currency, v_fiscal_year_start_month
   USING p_dataset_id AS p_ds;
 
   BEGIN TRANSACTION;
@@ -122,7 +139,11 @@ BEGIN
           discount_value,
           start_date,
           end_date,
-          invoice_id_last
+          invoice_id_last,
+          -- Billing anchor day for non-calendar-aligned billing (1-28)
+          -- NULL or 1 = calendar-aligned (1st of month)
+          -- ASC 606 / IFRS 15 compliant: Track billing cycle anniversary
+          COALESCE(billing_anchor_day, 1) AS billing_anchor_day
         FROM `%s.%s.saas_subscription_plans`
         WHERE status IN ('active', 'expired', 'cancelled')
           AND (start_date <= @p_end OR start_date IS NULL)
@@ -175,23 +196,165 @@ BEGIN
           CAST(
             CASE
               WHEN s.cycle_cost IS NULL OR s.cycle_cost = 0 THEN 0
-              -- Monthly: divide by actual days in that specific month (28-31)
+              -- Monthly: divide by actual days in billing period
+              -- ASC 606 compliant: Uses billing_anchor_day for non-calendar billing
               WHEN s.billing_cycle IN ('monthly', 'month')
-                THEN s.cycle_cost / EXTRACT(DAY FROM LAST_DAY(day))
-              -- Annual: divide by 365 (or 366 for leap years)
-              -- Proper leap year: divisible by 4, but not by 100 unless also by 400
-              WHEN s.billing_cycle IN ('annual', 'yearly', 'year')
                 THEN s.cycle_cost / (
                   CASE
-                    WHEN MOD(EXTRACT(YEAR FROM day), 400) = 0 THEN 366  -- Century leap year (2000, 2400)
-                    WHEN MOD(EXTRACT(YEAR FROM day), 100) = 0 THEN 365  -- Century non-leap (1900, 2100)
-                    WHEN MOD(EXTRACT(YEAR FROM day), 4) = 0 THEN 366    -- Regular leap year
-                    ELSE 365
+                    -- Calendar-aligned billing (anchor = 1 or NULL)
+                    WHEN s.billing_anchor_day = 1 THEN
+                      EXTRACT(DAY FROM LAST_DAY(day))
+                    -- Non-calendar billing (e.g., anchor = 15 means 15th to 14th)
+                    -- Calculate days from current period start to next period start
+                    ELSE
+                      DATE_DIFF(
+                        -- Next period start
+                        CASE
+                          WHEN EXTRACT(DAY FROM day) >= s.billing_anchor_day THEN
+                            DATE_ADD(DATE_TRUNC(day, MONTH), INTERVAL 1 MONTH) +
+                            INTERVAL (s.billing_anchor_day - 1) DAY
+                          ELSE
+                            DATE_TRUNC(day, MONTH) + INTERVAL (s.billing_anchor_day - 1) DAY
+                        END,
+                        -- Current period start
+                        CASE
+                          WHEN EXTRACT(DAY FROM day) >= s.billing_anchor_day THEN
+                            DATE_TRUNC(day, MONTH) + INTERVAL (s.billing_anchor_day - 1) DAY
+                          ELSE
+                            DATE_ADD(DATE_TRUNC(day, MONTH), INTERVAL -1 MONTH) +
+                            INTERVAL (s.billing_anchor_day - 1) DAY
+                        END,
+                        DAY
+                      )
                   END
                 )
-              -- Quarterly: divide by 91.25 (average quarter = 365.25/4)
+              -- Annual: divide by fiscal year days (365 or 366)
+              -- Fiscal year may cross calendar year (e.g., Apr 2025 - Mar 2026)
+              -- Uses @fy_start_month from org_profiles (1=Jan/calendar, 4=Apr/India)
+              WHEN s.billing_cycle IN ('annual', 'yearly', 'year')
+                THEN s.cycle_cost / (
+                  -- Calculate days in fiscal year containing this day
+                  -- FY start: If month >= fy_start_month, use current year; else previous year
+                  DATE_DIFF(
+                    -- FY end date
+                    DATE_ADD(
+                      DATE(
+                        CASE
+                          WHEN EXTRACT(MONTH FROM day) >= @fy_start_month
+                            THEN EXTRACT(YEAR FROM day)
+                          ELSE EXTRACT(YEAR FROM day) - 1
+                        END,
+                        @fy_start_month,
+                        1
+                      ),
+                      INTERVAL 1 YEAR
+                    ),
+                    -- FY start date
+                    DATE(
+                      CASE
+                        WHEN EXTRACT(MONTH FROM day) >= @fy_start_month
+                          THEN EXTRACT(YEAR FROM day)
+                        ELSE EXTRACT(YEAR FROM day) - 1
+                      END,
+                      @fy_start_month,
+                      1
+                    ),
+                    DAY
+                  )
+                )
+              -- Quarterly: divide by actual days in FISCAL quarter
+              -- Fiscal quarters depend on @fy_start_month (e.g., Apr start = FQ1:Apr-Jun)
+              -- Formula: fiscal_quarter = ((month - fy_start + 12) MOD 12) / 3 + 1
               WHEN s.billing_cycle IN ('quarterly', 'quarter')
-                THEN s.cycle_cost / 91.25
+                THEN s.cycle_cost / (
+                  -- Calculate days in the fiscal quarter containing this day
+                  DATE_DIFF(
+                    -- FQ end date (start of next quarter)
+                    DATE_ADD(
+                      DATE(
+                        -- Year of FQ start
+                        CASE
+                          WHEN MOD(EXTRACT(MONTH FROM day) - @fy_start_month + 12, 12) >= 9
+                               AND @fy_start_month > EXTRACT(MONTH FROM day)
+                            THEN EXTRACT(YEAR FROM day)
+                          WHEN EXTRACT(MONTH FROM day) >= @fy_start_month
+                            THEN EXTRACT(YEAR FROM day)
+                          ELSE EXTRACT(YEAR FROM day) - 1
+                        END,
+                        -- Month of FQ start
+                        MOD(@fy_start_month - 1 +
+                          (DIV(MOD(EXTRACT(MONTH FROM day) - @fy_start_month + 12, 12), 3) * 3),
+                          12) + 1,
+                        1
+                      ),
+                      INTERVAL 3 MONTH
+                    ),
+                    -- FQ start date
+                    DATE(
+                      CASE
+                        WHEN MOD(EXTRACT(MONTH FROM day) - @fy_start_month + 12, 12) >= 9
+                             AND @fy_start_month > EXTRACT(MONTH FROM day)
+                          THEN EXTRACT(YEAR FROM day)
+                        WHEN EXTRACT(MONTH FROM day) >= @fy_start_month
+                          THEN EXTRACT(YEAR FROM day)
+                        ELSE EXTRACT(YEAR FROM day) - 1
+                      END,
+                      MOD(@fy_start_month - 1 +
+                        (DIV(MOD(EXTRACT(MONTH FROM day) - @fy_start_month + 12, 12), 3) * 3),
+                        12) + 1,
+                      1
+                    ),
+                    DAY
+                  )
+                )
+              -- Semi-Annual: divide by actual days in FISCAL half-year
+              -- FH1: First 6 months from fy_start_month, FH2: Next 6 months
+              WHEN s.billing_cycle IN ('semi-annual', 'semi_annual', 'biannual', 'half-yearly')
+                THEN s.cycle_cost / (
+                  -- Calculate days in the fiscal half containing this day
+                  DATE_DIFF(
+                    -- FH end date (start of next half)
+                    DATE_ADD(
+                      DATE(
+                        -- Year of FH start
+                        CASE
+                          WHEN MOD(EXTRACT(MONTH FROM day) - @fy_start_month + 12, 12) >= 6
+                               AND @fy_start_month > EXTRACT(MONTH FROM day)
+                            THEN EXTRACT(YEAR FROM day)
+                          WHEN EXTRACT(MONTH FROM day) >= @fy_start_month
+                            THEN EXTRACT(YEAR FROM day)
+                          ELSE EXTRACT(YEAR FROM day) - 1
+                        END,
+                        -- Month of FH start
+                        CASE
+                          WHEN MOD(EXTRACT(MONTH FROM day) - @fy_start_month + 12, 12) < 6
+                            THEN @fy_start_month  -- FH1 starts at fy_start_month
+                          ELSE MOD(@fy_start_month + 5, 12) + 1  -- FH2 starts 6 months later
+                        END,
+                        1
+                      ),
+                      INTERVAL 6 MONTH
+                    ),
+                    -- FH start date
+                    DATE(
+                      CASE
+                        WHEN MOD(EXTRACT(MONTH FROM day) - @fy_start_month + 12, 12) >= 6
+                             AND @fy_start_month > EXTRACT(MONTH FROM day)
+                          THEN EXTRACT(YEAR FROM day)
+                        WHEN EXTRACT(MONTH FROM day) >= @fy_start_month
+                          THEN EXTRACT(YEAR FROM day)
+                        ELSE EXTRACT(YEAR FROM day) - 1
+                      END,
+                      CASE
+                        WHEN MOD(EXTRACT(MONTH FROM day) - @fy_start_month + 12, 12) < 6
+                          THEN @fy_start_month
+                        ELSE MOD(@fy_start_month + 5, 12) + 1
+                      END,
+                      1
+                    ),
+                    DAY
+                  )
+                )
               -- Weekly: divide by 7 days
               WHEN s.billing_cycle IN ('weekly', 'week')
                 THEN s.cycle_cost / 7
@@ -239,7 +402,7 @@ BEGIN
       FROM daily_expanded
       WHERE daily_cost > 0  -- Skip zero-cost rows (FREE plans)
     """, p_project_id, p_dataset_id, p_project_id, p_dataset_id)
-    USING p_start_date AS p_start, p_end_date AS p_end, v_org_currency AS org_currency, v_default_currency AS default_currency;
+    USING p_start_date AS p_start, p_end_date AS p_end, v_org_currency AS org_currency, v_default_currency AS default_currency, v_fiscal_year_start_month AS fy_start_month;
 
   COMMIT TRANSACTION;
 

@@ -39,7 +39,7 @@
     "name": "billing_cycle",
     "type": "STRING",
     "mode": "REQUIRED",
-    "description": "Billing frequency: monthly, annual."
+    "description": "Billing frequency: monthly, quarterly, semi-annual, annual, weekly."
   },
   {
     "name": "currency",

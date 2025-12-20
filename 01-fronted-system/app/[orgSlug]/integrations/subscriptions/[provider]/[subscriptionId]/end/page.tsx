@@ -135,7 +135,11 @@ export default function EndSubscriptionPage() {
 
   // Handle end subscription
   const handleEndSubscription = async () => {
-    if (!plan || !endDate) return
+    if (!plan || !endDate) {
+      setError("End date is required")
+      toast.error("End date is required")
+      return
+    }
 
     setEnding(true)
     setError(null)

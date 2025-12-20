@@ -2,13 +2,13 @@
 End-to-End Integration Test: Complete User Onboarding Journey
 
 This test validates the entire user onboarding flow from bootstrap to pipeline execution:
-1. Bootstrap (system initialization) - Creates 15 meta tables
+1. Bootstrap (system initialization) - Creates 14 meta tables
 2. Organization onboarding (create org + API key + dataset) - Creates 4 org tables
 3. Integration setup (store encrypted credentials)
 4. Pipeline execution (run usage pipeline)
 5. Data verification (check data in org dataset)
 
-BOOTSTRAP TABLES (15 total):
+BOOTSTRAP TABLES (14 total):
 - org_profiles (includes i18n fields)
 - org_api_keys
 - org_subscriptions
@@ -22,7 +22,6 @@ BOOTSTRAP TABLES (15 total):
 - org_meta_dq_results
 - org_audit_logs (includes subscription audits)
 - org_cost_tracking
-- org_kms_keys
 - org_idempotency_keys
 
 ONBOARDING TABLES (5 per org):
@@ -311,7 +310,7 @@ async def test_complete_user_onboarding_e2e(
 
         bootstrap_data = response.json()
         assert bootstrap_data["status"] == "SUCCESS"
-        assert bootstrap_data["total_tables"] == 15  # Expected 15 meta tables (removed org_subscription_audit)
+        assert bootstrap_data["total_tables"] == 14  # Expected 14 meta tables (removed org_kms_keys placeholder)
 
         logger.info(f"✓ Bootstrap completed: {len(bootstrap_data.get('tables_created', []))} tables created, "
                    f"{len(bootstrap_data.get('tables_existed', []))} tables existed")
@@ -579,10 +578,10 @@ async def test_bootstrap_only(
 
     data = response.json()
     assert data["status"] == "SUCCESS"
-    assert data["total_tables"] == 15  # 15 meta tables (removed org_subscription_audit)
+    assert data["total_tables"] == 14  # 14 meta tables (removed org_kms_keys placeholder)
 
     # Either tables were created or already existed (idempotent)
-    assert len(data["tables_created"]) + len(data["tables_existed"]) == 15
+    assert len(data["tables_created"]) + len(data["tables_existed"]) == 14
 
     logger.info(f"✓ Bootstrap test passed: {data['total_tables']} tables verified")
 

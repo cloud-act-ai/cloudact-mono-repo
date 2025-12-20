@@ -98,10 +98,6 @@ tables:
       field: "usage_date"
     clustering: ["org_slug", "resource_type", "provider"]
 
-  org_kms_keys:
-    description: "Per-organization KMS key mappings for envelope encryption"
-    clustering: ["org_slug", "key_type", "is_active"]
-
   org_idempotency_keys:
     description: "Idempotency key tracking for duplicate request prevention (24-hour TTL)"
     clustering: ["idempotency_key", "org_slug"]

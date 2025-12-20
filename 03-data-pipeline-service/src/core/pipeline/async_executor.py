@@ -29,6 +29,7 @@ from src.core.observability.metrics import (
     set_active_pipelines
 )
 from src.core.notifications.service import get_notification_service
+from src.core.utils.pipeline_lock import get_pipeline_lock_manager, PipelineLockManager
 from pydantic import ValidationError
 
 # Import OpenTelemetry for distributed tracing
@@ -614,26 +615,88 @@ class AsyncPipelineExecutor:
     async def _execute_with_semaphore(self, parameters: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Internal execute method wrapped by global semaphore.
+
+        Includes in-memory pipeline lock to prevent duplicate concurrent executions
+        of the same pipeline for the same organization.
         """
+        # ============================================
+        # PIPELINE LOCK: Prevent duplicate concurrent runs
+        # ============================================
+        # In-memory lock provides fast duplicate detection before any BigQuery operations.
+        # This is in ADDITION to the BigQuery atomic INSERT check in the router.
+        # Belt-and-suspenders approach for critical data integrity.
+        lock_manager = get_pipeline_lock_manager()
+        lock_acquired = False
+
+        # Try to acquire lock for this org + pipeline combination
+        lock_success, existing_pipeline_id = await lock_manager.acquire_lock(
+            org_slug=self.org_slug,
+            pipeline_id=self.tracking_pipeline_id,
+            pipeline_logging_id=self.pipeline_logging_id,
+            locked_by=self.trigger_by
+        )
+
+        if not lock_success:
+            # Another execution is already running for this org + pipeline
+            self.logger.warning(
+                f"Pipeline lock not acquired - duplicate execution blocked",
+                extra={
+                    "org_slug": self.org_slug,
+                    "pipeline_id": self.tracking_pipeline_id,
+                    "existing_pipeline_logging_id": existing_pipeline_id,
+                    "blocked_pipeline_logging_id": self.pipeline_logging_id
+                }
+            )
+            # Return summary indicating blocked execution
+            self.status = "BLOCKED"
+            self.end_time = datetime.utcnow()
+            return {
+                "pipeline_logging_id": self.pipeline_logging_id,
+                "pipeline_id": self.tracking_pipeline_id,
+                "org_slug": self.org_slug,
+                "status": "BLOCKED",
+                "message": f"Pipeline already running. Existing execution: {existing_pipeline_id}",
+                "existing_pipeline_logging_id": existing_pipeline_id,
+                "duration_seconds": 0,
+                "steps_completed": 0,
+                "steps_total": 0
+            }
+
+        lock_acquired = True
+        self.logger.info(
+            f"Pipeline lock acquired",
+            extra={
+                "org_slug": self.org_slug,
+                "pipeline_id": self.tracking_pipeline_id,
+                "pipeline_logging_id": self.pipeline_logging_id
+            }
+        )
+
+        # ============================================
+        # TRY BLOCK STARTS IMMEDIATELY AFTER LOCK
+        # ============================================
+        # CRITICAL: The try block MUST start immediately after lock_acquired = True
+        # to ensure the finally block releases the lock even if setup code fails.
+        # Any code between lock acquisition and try would leak the lock on exception.
+
         # Create distributed tracing span
         tracer = get_tracer(__name__) if TRACING_ENABLED else None
         span = None
-
-        if tracer:
-            span = tracer.start_span(
-                f"pipeline.execute",
-                attributes={
-                    "pipeline.id": self.tracking_pipeline_id,
-                    "pipeline.org_slug": self.org_slug,
-                    "pipeline.trigger_type": self.trigger_type
-                }
-            )
-
-        self.start_time = datetime.utcnow()
-        self.status = "RUNNING"
         error_message = None
 
         try:
+            if tracer:
+                span = tracer.start_span(
+                    f"pipeline.execute",
+                    attributes={
+                        "pipeline.id": self.tracking_pipeline_id,
+                        "pipeline.org_slug": self.org_slug,
+                        "pipeline.trigger_type": self.trigger_type
+                    }
+                )
+
+            self.start_time = datetime.utcnow()
+            self.status = "RUNNING"
             # Start metadata logger background workers
             await self.metadata_logger.start()
 
@@ -777,6 +840,43 @@ class AsyncPipelineExecutor:
                 await self._update_org_usage_quotas()
             except Exception as quota_error:
                 self.logger.error(f"Error updating customer usage quotas: {quota_error}", exc_info=True)
+
+            # ============================================
+            # RELEASE PIPELINE LOCK
+            # ============================================
+            # Release lock so other requests can run this pipeline for this org.
+            # Must be in finally block to ensure release even on exception.
+            if lock_acquired:
+                try:
+                    released = await lock_manager.release_lock(
+                        org_slug=self.org_slug,
+                        pipeline_id=self.tracking_pipeline_id,
+                        pipeline_logging_id=self.pipeline_logging_id
+                    )
+                    if released:
+                        self.logger.info(
+                            f"Pipeline lock released",
+                            extra={
+                                "org_slug": self.org_slug,
+                                "pipeline_id": self.tracking_pipeline_id,
+                                "pipeline_logging_id": self.pipeline_logging_id,
+                                "final_status": self.status
+                            }
+                        )
+                    else:
+                        self.logger.warning(
+                            f"Pipeline lock release returned False (may have been released by timeout)",
+                            extra={
+                                "org_slug": self.org_slug,
+                                "pipeline_id": self.tracking_pipeline_id,
+                                "pipeline_logging_id": self.pipeline_logging_id
+                            }
+                        )
+                except Exception as lock_error:
+                    self.logger.error(
+                        f"Error releasing pipeline lock: {lock_error}",
+                        exc_info=True
+                    )
 
             # FIX: Clean up BigQuery client resources (idempotent)
             # Thread pool cleaned up at app exit via atexit

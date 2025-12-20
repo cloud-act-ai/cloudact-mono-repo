@@ -99,10 +99,11 @@ export default function EditSubscriptionPage() {
   const [orgCurrency, setOrgCurrency] = useState("USD")
 
   // Edit form state
+  // CRITICAL FIX: Initialize with undefined for numeric fields to avoid 0 validation issues
   const [editData, setEditData] = useState<PlanUpdate>({
     display_name: "",
-    unit_price: 0,
-    seats: 0,
+    unit_price: undefined as any,
+    seats: undefined as any,
     billing_cycle: "monthly",
     pricing_model: "FLAT_FEE",
     notes: "",
@@ -175,47 +176,70 @@ export default function EditSubscriptionPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    // CRITICAL FIX: Clear previous errors
+    setError(null)
+
     if (!currentPlan) {
       setError("No plan data available")
+      toast.error("No plan data available")
       return
     }
 
     if (!effectiveDate) {
       setError("Start date is required")
+      toast.error("Start date is required")
       return
     }
 
+    // CRITICAL FIX: Ensure numeric fields have valid values before validation
+    const finalUnitPrice = editData.unit_price ?? 0
+    const finalSeats = editData.seats ?? (editData.pricing_model === 'PER_SEAT' ? 1 : 0)
+
     // Validate inputs
-    if (editData.unit_price !== undefined && editData.unit_price < 0) {
+    if (finalUnitPrice < 0) {
       setError("Price cannot be negative")
+      toast.error("Price cannot be negative")
       return
     }
-    if (editData.seats !== undefined && editData.seats < 0) {
+    if (finalSeats < 0) {
       setError("Seats cannot be negative")
+      toast.error("Seats cannot be negative")
       return
     }
     // Validate seats for PER_SEAT plans
-    if (editData.pricing_model === 'PER_SEAT' && (editData.seats ?? 0) < 1) {
+    if (editData.pricing_model === 'PER_SEAT' && finalSeats < 1) {
       setError("Per-seat plans require at least 1 seat")
+      toast.error("Per-seat plans require at least 1 seat")
       return
     }
     // Validate upper bound for seats
-    if (editData.seats !== undefined && editData.seats > 10000) {
+    if (finalSeats > 10000) {
       setError("Seats cannot exceed 10,000")
+      toast.error("Seats cannot exceed 10,000")
       return
     }
 
     setSaving(true)
-    setError(null)
 
     try {
       const effectiveDateStr = format(effectiveDate, "yyyy-MM-dd")
+
+      // CRITICAL FIX: Build final edit data with validated values
+      const finalEditData: PlanUpdate = {
+        ...editData,
+        unit_price: finalUnitPrice,
+        seats: finalSeats,
+        display_name: editData.display_name?.trim() || undefined,
+        notes: editData.notes?.trim() || undefined,
+      }
+
+      console.log("[EditPlan] Submitting edit data:", finalEditData)
       const result = await editPlanWithVersion(
         orgSlug,
         provider,
         subscriptionId,
         effectiveDateStr,
-        editData
+        finalEditData
       )
 
       if (!result.success) {
@@ -422,9 +446,14 @@ export default function EditSubscriptionPage() {
               <Label htmlFor="start_date">Start Date *</Label>
               <DatePicker
                 date={effectiveDate}
-                onSelect={setEffectiveDate}
+                onSelect={(date) => {
+                  // CRITICAL FIX: Clear date-related errors when user selects a date
+                  if (error && (error.includes("date") || error.includes("past"))) {
+                    setError(null)
+                  }
+                  setEffectiveDate(date)
+                }}
                 placeholder="Select start date"
-                minDate={new Date()}
                 disabled={saving}
                 data-testid="edit-start-date-picker"
               />
@@ -444,8 +473,12 @@ export default function EditSubscriptionPage() {
                   min={0}
                   step="0.01"
                   placeholder="0.00"
-                  value={editData.unit_price === 0 ? "" : editData.unit_price}
+                  value={editData.unit_price ?? ""}
                   onFocus={(e) => {
+                    // CRITICAL FIX: Clear error on focus
+                    if (error && error.includes("price")) {
+                      setError(null)
+                    }
                     // Select all text to allow immediate replacement when typing
                     e.target.select()
                     // For number inputs, also explicitly set selection range
@@ -455,8 +488,22 @@ export default function EditSubscriptionPage() {
                     }
                   }}
                   onChange={(e) => {
-                    const parsed = parseFloat(e.target.value)
-                    setEditData({ ...editData, unit_price: e.target.value === "" ? 0 : (isNaN(parsed) ? 0 : Math.max(0, parsed)) })
+                    // CRITICAL FIX: Handle empty string properly, don't convert to 0 immediately
+                    const value = e.target.value
+                    if (value === "") {
+                      setEditData({ ...editData, unit_price: undefined as any })
+                    } else {
+                      const parsed = parseFloat(value)
+                      if (!isNaN(parsed) && parsed >= 0) {
+                        setEditData({ ...editData, unit_price: parsed })
+                      }
+                    }
+                  }}
+                  onBlur={(e) => {
+                    // CRITICAL FIX: Set to 0 only on blur if still empty
+                    if (e.target.value === "" || editData.unit_price === undefined) {
+                      setEditData({ ...editData, unit_price: 0 })
+                    }
                   }}
                   disabled={saving}
                   data-testid="edit-price-input"
@@ -471,9 +518,13 @@ export default function EditSubscriptionPage() {
                   min={0}
                   max={10000}
                   step="1"
-                  placeholder="0"
-                  value={editData.seats === 0 ? "" : editData.seats}
+                  placeholder="1"
+                  value={editData.seats ?? ""}
                   onFocus={(e) => {
+                    // CRITICAL FIX: Clear error on focus
+                    if (error && error.includes("seat")) {
+                      setError(null)
+                    }
                     // Select all text to allow immediate replacement when typing
                     e.target.select()
                     // For number inputs, also explicitly set selection range
@@ -483,9 +534,24 @@ export default function EditSubscriptionPage() {
                     }
                   }}
                   onChange={(e) => {
-                    const parsed = parseInt(e.target.value, 10)
-                    const bounded = Math.min(10000, Math.max(0, isNaN(parsed) ? 0 : parsed))
-                    setEditData({ ...editData, seats: e.target.value === "" ? 0 : bounded })
+                    // CRITICAL FIX: Handle empty string properly, don't convert to 0 immediately
+                    const value = e.target.value
+                    if (value === "") {
+                      setEditData({ ...editData, seats: undefined as any })
+                    } else {
+                      const parsed = parseInt(value, 10)
+                      if (!isNaN(parsed) && parsed >= 0 && parsed <= 10000) {
+                        setEditData({ ...editData, seats: parsed })
+                      }
+                    }
+                  }}
+                  onBlur={(e) => {
+                    // CRITICAL FIX: Set to default on blur if still empty
+                    if (e.target.value === "" || editData.seats === undefined) {
+                      // For PER_SEAT plans, default to 1; for FLAT_FEE, default to 0
+                      const defaultSeats = editData.pricing_model === 'PER_SEAT' ? 1 : 0
+                      setEditData({ ...editData, seats: defaultSeats })
+                    }
                   }}
                   disabled={saving}
                   data-testid="edit-seats-input"

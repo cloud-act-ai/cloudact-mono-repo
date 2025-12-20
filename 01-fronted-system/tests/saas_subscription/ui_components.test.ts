@@ -1001,7 +1001,7 @@ describe('SaaS Subscription UI Components', () => {
     });
 
     it('should handle validation errors in add flow', () => {
-      let formState = createFormState({
+      const formState = createFormState({
         plan_name: '',
         start_date: '',
         price_per_unit: -10,

@@ -73,7 +73,7 @@ export function PipelineAutoTrigger({
     onTriggeredRef.current = onTriggered
     onErrorRef.current = onError
     onCompleteRef.current = onComplete
-  })
+  }, [onTriggered, onError, onComplete])
 
   // Stable check function that reads from refs
   const runCheck = useCallback(async () => {
@@ -115,7 +115,7 @@ export function PipelineAutoTrigger({
       // FIX #4: Report error through callback
       onErrorRef.current?.([errorMessage])
     }
-  }, [orgSlug, debug]) // Only depends on orgSlug and debug, not callbacks
+  }, [orgSlug, debug])
 
   useEffect(() => {
     // FIX #6: Reset hasChecked when org changes

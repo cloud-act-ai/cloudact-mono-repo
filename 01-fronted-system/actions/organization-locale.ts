@@ -14,7 +14,12 @@
  */
 
 import { createClient } from "@/lib/supabase/server"
-import { CURRENCY_CODES, TIMEZONE_VALUES } from "@/lib/i18n/constants"
+import {
+  CURRENCY_CODES,
+  TIMEZONE_VALUES,
+  FISCAL_YEAR_MONTHS,
+  getFiscalYearFromTimezone,
+} from "@/lib/i18n/constants"
 
 // ============================================
 // Authorization Helper
@@ -96,6 +101,13 @@ function isValidTimezone(timezone: string): boolean {
   return TIMEZONE_VALUES.includes(timezone)
 }
 
+/**
+ * Validate fiscal year start month (1-12).
+ */
+function isValidFiscalYearMonth(month: number): boolean {
+  return FISCAL_YEAR_MONTHS.includes(month)
+}
+
 // ============================================
 // Types
 // ============================================
@@ -105,6 +117,7 @@ export interface OrgLocale {
   default_timezone: string
   default_country?: string
   default_language?: string
+  fiscal_year_start_month?: number // 1-12, defaults based on timezone
 }
 
 export interface OrgContactDetails {
@@ -188,7 +201,7 @@ export async function getOrgLocale(orgSlug: string): Promise<GetOrgLocaleResult>
     const supabase = await createClient()
     const { data, error } = await supabase
       .from("organizations")
-      .select("default_currency, default_timezone, default_country, default_language")
+      .select("default_currency, default_timezone, default_country, default_language, fiscal_year_start_month")
       .eq("org_slug", orgSlug)
       .single()
 
@@ -197,13 +210,18 @@ export async function getOrgLocale(orgSlug: string): Promise<GetOrgLocaleResult>
       return { success: false, error: "Failed to fetch organization locale" }
     }
 
+    // Default fiscal year based on timezone if not set
+    const timezone = data.default_timezone || "UTC"
+    const fiscalYearDefault = getFiscalYearFromTimezone(timezone)
+
     return {
       success: true,
       locale: {
         default_currency: data.default_currency || "USD",
-        default_timezone: data.default_timezone || "UTC",
+        default_timezone: timezone,
         default_country: data.default_country || undefined,
         default_language: data.default_language || undefined,
+        fiscal_year_start_month: data.fiscal_year_start_month || fiscalYearDefault,
       },
     }
   } catch (err: unknown) {
@@ -560,6 +578,69 @@ export async function updateOrgLocale(
 }
 
 // ============================================
+// Fiscal Year Functions
+// ============================================
+
+export interface UpdateFiscalYearResult {
+  success: boolean
+  fiscal_year_start_month?: number
+  error?: string
+}
+
+/**
+ * Update organization fiscal year start month.
+ *
+ * Updates Supabase organizations table with the new fiscal year start.
+ * Fiscal year affects cost analytics reporting periods.
+ *
+ * SECURITY: Requires org membership.
+ */
+export async function updateFiscalYear(
+  orgSlug: string,
+  fiscalYearStartMonth: number
+): Promise<UpdateFiscalYearResult> {
+  try {
+    // Step 1: Validate input
+    if (!isValidOrgSlug(orgSlug)) {
+      return { success: false, error: "Invalid organization identifier" }
+    }
+
+    if (!isValidFiscalYearMonth(fiscalYearStartMonth)) {
+      return { success: false, error: `Invalid fiscal year start month: ${fiscalYearStartMonth}. Must be 1 (Jan), 4 (Apr), 7 (Jul), or 10 (Oct).` }
+    }
+
+    // Step 2: Verify authentication AND org membership
+    const authResult = await verifyOrgMembership(orgSlug)
+    if (!authResult.authorized) {
+      return { success: false, error: authResult.error || "Not authorized" }
+    }
+
+    // Step 3: Update Supabase
+    const supabase = await createClient()
+    const { error: supabaseError } = await supabase
+      .from("organizations")
+      .update({ fiscal_year_start_month: fiscalYearStartMonth })
+      .eq("org_slug", orgSlug)
+
+    if (supabaseError) {
+      console.error("[Org Fiscal Year] Failed to update:", supabaseError)
+      return { success: false, error: "Failed to update fiscal year start" }
+    }
+
+    console.log(`[Org Fiscal Year] Updated fiscal year start to month ${fiscalYearStartMonth} for ${orgSlug}`)
+
+    return {
+      success: true,
+      fiscal_year_start_month: fiscalYearStartMonth,
+    }
+  } catch (err: unknown) {
+    console.error("[Org Fiscal Year] Update error:", err)
+    const errorMessage = err instanceof Error ? err.message : "Failed to update fiscal year start"
+    return { success: false, error: errorMessage }
+  }
+}
+
+// ============================================
 // Organization Logo Functions
 // ============================================
 
@@ -708,6 +789,7 @@ export async function getOrgDetails(orgSlug: string): Promise<{
     logoUrl: string | null
     currency: string
     timezone: string
+    fiscalYearStartMonth: number
   }
   error?: string
 }> {
@@ -727,7 +809,7 @@ export async function getOrgDetails(orgSlug: string): Promise<{
     const supabase = await createClient()
     const { data, error } = await supabase
       .from("organizations")
-      .select("org_name, org_slug, logo_url, default_currency, default_timezone")
+      .select("org_name, org_slug, logo_url, default_currency, default_timezone, fiscal_year_start_month")
       .eq("org_slug", orgSlug)
       .single()
 
@@ -736,6 +818,10 @@ export async function getOrgDetails(orgSlug: string): Promise<{
       return { success: false, error: "Failed to fetch organization details" }
     }
 
+    // Default fiscal year based on timezone if not set
+    const timezone = data.default_timezone || "UTC"
+    const fiscalYearDefault = getFiscalYearFromTimezone(timezone)
+
     return {
       success: true,
       org: {
@@ -743,7 +829,8 @@ export async function getOrgDetails(orgSlug: string): Promise<{
         slug: data.org_slug,
         logoUrl: data.logo_url || null,
         currency: data.default_currency || "USD",
-        timezone: data.default_timezone || "UTC",
+        timezone: timezone,
+        fiscalYearStartMonth: data.fiscal_year_start_month || fiscalYearDefault,
       },
     }
   } catch (err: unknown) {

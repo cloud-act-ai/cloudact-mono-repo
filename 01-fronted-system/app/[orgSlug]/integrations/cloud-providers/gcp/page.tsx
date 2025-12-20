@@ -96,7 +96,7 @@ export default function GCPIntegrationPage() {
   }, [orgSlug])
 
   useEffect(() => {
-    loadIntegration()
+    void loadIntegration()
   }, [loadIntegration])
 
   // Clear success message after delay (15 seconds for better visibility)

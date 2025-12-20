@@ -307,10 +307,10 @@ export default function PersonalSettingsPage() {
       )}
 
       <Tabs defaultValue="profile" className="w-full">
-        <TabsList className="w-full sm:w-auto flex-wrap">
-          <TabsTrigger value="profile">Profile</TabsTrigger>
-          <TabsTrigger value="security">Security</TabsTrigger>
-          <TabsTrigger value="danger" className="text-[#FF6E50] data-[state=active]:text-[#FF6E50]">Danger Zone</TabsTrigger>
+        <TabsList className="w-full sm:w-auto flex-wrap touch-manipulation">
+          <TabsTrigger value="profile" className="cursor-pointer">Profile</TabsTrigger>
+          <TabsTrigger value="security" className="cursor-pointer">Security</TabsTrigger>
+          <TabsTrigger value="danger" className="text-[#FF6E50] data-[state=active]:text-[#FF6E50] cursor-pointer">Danger Zone</TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile" className="space-y-6">
@@ -392,7 +392,10 @@ export default function PersonalSettingsPage() {
                     id="phone"
                     type="tel"
                     value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    onChange={(e) => {
+                      setPhoneNumber(e.target.value)
+                      if (error) setError(null)
+                    }}
                     placeholder="555 123 4567"
                     className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg flex-1 focus:border-[#8E8E93] focus:ring-1 focus:ring-[#8E8E93]"
                   />

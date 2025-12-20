@@ -486,7 +486,7 @@ export default function InviteMembersPage() {
                       {invite.role === "read_only" ? "Read Only" : invite.role}
                     </Badge>
                     {isOwner && (
-                      <Button variant="ghost" size="sm" onClick={() => handleCancelInvite(invite.id)} className="h-8 px-3 rounded-lg hover:bg-[#F5F5F7] text-[#8E8E93]">
+                      <Button variant="ghost" size="sm" onClick={() => handleCancelInvite(invite.id)} className="h-8 px-3 rounded-lg hover:bg-[#007A78]/5 text-[#8E8E93]">
                         Cancel
                       </Button>
                     )}
@@ -522,7 +522,7 @@ export default function InviteMembersPage() {
                 { label: "Manage roles", owner: true, collab: false, readonly: false },
                 { label: "Access billing", owner: true, collab: false, readonly: false },
               ].map((perm) => (
-                <div key={perm.label} className="console-table-row grid grid-cols-4 gap-3 sm:gap-4 py-3 hover:bg-[#F5F5F7] rounded-lg px-3 transition-colors border-b border-[#E5E5EA] last:border-0">
+                <div key={perm.label} className="console-table-row grid grid-cols-4 gap-3 sm:gap-4 py-3 hover:bg-[#007A78]/5 rounded-lg px-3 transition-colors border-b border-[#E5E5EA] last:border-0">
                   <div className="console-table-cell text-[13px] sm:text-[15px] text-gray-800">{perm.label}</div>
                   <div className="console-table-cell text-center text-[13px] sm:text-[15px]">{perm.owner ? <span className="text-[#007A78]">✓</span> : <span className="text-gray-300">✗</span>}</div>
                   <div className="console-table-cell text-center text-[13px] sm:text-[15px]">{perm.collab ? <span className="text-[#007A78]">✓</span> : <span className="text-gray-300">✗</span>}</div>

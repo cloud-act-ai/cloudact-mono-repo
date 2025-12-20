@@ -31,8 +31,8 @@ const TEST_OWNER_EMAIL = `seat_owner_${Date.now()}@example.com`
 let supabase: SupabaseClient
 let testOrgId: string
 let testOwnerUserId: string
-let createdUserIds: string[] = []
-let createdInviteIds: string[] = []
+const createdUserIds: string[] = []
+const createdInviteIds: string[] = []
 
 describe.skipIf(SKIP_TESTS)('Seat Limit Enforcement', () => {
 

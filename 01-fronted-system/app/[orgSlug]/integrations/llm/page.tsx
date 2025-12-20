@@ -104,7 +104,7 @@ function LLMProviderCard({
           </div>
         </div>
         {isConnected && isEnabled && (
-          <Badge className="bg-[#007A78] text-white border-0 text-[11px] font-medium">
+          <Badge className="bg-[#007A78] text-white border-0 text-[11px] font-medium flex-shrink-0">
             <Check className="h-3 w-3 mr-1 stroke-[2.5]" />
             Connected
           </Badge>
@@ -324,8 +324,8 @@ export default function LLMIntegrationsPage() {
         </div>
       )}
 
-      <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#007A78]/10 border border-[#007A78]/20">
-        <Check className="h-4 w-4 text-[#007A78] stroke-[2.5]" />
+      <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#007A78]/10 border border-[#007A78]/20 flex-shrink-0">
+        <Check className="h-4 w-4 text-[#007A78] stroke-[2.5] flex-shrink-0" />
         <span className="text-[13px] text-[#8E8E93]">Connected:</span>
         <span className="text-[13px] font-bold text-[#007A78]">{connectedCount} / {LLM_PROVIDERS.length}</span>
       </div>

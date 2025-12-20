@@ -224,7 +224,7 @@ export default function CloudCostsPage() {
             disabled={isRefreshing}
             variant="ghost"
             size="sm"
-            className="h-[36px] px-4 text-[15px] text-[#8E8E93] hover:bg-[#F5F5F7] rounded-xl"
+            className="h-[36px] px-4 text-[15px] text-[#8E8E93] hover:bg-[#007A78]/5 rounded-xl"
           >
             <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
             <span className="hidden sm:inline">Refresh</span>

@@ -1407,8 +1407,9 @@ export async function getSaaSSubscriptionCosts(
     if (provider && filteredData.length > 0) {
       const normalizedProvider = provider.toLowerCase()
       // Issue 6: Fix Provider filter null coalescing
+      // Use ServiceProviderName (FOCUS 1.3) or ProviderName (legacy)
       filteredData = filteredData.filter(
-        (record) => (record.Provider ?? "").toLowerCase() === normalizedProvider
+        (record) => (record.ServiceProviderName ?? record.ProviderName ?? "").toLowerCase() === normalizedProvider
       )
     }
 

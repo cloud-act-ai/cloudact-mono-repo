@@ -63,8 +63,8 @@ interface FormData {
   // Plan fields
   plan_name: string
   display_name: string
-  unit_price: number
-  seats: number
+  unit_price: number | undefined
+  seats: number | undefined
   billing_cycle: string
   pricing_model: string
   currency: string
@@ -91,8 +91,8 @@ export default function AddCustomProviderPage() {
     category: "other",
     plan_name: "",
     display_name: "",
-    unit_price: 0,
-    seats: 1,
+    unit_price: undefined,
+    seats: undefined,
     billing_cycle: "monthly",
     pricing_model: "FLAT_FEE",
     currency: "USD",
@@ -144,23 +144,27 @@ export default function AddCustomProviderPage() {
       return
     }
 
-    if (formData.unit_price < 0) {
-      setError("Price cannot be negative")
+    if (formData.unit_price === undefined || formData.unit_price < 0) {
+      setError("Price must be a valid positive number")
+      toast.error("Price must be a valid positive number")
       return
     }
 
-    if ((formData.seats ?? 0) < 0) {
-      setError("Seats cannot be negative")
+    if (formData.seats === undefined || formData.seats < 0) {
+      setError("Seats must be a valid positive number")
+      toast.error("Seats must be a valid positive number")
       return
     }
 
-    if (formData.pricing_model === 'PER_SEAT' && (formData.seats ?? 0) < 1) {
+    if (formData.pricing_model === 'PER_SEAT' && formData.seats < 1) {
       setError("Per-seat plans require at least 1 seat")
+      toast.error("Per-seat plans require at least 1 seat")
       return
     }
 
-    if ((formData.seats ?? 0) > 10000) {
+    if (formData.seats > 10000) {
       setError("Seats cannot exceed 10,000")
+      toast.error("Seats cannot exceed 10,000")
       return
     }
 
@@ -285,7 +289,10 @@ export default function AddCustomProviderPage() {
                 placeholder="e.g., Airtable, Mixpanel, Hotjar"
                 maxLength={50}
                 value={formData.provider_name}
-                onChange={(e) => setFormData({ ...formData, provider_name: e.target.value })}
+                onChange={(e) => {
+                  setFormData({ ...formData, provider_name: e.target.value })
+                  setError(null)
+                }}
                 disabled={submitting}
                 required
               />
@@ -338,7 +345,10 @@ export default function AddCustomProviderPage() {
                 placeholder="e.g., Pro, Team, Enterprise"
                 maxLength={50}
                 value={formData.plan_name}
-                onChange={(e) => setFormData({ ...formData, plan_name: e.target.value })}
+                onChange={(e) => {
+                  setFormData({ ...formData, plan_name: e.target.value })
+                  setError(null)
+                }}
                 disabled={submitting}
                 required
               />
@@ -371,7 +381,7 @@ export default function AddCustomProviderPage() {
                     min={0}
                     step="0.01"
                     placeholder="0.00"
-                    value={formData.unit_price === 0 ? "" : formData.unit_price}
+                    value={formData.unit_price ?? ""}
                     onFocus={(e) => {
                       // Select all text to allow immediate replacement when typing
                       e.target.select()
@@ -382,11 +392,18 @@ export default function AddCustomProviderPage() {
                       }
                     }}
                     onChange={(e) => {
-                      const parsed = parseFloat(e.target.value)
-                      setFormData({
-                        ...formData,
-                        unit_price: e.target.value === "" ? 0 : (isNaN(parsed) ? 0 : Math.max(0, parsed))
-                      })
+                      const value = e.target.value
+                      if (value === "") {
+                        setFormData({ ...formData, unit_price: undefined })
+                        setError(null)
+                      } else {
+                        const parsed = parseFloat(value)
+                        setFormData({
+                          ...formData,
+                          unit_price: isNaN(parsed) ? undefined : Math.max(0, parsed)
+                        })
+                        setError(null)
+                      }
                     }}
                     disabled={submitting}
                     required
@@ -463,8 +480,8 @@ export default function AddCustomProviderPage() {
                 min={0}
                 max={10000}
                 step="1"
-                placeholder="0"
-                value={formData.seats === 0 ? "" : formData.seats}
+                placeholder="1"
+                value={formData.seats ?? ""}
                 onFocus={(e) => {
                   // Select all text to allow immediate replacement when typing
                   e.target.select()
@@ -475,9 +492,16 @@ export default function AddCustomProviderPage() {
                   }
                 }}
                 onChange={(e) => {
-                  const parsed = parseInt(e.target.value, 10)
-                  const bounded = Math.min(10000, Math.max(0, isNaN(parsed) ? 0 : parsed))
-                  setFormData({ ...formData, seats: e.target.value === "" ? 0 : bounded })
+                  const value = e.target.value
+                  if (value === "") {
+                    setFormData({ ...formData, seats: undefined })
+                    setError(null)
+                  } else {
+                    const parsed = parseInt(value, 10)
+                    const bounded = Math.min(10000, Math.max(0, isNaN(parsed) ? 0 : parsed))
+                    setFormData({ ...formData, seats: bounded })
+                    setError(null)
+                  }
                 }}
                 disabled={submitting}
                 required

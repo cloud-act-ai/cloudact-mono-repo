@@ -204,8 +204,7 @@ export default function BillingPage() {
   useEffect(() => {
     fetchBillingData()
     fetchPlans()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orgSlug])
+  }, [orgSlug, fetchBillingData, fetchPlans])
 
   // Poll for subscription data after successful checkout
   useEffect(() => {
@@ -483,7 +482,7 @@ export default function BillingPage() {
               <div>
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-[15px] sm:text-[17px] font-semibold text-black">{billingInfo.subscription.plan.name} Plan</span>
-                  <span className={isCanceledButActive ? "bg-[#FF6E50]/10 text-[#FF6E50] text-[11px] font-semibold px-2.5 py-1 rounded-full" : "bg-[#F0FDFA] text-[#007A78] text-[11px] font-semibold px-2.5 py-1 rounded-full"}>
+                  <span className={isCanceledButActive ? "flex-shrink-0 bg-[#FF6E50]/10 text-[#FF6E50] text-[11px] font-semibold px-2.5 py-1 rounded-full" : "flex-shrink-0 bg-[#F0FDFA] text-[#007A78] text-[11px] font-semibold px-2.5 py-1 rounded-full"}>
                     {isCanceledButActive ? "Cancels at period end" : billingInfo.subscription.status}
                   </span>
                 </div>

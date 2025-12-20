@@ -30,11 +30,11 @@
   --slate-800: #1e293b;
   --slate-900: #0f172a;
 
-  /* Console Surfaces - Apple Health Style */
+  /* Console Surfaces - Premium White */
   --surface-primary: #ffffff;
-  --surface-secondary: #fafafa;
-  --surface-tertiary: #f5f5f7;
-  --surface-hover: #f0f0f2;
+  --surface-secondary: #ffffff;
+  --surface-tertiary: rgba(0, 122, 120, 0.02);
+  --surface-hover: rgba(0, 122, 120, 0.03);
 
   /* Console Borders */
   --border-light: rgba(0, 0, 0, 0.06);
@@ -46,9 +46,22 @@
   --shadow-elevated: 0 4px 16px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04);
   --shadow-xl: 0 10px 40px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.06);
 
-  /* Console Scrollbars */
-  --scrollbar-track: #f5f5f7;
-  --scrollbar-thumb: #cbd5e1;
+  /* Premium Shadows - Apple Health Style */
+  --shadow-premium-xs: 0 1px 3px rgba(0, 0, 0, 0.02), 0 1px 2px rgba(0, 0, 0, 0.01);
+  --shadow-premium-sm: 0 2px 8px rgba(0, 0, 0, 0.03), 0 1px 2px rgba(0, 0, 0, 0.02);
+  --shadow-premium-md: 0 4px 16px rgba(0, 0, 0, 0.04), 0 2px 4px rgba(0, 0, 0, 0.02);
+  --shadow-premium-lg: 0 8px 32px rgba(0, 0, 0, 0.06), 0 4px 8px rgba(0, 0, 0, 0.03);
+  --shadow-premium-xl: 0 12px 48px rgba(0, 0, 0, 0.08), 0 6px 12px rgba(0, 0, 0, 0.04);
+  --shadow-premium-glow-teal: 0 0 40px rgba(0, 122, 120, 0.12);
+  --shadow-premium-glow-coral: 0 0 40px rgba(255, 110, 80, 0.12);
+  --shadow-button-teal: 0 2px 8px rgba(0, 122, 120, 0.2);
+  --shadow-button-teal-hover: 0 4px 16px rgba(0, 122, 120, 0.25);
+  --shadow-button-coral: 0 2px 8px rgba(255, 110, 80, 0.2);
+  --shadow-button-coral-hover: 0 4px 16px rgba(255, 110, 80, 0.25);
+
+  /* Console Scrollbars - Premium */
+  --scrollbar-track: #ffffff;
+  --scrollbar-thumb: rgba(0, 122, 120, 0.15);
   --scrollbar-thumb-hover: #007a78;
 
   /* Semantic Colors - CloudAct Branded */

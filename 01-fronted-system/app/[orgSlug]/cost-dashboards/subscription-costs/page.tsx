@@ -278,7 +278,7 @@ export default function SubscriptionCostsPage() {
             disabled={isRefreshing}
             variant="ghost"
             size="sm"
-            className="h-[36px] px-4 text-[15px] text-[#8E8E93] hover:bg-[#F5F5F7] rounded-xl"
+            className="h-[36px] px-4 text-[15px] text-[#8E8E93] hover:bg-[#007A78]/5 rounded-xl"
           >
             <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
             <span className="hidden sm:inline">Refresh</span>
@@ -458,7 +458,7 @@ export default function SubscriptionCostsPage() {
                   return (
                     <React.Fragment key={plan.subscription_id}>
                       <TableRow
-                        className={`console-table-row cursor-pointer hover:bg-[#F5F5F7]/50 ${!isActive ? "opacity-60" : ""}`}
+                        className={`console-table-row cursor-pointer hover:bg-[#007A78]/5 touch-manipulation ${!isActive ? "opacity-60" : ""}`}
                         onClick={() => toggleRowExpansion(plan.subscription_id)}
                       >
                         <TableCell className="console-table-cell">
@@ -577,7 +577,7 @@ export default function SubscriptionCostsPage() {
 
                       {/* Expanded Details Row */}
                       {isExpanded && (
-                        <TableRow className="bg-[#F5F5F7]/50">
+                        <TableRow className="bg-[#007A78]/5">
                           <TableCell colSpan={10} className="px-4 sm:px-6 py-5">
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                               {/* Subscription ID */}
@@ -707,7 +707,7 @@ export default function SubscriptionCostsPage() {
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  className="h-[36px] px-4 rounded-xl text-[13px] font-medium border-[#E5E5EA] text-[#8E8E93] hover:bg-[#F5F5F7]"
+                                  className="h-[36px] px-4 rounded-xl text-[13px] font-medium border-[#E5E5EA] text-[#8E8E93] hover:bg-[#007A78]/5"
                                 >
                                   View Pipeline Runs
                                 </Button>
