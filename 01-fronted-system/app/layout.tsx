@@ -3,8 +3,6 @@ import type { Metadata } from "next"
 import { DM_Sans, Merriweather } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { Toaster } from "sonner"
-import { RootProvider } from "fumadocs-ui/provider/next"
-import "fumadocs-ui/style.css"
 import "./globals.css"
 
 const dmSans = DM_Sans({
@@ -98,11 +96,9 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning data-scroll-behavior="smooth" className={`${dmSans.variable} ${merriweather.variable}`}>
       <body className={`font-sans antialiased`}>
-        <RootProvider>
-          {children}
-          <Toaster position="top-right" richColors closeButton duration={5000} />
-          <Analytics />
-        </RootProvider>
+        {children}
+        <Toaster position="top-right" richColors closeButton duration={5000} />
+        <Analytics />
       </body>
     </html>
   )

@@ -185,40 +185,40 @@ export function DashboardSidebar({
 
   return (
     <Sidebar collapsible="icon" className="border-r border-[#E5E5EA] bg-white" {...props}>
-      {/* Header: Logo + Org Name */}
+      {/* Header: Logo + Org Name - Hidden on mobile (md:block) since MobileHeader shows this */}
       <div className={cn(
-        "border-b border-[#E5E5EA]",
+        "border-b border-[#E5E5EA] hidden md:block",
         isCollapsed ? "p-2" : "px-4 py-3"
       )}>
-        <Link
-          href={`/${orgSlug}/cost-dashboards/overview`}
-          className="flex items-center gap-3 hover:opacity-80 transition-opacity"
-        >
-          <div className={cn(
-            "flex-shrink-0 rounded-md overflow-hidden bg-gradient-to-br from-[#007A78] to-[#14B8A6] flex items-center justify-center",
-            "h-8 w-8"
-          )}>
-            {logoLoading ? (
-              <div className="h-4 w-4 animate-pulse bg-white/20 rounded" />
-            ) : logoUrl ? (
-              <Image
-                src={logoUrl}
-                alt={formattedOrgName}
-                width={32}
-                height={32}
-                className="object-contain"
-              />
-            ) : (
-              <Building2 className="h-4 w-4 text-white" />
+          <Link
+            href={`/${orgSlug}/cost-dashboards/overview`}
+            className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+          >
+            <div className={cn(
+              "flex-shrink-0 rounded-md overflow-hidden bg-gradient-to-br from-[#007A78] to-[#14B8A6] flex items-center justify-center",
+              "h-8 w-8"
+            )}>
+              {logoLoading ? (
+                <div className="h-4 w-4 animate-pulse bg-white/20 rounded" />
+              ) : logoUrl ? (
+                <Image
+                  src={logoUrl}
+                  alt={formattedOrgName}
+                  width={32}
+                  height={32}
+                  className="object-contain"
+                />
+              ) : (
+                <Building2 className="h-4 w-4 text-white" />
+              )}
+            </div>
+            {!isCollapsed && (
+              <span className="text-[14px] font-semibold text-[#1C1C1E] truncate max-w-[160px]">
+                {formattedOrgName}
+              </span>
             )}
-          </div>
-          {!isCollapsed && (
-            <span className="text-[14px] font-semibold text-[#1C1C1E] truncate max-w-[160px]">
-              {formattedOrgName}
-            </span>
-          )}
-        </Link>
-      </div>
+          </Link>
+        </div>
 
       <SidebarContent className="px-0 py-1 overflow-y-auto">
         <SidebarMenu className="gap-0">

@@ -6,7 +6,6 @@ import { Loader2, Check, Brain, Palette, FileText, MessageSquare, Code, Cloud, C
 import Link from "next/link"
 
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { checkBackendOnboarding, hasStoredApiKey } from "@/actions/backend-onboarding"
 import {
@@ -43,25 +42,25 @@ function SubscriptionProviderCard({
 
   return (
     <div
-      className={`metric-card p-5 transition-all ${provider.is_enabled ? 'cursor-pointer' : 'opacity-50'}`}
+      className={`metric-card transition-all ${provider.is_enabled ? 'clickable' : 'opacity-60'}`}
       onClick={() => {
         if (provider.is_enabled) {
           router.push(`/${orgSlug}/integrations/subscriptions/${provider.provider}`)
         }
       }}
     >
-      <div className="flex items-center gap-3 mb-4">
-        <div className={`h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0 ${provider.is_enabled ? 'bg-[#007A78]/10' : 'bg-[#007A78]/5'}`}>
+      <div className="flex items-center gap-3 mb-5">
+        <div className={`h-12 w-12 rounded-xl flex items-center justify-center flex-shrink-0 ${provider.is_enabled ? 'bg-[#007A78]/10' : 'bg-[#F5F5F7]'}`}>
           <div className={provider.is_enabled ? 'text-[#007A78]' : 'text-[#8E8E93]'}>
             {icon}
           </div>
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-[15px] font-semibold text-black truncate">{provider.display_name}</p>
+          <p className="console-card-title text-black truncate mb-0.5">{provider.display_name}</p>
           <p className="text-[13px] text-[#8E8E93] capitalize">{provider.category}</p>
         </div>
         {provider.is_enabled && provider.plan_count > 0 && (
-          <Badge className="bg-[#007A78]/10 text-[#007A78] border-0 text-[11px] font-medium">
+          <Badge className="bg-[#007A78]/10 text-[#007A78] border-0 text-[11px] font-semibold px-2.5 py-0.5 h-6">
             {provider.plan_count} plan{provider.plan_count !== 1 ? 's' : ''}
           </Badge>
         )}
@@ -69,7 +68,7 @@ function SubscriptionProviderCard({
 
       {provider.is_enabled && (
         <button
-          className="w-full h-[36px] px-4 bg-[#007A78] hover:bg-[#006664] text-white text-[15px] font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
+          className="console-button-primary w-full justify-between mb-4"
           onClick={(e) => {
             e.stopPropagation()
             router.push(`/${orgSlug}/integrations/subscriptions/${provider.provider}`)
@@ -80,8 +79,11 @@ function SubscriptionProviderCard({
         </button>
       )}
 
-      <div className="flex items-center justify-between mt-3 pt-3 border-t border-[#E5E5EA]" onClick={(e) => e.stopPropagation()}>
-        <span className="text-[12px] font-medium text-[#8E8E93]">{provider.is_enabled ? 'Enabled' : 'Disabled'}</span>
+      <div 
+        className="flex items-center justify-between pt-4 border-t border-[rgba(0,0,0,0.04)]" 
+        onClick={(e) => e.stopPropagation()}
+      >
+        <span className="text-[13px] font-medium text-[#8E8E93]">{provider.is_enabled ? 'Enabled' : 'Disabled'}</span>
         <Switch
           checked={provider.is_enabled}
           onCheckedChange={(checked) => onToggle(provider.provider, checked)}
@@ -211,45 +213,48 @@ export default function SubscriptionIntegrationsPage() {
   }
 
   return (
-    <div className="space-y-6 sm:space-y-8">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="space-y-8 max-w-[1600px] mx-auto">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
         <div>
-          <h1 className="text-[32px] sm:text-[34px] font-bold text-black tracking-tight">Subscription Providers</h1>
-          <p className="text-[15px] text-[#8E8E93] mt-1">
-            Track fixed-cost SaaS subscriptions. Enable providers to manage plans.
+          <h1 className="console-page-title mb-2">Subscription Providers</h1>
+          <p className="console-body text-[#8E8E93] max-w-2xl">
+            Track fixed-cost SaaS subscriptions and manage plans. Enable providers to start tracking costs.
           </p>
         </div>
         <Link href={`/${orgSlug}/cost-dashboards/subscription-costs`}>
-          <Button className="h-[36px] px-4 bg-[#007A78] text-white hover:bg-[#006664] rounded-xl text-[15px] font-semibold">
-            <Wallet className="h-4 w-4 mr-2" />
+          <button className="console-button-coral">
+            <Wallet className="h-5 w-5" />
             View Costs
-          </Button>
+          </button>
         </Link>
       </div>
 
       {(!backendConnected || !hasApiKey) && (
-        <div className="health-card bg-[#FF6E50]/10 p-4 sm:p-5">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 text-[#FF6E50] mt-0.5 flex-shrink-0" />
-            <div className="space-y-3">
-              <h3 className="text-[15px] font-semibold text-black">
+        <div className="health-card bg-[#FF6E50]/5 border-[#FF6E50]/20">
+          <div className="flex items-start gap-4">
+            <div className="h-10 w-10 rounded-full bg-[#FF6E50]/10 flex items-center justify-center flex-shrink-0">
+              <AlertCircle className="h-6 w-6 text-[#FF6E50]" />
+            </div>
+            <div className="space-y-2 flex-1">
+              <h3 className="text-[17px] font-semibold text-[#1C1C1E]">
                 {!backendConnected ? "Backend Not Connected" : "API Key Missing"}
               </h3>
-              <p className="text-[13px] text-[#8E8E93]">
-                Complete organization onboarding to manage subscription providers.
+              <p className="text-[15px] text-[#3C3C43]">
+                Complete organization onboarding to manage subscription providers securely.
               </p>
-              <Link href={`/${orgSlug}/settings/organization`}>
-                <button className="inline-flex items-center gap-2 h-[36px] px-4 bg-[#007A78] text-white text-[15px] font-semibold rounded-xl hover:bg-[#005F5D] transition-colors">
-                  Go to Settings
-                </button>
-              </Link>
             </div>
+            <Link href={`/${orgSlug}/settings/organization`}>
+              <button className="console-button-primary text-sm h-10 px-5">
+                Go to Settings
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </button>
+            </Link>
           </div>
         </div>
       )}
 
       {error && (
-        <div className="health-card bg-[#FF6E50]/10 p-4">
+        <div className="health-card bg-[#FF6E50]/5 border-[#FF6E50]/20">
           <div className="flex items-center gap-3">
             <AlertCircle className="h-5 w-5 text-[#FF6E50] flex-shrink-0" />
             <p className="text-[15px] font-medium text-[#FF6E50]">{error}</p>
@@ -258,7 +263,7 @@ export default function SubscriptionIntegrationsPage() {
       )}
 
       {successMessage && (
-        <div className="health-card bg-[#007A78]/10 p-4">
+        <div className="health-card bg-[#007A78]/5 border-[#007A78]/20">
           <div className="flex items-center gap-3">
             <Check className="h-5 w-5 text-[#007A78] flex-shrink-0" />
             <p className="text-[15px] font-medium text-[#007A78]">{successMessage}</p>
@@ -266,27 +271,31 @@ export default function SubscriptionIntegrationsPage() {
         </div>
       )}
 
-      <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#007A78]/10 border border-[#007A78]/20">
-        <Check className="h-4 w-4 text-[#007A78] stroke-[2.5]" />
-        <span className="text-[13px] text-[#8E8E93]">Enabled:</span>
-        <span className="text-[13px] font-bold text-[#007A78]">{enabledCount} / {subscriptionProviders.length}</span>
+      <div className="flex items-center justify-between">
+        <h2 className="console-section-title mb-0">Available Providers</h2>
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#007A78]/5 border border-[#007A78]/10">
+          <div className="h-2 w-2 rounded-full bg-[#007A78]"></div>
+          <span className="text-[13px] font-medium text-[#007A78]">
+            {enabledCount} of {subscriptionProviders.length} Active
+          </span>
+        </div>
       </div>
 
       {subscriptionProviders.length === 0 ? (
-        <div className="metric-card py-12 text-center">
-          <div className="inline-flex p-4 rounded-2xl bg-[#007A78]/8 mb-4">
-            <CreditCard className="h-12 w-12 text-[#8E8E93]" />
+        <div className="metric-card py-16 text-center">
+          <div className="inline-flex p-5 rounded-2xl bg-[#F5F5F7] mb-6">
+            <CreditCard className="h-10 w-10 text-[#8E8E93]" />
           </div>
-          <h3 className="text-[20px] font-semibold text-black mb-2">
+          <h3 className="text-[20px] font-bold text-[#1C1C1E] mb-2">
             No subscription providers available
           </h3>
-          <p className="text-[15px] text-[#8E8E93]">
-            Providers will appear here when available.
+          <p className="text-[15px] text-[#8E8E93] max-w-sm mx-auto">
+            Providers will appear here when they are available in the catalog.
           </p>
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {(showAllProviders ? subscriptionProviders : subscriptionProviders.slice(0, INITIAL_PROVIDERS_COUNT)).map((provider) => (
               <SubscriptionProviderCard
                 key={provider.provider}
@@ -297,47 +306,36 @@ export default function SubscriptionIntegrationsPage() {
               />
             ))}
           </div>
-          {subscriptionProviders.length > INITIAL_PROVIDERS_COUNT && !showAllProviders && (
-            <div className="text-center">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowAllProviders(true)}
-                className="h-[36px] px-4 bg-white hover:bg-[#007A78]/5 text-[#8E8E93] text-[15px] font-medium rounded-xl border border-[#007A78]/10"
+          
+          {subscriptionProviders.length > INITIAL_PROVIDERS_COUNT && (
+            <div className="flex justify-center mt-8">
+              <button
+                onClick={() => setShowAllProviders(!showAllProviders)}
+                className="console-button-secondary h-10 px-6 text-sm"
               >
-                Show {subscriptionProviders.length - INITIAL_PROVIDERS_COUNT} more providers
-                <ChevronDown className="h-4 w-4 ml-2" />
-              </Button>
-            </div>
-          )}
-          {showAllProviders && subscriptionProviders.length > INITIAL_PROVIDERS_COUNT && (
-            <div className="text-center">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowAllProviders(false)}
-                className="h-[36px] px-4 bg-white hover:bg-[#007A78]/5 text-[#8E8E93] text-[15px] font-medium rounded-xl border border-[#007A78]/10"
-              >
-                Show less
-                <ChevronUp className="h-4 w-4 ml-2" />
-              </Button>
+                {showAllProviders ? (
+                  <>Show Less <ChevronUp className="h-4 w-4 ml-2" /></>
+                ) : (
+                  <>Show {subscriptionProviders.length - INITIAL_PROVIDERS_COUNT} More <ChevronDown className="h-4 w-4 ml-2" /></>
+                )}
+              </button>
             </div>
           )}
 
-          {/* Add Custom Provider - Separated Section */}
-          <div className="border-t border-[#E5E5EA] pt-8 mt-4">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-              <div>
-                <h2 className="text-[20px] font-semibold text-black">Can't find your provider?</h2>
-                <p className="text-[14px] text-[#8E8E93] mt-1">
+          {/* Add Custom Provider - Hero Section Style */}
+          <div className="mt-12 p-8 rounded-3xl bg-gradient-to-br from-[#007A78]/5 to-transparent border border-[#007A78]/10">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+              <div className="space-y-2">
+                <h2 className="text-[22px] font-bold text-[#1C1C1E]">Can't find your provider?</h2>
+                <p className="text-[15px] text-[#3C3C43]">
                   Add a custom subscription to track any SaaS tool not listed above.
                 </p>
               </div>
               <Link href={`/${orgSlug}/integrations/subscriptions/custom/add`}>
-                <Button className="h-[40px] px-5 bg-[#007A78] text-white hover:bg-[#006664] rounded-xl text-[15px] font-semibold gap-2">
-                  <Plus className="h-4 w-4" />
+                <button className="console-button-primary">
+                  <Plus className="h-5 w-5" />
                   Add Custom Provider
-                </Button>
+                </button>
               </Link>
             </div>
           </div>
