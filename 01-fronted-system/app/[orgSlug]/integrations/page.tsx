@@ -36,7 +36,7 @@ export default function IntegrationsPage() {
     <div className="space-y-6 sm:space-y-8">
       <div>
         <h1 className="text-[32px] sm:text-[34px] font-bold text-black tracking-tight">Integrations</h1>
-        <p className="text-[15px] text-[#8E8E93] mt-1">
+        <p className="text-[15px] text-muted-foreground mt-1">
           Connect your cloud providers, LLM APIs, and subscription services
         </p>
       </div>
@@ -54,7 +54,7 @@ export default function IntegrationsPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-[15px] font-semibold text-black truncate">{category.name}</p>
-                      <p className="text-[13px] text-[#8E8E93] line-clamp-2">{category.description}</p>
+                      <p className="text-[13px] text-muted-foreground line-clamp-2">{category.description}</p>
                     </div>
                   </div>
                 </div>
@@ -71,7 +71,7 @@ export default function IntegrationsPage() {
       </div>
 
       <div className="health-card p-6 text-center">
-        <p className="text-[13px] text-[#8E8E93] font-medium">
+        <p className="text-[13px] text-muted-foreground font-medium">
           All credentials are encrypted using Google Cloud KMS before storage.
         </p>
       </div>

@@ -22,7 +22,7 @@ export default function TermsPage() {
         <div className="container px-4">
           <div className="mx-auto max-w-3xl text-center space-y-4 sm:space-y-6">
             <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight">Terms of Service</h1>
-            <p className="text-base sm:text-lg text-[#8E8E93]">Last updated: January 2025</p>
+            <p className="text-base sm:text-lg text-muted-foreground">Last updated: January 2025</p>
           </div>
         </div>
       </section>
@@ -34,7 +34,7 @@ export default function TermsPage() {
             <div className="prose dark:prose-invert max-w-none space-y-6 sm:space-y-8">
               <div className="space-y-4">
                 <h2 className="text-2xl font-bold">Agreement to Terms</h2>
-                <p className="text-[#8E8E93] leading-relaxed">
+                <p className="text-muted-foreground leading-relaxed">
                   By accessing or using CloudAct.ai, you agree to be bound by these Terms of Service and all applicable
                   laws and regulations. If you do not agree with any of these terms, you are prohibited from using or
                   accessing this platform.
@@ -43,7 +43,7 @@ export default function TermsPage() {
 
               <div className="space-y-4">
                 <h2 className="text-2xl font-bold">Use License</h2>
-                <p className="text-[#8E8E93] leading-relaxed">
+                <p className="text-muted-foreground leading-relaxed">
                   CloudAct.ai grants you a limited, non-exclusive, non-transferable license to access and use the platform
                   for your internal business purposes, subject to these Terms.
                 </p>
@@ -51,8 +51,8 @@ export default function TermsPage() {
 
               <div className="space-y-4">
                 <h2 className="text-2xl font-bold">User Responsibilities</h2>
-                <p className="text-[#8E8E93] leading-relaxed">You are responsible for:</p>
-                <ul className="space-y-2 text-[#8E8E93]">
+                <p className="text-muted-foreground leading-relaxed">You are responsible for:</p>
+                <ul className="space-y-2 text-muted-foreground">
                   <li className="flex items-start gap-2">
                     <span className="text-foreground mt-1">•</span>
                     <span>Maintaining the security of your account credentials</span>
@@ -74,7 +74,7 @@ export default function TermsPage() {
 
               <div className="space-y-4">
                 <h2 className="text-2xl font-bold">Payment Terms</h2>
-                <p className="text-[#8E8E93] leading-relaxed">
+                <p className="text-muted-foreground leading-relaxed">
                   Subscription fees are billed monthly or annually in advance. All fees are non-refundable except as
                   required by law or as explicitly stated in these Terms.
                 </p>
@@ -82,7 +82,7 @@ export default function TermsPage() {
 
               <div className="space-y-4">
                 <h2 className="text-2xl font-bold">Intellectual Property</h2>
-                <p className="text-[#8E8E93] leading-relaxed">
+                <p className="text-muted-foreground leading-relaxed">
                   The platform and its original content, features, and functionality are owned by CloudAct.ai and are
                   protected by international copyright, trademark, patent, trade secret, and other intellectual property
                   laws.
@@ -91,7 +91,7 @@ export default function TermsPage() {
 
               <div className="space-y-4">
                 <h2 className="text-2xl font-bold">Limitation of Liability</h2>
-                <p className="text-[#8E8E93] leading-relaxed">
+                <p className="text-muted-foreground leading-relaxed">
                   In no event shall CloudAct.ai be liable for any indirect, incidental, special, consequential, or
                   punitive damages arising out of or relating to your use of the platform.
                 </p>
@@ -99,7 +99,7 @@ export default function TermsPage() {
 
               <div className="space-y-4">
                 <h2 className="text-2xl font-bold">Termination</h2>
-                <p className="text-[#8E8E93] leading-relaxed">
+                <p className="text-muted-foreground leading-relaxed">
                   We may terminate or suspend your account at any time for violations of these Terms or for any other
                   reason at our sole discretion. Upon termination, your right to use the platform will immediately cease.
                 </p>
@@ -107,7 +107,7 @@ export default function TermsPage() {
 
               <div className="space-y-4">
                 <h2 className="text-2xl font-bold">Contact Us</h2>
-                <p className="text-[#8E8E93] leading-relaxed">
+                <p className="text-muted-foreground leading-relaxed">
                   Questions about the Terms of Service should be sent to{" "}
                   <a
                     href={`mailto:${process.env.NEXT_PUBLIC_LEGAL_EMAIL || "legal@cloudact.ai"}`}

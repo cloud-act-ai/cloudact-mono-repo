@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
 import { DollarSign } from "lucide-react"
 
@@ -14,6 +15,13 @@ const data = [
 ]
 
 export function CostChart() {
+  // Wait for mount to ensure container has dimensions
+  const [isMounted, setIsMounted] = useState(false)
+
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
+
   return (
     <div className="metric-card h-full min-h-[300px] flex flex-col">
       <div className="metric-card-header">
@@ -27,48 +35,51 @@ export function CostChart() {
            </div>
         </div>
       </div>
-      
-      <div className="flex-1 w-full mt-2">
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-            <defs>
-              <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#FF6E50" stopOpacity={0.2} />
-                <stop offset="95%" stopColor="#FF6E50" stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#E5E5EA" />
-            <XAxis 
-              dataKey="date" 
-              axisLine={false} 
-              tickLine={false} 
-              tick={{ fontSize: 12, fill: "#8E8E93" }} 
-              dy={10}
-            />
-            <YAxis 
-              axisLine={false} 
-              tickLine={false} 
-              tick={{ fontSize: 12, fill: "#8E8E93" }} 
-            />
-            <Tooltip
-              contentStyle={{ 
-                borderRadius: "12px", 
-                border: "none", 
-                boxShadow: "0 4px 12px rgba(0,0,0,0.1)" 
-              }}
-              cursor={{ stroke: "#FF6E50", strokeWidth: 1, strokeDasharray: "4 4" }}
-            />
-            <Area
-              type="monotone"
-              dataKey="amount"
-              stroke="#FF6E50"
-              strokeWidth={3}
-              fillOpacity={1}
-              fill="url(#colorAmount)"
-              activeDot={{ r: 6, stroke: "#fff", strokeWidth: 2, fill: "#FF6E50" }}
-            />
-          </AreaChart>
-        </ResponsiveContainer>
+
+      {/* Fixed height container to prevent Recharts dimension errors */}
+      <div className="flex-1 w-full mt-2" style={{ minHeight: 200 }}>
+        {isMounted && (
+          <ResponsiveContainer width="100%" height="100%" minHeight={200}>
+            <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <defs>
+                <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#FF6E50" stopOpacity={0.2} />
+                  <stop offset="95%" stopColor="#FF6E50" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#E5E5EA" />
+              <XAxis
+                dataKey="date"
+                axisLine={false}
+                tickLine={false}
+                tick={{ fontSize: 12, fill: "#8E8E93" }}
+                dy={10}
+              />
+              <YAxis
+                axisLine={false}
+                tickLine={false}
+                tick={{ fontSize: 12, fill: "#8E8E93" }}
+              />
+              <Tooltip
+                contentStyle={{
+                  borderRadius: "12px",
+                  border: "none",
+                  boxShadow: "0 4px 12px rgba(0,0,0,0.1)"
+                }}
+                cursor={{ stroke: "#FF6E50", strokeWidth: 1, strokeDasharray: "4 4" }}
+              />
+              <Area
+                type="monotone"
+                dataKey="amount"
+                stroke="#FF6E50"
+                strokeWidth={3}
+                fillOpacity={1}
+                fill="url(#colorAmount)"
+                activeDot={{ r: 6, stroke: "#fff", strokeWidth: 2, fill: "#FF6E50" }}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        )}
       </div>
     </div>
   )

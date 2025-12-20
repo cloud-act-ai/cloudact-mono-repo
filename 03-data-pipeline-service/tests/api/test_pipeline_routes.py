@@ -93,10 +93,32 @@ def mock_bq_dependency():
             # Also need to override app dependency
             app.dependency_overrides[get_bigquery_client] = lambda: client
 
-            yield mock_get_client
+            yield client
 
             # Cleanup
             app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def mock_auth_for_org(org_slug: str = "test_org"):
+    """
+    Mock authentication dependency to return a specific org context.
+    Use this in tests that need to authenticate as a specific org.
+    """
+    from src.app.dependencies.auth import OrgContext, verify_api_key_header
+
+    def mock_verify():
+        return OrgContext(
+            org_slug=org_slug,
+            org_api_key_hash="test_hash_123",
+            org_api_key_id="test_key_123",
+            user_id="user_123"
+        )
+
+    app.dependency_overrides[verify_api_key_header] = mock_verify
+    yield mock_verify
+    if verify_api_key_header in app.dependency_overrides:
+        del app.dependency_overrides[verify_api_key_header]
 
 
 # Need to import this for dependency override
@@ -372,15 +394,19 @@ async def test_run_pipeline_api_service_unavailable():
 
     Expected: 503 Service Unavailable
     """
-    with patch("src.app.dependencies.auth.verify_api_key_header") as mock_verify:
-        from src.app.dependencies.auth import OrgContext
-        mock_verify.return_value = OrgContext(
+    from src.app.dependencies.auth import OrgContext, verify_api_key_header
+
+    def mock_verify():
+        return OrgContext(
             org_slug="test_org",
             org_api_key_hash="hash_123",
             org_api_key_id="key_123",
             user_id="user_123"
         )
 
+    app.dependency_overrides[verify_api_key_header] = mock_verify
+
+    try:
         with patch("src.app.routers.pipelines.validate_pipeline_with_api_service") as mock_validate:
             # Simulate API service unavailable
             mock_validate.return_value = {
@@ -398,6 +424,9 @@ async def test_run_pipeline_api_service_unavailable():
                 )
 
                 assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+    finally:
+        if verify_api_key_header in app.dependency_overrides:
+            del app.dependency_overrides[verify_api_key_header]
 
 
 @pytest.mark.asyncio
@@ -407,15 +436,19 @@ async def test_run_pipeline_quota_exceeded():
 
     Expected: 429 Too Many Requests
     """
-    with patch("src.app.dependencies.auth.verify_api_key_header") as mock_verify:
-        from src.app.dependencies.auth import OrgContext
-        mock_verify.return_value = OrgContext(
+    from src.app.dependencies.auth import OrgContext, verify_api_key_header
+
+    def mock_verify():
+        return OrgContext(
             org_slug="test_org",
             org_api_key_hash="hash_123",
             org_api_key_id="key_123",
             user_id="user_123"
         )
 
+    app.dependency_overrides[verify_api_key_header] = mock_verify
+
+    try:
         with patch("src.app.routers.pipelines.validate_pipeline_with_api_service") as mock_validate:
             # Simulate quota exceeded
             mock_validate.return_value = {
@@ -435,6 +468,9 @@ async def test_run_pipeline_quota_exceeded():
                 assert response.status_code == status.HTTP_429_TOO_MANY_REQUESTS
                 data = response.json()
                 assert "quota" in data["detail"].lower()
+    finally:
+        if verify_api_key_header in app.dependency_overrides:
+            del app.dependency_overrides[verify_api_key_header]
 
 
 @pytest.mark.asyncio
@@ -479,15 +515,19 @@ async def test_run_pipeline_integration_not_configured():
 
     Expected: 400 Bad Request
     """
-    with patch("src.app.dependencies.auth.verify_api_key_header") as mock_verify:
-        from src.app.dependencies.auth import OrgContext
-        mock_verify.return_value = OrgContext(
+    from src.app.dependencies.auth import OrgContext, verify_api_key_header
+
+    def mock_verify():
+        return OrgContext(
             org_slug="test_org",
             org_api_key_hash="hash_123",
             org_api_key_id="key_123",
             user_id="user_123"
         )
 
+    app.dependency_overrides[verify_api_key_header] = mock_verify
+
+    try:
         with patch("src.app.routers.pipelines.validate_pipeline_with_api_service") as mock_validate:
             # Simulate integration not configured
             mock_validate.return_value = {
@@ -505,6 +545,9 @@ async def test_run_pipeline_integration_not_configured():
                 )
 
                 assert response.status_code == status.HTTP_400_BAD_REQUEST
+    finally:
+        if verify_api_key_header in app.dependency_overrides:
+            del app.dependency_overrides[verify_api_key_header]
 
 
 # ============================================
@@ -518,15 +561,19 @@ async def test_run_pipeline_template_not_found():
 
     Expected: 404 Not Found
     """
-    with patch("src.app.dependencies.auth.verify_api_key_header") as mock_verify:
-        from src.app.dependencies.auth import OrgContext
-        mock_verify.return_value = OrgContext(
+    from src.app.dependencies.auth import OrgContext, verify_api_key_header
+
+    def mock_verify():
+        return OrgContext(
             org_slug="test_org",
             org_api_key_hash="hash_123",
             org_api_key_id="key_123",
             user_id="user_123"
         )
 
+    app.dependency_overrides[verify_api_key_header] = mock_verify
+
+    try:
         with patch("src.app.routers.pipelines.validate_pipeline_with_api_service") as mock_validate:
             mock_validate.return_value = {"valid": True}
 
@@ -545,6 +592,9 @@ async def test_run_pipeline_template_not_found():
                         )
 
                         assert response.status_code == status.HTTP_404_NOT_FOUND
+    finally:
+        if verify_api_key_header in app.dependency_overrides:
+            del app.dependency_overrides[verify_api_key_header]
 
 
 # ============================================
@@ -552,21 +602,25 @@ async def test_run_pipeline_template_not_found():
 # ============================================
 
 @pytest.mark.asyncio
-async def test_run_pipeline_success():
+async def test_run_pipeline_success(mock_bq_dependency):
     """
     Test successfully running a pipeline returns 200 with pipeline details.
 
     Expected: 200 OK with pipeline_logging_id, pipeline_id, status
     """
-    with patch("src.app.dependencies.auth.verify_api_key_header") as mock_verify:
-        from src.app.dependencies.auth import OrgContext
-        mock_verify.return_value = OrgContext(
+    from src.app.dependencies.auth import OrgContext, verify_api_key_header
+
+    def mock_verify():
+        return OrgContext(
             org_slug="test_org",
             org_api_key_hash="hash_123",
             org_api_key_id="key_123",
             user_id="user_123"
         )
 
+    app.dependency_overrides[verify_api_key_header] = mock_verify
+
+    try:
         with patch("src.app.routers.pipelines.validate_pipeline_with_api_service") as mock_validate:
             mock_validate.return_value = {"valid": True}
 
@@ -576,52 +630,57 @@ async def test_run_pipeline_success():
                 with patch("src.app.routers.pipelines.resolve_template") as mock_resolve:
                     mock_resolve.return_value = {"pipeline_id": "test_pipeline"}
 
-                    with patch("src.core.engine.bq_client.get_bigquery_client") as mock_bq:
-                        mock_client = MagicMock()
-                        mock_query_job = MagicMock()
-                        mock_query_job.num_dml_affected_rows = 1
-                        mock_query_job.result.return_value = []
-                        mock_client.client.query.return_value = mock_query_job
-                        mock_bq.return_value = mock_client
+                    # Configure the mock BigQuery client (from fixture)
+                    mock_query_job = MagicMock()
+                    mock_query_job.num_dml_affected_rows = 1
+                    mock_query_job.result.return_value = []
+                    mock_bq_dependency.client.query.return_value = mock_query_job
 
-                        with patch("src.app.routers.pipelines.rate_limit_by_org") as mock_rate_limit:
-                            mock_rate_limit.return_value = None
+                    with patch("src.app.routers.pipelines.rate_limit_by_org") as mock_rate_limit:
+                        mock_rate_limit.return_value = None
 
-                            transport = ASGITransport(app=app)
-                            async with AsyncClient(transport=transport, base_url="http://test") as client:
-                                response = await client.post(
-                                    "/api/v1/pipelines/run/test_org/gcp/cost/billing",
-                                    headers={"X-API-Key": "valid_key"},
-                                    json={"date": "2025-12-01"}
-                                )
+                        transport = ASGITransport(app=app)
+                        async with AsyncClient(transport=transport, base_url="http://test") as client:
+                            response = await client.post(
+                                "/api/v1/pipelines/run/test_org/gcp/cost/billing",
+                                headers={"X-API-Key": "valid_key"},
+                                json={"date": "2025-12-01"}
+                            )
 
-                                assert response.status_code == status.HTTP_200_OK
-                                data = response.json()
-                                assert "pipeline_logging_id" in data
-                                assert "pipeline_id" in data
-                                assert "org_slug" in data
-                                assert "status" in data
-                                assert "message" in data
-                                assert data["org_slug"] == "test_org"
-                                assert data["status"] in ["PENDING", "RUNNING"]
+                            assert response.status_code == status.HTTP_200_OK
+                            data = response.json()
+                            assert "pipeline_logging_id" in data
+                            assert "pipeline_id" in data
+                            assert "org_slug" in data
+                            assert "status" in data
+                            assert "message" in data
+                            assert data["org_slug"] == "test_org"
+                            assert data["status"] in ["PENDING", "RUNNING"]
+    finally:
+        if verify_api_key_header in app.dependency_overrides:
+            del app.dependency_overrides[verify_api_key_header]
 
 
 @pytest.mark.asyncio
-async def test_run_pipeline_already_running():
+async def test_run_pipeline_already_running(mock_bq_dependency):
     """
     Test running pipeline that's already running returns existing execution.
 
     Expected: 200 OK with status=RUNNING and existing pipeline_logging_id
     """
-    with patch("src.app.dependencies.auth.verify_api_key_header") as mock_verify:
-        from src.app.dependencies.auth import OrgContext
-        mock_verify.return_value = OrgContext(
+    from src.app.dependencies.auth import OrgContext, verify_api_key_header
+
+    def mock_verify():
+        return OrgContext(
             org_slug="test_org",
             org_api_key_hash="hash_123",
             org_api_key_id="key_123",
             user_id="user_123"
         )
 
+    app.dependency_overrides[verify_api_key_header] = mock_verify
+
+    try:
         with patch("src.app.routers.pipelines.validate_pipeline_with_api_service") as mock_validate:
             mock_validate.return_value = {"valid": True}
 
@@ -631,38 +690,37 @@ async def test_run_pipeline_already_running():
                 with patch("src.app.routers.pipelines.resolve_template") as mock_resolve:
                     mock_resolve.return_value = {"pipeline_id": "test_pipeline"}
 
-                    with patch("src.core.engine.bq_client.get_bigquery_client") as mock_bq:
-                        mock_client = MagicMock()
+                    # First query: INSERT returns 0 rows (pipeline already running)
+                    mock_insert_job = MagicMock()
+                    mock_insert_job.num_dml_affected_rows = 0
+                    mock_insert_job.result.return_value = []
 
-                        # First query: INSERT returns 0 rows (pipeline already running)
-                        mock_insert_job = MagicMock()
-                        mock_insert_job.num_dml_affected_rows = 0
-                        mock_insert_job.result.return_value = []
+                    # Second query: Check for existing run
+                    existing_id = str(uuid.uuid4())
+                    mock_check_job = MagicMock()
+                    mock_check_job.result.return_value = [{"pipeline_logging_id": existing_id}]
 
-                        # Second query: Check for existing run
-                        existing_id = str(uuid.uuid4())
-                        mock_check_job = MagicMock()
-                        mock_check_job.result.return_value = [{"pipeline_logging_id": existing_id}]
+                    mock_bq_dependency.client.query.side_effect = [mock_insert_job, mock_check_job]
 
-                        mock_client.client.query.side_effect = [mock_insert_job, mock_check_job]
-                        mock_bq.return_value = mock_client
+                    with patch("src.app.routers.pipelines.rate_limit_by_org") as mock_rate_limit:
+                        mock_rate_limit.return_value = None
 
-                        with patch("src.app.routers.pipelines.rate_limit_by_org") as mock_rate_limit:
-                            mock_rate_limit.return_value = None
+                        transport = ASGITransport(app=app)
+                        async with AsyncClient(transport=transport, base_url="http://test") as client:
+                            response = await client.post(
+                                "/api/v1/pipelines/run/test_org/gcp/cost/billing",
+                                headers={"X-API-Key": "valid_key"},
+                                json={"date": "2025-12-01"}
+                            )
 
-                            transport = ASGITransport(app=app)
-                            async with AsyncClient(transport=transport, base_url="http://test") as client:
-                                response = await client.post(
-                                    "/api/v1/pipelines/run/test_org/gcp/cost/billing",
-                                    headers={"X-API-Key": "valid_key"},
-                                    json={"date": "2025-12-01"}
-                                )
-
-                                assert response.status_code == status.HTTP_200_OK
-                                data = response.json()
-                                assert data["status"] == "RUNNING"
-                                assert data["pipeline_logging_id"] == existing_id
-                                assert "already running" in data["message"].lower()
+                            assert response.status_code == status.HTTP_200_OK
+                            data = response.json()
+                            assert data["status"] == "RUNNING"
+                            assert data["pipeline_logging_id"] == existing_id
+                            assert "already running" in data["message"].lower()
+    finally:
+        if verify_api_key_header in app.dependency_overrides:
+            del app.dependency_overrides[verify_api_key_header]
 
 
 # ============================================
@@ -670,51 +728,55 @@ async def test_run_pipeline_already_running():
 # ============================================
 
 @pytest.mark.asyncio
-async def test_get_run_status_success():
+async def test_get_run_status_success(mock_bq_dependency):
     """
     Test getting run status for existing run returns 200 with details.
 
     Expected: 200 OK with run details
     """
-    with patch("src.app.dependencies.auth.verify_api_key_header") as mock_verify:
-        from src.app.dependencies.auth import OrgContext
-        mock_verify.return_value = OrgContext(
+    from src.app.dependencies.auth import OrgContext, verify_api_key_header
+
+    def mock_verify():
+        return OrgContext(
             org_slug="test_org",
             org_api_key_hash="hash_123",
             org_api_key_id="key_123",
             user_id="user_123"
         )
 
-        with patch("src.core.engine.bq_client.get_bigquery_client") as mock_bq:
-            run_id = str(uuid.uuid4())
-            mock_client = MagicMock()
-            mock_query_job = MagicMock()
-            mock_query_job.result.return_value = [{
-                "pipeline_logging_id": run_id,
-                "pipeline_id": "test_org-gcp-cost-billing",
-                "org_slug": "test_org",
-                "status": "RUNNING",
-                "trigger_type": "api",
-                "trigger_by": "test_user",
-                "start_time": datetime.now(),
-                "end_time": None,
-                "duration_ms": None
-            }]
-            mock_client.client.query.return_value = mock_query_job
-            mock_bq.return_value = mock_client
+    app.dependency_overrides[verify_api_key_header] = mock_verify
 
-            transport = ASGITransport(app=app)
-            async with AsyncClient(transport=transport, base_url="http://test") as client:
-                response = await client.get(
-                    f"/api/v1/pipelines/runs/{run_id}",
-                    headers={"X-API-Key": "valid_key"}
-                )
+    try:
+        run_id = str(uuid.uuid4())
+        mock_query_job = MagicMock()
+        mock_query_job.result.return_value = [{
+            "pipeline_logging_id": run_id,
+            "pipeline_id": "test_org-gcp-cost-billing",
+            "org_slug": "test_org",
+            "status": "RUNNING",
+            "trigger_type": "api",
+            "trigger_by": "test_user",
+            "start_time": datetime.now(),
+            "end_time": None,
+            "duration_ms": None
+        }]
+        mock_bq_dependency.client.query.return_value = mock_query_job
 
-                assert response.status_code == status.HTTP_200_OK
-                data = response.json()
-                assert data["pipeline_logging_id"] == run_id
-                assert data["org_slug"] == "test_org"
-                assert data["status"] == "RUNNING"
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.get(
+                f"/api/v1/pipelines/runs/{run_id}",
+                headers={"X-API-Key": "valid_key"}
+            )
+
+            assert response.status_code == status.HTTP_200_OK
+            data = response.json()
+            assert data["pipeline_logging_id"] == run_id
+            assert data["org_slug"] == "test_org"
+            assert data["status"] == "RUNNING"
+    finally:
+        if verify_api_key_header in app.dependency_overrides:
+            del app.dependency_overrides[verify_api_key_header]
 
 
 @pytest.mark.asyncio
@@ -793,164 +855,176 @@ async def test_get_run_status_different_org():
 # ============================================
 
 @pytest.mark.asyncio
-async def test_list_runs_success():
+async def test_list_runs_success(mock_bq_dependency):
     """
     Test listing pipeline runs returns 200 with list of runs.
 
     Expected: 200 OK with array of runs
     """
-    with patch("src.app.dependencies.auth.verify_api_key_header") as mock_verify:
-        from src.app.dependencies.auth import OrgContext
-        mock_verify.return_value = OrgContext(
+    from src.app.dependencies.auth import OrgContext, verify_api_key_header
+
+    def mock_verify():
+        return OrgContext(
             org_slug="test_org",
             org_api_key_hash="hash_123",
             org_api_key_id="key_123",
             user_id="user_123"
         )
 
-        with patch("src.core.engine.bq_client.get_bigquery_client") as mock_bq:
-            mock_client = MagicMock()
-            mock_query_job = MagicMock()
-            mock_query_job.result.return_value = [
-                {
-                    "pipeline_logging_id": str(uuid.uuid4()),
-                    "pipeline_id": "test_org-gcp-cost-billing",
-                    "org_slug": "test_org",
-                    "status": "COMPLETE",
-                    "trigger_type": "api",
-                    "trigger_by": "user_123",
-                    "start_time": datetime.now(),
-                    "end_time": datetime.now(),
-                    "duration_ms": 5000
-                },
-                {
-                    "pipeline_logging_id": str(uuid.uuid4()),
-                    "pipeline_id": "test_org-openai-cost-usage",
-                    "org_slug": "test_org",
-                    "status": "RUNNING",
-                    "trigger_type": "scheduled",
-                    "trigger_by": "cron",
-                    "start_time": datetime.now(),
-                    "end_time": None,
-                    "duration_ms": None
-                }
-            ]
-            mock_client.client.query.return_value = mock_query_job
-            mock_bq.return_value = mock_client
+    app.dependency_overrides[verify_api_key_header] = mock_verify
 
-            transport = ASGITransport(app=app)
-            async with AsyncClient(transport=transport, base_url="http://test") as client:
-                response = await client.get(
-                    "/api/v1/pipelines/runs",
-                    headers={"X-API-Key": "valid_key"}
-                )
+    try:
+        mock_query_job = MagicMock()
+        mock_query_job.result.return_value = [
+            {
+                "pipeline_logging_id": str(uuid.uuid4()),
+                "pipeline_id": "test_org-gcp-cost-billing",
+                "org_slug": "test_org",
+                "status": "COMPLETE",
+                "trigger_type": "api",
+                "trigger_by": "user_123",
+                "start_time": datetime.now(),
+                "end_time": datetime.now(),
+                "duration_ms": 5000
+            },
+            {
+                "pipeline_logging_id": str(uuid.uuid4()),
+                "pipeline_id": "test_org-openai-cost-usage",
+                "org_slug": "test_org",
+                "status": "RUNNING",
+                "trigger_type": "scheduled",
+                "trigger_by": "cron",
+                "start_time": datetime.now(),
+                "end_time": None,
+                "duration_ms": None
+            }
+        ]
+        mock_bq_dependency.client.query.return_value = mock_query_job
 
-                assert response.status_code == status.HTTP_200_OK
-                data = response.json()
-                assert isinstance(data, list)
-                assert len(data) == 2
-                assert data[0]["status"] == "COMPLETE"
-                assert data[1]["status"] == "RUNNING"
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.get(
+                "/api/v1/pipelines/runs",
+                headers={"X-API-Key": "valid_key"}
+            )
+
+            assert response.status_code == status.HTTP_200_OK
+            data = response.json()
+            assert isinstance(data, list)
+            assert len(data) == 2
+            assert data[0]["status"] == "COMPLETE"
+            assert data[1]["status"] == "RUNNING"
+    finally:
+        if verify_api_key_header in app.dependency_overrides:
+            del app.dependency_overrides[verify_api_key_header]
 
 
 @pytest.mark.asyncio
-async def test_list_runs_with_filters():
+async def test_list_runs_with_filters(mock_bq_dependency):
     """
     Test listing runs with filters (pipeline_id, status) returns filtered results.
 
     Expected: 200 OK with filtered runs
     """
-    with patch("src.app.dependencies.auth.verify_api_key_header") as mock_verify:
-        from src.app.dependencies.auth import OrgContext
-        mock_verify.return_value = OrgContext(
+    from src.app.dependencies.auth import OrgContext, verify_api_key_header
+
+    def mock_verify():
+        return OrgContext(
             org_slug="test_org",
             org_api_key_hash="hash_123",
             org_api_key_id="key_123",
             user_id="user_123"
         )
 
-        with patch("src.core.engine.bq_client.get_bigquery_client") as mock_bq:
-            mock_client = MagicMock()
-            mock_query_job = MagicMock()
-            mock_query_job.result.return_value = [
-                {
-                    "pipeline_logging_id": str(uuid.uuid4()),
-                    "pipeline_id": "test_org-gcp-cost-billing",
-                    "org_slug": "test_org",
-                    "status": "FAILED",
-                    "trigger_type": "api",
-                    "trigger_by": "user_123",
-                    "start_time": datetime.now(),
-                    "end_time": datetime.now(),
-                    "duration_ms": 3000
-                }
-            ]
-            mock_client.client.query.return_value = mock_query_job
-            mock_bq.return_value = mock_client
+    app.dependency_overrides[verify_api_key_header] = mock_verify
 
-            transport = ASGITransport(app=app)
-            async with AsyncClient(transport=transport, base_url="http://test") as client:
-                response = await client.get(
-                    "/api/v1/pipelines/runs?pipeline_id=test_org-gcp-cost-billing&status=FAILED",
-                    headers={"X-API-Key": "valid_key"}
-                )
+    try:
+        mock_query_job = MagicMock()
+        mock_query_job.result.return_value = [
+            {
+                "pipeline_logging_id": str(uuid.uuid4()),
+                "pipeline_id": "test_org-gcp-cost-billing",
+                "org_slug": "test_org",
+                "status": "FAILED",
+                "trigger_type": "api",
+                "trigger_by": "user_123",
+                "start_time": datetime.now(),
+                "end_time": datetime.now(),
+                "duration_ms": 3000
+            }
+        ]
+        mock_bq_dependency.client.query.return_value = mock_query_job
 
-                assert response.status_code == status.HTTP_200_OK
-                data = response.json()
-                assert isinstance(data, list)
-                assert len(data) == 1
-                assert data[0]["status"] == "FAILED"
-                assert data[0]["pipeline_id"] == "test_org-gcp-cost-billing"
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.get(
+                "/api/v1/pipelines/runs?pipeline_id=test_org-gcp-cost-billing&status=FAILED",
+                headers={"X-API-Key": "valid_key"}
+            )
+
+            assert response.status_code == status.HTTP_200_OK
+            data = response.json()
+            assert isinstance(data, list)
+            assert len(data) == 1
+            assert data[0]["status"] == "FAILED"
+            assert data[0]["pipeline_id"] == "test_org-gcp-cost-billing"
+    finally:
+        if verify_api_key_header in app.dependency_overrides:
+            del app.dependency_overrides[verify_api_key_header]
 
 
 @pytest.mark.asyncio
-async def test_list_runs_with_limit():
+async def test_list_runs_with_limit(mock_bq_dependency):
     """
     Test listing runs with limit parameter returns limited results.
 
     Expected: 200 OK with limited number of runs
     """
-    with patch("src.app.dependencies.auth.verify_api_key_header") as mock_verify:
-        from src.app.dependencies.auth import OrgContext
-        mock_verify.return_value = OrgContext(
+    from src.app.dependencies.auth import OrgContext, verify_api_key_header
+
+    def mock_verify():
+        return OrgContext(
             org_slug="test_org",
             org_api_key_hash="hash_123",
             org_api_key_id="key_123",
             user_id="user_123"
         )
 
-        with patch("src.core.engine.bq_client.get_bigquery_client") as mock_bq:
-            mock_client = MagicMock()
-            mock_query_job = MagicMock()
-            # Return only 5 results
-            mock_query_job.result.return_value = [
-                {
-                    "pipeline_logging_id": str(uuid.uuid4()),
-                    "pipeline_id": f"test_org-pipeline-{i}",
-                    "org_slug": "test_org",
-                    "status": "COMPLETE",
-                    "trigger_type": "api",
-                    "trigger_by": "user_123",
-                    "start_time": datetime.now(),
-                    "end_time": datetime.now(),
-                    "duration_ms": 1000 * i
-                }
-                for i in range(5)
-            ]
-            mock_client.client.query.return_value = mock_query_job
-            mock_bq.return_value = mock_client
+    app.dependency_overrides[verify_api_key_header] = mock_verify
 
-            transport = ASGITransport(app=app)
-            async with AsyncClient(transport=transport, base_url="http://test") as client:
-                response = await client.get(
-                    "/api/v1/pipelines/runs?limit=5",
-                    headers={"X-API-Key": "valid_key"}
-                )
+    try:
+        mock_query_job = MagicMock()
+        # Return only 5 results
+        mock_query_job.result.return_value = [
+            {
+                "pipeline_logging_id": str(uuid.uuid4()),
+                "pipeline_id": f"test_org-pipeline-{i}",
+                "org_slug": "test_org",
+                "status": "COMPLETE",
+                "trigger_type": "api",
+                "trigger_by": "user_123",
+                "start_time": datetime.now(),
+                "end_time": datetime.now(),
+                "duration_ms": 1000 * i
+            }
+            for i in range(5)
+        ]
+        mock_bq_dependency.client.query.return_value = mock_query_job
 
-                assert response.status_code == status.HTTP_200_OK
-                data = response.json()
-                assert isinstance(data, list)
-                assert len(data) == 5
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.get(
+                "/api/v1/pipelines/runs?limit=5",
+                headers={"X-API-Key": "valid_key"}
+            )
+
+            assert response.status_code == status.HTTP_200_OK
+            data = response.json()
+            assert isinstance(data, list)
+            assert len(data) == 5
+    finally:
+        if verify_api_key_header in app.dependency_overrides:
+            del app.dependency_overrides[verify_api_key_header]
 
 
 @pytest.mark.asyncio
@@ -1069,21 +1143,25 @@ async def test_run_pipeline_rate_limit_exceeded():
 # ============================================
 
 @pytest.mark.asyncio
-async def test_run_pipeline_bigquery_error():
+async def test_run_pipeline_bigquery_error(mock_bq_dependency):
     """
     Test pipeline run when BigQuery fails returns 500.
 
     Expected: 500 Internal Server Error
     """
-    with patch("src.app.dependencies.auth.verify_api_key_header") as mock_verify:
-        from src.app.dependencies.auth import OrgContext
-        mock_verify.return_value = OrgContext(
+    from src.app.dependencies.auth import OrgContext, verify_api_key_header
+
+    def mock_verify():
+        return OrgContext(
             org_slug="test_org",
             org_api_key_hash="hash_123",
             org_api_key_id="key_123",
             user_id="user_123"
         )
 
+    app.dependency_overrides[verify_api_key_header] = mock_verify
+
+    try:
         with patch("src.app.routers.pipelines.validate_pipeline_with_api_service") as mock_validate:
             mock_validate.return_value = {"valid": True}
 
@@ -1093,22 +1171,22 @@ async def test_run_pipeline_bigquery_error():
                 with patch("src.app.routers.pipelines.resolve_template") as mock_resolve:
                     mock_resolve.return_value = {"pipeline_id": "test_pipeline"}
 
-                    with patch("src.core.engine.bq_client.get_bigquery_client") as mock_bq:
-                        mock_client = MagicMock()
-                        # Simulate BigQuery error
-                        mock_client.client.query.side_effect = Exception("BigQuery connection failed")
-                        mock_bq.return_value = mock_client
+                    # Simulate BigQuery error
+                    mock_bq_dependency.client.query.side_effect = Exception("BigQuery connection failed")
 
-                        with patch("src.app.routers.pipelines.rate_limit_by_org") as mock_rate_limit:
-                            mock_rate_limit.return_value = None
+                    with patch("src.app.routers.pipelines.rate_limit_by_org") as mock_rate_limit:
+                        mock_rate_limit.return_value = None
 
-                            transport = ASGITransport(app=app)
-                            async with AsyncClient(transport=transport, base_url="http://test") as client:
-                                response = await client.post(
-                                    "/api/v1/pipelines/run/test_org/gcp/cost/billing",
-                                    headers={"X-API-Key": "valid_key"},
-                                    json={"date": "2025-12-01"}
-                                )
+                        transport = ASGITransport(app=app)
+                        async with AsyncClient(transport=transport, base_url="http://test") as client:
+                            response = await client.post(
+                                "/api/v1/pipelines/run/test_org/gcp/cost/billing",
+                                headers={"X-API-Key": "valid_key"},
+                                json={"date": "2025-12-01"}
+                            )
 
-                                # Should return internal server error
-                                assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+                            # Should return internal server error
+                            assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    finally:
+        if verify_api_key_header in app.dependency_overrides:
+            del app.dependency_overrides[verify_api_key_header]

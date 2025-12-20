@@ -287,7 +287,7 @@ export default function PersonalSettingsPage() {
     <div className="space-y-4 sm:space-y-6">
       <div>
         <h1 className="text-[32px] sm:text-[34px] font-bold text-black tracking-tight">Personal Settings</h1>
-        <p className="text-[15px] text-[#8E8E93] mt-1">
+        <p className="text-[15px] text-muted-foreground mt-1">
           Manage your personal profile and security settings
         </p>
       </div>
@@ -317,16 +317,16 @@ export default function PersonalSettingsPage() {
           <div className="metric-card shadow-sm">
             <div className="metric-card-header mb-6">
               <div className="flex items-center gap-2">
-                <User className="h-5 w-5 text-[#8E8E93]" />
+                <User className="h-5 w-5 text-muted-foreground" />
                 <h2 className="text-[22px] font-bold text-black">Personal Information</h2>
               </div>
-              <p className="text-[13px] sm:text-[15px] text-[#8E8E93] mt-1">Update your personal details and preferences</p>
+              <p className="text-[13px] sm:text-[15px] text-muted-foreground mt-1">Update your personal details and preferences</p>
             </div>
             <div className="metric-card-content space-y-4 sm:space-y-6">
               {/* Email - Read Only */}
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-[13px] sm:text-[15px] font-medium text-gray-700 flex items-center gap-2">
-                  <Mail className="h-4 w-4 text-[#8E8E93]" />
+                <Label htmlFor="email" className="text-[13px] sm:text-[15px] font-medium text-foreground flex items-center gap-2">
+                  <Mail className="h-4 w-4 text-muted-foreground" />
                   Email Address
                 </Label>
                 <Input
@@ -334,9 +334,9 @@ export default function PersonalSettingsPage() {
                   type="email"
                   value={email}
                   disabled
-                  className="h-10 px-3 text-[15px] bg-gray-50 text-gray-500 border border-[#E5E5EA] rounded-lg"
+                  className="h-10 px-3 text-[15px] bg-[#007A78]/5 text-muted-foreground border border-[#E5E5EA] rounded-lg"
                 />
-                <p className="text-[13px] text-[#8E8E93]">
+                <p className="text-[13px] text-muted-foreground">
                   Email address cannot be changed. Contact support if you need to update it.
                 </p>
               </div>
@@ -346,7 +346,7 @@ export default function PersonalSettingsPage() {
               {/* Name Fields */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="firstName" className="text-[13px] sm:text-[15px] font-medium text-gray-700">First Name</Label>
+                  <Label htmlFor="firstName" className="text-[13px] sm:text-[15px] font-medium text-foreground">First Name</Label>
                   <Input
                     id="firstName"
                     type="text"
@@ -357,7 +357,7 @@ export default function PersonalSettingsPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="lastName" className="text-[13px] sm:text-[15px] font-medium text-gray-700">Last Name</Label>
+                  <Label htmlFor="lastName" className="text-[13px] sm:text-[15px] font-medium text-foreground">Last Name</Label>
                   <Input
                     id="lastName"
                     type="text"
@@ -371,8 +371,8 @@ export default function PersonalSettingsPage() {
 
               {/* Phone Number with Country Code */}
               <div className="space-y-2">
-                <Label htmlFor="phone" className="text-[13px] sm:text-[15px] font-medium text-gray-700 flex items-center gap-2">
-                  <Phone className="h-4 w-4 text-[#8E8E93]" />
+                <Label htmlFor="phone" className="text-[13px] sm:text-[15px] font-medium text-foreground flex items-center gap-2">
+                  <Phone className="h-4 w-4 text-muted-foreground" />
                   Phone Number <span className="text-[#FF6E50]">*</span>
                 </Label>
                 <div className="flex gap-2">
@@ -400,15 +400,15 @@ export default function PersonalSettingsPage() {
                     className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg flex-1 focus:border-[#8E8E93] focus:ring-1 focus:ring-[#8E8E93]"
                   />
                 </div>
-                <p className="text-[13px] text-[#8E8E93]">
+                <p className="text-[13px] text-muted-foreground">
                   Used for account recovery and notifications.
                 </p>
               </div>
 
               {/* Timezone */}
               <div className="space-y-2">
-                <Label htmlFor="timezone" className="text-[13px] sm:text-[15px] font-medium text-gray-700 flex items-center gap-2">
-                  <Globe className="h-4 w-4 text-[#8E8E93]" />
+                <Label htmlFor="timezone" className="text-[13px] sm:text-[15px] font-medium text-foreground flex items-center gap-2">
+                  <Globe className="h-4 w-4 text-muted-foreground" />
                   Timezone
                 </Label>
                 <Select value={timezone} onValueChange={setTimezone}>
@@ -423,13 +423,13 @@ export default function PersonalSettingsPage() {
                     ))}
                   </SelectContent>
                 </Select>
-                <p className="text-[13px] text-[#8E8E93]">
+                <p className="text-[13px] text-muted-foreground">
                   Used for displaying times in your local timezone.
                 </p>
               </div>
             </div>
-            <div className="pt-4 sm:pt-6 border-t border-[#E5E5EA]">
-              <Button onClick={handleSave} disabled={isSaving} className="cloudact-btn-primary h-[36px] px-4">
+            <div className="pt-4 sm:pt-6 border-t border-border">
+              <Button onClick={handleSave} disabled={isSaving} className="console-button-primary h-11 px-4">
                 {isSaving ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -450,25 +450,25 @@ export default function PersonalSettingsPage() {
           <div className="metric-card shadow-sm">
             <div className="metric-card-header mb-6">
               <div className="flex items-center gap-2">
-                <Shield className="h-5 w-5 text-[#8E8E93]" />
+                <Shield className="h-5 w-5 text-muted-foreground" />
                 <h2 className="text-[22px] font-bold text-black">Security</h2>
               </div>
-              <p className="text-[13px] sm:text-[15px] text-[#8E8E93] mt-1">Manage your password and security settings</p>
+              <p className="text-[13px] sm:text-[15px] text-muted-foreground mt-1">Manage your password and security settings</p>
             </div>
             <div className="metric-card-content space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border border-[#E5E5EA] rounded-xl bg-gray-50">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border border-border rounded-xl bg-[#007A78]/5">
                 <div className="flex items-center gap-3">
-                  <Key className="h-5 w-5 text-[#8E8E93]" />
+                  <Key className="h-5 w-5 text-muted-foreground" />
                   <div>
                     <p className="text-[15px] font-medium text-black">Password</p>
-                    <p className="text-[13px] text-[#8E8E93]">Reset your password via email</p>
+                    <p className="text-[13px] text-muted-foreground">Reset your password via email</p>
                   </div>
                 </div>
                 <Button
                   variant="outline"
                   onClick={handleResetPassword}
                   disabled={isResettingPassword}
-                  className="h-[36px] px-4 rounded-xl text-[15px] border border-[#E5E5EA] hover:bg-white shadow-sm transition-colors"
+                  className="console-button-secondary h-11 px-4"
                 >
                   {isResettingPassword ? (
                     <>
@@ -517,7 +517,7 @@ export default function PersonalSettingsPage() {
               <div className="metric-card-content py-8">
                 <div className="flex items-center justify-center">
                   <Loader2 className="h-6 w-6 animate-spin text-[#007A78]" />
-                  <span className="ml-2 text-[15px] text-[#8E8E93]">Loading organizations...</span>
+                  <span className="ml-2 text-[15px] text-muted-foreground">Loading organizations...</span>
                 </div>
               </div>
             </div>
@@ -528,7 +528,7 @@ export default function PersonalSettingsPage() {
                   <Building2 className="h-5 w-5 text-[#FF6E50]" />
                   <h3 className="text-[18px] font-bold text-[#FF6E50]">Organizations You Own</h3>
                 </div>
-                <p className="text-[13px] sm:text-[15px] text-[#8E8E93] mt-1">
+                <p className="text-[13px] sm:text-[15px] text-muted-foreground mt-1">
                   You must transfer ownership or delete these organizations before you can delete your account.
                   Go to Organization Settings &gt; Danger Zone to manage them.
                 </p>
@@ -537,13 +537,13 @@ export default function PersonalSettingsPage() {
                 {ownedOrgs.map((org) => (
                   <div
                     key={org.id}
-                    className="flex items-center justify-between p-3 border border-[#E5E5EA] rounded-lg bg-gray-50"
+                    className="flex items-center justify-between p-3 border border-border rounded-xl bg-[#007A78]/5"
                   >
                     <div className="flex items-center gap-3">
-                      <Building2 className="h-4 w-4 text-[#8E8E93]" />
+                      <Building2 className="h-4 w-4 text-muted-foreground" />
                       <div>
                         <p className="text-[15px] font-medium text-black">{org.org_name}</p>
-                        <div className="flex items-center gap-2 text-[13px] text-[#8E8E93]">
+                        <div className="flex items-center gap-2 text-[13px] text-muted-foreground">
                           <Users className="h-3 w-3" />
                           <span>{org.member_count} member{org.member_count !== 1 ? "s" : ""}</span>
                         </div>
@@ -562,7 +562,7 @@ export default function PersonalSettingsPage() {
                 <AlertTriangle className="h-5 w-5 text-[#FF6E50]" />
                 <h3 className="text-[18px] font-bold text-[#FF6E50]">Delete Account</h3>
               </div>
-              <p className="text-[13px] sm:text-[15px] text-[#8E8E93] mt-1">Permanently delete your account and all associated data</p>
+              <p className="text-[13px] sm:text-[15px] text-muted-foreground mt-1">Permanently delete your account and all associated data</p>
             </div>
             <div className="metric-card-content">
               {deletionRequested ? (

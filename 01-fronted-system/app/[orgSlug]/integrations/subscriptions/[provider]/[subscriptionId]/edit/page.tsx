@@ -181,13 +181,11 @@ export default function EditSubscriptionPage() {
 
     if (!currentPlan) {
       setError("No plan data available")
-      toast.error("No plan data available")
       return
     }
 
     if (!effectiveDate) {
       setError("Start date is required")
-      toast.error("Start date is required")
       return
     }
 
@@ -198,24 +196,20 @@ export default function EditSubscriptionPage() {
     // Validate inputs
     if (finalUnitPrice < 0) {
       setError("Price cannot be negative")
-      toast.error("Price cannot be negative")
       return
     }
     if (finalSeats < 0) {
       setError("Seats cannot be negative")
-      toast.error("Seats cannot be negative")
       return
     }
     // Validate seats for PER_SEAT plans
     if (editData.pricing_model === 'PER_SEAT' && finalSeats < 1) {
       setError("Per-seat plans require at least 1 seat")
-      toast.error("Per-seat plans require at least 1 seat")
       return
     }
     // Validate upper bound for seats
     if (finalSeats > 10000) {
       setError("Seats cannot exceed 10,000")
-      toast.error("Seats cannot exceed 10,000")
       return
     }
 
@@ -233,7 +227,6 @@ export default function EditSubscriptionPage() {
         notes: editData.notes?.trim() || undefined,
       }
 
-      console.log("[EditPlan] Submitting edit data:", finalEditData)
       const result = await editPlanWithVersion(
         orgSlug,
         provider,
@@ -244,7 +237,6 @@ export default function EditSubscriptionPage() {
 
       if (!result.success) {
         setError(result.error || "Failed to update subscription")
-        toast.error(result.error || "Failed to update subscription")
         setSaving(false)
         return
       }
@@ -265,7 +257,6 @@ export default function EditSubscriptionPage() {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "An unexpected error occurred"
       setError(errorMessage)
-      toast.error(errorMessage)
     } finally {
       setSaving(false)
     }
@@ -335,7 +326,7 @@ export default function EditSubscriptionPage() {
         >
           Subscription Providers
         </Link>
-        <ChevronRight className="h-4 w-4 text-[#8E8E93] flex-shrink-0" aria-hidden="true" />
+        <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" aria-hidden="true" />
         <Link
           href={`/${orgSlug}/integrations/subscriptions/${provider}`}
           className="text-[#007A78] hover:text-[#005F5D] transition-colors focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2 rounded truncate max-w-[200px]"
@@ -343,11 +334,11 @@ export default function EditSubscriptionPage() {
         >
           {providerDisplayName}
         </Link>
-        <ChevronRight className="h-4 w-4 text-[#8E8E93] flex-shrink-0" aria-hidden="true" />
+        <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" aria-hidden="true" />
         <span className="text-gray-900 font-medium truncate max-w-[300px]" title={currentPlan.display_name || currentPlan.plan_name}>
           {currentPlan.display_name || currentPlan.plan_name}
         </span>
-        <ChevronRight className="h-4 w-4 text-[#8E8E93] flex-shrink-0" aria-hidden="true" />
+        <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" aria-hidden="true" />
         <span className="text-gray-900 font-medium">Edit</span>
       </nav>
 
@@ -397,31 +388,31 @@ export default function EditSubscriptionPage() {
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
               <div>
-                <span className="text-slate-500 block text-xs uppercase tracking-wide mb-1">Plan Name</span>
+                <span className="text-muted-foreground block text-xs uppercase tracking-wide mb-1">Plan Name</span>
                 <span className="font-medium">{currentPlan.display_name || currentPlan.plan_name}</span>
               </div>
               <div>
-                <span className="text-slate-500 block text-xs uppercase tracking-wide mb-1">Status</span>
+                <span className="text-muted-foreground block text-xs uppercase tracking-wide mb-1">Status</span>
                 <Badge variant="outline" className="capitalize text-xs">{currentPlan.status}</Badge>
               </div>
               {currentPlan.start_date && (
                 <div>
-                  <span className="text-slate-500 block text-xs uppercase tracking-wide mb-1">Start Date</span>
+                  <span className="text-muted-foreground block text-xs uppercase tracking-wide mb-1">Start Date</span>
                   <span className="font-medium">{formatDateOnly(currentPlan.start_date)}</span>
                 </div>
               )}
               <div>
-                <span className="text-slate-500 block text-xs uppercase tracking-wide mb-1">Current Price</span>
+                <span className="text-muted-foreground block text-xs uppercase tracking-wide mb-1">Current Price</span>
                 <span className="font-medium text-[#FF6E50]">
                   {formatCurrency(currentPlan.unit_price, orgCurrency)}/{currentPlan.billing_cycle}
                 </span>
               </div>
               <div>
-                <span className="text-slate-500 block text-xs uppercase tracking-wide mb-1">Current Seats</span>
+                <span className="text-muted-foreground block text-xs uppercase tracking-wide mb-1">Current Seats</span>
                 <span className="font-medium">{currentPlan.seats ?? 0}</span>
               </div>
               <div>
-                <span className="text-slate-500 block text-xs uppercase tracking-wide mb-1">Current Monthly Cost</span>
+                <span className="text-muted-foreground block text-xs uppercase tracking-wide mb-1">Current Monthly Cost</span>
                 <span className="font-medium">{(() => {
                   let monthlyCost = currentPlan.unit_price * (currentPlan.seats ?? 1)
                   if (currentPlan.pricing_model === 'FLAT_FEE') monthlyCost = currentPlan.unit_price
@@ -457,7 +448,7 @@ export default function EditSubscriptionPage() {
                 disabled={saving}
                 data-testid="edit-start-date-picker"
               />
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-muted-foreground">
                 <Calendar className="h-3 w-3 inline mr-1" />
                 Current plan ends {effectiveDate ? format(new Date(effectiveDate.getTime() - 86400000), 'MMM d, yyyy') : 'day before start date'}. New version starts on this date.
               </p>
@@ -617,7 +608,7 @@ export default function EditSubscriptionPage() {
               <Button
                 type="submit"
                 disabled={saving || !effectiveDate}
-                className="h-[36px] px-4 bg-[#007A78] text-white hover:bg-[#006664] rounded-xl text-[15px] font-semibold disabled:bg-[#E5E5EA] disabled:text-[#C7C7CC]"
+                className="console-button-primary h-11 rounded-xl"
                 data-testid="edit-subscription-submit-btn"
               >
                 {saving ? (

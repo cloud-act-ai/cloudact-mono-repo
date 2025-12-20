@@ -696,4 +696,5 @@ async def test_validate_invalid_org_slug_format(
     # In development mode with DISABLE_AUTH=true, the API accepts the request
     # and returns 200 (with validation error in response body)
     # This tests that the endpoint exists and handles the request without crashing
-    assert response.status_code in [200, 400, 404]
+    # 403 is returned when authentication checks the org_slug against the API key
+    assert response.status_code in [200, 400, 403, 404]

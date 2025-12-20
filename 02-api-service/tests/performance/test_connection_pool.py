@@ -111,7 +111,7 @@ async def test_no_connection_leaks(perf_client):
                 "org_slug": org_slug,
                 "company_name": "Test Org Connection Leak",
                 "admin_email": "admin@test.com",
-                "plan_name": "BASIC"
+                "subscription_plan": "STARTER"
             }
         )
 
@@ -211,7 +211,7 @@ async def test_concurrent_connections(perf_client):
                 "org_slug": org_slug,
                 "company_name": "Test Org Concurrent",
                 "admin_email": "admin@test.com",
-                "plan_name": "BASIC"
+                "subscription_plan": "STARTER"
             }
         )
 

@@ -72,21 +72,21 @@ export function MobileHeader({ orgName, orgSlug, user, userRole }: MobileHeaderP
         if (result.success && result.org?.logoUrl) {
           setLogoUrl(result.org.logoUrl)
         }
-      } catch (error) {
-        console.error("Failed to fetch org logo:", error)
+      } catch {
+        // Silently handle error - logo is not critical
       }
     }
     fetchLogo()
   }, [orgSlug])
 
   return (
-    <header className="sticky top-0 z-40 flex h-14 items-center justify-between gap-4 border-b border-[#E5E5EA] bg-white px-4 md:hidden">
+    <header className="sticky top-0 z-40 flex h-14 items-center justify-between gap-4 border-b border-border bg-white px-4 md:hidden pt-[env(safe-area-inset-top,0px)]">
       <div className="flex items-center gap-3">
         <Button
           variant="ghost"
           size="icon"
           onClick={() => setOpenMobile(!openMobile)}
-          className="h-9 w-9 text-[#1C1C1E] hover:bg-[#007A78]/5 focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2"
+          className="h-11 w-11 rounded-xl text-[#1C1C1E] hover:bg-[#007A78]/5 focus-visible:ring-2 focus-visible:ring-[#007A78] focus-visible:ring-offset-2 focus-visible:outline-[#007A78]"
           aria-label={openMobile ? "Close menu" : "Open menu"}
           aria-expanded={openMobile}
         >
@@ -127,7 +127,7 @@ export function MobileHeader({ orgName, orgSlug, user, userRole }: MobileHeaderP
           user={user}
           orgSlug={orgSlug}
           userRole={userRole}
-          className="h-9 w-9"
+          className="h-11 w-11"
         />
       )}
     </header>

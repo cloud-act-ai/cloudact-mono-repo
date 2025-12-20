@@ -133,15 +133,12 @@ export default function BillingPage() {
         let role = membership?.role || null
 
         if (!role && orgData.created_by === user.id) {
-          console.log("[Billing] Using creator fallback for owner role")
           role = "owner"
         }
 
         setUserRole(role)
 
-        if (role) {
-          console.log("[Billing] User role:", role)
-        } else {
+        if (!role) {
           console.warn("[Billing] No membership found for user in org")
         }
       }
@@ -371,19 +368,19 @@ export default function BillingPage() {
         setBillingStatus(result.subscription.status)
 
         // Update billing info
-        setBillingInfo(prev => prev ? {
+        setBillingInfo(prev => prev && prev.subscription && result.subscription ? {
           ...prev,
           subscription: {
-            ...prev.subscription!,
-            id: result.subscription!.id,
-            status: result.subscription!.status,
-            plan: { ...result.subscription!.plan, currency: orgCurrency },
-            currentPeriodEnd: result.subscription!.currentPeriodEnd,
-            currentPeriodStart: prev.subscription?.currentPeriodStart || new Date(),
+            ...prev.subscription,
+            id: result.subscription.id,
+            status: result.subscription.status,
+            plan: { ...result.subscription.plan, currency: orgCurrency },
+            currentPeriodEnd: result.subscription.currentPeriodEnd,
+            currentPeriodStart: prev.subscription.currentPeriodStart || new Date(),
             cancelAtPeriodEnd: false,
             canceledAt: null,
           }
-        } : null)
+        } : prev)
       }
 
       // Check if there was a sync warning (backend sync failed but plan changed)
@@ -433,7 +430,7 @@ export default function BillingPage() {
   if (!isLoadingBilling && userRole && userRole !== "owner") {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
-        <Card className="max-w-md border border-[#E5E7EB] shadow-sm">
+        <Card className="max-w-md border border-border shadow-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-[#FF6E50]" />
@@ -445,7 +442,7 @@ export default function BillingPage() {
               Only organization owners can access billing settings.
             </p>
             <Link href={`/${orgSlug}/dashboard`}>
-              <button className="h-[36px] px-4 bg-[#007A78] text-white hover:bg-[#006664] rounded-xl text-[15px] font-semibold shadow-sm transition-colors">Go to Dashboard</button>
+              <button className="console-button-primary">Go to Dashboard</button>
             </Link>
           </CardContent>
         </Card>
@@ -468,7 +465,7 @@ export default function BillingPage() {
       {/* Header */}
       <div className="text-center">
         <h1 className="text-[32px] sm:text-[34px] font-bold text-black tracking-tight">Billing & Plans</h1>
-        <p className="text-[13px] sm:text-[15px] text-[#8E8E93] mt-2">Manage your subscription and billing information</p>
+        <p className="text-[13px] sm:text-[15px] text-muted-foreground mt-2">Manage your subscription and billing information</p>
       </div>
 
       {/* Current Subscription Status Banner (for existing subscribers) */}
@@ -486,14 +483,14 @@ export default function BillingPage() {
                     {isCanceledButActive ? "Cancels at period end" : billingInfo.subscription.status}
                   </span>
                 </div>
-                <p className="text-[13px] sm:text-[15px] text-[#8E8E93] mt-0.5">
+                <p className="text-[13px] sm:text-[15px] text-muted-foreground mt-0.5">
                   {formatCurrency(billingInfo.subscription.plan.price, billingInfo.subscription.plan.currency)}/{billingInfo.subscription.plan.interval} ·
                   Renews {formatDate(billingInfo.subscription.currentPeriodEnd)}
                 </p>
               </div>
             </div>
             {isOwner && (
-              <button onClick={handleManageSubscription} disabled={isPortalLoading} className="cloudact-btn-secondary h-[36px] text-[15px] px-4">
+              <button onClick={handleManageSubscription} disabled={isPortalLoading} className="console-button-secondary">
                 {isPortalLoading ? (
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
                 ) : (
@@ -526,7 +523,7 @@ export default function BillingPage() {
             {isOwner && (
               <div className="mt-3">
                 <button
-                  className="inline-flex items-center h-[36px] text-[14px] px-4 bg-[#FF6E50] text-white hover:bg-[#E55A3C] rounded-lg font-medium shadow-sm transition-colors"
+                  className="inline-flex items-center h-11 px-4 bg-[#FF6E50] text-white hover:bg-[#E55A3C] rounded-xl text-[15px] font-semibold shadow-sm transition-colors"
                   onClick={handleManageSubscription}
                   disabled={isPortalLoading}
                 >
@@ -578,7 +575,7 @@ export default function BillingPage() {
                 </span>
                 {isOwner && (
                   <button
-                    className={isTrialExpired || isUrgent ? "cloudact-btn-primary inline-flex items-center h-[36px] text-[14px] px-4 mt-2 sm:mt-0" : isWarning ? "inline-flex items-center h-[36px] text-[14px] px-4 font-medium text-[#FF6E50] border border-[#FF6E50] rounded-lg hover:bg-[#FF6E50]/10 mt-2 sm:mt-0" : "cloudact-btn-secondary inline-flex items-center h-[36px] text-[14px] px-4 mt-2 sm:mt-0"}
+                    className={isTrialExpired || isUrgent ? "console-button-primary inline-flex items-center mt-2 sm:mt-0" : isWarning ? "inline-flex items-center h-11 px-4 text-[15px] font-semibold text-[#FF6E50] border border-[#FF6E50] rounded-xl hover:bg-[#FF6E50]/10 mt-2 sm:mt-0" : "console-button-secondary inline-flex items-center mt-2 sm:mt-0"}
                     onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })}
                   >
                     <CreditCard className="h-4 w-4 mr-2" />
@@ -611,7 +608,7 @@ export default function BillingPage() {
             <span>{downgradeLimitError}</span>
             <button
               onClick={() => setDowngradeLimitError(null)}
-              className="shrink-0 h-auto p-1 hover:bg-[#FF6E50]/10 text-sm text-[#8E8E93] hover:text-[#FF6E50]"
+              className="shrink-0 h-auto p-1 hover:bg-[#FF6E50]/10 text-sm text-muted-foreground hover:text-[#FF6E50]"
             >
               Dismiss
             </button>
@@ -624,7 +621,7 @@ export default function BillingPage() {
         <h2 className="text-[22px] font-bold text-black mb-4">
           {hasStripeSubscription ? "Change Plan" : "Choose a Plan"}
         </h2>
-        <p className="text-[13px] sm:text-[15px] text-[#8E8E93] mb-6">
+        <p className="text-[13px] sm:text-[15px] text-muted-foreground mb-6">
           {hasStripeSubscription
             ? "Upgrade or downgrade your plan instantly. Charges are prorated automatically."
             : `Select a plan to get started.${plans[0]?.trialDays ? ` All plans include a ${plans[0].trialDays}-day free trial.` : ''}`
@@ -669,7 +666,7 @@ export default function BillingPage() {
               return (
                 <div
                   key={plan.priceId}
-                  className={`flex flex-col metric-card border shadow-sm ${isCurrentPlan ? "border-[#007A78] shadow-lg relative" : "border-[#E5E7EB]"}`}
+                  className={`flex flex-col metric-card border shadow-sm ${isCurrentPlan ? "border-[#007A78] shadow-lg relative" : "border-border"}`}
                 >
                   {isCurrentPlan && (
                     <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#007A78] text-white px-3 py-1 rounded-full text-[11px] font-semibold">
@@ -678,12 +675,12 @@ export default function BillingPage() {
                   )}
                   <div className="mb-4">
                     <h3 className="text-[17px] font-semibold text-black">{plan.name}</h3>
-                    <p className="text-[13px] text-[#8E8E93] mt-1">{plan.description}</p>
+                    <p className="text-[13px] text-muted-foreground mt-1">{plan.description}</p>
                   </div>
                   <div className="flex-1">
                     <div className="mb-4">
                       <span className="text-[28px] sm:text-[32px] font-bold text-[#FF6E50]">{formatCurrency(plan.price, orgCurrency)}</span>
-                      <span className="text-[13px] sm:text-[15px] font-normal text-[#8E8E93]">/{plan.interval}</span>
+                      <span className="text-[13px] sm:text-[15px] font-normal text-muted-foreground">/{plan.interval}</span>
                     </div>
                     {plan.trialDays && !hasStripeSubscription && (
                       <p className="text-[13px] text-[#FF6E50] mb-4 font-medium">
@@ -700,19 +697,19 @@ export default function BillingPage() {
                         ))}
                       </ul>
                     ) : (
-                      <p className="text-[13px] text-[#8E8E93]">
+                      <p className="text-[13px] text-muted-foreground">
                         Contact us for plan details
                       </p>
                     )}
                   </div>
                   <div className="mt-6">
                     {isCurrentPlan ? (
-                      <button className="h-[36px] px-4 w-full text-[#8E8E93] bg-[#F5F5F7] rounded-xl text-[15px] font-semibold opacity-50 cursor-not-allowed border-none" disabled>
+                      <button className="h-11 px-4 w-full text-muted-foreground bg-[#007A78]/5 rounded-xl text-[15px] font-semibold opacity-50 cursor-not-allowed border-none" disabled>
                         Current Plan
                       </button>
                     ) : (
                       <button
-                        className={isUpgrade ? "cloudact-btn-primary w-full h-[36px] text-[15px] px-4 shadow-sm" : "cloudact-btn-secondary w-full h-[36px] text-[15px] px-4 shadow-sm"}
+                        className={isUpgrade ? "console-button-primary w-full" : "console-button-secondary w-full"}
                         onClick={
                           hasStripeSubscription
                             ? () => showPlanChangeConfirmation(plan, !!isUpgrade)
@@ -808,7 +805,7 @@ export default function BillingPage() {
 
       {/* Payment Method Card */}
       {hasStripeSubscription && billingInfo?.paymentMethod && (
-        <Card className="border border-[#E5E7EB] shadow-sm">
+        <Card className="border border-border shadow-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <CreditCard className="h-5 w-5 text-[#007A78]" />
@@ -841,7 +838,7 @@ export default function BillingPage() {
                 </div>
               </div>
               {isOwner && (
-                <button className="h-[36px] px-4 text-[#FF6E50] bg-white border border-[#FF6E50]/30 hover:bg-[#FF6E50]/5 rounded-xl text-[15px] font-semibold shadow-sm transition-colors" onClick={handleManageSubscription} disabled={isPortalLoading}>
+                <button className="h-11 px-4 text-[#FF6E50] bg-white border border-[#FF6E50]/30 hover:bg-[#FF6E50]/5 rounded-xl text-[15px] font-semibold shadow-sm transition-colors" onClick={handleManageSubscription} disabled={isPortalLoading}>
                   Update
                 </button>
               )}
@@ -853,13 +850,13 @@ export default function BillingPage() {
       <Separator />
 
       {/* Invoice History */}
-      <div className="health-card border border-[#E5E7EB] shadow-sm">
+      <div className="health-card border border-border shadow-sm">
         <div className="mb-6">
           <h3 className="text-[17px] font-semibold text-black flex items-center gap-2">
             <Receipt className="h-5 w-5 text-[#007A78]" />
             Invoice History
           </h3>
-          <p className="text-[13px] text-[#8E8E93] mt-1">Download your past invoices and receipts</p>
+          <p className="text-[13px] text-muted-foreground mt-1">Download your past invoices and receipts</p>
         </div>
         <div>
           {isLoadingBilling ? (
@@ -869,7 +866,7 @@ export default function BillingPage() {
           ) : billingInfo?.invoices && billingInfo.invoices.length > 0 ? (
             <div className="overflow-x-auto -mx-4 sm:mx-0">
               <div className="min-w-[600px] space-y-1">
-                <div className="grid grid-cols-5 gap-3 sm:gap-4 console-table-header px-4 border-b border-[#E5E7EB] pb-2">
+                <div className="grid grid-cols-5 gap-3 sm:gap-4 console-table-header px-4 border-b border-border pb-2">
                   <span>Invoice</span>
                   <span>Date</span>
                   <span>Amount</span>
@@ -879,7 +876,7 @@ export default function BillingPage() {
                 {billingInfo.invoices.map((invoice) => (
                   <div
                     key={invoice.id}
-                    className="console-table-row grid grid-cols-5 gap-3 sm:gap-4 items-center px-4 py-3 border-b border-[#F5F5F7] hover:bg-[#FFF5F3] transition-colors"
+                    className="console-table-row grid grid-cols-5 gap-3 sm:gap-4 items-center px-4 py-3 border-b border-[#007A78]/10 hover:bg-[#007A78]/5 transition-colors"
                   >
                   <span className="console-table-cell font-medium text-[13px] sm:text-[15px]">{invoice.number || invoice.id.slice(-8)}</span>
                   <span className="console-table-cell text-[13px] sm:text-[15px]">{formatDate(invoice.created)}</span>
@@ -890,7 +887,7 @@ export default function BillingPage() {
                       invoice.status === "open" ? "bg-[#FF6E50]/10 text-[#FF6E50] text-[11px] font-semibold px-2.5 py-1 rounded-full inline-flex" :
                       (invoice.status === "uncollectible" || invoice.status === "void") ? "bg-[#FF6E50]/10 text-[#E55A3C] text-[11px] font-semibold px-2.5 py-1 rounded-full inline-flex" :
                       invoice.amountDue > 0 && invoice.status !== "paid" ? "bg-[#FF6E50]/10 text-[#FF6E50] text-[11px] font-semibold px-2.5 py-1 rounded-full inline-flex" :
-                      "bg-[#8E8E93]/12 text-[#8E8E93] text-[11px] font-semibold px-2.5 py-1 rounded-full inline-flex"
+                      "bg-[#007A78]/10 text-muted-foreground text-[11px] font-semibold px-2.5 py-1 rounded-full inline-flex"
                     }
                   >
                     {invoice.status}
@@ -899,7 +896,7 @@ export default function BillingPage() {
                   <div className="flex justify-end gap-2">
                     {invoice.hostedInvoiceUrl && (
                       <button
-                        className="h-8 w-8 rounded-lg hover:bg-[#FF6E50]/10 text-[#FF6E50] inline-flex items-center justify-center transition-colors"
+                        className="h-11 w-11 rounded-xl hover:bg-[#FF6E50]/10 text-[#FF6E50] inline-flex items-center justify-center transition-colors"
                         onClick={() => window.open(invoice.hostedInvoiceUrl!, "_blank")}
                         aria-label="View invoice"
                       >
@@ -908,7 +905,7 @@ export default function BillingPage() {
                     )}
                     {invoice.invoicePdf && (
                       <button
-                        className="h-8 w-8 rounded-lg hover:bg-[#FF6E50]/10 text-[#FF6E50] inline-flex items-center justify-center transition-colors"
+                        className="h-11 w-11 rounded-xl hover:bg-[#FF6E50]/10 text-[#FF6E50] inline-flex items-center justify-center transition-colors"
                         onClick={() => window.open(invoice.invoicePdf!, "_blank")}
                         aria-label="Download invoice PDF"
                       >
@@ -922,11 +919,11 @@ export default function BillingPage() {
             </div>
           ) : (
             <div className="text-center py-12">
-              <div className="inline-flex p-4 rounded-2xl bg-[#8E8E93]/10 mb-4">
-                <Receipt className="h-12 w-12 text-[#8E8E93]" />
+              <div className="inline-flex p-4 rounded-2xl bg-[#007A78]/10 mb-4">
+                <Receipt className="h-12 w-12 text-[#007A78]" />
               </div>
               <h3 className="text-[20px] font-semibold text-black mb-2">No invoices yet</h3>
-              <p className="text-[15px] text-[#8E8E93]">Invoices will appear here once you subscribe</p>
+              <p className="text-[15px] text-muted-foreground">Invoices will appear here once you subscribe</p>
             </div>
           )}
         </div>
@@ -958,7 +955,7 @@ export default function BillingPage() {
                       <p>Current usage vs. new plan limits:</p>
                       <ul>
                         <li className="flex items-center gap-2">
-                          <span className="w-24 text-[#8E8E93]">Team Members:</span>
+                          <span className="w-24 text-muted-foreground">Team Members:</span>
                           <span className={`font-medium ${
                             currentMemberCount > (confirmDialog.plan?.limits?.teamMembers ?? 0)
                               ? "text-[#FF6E50] font-bold"

@@ -184,10 +184,10 @@ export function DashboardSidebar({
   const activeClass = "bg-[#FF6E50]/15 text-[#FF6E50] font-medium rounded-md mx-2"
 
   return (
-    <Sidebar collapsible="icon" className="border-r border-[#E5E5EA] bg-white" {...props}>
+    <Sidebar collapsible="icon" className="border-r border-border bg-white" {...props}>
       {/* Header: Logo + Org Name - Hidden on mobile (md:block) since MobileHeader shows this */}
       <div className={cn(
-        "border-b border-[#E5E5EA] hidden md:block",
+        "border-b border-border hidden md:block",
         isCollapsed ? "p-2" : "px-4 py-3"
       )}>
           <Link
@@ -226,16 +226,16 @@ export function DashboardSidebar({
           {/* Cost Dashboards Section */}
           {!isCollapsed && (
             <div className="pt-2 pb-1 px-4">
-              <span className="text-[13px] font-semibold text-[#8E8E93] uppercase tracking-wider">
+              <span className="text-[13px] font-semibold text-muted-foreground uppercase tracking-wider">
                 Cost Dashboards
               </span>
             </div>
           )}
           {isCollapsed && (
             <SidebarMenuItem>
-              <SidebarMenuButton asChild className="h-[32px] justify-center px-2">
+              <SidebarMenuButton asChild className="h-11 rounded-xl justify-center px-2">
                 <Link href={`/${orgSlug}/cost-dashboards/overview`}>
-                  <LayoutDashboard className="h-4 w-4 text-[#8E8E93]" />
+                  <LayoutDashboard className="h-4 w-4 text-muted-foreground" />
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -308,16 +308,16 @@ export function DashboardSidebar({
           {/* Pipelines Section */}
           {!isCollapsed && (
             <div className="pt-3 pb-1 px-4">
-              <span className="text-[13px] font-semibold text-[#8E8E93] uppercase tracking-wider">
+              <span className="text-[13px] font-semibold text-muted-foreground uppercase tracking-wider">
                 Pipelines
               </span>
             </div>
           )}
           {isCollapsed && (
             <SidebarMenuItem>
-              <SidebarMenuButton asChild className="h-[32px] justify-center px-2">
+              <SidebarMenuButton asChild className="h-11 rounded-xl justify-center px-2">
                 <Link href={`/${orgSlug}/pipelines/subscription-runs`}>
-                  <Workflow className="h-4 w-4 text-[#8E8E93]" />
+                  <Workflow className="h-4 w-4 text-muted-foreground" />
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -377,7 +377,7 @@ export function DashboardSidebar({
       </SidebarContent>
 
       {/* Footer: User Profile + Integrations + Settings + Get Help + Sign Out */}
-      <SidebarFooter className="px-0 py-1 mt-auto border-t border-[#E5E5EA]">
+      <SidebarFooter className="px-0 py-1 mt-auto border-t border-border">
         <SidebarMenu className="gap-0">
 
           {/* User Profile Section */}
@@ -409,13 +409,13 @@ export function DashboardSidebar({
               className="pt-3 pb-1 px-4 flex items-center justify-between cursor-pointer hover:bg-[#007A78]/5 transition-all duration-150"
               onClick={() => setIntegrationsExpanded(!integrationsExpanded)}
             >
-              <span className="text-[13px] font-semibold text-[#8E8E93] uppercase tracking-wider">
+              <span className="text-[13px] font-semibold text-muted-foreground uppercase tracking-wider">
                 Integrations
               </span>
               {integrationsExpanded ? (
-                <ChevronDown className="h-3.5 w-3.5 text-[#8E8E93]" />
+                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
               ) : (
-                <ChevronRight className="h-3.5 w-3.5 text-[#8E8E93]" />
+                <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
               )}
             </div>
           )}
@@ -476,13 +476,13 @@ export function DashboardSidebar({
               className="pt-3 pb-1 px-4 flex items-center justify-between cursor-pointer hover:bg-[#007A78]/5 transition-all duration-150"
               onClick={() => setSettingsExpanded(!settingsExpanded)}
             >
-              <span className="text-[13px] font-semibold text-[#8E8E93] uppercase tracking-wider">
+              <span className="text-[13px] font-semibold text-muted-foreground uppercase tracking-wider">
                 Settings
               </span>
               {settingsExpanded ? (
-                <ChevronDown className="h-3.5 w-3.5 text-[#8E8E93]" />
+                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
               ) : (
-                <ChevronRight className="h-3.5 w-3.5 text-[#8E8E93]" />
+                <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
               )}
             </div>
           )}
@@ -580,8 +580,8 @@ export function DashboardSidebar({
             <SidebarMenuButton
               asChild
               className={cn(
-                "h-[32px] px-3 text-[13px] font-normal text-[#007A78]",
-                "hover:bg-[#007A78]/10 rounded-md mx-2 transition-all duration-150",
+                "h-11 px-3 text-[13px] font-normal text-[#007A78]",
+                "hover:bg-[#007A78]/10 rounded-xl mx-2 transition-all duration-150 focus-visible:outline-[#007A78] focus-visible:ring-[#007A78]",
                 isCollapsed && "justify-center px-2"
               )}
             >
@@ -598,8 +598,8 @@ export function DashboardSidebar({
               onClick={handleLogout}
               disabled={isLoading}
               className={cn(
-                "h-[32px] px-3 text-[13px] font-normal text-[#FF6E50]",
-                "hover:bg-[#FF6E50]/10 rounded-md mx-2 transition-all duration-150",
+                "h-11 px-3 text-[13px] font-normal text-[#FF6E50]",
+                "hover:bg-[#FF6E50]/10 rounded-xl mx-2 transition-all duration-150 focus-visible:outline-[#007A78] focus-visible:ring-[#007A78]",
                 isCollapsed && "justify-center px-2"
               )}
             >

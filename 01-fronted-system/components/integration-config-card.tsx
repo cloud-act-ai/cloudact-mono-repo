@@ -243,7 +243,7 @@ export function IntegrationConfigCard({
 
         {/* Setup Form or Status Display */}
         {showSetup ? (
-          <div className="space-y-4 p-5 border-2 border-[#14B8A6]/20 rounded-lg bg-[#F9FAFB]">
+          <div className="space-y-4 p-5 border-2 border-[#007A78]/20 rounded-xl bg-[#007A78]/5">
             <div className="space-y-2">
               <Label htmlFor={`${provider}-credential`} className="console-label text-foreground font-medium">
                 {provider === "gcp" ? "Service Account JSON" : "API Key"}
@@ -251,7 +251,7 @@ export function IntegrationConfigCard({
               {inputType === "textarea" ? (
                 <textarea
                   id={`${provider}-credential`}
-                  className="flex min-h-[150px] w-full rounded-md border-2 border-input bg-background px-3 py-2 text-sm placeholder:text-[#8E8E93] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#14B8A6] focus-visible:border-[#14B8A6] disabled:cursor-not-allowed disabled:opacity-50 font-mono transition-colors"
+                  className="flex min-h-[150px] w-full rounded-xl border-2 border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#007A78] focus-visible:border-[#007A78] disabled:cursor-not-allowed disabled:opacity-50 font-mono transition-colors"
                   placeholder={placeholder}
                   value={credential}
                   onChange={(e) => setCredential(e.target.value)}
@@ -263,10 +263,10 @@ export function IntegrationConfigCard({
                   placeholder={placeholder}
                   value={credential}
                   onChange={(e) => setCredential(e.target.value)}
-                  className="console-input font-mono border-2 border-input focus-visible:ring-2 focus-visible:ring-[#14B8A6] focus-visible:border-[#14B8A6] transition-colors"
+                  className="h-11 rounded-xl console-input font-mono border-2 border-input focus-visible:ring-2 focus-visible:ring-[#007A78] focus-visible:border-[#007A78] transition-colors"
                 />
               )}
-              <p className="console-small text-[#8E8E93]">{helperText}</p>
+              <p className="console-small text-muted-foreground">{helperText}</p>
               {validationError && (
                 <p className="console-small text-[#FF6E50] mt-1 font-medium">{validationError}</p>
               )}
@@ -275,7 +275,7 @@ export function IntegrationConfigCard({
               <Button
                 onClick={handleSetup}
                 disabled={!credential.trim() || localLoading}
-                className="bg-[#007A78] hover:bg-[#005F5D] text-white font-medium shadow-sm hover:shadow transition-all"
+                className="h-11 rounded-xl bg-[#007A78] hover:bg-[#005F5D] text-white font-medium shadow-sm hover:shadow transition-all focus-visible:outline-[#007A78] focus-visible:ring-[#007A78]"
               >
                 {localLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {isConfigured ? "Update Credential" : "Connect"}
@@ -286,7 +286,7 @@ export function IntegrationConfigCard({
                   setShowSetup(false)
                   setCredential("")
                 }}
-                className="console-button-secondary border-2 hover:bg-muted transition-colors"
+                className="h-11 rounded-xl console-button-secondary border-2 border-border hover:bg-[#007A78]/5 transition-colors focus-visible:outline-[#007A78] focus-visible:ring-[#007A78]"
               >
                 Cancel
               </Button>
@@ -303,14 +303,14 @@ export function IntegrationConfigCard({
                 <p className="console-card-title text-foreground">
                   {integration?.credential_name || `${providerName} Credential`}
                 </p>
-                <div className="flex flex-wrap items-center gap-3 mt-1.5 console-small text-[#8E8E93]">
+                <div className="flex flex-wrap items-center gap-3 mt-1.5 console-small text-muted-foreground">
                   <span className="flex items-center gap-1.5">
                     <Clock className="h-3.5 w-3.5 text-[#007A78]" />
                     Last validated: {formatDate(integration?.last_validated_at)}
                   </span>
                   {integration?.created_at && (
                     <span className="flex items-center gap-1.5">
-                      <span className="text-[#8E8E93]/50">•</span>
+                      <span className="text-muted-foreground/50">•</span>
                       Added: {formatDate(integration?.created_at)}
                     </span>
                   )}
@@ -319,7 +319,7 @@ export function IntegrationConfigCard({
             </div>
 
             {/* Security Note */}
-            <div className="flex items-start gap-2.5 console-small text-[#8E8E93] bg-muted/50 p-3 rounded-lg border border-border">
+            <div className="flex items-start gap-2.5 console-small text-muted-foreground bg-[#007A78]/5 p-3 rounded-xl border border-border">
               <Shield className="h-4 w-4 mt-0.5 flex-shrink-0 text-[#14B8A6]" />
               <span>Credentials are encrypted using Google Cloud KMS and never stored in plain text.</span>
             </div>
@@ -329,13 +329,13 @@ export function IntegrationConfigCard({
             <div className="inline-flex items-center justify-center h-16 w-16 rounded-full bg-[#F0FDFA] mb-4 shadow-sm border border-[#14B8A6]/20">
               <Key className="h-8 w-8 text-[#14B8A6]" />
             </div>
-            <p className="console-body text-[#8E8E93] mb-6 max-w-md mx-auto">
+            <p className="console-body text-muted-foreground mb-6 max-w-md mx-auto">
               No {providerName} integration configured. Click below to add your credentials.
             </p>
             <Button
               onClick={() => setShowSetup(true)}
               size="lg"
-              className="bg-[#007A78] hover:bg-[#005F5D] text-white font-medium shadow-sm hover:shadow transition-all"
+              className="h-11 rounded-xl bg-[#007A78] hover:bg-[#005F5D] text-white font-medium shadow-sm hover:shadow transition-all focus-visible:outline-[#007A78] focus-visible:ring-[#007A78]"
             >
               <Key className="h-4 w-4 mr-2" />
               Connect {providerName}
@@ -346,14 +346,14 @@ export function IntegrationConfigCard({
 
       {/* Actions Footer */}
       {isConfigured && !showSetup && (
-        <CardFooter className="flex justify-between border-t pt-5 bg-[#FAFAFA]">
+        <CardFooter className="flex justify-between border-t pt-5 bg-[#007A78]/5">
           <div className="flex gap-2">
             <Button
               variant="outline"
               size="sm"
               onClick={handleValidate}
               disabled={isLoading || localLoading}
-              className="border-2 border-[#14B8A6] text-[#007A78] hover:bg-[#F0FDFA] hover:text-[#005F5D] font-medium transition-colors shadow-sm"
+              className="h-11 rounded-xl border-2 border-border text-[#007A78] hover:bg-[#007A78]/5 hover:text-[#005F5D] font-medium transition-colors shadow-sm focus-visible:outline-[#007A78] focus-visible:ring-[#007A78]"
             >
               {localLoading ? (
                 <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
@@ -366,7 +366,7 @@ export function IntegrationConfigCard({
               variant="outline"
               size="sm"
               onClick={() => setShowSetup(true)}
-              className="console-button-secondary border-2 hover:bg-muted transition-colors shadow-sm"
+              className="h-11 rounded-xl console-button-secondary border-2 border-border hover:bg-[#007A78]/5 transition-colors shadow-sm focus-visible:outline-[#007A78] focus-visible:ring-[#007A78]"
             >
               <Key className="h-4 w-4 mr-1.5" />
               Update Credential
@@ -379,7 +379,7 @@ export function IntegrationConfigCard({
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-[#FF6E50] hover:text-[#E55A3C] hover:bg-[#FFF5F3] font-medium transition-colors"
+                className="h-11 rounded-xl text-[#FF6E50] hover:text-[#E55A3C] hover:bg-[#FF6E50]/10 font-medium transition-colors focus-visible:outline-[#007A78] focus-visible:ring-[#007A78]"
               >
                 <Trash2 className="h-4 w-4 mr-1.5" />
                 Remove
@@ -390,7 +390,7 @@ export function IntegrationConfigCard({
                 <DialogTitle className="text-xl font-semibold text-foreground">
                   Remove {providerName} Integration
                 </DialogTitle>
-                <DialogDescription className="text-[#8E8E93] mt-2">
+                <DialogDescription className="text-muted-foreground mt-2">
                   Are you sure you want to remove this integration? This will delete the stored credentials and any
                   pipelines using this integration will stop working.
                 </DialogDescription>
@@ -399,7 +399,7 @@ export function IntegrationConfigCard({
                 <Button
                   variant="outline"
                   onClick={() => setShowDeleteDialog(false)}
-                  className="console-button-secondary border-2 hover:bg-muted transition-colors"
+                  className="h-11 rounded-xl console-button-secondary border-2 border-border hover:bg-[#007A78]/5 transition-colors focus-visible:outline-[#007A78] focus-visible:ring-[#007A78]"
                 >
                   Cancel
                 </Button>
@@ -407,7 +407,7 @@ export function IntegrationConfigCard({
                   variant="destructive"
                   onClick={handleDelete}
                   disabled={localLoading}
-                  className="bg-[#FF6E50] hover:bg-[#E55A3C] text-white font-medium shadow-sm hover:shadow transition-all"
+                  className="h-11 rounded-xl bg-[#FF6E50] hover:bg-[#E55A3C] text-white font-medium shadow-sm hover:shadow transition-all focus-visible:outline-[#007A78] focus-visible:ring-[#007A78]"
                 >
                   {localLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Remove Integration

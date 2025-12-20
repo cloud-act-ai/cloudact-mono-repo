@@ -3,17 +3,21 @@
 /**
  * Pipeline Auto-Trigger Component
  *
- * Silently checks and triggers daily pipelines on dashboard load.
+ * Silently checks pipeline status and triggers if needed on dashboard load.
  * Runs in background without blocking UI.
  *
  * Flow:
- * 1. On mount, checks if pipelines ran today via API service
- * 2. Triggers any pipelines that haven't run
- * 3. Calls optional callbacks for success/error handling
+ * 1. On mount, check pipeline status via API (getPipelineStatus)
+ * 2. For each pipeline, check if:
+ *    - NOT currently running (status !== "RUNNING" && status !== "PENDING")
+ *    - NOT completed today (succeeded_today === false)
+ * 3. Only trigger pipelines that meet both conditions
+ * 4. Call callbacks for success/error handling
  *
- * Race Conditions:
- * Pipeline service handles concurrent triggers atomically.
- * If 10 users login simultaneously, only 1 pipeline execution happens.
+ * Duplicate Prevention:
+ * - Frontend: localStorage debounce (1 min) prevents rapid re-checks
+ * - Backend: Pipeline service has atomic INSERT with duplicate check
+ *   Even if 10 users trigger simultaneously, only 1 execution happens
  *
  * Multi-Tenancy:
  * - Each org's pipelines are checked/triggered independently
@@ -24,10 +28,65 @@
  * - #4: Added onError and onTriggered callbacks
  * - #6: Reset hasChecked when orgSlug changes
  * - #15: Stabilized callback refs to prevent infinite re-renders
+ * - #20: Added localStorage debouncing to prevent rapid re-triggers
+ * - #22: Explicit check-then-trigger flow with status validation
  */
 
 import { useEffect, useRef, useCallback } from "react"
-import { checkAndTriggerDailyPipelines, type DailyPipelineCheckResult } from "@/actions/pipeline-status"
+import {
+  getPipelineStatus,
+  triggerPipelineViaApi,
+  type DailyPipelineCheckResult,
+} from "@/actions/pipeline-status"
+import { getMonthStartUTC, getTodayDateUTC } from "@/lib/api/helpers"
+
+// ============================================
+// Pipeline Configuration
+// ============================================
+const DAILY_PIPELINES = [
+  {
+    id: "saas_subscription_costs",
+    path: "saas_subscription/costs/saas_cost",
+    description: "SaaS subscription cost calculation",
+  },
+  // Future pipelines:
+  // { id: "gcp_billing", path: "gcp/cost/billing", description: "GCP billing extraction" },
+  // { id: "llm_costs", path: "llm/cost/usage", description: "LLM API usage costs" },
+]
+
+// ============================================
+// Debounce Configuration
+// ============================================
+const DEBOUNCE_KEY_PREFIX = "pipeline-auto-trigger-"
+const DEBOUNCE_MS = 60000 // 1 minute debounce between triggers for same org
+
+/**
+ * Check if we should debounce (skip) this trigger based on localStorage.
+ * Returns true if we should skip (too soon since last trigger).
+ */
+function shouldDebounce(orgSlug: string): boolean {
+  if (typeof window === "undefined") return false
+
+  const key = `${DEBOUNCE_KEY_PREFIX}${orgSlug}`
+  const lastCheck = localStorage.getItem(key)
+
+  if (!lastCheck) return false
+
+  const lastCheckTime = parseInt(lastCheck, 10)
+  const now = Date.now()
+
+  return now - lastCheckTime < DEBOUNCE_MS
+}
+
+/**
+ * Record the current time as the last trigger time for this org.
+ */
+function recordCheck(orgSlug: string): void {
+  if (typeof window === "undefined") return
+
+  const key = `${DEBOUNCE_KEY_PREFIX}${orgSlug}`
+  localStorage.setItem(key, String(Date.now()))
+}
 
 interface PipelineAutoTriggerProps {
   orgSlug: string
@@ -75,17 +134,98 @@ export function PipelineAutoTrigger({
     onCompleteRef.current = onComplete
   }, [onTriggered, onError, onComplete])
 
-  // Stable check function that reads from refs
+  // Stable check-then-trigger function
   const runCheck = useCallback(async () => {
+    const result: DailyPipelineCheckResult = {
+      triggered: [],
+      skipped: [],
+      already_running: [],
+      errors: [],
+    }
+
     try {
+      // ============================================
+      // STEP 1: Check pipeline status via API
+      // ============================================
       if (debug) {
-        console.log(`[PipelineAutoTrigger] Checking pipelines for ${orgSlug}`)
+        console.log(`[PipelineAutoTrigger] Step 1: Checking pipeline status for ${orgSlug}`)
       }
 
-      const result: DailyPipelineCheckResult = await checkAndTriggerDailyPipelines(orgSlug)
+      const status = await getPipelineStatus(orgSlug)
 
+      if (!status) {
+        console.warn(`[PipelineAutoTrigger] Could not get pipeline status for ${orgSlug}`)
+        result.errors.push("Failed to get pipeline status")
+        onErrorRef.current?.(result.errors)
+        onCompleteRef.current?.(result)
+        return
+      }
+
+      if (debug) {
+        console.log(`[PipelineAutoTrigger] Status received:`, status)
+      }
+
+      // ============================================
+      // STEP 2: Check each pipeline and trigger if needed
+      // ============================================
+      for (const pipeline of DAILY_PIPELINES) {
+        const pipelineStatus = status.pipelines?.[pipeline.id]
+
+        if (debug) {
+          console.log(`[PipelineAutoTrigger] Checking ${pipeline.id}:`, pipelineStatus)
+        }
+
+        // Check 1: Already completed today? → Skip
+        if (pipelineStatus?.succeeded_today) {
+          console.log(`[PipelineAutoTrigger] ${pipeline.id}: Already completed today, skipping`)
+          result.skipped.push(pipeline.id)
+          continue
+        }
+
+        // Check 2: Currently running or pending? → Skip
+        if (pipelineStatus?.status === "RUNNING" || pipelineStatus?.status === "PENDING") {
+          console.log(`[PipelineAutoTrigger] ${pipeline.id}: Currently ${pipelineStatus.status}, skipping`)
+          result.already_running.push(pipeline.id)
+          continue
+        }
+
+        // Check 3: Ran today but failed? → Log and retry
+        if (pipelineStatus?.ran_today && !pipelineStatus?.succeeded_today) {
+          console.log(`[PipelineAutoTrigger] ${pipeline.id}: Failed today, retrying`)
+        }
+
+        // ============================================
+        // STEP 3: Trigger pipeline (not running, not completed)
+        // ============================================
+        console.log(`[PipelineAutoTrigger] ${pipeline.id}: Triggering pipeline...`)
+
+        const triggerResult = await triggerPipelineViaApi(
+          orgSlug,
+          pipeline.path,
+          getMonthStartUTC(),
+          getTodayDateUTC()
+        )
+
+        if (triggerResult.success) {
+          console.log(`[PipelineAutoTrigger] ${pipeline.id}: Triggered successfully`)
+          result.triggered.push(pipeline.id)
+        } else {
+          // Check if error indicates already running (race condition)
+          if (triggerResult.error?.includes("already running")) {
+            console.log(`[PipelineAutoTrigger] ${pipeline.id}: Already running (race condition)`)
+            result.already_running.push(pipeline.id)
+          } else {
+            console.warn(`[PipelineAutoTrigger] ${pipeline.id}: Trigger failed - ${triggerResult.error}`)
+            result.errors.push(`${pipeline.id}: ${triggerResult.error}`)
+          }
+        }
+      }
+
+      // ============================================
+      // STEP 4: Report results via callbacks
+      // ============================================
       if (debug || result.triggered.length > 0) {
-        console.log(`[PipelineAutoTrigger] Result:`, {
+        console.log(`[PipelineAutoTrigger] Summary:`, {
           triggered: result.triggered,
           skipped: result.skipped,
           already_running: result.already_running,
@@ -93,27 +233,22 @@ export function PipelineAutoTrigger({
         })
       }
 
-      // FIX #4: Call callbacks via refs
       if (result.triggered.length > 0) {
-        console.log(`[PipelineAutoTrigger] Auto-triggered pipelines: ${result.triggered.join(", ")}`)
         onTriggeredRef.current?.(result.triggered)
       }
 
       if (result.errors.length > 0) {
-        console.warn(`[PipelineAutoTrigger] Pipeline errors:`, result.errors)
         onErrorRef.current?.(result.errors)
       }
 
-      // Always call onComplete with full result
       onCompleteRef.current?.(result)
 
     } catch (error) {
-      // Log error and call callback
       const errorMessage = error instanceof Error ? error.message : "Unknown error"
-      console.warn(`[PipelineAutoTrigger] Background check failed:`, error)
-
-      // FIX #4: Report error through callback
-      onErrorRef.current?.([errorMessage])
+      console.warn(`[PipelineAutoTrigger] Check failed:`, error)
+      result.errors.push(errorMessage)
+      onErrorRef.current?.(result.errors)
+      onCompleteRef.current?.(result)
     }
   }, [orgSlug, debug])
 
@@ -127,11 +262,25 @@ export function PipelineAutoTrigger({
       lastOrgSlug.current = orgSlug
     }
 
-    // Only run once per org
+    // Only run once per org (in-memory check)
     if (hasChecked.current) {
       return
     }
+
+    // FIX #20: localStorage debounce - prevent duplicate triggers on rapid login/refresh
+    // This persists across page refreshes/re-mounts within the debounce window
+    if (shouldDebounce(orgSlug)) {
+      if (debug) {
+        console.log(`[PipelineAutoTrigger] Debounced - checked recently for ${orgSlug}`)
+      }
+      hasChecked.current = true // Mark as checked to prevent retries in this session
+      return
+    }
+
     hasChecked.current = true
+
+    // Record check time BEFORE running (prevents race conditions)
+    recordCheck(orgSlug)
 
     // Small delay to let page render first
     const timeoutId = setTimeout(runCheck, 1000)

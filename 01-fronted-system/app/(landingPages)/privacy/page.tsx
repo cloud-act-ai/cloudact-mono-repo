@@ -22,7 +22,7 @@ export default function PrivacyPage() {
         <div className="container px-4">
           <div className="mx-auto max-w-3xl text-center space-y-4 sm:space-y-6">
             <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight">Privacy Policy</h1>
-            <p className="text-base sm:text-lg text-[#8E8E93]">Last updated: January 2025</p>
+            <p className="text-base sm:text-lg text-muted-foreground">Last updated: January 2025</p>
           </div>
         </div>
       </section>
@@ -34,7 +34,7 @@ export default function PrivacyPage() {
             <div className="prose dark:prose-invert max-w-none space-y-6 sm:space-y-8">
               <div className="space-y-4">
                 <h2 className="text-2xl font-bold">Introduction</h2>
-                <p className="text-[#8E8E93] leading-relaxed">
+                <p className="text-muted-foreground leading-relaxed">
                   CloudAct.ai ("we," "our," or "us") is committed to protecting your privacy. This Privacy Policy explains
                   how we collect, use, disclose, and safeguard your information when you use our platform.
                 </p>
@@ -42,10 +42,10 @@ export default function PrivacyPage() {
 
               <div className="space-y-4">
                 <h2 className="text-2xl font-bold">Information We Collect</h2>
-                <p className="text-[#8E8E93] leading-relaxed">
+                <p className="text-muted-foreground leading-relaxed">
                   We collect information that you provide directly to us, including:
                 </p>
-                <ul className="space-y-2 text-[#8E8E93]">
+                <ul className="space-y-2 text-muted-foreground">
                   <li className="flex items-start gap-2">
                     <span className="text-foreground mt-1">•</span>
                     <span>Account information (name, email, company)</span>
@@ -67,8 +67,8 @@ export default function PrivacyPage() {
 
               <div className="space-y-4">
                 <h2 className="text-2xl font-bold">How We Use Your Information</h2>
-                <p className="text-[#8E8E93] leading-relaxed">We use the information we collect to:</p>
-                <ul className="space-y-2 text-[#8E8E93]">
+                <p className="text-muted-foreground leading-relaxed">We use the information we collect to:</p>
+                <ul className="space-y-2 text-muted-foreground">
                   <li className="flex items-start gap-2">
                     <span className="text-foreground mt-1">•</span>
                     <span>Provide, maintain, and improve our services</span>
@@ -90,7 +90,7 @@ export default function PrivacyPage() {
 
               <div className="space-y-4">
                 <h2 className="text-2xl font-bold">Data Security</h2>
-                <p className="text-[#8E8E93] leading-relaxed">
+                <p className="text-muted-foreground leading-relaxed">
                   We implement industry-standard security measures to protect your data, including encryption at rest and
                   in transit, regular security audits, and SOC 2 Type II compliance.
                 </p>
@@ -98,7 +98,7 @@ export default function PrivacyPage() {
 
               <div className="space-y-4">
                 <h2 className="text-2xl font-bold">Data Retention</h2>
-                <p className="text-[#8E8E93] leading-relaxed">
+                <p className="text-muted-foreground leading-relaxed">
                   We retain your personal information for as long as necessary to fulfill the purposes outlined in this
                   Privacy Policy, unless a longer retention period is required or permitted by law.
                 </p>
@@ -106,7 +106,7 @@ export default function PrivacyPage() {
 
               <div className="space-y-4">
                 <h2 className="text-2xl font-bold">Your Rights</h2>
-                <p className="text-[#8E8E93] leading-relaxed">
+                <p className="text-muted-foreground leading-relaxed">
                   Depending on your location, you may have certain rights regarding your personal information, including
                   the right to access, correct, delete, or port your data. Contact us to exercise these rights.
                 </p>
@@ -114,7 +114,7 @@ export default function PrivacyPage() {
 
               <div className="space-y-4">
                 <h2 className="text-2xl font-bold">Contact Us</h2>
-                <p className="text-[#8E8E93] leading-relaxed">
+                <p className="text-muted-foreground leading-relaxed">
                   If you have questions about this Privacy Policy, please contact us at{" "}
                   <a
                     href={`mailto:${process.env.NEXT_PUBLIC_PRIVACY_EMAIL || "privacy@cloudact.ai"}`}

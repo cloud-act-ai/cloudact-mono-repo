@@ -208,20 +208,17 @@ export default function AddCustomSubscriptionPage() {
     // Validate plan name
     if (!formData.plan_name || !formData.plan_name.trim()) {
       setError("Plan name is required")
-      toast.error("Plan name is required")
       return
     }
 
     if (formData.plan_name.trim().length > 50) {
       setError("Plan name cannot exceed 50 characters")
-      toast.error("Plan name cannot exceed 50 characters")
       return
     }
 
     // Validate start date
     if (!startDate) {
       setError("Start date is required")
-      toast.error("Start date is required")
       return
     }
 
@@ -232,31 +229,26 @@ export default function AddCustomSubscriptionPage() {
     // Validate inputs
     if (finalUnitPrice < 0) {
       setError("Price cannot be negative")
-      toast.error("Price cannot be negative")
       return
     }
     if (finalSeats < 0) {
       setError("Seats cannot be negative")
-      toast.error("Seats cannot be negative")
       return
     }
     // Validate seats for PER_SEAT plans
     if (formData.pricing_model === 'PER_SEAT' && finalSeats < 1) {
       setError("Per-seat plans require at least 1 seat")
-      toast.error("Per-seat plans require at least 1 seat")
       return
     }
     // Validate upper bound for seats
     if (finalSeats > 10000) {
       setError("Seats cannot exceed 10,000")
-      toast.error("Seats cannot exceed 10,000")
       return
     }
 
     // Validate currency matches org default (should never happen due to locked UI, but double-check)
     if (formData.currency !== orgCurrency) {
       setError(`Currency must match organization default (${orgCurrency})`)
-      toast.error(`Currency must match organization default (${orgCurrency})`)
       return
     }
 
@@ -291,12 +283,10 @@ export default function AddCustomSubscriptionPage() {
         planData.exchange_rate_used = formData.exchange_rate_used
       }
 
-      console.log("[CreateCustomPlan] Submitting plan data:", planData)
       const result = await createCustomPlan(orgSlug, provider, planData)
 
       if (!result.success) {
         setError(result.error || "Failed to create subscription")
-        toast.error(result.error || "Failed to create subscription")
         setSubmitting(false)
         return
       }
@@ -332,7 +322,6 @@ export default function AddCustomSubscriptionPage() {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "An unexpected error occurred"
       setError(errorMessage)
-      toast.error(errorMessage)
     } finally {
       setSubmitting(false)
     }
@@ -359,7 +348,7 @@ export default function AddCustomSubscriptionPage() {
         >
           Subscription Providers
         </Link>
-        <ChevronRight className="h-4 w-4 text-[#8E8E93] flex-shrink-0" aria-hidden="true" />
+        <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" aria-hidden="true" />
         <Link
           href={`/${orgSlug}/integrations/subscriptions/${provider}`}
           className="text-[#007A78] hover:text-[#005F5D] transition-colors focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2 rounded truncate max-w-[200px]"
@@ -367,9 +356,9 @@ export default function AddCustomSubscriptionPage() {
         >
           {providerDisplayName}
         </Link>
-        <ChevronRight className="h-4 w-4 text-[#8E8E93] flex-shrink-0" aria-hidden="true" />
+        <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" aria-hidden="true" />
         <span className="text-gray-600 truncate max-w-[200px]" title="Add Subscription">Add Subscription</span>
-        <ChevronRight className="h-4 w-4 text-[#8E8E93] flex-shrink-0" aria-hidden="true" />
+        <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" aria-hidden="true" />
         <span className="text-gray-900 font-medium truncate max-w-[300px]" title="Custom">Custom</span>
       </nav>
 
@@ -426,7 +415,7 @@ export default function AddCustomSubscriptionPage() {
                 required
                 data-testid="plan-name-input"
               />
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-muted-foreground">
                 This will be converted to uppercase (e.g., ENTERPRISE). Max 50 characters.
               </p>
             </div>
@@ -492,11 +481,11 @@ export default function AddCustomSubscriptionPage() {
                     className="pl-8"
                     data-testid="unit-price-input"
                   />
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
                     {SUPPORTED_CURRENCIES.find(c => c.code === formData.currency)?.symbol || "$"}
                   </span>
                 </div>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-muted-foreground">
                   Price in {formData.currency}
                 </p>
               </div>
@@ -542,14 +531,14 @@ export default function AddCustomSubscriptionPage() {
               <div className="space-y-2">
                 <Label htmlFor="currency">Currency</Label>
                 {/* Currency is locked to org default for consistency */}
-                <div className="flex items-center h-10 px-3 rounded-md border border-slate-200 bg-slate-50 text-slate-600">
+                <div className="flex items-center h-10 px-3 rounded-md border border-border bg-[#007A78]/5 text-foreground">
                   <span className="font-medium">{formData.currency}</span>
-                  <span className="ml-2 text-slate-400">
+                  <span className="ml-2 text-muted-foreground">
                     ({getCurrencySymbol(formData.currency)})
                   </span>
-                  <span className="ml-auto text-xs text-slate-400">Locked to org default</span>
+                  <span className="ml-auto text-xs text-muted-foreground">Locked to org default</span>
                 </div>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-muted-foreground">
                   Currency is set to your organization's default ({orgCurrency}) for consistent reporting.
                 </p>
               </div>
@@ -603,7 +592,7 @@ export default function AddCustomSubscriptionPage() {
                 required
                 data-testid="seats-input"
               />
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-muted-foreground">
                 {formData.pricing_model === 'PER_SEAT'
                   ? 'Number of seats for this subscription (minimum 1 for per-seat plans)'
                   : 'Number of seats for tracking purposes'}
@@ -627,7 +616,7 @@ export default function AddCustomSubscriptionPage() {
                 showPresets={true}
                 data-testid="start-date-picker"
               />
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-muted-foreground">
                 Can be in the past for backdated subscriptions. Historical costs will be calculated automatically.
               </p>
             </div>
@@ -669,13 +658,13 @@ export default function AddCustomSubscriptionPage() {
 
             {/* Cost Preview */}
             {formData.unit_price > 0 && (
-              <Card className="bg-slate-50 border-slate-200">
+              <Card className="bg-[#007A78]/5 border-border">
                 <CardContent className="pt-6">
                   <div className="space-y-2">
-                    <p className="text-sm font-medium text-slate-700">Cost Preview</p>
+                    <p className="text-sm font-medium text-foreground">Cost Preview</p>
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
-                        <span className="text-slate-500">Total Cost:</span>
+                        <span className="text-muted-foreground">Total Cost:</span>
                         <span className="ml-2 font-semibold text-[#FF6E50]">
                           {(() => {
                             let totalCost = formData.unit_price
@@ -688,7 +677,7 @@ export default function AddCustomSubscriptionPage() {
                         </span>
                       </div>
                       <div>
-                        <span className="text-slate-500">Monthly Rate:</span>
+                        <span className="text-muted-foreground">Monthly Rate:</span>
                         <span className="ml-2 font-semibold">
                           {(() => {
                             let totalCost = formData.unit_price
@@ -724,7 +713,7 @@ export default function AddCustomSubscriptionPage() {
           <Button
             type="submit"
             disabled={submitting || !formData.plan_name.trim() || !startDate}
-            className="h-[36px] px-4 bg-[#007A78] text-white hover:bg-[#006664] rounded-xl text-[15px] font-semibold disabled:bg-[#E5E5EA] disabled:text-[#C7C7CC]"
+            className="console-button-primary h-11 rounded-xl"
           >
             {submitting ? (
               <>

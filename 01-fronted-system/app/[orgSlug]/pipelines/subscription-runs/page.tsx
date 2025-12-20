@@ -203,7 +203,7 @@ export default function SubscriptionRunsPage() {
       case "PENDING":
         return "bg-[#007A78]/5 text-[#007A78] border border-[#007A78]/10"
       default:
-        return "bg-[#007A78]/5 text-[#8E8E93] border border-[#E5E5EA]"
+        return "bg-[#007A78]/5 text-muted-foreground border border-border"
     }
   }
 
@@ -219,7 +219,7 @@ export default function SubscriptionRunsPage() {
     <div className="space-y-6 sm:space-y-8">
       <div>
         <h1 className="text-[32px] sm:text-[34px] font-bold text-black tracking-tight">Subscription Runs</h1>
-        <p className="text-[15px] text-[#8E8E93] mt-1">
+        <p className="text-[15px] text-muted-foreground mt-1">
           Run and monitor SaaS subscription cost pipelines.
         </p>
       </div>
@@ -232,11 +232,11 @@ export default function SubscriptionRunsPage() {
               <h3 className="text-[15px] font-semibold text-black">
                 {!backendConnected ? "Backend Not Connected" : "API Key Missing"}
               </h3>
-              <p className="text-[13px] text-[#8E8E93]">
+              <p className="text-[13px] text-muted-foreground">
                 Complete organization onboarding to run pipelines.
               </p>
               <Link href={`/${orgSlug}/settings/organization`}>
-                <button className="inline-flex items-center gap-2 h-[36px] px-4 bg-[#007A78] text-white text-[15px] font-semibold rounded-xl hover:bg-[#005F5D] transition-colors">
+                <button className="inline-flex items-center gap-2 h-11 px-4 bg-[#007A78] text-white text-[15px] font-semibold rounded-xl hover:bg-[#005F5D] transition-colors">
                   Go to Settings
                 </button>
               </Link>
@@ -245,7 +245,7 @@ export default function SubscriptionRunsPage() {
         </div>
       )}
 
-      <div className="health-card bg-[#007A78]/5 p-4">
+      <div className="health-card bg-[#007A78]/5 p-4 border border-border">
         <div className="flex items-center gap-3">
           <Info className="h-5 w-5 text-[#007A78] flex-shrink-0" />
           <p className="text-[15px] text-black">
@@ -297,11 +297,11 @@ export default function SubscriptionRunsPage() {
                           <Wallet className="h-12 w-12 text-[#007A78]" />
                         </div>
                         <h3 className="text-[20px] font-semibold text-black">No subscription pipelines</h3>
-                        <p className="text-[15px] text-[#8E8E93] max-w-md mx-auto">
+                        <p className="text-[15px] text-muted-foreground max-w-md mx-auto">
                           Enable subscription providers in Integrations to run cost pipelines.
                         </p>
                         <Link href={`/${orgSlug}/integrations/subscriptions`}>
-                          <button className="inline-flex items-center gap-2 h-[44px] px-6 bg-[#007A78] text-white text-[15px] font-semibold rounded-xl hover:bg-[#005F5D] transition-colors shadow-sm">
+                          <button className="inline-flex items-center gap-2 h-11 px-6 bg-[#007A78] text-white text-[15px] font-semibold rounded-xl hover:bg-[#005F5D] transition-colors shadow-sm">
                             <Wallet className="h-4 w-4" />
                             Manage Subscriptions
                           </button>
@@ -318,11 +318,11 @@ export default function SubscriptionRunsPage() {
                         <TableCell className="console-table-cell">
                           <div className="space-y-0.5">
                             <div className="text-[15px] font-semibold text-black">{pipeline.name}</div>
-                            <div className="text-[13px] text-[#8E8E93]">{pipeline.description}</div>
+                            <div className="text-[13px] text-muted-foreground">{pipeline.description}</div>
                           </div>
                         </TableCell>
                         <TableCell className="console-table-cell">
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#007A78]/5 text-[#8E8E93]">
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#007A78]/5 text-muted-foreground border border-border">
                             {pipeline.provider}
                           </span>
                         </TableCell>
@@ -336,7 +336,7 @@ export default function SubscriptionRunsPage() {
                           <button
                             onClick={() => handleRun(pipeline.id)}
                             disabled={isRunning}
-                            className="inline-flex items-center gap-2 h-[36px] px-4 bg-[#007A78] text-white text-[15px] font-semibold rounded-xl hover:bg-[#005F5D] disabled:bg-[#E5E5EA] disabled:text-[#C7C7CC] disabled:cursor-not-allowed disabled:opacity-70 transition-all touch-manipulation"
+                            className="inline-flex items-center gap-2 h-11 px-4 bg-[#007A78] text-white text-[15px] font-semibold rounded-xl hover:bg-[#005F5D] disabled:bg-[#E5E5EA] disabled:text-[#C7C7CC] disabled:cursor-not-allowed disabled:opacity-70 transition-all touch-manipulation"
                           >
                             {isRunning ? (
                               <>
@@ -368,7 +368,7 @@ export default function SubscriptionRunsPage() {
             <button
               onClick={loadPipelineRuns}
               disabled={runsLoading}
-              className="inline-flex items-center justify-center gap-2 h-[36px] px-4 bg-[#007A78]/5 text-[#8E8E93] text-[15px] font-medium rounded-xl hover:bg-[#007A78]/8 disabled:text-[#C7C7CC] disabled:cursor-not-allowed disabled:opacity-50 transition-colors touch-manipulation"
+              className="inline-flex items-center justify-center gap-2 h-11 px-4 bg-[#007A78]/5 text-muted-foreground text-[15px] font-medium rounded-xl hover:bg-[#007A78]/10 disabled:text-[#C7C7CC] disabled:cursor-not-allowed disabled:opacity-50 transition-colors touch-manipulation border border-border"
             >
               {runsLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -403,10 +403,10 @@ export default function SubscriptionRunsPage() {
                       <TableCell colSpan={5} className="px-4 sm:px-6 py-12 text-center">
                         <div className="space-y-3">
                           <div className="inline-flex p-3 rounded-2xl bg-[#8E8E93]/10 mb-2">
-                            <History className="h-10 w-10 text-[#8E8E93]" />
+                            <History className="h-10 w-10 text-muted-foreground" />
                           </div>
                           <h3 className="text-[17px] font-semibold text-black">No runs yet</h3>
-                          <p className="text-[15px] text-[#8E8E93]">Run a subscription pipeline to see history</p>
+                          <p className="text-[15px] text-muted-foreground">Run a subscription pipeline to see history</p>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -431,7 +431,7 @@ export default function SubscriptionRunsPage() {
                             </TableCell>
                             <TableCell className="console-table-cell">
                               <div className="text-[15px] font-semibold text-black">{run.pipeline_id}</div>
-                              <div className="text-[11px] text-[#8E8E93] font-mono mt-0.5">
+                              <div className="text-[11px] text-muted-foreground font-mono mt-0.5">
                                 {run.pipeline_logging_id.slice(0, 8)}...
                               </div>
                             </TableCell>
@@ -450,7 +450,7 @@ export default function SubscriptionRunsPage() {
                             </TableCell>
                             <TableCell className="console-table-cell">
                               <div className="flex items-center gap-1 text-[13px] text-black">
-                                <Clock className="h-3 w-3 text-[#8E8E93]" />
+                                <Clock className="h-3 w-3 text-muted-foreground" />
                                 {formatDuration(run.duration_ms)}
                               </div>
                             </TableCell>
@@ -471,7 +471,7 @@ export default function SubscriptionRunsPage() {
                                           <AlertCircle className="h-5 w-5 text-[#FF6E50] mt-0.5 flex-shrink-0" />
                                           <div>
                                             <p className="text-[15px] font-semibold text-black">Error</p>
-                                            <p className="text-[13px] text-[#8E8E93] mt-1">{run.error_message}</p>
+                                            <p className="text-[13px] text-muted-foreground mt-1">{run.error_message}</p>
                                           </div>
                                         </div>
                                       </div>
@@ -493,7 +493,7 @@ export default function SubscriptionRunsPage() {
                                             <TableBody>
                                               {detail.steps.length === 0 ? (
                                                 <TableRow>
-                                                  <TableCell colSpan={4} className="text-center text-[#8E8E93] text-[13px] py-6">
+                                                  <TableCell colSpan={4} className="text-center text-muted-foreground text-[13px] py-6">
                                                     No step logs available
                                                   </TableCell>
                                                 </TableRow>
@@ -518,7 +518,7 @@ export default function SubscriptionRunsPage() {
                                     </div>
                                   </div>
                                 ) : (
-                                  <div className="text-center text-[#8E8E93] text-[13px] py-6">
+                                  <div className="text-center text-muted-foreground text-[13px] py-6">
                                     Failed to load details
                                   </div>
                                 )}

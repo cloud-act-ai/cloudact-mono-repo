@@ -98,7 +98,8 @@ async def test_invalid_org_slug_in_path(invalid_org_slug, reason, valid_admin_ke
         # Should return 400 Bad Request for invalid org_slug format
         # OR 401/403 for authentication failures (both acceptable)
         # OR 404 for path traversal attempts that resolve to non-existent routes
-        assert response.status_code in [400, 401, 403, 404, 422], \
+        # OR 307 for URL-encoded path traversal (URL normalization redirect)
+        assert response.status_code in [307, 400, 401, 403, 404, 422], \
             f"Invalid org_slug '{invalid_org_slug}' ({reason}) should be rejected"
 
 

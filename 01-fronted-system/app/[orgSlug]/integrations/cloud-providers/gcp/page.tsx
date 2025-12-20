@@ -86,7 +86,7 @@ export default function GCPIntegrationPage() {
     const result = await getIntegrations(orgSlug)
 
     if (result.success && result.integrations) {
-      const gcpIntegration = result.integrations.integrations["GCP_SA"]
+      const gcpIntegration = result.integrations?.integrations?.["GCP_SA"]
       setIntegration(gcpIntegration)
     } else {
       setError(result.error || "Failed to load integration status")
@@ -99,18 +99,18 @@ export default function GCPIntegrationPage() {
     void loadIntegration()
   }, [loadIntegration])
 
-  // Clear success message after delay (15 seconds for better visibility)
+  // Clear success message after delay
   useEffect(() => {
     if (successMessage) {
-      const timer = setTimeout(() => setSuccessMessage(null), 15000)
+      const timer = setTimeout(() => setSuccessMessage(null), 5000)
       return () => clearTimeout(timer)
     }
   }, [successMessage])
 
-  // Clear error message after delay (20 seconds - longer for errors so users can read)
+  // Clear error message after delay
   useEffect(() => {
     if (error) {
-      const timer = setTimeout(() => setError(null), 20000)
+      const timer = setTimeout(() => setError(null), 10000)
       return () => clearTimeout(timer)
     }
   }, [error])
@@ -282,7 +282,7 @@ export default function GCPIntegrationPage() {
       {/* Header with back link */}
       <div className="flex items-center gap-4">
         <Link href={`/${orgSlug}/integrations/cloud-providers`}>
-          <Button variant="ghost" size="sm">
+          <Button variant="ghost" size="sm" className="h-11 rounded-xl">
             <ArrowLeft className="h-4 w-4 mr-1" />
             Cloud Providers
           </Button>
@@ -370,15 +370,15 @@ export default function GCPIntegrationPage() {
                     border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors
                     ${isDragging
                       ? "border-primary bg-primary/5"
-                      : "border-[#8E8E93]/25 hover:border-primary/50 hover:bg-muted/50"
+                      : "border-border/50 hover:border-primary/50 hover:bg-muted/50"
                     }
                   `}
                 >
-                  <Upload className="h-10 w-10 mx-auto mb-3 text-[#8E8E93]" />
+                  <Upload className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
                   <p className="text-sm font-medium">
                     Drop your Service Account JSON here
                   </p>
-                  <p className="text-xs text-[#8E8E93] mt-1">
+                  <p className="text-xs text-muted-foreground mt-1">
                     or click to browse
                   </p>
                 </div>
@@ -392,17 +392,17 @@ export default function GCPIntegrationPage() {
                       </div>
                       <div>
                         <p className="font-medium text-sm">{uploadedFile.name}</p>
-                        <p className="text-xs text-[#8E8E93] mt-0.5">
+                        <p className="text-xs text-muted-foreground mt-0.5">
                           {(uploadedFile.size / 1024).toFixed(1)} KB
                         </p>
                         {parsedSA && (
                           <div className="mt-2 space-y-1">
                             <p className="text-xs">
-                              <span className="text-[#8E8E93]">Project:</span>{" "}
+                              <span className="text-muted-foreground">Project:</span>{" "}
                               <span className="font-mono">{parsedSA.project_id}</span>
                             </p>
                             <p className="text-xs">
-                              <span className="text-[#8E8E93]">Service Account:</span>{" "}
+                              <span className="text-muted-foreground">Service Account:</span>{" "}
                               <span className="font-mono text-xs">{parsedSA.client_email}</span>
                             </p>
                           </div>
@@ -413,7 +413,7 @@ export default function GCPIntegrationPage() {
                       variant="ghost"
                       size="sm"
                       onClick={clearFile}
-                      className="h-8 w-8 p-0"
+                      className="h-11 w-11 p-0 rounded-xl"
                     >
                       <X className="h-4 w-4" />
                     </Button>
@@ -451,11 +451,11 @@ export default function GCPIntegrationPage() {
             <div className="space-y-4">
               <div className="flex items-center gap-4 p-4 border rounded-lg bg-muted/30">
                 <div className="p-2 bg-background rounded-md">
-                  <Key className="h-5 w-5 text-[#8E8E93]" />
+                  <Key className="h-5 w-5 text-muted-foreground" />
                 </div>
                 <div className="flex-1">
                   <p className="font-medium">{integration?.credential_name || "GCP Service Account"}</p>
-                  <div className="flex items-center gap-4 mt-1 text-sm text-[#8E8E93]">
+                  <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
                     <span className="flex items-center gap-1">
                       <Clock className="h-3.5 w-3.5" />
                       Last validated: {formatDate(integration?.last_validated_at)}

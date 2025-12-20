@@ -76,7 +76,166 @@ PipelineRunDetail.model_rebuild()
 
 
 # ============================================
-# Endpoints
+# Pipeline Status Models (for auto-trigger)
+# ============================================
+
+class PipelineRunStatus(BaseModel):
+    """Status of a specific pipeline for today."""
+    pipeline_id: str = Field(..., description="Pipeline identifier")
+    last_run: Optional[datetime] = Field(None, description="Last run timestamp")
+    status: Optional[str] = Field(None, description="Last run status")
+    ran_today: bool = Field(..., description="Whether pipeline ran today")
+    succeeded_today: bool = Field(..., description="Whether pipeline succeeded today")
+
+
+class PipelineStatusResponse(BaseModel):
+    """Response for pipeline status check."""
+    org_slug: str = Field(..., description="Organization slug")
+    check_date: str = Field(..., description="Date checked (YYYY-MM-DD)")
+    pipelines: Dict[str, PipelineRunStatus] = Field(..., description="Status by pipeline ID")
+    cached: bool = Field(default=False, description="Whether response is cached")
+
+
+# ============================================
+# Known Daily Pipelines (must match frontend DAILY_PIPELINES)
+# ============================================
+
+KNOWN_DAILY_PIPELINES = [
+    {"id": "saas_subscription_costs", "path": "saas_subscription/costs/saas_cost"},
+    # Add more as needed:
+    # {"id": "gcp_billing", "path": "gcp/cost/billing"},
+    # {"id": "openai_usage", "path": "openai/cost/usage_cost"},
+]
+
+
+# ============================================
+# Pipeline Status Endpoint (for auto-trigger)
+# ============================================
+
+@router.get(
+    "/pipelines/status/{org_slug}",
+    response_model=PipelineStatusResponse,
+    summary="Check pipeline status for today",
+    description="Check which daily pipelines have run today. Used by frontend auto-trigger."
+)
+async def get_pipeline_status(
+    org_slug: str,
+    org_context: dict = Depends(get_current_org),
+    bq_client: BigQueryClient = Depends(get_bigquery_client)
+):
+    """
+    Check which daily pipelines have run today for an organization.
+
+    Returns status for each known daily pipeline:
+    - ran_today: Whether pipeline ran today (any status)
+    - succeeded_today: Whether pipeline completed successfully today
+    - status: Last run status (PENDING, RUNNING, COMPLETED, FAILED)
+    - last_run: Timestamp of last run
+
+    Used by frontend PipelineAutoTrigger component to avoid duplicate triggers.
+    """
+    # Verify org_slug matches authenticated org
+    if org_context["org_slug"] != org_slug:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied: org_slug mismatch"
+        )
+
+    from datetime import date as date_type
+    today = date_type.today()
+    today_str = today.strftime("%Y-%m-%d")
+
+    try:
+        # Query for today's pipeline runs
+        # Match pipeline_id patterns like: "saas_subscription/costs/saas_cost"
+        # or "{org}-saas_subscription-costs-saas_cost"
+        query = f"""
+        SELECT
+            pipeline_id,
+            status,
+            start_time,
+            run_date
+        FROM `{settings.gcp_project_id}.organizations.org_meta_pipeline_runs`
+        WHERE org_slug = @org_slug
+          AND run_date = @today
+        ORDER BY start_time DESC
+        """
+
+        parameters = [
+            bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+            bigquery.ScalarQueryParameter("today", "DATE", today)
+        ]
+
+        results = list(bq_client.query(query, parameters=parameters))
+
+        # Build a map of pipeline_id -> latest status
+        pipeline_runs: Dict[str, Dict] = {}
+        for row in results:
+            pid = row["pipeline_id"]
+            # Only keep the latest run per pipeline
+            if pid not in pipeline_runs:
+                pipeline_runs[pid] = {
+                    "status": row["status"],
+                    "start_time": row["start_time"],
+                    "run_date": row["run_date"]
+                }
+
+        # Build response for known pipelines
+        pipelines_status: Dict[str, PipelineRunStatus] = {}
+
+        for known_pipeline in KNOWN_DAILY_PIPELINES:
+            pipeline_id = known_pipeline["id"]
+            pipeline_path = known_pipeline["path"]
+
+            # Check for matching runs (could be path format or with org prefix)
+            matching_run = None
+            for pid, run_data in pipeline_runs.items():
+                # Match patterns:
+                # 1. Exact path: "saas_subscription/costs/saas_cost"
+                # 2. With org prefix: "{org}-saas_subscription-costs-saas_cost"
+                # 3. Pipeline ID format: contains the path components
+                if (pipeline_path in pid or
+                    pipeline_path.replace("/", "-") in pid or
+                    pid == pipeline_path):
+                    matching_run = run_data
+                    break
+
+            if matching_run:
+                pipelines_status[pipeline_id] = PipelineRunStatus(
+                    pipeline_id=pipeline_id,
+                    last_run=matching_run["start_time"],
+                    status=matching_run["status"],
+                    ran_today=True,
+                    succeeded_today=(matching_run["status"] == "COMPLETED")
+                )
+            else:
+                pipelines_status[pipeline_id] = PipelineRunStatus(
+                    pipeline_id=pipeline_id,
+                    last_run=None,
+                    status=None,
+                    ran_today=False,
+                    succeeded_today=False
+                )
+
+        logger.info(f"Pipeline status check for {org_slug}: {len(pipelines_status)} pipelines checked")
+
+        return PipelineStatusResponse(
+            org_slug=org_slug,
+            check_date=today_str,
+            pipelines=pipelines_status,
+            cached=False
+        )
+
+    except Exception as e:
+        logger.error(f"Error checking pipeline status: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to check pipeline status. Please check server logs for details."
+        )
+
+
+# ============================================
+# Pipeline Runs Endpoints
 # ============================================
 
 @router.get(

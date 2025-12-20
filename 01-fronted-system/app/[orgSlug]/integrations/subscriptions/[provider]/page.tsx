@@ -30,6 +30,7 @@ import {
   CreditCard,
   Loader2,
   Check,
+  AlertCircle,
 } from "lucide-react"
 import { format } from "date-fns"
 
@@ -337,37 +338,31 @@ export default function ProviderDetailPage() {
 
     if (!formData.plan_name.trim()) {
       setError("Plan name is required")
-      toast.error("Plan name is required")
       return
     }
 
     if (!startDate) {
       setError("Start date is required")
-      toast.error("Start date is required")
       return
     }
 
     if (formData.unit_price === undefined || formData.unit_price < 0) {
       setError("Price must be a valid positive number")
-      toast.error("Price must be a valid positive number")
       return
     }
 
     if (formData.seats === undefined || formData.seats < 0) {
       setError("Seats must be a valid positive number")
-      toast.error("Seats must be a valid positive number")
       return
     }
 
     if (formData.pricing_model === 'PER_SEAT' && formData.seats < 1) {
       setError("Per-seat plans require at least 1 seat")
-      toast.error("Per-seat plans require at least 1 seat")
       return
     }
 
     if (formData.seats > 10000) {
       setError("Seats cannot exceed 10,000")
-      toast.error("Seats cannot exceed 10,000")
       return
     }
 
@@ -380,7 +375,6 @@ export default function ProviderDetailPage() {
       // Ensure required fields are defined
       if (formData.unit_price === undefined || formData.seats === undefined) {
         setError("Price and seats are required")
-        toast.error("Price and seats are required")
         return
       }
 
@@ -410,7 +404,6 @@ export default function ProviderDetailPage() {
 
       if (!result.success) {
         setError(result.error || "Failed to create subscription")
-        toast.error(result.error || "Failed to create subscription")
         return
       }
 
@@ -422,7 +415,6 @@ export default function ProviderDetailPage() {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "An unexpected error occurred"
       setError(errorMessage)
-      toast.error(errorMessage)
     } finally {
       setSubmitting(false)
     }
@@ -469,7 +461,7 @@ export default function ProviderDetailPage() {
           </CardHeader>
           <CardContent className="px-0">
             {/* Table Header */}
-            <div className="console-table-header-row grid grid-cols-12 gap-4 px-4 py-3 border-b bg-slate-50/50">
+            <div className="console-table-header-row grid grid-cols-12 gap-4 px-4 py-3 border-b bg-[#007A78]/[0.02]">
               {[1, 3, 2, 2, 2, 2].map((span, i) => (
                 <div key={i} className={`col-span-${span}`}>
                   <Skeleton className="h-4 w-full" />
@@ -506,7 +498,7 @@ export default function ProviderDetailPage() {
         >
           Subscription Providers
         </Link>
-        <ChevronRight className="h-4 w-4 text-[#8E8E93] flex-shrink-0" aria-hidden="true" />
+        <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" aria-hidden="true" />
         <span className="text-gray-900 font-medium truncate max-w-[300px]" title={providerDisplayName}>{providerDisplayName}</span>
       </nav>
 
@@ -530,10 +522,10 @@ export default function ProviderDetailPage() {
           </div>
         </div>
         {plans.length > 0 && (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
             <Button
               onClick={openTemplateSheet}
-              className="h-[36px] px-4 bg-[#007A78] text-white hover:bg-[#006664] rounded-xl text-[15px] font-semibold"
+              className="console-button-primary"
               data-testid="add-from-template-btn"
             >
               <Plus className="h-4 w-4 mr-2" />
@@ -541,8 +533,7 @@ export default function ProviderDetailPage() {
             </Button>
             <Button
               onClick={openCustomSheet}
-              variant="outline"
-              className="border-[#007A78]/30 text-[#007A78] hover:bg-[#007A78]/5 rounded-xl"
+              className="console-button-secondary"
               data-testid="add-custom-subscription-btn"
             >
               <Plus className="h-4 w-4 mr-2" />
@@ -592,19 +583,19 @@ export default function ProviderDetailPage() {
         <Card className="console-stat-card border-[#FF6E50]/20">
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-[#FF6E50]">{totalActiveSeats}</div>
-            <p className="text-sm text-[#8E8E93]">Total Active Seats</p>
+            <p className="text-sm text-muted-foreground">Total Active Seats</p>
           </CardContent>
         </Card>
         <Card className="console-stat-card border-[#FF6E50]/20">
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-[#FF6E50]">{activeSubscriptionsCount}</div>
-            <p className="text-sm text-[#8E8E93]">Active Subscriptions</p>
+            <p className="text-sm text-muted-foreground">Active Subscriptions</p>
           </CardContent>
         </Card>
         <Card className="console-stat-card border-[#FF6E50]/20">
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-[#FF6E50]">{visiblePlans.length}</div>
-            <p className="text-sm text-[#8E8E93]">Available Plans</p>
+            <p className="text-sm text-muted-foreground">Available Plans</p>
           </CardContent>
         </Card>
       </div>
@@ -621,7 +612,7 @@ export default function ProviderDetailPage() {
             </div>
             {deletedPlansCount > 0 && (
               <div className="flex items-center gap-2">
-                <label htmlFor="show-deleted" className="text-sm text-slate-500 cursor-pointer" data-testid="show-deleted-label">
+                <label htmlFor="show-deleted" className="text-sm text-muted-foreground cursor-pointer" data-testid="show-deleted-label">
                   Show cancelled ({deletedPlansCount})
                 </label>
                 <input
@@ -629,7 +620,7 @@ export default function ProviderDetailPage() {
                   type="checkbox"
                   checked={showDeleted}
                   onChange={(e) => setShowDeleted(e.target.checked)}
-                  className="h-4 w-4 rounded border-slate-300 text-[#007A78] focus:ring-[#007A78] cursor-pointer"
+                  className="h-4 w-4 rounded border-border text-[#007A78] focus:ring-[#007A78] cursor-pointer"
                   data-testid="show-deleted-checkbox"
                 />
               </div>
@@ -643,21 +634,20 @@ export default function ProviderDetailPage() {
                 <CreditCard className="h-12 w-12 text-[#007A78]" />
               </div>
               <h3 className="text-[20px] font-semibold text-black mb-2">No subscriptions yet</h3>
-              <p className="text-[15px] text-[#8E8E93] mb-6">
+              <p className="text-[15px] text-muted-foreground mb-6">
                 Choose a predefined plan or create a custom one.
               </p>
-              <div className="flex items-center justify-center gap-3">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3">
                 <Button
                   onClick={openTemplateSheet}
-                  className="h-[44px] px-6 bg-[#007A78] text-white hover:bg-[#006664] rounded-xl text-[15px] font-semibold shadow-sm"
+                  className="console-button-primary"
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Add from Template
                 </Button>
                 <Button
                   onClick={openCustomSheet}
-                  variant="outline"
-                  className="h-[44px] px-6 border-[#007A78]/30 text-[#007A78] hover:bg-[#007A78]/5 rounded-xl"
+                  className="console-button-secondary"
                   data-testid="add-custom-subscription-empty-btn"
                 >
                   <Plus className="h-4 w-4 mr-2" />
@@ -668,7 +658,7 @@ export default function ProviderDetailPage() {
           ) : (
             <>
               {/* Table Header */}
-              <div className="console-table-header-row grid grid-cols-12 gap-4 px-4 py-3 border-b bg-slate-50/50">
+              <div className="console-table-header-row grid grid-cols-12 gap-4 px-4 py-3 border-b bg-[#007A78]/[0.02]">
                 <div className="col-span-1 console-table-header">Status</div>
                 <div className="col-span-3 console-table-header">Plan Name</div>
                 <div className="col-span-2 console-table-header text-right">Cost</div>
@@ -688,10 +678,10 @@ export default function ProviderDetailPage() {
                   const displayStatus = hasActiveSeats ? plan.status : 'inactive'
                   const statusColors: Record<string, string> = {
                     active: "bg-[#F0FDFA] text-[#007A78] border-[#007A78]/20",
-                    inactive: "bg-slate-100 text-slate-600 border-slate-200",
+                    inactive: "bg-[#007A78]/5 text-muted-foreground border-border",
                     pending: "bg-[#FF6E50]/10 text-[#FF6E50] border-[#FF6E50]/20",
-                    cancelled: "bg-gray-100 text-gray-700 border-gray-200",
-                    expired: "bg-[#8E8E93]/12 text-[#8E8E93] border-[#8E8E93]/20"
+                    cancelled: "bg-[#007A78]/5 text-muted-foreground border-border",
+                    expired: "bg-[#8E8E93]/12 text-muted-foreground border-[#8E8E93]/20"
                   }
 
                   return (
@@ -736,20 +726,20 @@ export default function ProviderDetailPage() {
                           {formatCurrency(plan.unit_price, orgCurrency)}
                         </div>
                         {plan.pricing_model && (
-                          <div className="text-xs text-slate-500">
+                          <div className="text-xs text-muted-foreground">
                             {plan.pricing_model === 'PER_SEAT' ? '/seat' : 'flat fee'}
                           </div>
                         )}
                       </div>
                       <div className="col-span-2">
-                        <Badge variant="outline" className="capitalize bg-slate-50">
+                        <Badge variant="outline" className="capitalize bg-[#007A78]/5">
                           {plan.billing_cycle}
                         </Badge>
                       </div>
-                      <div className="col-span-2 text-right text-slate-600">
+                      <div className="col-span-2 text-right text-foreground">
                         {plan.seats ?? 0}
                       </div>
-                      <div className="col-span-2 text-right flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                      <div className="col-span-2 text-right flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
                         <Link href={`/${orgSlug}/integrations/subscriptions/${provider}/${plan.subscription_id}/edit`}>
                           <Button
                             variant="ghost"
@@ -766,7 +756,7 @@ export default function ProviderDetailPage() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-[#8E8E93] hover:text-[#FF6E50] hover:bg-[#FF6E50]/10"
+                            className="h-8 w-8 text-muted-foreground hover:text-[#FF6E50] hover:bg-[#FF6E50]/10"
                             title="End subscription"
                             aria-label="End subscription"
                             data-testid={`end-plan-${plan.subscription_id}`}
@@ -779,48 +769,51 @@ export default function ProviderDetailPage() {
 
                     {/* Expanded Details Row */}
                     {expandedRow === plan.subscription_id && (
-                      <div className="bg-slate-50/50 px-4 py-4 border-t border-slate-100">
+                      <div className="bg-[#007A78]/[0.02] px-4 py-4 border-t border-border">
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                           {plan.start_date && (
                             <div>
-                              <span className="text-slate-500 block text-xs uppercase tracking-wide mb-1">Start Date</span>
+                              <span className="text-muted-foreground block text-xs uppercase tracking-wide mb-1">Start Date</span>
                               <span className="font-medium">{formatDateOnly(plan.start_date)}</span>
                             </div>
                           )}
                           {plan.renewal_date && (
                             <div>
-                              <span className="text-slate-500 block text-xs uppercase tracking-wide mb-1">Renewal Date</span>
+                              <span className="text-muted-foreground block text-xs uppercase tracking-wide mb-1">Renewal Date</span>
                               <span className="font-medium">{formatDateOnly(plan.renewal_date)}</span>
                             </div>
                           )}
                           {plan.owner_email && (
                             <div>
-                              <span className="text-slate-500 block text-xs uppercase tracking-wide mb-1">Owner</span>
+                              <span className="text-muted-foreground block text-xs uppercase tracking-wide mb-1">Owner</span>
                               <span className="font-medium">{plan.owner_email}</span>
                             </div>
                           )}
                           {plan.department && (
                             <div>
-                              <span className="text-slate-500 block text-xs uppercase tracking-wide mb-1">Department</span>
+                              <span className="text-muted-foreground block text-xs uppercase tracking-wide mb-1">Department</span>
                               <span className="font-medium">{plan.department}</span>
                             </div>
                           )}
                           {plan.contract_id && (
                             <div>
-                              <span className="text-slate-500 block text-xs uppercase tracking-wide mb-1">Contract ID</span>
+                              <span className="text-muted-foreground block text-xs uppercase tracking-wide mb-1">Contract ID</span>
                               <span className="font-medium">{plan.contract_id}</span>
                             </div>
                           )}
                           {plan.currency && plan.currency !== orgCurrency && (
-                            <div>
-                              <span className="text-slate-500 block text-xs uppercase tracking-wide mb-1">Currency</span>
-                              <span className="font-medium text-[#FF6E50]">{plan.currency}</span>
-                              <span className="text-xs text-[#FF6E50] ml-1">(differs from org default: {orgCurrency})</span>
+                            <div className="col-span-2 md:col-span-4">
+                              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200">
+                                <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0" />
+                                <span className="text-[13px] font-medium text-amber-700">
+                                  Currency differs from org default ({orgCurrency})
+                                </span>
+                              </div>
                             </div>
                           )}
                           {plan.auto_renew !== undefined && (
                             <div>
-                              <span className="text-slate-500 block text-xs uppercase tracking-wide mb-1">Auto Renew</span>
+                              <span className="text-muted-foreground block text-xs uppercase tracking-wide mb-1">Auto Renew</span>
                               <Badge variant={plan.auto_renew ? "default" : "outline"}>
                                 {plan.auto_renew ? "Yes" : "No"}
                               </Badge>
@@ -828,7 +821,7 @@ export default function ProviderDetailPage() {
                           )}
                           {plan.discount_type && plan.discount_value !== undefined && plan.discount_value > 0 && (
                             <div>
-                              <span className="text-slate-500 block text-xs uppercase tracking-wide mb-1">Discount</span>
+                              <span className="text-muted-foreground block text-xs uppercase tracking-wide mb-1">Discount</span>
                               <span className="font-medium text-[#007A78]">
                                 {plan.discount_type === 'percent' ? `${plan.discount_value}%` : formatCurrency(plan.discount_value, orgCurrency)}
                               </span>
@@ -836,14 +829,14 @@ export default function ProviderDetailPage() {
                           )}
                           {plan.category && (
                             <div>
-                              <span className="text-slate-500 block text-xs uppercase tracking-wide mb-1">Category</span>
+                              <span className="text-muted-foreground block text-xs uppercase tracking-wide mb-1">Category</span>
                               <Badge variant="outline" className="capitalize">{plan.category}</Badge>
                             </div>
                           )}
                           {plan.notes && (
                             <div className="col-span-2 md:col-span-4">
-                              <span className="text-slate-500 block text-xs uppercase tracking-wide mb-1">Notes</span>
-                              <span className="text-slate-700">{plan.notes}</span>
+                              <span className="text-muted-foreground block text-xs uppercase tracking-wide mb-1">Notes</span>
+                              <span className="text-foreground">{plan.notes}</span>
                             </div>
                           )}
                         </div>
@@ -855,16 +848,14 @@ export default function ProviderDetailPage() {
               </div>
 
               {/* Add Custom Subscription Footer */}
-              <div className="px-4 py-4 border-t border-slate-200 bg-slate-50/30">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm text-slate-600">
+              <div className="px-4 py-4 border-t border-border bg-[#007A78]/[0.02]">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                  <p className="text-sm text-muted-foreground">
                     Don&apos;t see your subscription plan?
                   </p>
                   <Button
                     onClick={openCustomSheet}
-                    variant="outline"
-                    size="sm"
-                    className="text-[#007A78] border-[#007A78]/30 hover:bg-[#007A78]/5 rounded-xl"
+                    className="console-button-secondary"
                     data-testid="add-custom-subscription-footer-btn"
                   >
                     <Plus className="h-4 w-4 mr-2" />
@@ -880,13 +871,13 @@ export default function ProviderDetailPage() {
       {/* Template Sheet - Select from predefined templates */}
       <Sheet open={templateSheetOpen} onOpenChange={setTemplateSheetOpen}>
         <SheetContent side="right" size="xl" className="overflow-y-auto bg-white flex flex-col">
-          <SheetHeader className="px-6 pt-6 pb-4 border-b border-slate-100 shrink-0">
+          <SheetHeader className="px-6 pt-6 pb-4 border-b border-border shrink-0">
             <div className="flex items-center gap-3">
               <div className="p-2.5 rounded-xl bg-gradient-to-br from-[#007A78]/10 to-[#14B8A6]/10">
                 <CreditCard className="h-5 w-5 text-[#007A78]" />
               </div>
               <div>
-                <SheetTitle className="text-xl font-semibold text-slate-900">Select a Template</SheetTitle>
+                <SheetTitle className="text-xl font-semibold text-foreground">Select a Template</SheetTitle>
                 <SheetDescription className="mt-0.5">
                   Choose a plan for {providerDisplayName}
                 </SheetDescription>
@@ -899,16 +890,16 @@ export default function ProviderDetailPage() {
               <div className="flex items-center justify-center py-16">
                 <div className="text-center">
                   <Loader2 className="h-10 w-10 animate-spin text-[#007A78] mx-auto mb-3" />
-                  <p className="text-sm text-slate-500">Loading templates...</p>
+                  <p className="text-sm text-muted-foreground">Loading templates...</p>
                 </div>
               </div>
             ) : availablePlans.length === 0 ? (
               <div className="text-center py-16 px-4">
-                <div className="inline-flex p-4 rounded-2xl bg-slate-50 mb-4">
-                  <CreditCard className="h-12 w-12 text-slate-300" />
+                <div className="inline-flex p-4 rounded-2xl bg-[#007A78]/10 mb-4">
+                  <CreditCard className="h-12 w-12 text-[#007A78]" />
                 </div>
-                <h3 className="text-lg font-semibold text-slate-900 mb-2">No Templates Available</h3>
-                <p className="text-sm text-slate-500 mb-6 max-w-xs mx-auto">
+                <h3 className="text-lg font-semibold text-foreground mb-2">No Templates Available</h3>
+                <p className="text-sm text-muted-foreground mb-6 max-w-xs mx-auto">
                   There are no predefined templates for this provider. Create a custom plan instead.
                 </p>
                 <Button
@@ -916,7 +907,7 @@ export default function ProviderDetailPage() {
                     setTemplateSheetOpen(false)
                     openCustomSheet()
                   }}
-                  className="h-11 px-6 bg-[#007A78] hover:bg-[#006664] rounded-xl font-semibold"
+                  className="console-button-primary"
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Create Custom Subscription
@@ -929,43 +920,43 @@ export default function ProviderDetailPage() {
                   return (
                     <div
                       key={template.plan_name}
-                      className="border border-slate-200 rounded-2xl p-5 hover:border-[#007A78] hover:shadow-md hover:shadow-[#007A78]/5 cursor-pointer transition-all duration-200 group bg-white"
+                      className="border border-border rounded-2xl p-5 hover:border-[#007A78] hover:shadow-md hover:shadow-[#007A78]/5 cursor-pointer transition-all duration-200 group bg-white"
                       onClick={() => handleSelectTemplate(template)}
                     >
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
-                            <h4 className="font-semibold text-slate-900 group-hover:text-[#007A78] truncate transition-colors">
+                            <h4 className="font-semibold text-foreground group-hover:text-[#007A78] truncate transition-colors">
                               {template.display_name || template.plan_name}
                             </h4>
-                            <Badge variant="outline" className="capitalize text-[11px] shrink-0 bg-slate-50">
+                            <Badge variant="outline" className="capitalize text-[11px] shrink-0 bg-[#007A78]/5">
                               {template.billing_cycle}
                             </Badge>
                           </div>
-                          <p className="text-sm text-slate-500">
+                          <p className="text-sm text-muted-foreground">
                             {template.pricing_model === 'PER_SEAT' ? 'Per seat pricing' : 'Flat fee'}
                             {template.seats && template.seats > 1 && ` • ${template.seats} seats included`}
                           </p>
                           {template.notes && (
-                            <p className="text-xs text-slate-400 mt-2 line-clamp-2">{template.notes}</p>
+                            <p className="text-xs text-muted-foreground/70 mt-2 line-clamp-2">{template.notes}</p>
                           )}
                         </div>
                         <div className="text-right shrink-0">
                           <div className="text-xl font-bold text-[#FF6E50]">
                             {formatCurrency(convertedPrice, orgCurrency)}
                           </div>
-                          <p className="text-xs text-slate-400 mt-0.5">
+                          <p className="text-xs text-muted-foreground/70 mt-0.5">
                             /{template.billing_cycle === 'monthly' ? 'mo' : template.billing_cycle === 'annual' ? 'yr' : template.billing_cycle}
                           </p>
                         </div>
                       </div>
-                      <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+                      <div className="mt-4 pt-3 border-t border-border flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <Badge variant="outline" className="text-xs bg-[#007A78]/5 text-[#007A78] border-[#007A78]/20">
                             {template.seats || 1} seat{(template.seats || 1) > 1 ? 's' : ''}
                           </Badge>
                           {template.category && (
-                            <Badge variant="outline" className="text-xs capitalize bg-slate-50">
+                            <Badge variant="outline" className="text-xs capitalize bg-[#007A78]/5">
                               {template.category}
                             </Badge>
                           )}
@@ -982,14 +973,13 @@ export default function ProviderDetailPage() {
             )}
           </div>
 
-          <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 shrink-0">
+          <div className="px-6 py-4 border-t border-border bg-[#007A78]/[0.02] shrink-0">
             <Button
-              variant="outline"
               onClick={() => {
                 setTemplateSheetOpen(false)
                 openCustomSheet()
               }}
-              className="w-full h-11 border-[#007A78]/30 text-[#007A78] hover:bg-[#007A78]/5 rounded-xl font-medium"
+              className="console-button-secondary w-full"
             >
               <Plus className="h-4 w-4 mr-2" />
               Create Custom Instead
@@ -1001,13 +991,13 @@ export default function ProviderDetailPage() {
       {/* Custom Sheet - Add/Edit subscription form */}
       <Sheet open={customSheetOpen} onOpenChange={setCustomSheetOpen}>
         <SheetContent side="right" size="xl" className="overflow-y-auto bg-white flex flex-col">
-          <SheetHeader className="px-6 pt-6 pb-4 border-b border-slate-100 shrink-0">
+          <SheetHeader className="px-6 pt-6 pb-4 border-b border-border shrink-0">
             <div className="flex items-center gap-3">
               <div className="p-2.5 rounded-xl bg-gradient-to-br from-[#007A78]/10 to-[#14B8A6]/10">
                 <Plus className="h-5 w-5 text-[#007A78]" />
               </div>
               <div>
-                <SheetTitle className="text-xl font-semibold text-slate-900">
+                <SheetTitle className="text-xl font-semibold text-foreground">
                   {isFromTemplate ? 'Customize Subscription' : 'Add Custom Subscription'}
                 </SheetTitle>
                 <SheetDescription className="mt-0.5">
@@ -1034,7 +1024,7 @@ export default function ProviderDetailPage() {
                 className="uppercase"
                 required
               />
-              <p className="text-xs text-slate-500">Internal identifier (will be uppercased)</p>
+              <p className="text-xs text-muted-foreground">Internal identifier (will be uppercased)</p>
             </div>
 
             {/* Display Name */}
@@ -1046,7 +1036,7 @@ export default function ProviderDetailPage() {
                 onChange={(e) => setFormData({ ...formData, display_name: e.target.value })}
                 placeholder="e.g., Professional Plan"
               />
-              <p className="text-xs text-slate-500">User-friendly name shown in reports</p>
+              <p className="text-xs text-muted-foreground">User-friendly name shown in reports</p>
             </div>
 
             {/* Price and Currency */}
@@ -1073,7 +1063,7 @@ export default function ProviderDetailPage() {
                   required
                 />
                 {isFromTemplate && formData.source_price !== undefined && (
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-muted-foreground">
                     Original: {formatCurrency(formData.source_price, formData.source_currency || 'USD')}
                     {formData.exchange_rate_used && ` (rate: ${formData.exchange_rate_used})`}
                   </p>
@@ -1089,7 +1079,7 @@ export default function ProviderDetailPage() {
                     <SelectItem value={orgCurrency}>{orgCurrency}</SelectItem>
                   </SelectContent>
                 </Select>
-                <p className="text-xs text-slate-500">Locked to org currency</p>
+                <p className="text-xs text-muted-foreground">Locked to org currency</p>
               </div>
             </div>
 
@@ -1153,7 +1143,7 @@ export default function ProviderDetailPage() {
                 required
               />
               {formData.pricing_model === 'PER_SEAT' && formData.unit_price !== undefined && formData.seats !== undefined && (
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-muted-foreground">
                   Total: {formatCurrency(formData.unit_price * formData.seats, orgCurrency)}/{formData.billing_cycle}
                 </p>
               )}
@@ -1166,7 +1156,7 @@ export default function ProviderDetailPage() {
                 date={startDate}
                 onSelect={setStartDate}
               />
-              <p className="text-xs text-slate-500">When does this subscription become active?</p>
+              <p className="text-xs text-muted-foreground">When does this subscription become active?</p>
             </div>
 
             {/* Notes */}
@@ -1190,15 +1180,14 @@ export default function ProviderDetailPage() {
           </form>
 
           {/* Submit Buttons - Fixed Footer */}
-          <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 shrink-0 flex gap-3">
+          <div className="px-6 py-4 border-t border-border bg-[#007A78]/[0.02] shrink-0 flex flex-col sm:flex-row gap-3">
             <Button
               type="button"
-              variant="outline"
               onClick={() => {
                 setCustomSheetOpen(false)
                 resetForm()
               }}
-              className="flex-1 h-11 rounded-xl"
+              className="console-button-secondary flex-1"
               disabled={submitting}
             >
               Cancel
@@ -1206,7 +1195,7 @@ export default function ProviderDetailPage() {
             <Button
               type="submit"
               form="subscription-form"
-              className="flex-1 h-11 bg-[#007A78] hover:bg-[#006664] rounded-xl font-semibold"
+              className="console-button-primary flex-1"
               disabled={submitting}
               onClick={handleSubmit}
             >

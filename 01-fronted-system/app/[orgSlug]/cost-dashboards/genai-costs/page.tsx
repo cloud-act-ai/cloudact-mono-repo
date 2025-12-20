@@ -49,7 +49,7 @@ const PROVIDER_COLORS: Record<string, string> = {
   anthropic: "bg-[#FF6E50]/10 text-[#FF6E50] border border-[#FF6E50]/10",
   google: "bg-[#007A78]/5 text-[#005F5D] border border-[#007A78]/10",
   deepseek: "bg-[#F0FDFA] text-[#007A78] border border-[#007A78]/10",
-  other: "bg-[#F5F5F7] text-[#8E8E93] border border-[#E5E5EA]",
+  other: "bg-[#007A78]/5 text-muted-foreground border border-border",
 }
 
 interface LLMUsageSummary {
@@ -145,7 +145,7 @@ export default function GenAICostsPage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-[32px] sm:text-[34px] font-bold text-black tracking-tight">GenAI Costs</h1>
-            <p className="text-[15px] text-[#8E8E93] mt-1">
+            <p className="text-[15px] text-muted-foreground mt-1">
               Track your LLM API usage and costs
             </p>
           </div>
@@ -158,7 +158,7 @@ export default function GenAICostsPage() {
         <div className="metric-card p-0 overflow-hidden">
           <div className="px-4 sm:px-6 py-4 sm:py-5">
             <h2 className="text-[17px] font-semibold text-black">Usage by Provider</h2>
-            <p className="text-[13px] text-[#8E8E93] mt-0.5">
+            <p className="text-[13px] text-muted-foreground mt-0.5">
               View LLM API usage across all providers
             </p>
           </div>
@@ -175,7 +175,7 @@ export default function GenAICostsPage() {
       <div className="space-y-6 sm:space-y-8">
         <div>
           <h1 className="text-[32px] sm:text-[34px] font-bold text-black tracking-tight">GenAI Costs</h1>
-          <p className="text-[15px] text-[#8E8E93] mt-1">
+          <p className="text-[15px] text-muted-foreground mt-1">
             Track your LLM API usage and costs
           </p>
         </div>
@@ -185,7 +185,7 @@ export default function GenAICostsPage() {
             <AlertCircle className="h-5 w-5 text-[#FF6E50] mt-0.5 flex-shrink-0" />
             <div>
               <h3 className="font-semibold text-black text-[15px]">{error}</h3>
-              <p className="text-[13px] text-[#8E8E93] mt-1">
+              <p className="text-[13px] text-muted-foreground mt-1">
                 Please try again later or contact support if the issue persists.
               </p>
             </div>
@@ -200,7 +200,7 @@ export default function GenAICostsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-[32px] sm:text-[34px] font-bold text-black tracking-tight">GenAI Costs</h1>
-          <p className="text-[15px] text-[#8E8E93] mt-1">
+          <p className="text-[15px] text-muted-foreground mt-1">
             Track your LLM API usage and costs
           </p>
         </div>
@@ -210,13 +210,13 @@ export default function GenAICostsPage() {
             disabled={isRefreshing}
             variant="ghost"
             size="sm"
-            className="h-[36px] px-4 text-[15px] text-[#8E8E93] hover:bg-[#007A78]/5 rounded-xl"
+            className="h-11 px-4 text-[15px] text-muted-foreground hover:bg-[#007A78]/5 rounded-xl"
           >
             <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
             <span className="hidden sm:inline">Refresh</span>
           </Button>
           <Link href={`/${orgSlug}/integrations/llm`}>
-            <Button className="h-[36px] px-4 bg-[#007A78] text-white hover:bg-[#006664] rounded-xl text-[15px] font-semibold">
+            <Button className="console-button-primary h-11 px-4 rounded-xl text-[15px] font-semibold">
               <Plus className="h-4 w-4 mr-2" />
               <span className="hidden sm:inline">Configure LLM</span>
               <span className="sm:hidden">Configure</span>
@@ -334,18 +334,18 @@ export default function GenAICostsPage() {
                 <Brain className="h-12 w-12 text-[#007A78]" />
               </div>
               <h3 className="text-[20px] font-semibold text-black mb-2">No LLM usage data yet</h3>
-              <p className="text-[15px] text-[#8E8E93] mb-6 max-w-md mx-auto">
+              <p className="text-[15px] text-muted-foreground mb-6 max-w-md mx-auto">
                 Configure LLM integrations and run the GenAI pipeline to start tracking usage costs.
               </p>
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <Link href={`/${orgSlug}/integrations/llm`}>
-                  <Button className="h-[44px] px-6 bg-[#007A78] text-white hover:bg-[#006664] rounded-xl text-[15px] font-semibold shadow-sm">
+                  <Button className="console-button-primary h-11 px-6 rounded-xl text-[15px] font-semibold shadow-sm">
                     <Plus className="h-4 w-4 mr-2" />
                     Configure LLM Providers
                   </Button>
                 </Link>
                 <Link href={`/${orgSlug}/pipelines/genai-runs`}>
-                  <Button variant="outline" className="h-[44px] px-6 border-[#007A78] text-[#007A78] hover:bg-[#007A78]/5 rounded-xl text-[15px] font-semibold">
+                  <Button variant="outline" className="console-button-secondary h-11 px-6 rounded-xl text-[15px] font-semibold">
                     <ArrowUpRight className="h-4 w-4 mr-2" />
                     Run Pipeline
                   </Button>
@@ -356,7 +356,7 @@ export default function GenAICostsPage() {
             <div className="overflow-x-auto">
               <Table className="w-full min-w-[700px]">
                 <TableHeader>
-                  <TableRow className="border-b border-[#E5E5EA]">
+                  <TableRow className="border-b border-border">
                     <TableHead className="console-table-header">Provider</TableHead>
                     <TableHead className="console-table-header">Model</TableHead>
                     <TableHead className="console-table-header text-right">Input Tokens</TableHead>
@@ -382,13 +382,13 @@ export default function GenAICostsPage() {
                           <span className="font-medium text-black text-[15px]">{record.model}</span>
                         </TableCell>
                         <TableCell className="console-table-cell text-right">
-                          <span className="text-[#8E8E93] text-[15px]">{record.input_tokens.toLocaleString()}</span>
+                          <span className="text-muted-foreground text-[15px]">{record.input_tokens.toLocaleString()}</span>
                         </TableCell>
                         <TableCell className="console-table-cell text-right">
-                          <span className="text-[#8E8E93] text-[15px]">{record.output_tokens.toLocaleString()}</span>
+                          <span className="text-muted-foreground text-[15px]">{record.output_tokens.toLocaleString()}</span>
                         </TableCell>
                         <TableCell className="console-table-cell text-right">
-                          <span className="text-[#8E8E93] text-[15px]">{record.requests.toLocaleString()}</span>
+                          <span className="text-muted-foreground text-[15px]">{record.requests.toLocaleString()}</span>
                         </TableCell>
                         <TableCell className="console-table-cell text-right">
                           <span className="font-bold text-black text-[17px]">{formatCurrency(record.cost, orgCurrency)}</span>
