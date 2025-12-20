@@ -183,7 +183,7 @@ function SignupForm() {
           <h1 className="text-2xl font-bold text-[#1C1C1E] tracking-tight">
             {isInviteFlow ? "Create your account" : "Create your account"}
           </h1>
-          <p className="text-sm text-[#8E8E93] font-medium">
+          <p className="text-sm text-muted-foreground font-medium">
             {isInviteFlow ? "Sign up to accept your team invite" : `Start your ${DEFAULT_TRIAL_DAYS}-day free trial`}
           </p>
         </div>

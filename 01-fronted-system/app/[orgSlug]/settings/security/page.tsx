@@ -87,7 +87,7 @@ export default function SecurityPage() {
     <div className="space-y-4 sm:space-y-6">
       <div>
         <h1 className="text-[32px] sm:text-[34px] font-bold text-black tracking-tight">Security</h1>
-        <p className="text-[15px] text-[#8E8E93] mt-1">
+        <p className="text-[15px] text-muted-foreground mt-1">
           Manage your password and security settings
         </p>
       </div>
@@ -108,15 +108,15 @@ export default function SecurityPage() {
 
       <div className="health-card shadow-sm">
         <div className="health-card-content space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border border-[#E5E5EA] rounded-xl bg-gray-50">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border border-border rounded-xl bg-[#007A78]/5">
             <div className="flex items-center gap-3">
-              <Key className="h-5 w-5 text-[#8E8E93]" />
+              <Key className="h-5 w-5 text-muted-foreground" />
               <div>
                 <p className="text-[15px] font-medium text-black">Password</p>
-                <p className="text-[13px] text-[#8E8E93]">Reset your password via email</p>
+                <p className="text-[13px] text-muted-foreground">Reset your password via email</p>
               </div>
             </div>
-            <Button variant="outline" onClick={handleResetPassword} disabled={isResettingPassword} className="h-[36px] px-4 rounded-xl text-[15px] border border-[#E5E5EA] hover:bg-white shadow-sm transition-colors">
+            <Button variant="outline" onClick={handleResetPassword} disabled={isResettingPassword} className="console-button-secondary h-11 px-4">
               {isResettingPassword ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

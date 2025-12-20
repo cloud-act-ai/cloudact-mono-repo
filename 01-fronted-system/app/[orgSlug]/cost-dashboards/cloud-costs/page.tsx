@@ -48,7 +48,7 @@ const PROVIDER_COLORS: Record<string, string> = {
   gcp: "bg-[#007A78]/10 text-[#007A78] border border-[#007A78]/10",
   aws: "bg-[#FF6E50]/10 text-[#FF6E50] border border-[#FF6E50]/10",
   azure: "bg-[#007A78]/5 text-[#005F5D] border border-[#007A78]/10",
-  other: "bg-[#F5F5F7] text-[#8E8E93] border border-[#E5E5EA]",
+  other: "bg-[#007A78]/5 text-muted-foreground border border-border",
 }
 
 interface CloudCostSummary {
@@ -159,7 +159,7 @@ export default function CloudCostsPage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-[32px] sm:text-[34px] font-bold text-black tracking-tight">Cloud Costs</h1>
-            <p className="text-[15px] text-[#8E8E93] mt-1">
+            <p className="text-[15px] text-muted-foreground mt-1">
               Track your cloud infrastructure costs
             </p>
           </div>
@@ -172,7 +172,7 @@ export default function CloudCostsPage() {
         <div className="metric-card p-0 overflow-hidden">
           <div className="px-4 sm:px-6 py-4 sm:py-5">
             <h2 className="text-[17px] font-semibold text-black">Costs by Service</h2>
-            <p className="text-[13px] text-[#8E8E93] mt-0.5">
+            <p className="text-[13px] text-muted-foreground mt-0.5">
               View cloud costs across all providers and services
             </p>
           </div>
@@ -189,7 +189,7 @@ export default function CloudCostsPage() {
       <div className="space-y-6 sm:space-y-8">
         <div>
           <h1 className="text-[32px] sm:text-[34px] font-bold text-black tracking-tight">Cloud Costs</h1>
-          <p className="text-[15px] text-[#8E8E93] mt-1">
+          <p className="text-[15px] text-muted-foreground mt-1">
             Track your cloud infrastructure costs
           </p>
         </div>
@@ -199,7 +199,7 @@ export default function CloudCostsPage() {
             <AlertCircle className="h-5 w-5 text-[#FF6E50] mt-0.5 flex-shrink-0" />
             <div>
               <h3 className="font-semibold text-black text-[15px]">{error}</h3>
-              <p className="text-[13px] text-[#8E8E93] mt-1">
+              <p className="text-[13px] text-muted-foreground mt-1">
                 Please try again later or contact support if the issue persists.
               </p>
             </div>
@@ -214,7 +214,7 @@ export default function CloudCostsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-[32px] sm:text-[34px] font-bold text-black tracking-tight">Cloud Costs</h1>
-          <p className="text-[15px] text-[#8E8E93] mt-1">
+          <p className="text-[15px] text-muted-foreground mt-1">
             Track your cloud infrastructure costs
           </p>
         </div>
@@ -224,13 +224,13 @@ export default function CloudCostsPage() {
             disabled={isRefreshing}
             variant="ghost"
             size="sm"
-            className="h-[36px] px-4 text-[15px] text-[#8E8E93] hover:bg-[#007A78]/5 rounded-xl"
+            className="h-11 px-4 text-[15px] text-muted-foreground hover:bg-[#007A78]/5 rounded-xl"
           >
             <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
             <span className="hidden sm:inline">Refresh</span>
           </Button>
           <Link href={`/${orgSlug}/integrations/cloud-providers`}>
-            <Button className="h-[36px] px-4 bg-[#007A78] text-white hover:bg-[#006664] rounded-xl text-[15px] font-semibold">
+            <Button className="console-button-primary h-11 px-4 rounded-xl text-[15px] font-semibold">
               <Plus className="h-4 w-4 mr-2" />
               <span className="hidden sm:inline">Configure Cloud</span>
               <span className="sm:hidden">Configure</span>
@@ -348,18 +348,18 @@ export default function CloudCostsPage() {
                 <Cloud className="h-12 w-12 text-[#007A78]" />
               </div>
               <h3 className="text-[20px] font-semibold text-black mb-2">No cloud cost data yet</h3>
-              <p className="text-[15px] text-[#8E8E93] mb-6 max-w-md mx-auto">
+              <p className="text-[15px] text-muted-foreground mb-6 max-w-md mx-auto">
                 Configure cloud provider integrations and run the cost pipeline to start tracking infrastructure costs.
               </p>
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <Link href={`/${orgSlug}/integrations/cloud-providers`}>
-                  <Button className="h-[44px] px-6 bg-[#007A78] text-white hover:bg-[#006664] rounded-xl text-[15px] font-semibold shadow-sm">
+                  <Button className="console-button-primary h-11 px-6 rounded-xl text-[15px] font-semibold shadow-sm">
                     <Plus className="h-4 w-4 mr-2" />
                     Configure Cloud Providers
                   </Button>
                 </Link>
                 <Link href={`/${orgSlug}/pipelines/cost-runs`}>
-                  <Button variant="outline" className="h-[44px] px-6 border-[#007A78] text-[#007A78] hover:bg-[#007A78]/5 rounded-xl text-[15px] font-semibold">
+                  <Button variant="outline" className="console-button-secondary h-11 px-6 rounded-xl text-[15px] font-semibold">
                     <ArrowUpRight className="h-4 w-4 mr-2" />
                     Run Pipeline
                   </Button>
@@ -370,7 +370,7 @@ export default function CloudCostsPage() {
             <div className="overflow-x-auto">
               <Table className="w-full min-w-[700px]">
                 <TableHeader>
-                  <TableRow className="border-b border-[#E5E5EA]">
+                  <TableRow className="border-b border-border">
                     <TableHead className="console-table-header">Provider</TableHead>
                     <TableHead className="console-table-header">Service</TableHead>
                     <TableHead className="console-table-header">Project</TableHead>
@@ -396,10 +396,10 @@ export default function CloudCostsPage() {
                           </div>
                         </TableCell>
                         <TableCell className="console-table-cell">
-                          <span className="text-[#8E8E93] text-[15px]">{record.project || '-'}</span>
+                          <span className="text-muted-foreground text-[15px]">{record.project || '-'}</span>
                         </TableCell>
                         <TableCell className="console-table-cell text-right">
-                          <span className="text-[#8E8E93] text-[15px]">
+                          <span className="text-muted-foreground text-[15px]">
                             {record.usage_amount.toLocaleString()} {record.usage_unit}
                           </span>
                         </TableCell>

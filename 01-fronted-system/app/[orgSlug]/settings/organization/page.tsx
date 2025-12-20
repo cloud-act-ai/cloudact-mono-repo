@@ -800,7 +800,7 @@ export default function OrganizationSettingsPage() {
     <div className="space-y-6 sm:space-y-8">
       <div>
         <h1 className="text-[32px] sm:text-[34px] font-bold text-black tracking-tight">Organization Settings</h1>
-        <p className="text-[15px] text-[#8E8E93] mt-1">
+        <p className="text-[15px] text-muted-foreground mt-1">
           Manage your organization locale and settings
         </p>
       </div>
@@ -832,10 +832,10 @@ export default function OrganizationSettingsPage() {
       <div className="metric-card shadow-sm">
         <div className="metric-card-header mb-6">
           <div className="flex items-center gap-2">
-            <Building2 className="h-5 w-5 text-[#8E8E93]" />
+            <Building2 className="h-5 w-5 text-muted-foreground" />
             <h2 className="text-[22px] font-bold text-black">Organization Branding</h2>
           </div>
-          <p className="text-[13px] sm:text-[15px] text-[#8E8E93] mt-1">
+          <p className="text-[13px] sm:text-[15px] text-muted-foreground mt-1">
             Customize your organization&apos;s appearance in the sidebar
           </p>
         </div>
@@ -845,10 +845,10 @@ export default function OrganizationSettingsPage() {
           <div className="flex flex-col sm:flex-row gap-6">
             {/* Logo Preview */}
             <div className="flex-shrink-0">
-              <Label className="text-[13px] sm:text-[15px] font-medium text-gray-700 mb-2 block">
+              <Label className="text-[13px] sm:text-[15px] font-medium text-foreground mb-2 block">
                 Logo Preview
               </Label>
-              <div className="h-20 w-20 rounded-lg border-2 border-dashed border-[#E5E5EA] flex items-center justify-center bg-gray-50 overflow-hidden">
+              <div className="h-20 w-20 rounded-lg border-2 border-dashed border-[#E5E5EA] flex items-center justify-center bg-[#007A78]/5 overflow-hidden">
                 {logoUrl ? (
                   <img
                     src={logoUrl}
@@ -862,15 +862,15 @@ export default function OrganizationSettingsPage() {
                     }}
                   />
                 ) : (
-                  <ImageIcon className="h-8 w-8 text-[#8E8E93]" />
+                  <ImageIcon className="h-8 w-8 text-muted-foreground" />
                 )}
               </div>
             </div>
 
             {/* Logo URL Input */}
             <div className="flex-1 space-y-2">
-              <Label htmlFor="logoUrl" className="text-[13px] sm:text-[15px] font-medium text-gray-700 flex items-center gap-2">
-                <LinkIcon className="h-4 w-4 text-[#8E8E93]" />
+              <Label htmlFor="logoUrl" className="text-[13px] sm:text-[15px] font-medium text-foreground flex items-center gap-2">
+                <LinkIcon className="h-4 w-4 text-muted-foreground" />
                 Logo URL
               </Label>
               <Input
@@ -881,7 +881,7 @@ export default function OrganizationSettingsPage() {
                 placeholder="https://example.com/logo.png"
                 className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg focus:border-[#007A78] focus:ring-1 focus:ring-[#007A78]"
               />
-              <p className="text-[13px] text-[#8E8E93]">
+              <p className="text-[13px] text-muted-foreground">
                 Enter a URL to your organization&apos;s logo (PNG, JPG, SVG). Must be HTTPS.
                 The logo will appear in the sidebar next to your organization name.
               </p>
@@ -898,11 +898,11 @@ export default function OrganizationSettingsPage() {
           )}
         </div>
 
-        <div className="pt-4 sm:pt-6 border-t border-[#E5E5EA] flex gap-3">
+        <div className="pt-4 sm:pt-6 border-t border-border flex gap-3">
           <Button
             onClick={handleSaveLogo}
             disabled={isSavingLogo || !hasLogoChanges}
-            className="cloudact-btn-primary h-[36px] px-4"
+            className="console-button-primary h-11 px-4"
           >
             {isSavingLogo ? (
               <>
@@ -922,7 +922,7 @@ export default function OrganizationSettingsPage() {
               onClick={() => setLogoUrl(originalLogoUrl)}
               disabled={isSavingLogo}
               variant="outline"
-              className="cloudact-btn-secondary h-[36px] px-4"
+              className="console-button-secondary h-11 px-4"
             >
               Reset
             </Button>
@@ -934,10 +934,10 @@ export default function OrganizationSettingsPage() {
       <div className="metric-card shadow-sm">
         <div className="metric-card-header mb-6">
           <div className="flex items-center gap-2">
-            <Globe className="h-5 w-5 text-[#8E8E93]" />
+            <Globe className="h-5 w-5 text-muted-foreground" />
             <h2 className="text-[22px] font-bold text-black">Organization Locale</h2>
           </div>
-          <p className="text-[13px] sm:text-[15px] text-[#8E8E93] mt-1">
+          <p className="text-[13px] sm:text-[15px] text-muted-foreground mt-1">
             Configure currency and timezone for your organization. These settings affect all cost
             calculations and time displays.
           </p>
@@ -946,8 +946,8 @@ export default function OrganizationSettingsPage() {
         <div className="metric-card-content space-y-4 sm:space-y-6">
           {/* Currency Selection */}
           <div className="space-y-2">
-            <Label htmlFor="currency" className="text-[13px] sm:text-[15px] font-medium text-gray-700 flex items-center gap-2">
-              <DollarSign className="h-4 w-4 text-[#8E8E93]" />
+            <Label htmlFor="currency" className="text-[13px] sm:text-[15px] font-medium text-foreground flex items-center gap-2">
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
               Currency <span className="text-[#FF6E50]">*</span>
             </Label>
             <Select value={currency} onValueChange={(val) => { setCurrency(val); setError(null); }}>
@@ -962,7 +962,7 @@ export default function OrganizationSettingsPage() {
                 ))}
               </SelectContent>
             </Select>
-            <p className="text-[13px] text-[#8E8E93]">
+            <p className="text-[13px] text-muted-foreground">
               All costs and billing will be displayed in this currency. This setting affects cost
               calculations across integrations and analytics.
             </p>
@@ -972,8 +972,8 @@ export default function OrganizationSettingsPage() {
 
           {/* Timezone Selection */}
           <div className="space-y-2">
-            <Label htmlFor="timezone" className="text-[13px] sm:text-[15px] font-medium text-gray-700 flex items-center gap-2">
-              <Clock className="h-4 w-4 text-[#8E8E93]" />
+            <Label htmlFor="timezone" className="text-[13px] sm:text-[15px] font-medium text-foreground flex items-center gap-2">
+              <Clock className="h-4 w-4 text-muted-foreground" />
               Timezone <span className="text-[#FF6E50]">*</span>
             </Label>
             <Select value={timezone} onValueChange={handleTimezoneChange}>
@@ -988,7 +988,7 @@ export default function OrganizationSettingsPage() {
                 ))}
               </SelectContent>
             </Select>
-            <p className="text-[13px] text-[#8E8E93]">
+            <p className="text-[13px] text-muted-foreground">
               Used for displaying timestamps in dashboards, reports, and activity logs. Pipeline
               schedules and billing dates use this timezone.
             </p>
@@ -996,8 +996,8 @@ export default function OrganizationSettingsPage() {
 
           {/* Fiscal Year Start */}
           <div className="space-y-2">
-            <Label htmlFor="fiscal-year" className="text-[13px] sm:text-[15px] font-medium text-gray-700 flex items-center gap-2">
-              <Globe className="h-4 w-4 text-[#8E8E93]" />
+            <Label htmlFor="fiscal-year" className="text-[13px] sm:text-[15px] font-medium text-foreground flex items-center gap-2">
+              <Globe className="h-4 w-4 text-muted-foreground" />
               Fiscal Year Start
             </Label>
             <div className="flex gap-3">
@@ -1016,7 +1016,7 @@ export default function OrganizationSettingsPage() {
               <Button
                 onClick={handleSaveFiscalYear}
                 disabled={isSavingFiscalYear || !hasFiscalYearChanges}
-                className="cloudact-btn-primary h-10 px-4"
+                className="h-11 px-4 bg-[#007A78] hover:bg-[#006664] text-white text-[15px] font-semibold rounded-xl"
               >
                 {isSavingFiscalYear ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -1025,7 +1025,7 @@ export default function OrganizationSettingsPage() {
                 )}
               </Button>
             </div>
-            <p className="text-[13px] text-[#8E8E93]">
+            <p className="text-[13px] text-muted-foreground">
               When your fiscal year begins. Auto-suggested based on timezone: India/Japan/UK = April, Australia = July, others = January.
               Affects cost analytics reporting periods.
             </p>
@@ -1041,11 +1041,11 @@ export default function OrganizationSettingsPage() {
           )}
         </div>
 
-        <div className="pt-4 sm:pt-6 border-t border-[#E5E5EA] flex gap-3">
+        <div className="pt-4 sm:pt-6 border-t border-border flex gap-3">
           <Button
             onClick={handleSave}
             disabled={isSaving || !hasLocaleChanges}
-            className="cloudact-btn-primary h-[36px] px-4"
+            className="console-button-primary h-11 px-4"
           >
             {isSaving ? (
               <>
@@ -1065,7 +1065,7 @@ export default function OrganizationSettingsPage() {
               onClick={handleReset}
               disabled={isSaving}
               variant="outline"
-              className="cloudact-btn-secondary h-[36px] px-4"
+              className="console-button-secondary h-11 px-4"
             >
               Reset
             </Button>
@@ -1106,10 +1106,10 @@ export default function OrganizationSettingsPage() {
       <div className="metric-card shadow-sm">
         <div className="metric-card-header mb-6">
           <div className="flex items-center gap-2">
-            <User className="h-5 w-5 text-[#8E8E93]" />
+            <User className="h-5 w-5 text-muted-foreground" />
             <h2 className="text-[22px] font-bold text-black">Contact Details</h2>
           </div>
-          <p className="text-[13px] sm:text-[15px] text-[#8E8E93] mt-1">
+          <p className="text-[13px] sm:text-[15px] text-muted-foreground mt-1">
             Business contact person and address for your organization
           </p>
         </div>
@@ -1118,20 +1118,20 @@ export default function OrganizationSettingsPage() {
           {loadingContactDetails ? (
             <div className="flex items-center gap-3">
               <Loader2 className="h-5 w-5 animate-spin text-[#007A78]" />
-              <span className="text-[15px] text-[#8E8E93]">Loading contact details...</span>
+              <span className="text-[15px] text-muted-foreground">Loading contact details...</span>
             </div>
           ) : (
             <>
               {/* Business Person Section */}
               <div className="space-y-4">
                 <h3 className="text-[15px] font-medium text-black flex items-center gap-2">
-                  <UserCog className="h-4 w-4 text-[#8E8E93]" />
+                  <UserCog className="h-4 w-4 text-muted-foreground" />
                   Business Contact Person
                 </h3>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="businessPersonName" className="text-[13px] font-medium text-gray-700">
+                    <Label htmlFor="businessPersonName" className="text-[13px] font-medium text-foreground">
                       Full Name
                     </Label>
                     <Input
@@ -1145,7 +1145,7 @@ export default function OrganizationSettingsPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="businessPersonPosition" className="text-[13px] font-medium text-gray-700">
+                    <Label htmlFor="businessPersonPosition" className="text-[13px] font-medium text-foreground">
                       Position / Title
                     </Label>
                     <Input
@@ -1159,7 +1159,7 @@ export default function OrganizationSettingsPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="businessPersonDepartment" className="text-[13px] font-medium text-gray-700">
+                    <Label htmlFor="businessPersonDepartment" className="text-[13px] font-medium text-foreground">
                       Department
                     </Label>
                     <Input
@@ -1179,8 +1179,8 @@ export default function OrganizationSettingsPage() {
               {/* Contact Info Row */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="contactEmail" className="text-[13px] sm:text-[15px] font-medium text-gray-700 flex items-center gap-2">
-                    <Mail className="h-4 w-4 text-[#8E8E93]" />
+                  <Label htmlFor="contactEmail" className="text-[13px] sm:text-[15px] font-medium text-foreground flex items-center gap-2">
+                    <Mail className="h-4 w-4 text-muted-foreground" />
                     Business Email
                   </Label>
                   <Input
@@ -1194,8 +1194,8 @@ export default function OrganizationSettingsPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="contactPhone" className="text-[13px] sm:text-[15px] font-medium text-gray-700 flex items-center gap-2">
-                    <Phone className="h-4 w-4 text-[#8E8E93]" />
+                  <Label htmlFor="contactPhone" className="text-[13px] sm:text-[15px] font-medium text-foreground flex items-center gap-2">
+                    <Phone className="h-4 w-4 text-muted-foreground" />
                     Business Phone
                   </Label>
                   <Input
@@ -1214,13 +1214,13 @@ export default function OrganizationSettingsPage() {
               {/* Address Section */}
               <div className="space-y-4">
                 <h3 className="text-[15px] font-medium text-black flex items-center gap-2">
-                  <Building2 className="h-4 w-4 text-[#8E8E93]" />
+                  <Building2 className="h-4 w-4 text-muted-foreground" />
                   Business Address
                 </h3>
 
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="addressLine1" className="text-[13px] font-medium text-gray-700">
+                    <Label htmlFor="addressLine1" className="text-[13px] font-medium text-foreground">
                       Street Address
                     </Label>
                     <Input
@@ -1234,8 +1234,8 @@ export default function OrganizationSettingsPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="addressLine2" className="text-[13px] font-medium text-gray-700">
-                      Address Line 2 <span className="text-[#8E8E93]">(Optional)</span>
+                    <Label htmlFor="addressLine2" className="text-[13px] font-medium text-foreground">
+                      Address Line 2 <span className="text-muted-foreground">(Optional)</span>
                     </Label>
                     <Input
                       id="addressLine2"
@@ -1249,7 +1249,7 @@ export default function OrganizationSettingsPage() {
 
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="city" className="text-[13px] font-medium text-gray-700">
+                      <Label htmlFor="city" className="text-[13px] font-medium text-foreground">
                         City
                       </Label>
                       <Input
@@ -1263,7 +1263,7 @@ export default function OrganizationSettingsPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="state" className="text-[13px] font-medium text-gray-700">
+                      <Label htmlFor="state" className="text-[13px] font-medium text-foreground">
                         State / Province
                       </Label>
                       <Input
@@ -1277,7 +1277,7 @@ export default function OrganizationSettingsPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="postalCode" className="text-[13px] font-medium text-gray-700">
+                      <Label htmlFor="postalCode" className="text-[13px] font-medium text-foreground">
                         Postal Code
                       </Label>
                       <Input
@@ -1291,7 +1291,7 @@ export default function OrganizationSettingsPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="country" className="text-[13px] font-medium text-gray-700">
+                      <Label htmlFor="country" className="text-[13px] font-medium text-foreground">
                         Country Code
                       </Label>
                       <Input
@@ -1303,7 +1303,7 @@ export default function OrganizationSettingsPage() {
                         maxLength={2}
                         className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg focus:border-[#007A78] focus:ring-1 focus:ring-[#007A78] uppercase"
                       />
-                      <p className="text-[11px] text-[#8E8E93]">ISO 3166-1 (e.g., US, GB, IN)</p>
+                      <p className="text-[11px] text-muted-foreground">ISO 3166-1 (e.g., US, GB, IN)</p>
                     </div>
                   </div>
                 </div>
@@ -1321,11 +1321,11 @@ export default function OrganizationSettingsPage() {
           )}
         </div>
 
-        <div className="pt-4 sm:pt-6 border-t border-[#E5E5EA] flex gap-3">
+        <div className="pt-4 sm:pt-6 border-t border-border flex gap-3">
           <Button
             onClick={handleSaveContactDetails}
             disabled={isSavingContactDetails || !hasContactChanges}
-            className="cloudact-btn-primary h-[36px] px-4"
+            className="console-button-primary h-11 px-4"
           >
             {isSavingContactDetails ? (
               <>
@@ -1345,7 +1345,7 @@ export default function OrganizationSettingsPage() {
               onClick={handleResetContactDetails}
               disabled={isSavingContactDetails}
               variant="outline"
-              className="cloudact-btn-secondary h-[36px] px-4"
+              className="console-button-secondary h-11 px-4"
             >
               Reset
             </Button>
@@ -1359,10 +1359,10 @@ export default function OrganizationSettingsPage() {
       <div className="metric-card shadow-sm">
         <div className="metric-card-header mb-6">
           <div className="flex items-center gap-2">
-            <Server className="h-5 w-5 text-[#8E8E93]" />
+            <Server className="h-5 w-5 text-muted-foreground" />
             <h2 className="text-[22px] font-bold text-black">Backend Connection</h2>
           </div>
-          <p className="text-[13px] sm:text-[15px] text-[#8E8E93] mt-1">
+          <p className="text-[13px] sm:text-[15px] text-muted-foreground mt-1">
             Status of your BigQuery backend connection and API key
           </p>
         </div>
@@ -1371,7 +1371,7 @@ export default function OrganizationSettingsPage() {
           {loadingBackendStatus ? (
             <div className="flex items-center gap-3">
               <Loader2 className="h-5 w-5 animate-spin text-[#007A78]" />
-              <span className="text-[15px] text-[#8E8E93]">Checking connection status...</span>
+              <span className="text-[15px] text-muted-foreground">Checking connection status...</span>
             </div>
           ) : (
             <>
@@ -1386,9 +1386,9 @@ export default function OrganizationSettingsPage() {
               )}
 
               {/* Connection Status */}
-              <div className={`flex items-center justify-between p-4 border rounded-lg ${
+              <div className={`flex items-center justify-between p-4 border rounded-xl ${
                 backendOnboarded && apiKeyValid !== false
-                  ? 'border-[#E5E5EA] bg-gray-50'
+                  ? 'border-border bg-[#007A78]/5'
                   : 'border-[#FF6E50]/30 bg-[#FF6E50]/5'
               }`}>
                 <div className="flex items-center gap-3">
@@ -1399,7 +1399,7 @@ export default function OrganizationSettingsPage() {
                     <p className="text-[15px] font-medium text-black">
                       {backendOnboarded && apiKeyValid !== false ? "Connected" : "Not Connected"}
                     </p>
-                    <p className="text-[13px] text-[#8E8E93]">
+                    <p className="text-[13px] text-muted-foreground">
                       {apiKeyValid === false
                         ? "API key is invalid or inactive in backend"
                         : backendOnboarded
@@ -1424,14 +1424,14 @@ export default function OrganizationSettingsPage() {
 
               {/* API Key Fingerprint */}
               {apiKeyFingerprint && (
-                <div className={`flex items-center justify-between p-4 border rounded-lg ${
-                  apiKeyValid === false ? 'border-[#FF6E50]/30 bg-[#FF6E50]/5' : 'border-[#E5E5EA] bg-gray-50'
+                <div className={`flex items-center justify-between p-4 border rounded-xl ${
+                  apiKeyValid === false ? 'border-[#FF6E50]/30 bg-[#FF6E50]/5' : 'border-border bg-[#007A78]/5'
                 }`}>
                   <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <Key className={`h-5 w-5 flex-shrink-0 ${apiKeyValid === false ? 'text-[#FF6E50]' : 'text-[#8E8E93]'}`} />
+                    <Key className={`h-5 w-5 flex-shrink-0 ${apiKeyValid === false ? 'text-[#FF6E50]' : 'text-muted-foreground'}`} />
                     <div className="flex-1 min-w-0">
                       <p className="text-[15px] font-medium text-black">API Key</p>
-                      <p className={`text-[13px] font-mono truncate ${apiKeyValid === false ? 'text-[#FF6E50]' : 'text-[#8E8E93]'}`}>
+                      <p className={`text-[13px] font-mono truncate ${apiKeyValid === false ? 'text-[#FF6E50]' : 'text-muted-foreground'}`}>
                         ••••••••{apiKeyFingerprint}
                         {apiKeyValid === false && " (invalid)"}
                       </p>
@@ -1459,16 +1459,16 @@ export default function OrganizationSettingsPage() {
           )}
         </div>
 
-        <div className="pt-4 sm:pt-6 border-t border-[#E5E5EA] flex flex-col sm:flex-row gap-3">
+        <div className="pt-4 sm:pt-6 border-t border-border flex flex-col sm:flex-row gap-3">
           <div>
             <Button
               onClick={handleResync}
               disabled={isResyncing || loadingBackendStatus}
               variant={(!backendOnboarded || apiKeyValid === false) ? "default" : "outline"}
-              className={`h-[36px] px-4 ${
+              className={`h-11 px-4 rounded-xl ${
                 (!backendOnboarded || apiKeyValid === false)
-                  ? "bg-[#007A78] text-white hover:bg-[#006664]"
-                  : "border border-[#E5E5EA] hover:bg-white"
+                  ? "console-button-primary"
+                  : "console-button-secondary"
               }`}
             >
               {isResyncing ? (
@@ -1483,7 +1483,7 @@ export default function OrganizationSettingsPage() {
                 </>
               )}
             </Button>
-            <p className="text-[12px] text-[#8E8E93] mt-2">
+            <p className="text-[12px] text-muted-foreground mt-2">
               {(!backendOnboarded || apiKeyValid === false)
                 ? "Re-onboard your organization to generate a new API key and restore backend connection"
                 : "Re-synchronize your organization's locale and subscription data with the backend"}
@@ -1497,7 +1497,7 @@ export default function OrganizationSettingsPage() {
                 onClick={handleSyncBilling}
                 disabled={isBillingSyncing || loadingBackendStatus}
                 variant="outline"
-                className="h-[36px] px-4 border border-[#007A78]/30 text-[#007A78] hover:bg-[#007A78]/5"
+                className="h-11 px-4 rounded-xl border border-[#007A78]/30 text-[#007A78] hover:bg-[#007A78]/5"
               >
                 {isBillingSyncing ? (
                   <>
@@ -1511,7 +1511,7 @@ export default function OrganizationSettingsPage() {
                   </>
                 )}
               </Button>
-              <p className="text-[12px] text-[#8E8E93] mt-2">
+              <p className="text-[12px] text-muted-foreground mt-2">
                 Refresh billing data from Stripe and sync to backend
               </p>
             </div>
@@ -1534,7 +1534,7 @@ export default function OrganizationSettingsPage() {
             <div className="metric-card-content py-8">
               <div className="flex items-center justify-center">
                 <Loader2 className="h-6 w-6 animate-spin text-[#007A78]" />
-                <span className="ml-2 text-[15px] text-[#8E8E93]">Loading organizations...</span>
+                <span className="ml-2 text-[15px] text-muted-foreground">Loading organizations...</span>
               </div>
             </div>
           </div>
@@ -1545,7 +1545,7 @@ export default function OrganizationSettingsPage() {
                 <Building2 className="h-5 w-5 text-[#FF6E50]" />
                 <h3 className="text-[18px] font-bold text-[#FF6E50]">Organizations You Own</h3>
               </div>
-              <p className="text-[13px] sm:text-[15px] text-[#8E8E93] mt-1">
+              <p className="text-[13px] sm:text-[15px] text-muted-foreground mt-1">
                 You must transfer ownership or delete these organizations before you can delete your account.
               </p>
             </div>
@@ -1553,13 +1553,13 @@ export default function OrganizationSettingsPage() {
               {ownedOrgs.map((org) => (
                 <div
                   key={org.id}
-                  className="flex items-center justify-between p-4 border border-[#E5E5EA] rounded-lg bg-gray-50"
+                  className="flex items-center justify-between p-4 border border-border rounded-xl bg-[#007A78]/5"
                 >
                   <div className="flex items-center gap-3">
-                    <Building2 className="h-5 w-5 text-[#8E8E93]" />
+                    <Building2 className="h-5 w-5 text-muted-foreground" />
                     <div>
                       <p className="text-[15px] font-medium text-black">{org.org_name}</p>
-                      <div className="flex items-center gap-2 text-[13px] text-[#8E8E93]">
+                      <div className="flex items-center gap-2 text-[13px] text-muted-foreground">
                         <Users className="h-3 w-3" />
                         <span>{org.member_count} member{org.member_count !== 1 ? "s" : ""}</span>
                         <Badge variant="outline" className="flex-shrink-0 ml-2 bg-[#007A78]/12 text-[#007A78] border-0">Owner</Badge>
@@ -1572,7 +1572,7 @@ export default function OrganizationSettingsPage() {
                         variant="outline"
                         size="sm"
                         onClick={() => openTransferDialog(org)}
-                        className="h-[36px] border border-[#E5E5EA] hover:bg-white"
+                        className="console-button-secondary h-11"
                       >
                         <ArrowRightLeft className="h-4 w-4 mr-2" />
                         Transfer
@@ -1582,7 +1582,7 @@ export default function OrganizationSettingsPage() {
                       variant="destructive"
                       size="sm"
                       onClick={() => openDeleteOrgDialog(org)}
-                      className="h-[36px] bg-[#FF6E50] hover:bg-[#E55A3C] text-white shadow-sm"
+                      className="h-11 rounded-xl bg-[#FF6E50] hover:bg-[#E55A3C] text-white shadow-sm"
                     >
                       <Trash2 className="h-4 w-4 mr-2" />
                       Delete
@@ -1629,7 +1629,7 @@ export default function OrganizationSettingsPage() {
                           <div className="flex items-center gap-2">
                             <UserCog className="h-4 w-4" />
                             <span>{member.full_name || member.email}</span>
-                            <span className="text-[#8E8E93]">({member.role})</span>
+                            <span className="text-muted-foreground">({member.role})</span>
                           </div>
                         </SelectItem>
                       ))}
@@ -1728,7 +1728,7 @@ export default function OrganizationSettingsPage() {
               <AlertTriangle className="h-5 w-5 text-[#FF6E50]" />
               <h3 className="text-[18px] font-bold text-[#FF6E50]">Delete Account</h3>
             </div>
-            <p className="text-[13px] sm:text-[15px] text-[#8E8E93] mt-1">Permanently delete your account and all associated data</p>
+            <p className="text-[13px] sm:text-[15px] text-muted-foreground mt-1">Permanently delete your account and all associated data</p>
           </div>
           <div className="metric-card-content">
             {deletionRequested ? (

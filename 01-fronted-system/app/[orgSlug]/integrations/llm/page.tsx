@@ -95,12 +95,12 @@ function LLMProviderCard({
     <div className={`metric-card p-5 transition-all ${!isEnabled && isConnected ? 'opacity-50' : ''}`}>
       <div className="flex items-start justify-between gap-3 mb-4">
         <div className="flex items-center gap-3 flex-1 min-w-0">
-          <div className={`h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0 ${isEnabled ? 'bg-[#007A78]/10' : 'bg-[#F5F5F7]'}`}>
-            <div className={isEnabled ? 'text-[#007A78]' : 'text-[#8E8E93]'}>{provider.icon}</div>
+          <div className={`h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0 ${isEnabled ? 'bg-[#007A78]/10' : 'bg-[#007A78]/5'}`}>
+            <div className={isEnabled ? 'text-[#007A78]' : 'text-muted-foreground'}>{provider.icon}</div>
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-[15px] font-semibold text-black truncate">{provider.name}</p>
-            <p className="text-[13px] text-[#8E8E93] line-clamp-1">{provider.description}</p>
+            <p className="text-[13px] text-muted-foreground line-clamp-1">{provider.description}</p>
           </div>
         </div>
         {isConnected && isEnabled && (
@@ -112,7 +112,7 @@ function LLMProviderCard({
       </div>
 
       {integration?.last_validated_at && isConnected && isEnabled && (
-        <div className="text-[12px] text-[#8E8E93] mb-3">
+        <div className="text-[12px] text-muted-foreground mb-3">
           Last validated: {formatDate(integration.last_validated_at)}
         </div>
       )}
@@ -127,7 +127,7 @@ function LLMProviderCard({
               onValidate(provider.id)
             }}
             disabled={isValidating}
-            className="flex-1 h-[36px] bg-[#F5F5F7] hover:bg-[#E8E8ED] text-[#8E8E93] text-[15px] font-medium rounded-xl border-0"
+            className="flex-1 h-11 bg-[#007A78]/5 hover:bg-[#007A78]/10 text-muted-foreground text-[15px] font-medium rounded-xl border-0"
             title="Re-validate"
           >
             {isValidating ? (
@@ -141,8 +141,8 @@ function LLMProviderCard({
           <Button
             size="sm"
             className={isConnected
-              ? "w-full h-[36px] bg-[#F5F5F7] hover:bg-[#E8E8ED] text-[#8E8E93] text-[15px] font-medium rounded-xl border-0"
-              : "w-full h-[36px] bg-[#007A78] hover:bg-[#006664] text-white text-[15px] font-semibold rounded-xl border-0"
+              ? "w-full h-11 bg-[#007A78]/5 hover:bg-[#007A78]/10 text-muted-foreground text-[15px] font-medium rounded-xl border-0"
+              : "w-full h-11 bg-[#007A78] hover:bg-[#006664] text-white text-[15px] font-semibold rounded-xl border-0"
             }
           >
             {isConnected ? (
@@ -158,8 +158,8 @@ function LLMProviderCard({
       </div>
 
       {isConnected && (
-        <div className="flex items-center justify-between mt-3 pt-3 border-t border-[#E5E5EA]">
-          <span className="text-[12px] font-medium text-[#8E8E93]">{isEnabled ? 'Enabled' : 'Disabled'}</span>
+        <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
+          <span className="text-[12px] font-medium text-muted-foreground">{isEnabled ? 'Enabled' : 'Disabled'}</span>
           <Switch
             checked={isEnabled}
             onCheckedChange={(checked) => onToggle(provider.id, checked)}
@@ -200,7 +200,7 @@ export default function LLMIntegrationsPage() {
     const result = await getIntegrations(orgSlug)
 
     if (result.success && result.integrations) {
-      setIntegrations(result.integrations.integrations)
+      setIntegrations(result.integrations?.integrations || {})
     } else {
       setError(result.error || "Failed to load integrations")
     }
@@ -280,7 +280,7 @@ export default function LLMIntegrationsPage() {
     <div className="space-y-6 sm:space-y-8">
       <div>
         <h1 className="text-[32px] sm:text-[34px] font-bold text-black tracking-tight">LLM Providers</h1>
-        <p className="text-[15px] text-[#8E8E93] mt-1">
+        <p className="text-[15px] text-muted-foreground mt-1">
           Connect API keys for per-token usage tracking and cost analysis
         </p>
       </div>
@@ -293,11 +293,11 @@ export default function LLMIntegrationsPage() {
               <h3 className="text-[15px] font-semibold text-black">
                 {!backendConnected ? "Backend Not Connected" : "API Key Missing"}
               </h3>
-              <p className="text-[13px] text-[#8E8E93]">
+              <p className="text-[13px] text-muted-foreground">
                 Complete organization onboarding to configure integrations.
               </p>
               <Link href={`/${orgSlug}/settings/organization`}>
-                <button className="inline-flex items-center gap-2 h-[36px] px-4 bg-[#007A78] text-white text-[15px] font-semibold rounded-xl hover:bg-[#005F5D] transition-colors">
+                <button className="inline-flex items-center gap-2 h-11 px-4 bg-[#007A78] text-white text-[15px] font-semibold rounded-xl hover:bg-[#005F5D] transition-colors">
                   Go to Settings
                 </button>
               </Link>
@@ -326,7 +326,7 @@ export default function LLMIntegrationsPage() {
 
       <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#007A78]/10 border border-[#007A78]/20 flex-shrink-0">
         <Check className="h-4 w-4 text-[#007A78] stroke-[2.5] flex-shrink-0" />
-        <span className="text-[13px] text-[#8E8E93]">Connected:</span>
+        <span className="text-[13px] text-muted-foreground">Connected:</span>
         <span className="text-[13px] font-bold text-[#007A78]">{connectedCount} / {LLM_PROVIDERS.length}</span>
       </div>
 
@@ -346,7 +346,7 @@ export default function LLMIntegrationsPage() {
       </div>
 
       <div className="health-card p-6 text-center">
-        <p className="text-[13px] text-[#8E8E93] font-medium">
+        <p className="text-[13px] text-muted-foreground font-medium">
           All credentials are encrypted using Google Cloud KMS before storage.
         </p>
       </div>

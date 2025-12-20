@@ -28,18 +28,18 @@ export default function GlobalError({
 
         <div className="space-y-2">
           <h1 className="text-2xl font-bold tracking-tight text-foreground">Something went wrong</h1>
-          <p className="text-[#8E8E93]">
+          <p className="text-muted-foreground">
             An unexpected error occurred. Our team has been notified.
           </p>
         </div>
 
         {process.env.NODE_ENV === "development" && error.message && (
           <div className="p-4 bg-muted rounded-lg text-left">
-            <p className="text-sm font-mono text-[#8E8E93] break-all">
+            <p className="text-sm font-mono text-muted-foreground break-all">
               {error.message}
             </p>
             {error.digest && (
-              <p className="text-xs text-[#8E8E93] mt-2">
+              <p className="text-xs text-muted-foreground mt-2">
                 Error ID: {error.digest}
               </p>
             )}
@@ -59,7 +59,7 @@ export default function GlobalError({
           </Button>
         </div>
 
-        <p className="text-sm text-[#8E8E93]">
+        <p className="text-sm text-muted-foreground">
           If this problem persists, please contact{" "}
           <a
             href={`mailto:${process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "support@cloudact.ai"}`}

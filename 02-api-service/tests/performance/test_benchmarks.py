@@ -121,7 +121,7 @@ async def test_get_integrations_cached_performance(client):
             "org_slug": org_slug,
             "company_name": "Test Org Performance",
             "admin_email": "admin@test.com",
-            "plan_name": "BASIC"
+            "subscription_plan": "STARTER"
         }
     )
 
@@ -186,7 +186,7 @@ async def test_organization_onboarding_performance(client):
                 "org_slug": org_slug,
                 "company_name": f"Test Org Perf {i}",
                 "admin_email": f"admin-{i}@test.com",
-                "plan_name": "BASIC"
+                "subscription_plan": "STARTER"
             }
         )
         duration = time.perf_counter() - start
@@ -225,7 +225,7 @@ async def test_concurrent_request_throughput(client):
             "org_slug": org_slug,
             "company_name": "Test Org Throughput",
             "admin_email": "admin@test.com",
-            "plan_name": "ENTERPRISE"
+            "subscription_plan": "SCALE"
         }
     )
 
@@ -287,7 +287,7 @@ async def test_cache_performance_impact(client):
             "org_slug": org_slug,
             "company_name": "Test Org Cache Impact",
             "admin_email": "admin@test.com",
-            "plan_name": "BASIC"
+            "subscription_plan": "STARTER"
         }
     )
 
@@ -357,7 +357,7 @@ async def test_api_key_validation_performance(client):
             "org_slug": org_slug,
             "company_name": "Test Org Auth Perf",
             "admin_email": "admin@test.com",
-            "plan_name": "BASIC"
+            "subscription_plan": "STARTER"
         }
     )
 
@@ -420,7 +420,7 @@ async def test_memory_usage_under_load(client):
             "org_slug": org_slug,
             "company_name": "Test Org Memory",
             "admin_email": "admin@test.com",
-            "plan_name": "BASIC"
+            "subscription_plan": "STARTER"
         }
     )
 
@@ -480,7 +480,7 @@ async def test_integration_setup_performance(client):
                 "org_slug": org_slug,
                 "company_name": f"Test Org Integration {i}",
                 "admin_email": f"admin-{i}@test.com",
-                "plan_name": "BASIC"
+                "subscription_plan": "STARTER"
             }
         )
 

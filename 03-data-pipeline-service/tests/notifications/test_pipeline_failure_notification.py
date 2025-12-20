@@ -79,28 +79,33 @@ async def test_pipeline_timeout_sends_notification():
     # Replace notification service with mock
     executor.notification_service = mock_notification_service
 
-    # Mock config to have very short timeout
-    mock_config = {
-        'timeout_minutes': 0.001,  # Very short timeout
-        'steps': []
-    }
+    # Mock BigQuery client to prevent real queries
+    with patch("src.core.engine.bq_client.get_bigquery_client") as mock_bq:
+        mock_client = MagicMock()
+        mock_bq.return_value = mock_client
 
-    # Mock slow pipeline execution
-    async def slow_execution():
-        await asyncio.sleep(1)  # Sleep longer than timeout
+        # Mock config to have very short timeout
+        mock_config = {
+            'timeout_minutes': 0.001,  # Very short timeout
+            'steps': []
+        }
 
-    with patch.object(executor, 'load_config', return_value=mock_config):
-        with patch.object(executor, '_execute_pipeline_internal', side_effect=slow_execution):
-            with pytest.raises(asyncio.TimeoutError):
-                await executor.execute()
+        # Mock slow pipeline execution
+        async def slow_execution():
+            await asyncio.sleep(1)  # Sleep longer than timeout
 
-    # Verify timeout notification was sent
-    mock_notification_service.notify_pipeline_failure.assert_called_once()
+        with patch.object(executor, 'load_config', return_value=mock_config):
+            with patch.object(executor, '_execute_pipeline_internal', side_effect=slow_execution):
+                with pytest.raises(asyncio.TimeoutError):
+                    await executor.execute()
 
-    # Check timeout details
-    call_args = mock_notification_service.notify_pipeline_failure.call_args
-    assert "TIMEOUT" in call_args.kwargs['error_message']
-    assert 'timeout_minutes' in call_args.kwargs['details']
+        # Verify timeout notification was sent
+        mock_notification_service.notify_pipeline_failure.assert_called_once()
+
+        # Check timeout details
+        call_args = mock_notification_service.notify_pipeline_failure.call_args
+        assert "TIMEOUT" in call_args.kwargs['error_message']
+        assert 'timeout_minutes' in call_args.kwargs['details']
 
 
 @pytest.mark.asyncio

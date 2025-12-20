@@ -97,6 +97,7 @@ export default function AddFromTemplatePage() {
   const [availablePlans, setAvailablePlans] = useState<AvailablePlan[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [templateError, setTemplateError] = useState<string | null>(null)
   const [orgCurrency, setOrgCurrency] = useState<string>("USD")
 
   // Load org currency and available plans
@@ -111,6 +112,7 @@ export default function AddFromTemplatePage() {
 
     if (!isMounted || isMounted()) setLoading(true)
     if (!isMounted || isMounted()) setError(null)
+    if (!isMounted || isMounted()) setTemplateError(null)
 
     try {
       // Fetch org locale and available plans in parallel
@@ -135,15 +137,15 @@ export default function AddFromTemplatePage() {
       } else {
         setAvailablePlans([])
         if (plansResult.error?.includes("Invalid provider name")) {
-          setError(`Provider "${provider}" is not recognized. Please check the provider name and try again.`)
+          setTemplateError(`Provider "${provider}" is not recognized. Please check the provider name and try again.`)
         } else {
-          setError(plansResult.error || "Failed to load available plans")
+          setTemplateError(plansResult.error || "Failed to load available plans")
         }
       }
     } catch (err) {
       console.error("Error loading template data:", err)
       if (!isMounted || isMounted()) {
-        setError("Failed to load template data. Please try again.")
+        setTemplateError("Failed to load template data. Please try again.")
         setAvailablePlans([])
       }
     } finally {
@@ -238,7 +240,7 @@ export default function AddFromTemplatePage() {
         >
           Subscription Providers
         </Link>
-        <ChevronRight className="h-4 w-4 text-[#8E8E93] flex-shrink-0" aria-hidden="true" />
+        <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" aria-hidden="true" />
         <Link
           href={`/${orgSlug}/integrations/subscriptions/${provider}`}
           className="text-[#007A78] hover:text-[#005F5D] transition-colors focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2 rounded truncate max-w-[200px]"
@@ -246,7 +248,7 @@ export default function AddFromTemplatePage() {
         >
           {providerDisplayName}
         </Link>
-        <ChevronRight className="h-4 w-4 text-[#8E8E93] flex-shrink-0" aria-hidden="true" />
+        <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" aria-hidden="true" />
         <span className="text-gray-900 font-medium truncate max-w-[300px]" title="Add Subscription">
           Add Subscription
         </span>
@@ -290,15 +292,45 @@ export default function AddFromTemplatePage() {
         </Card>
       )}
 
+      {/* Template Loading Error */}
+      {templateError && (
+        <Card className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
+          <CardContent className="py-8 text-center">
+            <div className="inline-flex p-4 rounded-2xl bg-[#FF6E50]/10 mb-4">
+              <CreditCard className="h-12 w-12 text-[#FF6E50]" />
+            </div>
+            <h3 className="text-[20px] font-semibold text-[#FF6E50] mb-2">Failed to Load Templates</h3>
+            <p className="text-[15px] text-[#FF6E50]/80 mb-6">
+              {templateError}
+            </p>
+            <div className="flex gap-3 justify-center">
+              <Button
+                variant="outline"
+                className="border-[#FF6E50]/30 text-[#FF6E50] hover:bg-[#FF6E50]/5 rounded-xl"
+                onClick={() => loadData(() => true)}
+              >
+                Try Again
+              </Button>
+              <Link href={`/${orgSlug}/integrations/subscriptions/${provider}/add/custom`}>
+                <Button className="h-[44px] px-6 bg-[#007A78] text-white hover:bg-[#006664] rounded-xl text-[15px] font-semibold shadow-sm">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Custom Plan
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Template Cards */}
-      {availablePlans.length === 0 ? (
+      {!templateError && availablePlans.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
             <div className="inline-flex p-4 rounded-2xl bg-[#8E8E93]/10 mb-4">
-              <CreditCard className="h-12 w-12 text-[#8E8E93]" />
+              <CreditCard className="h-12 w-12 text-muted-foreground" />
             </div>
             <h3 className="text-[20px] font-semibold text-black mb-2">No templates available</h3>
-            <p className="text-[15px] text-[#8E8E93] mb-6">
+            <p className="text-[15px] text-muted-foreground mb-6">
               No predefined templates found for {providerDisplayName}. You can create a custom subscription plan instead.
             </p>
             <Link href={`/${orgSlug}/integrations/subscriptions/${provider}/add/custom`}>
@@ -309,7 +341,7 @@ export default function AddFromTemplatePage() {
             </Link>
           </CardContent>
         </Card>
-      ) : (
+      ) : !templateError ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {availablePlans.map((plan, index) => (
             <Card
@@ -342,7 +374,7 @@ export default function AddFromTemplatePage() {
                     <div className="text-2xl font-bold text-[#FF6E50]">
                       {formatCurrency(convertFromUSD(plan.unit_price, orgCurrency), orgCurrency)}
                     </div>
-                    <div className="text-xs text-slate-500">
+                    <div className="text-xs text-muted-foreground">
                       {plan.pricing_model === 'PER_SEAT' ? 'per seat' : 'flat fee'} / {plan.billing_cycle}
                     </div>
                     {/* Show original USD price for reference if different currency */}
@@ -354,8 +386,8 @@ export default function AddFromTemplatePage() {
                   </div>
                   {plan.seats && plan.seats > 0 && (
                     <div className="text-right">
-                      <div className="text-sm font-medium text-slate-700">{plan.seats}</div>
-                      <div className="text-xs text-slate-500">seats</div>
+                      <div className="text-sm font-medium text-foreground">{plan.seats}</div>
+                      <div className="text-xs text-muted-foreground">seats</div>
                     </div>
                   )}
                 </div>
@@ -381,16 +413,16 @@ export default function AddFromTemplatePage() {
             </Card>
           ))}
         </div>
-      )}
+      ) : null}
 
       {/* Custom Plan CTA */}
-      {availablePlans.length > 0 && (
+      {!templateError && availablePlans.length > 0 && (
         <Card className="border-[#007A78]/20 bg-[#007A78]/5">
           <CardContent className="py-6">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="font-semibold text-slate-900 mb-1">Don't see your plan?</h3>
-                <p className="text-sm text-slate-600">
+                <p className="text-sm text-foreground">
                   Create a custom subscription plan with your own pricing and details.
                 </p>
               </div>

@@ -215,7 +215,7 @@ function LoginFormFallback() {
         </div>
         <div className="space-y-2">
           <h1 className="text-3xl font-bold text-[#1C1C1E] tracking-tight">Welcome back</h1>
-          <p className="text-[#8E8E93] font-medium">Sign in to access your CloudAct console</p>
+          <p className="text-muted-foreground font-medium">Sign in to access your CloudAct console</p>
         </div>
       </div>
       <div className="glass-card p-8 flex items-center justify-center min-h-[300px]">

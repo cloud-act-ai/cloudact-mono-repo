@@ -55,7 +55,7 @@ export function UserMenu({ user, orgSlug, userRole, className }: UserMenuProps) 
         <Button
           variant="ghost"
           className={cn(
-            "relative h-10 w-10 rounded-full p-0 hover:bg-[#007A78]/5 focus-visible:ring-2 focus-visible:ring-[#007A78] focus-visible:ring-offset-2",
+            "relative h-11 w-11 rounded-full p-0 hover:bg-[#007A78]/5 focus-visible:ring-2 focus-visible:ring-[#007A78] focus-visible:ring-offset-2 focus-visible:outline-[#007A78]",
             className
           )}
           aria-label="User menu"
@@ -65,14 +65,14 @@ export function UserMenu({ user, orgSlug, userRole, className }: UserMenuProps) 
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="end"
-        className="w-64 bg-white shadow-lg border border-[#E5E5EA] rounded-xl p-2"
+        className="w-64 bg-white shadow-lg border border-border rounded-xl p-2"
       >
         <DropdownMenuLabel className="font-normal px-3 py-2">
           <div className="flex flex-col space-y-1">
             <p className="text-sm font-semibold text-black leading-tight">
               {user.full_name || "User"}
             </p>
-            <p className="text-xs text-[#8E8E93] leading-tight truncate">
+            <p className="text-xs text-muted-foreground leading-tight truncate">
               {user.email}
             </p>
             {userRole && (
@@ -82,7 +82,7 @@ export function UserMenu({ user, orgSlug, userRole, className }: UserMenuProps) 
             )}
           </div>
         </DropdownMenuLabel>
-        <DropdownMenuSeparator className="bg-[#E5E5EA] my-1" />
+        <DropdownMenuSeparator className="bg-border my-1" />
 
         <DropdownMenuItem
           onClick={() => {
@@ -137,13 +137,13 @@ export function UserMenu({ user, orgSlug, userRole, className }: UserMenuProps) 
             setOpen(false)
             router.push(`/${orgSlug}/settings/profile`)
           }}
-          className="px-3 py-2.5 text-sm text-black hover:bg-[#8E8E93]/5 hover:text-[#8E8E93] cursor-pointer rounded-lg focus:bg-[#8E8E93]/5 focus:text-[#8E8E93]"
+          className="px-3 py-2.5 text-sm text-black hover:bg-[#007A78]/5 hover:text-[#007A78] cursor-pointer rounded-lg focus:bg-[#007A78]/5 focus:text-[#007A78]"
         >
-          <Settings className="mr-3 h-4 w-4 text-[#8E8E93]" />
+          <Settings className="mr-3 h-4 w-4 text-[#007A78]" />
           <span>Settings</span>
         </DropdownMenuItem>
 
-        <DropdownMenuSeparator className="bg-[#E5E5EA] my-1" />
+        <DropdownMenuSeparator className="bg-border my-1" />
 
         <DropdownMenuItem
           onClick={handleLogout}

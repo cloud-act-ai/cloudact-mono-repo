@@ -138,7 +138,7 @@ export default function OpenAIIntegrationPage() {
     const result = await getIntegrations(orgSlug)
 
     if (result.success && result.integrations) {
-      const openaiIntegration = result.integrations.integrations["OPENAI"]
+      const openaiIntegration = result.integrations?.integrations?.["OPENAI"]
       setIntegration(openaiIntegration)
     } else {
       setError(result.error || "Failed to load integration status")
@@ -183,7 +183,7 @@ export default function OpenAIIntegrationPage() {
   // Clear success message after delay
   useEffect(() => {
     if (successMessage) {
-      const timer = setTimeout(() => setSuccessMessage(null), 15000)
+      const timer = setTimeout(() => setSuccessMessage(null), 5000)
       return () => clearTimeout(timer)
     }
   }, [successMessage])
@@ -191,7 +191,7 @@ export default function OpenAIIntegrationPage() {
   // Clear error message after delay
   useEffect(() => {
     if (error) {
-      const timer = setTimeout(() => setError(null), 20000)
+      const timer = setTimeout(() => setError(null), 10000)
       return () => clearTimeout(timer)
     }
   }, [error])
@@ -467,7 +467,7 @@ export default function OpenAIIntegrationPage() {
       {/* Header with back link */}
       <div className="flex items-center gap-3">
         <Link href={`/${orgSlug}/integrations/llm`}>
-          <Button variant="ghost" size="sm" className="text-[#8E8E93] hover:text-foreground">
+          <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground h-11 rounded-xl">
             <ArrowLeft className="h-4 w-4 mr-1.5" />
             LLM Providers
           </Button>
@@ -529,7 +529,7 @@ export default function OpenAIIntegrationPage() {
 
         {/* Model Pricing - Only show when connected */}
         {isConnected && (
-          <Card className="border border-slate-200 shadow-sm">
+          <Card className="border border-border shadow-sm">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -572,7 +572,7 @@ export default function OpenAIIntegrationPage() {
                     <Loader2 className="h-6 w-6 animate-spin text-[#007A78]" />
                   </div>
                 ) : pricing.length === 0 ? (
-                  <p className="console-body text-center py-4 text-slate-500">
+                  <p className="console-body text-center py-4 text-muted-foreground">
                     No pricing configured. Click "Reset" to load default pricing.
                   </p>
                 ) : (
@@ -823,7 +823,7 @@ export default function OpenAIIntegrationPage() {
                   value={newSubscription.plan_name}
                   onChange={(e) => setNewSubscription({ ...newSubscription, plan_name: e.target.value.replace(/\s/g, '_') })}
                 />
-                <p className="text-xs text-slate-500 mt-1">Alphanumeric and underscores only</p>
+                <p className="text-xs text-muted-foreground mt-1">Alphanumeric and underscores only</p>
               </div>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">

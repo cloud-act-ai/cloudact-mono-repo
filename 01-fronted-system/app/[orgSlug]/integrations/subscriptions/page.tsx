@@ -41,26 +41,21 @@ function SubscriptionProviderCard({
   const icon = categoryIcons[provider.category] || categoryIcons.other
 
   return (
-    <div
-      className={`metric-card transition-all ${provider.is_enabled ? 'clickable' : 'opacity-60'}`}
-      onClick={() => {
-        if (provider.is_enabled) {
-          router.push(`/${orgSlug}/integrations/subscriptions/${provider.provider}`)
-        }
-      }}
-    >
-      <div className="flex items-center gap-3 mb-5">
-        <div className={`h-12 w-12 rounded-xl flex items-center justify-center flex-shrink-0 ${provider.is_enabled ? 'bg-[#007A78]/10' : 'bg-[#F5F5F7]'}`}>
-          <div className={provider.is_enabled ? 'text-[#007A78]' : 'text-[#8E8E93]'}>
-            {icon}
+    <div className="metric-card p-5 transition-all">
+      <div className="flex items-start justify-between gap-3 mb-4">
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <div className={`h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0 ${provider.is_enabled ? 'bg-[#007A78]/10' : 'bg-[#007A78]/5'}`}>
+            <div className={provider.is_enabled ? 'text-[#007A78]' : 'text-muted-foreground'}>
+              {icon}
+            </div>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[15px] font-semibold text-black truncate">{provider.display_name}</p>
+            <p className="text-[13px] text-muted-foreground capitalize">{provider.category}</p>
           </div>
         </div>
-        <div className="flex-1 min-w-0">
-          <p className="console-card-title text-black truncate mb-0.5">{provider.display_name}</p>
-          <p className="text-[13px] text-[#8E8E93] capitalize">{provider.category}</p>
-        </div>
         {provider.is_enabled && provider.plan_count > 0 && (
-          <Badge className="bg-[#007A78]/10 text-[#007A78] border-0 text-[11px] font-semibold px-2.5 py-0.5 h-6">
+          <Badge className="bg-[#007A78] text-white border-0 text-[11px] font-medium flex-shrink-0">
             {provider.plan_count} plan{provider.plan_count !== 1 ? 's' : ''}
           </Badge>
         )}
@@ -68,7 +63,7 @@ function SubscriptionProviderCard({
 
       {provider.is_enabled && (
         <button
-          className="console-button-primary w-full justify-between mb-4"
+          className="w-full h-11 mb-4 inline-flex items-center justify-center gap-2 bg-[#007A78] hover:bg-[#006664] text-white text-[15px] font-semibold rounded-xl border-0 transition-colors"
           onClick={(e) => {
             e.stopPropagation()
             router.push(`/${orgSlug}/integrations/subscriptions/${provider.provider}`)
@@ -79,11 +74,11 @@ function SubscriptionProviderCard({
         </button>
       )}
 
-      <div 
-        className="flex items-center justify-between pt-4 border-t border-[rgba(0,0,0,0.04)]" 
+      <div
+        className="flex items-center justify-between pt-4 border-t border-border"
         onClick={(e) => e.stopPropagation()}
       >
-        <span className="text-[13px] font-medium text-[#8E8E93]">{provider.is_enabled ? 'Enabled' : 'Disabled'}</span>
+        <span className="text-[12px] font-medium text-muted-foreground">{provider.is_enabled ? 'Enabled' : 'Disabled'}</span>
         <Switch
           checked={provider.is_enabled}
           onCheckedChange={(checked) => onToggle(provider.provider, checked)}
@@ -182,6 +177,10 @@ export default function SubscriptionIntegrationsPage() {
         success = result.success
         if (result.success) {
           setSuccessMessage(`${displayName} disabled`)
+          // Check for partial failure
+          if (result.partial_failure) {
+            setError(result.partial_failure)
+          }
         } else {
           errorMsg = result.error
         }
@@ -213,16 +212,16 @@ export default function SubscriptionIntegrationsPage() {
   }
 
   return (
-    <div className="space-y-8 max-w-[1600px] mx-auto">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+    <div className="space-y-6 sm:space-y-8">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="console-page-title mb-2">Subscription Providers</h1>
-          <p className="console-body text-[#8E8E93] max-w-2xl">
-            Track fixed-cost SaaS subscriptions and manage plans. Enable providers to start tracking costs.
+          <h1 className="text-[32px] sm:text-[34px] font-bold text-black tracking-tight">Subscription Providers</h1>
+          <p className="text-[15px] text-muted-foreground mt-1">
+            Track fixed-cost SaaS subscriptions and manage plans
           </p>
         </div>
         <Link href={`/${orgSlug}/cost-dashboards/subscription-costs`}>
-          <button className="console-button-coral">
+          <button className="h-11 px-5 inline-flex items-center justify-center gap-2 bg-[#FF6E50] hover:bg-[#E55A3C] text-white text-[15px] font-semibold rounded-xl transition-colors">
             <Wallet className="h-5 w-5" />
             View Costs
           </button>
@@ -244,9 +243,8 @@ export default function SubscriptionIntegrationsPage() {
               </p>
             </div>
             <Link href={`/${orgSlug}/settings/organization`}>
-              <button className="console-button-primary text-sm h-10 px-5">
+              <button className="h-11 px-4 inline-flex items-center gap-2 bg-[#007A78] hover:bg-[#006664] text-white text-[15px] font-semibold rounded-xl transition-colors">
                 Go to Settings
-                <ChevronRight className="h-4 w-4 ml-1" />
               </button>
             </Link>
           </div>
@@ -271,26 +269,22 @@ export default function SubscriptionIntegrationsPage() {
         </div>
       )}
 
-      <div className="flex items-center justify-between">
-        <h2 className="console-section-title mb-0">Available Providers</h2>
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#007A78]/5 border border-[#007A78]/10">
-          <div className="h-2 w-2 rounded-full bg-[#007A78]"></div>
-          <span className="text-[13px] font-medium text-[#007A78]">
-            {enabledCount} of {subscriptionProviders.length} Active
-          </span>
-        </div>
+      <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#007A78]/10 border border-[#007A78]/20 flex-shrink-0">
+        <Check className="h-4 w-4 text-[#007A78] stroke-[2.5] flex-shrink-0" />
+        <span className="text-[13px] text-muted-foreground">Active:</span>
+        <span className="text-[13px] font-bold text-[#007A78]">{enabledCount} / {subscriptionProviders.length}</span>
       </div>
 
       {subscriptionProviders.length === 0 ? (
         <div className="metric-card py-16 text-center">
-          <div className="inline-flex p-5 rounded-2xl bg-[#F5F5F7] mb-6">
-            <CreditCard className="h-10 w-10 text-[#8E8E93]" />
+          <div className="inline-flex p-5 rounded-2xl bg-[#007A78]/10 mb-6">
+            <CreditCard className="h-10 w-10 text-[#007A78]" />
           </div>
-          <h3 className="text-[20px] font-bold text-[#1C1C1E] mb-2">
+          <h3 className="text-[20px] font-bold text-foreground mb-2">
             No subscription providers available
           </h3>
-          <p className="text-[15px] text-[#8E8E93] max-w-sm mx-auto">
-            Providers will appear here when they are available in the catalog.
+          <p className="text-[15px] text-muted-foreground max-w-sm mx-auto">
+            No providers available in the catalog. Contact support if you need custom providers.
           </p>
         </div>
       ) : (
@@ -308,36 +302,31 @@ export default function SubscriptionIntegrationsPage() {
           </div>
           
           {subscriptionProviders.length > INITIAL_PROVIDERS_COUNT && (
-            <div className="flex justify-center mt-8">
+            <div className="flex justify-center mt-6">
               <button
                 onClick={() => setShowAllProviders(!showAllProviders)}
-                className="console-button-secondary h-10 px-6 text-sm"
+                className="h-11 px-6 inline-flex items-center justify-center gap-2 bg-[#007A78]/5 hover:bg-[#007A78]/10 text-muted-foreground text-[15px] font-medium rounded-xl border-0 transition-colors"
               >
                 {showAllProviders ? (
-                  <>Show Less <ChevronUp className="h-4 w-4 ml-2" /></>
+                  <>Show Less <ChevronUp className="h-4 w-4" /></>
                 ) : (
-                  <>Show {subscriptionProviders.length - INITIAL_PROVIDERS_COUNT} More <ChevronDown className="h-4 w-4 ml-2" /></>
+                  <>Show {subscriptionProviders.length - INITIAL_PROVIDERS_COUNT} More <ChevronDown className="h-4 w-4" /></>
                 )}
               </button>
             </div>
           )}
 
-          {/* Add Custom Provider - Hero Section Style */}
-          <div className="mt-12 p-8 rounded-3xl bg-gradient-to-br from-[#007A78]/5 to-transparent border border-[#007A78]/10">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
-              <div className="space-y-2">
-                <h2 className="text-[22px] font-bold text-[#1C1C1E]">Can't find your provider?</h2>
-                <p className="text-[15px] text-[#3C3C43]">
-                  Add a custom subscription to track any SaaS tool not listed above.
-                </p>
-              </div>
-              <Link href={`/${orgSlug}/integrations/subscriptions/custom/add`}>
-                <button className="console-button-primary">
-                  <Plus className="h-5 w-5" />
-                  Add Custom Provider
-                </button>
-              </Link>
-            </div>
+          {/* Add Custom Provider */}
+          <div className="health-card p-6 text-center mt-8">
+            <p className="text-[15px] text-muted-foreground mb-4">
+              Can't find your provider? Add a custom subscription to track any SaaS tool.
+            </p>
+            <Link href={`/${orgSlug}/integrations/subscriptions/custom/add`}>
+              <button className="h-11 px-5 inline-flex items-center justify-center gap-2 bg-[#007A78] hover:bg-[#006664] text-white text-[15px] font-semibold rounded-xl transition-colors">
+                <Plus className="h-5 w-5" />
+                Add Custom Provider
+              </button>
+            </Link>
           </div>
         </>
       )}

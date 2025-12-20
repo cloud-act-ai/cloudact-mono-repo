@@ -248,9 +248,10 @@ async def enqueue_pipeline(
     priority: int = 5
 ) -> str:
     """
-    Add pipeline to execution queue.
+    Add pipeline to execution queue with idempotency check.
 
     Creates record in org_pipeline_execution_queue and org_scheduled_pipeline_runs tables.
+    IDEMPOTENT: Returns existing run_id if pipeline is already queued/running.
 
     Args:
         bq_client: BigQuery client instance
@@ -259,8 +260,40 @@ async def enqueue_pipeline(
         priority: Queue priority (1-10, higher is more urgent)
 
     Returns:
-        Run ID for the scheduled pipeline
+        Run ID for the scheduled pipeline (existing or new)
     """
+    pipeline_id = f"{org_slug}-{config['provider']}-{config['domain']}-{config['pipeline_template']}"
+
+    # ============================================
+    # IDEMPOTENCY CHECK: Skip if already queued/running
+    # ============================================
+    check_existing_query = f"""
+    SELECT run_id, state
+    FROM `{settings.gcp_project_id}.organizations.org_pipeline_execution_queue`
+    WHERE org_slug = @org_slug
+      AND pipeline_id = @pipeline_id
+      AND state IN ('QUEUED', 'PROCESSING')
+    LIMIT 1
+    """
+
+    check_job_config = bigquery.QueryJobConfig(
+        query_parameters=[
+            bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+            bigquery.ScalarQueryParameter("pipeline_id", "STRING", pipeline_id),
+        ]
+    )
+
+    existing_results = list(bq_client.client.query(check_existing_query, job_config=check_job_config).result())
+
+    if existing_results:
+        existing_run_id = existing_results[0]['run_id']
+        existing_state = existing_results[0]['state']
+        logger.info(f"Pipeline {pipeline_id} already {existing_state} for org {org_slug}, returning existing run_id {existing_run_id}")
+        return existing_run_id
+
+    # ============================================
+    # No existing run - proceed with enqueue
+    # ============================================
     run_id = str(uuid.uuid4())
     scheduled_time = datetime.now(timezone.utc)
 
@@ -284,7 +317,7 @@ async def enqueue_pipeline(
     )
     """
 
-    pipeline_id = f"{org_slug}-{config['provider']}-{config['domain']}-{config['pipeline_template']}"
+    # pipeline_id already defined above (before idempotency check)
 
     job_config = bigquery.QueryJobConfig(
         query_parameters=[
@@ -524,17 +557,24 @@ async def process_queue(
                 logger.info(f"At concurrency limit ({current_processing}/{settings.pipeline_global_concurrent_limit}), stopping batch")
                 break
 
-            # Get next pipeline from queue
+            # Get next pipeline from queue (excluding orgs at their concurrent limit)
             query = f"""
             SELECT
-                run_id,
-                org_slug,
-                pipeline_id,
-                scheduled_time,
-                priority
-            FROM `{settings.gcp_project_id}.organizations.org_pipeline_execution_queue`
-            WHERE state = 'QUEUED'
-            ORDER BY priority DESC, scheduled_time ASC
+                q.run_id,
+                q.org_slug,
+                q.pipeline_id,
+                q.scheduled_time,
+                q.priority
+            FROM `{settings.gcp_project_id}.organizations.org_pipeline_execution_queue` q
+            LEFT JOIN `{settings.gcp_project_id}.organizations.org_usage_quotas` u
+                ON q.org_slug = u.org_slug AND u.usage_date = CURRENT_DATE()
+            WHERE q.state = 'QUEUED'
+              -- Only pick pipelines from orgs NOT at their concurrent limit
+              AND (
+                  u.org_slug IS NULL  -- No quota record yet = OK to run
+                  OR COALESCE(u.concurrent_pipelines_running, 0) < COALESCE(u.concurrent_limit, 999)
+              )
+            ORDER BY q.priority DESC, q.scheduled_time ASC
             LIMIT 1
             """
 
@@ -548,6 +588,9 @@ async def process_queue(
             run_id = queue_item['run_id']
             org_slug = queue_item['org_slug']
             pipeline_id = queue_item['pipeline_id']
+
+            # Note: Per-org concurrent limit is enforced in the queue query above
+            # Only pipelines from orgs NOT at their concurrent limit are returned
 
             # Update queue state to PROCESSING
             update_query = f"""

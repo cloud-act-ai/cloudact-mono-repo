@@ -572,9 +572,13 @@
 
 /* Primary Button - Teal */
 .console-button-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   background: var(--cloudact-teal);
   color: white;
-  border-radius: 14px;
+  border-radius: 12px;
   font-size: 0.9375rem;
   font-weight: 600;
   padding: 12px 24px;
@@ -582,6 +586,7 @@
   min-height: 44px;
   box-shadow: var(--shadow-button-teal);
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
 }
 
 .console-button-primary:hover {
@@ -602,22 +607,27 @@
   box-shadow: var(--shadow-button-teal);
 }
 
-/* Secondary Button - Gray */
+/* Secondary Button - Premium White with Teal tint */
 .console-button-secondary {
-  background: #F5F5F7;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: rgba(0, 122, 120, 0.06);
   color: #000000;
-  border-radius: 14px;
+  border-radius: 12px;
   font-size: 0.9375rem;
   font-weight: 600;
   padding: 12px 24px;
-  border: none;
+  border: 1px solid rgba(0, 122, 120, 0.08);
   min-height: 44px;
   box-shadow: var(--shadow-premium-xs);
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
 }
 
 .console-button-secondary:hover {
-  background: #E8E8ED;
+  background: rgba(0, 122, 120, 0.1);
   box-shadow: var(--shadow-premium-sm);
   transform: translateY(-1px);
 }
@@ -629,15 +639,19 @@
 }
 
 .console-button-secondary:active {
-  background: #D1D1D6;
+  background: rgba(0, 122, 120, 0.15);
   transform: scale(0.98);
 }
 
 /* Destructive Button - Coral */
 .console-button-destructive {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   background: var(--cloudact-coral);
   color: white;
-  border-radius: 14px;
+  border-radius: 12px;
   font-size: 0.9375rem;
   font-weight: 600;
   padding: 12px 24px;
@@ -645,6 +659,7 @@
   min-height: 44px;
   box-shadow: var(--shadow-button-coral);
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
 }
 
 .console-button-destructive:hover {
@@ -667,9 +682,13 @@
 
 /* Coral Button - Alias for destructive with brand name */
 .console-button-coral {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   background: var(--cloudact-coral);
   color: white;
-  border-radius: 14px;
+  border-radius: 12px;
   font-size: 0.9375rem;
   font-weight: 600;
   padding: 12px 24px;
@@ -677,6 +696,7 @@
   min-height: 44px;
   box-shadow: var(--shadow-button-coral);
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
 }
 
 .console-button-coral:hover {
@@ -698,15 +718,20 @@
 
 /* Ghost Button - Transparent */
 .console-button-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   background: transparent;
   color: #000000;
-  border-radius: 14px;
+  border-radius: 12px;
   font-size: 0.9375rem;
   font-weight: 600;
   padding: 12px 24px;
   border: none;
   min-height: 44px;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
 }
 
 .console-button-ghost:hover {
@@ -756,9 +781,13 @@
 
 /* Outline Button - Teal border */
 .console-button-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   background: transparent;
   color: var(--cloudact-teal);
-  border-radius: 14px;
+  border-radius: 12px;
   font-size: 0.9375rem;
   font-weight: 600;
   padding: 11px 23px;
@@ -766,6 +795,7 @@
   min-height: 44px;
   box-shadow: var(--shadow-premium-xs);
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
 }
 
 .console-button-outline:hover {

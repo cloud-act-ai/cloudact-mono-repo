@@ -259,14 +259,14 @@ export default function InviteMembersPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div>
           <h1 className="text-[32px] sm:text-[34px] font-bold text-black tracking-tight">Invite Members</h1>
-          <p className="text-[13px] sm:text-[15px] text-[#8E8E93] mt-1">
+          <p className="text-[13px] sm:text-[15px] text-muted-foreground mt-1">
             Manage who has access to your organization ({currentSeats}/{seatLimit ?? "N/A"} seats used)
           </p>
         </div>
         {isOwner && (
           <Dialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen}>
             <DialogTrigger asChild>
-              <Button disabled={!seatLimit || seatsAvailable <= 0} className="cloudact-btn-primary h-[36px] px-4">
+              <Button disabled={!seatLimit || seatsAvailable <= 0} className="console-button-primary h-11 px-4">
                 <UserPlus className="mr-2 h-4 w-4" />
                 Invite Member
               </Button>
@@ -295,7 +295,7 @@ export default function InviteMembersPage() {
                     </Button>
                   </div>
                   <Button
-                    className="w-full cloudact-btn-primary"
+                    className="w-full h-11 bg-[#007A78] hover:bg-[#006664] text-white text-[15px] font-semibold rounded-xl"
                     onClick={() => {
                       setInviteLink(null)
                       setIsInviteDialogOpen(false)
@@ -344,10 +344,10 @@ export default function InviteMembersPage() {
                   )}
 
                   <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsInviteDialogOpen(false)} className="cloudact-btn-secondary h-[36px] px-4">
+                    <Button variant="outline" onClick={() => setIsInviteDialogOpen(false)} className="console-button-secondary h-11 px-4">
                       Cancel
                     </Button>
-                    <Button onClick={handleInvite} disabled={isInviting || !inviteEmail || !validateEmail(inviteEmail)} className="cloudact-btn-primary h-[36px] px-4">
+                    <Button onClick={handleInvite} disabled={isInviting || !inviteEmail || !validateEmail(inviteEmail)} className="console-button-primary h-11 px-4">
                       {isInviting ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       ) : (
@@ -382,7 +382,7 @@ export default function InviteMembersPage() {
             <Users className="h-5 w-5 text-[#007A78]" />
             <h2 className="text-[22px] font-bold text-black">Active Members ({members.length})</h2>
           </div>
-          <p className="text-[13px] sm:text-[15px] text-[#8E8E93] mt-1">People who have access to this organization</p>
+          <p className="text-[13px] sm:text-[15px] text-muted-foreground mt-1">People who have access to this organization</p>
         </div>
         <div className="metric-card-content">
           {members.length === 0 ? (
@@ -391,11 +391,11 @@ export default function InviteMembersPage() {
                 <Users className="h-12 w-12 text-[#007A78]" />
               </div>
               <h3 className="text-[20px] font-semibold text-black mb-2">No team members yet</h3>
-              <p className="text-[15px] text-[#8E8E93] mb-6 max-w-md mx-auto">
+              <p className="text-[15px] text-muted-foreground mb-6 max-w-md mx-auto">
                 Get started by inviting your first team member
               </p>
               {isOwner && (
-                <Button onClick={() => setIsInviteDialogOpen(true)} disabled={!seatLimit || seatsAvailable <= 0} className="cloudact-btn-primary h-[44px] px-6">
+                <Button onClick={() => setIsInviteDialogOpen(true)} disabled={!seatLimit || seatsAvailable <= 0} className="console-button-primary h-11 px-6">
                   <UserPlus className="mr-2 h-4 w-4" />
                   Invite Member
                 </Button>
@@ -407,12 +407,12 @@ export default function InviteMembersPage() {
                 <div key={member.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 py-4">
                   <div className="space-y-1 min-w-0">
                     <p className="text-[15px] font-medium text-black truncate">{member.profiles?.full_name || member.profiles?.email || "Unknown"}</p>
-                    <p className="text-[13px] text-[#8E8E93] truncate">{member.profiles?.email}</p>
+                    <p className="text-[13px] text-muted-foreground truncate">{member.profiles?.email}</p>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     {isOwner && member.role !== "owner" ? (
                       <Select value={member.role} onValueChange={(v: "collaborator" | "read_only") => handleUpdateRole(member.user_id, v)}>
-                        <SelectTrigger className="w-[140px] h-[36px] border border-[#E5E5EA] rounded-lg">
+                        <SelectTrigger className="w-[140px] h-11 border border-border rounded-xl">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -421,7 +421,7 @@ export default function InviteMembersPage() {
                         </SelectContent>
                       </Select>
                     ) : (
-                      <Badge variant={member.role === "owner" ? "default" : "secondary"} className={member.role === "owner" ? "bg-[#007A78]/12 text-[#007A78] border-0 capitalize" : "bg-[#8E8E93]/12 text-[#8E8E93] border-0 capitalize"}>
+                      <Badge variant={member.role === "owner" ? "default" : "secondary"} className={member.role === "owner" ? "bg-[#007A78]/12 text-[#007A78] border-0 capitalize" : "bg-muted-foreground/12 text-muted-foreground border-0 capitalize"}>
                         {member.role === "read_only" ? "Read Only" : member.role}
                       </Badge>
                     )}
@@ -452,8 +452,8 @@ export default function InviteMembersPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setMemberToRemove(null)} className="cloudact-btn-secondary">Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleRemoveMember} className="cloudact-btn-destructive">
+            <AlertDialogCancel onClick={() => setMemberToRemove(null)} className="console-button-secondary h-11">Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRemoveMember} className="h-11 rounded-xl bg-[#FF6E50] hover:bg-[#E55A3C]">
               Remove
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -468,7 +468,7 @@ export default function InviteMembersPage() {
               <Mail className="h-5 w-5 text-[#007A78]" />
               <h2 className="text-[22px] font-bold text-black">Pending Invites ({invites.length})</h2>
             </div>
-            <p className="text-[13px] sm:text-[15px] text-[#8E8E93] mt-1">Invitations that haven't been accepted yet</p>
+            <p className="text-[13px] sm:text-[15px] text-muted-foreground mt-1">Invitations that haven't been accepted yet</p>
           </div>
           <div className="metric-card-content">
             <div className="divide-y divide-[#E5E5EA]">
@@ -476,7 +476,7 @@ export default function InviteMembersPage() {
                 <div key={invite.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 py-4">
                   <div className="space-y-1 min-w-0">
                     <p className="text-[15px] font-medium text-black truncate">{invite.email}</p>
-                    <p className="text-[13px] text-[#8E8E93]">
+                    <p className="text-[13px] text-muted-foreground">
                       Invited {new Date(invite.created_at).toLocaleDateString()} • Expires{" "}
                       {new Date(invite.expires_at).toLocaleDateString()}
                     </p>
@@ -486,7 +486,7 @@ export default function InviteMembersPage() {
                       {invite.role === "read_only" ? "Read Only" : invite.role}
                     </Badge>
                     {isOwner && (
-                      <Button variant="ghost" size="sm" onClick={() => handleCancelInvite(invite.id)} className="h-8 px-3 rounded-lg hover:bg-[#007A78]/5 text-[#8E8E93]">
+                      <Button variant="ghost" size="sm" onClick={() => handleCancelInvite(invite.id)} className="h-8 px-3 rounded-lg hover:bg-[#007A78]/5 text-muted-foreground">
                         Cancel
                       </Button>
                     )}
@@ -504,16 +504,16 @@ export default function InviteMembersPage() {
             <Shield className="h-5 w-5 text-[#007A78]" />
             <h2 className="text-[22px] font-bold text-black">Role Permissions</h2>
           </div>
-          <p className="text-[13px] sm:text-[15px] text-[#8E8E93] mt-1">What each role can do in your organization</p>
+          <p className="text-[13px] sm:text-[15px] text-muted-foreground mt-1">What each role can do in your organization</p>
         </div>
         <div className="metric-card-content">
           <div className="overflow-x-auto -mx-4 sm:-mx-6 px-4 sm:px-6">
             <div className="min-w-[400px] space-y-3 sm:space-y-4">
               <div className="console-table-header grid grid-cols-4 gap-3 sm:gap-4 border-b border-[#E5E5EA] pb-2">
-                <div className="font-semibold text-gray-700">Permission</div>
-                <div className="text-center font-semibold text-gray-700">Owner</div>
-                <div className="text-center font-semibold text-gray-700">Collaborator</div>
-                <div className="text-center font-semibold text-gray-700">Read Only</div>
+                <div className="font-semibold text-foreground">Permission</div>
+                <div className="text-center font-semibold text-foreground">Owner</div>
+                <div className="text-center font-semibold text-foreground">Collaborator</div>
+                <div className="text-center font-semibold text-foreground">Read Only</div>
               </div>
               {[
                 { label: "View data", owner: true, collab: true, readonly: true },

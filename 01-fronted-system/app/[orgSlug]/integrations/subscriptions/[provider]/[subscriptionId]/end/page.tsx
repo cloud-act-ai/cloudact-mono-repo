@@ -137,7 +137,6 @@ export default function EndSubscriptionPage() {
   const handleEndSubscription = async () => {
     if (!plan || !endDate) {
       setError("End date is required")
-      toast.error("End date is required")
       return
     }
 
@@ -155,7 +154,6 @@ export default function EndSubscriptionPage() {
 
       if (!result.success) {
         setError(result.error || "Failed to end subscription")
-        toast.error(result.error || "Failed to end subscription")
         setEnding(false)
         return
       }
@@ -166,7 +164,6 @@ export default function EndSubscriptionPage() {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "An unexpected error occurred"
       setError(errorMessage)
-      toast.error(errorMessage)
     } finally {
       setEnding(false)
     }
@@ -234,14 +231,14 @@ export default function EndSubscriptionPage() {
           >
             Subscription Providers
           </Link>
-          <ChevronRight className="h-4 w-4 text-[#8E8E93]" />
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
           <Link
             href={`/${orgSlug}/integrations/subscriptions/${provider}`}
             className="text-[#007A78] hover:text-[#005F5D] transition-colors"
           >
             {providerDisplayName}
           </Link>
-          <ChevronRight className="h-4 w-4 text-[#8E8E93]" />
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
           <span className="text-gray-900 font-medium">End Subscription</span>
         </nav>
 
@@ -267,7 +264,7 @@ export default function EndSubscriptionPage() {
         >
           Subscription Providers
         </Link>
-        <ChevronRight className="h-4 w-4 text-[#8E8E93] flex-shrink-0" aria-hidden="true" />
+        <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" aria-hidden="true" />
         <Link
           href={`/${orgSlug}/integrations/subscriptions/${provider}`}
           className="text-[#007A78] hover:text-[#005F5D] transition-colors focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2 rounded truncate max-w-[200px]"
@@ -275,11 +272,11 @@ export default function EndSubscriptionPage() {
         >
           {providerDisplayName}
         </Link>
-        <ChevronRight className="h-4 w-4 text-[#8E8E93] flex-shrink-0" aria-hidden="true" />
+        <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" aria-hidden="true" />
         <span className="text-gray-900 font-medium truncate max-w-[300px]" title={plan.display_name || plan.plan_name}>
           {plan.display_name || plan.plan_name}
         </span>
-        <ChevronRight className="h-4 w-4 text-[#8E8E93] flex-shrink-0" aria-hidden="true" />
+        <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" aria-hidden="true" />
         <span className="text-gray-900 font-medium">End Subscription</span>
       </nav>
 
@@ -322,40 +319,40 @@ export default function EndSubscriptionPage() {
           {/* Details Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
             <div className="space-y-1">
-              <span className="text-slate-500 block text-xs uppercase tracking-wide">Plan Name</span>
+              <span className="text-muted-foreground block text-xs uppercase tracking-wide">Plan Name</span>
               <span className="font-medium text-slate-900">{plan.display_name || plan.plan_name}</span>
             </div>
             <div className="space-y-1">
-              <span className="text-slate-500 block text-xs uppercase tracking-wide">Status</span>
+              <span className="text-muted-foreground block text-xs uppercase tracking-wide">Status</span>
               <Badge variant="outline" className="capitalize">
                 {plan.status}
               </Badge>
             </div>
             {plan.start_date && (
               <div className="space-y-1">
-                <span className="text-slate-500 block text-xs uppercase tracking-wide">Start Date</span>
+                <span className="text-muted-foreground block text-xs uppercase tracking-wide">Start Date</span>
                 <span className="font-medium">{format(new Date(plan.start_date), 'MMM d, yyyy')}</span>
               </div>
             )}
             <div className="space-y-1">
-              <span className="text-slate-500 block text-xs uppercase tracking-wide">Monthly Cost</span>
+              <span className="text-muted-foreground block text-xs uppercase tracking-wide">Monthly Cost</span>
               <span className="font-medium text-[#FF6E50]">
                 {formatCurrency(getMonthlyDisplayCost(plan), currency)}
               </span>
             </div>
             <div className="space-y-1">
-              <span className="text-slate-500 block text-xs uppercase tracking-wide">Seats</span>
+              <span className="text-muted-foreground block text-xs uppercase tracking-wide">Seats</span>
               <span className="font-medium">{plan.seats ?? 0}</span>
             </div>
             {plan.owner_email && (
               <div className="space-y-1">
-                <span className="text-slate-500 block text-xs uppercase tracking-wide">Owner</span>
+                <span className="text-muted-foreground block text-xs uppercase tracking-wide">Owner</span>
                 <span className="font-medium">{plan.owner_email}</span>
               </div>
             )}
             {plan.billing_cycle && (
               <div className="space-y-1">
-                <span className="text-slate-500 block text-xs uppercase tracking-wide">Billing Cycle</span>
+                <span className="text-muted-foreground block text-xs uppercase tracking-wide">Billing Cycle</span>
                 <Badge variant="outline" className="capitalize">
                   {plan.billing_cycle}
                 </Badge>
@@ -363,7 +360,7 @@ export default function EndSubscriptionPage() {
             )}
             {plan.pricing_model && (
               <div className="space-y-1">
-                <span className="text-slate-500 block text-xs uppercase tracking-wide">Pricing Model</span>
+                <span className="text-muted-foreground block text-xs uppercase tracking-wide">Pricing Model</span>
                 <span className="font-medium">
                   {plan.pricing_model === 'PER_SEAT' ? 'Per Seat' : 'Flat Fee'}
                 </span>
@@ -383,7 +380,7 @@ export default function EndSubscriptionPage() {
               disabled={ending}
               className="w-full"
             />
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-muted-foreground">
               Costs will stop being calculated after this date. The subscription will be marked as cancelled.
             </p>
           </div>

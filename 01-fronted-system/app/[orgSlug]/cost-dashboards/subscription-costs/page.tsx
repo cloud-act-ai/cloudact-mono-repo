@@ -73,7 +73,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   communication: "bg-[#007A78]/5 text-[#005F5D] border border-[#007A78]/10",
   development: "bg-[#F0FDFA] text-[#005F5D] border border-[#007A78]/10",
   cloud: "bg-[#007A78]/10 text-[#007A78] border border-[#007A78]/10",
-  other: "bg-[#F5F5F7] text-[#8E8E93] border border-[#E5E5EA]",
+  other: "bg-[#007A78]/5 text-muted-foreground border border-border",
 }
 
 type PlanWithProvider = SubscriptionPlan & { provider_name: string }
@@ -136,7 +136,7 @@ export default function SubscriptionCostsPage() {
         getSaaSSubscriptionCosts(orgSlug),
         supabase
           .from("organizations")
-          .select("default_currency")
+          .select("locale_currency")
           .eq("org_slug", orgSlug)
           .single(),
       ])
@@ -156,8 +156,8 @@ export default function SubscriptionCostsPage() {
         setCostSummary(null)
       }
 
-      if (orgResult.data?.default_currency) {
-        setOrgCurrency(orgResult.data.default_currency)
+      if (orgResult.data?.locale_currency) {
+        setOrgCurrency(orgResult.data.locale_currency)
       }
     } catch (err) {
       console.error("Error loading subscription data:", err)
@@ -203,7 +203,7 @@ export default function SubscriptionCostsPage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-[32px] sm:text-[34px] font-bold text-black tracking-tight">Subscription Costs</h1>
-            <p className="text-[15px] text-[#8E8E93] mt-1">
+            <p className="text-[15px] text-muted-foreground mt-1">
               View your SaaS subscription costs and usage
             </p>
           </div>
@@ -216,7 +216,7 @@ export default function SubscriptionCostsPage() {
         <div className="metric-card p-0 overflow-hidden">
           <div className="px-4 sm:px-6 py-4 sm:py-5">
             <h2 className="text-[17px] font-semibold text-black">All Subscriptions</h2>
-            <p className="text-[13px] text-[#8E8E93] mt-0.5">
+            <p className="text-[13px] text-muted-foreground mt-0.5">
               View and manage all your SaaS subscriptions
             </p>
           </div>
@@ -233,7 +233,7 @@ export default function SubscriptionCostsPage() {
       <div className="space-y-6 sm:space-y-8">
         <div>
           <h1 className="text-[32px] sm:text-[34px] font-bold text-black tracking-tight">Subscription Costs</h1>
-          <p className="text-[15px] text-[#8E8E93] mt-1">
+          <p className="text-[15px] text-muted-foreground mt-1">
             View your SaaS subscription costs and usage
           </p>
         </div>
@@ -243,7 +243,7 @@ export default function SubscriptionCostsPage() {
             <AlertCircle className="h-5 w-5 text-[#FF6E50] mt-0.5 flex-shrink-0" />
             <div>
               <h3 className="font-semibold text-black text-[15px]">{error}</h3>
-              <p className="text-[13px] text-[#8E8E93] mt-1">
+              <p className="text-[13px] text-muted-foreground mt-1">
                 {error.includes("API key") ? (
                   <>
                     Please complete organization onboarding in{" "}
@@ -268,7 +268,7 @@ export default function SubscriptionCostsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-[32px] sm:text-[34px] font-bold text-black tracking-tight">Subscription Costs</h1>
-          <p className="text-[15px] text-[#8E8E93] mt-1">
+          <p className="text-[15px] text-muted-foreground mt-1">
             View your SaaS subscription costs and usage
           </p>
         </div>
@@ -278,13 +278,13 @@ export default function SubscriptionCostsPage() {
             disabled={isRefreshing}
             variant="ghost"
             size="sm"
-            className="h-[36px] px-4 text-[15px] text-[#8E8E93] hover:bg-[#007A78]/5 rounded-xl"
+            className="h-11 px-4 text-[15px] text-muted-foreground hover:bg-[#007A78]/5 rounded-xl"
           >
             <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
             <span className="hidden sm:inline">Refresh</span>
           </Button>
           <Link href={`/${orgSlug}/integrations/subscriptions`}>
-            <Button className="h-[36px] px-4 bg-[#007A78] text-white hover:bg-[#006664] rounded-xl text-[15px] font-semibold">
+            <Button className="console-button-primary h-11 px-4 rounded-xl text-[15px] font-semibold">
               <Plus className="h-4 w-4 mr-2" />
               <span className="hidden sm:inline">Manage Providers</span>
               <span className="sm:hidden">Manage</span>
@@ -345,7 +345,7 @@ export default function SubscriptionCostsPage() {
               </div>
               <div className="metric-card-content">
                 <div className="metric-card-value">
-                  {summary.enabled_count}<span className="text-[#8E8E93] text-[18px] font-normal"> / {summary.total_count}</span>
+                  {summary.enabled_count}<span className="text-muted-foreground text-[18px] font-normal"> / {summary.total_count}</span>
                 </div>
                 <div className="metric-card-description mt-1">Subscriptions enabled</div>
               </div>
@@ -404,11 +404,11 @@ export default function SubscriptionCostsPage() {
                 <Wallet className="h-12 w-12 text-[#007A78]" />
               </div>
               <h3 className="text-[20px] font-semibold text-black mb-2">No subscriptions yet</h3>
-              <p className="text-[15px] text-[#8E8E93] mb-6 max-w-md mx-auto">
+              <p className="text-[15px] text-muted-foreground mb-6 max-w-md mx-auto">
                 Enable providers from Integrations to start tracking your SaaS costs.
               </p>
               <Link href={`/${orgSlug}/integrations/subscriptions`}>
-                <Button className="h-[44px] px-6 bg-[#007A78] text-white hover:bg-[#006664] rounded-xl text-[15px] font-semibold shadow-sm">
+                <Button className="console-button-primary h-11 px-6 rounded-xl text-[15px] font-semibold shadow-sm">
                   <Plus className="h-4 w-4 mr-2" />
                   Enable Providers
                 </Button>
@@ -418,7 +418,7 @@ export default function SubscriptionCostsPage() {
             <div className="overflow-x-auto">
               <Table className="w-full min-w-[900px]">
               <TableHeader>
-                <TableRow className="border-b border-[#E5E5EA]">
+                <TableRow className="border-b border-border">
                   <TableHead className="console-table-header w-10"></TableHead>
                   <TableHead className="console-table-header">Status</TableHead>
                   <TableHead className="console-table-header">Plan</TableHead>
@@ -451,7 +451,7 @@ export default function SubscriptionCostsPage() {
                   const statusColors: Record<string, string> = {
                     active: "bg-[#F0FDFA] text-[#007A78] border border-[#007A78]/10",
                     pending: "bg-[#007A78]/5 text-[#007A78] border border-[#007A78]/10",
-                    cancelled: "bg-[#F5F5F7] text-[#8E8E93] border border-[#E5E5EA]",
+                    cancelled: "bg-[#007A78]/5 text-muted-foreground border border-border",
                     expired: "bg-[#FF6E50]/10 text-[#FF6E50] border border-[#FF6E50]/10"
                   }
 
@@ -463,7 +463,7 @@ export default function SubscriptionCostsPage() {
                       >
                         <TableCell className="console-table-cell">
                           {isExpanded ? (
-                            <ChevronDown className="h-4 w-4 text-[#8E8E93]" />
+                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
                           ) : (
                             <ChevronRight className="h-4 w-4 text-[#C7C7CC]" />
                           )}
@@ -481,7 +481,7 @@ export default function SubscriptionCostsPage() {
                               </span>
                             )}
                             {plan.end_date && (
-                              <span className="text-[11px] text-[#8E8E93] font-medium whitespace-nowrap">
+                              <span className="text-[11px] text-muted-foreground font-medium whitespace-nowrap">
                                 Ends {format(new Date(plan.end_date), 'MMM d')}
                               </span>
                             )}
@@ -491,7 +491,7 @@ export default function SubscriptionCostsPage() {
                           <div className="flex items-center gap-3">
                             <div>
                               <div className="font-semibold text-black text-[15px]">{plan.display_name || plan.plan_name}</div>
-                              <div className="text-[13px] text-[#8E8E93]">{plan.plan_name}</div>
+                              <div className="text-[13px] text-muted-foreground">{plan.plan_name}</div>
                             </div>
                           </div>
                         </TableCell>
@@ -523,14 +523,14 @@ export default function SubscriptionCostsPage() {
                           <div className="whitespace-nowrap">
                             <span className="font-semibold text-black text-[15px]">{formatCurrency(plan.unit_price ?? 0, orgCurrency)}</span>
                             {plan.pricing_model && (
-                              <div className="text-[11px] text-[#8E8E93] font-medium">
+                              <div className="text-[11px] text-muted-foreground font-medium">
                                 {plan.pricing_model === 'PER_SEAT' ? '/seat' : 'flat fee'}
                               </div>
                             )}
                           </div>
                         </TableCell>
                         <TableCell className="console-table-cell">
-                          <Badge className="capitalize text-[11px] font-semibold px-2.5 py-1 bg-[#F5F5F7] text-[#8E8E93] border-0 whitespace-nowrap">
+                          <Badge className="capitalize text-[11px] font-semibold px-2.5 py-1 bg-[#007A78]/5 text-muted-foreground border-0 whitespace-nowrap">
                             {formatBillingCycle(plan.billing_cycle)}
                           </Badge>
                         </TableCell>
@@ -555,7 +555,7 @@ export default function SubscriptionCostsPage() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-10 w-10 text-[#007A78] hover:bg-[#007A78]/10 transition-all rounded-lg"
+                                className="h-11 w-11 text-[#007A78] hover:bg-[#007A78]/10 transition-all rounded-xl"
                                 title="Edit plan"
                               >
                                 <Pencil className="h-4 w-4" />
@@ -565,7 +565,7 @@ export default function SubscriptionCostsPage() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-10 w-10 text-[#8E8E93] hover:text-[#FF6E50] hover:bg-[#FF6E50]/10 transition-all rounded-lg"
+                                className="h-11 w-11 text-muted-foreground hover:text-[#FF6E50] hover:bg-[#FF6E50]/10 transition-all rounded-xl"
                                 title="End subscription"
                               >
                                 <CalendarX className="h-4 w-4" />
@@ -581,23 +581,23 @@ export default function SubscriptionCostsPage() {
                           <TableCell colSpan={10} className="px-4 sm:px-6 py-5">
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                               {/* Subscription ID */}
-                              <div className="flex items-start gap-3 p-3 bg-white rounded-xl border border-[#E5E5EA]">
+                              <div className="flex items-start gap-3 p-3 bg-white rounded-xl border border-border">
                                 <div className="p-2 rounded-lg bg-[#007A78]/10">
                                   <Hash className="h-4 w-4 text-[#007A78]" />
                                 </div>
                                 <div>
-                                  <p className="text-[11px] font-medium text-[#8E8E93] uppercase tracking-wide">Subscription ID</p>
+                                  <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Subscription ID</p>
                                   <p className="text-[13px] font-mono text-black mt-0.5 break-all">{plan.subscription_id}</p>
                                 </div>
                               </div>
 
                               {/* Start Date */}
-                              <div className="flex items-start gap-3 p-3 bg-white rounded-xl border border-[#E5E5EA]">
+                              <div className="flex items-start gap-3 p-3 bg-white rounded-xl border border-border">
                                 <div className="p-2 rounded-lg bg-[#007A78]/10">
                                   <CalendarDays className="h-4 w-4 text-[#007A78]" />
                                 </div>
                                 <div>
-                                  <p className="text-[11px] font-medium text-[#8E8E93] uppercase tracking-wide">Start Date</p>
+                                  <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Start Date</p>
                                   <p className="text-[13px] font-semibold text-black mt-0.5">
                                     {plan.start_date ? format(new Date(plan.start_date), 'MMM d, yyyy') : '-'}
                                   </p>
@@ -605,12 +605,12 @@ export default function SubscriptionCostsPage() {
                               </div>
 
                               {/* Renewal Date */}
-                              <div className="flex items-start gap-3 p-3 bg-white rounded-xl border border-[#E5E5EA]">
+                              <div className="flex items-start gap-3 p-3 bg-white rounded-xl border border-border">
                                 <div className="p-2 rounded-lg bg-[#FF6E50]/10">
                                   <Clock className="h-4 w-4 text-[#FF6E50]" />
                                 </div>
                                 <div>
-                                  <p className="text-[11px] font-medium text-[#8E8E93] uppercase tracking-wide">Renewal Date</p>
+                                  <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Renewal Date</p>
                                   <p className="text-[13px] font-semibold text-black mt-0.5">
                                     {plan.renewal_date ? format(new Date(plan.renewal_date), 'MMM d, yyyy') : '-'}
                                   </p>
@@ -618,12 +618,12 @@ export default function SubscriptionCostsPage() {
                               </div>
 
                               {/* End Date */}
-                              <div className="flex items-start gap-3 p-3 bg-white rounded-xl border border-[#E5E5EA]">
-                                <div className="p-2 rounded-lg bg-[#8E8E93]/10">
-                                  <CalendarX className="h-4 w-4 text-[#8E8E93]" />
+                              <div className="flex items-start gap-3 p-3 bg-white rounded-xl border border-border">
+                                <div className="p-2 rounded-lg bg-[#007A78]/10">
+                                  <CalendarX className="h-4 w-4 text-[#007A78]" />
                                 </div>
                                 <div>
-                                  <p className="text-[11px] font-medium text-[#8E8E93] uppercase tracking-wide">End Date</p>
+                                  <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">End Date</p>
                                   <p className="text-[13px] font-semibold text-black mt-0.5">
                                     {plan.end_date ? format(new Date(plan.end_date), 'MMM d, yyyy') : 'Active'}
                                   </p>
@@ -631,12 +631,12 @@ export default function SubscriptionCostsPage() {
                               </div>
 
                               {/* Pricing Model */}
-                              <div className="flex items-start gap-3 p-3 bg-white rounded-xl border border-[#E5E5EA]">
+                              <div className="flex items-start gap-3 p-3 bg-white rounded-xl border border-border">
                                 <div className="p-2 rounded-lg bg-[#007A78]/10">
                                   <CreditCard className="h-4 w-4 text-[#007A78]" />
                                 </div>
                                 <div>
-                                  <p className="text-[11px] font-medium text-[#8E8E93] uppercase tracking-wide">Pricing Model</p>
+                                  <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Pricing Model</p>
                                   <p className="text-[13px] font-semibold text-black mt-0.5">
                                     {plan.pricing_model === 'PER_SEAT' ? 'Per Seat' : 'Flat Fee'}
                                   </p>
@@ -644,38 +644,38 @@ export default function SubscriptionCostsPage() {
                               </div>
 
                               {/* Currency */}
-                              <div className="flex items-start gap-3 p-3 bg-white rounded-xl border border-[#E5E5EA]">
+                              <div className="flex items-start gap-3 p-3 bg-white rounded-xl border border-border">
                                 <div className="p-2 rounded-lg bg-[#007A78]/10">
                                   <DollarSign className="h-4 w-4 text-[#007A78]" />
                                 </div>
                                 <div>
-                                  <p className="text-[11px] font-medium text-[#8E8E93] uppercase tracking-wide">Currency</p>
+                                  <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Currency</p>
                                   <p className="text-[13px] font-semibold text-black mt-0.5">{plan.currency || orgCurrency}</p>
                                 </div>
                               </div>
 
                               {/* Category */}
-                              <div className="flex items-start gap-3 p-3 bg-white rounded-xl border border-[#E5E5EA]">
+                              <div className="flex items-start gap-3 p-3 bg-white rounded-xl border border-border">
                                 <div className="p-2 rounded-lg bg-[#007A78]/10">
                                   <Tag className="h-4 w-4 text-[#007A78]" />
                                 </div>
                                 <div>
-                                  <p className="text-[11px] font-medium text-[#8E8E93] uppercase tracking-wide">Category</p>
+                                  <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Category</p>
                                   <p className="text-[13px] font-semibold text-black mt-0.5 capitalize">{category}</p>
                                 </div>
                               </div>
 
                               {/* Monthly Cost Breakdown */}
-                              <div className="flex items-start gap-3 p-3 bg-white rounded-xl border border-[#E5E5EA]">
+                              <div className="flex items-start gap-3 p-3 bg-white rounded-xl border border-border">
                                 <div className="p-2 rounded-lg bg-[#FF6E50]/10">
                                   <TrendingUp className="h-4 w-4 text-[#FF6E50]" />
                                 </div>
                                 <div>
-                                  <p className="text-[11px] font-medium text-[#8E8E93] uppercase tracking-wide">Monthly Cost</p>
+                                  <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Monthly Cost</p>
                                   <p className="text-[13px] font-semibold text-black mt-0.5">
                                     {formatCurrency(totalCost, orgCurrency)}
                                     {plan.seats && plan.seats > 1 && (
-                                      <span className="text-[11px] text-[#8E8E93] font-normal ml-1">
+                                      <span className="text-[11px] text-muted-foreground font-normal ml-1">
                                         ({plan.seats} × {formatCurrency(plan.unit_price ?? 0, orgCurrency)})
                                       </span>
                                     )}
@@ -686,8 +686,8 @@ export default function SubscriptionCostsPage() {
 
                             {/* Description if available */}
                             {plan.description && (
-                              <div className="mt-4 p-3 bg-white rounded-xl border border-[#E5E5EA]">
-                                <p className="text-[11px] font-medium text-[#8E8E93] uppercase tracking-wide mb-1">Description</p>
+                              <div className="mt-4 p-3 bg-white rounded-xl border border-border">
+                                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1">Description</p>
                                 <p className="text-[13px] text-black">{plan.description}</p>
                               </div>
                             )}
@@ -697,7 +697,7 @@ export default function SubscriptionCostsPage() {
                               <Link href={`/${orgSlug}/integrations/subscriptions/${plan.provider_name}`}>
                                 <Button
                                   size="sm"
-                                  className="h-[36px] px-4 bg-[#007A78] text-white hover:bg-[#006664] rounded-xl text-[13px] font-semibold"
+                                  className="console-button-primary h-11 px-4 rounded-xl text-[13px] font-semibold"
                                 >
                                   <Pencil className="h-3.5 w-3.5 mr-2" />
                                   Edit Plan
@@ -707,7 +707,7 @@ export default function SubscriptionCostsPage() {
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  className="h-[36px] px-4 rounded-xl text-[13px] font-medium border-[#E5E5EA] text-[#8E8E93] hover:bg-[#007A78]/5"
+                                  className="console-button-secondary h-11 px-4 rounded-xl text-[13px] font-medium"
                                 >
                                   View Pipeline Runs
                                 </Button>

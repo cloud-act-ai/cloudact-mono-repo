@@ -78,7 +78,7 @@ export default function AnthropicIntegrationPage() {
 
     if (result.success && result.integrations) {
       // Check both ANTHROPIC and CLAUDE keys (backend may use either)
-      const anthropicIntegration = result.integrations.integrations["ANTHROPIC"] || result.integrations.integrations["CLAUDE"]
+      const anthropicIntegration = result.integrations?.integrations?.["ANTHROPIC"] || result.integrations?.integrations?.["CLAUDE"]
       setIntegration(anthropicIntegration)
     } else {
       setError(result.error || "Failed to load integration status")
@@ -119,18 +119,18 @@ export default function AnthropicIntegrationPage() {
     }
   }, [integration?.status, loadPricing, loadSubscriptions])
 
-  // Clear success message after delay (15 seconds for better visibility)
+  // Clear success message after delay
   useEffect(() => {
     if (successMessage) {
-      const timer = setTimeout(() => setSuccessMessage(null), 15000)
+      const timer = setTimeout(() => setSuccessMessage(null), 5000)
       return () => clearTimeout(timer)
     }
   }, [successMessage])
 
-  // Clear error message after delay (20 seconds - longer for errors so users can read)
+  // Clear error message after delay
   useEffect(() => {
     if (error) {
-      const timer = setTimeout(() => setError(null), 20000)
+      const timer = setTimeout(() => setError(null), 10000)
       return () => clearTimeout(timer)
     }
   }, [error])
@@ -295,7 +295,7 @@ export default function AnthropicIntegrationPage() {
       {/* Header with back link */}
       <div className="flex items-center gap-4">
         <Link href={`/${orgSlug}/integrations/llm`}>
-          <Button variant="ghost" size="sm">
+          <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground h-11 rounded-xl">
             <ArrowLeft className="h-4 w-4 mr-1" />
             LLM Providers
           </Button>

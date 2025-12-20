@@ -50,7 +50,7 @@ async def test_query_latency_list_providers(perf_client, latency_reporter):
                 "org_slug": org_slug,
                 "company_name": "Test Org List Providers Perf",
                 "admin_email": "admin@test.com",
-                "plan_name": "BASIC"
+                "subscription_plan": "STARTER"
             }
         )
 
@@ -142,7 +142,7 @@ async def test_query_latency_list_plans(perf_client, latency_reporter):
                 "org_slug": org_slug,
                 "company_name": "Test Org List Plans Perf",
                 "admin_email": "admin@test.com",
-                "plan_name": "BASIC"
+                "subscription_plan": "STARTER"
             }
         )
 
@@ -242,7 +242,7 @@ async def test_query_latency_get_quota(perf_client, latency_reporter):
                 "org_slug": org_slug,
                 "company_name": "Test Org Get Quota Perf",
                 "admin_email": "admin@test.com",
-                "plan_name": "BASIC"
+                "subscription_plan": "STARTER"
             }
         )
 
@@ -323,7 +323,7 @@ async def test_query_latency_all_plans(perf_client, latency_reporter):
                 "org_slug": org_slug,
                 "company_name": "Test Org All Plans Perf",
                 "admin_email": "admin@test.com",
-                "plan_name": "BASIC"
+                "subscription_plan": "STARTER"
             }
         )
 
@@ -429,7 +429,7 @@ async def test_query_latency_organization_onboarding(perf_client, latency_report
                 "org_slug": org_slug,
                 "company_name": f"Test Org Onboard Perf {i}",
                 "admin_email": f"admin-{i}@test.com",
-                "plan_name": "BASIC"
+                "subscription_plan": "STARTER"
             }
         )
         duration = time.perf_counter() - start
@@ -478,7 +478,7 @@ async def test_cache_performance_impact(perf_client, latency_reporter):
                 "org_slug": org_slug,
                 "company_name": "Test Org Cache Perf Impact",
                 "admin_email": "admin@test.com",
-                "plan_name": "BASIC"
+                "subscription_plan": "STARTER"
             }
         )
 

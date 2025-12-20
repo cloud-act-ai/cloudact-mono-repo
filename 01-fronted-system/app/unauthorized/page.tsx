@@ -39,7 +39,7 @@ export default async function UnauthorizedPage() {
           </div>
           <div className="space-y-1">
             <h1 className="text-3xl font-bold tracking-tight">Access Denied</h1>
-            <p className="text-[#8E8E93]">You don't have permission to access this organization</p>
+            <p className="text-muted-foreground">You don't have permission to access this organization</p>
           </div>
         </div>
 
@@ -49,7 +49,7 @@ export default async function UnauthorizedPage() {
             <CardDescription>You attempted to access an organization that you're not a member of.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="text-sm text-[#8E8E93]">
+            <p className="text-sm text-muted-foreground">
               If you believe this is an error, please contact the organization administrator to request access.
             </p>
             <div className="flex flex-col gap-2">

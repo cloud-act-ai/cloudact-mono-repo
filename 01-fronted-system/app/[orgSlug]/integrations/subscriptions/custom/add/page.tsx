@@ -146,25 +146,21 @@ export default function AddCustomProviderPage() {
 
     if (formData.unit_price === undefined || formData.unit_price < 0) {
       setError("Price must be a valid positive number")
-      toast.error("Price must be a valid positive number")
       return
     }
 
     if (formData.seats === undefined || formData.seats < 0) {
       setError("Seats must be a valid positive number")
-      toast.error("Seats must be a valid positive number")
       return
     }
 
     if (formData.pricing_model === 'PER_SEAT' && formData.seats < 1) {
       setError("Per-seat plans require at least 1 seat")
-      toast.error("Per-seat plans require at least 1 seat")
       return
     }
 
     if (formData.seats > 10000) {
       setError("Seats cannot exceed 10,000")
-      toast.error("Seats cannot exceed 10,000")
       return
     }
 
@@ -204,7 +200,6 @@ export default function AddCustomProviderPage() {
 
       if (!result.success) {
         setError(result.error || "Failed to create provider")
-        toast.error(result.error || "Failed to create provider")
         setSubmitting(false)
         return
       }
@@ -216,7 +211,6 @@ export default function AddCustomProviderPage() {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "An unexpected error occurred"
       setError(errorMessage)
-      toast.error(errorMessage)
     } finally {
       setSubmitting(false)
     }
@@ -242,7 +236,7 @@ export default function AddCustomProviderPage() {
         >
           Subscription Providers
         </Link>
-        <ChevronRight className="h-4 w-4 text-[#8E8E93]" />
+        <ChevronRight className="h-4 w-4 text-muted-foreground" />
         <span className="text-gray-900 font-medium">Add Custom Provider</span>
       </nav>
 
@@ -255,7 +249,7 @@ export default function AddCustomProviderPage() {
         </Link>
         <div>
           <h1 className="text-[28px] font-bold text-black tracking-tight">Add Custom Provider</h1>
-          <p className="text-[15px] text-[#8E8E93] mt-1">
+          <p className="text-[15px] text-muted-foreground mt-1">
             Track a SaaS subscription not in our default list
           </p>
         </div>
@@ -296,7 +290,7 @@ export default function AddCustomProviderPage() {
                 disabled={submitting}
                 required
               />
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-muted-foreground">
                 The name of the SaaS service you want to track.
               </p>
             </div>
@@ -352,7 +346,7 @@ export default function AddCustomProviderPage() {
                 disabled={submitting}
                 required
               />
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-muted-foreground">
                 This will be converted to uppercase (e.g., PRO). Max 50 characters.
               </p>
             </div>
@@ -409,11 +403,11 @@ export default function AddCustomProviderPage() {
                     required
                     className="pl-8"
                   />
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
                     {SUPPORTED_CURRENCIES.find(c => c.code === formData.currency)?.symbol || "$"}
                   </span>
                 </div>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-muted-foreground">
                   Price in {formData.currency}
                 </p>
               </div>
@@ -458,14 +452,14 @@ export default function AddCustomProviderPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="currency">Currency</Label>
-                <div className="flex items-center h-10 px-3 rounded-md border border-slate-200 bg-slate-50 text-slate-600">
+                <div className="flex items-center h-10 px-3 rounded-md border border-border bg-[#007A78]/5 text-foreground">
                   <span className="font-medium">{formData.currency}</span>
                   <span className="ml-2 text-slate-400">
                     ({getCurrencySymbol(formData.currency)})
                   </span>
                   <span className="ml-auto text-xs text-slate-400">Locked</span>
                 </div>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-muted-foreground">
                   Currency is set to your organization's default ({orgCurrency}).
                 </p>
               </div>
@@ -506,7 +500,7 @@ export default function AddCustomProviderPage() {
                 disabled={submitting}
                 required
               />
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-muted-foreground">
                 {formData.pricing_model === 'PER_SEAT'
                   ? 'Number of seats for this subscription (minimum 1 for per-seat plans)'
                   : 'Number of seats for tracking purposes'}
@@ -522,7 +516,7 @@ export default function AddCustomProviderPage() {
                 placeholder="Select start date"
                 disabled={submitting}
               />
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-muted-foreground">
                 When did this subscription start?
               </p>
             </div>

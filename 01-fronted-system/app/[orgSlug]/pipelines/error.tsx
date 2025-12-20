@@ -25,7 +25,7 @@ export default function PipelinesError({
       {/* Header */}
       <div>
         <h1 className="text-[32px] sm:text-[34px] font-bold text-black tracking-tight">Pipelines Error</h1>
-        <p className="text-[15px] text-[#8E8E93] mt-1">
+        <p className="text-[15px] text-muted-foreground mt-1">
           Something went wrong while loading your pipelines.
         </p>
       </div>
@@ -38,14 +38,14 @@ export default function PipelinesError({
           </div>
           <div className="flex-1 space-y-3">
             <h3 className="text-[17px] font-semibold text-black">An Error Occurred</h3>
-            <p className="text-[15px] text-[#8E8E93]">
+            <p className="text-[15px] text-muted-foreground">
               We encountered an error while loading your pipelines. This could be a temporary issue.
               Please try refreshing the page or contact support if the problem persists.
             </p>
             {error.digest && (
-              <div className="bg-[#F5F5F7] rounded-xl p-3 border border-[#E5E5EA]">
+              <div className="bg-[#007A78]/5 rounded-xl p-3 border border-[#E5E5EA]">
                 <p className="text-[13px] font-semibold text-black mb-1">Error Reference ID:</p>
-                <p className="text-[11px] font-mono text-[#8E8E93]">{error.digest}</p>
+                <p className="text-[11px] font-mono text-muted-foreground">{error.digest}</p>
               </div>
             )}
           </div>
@@ -62,7 +62,7 @@ export default function PipelinesError({
           Try Again
         </button>
         <Link href="/">
-          <button className="inline-flex items-center justify-center gap-2 h-[44px] px-6 bg-[#F5F5F7] text-[#8E8E93] text-[15px] font-semibold rounded-xl hover:bg-[#E8E8ED] transition-colors w-full sm:w-auto">
+          <button className="inline-flex items-center justify-center gap-2 h-[44px] px-6 bg-[#007A78]/5 text-muted-foreground text-[15px] font-semibold rounded-xl hover:bg-[#007A78]/10 transition-colors w-full sm:w-auto">
             <Home className="h-4 w-4" />
             Go Home
           </button>
@@ -71,7 +71,7 @@ export default function PipelinesError({
 
       {/* Support Contact */}
       <div className="text-center pt-4">
-        <p className="text-[13px] text-[#8E8E93]">
+        <p className="text-[13px] text-muted-foreground">
           If this problem persists, please contact{" "}
           <a
             href={`mailto:${process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "support@cloudact.ai"}`}

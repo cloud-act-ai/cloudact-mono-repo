@@ -39,7 +39,7 @@ function SheetOverlay({
         'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 bg-black/30 backdrop-blur-[2px]',
         className,
       )}
-      style={{ zIndex: 'var(--z-sidebar)' }}
+      style={{ zIndex: 40 }}
       {...props}
     />
   )
@@ -81,11 +81,11 @@ function SheetContent({
             'data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom inset-x-0 bottom-0 h-auto border-t border-border',
           className,
         )}
-        style={{ zIndex: 'var(--z-sidebar)' }}
+        style={{ zIndex: 50 }}
         {...props}
       >
         {children}
-        <SheetPrimitive.Close className="ring-offset-background focus:ring-ring absolute top-4 right-4 rounded-md p-1.5 opacity-70 transition-all duration-150 ease-in-out hover:opacity-100 hover:bg-muted focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none">
+        <SheetPrimitive.Close className="absolute top-4 right-4 rounded-xl p-1.5 opacity-70 transition-all duration-150 ease-in-out hover:opacity-100 hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#007A78] focus-visible:outline-offset-2 disabled:pointer-events-none">
           <XIcon className="size-4" />
           <span className="sr-only">Close</span>
         </SheetPrimitive.Close>
@@ -134,7 +134,7 @@ function SheetDescription({
   return (
     <SheetPrimitive.Description
       data-slot="sheet-description"
-      className={cn('text-[#8E8E93] text-sm', className)}
+      className={cn('text-muted-foreground text-sm', className)}
       {...props}
     />
   )

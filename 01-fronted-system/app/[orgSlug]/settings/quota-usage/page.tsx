@@ -65,7 +65,7 @@ export default function QuotaUsagePage() {
     <div className="space-y-6 sm:space-y-8">
       <div>
         <h1 className="text-[32px] sm:text-[34px] font-bold text-black tracking-tight">Usage & Quotas</h1>
-        <p className="text-[15px] text-[#8E8E93] mt-1">
+        <p className="text-[15px] text-muted-foreground mt-1">
           Current usage and limits based on your Stripe subscription plan
         </p>
       </div>
@@ -83,10 +83,10 @@ export default function QuotaUsagePage() {
           <div className="metric-card shadow-sm">
             <div className="metric-card-header mb-6">
               <div className="flex items-center gap-2">
-                <BarChart3 className="h-5 w-5 text-[#8E8E93]" />
+                <BarChart3 className="h-5 w-5 text-muted-foreground" />
                 <h2 className="text-[22px] font-bold text-black">Resource Usage</h2>
               </div>
-              <p className="text-[13px] sm:text-[15px] text-[#8E8E93] mt-1">
+              <p className="text-[13px] sm:text-[15px] text-muted-foreground mt-1">
                 Current usage of your plan resources
               </p>
             </div>
@@ -94,29 +94,29 @@ export default function QuotaUsagePage() {
             <div className="metric-card-content">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Team Members Quota */}
-                <div className="p-6 border border-[#E5E5EA] rounded-lg bg-gray-50">
+                <div className="p-6 border border-border rounded-xl bg-[#007A78]/5">
                   <div className="flex items-center gap-3 mb-4">
-                    <div className="h-10 w-10 rounded-lg bg-[#007A78]/10 flex items-center justify-center">
+                    <div className="h-10 w-10 rounded-xl bg-[#007A78]/10 flex items-center justify-center">
                       <Users className="h-5 w-5 text-[#007A78]" />
                     </div>
                     <div>
                       <span className="text-[17px] font-semibold text-black">Team Members</span>
-                      <p className="text-[13px] text-[#8E8E93]">Active members in your organization</p>
+                      <p className="text-[13px] text-muted-foreground">Active members in your organization</p>
                     </div>
                   </div>
                   <div className="flex items-end gap-2">
                     <span className="text-[36px] font-bold text-black">{quotaLimits.team_members_count}</span>
-                    <span className="text-[17px] text-[#8E8E93] mb-2">
+                    <span className="text-[17px] text-muted-foreground mb-2">
                       / {quotaLimits.seat_limit > 0 ? quotaLimits.seat_limit : "Unlimited"}
                     </span>
                   </div>
                   {quotaLimits.seat_limit > 0 && (
                     <div className="mt-4">
-                      <div className="flex justify-between text-[12px] text-[#8E8E93] mb-1">
+                      <div className="flex justify-between text-[12px] text-muted-foreground mb-1">
                         <span>Usage</span>
                         <span>{Math.round((quotaLimits.team_members_count / quotaLimits.seat_limit) * 100)}%</span>
                       </div>
-                      <div className="h-3 bg-[#E5E5EA] rounded-full overflow-hidden">
+                      <div className="h-3 bg-border rounded-full overflow-hidden">
                         <div
                           className={`h-full rounded-full transition-all ${
                             quotaLimits.team_members_count >= quotaLimits.seat_limit
@@ -135,29 +135,29 @@ export default function QuotaUsagePage() {
                 </div>
 
                 {/* Providers Quota */}
-                <div className="p-6 border border-[#E5E5EA] rounded-lg bg-gray-50">
+                <div className="p-6 border border-border rounded-xl bg-[#007A78]/5">
                   <div className="flex items-center gap-3 mb-4">
-                    <div className="h-10 w-10 rounded-lg bg-[#007A78]/10 flex items-center justify-center">
+                    <div className="h-10 w-10 rounded-xl bg-[#007A78]/10 flex items-center justify-center">
                       <Plug className="h-5 w-5 text-[#007A78]" />
                     </div>
                     <div>
                       <span className="text-[17px] font-semibold text-black">Integrations</span>
-                      <p className="text-[13px] text-[#8E8E93]">Configured provider integrations</p>
+                      <p className="text-[13px] text-muted-foreground">Configured provider integrations</p>
                     </div>
                   </div>
                   <div className="flex items-end gap-2">
                     <span className="text-[36px] font-bold text-black">{quotaLimits.configured_providers_count}</span>
-                    <span className="text-[17px] text-[#8E8E93] mb-2">
+                    <span className="text-[17px] text-muted-foreground mb-2">
                       / {quotaLimits.providers_limit > 0 ? quotaLimits.providers_limit : "Unlimited"}
                     </span>
                   </div>
                   {quotaLimits.providers_limit > 0 && (
                     <div className="mt-4">
-                      <div className="flex justify-between text-[12px] text-[#8E8E93] mb-1">
+                      <div className="flex justify-between text-[12px] text-muted-foreground mb-1">
                         <span>Usage</span>
                         <span>{Math.round((quotaLimits.configured_providers_count / quotaLimits.providers_limit) * 100)}%</span>
                       </div>
-                      <div className="h-3 bg-[#E5E5EA] rounded-full overflow-hidden">
+                      <div className="h-3 bg-border rounded-full overflow-hidden">
                         <div
                           className={`h-full rounded-full transition-all ${
                             quotaLimits.configured_providers_count >= quotaLimits.providers_limit
@@ -182,10 +182,10 @@ export default function QuotaUsagePage() {
           <div className="metric-card shadow-sm">
             <div className="metric-card-header mb-6">
               <div className="flex items-center gap-2">
-                <Zap className="h-5 w-5 text-[#8E8E93]" />
+                <Zap className="h-5 w-5 text-muted-foreground" />
                 <h2 className="text-[22px] font-bold text-black">Pipeline Execution Limits</h2>
               </div>
-              <p className="text-[13px] sm:text-[15px] text-[#8E8E93] mt-1">
+              <p className="text-[13px] sm:text-[15px] text-muted-foreground mt-1">
                 Maximum number of pipeline runs allowed per time period
               </p>
             </div>
@@ -193,45 +193,45 @@ export default function QuotaUsagePage() {
             <div className="metric-card-content">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* Daily Limit */}
-                <div className="p-6 border border-[#E5E5EA] rounded-lg bg-gray-50 text-center">
+                <div className="p-6 border border-border rounded-xl bg-[#007A78]/5 text-center">
                   <div className="h-12 w-12 rounded-full bg-[#007A78]/10 flex items-center justify-center mx-auto mb-4">
                     <Clock className="h-6 w-6 text-[#007A78]" />
                   </div>
-                  <span className="text-[13px] font-medium text-[#8E8E93] uppercase tracking-wide">Daily</span>
+                  <span className="text-[13px] font-medium text-muted-foreground uppercase tracking-wide">Daily</span>
                   <div className="mt-2">
                     <span className="text-[42px] font-bold text-black">
                       {quotaLimits.pipelines_per_day_limit > 0 ? quotaLimits.pipelines_per_day_limit : "∞"}
                     </span>
                   </div>
-                  <p className="text-[13px] text-[#8E8E93] mt-1">runs per day</p>
+                  <p className="text-[13px] text-muted-foreground mt-1">runs per day</p>
                 </div>
 
                 {/* Weekly Limit */}
-                <div className="p-6 border border-[#E5E5EA] rounded-lg bg-gray-50 text-center">
+                <div className="p-6 border border-border rounded-xl bg-[#007A78]/5 text-center">
                   <div className="h-12 w-12 rounded-full bg-[#007A78]/10 flex items-center justify-center mx-auto mb-4">
                     <Calendar className="h-6 w-6 text-[#007A78]" />
                   </div>
-                  <span className="text-[13px] font-medium text-[#8E8E93] uppercase tracking-wide">Weekly</span>
+                  <span className="text-[13px] font-medium text-muted-foreground uppercase tracking-wide">Weekly</span>
                   <div className="mt-2">
                     <span className="text-[42px] font-bold text-black">
                       {quotaLimits.pipelines_per_week_limit > 0 ? quotaLimits.pipelines_per_week_limit : "∞"}
                     </span>
                   </div>
-                  <p className="text-[13px] text-[#8E8E93] mt-1">runs per week</p>
+                  <p className="text-[13px] text-muted-foreground mt-1">runs per week</p>
                 </div>
 
                 {/* Monthly Limit */}
-                <div className="p-6 border border-[#E5E5EA] rounded-lg bg-gray-50 text-center">
+                <div className="p-6 border border-border rounded-xl bg-[#007A78]/5 text-center">
                   <div className="h-12 w-12 rounded-full bg-[#007A78]/10 flex items-center justify-center mx-auto mb-4">
                     <CalendarDays className="h-6 w-6 text-[#007A78]" />
                   </div>
-                  <span className="text-[13px] font-medium text-[#8E8E93] uppercase tracking-wide">Monthly</span>
+                  <span className="text-[13px] font-medium text-muted-foreground uppercase tracking-wide">Monthly</span>
                   <div className="mt-2">
                     <span className="text-[42px] font-bold text-black">
                       {quotaLimits.pipelines_per_month_limit > 0 ? quotaLimits.pipelines_per_month_limit : "∞"}
                     </span>
                   </div>
-                  <p className="text-[13px] text-[#8E8E93] mt-1">runs per month</p>
+                  <p className="text-[13px] text-muted-foreground mt-1">runs per month</p>
                 </div>
               </div>
             </div>

@@ -61,7 +61,7 @@ export default async function CostOverviewPage({
           <AlertCircle className="h-14 w-14 text-[#FF6E50] mx-auto" />
           <div className="space-y-2">
             <h2 className="text-[22px] font-bold text-black">Failed to load dashboard</h2>
-            <p className="text-[15px] text-[#8E8E93] leading-relaxed">Please try refreshing the page</p>
+            <p className="text-[15px] text-muted-foreground leading-relaxed">Please try refreshing the page</p>
           </div>
         </div>
       </div>
@@ -78,7 +78,7 @@ export default async function CostOverviewPage({
           <AlertCircle className="h-14 w-14 text-[#FF6E50] mx-auto" />
           <div className="space-y-2">
             <h2 className="text-[22px] font-bold text-black">Not authenticated</h2>
-            <p className="text-[15px] text-[#8E8E93] leading-relaxed">Please sign in to access the dashboard</p>
+            <p className="text-[15px] text-muted-foreground leading-relaxed">Please sign in to access the dashboard</p>
           </div>
           <Link href="/login" className="console-button-primary inline-flex items-center gap-2">
             <LogIn className="h-4 w-4" />
@@ -96,7 +96,7 @@ export default async function CostOverviewPage({
           <AlertCircle className="h-14 w-14 text-[#FF6E50] mx-auto" />
           <div className="space-y-2">
             <h2 className="text-[22px] font-bold text-black">Organization not found</h2>
-            <p className="text-[15px] text-[#8E8E93] leading-relaxed">The organization you're looking for doesn't exist</p>
+            <p className="text-[15px] text-muted-foreground leading-relaxed">The organization you're looking for doesn't exist</p>
           </div>
         </div>
       </div>
@@ -130,7 +130,7 @@ export default async function CostOverviewPage({
           <AlertCircle className="h-14 w-14 text-[#FF6E50] mx-auto" />
           <div className="space-y-2">
             <h2 className="text-[22px] font-bold text-black">Failed to load membership data</h2>
-            <p className="text-[15px] text-[#8E8E93] leading-relaxed">Please try refreshing the page</p>
+            <p className="text-[15px] text-muted-foreground leading-relaxed">Please try refreshing the page</p>
           </div>
         </div>
       </div>
@@ -160,7 +160,7 @@ export default async function CostOverviewPage({
       {/* Page Header */}
       <div className="flex flex-col gap-1 pb-2">
         <h1 className="text-[34px] font-bold text-[#1C1C1E] tracking-tight">Cost Overview</h1>
-        <p className="text-[15px] text-[#8E8E93] font-medium">
+        <p className="text-[15px] text-muted-foreground font-medium">
           Consolidated costs for <span className="text-[#1C1C1E]">{data.organization.org_name}</span>
         </p>
       </div>
@@ -187,7 +187,7 @@ export default async function CostOverviewPage({
               <div className="metric-card-value text-2xl truncate">{data.organization.org_name}</div>
               <div className="mt-4 flex items-center gap-3">
                 <div className="flex items-center gap-2 bg-[#007A78]/8 px-3 py-1.5 rounded-lg">
-                  <span className="text-[12px] font-semibold text-[#8E8E93] uppercase tracking-wide">Plan</span>
+                  <span className="text-[12px] font-semibold text-muted-foreground uppercase tracking-wide">Plan</span>
                   <span className="text-[13px] font-bold text-[#007A78] uppercase">{data.organization.plan}</span>
                 </div>
                 <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border ${
@@ -234,7 +234,7 @@ export default async function CostOverviewPage({
                 <Wallet className="h-5 w-5 text-[#FF6E50]" />
               </div>
               <h3 className="text-[15px] font-bold text-[#1C1C1E]">Subscription Costs</h3>
-              <p className="text-[13px] text-[#8E8E93] mt-1">SaaS & software</p>
+              <p className="text-[13px] text-muted-foreground mt-1">SaaS & software</p>
             </Link>
 
             <Link href={`/${orgSlug}/cost-dashboards/genai-costs`} className="group metric-card p-5 !shadow-sm hover:!shadow-md border-transparent bg-[#FFFFFF] hover:bg-[#007A78]/5">
@@ -242,7 +242,7 @@ export default async function CostOverviewPage({
                 <Brain className="h-5 w-5 text-[#FF6E50]" />
               </div>
               <h3 className="text-[15px] font-bold text-[#1C1C1E]">GenAI Costs</h3>
-              <p className="text-[13px] text-[#8E8E93] mt-1">LLM API usage</p>
+              <p className="text-[13px] text-muted-foreground mt-1">LLM API usage</p>
             </Link>
 
             <Link href={`/${orgSlug}/cost-dashboards/cloud-costs`} className="group metric-card p-5 !shadow-sm hover:!shadow-md border-transparent bg-[#FFFFFF] hover:bg-[#007A78]/5">
@@ -250,7 +250,7 @@ export default async function CostOverviewPage({
                 <Cloud className="h-5 w-5 text-[#FF6E50]" />
               </div>
               <h3 className="text-[15px] font-bold text-[#1C1C1E]">Cloud Costs</h3>
-              <p className="text-[13px] text-[#8E8E93] mt-1">GCP, AWS, Azure</p>
+              <p className="text-[13px] text-muted-foreground mt-1">GCP, AWS, Azure</p>
             </Link>
 
             {data.userRole === "owner" && (
@@ -259,7 +259,7 @@ export default async function CostOverviewPage({
                   <CreditCard className="h-5 w-5 text-[#007A78]" />
                 </div>
                 <h3 className="text-[15px] font-bold text-[#1C1C1E]">Billing</h3>
-                <p className="text-[13px] text-[#8E8E93] mt-1">Invoices & plans</p>
+                <p className="text-[13px] text-muted-foreground mt-1">Invoices & plans</p>
               </Link>
             )}
           </div>
@@ -274,15 +274,15 @@ export default async function CostOverviewPage({
                 <Users className="h-5 w-5 text-[#007A78]" />
               </div>
               <h3 className="text-[15px] font-bold text-[#1C1C1E]">Teammates</h3>
-              <p className="text-[13px] text-[#8E8E93] mt-1">Manage access</p>
+              <p className="text-[13px] text-muted-foreground mt-1">Manage access</p>
             </Link>
 
             <Link href={`/${orgSlug}/settings/personal`} className="group metric-card p-5 !shadow-sm hover:!shadow-md border-transparent bg-[#FFFFFF] hover:bg-[#007A78]/5">
                <div className="h-10 w-10 rounded-full bg-[#8E8E93]/10 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                 <Settings className="h-5 w-5 text-[#8E8E93]" />
+                 <Settings className="h-5 w-5 text-muted-foreground" />
                </div>
                <h3 className="text-[15px] font-bold text-[#1C1C1E]">Settings</h3>
-               <p className="text-[13px] text-[#8E8E93] mt-1">Preferences</p>
+               <p className="text-[13px] text-muted-foreground mt-1">Preferences</p>
             </Link>
 
             <Link href={`/${orgSlug}/pipelines/subscription-runs`} className="group metric-card p-5 !shadow-sm hover:!shadow-md border-transparent bg-[#FFFFFF] hover:bg-[#007A78]/5">
@@ -290,7 +290,7 @@ export default async function CostOverviewPage({
                  <Play className="h-5 w-5 text-[#005F5D]" />
                </div>
                <h3 className="text-[15px] font-bold text-[#1C1C1E]">Pipelines</h3>
-               <p className="text-[13px] text-[#8E8E93] mt-1">Run automation</p>
+               <p className="text-[13px] text-muted-foreground mt-1">Run automation</p>
             </Link>
 
             <Link href={`/${orgSlug}/integrations/subscriptions`} className="group metric-card p-5 !shadow-sm hover:!shadow-md border-transparent bg-[#FFFFFF] hover:bg-[#007A78]/5">
@@ -298,7 +298,7 @@ export default async function CostOverviewPage({
                  <TrendingUp className="h-5 w-5 text-[#007A78]" />
                </div>
                <h3 className="text-[15px] font-bold text-[#1C1C1E]">Integrations</h3>
-               <p className="text-[13px] text-[#8E8E93] mt-1">Connect services</p>
+               <p className="text-[13px] text-muted-foreground mt-1">Connect services</p>
             </Link>
           </div>
         </div>

@@ -204,7 +204,7 @@ export function QuotaWarningBanner({
                       asChild
                       size="sm"
                       variant={warning.level === 'exceeded' ? 'default' : 'outline'}
-                      className={warning.level === 'warning' ? 'border-[#007A78] text-[#005F5D] hover:bg-[#007A78]/10 dark:border-[#14B8A6] dark:text-[#14B8A6] dark:hover:bg-[#14B8A6]/20' : ''}
+                      className={warning.level === 'warning' ? 'h-11 rounded-xl border-border text-foreground hover:bg-[#007A78]/5 focus-visible:outline-[#007A78] focus-visible:ring-[#007A78] dark:border-[#14B8A6] dark:text-[#14B8A6] dark:hover:bg-[#14B8A6]/20' : 'h-11 rounded-xl focus-visible:outline-[#007A78] focus-visible:ring-[#007A78]'}
                     >
                       <Link href={warning.action.href}>{warning.action.label}</Link>
                     </Button>
@@ -212,7 +212,7 @@ export function QuotaWarningBanner({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-auto p-1"
+                    className="h-11 rounded-xl p-1 hover:bg-[#007A78]/5 focus-visible:outline-[#007A78] focus-visible:ring-[#007A78]"
                     onClick={() => setDismissed(prev => new Set([...prev, warning.id]))}
                   >
                     <X className="h-4 w-4" />

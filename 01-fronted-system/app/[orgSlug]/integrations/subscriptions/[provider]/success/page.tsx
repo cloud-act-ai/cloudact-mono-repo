@@ -95,7 +95,7 @@ function SuccessContent() {
         <h1 className="text-[28px] font-bold text-black tracking-tight">
           {message.title}
         </h1>
-        <p className="text-[15px] text-[#8E8E93]">
+        <p className="text-[15px] text-muted-foreground">
           {message.description}
         </p>
       </div>
@@ -105,15 +105,15 @@ function SuccessContent() {
         <div className="metric-card w-full">
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-[13px] text-[#8E8E93] uppercase tracking-wide font-semibold">Provider</span>
+              <span className="text-[13px] text-muted-foreground uppercase tracking-wide font-semibold">Provider</span>
               <span className="text-[15px] font-semibold text-black">{providerDisplayName}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-[13px] text-[#8E8E93] uppercase tracking-wide font-semibold">Plan</span>
+              <span className="text-[13px] text-muted-foreground uppercase tracking-wide font-semibold">Plan</span>
               <span className="text-[15px] font-semibold text-black">{planName}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-[13px] text-[#8E8E93] uppercase tracking-wide font-semibold">Action</span>
+              <span className="text-[13px] text-muted-foreground uppercase tracking-wide font-semibold">Action</span>
               <span className={`text-[15px] font-semibold capitalize ${message.color}`}>
                 {action || "created"}
               </span>
@@ -144,7 +144,7 @@ function SuccessContent() {
       <Link href={`/${orgSlug}/integrations/subscriptions`} className="w-full">
         <Button
           variant="ghost"
-          className="w-full h-[44px] px-6 text-[#8E8E93] hover:bg-[#F5F5F7] rounded-xl text-[15px] font-medium"
+          className="w-full h-[44px] px-6 text-muted-foreground hover:bg-[#007A78]/5 rounded-xl text-[15px] font-medium"
         >
           View All Providers
         </Button>
@@ -161,7 +161,7 @@ function SuccessFallback() {
       </div>
       <div className="space-y-2">
         <h1 className="text-[24px] font-bold text-black">Loading...</h1>
-        <p className="text-[15px] text-[#8E8E93]">Please wait...</p>
+        <p className="text-[15px] text-muted-foreground">Please wait...</p>
       </div>
     </div>
   )
@@ -217,7 +217,7 @@ export default function SubscriptionSuccessPage() {
           >
             Subscription Providers
           </Link>
-          <ChevronRight className="h-4 w-4 text-[#8E8E93] flex-shrink-0" aria-hidden="true" />
+          <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" aria-hidden="true" />
           <Link
             href={`/${orgSlug}/integrations/subscriptions/${provider}`}
             className="text-[#007A78] hover:text-[#005F5D] transition-colors focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2 rounded truncate max-w-[200px]"
@@ -225,7 +225,7 @@ export default function SubscriptionSuccessPage() {
           >
             {providerDisplayName}
           </Link>
-          <ChevronRight className="h-4 w-4 text-[#8E8E93] flex-shrink-0" aria-hidden="true" />
+          <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" aria-hidden="true" />
           <span className="text-gray-900 font-medium truncate max-w-[300px]" title="Success">
             Success
           </span>

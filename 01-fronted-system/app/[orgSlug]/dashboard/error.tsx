@@ -36,7 +36,7 @@ export default function DashboardError({
         </CardHeader>
         <CardContent className="text-center">
           {error.digest && (
-            <div className="rounded-lg bg-[#F5F5F7] p-4 text-sm text-[#8E8E93]">
+            <div className="rounded-lg bg-[#007A78]/5 p-4 text-sm text-muted-foreground">
               <p className="font-medium text-[#1C1C1E] mb-1">Error Reference ID:</p>
               <p className="font-mono text-xs">{error.digest}</p>
             </div>
@@ -55,7 +55,7 @@ export default function DashboardError({
           </Button>
         </CardFooter>
       </Card>
-      <p className="text-center text-sm text-[#8E8E93] mt-6">
+      <p className="text-center text-sm text-muted-foreground mt-6">
         If this problem persists, please contact{" "}
         <a
           href={`mailto:${process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "support@cloudact.ai"}`}
