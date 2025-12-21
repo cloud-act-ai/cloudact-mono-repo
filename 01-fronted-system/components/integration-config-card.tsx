@@ -114,7 +114,7 @@ function StatusBadge({ status }: { status: string }) {
   if (!config) return null
 
   return (
-    <Badge variant={config.variant} className={config.className}>
+    <Badge variant={config.variant} className={config.className} aria-label={`Integration status: ${config.text}`}>
       {status === "VALID" && <Check className="h-3 w-3 mr-1" />}
       {status === "INVALID" && <X className="h-3 w-3 mr-1" />}
       {status === "PENDING" && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}

@@ -190,8 +190,10 @@ export function QuotaWarningBanner({
             key={warning.id}
             variant={getAlertVariant(warning.level)}
             className={getAlertStyles(warning.level)}
+            role="alert"
+            aria-live="polite"
           >
-            <Icon className="h-4 w-4" />
+            <Icon className="h-4 w-4" aria-hidden="true" />
             <AlertTitle className={getTitleStyles(warning.level)}>
               {warning.title}
             </AlertTitle>
@@ -214,8 +216,9 @@ export function QuotaWarningBanner({
                     size="sm"
                     className="h-11 rounded-xl p-1 hover:bg-[#007A78]/5 focus-visible:outline-[#007A78] focus-visible:ring-[#007A78]"
                     onClick={() => setDismissed(prev => new Set([...prev, warning.id]))}
+                    aria-label={`Dismiss ${warning.title} warning`}
                   >
-                    <X className="h-4 w-4" />
+                    <X className="h-4 w-4" aria-hidden="true" />
                   </Button>
                 </div>
               </div>
