@@ -454,10 +454,23 @@ export interface PipelineRunResponse {
 // Pipeline Logs Types
 // ============================================
 
+/** Enhanced error context with classification and debugging info */
+export interface ErrorContext {
+  error_type?: 'TRANSIENT' | 'PERMANENT' | 'TIMEOUT' | 'VALIDATION_ERROR' | 'DEPENDENCY_FAILURE'
+  error_code?: string
+  retry_count?: number
+  is_retryable?: boolean
+  stack_trace?: string
+  suggested_action?: string
+}
+
+/** Valid pipeline/step status values */
+export type PipelineStatus = 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'CANCELLED' | 'CANCELLING' | 'TIMEOUT' | 'SKIPPED'
+
 export interface PipelineRunSummary {
   pipeline_logging_id: string
   pipeline_id: string
-  status: string
+  status: PipelineStatus | string
   trigger_type: string
   trigger_by?: string
   start_time?: string
@@ -465,6 +478,7 @@ export interface PipelineRunSummary {
   duration_ms?: number
   run_date?: string
   error_message?: string
+  error_context?: ErrorContext
   parameters?: Record<string, unknown>
 }
 
@@ -473,12 +487,13 @@ export interface StepLogSummary {
   step_name: string
   step_type: string
   step_index: number
-  status: string
+  status: PipelineStatus | string
   start_time?: string
   end_time?: string
   duration_ms?: number
   rows_processed?: number
   error_message?: string
+  error_context?: ErrorContext
   metadata?: Record<string, unknown>
 }
 
@@ -489,6 +504,29 @@ export interface PipelineRunDetail extends PipelineRunSummary {
 
 export interface PipelineRunsResponse {
   runs: PipelineRunSummary[]
+  total: number
+  limit: number
+  offset: number
+}
+
+/** State transition event for audit trail */
+export interface StateTransition {
+  transition_id: string
+  pipeline_logging_id: string
+  step_logging_id?: string
+  entity_type: 'PIPELINE' | 'STEP'
+  from_state: string
+  to_state: string
+  transition_time: string
+  error_type?: string
+  error_message?: string
+  retry_count?: number
+  duration_in_state_ms?: number
+  metadata?: Record<string, unknown>
+}
+
+export interface StateTransitionsResponse {
+  transitions: StateTransition[]
   total: number
   limit: number
   offset: number

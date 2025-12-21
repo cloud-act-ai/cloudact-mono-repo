@@ -204,10 +204,16 @@ export default function CostRunsPage() {
       case "COMPLETED":
         return "bg-[#F0FDFA] text-[#007A78] border border-[#007A78]/10"
       case "FAILED":
+      case "TIMEOUT":
         return "bg-[#FF6E50]/10 text-[#FF6E50] border border-[#FF6E50]/10"
       case "RUNNING":
       case "PENDING":
+      case "CANCELLING":
         return "bg-[#007A78]/5 text-[#007A78] border border-[#007A78]/10"
+      case "CANCELLED":
+        return "bg-amber-100 text-amber-700 border border-amber-200"
+      case "SKIPPED":
+        return "bg-[#007A78]/5 text-muted-foreground border border-border"
       default:
         return "bg-[#007A78]/5 text-muted-foreground border border-border"
     }
