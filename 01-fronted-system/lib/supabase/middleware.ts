@@ -38,18 +38,66 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  // Refresh session if expired
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  try {
+    // Refresh session if expired - this can throw if refresh token is invalid
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser()
 
-  // If no user and trying to access protected route, redirect to login
-  if (!user) {
+    // If auth error (invalid refresh token, expired session, etc.), clear cookies and redirect to login
+    if (error) {
+      console.error("[Middleware] Auth error:", error.message, error.code)
+
+      // Clear all Supabase auth cookies to prevent repeated errors
+      const url = request.nextUrl.clone()
+      url.pathname = "/login"
+      url.searchParams.set("redirectTo", request.nextUrl.pathname)
+      url.searchParams.set("reason", "session_expired")
+
+      const response = NextResponse.redirect(url)
+
+      // Clear auth cookies - look for Supabase auth cookies
+      const cookiesToClear = request.cookies.getAll().filter(
+        (c) => c.name.startsWith("sb-") || c.name.includes("supabase")
+      )
+      cookiesToClear.forEach((cookie) => {
+        response.cookies.delete(cookie.name)
+      })
+
+      return response
+    }
+
+    // If no user and trying to access protected route, redirect to login
+    if (!user) {
+      const url = request.nextUrl.clone()
+      url.pathname = "/login"
+      url.searchParams.set("redirectTo", request.nextUrl.pathname)
+      return NextResponse.redirect(url)
+    }
+
+    // User is authenticated, continue with the refreshed session
+    return supabaseResponse
+  } catch (error) {
+    // Catch any unexpected errors during auth (network errors, etc.)
+    console.error("[Middleware] Unexpected auth error:", error)
+
+    // Clear cookies and redirect to login
     const url = request.nextUrl.clone()
     url.pathname = "/login"
     url.searchParams.set("redirectTo", request.nextUrl.pathname)
-    return NextResponse.redirect(url)
-  }
+    url.searchParams.set("reason", "auth_error")
 
-  return supabaseResponse
+    const response = NextResponse.redirect(url)
+
+    // Clear auth cookies
+    const cookiesToClear = request.cookies.getAll().filter(
+      (c) => c.name.startsWith("sb-") || c.name.includes("supabase")
+    )
+    cookiesToClear.forEach((cookie) => {
+      response.cookies.delete(cookie.name)
+    })
+
+    return response
+  }
 }
