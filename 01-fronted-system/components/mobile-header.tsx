@@ -64,12 +64,14 @@ export function MobileHeader({ orgName, orgSlug, user, userRole }: MobileHeaderP
   const [logoUrl, setLogoUrl] = useState<string | null>(null)
   const formattedOrgName = formatOrgName(orgName)
 
-  // Fetch org logo
+  // Fetch org logo with cleanup to prevent memory leaks
   useEffect(() => {
+    let isMounted = true
+
     const fetchLogo = async () => {
       try {
         const result = await getOrgDetails(orgSlug)
-        if (result.success && result.org?.logoUrl) {
+        if (isMounted && result.success && result.org?.logoUrl) {
           setLogoUrl(result.org.logoUrl)
         }
       } catch {
@@ -77,6 +79,10 @@ export function MobileHeader({ orgName, orgSlug, user, userRole }: MobileHeaderP
       }
     }
     fetchLogo()
+
+    return () => {
+      isMounted = false
+    }
   }, [orgSlug])
 
   return (

@@ -10,6 +10,10 @@
    ============================================ */
 
 :root {
+  /* System Font Stacks (no network dependency) */
+  --font-dm-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-merriweather: Georgia, Cambria, "Times New Roman", Times, serif;
+
   /* CloudAct Brand Colors - NO FALLBACKS */
   --cloudact-teal: #007a78;
   --cloudact-teal-light: #14b8a6;

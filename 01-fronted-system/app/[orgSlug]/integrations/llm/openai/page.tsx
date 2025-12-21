@@ -819,9 +819,12 @@ export default function OpenAIIntegrationPage() {
               <div className="col-span-3">
                 <Input
                   id="sub-plan"
+                  name="subscription-plan"
                   placeholder="e.g., TIER1, MY_CUSTOM_PLAN"
                   value={newSubscription.plan_name}
                   onChange={(e) => setNewSubscription({ ...newSubscription, plan_name: e.target.value.replace(/\s/g, '_') })}
+                  disabled={creatingSubscription}
+                  autoComplete="off"
                 />
                 <p className="text-xs text-muted-foreground mt-1">Alphanumeric and underscores only</p>
               </div>
@@ -830,18 +833,22 @@ export default function OpenAIIntegrationPage() {
               <Label htmlFor="sub-quantity" className="text-right">Quantity</Label>
               <Input
                 id="sub-quantity"
+                name="subscription-quantity"
                 type="number"
                 min="0"
                 placeholder="0"
                 className="col-span-3"
                 value={newSubscription.quantity ?? ""}
                 onChange={(e) => setNewSubscription({ ...newSubscription, quantity: e.target.value === "" ? 0 : parseInt(e.target.value) || 0 })}
+                disabled={creatingSubscription}
+                autoComplete="off"
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="sub-price" className="text-right">Price (USD)</Label>
               <Input
                 id="sub-price"
+                name="subscription-price"
                 type="number"
                 step="0.01"
                 min="0"
@@ -849,16 +856,20 @@ export default function OpenAIIntegrationPage() {
                 className="col-span-3"
                 value={newSubscription.unit_price_usd ?? ""}
                 onChange={(e) => setNewSubscription({ ...newSubscription, unit_price_usd: e.target.value === "" ? 0 : parseFloat(e.target.value) || 0 })}
+                disabled={creatingSubscription}
+                autoComplete="off"
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="sub-date" className="text-right">Effective Date</Label>
               <Input
                 id="sub-date"
+                name="subscription-date"
                 type="date"
                 className="col-span-3"
                 value={newSubscription.effective_date}
                 onChange={(e) => setNewSubscription({ ...newSubscription, effective_date: e.target.value })}
+                disabled={creatingSubscription}
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
@@ -866,8 +877,9 @@ export default function OpenAIIntegrationPage() {
               <Select
                 value={newSubscription.tier_type || 'paid'}
                 onValueChange={(value) => setNewSubscription({ ...newSubscription, tier_type: value as "free" | "paid" | "trial" | "enterprise" })}
+                disabled={creatingSubscription}
               >
-                <SelectTrigger className="col-span-3">
+                <SelectTrigger className="col-span-3" aria-label="Select tier type">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -882,29 +894,35 @@ export default function OpenAIIntegrationPage() {
               <Label htmlFor="sub-rpm" className="text-right">RPM Limit</Label>
               <Input
                 id="sub-rpm"
+                name="subscription-rpm"
                 type="number"
                 min="0"
                 placeholder="Optional"
                 className="col-span-3"
                 value={newSubscription.rpm_limit || ''}
                 onChange={(e) => setNewSubscription({ ...newSubscription, rpm_limit: e.target.value ? parseInt(e.target.value) : undefined })}
+                disabled={creatingSubscription}
+                autoComplete="off"
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="sub-tpm" className="text-right">TPM Limit</Label>
               <Input
                 id="sub-tpm"
+                name="subscription-tpm"
                 type="number"
                 min="0"
                 placeholder="Optional"
                 className="col-span-3"
                 value={newSubscription.tpm_limit || ''}
                 onChange={(e) => setNewSubscription({ ...newSubscription, tpm_limit: e.target.value ? parseInt(e.target.value) : undefined })}
+                disabled={creatingSubscription}
+                autoComplete="off"
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateSubModal(false)}>
+            <Button variant="outline" onClick={() => setCreateSubModal(false)} disabled={creatingSubscription}>
               Cancel
             </Button>
             <Button onClick={handleCreateSubscription} disabled={creatingSubscription}>
@@ -928,26 +946,33 @@ export default function OpenAIIntegrationPage() {
               <Label htmlFor="price-model-id" className="text-right">Model ID</Label>
               <Input
                 id="price-model-id"
+                name="pricing-model-id"
                 placeholder="e.g., gpt-4-turbo"
                 className="col-span-3"
                 value={newPricing.model_id}
                 onChange={(e) => setNewPricing({ ...newPricing, model_id: e.target.value })}
+                disabled={creatingPricing}
+                autoComplete="off"
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="price-model-name" className="text-right">Display Name</Label>
               <Input
                 id="price-model-name"
+                name="pricing-model-name"
                 placeholder="e.g., GPT-4 Turbo"
                 className="col-span-3"
                 value={newPricing.model_name || ''}
                 onChange={(e) => setNewPricing({ ...newPricing, model_name: e.target.value })}
+                disabled={creatingPricing}
+                autoComplete="off"
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="price-input" className="text-right">Input ($/1K)</Label>
               <Input
                 id="price-input"
+                name="pricing-input"
                 type="number"
                 step="0.0001"
                 min="0"
@@ -955,12 +980,15 @@ export default function OpenAIIntegrationPage() {
                 className="col-span-3"
                 value={newPricing.input_price_per_1k ?? ""}
                 onChange={(e) => setNewPricing({ ...newPricing, input_price_per_1k: e.target.value === "" ? 0 : parseFloat(e.target.value) || 0 })}
+                disabled={creatingPricing}
+                autoComplete="off"
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="price-output" className="text-right">Output ($/1K)</Label>
               <Input
                 id="price-output"
+                name="pricing-output"
                 type="number"
                 step="0.0001"
                 min="0"
@@ -968,21 +996,25 @@ export default function OpenAIIntegrationPage() {
                 className="col-span-3"
                 value={newPricing.output_price_per_1k ?? ""}
                 onChange={(e) => setNewPricing({ ...newPricing, output_price_per_1k: e.target.value === "" ? 0 : parseFloat(e.target.value) || 0 })}
+                disabled={creatingPricing}
+                autoComplete="off"
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="price-date" className="text-right">Effective Date</Label>
               <Input
                 id="price-date"
+                name="pricing-date"
                 type="date"
                 className="col-span-3"
                 value={newPricing.effective_date}
                 onChange={(e) => setNewPricing({ ...newPricing, effective_date: e.target.value })}
+                disabled={creatingPricing}
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCreatePricingModal(false)}>
+            <Button variant="outline" onClick={() => setCreatePricingModal(false)} disabled={creatingPricing}>
               Cancel
             </Button>
             <Button onClick={handleCreatePricing} disabled={creatingPricing}>

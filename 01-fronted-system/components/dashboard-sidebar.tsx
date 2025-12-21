@@ -141,28 +141,34 @@ export function DashboardSidebar({
   const { state } = useSidebar()
   const isCollapsed = state === "collapsed"
 
-  // Fetch org logo with loading state
+  // Fetch org logo with loading state and cleanup to prevent memory leaks
   useEffect(() => {
+    let isMounted = true
+
     const fetchLogo = async () => {
       if (!orgSlug) {
-        setLogoLoading(false)
+        if (isMounted) setLogoLoading(false)
         return
       }
 
       try {
-        setLogoLoading(true)
+        if (isMounted) setLogoLoading(true)
         const result = await getOrgDetails(orgSlug)
-        if (result.success && result.org?.logoUrl) {
+        if (isMounted && result.success && result.org?.logoUrl) {
           setLogoUrl(result.org.logoUrl)
         }
       } catch (error) {
         console.error("Failed to fetch org logo:", error)
         // Don't throw - gracefully fall back to default icon
       } finally {
-        setLogoLoading(false)
+        if (isMounted) setLogoLoading(false)
       }
     }
     fetchLogo()
+
+    return () => {
+      isMounted = false
+    }
   }, [orgSlug])
 
   const handleLogout = async () => {
@@ -226,9 +232,9 @@ export function DashboardSidebar({
           {/* Cost Dashboards Section */}
           {!isCollapsed && (
             <div className="pt-2 pb-1 px-4">
-              <span className="text-[13px] font-semibold text-muted-foreground uppercase tracking-wider">
+              <h2 className="text-[13px] font-semibold text-muted-foreground uppercase tracking-wider">
                 Cost Dashboards
-              </span>
+              </h2>
             </div>
           )}
           {isCollapsed && (
@@ -308,9 +314,9 @@ export function DashboardSidebar({
           {/* Pipelines Section */}
           {!isCollapsed && (
             <div className="pt-3 pb-1 px-4">
-              <span className="text-[13px] font-semibold text-muted-foreground uppercase tracking-wider">
+              <h2 className="text-[13px] font-semibold text-muted-foreground uppercase tracking-wider">
                 Pipelines
-              </span>
+              </h2>
             </div>
           )}
           {isCollapsed && (
@@ -409,9 +415,9 @@ export function DashboardSidebar({
               className="pt-3 pb-1 px-4 flex items-center justify-between cursor-pointer hover:bg-[#007A78]/5 transition-all duration-150"
               onClick={() => setIntegrationsExpanded(!integrationsExpanded)}
             >
-              <span className="text-[13px] font-semibold text-muted-foreground uppercase tracking-wider">
+              <h2 className="text-[13px] font-semibold text-muted-foreground uppercase tracking-wider">
                 Integrations
-              </span>
+              </h2>
               {integrationsExpanded ? (
                 <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
               ) : (
@@ -476,9 +482,9 @@ export function DashboardSidebar({
               className="pt-3 pb-1 px-4 flex items-center justify-between cursor-pointer hover:bg-[#007A78]/5 transition-all duration-150"
               onClick={() => setSettingsExpanded(!settingsExpanded)}
             >
-              <span className="text-[13px] font-semibold text-muted-foreground uppercase tracking-wider">
+              <h2 className="text-[13px] font-semibold text-muted-foreground uppercase tracking-wider">
                 Settings
-              </span>
+              </h2>
               {settingsExpanded ? (
                 <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
               ) : (

@@ -45,8 +45,16 @@ function LoginForm() {
     setIsLoading(true)
     setError(null)
 
+    let supabase
     try {
-      const supabase = createClient()
+      supabase = createClient()
+    } catch (configError) {
+      setError("Supabase is not configured. Please set up .env.local with your Supabase credentials.")
+      setIsLoading(false)
+      return
+    }
+
+    try {
 
       // Normalize email to match signup flow
       const normalizedEmail = email.trim().toLowerCase()
@@ -129,6 +137,7 @@ function LoginForm() {
             </Label>
             <Input
               id="email"
+              name="email"
               type="email"
               placeholder="you@company.com"
               required
@@ -146,6 +155,7 @@ function LoginForm() {
             </Label>
             <Input
               id="password"
+              name="password"
               type="password"
               placeholder="Enter your password"
               required
