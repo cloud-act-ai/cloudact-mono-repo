@@ -218,23 +218,38 @@ def generate_traffic(
 # Usage Fetching
 # ============================================================================
 
-def fetch_usage(start_date: str = None, end_date: str = None, limit: int = 100) -> List[Dict]:
-    """Fetch usage data from OpenAI's organization costs endpoint."""
-    api_key = os.getenv("OPENAI_ADMIN_KEY") or os.getenv("OPENAI_API_KEY")
+def fetch_usage(start_date: str = None, end_date: str = None, limit: int = 100, bucket_width: str = "1d", group_by: List[str] = None) -> List[Dict]:
+    """
+    Fetch usage data from OpenAI's Usage API.
+
+    Uses the official Usage API endpoints:
+    - /v1/organization/usage/completions - for granular usage data by model
+    - /v1/organization/costs - for cost data (reconciles with billing)
+
+    Args:
+        start_date: Start date (YYYY-MM-DD), defaults to 7 days ago
+        end_date: End date (YYYY-MM-DD), defaults to today
+        limit: Max number of buckets to return
+        bucket_width: Aggregation width: '1m', '1h', or '1d' (default: '1d')
+        group_by: Grouping fields: 'project_id', 'user_id', 'api_key_id', 'model', 'batch', 'service_tier'
+
+    Requires: OPENAI_ADMIN_KEY environment variable (Admin API key)
+    """
+    api_key = os.getenv("OPENAI_ADMIN_KEY")
     if not api_key:
+        print("[OpenAI] OPENAI_ADMIN_KEY required for Usage API.")
+        print("  Get admin key: https://platform.openai.com/settings/organization/admin-keys")
         return []
 
     if not end_date:
         end_dt = datetime.now(timezone.utc)
-        end_date = end_dt.strftime("%Y-%m-%d")
     else:
-        end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+        end_dt = datetime.strptime(end_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
 
     if not start_date:
         start_dt = end_dt - timedelta(days=7)
-        start_date = start_dt.strftime("%Y-%m-%d")
     else:
-        start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+        start_dt = datetime.strptime(start_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
 
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -243,50 +258,139 @@ def fetch_usage(start_date: str = None, end_date: str = None, limit: int = 100) 
 
     records = []
 
+    # 1. Fetch completions usage (granular token data by model)
     try:
-        url = f"{BASE_URL}/organization/costs"
+        usage_url = f"{BASE_URL}/organization/usage/completions"
         params = {
             "start_time": int(start_dt.timestamp()),
             "end_time": int(end_dt.timestamp()),
-            "bucket_width": "1d",
+            "bucket_width": bucket_width,
             "limit": limit
         }
 
-        resp = requests.get(url, headers=headers, params=params, timeout=30)
+        # Add grouping if specified (enables per-model breakdown)
+        if group_by:
+            params["group_by"] = group_by
+        else:
+            # Default: group by model for better granularity
+            params["group_by"] = ["model"]
 
-        if resp.status_code == 200:
-            data = resp.json()
+        usage_resp = requests.get(usage_url, headers=headers, params=params, timeout=30)
+
+        if usage_resp.status_code == 200:
+            data = usage_resp.json()
+
             for bucket in data.get("data", []):
+                # Extract token counts
                 input_tokens = bucket.get("input_tokens", 0)
                 output_tokens = bucket.get("output_tokens", 0)
+                cached_tokens = bucket.get("input_cached_tokens", 0)
+                request_count = bucket.get("num_model_requests", 0)
 
+                # Get model from grouping or default
+                model = bucket.get("model", "gpt-4o-mini")
+                if not model:
+                    model = "gpt-4o-mini"
+
+                # Calculate costs using pricing loader
                 cost_result = calculate_cost(
                     provider="openai",
-                    model="gpt-4o-mini",  # Aggregate
+                    model=model,
                     input_tokens=input_tokens,
                     output_tokens=output_tokens,
+                    cached_input_tokens=cached_tokens,
                 )
 
+                # Parse bucket timestamp
+                bucket_start = bucket.get("start_time", 0)
+                bucket_date = datetime.fromtimestamp(bucket_start, tz=timezone.utc).strftime("%Y-%m-%d") if bucket_start else start_dt.strftime("%Y-%m-%d")
+
                 records.append({
-                    "date": datetime.fromtimestamp(bucket.get("start_time", 0)).strftime("%Y-%m-%d"),
-                    "timestamp": bucket.get("start_time"),
+                    "date": bucket_date,
+                    "timestamp": bucket_start,
+                    "bucket_start_time": bucket_start,
+                    "bucket_end_time": bucket.get("end_time"),
+                    "bucket_width": bucket_width,
                     "provider": "openai",
-                    "model": "aggregated",
+                    "model": model,
                     "input_tokens": input_tokens,
                     "output_tokens": output_tokens,
                     "total_tokens": input_tokens + output_tokens,
-                    "requests": bucket.get("num_requests", 0),
-                    "cost_usd": bucket.get("amount", {}).get("value", 0) / 100 if isinstance(bucket.get("amount"), dict) else 0,
+                    "cached_tokens": cached_tokens,
+                    "requests": request_count,
                     "calculated_cost_usd": cost_result["total_cost"],
-                    "source": "costs_api"
+                    "input_cost_usd": cost_result["input_cost"],
+                    "output_cost_usd": cost_result["output_cost"],
+                    "cached_cost_usd": cost_result.get("cached_cost", 0),
+                    # Grouping dimensions from API
+                    "project_id": bucket.get("project_id"),
+                    "user_id": bucket.get("user_id"),
+                    "api_key_id": bucket.get("api_key_id"),
+                    "batch": bucket.get("batch"),
+                    "service_tier": bucket.get("service_tier"),
+                    "source": "usage_completions_api"
                 })
 
-        elif resp.status_code == 403:
-            print("[OpenAI] Costs API requires admin key.")
-            print("  Get admin key: https://platform.openai.com/settings/organization/admin-keys")
+            # Handle pagination
+            if data.get("has_more"):
+                print(f"[OpenAI] Fetched {len(records)} records, more available (pagination)")
 
+        elif usage_resp.status_code == 403:
+            print("[OpenAI] Access denied. Admin API key required.")
+            print("  Get admin key: https://platform.openai.com/settings/organization/admin-keys")
+        elif usage_resp.status_code == 404:
+            print("[OpenAI] Usage API endpoint not found.")
+        else:
+            print(f"[OpenAI] Usage API error: {usage_resp.status_code} - {usage_resp.text[:200]}")
+
+    except requests.exceptions.Timeout:
+        print("[OpenAI] Request timeout. Try a smaller date range.")
     except Exception as e:
-        print(f"[OpenAI] Error: {e}")
+        print(f"[OpenAI] Error fetching usage: {e}")
+
+    # 2. Fetch costs for reconciliation (this reconciles with billing)
+    try:
+        cost_url = f"{BASE_URL}/organization/costs"
+        cost_params = {
+            "start_time": int(start_dt.timestamp()),
+            "end_time": int(end_dt.timestamp()),
+            "bucket_width": "1d",  # Costs API only supports daily buckets
+            "limit": limit
+        }
+
+        cost_resp = requests.get(cost_url, headers=headers, params=cost_params, timeout=30)
+
+        if cost_resp.status_code == 200:
+            cost_data = cost_resp.json()
+
+            for bucket in cost_data.get("data", []):
+                bucket_start = bucket.get("start_time", 0)
+                bucket_date = datetime.fromtimestamp(bucket_start, tz=timezone.utc).strftime("%Y-%m-%d") if bucket_start else ""
+
+                # Extract cost amount (comes as cents, convert to USD)
+                amount_info = bucket.get("results", [{}])[0] if bucket.get("results") else {}
+                cost_cents = amount_info.get("amount", {}).get("value", 0) if isinstance(amount_info.get("amount"), dict) else 0
+                cost_usd = cost_cents / 100
+
+                # Find matching usage records and add reported cost
+                for record in records:
+                    if record.get("date") == bucket_date:
+                        record["reported_cost_usd"] = cost_usd
+                        break
+                else:
+                    # If no matching usage record, add a costs-only record
+                    if cost_usd > 0:
+                        records.append({
+                            "date": bucket_date,
+                            "timestamp": bucket_start,
+                            "provider": "openai",
+                            "model": "aggregated",
+                            "reported_cost_usd": cost_usd,
+                            "source": "costs_api"
+                        })
+
+    except Exception:
+        pass  # Costs API is supplementary for reconciliation
 
     return records
 

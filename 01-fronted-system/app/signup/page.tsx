@@ -190,13 +190,15 @@ function SignupForm() {
       </div>
 
       <div className="glass-card p-6">
-        <form onSubmit={onSubmit} className="space-y-4">
+        {/* suppressHydrationWarning: Password manager extensions (LastPass, 1Password, etc.)
+            inject elements into forms before React hydrates, causing harmless mismatches */}
+        <form onSubmit={onSubmit} className="space-y-4" suppressHydrationWarning>
           {/* Account Section */}
           <div className="space-y-3">
             <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Your Details</div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="space-y-1.5 md:col-span-2">
+              <div className="space-y-1.5 md:col-span-2" suppressHydrationWarning>
                 <Label htmlFor="email" className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
                   <Mail className="h-3.5 w-3.5" />
                   Email address
@@ -214,7 +216,7 @@ function SignupForm() {
                 />
               </div>
 
-              <div className="space-y-1.5 md:col-span-2">
+              <div className="space-y-1.5 md:col-span-2" suppressHydrationWarning>
                 <Label htmlFor="password" className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
                   <Lock className="h-3.5 w-3.5" />
                   Password

@@ -208,21 +208,45 @@ def generate_traffic(
 # Usage Fetching
 # ============================================================================
 
-def fetch_usage(start_date: str = None, end_date: str = None, limit: int = 100) -> List[Dict]:
-    """Fetch usage data from Anthropic's Admin API."""
-    api_key = os.getenv("ANTHROPIC_ADMIN_KEY") or os.getenv("ANTHROPIC_API_KEY")
+def fetch_usage(start_date: str = None, end_date: str = None, limit: int = 100, bucket_width: str = "1d") -> List[Dict]:
+    """
+    Fetch usage data from Anthropic's Admin API.
+
+    Uses the official Admin API endpoints:
+    - /v1/organizations/usage_report/messages - for detailed usage metrics
+    - /v1/organizations/cost_report - for cost data
+
+    Args:
+        start_date: Start date (YYYY-MM-DD), defaults to 7 days ago
+        end_date: End date (YYYY-MM-DD), defaults to today
+        limit: Max number of records to fetch
+        bucket_width: Aggregation bucket width: '1m', '1h', or '1d' (default: '1d')
+
+    Requires: ANTHROPIC_ADMIN_KEY (sk-ant-admin-...) environment variable
+    """
+    api_key = os.getenv("ANTHROPIC_ADMIN_KEY")
     if not api_key:
+        print("[Anthropic] ANTHROPIC_ADMIN_KEY required for usage API.")
+        print("  Get admin key: https://console.anthropic.com/settings/admin-keys")
         return []
+
+    # Validate bucket_width
+    if bucket_width not in ["1m", "1h", "1d"]:
+        bucket_width = "1d"
 
     if not end_date:
         end_dt = datetime.now(timezone.utc)
-        end_date = end_dt.strftime("%Y-%m-%d")
     else:
-        end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+        end_dt = datetime.strptime(end_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
 
     if not start_date:
         start_dt = end_dt - timedelta(days=7)
-        start_date = start_dt.strftime("%Y-%m-%d")
+    else:
+        start_dt = datetime.strptime(start_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+
+    # Format as ISO 8601 timestamps
+    starting_at = start_dt.strftime("%Y-%m-%dT00:00:00Z")
+    ending_at = end_dt.strftime("%Y-%m-%dT23:59:59Z")
 
     headers = {
         "x-api-key": api_key,
@@ -232,48 +256,114 @@ def fetch_usage(start_date: str = None, end_date: str = None, limit: int = 100) 
 
     records = []
 
+    # 1. Fetch usage report (token counts, request metrics)
     try:
-        # Try usage endpoint
-        usage_resp = requests.get(
-            f"{BASE_URL}/usage",
-            headers=headers,
-            params={"start_date": start_date, "end_date": end_date},
-            timeout=30
-        )
+        usage_url = f"{BASE_URL}/organizations/usage_report/messages"
+        params = {
+            "starting_at": starting_at,
+            "ending_at": ending_at,
+            "bucket_width": bucket_width,
+            "limit": limit
+        }
+
+        usage_resp = requests.get(usage_url, headers=headers, params=params, timeout=30)
 
         if usage_resp.status_code == 200:
             data = usage_resp.json()
-            for item in data.get("data", data.get("usage", [])):
-                input_tokens = item.get("input_tokens", 0)
-                output_tokens = item.get("output_tokens", 0)
 
+            for bucket in data.get("data", []):
+                # Extract token counts
+                input_tokens = bucket.get("input_tokens", 0)
+                output_tokens = bucket.get("output_tokens", 0)
+                cache_creation_tokens = bucket.get("cache_creation_input_tokens", 0)
+                cache_read_tokens = bucket.get("cache_read_input_tokens", 0)
+                request_count = bucket.get("request_count", 1)
+                model = bucket.get("model", "claude-3-haiku-20240307")
+
+                # Calculate costs using pricing loader
                 cost_result = calculate_cost(
                     provider="anthropic",
-                    model=item.get("model", "claude-3-haiku-20240307"),
+                    model=model,
                     input_tokens=input_tokens,
                     output_tokens=output_tokens,
+                    cached_input_tokens=cache_read_tokens,
+                    cached_write_tokens=cache_creation_tokens,
                 )
 
+                # Parse bucket timestamp
+                bucket_start = bucket.get("bucket_start_time", "")
+                bucket_date = bucket_start[:10] if bucket_start else start_dt.strftime("%Y-%m-%d")
+
                 records.append({
-                    "date": item.get("date", start_date),
-                    "timestamp": item.get("timestamp"),
+                    "date": bucket_date,
+                    "timestamp": bucket_start,
+                    "bucket_start_time": bucket_start,
+                    "bucket_end_time": bucket.get("bucket_end_time", ""),
+                    "bucket_width": bucket_width,
                     "provider": "anthropic",
-                    "model": item.get("model", "claude"),
+                    "model": model,
                     "input_tokens": input_tokens,
                     "output_tokens": output_tokens,
                     "total_tokens": input_tokens + output_tokens,
-                    "requests": item.get("request_count", 1),
-                    "cost_usd": item.get("cost_usd", 0),
+                    "cache_creation_tokens": cache_creation_tokens,
+                    "cache_read_tokens": cache_read_tokens,
+                    "requests": request_count,
                     "calculated_cost_usd": cost_result["total_cost"],
-                    "source": "usage_api"
+                    "input_cost_usd": cost_result["input_cost"],
+                    "output_cost_usd": cost_result["output_cost"],
+                    "cached_cost_usd": cost_result.get("cached_cost", 0),
+                    # Grouping dimensions from API
+                    "workspace_id": bucket.get("workspace_id"),
+                    "api_key_id": bucket.get("api_key_id"),
+                    "service_tier": bucket.get("service_tier"),
+                    "source": "usage_report_api"
                 })
 
-        elif usage_resp.status_code in [403, 404]:
-            print("[Anthropic] Usage API requires Admin API key.")
-            print("  Admin keys: https://console.anthropic.com/settings/admin-keys")
+            # Handle pagination
+            next_page = data.get("next_page")
+            if next_page and len(records) < limit:
+                print(f"[Anthropic] Fetched {len(records)} records, more available (pagination)")
 
+        elif usage_resp.status_code == 403:
+            print("[Anthropic] Access denied. Admin API key required (sk-ant-admin-...).")
+            print("  Get admin key: https://console.anthropic.com/settings/admin-keys")
+        elif usage_resp.status_code == 404:
+            print("[Anthropic] Usage API endpoint not found. Ensure you have admin access.")
+        else:
+            print(f"[Anthropic] Usage API error: {usage_resp.status_code} - {usage_resp.text[:200]}")
+
+    except requests.exceptions.Timeout:
+        print("[Anthropic] Request timeout. Try a smaller date range or increase timeout.")
     except Exception as e:
-        print(f"[Anthropic] Error: {e}")
+        print(f"[Anthropic] Error fetching usage: {e}")
+
+    # 2. Optionally fetch cost report for reconciliation
+    try:
+        cost_url = f"{BASE_URL}/organizations/cost_report"
+        cost_params = {
+            "starting_at": starting_at,
+            "ending_at": ending_at,
+            "bucket_width": "1d",  # Cost report typically uses daily buckets
+            "limit": limit
+        }
+
+        cost_resp = requests.get(cost_url, headers=headers, params=cost_params, timeout=30)
+
+        if cost_resp.status_code == 200:
+            cost_data = cost_resp.json()
+            for bucket in cost_data.get("data", []):
+                # Match with existing records or add cost info
+                bucket_date = bucket.get("bucket_start_time", "")[:10]
+                cost_usd = bucket.get("cost_usd", 0)
+
+                # Find matching record and add reported cost
+                for record in records:
+                    if record.get("date") == bucket_date:
+                        record["reported_cost_usd"] = cost_usd
+                        break
+
+    except Exception:
+        pass  # Cost report is supplementary, don't fail if unavailable
 
     return records
 

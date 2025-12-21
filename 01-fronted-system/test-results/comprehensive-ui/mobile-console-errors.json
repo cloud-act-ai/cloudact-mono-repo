@@ -1,0 +1,37 @@
+[
+  {
+    "type": "exception",
+    "text": "Rendered more hooks than during the previous render.",
+    "url": "http://localhost:3000/guru_inc_12012025/dashboard"
+  },
+  {
+    "type": "exception",
+    "text": "Rendered more hooks than during the previous render.",
+    "url": "http://localhost:3000/guru_inc_12012025/dashboard"
+  },
+  {
+    "type": "error",
+    "text": "WebSocket connection to 'ws://localhost:3000/_next/webpack-hmr?id=3XhIICFPgj8vVVm9N8_7h' failed: ",
+    "url": "http://localhost:3000/guru_inc_12012025/dashboard"
+  },
+  {
+    "type": "error",
+    "text": "Failed to fetch org logo: TypeError: Failed to fetch\n    at fetchServerAction (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/router-reducer/reducers/server-action-reducer.js:66:23)",
+    "url": "http://localhost:3000/guru_inc_12012025/dashboard"
+  },
+  {
+    "type": "exception",
+    "text": "Rendered more hooks than during the previous render.",
+    "url": "http://localhost:3000/guru_inc_12012025/dashboard"
+  },
+  {
+    "type": "error",
+    "text": "Failed to load resource: net::ERR_CONNECTION_RESET",
+    "url": "http://localhost:3000/guru_inc_12012025/dashboard"
+  },
+  {
+    "type": "error",
+    "text": "Failed to load resource: net::ERR_CONNECTION_RESET",
+    "url": "http://localhost:3000/guru_inc_12012025/dashboard"
+  }
+]

@@ -219,8 +219,14 @@ def fetch_usage(start_date: str = None, end_date: str = None, limit: int = 100) 
     """
     Fetch usage for Gemini API.
 
-    Note: AI Studio doesn't have a direct usage API.
-    Check Cloud Console for usage data.
+    Note: AI Studio (generativelanguage.googleapis.com) doesn't have a direct usage API.
+    This function attempts to get usage from:
+    1. Cloud Monitoring metrics (requires google-cloud-monitoring and service account)
+    2. If not available, provides guidance on checking the Cloud Console
+
+    For Vertex AI usage, Cloud Monitoring provides token counts and request metrics.
+
+    Requires: GOOGLE_APPLICATION_CREDENTIALS environment variable (service account JSON)
     """
     records = []
 
@@ -240,6 +246,7 @@ def fetch_usage(start_date: str = None, end_date: str = None, limit: int = 100) 
     if creds_path:
         try:
             from google.cloud import monitoring_v3
+            from google.protobuf.timestamp_pb2 import Timestamp
 
             with open(creds_path) as f:
                 creds_data = json.load(f)
@@ -249,14 +256,30 @@ def fetch_usage(start_date: str = None, end_date: str = None, limit: int = 100) 
                 client = monitoring_v3.MetricServiceClient()
                 project_name = f"projects/{project_id}"
 
+                # Create time interval
                 interval = monitoring_v3.TimeInterval()
-                interval.end_time.FromDatetime(end_dt)
-                interval.start_time.FromDatetime(start_dt)
+                end_timestamp = Timestamp()
+                end_timestamp.FromDatetime(end_dt)
+                start_timestamp = Timestamp()
+                start_timestamp.FromDatetime(start_dt)
+                interval.end_time = end_timestamp
+                interval.start_time = start_timestamp
 
+                # Gemini-specific metrics to query
                 metrics = [
+                    # AI Platform / Vertex AI metrics
                     "aiplatform.googleapis.com/publisher/online_serving/token_count",
+                    "aiplatform.googleapis.com/publisher/online_serving/request_count",
+                    "aiplatform.googleapis.com/publisher/online_serving/model_invocation_count",
+                    # Generative Language API metrics (AI Studio)
+                    "generativelanguage.googleapis.com/quota/generate_content_input_tokens/usage",
+                    "generativelanguage.googleapis.com/quota/generate_content_output_tokens/usage",
+                    "generativelanguage.googleapis.com/request_count",
+                    # Service runtime metrics
                     "serviceruntime.googleapis.com/api/request_count",
                 ]
+
+                aggregated_data = {}
 
                 for metric in metrics:
                     try:
@@ -270,39 +293,83 @@ def fetch_usage(start_date: str = None, end_date: str = None, limit: int = 100) 
                         )
 
                         for series in results:
-                            model_name = series.metric.labels.get("model_id", "gemini")
+                            # Extract labels
+                            model_name = (
+                                series.metric.labels.get("model_id") or
+                                series.metric.labels.get("model") or
+                                series.resource.labels.get("model_id") or
+                                "gemini-1.5-flash"
+                            )
+                            token_type = series.metric.labels.get("type", "")  # input, output, etc.
+
                             for point in series.points:
                                 value = point.value.int64_value or point.value.double_value or 0
                                 timestamp = point.interval.end_time.ToDatetime()
+                                date_key = timestamp.strftime("%Y-%m-%d")
 
-                                cost_result = calculate_cost(
-                                    provider="gemini",
-                                    model=model_name,
-                                    input_tokens=value if "input" in metric.lower() else 0,
-                                    output_tokens=value if "output" in metric.lower() else 0,
-                                )
+                                # Aggregate by date and model
+                                key = f"{date_key}:{model_name}"
+                                if key not in aggregated_data:
+                                    aggregated_data[key] = {
+                                        "date": date_key,
+                                        "timestamp": timestamp.isoformat(),
+                                        "provider": "gemini",
+                                        "model": model_name,
+                                        "input_tokens": 0,
+                                        "output_tokens": 0,
+                                        "requests": 0,
+                                        "source": "cloud_monitoring"
+                                    }
 
-                                records.append({
-                                    "date": timestamp.strftime("%Y-%m-%d"),
-                                    "timestamp": timestamp.isoformat(),
-                                    "provider": "gemini",
-                                    "model": model_name,
-                                    "metric": metric.split("/")[-1],
-                                    "value": value,
-                                    "calculated_cost_usd": cost_result["total_cost"],
-                                    "source": "cloud_monitoring"
-                                })
-                    except Exception:
+                                # Categorize metric values
+                                if "input" in metric.lower() or token_type == "input":
+                                    aggregated_data[key]["input_tokens"] += int(value)
+                                elif "output" in metric.lower() or token_type == "output":
+                                    aggregated_data[key]["output_tokens"] += int(value)
+                                elif "request" in metric.lower() or "invocation" in metric.lower():
+                                    aggregated_data[key]["requests"] += int(value)
+                                elif "token" in metric.lower():
+                                    # Generic token count - estimate split
+                                    aggregated_data[key]["input_tokens"] += int(value * 0.6)
+                                    aggregated_data[key]["output_tokens"] += int(value * 0.4)
+
+                    except Exception as e:
+                        # Silently continue if specific metric fails
                         continue
 
+                # Calculate costs for aggregated data
+                for key, data in aggregated_data.items():
+                    cost_result = calculate_cost(
+                        provider="gemini",
+                        model=data["model"],
+                        input_tokens=data["input_tokens"],
+                        output_tokens=data["output_tokens"],
+                    )
+                    data["total_tokens"] = data["input_tokens"] + data["output_tokens"]
+                    data["calculated_cost_usd"] = cost_result["total_cost"]
+                    data["input_cost_usd"] = cost_result["input_cost"]
+                    data["output_cost_usd"] = cost_result["output_cost"]
+                    records.append(data)
+
+                if records:
+                    print(f"[Gemini] Fetched {len(records)} records from Cloud Monitoring")
+
         except ImportError:
-            print("[Gemini] Install google-cloud-monitoring: pip install google-cloud-monitoring")
+            print("[Gemini] Install google-cloud-monitoring for usage tracking:")
+            print("  pip install google-cloud-monitoring")
         except Exception as e:
             print(f"[Gemini] Cloud Monitoring error: {e}")
 
     if not records:
-        print("[Gemini] No direct usage API for AI Studio.")
-        print("  View usage at: https://console.cloud.google.com/apis/api/generativelanguage.googleapis.com/metrics")
+        print("[Gemini] No usage data retrieved.")
+        print("  For AI Studio usage, check:")
+        print("    https://console.cloud.google.com/apis/api/generativelanguage.googleapis.com/metrics")
+        print("  For Vertex AI usage, check:")
+        print("    https://console.cloud.google.com/vertex-ai/quotas")
+        print("  Requirements:")
+        print("    - GOOGLE_APPLICATION_CREDENTIALS pointing to service account JSON")
+        print("    - Service account needs roles/monitoring.viewer permission")
+        print("    - pip install google-cloud-monitoring")
 
     return records
 

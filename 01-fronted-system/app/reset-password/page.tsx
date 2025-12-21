@@ -95,8 +95,9 @@ export default function ResetPasswordPage() {
         </div>
 
         <div className="rounded-2xl border bg-white p-8 shadow-lg">
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="space-y-2">
+          {/* suppressHydrationWarning: Password manager extensions inject elements before React hydrates */}
+          <form onSubmit={handleSubmit} className="space-y-5" suppressHydrationWarning>
+            <div className="space-y-2" suppressHydrationWarning>
               <Label htmlFor="password" className="text-sm font-medium text-gray-700">New Password</Label>
               <Input
                 id="password"
@@ -111,7 +112,7 @@ export default function ResetPasswordPage() {
               />
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-2" suppressHydrationWarning>
               <Label htmlFor="confirmPassword" className="text-sm font-medium text-gray-700">Confirm Password</Label>
               <Input
                 id="confirmPassword"
