@@ -132,17 +132,6 @@ export function UserMenu({ user, orgSlug, userRole, className }: UserMenuProps) 
           <span>Team Members</span>
         </DropdownMenuItem>
 
-        <DropdownMenuItem
-          onClick={() => {
-            setOpen(false)
-            router.push(`/${orgSlug}/settings/profile`)
-          }}
-          className="px-3 py-2.5 text-sm text-black hover:bg-[#007A78]/5 hover:text-[#007A78] cursor-pointer rounded-lg focus:bg-[#007A78]/5 focus:text-[#007A78]"
-        >
-          <Settings className="mr-3 h-4 w-4 text-[#007A78]" />
-          <span>Settings</span>
-        </DropdownMenuItem>
-
         <DropdownMenuSeparator className="bg-border my-1" />
 
         <DropdownMenuItem

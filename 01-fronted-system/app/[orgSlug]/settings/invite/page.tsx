@@ -310,6 +310,7 @@ export default function InviteMembersPage() {
                     <Label htmlFor="email" className="console-label">Email address</Label>
                     <Input
                       id="email"
+                      name="invite-email"
                       type="email"
                       placeholder="colleague@company.com"
                       value={inviteEmail}
@@ -317,17 +318,20 @@ export default function InviteMembersPage() {
                         setInviteEmail(e.target.value)
                         setEmailError(null)
                       }}
+                      disabled={isInviting}
+                      aria-invalid={!!emailError}
+                      aria-describedby={emailError ? "email-error" : undefined}
                       className="console-input"
                     />
                     {emailError && (
-                      <p className="console-small text-[#FF6E50]">{emailError}</p>
+                      <p id="email-error" className="console-small text-[#FF6E50]" role="alert">{emailError}</p>
                     )}
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="role" className="console-label">Role</Label>
-                    <Select value={inviteRole} onValueChange={(v: "collaborator" | "read_only") => setInviteRole(v)}>
-                      <SelectTrigger>
+                    <Select value={inviteRole} onValueChange={(v: "collaborator" | "read_only") => setInviteRole(v)} disabled={isInviting}>
+                      <SelectTrigger aria-label="Select role for invite">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -344,7 +348,7 @@ export default function InviteMembersPage() {
                   )}
 
                   <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsInviteDialogOpen(false)} className="console-button-secondary h-11 px-4">
+                    <Button variant="outline" onClick={() => setIsInviteDialogOpen(false)} disabled={isInviting} className="console-button-secondary h-11 px-4">
                       Cancel
                     </Button>
                     <Button onClick={handleInvite} disabled={isInviting || !inviteEmail || !validateEmail(inviteEmail)} className="console-button-primary h-11 px-4">

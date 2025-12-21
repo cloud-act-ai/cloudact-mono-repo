@@ -14,8 +14,10 @@ export default function GlobalError({
 }) {
   useEffect(() => {
     // Log error to console in development, could send to error tracking in production
+    // Using error.digest as stable dependency to prevent unnecessary re-renders
     console.error("[GlobalError]", error)
-  }, [error])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [error.digest])
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">

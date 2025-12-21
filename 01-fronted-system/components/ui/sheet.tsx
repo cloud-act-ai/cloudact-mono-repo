@@ -39,7 +39,7 @@ function SheetOverlay({
         'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 bg-black/30 backdrop-blur-[2px]',
         className,
       )}
-      style={{ zIndex: 40 }}
+      style={{ zIndex: 'var(--z-modal, 40)' as unknown as number }}
       {...props}
     />
   )
@@ -81,7 +81,7 @@ function SheetContent({
             'data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom inset-x-0 bottom-0 h-auto border-t border-border',
           className,
         )}
-        style={{ zIndex: 50 }}
+        style={{ zIndex: 'var(--z-tooltip, 50)' as unknown as number }}
         {...props}
       >
         {children}

@@ -129,6 +129,7 @@ function LoginForm() {
             </Label>
             <Input
               id="email"
+              name="email"
               type="email"
               placeholder="you@company.com"
               required
@@ -146,6 +147,7 @@ function LoginForm() {
             </Label>
             <Input
               id="password"
+              name="password"
               type="password"
               placeholder="Enter your password"
               required

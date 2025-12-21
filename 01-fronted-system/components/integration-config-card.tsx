@@ -255,6 +255,8 @@ export function IntegrationConfigCard({
                   placeholder={placeholder}
                   value={credential}
                   onChange={(e) => setCredential(e.target.value)}
+                  disabled={localLoading}
+                  aria-describedby={validationError ? `${provider}-error` : undefined}
                 />
               ) : (
                 <Input
@@ -263,12 +265,14 @@ export function IntegrationConfigCard({
                   placeholder={placeholder}
                   value={credential}
                   onChange={(e) => setCredential(e.target.value)}
+                  disabled={localLoading}
+                  aria-describedby={validationError ? `${provider}-error` : undefined}
                   className="h-11 rounded-xl console-input font-mono border-2 border-input focus-visible:ring-2 focus-visible:ring-[#007A78] focus-visible:border-[#007A78] transition-colors"
                 />
               )}
               <p className="console-small text-muted-foreground">{helperText}</p>
               {validationError && (
-                <p className="console-small text-[#FF6E50] mt-1 font-medium">{validationError}</p>
+                <p id={`${provider}-error`} className="console-small text-[#FF6E50] mt-1 font-medium" role="alert">{validationError}</p>
               )}
             </div>
             <div className="flex gap-2">

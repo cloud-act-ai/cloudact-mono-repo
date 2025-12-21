@@ -141,28 +141,34 @@ export function DashboardSidebar({
   const { state } = useSidebar()
   const isCollapsed = state === "collapsed"
 
-  // Fetch org logo with loading state
+  // Fetch org logo with loading state and cleanup to prevent memory leaks
   useEffect(() => {
+    let isMounted = true
+
     const fetchLogo = async () => {
       if (!orgSlug) {
-        setLogoLoading(false)
+        if (isMounted) setLogoLoading(false)
         return
       }
 
       try {
-        setLogoLoading(true)
+        if (isMounted) setLogoLoading(true)
         const result = await getOrgDetails(orgSlug)
-        if (result.success && result.org?.logoUrl) {
+        if (isMounted && result.success && result.org?.logoUrl) {
           setLogoUrl(result.org.logoUrl)
         }
       } catch (error) {
         console.error("Failed to fetch org logo:", error)
         // Don't throw - gracefully fall back to default icon
       } finally {
-        setLogoLoading(false)
+        if (isMounted) setLogoLoading(false)
       }
     }
     fetchLogo()
+
+    return () => {
+      isMounted = false
+    }
   }, [orgSlug])
 
   const handleLogout = async () => {

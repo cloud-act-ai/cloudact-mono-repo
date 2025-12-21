@@ -21,7 +21,7 @@ export function TableSkeleton({ rows = 5, columns = 4, showHeader = true }: Tabl
         <TableHeader>
           <TableRow>
             {Array.from({ length: columns }).map((_, i) => (
-              <TableHead key={i}>
+              <TableHead key={`skeleton-header-${i}`}>
                 <Skeleton className="h-4 w-20" />
               </TableHead>
             ))}
@@ -30,9 +30,9 @@ export function TableSkeleton({ rows = 5, columns = 4, showHeader = true }: Tabl
       )}
       <TableBody>
         {Array.from({ length: rows }).map((_, rowIndex) => (
-          <TableRow key={rowIndex}>
+          <TableRow key={`skeleton-row-${rowIndex}`}>
             {Array.from({ length: columns }).map((_, colIndex) => (
-              <TableCell key={colIndex}>
+              <TableCell key={`skeleton-cell-${rowIndex}-${colIndex}`}>
                 <Skeleton className="h-4 w-full" />
               </TableCell>
             ))}
