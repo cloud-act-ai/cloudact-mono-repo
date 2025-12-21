@@ -2,7 +2,7 @@
 
 import type React from "react"
 import Link from "next/link"
-import { useState, Suspense } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { Cloud, Loader2 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
@@ -32,13 +32,40 @@ function isValidRedirect(url: string | null): url is string {
 
 function LoginForm() {
   const searchParams = useSearchParams()
-  const rawRedirect = searchParams.get("redirect")
+  const rawRedirect = searchParams.get("redirect") || searchParams.get("redirectTo")
   const redirectTo = isValidRedirect(rawRedirect) ? rawRedirect : null
+  const reason = searchParams.get("reason")
 
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [sessionCleared, setSessionCleared] = useState(false)
+
+  // Clear any stale sessions when arriving at login page
+  // This prevents "Invalid Refresh Token" errors from persisting
+  useEffect(() => {
+    const clearStaleSession = async () => {
+      try {
+        const supabase = createClient()
+        // Sign out to clear any invalid/stale tokens
+        await supabase.auth.signOut({ scope: 'local' })
+        setSessionCleared(true)
+
+        // Show message if redirected due to session expiry
+        if (reason === 'session_expired') {
+          setError("Your session has expired. Please sign in again.")
+        } else if (reason === 'auth_error') {
+          setError("Authentication error. Please sign in again.")
+        }
+      } catch (err) {
+        console.error("[Login] Failed to clear stale session:", err)
+        setSessionCleared(true)
+      }
+    }
+
+    clearStaleSession()
+  }, [reason])
 
   const handlePasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -130,8 +157,10 @@ function LoginForm() {
       </div>
 
       <div className="glass-card p-8">
-        <form onSubmit={handlePasswordLogin} className="space-y-5">
-          <div className="space-y-2">
+        {/* suppressHydrationWarning: Password manager extensions (LastPass, 1Password, etc.)
+            inject elements into forms before React hydrates, causing harmless mismatches */}
+        <form onSubmit={handlePasswordLogin} className="space-y-5" suppressHydrationWarning>
+          <div className="space-y-2" suppressHydrationWarning>
             <Label htmlFor="email" className="text-sm font-semibold text-[#1C1C1E]">
               Email address
             </Label>
@@ -149,7 +178,7 @@ function LoginForm() {
             />
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-2" suppressHydrationWarning>
             <Label htmlFor="password" className="text-sm font-semibold text-[#1C1C1E]">
               Password
             </Label>
