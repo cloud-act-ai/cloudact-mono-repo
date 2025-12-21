@@ -1,0 +1,34 @@
+{
+  "test_keys": [
+    {
+      "api_key": "test_org_123_api_testkey1234567890",
+      "org_slug": "test_org_123",
+      "company_name": "Test Organization",
+      "admin_email": "admin@test.com",
+      "status": "ACTIVE",
+      "subscription": {
+        "plan_name": "ENTERPRISE",
+        "status": "ACTIVE",
+        "max_pipelines_per_day": 999999,
+        "max_pipelines_per_month": 999999,
+        "max_concurrent_pipelines": 999999
+      },
+      "org_api_key_id": "test-key-123"
+    },
+    {
+      "api_key": "test_org_b_456_api_testkey9876543210",
+      "org_slug": "test_org_b",
+      "company_name": "Test Organization B",
+      "admin_email": "admin@testb.com",
+      "status": "ACTIVE",
+      "subscription": {
+        "plan_name": "PROFESSIONAL",
+        "status": "ACTIVE",
+        "max_pipelines_per_day": 100,
+        "max_pipelines_per_month": 3000,
+        "max_concurrent_pipelines": 10
+      },
+      "org_api_key_id": "test-key-456"
+    }
+  ]
+}

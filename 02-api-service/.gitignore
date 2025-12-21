@@ -53,6 +53,7 @@ dmypy.json
 # GCP
 *.json
 !configs/**/*.json
+!test_api_keys.json
 
 # Logs
 *.log
