@@ -502,7 +502,16 @@ export default function OrganizationSettingsPage() {
   const loadUserAndOrgs = useCallback(async () => {
     try {
       const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
+      const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+      // Handle auth errors (e.g., invalid refresh token)
+      if (authError) {
+        console.error("[OrgSettings] Auth error:", authError.message)
+        if (authError.message?.includes("Refresh Token") || authError.status === 400) {
+          window.location.href = `/login?redirectTo=/${orgSlug}/settings/organization&reason=session_expired`
+          return
+        }
+      }
 
       if (!user) {
         router.push("/login")
@@ -513,8 +522,12 @@ export default function OrganizationSettingsPage() {
       await loadOwnedOrganizations()
     } catch (err: unknown) {
       console.error("Error loading user:", err)
+      // Check if it's an auth error
+      if (err instanceof Error && (err.message?.includes("Refresh Token") || err.message?.includes("JWT"))) {
+        window.location.href = `/login?redirectTo=/${orgSlug}/settings/organization&reason=session_expired`
+      }
     }
-  }, [loadOwnedOrganizations, router])
+  }, [loadOwnedOrganizations, router, orgSlug])
 
   useEffect(() => {
     fetchLocale()

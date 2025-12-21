@@ -75,13 +75,23 @@ export default function BillingPage() {
     try {
       const supabase = createClient()
 
-      // Get current user first
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
+      // Get current user first - handle auth errors gracefully
+      const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+      if (authError) {
+        console.error("[Billing] Auth error:", authError.message)
+        // If auth fails (e.g., invalid refresh token), redirect to login
+        if (authError.message.includes("Refresh Token") || authError.status === 400) {
+          window.location.href = `/login?redirectTo=/${orgSlug}/billing&reason=session_expired`
+          return
+        }
+        setBillingError("Authentication error. Please try refreshing the page.")
+        return
+      }
 
       if (!user) {
         console.error("[Billing] No authenticated user")
+        window.location.href = `/login?redirectTo=/${orgSlug}/billing`
         return
       }
 
