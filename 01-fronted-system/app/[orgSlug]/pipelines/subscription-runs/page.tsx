@@ -278,39 +278,88 @@ export default function SubscriptionRunsPage() {
               <span className="text-[15px] font-semibold">SaaS subscription cost pipelines</span>
             </div>
           </div>
-          <div className="overflow-x-auto">
-            <Table className="min-w-[600px]">
-              <TableHeader>
-                <TableRow className="border-b border-[#E5E5EA]">
-                  <TableHead className="console-table-header">Pipeline</TableHead>
-                  <TableHead className="console-table-header">Provider</TableHead>
-                  <TableHead className="console-table-header">Status</TableHead>
-                  <TableHead className="console-table-header text-right">Action</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {pipelines.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={4} className="px-4 sm:px-6 py-12 text-center">
-                      <div className="space-y-4">
-                        <div className="inline-flex p-4 rounded-2xl bg-[#007A78]/10 mb-2">
-                          <Wallet className="h-12 w-12 text-[#007A78]" />
-                        </div>
-                        <h3 className="text-[20px] font-semibold text-black">No subscription pipelines</h3>
-                        <p className="text-[15px] text-muted-foreground max-w-md mx-auto">
-                          Enable subscription providers in Integrations to run cost pipelines.
-                        </p>
-                        <Link href={`/${orgSlug}/integrations/subscriptions`}>
-                          <button className="inline-flex items-center gap-2 h-11 px-6 bg-[#007A78] text-white text-[15px] font-semibold rounded-xl hover:bg-[#005F5D] transition-colors shadow-sm">
-                            <Wallet className="h-4 w-4" />
-                            Manage Subscriptions
-                          </button>
-                        </Link>
+
+          {/* Empty state */}
+          {pipelines.length === 0 && (
+            <div className="px-4 sm:px-6 py-12 text-center">
+              <div className="space-y-4">
+                <div className="inline-flex p-4 rounded-2xl bg-[#007A78]/10 mb-2">
+                  <Wallet className="h-12 w-12 text-[#007A78]" />
+                </div>
+                <h3 className="text-[20px] font-semibold text-black">No subscription pipelines</h3>
+                <p className="text-[15px] text-muted-foreground max-w-md mx-auto">
+                  Enable subscription providers in Integrations to run cost pipelines.
+                </p>
+                <Link href={`/${orgSlug}/integrations/subscriptions`}>
+                  <button className="inline-flex items-center gap-2 h-11 px-6 bg-[#007A78] text-white text-[15px] font-semibold rounded-xl hover:bg-[#005F5D] transition-colors shadow-sm">
+                    <Wallet className="h-4 w-4" />
+                    Manage Subscriptions
+                  </button>
+                </Link>
+              </div>
+            </div>
+          )}
+
+          {/* Mobile card view */}
+          {pipelines.length > 0 && (
+            <div className="md:hidden divide-y divide-[#E5E5EA]">
+              {pipelines.map((pipeline) => {
+                const isRunning = runningPipeline === pipeline.id
+
+                return (
+                  <div key={pipeline.id} className="p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[15px] font-semibold text-black">{pipeline.name}</div>
+                        <div className="text-[13px] text-muted-foreground mt-0.5">{pipeline.description}</div>
                       </div>
-                    </TableCell>
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#F0FDFA] text-[#007A78] border border-[#007A78]/10 flex-shrink-0">
+                        <CheckCircle2 className="h-3 w-3" />
+                        Ready
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#007A78]/5 text-muted-foreground border border-border">
+                        {pipeline.provider}
+                      </span>
+                      <button
+                        onClick={() => handleRun(pipeline.id)}
+                        disabled={isRunning}
+                        className="inline-flex items-center gap-2 h-11 px-4 bg-[#007A78] text-white text-[15px] font-semibold rounded-xl hover:bg-[#005F5D] disabled:bg-[#E5E5EA] disabled:text-[#C7C7CC] disabled:cursor-not-allowed disabled:opacity-70 transition-all touch-manipulation"
+                      >
+                        {isRunning ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Running...
+                          </>
+                        ) : (
+                          <>
+                            <Play className="h-4 w-4" />
+                            Run Now
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Desktop table view */}
+          {pipelines.length > 0 && (
+            <div className="hidden md:block overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-b border-[#E5E5EA]">
+                    <TableHead className="console-table-header">Pipeline</TableHead>
+                    <TableHead className="console-table-header">Provider</TableHead>
+                    <TableHead className="console-table-header">Status</TableHead>
+                    <TableHead className="console-table-header text-right">Action</TableHead>
                   </TableRow>
-                ) : (
-                  pipelines.map((pipeline) => {
+                </TableHeader>
+                <TableBody>
+                  {pipelines.map((pipeline) => {
                     const isRunning = runningPipeline === pipeline.id
 
                     return (
@@ -341,23 +390,23 @@ export default function SubscriptionRunsPage() {
                             {isRunning ? (
                               <>
                                 <Loader2 className="h-4 w-4 animate-spin" />
-                                <span className="hidden sm:inline">Running...</span>
+                                Running...
                               </>
                             ) : (
                               <>
                                 <Play className="h-4 w-4" />
-                                <span className="hidden sm:inline">Run Now</span>
+                                Run Now
                               </>
                             )}
                           </button>
                         </TableCell>
                       </TableRow>
                     )
-                  })
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </div>
       </div>
 
