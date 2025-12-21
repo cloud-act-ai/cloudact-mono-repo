@@ -14,8 +14,22 @@ export default function GlobalError({
 }) {
   useEffect(() => {
     // Log error to console in development, could send to error tracking in production
-    // Using error.digest as stable dependency to prevent unnecessary re-renders
     console.error("[GlobalError]", error)
+    console.error("[GlobalError] Stack:", error.stack)
+
+    // Check if it's an auth error and redirect to login
+    const isAuthError =
+      error.message?.includes("Refresh Token") ||
+      error.message?.includes("refresh_token") ||
+      error.message?.includes("not authenticated") ||
+      error.message?.includes("Invalid Refresh Token") ||
+      error.message?.includes("JWT")
+
+    if (isAuthError) {
+      console.log("[GlobalError] Auth error detected, redirecting to login")
+      window.location.href = "/login?reason=session_expired"
+      return
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [error.digest])
 

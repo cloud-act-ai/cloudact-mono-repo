@@ -13,6 +13,19 @@ export default function GlobalError({
     // Log the full error to console for debugging
     console.error("[GLOBAL ERROR]", error)
     console.error("[GLOBAL ERROR] Stack:", error.stack)
+
+    // Check if it's an auth error and redirect to login
+    const isAuthError =
+      error.message?.includes("Refresh Token") ||
+      error.message?.includes("refresh_token") ||
+      error.message?.includes("not authenticated") ||
+      error.message?.includes("Invalid Refresh Token") ||
+      error.message?.includes("JWT")
+
+    if (isAuthError) {
+      console.log("[GLOBAL ERROR] Auth error detected, redirecting to login")
+      window.location.href = "/login?reason=session_expired"
+    }
   }, [error])
 
   return (
