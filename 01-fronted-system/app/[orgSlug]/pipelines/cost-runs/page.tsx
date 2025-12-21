@@ -293,39 +293,88 @@ export default function CostRunsPage() {
               <span className="text-[15px] font-semibold">Cloud provider billing pipelines</span>
             </div>
           </div>
-          <div className="overflow-x-auto">
-            <Table className="min-w-[700px]">
-              <TableHeader>
-                <TableRow className="border-b border-[#E5E5EA]">
-                  <TableHead className="console-table-header">Pipeline</TableHead>
-                  <TableHead className="console-table-header">Provider</TableHead>
-                  <TableHead className="console-table-header">Status</TableHead>
-                  <TableHead className="console-table-header text-right">Action</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {connectedPipelines.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={4} className="px-4 sm:px-6 py-12 text-center">
-                      <div className="space-y-4">
-                        <div className="inline-flex p-4 rounded-2xl bg-[#007A78]/10 mb-2">
-                          <Plug className="h-12 w-12 text-[#007A78]" />
-                        </div>
-                        <h3 className="text-[20px] font-semibold text-black">No cloud cost pipelines</h3>
-                        <p className="text-[15px] text-muted-foreground max-w-md mx-auto">
-                          Connect a cloud provider to see available cost pipelines.
-                        </p>
-                        <Link href={`/${orgSlug}/integrations/cloud-providers`}>
-                          <button className="inline-flex items-center gap-2 h-11 px-6 bg-[#007A78] text-white text-[15px] font-semibold rounded-xl hover:bg-[#005F5D] transition-colors shadow-sm">
-                            <Cloud className="h-4 w-4" />
-                            Configure Cloud Providers
-                          </button>
-                        </Link>
+
+          {/* Empty state */}
+          {connectedPipelines.length === 0 && (
+            <div className="px-4 sm:px-6 py-12 text-center">
+              <div className="space-y-4">
+                <div className="inline-flex p-4 rounded-2xl bg-[#007A78]/10 mb-2">
+                  <Plug className="h-12 w-12 text-[#007A78]" />
+                </div>
+                <h3 className="text-[20px] font-semibold text-black">No cloud cost pipelines</h3>
+                <p className="text-[15px] text-muted-foreground max-w-md mx-auto">
+                  Connect a cloud provider to see available cost pipelines.
+                </p>
+                <Link href={`/${orgSlug}/integrations/cloud-providers`}>
+                  <button className="inline-flex items-center gap-2 h-11 px-6 bg-[#007A78] text-white text-[15px] font-semibold rounded-xl hover:bg-[#005F5D] transition-colors shadow-sm">
+                    <Cloud className="h-4 w-4" />
+                    Configure Cloud Providers
+                  </button>
+                </Link>
+              </div>
+            </div>
+          )}
+
+          {/* Mobile card view */}
+          {connectedPipelines.length > 0 && (
+            <div className="md:hidden divide-y divide-[#E5E5EA]">
+              {connectedPipelines.map((pipeline) => {
+                const isRunning = runningPipeline === pipeline.id
+
+                return (
+                  <div key={pipeline.id} className="p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[15px] font-semibold text-black">{pipeline.name}</div>
+                        <div className="text-[13px] text-muted-foreground mt-0.5">{pipeline.description}</div>
                       </div>
-                    </TableCell>
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#F0FDFA] text-[#007A78] border border-[#007A78]/10 flex-shrink-0">
+                        <CheckCircle2 className="h-3 w-3" />
+                        Connected
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#007A78]/5 text-muted-foreground uppercase border border-border">
+                        {pipeline.provider}
+                      </span>
+                      <button
+                        onClick={() => handleRun(pipeline.id)}
+                        disabled={isRunning}
+                        className="inline-flex items-center gap-2 h-11 px-4 bg-[#007A78] text-white text-[15px] font-semibold rounded-xl hover:bg-[#005F5D] disabled:bg-[#E5E5EA] disabled:text-[#C7C7CC] disabled:cursor-not-allowed disabled:opacity-70 transition-all touch-manipulation"
+                      >
+                        {isRunning ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Running...
+                          </>
+                        ) : (
+                          <>
+                            <Play className="h-4 w-4" />
+                            Run Now
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Desktop table view */}
+          {connectedPipelines.length > 0 && (
+            <div className="hidden md:block overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-b border-[#E5E5EA]">
+                    <TableHead className="console-table-header">Pipeline</TableHead>
+                    <TableHead className="console-table-header">Provider</TableHead>
+                    <TableHead className="console-table-header">Status</TableHead>
+                    <TableHead className="console-table-header text-right">Action</TableHead>
                   </TableRow>
-                ) : (
-                  connectedPipelines.map((pipeline) => {
+                </TableHeader>
+                <TableBody>
+                  {connectedPipelines.map((pipeline) => {
                     const isRunning = runningPipeline === pipeline.id
 
                     return (
@@ -356,23 +405,23 @@ export default function CostRunsPage() {
                             {isRunning ? (
                               <>
                                 <Loader2 className="h-4 w-4 animate-spin" />
-                                <span className="hidden sm:inline">Running...</span>
+                                Running...
                               </>
                             ) : (
                               <>
                                 <Play className="h-4 w-4" />
-                                <span className="hidden sm:inline">Run Now</span>
+                                Run Now
                               </>
                             )}
                           </button>
                         </TableCell>
                       </TableRow>
                     )
-                  })
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </div>
       </div>
 
@@ -395,38 +444,144 @@ export default function CostRunsPage() {
           </div>
 
           <div className="health-card p-0 overflow-hidden">
-            <div className="overflow-x-auto">
-              <Table className="min-w-[600px]">
-                <TableHeader>
-                  <TableRow className="border-b border-[#E5E5EA]">
-                    <TableHead className="console-table-header w-10"></TableHead>
-                    <TableHead className="console-table-header">Pipeline</TableHead>
-                    <TableHead className="console-table-header">Status</TableHead>
-                    <TableHead className="console-table-header">Started</TableHead>
-                    <TableHead className="console-table-header">Duration</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {runsLoading && pipelineRuns.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={5} className="px-4 sm:px-6 py-12 text-center">
-                        <Loader2 className="h-8 w-8 animate-spin mx-auto text-[#007A78]" />
-                      </TableCell>
-                    </TableRow>
-                  ) : pipelineRuns.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={5} className="px-4 sm:px-6 py-12 text-center">
-                        <div className="space-y-3">
-                          <div className="inline-flex p-3 rounded-2xl bg-[#8E8E93]/10 mb-2">
-                            <History className="h-10 w-10 text-muted-foreground" />
+            {/* Loading state */}
+            {runsLoading && pipelineRuns.length === 0 && (
+              <div className="px-4 sm:px-6 py-12 text-center">
+                <Loader2 className="h-8 w-8 animate-spin mx-auto text-[#007A78]" />
+              </div>
+            )}
+
+            {/* Empty state */}
+            {!runsLoading && pipelineRuns.length === 0 && (
+              <div className="px-4 sm:px-6 py-12 text-center">
+                <div className="space-y-3">
+                  <div className="inline-flex p-3 rounded-2xl bg-[#8E8E93]/10 mb-2">
+                    <History className="h-10 w-10 text-muted-foreground" />
+                  </div>
+                  <h3 className="text-[17px] font-semibold text-black">No runs yet</h3>
+                  <p className="text-[15px] text-muted-foreground">Run a cost pipeline to see history</p>
+                </div>
+              </div>
+            )}
+
+            {/* Mobile card view */}
+            {pipelineRuns.length > 0 && (
+              <div className="md:hidden divide-y divide-[#E5E5EA]">
+                {pipelineRuns.map((run) => {
+                  const isExpanded = expandedRun === run.pipeline_logging_id
+                  const detail = runDetails[run.pipeline_logging_id]
+                  const isLoadingThisDetail = loadingDetail === run.pipeline_logging_id
+
+                  return (
+                    <div key={run.pipeline_logging_id}>
+                      <button
+                        className="w-full p-4 text-left touch-manipulation hover:bg-[#007A78]/5 transition-colors"
+                        onClick={() => toggleRunExpansion(run.pipeline_logging_id)}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-start gap-2 flex-1 min-w-0">
+                            {isExpanded ? (
+                              <ChevronDown className="h-4 w-4 text-[#C7C7CC] mt-1 flex-shrink-0" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4 text-[#C7C7CC] mt-1 flex-shrink-0" />
+                            )}
+                            <div className="min-w-0">
+                              <div className="text-[15px] font-semibold text-black truncate">{run.pipeline_id}</div>
+                              <div className="text-[11px] text-muted-foreground font-mono mt-0.5">
+                                {run.pipeline_logging_id.slice(0, 8)}...
+                              </div>
+                            </div>
                           </div>
-                          <h3 className="text-[17px] font-semibold text-black">No runs yet</h3>
-                          <p className="text-[15px] text-muted-foreground">Run a cost pipeline to see history</p>
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium rounded-full border flex-shrink-0 ${getStatusColor(run.status)}`}>
+                            {run.status === "COMPLETED" && <CheckCircle2 className="h-3 w-3" />}
+                            {run.status === "FAILED" && <XCircle className="h-3 w-3" />}
+                            {(run.status === "RUNNING" || run.status === "PENDING") && (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            )}
+                            {run.status}
+                          </span>
                         </div>
-                      </TableCell>
+                        <div className="flex items-center gap-4 mt-2 ml-6 text-[13px] text-muted-foreground">
+                          <span>{formatDateTime(run.start_time)}</span>
+                          <span className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            {formatDuration(run.duration_ms)}
+                          </span>
+                        </div>
+                      </button>
+
+                      {isExpanded && (
+                        <div className="px-4 pb-4 bg-[#007A78]/5">
+                          {isLoadingThisDetail ? (
+                            <div className="flex items-center justify-center py-6">
+                              <Loader2 className="h-6 w-6 animate-spin text-[#007A78]" />
+                            </div>
+                          ) : detail ? (
+                            <div className="space-y-4">
+                              {run.error_message && (
+                                <div className="health-card bg-[#FF6E50]/10 p-4">
+                                  <div className="flex items-start gap-3">
+                                    <AlertCircle className="h-5 w-5 text-[#FF6E50] mt-0.5 flex-shrink-0" />
+                                    <div>
+                                      <p className="text-[15px] font-semibold text-black">Error</p>
+                                      <p className="text-[13px] text-muted-foreground mt-1 break-words">{run.error_message}</p>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+
+                              <div className="space-y-3">
+                                <h4 className="text-[15px] font-semibold text-black">Steps</h4>
+                                {detail.steps.length === 0 ? (
+                                  <p className="text-center text-muted-foreground text-[13px] py-4">No step logs available</p>
+                                ) : (
+                                  <div className="space-y-2">
+                                    {detail.steps.map((step) => (
+                                      <div key={step.step_logging_id} className="health-card p-3 flex items-center justify-between gap-3">
+                                        <div className="flex items-center gap-2 min-w-0">
+                                          <span className="text-[13px] font-medium text-black flex-shrink-0">#{step.step_index}</span>
+                                          <span className="text-[13px] font-semibold text-black truncate">{step.step_name}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2 flex-shrink-0">
+                                          <span className={`inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-full ${getStatusColor(step.status)}`}>
+                                            {step.status}
+                                          </span>
+                                          <span className="text-[11px] text-muted-foreground">{formatDuration(step.duration_ms)}</span>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="text-center text-muted-foreground text-[13px] py-6">
+                              Failed to load details
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            {/* Desktop table view */}
+            {pipelineRuns.length > 0 && (
+              <div className="hidden md:block overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-b border-[#E5E5EA]">
+                      <TableHead className="console-table-header w-10"></TableHead>
+                      <TableHead className="console-table-header">Pipeline</TableHead>
+                      <TableHead className="console-table-header">Status</TableHead>
+                      <TableHead className="console-table-header">Started</TableHead>
+                      <TableHead className="console-table-header">Duration</TableHead>
                     </TableRow>
-                  ) : (
-                    pipelineRuns.map((run) => {
+                  </TableHeader>
+                  <TableBody>
+                    {pipelineRuns.map((run) => {
                       const isExpanded = expandedRun === run.pipeline_logging_id
                       const detail = runDetails[run.pipeline_logging_id]
                       const isLoadingThisDetail = loadingDetail === run.pipeline_logging_id
@@ -457,7 +612,7 @@ export default function CostRunsPage() {
                                 {(run.status === "RUNNING" || run.status === "PENDING") && (
                                   <Loader2 className="h-3 w-3 animate-spin" />
                                 )}
-                                <span className="hidden sm:inline">{run.status}</span>
+                                {run.status}
                               </span>
                             </TableCell>
                             <TableCell className="console-table-cell">
@@ -495,40 +650,38 @@ export default function CostRunsPage() {
                                     <div className="space-y-3">
                                       <h4 className="text-[15px] font-semibold text-black">Steps</h4>
                                       <div className="health-card p-0 overflow-hidden">
-                                        <div className="overflow-x-auto">
-                                          <Table className="min-w-[400px]">
-                                            <TableHeader>
-                                              <TableRow className="border-b border-[#E5E5EA]">
-                                                <TableHead className="console-table-header">#</TableHead>
-                                                <TableHead className="console-table-header">Step</TableHead>
-                                                <TableHead className="console-table-header">Status</TableHead>
-                                                <TableHead className="console-table-header">Duration</TableHead>
+                                        <Table>
+                                          <TableHeader>
+                                            <TableRow className="border-b border-[#E5E5EA]">
+                                              <TableHead className="console-table-header">#</TableHead>
+                                              <TableHead className="console-table-header">Step</TableHead>
+                                              <TableHead className="console-table-header">Status</TableHead>
+                                              <TableHead className="console-table-header">Duration</TableHead>
+                                            </TableRow>
+                                          </TableHeader>
+                                          <TableBody>
+                                            {detail.steps.length === 0 ? (
+                                              <TableRow>
+                                                <TableCell colSpan={4} className="text-center text-muted-foreground text-[13px] py-6">
+                                                  No step logs available
+                                                </TableCell>
                                               </TableRow>
-                                            </TableHeader>
-                                            <TableBody>
-                                              {detail.steps.length === 0 ? (
-                                                <TableRow>
-                                                  <TableCell colSpan={4} className="text-center text-muted-foreground text-[13px] py-6">
-                                                    No step logs available
+                                            ) : (
+                                              detail.steps.map((step) => (
+                                                <TableRow key={step.step_logging_id} className="console-table-row">
+                                                  <TableCell className="console-table-cell text-[13px] font-medium text-black">{step.step_index}</TableCell>
+                                                  <TableCell className="console-table-cell text-[13px] font-semibold text-black">{step.step_name}</TableCell>
+                                                  <TableCell className="console-table-cell">
+                                                    <span className={`inline-flex items-center px-2.5 py-1 text-[11px] font-semibold rounded-full ${getStatusColor(step.status)}`}>
+                                                      {step.status}
+                                                    </span>
                                                   </TableCell>
+                                                  <TableCell className="console-table-cell text-[13px] text-black">{formatDuration(step.duration_ms)}</TableCell>
                                                 </TableRow>
-                                              ) : (
-                                                detail.steps.map((step) => (
-                                                  <TableRow key={step.step_logging_id} className="console-table-row">
-                                                    <TableCell className="console-table-cell text-[13px] font-medium text-black">{step.step_index}</TableCell>
-                                                    <TableCell className="console-table-cell text-[13px] font-semibold text-black">{step.step_name}</TableCell>
-                                                    <TableCell className="console-table-cell">
-                                                      <span className={`inline-flex items-center px-2.5 py-1 text-[11px] font-semibold rounded-full ${getStatusColor(step.status)}`}>
-                                                        {step.status}
-                                                      </span>
-                                                    </TableCell>
-                                                    <TableCell className="console-table-cell text-[13px] text-black">{formatDuration(step.duration_ms)}</TableCell>
-                                                  </TableRow>
-                                                ))
-                                              )}
-                                            </TableBody>
-                                          </Table>
-                                        </div>
+                                              ))
+                                            )}
+                                          </TableBody>
+                                        </Table>
                                       </div>
                                     </div>
                                   </div>
@@ -542,11 +695,11 @@ export default function CostRunsPage() {
                           )}
                         </React.Fragment>
                       )
-                    })
-                  )}
-                </TableBody>
-              </Table>
-            </div>
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
           </div>
         </div>
       )}

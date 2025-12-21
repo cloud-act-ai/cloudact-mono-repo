@@ -139,3 +139,16 @@ cost = calculate_cost(
 | gemini-2.0-flash | Free | Free |
 | gemini-1.5-flash | $0.000075 | $0.0003 |
 | gemini-1.5-pro | $0.00125 | $0.005 |
+
+## Pricing Sources (Official)
+
+| Provider | Pricing Page | Docs/Models |
+|----------|--------------|-------------|
+| OpenAI | https://openai.com/api/pricing/ | https://platform.openai.com/docs/models |
+| Anthropic | https://www.anthropic.com/pricing | https://docs.anthropic.com/en/docs/about-claude/models |
+| Gemini | https://ai.google.dev/pricing | https://ai.google.dev/gemini-api/docs/models/gemini |
+| AWS Bedrock | https://aws.amazon.com/bedrock/pricing/ | https://docs.aws.amazon.com/bedrock/latest/userguide/models-supported.html |
+| Azure OpenAI | https://azure.microsoft.com/en-us/pricing/details/cognitive-services/openai-service/ | https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/models |
+| GCP Vertex AI | https://cloud.google.com/vertex-ai/generative-ai/pricing | https://cloud.google.com/vertex-ai/generative-ai/docs/learn/models |
+
+**Note:** Pricing changes frequently. Always verify against official sources before production use.

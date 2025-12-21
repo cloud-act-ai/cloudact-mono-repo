@@ -398,7 +398,8 @@ export default function SubscriptionCostsPage() {
       <div>
         <h2 className="text-[22px] font-bold text-black mb-4">All Subscriptions</h2>
         <div className="metric-card p-0 overflow-hidden">
-          {plans.length === 0 ? (
+          {/* Empty State */}
+          {plans.length === 0 && (
             <div className="text-center py-12 sm:py-16 px-4 sm:px-6">
               <div className="inline-flex p-4 rounded-2xl bg-[#007A78]/10 mb-4">
                 <Wallet className="h-12 w-12 text-[#007A78]" />
@@ -414,9 +415,209 @@ export default function SubscriptionCostsPage() {
                 </Button>
               </Link>
             </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table className="w-full min-w-[900px]">
+          )}
+
+          {/* Mobile card view */}
+          {plans.length > 0 && (
+            <div className="md:hidden divide-y divide-[#E5E5EA]">
+              {plans.map((plan) => {
+                const category = plan.category && plan.category.trim() !== "" ? plan.category : "other"
+                const CategoryIcon = CATEGORY_ICONS[category] || Wallet
+                const totalCost = getTotalCost(plan)
+                const isActive = plan.status === 'active' || plan.status === 'pending'
+                const isPending = plan.status === 'pending' || (plan.start_date && new Date(plan.start_date) > new Date())
+                const isExpanded = expandedRow === plan.subscription_id
+
+                const providerMapping: Record<string, string> = {
+                  chatgpt_plus: "openai",
+                  claude_pro: "anthropic",
+                  gemini_advanced: "gemini",
+                  copilot: "openai",
+                }
+                const integrationPath = providerMapping[plan.provider_name]
+
+                const statusColors: Record<string, string> = {
+                  active: "bg-[#F0FDFA] text-[#007A78] border border-[#007A78]/10",
+                  pending: "bg-[#007A78]/5 text-[#007A78] border border-[#007A78]/10",
+                  cancelled: "bg-[#007A78]/5 text-muted-foreground border border-border",
+                  expired: "bg-[#FF6E50]/10 text-[#FF6E50] border border-[#FF6E50]/10"
+                }
+
+                return (
+                  <div key={plan.subscription_id} className={!isActive ? "opacity-60" : ""}>
+                    <button
+                      onClick={() => toggleRowExpansion(plan.subscription_id)}
+                      className="w-full p-4 text-left touch-manipulation hover:bg-[#007A78]/5 transition-colors"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Badge
+                              className={`capitalize text-[11px] font-semibold px-2 py-0.5 ${statusColors[plan.status] || statusColors.cancelled}`}
+                            >
+                              {plan.status}
+                            </Badge>
+                            <Badge
+                              className={`capitalize text-[11px] font-semibold px-2 py-0.5 ${CATEGORY_COLORS[category]}`}
+                            >
+                              {category}
+                            </Badge>
+                          </div>
+                          <h3 className="font-semibold text-black text-[15px] truncate">
+                            {plan.display_name || plan.plan_name}
+                          </h3>
+                          <p className="text-[13px] text-muted-foreground mt-0.5">{plan.provider_name}</p>
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          <div className={`font-bold text-[17px] ${isActive ? "text-black" : "text-[#C7C7CC]"}`}>
+                            {formatCurrency(totalCost, orgCurrency)}
+                          </div>
+                          <div className="text-[11px] text-muted-foreground">
+                            {formatBillingCycle(plan.billing_cycle)}
+                          </div>
+                          {plan.seats && (
+                            <div className="flex items-center justify-end gap-1 mt-1 text-[11px] text-muted-foreground">
+                              <Users className="h-3 w-3" />
+                              <span>{plan.seats} seats</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Date info */}
+                      <div className="flex flex-wrap gap-2 mt-3 text-[11px]">
+                        {isPending && plan.start_date && (
+                          <span className="text-[#FF6E50] font-medium">
+                            Starts {format(new Date(plan.start_date), 'MMM d')}
+                          </span>
+                        )}
+                        {plan.end_date && (
+                          <span className="text-muted-foreground font-medium">
+                            Ends {format(new Date(plan.end_date), 'MMM d')}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Expand indicator */}
+                      <div className="flex items-center justify-center mt-3">
+                        {isExpanded ? (
+                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4 text-[#C7C7CC]" />
+                        )}
+                      </div>
+                    </button>
+
+                    {/* Expanded details */}
+                    {isExpanded && (
+                      <div className="px-4 pb-4 bg-[#007A78]/5 space-y-3">
+                        {/* Price breakdown */}
+                        <div className="p-3 bg-white rounded-xl border border-border">
+                          <div className="flex items-center gap-2 mb-2">
+                            <CreditCard className="h-4 w-4 text-[#007A78]" />
+                            <span className="text-[11px] font-medium text-muted-foreground uppercase">Pricing</span>
+                          </div>
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-[13px]">
+                              <span className="text-muted-foreground">Unit Price:</span>
+                              <span className="font-semibold text-black">{formatCurrency(plan.unit_price ?? 0, orgCurrency)}</span>
+                            </div>
+                            <div className="flex justify-between text-[13px]">
+                              <span className="text-muted-foreground">Model:</span>
+                              <span className="font-medium text-black">{plan.pricing_model === 'PER_SEAT' ? 'Per Seat' : 'Flat Fee'}</span>
+                            </div>
+                            {plan.seats && (
+                              <div className="flex justify-between text-[13px]">
+                                <span className="text-muted-foreground">Seats:</span>
+                                <span className="font-medium text-black">{plan.seats}</span>
+                              </div>
+                            )}
+                            <div className="flex justify-between text-[13px] pt-1 border-t border-border mt-1">
+                              <span className="text-muted-foreground font-medium">Total:</span>
+                              <span className="font-bold text-black">{formatCurrency(totalCost, orgCurrency)}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Dates */}
+                        <div className="p-3 bg-white rounded-xl border border-border">
+                          <div className="flex items-center gap-2 mb-2">
+                            <CalendarDays className="h-4 w-4 text-[#007A78]" />
+                            <span className="text-[11px] font-medium text-muted-foreground uppercase">Schedule</span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <p className="text-[11px] text-muted-foreground">Start Date</p>
+                              <p className="text-[13px] font-semibold text-black">
+                                {plan.start_date ? format(new Date(plan.start_date), 'MMM d, yyyy') : '-'}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-[11px] text-muted-foreground">Renewal</p>
+                              <p className="text-[13px] font-semibold text-black">
+                                {plan.renewal_date ? format(new Date(plan.renewal_date), 'MMM d, yyyy') : '-'}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-[11px] text-muted-foreground">End Date</p>
+                              <p className="text-[13px] font-semibold text-black">
+                                {plan.end_date ? format(new Date(plan.end_date), 'MMM d, yyyy') : 'Active'}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-[11px] text-muted-foreground">Currency</p>
+                              <p className="text-[13px] font-semibold text-black">{plan.currency || orgCurrency}</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Subscription ID */}
+                        <div className="p-3 bg-white rounded-xl border border-border">
+                          <p className="text-[11px] text-muted-foreground uppercase mb-1">Subscription ID</p>
+                          <p className="text-[12px] font-mono text-black break-all">{plan.subscription_id}</p>
+                        </div>
+
+                        {/* Description if available */}
+                        {plan.description && (
+                          <div className="p-3 bg-white rounded-xl border border-border">
+                            <p className="text-[11px] text-muted-foreground uppercase mb-1">Description</p>
+                            <p className="text-[13px] text-black">{plan.description}</p>
+                          </div>
+                        )}
+
+                        {/* Actions */}
+                        <div className="flex gap-2">
+                          <Link href={`/${orgSlug}/integrations/subscriptions/${plan.provider_name}`} className="flex-1">
+                            <Button
+                              size="sm"
+                              className="console-button-primary w-full h-11 rounded-xl text-[13px] font-semibold"
+                            >
+                              <Pencil className="h-3.5 w-3.5 mr-2" />
+                              Edit Plan
+                            </Button>
+                          </Link>
+                          <Link href={`/${orgSlug}/pipelines/subscription-runs`} className="flex-1">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="console-button-secondary w-full h-11 rounded-xl text-[13px] font-medium"
+                            >
+                              View Runs
+                            </Button>
+                          </Link>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Desktop table view */}
+          {plans.length > 0 && (
+            <div className="hidden md:block overflow-x-auto">
+              <Table className="w-full">
               <TableHeader>
                 <TableRow className="border-b border-border">
                   <TableHead className="console-table-header w-10"></TableHead>
