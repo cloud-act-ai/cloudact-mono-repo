@@ -1133,13 +1133,113 @@ async def cancel_pipeline_run(
 
     - **pipeline_logging_id**: Pipeline run ID to cancel
 
-    Note: This is a placeholder. Cancellation logic will be implemented
-    based on your pipeline execution architecture.
+    Sets the pipeline status to 'CANCELLING' in BigQuery. The executor will detect this
+    and gracefully stop before the next step. In-progress steps will complete.
+
+    Returns:
+        - pipeline_logging_id: The cancelled pipeline ID
+        - status: Current status after cancellation request
+        - message: Human-readable message
     """
-    return {
-        "pipeline_logging_id": pipeline_logging_id,
-        "message": "Pipeline cancellation requested (placeholder). In-progress steps may complete."
-    }
+    from google.cloud import bigquery
+
+    try:
+        # Get BigQuery client
+        bq_client = get_bigquery_client()
+
+        # Check if pipeline exists and belongs to the org
+        check_query = f"""
+        SELECT pipeline_logging_id, pipeline_id, status, start_time
+        FROM `{settings.gcp_project_id}.organizations.org_meta_pipeline_runs`
+        WHERE pipeline_logging_id = @pipeline_logging_id
+          AND org_slug = @org_slug
+        """
+
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("pipeline_logging_id", "STRING", pipeline_logging_id),
+                bigquery.ScalarQueryParameter("org_slug", "STRING", org.org_slug),
+            ]
+        )
+
+        query_job = bq_client.client.query(check_query, job_config=job_config)
+        rows = list(query_job.result())
+
+        if not rows:
+            raise HTTPException(
+                status_code=404,
+                detail={
+                    "error": "pipeline_not_found",
+                    "message": f"Pipeline run {pipeline_logging_id} not found for organization {org.org_slug}"
+                }
+            )
+
+        pipeline_row = rows[0]
+        current_status = pipeline_row['status']
+
+        # Check if pipeline can be cancelled
+        if current_status in ['COMPLETED', 'FAILED', 'CANCELLED', 'TIMEOUT']:
+            return {
+                "pipeline_logging_id": pipeline_logging_id,
+                "status": current_status,
+                "message": f"Pipeline already finished with status: {current_status}. Cannot cancel."
+            }
+
+        # Update status to CANCELLING (executor will detect this and stop gracefully)
+        update_query = f"""
+        UPDATE `{settings.gcp_project_id}.organizations.org_meta_pipeline_runs`
+        SET status = 'CANCELLING'
+        WHERE pipeline_logging_id = @pipeline_logging_id
+          AND org_slug = @org_slug
+          AND status IN ('PENDING', 'RUNNING')
+        """
+
+        update_job = bq_client.client.query(update_query, job_config=job_config)
+        update_job.result()
+
+        rows_updated = update_job.num_dml_affected_rows or 0
+
+        if rows_updated == 0:
+            # Race condition: status changed between check and update
+            return {
+                "pipeline_logging_id": pipeline_logging_id,
+                "status": current_status,
+                "message": f"Pipeline status changed to {current_status} before cancellation could be applied."
+            }
+
+        logger.info(
+            f"Pipeline cancellation requested",
+            extra={
+                "pipeline_logging_id": pipeline_logging_id,
+                "org_slug": org.org_slug,
+                "previous_status": current_status
+            }
+        )
+
+        return {
+            "pipeline_logging_id": pipeline_logging_id,
+            "status": "CANCELLING",
+            "message": "Pipeline cancellation requested. In-progress steps will complete, then pipeline will stop."
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            f"Error cancelling pipeline: {e}",
+            extra={
+                "pipeline_logging_id": pipeline_logging_id,
+                "org_slug": org.org_slug
+            },
+            exc_info=True
+        )
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "cancellation_failed",
+                "message": f"Failed to cancel pipeline: {str(e)}"
+            }
+        )
 
 
 # ============================================

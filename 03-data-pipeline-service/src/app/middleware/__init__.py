@@ -14,6 +14,7 @@ from src.app.middleware.scope_enforcement import (
     has_any_scope,
     has_all_scopes,
     ROLE_SCOPES,
+    ScopeEnforcementMiddleware,
 )
 
 from src.app.middleware.audit_logging import (
@@ -33,6 +34,7 @@ __all__ = [
     "has_any_scope",
     "has_all_scopes",
     "ROLE_SCOPES",
+    "ScopeEnforcementMiddleware",
     # Audit logging
     "AuditLogger",
     "get_audit_logger",

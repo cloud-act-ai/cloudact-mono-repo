@@ -21,6 +21,7 @@ from src.core.pipeline.data_quality import DataQualityValidator
 from src.core.utils.logging import create_structured_logger
 from src.core.metadata import MetadataLogger
 from src.app.config import settings
+from src.core.utils.error_classifier import create_error_context, classify_error
 from src.core.abstractor.config_loader import get_config_loader
 from src.core.abstractor.models import PipelineConfig
 from src.core.observability.metrics import (
@@ -379,6 +380,64 @@ class AsyncPipelineExecutor:
 
         return levels
 
+    async def _check_cancellation(self) -> bool:
+        """
+        Check if pipeline has been cancelled by querying BigQuery.
+
+        Returns:
+            True if pipeline should be cancelled, False otherwise
+
+        Raises:
+            Exception: Re-raises cancellation as an exception to stop execution
+        """
+        from google.cloud import bigquery
+        from src.app.config import settings
+
+        try:
+            # Query current status from BigQuery
+            check_query = f"""
+            SELECT status
+            FROM `{settings.gcp_project_id}.organizations.org_meta_pipeline_runs`
+            WHERE pipeline_logging_id = @pipeline_logging_id
+              AND org_slug = @org_slug
+            """
+
+            job_config = bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("pipeline_logging_id", "STRING", self.pipeline_logging_id),
+                    bigquery.ScalarQueryParameter("org_slug", "STRING", self.org_slug),
+                ]
+            )
+
+            loop = asyncio.get_event_loop()
+
+            def run_query():
+                job = self.bq_client.client.query(check_query, job_config=job_config)
+                return list(job.result())
+
+            rows = await loop.run_in_executor(BQ_EXECUTOR, run_query)
+
+            if rows:
+                current_status = rows[0]['status']
+                if current_status == 'CANCELLING':
+                    self.logger.info(
+                        f"Pipeline cancellation detected - stopping execution",
+                        pipeline_logging_id=self.pipeline_logging_id,
+                        tracking_pipeline_id=self.tracking_pipeline_id
+                    )
+                    return True
+
+            return False
+
+        except Exception as e:
+            # Don't fail the pipeline if cancellation check fails, just log it
+            self.logger.warning(
+                f"Failed to check cancellation status: {e}",
+                pipeline_logging_id=self.pipeline_logging_id,
+                exc_info=True
+            )
+            return False
+
     async def _update_pipeline_status_to_running(self) -> None:
         """
         Update the existing PENDING pipeline row to RUNNING status.
@@ -429,6 +488,18 @@ class AsyncPipelineExecutor:
                 f"Updated pipeline status to RUNNING",
                 pipeline_logging_id=self.pipeline_logging_id,
                 tracking_pipeline_id=self.tracking_pipeline_id
+            )
+
+            # Log state transition: PENDING -> RUNNING
+            await self.metadata_logger.log_state_transition(
+                pipeline_logging_id=self.pipeline_logging_id,
+                from_state="PENDING",
+                to_state="RUNNING",
+                entity_type="PIPELINE",
+                entity_name=self.tracking_pipeline_id,
+                reason="Pipeline execution started",
+                trigger_type=self.trigger_type,
+                user_id=self.user_id
             )
 
             # FIX: Removed double-increment race condition
@@ -731,6 +802,26 @@ class AsyncPipelineExecutor:
                 timeout_seconds=timeout_seconds
             )
 
+            # Log state transition: RUNNING -> TIMEOUT
+            await self.metadata_logger.log_state_transition(
+                pipeline_logging_id=self.pipeline_logging_id,
+                from_state="RUNNING",
+                to_state="TIMEOUT",
+                entity_type="PIPELINE",
+                entity_name=self.tracking_pipeline_id,
+                reason=f"Pipeline timed out after {timeout_minutes} minutes",
+                error_type="TIMEOUT",
+                error_message=error_message,
+                duration_in_state_ms=int((self.end_time - self.start_time).total_seconds() * 1000) if self.start_time else None,
+                trigger_type=self.trigger_type,
+                user_id=self.user_id,
+                metadata={
+                    "timeout_minutes": timeout_minutes,
+                    "steps_completed": len([s for s in self.step_results if s.get('status') == 'COMPLETED']),
+                    "total_steps": len(self.step_dag) if self.step_dag else 0
+                }
+            )
+
             # Send timeout notification (treat as failure)
             try:
                 await self.notification_service.notify_pipeline_failure(
@@ -759,11 +850,128 @@ class AsyncPipelineExecutor:
             # Cleanup partial resources on timeout
             self._close_bq_client()
 
+        except ValueError as e:
+            # Check if this is a cancellation (raised from _execute_pipeline_internal)
+            if "Pipeline cancelled" in str(e):
+                # Status already set to CANCELLED in _execute_pipeline_internal
+                error_message = str(e)
+                self.logger.warning(
+                    f"Pipeline cancelled by user: {error_message}",
+                    pipeline_logging_id=self.pipeline_logging_id
+                )
+                # No notification sent for user-initiated cancellations
+                # Cleanup partial resources
+                self._close_bq_client()
+            else:
+                # Regular ValueError - treat as failure
+                self.status = "FAILED"
+                self.end_time = datetime.utcnow()
+                error_message = str(e)
+
+                # Create enhanced error context
+                pipeline_error_ctx = create_error_context(
+                    exception=e,
+                    step_name=None,  # Pipeline-level error
+                    retry_count=0,
+                    additional_context={}
+                )
+
+                self.logger.error(
+                    f"Pipeline failed: {e}",
+                    error_type=pipeline_error_ctx.get('error_type'),
+                    is_retryable=pipeline_error_ctx.get('is_retryable'),
+                    exc_info=True
+                )
+
+                # Log state transition: RUNNING -> FAILED
+                await self.metadata_logger.log_state_transition(
+                    pipeline_logging_id=self.pipeline_logging_id,
+                    from_state="RUNNING",
+                    to_state="FAILED",
+                    entity_type="PIPELINE",
+                    entity_name=self.tracking_pipeline_id,
+                    reason=f"Pipeline failed with {pipeline_error_ctx.get('error_class')}: {str(e)[:200]}",
+                    error_type=pipeline_error_ctx.get('error_type'),
+                    error_message=error_message,
+                    stack_trace=pipeline_error_ctx.get('stack_trace'),
+                    retry_count=0,
+                    duration_in_state_ms=int((self.end_time - self.start_time).total_seconds() * 1000) if self.start_time else None,
+                    trigger_type=self.trigger_type,
+                    user_id=self.user_id,
+                    metadata={
+                        "error_class": pipeline_error_ctx.get('error_class'),
+                        "is_retryable": pipeline_error_ctx.get('is_retryable'),
+                        "steps_completed": len([s for s in self.step_results if s.get('status') == 'COMPLETED']),
+                        "total_steps": len(self.step_dag) if self.step_dag else 0
+                    }
+                )
+
+                # Send failure notification
+                try:
+                    await self.notification_service.notify_pipeline_failure(
+                        org_slug=self.org_slug,
+                        pipeline_id=self.tracking_pipeline_id,
+                        pipeline_logging_id=self.pipeline_logging_id,
+                        error_message=error_message,
+                        details={
+                            "trigger_type": self.trigger_type,
+                            "trigger_by": self.trigger_by,
+                            "steps_completed": len([s for s in self.step_results if s.get('status') == 'COMPLETED']),
+                            "total_steps": len(self.step_dag) if self.step_dag else 0
+                        }
+                    )
+                except Exception as notification_error:
+                    self.logger.warning(
+                        f"Failed to send pipeline failure notification: {notification_error}",
+                        exc_info=True
+                    )
+
+                # Cleanup partial resources on failure
+                self._close_bq_client()
+                raise
+
         except Exception as e:
             self.status = "FAILED"
             self.end_time = datetime.utcnow()
             error_message = str(e)
-            self.logger.error(f"Pipeline failed: {e}", exc_info=True)
+
+            # Create enhanced error context
+            pipeline_error_ctx = create_error_context(
+                exception=e,
+                step_name=None,  # Pipeline-level error
+                retry_count=0,
+                additional_context={}
+            )
+
+            self.logger.error(
+                f"Pipeline failed: {e}",
+                error_type=pipeline_error_ctx.get('error_type'),
+                is_retryable=pipeline_error_ctx.get('is_retryable'),
+                exc_info=True
+            )
+
+            # Log state transition: RUNNING -> FAILED
+            await self.metadata_logger.log_state_transition(
+                pipeline_logging_id=self.pipeline_logging_id,
+                from_state="RUNNING",
+                to_state="FAILED",
+                entity_type="PIPELINE",
+                entity_name=self.tracking_pipeline_id,
+                reason=f"Pipeline failed with {pipeline_error_ctx.get('error_class')}: {str(e)[:200]}",
+                error_type=pipeline_error_ctx.get('error_type'),
+                error_message=error_message,
+                stack_trace=pipeline_error_ctx.get('stack_trace'),
+                retry_count=0,
+                duration_in_state_ms=int((self.end_time - self.start_time).total_seconds() * 1000) if self.start_time else None,
+                trigger_type=self.trigger_type,
+                user_id=self.user_id,
+                metadata={
+                    "error_class": pipeline_error_ctx.get('error_class'),
+                    "is_retryable": pipeline_error_ctx.get('is_retryable'),
+                    "steps_completed": len([s for s in self.step_results if s.get('status') == 'COMPLETED']),
+                    "total_steps": len(self.step_dag) if self.step_dag else 0
+                }
+            )
 
             # Send failure notification
             try:
@@ -897,6 +1105,14 @@ class AsyncPipelineExecutor:
 
         # Execute each level in sequence, but steps within level in parallel
         for level_idx, level_step_ids in enumerate(execution_levels):
+            # Check for cancellation before each level
+            if await self._check_cancellation():
+                self.status = "CANCELLED"
+                self.end_time = datetime.utcnow()
+                cancellation_msg = f"Pipeline cancelled before level {level_idx + 1}/{len(execution_levels)}"
+                self.logger.warning(cancellation_msg)
+                raise ValueError(cancellation_msg)
+
             self.logger.info(
                 f"Executing level {level_idx + 1}/{len(execution_levels)}",
                 step_count=len(level_step_ids),
@@ -945,6 +1161,23 @@ class AsyncPipelineExecutor:
 
         self.logger.info("Pipeline completed successfully")
 
+        # Log state transition: RUNNING -> COMPLETED
+        await self.metadata_logger.log_state_transition(
+            pipeline_logging_id=self.pipeline_logging_id,
+            from_state="RUNNING",
+            to_state="COMPLETED",
+            entity_type="PIPELINE",
+            entity_name=self.tracking_pipeline_id,
+            reason="All pipeline steps completed successfully",
+            duration_in_state_ms=int((self.end_time - self.start_time).total_seconds() * 1000),
+            trigger_type=self.trigger_type,
+            user_id=self.user_id,
+            metadata={
+                "steps_completed": len(self.step_results),
+                "total_steps": len(self.step_dag)
+            }
+        )
+
     async def _execute_step_async(self, step_config: Dict[str, Any], step_index: int) -> None:
         """
         Execute a single pipeline step asynchronously with timeout.
@@ -991,6 +1224,7 @@ class AsyncPipelineExecutor:
         rows_processed = None
         error_message = None
         step_metadata = {}
+        error_ctx = None  # Will be populated on failure
 
         try:
             # Log step start
@@ -1001,6 +1235,19 @@ class AsyncPipelineExecutor:
                 step_type=step_type,
                 step_index=step_index,
                 metadata=step_config.get('metadata', {}),
+                user_id=self.user_id
+            )
+
+            # Log state transition: PENDING -> RUNNING
+            await self.metadata_logger.log_state_transition(
+                pipeline_logging_id=self.pipeline_logging_id,
+                step_logging_id=step_logging_id,
+                from_state="PENDING",
+                to_state="RUNNING",
+                entity_type="STEP",
+                entity_name=step_id,
+                reason="Step execution started",
+                trigger_type=self.trigger_type,
                 user_id=self.user_id
             )
 
@@ -1044,23 +1291,106 @@ class AsyncPipelineExecutor:
             step_status = "COMPLETED"
             self.logger.info(f"Completed step: {step_id}")
 
-        except asyncio.TimeoutError:
+            # Log state transition: RUNNING -> COMPLETED
+            await self.metadata_logger.log_state_transition(
+                pipeline_logging_id=self.pipeline_logging_id,
+                step_logging_id=step_logging_id,
+                from_state="RUNNING",
+                to_state="COMPLETED",
+                entity_type="STEP",
+                entity_name=step_id,
+                reason="Step completed successfully",
+                duration_in_state_ms=int((datetime.utcnow() - step_start).total_seconds() * 1000),
+                trigger_type=self.trigger_type,
+                user_id=self.user_id,
+                metadata={"rows_processed": rows_processed} if rows_processed else None
+            )
+
+        except asyncio.TimeoutError as e:
             step_status = "FAILED"
             error_message = f"TIMEOUT: Step execution exceeded {step_timeout_minutes} minutes ({step_timeout_seconds}s)"
+
+            # Create enhanced error context
+            error_ctx = create_error_context(
+                exception=e,
+                step_name=step_id,
+                retry_count=0,  # TODO: Implement retry logic
+                additional_context={
+                    "timeout_minutes": step_timeout_minutes,
+                    "timeout_seconds": step_timeout_seconds
+                }
+            )
+            step_metadata['error_context'] = error_ctx
+
             self.logger.error(
                 f"Step {step_id} timed out",
                 timeout_minutes=step_timeout_minutes,
-                timeout_seconds=step_timeout_seconds
+                timeout_seconds=step_timeout_seconds,
+                error_type=error_ctx.get('error_type')
             )
+
+            # Log state transition: RUNNING -> FAILED (timeout)
+            await self.metadata_logger.log_state_transition(
+                pipeline_logging_id=self.pipeline_logging_id,
+                step_logging_id=step_logging_id,
+                from_state="RUNNING",
+                to_state="FAILED",
+                entity_type="STEP",
+                entity_name=step_id,
+                reason=f"Step timed out after {step_timeout_minutes} minutes",
+                error_type=error_ctx.get('error_type'),
+                error_message=error_message,
+                stack_trace=error_ctx.get('stack_trace'),
+                retry_count=0,
+                duration_in_state_ms=int((datetime.utcnow() - step_start).total_seconds() * 1000),
+                trigger_type=self.trigger_type,
+                user_id=self.user_id
+            )
+
             raise
 
         except Exception as e:
             step_status = "FAILED"
             error_message = str(e)
-            stack_trace = traceback.format_exc()
-            if 'stack_trace' not in step_metadata:
-                step_metadata['stack_trace'] = stack_trace
-            self.logger.error(f"Step {step_id} failed: {e}", exc_info=True)
+
+            # Create enhanced error context with classification
+            error_ctx = create_error_context(
+                exception=e,
+                step_name=step_id,
+                retry_count=0,  # TODO: Implement retry logic
+                additional_context={}
+            )
+            step_metadata['error_context'] = error_ctx
+
+            self.logger.error(
+                f"Step {step_id} failed: {e}",
+                error_type=error_ctx.get('error_type'),
+                is_retryable=error_ctx.get('is_retryable'),
+                exc_info=True
+            )
+
+            # Log state transition: RUNNING -> FAILED
+            await self.metadata_logger.log_state_transition(
+                pipeline_logging_id=self.pipeline_logging_id,
+                step_logging_id=step_logging_id,
+                from_state="RUNNING",
+                to_state="FAILED",
+                entity_type="STEP",
+                entity_name=step_id,
+                reason=f"Step failed with {error_ctx.get('error_class')}: {error_message[:200]}",
+                error_type=error_ctx.get('error_type'),
+                error_message=error_message,
+                stack_trace=error_ctx.get('stack_trace'),
+                retry_count=0,
+                duration_in_state_ms=int((datetime.utcnow() - step_start).total_seconds() * 1000),
+                trigger_type=self.trigger_type,
+                user_id=self.user_id,
+                metadata={
+                    "error_class": error_ctx.get('error_class'),
+                    "is_retryable": error_ctx.get('is_retryable')
+                }
+            )
+
             raise
 
         finally:
@@ -1087,7 +1417,8 @@ class AsyncPipelineExecutor:
                 rows_processed=rows_processed,
                 error_message=error_message,
                 metadata=step_metadata,
-                user_id=self.user_id
+                user_id=self.user_id,
+                error_context=error_ctx
             )
 
             # Track step results for summary

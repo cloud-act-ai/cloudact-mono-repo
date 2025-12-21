@@ -21,7 +21,7 @@
     "name": "status",
     "type": "STRING",
     "mode": "REQUIRED",
-    "description": "PENDING, RUNNING, COMPLETED, FAILED"
+    "description": "PENDING, RUNNING, COMPLETED, FAILED, CANCELLED, CANCELLING, TIMEOUT"
   },
   {
     "name": "trigger_type",
