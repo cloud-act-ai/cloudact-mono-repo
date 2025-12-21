@@ -22,6 +22,16 @@ const nextConfig = {
   // Fix workspace root detection (prevents lockfile warnings)
   outputFileTracingRoot: process.cwd(),
 
+  // Webpack configuration to suppress fumadocs-mdx cache warnings
+  webpack: (config, { isServer }) => {
+    // Suppress cache parsing warnings for fumadocs-mdx
+    config.infrastructureLogging = {
+      ...config.infrastructureLogging,
+      level: "error",
+    }
+    return config
+  },
+
   // Security Headers
   async headers() {
     const securityHeaders = [

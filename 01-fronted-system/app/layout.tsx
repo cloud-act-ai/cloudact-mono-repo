@@ -1,21 +1,11 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { DM_Sans, Merriweather } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { Toaster } from "sonner"
 import "./globals.css"
 
-const dmSans = DM_Sans({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-dm-sans",
-})
-
-const merriweather = Merriweather({
-  subsets: ["latin"],
-  weight: ["300", "400", "700"],
-  variable: "--font-merriweather",
-})
+// Font CSS variables are defined in globals.css using system font stacks
+// This avoids network dependency on Google Fonts during development
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://cloudact.ai"),
@@ -94,7 +84,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning data-scroll-behavior="smooth" className={`${dmSans.variable} ${merriweather.variable}`}>
+    <html lang="en" suppressHydrationWarning data-scroll-behavior="smooth">
       <body className={`font-sans antialiased`}>
         {children}
         <Toaster position="top-right" richColors closeButton duration={5000} />
