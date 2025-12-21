@@ -192,36 +192,35 @@ function Sidebar({
     )
   }
 
-  // HYDRATION FIX: Render mobile Sheet only after mount (client-side only)
-  // Desktop sidebar always renders but is hidden on mobile via CSS
+  // CRITICAL: Always render Sheet to maintain consistent hook count
+  // Control visibility through the `open` prop only
+  // The Sheet must be rendered on every render to satisfy React's hooks rules
   return (
     <>
-      {/* Mobile Sheet - Only rendered after mount to avoid SSR/hydration issues with Portals */}
-      {hasMounted && (
-        <Sheet
-          open={isMobile && openMobile}
-          onOpenChange={setOpenMobile}
+      {/* Mobile Sheet - Always rendered but only opens on mobile */}
+      <Sheet
+        open={hasMounted && isMobile && openMobile}
+        onOpenChange={setOpenMobile}
+      >
+        <SheetContent
+          data-sidebar="sidebar"
+          data-slot="sidebar"
+          data-mobile="true"
+          className="bg-sidebar text-sidebar-foreground p-0 [&>button]:hidden"
+          style={{
+            '--sidebar-width': SIDEBAR_WIDTH_MOBILE,
+            width: SIDEBAR_WIDTH_MOBILE,
+            zIndex: 50, // Above overlay
+          } as React.CSSProperties}
+          side={side}
         >
-          <SheetContent
-            data-sidebar="sidebar"
-            data-slot="sidebar"
-            data-mobile="true"
-            className="bg-sidebar text-sidebar-foreground p-0 [&>button]:hidden"
-            style={{
-              '--sidebar-width': SIDEBAR_WIDTH_MOBILE,
-              width: SIDEBAR_WIDTH_MOBILE,
-              zIndex: 50, // Above overlay
-            } as React.CSSProperties}
-            side={side}
-          >
-            <SheetHeader className="sr-only">
-              <SheetTitle>Sidebar</SheetTitle>
-              <SheetDescription>Displays the mobile sidebar.</SheetDescription>
-            </SheetHeader>
-            {sidebarContent}
-          </SheetContent>
-        </Sheet>
-      )}
+          <SheetHeader className="sr-only">
+            <SheetTitle>Sidebar</SheetTitle>
+            <SheetDescription>Displays the mobile sidebar.</SheetDescription>
+          </SheetHeader>
+          {sidebarContent}
+        </SheetContent>
+      </Sheet>
 
       {/* Desktop Sidebar - Hidden on mobile via CSS */}
       <div

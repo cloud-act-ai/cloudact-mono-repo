@@ -2,20 +2,24 @@ import * as React from 'react'
 
 const MOBILE_BREAKPOINT = 768
 
+/**
+ * Hook to detect if the current viewport is mobile-sized.
+ *
+ * HYDRATION SAFETY:
+ * - Returns `false` during SSR and initial hydration to match server render
+ * - Updates to actual value after mount via useEffect
+ * - This prevents hydration mismatches while ensuring correct mobile detection
+ *
+ * HOOKS STABILITY:
+ * - All hooks are called unconditionally on every render
+ * - Return value changes after mount, but hook count stays consistent
+ */
 export function useIsMobile() {
-  // Initialize with false to match server-side rendering (which assumes desktop)
-  // This is critical for hydration to work correctly
+  // Track actual mobile state
   const [isMobile, setIsMobile] = React.useState(false)
 
-  // Track if we've mounted and hydration is complete
-  // This prevents the hooks error during the SSR→hydration transition
-  const [hasMounted, setHasMounted] = React.useState(false)
-
   React.useEffect(() => {
-    // Mark as mounted after hydration is complete
-    setHasMounted(true)
-
-    // Check mobile state after mounting
+    // Check mobile state after mounting (client-side only)
     const checkMobile = () => window.innerWidth < MOBILE_BREAKPOINT
     setIsMobile(checkMobile())
 
@@ -27,12 +31,8 @@ export function useIsMobile() {
     return () => mql.removeEventListener('change', onChange)
   }, [])
 
-  // During SSR and initial hydration, always return false (desktop mode)
-  // This ensures the React tree structure is consistent during hydration
-  // Only after mount do we return the actual mobile state
-  if (!hasMounted) {
-    return false
-  }
-
+  // During SSR and initial hydration, return false (desktop mode)
+  // After mount, return the actual mobile state
+  // The useState default of false ensures consistent initial render
   return isMobile
 }
