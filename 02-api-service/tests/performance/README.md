@@ -134,7 +134,7 @@ export ENVIRONMENT="development"
 
 - Real BigQuery connection (GCP project)
 - Valid GCP credentials (service account JSON)
-- Bootstrap already run (15 meta tables created)
+- Bootstrap already run (14 meta tables created)
 - At least 1 test organization onboarded
 
 ### Installation
