@@ -3,7 +3,7 @@
 ###############################################################################
 # BigQuery Table Optimization Script
 #
-# Purpose: Add clustering and partitioning to 15 meta tables in organizations dataset
+# Purpose: Add clustering and partitioning to 14 meta tables in organizations dataset
 # Strategy: ALTER TABLE for clustering (zero downtime), CREATE TABLE AS SELECT for partitioning
 #
 # Usage:
@@ -333,7 +333,7 @@ usage() {
     cat << EOF
 Usage: $0 [OPTIONS]
 
-BigQuery Table Optimization Script for 15 meta tables in organizations dataset
+BigQuery Table Optimization Script for 14 meta tables in organizations dataset
 
 OPTIONS:
     --dry-run      Preview changes without executing (default)
