@@ -754,6 +754,7 @@ class AsyncPipelineExecutor:
         tracer = get_tracer(__name__) if TRACING_ENABLED else None
         span = None
         error_message = None
+        pipeline_error_ctx = None  # Enhanced error context for logging
 
         try:
             if tracer:
@@ -1035,6 +1036,7 @@ class AsyncPipelineExecutor:
                         trigger_type=self.trigger_type,
                         trigger_by=self.trigger_by,
                         error_message=error_message,
+                        error_context=pipeline_error_ctx,
                         parameters=self.config.get('parameters', {}) if self.config else None
                     )
 

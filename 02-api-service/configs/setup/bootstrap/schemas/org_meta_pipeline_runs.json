@@ -87,6 +87,12 @@
     "name": "error_message",
     "type": "STRING",
     "mode": "NULLABLE",
-    "description": "Full stack trace if failed"
+    "description": "Error message if failed"
+  },
+  {
+    "name": "error_context",
+    "type": "JSON",
+    "mode": "NULLABLE",
+    "description": "Enhanced error context: {error_type, error_code, is_retryable, retry_count, stack_trace, suggested_action}"
   }
 ]

@@ -39,7 +39,7 @@
     "name": "status",
     "type": "STRING",
     "mode": "REQUIRED",
-    "description": "Execution status of this step. Valid values: 'PENDING' (not started), 'RUNNING' (currently executing), 'COMPLETED' (successfully finished), 'FAILED' (encountered error), 'SKIPPED' (skipped due to conditional logic). Used for step-level monitoring, retry logic, and identifying partial pipeline failures."
+    "description": "Execution status: PENDING, RUNNING, COMPLETED, FAILED, SKIPPED, CANCELLED, TIMEOUT"
   },
   {
     "name": "start_time",
@@ -69,7 +69,13 @@
     "name": "error_message",
     "type": "STRING",
     "mode": "NULLABLE",
-    "description": "Detailed error message if step failed. Contains exception class, error description, relevant context (table names, query snippets, validation failures). NULL for successful steps. Used for debugging step failures, creating alerts, and error categorization. Max recommended length: 10KB."
+    "description": "Error message if step failed"
+  },
+  {
+    "name": "error_context",
+    "type": "JSON",
+    "mode": "NULLABLE",
+    "description": "Enhanced error context: {error_type, error_code, is_retryable, retry_count, stack_trace, suggested_action}"
   },
   {
     "name": "user_id",

@@ -490,6 +490,7 @@ class MetadataLogger:
         trigger_type: str,
         trigger_by: str,
         error_message: Optional[str] = None,
+        error_context: Optional[Dict[str, Any]] = None,
         parameters: Optional[Dict[str, Any]] = None
     ):
         """
@@ -501,11 +502,12 @@ class MetadataLogger:
         Args:
             pipeline_logging_id: Unique logging ID for this run
             pipeline_id: Pipeline identifier
-            status: Final status (COMPLETED, FAILED, CANCELLED)
+            status: Final status (COMPLETED, FAILED, CANCELLED, TIMEOUT)
             start_time: Pipeline start time
             trigger_type: How pipeline was triggered (manual, scheduled, api)
             trigger_by: User or system that triggered the pipeline
             error_message: Error message if failed
+            error_context: Enhanced error context with classification
             parameters: Pipeline parameters (kept as dict for BigQuery JSON type)
         """
         try:
@@ -515,6 +517,20 @@ class MetadataLogger:
             # Serialize datetime values in parameters dict then convert to JSON string
             parameters_serialized = _serialize_datetime_values(parameters) if parameters else None
             parameters_json_str = json.dumps(parameters_serialized) if parameters_serialized is not None else None
+
+            # Build error_context JSON for separate column
+            error_context_json_str = None
+            if error_context:
+                error_context_data = {
+                    'error_type': error_context.get('error_type'),
+                    'error_code': error_context.get('error_code'),
+                    'error_class': error_context.get('error_class'),
+                    'is_retryable': error_context.get('is_retryable'),
+                    'retry_count': error_context.get('retry_count'),
+                    'stack_trace': error_context.get('stack_trace_truncated'),
+                    'suggested_action': error_context.get('suggested_action'),
+                }
+                error_context_json_str = json.dumps(error_context_data)
 
             # Use UPDATE query to update existing row instead of INSERT
             # NOTE: org_meta_pipeline_runs is in CENTRAL organizations dataset, not per-org dataset
@@ -527,6 +543,7 @@ class MetadataLogger:
                 end_time = @end_time,
                 duration_ms = @duration_ms,
                 error_message = @error_message,
+                error_context = PARSE_JSON(@error_context),
                 parameters = PARSE_JSON(@parameters)
             WHERE
                 pipeline_logging_id = @pipeline_logging_id
@@ -539,6 +556,7 @@ class MetadataLogger:
                     bigquery.ScalarQueryParameter("end_time", "TIMESTAMP", end_time),
                     bigquery.ScalarQueryParameter("duration_ms", "INT64", duration_ms),
                     bigquery.ScalarQueryParameter("error_message", "STRING", error_message),
+                    bigquery.ScalarQueryParameter("error_context", "STRING", error_context_json_str),
                     bigquery.ScalarQueryParameter("parameters", "STRING", parameters_json_str),
                     bigquery.ScalarQueryParameter("pipeline_logging_id", "STRING", pipeline_logging_id),
                     bigquery.ScalarQueryParameter("org_slug", "STRING", self.org_slug)
@@ -573,10 +591,10 @@ class MetadataLogger:
                 insert_query = f"""
                 INSERT INTO `{table_id}`
                 (pipeline_logging_id, pipeline_id, org_slug, status, trigger_type, trigger_by,
-                 start_time, end_time, duration_ms, error_message, parameters, run_date)
+                 start_time, end_time, duration_ms, error_message, error_context, parameters, run_date)
                 VALUES
                 (@pipeline_logging_id, @pipeline_id, @org_slug, @status, @trigger_type, @trigger_by,
-                 @start_time, @end_time, @duration_ms, @error_message, PARSE_JSON(@parameters), CURRENT_DATE())
+                 @start_time, @end_time, @duration_ms, @error_message, PARSE_JSON(@error_context), PARSE_JSON(@parameters), CURRENT_DATE())
                 """
 
                 insert_job_config = bigquery.QueryJobConfig(
@@ -591,6 +609,7 @@ class MetadataLogger:
                         bigquery.ScalarQueryParameter("end_time", "TIMESTAMP", end_time),
                         bigquery.ScalarQueryParameter("duration_ms", "INT64", duration_ms),
                         bigquery.ScalarQueryParameter("error_message", "STRING", error_message),
+                        bigquery.ScalarQueryParameter("error_context", "STRING", error_context_json_str),
                         bigquery.ScalarQueryParameter("parameters", "STRING", parameters_json_str),
                     ]
                 )
@@ -768,16 +787,19 @@ class MetadataLogger:
             end_time = datetime.utcnow()
             duration_ms = int((end_time - start_time).total_seconds() * 1000)
 
-            # Merge error_context into metadata for enhanced failure logging
+            # Build error_context JSON for separate column (BigQuery best practice)
+            error_context_json_str = None
             if error_context:
-                metadata = metadata or {}
-                metadata['error_context'] = {
+                error_context_data = {
                     'error_type': error_context.get('error_type'),
+                    'error_code': error_context.get('error_code'),
                     'error_class': error_context.get('error_class'),
                     'is_retryable': error_context.get('is_retryable'),
                     'retry_count': error_context.get('retry_count'),
-                    'stack_trace_truncated': error_context.get('stack_trace_truncated'),
+                    'stack_trace': error_context.get('stack_trace_truncated'),
+                    'suggested_action': error_context.get('suggested_action'),
                 }
+                error_context_json_str = json.dumps(error_context_data)
                 # Use enhanced error message if not already provided
                 if not error_message and error_context.get('error_message'):
                     error_message = error_context['error_message']
@@ -803,6 +825,7 @@ class MetadataLogger:
                     "duration_ms": duration_ms,
                     "rows_processed": rows_processed,
                     "error_message": error_message,
+                    "error_context": error_context_json_str,
                     "user_id": user_id,
                     "metadata": metadata_json_str
                 }
