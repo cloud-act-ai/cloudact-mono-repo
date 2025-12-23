@@ -135,7 +135,7 @@ export async function fetchMembersData(orgSlug: string) {
       .limit(MAX_INVITES_PER_PAGE)
 
     if (invitesError) {
-      // Invites fetch failed
+      return { success: false, error: "Failed to fetch invites" }
     }
 
     return {

@@ -840,7 +840,7 @@ export async function changeSubscriptionPlan(
     // Get limits from Stripe product metadata
     const metadata = isValidProduct ? (product as Stripe.Product).metadata || {} : {}
 
-    if (!metadata.teamMembers || !metadata.providers || !metadata.pipelinesPerDay) {
+    if (!metadata.teamMembers || !metadata.providers || !metadata.pipelinesPerDay || !metadata.concurrentPipelines) {
       console.error("[v0] New plan missing required metadata")
       return { success: false, subscription: null, error: "Plan configuration error. Please contact support." }
     }
@@ -849,7 +849,7 @@ export async function changeSubscriptionPlan(
       seat_limit: safeParseInt(metadata.teamMembers, 2),
       providers_limit: safeParseInt(metadata.providers, 3),
       pipelines_per_day_limit: safeParseInt(metadata.pipelinesPerDay, 6),
-      concurrent_pipelines_limit: safeParseInt(metadata.concurrentPipelines, 2), // Default to 2 if not set
+      concurrent_pipelines_limit: safeParseInt(metadata.concurrentPipelines, 2),
     }
 
     // Validate limits are reasonable (sanity check - both lower and upper bounds)

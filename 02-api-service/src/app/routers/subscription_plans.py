@@ -1124,7 +1124,7 @@ async def get_available_plans(
         )
 
     # Parse numeric values - handle empty strings properly
-    def parse_int(val, default=1):
+    def parse_int(val: Any, default: int = 1) -> int:
         if val is None or val == "" or str(val).strip() == "":
             return default
         try:
@@ -1132,7 +1132,7 @@ async def get_available_plans(
         except (ValueError, TypeError):
             return default
 
-    def parse_float(val, default=None):
+    def parse_float(val: Any, default: Optional[float] = None) -> Optional[float]:
         if val is None or val == "" or str(val).strip() == "":
             return default
         try:

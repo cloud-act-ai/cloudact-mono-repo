@@ -637,7 +637,8 @@ class BigQueryClient:
         try:
             self.client.get_table(table_id)
             return True
-        except Exception:
+        except google_api_exceptions.NotFound:
+            # Table does not exist
             return False
 
     def delete_table(

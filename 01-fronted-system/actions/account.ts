@@ -61,10 +61,10 @@ async function cleanupExpiredTokens(): Promise<void> {
       .lt("expires_at", new Date().toISOString())
 
     if (error) {
-      // Token cleanup failed
+      // Token cleanup failed - non-critical, continue
     }
   } catch {
-    // Error cleaning up tokens
+    // Error cleaning up expired tokens - non-critical background task, suppress error
   }
 }
 
@@ -551,7 +551,7 @@ export async function requestAccountDeletion(): Promise<{
   error?: string
 }> {
   try {
-    cleanupExpiredTokens()
+    await cleanupExpiredTokens()
 
     const supabase = await createClient()
     const adminClient = createServiceRoleClient()

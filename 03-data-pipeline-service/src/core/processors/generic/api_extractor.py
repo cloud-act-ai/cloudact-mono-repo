@@ -585,7 +585,7 @@ class ApiExtractorProcessor:
                 last_request_time = time.time()
 
                 if response.status_code != 200:
-                    raise Exception(
+                    raise RuntimeError(
                         f"API Error {response.status_code}: {response.text[:500]}"
                     )
 
@@ -726,7 +726,7 @@ class ApiExtractorProcessor:
 
         if last_exception:
             raise last_exception
-        raise Exception("Max retries exceeded")
+        raise RuntimeError("Max retries exceeded")
 
     def _transform_rows(
         self,

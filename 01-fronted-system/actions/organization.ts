@@ -386,6 +386,11 @@ export async function completeOnboarding(sessionId: string) {
       ? new Date(subscription.trial_end * 1000)
       : new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000)
 
+    // Validate session customer before casting
+    if (!session.customer) {
+      return { success: false, error: "No customer in session" }
+    }
+
     // Create organization
     const { data: orgData, error: orgError } = await adminClient
       .from("organizations")
@@ -440,7 +445,9 @@ export async function completeOnboarding(sessionId: string) {
         retryCount++
 
         if (retryCount >= maxRetries) {
-          // Queue for later - final attempt failed
+          // Max retries exceeded - org created but Stripe metadata update failed
+          // Non-critical: webhook will still process subscription events correctly
+          break
         } else {
           // Wait before retry (exponential backoff)
           await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, retryCount - 1)))

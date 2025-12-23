@@ -2574,7 +2574,8 @@ async def repair_org_tables(
                 logger.info(f"Table already exists: {table_ref}")
                 continue
             except Exception:
-                pass  # Table doesn't exist, create it
+                # Table doesn't exist, will proceed to create it
+                pass
 
             # Load schema
             schema_path = schema_base_path / table_config["schema_file"]

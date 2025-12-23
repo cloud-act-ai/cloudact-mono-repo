@@ -427,7 +427,7 @@ class GcpApiExtractorProcessor:
                     continue
 
                 if response.status_code != 200:
-                    raise Exception(
+                    raise RuntimeError(
                         f"GCP API Error {response.status_code}: {response.text[:500]}"
                     )
 
@@ -530,7 +530,7 @@ class GcpApiExtractorProcessor:
 
         if last_exception:
             raise last_exception
-        raise Exception("Max retries exceeded")
+        raise RuntimeError("Max retries exceeded")
 
     def _transform_rows(
         self,

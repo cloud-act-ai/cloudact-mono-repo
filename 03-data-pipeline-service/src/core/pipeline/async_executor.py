@@ -479,7 +479,7 @@ class AsyncPipelineExecutor:
 
             # Check if status update affected any rows
             if query_job.num_dml_affected_rows == 0:
-                raise Exception(
+                raise RuntimeError(
                     f"Failed to update pipeline status to RUNNING - no rows affected. "
                     f"Pipeline {self.pipeline_logging_id} may not exist or status is not PENDING."
                 )
