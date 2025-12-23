@@ -113,16 +113,19 @@ class AnthropicUsageProcessor:
                 #         backoff_seconds *= 2
                 #         continue
 
-                # For now, return placeholder
+                # Anthropic doesn't have a public usage API
+                # Return SKIPPED status to indicate this step was intentionally not executed
                 return {
-                    "status": "SUCCESS",
+                    "status": "SKIPPED",
                     "provider": "ANTHROPIC",
                     "date_range": {"start": start_date, "end": end_date},
                     "usage_records": 0,
                     "total_tokens": 0,
                     "estimated_cost_usd": 0,
-                    "message": "Anthropic usage API not publicly available. Usage tracking requires Console access.",
-                    "note": "Check https://console.anthropic.com for usage data"
+                    "reason": "Anthropic usage API not publicly available",
+                    "message": "Anthropic does not provide a public usage API. Usage tracking requires Console access.",
+                    "action_required": "Check https://console.anthropic.com for usage data or configure BigQuery Billing Export for Google Cloud costs.",
+                    "is_stub": True
                 }
 
         except ValueError as e:

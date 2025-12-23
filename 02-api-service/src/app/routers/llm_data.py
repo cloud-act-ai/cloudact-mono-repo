@@ -312,7 +312,7 @@ async def create_pricing(
                 bigquery.ScalarQueryParameter("model_id", "STRING", pricing.model_id),
                 bigquery.ScalarQueryParameter("provider", "STRING", provider_value)
             ],
-            job_timeout_ms=10000  # 10 second timeout for auth operations
+            job_timeout_ms=settings.bq_auth_timeout_ms
         )
         result = bq_client.client.query(check_query, job_config=job_config).result()
         if list(result)[0].cnt > 0:
@@ -975,7 +975,7 @@ async def create_subscription(
                 bigquery.ScalarQueryParameter("subscription_id", "STRING", subscription.subscription_id),
                 bigquery.ScalarQueryParameter("provider", "STRING", provider_value)
             ],
-            job_timeout_ms=10000  # 10 second timeout for auth operations
+            job_timeout_ms=settings.bq_auth_timeout_ms
         )
         result = bq_client.client.query(check_query, job_config=job_config).result()
         if list(result)[0].cnt > 0:

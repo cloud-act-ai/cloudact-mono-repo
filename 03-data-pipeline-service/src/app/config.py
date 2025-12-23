@@ -477,6 +477,36 @@ class Settings(BaseSettings):
     http_timeout_kms: float = Field(default=10.0, description="HTTP timeout for KMS operations")
 
     # ============================================
+    # BigQuery Auth Timeout Configuration
+    # ============================================
+    bq_auth_timeout_ms: int = Field(
+        default=10000,
+        ge=1000,
+        le=60000,
+        description="BigQuery job timeout for authentication operations in milliseconds"
+    )
+
+    # ============================================
+    # Currency Service Configuration
+    # ============================================
+    currency_rates_usd_base: Dict[str, float] = Field(
+        default={
+            "USD": 1.0,
+            "EUR": 0.92,
+            "GBP": 0.79,
+            "INR": 83.50,
+            "JPY": 154.0,
+            "CAD": 1.37,
+            "AUD": 1.52
+        },
+        description="Exchange rates with USD as base. Override via CURRENCY_RATES_USD_BASE env var (JSON format)"
+    )
+    currency_fallback_return_original: bool = Field(
+        default=True,
+        description="Return original amount if currency conversion fails (True) or return 0 (False)"
+    )
+
+    # ============================================
     # CloudAct API Service Configuration (for validation)
     # ============================================
     api_service_url: str = Field(

@@ -21,7 +21,7 @@
     "name": "status",
     "type": "STRING",
     "mode": "REQUIRED",
-    "description": "PENDING, RUNNING, COMPLETED, FAILED"
+    "description": "PENDING, RUNNING, COMPLETED, FAILED, CANCELLED, CANCELLING, TIMEOUT"
   },
   {
     "name": "trigger_type",
@@ -87,6 +87,12 @@
     "name": "error_message",
     "type": "STRING",
     "mode": "NULLABLE",
-    "description": "Full stack trace if failed"
+    "description": "Error message if failed"
+  },
+  {
+    "name": "error_context",
+    "type": "JSON",
+    "mode": "NULLABLE",
+    "description": "Enhanced error context: {error_type, error_code, is_retryable, retry_count, stack_trace, suggested_action}"
   }
 ]

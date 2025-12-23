@@ -1,0 +1,116 @@
+[
+  {
+    "name": "transition_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Unique identifier (UUID) for this state transition event"
+  },
+  {
+    "name": "org_slug",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Organization identifier for multi-tenant isolation"
+  },
+  {
+    "name": "pipeline_logging_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Links to org_meta_pipeline_runs.pipeline_logging_id"
+  },
+  {
+    "name": "step_logging_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Links to org_meta_step_logs.step_logging_id (NULL for pipeline-level transitions)"
+  },
+  {
+    "name": "entity_type",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Type of entity transitioning: PIPELINE or STEP"
+  },
+  {
+    "name": "entity_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Pipeline ID or step name for quick identification"
+  },
+  {
+    "name": "from_state",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Previous state: PENDING, RUNNING, COMPLETED, FAILED, SKIPPED, CANCELLED, TIMEOUT"
+  },
+  {
+    "name": "to_state",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "New state: PENDING, RUNNING, COMPLETED, FAILED, SKIPPED, CANCELLED, TIMEOUT"
+  },
+  {
+    "name": "transition_time",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "When the state transition occurred (UTC). Partition key."
+  },
+  {
+    "name": "reason",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Human-readable reason for state transition (e.g., 'Step dependency completed', 'Timeout exceeded', 'User cancelled')"
+  },
+  {
+    "name": "error_type",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Classification of error: TRANSIENT (retryable), PERMANENT (non-retryable), TIMEOUT, VALIDATION_ERROR, DEPENDENCY_FAILURE. NULL for successful transitions."
+  },
+  {
+    "name": "error_message",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Short error message if transitioning to FAILED state. Full message stored in org_meta_step_logs/org_meta_pipeline_runs."
+  },
+  {
+    "name": "stack_trace_truncated",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "First 2000 characters of stack trace for quick debugging. Full trace in step/pipeline logs."
+  },
+  {
+    "name": "retry_count",
+    "type": "INTEGER",
+    "mode": "NULLABLE",
+    "description": "Number of retry attempts for this step/pipeline (0 = first attempt). NULL if not retried."
+  },
+  {
+    "name": "duration_in_state_ms",
+    "type": "INTEGER",
+    "mode": "NULLABLE",
+    "description": "Milliseconds spent in the previous state (from_state). NULL for initial PENDING state."
+  },
+  {
+    "name": "trigger_type",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "How pipeline was triggered: api, scheduler, manual, retry. Inherited from pipeline."
+  },
+  {
+    "name": "user_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "User UUID who triggered the pipeline. Inherited from pipeline."
+  },
+  {
+    "name": "metadata",
+    "type": "JSON",
+    "mode": "NULLABLE",
+    "description": "Additional context for state transition. Schema varies by transition type. Examples: {'dependency_step': 'extract_data'}, {'timeout_seconds': 600}, {'error_classification': 'rate_limit_exceeded'}"
+  },
+  {
+    "name": "transition_date",
+    "type": "DATE",
+    "mode": "REQUIRED",
+    "description": "Partition column (DATE of transition_time)"
+  }
+]

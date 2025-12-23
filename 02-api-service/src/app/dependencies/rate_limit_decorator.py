@@ -65,10 +65,25 @@ async def rate_limit_by_org(
         Tuple of (is_allowed, metadata)
 
     Raises:
-        HTTPException: If rate limit exceeded
+        HTTPException: If rate limit exceeded or org_slug is invalid
     """
     if not settings.rate_limit_enabled:
         return True, {}
+
+    # SECURITY: Validate org_slug to prevent rate limit bypass
+    # An attacker could manipulate org_slug to bypass per-org limits
+    if not org_slug or not isinstance(org_slug, str) or len(org_slug.strip()) == 0:
+        logger.warning(
+            f"Rate limit bypass attempt detected - missing org_slug on {endpoint_name}",
+            extra={
+                "endpoint": endpoint_name,
+                "remote_ip": request.client.host if request.client else "unknown"
+            }
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Organization identifier required for rate limiting"
+        )
 
     rate_limiter = get_rate_limiter()
 

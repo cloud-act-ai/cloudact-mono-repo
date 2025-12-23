@@ -214,10 +214,14 @@ export default function PipelinesPage() {
       case "COMPLETED":
         return "bg-[#F0FDFA] text-[#007A78] border border-[#007A78]/10"
       case "FAILED":
+      case "TIMEOUT":
         return "bg-[#FF6E50]/10 text-[#FF6E50] border border-[#FF6E50]/10"
       case "RUNNING":
       case "PENDING":
+      case "CANCELLING":
         return "bg-[#007A78]/5 text-[#007A78] border border-[#007A78]/10"
+      case "CANCELLED":
+        return "bg-amber-100 text-amber-700 border border-amber-200"
       case "SKIPPED":
         return "bg-[#007A78]/5 text-muted-foreground border border-border"
       default:
@@ -577,13 +581,39 @@ export default function PipelinesPage() {
                             </div>
                           ) : detail ? (
                             <div className="space-y-4">
-                              {run.error_message && (
+                              {(run.error_message || run.error_context) && (
                                 <div className="health-card bg-[#FF6E50]/10 p-4">
                                   <div className="flex items-start gap-3">
                                     <AlertCircle className="h-5 w-5 text-[#FF6E50] mt-0.5 flex-shrink-0" />
-                                    <div>
-                                      <p className="text-[15px] font-semibold text-black">Error</p>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <p className="text-[15px] font-semibold text-black">Error</p>
+                                        {run.error_context?.error_type && (
+                                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                                            run.error_context.error_type === 'TRANSIENT' ? 'bg-amber-100 text-amber-700' :
+                                            run.error_context.error_type === 'TIMEOUT' ? 'bg-orange-100 text-orange-700' :
+                                            'bg-red-100 text-red-700'
+                                          }`}>
+                                            {run.error_context.error_type}
+                                          </span>
+                                        )}
+                                        {run.error_context?.is_retryable && (
+                                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-medium">
+                                            Retryable
+                                          </span>
+                                        )}
+                                      </div>
                                       <p className="text-[13px] text-muted-foreground mt-1 break-words">{run.error_message}</p>
+                                      {run.error_context?.suggested_action && (
+                                        <p className="text-[12px] text-[#007A78] mt-2 font-medium">
+                                          💡 {run.error_context.suggested_action}
+                                        </p>
+                                      )}
+                                      {run.error_context?.retry_count !== undefined && run.error_context.retry_count > 0 && (
+                                        <p className="text-[11px] text-muted-foreground mt-1">
+                                          Retry attempts: {run.error_context.retry_count}
+                                        </p>
+                                      )}
                                     </div>
                                   </div>
                                 </div>
@@ -721,13 +751,39 @@ export default function PipelinesPage() {
                                   </div>
                                 ) : detail ? (
                                   <div className="space-y-4">
-                                    {run.error_message && (
+                                    {(run.error_message || run.error_context) && (
                                       <div className="health-card bg-[#FF6E50]/10 p-4">
                                         <div className="flex items-start gap-3">
                                           <AlertCircle className="h-5 w-5 text-[#FF6E50] mt-0.5 flex-shrink-0" />
-                                          <div>
-                                            <p className="text-[15px] font-semibold text-black">Error</p>
+                                          <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                              <p className="text-[15px] font-semibold text-black">Error</p>
+                                              {run.error_context?.error_type && (
+                                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                                                  run.error_context.error_type === 'TRANSIENT' ? 'bg-amber-100 text-amber-700' :
+                                                  run.error_context.error_type === 'TIMEOUT' ? 'bg-orange-100 text-orange-700' :
+                                                  'bg-red-100 text-red-700'
+                                                }`}>
+                                                  {run.error_context.error_type}
+                                                </span>
+                                              )}
+                                              {run.error_context?.is_retryable && (
+                                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-medium">
+                                                  Retryable
+                                                </span>
+                                              )}
+                                            </div>
                                             <p className="text-[13px] text-muted-foreground mt-1">{run.error_message}</p>
+                                            {run.error_context?.suggested_action && (
+                                              <p className="text-[12px] text-[#007A78] mt-2 font-medium">
+                                                💡 {run.error_context.suggested_action}
+                                              </p>
+                                            )}
+                                            {run.error_context?.retry_count !== undefined && run.error_context.retry_count > 0 && (
+                                              <p className="text-[11px] text-muted-foreground mt-1">
+                                                Retry attempts: {run.error_context.retry_count}
+                                              </p>
+                                            )}
                                           </div>
                                         </div>
                                       </div>

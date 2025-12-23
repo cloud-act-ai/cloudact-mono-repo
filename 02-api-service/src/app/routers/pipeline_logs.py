@@ -27,11 +27,21 @@ logger = logging.getLogger(__name__)
 # Response Models
 # ============================================
 
+class ErrorContext(BaseModel):
+    """Enhanced error context with classification and debugging info."""
+    error_type: Optional[str] = Field(None, description="TRANSIENT, PERMANENT, TIMEOUT, VALIDATION_ERROR, DEPENDENCY_FAILURE")
+    error_code: Optional[str] = Field(None, description="Specific error code (e.g., BQ_QUOTA_EXCEEDED)")
+    retry_count: Optional[int] = Field(None, description="Number of retry attempts")
+    is_retryable: Optional[bool] = Field(None, description="Whether the error is retryable")
+    stack_trace: Optional[str] = Field(None, description="Truncated stack trace (first 2000 chars)")
+    suggested_action: Optional[str] = Field(None, description="Suggested resolution action")
+
+
 class PipelineRunSummary(BaseModel):
     """Summary of a single pipeline run."""
     pipeline_logging_id: str = Field(..., description="Unique ID for this run")
     pipeline_id: str = Field(..., description="Pipeline identifier")
-    status: str = Field(..., description="PENDING, RUNNING, COMPLETED, FAILED")
+    status: str = Field(..., description="PENDING, RUNNING, COMPLETED, FAILED, CANCELLED, CANCELLING, TIMEOUT")
     trigger_type: str = Field(..., description="api, scheduler, webhook, manual")
     trigger_by: Optional[str] = Field(None, description="Who triggered the run")
     start_time: Optional[datetime] = Field(None, description="When execution started")
@@ -39,6 +49,7 @@ class PipelineRunSummary(BaseModel):
     duration_ms: Optional[int] = Field(None, description="Duration in milliseconds")
     run_date: Optional[date] = Field(None, description="Date of the run")
     error_message: Optional[str] = Field(None, description="Error message if failed")
+    error_context: Optional[ErrorContext] = Field(None, description="Enhanced error details")
     parameters: Optional[Dict[str, Any]] = Field(None, description="Run parameters")
 
 
@@ -54,12 +65,13 @@ class StepLogSummary(BaseModel):
     step_name: str = Field(..., description="Step name")
     step_type: str = Field(..., description="Processor type (e.g., gcp.bq_etl)")
     step_index: int = Field(..., description="Step order in pipeline")
-    status: str = Field(..., description="PENDING, RUNNING, COMPLETED, FAILED, SKIPPED")
+    status: str = Field(..., description="PENDING, RUNNING, COMPLETED, FAILED, SKIPPED, CANCELLED, TIMEOUT")
     start_time: Optional[datetime] = Field(None, description="When step started")
     end_time: Optional[datetime] = Field(None, description="When step ended")
     duration_ms: Optional[int] = Field(None, description="Duration in milliseconds")
     rows_processed: Optional[int] = Field(None, description="Number of rows processed")
     error_message: Optional[str] = Field(None, description="Error message if failed")
+    error_context: Optional[ErrorContext] = Field(None, description="Enhanced error details")
     metadata: Optional[Dict[str, Any]] = Field(None, description="Step-specific metadata")
 
 
@@ -320,6 +332,7 @@ async def list_pipeline_runs(
         CAST(duration_ms AS INT64) as duration_ms,
         run_date,
         error_message,
+        error_context,
         parameters
     FROM `{settings.gcp_project_id}.organizations.org_meta_pipeline_runs`
     WHERE {where_clause}
@@ -342,14 +355,30 @@ async def list_pipeline_runs(
 
         runs = []
         for row in runs_results:
+            import json
             params = None
             if row.get("parameters"):
-                import json
                 try:
                     params = json.loads(row["parameters"]) if isinstance(row["parameters"], str) else row["parameters"]
                 except Exception as e:
                     logger.warning(f"Failed to parse parameters JSON: {e}")
                     params = {"raw": row["parameters"]}
+
+            # Parse error_context JSON
+            error_ctx = None
+            if row.get("error_context"):
+                try:
+                    ctx_data = json.loads(row["error_context"]) if isinstance(row["error_context"], str) else row["error_context"]
+                    error_ctx = ErrorContext(
+                        error_type=ctx_data.get("error_type"),
+                        error_code=ctx_data.get("error_code"),
+                        retry_count=ctx_data.get("retry_count"),
+                        is_retryable=ctx_data.get("is_retryable"),
+                        stack_trace=ctx_data.get("stack_trace"),
+                        suggested_action=ctx_data.get("suggested_action")
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to parse error_context JSON: {e}")
 
             runs.append(PipelineRunSummary(
                 pipeline_logging_id=row["pipeline_logging_id"],
@@ -362,6 +391,7 @@ async def list_pipeline_runs(
                 duration_ms=row.get("duration_ms"),
                 run_date=row.get("run_date"),
                 error_message=row.get("error_message"),
+                error_context=error_ctx,
                 parameters=params
             ))
 
@@ -418,6 +448,7 @@ async def get_pipeline_run_detail(
         CAST(duration_ms AS INT64) as duration_ms,
         run_date,
         error_message,
+        error_context,
         parameters,
         run_metadata
     FROM `{settings.gcp_project_id}.organizations.org_meta_pipeline_runs`
@@ -458,7 +489,7 @@ async def get_pipeline_run_detail(
                 logger.warning(f"Failed to parse run_metadata JSON: {e}")
                 run_metadata = {"raw": row["run_metadata"]}
 
-        # Get step logs (only COMPLETED status to avoid duplicates)
+        # Get step logs (only final statuses to avoid duplicates)
         steps_query = f"""
         SELECT
             step_logging_id,
@@ -471,11 +502,12 @@ async def get_pipeline_run_detail(
             CAST(duration_ms AS INT64) as duration_ms,
             CAST(rows_processed AS INT64) as rows_processed,
             error_message,
+            error_context,
             metadata
         FROM `{settings.gcp_project_id}.organizations.org_meta_step_logs`
         WHERE org_slug = @org_slug
           AND pipeline_logging_id = @pipeline_logging_id
-          AND status IN ('COMPLETED', 'FAILED', 'SKIPPED')
+          AND status IN ('COMPLETED', 'FAILED', 'SKIPPED', 'CANCELLED', 'TIMEOUT')
         ORDER BY step_index ASC
         """
 
@@ -491,6 +523,22 @@ async def get_pipeline_run_detail(
                     logger.warning(f"Failed to parse step metadata JSON: {e}")
                     step_metadata = {"raw": step_row["metadata"]}
 
+            # Parse step error_context
+            step_error_ctx = None
+            if step_row.get("error_context"):
+                try:
+                    ctx_data = json.loads(step_row["error_context"]) if isinstance(step_row["error_context"], str) else step_row["error_context"]
+                    step_error_ctx = ErrorContext(
+                        error_type=ctx_data.get("error_type"),
+                        error_code=ctx_data.get("error_code"),
+                        retry_count=ctx_data.get("retry_count"),
+                        is_retryable=ctx_data.get("is_retryable"),
+                        stack_trace=ctx_data.get("stack_trace"),
+                        suggested_action=ctx_data.get("suggested_action")
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to parse step error_context JSON: {e}")
+
             steps.append(StepLogSummary(
                 step_logging_id=step_row["step_logging_id"],
                 step_name=step_row["step_name"],
@@ -502,8 +550,25 @@ async def get_pipeline_run_detail(
                 duration_ms=step_row.get("duration_ms"),
                 rows_processed=step_row.get("rows_processed"),
                 error_message=step_row.get("error_message"),
+                error_context=step_error_ctx,
                 metadata=step_metadata
             ))
+
+        # Parse pipeline run error_context
+        run_error_ctx = None
+        if row.get("error_context"):
+            try:
+                ctx_data = json.loads(row["error_context"]) if isinstance(row["error_context"], str) else row["error_context"]
+                run_error_ctx = ErrorContext(
+                    error_type=ctx_data.get("error_type"),
+                    error_code=ctx_data.get("error_code"),
+                    retry_count=ctx_data.get("retry_count"),
+                    is_retryable=ctx_data.get("is_retryable"),
+                    stack_trace=ctx_data.get("stack_trace"),
+                    suggested_action=ctx_data.get("suggested_action")
+                )
+            except Exception as e:
+                logger.warning(f"Failed to parse run error_context JSON: {e}")
 
         logger.info(f"Fetched pipeline run {pipeline_logging_id} with {len(steps)} steps")
 
@@ -518,6 +583,7 @@ async def get_pipeline_run_detail(
             duration_ms=row.get("duration_ms"),
             run_date=row.get("run_date"),
             error_message=row.get("error_message"),
+            error_context=run_error_ctx,
             parameters=params,
             run_metadata=run_metadata,
             steps=steps
@@ -578,7 +644,7 @@ async def get_step_logs(
         parameters.append(bigquery.ScalarQueryParameter("status_filter", "STRING", status_filter.upper()))
     else:
         # By default, exclude RUNNING duplicates - only show final status
-        where_clause += " AND status IN ('COMPLETED', 'FAILED', 'SKIPPED')"
+        where_clause += " AND status IN ('COMPLETED', 'FAILED', 'SKIPPED', 'CANCELLED', 'TIMEOUT')"
 
     # Count total query
     count_query = f"""
@@ -599,6 +665,7 @@ async def get_step_logs(
         CAST(duration_ms AS INT64) as duration_ms,
         CAST(rows_processed AS INT64) as rows_processed,
         error_message,
+        error_context,
         metadata
     FROM `{settings.gcp_project_id}.organizations.org_meta_step_logs`
     WHERE {where_clause}
@@ -632,6 +699,22 @@ async def get_step_logs(
                     logger.warning(f"Failed to parse step metadata JSON: {e}")
                     step_metadata = {"raw": row["metadata"]}
 
+            # Parse error_context
+            step_error_ctx = None
+            if row.get("error_context"):
+                try:
+                    ctx_data = json.loads(row["error_context"]) if isinstance(row["error_context"], str) else row["error_context"]
+                    step_error_ctx = ErrorContext(
+                        error_type=ctx_data.get("error_type"),
+                        error_code=ctx_data.get("error_code"),
+                        retry_count=ctx_data.get("retry_count"),
+                        is_retryable=ctx_data.get("is_retryable"),
+                        stack_trace=ctx_data.get("stack_trace"),
+                        suggested_action=ctx_data.get("suggested_action")
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to parse error_context JSON: {e}")
+
             steps.append(StepLogSummary(
                 step_logging_id=row["step_logging_id"],
                 step_name=row["step_name"],
@@ -643,6 +726,7 @@ async def get_step_logs(
                 duration_ms=row.get("duration_ms"),
                 rows_processed=row.get("rows_processed"),
                 error_message=row.get("error_message"),
+                error_context=step_error_ctx,
                 metadata=step_metadata
             ))
 
@@ -867,4 +951,152 @@ async def download_pipeline_logs(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to download pipeline logs. Please check server logs for details."
+        )
+
+
+# ============================================
+# State Transitions Endpoint
+# ============================================
+
+class StateTransition(BaseModel):
+    """A single state transition event."""
+    transition_id: str = Field(..., description="Unique ID for this transition")
+    pipeline_logging_id: str = Field(..., description="Pipeline run ID")
+    step_logging_id: Optional[str] = Field(None, description="Step ID (if step-level transition)")
+    entity_type: str = Field(..., description="PIPELINE or STEP")
+    from_state: str = Field(..., description="Previous state")
+    to_state: str = Field(..., description="New state")
+    transition_time: datetime = Field(..., description="When the transition occurred")
+    error_type: Optional[str] = Field(None, description="Error classification if failed")
+    error_message: Optional[str] = Field(None, description="Error message if failed")
+    retry_count: Optional[int] = Field(None, description="Retry attempt number")
+    duration_in_state_ms: Optional[int] = Field(None, description="Time spent in previous state")
+    metadata: Optional[Dict[str, Any]] = Field(None, description="Additional context")
+
+
+class StateTransitionsResponse(BaseModel):
+    """Paginated response for state transitions."""
+    transitions: List[StateTransition] = Field(..., description="List of state transitions")
+    total: int = Field(..., description="Total number of transitions")
+    limit: int = Field(..., description="Page size")
+    offset: int = Field(..., description="Page offset")
+
+
+@router.get(
+    "/pipelines/{org_slug}/runs/{pipeline_logging_id}/transitions",
+    response_model=StateTransitionsResponse,
+    summary="Get state transitions",
+    description="Get audit trail of all state transitions for a pipeline run."
+)
+async def get_state_transitions(
+    org_slug: str,
+    pipeline_logging_id: str,
+    entity_type: Optional[str] = Query(None, description="Filter by entity type: PIPELINE or STEP"),
+    limit: int = Query(100, ge=1, le=1000, description="Number of results per page"),
+    offset: int = Query(0, ge=0, description="Offset for pagination"),
+    org_context: dict = Depends(get_current_org),
+    bq_client: BigQueryClient = Depends(get_bigquery_client)
+):
+    """
+    Get the full state transition history for a pipeline run.
+    Provides detailed audit trail of all state changes for debugging.
+    """
+    # Verify org_slug matches authenticated org
+    if org_context["org_slug"] != org_slug:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied: org_slug mismatch"
+        )
+
+    where_clause = "org_slug = @org_slug AND pipeline_logging_id = @pipeline_logging_id"
+    parameters = [
+        bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+        bigquery.ScalarQueryParameter("pipeline_logging_id", "STRING", pipeline_logging_id)
+    ]
+
+    if entity_type:
+        where_clause += " AND entity_type = @entity_type"
+        parameters.append(bigquery.ScalarQueryParameter("entity_type", "STRING", entity_type.upper()))
+
+    # Count total
+    count_query = f"""
+    SELECT COUNT(*) as total
+    FROM `{settings.gcp_project_id}.organizations.org_meta_state_transitions`
+    WHERE {where_clause}
+    """
+
+    # Get transitions
+    query = f"""
+    SELECT
+        transition_id,
+        pipeline_logging_id,
+        step_logging_id,
+        entity_type,
+        from_state,
+        to_state,
+        transition_time,
+        error_type,
+        error_message,
+        CAST(retry_count AS INT64) as retry_count,
+        CAST(duration_in_state_ms AS INT64) as duration_in_state_ms,
+        metadata
+    FROM `{settings.gcp_project_id}.organizations.org_meta_state_transitions`
+    WHERE {where_clause}
+    ORDER BY transition_time ASC
+    LIMIT @limit OFFSET @offset
+    """
+
+    parameters.extend([
+        bigquery.ScalarQueryParameter("limit", "INT64", limit),
+        bigquery.ScalarQueryParameter("offset", "INT64", offset)
+    ])
+
+    try:
+        import json
+
+        # Get total count
+        count_results = list(bq_client.query(count_query, parameters=parameters[:-2]))
+        total = count_results[0]["total"] if count_results else 0
+
+        # Get paginated results
+        results = list(bq_client.query(query, parameters=parameters))
+
+        transitions = []
+        for row in results:
+            trans_metadata = None
+            if row.get("metadata"):
+                try:
+                    trans_metadata = json.loads(row["metadata"]) if isinstance(row["metadata"], str) else row["metadata"]
+                except Exception as e:
+                    logger.warning(f"Failed to parse transition metadata JSON: {e}")
+
+            transitions.append(StateTransition(
+                transition_id=row["transition_id"],
+                pipeline_logging_id=row["pipeline_logging_id"],
+                step_logging_id=row.get("step_logging_id"),
+                entity_type=row["entity_type"],
+                from_state=row["from_state"],
+                to_state=row["to_state"],
+                transition_time=row["transition_time"],
+                error_type=row.get("error_type"),
+                error_message=row.get("error_message"),
+                retry_count=row.get("retry_count"),
+                duration_in_state_ms=row.get("duration_in_state_ms"),
+                metadata=trans_metadata
+            ))
+
+        logger.info(f"Fetched {len(transitions)} state transitions for pipeline run {pipeline_logging_id}")
+
+        return StateTransitionsResponse(
+            transitions=transitions,
+            total=total,
+            limit=limit,
+            offset=offset
+        )
+
+    except Exception as e:
+        logger.error(f"Error fetching state transitions: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to fetch state transitions. Please check server logs for details."
         )
