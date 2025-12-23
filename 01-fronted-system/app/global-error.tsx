@@ -10,10 +10,6 @@ export default function GlobalError({
   reset: () => void
 }) {
   useEffect(() => {
-    // Log the full error to console for debugging
-    console.error("[GLOBAL ERROR]", error)
-    console.error("[GLOBAL ERROR] Stack:", error.stack)
-
     // Check if it's an auth error and redirect to login
     const isAuthError =
       error.message?.includes("Refresh Token") ||
@@ -23,7 +19,6 @@ export default function GlobalError({
       error.message?.includes("JWT")
 
     if (isAuthError) {
-      console.log("[GLOBAL ERROR] Auth error detected, redirecting to login")
       window.location.href = "/login?reason=session_expired"
     }
   }, [error])

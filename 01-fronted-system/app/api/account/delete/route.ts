@@ -26,8 +26,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(
       new URL("/login?account_deleted=true", request.url)
     )
-  } catch (error: unknown) {
-    console.error("[API] Account deletion error:", error)
+  } catch {
     return NextResponse.redirect(
       new URL("/login?error=deletion_failed", request.url)
     )

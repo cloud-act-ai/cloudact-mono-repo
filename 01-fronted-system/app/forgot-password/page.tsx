@@ -34,9 +34,8 @@ export default function ForgotPasswordPage() {
       }
 
       setSuccess(true)
-    } catch (err: unknown) {
+    } catch {
       // Use generic error message to prevent email enumeration
-      console.error("[Auth] Forgot password error:", err instanceof Error ? err.message : "Unknown error")
       setError("Failed to send reset email. Please try again.")
     } finally {
       setIsLoading(false)

@@ -42,15 +42,10 @@ export default function BillingPage() {
           .eq("status", "active")
           .limit(1)
 
-        console.log("[v0] Billing page - user:", user.id, "email:", user.email)
-        console.log("[v0] Billing page - memberships query result:", memberships, "error:", membershipError)
-
         if (memberships && memberships.length > 0) {
           // User already has an org, redirect to dashboard
           const org = memberships[0].organizations as unknown as { org_slug: string }
-          console.log("[v0] Billing page - found org:", org)
           if (org?.org_slug) {
-            console.log("[v0] User already has org, redirecting to dashboard:", org.org_slug)
             router.push(`/${org.org_slug}/dashboard`)
             return
           }
@@ -58,17 +53,14 @@ export default function BillingPage() {
 
         // Check for pending company info from signup
         const pendingCompanyName = user.user_metadata?.pending_company_name
-        console.log("[v0] Billing page - pending_company_name:", pendingCompanyName)
         if (!pendingCompanyName) {
-          console.warn("[v0] No pending company name in user metadata, redirecting to signup")
           router.push("/signup")
           return
         }
 
         setUser(user)
         setIsCheckingAuth(false)
-      } catch (err) {
-        console.error("[v0] Auth check failed:", err)
+      } catch {
         router.push("/signup")
       }
     }
@@ -98,8 +90,7 @@ export default function BillingPage() {
 
         // Don't auto-select any plan - user must choose
         // Middle plan will be highlighted as "Most Popular"
-      } catch (err) {
-        console.error("[v0] Failed to fetch plans:", err)
+      } catch {
         setError("Failed to load pricing. Please try again.")
       } finally {
         setIsLoadingPlans(false)
@@ -142,7 +133,6 @@ export default function BillingPage() {
       // Redirect to Stripe Checkout
       window.location.href = result.url
     } catch (err: unknown) {
-      console.error("[v0] Checkout error:", err)
       setError(err instanceof Error ? err.message : "Failed to start checkout")
       setIsLoading(false)
     }

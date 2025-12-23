@@ -243,11 +243,7 @@ export async function setupIntegration(
     // Save integration status to Supabase (all states: VALID, INVALID, PENDING)
     // This ensures UI reflects actual state even when validation fails
     if (response.validation_status) {
-      const statusResult = await saveIntegrationStatus(input.orgSlug, input.provider, response.validation_status)
-      if (!statusResult.success) {
-        console.warn(`[Integrations] Failed to save status to Supabase: ${statusResult.error}`)
-        // Continue - backend setup succeeded, only status update failed
-      }
+      await saveIntegrationStatus(input.orgSlug, input.provider, response.validation_status)
     }
 
     return {
@@ -258,7 +254,6 @@ export async function setupIntegration(
       message: response.message,
     }
   } catch (err: unknown) {
-    console.error(`[Integrations] Setup ${input.provider} error:`, err)
     const errorMessage = err instanceof Error ? err.message : "Integration setup failed"
     const errorDetail = err && typeof err === 'object' && 'detail' in err ? String((err as {detail?: unknown}).detail) : undefined
     return {
@@ -324,7 +319,6 @@ export async function getIntegrations(
       .single()
 
     if (existsError || !orgExists) {
-      console.warn("[Integrations] Org not found, returning defaults")
       return defaultResponse
     }
 
@@ -352,12 +346,6 @@ export async function getIntegrations(
       .single()
 
     if (orgError) {
-      // If error is about missing columns, return defaults gracefully
-      if (orgError.message?.includes("column") || orgError.code === "42703") {
-        console.warn("[Integrations] Integration columns not found (migration may not be run), returning defaults")
-        return defaultResponse
-      }
-      console.warn("[Integrations] Could not read org data:", orgError.message)
       return defaultResponse
     }
 
@@ -438,8 +426,7 @@ export async function getIntegrations(
         providers_configured: providersConfigured,
       },
     }
-  } catch (err: unknown) {
-    console.error("[Integrations] Get integrations error:", err)
+  } catch {
     // Return defaults instead of error to prevent page crashes
     return defaultResponse
   }
@@ -490,11 +477,7 @@ export async function validateIntegration(
 
     // Update Supabase status to reflect validation result (VALID/INVALID)
     if (response.validation_status) {
-      const statusResult = await saveIntegrationStatus(orgSlug, provider as IntegrationProvider, response.validation_status)
-      if (!statusResult.success) {
-        console.warn(`[Integrations] Failed to save validation status to Supabase: ${statusResult.error}`)
-        // Continue - validation succeeded, only status update failed
-      }
+      await saveIntegrationStatus(orgSlug, provider as IntegrationProvider, response.validation_status)
     }
 
     // Return success based on validation status, not always true
@@ -507,7 +490,6 @@ export async function validateIntegration(
       message: response.message,
     }
   } catch (err: unknown) {
-    console.error(`[Integrations] Validate ${provider} error:`, err)
     const errorMessage = err instanceof Error ? err.message : "Validation failed"
     const errorDetail = err && typeof err === 'object' && 'detail' in err ? String((err as {detail?: unknown}).detail) : undefined
     return {
@@ -562,11 +544,7 @@ export async function deleteIntegration(
     const response = await backend.deleteIntegration(orgSlug, provider)
 
     // Update status to NOT_CONFIGURED in Supabase
-    const statusResult = await saveIntegrationStatus(orgSlug, provider as IntegrationProvider, "NOT_CONFIGURED")
-    if (!statusResult.success) {
-      console.warn(`[Integrations] Failed to save deletion status to Supabase: ${statusResult.error}`)
-      // Continue - deletion succeeded, only status update failed
-    }
+    await saveIntegrationStatus(orgSlug, provider as IntegrationProvider, "NOT_CONFIGURED")
 
     return {
       success: response.success,
@@ -574,7 +552,6 @@ export async function deleteIntegration(
       message: response.message,
     }
   } catch (err: unknown) {
-    console.error(`[Integrations] Delete ${provider} error:`, err)
     const errorMessage = err instanceof Error ? err.message : "Delete failed"
     const errorDetail = err && typeof err === 'object' && 'detail' in err ? String((err as {detail?: unknown}).detail) : undefined
     return {
@@ -609,9 +586,7 @@ async function saveIntegrationStatus(
 
     const columnPrefix = columnMap[provider]
     if (!columnPrefix) {
-      const error = `Unknown provider: ${provider}`
-      console.warn(`[Integrations] ${error}`)
-      return { success: false, error }
+      return { success: false, error: `Unknown provider: ${provider}` }
     }
 
     const updateData: Record<string, string> = {
@@ -629,15 +604,12 @@ async function saveIntegrationStatus(
       .eq("org_slug", orgSlug)
 
     if (dbError) {
-      console.error("[Integrations] Failed to save status:", dbError)
       return { success: false, error: dbError.message }
     }
 
-    console.log(`[Integrations] Saved ${provider} status=${status} for ${orgSlug}`)
     return { success: true }
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : "Unknown error"
-    console.error("[Integrations] Save status error:", err)
     return { success: false, error: errorMessage }
   }
 }
@@ -685,7 +657,6 @@ export async function listLLMPricing(
       count: result.count
     }
   } catch (err: unknown) {
-    console.error(`[Integrations] List ${provider} pricing error:`, err)
     const errorMessage = err instanceof Error ? err.message : "Failed to list pricing"
     const errorDetail = err && typeof err === 'object' && 'detail' in err ? String((err as {detail?: unknown}).detail) : undefined
     return {
@@ -732,7 +703,6 @@ export async function updateLLMPricing(
       pricing: result
     }
   } catch (err: unknown) {
-    console.error(`[Integrations] Update ${provider} pricing error:`, err)
     const errorMessage = err instanceof Error ? err.message : "Failed to update pricing"
     const errorDetail = err && typeof err === 'object' && 'detail' in err ? String((err as {detail?: unknown}).detail) : undefined
     return {
@@ -778,7 +748,6 @@ export async function createLLMPricing(
       pricing: result
     }
   } catch (err: unknown) {
-    console.error(`[Integrations] Create ${provider} pricing error:`, err)
     const errorMessage = err instanceof Error ? err.message : "Failed to create pricing"
     const errorDetail = err && typeof err === 'object' && 'detail' in err ? String((err as {detail?: unknown}).detail) : undefined
     return {
@@ -820,7 +789,6 @@ export async function deleteLLMPricing(
 
     return { success: true }
   } catch (err: unknown) {
-    console.error(`[Integrations] Delete ${provider} pricing error:`, err)
     const errorMessage = err instanceof Error ? err.message : "Failed to delete pricing"
     const errorDetail = err && typeof err === 'object' && 'detail' in err ? String((err as {detail?: unknown}).detail) : undefined
     return {
@@ -865,7 +833,6 @@ export async function resetLLMPricing(
       message: "Pricing reset to defaults"
     }
   } catch (err: unknown) {
-    console.error(`[Integrations] Reset ${provider} pricing error:`, err)
     const errorMessage = err instanceof Error ? err.message : "Failed to reset pricing"
     const errorDetail = err && typeof err === 'object' && 'detail' in err ? String((err as {detail?: unknown}).detail) : undefined
     return {
@@ -918,7 +885,6 @@ export async function listSaaSSubscriptions(
       count: result.count
     }
   } catch (err: unknown) {
-    console.error(`[Integrations] List ${provider} subscriptions error:`, err)
     const errorMessage = err instanceof Error ? err.message : "Failed to list subscriptions"
     const errorDetail = err && typeof err === 'object' && 'detail' in err ? String((err as {detail?: unknown}).detail) : undefined
     return {
@@ -965,7 +931,6 @@ export async function updateSaaSSubscription(
       subscription: result
     }
   } catch (err: unknown) {
-    console.error(`[Integrations] Update ${provider} subscription error:`, err)
     const errorMessage = err instanceof Error ? err.message : "Failed to update subscription"
     const errorDetail = err && typeof err === 'object' && 'detail' in err ? String((err as {detail?: unknown}).detail) : undefined
     return {
@@ -1011,7 +976,6 @@ export async function createSaaSSubscription(
       subscription: result
     }
   } catch (err: unknown) {
-    console.error(`[Integrations] Create ${provider} subscription error:`, err)
     const errorMessage = err instanceof Error ? err.message : "Failed to create subscription"
     const errorDetail = err && typeof err === 'object' && 'detail' in err ? String((err as {detail?: unknown}).detail) : undefined
     return {
@@ -1053,7 +1017,6 @@ export async function deleteSaaSSubscription(
 
     return { success: true }
   } catch (err: unknown) {
-    console.error(`[Integrations] Delete ${provider} subscription error:`, err)
     const errorMessage = err instanceof Error ? err.message : "Failed to delete subscription"
     const errorDetail = err && typeof err === 'object' && 'detail' in err ? String((err as {detail?: unknown}).detail) : undefined
     return {
@@ -1098,7 +1061,6 @@ export async function resetSaaSSubscriptions(
       message: "Subscriptions reset to defaults"
     }
   } catch (err: unknown) {
-    console.error(`[Integrations] Reset ${provider} subscriptions error:`, err)
     const errorMessage = err instanceof Error ? err.message : "Failed to reset subscriptions"
     const errorDetail = err && typeof err === 'object' && 'detail' in err ? String((err as {detail?: unknown}).detail) : undefined
     return {
@@ -1245,14 +1207,11 @@ export async function toggleIntegrationEnabled(
       .eq("org_slug", orgSlug)
 
     if (error) {
-      console.error("[Integrations] Failed to toggle enabled state:", error)
       return { success: false, error: "Failed to update integration state" }
     }
 
-    console.log(`[Integrations] Toggled ${provider} enabled=${enabled} for ${orgSlug}`)
     return { success: true, enabled }
   } catch (err: unknown) {
-    console.error(`[Integrations] Toggle ${provider} error:`, err)
     const errorMessage = err instanceof Error ? err.message : "Failed to toggle integration"
     const errorDetail = err && typeof err === 'object' && 'detail' in err ? String((err as {detail?: unknown}).detail) : undefined
     return {

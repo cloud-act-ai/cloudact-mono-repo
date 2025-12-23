@@ -6,15 +6,12 @@ export async function GET(request: NextRequest) {
   const session_id = searchParams.get("session_id")
   const orgSlug = searchParams.get("org")
 
-  console.log("[v0] Success callback hit:", { session_id, orgSlug })
-
   const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
   if (!user) {
-    console.error("[v0] No user found in success callback")
     return NextResponse.redirect(new URL("/login", request.url))
   }
 
@@ -25,7 +22,6 @@ export async function GET(request: NextRequest) {
     if (session_id) {
       redirectUrl.searchParams.set("session_id", session_id)
     }
-    console.log("[v0] Redirecting to org dashboard:", redirectUrl.toString())
     return NextResponse.redirect(redirectUrl)
   }
 
@@ -48,12 +44,10 @@ export async function GET(request: NextRequest) {
       if (session_id) {
         redirectUrl.searchParams.set("session_id", session_id)
       }
-      console.log("[v0] Redirecting to user's org dashboard:", redirectUrl.toString())
       return NextResponse.redirect(redirectUrl)
     }
   }
 
   // No org found, redirect to onboarding
-  console.log("[v0] No org found, redirecting to onboarding")
   return NextResponse.redirect(new URL("/onboarding/billing", request.url))
 }

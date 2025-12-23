@@ -116,7 +116,6 @@ export default function AddCustomProviderPage() {
           setFormData(prev => ({ ...prev, currency }))
         }
       } catch (err) {
-        console.error("Failed to load org currency:", err)
       } finally {
         setLoading(false)
       }

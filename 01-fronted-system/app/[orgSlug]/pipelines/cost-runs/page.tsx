@@ -84,7 +84,6 @@ export default function CostRunsPage() {
         setPipelineRuns(filteredRuns)
       }
     } catch (err: unknown) {
-      console.error("Failed to load pipeline runs:", err)
     }
     setRunsLoading(false)
   }, [orgSlug])
@@ -137,7 +136,6 @@ export default function CostRunsPage() {
           setRunDetails(prev => ({ ...prev, [runId]: result.data! }))
         }
       } catch (err: unknown) {
-        console.error("Failed to load run details:", err)
       }
       setLoadingDetail(null)
     }

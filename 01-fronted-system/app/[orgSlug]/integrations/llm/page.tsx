@@ -235,7 +235,6 @@ export default function LLMIntegrationsPage() {
 
       await loadIntegrations()
     } catch (error: unknown) {
-      console.error("[Integrations] Validation error:", error)
       setError(error instanceof Error ? error.message : "Failed to validate integration")
     } finally {
       setValidatingProvider(null)
@@ -257,7 +256,6 @@ export default function LLMIntegrationsPage() {
         setError(result.error || `Failed to ${enabled ? 'enable' : 'disable'} ${providerId.toUpperCase()}`)
       }
     } catch (error: unknown) {
-      console.error("[Integrations] Toggle error:", error)
       setError(error instanceof Error ? error.message : "Failed to toggle integration")
     } finally {
       setTogglingProvider(null)

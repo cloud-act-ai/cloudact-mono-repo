@@ -131,7 +131,13 @@ export default function GCPIntegrationPage() {
 
     try {
       const content = await file.text()
-      const parsed = JSON.parse(content)
+      let parsed: Record<string, unknown>
+      try {
+        parsed = JSON.parse(content)
+      } catch {
+        setError("Invalid JSON file. Please upload a valid Service Account JSON.")
+        return
+      }
 
       // Validate it's a service account JSON
       if (parsed.type !== "service_account") {
@@ -151,7 +157,7 @@ export default function GCPIntegrationPage() {
         client_email: parsed.client_email,
       })
     } catch {
-      setError("Invalid JSON file. Please upload a valid Service Account JSON.")
+      setError("Error reading file. Please try again.")
     }
   }
 

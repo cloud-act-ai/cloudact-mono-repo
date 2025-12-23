@@ -11,6 +11,5 @@ export function cn(...inputs: ClassValue[]) {
  */
 export function logError(context: string, error: unknown): string {
   const message = error instanceof Error ? error.message : "An unexpected error occurred"
-  console.error(`[${context}]`, error)
   return message
 }

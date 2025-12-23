@@ -12,10 +12,6 @@ export default function CostDashboardsError({
   reset: () => void
 }) {
   useEffect(() => {
-    // Log the error for debugging
-    console.error("[CostDashboards Error]", error)
-    console.error("[CostDashboards Error] Stack:", error.stack)
-
     // Check if it's an auth error and redirect to login
     if (
       error.message?.includes("Refresh Token") ||
@@ -23,7 +19,6 @@ export default function CostDashboardsError({
       error.message?.includes("not authenticated") ||
       error.message?.includes("JWT")
     ) {
-      console.log("[CostDashboards Error] Auth error detected, redirecting to login")
       window.location.href = "/login?reason=session_expired"
     }
   }, [error])

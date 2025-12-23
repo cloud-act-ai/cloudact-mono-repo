@@ -98,7 +98,6 @@ export async function fetchMembersData(orgSlug: string) {
       .limit(MAX_MEMBERS_PER_PAGE)
 
     if (membersError) {
-      console.error("[v0] Members error:", membersError)
       return { success: false, error: "Failed to fetch members" }
     }
 
@@ -136,7 +135,7 @@ export async function fetchMembersData(orgSlug: string) {
       .limit(MAX_INVITES_PER_PAGE)
 
     if (invitesError) {
-      console.error("[v0] Invites error:", invitesError)
+      return { success: false, error: "Failed to fetch invites" }
     }
 
     return {
@@ -149,7 +148,6 @@ export async function fetchMembersData(orgSlug: string) {
       },
     }
   } catch (err: unknown) {
-    console.error("[v0] Fetch members data error:", err)
     const errorMessage = err instanceof Error ? err.message : "Failed to fetch data"
     return { success: false, error: errorMessage }
   }
@@ -318,7 +316,6 @@ export async function inviteMember(orgSlug: string, email: string, role: "collab
       .single()
 
     if (inviteError) {
-      console.error("[v0] Invite error:", inviteError)
       return { success: false, error: "Failed to create invite" }
     }
 
@@ -326,7 +323,6 @@ export async function inviteMember(orgSlug: string, email: string, role: "collab
     // Require NEXT_PUBLIC_APP_URL in production to prevent localhost links
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || (process.env.NODE_ENV === "development" ? "http://localhost:3000" : null)
     if (!appUrl) {
-      console.error("[v0] NEXT_PUBLIC_APP_URL not configured")
       return { success: false, error: "Application URL not configured. Please contact support." }
     }
     const inviteLink = `${appUrl}/invite/${token}`
@@ -340,19 +336,12 @@ export async function inviteMember(orgSlug: string, email: string, role: "collab
       inviteLink,
     })
 
-    if (emailSent) {
-      console.log("[v0] Invite email sent to:", normalizedEmail)
-    } else {
-      console.warn("[v0] Invite email not sent (SMTP not configured) - link still works:", inviteLink)
-    }
-
     return {
       success: true,
       inviteLink,
       message: "Invite sent successfully",
     }
   } catch (err: unknown) {
-    console.error("[v0] Invite member error:", err)
     const errorMessage = err instanceof Error ? err.message : "Failed to invite member"
     return { success: false, error: errorMessage }
   }
@@ -444,13 +433,11 @@ export async function removeMember(orgSlug: string, memberUserId: string) {
       .eq("id", targetMember.id)  // Use verified ID for atomic update
 
     if (updateError) {
-      console.error("[v0] Remove member error:", updateError)
       return { success: false, error: "Failed to remove member" }
     }
 
     return { success: true, message: "Member removed successfully" }
   } catch (err: unknown) {
-    console.error("[v0] Remove member error:", err)
     const errorMessage = err instanceof Error ? err.message : "Failed to remove member"
     return { success: false, error: errorMessage }
   }
@@ -538,13 +525,11 @@ export async function updateMemberRole(
       .eq("id", targetMember.id)
 
     if (updateError) {
-      console.error("[v0] Update role error:", updateError)
       return { success: false, error: "Failed to update member role" }
     }
 
     return { success: true, message: "Member role updated successfully" }
   } catch (err: unknown) {
-    console.error("[v0] Update role error:", err)
     const errorMessage = err instanceof Error ? err.message : "Failed to update member role"
     return { success: false, error: errorMessage }
   }
@@ -576,7 +561,6 @@ export async function acceptInvite(token: string) {
       .maybeSingle()
 
     if (fetchError) {
-      console.error("[v0] Invite fetch error:", fetchError)
       return { success: false, error: "Failed to process invite" }
     }
 
@@ -627,7 +611,6 @@ export async function acceptInvite(token: string) {
       .single()
 
     if (orgError || !org) {
-      console.error("[v0] Accept invite - org fetch error:", orgError)
       return { success: false, error: "Organization not found" }
     }
 
@@ -667,7 +650,6 @@ export async function acceptInvite(token: string) {
         .eq("id", existingMember.id)
 
       if (reactivateError) {
-        console.error("[v0] Accept invite - reactivate error:", reactivateError)
         // Check if it's a seat limit error from database trigger
         if (reactivateError.message?.includes("Seat limit")) {
           return { success: false, error: reactivateError.message }
@@ -684,7 +666,6 @@ export async function acceptInvite(token: string) {
       })
 
       if (memberError) {
-        console.error("[v0] Accept invite - member insert error:", memberError)
         // Check if it's a seat limit error from database trigger
         if (memberError.message?.includes("Seat limit")) {
           return { success: false, error: memberError.message }
@@ -702,7 +683,6 @@ export async function acceptInvite(token: string) {
       orgSlug: org.org_slug || null,
     }
   } catch (err: unknown) {
-    console.error("[v0] Accept invite error:", err)
     const errorMessage = err instanceof Error ? err.message : "Failed to accept invite"
     return { success: false, error: errorMessage }
   }
@@ -713,7 +693,6 @@ export async function getInviteInfo(token: string) {
   try {
     // Validate token format before database query
     if (!isValidInviteToken(token)) {
-      console.warn("[v0] Invalid token format:", token?.substring(0, 10) + "...")
       return { success: false, error: "Invalid invite link format. Please check the link and try again." }
     }
 
@@ -727,12 +706,10 @@ export async function getInviteInfo(token: string) {
       .maybeSingle()
 
     if (inviteError) {
-      console.error("[v0] Invite fetch error:", inviteError)
       return { success: false, error: "Failed to fetch invite. Please try again." }
     }
 
     if (!invite) {
-      console.warn("[v0] Invite not found for token:", token?.substring(0, 10) + "...")
       return { success: false, error: "This invite link is invalid or has been removed." }
     }
 
@@ -744,7 +721,6 @@ export async function getInviteInfo(token: string) {
       .single()
 
     if (orgError || !org) {
-      console.error("[v0] Organization not found for invite:", invite.id, orgError)
       return { success: false, error: "The organization for this invite no longer exists." }
     }
 
@@ -763,7 +739,6 @@ export async function getInviteInfo(token: string) {
       },
     }
   } catch (err: unknown) {
-    console.error("[v0] Get invite info error:", err)
     return { success: false, error: "Failed to fetch invite. Please try again." }
   }
 }
@@ -817,13 +792,11 @@ export async function cancelInvite(orgSlug: string, inviteId: string) {
       .eq("org_id", org.id)
 
     if (updateError) {
-      console.error("[v0] Cancel invite error:", updateError)
       return { success: false, error: "Failed to cancel invite" }
     }
 
     return { success: true, message: "Invite canceled successfully" }
   } catch (err: unknown) {
-    console.error("[v0] Cancel invite error:", err)
     const errorMessage = err instanceof Error ? err.message : "Failed to cancel invite"
     return { success: false, error: errorMessage }
   }

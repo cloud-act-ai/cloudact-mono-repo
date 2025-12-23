@@ -15,7 +15,6 @@ export default function ProfileError({
 }) {
   useEffect(() => {
     // Log the error to an error reporting service
-    console.error("[Settings/Profile] Page error:", error)
   }, [error])
 
   return (

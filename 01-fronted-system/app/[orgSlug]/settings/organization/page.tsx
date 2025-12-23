@@ -197,7 +197,6 @@ export default function OrganizationSettingsPage() {
       setApiKeyValid(result.apiKeyValid)
       setBackendError(result.error || null)
     } catch (err: unknown) {
-      console.error("Failed to load backend status:", err)
       setBackendError("Failed to check backend connection status")
     } finally {
       setLoadingBackendStatus(false)
@@ -242,7 +241,6 @@ export default function OrganizationSettingsPage() {
             const { data: billingInfo, error: billingError } = await getBillingInfo(orgSlug)
 
             if (billingError || !billingInfo) {
-              console.warn("[Re-onboarding] Failed to fetch billing info:", billingError)
               // Non-blocking - show success but warn about billing sync
               setSuccess(
                 onboardResult.apiKey
@@ -289,7 +287,6 @@ export default function OrganizationSettingsPage() {
                     : "Backend connection restored and billing data synced successfully!"
                 )
               } else {
-                console.warn("[Re-onboarding] Billing sync failed:", syncResult.error)
                 setSuccess(
                   onboardResult.apiKey
                     ? `Backend connection restored! New API key: ${onboardResult.apiKey.slice(0, 20)}... (Save this key!) Warning: Billing sync ${syncResult.queued ? 'queued for retry' : 'failed'}.`
@@ -305,7 +302,6 @@ export default function OrganizationSettingsPage() {
               )
             }
           } catch (syncErr: unknown) {
-            console.error("[Re-onboarding] Billing sync error:", syncErr)
             setSuccess(
               onboardResult.apiKey
                 ? `Backend connection restored! New API key: ${onboardResult.apiKey.slice(0, 20)}... (Save this key!) Warning: Billing sync error.`
@@ -439,7 +435,6 @@ export default function OrganizationSettingsPage() {
         setOriginalContactDetails(result.contactDetails)
       }
     } catch (err: unknown) {
-      console.error("Failed to load contact details:", err)
     } finally {
       setLoadingContactDetails(false)
     }
@@ -454,7 +449,6 @@ export default function OrganizationSettingsPage() {
         setOwnedOrgs(result.data)
       }
     } catch (err: unknown) {
-      console.error("Failed to load owned orgs:", err)
     } finally {
       setLoadingOwnedOrgs(false)
     }
@@ -506,7 +500,6 @@ export default function OrganizationSettingsPage() {
 
       // Handle auth errors (e.g., invalid refresh token)
       if (authError) {
-        console.error("[OrgSettings] Auth error:", authError.message)
         if (authError.message?.includes("Refresh Token") || authError.status === 400) {
           window.location.href = `/login?redirectTo=/${orgSlug}/settings/organization&reason=session_expired`
           return
@@ -521,7 +514,6 @@ export default function OrganizationSettingsPage() {
       setEmail(user.email || "")
       await loadOwnedOrganizations()
     } catch (err: unknown) {
-      console.error("Error loading user:", err)
       // Check if it's an auth error
       if (err instanceof Error && (err.message?.includes("Refresh Token") || err.message?.includes("JWT"))) {
         window.location.href = `/login?redirectTo=/${orgSlug}/settings/organization&reason=session_expired`
@@ -713,7 +705,6 @@ export default function OrganizationSettingsPage() {
         setTransferMembers([])
       }
     } catch (err: unknown) {
-      console.error("Failed to load transfer members:", err)
       setTransferMembers([])
     } finally {
       setLoadingTransferMembers(false)
@@ -1714,7 +1705,8 @@ export default function OrganizationSettingsPage() {
                 variant="destructive"
                 onClick={handleDeleteOrg}
                 disabled={
-                  deleteConfirmName.toLowerCase() !== selectedOrgForDelete?.org_name.toLowerCase() ||
+                  !selectedOrgForDelete?.org_name ||
+                  deleteConfirmName.toLowerCase() !== selectedOrgForDelete.org_name.toLowerCase() ||
                   isDeletingOrg
                 }
               >

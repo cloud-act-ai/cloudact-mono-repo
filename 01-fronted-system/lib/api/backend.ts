@@ -717,7 +717,6 @@ async function fetchWithRetry(
         retryConfig.maxDelayMs
       )
 
-      console.log(`[Backend] Retry attempt ${attempt}/${retryConfig.maxAttempts} after ${delayMs}ms`)
       await sleep(delayMs)
     }
   }

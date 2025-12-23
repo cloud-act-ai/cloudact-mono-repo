@@ -53,8 +53,7 @@ export default async function CostOverviewPage({
 
     userResult = results[0]
     orgResult = results[1]
-  } catch (err) {
-    console.error("Error loading dashboard data:", err)
+  } catch {
     return (
       <div className="flex items-center justify-center p-4 min-h-[60vh]">
         <div className="metric-card max-w-md mx-auto px-6 py-10 text-center space-y-6">
@@ -122,8 +121,7 @@ export default async function CostOverviewPage({
 
     membershipResult = results[0]
     memberCountResult = results[1]
-  } catch (err) {
-    console.error("Error loading membership data:", err)
+  } catch {
     return (
       <div className="flex items-center justify-center p-4 min-h-[60vh]">
         <div className="metric-card max-w-md mx-auto px-6 py-10 text-center space-y-6">

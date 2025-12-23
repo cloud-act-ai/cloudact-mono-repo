@@ -127,9 +127,8 @@ export async function getQuotaUsage(orgSlug: string): Promise<{
         // TODO: Implement GET /api/v1/organizations/{org}/quota endpoint in backend
         // const _backend = new BackendClient({ orgApiKey: apiKey })
       }
-    } catch (err) {
+    } catch {
       // Backend quota check failed - use defaults
-      console.warn("[Quota] Failed to fetch backend quota:", err)
     }
 
     const seatLimit = org.seat_limit || 2
@@ -168,7 +167,6 @@ export async function getQuotaUsage(orgSlug: string): Promise<{
     return { success: true, data: quotaUsage }
   } catch (err: unknown) {
     const errorMessage = err instanceof Error ? err.message : "Failed to get quota usage"
-    console.error("[Quota] Error getting quota usage:", err)
     return { success: false, error: errorMessage }
   }
 }

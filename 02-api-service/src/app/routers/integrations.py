@@ -18,7 +18,6 @@ from pathlib import Path
 import logging
 import json
 import re
-import csv
 
 from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
 from src.app.dependencies.auth import get_current_org
@@ -1095,7 +1094,8 @@ async def _initialize_openai_pricing(org_slug: str, force: bool = False) -> Dict
         try:
             bq_client.get_table(table_id)
             logger.info(f"Table already exists: {table_id}")
-        except Exception:
+        except Exception as e:
+            # Table check failed, creating new table
             table = bq_client.create_table(table)
             logger.info(f"Created table: {table_id}")
 
@@ -1213,7 +1213,8 @@ async def _initialize_openai_subscriptions(org_slug: str, force: bool = False) -
         try:
             bq_client.get_table(table_id)
             logger.info(f"Table already exists: {table_id}")
-        except Exception:
+        except Exception as e:
+            # Table check failed, creating new table
             table = bq_client.create_table(table)
             logger.info(f"Created table: {table_id}")
 
@@ -1335,7 +1336,8 @@ async def _initialize_llm_pricing(org_slug: str, provider: str, force: bool = Fa
         try:
             bq_client.client.get_table(table_id)
             logger.info(f"Table already exists: {table_id}")
-        except Exception:
+        except Exception as e:
+            # Table check failed, creating new table
             table = bq_client.client.create_table(table)
             logger.info(f"Created table: {table_id}")
 
@@ -1366,12 +1368,12 @@ async def _initialize_llm_pricing(org_slug: str, provider: str, force: bool = Fa
         now = datetime.utcnow().isoformat()
 
         # Parse helpers for optional fields
-        def parse_int(val):
+        def parse_int(val: Any) -> Optional[int]:
             if val is None or val == "":
                 return None
             return int(val)
 
-        def parse_float(val):
+        def parse_float(val: Any) -> Optional[float]:
             if val is None or val == "":
                 return None
             return float(val)
@@ -1533,7 +1535,8 @@ async def _initialize_saas_subscriptions(org_slug: str, provider: str, force: bo
         try:
             bq_client.client.get_table(table_id)
             logger.info(f"Table already exists: {table_id}")
-        except Exception:
+        except Exception as e:
+            # Table check failed, creating new table
             table = bq_client.client.create_table(table)
             logger.info(f"Created table: {table_id}")
 
@@ -1582,18 +1585,18 @@ async def _initialize_saas_subscriptions(org_slug: str, provider: str, force: bo
                     continue
 
                 # Parse optional numeric fields
-                def parse_int(val):
+                def parse_int(val: Any) -> Optional[int]:
                     if val is None or val == "":
                         return None
                     return int(val)
 
-                def parse_float(val):
+                def parse_float(val: Any) -> Optional[float]:
                     if val is None or val == "":
                         return None
                     return float(val)
 
                 # Parse date fields - convert empty strings to None
-                def parse_date(val):
+                def parse_date(val: Any) -> Optional[str]:
                     if val is None or val == "" or val == "0":
                         return None
                     return val  # Keep as string for BigQuery DATE type
@@ -1740,7 +1743,8 @@ async def _initialize_gemini_pricing(org_slug: str, force: bool = False) -> Dict
         try:
             bq_client.client.get_table(table_id)
             logger.info(f"Table already exists: {table_id}")
-        except Exception:
+        except Exception as e:
+            # Table check failed, creating new table
             table = bq_client.client.create_table(table)
             logger.info(f"Created table: {table_id}")
 
@@ -1838,7 +1842,8 @@ async def _initialize_gemini_subscriptions(org_slug: str, force: bool = False) -
         try:
             bq_client.client.get_table(table_id)
             logger.info(f"Table already exists: {table_id}")
-        except Exception:
+        except Exception as e:
+            # Table check failed, creating new table
             table = bq_client.client.create_table(table)
             logger.info(f"Created table: {table_id}")
 

@@ -74,12 +74,10 @@ export async function safeJsonParse<T>(response: Response, fallback: T): Promise
     }
     // Size limit check (10MB)
     if (text.length > 10 * 1024 * 1024) {
-      console.warn("Response body too large, returning fallback")
       return fallback
     }
     return JSON.parse(text) as T
   } catch (error) {
-    console.error("Failed to parse JSON response:", error)
     throw new Error(
       `Failed to parse backend response: ${error instanceof Error ? error.message : "Invalid JSON"}`
     )

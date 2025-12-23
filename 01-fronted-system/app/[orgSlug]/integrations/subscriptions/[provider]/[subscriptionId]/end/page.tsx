@@ -119,7 +119,6 @@ export default function EndSubscriptionPage() {
           setError(plansResult.error || "Failed to load subscription details")
         }
       } catch (err) {
-        console.error("Error loading subscription:", err)
         if (mounted) {
           setError("Failed to load subscription details")
         }

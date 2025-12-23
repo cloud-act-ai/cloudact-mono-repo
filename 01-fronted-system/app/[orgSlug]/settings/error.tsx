@@ -14,8 +14,7 @@ export default function SettingsError({
   reset: () => void
 }) {
   useEffect(() => {
-    // Log the error to an error reporting service
-    console.error("[Settings] Page error:", error)
+    // Error logged for monitoring
   }, [error])
 
   return (

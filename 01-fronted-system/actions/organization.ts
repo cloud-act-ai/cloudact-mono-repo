@@ -137,7 +137,6 @@ export async function createOrganization(input: CreateOrganizationInput) {
       .single()
 
     if (orgError) {
-      console.error("[v0] Organization creation error:", orgError)
       return { success: false, error: orgError.message }
     }
 
@@ -151,8 +150,6 @@ export async function createOrganization(input: CreateOrganizationInput) {
     let backendOnboardingError: string | undefined
 
     try {
-      console.log("[v0] Initiating backend onboarding for:", orgSlug)
-
       const backendResult = await onboardToBackend({
         orgSlug,
         companyName: sanitizedName,
@@ -166,15 +163,12 @@ export async function createOrganization(input: CreateOrganizationInput) {
       if (backendResult.success) {
         backendApiKey = backendResult.apiKey
         backendApiKeyFingerprint = backendResult.apiKeyFingerprint
-        console.log("[v0] Backend onboarding successful, API key generated")
       } else {
-        console.warn("[v0] Backend onboarding failed:", backendResult.error)
         backendOnboardingFailed = true
         backendOnboardingError = backendResult.error
         // Don't fail the whole operation - user can onboard to backend later from Profile
       }
     } catch (backendErr: unknown) {
-      console.error("[v0] Backend onboarding error:", backendErr)
       backendOnboardingFailed = true
       backendOnboardingError = backendErr instanceof Error ? backendErr.message : "Backend connection failed"
       // Don't fail - Supabase org creation succeeded
@@ -201,7 +195,6 @@ export async function createOrganization(input: CreateOrganizationInput) {
       message,
     }
   } catch (err: unknown) {
-    console.error("[v0] Create organization error:", err)
     const errorMessage = err instanceof Error ? err.message : "Failed to create organization"
     return { success: false, error: errorMessage }
   }
@@ -242,8 +235,6 @@ const safeParseInt = (value: string | undefined, defaultValue: number): number =
  */
 export async function completeOnboarding(sessionId: string) {
   try {
-    console.log("[v0] Completing onboarding for session:", sessionId)
-
     // Validate session ID format
     if (!sessionId || !sessionId.startsWith("cs_")) {
       return { success: false, error: "Invalid checkout session" }
@@ -318,7 +309,6 @@ export async function completeOnboarding(sessionId: string) {
 
     if (existingMember) {
       const org = existingMember.organizations as unknown as { org_slug: string } | null
-      console.log("[v0] User already has org:", org?.org_slug)
       return {
         success: true,
         orgSlug: org?.org_slug,
@@ -381,7 +371,6 @@ export async function completeOnboarding(sessionId: string) {
 
     // Get limits from metadata (required)
     if (!metadata.teamMembers || !metadata.providers || !metadata.pipelinesPerDay) {
-      console.error("[v0] Product missing required metadata")
       return { success: false, error: "Plan configuration error. Please contact support." }
     }
 
@@ -396,6 +385,11 @@ export async function completeOnboarding(sessionId: string) {
     const trialEndsAt = subscription.trial_end
       ? new Date(subscription.trial_end * 1000)
       : new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000)
+
+    // Validate session customer before casting
+    if (!session.customer) {
+      return { success: false, error: "No customer in session" }
+    }
 
     // Create organization
     const { data: orgData, error: orgError } = await adminClient
@@ -430,11 +424,8 @@ export async function completeOnboarding(sessionId: string) {
       .single()
 
     if (orgError) {
-      console.error("[v0] Organization creation error:", orgError)
       return { success: false, error: orgError.message }
     }
-
-    console.log("[v0] Organization created:", orgSlug)
 
     // Update Stripe subscription with org info (with retry)
     let retryCount = 0
@@ -450,14 +441,13 @@ export async function completeOnboarding(sessionId: string) {
           },
         })
         updateSuccess = true
-      } catch (stripeErr: unknown) {
+      } catch {
         retryCount++
-        const errMsg = stripeErr instanceof Error ? stripeErr.message : "Unknown error"
-        console.warn(`[v0] Failed to update Stripe subscription metadata (attempt ${retryCount}/${maxRetries}):`, errMsg)
 
         if (retryCount >= maxRetries) {
-          // Queue for later or log error - final attempt
-          console.error("[v0] Stripe metadata update failed after retries. Manual update may be required.")
+          // Max retries exceeded - org created but Stripe metadata update failed
+          // Non-critical: webhook will still process subscription events correctly
+          break
         } else {
           // Wait before retry (exponential backoff)
           await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, retryCount - 1)))
@@ -476,9 +466,7 @@ export async function completeOnboarding(sessionId: string) {
           onboarding_completed_at: new Date().toISOString(),
         },
       })
-    } catch (metaErr: unknown) {
-      const errMsg = metaErr instanceof Error ? metaErr.message : "Unknown error"
-      console.warn("[v0] Failed to clear user metadata:", errMsg)
+    } catch {
       // Non-critical, continue
     }
 
@@ -487,8 +475,6 @@ export async function completeOnboarding(sessionId: string) {
     let backendOnboardingFailed = false
 
     try {
-      console.log("[v0] Initiating backend onboarding for:", orgSlug)
-
       const backendResult = await onboardToBackend({
         orgSlug,
         companyName: sanitizedName,
@@ -501,13 +487,10 @@ export async function completeOnboarding(sessionId: string) {
 
       if (backendResult.success) {
         backendApiKey = backendResult.apiKey
-        console.log("[v0] Backend onboarding successful")
       } else {
-        console.warn("[v0] Backend onboarding failed:", backendResult.error)
         backendOnboardingFailed = true
       }
-    } catch (backendErr: unknown) {
-      console.error("[v0] Backend onboarding error:", backendErr)
+    } catch {
       backendOnboardingFailed = true
     }
 
@@ -522,7 +505,6 @@ export async function completeOnboarding(sessionId: string) {
         : "Organization created successfully.",
     }
   } catch (err: unknown) {
-    console.error("[v0] Complete onboarding error:", err)
     const errorMessage = err instanceof Error ? err.message : "Failed to complete setup"
     return { success: false, error: errorMessage }
   }

@@ -158,7 +158,6 @@ export default function EditSubscriptionPage() {
           setError(plansResult.error || "Failed to load subscription")
         }
       } catch (err) {
-        console.error("Error loading data:", err)
         if (mounted) {
           setError("Failed to load subscription. Please try again.")
         }

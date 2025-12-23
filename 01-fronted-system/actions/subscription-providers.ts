@@ -128,7 +128,7 @@ export async function triggerCostBackfill(
     const today = new Date().toISOString().split("T")[0]
     const actualEndDate = endDate || today
 
-    console.log(`[AutoBackfill] Triggering backfill via API service for ${orgSlug} from ${startDate} to ${actualEndDate}`)
+    
 
     const response = await fetchWithTimeout(
       `${apiUrl}/api/v1/pipelines/trigger/${orgSlug}/saas_subscription/costs/saas_cost`,
@@ -148,7 +148,7 @@ export async function triggerCostBackfill(
 
     if (!response.ok) {
       const errorText = await response.text()
-      console.warn(`[AutoBackfill] Pipeline trigger failed: ${errorText}`)
+      
       return {
         success: false,
         error: `Backfill pipeline failed: ${errorText}`,
@@ -160,13 +160,13 @@ export async function triggerCostBackfill(
       { status: "unknown" }
     )
 
-    console.log(`[AutoBackfill] Pipeline triggered successfully for ${orgSlug}:`, result)
+    
     return {
       success: true,
       message: `Cost backfill triggered from ${startDate} to ${actualEndDate}`,
     }
   } catch (error) {
-    console.error(`[AutoBackfill] Error triggering backfill:`, error)
+    
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error triggering backfill",
@@ -682,7 +682,7 @@ export async function createCustomProviderWithPlan(
       // Check if Supabase and BigQuery are in sync, auto-repair if needed
       const syncCheck = await validateLocaleSync(orgSlug)
       if (!syncCheck.inSync && syncCheck.mismatch) {
-        console.warn(`[CreateCustomProvider] Locale sync mismatch detected, auto-repairing`)
+        
         const repairResult = await repairLocaleSync(orgSlug)
         if (!repairResult.success) {
           return {
@@ -726,7 +726,7 @@ export async function createCustomProviderWithPlan(
       ? startDateStr
       : getMonthStart()
 
-    console.log(`[CreateCustomProvider] Triggering cost pipeline from ${pipelineStartDate}`)
+    
     const pipelineResult = await triggerCostBackfill(orgSlug, orgApiKey, pipelineStartDate)
     pipelineTriggered = pipelineResult.success
 
@@ -741,7 +741,7 @@ export async function createCustomProviderWithPlan(
     }
 
     if (!pipelineResult.success) {
-      console.warn(`[CreateCustomProvider] Pipeline trigger failed: ${pipelineResult.error}`)
+      
     }
 
     return {
@@ -817,7 +817,7 @@ export async function disableProvider(
           // Delete each plan (Issue 1: Add null check for subscription_id)
           for (const plan of plans) {
             if (!plan.subscription_id) {
-              console.warn(`Skipping plan without subscription_id: ${plan.plan_name}`)
+              
               continue
             }
             try {
@@ -833,11 +833,11 @@ export async function disableProvider(
                 plansDeleted++
               } else {
                 const errorText = await deleteResponse.text()
-                console.warn(`Failed to delete plan ${plan.subscription_id}: ${errorText}`)
+                
                 failures.push(plan.subscription_id)
               }
             } catch (deleteError) {
-              console.warn(`Error deleting plan ${plan.subscription_id}:`, deleteError)
+              
               failures.push(plan.subscription_id)
             }
           }
@@ -861,7 +861,7 @@ export async function disableProvider(
           }
         }
       } catch (apiError) {
-        console.warn("Failed to delete plans:", apiError)
+        
         return {
           success: true, // Provider is still disabled in Supabase
           plans_deleted: 0,
@@ -927,7 +927,7 @@ export async function getAllProviders(orgSlug: string): Promise<{
           })
         }
       } catch (apiError) {
-        console.warn("Failed to get plan counts from API:", apiError)
+        
       }
     }
 
@@ -1526,7 +1526,7 @@ export async function createCustomPlan(
       // Check if Supabase and BigQuery are in sync, auto-repair if needed
       const syncCheck = await validateLocaleSync(orgSlug)
       if (!syncCheck.inSync && syncCheck.mismatch) {
-        console.warn(`[CreatePlan] Locale sync mismatch detected, auto-repairing: ${syncCheck.mismatch.join(", ")}`)
+        }`)
         const repairResult = await repairLocaleSync(orgSlug)
         if (!repairResult.success) {
           return {
@@ -1534,7 +1534,7 @@ export async function createCustomPlan(
             error: `Locale sync failed: ${repairResult.error}. Please update your organization settings and try again.`
           }
         }
-        console.log(`[CreatePlan] Locale sync repaired successfully`)
+        
       }
     }
 
@@ -1573,7 +1573,7 @@ export async function createCustomPlan(
       ? startDateStr
       : getMonthStart() // Use month start for current/future plans
 
-    console.log(`[CreatePlan] Triggering cost pipeline from ${pipelineStartDate}`)
+    
     const pipelineResult = await triggerCostBackfill(orgSlug, orgApiKey, pipelineStartDate)
     pipelineTriggered = pipelineResult.success
 
@@ -1588,7 +1588,7 @@ export async function createCustomPlan(
     }
 
     if (!pipelineResult.success) {
-      console.warn(`[CreatePlan] Pipeline trigger failed: ${pipelineResult.error}`)
+      
     }
 
     return {
@@ -1876,7 +1876,7 @@ export async function editPlanWithVersion(
     // Start from the effective date if in past, or month start otherwise
     const pipelineStartDate = isDateInPast(effectiveDate) ? effectiveDate : getMonthStart()
 
-    console.log(`[EditPlanWithVersion] Plan updated, triggering cost pipeline from ${pipelineStartDate}`)
+    
     const pipelineResult = await triggerCostBackfill(orgSlug, orgApiKey, pipelineStartDate)
 
     const pipelineMessage = pipelineResult.success
@@ -1884,7 +1884,7 @@ export async function editPlanWithVersion(
       : `Plan updated but cost recalculation failed: ${pipelineResult.error}`
 
     if (!pipelineResult.success) {
-      console.warn(`[EditPlanWithVersion] Pipeline trigger failed: ${pipelineResult.error}`)
+      
     }
 
     return {
@@ -1973,7 +1973,7 @@ export async function endSubscription(
     // Trigger cost pipeline to recalculate costs (will exclude dates after end_date)
     const pipelineStartDate = getMonthStart()
 
-    console.log(`[EndSubscription] Subscription ended, triggering cost pipeline from ${pipelineStartDate}`)
+    
     const pipelineResult = await triggerCostBackfill(orgSlug, orgApiKey, pipelineStartDate)
 
     const pipelineMessage = pipelineResult.success
@@ -1981,7 +1981,7 @@ export async function endSubscription(
       : `Subscription ended but cost recalculation failed: ${pipelineResult.error}`
 
     if (!pipelineResult.success) {
-      console.warn(`[EndSubscription] Pipeline trigger failed: ${pipelineResult.error}`)
+      
     }
 
     return {

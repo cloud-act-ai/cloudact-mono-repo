@@ -11,7 +11,7 @@ import json
 import logging
 import uuid
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 from google.cloud import bigquery
 
 from src.core.engine.bq_client import BigQueryClient

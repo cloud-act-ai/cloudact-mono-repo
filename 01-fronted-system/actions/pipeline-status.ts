@@ -75,7 +75,7 @@ export async function getPipelineStatus(
   try {
     const orgApiKey = await getOrgApiKeySecure(orgSlug)
     if (!orgApiKey) {
-      console.warn(`[PipelineStatus] No API key for ${orgSlug}`)
+      
       return null
     }
 
@@ -92,13 +92,13 @@ export async function getPipelineStatus(
     )
 
     if (!response.ok) {
-      console.warn(`[PipelineStatus] Status check failed: ${response.status}`)
+      
       return null
     }
 
     return await response.json()
   } catch (error) {
-    console.error(`[PipelineStatus] Error checking status:`, error)
+    
     return null
   }
 }
@@ -135,7 +135,7 @@ export async function triggerPipelineViaApi(
     const actualStartDate = startDate || getMonthStartUTC()
     const actualEndDate = endDate || today
 
-    console.log(`[PipelineTrigger] Triggering ${pipelinePath} for ${orgSlug} from ${actualStartDate} to ${actualEndDate}`)
+    
 
     const response = await fetchWithTimeout(
       `${apiUrl}/api/v1/pipelines/trigger/${orgSlug}/${pipelinePath}`,
@@ -155,7 +155,7 @@ export async function triggerPipelineViaApi(
 
     if (!response.ok) {
       const errorText = await response.text()
-      console.warn(`[PipelineTrigger] Trigger failed: ${errorText}`)
+      
       return {
         success: false,
         error: `Pipeline trigger failed: ${errorText}`,
@@ -163,7 +163,7 @@ export async function triggerPipelineViaApi(
     }
 
     const result = await response.json()
-    console.log(`[PipelineTrigger] Pipeline triggered successfully:`, result)
+    
 
     return {
       success: true,
@@ -171,7 +171,7 @@ export async function triggerPipelineViaApi(
       message: result.message || "Pipeline triggered successfully",
     }
   } catch (error) {
-    console.error(`[PipelineTrigger] Error:`, error)
+    
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error",
@@ -234,7 +234,7 @@ export async function checkAndTriggerDailyPipelines(
 
       // Skip if already succeeded today
       if (pipelineStatus?.succeeded_today) {
-        console.log(`[DailyPipelines] ${pipeline.id} already succeeded today, skipping`)
+        
         result.skipped.push(pipeline.id)
         continue
       }
@@ -243,12 +243,12 @@ export async function checkAndTriggerDailyPipelines(
       if (pipelineStatus?.ran_today && !pipelineStatus?.succeeded_today) {
         // Check if it's still running
         if (pipelineStatus?.status === "RUNNING" || pipelineStatus?.status === "PENDING") {
-          console.log(`[DailyPipelines] ${pipeline.id} is already running, skipping`)
+          
           result.already_running.push(pipeline.id)
           continue
         }
         // Otherwise it failed today - we should retry
-        console.log(`[DailyPipelines] ${pipeline.id} failed today, retrying`)
+        
       }
 
       // Trigger pipeline (using UTC dates)
@@ -271,17 +271,9 @@ export async function checkAndTriggerDailyPipelines(
       }
     }
 
-    // Log summary
-    console.log(`[DailyPipelines] Summary for ${orgSlug}:`, {
-      triggered: result.triggered,
-      skipped: result.skipped,
-      already_running: result.already_running,
-      errors: result.errors,
-    })
-
     return result
   } catch (error) {
-    console.error(`[DailyPipelines] Error:`, error)
+    
     result.errors.push(error instanceof Error ? error.message : "Unknown error")
     return result
   }
@@ -304,7 +296,7 @@ export async function forceTriggerSaaSCostPipeline(
   orgSlug: string,
   startDate?: string
 ): Promise<PipelineTriggerResult> {
-  console.log(`[ForceTrigger] Forcing SaaS cost pipeline for ${orgSlug} from ${startDate || "month start"}`)
+  
 
   return triggerPipelineViaApi(
     orgSlug,
