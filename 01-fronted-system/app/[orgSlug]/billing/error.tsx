@@ -16,7 +16,6 @@ export default function BillingError({
   useEffect(() => {
     // Log the error for debugging (in production, send to error tracking service)
     if (process.env.NODE_ENV === "development") {
-      console.error("[v0] Billing page error:", error)
     }
     // In production, you would send this to your error tracking service (e.g., Sentry)
     // Example: captureException(error)

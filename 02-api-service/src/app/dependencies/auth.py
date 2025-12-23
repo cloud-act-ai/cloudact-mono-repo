@@ -15,16 +15,12 @@ from typing import Optional, Dict, Any, Set, List
 from pathlib import Path
 from datetime import datetime, date
 from fastapi import Header, HTTPException, status, Depends, BackgroundTasks
-from functools import lru_cache
 import logging
 from google.cloud import bigquery
-from google.cloud import kms
-from collections import defaultdict
 import threading
 
 from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
 from src.app.config import settings
-from src.core.exceptions import classify_exception
 from src.core.security.kms_encryption import decrypt_value
 
 logger = logging.getLogger(__name__)

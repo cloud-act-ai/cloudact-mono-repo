@@ -26,7 +26,6 @@ function verifyCronSecret(request: NextRequest): boolean {
   const expectedSecret = process.env.CRON_SECRET
 
   if (!expectedSecret) {
-    console.warn("[Cron] CRON_SECRET not configured - allowing access in development")
     return process.env.NODE_ENV === "development"
   }
 
@@ -58,7 +57,6 @@ export async function POST(request: NextRequest) {
     }
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Internal error"
-    console.error("[Cron] Billing sync error:", error)
     return NextResponse.json(
       { error: errorMessage },
       { status: 500 }
@@ -70,11 +68,7 @@ export async function POST(request: NextRequest) {
  * Process pending sync retries
  */
 async function handleRetry(limit: number = 10) {
-  console.log(`[Cron] Processing pending billing syncs (limit: ${limit})`)
-
   const result = await processPendingSyncs(limit)
-
-  console.log("[Cron] Retry results:", result)
 
   return NextResponse.json({
     action: "retry",
@@ -87,8 +81,6 @@ async function handleRetry(limit: number = 10) {
  * Full reconciliation: Compare Stripe subscriptions with Supabase and sync
  */
 async function handleReconciliation() {
-  console.log("[Cron] Starting full Stripe→Supabase reconciliation")
-
   const adminClient = createServiceRoleClient()
   const results = {
     checked: 0,
@@ -230,7 +222,6 @@ async function handleReconciliation() {
 
             if (syncResult.success) {
               results.synced++
-              console.log(`[Cron] Reconciled org: ${org.org_slug}`)
             } else {
               results.errors.push(`${org.org_slug}: Backend sync failed: ${syncResult.error}`)
             }
@@ -242,8 +233,6 @@ async function handleReconciliation() {
       }
     }
 
-    console.log("[Cron] Reconciliation complete:", results)
-
     return NextResponse.json({
       action: "reconcile",
       ...results,
@@ -251,7 +240,6 @@ async function handleReconciliation() {
     })
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error"
-    console.error("[Cron] Reconciliation error:", error)
     return NextResponse.json(
       { action: "reconcile", error: errorMessage },
       { status: 500 }

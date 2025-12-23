@@ -29,7 +29,6 @@ export async function POST(request: NextRequest) {
     })
 
     if (error) {
-      console.error("[v0] Password reset link generation failed:", error.message)
       // Don't expose whether user exists - always return success
       return NextResponse.json({
         success: true,
@@ -38,7 +37,6 @@ export async function POST(request: NextRequest) {
     }
 
     if (!data?.properties?.action_link) {
-      console.error("[v0] No action link returned from Supabase")
       return NextResponse.json({
         success: true,
         message: "If an account exists with this email, a password reset link will be sent."
@@ -52,7 +50,6 @@ export async function POST(request: NextRequest) {
     })
 
     if (!emailSent) {
-      console.error("[v0] Failed to send password reset email via SMTP")
       // Fall back to Supabase email as backup
       return NextResponse.json({
         success: true,
@@ -61,15 +58,12 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    console.log("[v0] Password reset email sent to:", email)
     return NextResponse.json({
       success: true,
       message: "Password reset link sent! Check your email."
     })
 
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error"
-    console.error("[v0] Password reset error:", errorMessage)
+  } catch {
     return NextResponse.json(
       { error: "Failed to process request" },
       { status: 500 }

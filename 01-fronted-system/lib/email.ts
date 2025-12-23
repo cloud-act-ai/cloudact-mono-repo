@@ -33,7 +33,6 @@ interface SendEmailOptions {
 
 export async function sendEmail({ to, subject, html, text }: SendEmailOptions): Promise<boolean> {
   if (!process.env.SMTP_USERNAME || !process.env.SMTP_PASSWORD) {
-    console.warn("[v0] SMTP not configured - email not sent to:", to)
     return false
   }
 
@@ -45,11 +44,8 @@ export async function sendEmail({ to, subject, html, text }: SendEmailOptions): 
       html,
       text: text || subject,
     })
-    console.log("[v0] Email sent successfully to:", to)
     return true
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Unknown error"
-    console.error("[v0] Email send failed:", message)
+  } catch {
     return false
   }
 }

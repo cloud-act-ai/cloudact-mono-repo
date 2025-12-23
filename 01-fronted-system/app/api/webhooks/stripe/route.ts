@@ -98,11 +98,6 @@ async function syncWithRetry(
     try {
       const result = await syncFn();
       if (result.success) {
-        if (attempt > 0) {
-          console.log(
-            `[Webhook] Backend sync succeeded on retry ${attempt} for ${context.orgSlug} (${context.operation})`,
-          );
-        }
         return result;
       }
       lastError = result.error;
@@ -117,15 +112,6 @@ async function syncWithRetry(
       );
     }
   }
-
-  // Log final failure with structured data for monitoring
-  console.error("[Webhook] Backend sync failed after retries", {
-    orgSlug: context.orgSlug,
-    operation: context.operation,
-    attempts: maxRetries + 1,
-    finalError: lastError,
-    timestamp: new Date().toISOString(),
-  });
 
   return { success: false, error: lastError };
 }
@@ -173,13 +159,11 @@ async function getPlanDetailsFromStripe(priceId: string): Promise<{
     const product = price.product;
 
     if (!product || typeof product === "string") {
-      console.error(`[Webhook] Could not expand product for price: ${priceId}`);
       return null;
     }
 
     // Check if product is deleted
     if (product.deleted) {
-      console.error(`[Webhook] Product ${product.id} has been deleted`);
       return null;
     }
 
@@ -230,11 +214,8 @@ async function getPlanDetailsFromStripe(priceId: string): Promise<{
       pipelines_per_day_limit: pipelinesLimit,
     };
 
-    console.log(`[Webhook] Fetched plan from Stripe: ${planId}`, limits);
-
     return { planId, limits };
-  } catch (err) {
-    console.error(`[Webhook] Failed to fetch plan details from Stripe:`, err);
+  } catch {
     return null;
   }
 }
@@ -247,7 +228,6 @@ export async function POST(request: NextRequest) {
     !contentType.includes("application/json") &&
     !contentType.includes("text/")
   ) {
-    console.error("[Webhook] Unexpected content-type:", contentType);
     return NextResponse.json(
       { error: "Invalid content type" },
       { status: 400 },
@@ -259,7 +239,6 @@ export async function POST(request: NextRequest) {
   const signature = headersList.get("stripe-signature");
 
   if (!signature) {
-    console.error("[Webhook] No signature provided");
     return NextResponse.json({ error: "No signature" }, { status: 400 });
   }
 
@@ -271,8 +250,7 @@ export async function POST(request: NextRequest) {
       signature,
       process.env.STRIPE_WEBHOOK_SECRET!,
     );
-  } catch (err) {
-    console.error("[Webhook] Signature verification failed:", err);
+  } catch {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
@@ -280,9 +258,6 @@ export async function POST(request: NextRequest) {
   // First check in-memory (fast path for same-instance duplicates)
   cleanOldEvents();
   if (processedEvents.has(event.id) || processingEvents.has(event.id)) {
-    console.log(
-      `[Stripe Webhook] Event ${event.id} already processed/processing (in-memory)`,
-    );
     return NextResponse.json({ received: true, skipped: "duplicate" });
   }
 
@@ -305,18 +280,11 @@ export async function POST(request: NextRequest) {
   if (claimError) {
     // If insert fails due to unique constraint, event was already claimed
     if (claimError.code === "23505") {
-      console.log(
-        `[Stripe Webhook] Event ${event.id} already claimed by another instance`,
-      );
       processedEvents.set(event.id, Date.now());
       processingEvents.delete(event.id);
       return NextResponse.json({ received: true, skipped: "duplicate" });
     }
-    // For other errors, log and fail fast (no fallback)
-    console.error(
-      `[Stripe Webhook] Failed to claim event ${event.id}:`,
-      claimError,
-    );
+    // For other errors, fail fast (no fallback)
     processingEvents.delete(event.id);
     throw new Error(`Failed to claim webhook event: ${claimError.message}`);
   }
@@ -326,8 +294,6 @@ export async function POST(request: NextRequest) {
   processingEvents.delete(event.id);
 
   try {
-    console.log(`[Webhook] Processing event: ${event.type} (${event.id})`);
-
     switch (event.type) {
       // =============================================
       // CHECKOUT COMPLETED - Initial subscription
@@ -338,10 +304,6 @@ export async function POST(request: NextRequest) {
 
         // Handle onboarding checkouts (org created on success page, not here)
         if (metadata?.is_onboarding === "true") {
-          console.log(
-            `[Webhook] Onboarding checkout completed for user: ${metadata.user_id}`,
-          );
-          console.log(`[Webhook] Org will be created on success page redirect`);
           // Skip processing - org creation happens on /onboarding/success page
           // via completeOnboarding() which verifies the session and creates the org
           break;
@@ -349,18 +311,14 @@ export async function POST(request: NextRequest) {
 
         // Regular checkout (org already exists)
         if (!metadata?.org_id) {
-          console.error("[Webhook] No org_id in checkout metadata");
           throw new Error("Missing org_id in checkout session metadata");
         }
 
         // Validate subscription ID exists
         const subscriptionId = session.subscription as string;
         if (!subscriptionId) {
-          console.error("[Webhook] No subscription ID in checkout session");
           throw new Error("Missing subscription ID in checkout session");
         }
-
-        console.log(`[Webhook] Checkout completed for org: ${metadata.org_id}`);
 
         // Get subscription details
         const subscription =
@@ -369,7 +327,6 @@ export async function POST(request: NextRequest) {
         // Validate subscription items exist
         const subscriptionItem = subscription.items?.data?.[0];
         if (!subscriptionItem?.price?.id) {
-          console.error("[Webhook] No price ID found in subscription items");
           throw new Error("No price ID found in subscription items");
         }
 
@@ -379,9 +336,6 @@ export async function POST(request: NextRequest) {
         const planDetails = await getPlanDetailsFromStripe(priceId);
 
         if (!planDetails) {
-          console.error(
-            `[Webhook] Could not get plan details for price: ${priceId}`,
-          );
           throw new Error(`Failed to fetch plan details for price: ${priceId}`);
         }
 
@@ -409,18 +363,12 @@ export async function POST(request: NextRequest) {
           .select();
 
         if (updateError) {
-          console.error("[Webhook] Failed to update org:", updateError);
           throw new Error(`Database update failed: ${updateError.message}`);
         }
 
         if (!updatedOrg || updatedOrg.length === 0) {
-          console.error(`[Webhook] Organization not found: ${metadata.org_id}`);
           throw new Error(`Organization not found: ${metadata.org_id}`);
         }
-
-        console.log(
-          `[Webhook] Organization ${metadata.org_id} activated with plan: ${planDetails.planId}`,
-        );
 
         // Sync subscription limits to backend BigQuery (with retry)
         // IMPORTANT: Always attempt sync when org_slug exists (not dependent on backend_onboarded)
@@ -452,31 +400,18 @@ export async function POST(request: NextRequest) {
           );
 
           if (syncResult.success) {
-            console.log(
-              `[Webhook] Backend subscription synced for org: ${updatedOrg[0].org_slug}`,
-            );
-
             // Update backend_quota_synced flag in Supabase
             await supabase
               .from("organizations")
               .update({ backend_quota_synced: true })
               .eq("id", metadata.org_id);
           } else {
-            console.error(
-              `[Webhook] Backend sync failed for org: ${updatedOrg[0].org_slug}`,
-              syncResult.error
-            );
-
             // Update backend_quota_synced flag to false
             await supabase
               .from("organizations")
               .update({ backend_quota_synced: false })
               .eq("id", metadata.org_id);
           }
-        } else {
-          console.warn(
-            `[Webhook] Cannot sync to backend: org_slug missing for org_id ${metadata.org_id}`,
-          );
         }
         break;
       }
@@ -490,7 +425,6 @@ export async function POST(request: NextRequest) {
         // Validate subscription items exist
         const subscriptionItem = subscription.items?.data?.[0];
         if (!subscriptionItem?.price?.id) {
-          console.error("[Webhook] No price ID found in subscription update");
           throw new Error("No price ID found in subscription update");
         }
 
@@ -500,9 +434,6 @@ export async function POST(request: NextRequest) {
         const planDetails = await getPlanDetailsFromStripe(priceId);
 
         if (!planDetails) {
-          console.error(
-            `[Webhook] Could not get plan details for price: ${priceId}`,
-          );
           throw new Error(`Failed to fetch plan details for price: ${priceId}`);
         }
 
@@ -542,11 +473,6 @@ export async function POST(request: NextRequest) {
           .select();
 
         if (updateError) {
-          console.error(
-            "[Webhook] Failed to update subscription by ID:",
-            updateError,
-          );
-
           // Try by customer ID as fallback
           const customerId = subscription.customer as string;
           if (customerId) {
@@ -557,10 +483,6 @@ export async function POST(request: NextRequest) {
               .select();
 
             if (fallbackError) {
-              console.error(
-                "[Webhook] Fallback update also failed:",
-                fallbackError,
-              );
               throw new Error(
                 `Database update failed: ${fallbackError.message}`,
               );
@@ -571,10 +493,6 @@ export async function POST(request: NextRequest) {
                 `Organization not found for customer: ${customerId}`,
               );
             }
-
-            console.log(
-              `[Webhook] Updated org via customer ID fallback: ${customerId}`,
-            );
 
             // Sync backend for fallback path (with retry)
             // IMPORTANT: Always attempt sync when org_slug exists
@@ -601,47 +519,27 @@ export async function POST(request: NextRequest) {
               );
 
               if (syncResult.success) {
-                console.log(
-                  `[Webhook] Backend subscription synced (fallback) for org: ${fallbackOrg[0].org_slug}`,
-                );
-
                 // Update backend_quota_synced flag
                 await supabase
                   .from("organizations")
                   .update({ backend_quota_synced: true })
                   .eq("stripe_customer_id", customerId);
               } else {
-                console.error(
-                  `[Webhook] Backend sync failed (fallback) for org: ${fallbackOrg[0].org_slug}`,
-                  syncResult.error
-                );
-
                 // Update backend_quota_synced flag to false
                 await supabase
                   .from("organizations")
                   .update({ backend_quota_synced: false })
                   .eq("stripe_customer_id", customerId);
               }
-            } else {
-              console.warn(
-                `[Webhook] Cannot sync to backend: org_slug missing for customer ${customerId}`,
-              );
             }
           } else {
             throw new Error(`Database update failed: ${updateError.message}`);
           }
         } else if (!updatedOrg || updatedOrg.length === 0) {
-          console.error(
-            `[Webhook] Organization not found for subscription: ${subscription.id}`,
-          );
           throw new Error(
             `Organization not found for subscription: ${subscription.id}`,
           );
         }
-
-        console.log(
-          `[Webhook] Subscription updated: ${subscription.id}, plan: ${planDetails.planId}, status: ${billingStatus}`,
-        );
 
         // Sync subscription limits to backend BigQuery (with retry)
         // Get org slug from either updatedOrg or fallbackOrg (whichever succeeded)
@@ -669,31 +567,18 @@ export async function POST(request: NextRequest) {
           );
 
           if (syncResult.success) {
-            console.log(
-              `[Webhook] Backend subscription synced for org: ${orgForSync.org_slug}`,
-            );
-
             // Update backend_quota_synced flag
             await supabase
               .from("organizations")
               .update({ backend_quota_synced: true })
               .eq("stripe_subscription_id", subscription.id);
           } else {
-            console.error(
-              `[Webhook] Backend sync failed for org: ${orgForSync.org_slug}`,
-              syncResult.error
-            );
-
             // Update backend_quota_synced flag to false
             await supabase
               .from("organizations")
               .update({ backend_quota_synced: false })
               .eq("stripe_subscription_id", subscription.id);
           }
-        } else {
-          console.warn(
-            `[Webhook] Cannot sync to backend: org_slug missing for subscription ${subscription.id}`,
-          );
         }
         break;
       }
@@ -720,11 +605,6 @@ export async function POST(request: NextRequest) {
         let orgForCancelSync = updatedOrg?.[0] || null;
 
         if (updateError) {
-          console.error(
-            "[Webhook] Failed to update canceled subscription by ID:",
-            updateError,
-          );
-
           // Try by customer ID as fallback
           const customerId = subscription.customer as string;
           if (customerId) {
@@ -735,10 +615,6 @@ export async function POST(request: NextRequest) {
               .select();
 
             if (fallbackError) {
-              console.error(
-                "[Webhook] Fallback cancel update also failed:",
-                fallbackError,
-              );
               throw new Error(
                 `Database update failed: ${fallbackError.message}`,
               );
@@ -751,23 +627,14 @@ export async function POST(request: NextRequest) {
             }
 
             orgForCancelSync = fallbackOrg[0];
-
-            console.log(
-              `[Webhook] Canceled subscription via customer ID fallback: ${customerId}`,
-            );
           } else {
             throw new Error(`Database update failed: ${updateError.message}`);
           }
         } else if (!updatedOrg || updatedOrg.length === 0) {
-          console.error(
-            `[Webhook] Organization not found for subscription: ${subscription.id}`,
-          );
           throw new Error(
             `Organization not found for subscription: ${subscription.id}`,
           );
         }
-
-        console.log(`[Webhook] Subscription canceled: ${subscription.id}`);
 
         // Sync cancellation to backend BigQuery (with retry)
         // IMPORTANT: Always attempt sync when org_slug exists
@@ -791,31 +658,18 @@ export async function POST(request: NextRequest) {
           );
 
           if (syncResult.success) {
-            console.log(
-              `[Webhook] Backend cancellation synced for org: ${orgForCancelSync.org_slug}`,
-            );
-
             // Update backend_quota_synced flag
             await supabase
               .from("organizations")
               .update({ backend_quota_synced: true })
               .eq("stripe_subscription_id", subscription.id);
           } else {
-            console.error(
-              `[Webhook] Backend cancellation sync failed for org: ${orgForCancelSync.org_slug}`,
-              syncResult.error
-            );
-
             // Update backend_quota_synced flag to false
             await supabase
               .from("organizations")
               .update({ backend_quota_synced: false })
               .eq("stripe_subscription_id", subscription.id);
           }
-        } else {
-          console.warn(
-            `[Webhook] Cannot sync cancellation to backend: org_slug missing for subscription ${subscription.id}`,
-          );
         }
         break;
       }
@@ -825,9 +679,6 @@ export async function POST(request: NextRequest) {
       // =============================================
       case "invoice.payment_succeeded": {
         const invoice = event.data.object;
-        console.log(
-          `[Webhook] Payment succeeded: ${invoice.id}, amount: ${(invoice.amount_paid || 0) / 100}`,
-        );
 
         // Update billing status to active if it was past_due
         const subscriptionId = getSubscriptionIdFromInvoice(invoice);
@@ -840,21 +691,12 @@ export async function POST(request: NextRequest) {
             })
             .eq("stripe_subscription_id", subscriptionId)
             .eq("billing_status", "past_due");
-
-          if (error) {
-            console.error(
-              "[Webhook] Failed to update payment succeeded status:",
-              error,
-            );
-            // Don't throw - this is a non-critical update
-          }
         }
         break;
       }
 
       case "invoice.payment_failed": {
         const invoice = event.data.object;
-        console.log(`[Webhook] Payment failed: ${invoice.id}`);
 
         // Update billing status to past_due
         const failedSubId = getSubscriptionIdFromInvoice(invoice);
@@ -869,16 +711,8 @@ export async function POST(request: NextRequest) {
             .select("org_name, org_slug")
             .single();
 
-          if (error) {
-            console.error(
-              "[Webhook] Failed to update payment failed status:",
-              error,
-            );
-            // Don't throw - this is a non-critical update
-          }
-
           // Send payment failed email to customer
-          if (invoice.customer_email && org) {
+          if (invoice.customer_email && org && !error) {
             const appUrl = process.env.NEXT_PUBLIC_APP_URL!;
             const billingLink = `${appUrl}/${org.org_slug}/billing`;
 
@@ -887,36 +721,17 @@ export async function POST(request: NextRequest) {
               orgName: org.org_name,
               billingLink,
             });
-            console.log(
-              `[Webhook] Payment failed email sent to ${invoice.customer_email}`,
-            );
           }
         }
         break;
       }
 
       case "invoice.created": {
-        const invoice = event.data.object as Stripe.Invoice;
-        console.log(`[Webhook] Invoice created: ${invoice.id}`);
-
-        // Log trial-to-paid transitions and subscription cycles
-        if (
-          invoice.billing_reason === "subscription_cycle" ||
-          invoice.billing_reason === "subscription_create"
-        ) {
-          const invoiceSubId = getSubscriptionIdFromInvoice(invoice);
-          console.log(
-            `[Webhook] Invoice for subscription ${invoiceSubId}, reason: ${invoice.billing_reason}`,
-          );
-        }
         break;
       }
 
       case "invoice.payment_action_required": {
         const invoice = event.data.object as Stripe.Invoice;
-        console.log(
-          `[Webhook] Payment action required for invoice: ${invoice.id}`,
-        );
 
         // Update billing status to indicate action required
         const actionSubId = getSubscriptionIdFromInvoice(invoice);
@@ -931,16 +746,8 @@ export async function POST(request: NextRequest) {
             .select("org_name, org_slug")
             .single();
 
-          if (error) {
-            console.error(
-              "[Webhook] Failed to update payment action required status:",
-              error,
-            );
-            // Don't throw - this is a non-critical update
-          }
-
           // Send notification email to customer about action required
-          if (invoice.customer_email && org) {
+          if (invoice.customer_email && org && !error) {
             const appUrl = process.env.NEXT_PUBLIC_APP_URL!;
             const billingLink = `${appUrl}/${org.org_slug}/billing`;
 
@@ -949,9 +756,6 @@ export async function POST(request: NextRequest) {
               orgName: org.org_name,
               billingLink,
             });
-            console.log(
-              `[Webhook] Payment action required email sent to ${invoice.customer_email}`,
-            );
           }
         }
         break;
@@ -965,10 +769,6 @@ export async function POST(request: NextRequest) {
         const trialEndDate = subscription.trial_end
           ? new Date(subscription.trial_end * 1000)
           : null;
-
-        console.log(
-          `[Webhook] Trial ending soon for subscription: ${subscription.id}`,
-        );
 
         // Update org with trial end date for UI display
         if (trialEndDate) {
@@ -1004,12 +804,8 @@ export async function POST(request: NextRequest) {
             }
           }
 
-          if (error) {
-            console.error("[Webhook] Failed to update trial end date:", error);
-          }
-
           // Send trial ending email notification
-          if (org) {
+          if (org && !error) {
             // Get customer email from Stripe
             const customerId = subscription.customer as string;
             if (customerId) {
@@ -1025,21 +821,13 @@ export async function POST(request: NextRequest) {
                     trialEndsAt: trialEndDate,
                     billingLink,
                   });
-                  console.log(
-                    `[Webhook] Trial ending email sent to ${customer.email}`,
-                  );
                 }
-              } catch (custErr) {
-                console.error(
-                  "[Webhook] Failed to fetch customer for trial email:",
-                  custErr,
-                );
+              } catch {
+                // Customer fetch failed
               }
             }
           }
         }
-
-        console.log(`[Webhook] Trial ends at: ${trialEndDate?.toISOString()}`);
         break;
       }
 
@@ -1047,15 +835,12 @@ export async function POST(request: NextRequest) {
       // CUSTOMER EVENTS - Customer management
       // =============================================
       case "customer.created": {
-        const customer = event.data.object;
-        console.log(`[Webhook] Customer created: ${customer.id}`);
         // Customer is linked during checkout, no action needed
         break;
       }
 
       case "customer.deleted": {
         const customer = event.data.object;
-        console.log(`[Webhook] Customer deleted: ${customer.id}`);
 
         // Atomic update - clear all Stripe references together (org remains, just unlinked from Stripe)
         const { data: updatedOrg, error } = await supabase
@@ -1069,22 +854,6 @@ export async function POST(request: NextRequest) {
           })
           .eq("stripe_customer_id", customer.id)
           .select();
-
-        if (error) {
-          console.error(
-            "[Webhook] Failed to clear customer references:",
-            error,
-          );
-          // Don't throw - the customer is already deleted in Stripe, this is cleanup
-        } else if (!updatedOrg || updatedOrg.length === 0) {
-          console.log(
-            `[Webhook] No organization found for deleted customer: ${customer.id}`,
-          );
-        } else {
-          console.log(
-            `[Webhook] Cleared Stripe references for customer: ${customer.id}`,
-          );
-        }
         break;
       }
 
@@ -1092,41 +861,18 @@ export async function POST(request: NextRequest) {
       // CHARGE EVENTS - Refunds tracking
       // =============================================
       case "charge.refunded": {
-        const charge = event.data.object as Stripe.Charge;
-        console.log(
-          `[Webhook] Charge refunded: ${charge.id}, amount: ${charge.amount_refunded}`,
-        );
-
         // Log refund details for tracking
         // In the future, could update a credits table if you track credits
-        if (charge.customer) {
-          const { data: org } = await supabase
-            .from("organizations")
-            .select("org_name, org_slug")
-            .eq("stripe_customer_id", charge.customer as string)
-            .single();
-
-          if (org) {
-            console.log(
-              `[Webhook] Refund issued to organization: ${org.org_name} (${org.org_slug})`,
-            );
-          }
-        }
         break;
       }
 
       default:
-        console.log(`[Webhook] Unhandled event type: ${event.type}`);
+        // Unhandled event type
+        break;
     }
 
     return NextResponse.json({ received: true });
-  } catch (error) {
-    console.error("[Stripe Webhook] Error processing event:", {
-      eventId: event.id,
-      eventType: event.type,
-      error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-    });
+  } catch {
     return NextResponse.json(
       { error: "Webhook processing failed" },
       { status: 500 },

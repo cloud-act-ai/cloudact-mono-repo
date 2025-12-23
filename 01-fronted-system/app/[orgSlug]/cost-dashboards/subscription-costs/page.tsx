@@ -159,8 +159,7 @@ export default function SubscriptionCostsPage() {
       if (orgResult.data?.locale_currency) {
         setOrgCurrency(orgResult.data.locale_currency)
       }
-    } catch (err) {
-      console.error("Error loading subscription data:", err)
+    } catch {
       setError("Failed to load subscription data. Please try again.")
       setPlans([])
       setPlanSummary(null)

@@ -34,7 +34,7 @@ class TestRunner:
     Usage:
         runner = TestRunner()
         results = await runner.run_all()
-        print(runner.format_results(results))
+        logger.info(runner.format_results(results))
 
     Or run specific test:
         results = await runner.run_test_class(TestOpenAIUsage)
@@ -260,6 +260,7 @@ def main():
     results = asyncio.run(runner.run_all())
 
     # Print results
+    # Using print here is appropriate for CLI output
     print(runner.format_results(results))
 
     # Exit with error code if any tests failed

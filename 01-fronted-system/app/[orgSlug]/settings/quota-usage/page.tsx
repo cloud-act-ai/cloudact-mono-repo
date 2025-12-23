@@ -42,7 +42,6 @@ export default function QuotaUsagePage() {
         setError(result.error || "Failed to load quota information")
       }
     } catch (err: unknown) {
-      console.error("Failed to load quota limits:", err)
       setError("Failed to load quota information")
     } finally {
       setIsLoading(false)

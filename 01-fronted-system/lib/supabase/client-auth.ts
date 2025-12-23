@@ -15,8 +15,6 @@ export async function getClientUser(redirectPath?: string) {
     const { data: { user }, error } = await supabase.auth.getUser()
 
     if (error) {
-      console.error("[ClientAuth] Auth error:", error.message, error.code)
-
       // Check for refresh token errors or auth failures
       const isAuthError =
         error.message?.includes("Refresh Token") ||
@@ -43,9 +41,7 @@ export async function getClientUser(redirectPath?: string) {
     }
 
     return user
-  } catch (err) {
-    console.error("[ClientAuth] Unexpected error:", err)
-
+  } catch {
     // On unexpected errors, redirect to login
     if (typeof window !== "undefined" && redirectPath) {
       window.location.href = `/login?redirectTo=${encodeURIComponent(redirectPath)}&reason=auth_error`

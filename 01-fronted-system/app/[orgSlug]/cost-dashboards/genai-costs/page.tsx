@@ -122,7 +122,6 @@ export default function GenAICostsPage() {
       })
       setUsageRecords([])
     } catch (err) {
-      console.error("Error loading LLM usage data:", err)
       setError("Failed to load GenAI cost data. Please try again.")
     } finally {
       setIsLoading(false)

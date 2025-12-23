@@ -246,7 +246,6 @@ export default function ProviderDetailPage() {
       }
     } catch (err) {
       // Handle unexpected errors during parallel fetching
-      console.error("Error loading provider data:", err)
       if (!isMounted || isMounted()) {
         setError("Failed to load provider data. Please try again.")
         setPlans([])
@@ -275,7 +274,6 @@ export default function ProviderDetailPage() {
         setAvailablePlans([])
       }
     } catch (err) {
-      console.error("Failed to load templates:", err)
       setAvailablePlans([])
     } finally {
       setLoadingTemplates(false)

@@ -90,7 +90,6 @@ function SuccessContent() {
       }, 2000)
 
     } catch (err: unknown) {
-      console.error("[v0] Checkout processing error:", err)
       setStatus("error")
       setError(err instanceof Error ? err.message : "Something went wrong. Please contact support.")
     } finally {

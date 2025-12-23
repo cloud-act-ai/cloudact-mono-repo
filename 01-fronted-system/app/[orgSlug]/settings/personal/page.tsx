@@ -244,7 +244,6 @@ export default function PersonalSettingsPage() {
         setOwnedOrgs(result.data)
       }
     } catch (err: unknown) {
-      console.error("Failed to load owned orgs:", err)
     } finally {
       setLoadingOwnedOrgs(false)
     }

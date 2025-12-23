@@ -58,10 +58,6 @@ export default function ResetPasswordPage() {
           .limit(1)
           .maybeSingle()
 
-        if (memberError) {
-          console.error("[Auth] Failed to fetch membership:", memberError.message)
-        }
-
         if (memberData?.organizations) {
           const orgs = Array.isArray(memberData.organizations) ? memberData.organizations[0] : memberData.organizations
           const org = orgs as { org_slug: string }
@@ -72,9 +68,8 @@ export default function ResetPasswordPage() {
 
       // No org found, go to onboarding
       router.push("/onboarding/billing")
-    } catch (err: unknown) {
+    } catch {
       // Use generic error message for security
-      console.error("[Auth] Reset password error:", err instanceof Error ? err.message : "Unknown error")
       setError("Failed to reset password. Please request a new reset link.")
     } finally {
       setIsLoading(false)

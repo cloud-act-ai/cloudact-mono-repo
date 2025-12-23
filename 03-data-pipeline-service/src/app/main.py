@@ -11,6 +11,7 @@ import time
 import logging
 import signal
 import asyncio
+import os
 from typing import Optional
 
 from src.app.config import settings

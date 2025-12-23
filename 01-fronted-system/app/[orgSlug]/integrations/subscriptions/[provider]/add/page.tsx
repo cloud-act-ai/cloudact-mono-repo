@@ -143,7 +143,6 @@ export default function AddFromTemplatePage() {
         }
       }
     } catch (err) {
-      console.error("Error loading template data:", err)
       if (!isMounted || isMounted()) {
         setTemplateError("Failed to load template data. Please try again.")
         setAvailablePlans([])

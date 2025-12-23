@@ -48,11 +48,6 @@ export function createServiceRoleClient() {
     throw new Error("Missing Supabase environment variables: NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY")
   }
 
-  // Log usage in development for auditing
-  if (process.env.NODE_ENV === 'development') {
-    console.log('[AUDIT] Service role client created - ensure this is server-side only')
-  }
-
   return createSupabaseClient(supabaseUrl, serviceRoleKey, {
     auth: {
       autoRefreshToken: false,

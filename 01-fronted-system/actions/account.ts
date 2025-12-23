@@ -61,10 +61,10 @@ async function cleanupExpiredTokens(): Promise<void> {
       .lt("expires_at", new Date().toISOString())
 
     if (error) {
-      console.error("[Account] Failed to cleanup expired tokens:", error)
+      // Token cleanup failed
     }
-  } catch (err) {
-    console.error("[Account] Error cleaning up tokens:", err)
+  } catch {
+    // Error cleaning up tokens
   }
 }
 
@@ -90,12 +90,10 @@ async function storeDeletionToken(
       })
 
     if (error) {
-      console.error("[Account] Failed to store deletion token:", error)
       return false
     }
     return true
-  } catch (err) {
-    console.error("[Account] Error storing deletion token:", err)
+  } catch {
     return false
   }
 }
@@ -123,7 +121,6 @@ async function consumeDeletionToken(
       .maybeSingle()
 
     if (error) {
-      console.error("[Account] Error consuming deletion token:", error)
       return null
     }
 
@@ -133,8 +130,7 @@ async function consumeDeletionToken(
     }
 
     return { userId: data.user_id, email: data.email }
-  } catch (err) {
-    console.error("[Account] Error consuming deletion token:", err)
+  } catch {
     return null
   }
 }
@@ -180,7 +176,6 @@ export async function getOwnedOrganizations(): Promise<{
       .eq("status", "active")
 
     if (ownerError) {
-      console.error("[Account] Error fetching ownerships:", ownerError)
       return { success: false, error: "Failed to fetch organizations" }
     }
 
@@ -221,7 +216,6 @@ export async function getOwnedOrganizations(): Promise<{
 
     return { success: true, data: orgsWithCounts }
   } catch (err: unknown) {
-    console.error("[Account] getOwnedOrganizations error:", err)
     const errorMessage = err instanceof Error ? err.message : "Failed to fetch organizations"
     return { success: false, error: errorMessage }
   }
@@ -302,7 +296,6 @@ export async function getEligibleTransferMembers(orgId: string): Promise<{
 
     return { success: true, data: membersWithProfiles }
   } catch (err: unknown) {
-    console.error("[Account] getEligibleTransferMembers error:", err)
     const errorMessage = err instanceof Error ? err.message : "Failed to fetch members"
     return { success: false, error: errorMessage }
   }
@@ -372,7 +365,6 @@ export async function transferOwnership(
       .eq("id", currentOwnership.id)
 
     if (demoteError) {
-      console.error("[Account] Demote owner error:", demoteError)
       return { success: false, error: "Failed to transfer ownership" }
     }
 
@@ -388,7 +380,6 @@ export async function transferOwnership(
         .from("organization_members")
         .update({ role: "owner" })
         .eq("id", currentOwnership.id)
-      console.error("[Account] Promote new owner error:", promoteError)
       return { success: false, error: "Failed to transfer ownership" }
     }
 
@@ -408,24 +399,14 @@ export async function transferOwnership(
       status: "success",
     })).then(({ error }) => {
       if (error) {
-        // Validate error structure before logging
-        const errorMsg = error && typeof error === 'object' && 'message' in error
-          ? String(error.message)
-          : "Unknown error structure"
-        console.error("[Account] Failed to log ownership transfer:", errorMsg)
+        // Activity log failed
       }
-    }).catch((err: unknown) => {
-      // Validate error structure before logging
-      const errorMsg = err && typeof err === 'object' && 'message' in err
-        ? String((err as Error).message)
-        : String(err)
-      console.error("[Account] Activity log promise rejected:", errorMsg)
+    }).catch(() => {
+      // Activity log promise rejected
     })
 
-    console.log(`[Account] Ownership transferred for org ${orgId} from ${user.id} to ${newOwnerId}`)
     return { success: true }
   } catch (err: unknown) {
-    console.error("[Account] transferOwnership error:", err)
     const errorMessage = err instanceof Error ? err.message : "Failed to transfer ownership"
     return { success: false, error: errorMessage }
   }
@@ -502,9 +483,7 @@ export async function deleteOrganization(
       try {
         const stripe = (await import("@/lib/stripe")).stripe
         await stripe.subscriptions.cancel(org.stripe_subscription_id)
-        console.log(`[Account] Cancelled Stripe subscription: ${org.stripe_subscription_id}`)
-      } catch (stripeErr: unknown) {
-        console.error("[Account] Stripe cancellation error:", stripeErr)
+      } catch {
         // Continue with deletion even if Stripe fails
       }
     }
@@ -535,7 +514,6 @@ export async function deleteOrganization(
       .eq("id", orgId)
 
     if (deleteError) {
-      console.error("[Account] Delete org error:", deleteError)
       return { success: false, error: "Failed to delete organization" }
     }
 
@@ -547,24 +525,18 @@ export async function deleteOrganization(
         const adminApiKey = process.env.CA_ROOT_API_KEY
         if (adminApiKey) {
           const backendClient = getPipelineBackendClient({ adminApiKey })
-          const backendResult = await backendClient.deleteOrganization(
+          await backendClient.deleteOrganization(
             org.org_slug,
             true // Delete the BigQuery dataset as well
           )
-          console.log(`[Account] Backend offboarding completed:`, backendResult)
-        } else {
-          console.warn("[Account] CA_ROOT_API_KEY not set, skipping backend offboarding")
         }
-      } catch (backendErr: unknown) {
+      } catch {
         // Log but don't fail - Supabase deletion succeeded
-        console.error("[Account] Backend offboarding error (continuing anyway):", backendErr)
       }
     }
 
-    console.log(`[Account] Organization ${org.org_name} (${orgId}) deleted by user ${user.id}`)
     return { success: true }
   } catch (err: unknown) {
-    console.error("[Account] deleteOrganization error:", err)
     const errorMessage = err instanceof Error ? err.message : "Failed to delete organization"
     return { success: false, error: errorMessage }
   }
@@ -635,9 +607,8 @@ export async function requestAccountDeletion(): Promise<{
         `,
         text: `Account Deletion Request\n\nYou have requested to delete your CloudAct.ai account.\n\nThis action is permanent and cannot be undone.\n\nIf you want to proceed, visit this link within 30 minutes:\n${deleteLink}\n\nIf you did not request this, you can safely ignore this email.`,
       })
-      console.log("[Account] Deletion verification email sent to:", user.email)
     } catch {
-      console.warn("[Account] Email send failed, providing direct link")
+      // Email send failed, providing direct link
     }
 
     // Log the deletion request
@@ -658,7 +629,6 @@ export async function requestAccountDeletion(): Promise<{
       message: "A verification email has been sent to your email address. Please check your inbox and click the link to confirm deletion.",
     }
   } catch (err: unknown) {
-    console.error("[Account] requestAccountDeletion error:", err)
     const errorMessage = err instanceof Error ? err.message : "Failed to request account deletion"
     return { success: false, error: errorMessage }
   }
@@ -747,16 +717,13 @@ export async function confirmAccountDeletion(token: string): Promise<{
     const { error: authDeleteError } = await adminClient.auth.admin.deleteUser(userId)
 
     if (authDeleteError) {
-      console.error("[Account] Auth user deletion failed:", authDeleteError)
       // Continue anyway - profile is anonymized
     }
 
     // Token already consumed by consumeDeletionToken above
 
-    console.log(`[Account] Account deleted: ${userId} (${profile?.email})`)
     return { success: true }
   } catch (err: unknown) {
-    console.error("[Account] confirmAccountDeletion error:", err)
     const errorMessage = err instanceof Error ? err.message : "Failed to delete account"
     return { success: false, error: errorMessage }
   }
@@ -836,23 +803,14 @@ export async function leaveOrganization(orgSlug: string): Promise<{
       status: "success",
     })).then(({ error }) => {
       if (error) {
-        // Validate error structure before logging
-        const errorMsg = error && typeof error === 'object' && 'message' in error
-          ? String(error.message)
-          : "Unknown error structure"
-        console.error("[Account] Failed to log member leaving:", errorMsg)
+        // Activity log failed
       }
-    }).catch((err: unknown) => {
-      // Validate error structure before logging
-      const errorMsg = err && typeof err === 'object' && 'message' in err
-        ? String((err as Error).message)
-        : String(err)
-      console.error("[Account] Activity log promise rejected:", errorMsg)
+    }).catch(() => {
+      // Activity log promise rejected
     })
 
     return { success: true }
   } catch (err: unknown) {
-    console.error("[Account] leaveOrganization error:", err)
     const errorMessage = err instanceof Error ? err.message : "Failed to leave organization"
     return { success: false, error: errorMessage }
   }

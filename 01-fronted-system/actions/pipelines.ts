@@ -219,11 +219,11 @@ export async function getAvailablePipelines(): Promise<{
     pipelinesCache.clear()
 
     // Fall back to hardcoded defaults if API fails
-    console.error("[Pipelines] Failed to fetch from API, using defaults")
+    
     return { success: true, pipelines: FALLBACK_PIPELINES }
   } catch (err: unknown) {
     const errorMessage = err instanceof Error ? err.message : "Unknown error"
-    console.error("[Pipelines] Error fetching pipelines:", errorMessage)
+    
     // Clear cache on error
     pipelinesCache.clear()
     // Fall back to hardcoded defaults
@@ -428,7 +428,7 @@ export async function runPipeline(
       result: response.result,
     }
   } catch (err: unknown) {
-    console.error(`[Pipelines] Run error:`, err)
+    
     const errorMessage = err instanceof Error && 'detail' in err
       ? (err as Error & { detail?: string }).detail
       : err instanceof Error
@@ -528,7 +528,7 @@ export async function getPipelineRuns(
       data: response,
     }
   } catch (err: unknown) {
-    console.error(`[Pipelines] Get runs error:`, err)
+    
     const errorMessage = err instanceof Error && 'detail' in err
       ? (err as Error & { detail?: string }).detail
       : err instanceof Error
@@ -601,7 +601,7 @@ export async function getPipelineRunDetail(
       data: response,
     }
   } catch (err: unknown) {
-    console.error(`[Pipelines] Get run detail error:`, err)
+    
     const errorMessage = err instanceof Error && 'detail' in err
       ? (err as Error & { detail?: string }).detail
       : err instanceof Error

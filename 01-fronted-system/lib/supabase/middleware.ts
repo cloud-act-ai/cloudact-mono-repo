@@ -47,8 +47,6 @@ export async function updateSession(request: NextRequest) {
 
     // If auth error (invalid refresh token, expired session, etc.), clear cookies and redirect to login
     if (error) {
-      console.error("[Middleware] Auth error:", error.message, error.code)
-
       // Clear all Supabase auth cookies to prevent repeated errors
       const url = request.nextUrl.clone()
       url.pathname = "/login"
@@ -78,10 +76,8 @@ export async function updateSession(request: NextRequest) {
 
     // User is authenticated, continue with the refreshed session
     return supabaseResponse
-  } catch (error) {
+  } catch {
     // Catch any unexpected errors during auth (network errors, etc.)
-    console.error("[Middleware] Unexpected auth error:", error)
-
     // Clear cookies and redirect to login
     const url = request.nextUrl.clone()
     url.pathname = "/login"

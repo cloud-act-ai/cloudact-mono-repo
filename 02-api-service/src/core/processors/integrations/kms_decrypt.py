@@ -10,7 +10,7 @@ To add a new provider: just update providers.yml - no code changes needed.
 
 import json
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 from google.cloud import bigquery
 
 from src.core.engine.bq_client import BigQueryClient

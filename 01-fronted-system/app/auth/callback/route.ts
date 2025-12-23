@@ -12,7 +12,6 @@ export async function GET(request: Request) {
     const { error: sessionError } = await supabase.auth.exchangeCodeForSession(code)
 
     if (sessionError) {
-      console.error("[Auth Callback] Session exchange failed:", sessionError.message)
       return NextResponse.redirect(`${origin}/auth/auth-code-error`)
     }
 
@@ -26,7 +25,6 @@ export async function GET(request: Request) {
       const { data: { user }, error: userError } = await supabase.auth.getUser()
 
       if (userError) {
-        console.error("[Auth Callback] Get user failed:", userError.message)
         return NextResponse.redirect(`${origin}/auth/auth-code-error`)
       }
 
@@ -41,7 +39,6 @@ export async function GET(request: Request) {
           .maybeSingle()
 
         if (membershipError) {
-          console.error("[Auth Callback] Membership query failed:", membershipError.message)
           // Still redirect to onboarding on error - user can recover from there
           redirectPath = "/onboarding/billing"
         } else if (membership?.organizations) {

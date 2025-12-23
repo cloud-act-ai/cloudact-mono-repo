@@ -206,7 +206,7 @@ export async function getOrgLocale(orgSlug: string): Promise<GetOrgLocaleResult>
       .single()
 
     if (error || !data) {
-      console.error("[Org Locale] Failed to fetch locale:", error)
+      
       return { success: false, error: "Failed to fetch organization locale" }
     }
 
@@ -225,7 +225,7 @@ export async function getOrgLocale(orgSlug: string): Promise<GetOrgLocaleResult>
       },
     }
   } catch (err: unknown) {
-    console.error("[Org Locale] Get locale error:", err)
+    
     const errorMessage = err instanceof Error ? err.message : "Failed to get organization locale"
     return {
       success: false,
@@ -251,7 +251,7 @@ async function syncLocaleToBackend(
   const backendUrl = process.env.API_SERVICE_URL || process.env.NEXT_PUBLIC_API_SERVICE_URL
 
   if (!backendUrl) {
-    console.warn("[Org Locale] No backend URL configured, skipping BigQuery sync")
+    
     return { success: true } // Skip if no backend configured
   }
 
@@ -292,7 +292,7 @@ async function syncLocaleToBackend(
       clearTimeout(timeoutId)
 
       if (response.ok) {
-        console.log(`[Org Locale] Backend sync succeeded (attempt ${attempt})`)
+        `)
         return { success: true }
       }
 
@@ -305,7 +305,7 @@ async function syncLocaleToBackend(
       } catch {
         lastError = `HTTP ${response.status} - Unable to parse error response`
       }
-      console.warn(`[Org Locale] Backend sync attempt ${attempt} failed: ${lastError}`)
+      
 
     } catch (fetchErr: unknown) {
       const error = fetchErr as { name?: string; message?: string }
@@ -314,7 +314,7 @@ async function syncLocaleToBackend(
       } else {
         lastError = error.message || "Network error"
       }
-      console.warn(`[Org Locale] Backend sync attempt ${attempt} error: ${lastError}`)
+      
     }
 
     // Wait before retry (exponential backoff)
@@ -431,7 +431,7 @@ export async function validateLocaleSync(orgSlug: string): Promise<{
       }
 
       if (mismatch.length > 0) {
-        console.warn(`[Org Locale] Sync mismatch for ${orgSlug}:`, mismatch)
+        
       }
 
       return {
@@ -442,12 +442,12 @@ export async function validateLocaleSync(orgSlug: string): Promise<{
       }
 
     } catch (fetchErr) {
-      console.error("[Org Locale] Failed to validate sync:", fetchErr)
+      
       return { inSync: false, supabase: supabaseLocale, error: "Failed to connect to backend" }
     }
 
   } catch (err: unknown) {
-    console.error("[Org Locale] Validate sync error:", err)
+    
     return { inSync: false, error: err instanceof Error ? err.message : "Validation failed" }
   }
 }
@@ -490,11 +490,11 @@ export async function repairLocaleSync(orgSlug: string): Promise<{
       return { success: false, error: result.error }
     }
 
-    console.log(`[Org Locale] Repaired sync for ${orgSlug}`)
+    
     return { success: true, repaired: true }
 
   } catch (err: unknown) {
-    console.error("[Org Locale] Repair sync error:", err)
+    
     return { success: false, error: err instanceof Error ? err.message : "Repair failed" }
   }
 }
@@ -529,7 +529,7 @@ export async function updateOrgLocale(
     const backendResult = await syncLocaleToBackend(orgSlug, currency, timezone)
 
     if (!backendResult.success) {
-      console.error("[Org Locale] Backend sync failed, aborting Supabase update")
+      
       return {
         success: false,
         error: `Failed to sync locale to backend: ${backendResult.error}. Please try again.`
@@ -547,17 +547,17 @@ export async function updateOrgLocale(
       .eq("org_slug", orgSlug)
 
     if (supabaseError) {
-      console.error("[Org Locale] Failed to update Supabase:", supabaseError)
+      
       // BigQuery was updated but Supabase failed - log warning but still return success
       // because BigQuery is the source of truth for cost calculations
-      console.warn("[Org Locale] BigQuery updated but Supabase failed - may need manual sync")
+      
       return {
         success: false,
         error: "Failed to update frontend settings. Backend was updated successfully."
       }
     }
 
-    console.log("[Org Locale] Both BigQuery and Supabase updated successfully")
+    
 
     // Step 5: Return success with updated locale
     return {
@@ -568,7 +568,7 @@ export async function updateOrgLocale(
       },
     }
   } catch (err: unknown) {
-    console.error("[Org Locale] Update locale error:", err)
+    
     const errorMessage = err instanceof Error ? err.message : "Failed to update organization locale"
     return {
       success: false,
@@ -623,18 +623,18 @@ export async function updateFiscalYear(
       .eq("org_slug", orgSlug)
 
     if (supabaseError) {
-      console.error("[Org Fiscal Year] Failed to update:", supabaseError)
+      
       return { success: false, error: "Failed to update fiscal year start" }
     }
 
-    console.log(`[Org Fiscal Year] Updated fiscal year start to month ${fiscalYearStartMonth} for ${orgSlug}`)
+    
 
     return {
       success: true,
       fiscal_year_start_month: fiscalYearStartMonth,
     }
   } catch (err: unknown) {
-    console.error("[Org Fiscal Year] Update error:", err)
+    
     const errorMessage = err instanceof Error ? err.message : "Failed to update fiscal year start"
     return { success: false, error: errorMessage }
   }
@@ -706,7 +706,7 @@ export async function getOrgLogo(orgSlug: string): Promise<GetOrgLogoResult> {
       .single()
 
     if (error || !data) {
-      console.error("[Org Logo] Failed to fetch logo:", error)
+      
       return { success: false, error: "Failed to fetch organization logo" }
     }
 
@@ -715,7 +715,7 @@ export async function getOrgLogo(orgSlug: string): Promise<GetOrgLogoResult> {
       logoUrl: data.logo_url || null,
     }
   } catch (err: unknown) {
-    console.error("[Org Logo] Get logo error:", err)
+    
     const errorMessage = err instanceof Error ? err.message : "Failed to get organization logo"
     return { success: false, error: errorMessage }
   }
@@ -758,18 +758,18 @@ export async function updateOrgLogo(
       .eq("org_slug", orgSlug)
 
     if (updateError) {
-      console.error("[Org Logo] Failed to update logo:", updateError)
+      
       return { success: false, error: "Failed to update organization logo" }
     }
 
-    console.log(`[Org Logo] Updated logo for ${orgSlug}`)
+    
 
     return {
       success: true,
       logoUrl: logoUrl?.trim() || undefined,
     }
   } catch (err: unknown) {
-    console.error("[Org Logo] Update logo error:", err)
+    
     const errorMessage = err instanceof Error ? err.message : "Failed to update organization logo"
     return { success: false, error: errorMessage }
   }
@@ -814,7 +814,7 @@ export async function getOrgDetails(orgSlug: string): Promise<{
       .single()
 
     if (error || !data) {
-      console.error("[Org Details] Failed to fetch org:", error)
+      
       return { success: false, error: "Failed to fetch organization details" }
     }
 
@@ -834,7 +834,7 @@ export async function getOrgDetails(orgSlug: string): Promise<{
       },
     }
   } catch (err: unknown) {
-    console.error("[Org Details] Get details error:", err)
+    
     const errorMessage = err instanceof Error ? err.message : "Failed to get organization details"
     return { success: false, error: errorMessage }
   }
@@ -884,7 +884,7 @@ export async function getOrgContactDetails(orgSlug: string): Promise<GetOrgConta
       .single()
 
     if (error || !data) {
-      console.error("[Org Contact] Failed to fetch contact details:", error)
+      
       return { success: false, error: "Failed to fetch organization contact details" }
     }
 
@@ -905,7 +905,7 @@ export async function getOrgContactDetails(orgSlug: string): Promise<GetOrgConta
       },
     }
   } catch (err: unknown) {
-    console.error("[Org Contact] Get contact details error:", err)
+    
     const errorMessage = err instanceof Error ? err.message : "Failed to get organization contact details"
     return { success: false, error: errorMessage }
   }
@@ -1015,11 +1015,11 @@ export async function updateOrgContactDetails(
       .eq("org_slug", orgSlug)
 
     if (updateError) {
-      console.error("[Org Contact] Failed to update contact details:", updateError)
+      
       return { success: false, error: "Failed to update organization contact details" }
     }
 
-    console.log(`[Org Contact] Updated contact details for ${orgSlug}`)
+    
 
     // Return updated data
     return {
@@ -1039,7 +1039,7 @@ export async function updateOrgContactDetails(
       },
     }
   } catch (err: unknown) {
-    console.error("[Org Contact] Update contact details error:", err)
+    
     const errorMessage = err instanceof Error ? err.message : "Failed to update organization contact details"
     return { success: false, error: errorMessage }
   }
@@ -1098,7 +1098,7 @@ export async function getOrgQuotaLimits(orgSlug: string): Promise<GetOrgQuotaLim
       .single()
 
     if (orgError || !org) {
-      console.error("[Org Quota] Failed to fetch organization:", orgError)
+      
       return { success: false, error: "Failed to fetch organization quota limits" }
     }
 
@@ -1110,7 +1110,7 @@ export async function getOrgQuotaLimits(orgSlug: string): Promise<GetOrgQuotaLim
       .eq("status", "active")
 
     if (memberError) {
-      console.error("[Org Quota] Failed to count members:", memberError)
+      
       return { success: false, error: "Failed to count team members" }
     }
 
@@ -1137,7 +1137,7 @@ export async function getOrgQuotaLimits(orgSlug: string): Promise<GetOrgQuotaLim
       },
     }
   } catch (err: unknown) {
-    console.error("[Org Quota] Get quota limits error:", err)
+    
     const errorMessage = err instanceof Error ? err.message : "Failed to get organization quota limits"
     return { success: false, error: errorMessage }
   }

@@ -117,8 +117,7 @@ export default function CloudCostsPage() {
         services_count: 0,
       })
       setCostRecords([])
-    } catch (err) {
-      console.error("Error loading cloud cost data:", err)
+    } catch {
       setError("Failed to load cloud cost data. Please try again.")
     } finally {
       setIsLoading(false)

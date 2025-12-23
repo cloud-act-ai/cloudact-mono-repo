@@ -108,9 +108,6 @@ export function convertCurrency(
   const toRate = EXCHANGE_RATES[toCurrency]
 
   if (!fromRate || !toRate) {
-    console.warn(
-      `Unknown currency: ${!fromRate ? fromCurrency : toCurrency}. Returning original amount.`
-    )
     return amount
   }
 
@@ -149,9 +146,6 @@ export async function convertCurrencyAsync(
     const toRate = rates[toCurrency]
 
     if (!fromRate || !toRate) {
-      console.warn(
-        `Unknown currency: ${!fromRate ? fromCurrency : toCurrency}. Returning original amount.`
-      )
       return amount
     }
 
@@ -161,8 +155,7 @@ export async function convertCurrencyAsync(
 
     // Round to 2 decimals
     return Math.round(converted * 100) / 100
-  } catch (error) {
-    console.error("Failed to convert currency using CSV:", error)
+  } catch {
     return convertCurrency(amount, fromCurrency, toCurrency)
   }
 }
@@ -259,8 +252,7 @@ export function getExchangeRate(currency: string): number {
 export async function getExchangeRateAsync(currency: string): Promise<number> {
   try {
     return await getExchangeRateFromCSV(currency)
-  } catch (error) {
-    console.error("Failed to load exchange rate from CSV:", error)
+  } catch {
     return EXCHANGE_RATES[currency] ?? 1.0
   }
 }
@@ -297,8 +289,7 @@ export async function getSupportedCurrenciesAsync(): Promise<string[]> {
   try {
     const rates = await loadExchangeRates()
     return rates.map((r) => r.currency_code)
-  } catch (error) {
-    console.error("Failed to load supported currencies from CSV:", error)
+  } catch {
     return getSupportedCurrencies()
   }
 }

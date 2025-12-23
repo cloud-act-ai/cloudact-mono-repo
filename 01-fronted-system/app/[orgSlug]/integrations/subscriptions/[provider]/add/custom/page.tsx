@@ -141,7 +141,6 @@ export default function AddCustomSubscriptionPage() {
           }))
         }
       } catch (err) {
-        console.error("Failed to load org currency:", err)
         // Default to USD on error, and set default numeric values
         setFormData(prev => ({
           ...prev,

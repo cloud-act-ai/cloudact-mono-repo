@@ -22,7 +22,7 @@ Usage:
 import yaml
 import logging
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Union
+from typing import Dict, List, Optional, Union
 from dataclasses import dataclass, field
 from functools import lru_cache
 
