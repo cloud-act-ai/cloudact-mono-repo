@@ -197,7 +197,6 @@ export default function OrganizationSettingsPage() {
       setApiKeyValid(result.apiKeyValid)
       setBackendError(result.error || null)
     } catch (err: unknown) {
-      console.error("Failed to load backend status:", err)
       setBackendError("Failed to check backend connection status")
     } finally {
       setLoadingBackendStatus(false)
@@ -1714,7 +1713,8 @@ export default function OrganizationSettingsPage() {
                 variant="destructive"
                 onClick={handleDeleteOrg}
                 disabled={
-                  deleteConfirmName.toLowerCase() !== selectedOrgForDelete?.org_name.toLowerCase() ||
+                  !selectedOrgForDelete?.org_name ||
+                  deleteConfirmName.toLowerCase() !== selectedOrgForDelete.org_name.toLowerCase() ||
                   isDeletingOrg
                 }
               >

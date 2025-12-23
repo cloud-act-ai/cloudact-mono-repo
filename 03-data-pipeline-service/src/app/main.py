@@ -20,7 +20,6 @@ from src.core.observability.metrics import get_metrics
 from src.app.middleware.validation import validation_middleware
 from src.app.dependencies.auth import get_auth_aggregator
 from src.core.engine.bq_client import get_bigquery_client
-import os
 
 # Optional telemetry import (requires opentelemetry packages)
 # Temporarily disabled - uncomment when OpenTelemetry packages are installed
@@ -473,8 +472,6 @@ async def log_requests(request: Request, call_next):
     """Log all HTTP requests with timing."""
     start_time = time.time()
 
-    # Extract org from header if present
-    api_key = request.headers.get("x-api-key")
     org_slug = "unknown"  # Will be set by auth dependency
 
     logger.info(

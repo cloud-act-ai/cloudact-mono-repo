@@ -115,14 +115,11 @@ async function storeApiKeySecure(
       })
 
     if (error) {
-      console.error("[Backend Onboarding] Failed to store API key securely:", error)
       return false
     }
 
-    console.log(`[Backend Onboarding] API key stored securely for org: ${orgSlug}`)
     return true
-  } catch (err) {
-    console.error("[Backend Onboarding] Error storing API key:", err)
+  } catch {
     return false
   }
 }
@@ -143,14 +140,11 @@ export async function getOrgApiKeySecure(orgSlug: string): Promise<string | null
       .single()
 
     if (error || !data) {
-      // Don't log as error - key may legitimately not exist yet
-      console.log(`[Backend Onboarding] No secure API key found for org: ${orgSlug}`)
       return null
     }
 
     return data.api_key
-  } catch (err) {
-    console.error("[Backend Onboarding] Error reading secure API key:", err)
+  } catch {
     return null
   }
 }
@@ -197,9 +191,6 @@ export async function onboardToBackend(input: {
     // Use API_SERVICE_URL for server-side, fall back to NEXT_PUBLIC_ version
     const backendUrl = process.env.API_SERVICE_URL || process.env.NEXT_PUBLIC_API_SERVICE_URL
     if (!backendUrl) {
-      console.warn("[Backend Onboarding] Backend URL not configured, skipping onboarding")
-      console.warn("[Backend Onboarding] API_SERVICE_URL:", process.env.API_SERVICE_URL)
-      console.warn("[Backend Onboarding] NEXT_PUBLIC_API_SERVICE_URL:", process.env.NEXT_PUBLIC_API_SERVICE_URL)
       return {
         success: true,
         orgSlug: input.orgSlug,
@@ -208,12 +199,9 @@ export async function onboardToBackend(input: {
       }
     }
 
-    console.log("[Backend Onboarding] Using backend URL:", backendUrl)
-
     // Get admin API key from server-side env (required for onboarding)
     const adminApiKey = process.env.CA_ROOT_API_KEY
     if (!adminApiKey) {
-      console.error("[Backend Onboarding] CA_ROOT_API_KEY not configured")
       return {
         success: false,
         error: "Backend admin key not configured. Please contact support.",
@@ -234,15 +222,7 @@ export async function onboardToBackend(input: {
       default_timezone: input.defaultTimezone || "UTC",
     }
 
-    console.log("[Backend Onboarding] Calling backend for:", input.orgSlug)
-
     const response = await backend.onboardOrganization(request)
-
-    console.log("[Backend Onboarding] Backend response:", {
-      orgSlug: response.org_slug,
-      datasetCreated: response.dataset_created,
-      hasApiKey: !!response.api_key,
-    })
 
     // Extract API key fingerprint (last 4 chars)
     const apiKeyFingerprint = response.api_key
@@ -262,17 +242,12 @@ export async function onboardToBackend(input: {
       .eq("org_slug", input.orgSlug)
 
     if (updateError) {
-      console.error("[Backend Onboarding] Failed to update Supabase org:", updateError)
       // Don't fail - backend onboarding succeeded, just metadata update failed
     }
 
     // Store API key in secure server-side table (NOT user metadata)
     if (response.api_key) {
-      const stored = await storeApiKeySecure(input.orgSlug, response.api_key)
-      if (!stored) {
-        console.error("[Backend Onboarding] CRITICAL: Failed to store API key securely")
-        // Don't fail the onboarding - key is returned to user, they can save it
-      }
+      await storeApiKeySecure(input.orgSlug, response.api_key)
     }
 
     return {
@@ -282,8 +257,6 @@ export async function onboardToBackend(input: {
       apiKeyFingerprint,
     }
   } catch (err: unknown) {
-    console.error("[Backend Onboarding] Error:", err)
-
     // Extract error message and status code
     const error = err as { detail?: string; message?: string; statusCode?: number }
     const errorMessage = error.detail || error.message || "Backend onboarding failed"
@@ -293,7 +266,6 @@ export async function onboardToBackend(input: {
     // This happens when backend has the org but Supabase wasn't synced
     // Solution: Retry onboard with regenerate_api_key_if_exists=true
     if (statusCode === 409 && errorMessage.includes("already exists with status 'ACTIVE'")) {
-      console.log("[Backend Onboarding] Org already exists in backend, retrying with regenerate flag...")
 
       try {
         // Create a new backend client for the retry (original is out of scope in catch block)
@@ -317,11 +289,6 @@ export async function onboardToBackend(input: {
 
         const retryResponse = await retryBackend.onboardOrganization(retryRequest)
 
-        console.log("[Backend Onboarding] API key regenerated via onboard retry:", {
-          orgSlug: retryResponse.org_slug,
-          hasApiKey: !!retryResponse.api_key,
-        })
-
         // Store new API key in secure server-side table (NOT user metadata)
         if (retryResponse.api_key) {
           await storeApiKeySecure(input.orgSlug, retryResponse.api_key)
@@ -344,11 +311,7 @@ export async function onboardToBackend(input: {
           })
           .eq("org_slug", input.orgSlug)
 
-        if (updateError) {
-          console.error("[Backend Onboarding] Failed to sync Supabase:", updateError)
-        } else {
-          console.log("[Backend Onboarding] Supabase synced with regenerated key")
-        }
+        // updateError silently handled - sync attempted
 
         return {
           success: true,
@@ -357,8 +320,6 @@ export async function onboardToBackend(input: {
           apiKeyFingerprint: newFingerprint,
         }
       } catch (retryErr: unknown) {
-        console.error("[Backend Onboarding] Failed to regenerate via retry:", retryErr)
-
         const retryError = retryErr as { detail?: string; message?: string }
         return {
           success: false,
@@ -411,7 +372,6 @@ export async function checkBackendOnboarding(orgSlug: string): Promise<{
     // Verify the API key is actually valid in BigQuery by making a test call
     const orgApiKey = await getOrgApiKeySecure(orgSlug)
     if (!orgApiKey) {
-      console.warn("[Backend Onboarding] No API key found in secure table for:", orgSlug)
       return {
         onboarded: false,
         apiKeyFingerprint: data.backend_api_key_fingerprint,
@@ -433,8 +393,7 @@ export async function checkBackendOnboarding(orgSlug: string): Promise<{
         })
 
         if (response.status === 401 || response.status === 403) {
-          const errorData = await response.json().catch(() => ({}))
-          console.warn("[Backend Onboarding] API key invalid in BigQuery:", orgSlug, errorData)
+          await response.json().catch(() => ({}))
           return {
             onboarded: false,
             apiKeyFingerprint: data.backend_api_key_fingerprint,
@@ -449,9 +408,8 @@ export async function checkBackendOnboarding(orgSlug: string): Promise<{
           apiKeyFingerprint: data.backend_api_key_fingerprint,
           apiKeyValid: true,
         }
-      } catch (fetchErr) {
+      } catch {
         // Network error - backend might be down, but don't mark as not onboarded
-        console.warn("[Backend Onboarding] Backend unreachable:", fetchErr)
         return {
           onboarded: data.backend_onboarded || false,
           apiKeyFingerprint: data.backend_api_key_fingerprint,
@@ -466,8 +424,7 @@ export async function checkBackendOnboarding(orgSlug: string): Promise<{
       onboarded: data.backend_onboarded || false,
       apiKeyFingerprint: data.backend_api_key_fingerprint,
     }
-  } catch (err) {
-    console.error("[Backend Onboarding] Check error:", err)
+  } catch {
     return { onboarded: false }
   }
 }
@@ -514,7 +471,6 @@ export async function getOrgDataForReonboarding(orgSlug: string): Promise<{
       .single()
 
     if (orgError || !orgData) {
-      console.error("[Backend Onboarding] Failed to get org data:", orgError)
       return { success: false, error: "Failed to get organization data" }
     }
 
@@ -527,8 +483,7 @@ export async function getOrgDataForReonboarding(orgSlug: string): Promise<{
         timezone: orgData.default_timezone || "UTC",
       },
     }
-  } catch (err) {
-    console.error("[Backend Onboarding] Get org data error:", err)
+  } catch {
     return { success: false, error: "Failed to get organization data" }
   }
 }
@@ -587,7 +542,6 @@ export async function getApiKeyInfo(orgSlug: string): Promise<{
       scopes: response.scopes,
     }
   } catch (err: unknown) {
-    console.error("[Backend Onboarding] Get API key info error:", err)
     const error = err as { detail?: string; message?: string }
     return {
       success: false,
@@ -660,8 +614,6 @@ export async function rotateApiKey(orgSlug: string): Promise<{
       }
     }
 
-    console.log("[Backend Onboarding] Rotating API key for:", orgSlug)
-
     // Add timeout to prevent hanging requests (30s)
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 30000)
@@ -691,10 +643,7 @@ export async function rotateApiKey(orgSlug: string): Promise<{
     }
 
     if (!response.ok) {
-      const errorData = await response.json().catch((parseErr) => {
-        console.error("[Backend Onboarding] Failed to parse error response:", parseErr)
-        return {}
-      })
+      const errorData = await response.json().catch(() => ({}))
 
       // Provide helpful error message for invalid key
       if (response.status === 401 || response.status === 403) {
@@ -717,14 +666,8 @@ export async function rotateApiKey(orgSlug: string): Promise<{
       })
       .eq("org_slug", orgSlug)
 
-    if (updateError) {
-      console.error("[Backend Onboarding] Failed to update fingerprint:", updateError)
-    }
-
     // Store new API key in secure server-side table (NOT user metadata)
     await storeApiKeySecure(orgSlug, rotateResponse.api_key)
-
-    console.log("[Backend Onboarding] API key rotated successfully")
 
     return {
       success: true,
@@ -732,7 +675,6 @@ export async function rotateApiKey(orgSlug: string): Promise<{
       apiKeyFingerprint: newFingerprint,
     }
   } catch (err: unknown) {
-    console.error("[Backend Onboarding] Rotate API key error:", err)
     const error = err as { detail?: string; message?: string }
     return {
       success: false,
@@ -779,7 +721,6 @@ export async function saveApiKey(
 
     return { success: true }
   } catch (err: unknown) {
-    console.error("[Backend Onboarding] Save API key error:", err)
     const errorMessage = err instanceof Error ? err.message : "Failed to save API key"
     return {
       success: false,
@@ -811,8 +752,7 @@ export async function hasStoredApiKey(orgSlug: string): Promise<{
 
     const apiKey = await getOrgApiKeySecure(orgSlug)
     return { hasKey: !!apiKey }
-  } catch (err) {
-    console.error("[Backend Onboarding] Check stored API key error:", err)
+  } catch {
     return { hasKey: false, error: "Failed to check API key" }
   }
 }
@@ -878,14 +818,11 @@ async function queueFailedSync(
       .single()
 
     if (error) {
-      console.error("[Backend Sync] Failed to queue sync for retry:", error)
       return null
     }
 
-    console.log(`[Backend Sync] Queued failed sync for retry: ${data.id}`)
     return data.id
-  } catch (err) {
-    console.error("[Backend Sync] Error queuing failed sync:", err)
+  } catch {
     return null
   }
 }
@@ -909,7 +846,6 @@ export async function processPendingSyncs(limit: number = 10): Promise<{
       .rpc('get_pending_billing_syncs', { p_limit: limit })
 
     if (error) {
-      console.error("[Backend Sync] Failed to get pending syncs:", error)
       results.errors.push(error.message)
       return results
     }
@@ -917,8 +853,6 @@ export async function processPendingSyncs(limit: number = 10): Promise<{
     if (!pendingSyncs || pendingSyncs.length === 0) {
       return results
     }
-
-    console.log(`[Backend Sync] Processing ${pendingSyncs.length} pending syncs`)
 
     for (const sync of pendingSyncs) {
       results.processed++
@@ -943,29 +877,22 @@ export async function processPendingSyncs(limit: number = 10): Promise<{
           // Mark as completed
           const { error: completeError } = await adminClient.rpc('complete_billing_sync', { p_id: sync.id })
           if (completeError) {
-            console.error(`[Backend Sync] Failed to mark sync as completed:`, completeError)
             results.errors.push(`${sync.org_slug}: Failed to mark as completed - ${completeError.message}`)
           } else {
             results.succeeded++
-            console.log(`[Backend Sync] Retry succeeded for org: ${sync.org_slug}`)
           }
         } else {
           // Mark as failed and schedule retry
-          const { error: failError } = await adminClient.rpc('fail_billing_sync', {
+          await adminClient.rpc('fail_billing_sync', {
             p_id: sync.id,
             p_error_message: syncResult.error || 'Unknown error'
           })
-          if (failError) {
-            console.error(`[Backend Sync] Failed to mark sync as failed:`, failError)
-          }
           results.failed++
           results.errors.push(`${sync.org_slug}: ${syncResult.error}`)
-          console.warn(`[Backend Sync] Retry failed for org: ${sync.org_slug}`)
         }
       } catch (syncErr: unknown) {
         // Catch any unexpected errors in the sync loop
         const errorMessage = syncErr instanceof Error ? syncErr.message : "Unknown error processing sync"
-        console.error(`[Backend Sync] Error processing sync for ${sync.org_slug}:`, syncErr)
         results.failed++
         results.errors.push(`${sync.org_slug}: ${errorMessage}`)
 
@@ -975,15 +902,14 @@ export async function processPendingSyncs(limit: number = 10): Promise<{
             p_id: sync.id,
             p_error_message: errorMessage
           })
-        } catch (dbErr) {
-          console.error(`[Backend Sync] Failed to update database for failed sync:`, dbErr)
+        } catch {
+          // Silently ignore database update failure
         }
       }
     }
 
     return results
   } catch (err: unknown) {
-    console.error("[Backend Sync] Error processing pending syncs:", err)
     const errorMessage = err instanceof Error ? err.message : "Unknown error"
     results.errors.push(errorMessage)
     return results
@@ -1007,7 +933,6 @@ export async function getSyncQueueStats(): Promise<{
       .rpc('get_billing_sync_stats')
 
     if (error) {
-      console.error("[Backend Sync] Failed to get queue stats:", error)
       return null
     }
 
@@ -1023,8 +948,7 @@ export async function getSyncQueueStats(): Promise<{
       completedToday: Number(stats.completed_today) || 0,
       oldestPending: stats.oldest_pending || null,
     }
-  } catch (err) {
-    console.error("[Backend Sync] Error getting queue stats:", err)
+  } catch {
     return null
   }
 }
@@ -1057,7 +981,6 @@ function mapBillingStatusToBackend(frontendStatus?: string): string | undefined 
 
   const mapped = statusMapping[frontendStatus.toLowerCase()]
   if (!mapped) {
-    console.warn(`[Backend Sync] Unknown billing status: ${frontendStatus}, defaulting to SUSPENDED`)
     return "SUSPENDED" // Safer default - block access until status is clarified
   }
   return mapped
@@ -1075,14 +998,12 @@ async function syncSubscriptionToBackendInternal(
     // Check if backend URL is configured
     const backendUrl = process.env.API_SERVICE_URL || process.env.NEXT_PUBLIC_API_SERVICE_URL
     if (!backendUrl) {
-      console.warn("[Backend Sync] Backend URL not configured, skipping sync")
       return { success: true } // Non-fatal - backend sync is optional
     }
 
     // Get admin API key from server-side env
     const adminApiKey = process.env.CA_ROOT_API_KEY
     if (!adminApiKey) {
-      console.error("[Backend Sync] CA_ROOT_API_KEY not configured")
       return {
         success: false,
         error: "Backend admin key not configured",
@@ -1103,14 +1024,6 @@ async function syncSubscriptionToBackendInternal(
 
     // Map billing status from frontend to backend format
     const backendStatus = mapBillingStatusToBackend(input.billingStatus)
-
-    console.log("[Backend Sync] Syncing subscription for:", input.orgSlug, {
-      planName: backendPlanName,
-      status: backendStatus,
-      trialEndsAt: input.trialEndsAt,
-      dailyLimit: input.dailyLimit,
-      monthlyLimit: input.monthlyLimit,
-    })
 
     // Call backend subscription update endpoint with timeout (30s)
     const controller = new AbortController()
@@ -1145,8 +1058,6 @@ async function syncSubscriptionToBackendInternal(
         ? "Backend sync timed out after 30 seconds"
         : error.message || "Network error"
 
-      console.error("[Backend Sync]", errorMsg)
-
       // Queue for retry if enabled
       if (shouldQueueOnFailure) {
         const queueId = await queueFailedSync(input, errorMsg)
@@ -1167,12 +1078,10 @@ async function syncSubscriptionToBackendInternal(
 
       // 404 means org not onboarded to backend yet - not an error
       if (response.status === 404) {
-        console.log("[Backend Sync] Org not found in backend (not onboarded yet), skipping sync")
         return { success: true }
       }
 
       const errorMsg = errorData.detail || `Backend sync failed: HTTP ${response.status}`
-      console.error("[Backend Sync] Backend returned error:", response.status, errorData)
 
       // Queue for retry if enabled (except for 4xx client errors)
       if (shouldQueueOnFailure && response.status >= 500) {
@@ -1190,13 +1099,6 @@ async function syncSubscriptionToBackendInternal(
 
     const syncResponse = await response.json()
 
-    console.log("[Backend Sync] Subscription synced successfully:", {
-      orgSlug: syncResponse.org_slug,
-      planName: syncResponse.plan_name,
-      status: syncResponse.status,
-      dailyLimit: syncResponse.daily_limit,
-    })
-
     return {
       success: true,
       planName: syncResponse.plan_name,
@@ -1204,9 +1106,7 @@ async function syncSubscriptionToBackendInternal(
       monthlyLimit: syncResponse.monthly_limit,
     }
   } catch (err: unknown) {
-    const errorMessage = err instanceof Error ? err.message : "Failed to sync subscription to backend"
-    const errorMsg = errorMessage
-    console.error("[Backend Sync] Error syncing subscription:", err)
+    const errorMsg = err instanceof Error ? err.message : "Failed to sync subscription to backend"
 
     // Queue for retry if enabled
     if (shouldQueueOnFailure) {

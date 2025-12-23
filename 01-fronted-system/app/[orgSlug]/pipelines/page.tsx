@@ -83,8 +83,8 @@ export default function PipelinesPage() {
       if (result.success && result.data) {
         setPipelineRuns(result.data.runs)
       }
-    } catch (err: unknown) {
-      console.error("Failed to load pipeline runs:", err)
+    } catch {
+      // Pipeline runs load failure handled silently - will retry on next poll
     }
     setRunsLoading(false)
   }, [orgSlug])
@@ -138,8 +138,8 @@ export default function PipelinesPage() {
         if (result.success && result.data) {
           setRunDetails(prev => ({ ...prev, [runId]: result.data! }))
         }
-      } catch (err: unknown) {
-        console.error("Failed to load run details:", err)
+      } catch {
+        // Run details load failure handled silently
       }
       setLoadingDetail(null)
     }
@@ -187,7 +187,11 @@ export default function PipelinesPage() {
     setRunningPipeline(null)
 
     // Refresh runs after executing a pipeline
-    setTimeout(() => loadPipelineRuns(), 2000)
+    setTimeout(() => {
+      loadPipelineRuns().catch(() => {
+        // Silently handle refresh errors
+      })
+    }, 2000)
   }
 
   // Helper: Format date/time for display

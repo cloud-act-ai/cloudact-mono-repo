@@ -18,7 +18,6 @@ from pathlib import Path
 import logging
 import json
 import re
-import csv
 
 from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
 from src.app.dependencies.auth import get_current_org

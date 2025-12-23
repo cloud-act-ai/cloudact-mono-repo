@@ -142,12 +142,7 @@ function SignupForm() {
       if (signupError) throw new Error(signupError.message)
       if (!authData.user) throw new Error("Signup failed")
 
-      console.log("[v0] Signup successful, user:", authData.user.id)
-      if (isInviteFlow) {
-        console.log("[v0] Invite flow - redirecting back to invite")
-      } else {
-        console.log("[v0] Company info stored in metadata:", sanitizedCompanyName, companyType)
-      }
+      // Signup successful - user ID and company info stored in metadata
 
       // Sign in to establish session (use normalized email to match signup)
       const { error: signinError } = await supabase.auth.signInWithPassword({
@@ -156,14 +151,11 @@ function SignupForm() {
       })
 
       if (signinError) {
-        console.error("[v0] Auto-signin failed:", signinError.message)
         const loginUrl = `/login?redirect=${encodeURIComponent(finalRedirect)}&message=Please sign in to continue`
         setIsLoading(false)
         router.push(loginUrl)
         return
       }
-
-      console.log("[v0] Auto-signin successful, redirecting to billing")
 
       // Success - redirect to billing page for plan selection
       window.location.href = finalRedirect

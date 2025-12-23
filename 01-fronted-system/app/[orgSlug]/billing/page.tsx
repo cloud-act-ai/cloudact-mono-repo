@@ -79,7 +79,6 @@ export default function BillingPage() {
       const { data: { user }, error: authError } = await supabase.auth.getUser()
 
       if (authError) {
-        console.error("[Billing] Auth error:", authError.message)
         // If auth fails (e.g., invalid refresh token), redirect to login
         if (authError.message.includes("Refresh Token") || authError.status === 400) {
           window.location.href = `/login?redirectTo=/${orgSlug}/billing&reason=session_expired`
@@ -90,7 +89,6 @@ export default function BillingPage() {
       }
 
       if (!user) {
-        console.error("[Billing] No authenticated user")
         window.location.href = `/login?redirectTo=/${orgSlug}/billing`
         return
       }
@@ -103,7 +101,6 @@ export default function BillingPage() {
         .single()
 
       if (orgError) {
-        console.error("[Billing] Error fetching org:", orgError.message)
         // If org query fails, we can't proceed
         return
       }
@@ -135,7 +132,7 @@ export default function BillingPage() {
           .single()
 
         if (membershipError) {
-          console.error("[Billing] Error fetching membership:", membershipError.message)
+          // Membership error handled silently
         }
 
         // Set user role - if membership exists, use it
@@ -148,9 +145,7 @@ export default function BillingPage() {
 
         setUserRole(role)
 
-        if (!role) {
-          console.warn("[Billing] No membership found for user in org")
-        }
+        // If no role, user is not a member - handled by access denied UI
       }
 
       // Fetch detailed billing info from Stripe (source of truth)
@@ -333,8 +328,7 @@ export default function BillingPage() {
           }
         }
       }
-    } catch (err: unknown) {
-      console.error("Error checking provider limits:", err)
+    } catch {
       // Don't block downgrade on error - let backend validation catch it
     }
 
