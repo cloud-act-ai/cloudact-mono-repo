@@ -969,7 +969,7 @@ async def list_plans(
                 bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
                 bigquery.ScalarQueryParameter("provider", "STRING", provider),
             ],
-            job_timeout_ms=10000  # 10 second timeout for user queries
+            job_timeout_ms=settings.bq_auth_timeout_ms
         )
         result = bq_client.client.query(query, job_config=job_config).result()
 
@@ -1422,7 +1422,7 @@ async def create_plan(
                 bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
                 bigquery.ScalarQueryParameter("subscription_id", "STRING", subscription_id),
             ],
-            job_timeout_ms=10000
+            job_timeout_ms=settings.bq_auth_timeout_ms
         )
         verify_result = bq_client.client.query(verify_query, job_config=verify_config).result()
 
@@ -2291,7 +2291,7 @@ async def toggle_plan(
                 bigquery.ScalarQueryParameter("subscription_id", "STRING", subscription_id),
                 bigquery.ScalarQueryParameter("provider", "STRING", provider),
             ],
-            job_timeout_ms=10000  # 10 second timeout for auth operations
+            job_timeout_ms=settings.bq_auth_timeout_ms
         )
         result = bq_client.client.query(check_query, job_config=job_config).result()
         rows = list(result)

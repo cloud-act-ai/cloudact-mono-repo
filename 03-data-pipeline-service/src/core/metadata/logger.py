@@ -263,6 +263,13 @@ class MetadataLogger:
         # Circuit breaker
         self._circuit_breaker = CircuitBreaker(failure_threshold=5, timeout_seconds=60)
 
+        # Counter for lost logs (for monitoring and alerting)
+        self._lost_logs_count = {
+            "pipeline": 0,
+            "step": 0,
+            "state_transition": 0
+        }
+
         # Background worker tasks
         self._worker_tasks: List[asyncio.Task] = []
         self._running = False
@@ -1017,7 +1024,12 @@ class MetadataLogger:
             ),
             "state_transition_queue_utilization_pct": round(
                 (self._state_transition_queue.qsize() / self.queue_size) * 100, 2
-            )
+            ),
+            # Lost logs counters for monitoring and alerting
+            "lost_pipeline_logs": self._lost_logs_count["pipeline"],
+            "lost_step_logs": self._lost_logs_count["step"],
+            "lost_state_transition_logs": self._lost_logs_count["state_transition"],
+            "total_lost_logs": sum(self._lost_logs_count.values())
         }
 
     async def flush(self):
@@ -1077,15 +1089,19 @@ class MetadataLogger:
                 await self._flush_pipeline_logs(pipeline_logs)
                 self._circuit_breaker.record_success()
             except Exception as e:
+                self._lost_logs_count["pipeline"] += len(pipeline_logs)
                 logger.error(
-                    f"CRITICAL: Failed to flush pipeline logs - logs will be lost",
-                    extra={"log_count": len(pipeline_logs)},
+                    f"CRITICAL: Failed to flush pipeline logs - {len(pipeline_logs)} logs lost",
+                    extra={
+                        "log_count": len(pipeline_logs),
+                        "total_lost_pipeline_logs": self._lost_logs_count["pipeline"],
+                        "org_slug": self.org_slug
+                    },
                     exc_info=True
                 )
                 self._circuit_breaker.record_failure()
-                # REMOVED: Re-queue logic that can cause infinite loops
-                # Instead, logs are lost and error is visible in monitoring
-                # This prevents memory exhaustion and queue backpressure issues
+                # NOTE: Logs are lost here. The lost count is tracked and logged for monitoring.
+                # Re-queue logic was removed to prevent infinite loops and memory exhaustion.
 
         # Flush step logs
         if step_logs:
@@ -1093,15 +1109,19 @@ class MetadataLogger:
                 await self._flush_step_logs(step_logs)
                 self._circuit_breaker.record_success()
             except Exception as e:
+                self._lost_logs_count["step"] += len(step_logs)
                 logger.error(
-                    f"CRITICAL: Failed to flush step logs - logs will be lost",
-                    extra={"log_count": len(step_logs)},
+                    f"CRITICAL: Failed to flush step logs - {len(step_logs)} logs lost",
+                    extra={
+                        "log_count": len(step_logs),
+                        "total_lost_step_logs": self._lost_logs_count["step"],
+                        "org_slug": self.org_slug
+                    },
                     exc_info=True
                 )
                 self._circuit_breaker.record_failure()
-                # REMOVED: Re-queue logic that can cause infinite loops
-                # Instead, logs are lost and error is visible in monitoring
-                # This prevents memory exhaustion and queue backpressure issues
+                # NOTE: Logs are lost here. The lost count is tracked and logged for monitoring.
+                # Re-queue logic was removed to prevent infinite loops and memory exhaustion.
 
         # Flush state transition logs
         if state_transition_logs:
@@ -1109,15 +1129,19 @@ class MetadataLogger:
                 await self._flush_state_transition_logs(state_transition_logs)
                 self._circuit_breaker.record_success()
             except Exception as e:
+                self._lost_logs_count["state_transition"] += len(state_transition_logs)
                 logger.error(
-                    f"CRITICAL: Failed to flush state transition logs - logs will be lost",
-                    extra={"log_count": len(state_transition_logs)},
+                    f"CRITICAL: Failed to flush state transition logs - {len(state_transition_logs)} logs lost",
+                    extra={
+                        "log_count": len(state_transition_logs),
+                        "total_lost_state_transition_logs": self._lost_logs_count["state_transition"],
+                        "org_slug": self.org_slug
+                    },
                     exc_info=True
                 )
                 self._circuit_breaker.record_failure()
-                # REMOVED: Re-queue logic that can cause infinite loops
-                # Instead, logs are lost and error is visible in monitoring
-                # This prevents memory exhaustion and queue backpressure issues
+                # NOTE: Logs are lost here. The lost count is tracked and logged for monitoring.
+                # Re-queue logic was removed to prevent infinite loops and memory exhaustion.
 
     @tenacity_retry(
         stop=stop_after_attempt(3),

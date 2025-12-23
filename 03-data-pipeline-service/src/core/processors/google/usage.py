@@ -47,16 +47,19 @@ class GoogleUsageProcessor:
             extra={"org_slug": org_slug}
         )
         
-        # Placeholder return
+        # Google Vertex AI usage requires BigQuery Billing Export
+        # Return SKIPPED status to indicate this step was intentionally not executed
         return {
-            "status": "SUCCESS",
+            "status": "SKIPPED",
             "provider": "GOOGLE",
             "date_range": {"start": start_date, "end": end_date},
             "usage_records": 0,
             "total_tokens": 0,
             "estimated_cost_usd": 0,
-            "message": "Google usage currently requires BigQuery Billing Export integration.",
-            "note": "Configure Billing Export to BigQuery for accurate usage tracking."
+            "reason": "Google usage requires BigQuery Billing Export",
+            "message": "Google Cloud/Vertex AI usage is tracked via BigQuery Billing Export, not a direct API.",
+            "action_required": "Configure Cloud Billing Export to BigQuery and use gcp.cost pipeline instead.",
+            "is_stub": True
         }
 
 

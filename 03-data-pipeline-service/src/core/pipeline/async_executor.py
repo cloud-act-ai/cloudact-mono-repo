@@ -721,6 +721,22 @@ class AsyncPipelineExecutor:
             # Return summary indicating blocked execution
             self.status = "BLOCKED"
             self.end_time = datetime.utcnow()
+
+            # Log state transition: PENDING -> BLOCKED
+            try:
+                await self.metadata_logger.log_state_transition(
+                    pipeline_logging_id=self.pipeline_logging_id,
+                    from_state="PENDING",
+                    to_state="BLOCKED",
+                    entity_type="PIPELINE",
+                    entity_name=self.tracking_pipeline_id,
+                    reason=f"Duplicate execution blocked. Existing pipeline: {existing_pipeline_id}",
+                    trigger_type=self.trigger_type,
+                    user_id=self.user_id
+                )
+            except Exception as e:
+                self.logger.warning(f"Failed to log BLOCKED state transition: {e}")
+
             return {
                 "pipeline_logging_id": self.pipeline_logging_id,
                 "pipeline_id": self.tracking_pipeline_id,
@@ -860,6 +876,27 @@ class AsyncPipelineExecutor:
                     f"Pipeline cancelled by user: {error_message}",
                     pipeline_logging_id=self.pipeline_logging_id
                 )
+
+                # Log state transition: RUNNING -> CANCELLED
+                try:
+                    await self.metadata_logger.log_state_transition(
+                        pipeline_logging_id=self.pipeline_logging_id,
+                        from_state="RUNNING",
+                        to_state="CANCELLED",
+                        entity_type="PIPELINE",
+                        entity_name=self.tracking_pipeline_id,
+                        reason="Pipeline cancelled by user request",
+                        trigger_type=self.trigger_type,
+                        user_id=self.user_id,
+                        duration_in_state_ms=int((datetime.utcnow() - self.start_time).total_seconds() * 1000) if self.start_time else None,
+                        metadata={
+                            "steps_completed": len([s for s in self.step_results if s.get('status') == 'COMPLETED']),
+                            "total_steps": len(self.step_dag) if self.step_dag else 0
+                        }
+                    )
+                except Exception as transition_error:
+                    self.logger.warning(f"Failed to log CANCELLED state transition: {transition_error}")
+
                 # No notification sent for user-initiated cancellations
                 # Cleanup partial resources
                 self._close_bq_client()

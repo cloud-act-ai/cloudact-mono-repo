@@ -634,6 +634,16 @@ class Settings(BaseSettings):
     http_timeout_kms: float = Field(default=10.0, description="HTTP timeout for KMS operations")
 
     # ============================================
+    # BigQuery Auth Timeout Configuration
+    # ============================================
+    bq_auth_timeout_ms: int = Field(
+        default=10000,
+        ge=1000,
+        le=60000,
+        description="BigQuery job timeout for authentication operations in milliseconds"
+    )
+
+    # ============================================
     # Provider API URLs (can be overridden for testing)
     # ============================================
     openai_api_base_url: str = Field(default="https://api.openai.com/v1", description="OpenAI API base URL")
