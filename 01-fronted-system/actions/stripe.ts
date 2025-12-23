@@ -116,11 +116,8 @@ export interface BillingInfo {
  */
 export async function createOnboardingCheckoutSession(priceId: string) {
   try {
-    console.log("[v0] Creating onboarding checkout session")
-
     // Validate price ID format (must be a valid Stripe price ID)
     if (!isValidStripePriceId(priceId)) {
-      console.error("[v0] Invalid price ID format")
       return { url: null, error: "Invalid plan selected" }
     }
 
@@ -131,13 +128,11 @@ export async function createOnboardingCheckoutSession(priceId: string) {
     } = await supabase.auth.getUser()
 
     if (!user || !user.email) {
-      console.error("[v0] Unauthorized: No user found")
       return { url: null, error: "Unauthorized" }
     }
 
     // Rate limit checkout session creation
     if (!checkRateLimit(user.id)) {
-      console.error("[v0] Rate limit exceeded for user:", user.id)
       return { url: null, error: "Please wait before creating another checkout session" }
     }
 
@@ -149,7 +144,6 @@ export async function createOnboardingCheckoutSession(priceId: string) {
     const pendingTimezone = user.user_metadata?.pending_timezone || "UTC"
 
     if (!pendingCompanyName) {
-      console.error("[v0] No pending company info in user metadata")
       return { url: null, error: "Please complete signup first" }
     }
 
@@ -172,7 +166,6 @@ export async function createOnboardingCheckoutSession(priceId: string) {
 
     // Validate generated org slug
     if (!isValidOrgSlug(orgSlug)) {
-      console.error("[v0] Invalid generated org slug:", orgSlug)
       return { url: null, error: "Invalid company name. Please use only letters, numbers, and spaces." }
     }
 
@@ -210,8 +203,6 @@ export async function createOnboardingCheckoutSession(priceId: string) {
     const trialDays = planTrialDays !== undefined && planTrialDays !== null
       ? planTrialDays
       : DEFAULT_TRIAL_DAYS
-
-    console.log(`[v0] Creating onboarding checkout with ${trialDays} trial days`)
 
     // Build checkout session options
     const sessionOptions: Stripe.Checkout.SessionCreateParams = {
@@ -263,28 +254,22 @@ export async function createOnboardingCheckoutSession(priceId: string) {
       idempotencyKey,
     })
 
-    console.log("[v0] Onboarding checkout session created:", session.id)
     return { url: session.url, error: null }
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Failed to create checkout session"
-    console.error("[v0] Onboarding checkout error:", error)
     return { url: null, error: errorMessage }
   }
 }
 
 export async function createCheckoutSession(priceId: string, orgSlug: string) {
   try {
-    console.log("[v0] Creating checkout session for org:", orgSlug)
-
     // Validate orgSlug format (prevent path traversal/injection)
     if (!isValidOrgSlug(orgSlug)) {
-      console.error("[v0] Invalid org slug format:", orgSlug)
       return { url: null, error: "Invalid organization" }
     }
 
     // Validate price ID format (must be a valid Stripe price ID)
     if (!isValidStripePriceId(priceId)) {
-      console.error("[v0] Invalid price ID format")
       return { url: null, error: "Invalid plan selected" }
     }
 
@@ -296,13 +281,11 @@ export async function createCheckoutSession(priceId: string, orgSlug: string) {
     } = await supabase.auth.getUser()
 
     if (!user || !user.email) {
-      console.error("[v0] Unauthorized: No user found")
       return { url: null, error: "Unauthorized" }
     }
 
     // Rate limit checkout session creation
     if (!checkRateLimit(user.id)) {
-      console.error("[v0] Rate limit exceeded for user:", user.id)
       return { url: null, error: "Please wait before creating another checkout session" }
     }
 
@@ -314,7 +297,6 @@ export async function createCheckoutSession(priceId: string, orgSlug: string) {
       .single()
 
     if (orgError || !org) {
-      console.error("[v0] Organization not found")
       return { url: null, error: "Organization not found" }
     }
 
@@ -328,12 +310,10 @@ export async function createCheckoutSession(priceId: string, orgSlug: string) {
       .single()
 
     if (!membership) {
-      console.error("[v0] User is not a member of this organization")
       return { url: null, error: "Not a member of this organization" }
     }
 
     if (membership.role !== "owner") {
-      console.error("[v0] User is not the owner")
       return { url: null, error: "Only the owner can subscribe" }
     }
 
@@ -349,7 +329,6 @@ export async function createCheckoutSession(priceId: string, orgSlug: string) {
       if (process.env.NODE_ENV === "development") {
         origin = "http://localhost:3000"
       } else {
-        console.error("[v0] No origin or NEXT_PUBLIC_APP_URL configured")
         return { url: null, error: "Application URL not configured. Please contact support." }
       }
     }
@@ -361,8 +340,6 @@ export async function createCheckoutSession(priceId: string, orgSlug: string) {
 
     // Remove any trailing slashes or extra spaces
     origin = origin.trim().replace(/\/+$/, "")
-
-    console.log("[v0] Using origin:", origin)
 
     // Generate idempotency key to prevent duplicate sessions
     const idempotencyKey = `checkout_${org.id}_${priceId}`
@@ -376,8 +353,6 @@ export async function createCheckoutSession(priceId: string, orgSlug: string) {
     const trialDays = planTrialDays !== undefined && planTrialDays !== null
       ? planTrialDays
       : DEFAULT_TRIAL_DAYS
-
-    console.log(`[v0] Creating checkout with ${trialDays} trial days (Plan: ${planTrialDays}, Default: ${DEFAULT_TRIAL_DAYS})`)
 
     // Build checkout session options
     const sessionOptions: Stripe.Checkout.SessionCreateParams = {
@@ -416,21 +391,17 @@ export async function createCheckoutSession(priceId: string, orgSlug: string) {
     // Reuse existing Stripe customer if available, otherwise use email
     if (org.stripe_customer_id) {
       sessionOptions.customer = org.stripe_customer_id
-      console.log("[v0] Reusing existing customer")
     } else {
       sessionOptions.customer_email = user.email
-      console.log("[v0] Creating checkout with new customer")
     }
 
     const session = await stripe.checkout.sessions.create(sessionOptions, {
       idempotencyKey,
     })
 
-    console.log("[v0] Checkout session created:", session.id)
     return { url: session.url, error: null }
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Failed to create checkout session"
-    console.error("[v0] Stripe checkout error:", error)
     return { url: null, error: errorMessage }
   }
 }
@@ -439,7 +410,6 @@ export async function getBillingInfo(orgSlug: string): Promise<{ data: BillingIn
   try {
     // Validate orgSlug format (prevent path traversal/injection)
     if (!isValidOrgSlug(orgSlug)) {
-      console.error("[v0] Invalid org slug format in getBillingInfo")
       return { data: null, error: "Invalid organization" }
     }
 
