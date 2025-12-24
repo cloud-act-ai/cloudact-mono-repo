@@ -1,592 +1,691 @@
 "use client"
 
 import Link from "next/link"
-import { useState } from "react"
-
-// Note: metadata export won't work with "use client" - moved to layout or separate file
-// For client components, SEO is handled by the parent layout
+import { useState, useEffect, useRef } from "react"
 import {
   ArrowRight,
-  BarChart3,
   Check,
   ChevronLeft,
   ChevronRight,
-  Shield,
-  Sparkles,
-  TrendingDown,
   Zap,
-  Globe,
+  TrendingDown,
+  Shield,
   Cpu,
-  Clock,
-  DollarSign,
-  Search,
-  Headphones,
-  FileText,
+  Globe,
+  Layers,
+  LineChart,
+  Bell,
+  Sparkles,
+  Activity,
+  ArrowUpRight,
+  Play,
 } from "lucide-react"
+import "./premium.css"
 import { DEFAULT_TRIAL_DAYS } from "@/lib/constants"
 
-export default function HomePage() {
-  const [activeTestimonial, setActiveTestimonial] = useState(0)
+// Provider data
+const PROVIDERS = [
+  { name: "OpenAI", icon: "🤖", type: "GenAI", angle: 0 },
+  { name: "Anthropic", icon: "🧠", type: "GenAI", angle: 45 },
+  { name: "AWS", icon: "☁️", type: "Cloud", angle: 90 },
+  { name: "GCP", icon: "🌐", type: "Cloud", angle: 135 },
+  { name: "Azure", icon: "⚡", type: "Cloud", angle: 180 },
+  { name: "Stripe", icon: "💳", type: "SaaS", angle: 225 },
+  { name: "Slack", icon: "💬", type: "SaaS", angle: 270 },
+  { name: "Datadog", icon: "📊", type: "SaaS", angle: 315 },
+]
 
-  const testimonials = [
-    {
-      quote:
-        "Cost analysis used to take at least one full day per month. With CloudAct.ai, we track spending in real-time now, which saves us hours each month.",
-      author: "Sarah Mitchell",
-      role: "VP Engineering",
-      company: "TechCorp",
-    },
-    {
-      quote:
-        "We were burning $400K annually on inefficient model usage. CloudAct.ai's recommendations saved us $270K in the first year alone.",
-      author: "Marcus Rodriguez",
-      role: "CTO",
-      company: "DataFlow Technologies",
-    },
-    {
-      quote:
-        "Finally, a single dashboard for all our cloud and AI costs. CloudAct.ai transformed how our FinOps team operates.",
-      author: "Emily Watson",
-      role: "Head of FinOps",
-      company: "Enterprise Cloud Corp",
-    },
-  ]
+// Animated counter hook
+function useCounter(end: number, duration: number = 2000) {
+  const [count, setCount] = useState(0)
+  const [started, setStarted] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
 
-  const clients = ["Anthropic", "OpenAI", "Stripe", "Vercel", "Cloudflare", "MongoDB"]
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !started) {
+          setStarted(true)
+        }
+      },
+      { threshold: 0.5 }
+    )
+    if (ref.current) observer.observe(ref.current)
+    return () => observer.disconnect()
+  }, [started])
 
-  const nextTestimonial = () => setActiveTestimonial((prev) => (prev + 1) % testimonials.length)
-  const prevTestimonial = () => setActiveTestimonial((prev) => (prev - 1 + testimonials.length) % testimonials.length)
+  useEffect(() => {
+    if (!started) return
+    let start: number
+    const step = (timestamp: number) => {
+      if (!start) start = timestamp
+      const progress = Math.min((timestamp - start) / duration, 1)
+      setCount(Math.floor(progress * end))
+      if (progress < 1) requestAnimationFrame(step)
+    }
+    requestAnimationFrame(step)
+  }, [started, end, duration])
+
+  return { count, ref }
+}
+
+// Live ticker component
+function LiveTicker() {
+  const [data, setData] = useState({
+    savings: 2847392,
+    orgs: 847,
+    queries: 12847392,
+  })
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setData(prev => ({
+        savings: prev.savings + Math.floor(Math.random() * 50),
+        orgs: prev.orgs + (Math.random() > 0.95 ? 1 : 0),
+        queries: prev.queries + Math.floor(Math.random() * 500),
+      }))
+    }, 2000)
+    return () => clearInterval(interval)
+  }, [])
 
   return (
-    <>
+    <div className="ca-ticker ca-animate">
+      <div className="ca-ticker-item">
+        <div className="ca-ticker-dot" />
+        <span className="ca-ticker-label">Savings</span>
+        <span className="ca-ticker-value">${data.savings.toLocaleString()}</span>
+      </div>
+      <div className="ca-ticker-item">
+        <div className="ca-ticker-dot" />
+        <span className="ca-ticker-label">Orgs</span>
+        <span className="ca-ticker-value">{data.orgs.toLocaleString()}</span>
+      </div>
+      <div className="ca-ticker-item">
+        <div className="ca-ticker-dot" />
+        <span className="ca-ticker-label">Queries/Day</span>
+        <span className="ca-ticker-value">{data.queries.toLocaleString()}</span>
+      </div>
+    </div>
+  )
+}
+
+// Provider constellation
+function Constellation() {
+  const radius = 170
+
+  return (
+    <div className="ca-constellation ca-animate ca-delay-3">
+      {/* SVG for connection lines */}
+      <svg className="ca-constellation-lines" viewBox="0 0 900 420">
+        <defs>
+          <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#007A78" />
+            <stop offset="100%" stopColor="#FF6E50" />
+          </linearGradient>
+        </defs>
+        {PROVIDERS.map((provider, i) => {
+          const angle = (provider.angle * Math.PI) / 180
+          const x = 450 + Math.cos(angle) * radius
+          const y = 210 + Math.sin(angle) * radius
+          return (
+            <line
+              key={i}
+              className="ca-constellation-line"
+              x1="450"
+              y1="210"
+              x2={x}
+              y2={y}
+            />
+          )
+        })}
+      </svg>
+
+      {/* Center hub */}
+      <div className="ca-constellation-center">
+        <div className="ca-constellation-center-logo">CloudAct</div>
+        <div className="ca-constellation-center-sub">Cost Hub</div>
+      </div>
+
+      {/* Provider nodes */}
+      {PROVIDERS.map((provider, i) => {
+        const angle = (provider.angle * Math.PI) / 180
+        const x = Math.cos(angle) * radius
+        const y = Math.sin(angle) * radius
+
+        return (
+          <div
+            key={provider.name}
+            className="ca-constellation-node"
+            style={{
+              left: `calc(50% + ${x}px)`,
+              top: `calc(50% + ${y}px)`,
+              transform: 'translate(-50%, -50%)',
+            }}
+          >
+            <span className="ca-constellation-node-icon">{provider.icon}</span>
+            <span className="ca-constellation-node-name">{provider.name}</span>
+            <span className="ca-constellation-node-type">{provider.type}</span>
+          </div>
+        )
+      })}
+
+      {/* Floating particles */}
+      {[...Array(6)].map((_, i) => (
+        <div
+          key={i}
+          className="ca-particle"
+          style={{
+            left: `${20 + Math.random() * 60}%`,
+            top: `${20 + Math.random() * 60}%`,
+            '--tx': `${-50 + Math.random() * 100}px`,
+            '--ty': `${-50 + Math.random() * 100}px`,
+            animationDelay: `${i * 0.6}s`,
+          } as React.CSSProperties}
+        />
+      ))}
+    </div>
+  )
+}
+
+// Dashboard preview
+function DashboardPreview() {
+  const chartData = Array.from({ length: 30 }, () => ({
+    cloud: 30 + Math.random() * 40,
+    genai: 20 + Math.random() * 30,
+    saas: 10 + Math.random() * 15,
+  }))
+
+  return (
+    <div className="ca-dashboard-preview ca-animate ca-delay-4">
+      <div className="ca-dashboard-header">
+        <div className="ca-dashboard-dot ca-dashboard-dot-red" />
+        <div className="ca-dashboard-dot ca-dashboard-dot-yellow" />
+        <div className="ca-dashboard-dot ca-dashboard-dot-green" />
+        <span className="ca-dashboard-title">cloudact.ai/dashboard — Cost Intelligence</span>
+      </div>
+      <div className="ca-dashboard-content">
+        <div className="ca-metrics-grid">
+          <div className="ca-metric-card">
+            <div className="ca-metric-label">Monthly Spend</div>
+            <div className="ca-metric-value ca-mono">$127,432</div>
+            <div className="ca-metric-change ca-metric-change-positive">
+              <TrendingDown className="w-3 h-3" /> -23%
+            </div>
+          </div>
+          <div className="ca-metric-card">
+            <div className="ca-metric-label">GenAI Costs</div>
+            <div className="ca-metric-value ca-mono" style={{ color: '#FF6E50' }}>$43,892</div>
+            <div className="ca-metric-change ca-metric-change-negative">
+              <Activity className="w-3 h-3" /> 4.2M tokens
+            </div>
+          </div>
+          <div className="ca-metric-card">
+            <div className="ca-metric-label">Cloud Infra</div>
+            <div className="ca-metric-value ca-mono">$68,240</div>
+            <div className="ca-metric-change ca-metric-change-positive">
+              <Globe className="w-3 h-3" /> 3 providers
+            </div>
+          </div>
+          <div className="ca-metric-card ca-metric-card-highlight">
+            <div className="ca-metric-label">Savings Found</div>
+            <div className="ca-metric-value ca-mono">$31,847</div>
+            <div className="ca-metric-change" style={{ background: 'rgba(255,255,255,0.2)', color: 'white' }}>
+              <Sparkles className="w-3 h-3" /> 12 tips
+            </div>
+          </div>
+        </div>
+
+        <div className="ca-chart-container">
+          <div className="ca-chart-header">
+            <span className="ca-chart-title">Cost Trend (30 days)</span>
+            <div className="ca-chart-legend">
+              <div className="ca-chart-legend-item">
+                <div className="ca-chart-legend-dot" style={{ background: '#007A78' }} />
+                Cloud
+              </div>
+              <div className="ca-chart-legend-item">
+                <div className="ca-chart-legend-dot" style={{ background: '#FF6E50' }} />
+                GenAI
+              </div>
+              <div className="ca-chart-legend-item">
+                <div className="ca-chart-legend-dot" style={{ background: '#D4D4D8' }} />
+                SaaS
+              </div>
+            </div>
+          </div>
+          <div className="ca-chart-bars">
+            {chartData.map((d, i) => (
+              <div key={i} className="ca-chart-bar-group">
+                <div
+                  className="ca-chart-bar ca-chart-bar-gray"
+                  style={{ height: `${d.saas}%` }}
+                />
+                <div
+                  className="ca-chart-bar ca-chart-bar-coral"
+                  style={{ height: `${d.genai}%` }}
+                />
+                <div
+                  className="ca-chart-bar ca-chart-bar-teal"
+                  style={{ height: `${d.cloud}%` }}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Feature card
+function FeatureCard({
+  icon: Icon,
+  title,
+  description,
+  color = "teal",
+}: {
+  icon: React.ElementType
+  title: string
+  description: string
+  color?: "teal" | "coral" | "green"
+}) {
+  return (
+    <div className="ca-feature-card">
+      <div className={`ca-feature-icon ca-feature-icon-${color}`}>
+        <Icon className="w-7 h-7" />
+      </div>
+      <h3 className="ca-feature-title">{title}</h3>
+      <p className="ca-feature-desc">{description}</p>
+    </div>
+  )
+}
+
+// Pricing card
+function PricingCard({
+  name,
+  price,
+  period,
+  description,
+  features,
+  featured = false,
+  ctaText = "Get started",
+}: {
+  name: string
+  price: string
+  period?: string
+  description: string
+  features: string[]
+  featured?: boolean
+  ctaText?: string
+}) {
+  return (
+    <div className={`ca-pricing-card ${featured ? 'ca-pricing-card-featured' : ''}`}>
+      {featured && <div className="ca-pricing-badge">Most Popular</div>}
+      <h3 className="ca-pricing-name">{name}</h3>
+      <p className="ca-pricing-desc">{description}</p>
+      <div className="ca-pricing-price">
+        <span className="ca-pricing-amount">{price}</span>
+        {period && <span className="ca-pricing-period">/{period}</span>}
+      </div>
+      <ul className="ca-pricing-features">
+        {features.map((feature, i) => (
+          <li key={i} className="ca-pricing-feature">
+            <Check />
+            <span>{feature}</span>
+          </li>
+        ))}
+      </ul>
+      <Link
+        href="/signup"
+        className={featured ? "ca-btn ca-btn-primary ca-btn-lg" : "ca-btn ca-btn-secondary ca-btn-lg"}
+        style={{ width: '100%' }}
+      >
+        {ctaText}
+        <ArrowRight className="w-4 h-4" />
+      </Link>
+    </div>
+  )
+}
+
+// Testimonials
+const TESTIMONIALS = [
+  {
+    quote: "CloudAct.ai reduced our GenAI costs by 47% in the first month. The visibility into token usage across OpenAI and Anthropic was a game-changer.",
+    author: "Sarah Chen",
+    role: "VP of Engineering, TechScale Inc",
+    avatar: "SC",
+    savings: "$127K",
+  },
+  {
+    quote: "Finally, a single dashboard for all our cloud and AI costs. We went from spending 2 days on monthly reports to having real-time insights.",
+    author: "Marcus Rodriguez",
+    role: "CTO, DataFlow Technologies",
+    avatar: "MR",
+    savings: "$340K",
+  },
+  {
+    quote: "The automated recommendations alone have saved us over $200K annually. CloudAct.ai is essential for any team using LLMs at scale.",
+    author: "Emily Watson",
+    role: "Head of FinOps, Enterprise AI Corp",
+    avatar: "EW",
+    savings: "$210K",
+  },
+]
+
+export default function PremiumLandingPage() {
+  const [activeTestimonial, setActiveTestimonial] = useState(0)
+  const savingsCounter = useCounter(2847000, 2500)
+  const orgsCounter = useCounter(847, 2000)
+
+  // Auto-rotate testimonials
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setActiveTestimonial(prev => (prev + 1) % TESTIMONIALS.length)
+    }, 6000)
+    return () => clearInterval(timer)
+  }, [])
+
+  return (
+    <div className="ca-landing">
       {/* Promo Banner */}
-      <div className="cloudact-promo-banner">
-        <span className="inline-block bg-white/20 backdrop-blur-sm text-white px-2 sm:px-3 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold tracking-wide uppercase mr-2">
-          LIMITED TIME OFFER
+      <div style={{
+        background: 'linear-gradient(90deg, #007A78 0%, #005C5A 100%)',
+        color: 'white',
+        padding: '12px 16px',
+        textAlign: 'center',
+        fontSize: '0.875rem',
+      }}>
+        <span style={{
+          display: 'inline-block',
+          background: 'rgba(255,255,255,0.2)',
+          padding: '2px 10px',
+          borderRadius: '100px',
+          fontSize: '0.625rem',
+          fontWeight: 700,
+          marginRight: '8px',
+          textTransform: 'uppercase',
+          letterSpacing: '0.05em',
+        }}>
+          New
         </span>
-        <span className="text-xs sm:text-sm font-medium">Get 3 months free when you sign up by Jan 31st</span>
+        GenAI cost tracking now supports Claude 3.5, GPT-4o & Gemini 2.0
+        <Link href="/features" style={{ marginLeft: '8px', textDecoration: 'underline', opacity: 0.9 }}>
+          Learn more →
+        </Link>
       </div>
 
       {/* Hero Section */}
-      <section className="text-center px-4 md:px-12 py-12 md:py-20 cloudact-hero-gradient">
-        <h1 className="cloudact-heading-xl max-w-[900px] mx-auto mb-4 md:mb-6">
-          GenAI Cloud Cost Intelligence. Simplified.
-        </h1>
-        <p className="cloudact-body text-base md:text-lg max-w-[650px] mx-auto mb-8 md:mb-10 px-4 leading-relaxed">
-          Join 500+ enterprises that optimize their cloud spend and GenAI workloads with CloudAct.ai.
-        </p>
-        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center px-4">
-          <Link
-            href="/signup"
-            className="cloudact-btn-primary w-full sm:w-auto"
-          >
-            Request a Demo
-            <ArrowRight className="ml-2 h-4 w-4" />
-          </Link>
-          <Link
-            href="/features"
-            className="cloudact-btn-secondary w-full sm:w-auto"
-          >
-            How CloudAct.ai works
-          </Link>
+      <section className="ca-hero">
+        <div className="ca-hero-bg">
+          <div className="ca-hero-orb ca-hero-orb-1" />
+          <div className="ca-hero-orb ca-hero-orb-2" />
+          <div className="ca-hero-orb ca-hero-orb-3" />
+          <div className="ca-hero-grid" />
         </div>
 
-        <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 pt-8 text-xs font-medium text-gray-600">
-          <div className="flex items-center gap-1.5">
-            <Shield className="h-3.5 w-3.5 text-[#007A78] flex-shrink-0" />
-            <span className="text-[11px] sm:text-xs">SOC 2 Type II Certified</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Zap className="h-3.5 w-3.5 text-[#FF6E50] flex-shrink-0" />
-            <span className="text-[11px] sm:text-xs">5-Minute Integration</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <TrendingDown className="h-3.5 w-3.5 text-[#007A78] flex-shrink-0" />
-            <span className="text-[11px] sm:text-xs">67% Average Cost Reduction</span>
-          </div>
-        </div>
+        <div className="ca-hero-content">
+          <LiveTicker />
 
-        {/* Dashboard Preview Card */}
-        <div className="max-w-[1200px] mx-auto mt-12 md:mt-16 px-4">
-          <div className="bg-white rounded-xl md:rounded-2xl shadow-[0_20px_60px_rgba(0,122,120,0.15)] p-4 md:p-8 border border-gray-200">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-              <div className="bg-gray-50 p-4 sm:p-5 md:p-6 rounded-lg border border-gray-200">
-                <div className="text-gray-600 text-xs sm:text-sm mb-2">Cloud Spend Overview</div>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-[#007A78] flex items-center justify-center flex-shrink-0">
-                      <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="h-3 bg-gray-300 rounded w-3/4"></div>
-                      <div className="h-2 bg-gray-200 rounded w-1/2 mt-2"></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-gray-50 p-4 sm:p-5 md:p-6 rounded-lg border border-gray-200">
-                <div className="text-gray-600 text-xs sm:text-sm mb-2">GenAI Usage Metrics</div>
-                <div className="grid grid-cols-3 gap-2 sm:gap-3">
-                  <div className="text-center">
-                    <div className="text-xl sm:text-2xl font-bold text-[#FF6E50]">$62K</div>
-                    <div className="text-[10px] sm:text-xs text-gray-600">This month</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-xl sm:text-2xl font-bold text-[#FF6E50]">22%</div>
-                    <div className="text-[10px] sm:text-xs text-gray-600">Savings</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-xl sm:text-2xl font-bold text-[#FF6E50]">15</div>
-                    <div className="text-[10px] sm:text-xs text-gray-600">Services</div>
-                  </div>
-                </div>
-              </div>
+          <h1 className="ca-display-xl ca-animate ca-delay-1" style={{ marginBottom: '24px', maxWidth: '900px', marginLeft: 'auto', marginRight: 'auto' }}>
+            Track Every Dollar Across{' '}
+            <span className="ca-gradient-text">GenAI, Cloud & SaaS</span>
+          </h1>
+
+          <p className="ca-body ca-animate ca-delay-2" style={{ maxWidth: '650px', margin: '0 auto 40px', fontSize: '1.25rem' }}>
+            The unified cost intelligence platform for engineering and finance teams.
+            Complete visibility into OpenAI, Anthropic, AWS, GCP, Azure, and 50+ integrations.
+          </p>
+
+          <div className="ca-animate ca-delay-3" style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap' }}>
+            <Link href="/signup" className="ca-btn ca-btn-primary ca-btn-lg">
+              Start Free Trial
+              <ArrowRight className="w-5 h-5" />
+            </Link>
+            <Link href="/demo" className="ca-btn ca-btn-secondary ca-btn-lg">
+              <Play className="w-5 h-5" />
+              Watch Demo
+            </Link>
+          </div>
+
+          <div className="ca-animate ca-delay-4" style={{ display: 'flex', gap: '24px', justifyContent: 'center', marginTop: '32px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#52525B', fontSize: '0.875rem' }}>
+              <Shield className="w-4 h-4" style={{ color: '#007A78' }} />
+              SOC 2 Type II
             </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#52525B', fontSize: '0.875rem' }}>
+              <Zap className="w-4 h-4" style={{ color: '#FF6E50' }} />
+              5-minute setup
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#52525B', fontSize: '0.875rem' }}>
+              <TrendingDown className="w-4 h-4" style={{ color: '#10B981' }} />
+              67% avg. cost reduction
+            </div>
+          </div>
+
+          <Constellation />
+          <DashboardPreview />
+        </div>
+      </section>
+
+      {/* Trusted By */}
+      <section className="ca-trusted">
+        <p className="ca-trusted-label">Trusted by forward-thinking teams</p>
+        <div className="ca-trusted-logos">
+          {["Anthropic", "OpenAI", "Stripe", "Vercel", "Cloudflare", "MongoDB", "Supabase"].map((company) => (
+            <span key={company} className="ca-trusted-logo">{company}</span>
+          ))}
+        </div>
+      </section>
+
+      {/* Features */}
+      <section className="ca-section">
+        <div className="ca-section-header">
+          <span className="ca-section-label">Platform Features</span>
+          <h2 className="ca-display-lg" style={{ marginBottom: '16px' }}>
+            Everything you need to control costs
+          </h2>
+          <p className="ca-body" style={{ maxWidth: '600px', margin: '0 auto' }}>
+            From real-time tracking to AI-powered optimization, CloudAct.ai gives you
+            complete visibility and control over your spending.
+          </p>
+        </div>
+
+        <div className="ca-features-grid">
+          <FeatureCard
+            icon={Cpu}
+            title="GenAI Cost Tracking"
+            description="Monitor token usage, model costs, and API spending across OpenAI, Anthropic, Google AI, and more in real-time."
+            color="coral"
+          />
+          <FeatureCard
+            icon={Globe}
+            title="Multi-Cloud Support"
+            description="Unified view of AWS, GCP, and Azure costs with automatic data sync and intelligent categorization."
+            color="teal"
+          />
+          <FeatureCard
+            icon={Layers}
+            title="SaaS Subscription Tracking"
+            description="Never lose track of a subscription again. Monitor Slack, GitHub, Datadog, and 50+ SaaS tools."
+            color="green"
+          />
+          <FeatureCard
+            icon={LineChart}
+            title="Cost Forecasting"
+            description="ML-powered predictions help you budget accurately and avoid surprise bills at month-end."
+            color="teal"
+          />
+          <FeatureCard
+            icon={Bell}
+            title="Smart Alerts"
+            description="Get notified instantly when spending exceeds thresholds or anomalies are detected."
+            color="coral"
+          />
+          <FeatureCard
+            icon={Sparkles}
+            title="AI Recommendations"
+            description="Automated suggestions to optimize model selection, rightsize instances, and eliminate waste."
+            color="green"
+          />
+        </div>
+      </section>
+
+      {/* Stats */}
+      <section className="ca-stats-section">
+        <div className="ca-stats-grid" ref={savingsCounter.ref}>
+          <div>
+            <div className="ca-stat-value ca-mono">
+              ${(savingsCounter.count / 1000000).toFixed(1)}M+
+            </div>
+            <p className="ca-stat-label">Total customer savings</p>
+          </div>
+          <div ref={orgsCounter.ref}>
+            <div className="ca-stat-value ca-mono">
+              {orgsCounter.count}+
+            </div>
+            <p className="ca-stat-label">Organizations worldwide</p>
+          </div>
+          <div>
+            <div className="ca-stat-value ca-mono">50+</div>
+            <p className="ca-stat-label">Integrations supported</p>
           </div>
         </div>
       </section>
 
-      {/* Client Logos */}
-      <div className="flex flex-wrap justify-center items-center gap-6 sm:gap-8 md:gap-16 px-4 md:px-12 py-8 md:py-12 bg-white border-b border-gray-200">
-        <p className="w-full text-center text-[10px] sm:text-xs font-medium text-gray-500 mb-2 sm:mb-4 uppercase tracking-widest">Trusted by Industry Leaders</p>
-        {clients.map((client) => (
-          <div key={client} className="text-sm sm:text-base md:text-lg font-bold text-gray-400 hover:text-gray-600 transition-colors">
-            {client}
-          </div>
-        ))}
-      </div>
-
-      {/* Feature Section 1 */}
-      <section className="px-4 md:px-12 py-12 sm:py-16 md:py-24 max-w-[1400px] mx-auto">
-        <div className="grid md:grid-cols-2 gap-8 sm:gap-12 md:gap-20 items-center mb-12 sm:mb-16 md:mb-32">
-          <div>
-            <h2 className="cloudact-heading-lg mb-4 sm:mb-5 md:mb-6">
-              Analyze cloud costs in minutes with smart technology.
-            </h2>
-
-            <div className="space-y-5 sm:space-y-6 mb-6 sm:mb-8">
-              <div className="flex gap-3 sm:gap-4">
-                <div className="cloudact-icon-box flex-shrink-0">
-                  <Shield className="w-5 h-5 sm:w-6 sm:h-6 text-[#007A78]" />
-                </div>
-                <div>
-                  <h4 className="cloudact-heading-md mb-1">Cost analysis takes just a few clicks</h4>
-                  <p className="cloudact-body-sm">
-                    Plus, we automatically identify optimization opportunities and track your savings.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex gap-3 sm:gap-4">
-                <div className="cloudact-icon-box flex-shrink-0">
-                  <Clock className="w-5 h-5 sm:w-6 sm:h-6 text-[#007A78]" />
-                </div>
-                <div>
-                  <h4 className="cloudact-heading-md mb-1">Real-time GenAI monitoring</h4>
-                  <p className="cloudact-body-sm">
-                    CloudAct.ai automatically tracks your GenAI model usage, token consumption, and associated costs.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex gap-3 sm:gap-4">
-                <div className="cloudact-icon-box flex-shrink-0">
-                  <DollarSign className="w-5 h-5 sm:w-6 sm:h-6 text-[#007A78]" />
-                </div>
-                <div>
-                  <h4 className="cloudact-heading-md mb-1">Multi-cloud cost visibility</h4>
-                  <p className="cloudact-body-sm">
-                    Track AWS, Azure, and GCP costs in one unified dashboard with automated recommendations.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <div className="cloudact-card p-6 sm:p-8">
-              <div className="space-y-3 sm:space-y-4">
-                <div className="flex items-center gap-3 sm:gap-4">
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-[#007A78] flex items-center justify-center flex-shrink-0">
-                    <Check className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="h-3 bg-gray-300 rounded w-3/4 mb-2"></div>
-                    <div className="h-2 bg-gray-200 rounded w-1/2"></div>
-                  </div>
-                  <div className="text-sm sm:text-base text-[#007A78] font-bold">$3,420</div>
-                </div>
-                <div className="flex items-center gap-3 sm:gap-4">
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-[#007A78]/80 flex items-center justify-center flex-shrink-0">
-                    <Check className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="h-3 bg-gray-300 rounded w-2/3 mb-2"></div>
-                    <div className="h-2 bg-gray-200 rounded w-1/2"></div>
-                  </div>
-                  <div className="text-sm sm:text-base text-[#007A78] font-bold">$2,890</div>
-                </div>
-                <div className="flex items-center gap-3 sm:gap-4">
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-[#007A78]/60 flex items-center justify-center flex-shrink-0">
-                    <Check className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="h-3 bg-gray-300 rounded w-4/5 mb-2"></div>
-                    <div className="h-2 bg-gray-200 rounded w-1/2"></div>
-                  </div>
-                  <div className="text-sm sm:text-base text-[#007A78] font-bold">$4,580</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Testimonial */}
-      <section className="max-w-[900px] mx-auto text-center px-4 md:px-12 py-12 sm:py-16 md:py-20 bg-gray-50">
-        <blockquote className="cloudact-heading-lg italic mb-6 sm:mb-8">
-          "{testimonials[activeTestimonial].quote}"
-        </blockquote>
-        <div className="font-semibold text-sm sm:text-base text-gray-900">{testimonials[activeTestimonial].author}</div>
-        <div className="text-xs sm:text-sm md:text-[15px] text-gray-600 mt-1">
-          {testimonials[activeTestimonial].role}, {testimonials[activeTestimonial].company}
+      {/* Testimonials */}
+      <section className="ca-testimonials">
+        <div className="ca-section-header">
+          <span className="ca-section-label">Customer Stories</span>
+          <h2 className="ca-display-lg">What teams are saying</h2>
         </div>
 
-        <div className="flex items-center justify-center gap-3 mt-6">
+        <div className="ca-testimonial-card">
+          <div className="ca-testimonial-header">
+            <div className="ca-testimonial-avatar">
+              {TESTIMONIALS[activeTestimonial].avatar}
+            </div>
+            <div>
+              <div className="ca-testimonial-author">{TESTIMONIALS[activeTestimonial].author}</div>
+              <div className="ca-testimonial-role">{TESTIMONIALS[activeTestimonial].role}</div>
+            </div>
+            <div className="ca-testimonial-savings">
+              Saved {TESTIMONIALS[activeTestimonial].savings}
+            </div>
+          </div>
+          <p className="ca-testimonial-quote">
+            "{TESTIMONIALS[activeTestimonial].quote}"
+          </p>
+        </div>
+
+        <div className="ca-testimonial-nav">
           <button
-            onClick={prevTestimonial}
-            className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full border border-gray-300 bg-white transition-all hover:border-[#007A78] hover:text-[#007A78]"
-            aria-label="Previous testimonial"
+            className="ca-testimonial-btn"
+            onClick={() => setActiveTestimonial(prev => (prev - 1 + TESTIMONIALS.length) % TESTIMONIALS.length)}
           >
-            <ChevronLeft className="h-4 w-4" />
+            <ChevronLeft className="w-5 h-5" />
           </button>
-          <div className="flex gap-1.5">
-            {testimonials.map((_, idx) => (
+          <div className="ca-testimonial-dots">
+            {TESTIMONIALS.map((_, i) => (
               <button
-                key={idx}
-                onClick={() => setActiveTestimonial(idx)}
-                className={`h-1.5 rounded-full transition-all ${idx === activeTestimonial ? "w-6 bg-[#007A78]" : "w-1.5 bg-gray-300"
-                  }`}
-                aria-label={`Go to testimonial ${idx + 1}`}
+                key={i}
+                className={`ca-testimonial-dot ${i === activeTestimonial ? 'active' : ''}`}
+                onClick={() => setActiveTestimonial(i)}
               />
             ))}
           </div>
           <button
-            onClick={nextTestimonial}
-            className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full border border-gray-300 bg-white transition-all hover:border-[#007A78] hover:text-[#007A78]"
-            aria-label="Next testimonial"
+            className="ca-testimonial-btn"
+            onClick={() => setActiveTestimonial(prev => (prev + 1) % TESTIMONIALS.length)}
           >
-            <ChevronRight className="h-4 w-4" />
+            <ChevronRight className="w-5 h-5" />
           </button>
         </div>
       </section>
 
-      {/* Features Grid */}
-      <section className="px-4 md:px-12 py-12 sm:py-16 md:py-24 bg-white">
-        <div className="text-center mb-10 sm:mb-12 md:mb-16">
-          <h2 className="cloudact-heading-lg">
-            But wait, there's more.
+      {/* Pricing */}
+      <section className="ca-section">
+        <div className="ca-section-header">
+          <span className="ca-section-label">Simple Pricing</span>
+          <h2 className="ca-display-lg" style={{ marginBottom: '16px' }}>
+            Start free, scale as you grow
           </h2>
-        </div>
-
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6 md:gap-8 max-w-[1200px] mx-auto">
-          <div className="cloudact-card p-6 sm:p-8 md:p-10">
-            <div className="cloudact-icon-box mb-4 sm:mb-5">
-              <Clock className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-[#007A78]" />
-            </div>
-            <h4 className="cloudact-heading-md mb-2 sm:mb-3">Real-time tracking</h4>
-            <p className="cloudact-body-sm">
-              Track usage in real-time, manage budgets, and sync seamlessly with your billing.
-            </p>
-          </div>
-
-          <div className="cloudact-card p-6 sm:p-8 md:p-10">
-            <div className="cloudact-icon-box mb-4 sm:mb-5">
-              <BarChart3 className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-[#007A78]" />
-            </div>
-            <h4 className="cloudact-heading-md mb-2 sm:mb-3">Performance analytics</h4>
-            <p className="cloudact-body-sm">
-              Set goals, track metrics, and optimize your cloud infrastructure performance.
-            </p>
-          </div>
-
-          <div className="cloudact-card p-6 sm:p-8 md:p-10">
-            <div className="cloudact-icon-box mb-4 sm:mb-5">
-              <Sparkles className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-[#007A78]" />
-            </div>
-            <h4 className="cloudact-heading-md mb-2 sm:mb-3">AI recommendations</h4>
-            <p className="cloudact-body-sm">
-              Data-backed guidance and comprehensive optimization recommendations.
-            </p>
-          </div>
-
-          <div className="cloudact-card p-6 sm:p-8 md:p-10">
-            <div className="cloudact-icon-box mb-4 sm:mb-5">
-              <Shield className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-[#007A78]" />
-            </div>
-            <h4 className="cloudact-heading-md mb-2 sm:mb-3">Enterprise security</h4>
-            <p className="cloudact-body-sm">
-              SOC 2 Type II certified with enterprise-grade security and compliance.
-            </p>
-          </div>
-
-          <div className="cloudact-card p-6 sm:p-8 md:p-10">
-            <div className="cloudact-icon-box mb-4 sm:mb-5">
-              <Globe className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-[#007A78]" />
-            </div>
-            <h4 className="cloudact-heading-md mb-2 sm:mb-3">Multi-cloud support</h4>
-            <p className="cloudact-body-sm">
-              Support for AWS, Azure, GCP, and all major GenAI providers in one platform.
-            </p>
-          </div>
-
-          <div className="cloudact-card p-6 sm:p-8 md:p-10">
-            <div className="cloudact-icon-box mb-4 sm:mb-5">
-              <Cpu className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-[#007A78]" />
-            </div>
-            <h4 className="cloudact-heading-md mb-2 sm:mb-3">GenAI optimization</h4>
-            <p className="cloudact-body-sm">
-              Optimize your GenAI workloads with intelligent model and prompt recommendations.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* Pricing Preview */}
-      <section className="px-4 md:px-12 py-12 sm:py-16 md:py-24 bg-gray-50">
-        <div className="text-center mb-10 sm:mb-12 md:mb-16 max-w-[800px] mx-auto">
-          <h2 className="cloudact-heading-lg mb-3 sm:mb-4">
-            Let's find the right plan for your business
-          </h2>
-          <p className="cloudact-body max-w-[600px] mx-auto mb-6 sm:mb-8">
-            Choose from a variety of plans and add-ons. You won't pay a cent until you're ready.
+          <p className="ca-body" style={{ maxWidth: '500px', margin: '0 auto' }}>
+            No hidden fees. No surprise charges. Just transparent pricing.
           </p>
         </div>
 
-        <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-5 sm:gap-6 max-w-[1300px] mx-auto">
-          <div className="cloudact-pricing-card">
-            <div className="text-xl font-bold mb-2 text-gray-900">Starter</div>
-            <p className="text-sm text-gray-600 mb-6">For small teams getting started</p>
-            <div className="mb-6">
-              <span className="cloudact-pricing-value">$0</span>
-              <span className="text-gray-600">/mo</span>
-            </div>
-            <Link href="/signup" className="cloudact-btn-secondary w-full justify-center">
-              Get started
-            </Link>
-          </div>
-
-          <div className="cloudact-pricing-card cloudact-pricing-card-featured relative">
-            <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-[#FF6E50] to-[#FF8A70] text-white px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wide">
-              Most Popular
-            </div>
-            <h3 className="text-xl font-semibold mb-2 text-gray-900">Plus</h3>
-            <p className="text-sm text-gray-600 mb-6">Best for growing teams</p>
-            <div className="mb-6">
-              <span className="cloudact-pricing-value">$249</span>
-              <span className="text-gray-600">/mo</span>
-            </div>
-            <Link href="/signup" className="cloudact-btn-primary w-full justify-center">
-              Get started
-            </Link>
-          </div>
-
-          <div className="cloudact-pricing-card">
-            <h3 className="text-xl font-semibold mb-2 text-gray-900">Premium</h3>
-            <p className="text-sm text-gray-600 mb-6">Advanced features for scale</p>
-            <div className="mb-6">
-              <span className="cloudact-pricing-value">$499</span>
-              <span className="text-gray-600">/mo</span>
-            </div>
-            <Link href="/signup" className="cloudact-btn-secondary w-full justify-center">
-              Get started
-            </Link>
-          </div>
-
-          <div className="cloudact-pricing-card">
-            <h3 className="text-xl font-semibold mb-2 text-gray-900">Enterprise</h3>
-            <p className="text-sm text-gray-600 mb-6">Custom for large organizations</p>
-            <div className="mb-6">
-              <span className="text-gray-900 text-3xl font-bold">Contact us</span>
-            </div>
-            <Link href="/contact" className="cloudact-btn-secondary w-full justify-center">
-              Contact sales
-            </Link>
-          </div>
+        <div className="ca-pricing-grid">
+          <PricingCard
+            name="Starter"
+            price="$0"
+            period="mo"
+            description="Perfect for small teams"
+            features={[
+              "Up to 3 team members",
+              "5 integrations",
+              "Basic cost dashboards",
+              "7-day data retention",
+              "Community support",
+            ]}
+          />
+          <PricingCard
+            name="Pro"
+            price="$249"
+            period="mo"
+            description="For growing teams"
+            featured
+            features={[
+              "Up to 20 team members",
+              "Unlimited integrations",
+              "AI-powered recommendations",
+              "90-day data retention",
+              "Priority support",
+              "Custom alerts & reports",
+            ]}
+          />
+          <PricingCard
+            name="Enterprise"
+            price="Custom"
+            description="For large organizations"
+            ctaText="Contact sales"
+            features={[
+              "Unlimited team members",
+              "Unlimited integrations",
+              "Advanced security (SSO, SCIM)",
+              "Unlimited data retention",
+              "Dedicated success manager",
+              "Custom SLAs & contracts",
+            ]}
+          />
         </div>
       </section>
 
-      {/* Stats Section */}
-      <section className="px-4 md:px-12 py-12 sm:py-16 md:py-24 cloudact-stats-section">
-        <div className="text-center mb-10 sm:mb-12">
-          <h2 className="font-serif text-2xl sm:text-3xl md:text-[48px] font-light mb-4 sm:mb-6 leading-tight text-white px-4">
-            See how CloudAct.ai stacks up <br className="hidden md:block" />
-            against other cloud cost platforms.
-          </h2>
-        </div>
-
-        <div className="grid sm:grid-cols-3 gap-6 sm:gap-8 md:gap-12 max-w-[900px] mx-auto text-center">
-          <div>
-            <div className="cloudact-stat-value mb-2">9 out of 10</div>
-            <p className="text-sm sm:text-base text-white/90">customers say we're easier to use than competitors</p>
-          </div>
-          <div>
-            <div className="cloudact-stat-value mb-2">132x</div>
-            <p className="text-sm sm:text-base text-white/90">faster on average for cost analysis</p>
-          </div>
-          <div>
-            <div className="cloudact-stat-value mb-2">4.95 stars</div>
-            <p className="text-sm sm:text-base text-white/90">based on 14,000+ reviews</p>
-          </div>
-        </div>
-
-        <div className="text-center mt-10 sm:mt-12">
-          <Link
-            href="/about"
-            className="inline-block px-6 sm:px-8 py-2.5 sm:py-3 bg-white text-[#007A78] rounded-md text-sm sm:text-[15px] font-semibold hover:bg-gray-100 transition-all"
-          >
-            Learn more
-          </Link>
-        </div>
-      </section>
-
-      {/* Get Started Steps */}
-      <section className="px-4 md:px-12 py-12 sm:py-16 md:py-24 bg-white">
-        <div className="text-center mb-10 sm:mb-12">
-          <h2 className="cloudact-heading-lg px-4">
-            You're three steps away from easy, automated cost optimization.
-          </h2>
-        </div>
-
-        <div className="grid md:grid-cols-2 gap-8 sm:gap-10 md:gap-16 items-center max-w-[1200px] mx-auto">
-          <div className="bg-gray-100 rounded-2xl p-6 sm:p-8 min-h-[250px] sm:min-h-[300px] flex items-center justify-center order-2 md:order-1">
-            <div className="text-center text-gray-400">
-              <BarChart3 className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4" />
-              <p className="text-sm sm:text-base">Dashboard Preview</p>
+      {/* CTA */}
+      <section className="ca-cta">
+        <div className="ca-cta-box">
+          <div className="ca-cta-content">
+            <div className="ca-cta-badge">
+              <Sparkles className="w-4 h-4" />
+              {DEFAULT_TRIAL_DAYS}-day free trial • No credit card required
             </div>
-          </div>
-          <div className="space-y-6 sm:space-y-8 order-1 md:order-2">
-            <div className="flex gap-3 sm:gap-4">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-[#E6F7F6] rounded-full flex items-center justify-center flex-shrink-0 font-bold text-sm sm:text-base text-[#007A78]">
-                1
-              </div>
-              <div>
-                <h4 className="cloudact-heading-md mb-1 sm:mb-2">Create an account.</h4>
-                <p className="cloudact-body">
-                  It's free to sign up. You'll connect your cloud accounts and set preferences.
-                </p>
-              </div>
-            </div>
-            <div className="flex gap-3 sm:gap-4">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-[#E6F7F6] rounded-full flex items-center justify-center flex-shrink-0 font-bold text-sm sm:text-base text-[#007A78]">
-                2
-              </div>
-              <div>
-                <h4 className="cloudact-heading-md mb-1 sm:mb-2">Connect your cloud providers.</h4>
-                <p className="cloudact-body">
-                  Add AWS, Azure, or GCP credentials. We'll start analyzing costs immediately.
-                </p>
-              </div>
-            </div>
-            <div className="flex gap-3 sm:gap-4">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-[#E6F7F6] rounded-full flex items-center justify-center flex-shrink-0 font-bold text-sm sm:text-base text-[#007A78]">
-                3
-              </div>
-              <div>
-                <h4 className="cloudact-heading-md mb-1 sm:mb-2">View your first dashboard.</h4>
-                <p className="cloudact-body">
-                  Once connected, you can view detailed cost breakdowns and optimization recommendations.
-                </p>
-              </div>
-            </div>
-            <div className="pt-2 sm:pt-4">
-              <Link
-                href="/signup"
-                className="cloudact-btn-primary"
-              >
-                Get started
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Help Section */}
-      <section className="px-4 md:px-12 py-12 sm:py-16 md:py-24 bg-gray-50">
-        <div className="text-center mb-10 sm:mb-12">
-          <h2 className="cloudact-heading-lg">
-            Questions? Meet answers.
-          </h2>
-        </div>
-
-        <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-6 sm:gap-8 max-w-[1100px] mx-auto">
-          <div className="cloudact-card p-6 sm:p-8 text-center">
-            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-[#FFF5F3] rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-5">
-              <FileText className="w-8 h-8 sm:w-10 sm:h-10 text-[#FF6E50]" />
-            </div>
-            <h4 className="cloudact-heading-md mb-2 sm:mb-3">Compare CloudAct.ai</h4>
-            <p className="cloudact-body-sm mb-4 sm:mb-5">See how CloudAct.ai stacks up against other providers.</p>
-            <Link href="/compare" className="cloudact-link text-sm">
-              Compare CloudAct.ai
-            </Link>
-          </div>
-
-          <div className="cloudact-card p-6 sm:p-8 text-center">
-            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-[#E6F7F6] rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-5">
-              <Search className="w-8 h-8 sm:w-10 sm:h-10 text-[#007A78]" />
-            </div>
-            <h4 className="cloudact-heading-md mb-2 sm:mb-3">Search the help center</h4>
-            <p className="cloudact-body-sm mb-4 sm:mb-5">
-              Find instant answers by searching our help center or browsing topics.
+            <h2 className="ca-cta-title">Ready to take control of your costs?</h2>
+            <p className="ca-cta-subtitle">
+              Join 800+ teams using CloudAct.ai to track, analyze, and optimize their
+              GenAI, cloud, and SaaS spending.
             </p>
-            <Link href="/help" className="cloudact-link text-sm">
-              Help center
-            </Link>
-          </div>
-
-          <div className="cloudact-card p-6 sm:p-8 text-center sm:col-span-2 md:col-span-1">
-            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-[#FFF5F3] rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-5">
-              <Headphones className="w-8 h-8 sm:w-10 sm:h-10 text-[#FF6E50]" />
+            <div className="ca-cta-buttons">
+              <Link href="/signup" className="ca-cta-btn-white">
+                Get Started Free
+                <ArrowRight className="w-5 h-5" />
+              </Link>
+              <Link href="/contact" className="ca-cta-btn-outline">
+                Talk to Sales
+                <ArrowUpRight className="w-5 h-5" />
+              </Link>
             </div>
-            <h4 className="cloudact-heading-md mb-2 sm:mb-3">Give us a ring</h4>
-            <p className="cloudact-body-sm mb-4 sm:mb-5">Monday through Friday from 6AM – 6PM MST.</p>
-            <a href="tel:(800) 936-0383" className="cloudact-link text-sm">
-              (800) 936-0383
-            </a>
           </div>
         </div>
       </section>
-
-      {/* Final CTA - Coral Banner */}
-      <section className="py-12 sm:py-16 md:py-20 px-4 md:px-12">
-        <div className="banner-coral rounded-2xl p-6 sm:p-8 md:p-12 max-w-[1200px] mx-auto">
-          <div className="mx-auto max-w-3xl text-center space-y-4 sm:space-y-6 relative z-10">
-            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-[40px] font-light text-white leading-tight">
-              Ready to Optimize Your Costs?
-            </h2>
-            <p className="text-white/90 text-sm sm:text-base md:text-lg max-w-xl mx-auto px-4">
-              Join hundreds of companies reducing their GenAI and cloud infrastructure costs by an average of 67%.
-            </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2 sm:pt-4">
-              <Link
-                href="/signup"
-                className="w-full sm:w-auto inline-flex items-center justify-center px-5 sm:px-6 py-2.5 sm:py-3 bg-white text-[#FF6E50] rounded-lg text-sm sm:text-[15px] font-semibold hover:bg-gray-100 transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5"
-              >
-                Request a Demo
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-              <Link
-                href="/pricing"
-                className="w-full sm:w-auto inline-flex items-center justify-center px-5 sm:px-6 py-2.5 sm:py-3 bg-transparent text-white border-2 border-white/30 rounded-lg text-sm sm:text-[15px] font-semibold hover:bg-white/10 hover:border-white/50 transition-all"
-              >
-                View Pricing
-              </Link>
-            </div>
-            <p className="text-white/70 text-[11px] sm:text-xs pt-2 sm:pt-3 font-medium">{DEFAULT_TRIAL_DAYS}-day free trial • No credit card required</p>
-          </div>
-        </div>
-      </section>
-    </>
+    </div>
   )
 }

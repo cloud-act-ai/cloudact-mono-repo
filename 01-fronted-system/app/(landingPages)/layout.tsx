@@ -5,6 +5,7 @@ import Link from "next/link"
 import { useState, useEffect } from "react"
 import { ArrowRight, Menu, X, Shield, Lock, CreditCard } from "lucide-react"
 import "./landing.css"
+import "./premium.css"
 
 // Static data moved outside component to prevent re-creation on each render
 const NAV_LINKS = [
