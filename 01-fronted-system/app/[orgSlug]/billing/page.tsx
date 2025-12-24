@@ -28,6 +28,12 @@ import {
   Calendar,
   Lock,
   Shield,
+  TrendingUp,
+  Users,
+  Zap,
+  Crown,
+  ArrowRight,
+  BarChart3,
 } from "lucide-react"
 import {
   createCheckoutSession,
@@ -46,7 +52,7 @@ export default function BillingPage() {
   const searchParams = useSearchParams()
   const reason = searchParams.get("reason")
 
-  const [isLoading, setIsLoading] = useState<string | null>(null) // Track which plan is loading
+  const [isLoading, setIsLoading] = useState<string | null>(null)
   const [isPortalLoading, setIsPortalLoading] = useState(false)
   const [currentPlan, setCurrentPlan] = useState<string | null>(null)
   const [billingStatus, setBillingStatus] = useState<string | null>(null)
@@ -75,11 +81,9 @@ export default function BillingPage() {
     try {
       const supabase = createClient()
 
-      // Get current user first - handle auth errors gracefully
       const { data: { user }, error: authError } = await supabase.auth.getUser()
 
       if (authError) {
-        // If auth fails (e.g., invalid refresh token), redirect to login
         if (authError.message.includes("Refresh Token") || authError.status === 400) {
           window.location.href = `/login?redirectTo=/${orgSlug}/billing&reason=session_expired`
           return
@@ -93,7 +97,6 @@ export default function BillingPage() {
         return
       }
 
-      // Fetch org basic info (include created_by for owner fallback check)
       const { data: orgData, error: orgError } = await supabase
         .from("organizations")
         .select("plan, billing_status, stripe_subscription_id, id, created_by, default_currency")
@@ -101,7 +104,6 @@ export default function BillingPage() {
         .single()
 
       if (orgError) {
-        // If org query fails, we can't proceed
         return
       }
 
@@ -113,7 +115,6 @@ export default function BillingPage() {
           setOrgCurrency(orgData.default_currency)
         }
 
-        // Fetch member count for limit validation
         const { count: memberCount } = await supabase
           .from("organization_members")
           .select("*", { count: "exact", head: true })
@@ -122,7 +123,6 @@ export default function BillingPage() {
 
         setCurrentMemberCount(memberCount || 0)
 
-        // Fetch current user's role using the orgData.id we already have
         const { data: membership, error: membershipError } = await supabase
           .from("organization_members")
           .select("role")
@@ -135,8 +135,6 @@ export default function BillingPage() {
           // Membership error handled silently
         }
 
-        // Set user role - if membership exists, use it
-        // Fallback: if user is the org creator, they are the owner
         let role = membership?.role || null
 
         if (!role && orgData.created_by === user.id) {
@@ -144,11 +142,8 @@ export default function BillingPage() {
         }
 
         setUserRole(role)
-
-        // If no role, user is not a member - handled by access denied UI
       }
 
-      // Fetch detailed billing info from Stripe (source of truth)
       const result = await getBillingInfo(orgSlug)
       if (result.error) {
         logError("BillingPage:fetchBillingData:BillingInfo", result.error)
@@ -156,7 +151,6 @@ export default function BillingPage() {
       } else if (result.data) {
         setBillingInfo(result.data)
         setBillingError(null)
-        // If Stripe has subscription data, use it (in case webhook missed)
         if (result.data.subscription) {
           setHasStripeSubscription(true)
           setCurrentPlan(result.data.subscription.plan.id)
@@ -188,7 +182,6 @@ export default function BillingPage() {
         return
       }
 
-      // Sort plans by price (ascending)
       const sortedPlans = result.data.sort((a, b) => a.price - b.price)
       setPlans(sortedPlans)
       setPlansError(null)
@@ -208,12 +201,11 @@ export default function BillingPage() {
     fetchPlans()
   }, [orgSlug, fetchBillingData, fetchPlans])
 
-  // Poll for subscription data after successful checkout
   useEffect(() => {
     if (searchParams.get("success") === "true" && !hasStripeSubscription && !isLoadingBilling) {
       let pollCount = 0
       const maxPolls = 10
-      const pollInterval = 2000 // 2 seconds
+      const pollInterval = 2000
       let timeoutId: ReturnType<typeof setTimeout> | null = null
 
       const pollForSubscription = async () => {
@@ -225,10 +217,8 @@ export default function BillingPage() {
         }
       }
 
-      // Start polling after a short delay
       timeoutId = setTimeout(pollForSubscription, 1000)
 
-      // Cleanup function to prevent memory leaks
       return () => {
         if (timeoutId) {
           clearTimeout(timeoutId)
@@ -237,7 +227,6 @@ export default function BillingPage() {
     }
   }, [searchParams, hasStripeSubscription, isLoadingBilling, fetchBillingData])
 
-  // Validate URL is from allowed domains to prevent open redirect
   const isValidRedirectUrl = (url: string): boolean => {
     try {
       const parsed = new URL(url)
@@ -248,7 +237,6 @@ export default function BillingPage() {
     }
   }
 
-  // For NEW subscribers: Go to Stripe Checkout
   const handleSubscribe = async (priceId: string) => {
     setIsLoading(priceId)
     try {
@@ -268,7 +256,6 @@ export default function BillingPage() {
     }
   }
 
-  // For EXISTING subscribers: Go to Stripe Billing Portal
   const handleManageSubscription = async () => {
     setIsPortalLoading(true)
     try {
@@ -288,11 +275,9 @@ export default function BillingPage() {
     }
   }
 
-  // Check if downgrade is allowed based on current resource usage
   const checkDowngradeLimits = async (newPlanLimits: { teamMembers: number; providers: number; pipelinesPerDay: number }) => {
     const supabase = createClient()
 
-    // Check team member limit
     if (currentMemberCount > newPlanLimits.teamMembers) {
       return {
         canDowngrade: false,
@@ -300,7 +285,6 @@ export default function BillingPage() {
       }
     }
 
-    // Check provider/integration limit
     try {
       const { data: orgData } = await supabase
         .from("organizations")
@@ -309,7 +293,6 @@ export default function BillingPage() {
         .single()
 
       if (orgData) {
-        // Count configured integrations (status = 'VALID')
         const configuredProviders = [
           orgData.integration_openai_status === 'VALID',
           orgData.integration_anthropic_status === 'VALID',
@@ -329,24 +312,20 @@ export default function BillingPage() {
         }
       }
     } catch {
-      // Don't block downgrade on error - let backend validation catch it
+      // Don't block downgrade on error
     }
 
     return { canDowngrade: true, reason: null }
   }
 
-  // Show confirmation dialog before plan change
   const showPlanChangeConfirmation = async (plan: DynamicPlan, isUpgrade: boolean) => {
-    // Clear any previous downgrade errors
     setDowngradeLimitError(null)
 
-    // If it's a downgrade, check limits first
     if (!isUpgrade) {
       const limitCheck = await checkDowngradeLimits(plan.limits)
 
       if (!limitCheck.canDowngrade) {
         setDowngradeLimitError(limitCheck.reason)
-        // Don't show the confirmation dialog, just show the error
         return
       }
     }
@@ -354,7 +333,6 @@ export default function BillingPage() {
     setConfirmDialog({ open: true, plan, isUpgrade })
   }
 
-  // For EXISTING subscribers: Change plan directly (called after confirmation)
   const handleChangePlan = async (priceId: string, planName: string) => {
     setConfirmDialog({ open: false, plan: null, isUpgrade: false })
     setPlanChangeLoading(priceId)
@@ -366,12 +344,10 @@ export default function BillingPage() {
         throw new Error(result.error || "Failed to change plan")
       }
 
-      // Update local state immediately
       if (result.subscription) {
         setCurrentPlan(result.subscription.plan.id)
         setBillingStatus(result.subscription.status)
 
-        // Update billing info
         setBillingInfo(prev => prev && prev.subscription && result.subscription ? {
           ...prev,
           subscription: {
@@ -387,26 +363,17 @@ export default function BillingPage() {
         } : prev)
       }
 
-      // Check if there was a sync warning (backend sync failed but plan changed)
       if (result.syncWarning) {
-        // Show success with warning
         const warningMessage = result.syncQueued
           ? `Plan changed to ${planName}. Backend sync is queued and will complete shortly.`
           : `Plan changed to ${planName}. Note: Pipeline limits may take a few minutes to update.`
         setPlanChangeSuccess(warningMessage)
-        // Also show toast warning for visibility
         toast.warning("Plan changed, but backend sync delayed. Limits will update shortly.")
       } else {
         setPlanChangeSuccess(`Successfully switched to ${planName} plan!`)
       }
 
-      // Clear success message after 5 seconds
       setTimeout(() => setPlanChangeSuccess(null), 5000)
-
-      // Note: We do NOT call fetchBillingData() here because:
-      // 1. Local state is already updated from changeSubscriptionPlan result
-      // 2. Stripe API may return cached/stale data immediately after update
-      // 3. User can refresh page manually if needed to see updated invoices
     } catch (err: unknown) {
       const errorMessage = logError("BillingPage:handleChangePlan", err)
       toast.error(`Failed to change plan: ${errorMessage}`)
@@ -430,23 +397,25 @@ export default function BillingPage() {
   const isOwner = userRole === "owner"
   const isCanceledButActive = billingInfo?.subscription?.cancelAtPeriodEnd
 
-  // If user is not owner, show access denied
   if (!isLoadingBilling && userRole && userRole !== "owner") {
     return (
-      <div className="flex items-center justify-center min-h-[50vh]">
-        <Card className="max-w-md border border-border shadow-sm">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-[#FF6E50]" />
-              Access Denied
-            </CardTitle>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Card className="max-w-md border-[#FF6E50]/20 shadow-lg hover:shadow-xl transition-shadow duration-300">
+          <CardHeader className="text-center pb-3">
+            <div className="mx-auto w-16 h-16 rounded-full bg-gradient-to-br from-[#FF6E50]/20 to-[#FF6E50]/10 flex items-center justify-center mb-4">
+              <AlertTriangle className="h-8 w-8 text-[#FF6E50]" />
+            </div>
+            <CardTitle className="text-2xl">Access Denied</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="console-body">
+          <CardContent className="space-y-6 text-center">
+            <p className="text-[15px] text-muted-foreground leading-relaxed">
               Only organization owners can access billing settings.
             </p>
             <Link href={`/${orgSlug}/dashboard`}>
-              <button className="console-button-primary">Go to Dashboard</button>
+              <button className="console-button-primary w-full">
+                <ArrowRight className="h-4 w-4 mr-2" />
+                Go to Dashboard
+              </button>
             </Link>
           </CardContent>
         </Card>
@@ -455,121 +424,201 @@ export default function BillingPage() {
   }
 
   return (
-    <div className="space-y-6 sm:space-y-8 max-w-7xl mx-auto">
+    <div className="space-y-8 max-w-7xl mx-auto pb-12">
       {reason === "subscription_required" && (
-        <Alert className="border-[#FF6E50]/20 bg-[#FF6E50]/5 shadow-sm">
-          <AlertTriangle className="h-4 w-4 text-[#FF6E50]" />
-          <AlertTitle className="text-[#FF6E50]">Subscription Required</AlertTitle>
-          <AlertDescription className="text-[#1C1C1E]">
+        <Alert className="border-[#FF6E50]/30 bg-gradient-to-r from-[#FF6E50]/10 to-[#FF6E50]/5 shadow-md">
+          <AlertTriangle className="h-5 w-5 text-[#FF6E50]" />
+          <AlertTitle className="text-[#FF6E50] font-semibold text-[17px]">Subscription Required</AlertTitle>
+          <AlertDescription className="text-[15px] text-[#1C1C1E] mt-1">
             Your subscription is not active. Please activate a plan to access your organization dashboard.
           </AlertDescription>
         </Alert>
       )}
 
-      {/* Header */}
-      <div className="text-center">
-        <h1 className="text-[32px] sm:text-[34px] font-bold text-black tracking-tight">Billing & Plans</h1>
-        <p className="text-[13px] sm:text-[15px] text-muted-foreground mt-2">Manage your subscription and billing information</p>
+      {/* Hero Header */}
+      <div className="text-center space-y-3 pt-4">
+        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-[#007A78]/10 to-[#FF6E50]/10 border border-[#007A78]/20">
+          <Crown className="h-4 w-4 text-[#007A78]" />
+          <span className="text-sm font-semibold text-[#007A78]">Billing & Subscription</span>
+        </div>
+        <h1 className="text-4xl sm:text-5xl font-bold bg-gradient-to-r from-[#007A78] to-[#005F5D] bg-clip-text text-transparent tracking-tight">
+          Manage Your Plan
+        </h1>
+        <p className="text-[15px] sm:text-[17px] text-muted-foreground max-w-2xl mx-auto leading-relaxed">
+          Upgrade, downgrade, or manage your subscription anytime. All changes are prorated automatically.
+        </p>
       </div>
 
-      {/* Current Subscription Status Banner (for existing subscribers) */}
+      {/* Current Subscription Banner */}
       {hasStripeSubscription && billingInfo?.subscription && (
-        <div className="metric-card bg-[#FFF5F3] border border-[#FF6E50]/20 shadow-sm">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3 sm:gap-4">
-              <div className="h-10 w-10 rounded-full bg-[#007A78]/10 flex items-center justify-center flex-shrink-0">
-                <CreditCard className="h-5 w-5 text-[#007A78]" />
-              </div>
-              <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-[15px] sm:text-[17px] font-semibold text-black">{billingInfo.subscription.plan.name} Plan</span>
-                  <span className={isCanceledButActive ? "flex-shrink-0 bg-[#FF6E50]/10 text-[#FF6E50] text-[11px] font-semibold px-2.5 py-1 rounded-full" : "flex-shrink-0 bg-[#F0FDFA] text-[#007A78] text-[11px] font-semibold px-2.5 py-1 rounded-full"}>
-                    {isCanceledButActive ? "Cancels at period end" : billingInfo.subscription.status}
-                  </span>
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#007A78]/5 via-white to-[#FF6E50]/5 border border-[#007A78]/20 shadow-lg hover:shadow-xl transition-all duration-300 group">
+          <div className="absolute inset-0 bg-gradient-to-r from-[#007A78]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+          <div className="relative p-6 sm:p-8">
+            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+              <div className="flex items-start gap-5">
+                <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-[#007A78] to-[#005F5D] flex items-center justify-center flex-shrink-0 shadow-lg">
+                  <CreditCard className="h-7 w-7 text-white" />
                 </div>
-                <p className="text-[13px] sm:text-[15px] text-muted-foreground mt-0.5">
-                  {formatCurrency(billingInfo.subscription.plan.price, billingInfo.subscription.plan.currency)}/{billingInfo.subscription.plan.interval} ·
-                  Renews {formatDate(billingInfo.subscription.currentPeriodEnd)}
-                </p>
+                <div className="space-y-2">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <h2 className="text-2xl font-bold text-black">{billingInfo.subscription.plan.name} Plan</h2>
+                    <span className={isCanceledButActive
+                      ? "flex-shrink-0 bg-[#FF6E50]/15 text-[#FF6E50] text-xs font-bold px-3 py-1.5 rounded-full border border-[#FF6E50]/30"
+                      : "flex-shrink-0 bg-gradient-to-r from-[#007A78]/15 to-[#007A78]/10 text-[#007A78] text-xs font-bold px-3 py-1.5 rounded-full border border-[#007A78]/30"}>
+                      {isCanceledButActive ? "Cancels at period end" : billingInfo.subscription.status}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-[15px] text-muted-foreground">
+                    <span className="font-semibold text-[#007A78]">
+                      {formatCurrency(billingInfo.subscription.plan.price, billingInfo.subscription.plan.currency)}
+                    </span>
+                    <span>/ {billingInfo.subscription.plan.interval}</span>
+                    <span className="text-[#007A78]/40">•</span>
+                    <Calendar className="h-4 w-4" />
+                    <span>Renews {formatDate(billingInfo.subscription.currentPeriodEnd)}</span>
+                  </div>
+                </div>
               </div>
+              {isOwner && (
+                <button
+                  onClick={handleManageSubscription}
+                  disabled={isPortalLoading}
+                  className="console-button-secondary whitespace-nowrap shadow-md hover:shadow-lg transition-all duration-300"
+                >
+                  {isPortalLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <Settings className="h-4 w-4 mr-2" />
+                  )}
+                  Manage Subscription
+                </button>
+              )}
             </div>
-            {isOwner && (
-              <button onClick={handleManageSubscription} disabled={isPortalLoading} className="console-button-secondary">
-                {isPortalLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : (
-                  <Settings className="h-4 w-4 mr-2" />
-                )}
-                <span className="hidden sm:inline">Manage Subscription</span>
-                <span className="sm:hidden">Manage</span>
-              </button>
+            {isCanceledButActive && (
+              <Alert className="mt-6 border-[#FF6E50]/30 bg-[#FF6E50]/5">
+                <AlertTriangle className="h-4 w-4 text-[#FF6E50]" />
+                <AlertDescription className="text-[15px]">
+                  Your subscription will end on <strong>{formatDate(billingInfo.subscription.currentPeriodEnd)}</strong>.
+                  Click "Manage Subscription" to resume.
+                </AlertDescription>
+              </Alert>
             )}
           </div>
-          {isCanceledButActive && (
-            <Alert className="mt-4 border-[#FF6E50]/30 bg-[#FF6E50]/5">
-              <AlertTriangle className="h-4 w-4 text-[#FF6E50]" />
-              <AlertDescription className="text-[13px] sm:text-[15px]">
-                Your subscription will end on <strong>{formatDate(billingInfo.subscription.currentPeriodEnd)}</strong>.
-                Click "Manage Subscription" to resume.
-              </AlertDescription>
-            </Alert>
-          )}
         </div>
       )}
 
-      {/* Past Due Payment Warning */}
-      {billingStatus === "past_due" && (
-        <Alert className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
-          <AlertTriangle className="h-4 w-4 text-[#FF6E50]" />
-          <AlertTitle>Payment Past Due</AlertTitle>
-          <AlertDescription className="text-[#1C1C1E] mt-1">
-            Your last payment failed. Please update your payment method to avoid service interruption.
-            {isOwner && (
-              <div className="mt-3">
-                <button
-                  className="inline-flex items-center h-11 px-4 bg-[#FF6E50] text-white hover:bg-[#E55A3C] rounded-xl text-[15px] font-semibold shadow-sm transition-colors"
-                  onClick={handleManageSubscription}
-                  disabled={isPortalLoading}
-                >
-                  Update Payment Method
-                </button>
+      {/* Usage Overview Cards - Only show for active subscribers */}
+      {hasStripeSubscription && billingInfo?.subscription && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="relative overflow-hidden rounded-xl bg-white border border-[#007A78]/20 p-6 shadow-md hover:shadow-lg transition-all duration-300 group">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-[#007A78]/10 to-transparent rounded-bl-full"></div>
+            <div className="relative space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-[#007A78]/10 to-[#007A78]/5 flex items-center justify-center">
+                  <Users className="h-6 w-6 text-[#007A78]" />
+                </div>
+                <TrendingUp className="h-5 w-5 text-[#007A78]/40 group-hover:text-[#007A78] transition-colors" />
               </div>
+              <div>
+                <p className="text-sm text-muted-foreground font-medium">Team Members</p>
+                <p className="text-3xl font-bold text-black mt-1">
+                  {currentMemberCount}
+                  <span className="text-lg text-muted-foreground ml-1">
+                    / {billingInfo.subscription.plan.metadata?.team_members || '∞'}
+                  </span>
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="relative overflow-hidden rounded-xl bg-white border border-[#FF6E50]/20 p-6 shadow-md hover:shadow-lg transition-all duration-300 group">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-[#FF6E50]/10 to-transparent rounded-bl-full"></div>
+            <div className="relative space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-[#FF6E50]/10 to-[#FF6E50]/5 flex items-center justify-center">
+                  <Zap className="h-6 w-6 text-[#FF6E50]" />
+                </div>
+                <BarChart3 className="h-5 w-5 text-[#FF6E50]/40 group-hover:text-[#FF6E50] transition-colors" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground font-medium">Integrations</p>
+                <p className="text-3xl font-bold text-black mt-1">
+                  Active
+                  <span className="text-lg text-muted-foreground ml-1">
+                    / {billingInfo.subscription.plan.metadata?.providers || '∞'}
+                  </span>
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="relative overflow-hidden rounded-xl bg-white border border-[#007A78]/20 p-6 shadow-md hover:shadow-lg transition-all duration-300 group">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-[#007A78]/10 to-transparent rounded-bl-full"></div>
+            <div className="relative space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-[#007A78]/10 to-[#007A78]/5 flex items-center justify-center">
+                  <Calendar className="h-6 w-6 text-[#007A78]" />
+                </div>
+                <Shield className="h-5 w-5 text-[#007A78]/40 group-hover:text-[#007A78] transition-colors" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground font-medium">Billing Cycle</p>
+                <p className="text-2xl font-bold text-black mt-1 capitalize">
+                  {billingInfo.subscription.plan.interval}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Alerts */}
+      {billingStatus === "past_due" && (
+        <Alert className="border-[#FF6E50]/30 bg-gradient-to-r from-[#FF6E50]/10 to-[#FF6E50]/5 shadow-md">
+          <AlertTriangle className="h-5 w-5 text-[#FF6E50]" />
+          <AlertTitle className="text-[#FF6E50] font-semibold text-[17px]">Payment Past Due</AlertTitle>
+          <AlertDescription className="text-[#1C1C1E] mt-2 space-y-3">
+            <p>Your last payment failed. Please update your payment method to avoid service interruption.</p>
+            {isOwner && (
+              <button
+                className="inline-flex items-center h-11 px-6 bg-[#FF6E50] text-white hover:bg-[#E55A3C] rounded-xl text-[15px] font-semibold shadow-md hover:shadow-lg transition-all duration-300"
+                onClick={handleManageSubscription}
+                disabled={isPortalLoading}
+              >
+                Update Payment Method
+              </button>
             )}
           </AlertDescription>
         </Alert>
       )}
 
-      {/* Processing Subscription Alert (after checkout) */}
       {searchParams.get("success") === "true" && !hasStripeSubscription && (
-        <Alert>
-          <Loader2 className="h-4 w-4 animate-spin" />
-          <AlertTitle>Processing your subscription...</AlertTitle>
-          <AlertDescription>
+        <Alert className="border-[#007A78]/30 bg-gradient-to-r from-[#007A78]/10 to-[#007A78]/5 shadow-md">
+          <Loader2 className="h-5 w-5 animate-spin text-[#007A78]" />
+          <AlertTitle className="text-[#007A78] font-semibold text-[17px]">Processing your subscription...</AlertTitle>
+          <AlertDescription className="text-[15px] mt-1">
             Please wait while we confirm your payment. This usually takes a few seconds.
           </AlertDescription>
         </Alert>
       )}
 
-      {/* Trial Banner (for users without subscription) */}
       {!hasStripeSubscription && billingInfo?.trialEndsAt && (() => {
         const daysRemaining = Math.ceil((new Date(billingInfo.trialEndsAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
         const isTrialExpired = daysRemaining <= 0
         const isUrgent = daysRemaining <= 7 && daysRemaining > 0
         const isWarning = daysRemaining <= 14 && daysRemaining > 7
         return (
-          <Alert className={isTrialExpired || isUrgent ? "border-[#FF6E50]/30 bg-[#FF6E50]/5" : isWarning ? "border-[#FF6E50]/30 bg-[#FF6E50]/5" : ""}>
-            <Calendar className="h-4 w-4" />
-            <AlertTitle className={isWarning ? "text-[#E55A3C]" : ""}>
+          <Alert className={isTrialExpired || isUrgent ? "border-[#FF6E50]/30 bg-gradient-to-r from-[#FF6E50]/10 to-[#FF6E50]/5 shadow-md" : isWarning ? "border-[#FF6E50]/30 bg-gradient-to-r from-[#FF6E50]/10 to-[#FF6E50]/5 shadow-md" : "border-[#007A78]/30 bg-gradient-to-r from-[#007A78]/10 to-[#007A78]/5 shadow-md"}>
+            <Calendar className="h-5 w-5" />
+            <AlertTitle className={isWarning ? "text-[#FF6E50] font-semibold text-[17px]" : "font-semibold text-[17px]"}>
               {isTrialExpired ? "Trial Expired" : isUrgent ? "Trial Ending Soon!" : "Free Trial"}
               {!isTrialExpired && <span className={isUrgent ? "console-badge console-badge-coral ml-2" : isWarning ? "console-badge console-badge-coral ml-2" : "console-badge ml-2"}>{daysRemaining} days left</span>}
             </AlertTitle>
-            <AlertDescription className={isWarning ? "text-[#FF6E50]" : ""}>
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <span>
+            <AlertDescription className={isWarning ? "text-[#FF6E50] mt-2" : "mt-2"}>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <span className="text-[15px]">
                   {isTrialExpired ? (
-                    <>
-                      Your trial has expired. Subscribe now to continue using CloudAct.
-                    </>
+                    <>Your trial has expired. Subscribe now to continue using CloudAct.</>
                   ) : (
                     <>
                       Your trial ends on <strong>{formatDate(billingInfo.trialEndsAt)}</strong>.
@@ -579,7 +628,7 @@ export default function BillingPage() {
                 </span>
                 {isOwner && (
                   <button
-                    className={isTrialExpired || isUrgent ? "console-button-primary inline-flex items-center mt-2 sm:mt-0" : isWarning ? "inline-flex items-center h-11 px-4 text-[15px] font-semibold text-[#FF6E50] border border-[#FF6E50] rounded-xl hover:bg-[#FF6E50]/10 mt-2 sm:mt-0" : "console-button-secondary inline-flex items-center mt-2 sm:mt-0"}
+                    className={isTrialExpired || isUrgent ? "console-button-primary whitespace-nowrap shadow-md" : isWarning ? "inline-flex items-center h-11 px-6 text-[15px] font-semibold text-[#FF6E50] border-2 border-[#FF6E50] rounded-xl hover:bg-[#FF6E50]/10 shadow-md whitespace-nowrap" : "console-button-secondary whitespace-nowrap shadow-md"}
                     onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })}
                   >
                     <CreditCard className="h-4 w-4 mr-2" />
@@ -592,27 +641,25 @@ export default function BillingPage() {
         )
       })()}
 
-      {/* Plan Change Success Message */}
       {planChangeSuccess && (
-        <Alert className="border-[#007A78]/30 bg-[#007A78]/5">
-          <Check className="h-4 w-4 text-[#007A78]" />
-          <AlertTitle className="text-[#007A78]">Plan Changed</AlertTitle>
-          <AlertDescription className="text-[#005F5D]">
+        <Alert className="border-[#007A78]/30 bg-gradient-to-r from-[#007A78]/10 to-[#007A78]/5 shadow-md">
+          <Check className="h-5 w-5 text-[#007A78]" />
+          <AlertTitle className="text-[#007A78] font-semibold text-[17px]">Plan Changed Successfully</AlertTitle>
+          <AlertDescription className="text-[#005F5D] text-[15px] mt-1">
             {planChangeSuccess}
           </AlertDescription>
         </Alert>
       )}
 
-      {/* Downgrade Limit Error */}
       {downgradeLimitError && (
-        <Alert className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
-          <AlertTriangle className="h-4 w-4 text-[#FF6E50]" />
-          <AlertTitle>Cannot Downgrade</AlertTitle>
-          <AlertDescription className="flex items-start justify-between gap-4">
+        <Alert className="border-[#FF6E50]/30 bg-gradient-to-r from-[#FF6E50]/10 to-[#FF6E50]/5 shadow-md">
+          <AlertTriangle className="h-5 w-5 text-[#FF6E50]" />
+          <AlertTitle className="text-[#FF6E50] font-semibold text-[17px]">Cannot Downgrade</AlertTitle>
+          <AlertDescription className="flex items-start justify-between gap-4 text-[15px] mt-2">
             <span>{downgradeLimitError}</span>
             <button
               onClick={() => setDowngradeLimitError(null)}
-              className="shrink-0 h-auto p-1 hover:bg-[#FF6E50]/10 text-sm text-muted-foreground hover:text-[#FF6E50]"
+              className="shrink-0 h-auto p-2 hover:bg-[#FF6E50]/10 text-sm text-muted-foreground hover:text-[#FF6E50] rounded-lg transition-colors"
             >
               Dismiss
             </button>
@@ -621,123 +668,180 @@ export default function BillingPage() {
       )}
 
       {/* Pricing Cards */}
-      <div id="pricing">
-        <h2 className="text-[22px] font-bold text-black mb-4">
-          {hasStripeSubscription ? "Change Plan" : "Choose a Plan"}
-        </h2>
-        <p className="text-[13px] sm:text-[15px] text-muted-foreground mb-6">
-          {hasStripeSubscription
-            ? "Upgrade or downgrade your plan instantly. Charges are prorated automatically."
-            : `Select a plan to get started.${plans[0]?.trialDays ? ` All plans include a ${plans[0].trialDays}-day free trial.` : ''}`
-          }
-        </p>
+      <div id="pricing" className="space-y-6">
+        <div className="text-center space-y-2">
+          <h2 className="text-3xl font-bold text-black">
+            {hasStripeSubscription ? "Change Your Plan" : "Choose Your Plan"}
+          </h2>
+          <p className="text-[15px] text-muted-foreground max-w-2xl mx-auto">
+            {hasStripeSubscription
+              ? "Upgrade or downgrade your plan instantly. All charges are prorated automatically."
+              : `Select the perfect plan for your needs.${plans[0]?.trialDays ? ` All plans include a ${plans[0].trialDays}-day free trial.` : ''}`
+            }
+          </p>
+        </div>
+
         {billingError && (
-          <Alert className="border-[#FF6E50]/30 bg-[#FF6E50]/5 mb-6">
-            <AlertTriangle className="h-4 w-4 text-[#FF6E50]" />
-            <AlertTitle>Error Loading Billing Info</AlertTitle>
-            <AlertDescription>{billingError}</AlertDescription>
+          <Alert className="border-[#FF6E50]/30 bg-gradient-to-r from-[#FF6E50]/10 to-[#FF6E50]/5 shadow-md">
+            <AlertTriangle className="h-5 w-5 text-[#FF6E50]" />
+            <AlertTitle className="text-[#FF6E50] font-semibold text-[17px]">Error Loading Billing Info</AlertTitle>
+            <AlertDescription className="text-[15px] mt-1">{billingError}</AlertDescription>
           </Alert>
         )}
+
         {plansError ? (
-          <Alert className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
-            <AlertTriangle className="h-4 w-4 text-[#FF6E50]" />
-            <AlertTitle>Error Loading Plans</AlertTitle>
-            <AlertDescription>
-              {plansError}
-              <br />
+          <Alert className="border-[#FF6E50]/30 bg-gradient-to-r from-[#FF6E50]/10 to-[#FF6E50]/5 shadow-md">
+            <AlertTriangle className="h-5 w-5 text-[#FF6E50]" />
+            <AlertTitle className="text-[#FF6E50] font-semibold text-[17px]">Error Loading Plans</AlertTitle>
+            <AlertDescription className="text-[15px] mt-2 space-y-3">
+              <p>{plansError}</p>
               <button
                 onClick={fetchPlans}
-                className="text-sm underline mt-2 hover:no-underline"
+                className="text-sm font-semibold underline hover:no-underline text-[#FF6E50]"
               >
                 Try again
               </button>
             </AlertDescription>
           </Alert>
         ) : plans.length === 0 ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-[#007A78]" />
+          <div className="flex items-center justify-center py-20">
+            <div className="text-center space-y-4">
+              <Loader2 className="h-12 w-12 animate-spin text-[#007A78] mx-auto" />
+              <p className="text-muted-foreground">Loading plans...</p>
+            </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {plans.map((plan, index) => {
-              // Only show "Current Plan" if user has an active Stripe subscription
               const isCurrentPlan = hasStripeSubscription && currentPlan === plan.id
               const currentPlanIndex = plans.findIndex(p => p.id === currentPlan)
-
               const isUpgrade = hasStripeSubscription && currentPlan && index > currentPlanIndex
               const isDowngrade = hasStripeSubscription && currentPlan && index < currentPlanIndex
+              const isPopular = index === 1 // Middle plan is popular
 
               return (
                 <div
                   key={plan.priceId}
-                  className={`flex flex-col metric-card border shadow-sm ${isCurrentPlan ? "border-[#007A78] shadow-lg relative" : "border-border"}`}
+                  className={`relative flex flex-col rounded-2xl bg-white border-2 shadow-lg hover:shadow-2xl transition-all duration-300 group ${
+                    isCurrentPlan
+                      ? "border-[#007A78] shadow-[#007A78]/20 scale-105"
+                      : isPopular
+                      ? "border-[#FF6E50] shadow-[#FF6E50]/20 scale-105"
+                      : "border-[#007A78]/20 hover:border-[#007A78]/40"
+                  }`}
                 >
-                  {isCurrentPlan && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#007A78] text-white px-3 py-1 rounded-full text-[11px] font-semibold">
-                      Current Plan
+                  {/* Popular Badge */}
+                  {isPopular && !isCurrentPlan && (
+                    <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-10">
+                      <div className="bg-gradient-to-r from-[#FF6E50] to-[#E55A3C] text-white px-4 py-1.5 rounded-full text-xs font-bold shadow-lg border-2 border-white">
+                        MOST POPULAR
+                      </div>
                     </div>
                   )}
-                  <div className="mb-4">
-                    <h3 className="text-[17px] font-semibold text-black">{plan.name}</h3>
-                    <p className="text-[13px] text-muted-foreground mt-1">{plan.description}</p>
-                  </div>
-                  <div className="flex-1">
-                    <div className="mb-4">
-                      <span className="text-[28px] sm:text-[32px] font-bold text-[#FF6E50]">{formatCurrency(plan.price, orgCurrency)}</span>
-                      <span className="text-[13px] sm:text-[15px] font-normal text-muted-foreground">/{plan.interval}</span>
+
+                  {/* Current Plan Badge */}
+                  {isCurrentPlan && (
+                    <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-10">
+                      <div className="bg-gradient-to-r from-[#007A78] to-[#005F5D] text-white px-4 py-1.5 rounded-full text-xs font-bold shadow-lg border-2 border-white flex items-center gap-1.5">
+                        <Crown className="h-3.5 w-3.5" />
+                        CURRENT PLAN
+                      </div>
                     </div>
-                    {plan.trialDays && !hasStripeSubscription && (
-                      <p className="text-[13px] text-[#FF6E50] mb-4 font-medium">
-                        {plan.trialDays}-day free trial included
-                      </p>
-                    )}
-                    {plan.features.length > 0 ? (
-                      <ul className="space-y-2">
-                        {plan.features.map((feature, i) => (
-                          <li key={i} className="flex items-start gap-2 text-[13px] sm:text-[15px]">
-                            <Check className="h-4 w-4 text-[#007A78] flex-shrink-0 mt-0.5" />
-                            <span className="text-[#3C3C43]">{feature}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="text-[13px] text-muted-foreground">
-                        Contact us for plan details
-                      </p>
-                    )}
-                  </div>
-                  <div className="mt-6">
-                    {isCurrentPlan ? (
-                      <button className="h-11 px-4 w-full text-muted-foreground bg-[#007A78]/5 rounded-xl text-[15px] font-semibold opacity-50 cursor-not-allowed border-none" disabled>
-                        Current Plan
-                      </button>
-                    ) : (
-                      <button
-                        className={isUpgrade ? "console-button-primary w-full" : "console-button-secondary w-full"}
-                        onClick={
-                          hasStripeSubscription
-                            ? () => showPlanChangeConfirmation(plan, !!isUpgrade)
-                            : () => handleSubscribe(plan.priceId)
-                        }
-                        disabled={
-                          (hasStripeSubscription
-                            ? planChangeLoading !== null
-                            : isLoading !== null) || !isOwner
-                        }
-                      >
-                        {(hasStripeSubscription
-                          ? planChangeLoading === plan.priceId
-                          : isLoading === plan.priceId) ? (
-                          <Loader2 className="h-4 w-4 animate-spin mx-auto" />
-                        ) : isUpgrade ? (
-                          "Upgrade"
-                        ) : isDowngrade ? (
-                          "Downgrade"
-                        ) : (
-                          "Get Started"
-                        )}
-                      </button>
-                    )}
+                  )}
+
+                  <div className="p-8 flex-1 flex flex-col">
+                    {/* Plan Header */}
+                    <div className="space-y-4 mb-6">
+                      <h3 className="text-2xl font-bold text-black">{plan.name}</h3>
+                      <p className="text-sm text-muted-foreground leading-relaxed">{plan.description}</p>
+                    </div>
+
+                    {/* Pricing */}
+                    <div className="mb-6">
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-4xl sm:text-5xl font-bold bg-gradient-to-r from-[#FF6E50] to-[#E55A3C] bg-clip-text text-transparent">
+                          {formatCurrency(plan.price, orgCurrency)}
+                        </span>
+                        <span className="text-[15px] font-medium text-muted-foreground">
+                          / {plan.interval}
+                        </span>
+                      </div>
+                      {plan.trialDays && !hasStripeSubscription && (
+                        <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#FF6E50]/10 border border-[#FF6E50]/30">
+                          <Zap className="h-3.5 w-3.5 text-[#FF6E50]" />
+                          <span className="text-sm font-semibold text-[#FF6E50]">
+                            {plan.trialDays}-day free trial
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Features */}
+                    <div className="flex-1 mb-8">
+                      {plan.features.length > 0 ? (
+                        <ul className="space-y-3">
+                          {plan.features.map((feature, i) => (
+                            <li key={i} className="flex items-start gap-3 text-[15px] group/item">
+                              <div className="h-5 w-5 rounded-full bg-gradient-to-br from-[#007A78]/20 to-[#007A78]/10 flex items-center justify-center flex-shrink-0 mt-0.5 group-hover/item:from-[#007A78]/30 group-hover/item:to-[#007A78]/20 transition-all">
+                                <Check className="h-3.5 w-3.5 text-[#007A78]" />
+                              </div>
+                              <span className="text-[#3C3C43] leading-relaxed">{feature}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-sm text-muted-foreground italic">
+                          Contact us for plan details
+                        </p>
+                      )}
+                    </div>
+
+                    {/* CTA Button */}
+                    <div>
+                      {isCurrentPlan ? (
+                        <button
+                          className="h-12 px-6 w-full text-[#007A78] bg-[#007A78]/10 rounded-xl text-[15px] font-semibold border-2 border-[#007A78]/30 cursor-not-allowed"
+                          disabled
+                        >
+                          <Crown className="h-4 w-4 mr-2 inline-block" />
+                          Current Plan
+                        </button>
+                      ) : (
+                        <button
+                          className={`h-12 px-6 w-full rounded-xl text-[15px] font-semibold shadow-md hover:shadow-lg transition-all duration-300 ${
+                            isUpgrade || isPopular
+                              ? "bg-gradient-to-r from-[#FF6E50] to-[#E55A3C] text-white hover:from-[#E55A3C] hover:to-[#D54E32]"
+                              : "bg-white text-[#007A78] border-2 border-[#007A78] hover:bg-[#007A78]/5"
+                          }`}
+                          onClick={
+                            hasStripeSubscription
+                              ? () => showPlanChangeConfirmation(plan, !!isUpgrade)
+                              : () => handleSubscribe(plan.priceId)
+                          }
+                          disabled={
+                            (hasStripeSubscription
+                              ? planChangeLoading !== null
+                              : isLoading !== null) || !isOwner
+                          }
+                        >
+                          {(hasStripeSubscription
+                            ? planChangeLoading === plan.priceId
+                            : isLoading === plan.priceId) ? (
+                            <Loader2 className="h-5 w-5 animate-spin mx-auto" />
+                          ) : (
+                            <span className="flex items-center justify-center gap-2">
+                              {isUpgrade ? (
+                                <>Upgrade Now <ArrowRight className="h-4 w-4" /></>
+                              ) : isDowngrade ? (
+                                "Downgrade"
+                              ) : (
+                                <>Get Started <ArrowRight className="h-4 w-4" /></>
+                              )}
+                            </span>
+                          )}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               )
@@ -746,41 +850,47 @@ export default function BillingPage() {
         )}
 
         {/* Trust Badges */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-8 mt-8 console-small">
-          <div className="flex items-center gap-2">
-            <CreditCard className="h-4 w-4 text-[#007A78]" />
-            <span>Secure payments via Stripe</span>
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-6 sm:gap-10 mt-10 pt-8 border-t border-border">
+          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+            <div className="h-10 w-10 rounded-full bg-gradient-to-br from-[#007A78]/10 to-[#007A78]/5 flex items-center justify-center">
+              <CreditCard className="h-5 w-5 text-[#007A78]" />
+            </div>
+            <span className="font-medium">Secure payments via Stripe</span>
           </div>
-          <div className="flex items-center gap-2">
-            <Lock className="h-4 w-4 text-[#007A78]" />
-            <span>256-bit SSL encryption</span>
+          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+            <div className="h-10 w-10 rounded-full bg-gradient-to-br from-[#007A78]/10 to-[#007A78]/5 flex items-center justify-center">
+              <Lock className="h-5 w-5 text-[#007A78]" />
+            </div>
+            <span className="font-medium">256-bit SSL encryption</span>
           </div>
-          <div className="flex items-center gap-2">
-            <Shield className="h-4 w-4 text-[#007A78]" />
-            <span>GDPR compliant</span>
+          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+            <div className="h-10 w-10 rounded-full bg-gradient-to-br from-[#007A78]/10 to-[#007A78]/5 flex items-center justify-center">
+              <Shield className="h-5 w-5 text-[#007A78]" />
+            </div>
+            <span className="font-medium">GDPR compliant</span>
           </div>
         </div>
 
-        {/* Enterprise pricing + Cancel link - directly below pricing cards */}
-        <div className="text-center mt-6 space-y-1">
-          <p className="console-small">
+        {/* Contact & Cancel Links */}
+        <div className="text-center space-y-2 pt-4">
+          <p className="text-sm text-muted-foreground">
             Need enterprise pricing?{" "}
             <a
               href={`mailto:${process.env.NEXT_PUBLIC_MARKETING_EMAIL || "marketing@cloudact.ai"}`}
-              className="text-[#FF6E50] hover:underline transition-colors"
+              className="text-[#FF6E50] hover:text-[#E55A3C] font-semibold hover:underline transition-colors"
             >
               Contact {process.env.NEXT_PUBLIC_MARKETING_EMAIL || "marketing@cloudact.ai"}
             </a>
           </p>
           {isOwner && (
-            <p className="console-small">
+            <p className="text-sm text-muted-foreground">
               {hasStripeSubscription && !isCanceledButActive ? (
                 <>
                   Want to cancel?{" "}
                   <button
                     onClick={handleManageSubscription}
                     disabled={isPortalLoading}
-                    className="text-[#FF6E50]/70 hover:text-[#FF6E50] hover:underline transition-colors"
+                    className="text-[#FF6E50]/80 hover:text-[#FF6E50] font-medium hover:underline transition-colors"
                   >
                     Cancel via Stripe
                   </button>
@@ -790,7 +900,7 @@ export default function BillingPage() {
                   Want to cancel trial?{" "}
                   <a
                     href={`mailto:${process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "support@cloudact.ai"}?subject=Cancel Trial Request`}
-                    className="text-[#FF6E50]/70 hover:text-[#FF6E50] hover:underline transition-colors"
+                    className="text-[#FF6E50]/80 hover:text-[#FF6E50] font-medium hover:underline transition-colors"
                   >
                     Contact support
                   </a>
@@ -801,7 +911,7 @@ export default function BillingPage() {
         </div>
 
         {!isOwner && (
-          <p className="console-small text-center mt-4">
+          <p className="text-sm text-center text-muted-foreground pt-4 italic">
             Only organization owners can manage billing.
           </p>
         )}
@@ -809,40 +919,48 @@ export default function BillingPage() {
 
       {/* Payment Method Card */}
       {hasStripeSubscription && billingInfo?.paymentMethod && (
-        <Card className="border border-border shadow-sm">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CreditCard className="h-5 w-5 text-[#007A78]" />
+        <Card className="border-2 border-[#007A78]/20 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-[#007A78]/5 to-transparent rounded-bl-full"></div>
+          <CardHeader className="relative">
+            <CardTitle className="flex items-center gap-3 text-xl">
+              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-[#007A78]/10 to-[#007A78]/5 flex items-center justify-center">
+                <CreditCard className="h-5 w-5 text-[#007A78]" />
+              </div>
               Payment Method
             </CardTitle>
-            <CardDescription>Your default payment method for this subscription</CardDescription>
+            <CardDescription className="text-[15px]">Your default payment method for this subscription</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="relative">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="h-10 w-16 rounded bg-muted flex items-center justify-center">
-                  <span className="text-xs font-semibold uppercase">{billingInfo.paymentMethod.brand}</span>
+              <div className="flex items-center gap-5">
+                <div className="h-14 w-20 rounded-lg bg-gradient-to-br from-[#007A78]/10 to-[#007A78]/5 flex items-center justify-center border border-[#007A78]/20 shadow-sm">
+                  <span className="text-sm font-bold uppercase text-[#007A78]">{billingInfo.paymentMethod.brand}</span>
                 </div>
-                <div>
-                  <p className="font-medium">
+                <div className="space-y-1">
+                  <p className="font-semibold text-[15px] text-black">
                     {billingInfo.paymentMethod.brand.charAt(0).toUpperCase() + billingInfo.paymentMethod.brand.slice(1)} ending in {billingInfo.paymentMethod.last4}
                   </p>
-                  <p className="console-small">
+                  <p className="text-sm text-muted-foreground flex items-center gap-2">
                     Expires {billingInfo.paymentMethod.expMonth}/{billingInfo.paymentMethod.expYear}
                     {(() => {
-                      // Check if card expires within the next month
                       const now = new Date()
                       const cardExpiry = new Date(billingInfo.paymentMethod.expYear, billingInfo.paymentMethod.expMonth - 1, 1)
                       const isExpiringSoon = cardExpiry <= new Date(now.getFullYear(), now.getMonth() + 1, 1)
                       return isExpiringSoon && (
-                        <span className="console-badge console-badge-coral ml-2">Expiring Soon</span>
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#FF6E50]/10 text-[#FF6E50] text-xs font-semibold border border-[#FF6E50]/30">
+                          Expiring Soon
+                        </span>
                       )
                     })()}
                   </p>
                 </div>
               </div>
               {isOwner && (
-                <button className="h-11 px-4 text-[#FF6E50] bg-white border border-[#FF6E50]/30 hover:bg-[#FF6E50]/5 rounded-xl text-[15px] font-semibold shadow-sm transition-colors" onClick={handleManageSubscription} disabled={isPortalLoading}>
+                <button
+                  className="h-11 px-6 text-[#FF6E50] bg-white border-2 border-[#FF6E50] hover:bg-[#FF6E50]/5 rounded-xl text-[15px] font-semibold shadow-md hover:shadow-lg transition-all duration-300"
+                  onClick={handleManageSubscription}
+                  disabled={isPortalLoading}
+                >
                   Update
                 </button>
               )}
@@ -851,26 +969,31 @@ export default function BillingPage() {
         </Card>
       )}
 
-      <Separator />
+      <Separator className="my-8" />
 
       {/* Invoice History */}
-      <div className="health-card border border-border shadow-sm">
-        <div className="mb-6">
-          <h3 className="text-[17px] font-semibold text-black flex items-center gap-2">
-            <Receipt className="h-5 w-5 text-[#007A78]" />
-            Invoice History
-          </h3>
-          <p className="text-[13px] text-muted-foreground mt-1">Download your past invoices and receipts</p>
+      <div className="rounded-2xl bg-white border-2 border-[#007A78]/20 shadow-lg overflow-hidden">
+        <div className="p-6 sm:p-8 border-b border-border bg-gradient-to-r from-[#007A78]/5 to-transparent">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-[#007A78]/10 to-[#007A78]/5 flex items-center justify-center">
+              <Receipt className="h-5 w-5 text-[#007A78]" />
+            </div>
+            <h3 className="text-xl font-bold text-black">Invoice History</h3>
+          </div>
+          <p className="text-sm text-muted-foreground ml-13">Download your past invoices and receipts</p>
         </div>
-        <div>
+        <div className="p-6 sm:p-8">
           {isLoadingBilling ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-[#007A78]" />
+            <div className="flex items-center justify-center py-16">
+              <div className="text-center space-y-4">
+                <Loader2 className="h-10 w-10 animate-spin text-[#007A78] mx-auto" />
+                <p className="text-sm text-muted-foreground">Loading invoices...</p>
+              </div>
             </div>
           ) : billingInfo?.invoices && billingInfo.invoices.length > 0 ? (
             <div className="overflow-x-auto -mx-4 sm:mx-0">
-              <div className="min-w-[600px] space-y-1">
-                <div className="grid grid-cols-5 gap-3 sm:gap-4 console-table-header px-4 border-b border-border pb-2">
+              <div className="min-w-[700px] space-y-2">
+                <div className="grid grid-cols-5 gap-4 px-4 py-3 text-sm font-semibold text-muted-foreground border-b-2 border-[#007A78]/10">
                   <span>Invoice</span>
                   <span>Date</span>
                   <span>Amount</span>
@@ -880,54 +1003,59 @@ export default function BillingPage() {
                 {billingInfo.invoices.map((invoice) => (
                   <div
                     key={invoice.id}
-                    className="console-table-row grid grid-cols-5 gap-3 sm:gap-4 items-center px-4 py-3 border-b border-[#007A78]/10 hover:bg-[#007A78]/5 transition-colors"
+                    className="grid grid-cols-5 gap-4 items-center px-4 py-4 rounded-xl border border-transparent hover:border-[#007A78]/20 hover:bg-[#007A78]/5 transition-all duration-200 group"
                   >
-                  <span className="console-table-cell font-medium text-[13px] sm:text-[15px]">{invoice.number || invoice.id.slice(-8)}</span>
-                  <span className="console-table-cell text-[13px] sm:text-[15px]">{formatDate(invoice.created)}</span>
-                  <span className="console-table-cell text-[13px] sm:text-[15px]">{formatCurrency(invoice.amountPaid, invoice.currency)}</span>
-                  <span
-                    className={
-                      invoice.status === "paid" ? "bg-[#F0FDFA] text-[#007A78] text-[11px] font-semibold px-2.5 py-1 rounded-full inline-flex" :
-                      invoice.status === "open" ? "bg-[#FF6E50]/10 text-[#FF6E50] text-[11px] font-semibold px-2.5 py-1 rounded-full inline-flex" :
-                      (invoice.status === "uncollectible" || invoice.status === "void") ? "bg-[#FF6E50]/10 text-[#E55A3C] text-[11px] font-semibold px-2.5 py-1 rounded-full inline-flex" :
-                      invoice.amountDue > 0 && invoice.status !== "paid" ? "bg-[#FF6E50]/10 text-[#FF6E50] text-[11px] font-semibold px-2.5 py-1 rounded-full inline-flex" :
-                      "bg-[#007A78]/10 text-muted-foreground text-[11px] font-semibold px-2.5 py-1 rounded-full inline-flex"
-                    }
-                  >
-                    {invoice.status}
-                    {invoice.amountDue > 0 && invoice.status !== "paid" && " - " + formatCurrency(invoice.amountDue, invoice.currency) + " due"}
-                  </span>
-                  <div className="flex justify-end gap-2">
-                    {invoice.hostedInvoiceUrl && (
-                      <button
-                        className="h-11 w-11 rounded-xl hover:bg-[#FF6E50]/10 text-[#FF6E50] inline-flex items-center justify-center transition-colors"
-                        onClick={() => window.open(invoice.hostedInvoiceUrl!, "_blank")}
-                        aria-label="View invoice"
-                      >
-                        <ExternalLink className="h-4 w-4" />
-                      </button>
-                    )}
-                    {invoice.invoicePdf && (
-                      <button
-                        className="h-11 w-11 rounded-xl hover:bg-[#FF6E50]/10 text-[#FF6E50] inline-flex items-center justify-center transition-colors"
-                        onClick={() => window.open(invoice.invoicePdf!, "_blank")}
-                        aria-label="Download invoice PDF"
-                      >
-                        <Download className="h-4 w-4" />
-                      </button>
-                    )}
+                    <span className="font-semibold text-[15px] text-black">{invoice.number || invoice.id.slice(-8)}</span>
+                    <span className="text-[15px] text-muted-foreground">{formatDate(invoice.created)}</span>
+                    <span className="text-[15px] font-semibold text-black">{formatCurrency(invoice.amountPaid, invoice.currency)}</span>
+                    <span
+                      className={
+                        invoice.status === "paid"
+                          ? "bg-gradient-to-r from-[#007A78]/15 to-[#007A78]/10 text-[#007A78] text-xs font-bold px-3 py-1.5 rounded-full inline-flex items-center gap-1 border border-[#007A78]/20"
+                          : invoice.status === "open"
+                          ? "bg-gradient-to-r from-[#FF6E50]/15 to-[#FF6E50]/10 text-[#FF6E50] text-xs font-bold px-3 py-1.5 rounded-full inline-flex items-center gap-1 border border-[#FF6E50]/20"
+                          : (invoice.status === "uncollectible" || invoice.status === "void")
+                          ? "bg-gradient-to-r from-[#FF6E50]/15 to-[#FF6E50]/10 text-[#E55A3C] text-xs font-bold px-3 py-1.5 rounded-full inline-flex items-center gap-1 border border-[#FF6E50]/20"
+                          : invoice.amountDue > 0 && invoice.status !== "paid"
+                          ? "bg-gradient-to-r from-[#FF6E50]/15 to-[#FF6E50]/10 text-[#FF6E50] text-xs font-bold px-3 py-1.5 rounded-full inline-flex items-center gap-1 border border-[#FF6E50]/20"
+                          : "bg-[#007A78]/10 text-muted-foreground text-xs font-semibold px-3 py-1.5 rounded-full inline-flex items-center gap-1"
+                      }
+                    >
+                      {invoice.status === "paid" && <Check className="h-3 w-3" />}
+                      {invoice.status}
+                      {invoice.amountDue > 0 && invoice.status !== "paid" && " - " + formatCurrency(invoice.amountDue, invoice.currency) + " due"}
+                    </span>
+                    <div className="flex justify-end gap-2">
+                      {invoice.hostedInvoiceUrl && (
+                        <button
+                          className="h-10 w-10 rounded-xl hover:bg-[#FF6E50]/10 text-[#FF6E50] inline-flex items-center justify-center transition-all duration-200 border border-transparent hover:border-[#FF6E50]/30"
+                          onClick={() => window.open(invoice.hostedInvoiceUrl!, "_blank")}
+                          aria-label="View invoice"
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                        </button>
+                      )}
+                      {invoice.invoicePdf && (
+                        <button
+                          className="h-10 w-10 rounded-xl hover:bg-[#FF6E50]/10 text-[#FF6E50] inline-flex items-center justify-center transition-all duration-200 border border-transparent hover:border-[#FF6E50]/30"
+                          onClick={() => window.open(invoice.invoicePdf!, "_blank")}
+                          aria-label="Download invoice PDF"
+                        >
+                          <Download className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
               </div>
             </div>
           ) : (
-            <div className="text-center py-12">
-              <div className="inline-flex p-4 rounded-2xl bg-[#007A78]/10 mb-4">
-                <Receipt className="h-12 w-12 text-[#007A78]" />
+            <div className="text-center py-16">
+              <div className="inline-flex p-6 rounded-2xl bg-gradient-to-br from-[#007A78]/10 to-[#007A78]/5 mb-6 border border-[#007A78]/20">
+                <Receipt className="h-16 w-16 text-[#007A78]" />
               </div>
-              <h3 className="text-[20px] font-semibold text-black mb-2">No invoices yet</h3>
-              <p className="text-[15px] text-muted-foreground">Invoices will appear here once you subscribe</p>
+              <h3 className="text-xl font-bold text-black mb-2">No invoices yet</h3>
+              <p className="text-[15px] text-muted-foreground">Invoices will appear here once you subscribe to a plan</p>
             </div>
           )}
         </div>
@@ -935,35 +1063,44 @@ export default function BillingPage() {
 
       {/* Plan Change Confirmation Dialog */}
       <Dialog open={confirmDialog.open} onOpenChange={(open) => setConfirmDialog(prev => ({ ...prev, open }))}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle className="text-2xl">
               {confirmDialog.isUpgrade ? "Upgrade" : "Downgrade"} to {confirmDialog.plan?.name}?
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-[15px] leading-relaxed space-y-3 pt-2">
               {confirmDialog.isUpgrade ? (
                 <>
-                  You're upgrading from <strong>{billingInfo?.subscription?.plan.name}</strong> ({formatCurrency(billingInfo?.subscription?.plan.price ?? 0, billingInfo?.subscription?.plan.currency || "USD")}/{billingInfo?.subscription?.plan.interval}) to <strong>{confirmDialog.plan?.name}</strong> ({formatCurrency(confirmDialog.plan?.price ?? 0, confirmDialog.plan?.currency || "USD")}/{confirmDialog.plan?.interval}).
-                  <br /><br />
-                  Your card will be charged the prorated difference immediately.
+                  <p>
+                    You're upgrading from <strong>{billingInfo?.subscription?.plan.name}</strong> ({formatCurrency(billingInfo?.subscription?.plan.price ?? 0, billingInfo?.subscription?.plan.currency || "USD")}/{billingInfo?.subscription?.plan.interval}) to <strong>{confirmDialog.plan?.name}</strong> ({formatCurrency(confirmDialog.plan?.price ?? 0, confirmDialog.plan?.currency || "USD")}/{confirmDialog.plan?.interval}).
+                  </p>
+                  <p className="text-[#007A78] font-medium">
+                    Your card will be charged the prorated difference immediately.
+                  </p>
                 </>
               ) : (
                 <>
-                  You're downgrading from <strong>{billingInfo?.subscription?.plan.name}</strong> ({formatCurrency(billingInfo?.subscription?.plan.price ?? 0, billingInfo?.subscription?.plan.currency || "USD")}/{billingInfo?.subscription?.plan.interval}) to <strong>{confirmDialog.plan?.name}</strong> ({formatCurrency(confirmDialog.plan?.price ?? 0, confirmDialog.plan?.currency || "USD")}/{confirmDialog.plan?.interval}).
-                  <br /><br />
-                  You'll receive a prorated credit on your next invoice.
-                  <br /><br />
-                  <span className="text-[#FF6E50] font-medium">Note: Your plan limits will be reduced. Ensure you're within the new plan's limits before downgrading.</span>
+                  <p>
+                    You're downgrading from <strong>{billingInfo?.subscription?.plan.name}</strong> ({formatCurrency(billingInfo?.subscription?.plan.price ?? 0, billingInfo?.subscription?.plan.currency || "USD")}/{billingInfo?.subscription?.plan.interval}) to <strong>{confirmDialog.plan?.name}</strong> ({formatCurrency(confirmDialog.plan?.price ?? 0, confirmDialog.plan?.currency || "USD")}/{confirmDialog.plan?.interval}).
+                  </p>
+                  <p className="text-[#007A78] font-medium">
+                    You'll receive a prorated credit on your next invoice.
+                  </p>
+                  <div className="rounded-lg bg-[#FF6E50]/10 p-4 border border-[#FF6E50]/30">
+                    <p className="text-[#FF6E50] font-semibold text-sm">
+                      Note: Your plan limits will be reduced. Ensure you're within the new plan's limits before downgrading.
+                    </p>
+                  </div>
                   {confirmDialog.plan?.limits && (
-                    <div className="mt-4 space-y-2 text-[13px] sm:text-[15px]">
-                      <p>Current usage vs. new plan limits:</p>
-                      <ul>
-                        <li className="flex items-center gap-2">
-                          <span className="w-24 text-muted-foreground">Team Members:</span>
-                          <span className={`font-medium ${
+                    <div className="space-y-2 text-sm">
+                      <p className="font-medium">Current usage vs. new plan limits:</p>
+                      <ul className="space-y-1">
+                        <li className="flex items-center justify-between p-2 rounded bg-muted/50">
+                          <span className="text-muted-foreground">Team Members:</span>
+                          <span className={`font-semibold ${
                             currentMemberCount > (confirmDialog.plan?.limits?.teamMembers ?? 0)
-                              ? "text-[#FF6E50] font-bold"
-                              : "text-black"
+                              ? "text-[#FF6E50]"
+                              : "text-[#007A78]"
                           }`}>
                             {currentMemberCount} / {confirmDialog.plan?.limits?.teamMembers ?? 0}
                           </span>
@@ -975,7 +1112,7 @@ export default function BillingPage() {
               )}
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
+          <DialogFooter className="gap-3 sm:gap-2">
             <button
               className="console-button-secondary"
               onClick={() => setConfirmDialog({ open: false, plan: null, isUpgrade: false })}
@@ -983,7 +1120,7 @@ export default function BillingPage() {
               Cancel
             </button>
             <button
-              className={confirmDialog.isUpgrade ? "console-button-primary" : "console-button-secondary"}
+              className={confirmDialog.isUpgrade ? "console-button-primary" : "h-11 px-6 text-[15px] font-semibold text-white bg-[#FF6E50] hover:bg-[#E55A3C] rounded-xl shadow-md hover:shadow-lg transition-all duration-300"}
               onClick={() => confirmDialog.plan && handleChangePlan(confirmDialog.plan.priceId, confirmDialog.plan.name)}
             >
               {confirmDialog.isUpgrade ? "Confirm Upgrade" : "Confirm Downgrade"}

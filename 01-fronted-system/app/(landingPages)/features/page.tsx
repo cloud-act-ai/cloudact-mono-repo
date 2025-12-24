@@ -1,10 +1,14 @@
-import type { Metadata } from "next"
+"use client"
+
+import Link from "next/link"
 import {
+  Activity,
+  ArrowRight,
   BarChart3,
   Bell,
   Cloud,
+  Cpu,
   DollarSign,
-  Filter,
   GitBranch,
   Globe,
   LineChart,
@@ -14,193 +18,551 @@ import {
   TrendingUp,
   Users,
   Zap,
+  Brain,
+  Gauge,
+  Wallet,
+  AlertCircle,
+  Target,
+  RefreshCw,
 } from "lucide-react"
+import "../premium.css"
 
-export const metadata: Metadata = {
-  title: "Features - Enterprise-Grade Cost Intelligence | CloudAct.ai",
-  description: "Real-time cost tracking, AI-powered recommendations, multi-cloud support, predictive analytics, and enterprise security. Everything you need to optimize GenAI and cloud costs.",
-  openGraph: {
-    title: "Features - Enterprise-Grade Cost Intelligence | CloudAct.ai",
-    description: "Real-time cost tracking, AI-powered recommendations, multi-cloud support, and enterprise security for GenAI and cloud cost optimization.",
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Features - Enterprise-Grade Cost Intelligence | CloudAct.ai",
-    description: "Real-time cost tracking, AI-powered recommendations, multi-cloud support, and enterprise security.",
-  },
-}
+// Provider logos data
+const INTEGRATIONS = [
+  { name: "OpenAI", icon: "🤖", category: "GenAI" },
+  { name: "Anthropic", icon: "🧠", category: "GenAI" },
+  { name: "Google AI", icon: "🌟", category: "GenAI" },
+  { name: "AWS", icon: "☁️", category: "Cloud" },
+  { name: "GCP", icon: "🌐", category: "Cloud" },
+  { name: "Azure", icon: "⚡", category: "Cloud" },
+  { name: "Stripe", icon: "💳", category: "SaaS" },
+  { name: "Slack", icon: "💬", category: "SaaS" },
+  { name: "Datadog", icon: "📊", category: "SaaS" },
+  { name: "GitHub", icon: "🔧", category: "SaaS" },
+]
 
 export default function FeaturesPage() {
-  const features = [
+  const coreFeatures = [
     {
-      icon: BarChart3,
-      category: "Monitoring",
-      title: "Real-Time Cost Tracking",
+      icon: Activity,
+      iconColor: "teal",
+      title: "GenAI Cost Tracking",
       description:
-        "Monitor every API call, token usage, and infrastructure resource as it happens. Sub-minute data refresh across all providers.",
-    },
-    {
-      icon: Sparkles,
-      category: "Intelligence",
-      title: "AI-Powered Recommendations",
-      description:
-        "Automatically identify cost-saving opportunities through model comparison, prompt optimization, and usage pattern analysis.",
+        "Monitor every API call across OpenAI, Anthropic, Google AI, and more. Track token usage, model performance, and costs in real-time with sub-minute granularity.",
+      highlights: ["Token-level tracking", "Multi-provider support", "Real-time updates"],
     },
     {
       icon: Cloud,
-      category: "Integration",
+      iconColor: "coral",
       title: "Multi-Cloud Support",
       description:
-        "Unified dashboard for AWS, Azure, GCP, OpenAI, Anthropic, and 10+ other providers. One platform for all your costs.",
+        "Unified dashboard for AWS, GCP, and Azure infrastructure costs. Correlate cloud spending with GenAI usage for complete visibility into your tech stack.",
+      highlights: ["AWS + GCP + Azure", "Unified billing", "Cross-cloud analytics"],
     },
     {
-      icon: TrendingUp,
-      category: "Forecasting",
-      title: "Predictive Analytics",
+      icon: Wallet,
+      iconColor: "teal",
+      title: "SaaS Subscription Tracking",
       description:
-        "ML-powered cost forecasting with anomaly detection. Predict future spending and catch unexpected spikes before they impact your budget.",
-    },
-    {
-      icon: DollarSign,
-      category: "Attribution",
-      title: "Cost Allocation",
-      description:
-        "Track and allocate costs by team, project, customer, or custom tags. Automated chargeback and showback reporting.",
-    },
-    {
-      icon: Bell,
-      category: "Alerting",
-      title: "Smart Budget Alerts",
-      description:
-        "Real-time notifications when costs spike or budgets are exceeded. Configure alerts via email, Slack, PagerDuty, or webhooks.",
-    },
-    {
-      icon: Filter,
-      category: "Analysis",
-      title: "Advanced Filtering",
-      description:
-        "Drill down into costs by service, region, model, endpoint, or custom dimensions. Export detailed reports in any format.",
-    },
-    {
-      icon: Users,
-      category: "Collaboration",
-      title: "Team Workspaces",
-      description:
-        "Multi-user support with role-based access control. Share dashboards, set team budgets, and collaborate on optimization.",
-    },
-    {
-      icon: GitBranch,
-      category: "API",
-      title: "Developer-First API",
-      description:
-        "RESTful API with comprehensive SDKs. Integrate CloudAct into your CI/CD, monitoring, and automation workflows.",
-    },
-    {
-      icon: Lock,
-      category: "Security",
-      title: "Enterprise Security",
-      description: "SOC 2 Type II certified, GDPR compliant. SSO/SAML, audit logs, encryption at rest and in transit.",
+        "Track and manage all your SaaS subscriptions in one place. Monitor Stripe, Slack, Datadog, and 50+ providers with automated renewal alerts and usage insights.",
+      highlights: ["50+ SaaS providers", "Renewal alerts", "License optimization"],
     },
     {
       icon: LineChart,
-      category: "Reporting",
-      title: "Custom Dashboards",
-      description: "Build custom views tailored to your organization. Schedule automated reports for stakeholders.",
+      iconColor: "coral",
+      title: "Real-Time Dashboards",
+      description:
+        "Beautiful, customizable dashboards that update in real-time. Build views for executives, finance teams, or engineering with drag-and-drop simplicity.",
+      highlights: ["Custom views", "Live updates", "Export to PDF/Excel"],
     },
     {
-      icon: Globe,
-      category: "Global",
-      title: "Multi-Region Analytics",
+      icon: Brain,
+      iconColor: "teal",
+      title: "AI-Powered Recommendations",
       description:
-        "Track costs across all cloud regions and availability zones with geo-specific breakdowns and comparisons.",
+        "Machine learning identifies cost-saving opportunities automatically. Get actionable insights on model selection, prompt optimization, and resource rightsizing.",
+      highlights: ["Smart suggestions", "Model comparison", "ROI predictions"],
+    },
+    {
+      icon: Bell,
+      iconColor: "coral",
+      title: "Budget Alerts & Forecasting",
+      description:
+        "Set budgets at any level and get instant alerts when thresholds are crossed. ML-powered forecasting predicts future spending with 95% accuracy.",
+      highlights: ["Smart alerts", "Predictive forecasting", "Slack/Email/PagerDuty"],
+    },
+  ]
+
+  const enterpriseFeatures = [
+    {
+      icon: Shield,
+      title: "Enterprise Security",
+      description: "SOC 2 Type II certified with GDPR compliance. SSO/SAML, audit logs, and encryption at rest and in transit.",
+    },
+    {
+      icon: Gauge,
+      title: "99.99% Uptime SLA",
+      description: "Mission-critical reliability with dedicated support. Multi-region deployment and automated failover.",
+    },
+    {
+      icon: Users,
+      title: "Team Collaboration",
+      description: "Role-based access control, shared dashboards, and team budgets. Collaborate across finance and engineering.",
+    },
+    {
+      icon: GitBranch,
+      title: "Developer-First API",
+      description: "RESTful API with comprehensive SDKs. Integrate with your CI/CD, monitoring, and automation workflows.",
+    },
+  ]
+
+  const howItWorks = [
+    {
+      number: "01",
+      title: "Connect Your Providers",
+      description: "Link OpenAI, AWS, GCP, Azure, and SaaS tools in minutes with secure OAuth or API keys.",
+      icon: Zap,
+    },
+    {
+      number: "02",
+      title: "Automatic Data Sync",
+      description: "CloudAct pulls usage and billing data every 5 minutes. No manual exports or spreadsheets needed.",
+      icon: RefreshCw,
+    },
+    {
+      number: "03",
+      title: "Get Instant Insights",
+      description: "View real-time dashboards, receive AI recommendations, and set budget alerts from day one.",
+      icon: Target,
     },
   ]
 
   return (
     <>
-      {/* Hero Section */}
-      <section className="relative py-16 md:py-20 overflow-hidden bg-white">
-        <div className="container px-4 md:px-12 relative z-10">
-          <div className="mx-auto max-w-3xl text-center space-y-3 sm:space-y-4">
-            <div className="cloudact-badge">
-              <span className="flex h-2 w-2 rounded-full bg-cloudact-teal animate-pulse" />
-              Powerful Features
+      <style jsx>{`
+        @media (max-width: 768px) {
+          .responsive-feature-grid {
+            grid-template-columns: 1fr !important;
+            gap: 2rem !important;
+          }
+        }
+      `}</style>
+      <div className="ca-landing">
+        {/* Hero Section */}
+        <section className="ca-hero">
+        <div className="ca-hero-bg">
+          <div className="ca-hero-orb ca-hero-orb-1" />
+          <div className="ca-hero-orb ca-hero-orb-2" />
+          <div className="ca-hero-orb ca-hero-orb-3" />
+          <div className="ca-hero-grid" />
+        </div>
+
+        <div className="ca-hero-content">
+          <div className="ca-animate">
+            <div className="ca-cta-badge" style={{ marginBottom: "2rem" }}>
+              <Sparkles className="w-4 h-4" />
+              <span>All-in-One Cost Intelligence</span>
             </div>
-            <h1 className="cloudact-heading-xl">
-              Enterprise-Grade Cost Intelligence
-            </h1>
-            <p className="cloudact-body text-base sm:text-lg max-w-2xl mx-auto px-4">
-              Everything you need to monitor, analyze, and optimize your GenAI and cloud infrastructure costs
-            </p>
+          </div>
+
+          <h1 className="ca-display-xl ca-animate ca-delay-1" style={{ marginBottom: "1.5rem" }}>
+            Every Feature You Need to{" "}
+            <span className="ca-gradient-text">Master Your Costs</span>
+          </h1>
+
+          <p className="ca-body ca-animate ca-delay-2" style={{ maxWidth: "700px", margin: "0 auto 3rem" }}>
+            From GenAI tracking to multi-cloud analytics, CloudAct provides enterprise-grade cost intelligence
+            for modern engineering teams. One platform, complete visibility.
+          </p>
+
+          <div className="ca-animate ca-delay-3" style={{ marginBottom: "4rem" }}>
+            <Link href="/signup" className="ca-btn ca-btn-primary ca-btn-lg">
+              Start Free Trial
+              <ArrowRight className="w-5 h-5" />
+            </Link>
           </div>
         </div>
       </section>
 
-      {/* Features Grid */}
-      <section className="py-12 sm:py-16 md:py-24 bg-white">
-        <div className="container px-4 md:px-12">
-          <div className="mx-auto max-w-7xl">
-            <div className="grid grid-cols-1 gap-5 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {features.map((feature, index) => {
-                const Icon = feature.icon
-                const isCoralIcon = index % 3 === 1
-                return (
-                  <div key={feature.title} className="cloudact-card group p-6 sm:p-8">
-                    <div className="space-y-3 sm:space-y-4">
-                      <div className={isCoralIcon ? "cloudact-icon-box-coral" : "cloudact-icon-box"}>
-                        <Icon className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8" />
-                      </div>
-                      <div className="space-y-1.5 sm:space-y-2">
-                        <div className="cloudact-body-sm font-medium text-cloudact-teal">{feature.category}</div>
-                        <h3 className="cloudact-heading-md">{feature.title}</h3>
-                        <p className="cloudact-body-sm leading-relaxed">{feature.description}</p>
-                      </div>
+      {/* Core Features */}
+      <section className="ca-section">
+        <div className="ca-section-header">
+          <span className="ca-section-label">CORE CAPABILITIES</span>
+          <h2 className="ca-display-lg" style={{ marginBottom: "1rem" }}>
+            Built for Modern Cloud Operations
+          </h2>
+          <p className="ca-body" style={{ maxWidth: "700px", margin: "0 auto" }}>
+            Everything you need to monitor, analyze, and optimize costs across your entire tech stack
+          </p>
+        </div>
+
+        <div className="ca-features-grid">
+          {coreFeatures.map((feature, index) => {
+            const Icon = feature.icon
+            return (
+              <div key={feature.title} className="ca-feature-card">
+                <div
+                  className={
+                    feature.iconColor === "teal" ? "ca-feature-icon ca-feature-icon-teal" : "ca-feature-icon ca-feature-icon-coral"
+                  }
+                >
+                  <Icon className="w-7 h-7" />
+                </div>
+                <h3 className="ca-feature-title">{feature.title}</h3>
+                <p className="ca-feature-desc" style={{ marginBottom: "1.5rem" }}>
+                  {feature.description}
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                  {feature.highlights.map((highlight) => (
+                    <div key={highlight} style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                      <div
+                        style={{
+                          width: "4px",
+                          height: "4px",
+                          borderRadius: "50%",
+                          background: feature.iconColor === "teal" ? "var(--ca-teal)" : "var(--ca-coral)",
+                        }}
+                      />
+                      <span className="ca-body-sm" style={{ color: "var(--ca-gray-600)" }}>
+                        {highlight}
+                      </span>
                     </div>
-                  </div>
-                )
-              })}
+                  ))}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </section>
+
+      {/* Integration Logos */}
+      <section className="ca-trusted">
+        <div className="ca-trusted-label">SEAMLESS INTEGRATIONS</div>
+        <div className="ca-trusted-logos">
+          {INTEGRATIONS.map((integration) => (
+            <div
+              key={integration.name}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: "0.5rem",
+                transition: "transform 0.3s ease",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "scale(1.1)"
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "scale(1)"
+              }}
+            >
+              <div style={{ fontSize: "2.5rem" }}>{integration.icon}</div>
+              <div style={{ fontSize: "0.875rem", fontWeight: 600, color: "var(--ca-gray-700)" }}>
+                {integration.name}
+              </div>
+              <div className="ca-label" style={{ fontSize: "0.625rem" }}>
+                {integration.category}
+              </div>
             </div>
+          ))}
+        </div>
+      </section>
+
+      {/* How It Works */}
+      <section className="ca-section" style={{ background: "var(--ca-gray-50)" }}>
+        <div className="ca-section-header">
+          <span className="ca-section-label">HOW IT WORKS</span>
+          <h2 className="ca-display-lg" style={{ marginBottom: "1rem" }}>
+            Up and Running in{" "}
+            <span className="ca-gradient-text">Minutes</span>
+          </h2>
+          <p className="ca-body" style={{ maxWidth: "700px", margin: "0 auto" }}>
+            No complex setup or data migration. Start tracking costs immediately.
+          </p>
+        </div>
+
+        <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "2rem" }}>
+            {howItWorks.map((step, index) => {
+              const Icon = step.icon
+              return (
+                <div key={step.number} style={{ position: "relative" }}>
+                  <div className="ca-card" style={{ padding: "2.5rem", height: "100%" }}>
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: "-1rem",
+                        right: "2rem",
+                        fontFamily: "var(--font-mono)",
+                        fontSize: "4rem",
+                        fontWeight: 800,
+                        color: "var(--ca-gray-100)",
+                        lineHeight: 1,
+                      }}
+                    >
+                      {step.number}
+                    </div>
+                    <div
+                      style={{
+                        width: "64px",
+                        height: "64px",
+                        borderRadius: "16px",
+                        background: index % 2 === 0 ? "var(--ca-teal-50)" : "var(--ca-coral-50)",
+                        color: index % 2 === 0 ? "var(--ca-teal)" : "var(--ca-coral)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        marginBottom: "1.5rem",
+                      }}
+                    >
+                      <Icon className="w-8 h-8" />
+                    </div>
+                    <h3 className="ca-heading" style={{ marginBottom: "1rem" }}>
+                      {step.title}
+                    </h3>
+                    <p className="ca-body-sm">{step.description}</p>
+                  </div>
+                  {index < howItWorks.length - 1 && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: "50%",
+                        right: "-2rem",
+                        transform: "translateY(-50%)",
+                        color: "var(--ca-teal)",
+                        display: "none",
+                      }}
+                      className="hidden lg:block"
+                    >
+                      <ArrowRight className="w-8 h-8" />
+                    </div>
+                  )}
+                </div>
+              )
+            })}
           </div>
         </div>
       </section>
 
       {/* Enterprise Features */}
-      <section className="py-12 sm:py-16 md:py-20 bg-gray-50 border-t border-gray-200">
-        <div className="container px-4 md:px-12">
-          <div className="mx-auto max-w-6xl">
-            <div className="text-center space-y-3 sm:space-y-4 mb-12 sm:mb-14 md:mb-16">
-              <h2 className="cloudact-heading-lg">Built for Enterprise</h2>
-              <p className="cloudact-body text-base sm:text-lg">Security, compliance, and scale you can trust</p>
-            </div>
+      <section className="ca-section">
+        <div className="ca-section-header">
+          <span className="ca-section-label">ENTERPRISE READY</span>
+          <h2 className="ca-display-lg" style={{ marginBottom: "1rem" }}>
+            Security & Scale You Can Trust
+          </h2>
+          <p className="ca-body" style={{ maxWidth: "700px", margin: "0 auto" }}>
+            Built for teams that demand enterprise-grade reliability and compliance
+          </p>
+        </div>
 
-            <div className="grid grid-cols-1 gap-6 sm:gap-8 md:grid-cols-2">
-              <div className="cloudact-card group p-6 sm:p-8 md:p-10">
-                <div className="space-y-4 sm:space-y-6">
-                  <div className="cloudact-icon-box">
-                    <Shield className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8" />
+        <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "1.5rem" }}>
+            {enterpriseFeatures.map((feature, index) => {
+              const Icon = feature.icon
+              return (
+                <div key={feature.title} className="ca-card" style={{ padding: "2rem" }}>
+                  <div
+                    style={{
+                      width: "48px",
+                      height: "48px",
+                      borderRadius: "12px",
+                      background: index % 2 === 0 ? "var(--ca-teal-50)" : "var(--ca-coral-50)",
+                      color: index % 2 === 0 ? "var(--ca-teal)" : "var(--ca-coral)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      marginBottom: "1rem",
+                    }}
+                  >
+                    <Icon className="w-6 h-6" />
                   </div>
-                  <h3 className="cloudact-heading-md">SOC 2 Type II Certified</h3>
-                  <p className="cloudact-body leading-relaxed">
-                    Independently audited security controls. GDPR compliant with data residency options. We maintain the highest standards of data protection.
-                  </p>
+                  <h3 className="ca-subheading" style={{ marginBottom: "0.75rem" }}>
+                    {feature.title}
+                  </h3>
+                  <p className="ca-body-sm">{feature.description}</p>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* Stats Section */}
+      <section className="ca-stats-section">
+        <div className="ca-stats-grid">
+          <div>
+            <div className="ca-stat-value">95%</div>
+            <div className="ca-stat-label">Forecast Accuracy</div>
+          </div>
+          <div>
+            <div className="ca-stat-value">$2.8M</div>
+            <div className="ca-stat-label">Total Savings Tracked</div>
+          </div>
+          <div>
+            <div className="ca-stat-value">847</div>
+            <div className="ca-stat-label">Organizations</div>
+          </div>
+        </div>
+      </section>
+
+      {/* Feature Deep Dive */}
+      <section className="ca-section" style={{ background: "var(--ca-gray-50)" }}>
+        <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: "4rem",
+              alignItems: "center",
+            }}
+            className="responsive-feature-grid"
+          >
+            {/* Left - Feature Details */}
+            <div>
+              <span className="ca-section-label">DETAILED TRACKING</span>
+              <h2 className="ca-display-md" style={{ margin: "1rem 0 1.5rem" }}>
+                See Every Dollar,{" "}
+                <span className="ca-gradient-text">Every Token</span>
+              </h2>
+              <p className="ca-body" style={{ marginBottom: "2rem" }}>
+                CloudAct tracks costs at the most granular level possible. From individual API calls to
+                infrastructure resources, nothing escapes our monitoring.
+              </p>
+              <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                <div style={{ display: "flex", gap: "1rem", alignItems: "flex-start" }}>
+                  <div
+                    style={{
+                      minWidth: "32px",
+                      height: "32px",
+                      borderRadius: "8px",
+                      background: "var(--ca-teal)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <DollarSign className="w-4 h-4 text-white" />
+                  </div>
+                  <div>
+                    <div className="ca-subheading" style={{ marginBottom: "0.25rem" }}>
+                      Token-Level Granularity
+                    </div>
+                    <p className="ca-body-sm">Track every single token across all GenAI providers with per-request attribution</p>
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: "1rem", alignItems: "flex-start" }}>
+                  <div
+                    style={{
+                      minWidth: "32px",
+                      height: "32px",
+                      borderRadius: "8px",
+                      background: "var(--ca-coral)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <BarChart3 className="w-4 h-4 text-white" />
+                  </div>
+                  <div>
+                    <div className="ca-subheading" style={{ marginBottom: "0.25rem" }}>
+                      Custom Dimensions
+                    </div>
+                    <p className="ca-body-sm">Tag costs by team, project, customer, or any custom dimension you define</p>
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: "1rem", alignItems: "flex-start" }}>
+                  <div
+                    style={{
+                      minWidth: "32px",
+                      height: "32px",
+                      borderRadius: "8px",
+                      background: "var(--ca-teal)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <TrendingUp className="w-4 h-4 text-white" />
+                  </div>
+                  <div>
+                    <div className="ca-subheading" style={{ marginBottom: "0.25rem" }}>
+                      Historical Analysis
+                    </div>
+                    <p className="ca-body-sm">Unlimited retention with second-level granularity for trend analysis</p>
+                  </div>
                 </div>
               </div>
-              <div className="cloudact-card group p-6 sm:p-8 md:p-10">
-                <div className="space-y-4 sm:space-y-6">
-                  <div className="cloudact-icon-box-coral">
-                    <Zap className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8" />
+            </div>
+
+            {/* Right - Visual */}
+            <div className="ca-card" style={{ padding: "2rem" }}>
+              <div className="ca-metric-card ca-metric-card-highlight" style={{ marginBottom: "1rem" }}>
+                <div className="ca-metric-label">TOTAL COST (TODAY)</div>
+                <div className="ca-metric-value">$1,247</div>
+                <div className="ca-metric-change ca-metric-change-positive">
+                  <TrendingUp className="w-3 h-3" />
+                  <span>12% vs yesterday</span>
+                </div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+                <div className="ca-metric-card">
+                  <div className="ca-metric-label">GenAI</div>
+                  <div className="ca-metric-value" style={{ fontSize: "1.5rem" }}>
+                    $847
                   </div>
-                  <h3 className="cloudact-heading-md">99.99% Uptime SLA</h3>
-                  <p className="cloudact-body leading-relaxed">
-                    Enterprise-grade reliability with dedicated support and guaranteed response times. Your critical infrastructure is safe with us.
-                  </p>
+                </div>
+                <div className="ca-metric-card">
+                  <div className="ca-metric-label">Cloud</div>
+                  <div className="ca-metric-value" style={{ fontSize: "1.5rem" }}>
+                    $312
+                  </div>
+                </div>
+                <div className="ca-metric-card">
+                  <div className="ca-metric-label">SaaS</div>
+                  <div className="ca-metric-value" style={{ fontSize: "1.5rem" }}>
+                    $88
+                  </div>
+                </div>
+                <div className="ca-metric-card">
+                  <div className="ca-metric-label">Other</div>
+                  <div className="ca-metric-value" style={{ fontSize: "1.5rem" }}>
+                    $0
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
       </section>
+
+      {/* CTA Section */}
+      <section className="ca-cta">
+        <div className="ca-cta-box">
+          <div className="ca-cta-content">
+            <div className="ca-cta-badge">
+              <Sparkles className="w-4 h-4" />
+              <span>14-Day Free Trial • No Credit Card Required</span>
+            </div>
+            <h2 className="ca-cta-title">Ready to Master Your Costs?</h2>
+            <p className="ca-cta-subtitle">
+              Join hundreds of companies using CloudAct to optimize their GenAI and cloud spending.
+              Start tracking in minutes.
+            </p>
+            <div className="ca-cta-buttons">
+              <Link href="/signup" className="ca-cta-btn-white">
+                Start Free Trial
+                <ArrowRight className="w-5 h-5" />
+              </Link>
+              <Link href="/pricing" className="ca-cta-btn-outline">
+                View Pricing
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+      </div>
     </>
   )
 }

@@ -1,220 +1,473 @@
 "use client"
 
 import { useState, type FormEvent } from "react"
-import { ArrowRight, Mail, MessageSquare, Phone, Loader2, CheckCircle2 } from "lucide-react"
+import {
+  Mail,
+  Phone,
+  MapPin,
+  Send,
+  CheckCircle2,
+  Clock,
+  MessageSquare,
+  Users,
+  Globe,
+  ArrowRight,
+  Building2
+} from "lucide-react"
 
-// Note: metadata export won't work with "use client" - SEO handled by parent layout
+interface FormData {
+  firstName: string
+  lastName: string
+  email: string
+  company: string
+  phone: string
+  inquiryType: string
+  message: string
+}
+
+interface ValidationErrors {
+  [key: string]: string
+}
 
 export default function ContactPage() {
+  const [formData, setFormData] = useState<FormData>({
+    firstName: "",
+    lastName: "",
+    email: "",
+    company: "",
+    phone: "",
+    inquiryType: "",
+    message: ""
+  })
+
+  const [errors, setErrors] = useState<ValidationErrors>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
 
+  const validateForm = (): boolean => {
+    const newErrors: ValidationErrors = {}
+
+    if (!formData.firstName.trim()) {
+      newErrors.firstName = "First name is required"
+    }
+
+    if (!formData.lastName.trim()) {
+      newErrors.lastName = "Last name is required"
+    }
+
+    if (!formData.email.trim()) {
+      newErrors.email = "Email is required"
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = "Please enter a valid email"
+    }
+
+    if (!formData.inquiryType) {
+      newErrors.inquiryType = "Please select an inquiry type"
+    }
+
+    if (!formData.message.trim()) {
+      newErrors.message = "Message is required"
+    } else if (formData.message.trim().length < 10) {
+      newErrors.message = "Message must be at least 10 characters"
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
+
+    if (!validateForm()) {
+      return
+    }
+
     setIsSubmitting(true)
+    setErrors({})
 
     // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500))
+    await new Promise(resolve => setTimeout(resolve, 2000))
 
     setIsSubmitting(false)
     setIsSuccess(true)
+
+    // Reset form
+    setFormData({
+      firstName: "",
+      lastName: "",
+      email: "",
+      company: "",
+      phone: "",
+      inquiryType: "",
+      message: ""
+    })
+  }
+
+  const handleChange = (field: keyof FormData, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }))
+    // Clear error when user starts typing
+    if (errors[field]) {
+      setErrors(prev => {
+        const newErrors = { ...prev }
+        delete newErrors[field]
+        return newErrors
+      })
+    }
   }
 
   return (
-    <>
+    <div className="min-h-screen bg-white">
       {/* Hero Section */}
-      <section className="relative py-16 md:py-20 overflow-hidden bg-white">
-        <div className="container px-4 md:px-12 relative z-10">
-          <div className="mx-auto max-w-3xl text-center space-y-4">
-            <div className="cloudact-badge">
-              <span className="flex h-2 w-2 rounded-full bg-cloudact-teal animate-pulse" />
-              We're Here to Help
+      <section className="relative pt-24 pb-16 md:pt-32 md:pb-20 overflow-hidden">
+        {/* Background Elements */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-0 left-1/4 w-96 h-96 bg-[var(--ca-teal-glow)] rounded-full blur-[120px] opacity-40" />
+          <div className="absolute bottom-0 right-1/4 w-80 h-80 bg-[var(--ca-coral-glow)] rounded-full blur-[100px] opacity-30" />
+        </div>
+
+        <div className="container mx-auto px-4 md:px-8 max-w-7xl relative z-10">
+          <div className="text-center max-w-3xl mx-auto">
+            {/* Badge */}
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--ca-teal-50)] rounded-full mb-6">
+              <div className="w-2 h-2 bg-[var(--ca-teal)] rounded-full animate-pulse" />
+              <span className="ca-label text-[var(--ca-teal)]">We're Here to Help</span>
             </div>
-            <h1 className="cloudact-heading-xl">
-              Get in Touch
+
+            {/* Heading */}
+            <h1 className="ca-display-lg mb-6">
+              Let's Start a <span className="ca-gradient-text">Conversation</span>
             </h1>
-            <p className="cloudact-body text-lg max-w-2xl mx-auto">
-              Have questions? Our team is here to help you optimize your costs.
+
+            <p className="ca-body text-lg mb-8">
+              Have questions about CloudAct? Our team is ready to help you optimize your cloud costs and maximize efficiency.
             </p>
+
+            {/* Quick Stats */}
+            <div className="flex flex-wrap items-center justify-center gap-8 text-sm">
+              <div className="flex items-center gap-2">
+                <Clock className="w-5 h-5 text-[var(--ca-teal)]" />
+                <span className="text-[var(--ca-gray-600)]">&lt;2hr response time</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <MessageSquare className="w-5 h-5 text-[var(--ca-teal)]" />
+                <span className="text-[var(--ca-gray-600)]">24/7 support</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Users className="w-5 h-5 text-[var(--ca-teal)]" />
+                <span className="text-[var(--ca-gray-600)]">98% satisfaction</span>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Contact Form Section */}
-      <section className="pb-16 sm:pb-20 bg-white">
-        <div className="container px-4 md:px-12">
-          <div className="mx-auto max-w-5xl">
-            <div className="grid grid-cols-1 gap-10 sm:gap-12 lg:grid-cols-2">
-              {/* Contact Info */}
-              <div className="space-y-8 sm:space-y-10">
-                <div>
-                  <h2 className="cloudact-heading-lg mb-2 sm:mb-3">Let's Talk</h2>
-                  <p className="cloudact-body">
-                    Whether you're looking to optimize costs, need technical support, or want to discuss enterprise
-                    solutions, we're here to help.
-                  </p>
-                </div>
+      {/* Contact Form + Info Section */}
+      <section className="pb-20 md:pb-32">
+        <div className="container mx-auto px-4 md:px-8 max-w-7xl">
+          <div className="grid lg:grid-cols-5 gap-12 lg:gap-16">
+            {/* Left Column - Contact Info Cards */}
+            <div className="lg:col-span-2 space-y-6">
+              <div>
+                <h2 className="ca-display-md mb-4">Get in Touch</h2>
+                <p className="ca-body">
+                  Choose your preferred way to reach us. We're available across multiple channels to support your needs.
+                </p>
+              </div>
 
-                <div className="space-y-5 sm:space-y-6">
-                  <div className="flex items-start gap-3 sm:gap-4 group">
-                    <div className="cloudact-icon-box flex-shrink-0">
-                      <Mail className="h-5 w-5 sm:h-6 sm:w-6" />
+              {/* Contact Methods */}
+              <div className="space-y-4">
+                {/* Email Card */}
+                <div className="ca-card group hover:border-[var(--ca-teal)] transition-all duration-300">
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-[var(--ca-teal-50)] flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                      <Mail className="w-6 h-6 text-[var(--ca-teal)]" />
                     </div>
-                    <div>
-                      <h3 className="cloudact-heading-md text-sm sm:text-base mb-1">Email Us</h3>
-                      <p className="cloudact-body-sm mb-1">For general inquiries and support</p>
-                      <a href={`mailto:${process.env.NEXT_PUBLIC_CONTACT_EMAIL || "hello@cloudact.ai"}`} className="cloudact-link text-xs sm:text-sm">
-                        {process.env.NEXT_PUBLIC_CONTACT_EMAIL || "hello@cloudact.ai"}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="ca-heading text-base mb-1">Email Us</h3>
+                      <p className="ca-body-sm mb-2">For general inquiries</p>
+                      <a
+                        href="mailto:hello@cloudact.ai"
+                        className="text-[var(--ca-teal)] font-medium text-sm hover:underline inline-flex items-center gap-1 group/link"
+                      >
+                        hello@cloudact.ai
+                        <ArrowRight className="w-4 h-4 group-hover/link:translate-x-1 transition-transform" />
                       </a>
                     </div>
                   </div>
+                </div>
 
-                  <div className="flex items-start gap-3 sm:gap-4 group">
-                    <div className="cloudact-icon-box-coral flex-shrink-0">
-                      <MessageSquare className="h-5 w-5 sm:h-6 sm:w-6" />
+                {/* Phone Card */}
+                <div className="ca-card group hover:border-[var(--ca-teal)] transition-all duration-300">
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-[var(--ca-coral-50)] flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                      <Phone className="w-6 h-6 text-[var(--ca-coral)]" />
                     </div>
-                    <div>
-                      <h3 className="cloudact-heading-md text-sm sm:text-base mb-1">Live Chat</h3>
-                      <p className="cloudact-body-sm mb-1">For real-time assistance</p>
-                      <span className="text-xs sm:text-sm font-medium text-gray-900">Available Mon-Fri, 9am-6pm PT</span>
+                    <div className="flex-1">
+                      <h3 className="ca-heading text-base mb-1">Call Us</h3>
+                      <p className="ca-body-sm mb-2">Mon-Fri, 9am-6pm PT</p>
+                      <a
+                        href="tel:+15551234567"
+                        className="text-[var(--ca-teal)] font-medium text-sm hover:underline inline-flex items-center gap-1 group/link"
+                      >
+                        +1 (555) 123-4567
+                        <ArrowRight className="w-4 h-4 group-hover/link:translate-x-1 transition-transform" />
+                      </a>
                     </div>
                   </div>
+                </div>
 
-                  <div className="flex items-start gap-3 sm:gap-4 group">
-                    <div className="cloudact-icon-box flex-shrink-0">
-                      <Phone className="h-5 w-5 sm:h-6 sm:w-6" />
+                {/* Live Chat Card */}
+                <div className="ca-card group hover:border-[var(--ca-teal)] transition-all duration-300">
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-[var(--ca-green-light)] flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                      <MessageSquare className="w-6 h-6 text-[var(--ca-green)]" />
                     </div>
-                    <div>
-                      <h3 className="cloudact-heading-md text-sm sm:text-base mb-1">Call Us</h3>
-                      <p className="cloudact-body-sm mb-1">For urgent matters</p>
-                      <a href="tel:+15551234567" className="cloudact-link text-xs sm:text-sm">+1 (555) 123-4567</a>
+                    <div className="flex-1">
+                      <h3 className="ca-heading text-base mb-1">Live Chat</h3>
+                      <p className="ca-body-sm mb-2">Real-time assistance</p>
+                      <button className="text-[var(--ca-teal)] font-medium text-sm hover:underline inline-flex items-center gap-1 group/link">
+                        Start chatting
+                        <ArrowRight className="w-4 h-4 group-hover/link:translate-x-1 transition-transform" />
+                      </button>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Contact Form */}
-              <div className="cloudact-card p-6 sm:p-7 lg:p-8">
+              {/* Office Location */}
+              <div className="ca-card bg-gradient-to-br from-[var(--ca-teal)] to-[var(--ca-teal-dark)] text-white border-none">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center flex-shrink-0">
+                    <MapPin className="w-6 h-6" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-lg mb-2">Headquarters</h3>
+                    <p className="text-white/90 text-sm leading-relaxed">
+                      123 Innovation Drive<br />
+                      San Francisco, CA 94105<br />
+                      United States
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column - Contact Form */}
+            <div className="lg:col-span-3">
+              <div className="ca-card p-8 md:p-10 border-2">
                 {isSuccess ? (
-                  <div className="h-full flex flex-col items-center justify-center text-center space-y-6 py-12">
-                    <div className="h-16 w-16 rounded-full bg-cloudact-teal-light flex items-center justify-center">
-                      <CheckCircle2 className="h-8 w-8 text-cloudact-teal" />
+                  <div className="py-12 text-center">
+                    <div className="w-20 h-20 bg-[var(--ca-green-light)] rounded-full flex items-center justify-center mx-auto mb-6">
+                      <CheckCircle2 className="w-10 h-10 text-[var(--ca-green)]" />
                     </div>
-                    <div className="space-y-2">
-                      <h3 className="cloudact-heading-md">Message Sent!</h3>
-                      <p className="cloudact-body-sm max-w-xs mx-auto">
-                        Thanks for reaching out. We'll get back to you within 24 hours.
-                      </p>
-                    </div>
+                    <h3 className="ca-display-md mb-4">Message Sent Successfully!</h3>
+                    <p className="ca-body mb-8 max-w-md mx-auto">
+                      Thank you for reaching out. Our team will get back to you within 24 hours.
+                    </p>
                     <button
                       onClick={() => setIsSuccess(false)}
-                      className="cloudact-link text-sm"
+                      className="ca-btn ca-btn-primary"
                     >
-                      Send another message
+                      Send Another Message
                     </button>
                   </div>
                 ) : (
-                  <form onSubmit={handleSubmit} className="space-y-5">
-                    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                      <div className="space-y-1.5">
-                        <label htmlFor="first-name" className="cloudact-body-sm font-medium">
-                          First Name
+                  <form onSubmit={handleSubmit} className="space-y-6">
+                    <div>
+                      <h3 className="ca-display-md mb-2">Send us a Message</h3>
+                      <p className="ca-body-sm">Fill out the form below and we'll get back to you as soon as possible.</p>
+                    </div>
+
+                    {/* Name Fields */}
+                    <div className="grid sm:grid-cols-2 gap-5">
+                      <div>
+                        <label htmlFor="firstName" className="block ca-subheading text-sm mb-2 text-[var(--ca-gray-700)]">
+                          First Name <span className="text-[var(--ca-coral)]">*</span>
                         </label>
                         <input
-                          id="first-name"
+                          id="firstName"
                           type="text"
-                          required
-                          className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm transition-all focus:border-cloudact-teal focus:ring-2 focus:ring-cloudact-teal/20 focus:outline-none"
+                          value={formData.firstName}
+                          onChange={(e) => handleChange("firstName", e.target.value)}
+                          className={`w-full px-4 py-3 rounded-xl border-2 bg-white transition-all duration-200 focus:outline-none ${
+                            errors.firstName
+                              ? "border-[var(--ca-coral)] focus:border-[var(--ca-coral)] focus:ring-4 focus:ring-[var(--ca-coral-glow)]"
+                              : "border-[var(--ca-gray-200)] focus:border-[var(--ca-teal)] focus:ring-4 focus:ring-[var(--ca-teal-glow)]"
+                          }`}
                           placeholder="John"
                         />
+                        {errors.firstName && (
+                          <p className="mt-1.5 text-sm text-[var(--ca-coral)] flex items-center gap-1">
+                            <span className="w-1 h-1 bg-[var(--ca-coral)] rounded-full" />
+                            {errors.firstName}
+                          </p>
+                        )}
                       </div>
-                      <div className="space-y-1.5">
-                        <label htmlFor="last-name" className="cloudact-body-sm font-medium">
-                          Last Name
+
+                      <div>
+                        <label htmlFor="lastName" className="block ca-subheading text-sm mb-2 text-[var(--ca-gray-700)]">
+                          Last Name <span className="text-[var(--ca-coral)]">*</span>
                         </label>
                         <input
-                          id="last-name"
+                          id="lastName"
                           type="text"
-                          required
-                          className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm transition-all focus:border-cloudact-teal focus:ring-2 focus:ring-cloudact-teal/20 focus:outline-none"
+                          value={formData.lastName}
+                          onChange={(e) => handleChange("lastName", e.target.value)}
+                          className={`w-full px-4 py-3 rounded-xl border-2 bg-white transition-all duration-200 focus:outline-none ${
+                            errors.lastName
+                              ? "border-[var(--ca-coral)] focus:border-[var(--ca-coral)] focus:ring-4 focus:ring-[var(--ca-coral-glow)]"
+                              : "border-[var(--ca-gray-200)] focus:border-[var(--ca-teal)] focus:ring-4 focus:ring-[var(--ca-teal-glow)]"
+                          }`}
                           placeholder="Doe"
                         />
+                        {errors.lastName && (
+                          <p className="mt-1.5 text-sm text-[var(--ca-coral)] flex items-center gap-1">
+                            <span className="w-1 h-1 bg-[var(--ca-coral)] rounded-full" />
+                            {errors.lastName}
+                          </p>
+                        )}
                       </div>
                     </div>
 
-                    <div className="space-y-1.5">
-                      <label htmlFor="email" className="cloudact-body-sm font-medium">
-                        Email
-                      </label>
-                      <input
-                        id="email"
-                        type="email"
-                        required
-                        className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm transition-all focus:border-cloudact-teal focus:ring-2 focus:ring-cloudact-teal/20 focus:outline-none"
-                        placeholder="john@company.com"
-                      />
-                    </div>
+                    {/* Email & Company */}
+                    <div className="grid sm:grid-cols-2 gap-5">
+                      <div>
+                        <label htmlFor="email" className="block ca-subheading text-sm mb-2 text-[var(--ca-gray-700)]">
+                          Email Address <span className="text-[var(--ca-coral)]">*</span>
+                        </label>
+                        <input
+                          id="email"
+                          type="email"
+                          value={formData.email}
+                          onChange={(e) => handleChange("email", e.target.value)}
+                          className={`w-full px-4 py-3 rounded-xl border-2 bg-white transition-all duration-200 focus:outline-none ${
+                            errors.email
+                              ? "border-[var(--ca-coral)] focus:border-[var(--ca-coral)] focus:ring-4 focus:ring-[var(--ca-coral-glow)]"
+                              : "border-[var(--ca-gray-200)] focus:border-[var(--ca-teal)] focus:ring-4 focus:ring-[var(--ca-teal-glow)]"
+                          }`}
+                          placeholder="john@company.com"
+                        />
+                        {errors.email && (
+                          <p className="mt-1.5 text-sm text-[var(--ca-coral)] flex items-center gap-1">
+                            <span className="w-1 h-1 bg-[var(--ca-coral)] rounded-full" />
+                            {errors.email}
+                          </p>
+                        )}
+                      </div>
 
-                    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                      <div className="space-y-1.5">
-                        <label htmlFor="company" className="cloudact-body-sm font-medium">
+                      <div>
+                        <label htmlFor="company" className="block ca-subheading text-sm mb-2 text-[var(--ca-gray-700)]">
                           Company
                         </label>
                         <input
                           id="company"
                           type="text"
-                          className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm transition-all focus:border-cloudact-teal focus:ring-2 focus:ring-cloudact-teal/20 focus:outline-none"
-                          placeholder="Your Company"
+                          value={formData.company}
+                          onChange={(e) => handleChange("company", e.target.value)}
+                          className="w-full px-4 py-3 rounded-xl border-2 border-[var(--ca-gray-200)] bg-white focus:border-[var(--ca-teal)] focus:ring-4 focus:ring-[var(--ca-teal-glow)] focus:outline-none transition-all duration-200"
+                          placeholder="Acme Inc."
                         />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label htmlFor="category" className="cloudact-body-sm font-medium">
-                          Category
-                        </label>
-                        <select
-                          id="category"
-                          className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm transition-all focus:border-cloudact-teal focus:ring-2 focus:ring-cloudact-teal/20 focus:outline-none appearance-none"
-                          defaultValue=""
-                        >
-                          <option value="" disabled>Select a topic</option>
-                          <option value="sales">Sales Inquiry</option>
-                          <option value="support">Technical Support</option>
-                          <option value="partnership">Partnership</option>
-                          <option value="general">General Question</option>
-                        </select>
                       </div>
                     </div>
 
-                    <div className="space-y-1.5">
-                      <label htmlFor="message" className="cloudact-body-sm font-medium">
-                        Message
+                    {/* Phone & Inquiry Type */}
+                    <div className="grid sm:grid-cols-2 gap-5">
+                      <div>
+                        <label htmlFor="phone" className="block ca-subheading text-sm mb-2 text-[var(--ca-gray-700)]">
+                          Phone Number
+                        </label>
+                        <input
+                          id="phone"
+                          type="tel"
+                          value={formData.phone}
+                          onChange={(e) => handleChange("phone", e.target.value)}
+                          className="w-full px-4 py-3 rounded-xl border-2 border-[var(--ca-gray-200)] bg-white focus:border-[var(--ca-teal)] focus:ring-4 focus:ring-[var(--ca-teal-glow)] focus:outline-none transition-all duration-200"
+                          placeholder="+1 (555) 000-0000"
+                        />
+                      </div>
+
+                      <div>
+                        <label htmlFor="inquiryType" className="block ca-subheading text-sm mb-2 text-[var(--ca-gray-700)]">
+                          Inquiry Type <span className="text-[var(--ca-coral)]">*</span>
+                        </label>
+                        <select
+                          id="inquiryType"
+                          value={formData.inquiryType}
+                          onChange={(e) => handleChange("inquiryType", e.target.value)}
+                          className={`w-full px-4 py-3 rounded-xl border-2 bg-white transition-all duration-200 focus:outline-none ${
+                            errors.inquiryType
+                              ? "border-[var(--ca-coral)] focus:border-[var(--ca-coral)] focus:ring-4 focus:ring-[var(--ca-coral-glow)]"
+                              : "border-[var(--ca-gray-200)] focus:border-[var(--ca-teal)] focus:ring-4 focus:ring-[var(--ca-teal-glow)]"
+                          }`}
+                        >
+                          <option value="">Select a category</option>
+                          <option value="sales">Sales Inquiry</option>
+                          <option value="support">Technical Support</option>
+                          <option value="partnership">Partnership Opportunity</option>
+                          <option value="billing">Billing Question</option>
+                          <option value="general">General Question</option>
+                          <option value="demo">Request a Demo</option>
+                        </select>
+                        {errors.inquiryType && (
+                          <p className="mt-1.5 text-sm text-[var(--ca-coral)] flex items-center gap-1">
+                            <span className="w-1 h-1 bg-[var(--ca-coral)] rounded-full" />
+                            {errors.inquiryType}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Message */}
+                    <div>
+                      <label htmlFor="message" className="block ca-subheading text-sm mb-2 text-[var(--ca-gray-700)]">
+                        Message <span className="text-[var(--ca-coral)]">*</span>
                       </label>
                       <textarea
                         id="message"
-                        rows={5}
-                        required
-                        className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm transition-all focus:border-cloudact-teal focus:ring-2 focus:ring-cloudact-teal/20 focus:outline-none resize-none"
-                        placeholder="Tell us about your needs..."
+                        rows={6}
+                        value={formData.message}
+                        onChange={(e) => handleChange("message", e.target.value)}
+                        className={`w-full px-4 py-3 rounded-xl border-2 bg-white transition-all duration-200 focus:outline-none resize-none ${
+                          errors.message
+                            ? "border-[var(--ca-coral)] focus:border-[var(--ca-coral)] focus:ring-4 focus:ring-[var(--ca-coral-glow)]"
+                            : "border-[var(--ca-gray-200)] focus:border-[var(--ca-teal)] focus:ring-4 focus:ring-[var(--ca-teal-glow)]"
+                        }`}
+                        placeholder="Tell us how we can help you..."
                       />
+                      {errors.message && (
+                        <p className="mt-1.5 text-sm text-[var(--ca-coral)] flex items-center gap-1">
+                          <span className="w-1 h-1 bg-[var(--ca-coral)] rounded-full" />
+                          {errors.message}
+                        </p>
+                      )}
+                      <p className="mt-2 text-xs text-[var(--ca-gray-500)]">
+                        {formData.message.length} / 1000 characters
+                      </p>
                     </div>
 
-                    <button
-                      type="submit"
-                      disabled={isSubmitting}
-                      className="cloudact-btn-primary w-full group"
-                    >
-                      {isSubmitting ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Sending...
-                        </>
-                      ) : (
-                        <>
-                          Send Message
-                          <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-                        </>
-                      )}
-                    </button>
+                    {/* Submit Button */}
+                    <div className="pt-2">
+                      <button
+                        type="submit"
+                        disabled={isSubmitting}
+                        className="ca-btn ca-btn-primary ca-btn-lg w-full sm:w-auto group disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isSubmitting ? (
+                          <>
+                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            Sending...
+                          </>
+                        ) : (
+                          <>
+                            Send Message
+                            <Send className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                          </>
+                        )}
+                      </button>
+                      <p className="mt-4 text-xs text-[var(--ca-gray-500)]">
+                        By submitting this form, you agree to our Privacy Policy and Terms of Service.
+                      </p>
+                    </div>
                   </form>
                 )}
               </div>
@@ -222,6 +475,181 @@ export default function ContactPage() {
           </div>
         </div>
       </section>
-    </>
+
+      {/* Office Locations */}
+      <section className="py-20 bg-[var(--ca-gray-50)]">
+        <div className="container mx-auto px-4 md:px-8 max-w-7xl">
+          <div className="text-center mb-12">
+            <span className="ca-label text-[var(--ca-teal)]">Global Presence</span>
+            <h2 className="ca-display-md mt-4 mb-4">Our Locations</h2>
+            <p className="ca-body max-w-2xl mx-auto">
+              We have offices around the world to better serve our global customer base.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6">
+            {/* San Francisco */}
+            <div className="ca-card group">
+              <div className="aspect-video bg-gradient-to-br from-[var(--ca-teal)] to-[var(--ca-teal-dark)] rounded-lg mb-5 flex items-center justify-center relative overflow-hidden">
+                <div className="absolute inset-0 opacity-10">
+                  <div className="absolute inset-0" style={{
+                    backgroundImage: 'linear-gradient(var(--ca-gray-200) 1px, transparent 1px), linear-gradient(90deg, var(--ca-gray-200) 1px, transparent 1px)',
+                    backgroundSize: '20px 20px'
+                  }} />
+                </div>
+                <Globe className="w-16 h-16 text-white relative z-10" />
+              </div>
+              <div className="flex items-start gap-3 mb-3">
+                <MapPin className="w-5 h-5 text-[var(--ca-teal)] mt-0.5 flex-shrink-0" />
+                <div>
+                  <h3 className="ca-heading mb-1">San Francisco</h3>
+                  <p className="ca-body-sm">
+                    123 Innovation Drive<br />
+                    San Francisco, CA 94105<br />
+                    United States
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 text-sm text-[var(--ca-gray-600)] pt-3 border-t border-[var(--ca-gray-200)]">
+                <Building2 className="w-4 h-4" />
+                <span>Headquarters</span>
+              </div>
+            </div>
+
+            {/* London */}
+            <div className="ca-card group">
+              <div className="aspect-video bg-gradient-to-br from-[var(--ca-coral)] to-[var(--ca-coral-dark)] rounded-lg mb-5 flex items-center justify-center relative overflow-hidden">
+                <div className="absolute inset-0 opacity-10">
+                  <div className="absolute inset-0" style={{
+                    backgroundImage: 'linear-gradient(var(--ca-gray-200) 1px, transparent 1px), linear-gradient(90deg, var(--ca-gray-200) 1px, transparent 1px)',
+                    backgroundSize: '20px 20px'
+                  }} />
+                </div>
+                <Globe className="w-16 h-16 text-white relative z-10" />
+              </div>
+              <div className="flex items-start gap-3 mb-3">
+                <MapPin className="w-5 h-5 text-[var(--ca-coral)] mt-0.5 flex-shrink-0" />
+                <div>
+                  <h3 className="ca-heading mb-1">London</h3>
+                  <p className="ca-body-sm">
+                    45 Tech Square<br />
+                    London EC2M 4BJ<br />
+                    United Kingdom
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 text-sm text-[var(--ca-gray-600)] pt-3 border-t border-[var(--ca-gray-200)]">
+                <Building2 className="w-4 h-4" />
+                <span>European Office</span>
+              </div>
+            </div>
+
+            {/* Singapore */}
+            <div className="ca-card group">
+              <div className="aspect-video bg-gradient-to-br from-[var(--ca-green)] to-[var(--ca-teal)] rounded-lg mb-5 flex items-center justify-center relative overflow-hidden">
+                <div className="absolute inset-0 opacity-10">
+                  <div className="absolute inset-0" style={{
+                    backgroundImage: 'linear-gradient(var(--ca-gray-200) 1px, transparent 1px), linear-gradient(90deg, var(--ca-gray-200) 1px, transparent 1px)',
+                    backgroundSize: '20px 20px'
+                  }} />
+                </div>
+                <Globe className="w-16 h-16 text-white relative z-10" />
+              </div>
+              <div className="flex items-start gap-3 mb-3">
+                <MapPin className="w-5 h-5 text-[var(--ca-green)] mt-0.5 flex-shrink-0" />
+                <div>
+                  <h3 className="ca-heading mb-1">Singapore</h3>
+                  <p className="ca-body-sm">
+                    88 Marina Bay<br />
+                    Singapore 018981<br />
+                    Singapore
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 text-sm text-[var(--ca-gray-600)] pt-3 border-t border-[var(--ca-gray-200)]">
+                <Building2 className="w-4 h-4" />
+                <span>Asia Pacific Office</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ / Quick Links Section */}
+      <section className="py-20">
+        <div className="container mx-auto px-4 md:px-8 max-w-7xl">
+          <div className="text-center mb-12">
+            <span className="ca-label text-[var(--ca-teal)]">Quick Answers</span>
+            <h2 className="ca-display-md mt-4 mb-4">Frequently Asked Questions</h2>
+            <p className="ca-body max-w-2xl mx-auto">
+              Find quick answers to common questions. Can't find what you're looking for? Contact us directly.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-6 max-w-5xl mx-auto">
+            {/* FAQ Item 1 */}
+            <div className="ca-card">
+              <h3 className="ca-heading mb-3">How quickly can I get started?</h3>
+              <p className="ca-body-sm mb-4">
+                You can get started in minutes! Sign up, connect your cloud accounts, and start seeing insights immediately. Our onboarding process is designed to be quick and seamless.
+              </p>
+              <a href="/signup" className="text-[var(--ca-teal)] font-medium text-sm inline-flex items-center gap-1 group/link">
+                Start free trial
+                <ArrowRight className="w-4 h-4 group-hover/link:translate-x-1 transition-transform" />
+              </a>
+            </div>
+
+            {/* FAQ Item 2 */}
+            <div className="ca-card">
+              <h3 className="ca-heading mb-3">What cloud providers do you support?</h3>
+              <p className="ca-body-sm mb-4">
+                We support all major cloud providers including AWS, Google Cloud, Azure, and more. Our platform seamlessly integrates with your existing infrastructure.
+              </p>
+              <a href="/features" className="text-[var(--ca-teal)] font-medium text-sm inline-flex items-center gap-1 group/link">
+                View integrations
+                <ArrowRight className="w-4 h-4 group-hover/link:translate-x-1 transition-transform" />
+              </a>
+            </div>
+
+            {/* FAQ Item 3 */}
+            <div className="ca-card">
+              <h3 className="ca-heading mb-3">Is my data secure?</h3>
+              <p className="ca-body-sm mb-4">
+                Absolutely. We use enterprise-grade encryption, SOC 2 compliance, and follow industry best practices. Your data security is our top priority.
+              </p>
+              <a href="/security" className="text-[var(--ca-teal)] font-medium text-sm inline-flex items-center gap-1 group/link">
+                Learn about security
+                <ArrowRight className="w-4 h-4 group-hover/link:translate-x-1 transition-transform" />
+              </a>
+            </div>
+
+            {/* FAQ Item 4 */}
+            <div className="ca-card">
+              <h3 className="ca-heading mb-3">Can I schedule a demo?</h3>
+              <p className="ca-body-sm mb-4">
+                Yes! We'd love to show you how CloudAct can help optimize your cloud costs. Schedule a personalized demo with our team.
+              </p>
+              <button className="text-[var(--ca-teal)] font-medium text-sm inline-flex items-center gap-1 group/link">
+                Book a demo
+                <ArrowRight className="w-4 h-4 group-hover/link:translate-x-1 transition-transform" />
+              </button>
+            </div>
+          </div>
+
+          {/* Help Center CTA */}
+          <div className="mt-12 text-center">
+            <div className="inline-flex items-center gap-3 px-6 py-4 bg-[var(--ca-teal-50)] rounded-2xl">
+              <MessageSquare className="w-6 h-6 text-[var(--ca-teal)]" />
+              <span className="text-[var(--ca-gray-700)]">
+                Still have questions?{" "}
+                <a href="/help" className="text-[var(--ca-teal)] font-semibold hover:underline">
+                  Visit our Help Center
+                </a>
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
   )
 }
