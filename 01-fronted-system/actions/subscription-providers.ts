@@ -1526,7 +1526,6 @@ export async function createCustomPlan(
       // Check if Supabase and BigQuery are in sync, auto-repair if needed
       const syncCheck = await validateLocaleSync(orgSlug)
       if (!syncCheck.inSync && syncCheck.mismatch) {
-        }`)
         const repairResult = await repairLocaleSync(orgSlug)
         if (!repairResult.success) {
           return {

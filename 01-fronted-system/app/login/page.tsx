@@ -102,7 +102,7 @@ function LoginForm() {
 
       // If there's a redirect parameter (e.g., from invite), go there
       if (redirectTo) {
-        window.location.href = redirectTo
+        if (typeof window !== "undefined") window.location.href = redirectTo
         return
       }
 
@@ -122,9 +122,9 @@ function LoginForm() {
           ? orgData.organizations[0]
           : orgData.organizations) as { org_slug: string }
 
-        window.location.href = `/${org.org_slug}/dashboard`
+        if (typeof window !== "undefined") window.location.href = `/${org.org_slug}/dashboard`
       } else {
-        window.location.href = "/onboarding/billing"
+        if (typeof window !== "undefined") window.location.href = "/onboarding/billing"
       }
     } catch (err: unknown) {
       // Use generic error message to prevent account enumeration attacks

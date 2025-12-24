@@ -105,9 +105,14 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
   const [scrolled, setScrolled] = useState(false)
 
   useEffect(() => {
+    // Guard against SSR - window is not available during server-side rendering
+    if (typeof window === "undefined") return
+
     const handleScroll = () => {
       setScrolled(window.scrollY > 20)
     }
+    // Check initial scroll position
+    handleScroll()
     // Use passive listener for better scroll performance
     window.addEventListener("scroll", handleScroll, { passive: true })
     return () => window.removeEventListener("scroll", handleScroll)

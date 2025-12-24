@@ -4,7 +4,7 @@ Validates API key scopes before allowing endpoint access.
 """
 
 from functools import wraps
-from typing import List, Optional, Callable, Any
+from typing import Dict, List, Optional, Callable, Any
 from fastapi import HTTPException, status, Request
 import logging
 

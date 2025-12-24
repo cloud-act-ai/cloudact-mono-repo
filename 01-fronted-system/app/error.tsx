@@ -13,6 +13,9 @@ export default function GlobalError({
   reset: () => void
 }) {
   useEffect(() => {
+    // Guard against SSR - window is not available during server-side rendering
+    if (typeof window === "undefined") return
+
     // Check if it's an auth error and redirect to login
     const isAuthError =
       error.message?.includes("Refresh Token") ||

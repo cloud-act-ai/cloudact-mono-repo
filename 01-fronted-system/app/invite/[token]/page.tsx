@@ -99,6 +99,7 @@ export default function InvitePage() {
       setSuccess(result.message || "Successfully joined!")
 
       setTimeout(() => {
+        if (typeof window === "undefined") return
         if (result.orgSlug) {
           // Use window.location.href for a hard navigation to ensure fresh state
           window.location.href = "/" + result.orgSlug + "/dashboard"

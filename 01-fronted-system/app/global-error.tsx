@@ -10,6 +10,9 @@ export default function GlobalError({
   reset: () => void
 }) {
   useEffect(() => {
+    // Guard against SSR - window is not available during server-side rendering
+    if (typeof window === "undefined") return
+
     // Check if it's an auth error and redirect to login
     const isAuthError =
       error.message?.includes("Refresh Token") ||
@@ -99,7 +102,7 @@ export default function GlobalError({
               Try Again
             </button>
             <button
-              onClick={() => window.location.href = '/'}
+              onClick={() => { if (typeof window !== "undefined") window.location.href = '/' }}
               style={{
                 backgroundColor: '#f5f5f5',
                 color: '#333',

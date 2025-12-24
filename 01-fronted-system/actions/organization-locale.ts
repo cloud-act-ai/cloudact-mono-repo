@@ -292,7 +292,6 @@ async function syncLocaleToBackend(
       clearTimeout(timeoutId)
 
       if (response.ok) {
-        `)
         return { success: true }
       }
 

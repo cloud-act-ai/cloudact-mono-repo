@@ -130,11 +130,12 @@ function SignupForm() {
       }
 
       // Signup with user_metadata (use normalizedEmail for consistency)
+      const origin = typeof window !== "undefined" ? window.location.origin : ""
       const { data: authData, error: signupError } = await supabase.auth.signUp({
         email: normalizedEmail,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}${finalRedirect}`,
+          emailRedirectTo: `${origin}${finalRedirect}`,
           data: userData,
         },
       })
@@ -158,7 +159,7 @@ function SignupForm() {
       }
 
       // Success - redirect to billing page for plan selection
-      window.location.href = finalRedirect
+      if (typeof window !== "undefined") window.location.href = finalRedirect
     } catch (error: unknown) {
       setServerError(error instanceof Error ? error.message : "An error occurred during signup")
       setIsLoading(false)

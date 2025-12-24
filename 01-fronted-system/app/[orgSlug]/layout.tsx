@@ -7,6 +7,7 @@ import { MobileHeader } from "@/components/mobile-header"
 import { SidebarProvider } from "@/components/ui/sidebar"
 import { PipelineAutoTrigger } from "@/components/pipeline-auto-trigger"
 import "./console.css"
+import { ErrorBoundary } from "@/components/ui/error-boundary"
 
 export default async function OrgLayout({
   children,
@@ -94,7 +95,9 @@ export default async function OrgLayout({
   return (
     <SidebarProvider>
       {/* Silent background pipeline auto-trigger on dashboard load */}
-      <PipelineAutoTrigger orgSlug={orgSlug} />
+      <ErrorBoundary silent>
+        <PipelineAutoTrigger orgSlug={orgSlug} />
+      </ErrorBoundary>
       {/* Skip to main content link for accessibility */}
       <a
         href="#main-content"
@@ -104,27 +107,31 @@ export default async function OrgLayout({
         Skip to main content
       </a>
       <div className="flex min-h-screen w-full">
-        <DashboardSidebar
-          orgSlug={orgSlug}
-          orgName={org.org_name}
-          orgPlan={org.plan}
-          billingStatus={org.billing_status}
-          memberCount={memberCount || 0}
-          userRole={membership.role}
-          userName={profile?.full_name || user.email?.split('@')[0] || 'User'}
-          userEmail={user.email || ''}
-        />
-        <div className="flex flex-1 flex-col">
-          <MobileHeader
-            orgName={org.org_name}
+        <ErrorBoundary>
+          <DashboardSidebar
             orgSlug={orgSlug}
-            user={{
-              email: user.email || "",
-              full_name: profile?.full_name || undefined,
-              avatar_url: profile?.avatar_url || undefined,
-            }}
+            orgName={org.org_name}
+            orgPlan={org.plan}
+            billingStatus={org.billing_status}
+            memberCount={memberCount || 0}
             userRole={membership.role}
+            userName={profile?.full_name || user.email?.split('@')[0] || 'User'}
+            userEmail={user.email || ''}
           />
+        </ErrorBoundary>
+        <div className="flex flex-1 flex-col">
+          <ErrorBoundary>
+            <MobileHeader
+              orgName={org.org_name}
+              orgSlug={orgSlug}
+              user={{
+                email: user.email || "",
+                full_name: profile?.full_name || undefined,
+                avatar_url: profile?.avatar_url || undefined,
+              }}
+              userRole={membership.role}
+            />
+          </ErrorBoundary>
           <main id="main-content" className="console-main-gradient flex-1 overflow-y-auto p-4 md:p-6 lg:p-8" tabIndex={-1}>
             {children}
           </main>
