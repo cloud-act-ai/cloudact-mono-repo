@@ -1,24 +1,24 @@
 "use client"
 
 /**
- * BigQuery-Style Mobile Header
+ * Mobile Header with Navigation Overlay
  *
- * Matches the sidebar design with:
- * - Logo + Org Name (logo from URL or Building2 fallback)
- * - Clean, compact styling
+ * Clean header for mobile with:
  * - Hamburger menu toggle
+ * - Org logo and name
+ * - User menu
+ * - Full-screen navigation overlay
  */
 
-import { useSidebar } from "@/components/ui/sidebar"
-import { Menu, X, Building2 } from "lucide-react"
+import { useState, useEffect } from "react"
+import { Menu, Building2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { UserMenu } from "@/components/user-menu"
 import Image from "next/image"
 import Link from "next/link"
-import { useEffect, useState } from "react"
 import { getOrgDetails } from "@/actions/organization-locale"
+import { MobileNav } from "@/components/mobile-nav"
 
-// Format org name: "guruInc_11242025" → "Guru Inc"
 function formatOrgName(name: string): string {
   const withoutDate = name.replace(/_\d{8}$/, "")
   const acronymPatterns = [
@@ -60,11 +60,11 @@ interface MobileHeaderProps {
 }
 
 export function MobileHeader({ orgName, orgSlug, user, userRole }: MobileHeaderProps) {
-  const { openMobile, setOpenMobile } = useSidebar()
+  const [isNavOpen, setIsNavOpen] = useState(false)
   const [logoUrl, setLogoUrl] = useState<string | null>(null)
   const formattedOrgName = formatOrgName(orgName)
 
-  // Fetch org logo with cleanup to prevent memory leaks
+  // Fetch org logo
   useEffect(() => {
     let isMounted = true
 
@@ -75,7 +75,7 @@ export function MobileHeader({ orgName, orgSlug, user, userRole }: MobileHeaderP
           setLogoUrl(result.org.logoUrl)
         }
       } catch {
-        // Silently handle error - logo is not critical
+        // Silently handle error
       }
     }
     fetchLogo()
@@ -86,56 +86,54 @@ export function MobileHeader({ orgName, orgSlug, user, userRole }: MobileHeaderP
   }, [orgSlug])
 
   return (
-    <header className="sticky top-0 z-40 flex h-14 items-center justify-between gap-4 border-b border-border bg-white px-4 md:hidden pt-[env(safe-area-inset-top,0px)]">
-      <div className="flex items-center gap-3">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setOpenMobile(!openMobile)}
-          className="h-11 w-11 rounded-xl text-[#1C1C1E] hover:bg-[#007A78]/5 focus-visible:ring-2 focus-visible:ring-[#007A78] focus-visible:ring-offset-2 focus-visible:outline-[#007A78]"
-          aria-label={openMobile ? "Close menu" : "Open menu"}
-          aria-expanded={openMobile}
-        >
-          {openMobile ? (
-            <X className="h-5 w-5" aria-hidden="true" />
-          ) : (
-            <Menu className="h-5 w-5" aria-hidden="true" />
-          )}
-        </Button>
+    <>
+      <header className="sticky top-0 z-40 flex h-14 items-center justify-between gap-4 border-b border-slate-100 bg-white px-4 md:hidden pt-[env(safe-area-inset-top,0px)]">
+        <div className="flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsNavOpen(true)}
+            className="h-10 w-10 rounded-lg text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+            aria-label="Open menu"
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
 
-        {/* Logo + Org Name - matches sidebar header */}
-        <Link
-          href={`/${orgSlug}/cost-dashboards/overview`}
-          className="flex items-center gap-2 hover:opacity-80 transition-opacity"
-        >
-          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md overflow-hidden bg-gradient-to-br from-[#007A78] to-[#14B8A6]">
-            {logoUrl ? (
-              <Image
-                src={logoUrl}
-                alt={formattedOrgName}
-                width={32}
-                height={32}
-                className="object-contain"
-              />
-            ) : (
-              <Building2 className="h-4 w-4 text-white" />
-            )}
-          </div>
-          <span className="text-[14px] font-semibold text-[#1C1C1E] truncate max-w-[140px]">
-            {formattedOrgName}
-          </span>
-        </Link>
-      </div>
+          {/* Logo + Org Name */}
+          <Link
+            href={`/${orgSlug}/cost-dashboards/overview`}
+            className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+          >
+            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg overflow-hidden bg-gradient-to-br from-[#007A78] to-[#14B8A6]">
+              {logoUrl ? (
+                <Image
+                  src={logoUrl}
+                  alt={formattedOrgName}
+                  width={32}
+                  height={32}
+                  className="object-contain"
+                />
+              ) : (
+                <Building2 className="h-4 w-4 text-white" />
+              )}
+            </div>
+            <span className="text-[13px] font-semibold text-slate-900 truncate max-w-[120px]">
+              {formattedOrgName}
+            </span>
+          </Link>
+        </div>
+      </header>
 
-      {/* User Menu - Only show if user data is provided */}
-      {user && (
-        <UserMenu
-          user={user}
-          orgSlug={orgSlug}
-          userRole={userRole}
-          className="h-11 w-11"
-        />
-      )}
-    </header>
+      {/* Mobile Navigation Overlay */}
+      <MobileNav
+        isOpen={isNavOpen}
+        onClose={() => setIsNavOpen(false)}
+        orgSlug={orgSlug}
+        orgName={orgName}
+        userName={user?.full_name || user?.email?.split("@")[0] || "User"}
+        userEmail={user?.email || ""}
+        userRole={userRole || "member"}
+      />
+    </>
   )
 }

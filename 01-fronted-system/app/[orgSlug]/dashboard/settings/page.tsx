@@ -1,6 +1,5 @@
 import Link from "next/link"
 import {
-  Settings,
   Building2,
   User,
   Shield,
@@ -8,16 +7,13 @@ import {
   Brain,
   Wallet,
   Users,
-  Lock,
-  BarChart3,
   ChevronRight,
   Globe,
-  Bell,
-  Palette,
-  Database
+  Database,
+  CreditCard,
+  Activity
 } from "lucide-react"
 import { createClient } from "@/lib/supabase/server"
-import { Badge } from "@/components/ui/badge"
 
 export default async function SettingsPage({
   params,
@@ -26,7 +22,6 @@ export default async function SettingsPage({
 }) {
   const { orgSlug } = await params
 
-  // Fetch organization data for status badges
   const supabase = await createClient()
   let integrationStatus = {
     gcp: false,
@@ -58,255 +53,205 @@ export default async function SettingsPage({
     // Use default values if fetch fails
   }
 
+  const cloudCount = [integrationStatus.gcp, integrationStatus.aws, integrationStatus.azure].filter(Boolean).length
+  const llmCount = [integrationStatus.openai, integrationStatus.claude, integrationStatus.gemini].filter(Boolean).length
+
   const settingsSections = [
     {
+      id: "organization",
       title: "Organization",
       items: [
         {
           icon: Building2,
           label: "Organization Settings",
-          description: "Manage organization name, slug, and preferences",
+          description: "Name, branding, and locale preferences",
           href: `/${orgSlug}/settings/organization`,
-          color: "teal",
-          badge: null
+          accent: "#007A78"
         },
         {
           icon: Users,
           label: "Team Members",
-          description: "Invite and manage team members and roles",
-          href: `/${orgSlug}/settings/team`,
-          color: "coral",
-          badge: null
+          description: "Invite and manage team members",
+          href: `/${orgSlug}/settings/invite`,
+          accent: "#FF6E50"
         },
         {
           icon: Globe,
           label: "Localization",
-          description: "Configure currency, timezone, and regional settings",
+          description: "Currency, timezone, and fiscal year",
           href: `/${orgSlug}/settings/organization`,
-          color: "teal",
-          badge: null
+          accent: "#007A78"
         }
       ]
     },
     {
+      id: "integrations",
       title: "Integrations",
       items: [
         {
           icon: Cloud,
           label: "Cloud Providers",
-          description: "Connect AWS, GCP, Azure for cost tracking",
-          href: `/${orgSlug}/settings/integrations/cloud`,
-          color: "blue",
-          badge: integrationStatus.gcp || integrationStatus.aws || integrationStatus.azure ? "Connected" : null
+          description: "GCP, AWS, Azure cost tracking",
+          href: `/${orgSlug}/integrations/cloud-providers`,
+          accent: "#4285F4",
+          badge: cloudCount > 0 ? `${cloudCount} connected` : null
         },
         {
           icon: Brain,
           label: "LLM Providers",
-          description: "Connect OpenAI, Claude, Gemini for AI costs",
-          href: `/${orgSlug}/settings/integrations/llm`,
-          color: "purple",
-          badge: integrationStatus.openai || integrationStatus.claude || integrationStatus.gemini ? "Connected" : null
+          description: "OpenAI, Claude, Gemini usage",
+          href: `/${orgSlug}/integrations/llm`,
+          accent: "#8B5CF6",
+          badge: llmCount > 0 ? `${llmCount} connected` : null
         },
         {
-          icon: Database,
+          icon: CreditCard,
           label: "SaaS Subscriptions",
-          description: "Track and manage third-party subscription costs",
-          href: `/${orgSlug}/settings/integrations/subscriptions`,
-          color: "teal",
-          badge: null
+          description: "Track subscription costs",
+          href: `/${orgSlug}/integrations/subscriptions`,
+          accent: "#007A78"
         }
       ]
     },
     {
+      id: "account",
       title: "Account & Security",
       items: [
         {
           icon: User,
           label: "Personal Settings",
-          description: "Update your profile and personal preferences",
-          href: `/${orgSlug}/settings/personal`,
-          color: "teal",
-          badge: null
+          description: "Your profile and preferences",
+          href: `/${orgSlug}/settings/profile`,
+          accent: "#007A78"
         },
         {
           icon: Shield,
           label: "Security",
-          description: "API keys, authentication, and access control",
+          description: "API keys and access control",
           href: `/${orgSlug}/settings/security`,
-          color: "coral",
-          badge: null
+          accent: "#FF6E50"
         },
         {
-          icon: BarChart3,
+          icon: Activity,
           label: "Quota & Usage",
-          description: "Monitor API usage and quota limits",
+          description: "Monitor API usage limits",
           href: `/${orgSlug}/settings/quota-usage`,
-          color: "teal",
-          badge: null
+          accent: "#007A78"
         }
       ]
     },
     {
+      id: "billing",
       title: "Billing",
       items: [
         {
           icon: Wallet,
           label: "Subscription & Billing",
-          description: "Manage your plan, payment methods, and invoices",
+          description: "Plan, payments, and invoices",
           href: `/${orgSlug}/billing`,
-          color: "teal",
-          badge: null
+          accent: "#007A78"
         }
       ]
     }
   ]
 
-  const getIconBgColor = (color: string) => {
-    switch (color) {
-      case 'teal':
-        return 'bg-gradient-to-br from-[#007A78]/10 to-[#007A78]/5'
-      case 'coral':
-        return 'bg-gradient-to-br from-[#FF6E50]/10 to-[#FF6E50]/5'
-      case 'blue':
-        return 'bg-gradient-to-br from-blue-500/10 to-blue-500/5'
-      case 'purple':
-        return 'bg-gradient-to-br from-purple-500/10 to-purple-500/5'
-      default:
-        return 'bg-gradient-to-br from-slate-500/10 to-slate-500/5'
-    }
-  }
-
-  const getIconColor = (color: string) => {
-    switch (color) {
-      case 'teal':
-        return 'text-[#007A78]'
-      case 'coral':
-        return 'text-[#FF6E50]'
-      case 'blue':
-        return 'text-blue-500'
-      case 'purple':
-        return 'text-purple-500'
-      default:
-        return 'text-slate-500'
-    }
-  }
-
   return (
-    <div className="space-y-6 sm:space-y-8">
-      <div>
-        <h1 className="text-[32px] sm:text-[34px] font-bold text-black tracking-tight">Settings</h1>
-        <p className="text-[13px] sm:text-[15px] text-muted-foreground mt-1">
+    <div className="space-y-8 max-w-4xl">
+      {/* Header */}
+      <div className="space-y-1">
+        <h1 className="text-[32px] font-bold text-slate-900 tracking-tight">Settings</h1>
+        <p className="text-[15px] text-slate-500">
           Configure your organization, integrations, and preferences
         </p>
       </div>
 
-      {/* Quick Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="health-card">
-          <div className="flex items-start justify-between mb-3">
-            <div className="p-2.5 rounded-xl bg-gradient-to-br from-[#007A78]/10 to-[#007A78]/5">
-              <Cloud className="h-5 w-5 text-[#007A78]" />
-            </div>
-            {(integrationStatus.gcp || integrationStatus.aws || integrationStatus.azure) && (
-              <div className="h-2 w-2 rounded-full bg-emerald-500"></div>
-            )}
-          </div>
-          <div className="space-y-1">
-            <p className="text-[13px] text-muted-foreground">Cloud Integrations</p>
-            <p className="text-[28px] font-semibold text-black tracking-tight">
-              {[integrationStatus.gcp, integrationStatus.aws, integrationStatus.azure].filter(Boolean).length}
-            </p>
-          </div>
+      {/* Stats Row */}
+      <div className="flex flex-wrap items-center gap-6 py-4 px-5 bg-slate-50 rounded-2xl border border-slate-100">
+        <div className="flex items-center gap-3">
+          <Cloud className="h-4 w-4 text-slate-400" />
+          <span className="text-[14px] text-slate-600">
+            <span className="font-semibold text-[#007A78]">{cloudCount}</span> Cloud
+          </span>
         </div>
-
-        <div className="health-card">
-          <div className="flex items-start justify-between mb-3">
-            <div className="p-2.5 rounded-xl bg-gradient-to-br from-[#FF6E50]/10 to-[#FF6E50]/5">
-              <Brain className="h-5 w-5 text-[#FF6E50]" />
-            </div>
-            {(integrationStatus.openai || integrationStatus.claude || integrationStatus.gemini) && (
-              <div className="h-2 w-2 rounded-full bg-emerald-500"></div>
-            )}
-          </div>
-          <div className="space-y-1">
-            <p className="text-[13px] text-muted-foreground">LLM Integrations</p>
-            <p className="text-[28px] font-semibold text-black tracking-tight">
-              {[integrationStatus.openai, integrationStatus.claude, integrationStatus.gemini].filter(Boolean).length}
-            </p>
-          </div>
+        <div className="h-5 w-px bg-slate-200"></div>
+        <div className="flex items-center gap-3">
+          <Brain className="h-4 w-4 text-slate-400" />
+          <span className="text-[14px] text-slate-600">
+            <span className="font-semibold text-[#8B5CF6]">{llmCount}</span> LLM
+          </span>
         </div>
-
-        <div className="health-card">
-          <div className="flex items-start justify-between mb-3">
-            <div className="p-2.5 rounded-xl bg-gradient-to-br from-emerald-500/10 to-emerald-500/5">
-              <Shield className="h-5 w-5 text-emerald-500" />
-            </div>
-            <div className="h-2 w-2 rounded-full bg-emerald-500"></div>
-          </div>
-          <div className="space-y-1">
-            <p className="text-[13px] text-muted-foreground">Security Status</p>
-            <p className="text-[15px] font-semibold text-emerald-600 tracking-tight">Protected</p>
-          </div>
+        <div className="h-5 w-px bg-slate-200"></div>
+        <div className="flex items-center gap-2">
+          <Shield className="h-4 w-4 text-emerald-500" />
+          <span className="text-[14px] font-medium text-emerald-600">Protected</span>
         </div>
       </div>
 
       {/* Settings Sections */}
-      {settingsSections.map((section, idx) => (
-        <div key={idx} className="space-y-4">
-          <div className="flex items-center gap-2">
-            <h2 className="text-[20px] font-semibold text-black">{section.title}</h2>
-            <div className="flex-1 h-px bg-gradient-to-r from-slate-200 to-transparent"></div>
-          </div>
+      {settingsSections.map((section) => (
+        <div key={section.id} className="space-y-4">
+          <h2 className="text-[13px] font-semibold text-slate-500 uppercase tracking-wide">{section.title}</h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {section.items.map((item, itemIdx) => (
-              <Link
-                key={itemIdx}
-                href={item.href}
-                className="health-card group cursor-pointer hover:border-[#007A78]/30"
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <div className={`p-2.5 rounded-xl ${getIconBgColor(item.color)}`}>
-                    <item.icon className={`h-5 w-5 ${getIconColor(item.color)}`} />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {item.badge && (
-                      <Badge
-                        variant="outline"
-                        className="border-emerald-200 text-emerald-700 bg-emerald-50 text-[11px] px-2 py-0.5"
+          <div className="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100">
+            {section.items.map((item, idx) => {
+              const Icon = item.icon
+              return (
+                <Link
+                  key={idx}
+                  href={item.href}
+                  className="group relative block"
+                >
+                  {/* Left accent on hover */}
+                  <div
+                    className="absolute left-0 top-4 bottom-4 w-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                    style={{ backgroundColor: item.accent }}
+                  />
+
+                  <div className="flex items-center justify-between p-4 pl-5 hover:bg-slate-50/50 transition-colors">
+                    <div className="flex items-center gap-4">
+                      <div
+                        className="h-10 w-10 rounded-xl flex items-center justify-center"
+                        style={{ backgroundColor: `${item.accent}15` }}
                       >
-                        {item.badge}
-                      </Badge>
-                    )}
-                    <ChevronRight className="h-5 w-5 text-slate-400 group-hover:text-[#007A78] transition-colors" />
+                        <Icon className="h-5 w-5" style={{ color: item.accent }} />
+                      </div>
+                      <div>
+                        <h3 className="text-[15px] font-semibold text-slate-900">{item.label}</h3>
+                        <p className="text-[13px] text-slate-500">{item.description}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {item.badge && (
+                        <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 text-[11px] font-semibold">
+                          {item.badge}
+                        </span>
+                      )}
+                      <ChevronRight className="h-5 w-5 text-slate-300 group-hover:text-slate-500 transition-colors" />
+                    </div>
                   </div>
-                </div>
-                <h3 className="text-[16px] font-semibold text-black mb-1">{item.label}</h3>
-                <p className="text-[13px] text-muted-foreground leading-relaxed">
-                  {item.description}
-                </p>
-              </Link>
-            ))}
+                </Link>
+              )
+            })}
           </div>
         </div>
       ))}
 
-      {/* Help Card */}
-      <div className="health-card bg-gradient-to-br from-white to-[#007A78]/[0.02] border-[#007A78]/20">
+      {/* Help Section */}
+      <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100">
         <div className="flex items-start gap-4">
-          <div className="p-2.5 rounded-xl bg-[#007A78]">
-            <Bell className="h-5 w-5 text-white" />
+          <div className="h-10 w-10 rounded-xl bg-[#007A78]/10 flex items-center justify-center flex-shrink-0">
+            <Database className="h-5 w-5 text-[#007A78]" />
           </div>
-          <div className="flex-1">
-            <h3 className="text-[16px] font-semibold text-black mb-1">Need Help?</h3>
-            <p className="text-[13px] text-muted-foreground leading-relaxed mb-3">
-              Check our documentation or contact support for assistance with configuration.
+          <div>
+            <h3 className="text-[15px] font-semibold text-slate-900">Need Help?</h3>
+            <p className="text-[13px] text-slate-500 mt-1">
+              Check our documentation or contact support for configuration assistance.
             </p>
-            <div className="flex gap-2">
-              <button className="px-3 py-1.5 text-[13px] font-medium text-white bg-[#007A78] rounded-lg hover:bg-[#005f5d] transition-colors">
+            <div className="flex gap-2 mt-3">
+              <button className="h-9 px-4 text-[13px] font-semibold text-white bg-[#007A78] hover:bg-[#006664] rounded-lg transition-colors">
                 View Docs
               </button>
-              <button className="px-3 py-1.5 text-[13px] font-medium text-[#007A78] bg-[#007A78]/10 rounded-lg hover:bg-[#007A78]/20 transition-colors">
+              <button className="h-9 px-4 text-[13px] font-semibold text-[#007A78] bg-[#007A78]/10 hover:bg-[#007A78]/15 rounded-lg transition-colors">
                 Contact Support
               </button>
             </div>

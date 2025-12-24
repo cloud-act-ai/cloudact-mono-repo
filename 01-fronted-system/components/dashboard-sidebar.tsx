@@ -1,13 +1,13 @@
 "use client"
 
 /**
- * BigQuery-Style Dashboard Sidebar
+ * Editorial Dashboard Sidebar
  *
- * Clean, compact navigation:
- * - Always expanded main sections (Cost Dashboards, Pipelines, Integrations)
- * - Settings section collapsible with chevron
- * - Rounded coral hover/active highlight (no left line)
- * - Icons on all menu items
+ * Clean, compact navigation with:
+ * - Accordion behavior (one section expanded at a time)
+ * - Auto-expand based on current route
+ * - Subscription page styling (smaller fonts, slate colors)
+ * - Teal left accent for active items
  */
 
 import type * as React from "react"
@@ -32,16 +32,13 @@ import {
   ChevronRight,
   HelpCircle,
   BarChart3,
-  // Cost Dashboards icons
   LayoutDashboard,
   Receipt,
   Sparkles,
   Cloud,
-  // Pipelines icons
   RefreshCw,
   Workflow,
   Cpu,
-  // Integrations icons
   Server,
   Brain,
   CreditCard as SubscriptionIcon,
@@ -54,7 +51,8 @@ import { useState, useEffect } from "react"
 import { cn } from "@/lib/utils"
 import { getOrgDetails } from "@/actions/organization-locale"
 
-// Format org name: "guruInc_11242025" → "Guru Inc"
+type SectionId = "dashboards" | "pipelines" | "integrations" | "settings"
+
 function formatOrgName(name: string): string {
   const withoutDate = name.replace(/_\d{8}$/, "")
   const acronymPatterns = [
@@ -84,7 +82,6 @@ function formatOrgName(name: string): string {
   return words
 }
 
-// Get user initials from name (first letter of first name + first letter of last name)
 function getUserInitials(name: string): string {
   if (!name) return "U"
   const parts = name.trim().split(/\s+/)
@@ -94,7 +91,6 @@ function getUserInitials(name: string): string {
   return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase()
 }
 
-// Capitalize first letter of each word in name
 function formatUserName(name: string): string {
   if (!name) return "User"
   return name
@@ -118,9 +114,9 @@ interface DashboardSidebarProps extends React.ComponentProps<typeof Sidebar> {
 export function DashboardSidebar({
   orgSlug,
   orgName,
-  orgPlan,
-  billingStatus,
-  memberCount,
+  orgPlan: _orgPlan,
+  billingStatus: _billingStatus,
+  memberCount: _memberCount,
   userRole,
   userName,
   userEmail,
@@ -130,18 +126,29 @@ export function DashboardSidebar({
   const [isLoading, setIsLoading] = useState(false)
   const [logoUrl, setLogoUrl] = useState<string | null>(null)
   const [logoLoading, setLogoLoading] = useState(true)
-  const [integrationsExpanded, setIntegrationsExpanded] = useState<boolean>(
-    pathname?.includes("/integrations") || true  // Open by default
-  )
-  const [settingsExpanded, setSettingsExpanded] = useState<boolean>(
-    pathname?.includes("/settings") || pathname?.includes("/billing") || true  // Expanded by default
-  )
+  // Accordion: only one section open at a time
+  const [activeSection, setActiveSection] = useState<SectionId>("dashboards")
 
   const formattedOrgName = formatOrgName(orgName)
   const { state } = useSidebar()
   const isCollapsed = state === "collapsed"
 
-  // Fetch org logo with loading state and cleanup to prevent memory leaks
+  // Auto-expand section based on current route
+  useEffect(() => {
+    if (!pathname) return
+
+    if (pathname.includes("/cost-dashboards")) {
+      setActiveSection("dashboards")
+    } else if (pathname.includes("/pipelines")) {
+      setActiveSection("pipelines")
+    } else if (pathname.includes("/integrations")) {
+      setActiveSection("integrations")
+    } else if (pathname.includes("/settings") || pathname.includes("/billing")) {
+      setActiveSection("settings")
+    }
+  }, [pathname])
+
+  // Fetch org logo
   useEffect(() => {
     let isMounted = true
 
@@ -159,7 +166,6 @@ export function DashboardSidebar({
         }
       } catch (error) {
         console.error("Failed to fetch org logo:", error)
-        // Don't throw - gracefully fall back to default icon
       } finally {
         if (isMounted) setLogoLoading(false)
       }
@@ -178,6 +184,10 @@ export function DashboardSidebar({
     if (typeof window !== "undefined") window.location.href = "/login"
   }
 
+  const toggleSection = (section: SectionId) => {
+    setActiveSection(section)
+  }
+
   // Active state helper
   const isActive = (path: string, exact = false) => {
     if (!pathname) return false
@@ -185,81 +195,103 @@ export function DashboardSidebar({
     return pathname === path || pathname.startsWith(path + "/")
   }
 
-  // Rounded coral hover/active styles (no left line)
-  const hoverClass = "hover:bg-[#FF6E50]/10 rounded-md mx-2 transition-all duration-150"
-  const activeClass = "bg-[#FF6E50]/15 text-[#FF6E50] font-medium rounded-md mx-2"
+  // Clean editorial styling - coral hover highlight
+  const itemClass = "h-[26px] px-3 text-[12px] font-medium text-slate-600 hover:bg-[#FF6E50]/10 hover:text-[#FF6E50] rounded-md mx-2 transition-colors"
+  const activeItemClass = "h-[26px] px-3 text-[12px] font-semibold text-[#FF6E50] bg-[#FF6E50]/10 rounded-md mx-2"
+
+  const SectionHeader = ({
+    title,
+    section,
+    isExpanded
+  }: {
+    title: string
+    section: SectionId
+    isExpanded: boolean
+  }) => (
+    <div
+      className="py-2 px-4 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors"
+      onClick={() => toggleSection(section)}
+    >
+      <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
+        {title}
+      </span>
+      {isExpanded ? (
+        <ChevronDown className="h-3 w-3 text-slate-400" />
+      ) : (
+        <ChevronRight className="h-3 w-3 text-slate-400" />
+      )}
+    </div>
+  )
 
   return (
-    <Sidebar collapsible="icon" className="border-r border-border bg-white" {...props}>
-      {/* Header: Logo + Org Name - Hidden on mobile (md:block) since MobileHeader shows this */}
+    <Sidebar collapsible="icon" className="border-r border-slate-100 bg-white" {...props}>
+      {/* Header: Logo + Org Name */}
       <div className={cn(
-        "border-b border-border hidden md:block",
+        "border-b border-slate-100 hidden md:block",
         isCollapsed ? "p-2" : "px-4 py-3"
       )}>
-          <Link
-            href={`/${orgSlug}/cost-dashboards/overview`}
-            className="flex items-center gap-3 hover:opacity-80 transition-opacity"
-          >
-            <div className={cn(
-              "flex-shrink-0 rounded-md overflow-hidden bg-gradient-to-br from-[#007A78] to-[#14B8A6] flex items-center justify-center",
-              "h-8 w-8"
-            )}>
-              {logoLoading ? (
-                <div className="h-4 w-4 animate-pulse bg-white/20 rounded" />
-              ) : logoUrl ? (
-                <Image
-                  src={logoUrl}
-                  alt={formattedOrgName}
-                  width={32}
-                  height={32}
-                  className="object-contain"
-                />
-              ) : (
-                <Building2 className="h-4 w-4 text-white" />
-              )}
-            </div>
-            {!isCollapsed && (
-              <span className="text-[14px] font-semibold text-[#1C1C1E] truncate max-w-[160px]">
-                {formattedOrgName}
-              </span>
+        <Link
+          href={`/${orgSlug}/cost-dashboards/overview`}
+          className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+        >
+          <div className={cn(
+            "flex-shrink-0 rounded-lg overflow-hidden bg-gradient-to-br from-[#007A78] to-[#14B8A6] flex items-center justify-center",
+            "h-8 w-8"
+          )}>
+            {logoLoading ? (
+              <div className="h-4 w-4 animate-pulse bg-white/20 rounded" />
+            ) : logoUrl ? (
+              <Image
+                src={logoUrl}
+                alt={formattedOrgName}
+                width={32}
+                height={32}
+                className="object-contain"
+              />
+            ) : (
+              <Building2 className="h-4 w-4 text-white" />
             )}
-          </Link>
-        </div>
+          </div>
+          {!isCollapsed && (
+            <span className="text-[13px] font-semibold text-slate-900 truncate max-w-[140px]">
+              {formattedOrgName}
+            </span>
+          )}
+        </Link>
+      </div>
 
-      <SidebarContent className="px-0 py-1 overflow-y-auto">
+      <SidebarContent className="px-0 py-2 overflow-y-auto">
         <SidebarMenu className="gap-0">
 
           {/* Cost Dashboards Section */}
           {!isCollapsed && (
-            <div className="pt-2 pb-1 px-4">
-              <h2 className="text-[13px] font-semibold text-muted-foreground uppercase tracking-wider">
-                Cost Dashboards
-              </h2>
-            </div>
+            <SectionHeader
+              title="Dashboards"
+              section="dashboards"
+              isExpanded={activeSection === "dashboards"}
+            />
           )}
           {isCollapsed && (
             <SidebarMenuItem>
-              <SidebarMenuButton asChild className="h-11 rounded-xl justify-center px-2">
+              <SidebarMenuButton asChild className="h-10 rounded-lg justify-center px-2 mx-1">
                 <Link href={`/${orgSlug}/cost-dashboards/overview`}>
-                  <LayoutDashboard className="h-4 w-4 text-muted-foreground" />
+                  <LayoutDashboard className="h-4 w-4 text-slate-500" />
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
           )}
-          {!isCollapsed && (
-            <>
+          {!isCollapsed && activeSection === "dashboards" && (
+            <div className="pb-2">
               <SidebarMenuItem>
                 <SidebarMenuButton
                   asChild
                   className={cn(
-                    "h-[28px] px-3 text-[13px] font-normal text-[#3C3C43]",
-                    hoverClass,
-                    isActive(`/${orgSlug}/cost-dashboards/overview`, true) && activeClass
+                    isActive(`/${orgSlug}/cost-dashboards/overview`, true) ? activeItemClass : itemClass
                   )}
                 >
                   <Link href={`/${orgSlug}/cost-dashboards/overview`}>
-                    <LayoutDashboard className="h-4 w-4 mr-2" />
-                    Cost Overview
+                    <LayoutDashboard className="h-3.5 w-3.5 mr-2" />
+                    Overview
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -267,14 +299,12 @@ export function DashboardSidebar({
                 <SidebarMenuButton
                   asChild
                   className={cn(
-                    "h-[28px] px-3 text-[13px] font-normal text-[#3C3C43]",
-                    hoverClass,
-                    isActive(`/${orgSlug}/cost-dashboards/subscription-costs`) && activeClass
+                    isActive(`/${orgSlug}/cost-dashboards/subscription-costs`) ? activeItemClass : itemClass
                   )}
                 >
                   <Link href={`/${orgSlug}/cost-dashboards/subscription-costs`}>
-                    <Receipt className="h-4 w-4 mr-2" />
-                    Subscription Costs
+                    <Receipt className="h-3.5 w-3.5 mr-2" />
+                    Subscriptions
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -282,14 +312,12 @@ export function DashboardSidebar({
                 <SidebarMenuButton
                   asChild
                   className={cn(
-                    "h-[28px] px-3 text-[13px] font-normal text-[#3C3C43]",
-                    hoverClass,
-                    isActive(`/${orgSlug}/cost-dashboards/genai-costs`) && activeClass
+                    isActive(`/${orgSlug}/cost-dashboards/genai-costs`) ? activeItemClass : itemClass
                   )}
                 >
                   <Link href={`/${orgSlug}/cost-dashboards/genai-costs`}>
-                    <Sparkles className="h-4 w-4 mr-2" />
-                    GenAI Costs
+                    <Sparkles className="h-3.5 w-3.5 mr-2" />
+                    GenAI
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -297,50 +325,46 @@ export function DashboardSidebar({
                 <SidebarMenuButton
                   asChild
                   className={cn(
-                    "h-[28px] px-3 text-[13px] font-normal text-[#3C3C43]",
-                    hoverClass,
-                    isActive(`/${orgSlug}/cost-dashboards/cloud-costs`) && activeClass
+                    isActive(`/${orgSlug}/cost-dashboards/cloud-costs`) ? activeItemClass : itemClass
                   )}
                 >
                   <Link href={`/${orgSlug}/cost-dashboards/cloud-costs`}>
-                    <Cloud className="h-4 w-4 mr-2" />
-                    Cloud Costs
+                    <Cloud className="h-3.5 w-3.5 mr-2" />
+                    Cloud
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-            </>
+            </div>
           )}
 
           {/* Pipelines Section */}
           {!isCollapsed && (
-            <div className="pt-3 pb-1 px-4">
-              <h2 className="text-[13px] font-semibold text-muted-foreground uppercase tracking-wider">
-                Pipelines
-              </h2>
-            </div>
+            <SectionHeader
+              title="Pipelines"
+              section="pipelines"
+              isExpanded={activeSection === "pipelines"}
+            />
           )}
           {isCollapsed && (
             <SidebarMenuItem>
-              <SidebarMenuButton asChild className="h-11 rounded-xl justify-center px-2">
+              <SidebarMenuButton asChild className="h-10 rounded-lg justify-center px-2 mx-1">
                 <Link href={`/${orgSlug}/pipelines/subscription-runs`}>
-                  <Workflow className="h-4 w-4 text-muted-foreground" />
+                  <Workflow className="h-4 w-4 text-slate-500" />
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
           )}
-          {!isCollapsed && (
-            <>
+          {!isCollapsed && activeSection === "pipelines" && (
+            <div className="pb-2">
               <SidebarMenuItem>
                 <SidebarMenuButton
                   asChild
                   className={cn(
-                    "h-[28px] px-3 text-[13px] font-normal text-[#3C3C43]",
-                    hoverClass,
-                    isActive(`/${orgSlug}/pipelines/subscription-runs`) && activeClass
+                    isActive(`/${orgSlug}/pipelines/subscription-runs`) ? activeItemClass : itemClass
                   )}
                 >
                   <Link href={`/${orgSlug}/pipelines/subscription-runs`}>
-                    <RefreshCw className="h-4 w-4 mr-2" />
+                    <RefreshCw className="h-3.5 w-3.5 mr-2" />
                     Subscription Runs
                   </Link>
                 </SidebarMenuButton>
@@ -349,13 +373,11 @@ export function DashboardSidebar({
                 <SidebarMenuButton
                   asChild
                   className={cn(
-                    "h-[28px] px-3 text-[13px] font-normal text-[#3C3C43]",
-                    hoverClass,
-                    isActive(`/${orgSlug}/pipelines/cost-runs`) && activeClass
+                    isActive(`/${orgSlug}/pipelines/cost-runs`) ? activeItemClass : itemClass
                   )}
                 >
                   <Link href={`/${orgSlug}/pipelines/cost-runs`}>
-                    <Workflow className="h-4 w-4 mr-2" />
+                    <Workflow className="h-3.5 w-3.5 mr-2" />
                     Cost Runs
                   </Link>
                 </SidebarMenuButton>
@@ -364,81 +386,81 @@ export function DashboardSidebar({
                 <SidebarMenuButton
                   asChild
                   className={cn(
-                    "h-[28px] px-3 text-[13px] font-normal text-[#3C3C43]",
-                    hoverClass,
-                    isActive(`/${orgSlug}/pipelines/genai-runs`) && activeClass
+                    isActive(`/${orgSlug}/pipelines/genai-runs`) ? activeItemClass : itemClass
                   )}
                 >
                   <Link href={`/${orgSlug}/pipelines/genai-runs`}>
-                    <Cpu className="h-4 w-4 mr-2" />
+                    <Cpu className="h-3.5 w-3.5 mr-2" />
                     GenAI Runs
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-            </>
+            </div>
           )}
-
 
         </SidebarMenu>
       </SidebarContent>
 
-      {/* Footer: User Profile + Integrations + Settings + Get Help + Sign Out */}
-      <SidebarFooter className="px-0 py-1 mt-auto border-t border-border">
+      {/* Footer */}
+      <SidebarFooter className="px-0 py-2 mt-auto border-t border-slate-100">
         <SidebarMenu className="gap-0">
 
-          {/* User Profile Section */}
+          {/* User Profile - First */}
           {!isCollapsed && (
             <div className="px-4 py-3 flex items-center gap-3">
-              <div className="h-9 w-9 rounded-full bg-gradient-to-br from-[#007A78] to-[#14B8A6] flex items-center justify-center flex-shrink-0">
-                <span className="text-white text-sm font-semibold">
+              <div className="h-8 w-8 rounded-full bg-gradient-to-br from-[#007A78] to-[#14B8A6] flex items-center justify-center flex-shrink-0">
+                <span className="text-white text-[11px] font-semibold">
                   {getUserInitials(userName)}
                 </span>
               </div>
-              <span className="text-[15px] font-semibold text-[#1C1C1E] truncate">
-                {formatUserName(userName)}
-              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-[12px] font-semibold text-slate-900 truncate">
+                  {formatUserName(userName)}
+                </p>
+                <p className="text-[10px] text-slate-500 truncate">
+                  {userEmail}
+                </p>
+              </div>
             </div>
           )}
           {isCollapsed && (
             <div className="flex justify-center py-2">
               <div className="h-8 w-8 rounded-full bg-gradient-to-br from-[#007A78] to-[#14B8A6] flex items-center justify-center">
-                <span className="text-white text-xs font-semibold">
+                <span className="text-white text-[11px] font-semibold">
                   {getUserInitials(userName)}
                 </span>
               </div>
             </div>
           )}
 
-          {/* Integrations Section - Same style as top sections */}
+          {/* Integrations Section */}
           {!isCollapsed && (
-            <div
-              className="pt-3 pb-1 px-4 flex items-center justify-between cursor-pointer hover:bg-[#007A78]/5 transition-all duration-150"
-              onClick={() => setIntegrationsExpanded(!integrationsExpanded)}
-            >
-              <h2 className="text-[13px] font-semibold text-muted-foreground uppercase tracking-wider">
-                Integrations
-              </h2>
-              {integrationsExpanded ? (
-                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-              ) : (
-                <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-              )}
-            </div>
+            <SectionHeader
+              title="Integrations"
+              section="integrations"
+              isExpanded={activeSection === "integrations"}
+            />
           )}
-          {/* Integrations Sub-items */}
-          {integrationsExpanded && !isCollapsed && (
-            <>
+          {isCollapsed && (
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild className="h-10 rounded-lg justify-center px-2 mx-1">
+                <Link href={`/${orgSlug}/integrations`}>
+                  <Server className="h-4 w-4 text-slate-500" />
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
+          {!isCollapsed && activeSection === "integrations" && (
+            <div className="pb-2">
               <SidebarMenuItem>
                 <SidebarMenuButton
                   asChild
                   className={cn(
-                    "h-[28px] px-3 text-[13px] font-normal text-[#3C3C43]",
-                    hoverClass,
-                    isActive(`/${orgSlug}/integrations/cloud-providers`) && activeClass
+                    isActive(`/${orgSlug}/integrations/cloud-providers`) ? activeItemClass : itemClass
                   )}
                 >
                   <Link href={`/${orgSlug}/integrations/cloud-providers`}>
-                    <Server className="h-4 w-4 mr-2" />
+                    <Server className="h-3.5 w-3.5 mr-2" />
                     Cloud Providers
                   </Link>
                 </SidebarMenuButton>
@@ -447,13 +469,11 @@ export function DashboardSidebar({
                 <SidebarMenuButton
                   asChild
                   className={cn(
-                    "h-[28px] px-3 text-[13px] font-normal text-[#3C3C43]",
-                    hoverClass,
-                    isActive(`/${orgSlug}/integrations/llm`) && activeClass
+                    isActive(`/${orgSlug}/integrations/llm`) ? activeItemClass : itemClass
                   )}
                 >
                   <Link href={`/${orgSlug}/integrations/llm`}>
-                    <Brain className="h-4 w-4 mr-2" />
+                    <Brain className="h-3.5 w-3.5 mr-2" />
                     LLM Providers
                   </Link>
                 </SidebarMenuButton>
@@ -462,50 +482,46 @@ export function DashboardSidebar({
                 <SidebarMenuButton
                   asChild
                   className={cn(
-                    "h-[28px] px-3 text-[13px] font-normal text-[#3C3C43]",
-                    hoverClass,
-                    isActive(`/${orgSlug}/integrations/subscriptions`) && activeClass
+                    isActive(`/${orgSlug}/integrations/subscriptions`) ? activeItemClass : itemClass
                   )}
                 >
                   <Link href={`/${orgSlug}/integrations/subscriptions`}>
-                    <SubscriptionIcon className="h-4 w-4 mr-2" />
+                    <SubscriptionIcon className="h-3.5 w-3.5 mr-2" />
                     Subscriptions
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-            </>
-          )}
-
-          {/* Settings Section - Same style as top sections */}
-          {!isCollapsed && (
-            <div
-              className="pt-3 pb-1 px-4 flex items-center justify-between cursor-pointer hover:bg-[#007A78]/5 transition-all duration-150"
-              onClick={() => setSettingsExpanded(!settingsExpanded)}
-            >
-              <h2 className="text-[13px] font-semibold text-muted-foreground uppercase tracking-wider">
-                Settings
-              </h2>
-              {settingsExpanded ? (
-                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-              ) : (
-                <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-              )}
             </div>
           )}
-          {/* Settings Sub-items */}
-          {settingsExpanded && !isCollapsed && (
-            <>
+
+          {/* Settings Section */}
+          {!isCollapsed && (
+            <SectionHeader
+              title="Settings"
+              section="settings"
+              isExpanded={activeSection === "settings"}
+            />
+          )}
+          {isCollapsed && (
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild className="h-10 rounded-lg justify-center px-2 mx-1">
+                <Link href={`/${orgSlug}/settings/personal`}>
+                  <User className="h-4 w-4 text-slate-500" />
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
+          {!isCollapsed && activeSection === "settings" && (
+            <div className="pb-2">
               <SidebarMenuItem>
                 <SidebarMenuButton
                   asChild
                   className={cn(
-                    "h-[28px] px-3 text-[13px] font-normal text-[#3C3C43]",
-                    hoverClass,
-                    isActive(`/${orgSlug}/settings/personal`) && activeClass
+                    isActive(`/${orgSlug}/settings/personal`) ? activeItemClass : itemClass
                   )}
                 >
                   <Link href={`/${orgSlug}/settings/personal`}>
-                    <User className="h-4 w-4 mr-2" />
+                    <User className="h-3.5 w-3.5 mr-2" />
                     Personal
                   </Link>
                 </SidebarMenuButton>
@@ -516,13 +532,11 @@ export function DashboardSidebar({
                   <SidebarMenuButton
                     asChild
                     className={cn(
-                      "h-[28px] px-3 text-[13px] font-normal text-[#3C3C43]",
-                      hoverClass,
-                      isActive(`/${orgSlug}/settings/organization`) && activeClass
+                      isActive(`/${orgSlug}/settings/organization`) ? activeItemClass : itemClass
                     )}
                   >
                     <Link href={`/${orgSlug}/settings/organization`}>
-                      <Building className="h-4 w-4 mr-2" />
+                      <Building className="h-3.5 w-3.5 mr-2" />
                       Organization
                     </Link>
                   </SidebarMenuButton>
@@ -533,13 +547,11 @@ export function DashboardSidebar({
                 <SidebarMenuButton
                   asChild
                   className={cn(
-                    "h-[28px] px-3 text-[13px] font-normal text-[#3C3C43]",
-                    hoverClass,
-                    isActive(`/${orgSlug}/settings/quota-usage`) && activeClass
+                    isActive(`/${orgSlug}/settings/quota-usage`) ? activeItemClass : itemClass
                   )}
                 >
                   <Link href={`/${orgSlug}/settings/quota-usage`}>
-                    <BarChart3 className="h-4 w-4 mr-2" />
+                    <BarChart3 className="h-3.5 w-3.5 mr-2" />
                     Usage & Quotas
                   </Link>
                 </SidebarMenuButton>
@@ -549,13 +561,11 @@ export function DashboardSidebar({
                 <SidebarMenuButton
                   asChild
                   className={cn(
-                    "h-[28px] px-3 text-[13px] font-normal text-[#3C3C43]",
-                    hoverClass,
-                    isActive(`/${orgSlug}/settings/invite`) && activeClass
+                    isActive(`/${orgSlug}/settings/invite`) ? activeItemClass : itemClass
                   )}
                 >
                   <Link href={`/${orgSlug}/settings/invite`}>
-                    <UserPlus className="h-4 w-4 mr-2" />
+                    <UserPlus className="h-3.5 w-3.5 mr-2" />
                     Invite
                   </Link>
                 </SidebarMenuButton>
@@ -566,50 +576,48 @@ export function DashboardSidebar({
                   <SidebarMenuButton
                     asChild
                     className={cn(
-                      "h-[28px] px-3 text-[13px] font-normal text-[#3C3C43]",
-                      hoverClass,
-                      isActive(`/${orgSlug}/billing`, true) && activeClass
+                      isActive(`/${orgSlug}/billing`, true) ? activeItemClass : itemClass
                     )}
                   >
                     <Link href={`/${orgSlug}/billing`}>
-                      <CreditCard className="h-4 w-4 mr-2" />
+                      <CreditCard className="h-3.5 w-3.5 mr-2" />
                       Billing
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}
-            </>
+            </div>
           )}
 
-          {/* Get Help - Inline with other footer items */}
-          <SidebarMenuItem className="mt-2">
+          {/* Get Help */}
+          <SidebarMenuItem>
             <SidebarMenuButton
               asChild
               className={cn(
-                "h-11 px-3 text-[13px] font-normal text-[#007A78]",
-                "hover:bg-[#007A78]/10 rounded-xl mx-2 transition-all duration-150 focus-visible:outline-[#007A78] focus-visible:ring-[#007A78]",
+                "h-9 px-3 text-[12px] font-medium text-[#007A78]",
+                "hover:bg-[#007A78]/5 rounded-lg mx-2 transition-colors",
                 isCollapsed && "justify-center px-2"
               )}
             >
               <Link href="/user-docs" target="_blank">
-                <HelpCircle className={cn("h-4 w-4", isCollapsed ? "" : "mr-2")} />
+                <HelpCircle className={cn("h-3.5 w-3.5", isCollapsed ? "" : "mr-2")} />
                 {!isCollapsed && "Get Help"}
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
 
-          {/* Sign Out - Always visible */}
+          {/* Sign Out */}
           <SidebarMenuItem>
             <SidebarMenuButton
               onClick={handleLogout}
               disabled={isLoading}
               className={cn(
-                "h-11 px-3 text-[13px] font-normal text-[#FF6E50]",
-                "hover:bg-[#FF6E50]/10 rounded-xl mx-2 transition-all duration-150 focus-visible:outline-[#007A78] focus-visible:ring-[#007A78]",
+                "h-9 px-3 text-[12px] font-medium text-slate-500",
+                "hover:bg-slate-50 hover:text-slate-700 rounded-lg mx-2 transition-colors",
                 isCollapsed && "justify-center px-2"
               )}
             >
-              <LogOut className={cn("h-4 w-4", isCollapsed ? "" : "mr-2")} />
+              <LogOut className={cn("h-3.5 w-3.5", isCollapsed ? "" : "mr-2")} />
               {!isCollapsed && (isLoading ? "Signing out..." : "Sign Out")}
             </SidebarMenuButton>
           </SidebarMenuItem>

@@ -168,6 +168,21 @@ Checkout: 1 per 30sec | Invites: 10 per hour
 
 **Premium theme:** White surfaces, teal tints - NO gray backgrounds
 
+### Sidebar Navigation (Updated 2025-12-24)
+
+**Two-zone layout with accordion behavior:**
+- Main Content: Dashboards, Pipelines (scrollable)
+- Footer: User Profile → Integrations → Settings → Get Help → Sign Out
+
+**Accordion:** Only ONE section open at a time. Auto-expands based on route.
+
+**Coral highlights:** `hover:bg-[#FF6E50]/10 hover:text-[#FF6E50]` for menu items.
+
+**Key Components:**
+- `components/dashboard-sidebar.tsx` - Desktop sidebar
+- `components/mobile-nav.tsx` - Mobile navigation overlay
+- `components/mobile-header.tsx` - Mobile header with hamburger
+
 ## Supabase Tables
 
 - `organizations` - Org metadata + locale + backend columns
@@ -179,4 +194,4 @@ Checkout: 1 per 30sec | Invites: 10 per hour
 **Backend Columns:** `backend_onboarded`, `backend_api_key_fingerprint`, `integration_*_status`
 
 ---
-**Last Updated:** 2025-12-22
+**Last Updated:** 2025-12-24

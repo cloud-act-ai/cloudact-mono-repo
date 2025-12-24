@@ -1,6 +1,6 @@
 # CloudAct Console UI Design Guide
 
-**Version 2.6** | **Status:** Final | **Updated:** 2025-12-19
+**Version 2.7** | **Status:** Final | **Updated:** 2025-12-24
 
 ---
 
@@ -331,15 +331,83 @@ Soft Teal + Coral gradient at top, fading to white.
 
 ## 7. Sidebar Navigation
 
+### Sidebar Layout Structure
+
+The sidebar uses a **two-zone layout** with accordion behavior:
+
+```
+┌─────────────────────┐
+│ [Logo] Org Name     │  ← Header
+├─────────────────────┤
+│ DASHBOARDS       ▼  │  ← Main Content (scrollable)
+│   • Overview        │
+│   • Subscriptions   │
+│   • GenAI           │
+│   • Cloud           │
+├─────────────────────┤
+│ PIPELINES        ▶  │
+├═════════════════════┤  ← Footer Border
+│ [Avatar] User Name  │  ← Footer: User Profile FIRST
+│ user@email.com      │
+├─────────────────────┤
+│ INTEGRATIONS     ▶  │  ← Footer: Then Integrations
+├─────────────────────┤
+│ SETTINGS         ▶  │  ← Footer: Then Settings
+├─────────────────────┤
+│ 🔗 Get Help         │  ← Footer: Actions
+│ 🚪 Sign Out         │
+└─────────────────────┘
+```
+
+### Accordion Behavior
+
+- **Only ONE section open at a time**
+- When opening a section, others automatically close
+- Auto-expands based on current route
+
 ### Sidebar Styling
 
 | Property | Value |
 |----------|-------|
-| Background | `#FAFAFA` (light gray) |
-| Border right | 1px solid `rgba(0,0,0,0.06)` |
-| Shadow | `1px 0 4px rgba(0,0,0,0.03)` |
-| Header border | 1px solid `rgba(0,0,0,0.06)` |
-| Footer border | 1px solid `rgba(0,0,0,0.06)` |
+| Background | `#FFFFFF` (white) |
+| Border right | 1px solid `slate-100` |
+| Header border | 1px solid `slate-100` |
+| Footer border | 1px solid `slate-100` |
+
+### Section Headers
+
+| Property | Value |
+|----------|-------|
+| Font size | 11px |
+| Font weight | 600 (semibold) |
+| Text transform | uppercase |
+| Letter spacing | wide |
+| Color | `slate-500` |
+| Hover | `bg-slate-50` |
+
+### Menu Items - Coral Hover/Active
+
+All menu items use **coral highlight** for hover and active states:
+
+```tsx
+// Normal state
+"text-slate-600 hover:bg-[#FF6E50]/10 hover:text-[#FF6E50]"
+
+// Active state
+"text-[#FF6E50] bg-[#FF6E50]/10 font-semibold"
+```
+
+| Property | Value |
+|----------|-------|
+| Height | 26px |
+| Font size | 12px |
+| Font weight | 500 (normal), 600 (active) |
+| Padding | px-3 |
+| Margin | mx-2 |
+| Border radius | rounded-md |
+| Hover background | `#FF6E50` @ 10% |
+| Active background | `#FF6E50` @ 10% |
+| Active text | `#FF6E50` (coral) |
 
 ### Icon Colors by Domain
 
@@ -347,71 +415,44 @@ Soft Teal + Coral gradient at top, fading to white.
 
 ```tsx
 <LayoutDashboard className="text-[#007A78]" />  // Dashboard
-<Play className="text-[#005F5D]" />             // Pipelines
-<Plug className="text-[#14B8A6]" />             // Integrations
-<Cloud className="text-[#007A78]" />            // Cloud
-<Brain className="text-[#005F5D]" />            // LLM
-<Users className="text-[#14B8A6]" />            // Team
-<Building2 className="text-[#007A78]" />        // Organization
+<Workflow className="text-[#005F5D]" />         // Pipelines
+<Server className="text-[#14B8A6]" />           // Cloud Providers
+<Brain className="text-[#005F5D]" />            // LLM Providers
 ```
 
-**Costs (Coral)**
+**Footer Items**
 
 ```tsx
-<Wallet className="text-[#FF6E50]" />           // Subscription Costs
-<CreditCard className="text-[#FF8A73]" />       // Billing
+<User className="text-slate-500" />             // Personal Settings
+<Building className="text-slate-500" />         // Organization
+<BarChart3 className="text-slate-500" />        // Usage & Quotas
+<UserPlus className="text-slate-500" />         // Invite
+<CreditCard className="text-slate-500" />       // Billing
+<HelpCircle className="text-[#007A78]" />       // Get Help (teal)
+<LogOut className="text-slate-500" />           // Sign Out
 ```
 
-**Neutral**
+### Navigation Sections
 
-```tsx
-<Settings className="text-[#8E8E93]" />         // Settings
-<LogOut className="text-[#FF3B30]" />           // Sign Out (destructive)
-```
+**Main Content Area:**
+- Dashboards (Overview, Subscriptions, GenAI, Cloud)
+- Pipelines (Subscription Runs, Cost Runs, GenAI Runs)
 
-### Menu Items
+**Footer Area:**
+1. User Profile (avatar, name, email)
+2. Integrations (Cloud Providers, LLM Providers, Subscriptions)
+3. Settings (Personal, Organization*, Usage & Quotas, Invite, Billing*)
+4. Get Help
+5. Sign Out
 
-| Property | Value |
-|----------|-------|
-| Font size | 14px |
-| Font weight | 500 (normal), 600 (active) |
-| Padding | 12px 20px |
-| Border radius | 0 (none) |
-| Height | 42px (L1), 32px (L2), 28px (L3) |
+*Owner-only items
 
-### Active States
+### Collapsed State (Icon Mode)
 
-```tsx
-// Feature items - Teal active
-isActive && "bg-[#007A78]/10 text-[#007A78] font-semibold"
-
-// Cost items - Coral active
-isActive && "bg-[#FF6E50]/10 text-[#FF6E50] font-semibold"
-
-// Settings - Gray active
-isActive && "bg-[#8E8E93]/10 text-[#8E8E93] font-semibold"
-```
-
-### Hover States
-
-```tsx
-// Feature items - Teal hover
-"hover:bg-[#007A78]/5"
-
-// Cost items - Coral hover
-"hover:bg-[#FF6E50]/5"
-
-// Settings - Gray hover
-"hover:bg-[#8E8E93]/5"
-```
-
-### Hierarchy
-
-| Level | Font Size | Height | Padding Left |
-|-------|-----------|--------|--------------|
-| L1 | 14px | 42px | 20px |
-| L2 | 12px | 32px | 16px |
-| L3 | 11px | 28px | 12px |
+When sidebar is collapsed:
+- Shows only icons centered
+- Section headers hidden
+- User avatar shown without name/email
 
 ---
 
@@ -942,6 +983,17 @@ const DOMAIN_COLORS = {
 
 ## Changelog
 
+### Version 2.7 (2025-12-24)
+- **Sidebar Layout Redesign:**
+  - Two-zone layout: Main Content + Footer
+  - Accordion behavior (one section open at a time)
+  - User Profile moved to footer (first item)
+  - Integrations & Settings moved to footer
+  - Coral hover/active highlight (removed left border)
+  - Auto-expand based on current route
+- Updated navigation sections structure
+- Added collapsed state documentation
+
 ### Version 2.5 (2025-12-13)
 - Added Modal & Dialog System documentation
 - Added Tooltip System documentation
@@ -961,4 +1013,4 @@ const DOMAIN_COLORS = {
 
 ---
 
-**Version 2.5** | Apple Health-style visual polish with Teal + Coral branding | Complete component documentation
+**Version 2.7** | Sidebar redesign with two-zone layout and coral highlights

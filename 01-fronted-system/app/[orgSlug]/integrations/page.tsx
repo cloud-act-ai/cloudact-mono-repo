@@ -12,10 +12,8 @@ import {
   Sparkles,
   Cpu,
   Gem,
-  Check,
   Loader2,
   Shield,
-  Zap,
   Palette,
   FileText,
   MessageSquare,
@@ -23,7 +21,6 @@ import {
   Database,
   AlertCircle,
 } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
 import { getIntegrations } from "@/actions/integrations"
 import { checkBackendOnboarding, hasStoredApiKey } from "@/actions/backend-onboarding"
 import { getAllProviders, type ProviderInfo } from "@/actions/subscription-providers"
@@ -40,6 +37,7 @@ interface IntegrationCategory {
   description: string
   icon: React.ComponentType<{ className?: string }>
   href: string
+  accent: string
   providers: ProviderConfig[]
 }
 
@@ -69,252 +67,31 @@ const INTEGRATION_CATEGORIES: IntegrationCategory[] = [
   {
     id: "cloud-providers",
     name: "Cloud Providers",
-    description: "Connect GCP, AWS, or Azure for cloud cost tracking",
-    icon: Server,
+    description: "GCP, AWS, Azure billing data",
+    icon: Cloud,
     href: "cloud-providers",
+    accent: "#007A78",
     providers: ALL_PROVIDERS.filter((p) => p.category === "cloud"),
   },
   {
     id: "llm",
     name: "LLM Providers",
-    description: "Connect OpenAI, Anthropic, Gemini, or DeepSeek for AI cost tracking",
+    description: "OpenAI, Claude, Gemini usage",
     icon: Brain,
     href: "llm",
+    accent: "#FF6E50",
     providers: ALL_PROVIDERS.filter((p) => p.category === "llm"),
   },
   {
     id: "subscriptions",
-    name: "Subscription Providers",
-    description: "Track SaaS subscription costs like Slack, Canva, and more",
+    name: "SaaS Subscriptions",
+    description: "Track software costs",
     icon: CreditCard,
     href: "subscriptions",
+    accent: "#8B5CF6",
     providers: ALL_PROVIDERS.filter((p) => p.category === "saas"),
   },
 ]
-
-function ProviderConstellation({
-  connectedProviders,
-  integrations,
-}: {
-  connectedProviders: string[]
-  integrations: Record<string, Integration>
-}) {
-  const positions = [
-    { x: "50%", y: "10%", delay: 0 },
-    { x: "15%", y: "25%", delay: 0.1 },
-    { x: "85%", y: "25%", delay: 0.2 },
-    { x: "30%", y: "45%", delay: 0.3 },
-    { x: "70%", y: "45%", delay: 0.4 },
-    { x: "20%", y: "65%", delay: 0.5 },
-    { x: "80%", y: "65%", delay: 0.6 },
-    { x: "40%", y: "80%", delay: 0.7 },
-    { x: "60%", y: "80%", delay: 0.8 },
-    { x: "10%", y: "50%", delay: 0.9 },
-    { x: "90%", y: "50%", delay: 1.0 },
-    { x: "50%", y: "90%", delay: 1.1 },
-  ]
-
-  return (
-    <div className="relative h-[400px] overflow-hidden rounded-3xl bg-gradient-to-br from-[#007A78]/5 via-[#FF6E50]/5 to-[#007A78]/10">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(0,122,120,0.1)_0%,transparent_70%)]" />
-
-      {ALL_PROVIDERS.slice(0, 12).map((provider, index) => {
-        const pos = positions[index]
-        const isConnected = connectedProviders.includes(provider.id)
-        const providerKey = provider.id === "gcp" ? "GCP_SA" : provider.id.toUpperCase()
-        const isEnabled = integrations[providerKey]?.is_enabled !== false
-
-        return (
-          <div
-            key={provider.id}
-            className="absolute transform -translate-x-1/2 -translate-y-1/2 animate-float"
-            style={{
-              left: pos.x,
-              top: pos.y,
-              animationDelay: `${pos.delay}s`,
-            }}
-          >
-            <div
-              className={`relative group transition-all duration-300 ${
-                isConnected && isEnabled ? "scale-110" : "scale-100"
-              }`}
-            >
-              {isConnected && isEnabled && (
-                <div className="absolute inset-0 rounded-full bg-[#007A78]/20 animate-ping" />
-              )}
-              <div
-                className={`h-16 w-16 rounded-2xl flex items-center justify-center transition-all duration-300 backdrop-blur-sm ${
-                  isConnected && isEnabled
-                    ? "bg-[#007A78] text-white shadow-lg shadow-[#007A78]/30"
-                    : "bg-white/80 text-muted-foreground border border-border"
-                }`}
-              >
-                <div className="text-lg">{provider.icon}</div>
-              </div>
-              {isConnected && isEnabled && (
-                <div className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-[#007A78] border-2 border-white flex items-center justify-center">
-                  <Check className="h-3 w-3 text-white stroke-[3]" />
-                </div>
-              )}
-              <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
-                <p className="text-xs font-medium text-muted-foreground">{provider.name}</p>
-              </div>
-            </div>
-          </div>
-        )
-      })}
-
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <div className="text-center space-y-3">
-          <h2 className="text-4xl font-bold bg-gradient-to-r from-[#007A78] to-[#FF6E50] bg-clip-text text-transparent">
-            Integration Hub
-          </h2>
-          <p className="text-sm text-muted-foreground font-medium">
-            {connectedProviders.length} of {ALL_PROVIDERS.length} providers connected
-          </p>
-        </div>
-      </div>
-
-      <style jsx>{`
-        @keyframes float {
-          0%,
-          100% {
-            transform: translate(-50%, -50%) translateY(0px);
-          }
-          50% {
-            transform: translate(-50%, -50%) translateY(-10px);
-          }
-        }
-        .animate-float {
-          animation: float 3s ease-in-out infinite;
-        }
-      `}</style>
-    </div>
-  )
-}
-
-function QuickStats({
-  connected,
-  pending,
-  available,
-}: {
-  connected: number
-  pending: number
-  available: number
-}) {
-  const stats = [
-    { label: "Connected", value: connected, color: "bg-[#007A78]", icon: Check },
-    { label: "Pending", value: pending, color: "bg-[#FF6E50]", icon: Loader2 },
-    { label: "Available", value: available, color: "bg-muted-foreground/20", icon: Zap },
-  ]
-
-  return (
-    <div className="grid grid-cols-3 gap-4">
-      {stats.map((stat) => {
-        const Icon = stat.icon
-        return (
-          <div key={stat.label} className="metric-card p-5">
-            <div className="flex items-center justify-between mb-3">
-              <div className={`h-10 w-10 rounded-xl ${stat.color}/10 flex items-center justify-center`}>
-                <Icon className={`h-5 w-5 ${stat.color.replace("/20", "")}`} />
-              </div>
-              <p className="text-3xl font-bold text-black">{stat.value}</p>
-            </div>
-            <p className="text-sm font-medium text-muted-foreground">{stat.label}</p>
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
-function CategoryCard({
-  category,
-  orgSlug,
-  connectedCount,
-  totalCount,
-}: {
-  category: IntegrationCategory
-  orgSlug: string
-  connectedCount: number
-  totalCount: number
-}) {
-  const Icon = category.icon
-
-  return (
-    <Link href={`/${orgSlug}/integrations/${category.href}`}>
-      <div className="metric-card p-6 transition-all cursor-pointer hover:border-[#007A78]/30 hover:shadow-xl group">
-        <div className="flex items-start justify-between mb-5">
-          <div className="flex items-center gap-4 flex-1">
-            <div className="h-14 w-14 rounded-2xl flex items-center justify-center flex-shrink-0 bg-gradient-to-br from-[#007A78] to-[#007A78]/80 text-white shadow-lg shadow-[#007A78]/20">
-              <Icon className="h-7 w-7" />
-            </div>
-            <div className="flex-1">
-              <h3 className="text-lg font-bold text-black mb-1">{category.name}</h3>
-              <p className="text-sm text-muted-foreground line-clamp-2">{category.description}</p>
-            </div>
-          </div>
-          <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-[#007A78] transition-colors flex-shrink-0" />
-        </div>
-
-        <div className="flex flex-wrap gap-2 mb-5">
-          {category.providers.slice(0, 6).map((provider) => (
-            <div
-              key={provider.id}
-              className="h-10 w-10 rounded-lg bg-white border border-border flex items-center justify-center text-muted-foreground hover:border-[#007A78]/30 transition-colors"
-              title={provider.name}
-            >
-              {provider.icon}
-            </div>
-          ))}
-          {category.providers.length > 6 && (
-            <div className="h-10 w-10 rounded-lg bg-muted-foreground/5 border border-border flex items-center justify-center text-xs font-semibold text-muted-foreground">
-              +{category.providers.length - 6}
-            </div>
-          )}
-        </div>
-
-        <div className="flex items-center justify-between pt-4 border-t border-border">
-          <div className="flex items-center gap-2">
-            <div className="h-2 w-2 rounded-full bg-[#007A78] animate-pulse" />
-            <span className="text-sm font-medium text-muted-foreground">
-              {connectedCount} of {totalCount} connected
-            </span>
-          </div>
-          <span className="text-sm font-semibold text-[#007A78] group-hover:underline">
-            Configure
-          </span>
-        </div>
-      </div>
-    </Link>
-  )
-}
-
-function SecurityBadge() {
-  return (
-    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#007A78] to-[#005F5D] p-6 text-white">
-      <div className="absolute top-0 right-0 w-40 h-40 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
-      <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
-
-      <div className="relative flex items-start gap-4">
-        <div className="h-14 w-14 rounded-2xl bg-white/10 backdrop-blur-sm flex items-center justify-center flex-shrink-0">
-          <Shield className="h-7 w-7 text-white" />
-        </div>
-        <div className="flex-1">
-          <h3 className="text-lg font-bold mb-2">Enterprise-Grade Security</h3>
-          <p className="text-sm text-white/80 leading-relaxed mb-3">
-            All credentials are encrypted using Google Cloud KMS before storage. Your integration keys
-            are protected with industry-standard encryption and never stored in plain text.
-          </p>
-          <div className="flex items-center gap-2">
-            <Check className="h-4 w-4 text-white/90 flex-shrink-0" />
-            <span className="text-xs font-medium text-white/90">AES-256 Encryption</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
 
 export default function IntegrationsPage() {
   const params = useParams()
@@ -384,72 +161,179 @@ export default function IntegrationsPage() {
     .concat(saasProviders.filter((p) => p.is_enabled && p.plan_count > 0).map((p) => p.provider))
 
   const connectedCount = allConnectedProviders.length
-  const pendingCount = Object.values(integrations).filter((int) => int.status === "PENDING").length
-  const availableCount = ALL_PROVIDERS.length - connectedCount
+  const cloudCount = getConnectedCount("cloud-providers")
+  const llmCount = getConnectedCount("llm")
+  const saasCount = getConnectedCount("subscriptions")
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[600px]">
-        <div className="text-center space-y-4">
-          <Loader2 className="h-12 w-12 animate-spin text-[#007A78] mx-auto" />
-          <p className="text-sm font-medium text-muted-foreground">Loading integrations...</p>
-        </div>
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-[#007A78]" />
       </div>
     )
   }
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-[32px] sm:text-[34px] font-bold text-black tracking-tight">
-          Integrations
-        </h1>
-        <p className="text-[15px] text-muted-foreground mt-1">
-          Connect your cloud providers, LLM APIs, and subscription services
+    <div className="space-y-8 max-w-5xl">
+      {/* Header */}
+      <div className="space-y-1">
+        <h1 className="text-[32px] font-bold text-slate-900 tracking-tight">Integrations</h1>
+        <p className="text-[15px] text-slate-500">
+          Connect cloud providers, LLM APIs, and subscription services
         </p>
       </div>
 
+      {/* Backend Warning */}
       {(!backendConnected || !hasApiKey) && (
-        <div className="health-card bg-[#FF6E50]/10 p-5 border-[#FF6E50]/20">
+        <div className="p-4 rounded-xl bg-amber-50 border border-amber-200">
           <div className="flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 text-[#FF6E50] mt-0.5 flex-shrink-0" />
-            <div className="space-y-3">
-              <h3 className="text-[15px] font-semibold text-black">
+            <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+            <div>
+              <h3 className="text-[14px] font-semibold text-slate-900">
                 {!backendConnected ? "Backend Not Connected" : "API Key Missing"}
               </h3>
-              <p className="text-[13px] text-muted-foreground">
+              <p className="text-[13px] text-slate-600 mt-0.5">
                 Complete organization onboarding to configure integrations.
               </p>
-              <Link href={`/${orgSlug}/settings/organization`}>
-                <button className="inline-flex items-center gap-2 h-11 px-4 bg-[#007A78] text-white text-[15px] font-semibold rounded-xl hover:bg-[#005F5D] transition-colors">
-                  Go to Settings
-                </button>
+              <Link
+                href={`/${orgSlug}/settings/organization`}
+                className="inline-flex items-center gap-1 mt-2 text-[13px] font-semibold text-[#007A78] hover:text-[#005F5D]"
+              >
+                Go to Settings
+                <ChevronRight className="h-3.5 w-3.5" />
               </Link>
             </div>
           </div>
         </div>
       )}
 
-      <ProviderConstellation connectedProviders={allConnectedProviders} integrations={integrations} />
-
-      <QuickStats connected={connectedCount} pending={pendingCount} available={availableCount} />
-
-      <div>
-        <h2 className="text-2xl font-bold text-black mb-5">Integration Categories</h2>
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-          {INTEGRATION_CATEGORIES.map((category) => (
-            <CategoryCard
-              key={category.id}
-              category={category}
-              orgSlug={orgSlug}
-              connectedCount={getConnectedCount(category.id)}
-              totalCount={category.providers.length}
-            />
-          ))}
+      {/* Stats Row */}
+      <div className="flex flex-wrap items-center gap-6 py-4 px-5 bg-slate-50 rounded-2xl border border-slate-100">
+        <div className="flex items-center gap-3">
+          <div className="h-2.5 w-2.5 rounded-full bg-[#007A78]"></div>
+          <span className="text-[14px] text-slate-600">
+            <span className="font-semibold text-slate-900">{connectedCount}</span> Connected
+          </span>
+        </div>
+        <div className="h-5 w-px bg-slate-200"></div>
+        <div className="flex items-center gap-2">
+          <Cloud className="h-4 w-4 text-slate-400" />
+          <span className="text-[14px] text-slate-600">
+            <span className="font-semibold text-[#007A78]">{cloudCount}</span> Cloud
+          </span>
+        </div>
+        <div className="h-5 w-px bg-slate-200"></div>
+        <div className="flex items-center gap-2">
+          <Brain className="h-4 w-4 text-slate-400" />
+          <span className="text-[14px] text-slate-600">
+            <span className="font-semibold text-[#FF6E50]">{llmCount}</span> LLM
+          </span>
+        </div>
+        <div className="h-5 w-px bg-slate-200"></div>
+        <div className="flex items-center gap-2">
+          <CreditCard className="h-4 w-4 text-slate-400" />
+          <span className="text-[14px] text-slate-600">
+            <span className="font-semibold text-[#8B5CF6]">{saasCount}</span> SaaS
+          </span>
         </div>
       </div>
 
-      <SecurityBadge />
+      {/* Integration Categories */}
+      <div className="space-y-4">
+        <h2 className="text-[13px] font-semibold text-slate-500 uppercase tracking-wide">Categories</h2>
+
+        <div className="space-y-3">
+          {INTEGRATION_CATEGORIES.map((category) => {
+            const Icon = category.icon
+            const connected = getConnectedCount(category.id)
+
+            return (
+              <Link
+                key={category.id}
+                href={`/${orgSlug}/integrations/${category.href}`}
+                className="group block"
+              >
+                <div className="relative p-5 bg-white rounded-2xl border border-slate-200 hover:border-slate-300 hover:shadow-sm transition-all">
+                  {/* Left accent */}
+                  <div
+                    className="absolute left-0 top-5 bottom-5 w-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                    style={{ backgroundColor: category.accent }}
+                  />
+
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div
+                        className="h-12 w-12 rounded-xl flex items-center justify-center"
+                        style={{ backgroundColor: `${category.accent}15` }}
+                      >
+                        <Icon className="h-6 w-6" style={{ color: category.accent }} />
+                      </div>
+                      <div>
+                        <h3 className="text-[16px] font-semibold text-slate-900">{category.name}</h3>
+                        <p className="text-[13px] text-slate-500 mt-0.5">{category.description}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-4">
+                      {/* Provider icons */}
+                      <div className="hidden sm:flex items-center gap-1">
+                        {category.providers.slice(0, 4).map((provider) => (
+                          <div
+                            key={provider.id}
+                            className="h-8 w-8 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400"
+                          >
+                            {provider.icon}
+                          </div>
+                        ))}
+                        {category.providers.length > 4 && (
+                          <span className="text-[12px] text-slate-400 font-medium ml-1">
+                            +{category.providers.length - 4}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Status badge */}
+                      <div className="flex items-center gap-3">
+                        {connected > 0 ? (
+                          <span
+                            className="px-2.5 py-1 rounded-full text-[11px] font-semibold"
+                            style={{
+                              backgroundColor: `${category.accent}15`,
+                              color: category.accent
+                            }}
+                          >
+                            {connected} active
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-1 rounded-full bg-slate-100 text-slate-500 text-[11px] font-semibold">
+                            Not configured
+                          </span>
+                        )}
+                        <ChevronRight className="h-5 w-5 text-slate-300 group-hover:text-slate-500 transition-colors" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </Link>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Security Notice */}
+      <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100">
+        <div className="flex items-start gap-4">
+          <div className="h-10 w-10 rounded-xl bg-[#007A78]/10 flex items-center justify-center flex-shrink-0">
+            <Shield className="h-5 w-5 text-[#007A78]" />
+          </div>
+          <div>
+            <h3 className="text-[15px] font-semibold text-slate-900">Enterprise Security</h3>
+            <p className="text-[13px] text-slate-500 mt-1 leading-relaxed">
+              All credentials are encrypted using Google Cloud KMS. Your integration keys are protected with AES-256 encryption and never stored in plain text.
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
