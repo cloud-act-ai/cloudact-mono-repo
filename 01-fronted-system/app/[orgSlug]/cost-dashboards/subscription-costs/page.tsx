@@ -30,8 +30,12 @@ import {
   Hash,
   CalendarDays,
   Tag,
+  Sparkles,
+  TrendingDown,
+  Zap,
+  Target,
 } from "lucide-react"
-import { format } from "date-fns"
+import { format, differenceInDays, addMonths } from "date-fns"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -54,6 +58,22 @@ import {
 import { createClient } from "@/lib/supabase/client"
 import { formatCurrency } from "@/lib/i18n"
 
+// SaaS provider logos and metadata
+const SAAS_PROVIDERS = [
+  { name: "Slack", category: "communication", color: "#4A154B" },
+  { name: "Notion", category: "productivity", color: "#000000" },
+  { name: "Figma", category: "design", color: "#F24E1E" },
+  { name: "GitHub", category: "development", color: "#181717" },
+  { name: "Linear", category: "productivity", color: "#5E6AD2" },
+  { name: "Vercel", category: "cloud", color: "#000000" },
+  { name: "ChatGPT", category: "ai", color: "#10A37F" },
+  { name: "Claude", category: "ai", color: "#D97757" },
+  { name: "Stripe", category: "other", color: "#635BFF" },
+  { name: "Supabase", category: "cloud", color: "#3ECF8E" },
+  { name: "Google Workspace", category: "productivity", color: "#4285F4" },
+  { name: "Zoom", category: "communication", color: "#2D8CFF" },
+]
+
 // Category icon mapping
 const CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   ai: Brain,
@@ -74,6 +94,16 @@ const CATEGORY_COLORS: Record<string, string> = {
   development: "bg-[#F0FDFA] text-[#005F5D] border border-[#007A78]/10",
   cloud: "bg-[#007A78]/10 text-[#007A78] border border-[#007A78]/10",
   other: "bg-[#007A78]/5 text-muted-foreground border border-border",
+}
+
+const CATEGORY_GRADIENTS: Record<string, string> = {
+  ai: "from-[#007A78]/20 to-[#007A78]/5",
+  design: "from-[#FF6E50]/20 to-[#FF6E50]/5",
+  productivity: "from-[#007A78]/15 to-transparent",
+  communication: "from-[#FF6E50]/15 to-transparent",
+  development: "from-[#007A78]/20 to-[#007A78]/5",
+  cloud: "from-[#FF6E50]/20 to-[#FF6E50]/5",
+  other: "from-slate-200/50 to-transparent",
 }
 
 type PlanWithProvider = SubscriptionPlan & { provider_name: string }
@@ -196,6 +226,59 @@ export default function SubscriptionCostsPage() {
     setExpandedRow(expandedRow === subscriptionId ? null : subscriptionId)
   }
 
+  // Calculate savings opportunities
+  const calculateSavingsOpportunities = () => {
+    const opportunities = []
+
+    // Find subscriptions renewing soon
+    const renewingSoon = plans.filter(p => {
+      if (!p.renewal_date || p.status !== 'active') return false
+      const daysUntilRenewal = differenceInDays(new Date(p.renewal_date), new Date())
+      return daysUntilRenewal >= 0 && daysUntilRenewal <= 30
+    })
+
+    if (renewingSoon.length > 0) {
+      opportunities.push({
+        type: 'renewal',
+        title: `${renewingSoon.length} subscription${renewingSoon.length > 1 ? 's' : ''} renewing soon`,
+        description: 'Review before auto-renewal',
+        icon: Clock,
+        color: 'coral',
+        count: renewingSoon.length,
+      })
+    }
+
+    // Find unused seats (seats but low usage indicator would require usage data)
+    const seatedPlans = plans.filter(p => p.status === 'active' && p.seats && p.seats > 5)
+    if (seatedPlans.length > 0) {
+      opportunities.push({
+        type: 'seats',
+        title: `${seatedPlans.length} plan${seatedPlans.length > 1 ? 's' : ''} with multi-seat pricing`,
+        description: 'Review seat utilization',
+        icon: Users,
+        color: 'teal',
+        count: seatedPlans.length,
+      })
+    }
+
+    return opportunities
+  }
+
+  const savingsOpportunities = calculateSavingsOpportunities()
+
+  // Group plans by category for breakdown
+  const categoryBreakdown = plans.reduce((acc, plan) => {
+    if (plan.status !== 'active') return acc
+    const category = plan.category || 'other'
+    if (!acc[category]) {
+      acc[category] = { count: 0, totalCost: 0, plans: [] }
+    }
+    acc[category].count++
+    acc[category].totalCost += getTotalCost(plan)
+    acc[category].plans.push(plan)
+    return acc
+  }, {} as Record<string, { count: number; totalCost: number; plans: PlanWithProvider[] }>)
+
   if (isLoading) {
     return (
       <div className="space-y-6 sm:space-y-8">
@@ -264,37 +347,193 @@ export default function SubscriptionCostsPage() {
 
   return (
     <div className="space-y-6 sm:space-y-8">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-[32px] sm:text-[34px] font-bold text-black tracking-tight">Subscription Costs</h1>
-          <p className="text-[15px] text-muted-foreground mt-1">
-            View your SaaS subscription costs and usage
-          </p>
-        </div>
-        <div className="flex items-center gap-2 sm:gap-3">
-          <Button
-            onClick={handleManualRefresh}
-            disabled={isRefreshing}
-            variant="ghost"
-            size="sm"
-            className="h-11 px-4 text-[15px] text-muted-foreground hover:bg-[#007A78]/5 rounded-xl"
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
-            <span className="hidden sm:inline">Refresh</span>
-          </Button>
-          <Link href={`/${orgSlug}/integrations/subscriptions`}>
-            <Button className="console-button-primary h-11 px-4 rounded-xl text-[15px] font-semibold">
-              <Plus className="h-4 w-4 mr-2" />
-              <span className="hidden sm:inline">Manage Providers</span>
-              <span className="sm:hidden">Manage</span>
-            </Button>
-          </Link>
+      {/* Hero Section with Provider Logos Grid */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#007A78] via-[#007A78] to-[#005F5D] p-8 sm:p-10">
+        {/* Decorative elements */}
+        <div className="absolute top-0 right-0 w-96 h-96 bg-[#FF6E50]/10 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-0 left-0 w-64 h-64 bg-white/5 rounded-full blur-2xl"></div>
+
+        <div className="relative z-10">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6">
+            <div className="flex-1">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2.5 rounded-xl bg-white/10 backdrop-blur-sm">
+                  <Sparkles className="h-6 w-6 text-white" />
+                </div>
+                <Badge className="bg-[#FF6E50] text-white border-0 px-3 py-1 text-[11px] font-semibold">
+                  SaaS Analytics
+                </Badge>
+              </div>
+              <h1 className="text-[36px] sm:text-[42px] font-bold text-white tracking-tight mb-2">
+                Subscription Costs
+              </h1>
+              <p className="text-[17px] text-white/80 max-w-2xl">
+                Track and optimize your SaaS spending across all tools
+              </p>
+
+              {/* Quick Stats */}
+              {summary && (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6">
+                  <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20">
+                    <div className="text-[13px] text-white/70 font-medium mb-1">Monthly</div>
+                    <div className="text-[24px] font-bold text-white">{formatCurrency(summary.total_monthly_cost, orgCurrency)}</div>
+                  </div>
+                  <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20">
+                    <div className="text-[13px] text-white/70 font-medium mb-1">Active</div>
+                    <div className="text-[24px] font-bold text-white">{summary.enabled_count}</div>
+                  </div>
+                  <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20">
+                    <div className="text-[13px] text-white/70 font-medium mb-1">Categories</div>
+                    <div className="text-[24px] font-bold text-white">{Object.keys(summary.count_by_category).length}</div>
+                  </div>
+                  <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20">
+                    <div className="text-[13px] text-white/70 font-medium mb-1">YTD {new Date().getFullYear()}</div>
+                    <div className="text-[24px] font-bold text-white">{formatCurrency(summary.ytd_cost || 0, orgCurrency)}</div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center gap-3">
+              <Button
+                onClick={handleManualRefresh}
+                disabled={isRefreshing}
+                variant="ghost"
+                className="h-11 px-4 text-[15px] bg-white/10 text-white hover:bg-white/20 border border-white/20 rounded-xl backdrop-blur-sm"
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
+                <span className="hidden sm:inline">Refresh</span>
+              </Button>
+              <Link href={`/${orgSlug}/integrations/subscriptions`}>
+                <Button className="bg-white text-[#007A78] hover:bg-white/90 h-11 px-4 rounded-xl text-[15px] font-semibold shadow-lg">
+                  <Plus className="h-4 w-4 mr-2" />
+                  <span className="hidden sm:inline">Add Provider</span>
+                  <span className="sm:hidden">Add</span>
+                </Button>
+              </Link>
+            </div>
+          </div>
+
+          {/* Provider Logos Showcase */}
+          <div className="mt-8 pt-6 border-t border-white/10">
+            <div className="text-[13px] text-white/60 font-medium mb-4">POPULAR SAAS PROVIDERS</div>
+            <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-12 gap-3">
+              {SAAS_PROVIDERS.map((provider) => (
+                <div
+                  key={provider.name}
+                  className="aspect-square bg-white/10 backdrop-blur-sm rounded-xl flex items-center justify-center p-3 border border-white/10 hover:bg-white/20 transition-all group"
+                  title={provider.name}
+                >
+                  <div className="w-full h-full rounded-lg bg-white/90 flex items-center justify-center group-hover:scale-105 transition-transform">
+                    <span className="text-[10px] font-bold text-slate-700">{provider.name.slice(0, 2).toUpperCase()}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 
+      {/* Cost Breakdown by Category */}
+      {Object.keys(categoryBreakdown).length > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-[24px] font-bold text-black">Cost Breakdown by Category</h2>
+            <Badge className="bg-[#007A78]/10 text-[#007A78] border border-[#007A78]/20 px-3 py-1">
+              {Object.keys(categoryBreakdown).length} Categories
+            </Badge>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {Object.entries(categoryBreakdown)
+              .sort((a, b) => b[1].totalCost - a[1].totalCost)
+              .map(([category, data]) => {
+                const CategoryIcon = CATEGORY_ICONS[category] || Wallet
+                const percentage = summary ? (data.totalCost / summary.total_monthly_cost) * 100 : 0
+                return (
+                  <div
+                    key={category}
+                    className="metric-card group hover:shadow-lg transition-all cursor-pointer overflow-hidden"
+                  >
+                    <div className={`absolute inset-0 bg-gradient-to-br ${CATEGORY_GRADIENTS[category]} opacity-0 group-hover:opacity-100 transition-opacity`}></div>
+                    <div className="relative">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className={`p-2.5 rounded-xl ${CATEGORY_COLORS[category]}`}>
+                          <CategoryIcon className="h-5 w-5" />
+                        </div>
+                        <div className="text-right">
+                          <div className="text-[11px] text-muted-foreground font-medium mb-0.5">
+                            {data.count} {data.count === 1 ? 'subscription' : 'subscriptions'}
+                          </div>
+                          <div className="text-[13px] font-semibold text-[#007A78]">
+                            {percentage.toFixed(1)}% of total
+                          </div>
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <h3 className="text-[15px] font-semibold text-black capitalize">{category}</h3>
+                        <div className="text-[28px] font-bold text-black tracking-tight">
+                          {formatCurrency(data.totalCost, orgCurrency)}
+                        </div>
+                        <div className="text-[13px] text-muted-foreground">per month</div>
+                      </div>
+                      {/* Progress bar */}
+                      <div className="mt-3 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-[#007A78] to-[#14b8a6] rounded-full transition-all"
+                          style={{ width: `${Math.min(percentage, 100)}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+          </div>
+        </div>
+      )}
+
+      {/* Savings Opportunities */}
+      {savingsOpportunities.length > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <Target className="h-6 w-6 text-[#FF6E50]" />
+            <h2 className="text-[24px] font-bold text-black">Savings Opportunities</h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {savingsOpportunities.map((opportunity, idx) => {
+              const Icon = opportunity.icon
+              return (
+                <div
+                  key={idx}
+                  className="metric-card bg-gradient-to-br from-white to-[#FF6E50]/5 border-l-4 border-[#FF6E50] hover:shadow-xl transition-all group"
+                >
+                  <div className="flex items-start gap-4">
+                    <div className="p-3 rounded-xl bg-[#FF6E50]/10 group-hover:bg-[#FF6E50]/20 transition-colors">
+                      <Icon className="h-6 w-6 text-[#FF6E50]" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Badge className="bg-[#FF6E50] text-white border-0 px-2 py-0.5 text-[11px] font-semibold">
+                          {opportunity.count}
+                        </Badge>
+                        <span className="text-[11px] text-muted-foreground uppercase tracking-wide font-medium">
+                          Action Required
+                        </span>
+                      </div>
+                      <h3 className="text-[15px] font-semibold text-black mb-1">{opportunity.title}</h3>
+                      <p className="text-[13px] text-muted-foreground">{opportunity.description}</p>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Detailed Cost Metrics */}
       {summary && (
-        <div className="space-y-6">
-          <h2 className="text-[22px] font-bold text-black">Cost Summary</h2>
+        <div className="space-y-4">
+          <h2 className="text-[24px] font-bold text-black">Detailed Metrics</h2>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="metric-card">
               <div className="metric-card-header">
@@ -326,36 +565,6 @@ export default function SubscriptionCostsPage() {
               <div className="metric-card-header">
                 <div className="metric-card-label metric-card-label-coral-dark">
                   <TrendingUp className="h-[18px] w-[18px]" />
-                  <span>YTD {new Date().getFullYear()}</span>
-                </div>
-              </div>
-              <div className="metric-card-content">
-                <div className="metric-card-value">{formatCurrency(summary.ytd_cost || 0, orgCurrency)}</div>
-                <div className="metric-card-description mt-1">Jan 1 - today actual</div>
-              </div>
-            </div>
-
-            <div className="metric-card">
-              <div className="metric-card-header">
-                <div className="metric-card-label metric-card-label-coral">
-                  <Wallet className="h-[18px] w-[18px]" />
-                  <span>Active Plans</span>
-                </div>
-              </div>
-              <div className="metric-card-content">
-                <div className="metric-card-value">
-                  {summary.enabled_count}<span className="text-muted-foreground text-[18px] font-normal"> / {summary.total_count}</span>
-                </div>
-                <div className="metric-card-description mt-1">Subscriptions enabled</div>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-            <div className="metric-card">
-              <div className="metric-card-header">
-                <div className="metric-card-label metric-card-label-coral-light">
-                  <TrendingUp className="h-[18px] w-[18px]" />
                   <span>Monthly Forecast</span>
                 </div>
               </div>
@@ -377,25 +586,63 @@ export default function SubscriptionCostsPage() {
                 <div className="metric-card-description mt-1">YTD + projected to Dec 31</div>
               </div>
             </div>
+          </div>
+        </div>
+      )}
 
-            <div className="metric-card col-span-2 lg:col-span-1">
-              <div className="metric-card-header">
-                <div className="metric-card-label metric-card-label-neutral">
-                  <List className="h-[18px] w-[18px]" />
-                  <span>Categories</span>
-                </div>
-              </div>
-              <div className="metric-card-content">
-                <div className="metric-card-value">{Object.keys(summary.count_by_category).length}</div>
-                <div className="metric-card-description mt-1">Active categories</div>
-              </div>
+      {/* Subscription Renewal Timeline */}
+      {plans.filter(p => p.status === 'active' && p.renewal_date).length > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <Clock className="h-6 w-6 text-[#007A78]" />
+            <h2 className="text-[24px] font-bold text-black">Upcoming Renewals</h2>
+          </div>
+          <div className="metric-card p-6">
+            <div className="space-y-4">
+              {plans
+                .filter(p => p.status === 'active' && p.renewal_date)
+                .sort((a, b) => new Date(a.renewal_date!).getTime() - new Date(b.renewal_date!).getTime())
+                .slice(0, 5)
+                .map((plan) => {
+                  const daysUntilRenewal = differenceInDays(new Date(plan.renewal_date!), new Date())
+                  const isUrgent = daysUntilRenewal <= 7
+                  return (
+                    <div
+                      key={plan.subscription_id}
+                      className="flex items-center justify-between p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors"
+                    >
+                      <div className="flex items-center gap-4 flex-1">
+                        <div className={`p-2.5 rounded-lg ${isUrgent ? 'bg-[#FF6E50]/10' : 'bg-[#007A78]/10'}`}>
+                          <CalendarDays className={`h-5 w-5 ${isUrgent ? 'text-[#FF6E50]' : 'text-[#007A78]'}`} />
+                        </div>
+                        <div>
+                          <div className="font-semibold text-black text-[15px]">{plan.display_name || plan.plan_name}</div>
+                          <div className="text-[13px] text-muted-foreground">{plan.provider_name}</div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className={`text-[15px] font-bold ${isUrgent ? 'text-[#FF6E50]' : 'text-[#007A78]'}`}>
+                          {daysUntilRenewal === 0 ? 'Today' : daysUntilRenewal === 1 ? 'Tomorrow' : `${daysUntilRenewal} days`}
+                        </div>
+                        <div className="text-[13px] text-muted-foreground">
+                          {format(new Date(plan.renewal_date!), 'MMM d, yyyy')}
+                        </div>
+                      </div>
+                      <div className="ml-6 text-right">
+                        <div className="text-[17px] font-bold text-black">{formatCurrency(getTotalCost(plan), orgCurrency)}</div>
+                        <div className="text-[11px] text-muted-foreground">{formatBillingCycle(plan.billing_cycle)}</div>
+                      </div>
+                    </div>
+                  )
+                })}
             </div>
           </div>
         </div>
       )}
 
+      {/* All Subscriptions Table */}
       <div>
-        <h2 className="text-[22px] font-bold text-black mb-4">All Subscriptions</h2>
+        <h2 className="text-[24px] font-bold text-black mb-4">All Subscriptions</h2>
         <div className="metric-card p-0 overflow-hidden">
           {/* Empty State */}
           {plans.length === 0 && (
@@ -634,7 +881,6 @@ export default function SubscriptionCostsPage() {
               <TableBody>
                 {plans.map((plan) => {
                   const category = plan.category && plan.category.trim() !== "" ? plan.category : "other"
-                  const CategoryIcon = CATEGORY_ICONS[category] || Wallet
                   const totalCost = getTotalCost(plan)
                   const isActive = plan.status === 'active' || plan.status === 'pending'
                   const isPending = plan.status === 'pending' || (plan.start_date && new Date(plan.start_date) > new Date())

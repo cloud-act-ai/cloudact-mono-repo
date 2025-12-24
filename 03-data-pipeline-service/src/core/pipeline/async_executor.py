@@ -316,27 +316,35 @@ class AsyncPipelineExecutor:
         Args:
             steps: List of step configurations
         """
-        # Create nodes and track step order for implicit dependencies
-        step_ids_in_order = []
+        # Build DAG from step configurations
         for idx, step in enumerate(steps):
             node = StepNode(step, idx)
             self.step_dag[node.step_id] = node
             step_ids_in_order.append(node.step_id)
 
-        # Add implicit sequential dependencies for steps without explicit depends_on
+        # Add dependencies (implicit or explicit)
         for idx, step_id in enumerate(step_ids_in_order):
             node = self.step_dag[step_id]
-            # If step has no explicit dependencies and is not the first step,
-            # make it depend on the previous step (sequential execution)
-            if not node.dependencies and idx > 0:
+            step_config = node.step_config
+            
+            # CASE 1: Explicit dependencies provided (even if empty list)
+            if 'depends_on' in step_config:
+                # Use what's provided. If it's [], it means "no dependencies" -> Parallel!
+                # Node init already set this from config, so we're good.
+                pass
+                
+            # CASE 2: No depends_on key at all -> Default to Sequential
+            # If step has no explicit depends_on key (not even empty list) and is not first,
+            # make it depend on the previous step
+            elif idx > 0:
                 prev_step_id = step_ids_in_order[idx - 1]
                 node.dependencies.add(prev_step_id)
                 self.logger.debug(
-                    f"Step '{step_id}' has no explicit depends_on, "
+                    f"Step '{step_id}' has no 'depends_on' key, "
                     f"adding implicit dependency on '{prev_step_id}' for sequential execution"
                 )
 
-        # Build dependency relationships (both explicit and implicit)
+        # Validate all dependencies exist
         for step_id, node in self.step_dag.items():
             for dep_id in node.dependencies:
                 if dep_id not in self.step_dag:
@@ -344,7 +352,7 @@ class AsyncPipelineExecutor:
                 self.step_dag[dep_id].dependents.add(step_id)
 
         self.logger.info(
-            f"Built DAG with {len(self.step_dag)} steps (sequential by default)",
+            f"Built DAG with {len(self.step_dag)} steps",
             steps=list(self.step_dag.keys())
         )
 

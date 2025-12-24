@@ -302,11 +302,28 @@ export default function AnthropicIntegrationPage() {
         </Link>
       </div>
 
-      <div>
-        <h1 className="console-page-title">Anthropic Integration</h1>
-        <p className="console-subheading mt-1">
-          Connect your Anthropic API key to track Claude usage and costs.
-        </p>
+      {/* Enhanced Provider Header */}
+      <div className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-amber-50 via-white to-white p-6 shadow-sm">
+        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#D97706] to-[#B45309]" />
+        <div className="flex items-start gap-4">
+          <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-amber-100 to-amber-50 flex items-center justify-center flex-shrink-0 ring-1 ring-amber-200/50 shadow-sm">
+            <Sparkles className="h-8 w-8 text-[#D97706]" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-3 mb-2">
+              <h1 className="text-[28px] font-bold text-black tracking-tight">Anthropic (Claude) Integration</h1>
+              {isConnected && (
+                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#007A78]/10 animate-pulse">
+                  <div className="h-2 w-2 rounded-full bg-[#007A78]" />
+                  <span className="text-[11px] font-bold text-[#007A78] uppercase tracking-wide">Connected</span>
+                </div>
+              )}
+            </div>
+            <p className="text-[15px] text-muted-foreground leading-relaxed">
+              Connect your Anthropic API key to track Claude 3.5 Sonnet, Opus, and Haiku usage with detailed cost analytics
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Alerts */}

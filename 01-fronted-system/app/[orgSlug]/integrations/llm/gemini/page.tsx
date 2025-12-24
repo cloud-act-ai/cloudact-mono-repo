@@ -300,11 +300,28 @@ export default function GeminiIntegrationPage() {
         </Link>
       </div>
 
-      <div>
-        <h1 className="console-page-title">Google Gemini Integration</h1>
-        <p className="console-subheading mt-1">
-          Connect your Google Gemini API key to track Gemini usage and costs.
-        </p>
+      {/* Enhanced Provider Header */}
+      <div className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-blue-50 via-white to-white p-6 shadow-sm">
+        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#4285F4] to-[#1A73E8]" />
+        <div className="flex items-start gap-4">
+          <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-blue-100 to-blue-50 flex items-center justify-center flex-shrink-0 ring-1 ring-blue-200/50 shadow-sm">
+            <Gem className="h-8 w-8 text-[#4285F4]" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-3 mb-2">
+              <h1 className="text-[28px] font-bold text-black tracking-tight">Google Gemini Integration</h1>
+              {isConnected && (
+                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#007A78]/10 animate-pulse">
+                  <div className="h-2 w-2 rounded-full bg-[#007A78]" />
+                  <span className="text-[11px] font-bold text-[#007A78] uppercase tracking-wide">Connected</span>
+                </div>
+              )}
+            </div>
+            <p className="text-[15px] text-muted-foreground leading-relaxed">
+              Connect your Google AI Studio API key to track Gemini Pro, Flash, and Gemma model usage with comprehensive cost tracking
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Alerts */}

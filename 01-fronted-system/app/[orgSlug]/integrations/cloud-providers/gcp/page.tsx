@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useParams } from "next/navigation"
-import { Cloud, Loader2, Check, AlertCircle, ArrowLeft, Upload, FileJson, X, Key, Clock, Shield, RefreshCw, Trash2 } from "lucide-react"
+import { Cloud, Loader2, Check, AlertCircle, ArrowLeft, Upload, FileJson, X, Key, Clock, Shield, RefreshCw, Trash2, CheckCircle2 } from "lucide-react"
 import Link from "next/link"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -35,23 +35,58 @@ interface IntegrationStatus {
   created_at?: string
 }
 
+// Step Indicator Component
+function StepIndicator({ currentStep, totalSteps }: { currentStep: number; totalSteps: number }) {
+  return (
+    <div className="flex items-center gap-2">
+      {Array.from({ length: totalSteps }).map((_, index) => (
+        <div key={index} className="flex items-center">
+          <div
+            className={`h-2 w-8 rounded-full transition-all ${
+              index + 1 <= currentStep
+                ? 'bg-[#007A78]'
+                : 'bg-border'
+            }`}
+          />
+        </div>
+      ))}
+    </div>
+  )
+}
+
 // Status Badge Component
 function StatusBadge({ status }: { status: string }) {
-  const variants: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; text: string; className?: string }> = {
-    VALID: { variant: "default", text: "Connected", className: "bg-[#F0FDFA] text-[#007A78] border-[#007A78]/20" },
-    INVALID: { variant: "destructive", text: "Invalid" },
-    PENDING: { variant: "secondary", text: "Validating..." },
-    NOT_CONFIGURED: { variant: "outline", text: "Not Configured" },
+  const variants: Record<string, { className: string; icon: React.ReactNode; text: string }> = {
+    VALID: {
+      className: "bg-[#007A78] text-white border-0 shadow-sm",
+      icon: <div className="h-2 w-2 rounded-full bg-white animate-pulse" />,
+      text: "Connected"
+    },
+    INVALID: {
+      className: "bg-[#FF6E50] text-white border-0",
+      icon: <X className="h-3 w-3" />,
+      text: "Invalid"
+    },
+    PENDING: {
+      className: "bg-muted text-muted-foreground border-0",
+      icon: <Loader2 className="h-3 w-3 animate-spin" />,
+      text: "Validating..."
+    },
+    NOT_CONFIGURED: {
+      className: "bg-muted text-muted-foreground border-0",
+      icon: null,
+      text: "Not Connected"
+    },
   }
 
   const config = variants[status] || variants.NOT_CONFIGURED
 
   return (
-    <Badge variant={config.variant} className={config.className}>
-      {status === "VALID" && <Check className="h-3 w-3 mr-1" />}
-      {status === "INVALID" && <X className="h-3 w-3 mr-1" />}
-      {status === "PENDING" && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
-      {config.text}
+    <Badge className={`${config.className} px-3 py-1 text-[11px] font-semibold`}>
+      <div className="flex items-center gap-1.5">
+        {config.icon}
+        {config.text}
+      </div>
     </Badge>
   )
 }
@@ -67,6 +102,7 @@ export default function GCPIntegrationPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   // Upload state
+  const [wizardStep, setWizardStep] = useState(1)
   const [showUpload, setShowUpload] = useState(false)
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
   const [fileContent, setFileContent] = useState<string | null>(null)
@@ -124,7 +160,7 @@ export default function GCPIntegrationPage() {
       return
     }
 
-    if (file.size > 50000) { // 50KB limit for SA JSON
+    if (file.size > 50000) {
       setError("File too large. Service Account JSON should be under 50KB")
       return
     }
@@ -139,7 +175,6 @@ export default function GCPIntegrationPage() {
         return
       }
 
-      // Validate it's a service account JSON
       if (parsed.type !== "service_account") {
         setError("Invalid file: This doesn't appear to be a GCP Service Account JSON")
         return
@@ -156,6 +191,7 @@ export default function GCPIntegrationPage() {
         project_id: parsed.project_id,
         client_email: parsed.client_email,
       })
+      setWizardStep(2)
     } catch {
       setError("Error reading file. Please try again.")
     }
@@ -187,18 +223,20 @@ export default function GCPIntegrationPage() {
     setUploadedFile(null)
     setFileContent(null)
     setParsedSA(null)
+    setWizardStep(1)
     if (fileInputRef.current) {
       fileInputRef.current.value = ""
     }
   }
 
-  // Handle setup - calls backend pipeline to encrypt, store, and validate
+  // Handle setup
   const handleSetup = async () => {
     if (!fileContent) return
 
     setError(null)
     setSuccessMessage(null)
     setUploadLoading(true)
+    setWizardStep(3)
 
     try {
       const result = await setupIntegration({
@@ -217,17 +255,18 @@ export default function GCPIntegrationPage() {
         setShowUpload(false)
         await loadIntegration()
       } else {
-        // Use error, message, or a descriptive fallback
         setError(result.error || result.message || "Setup failed. Please check your Service Account JSON and try again.")
+        setWizardStep(2)
       }
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "Failed to setup integration")
+      setWizardStep(2)
     } finally {
       setUploadLoading(false)
     }
   }
 
-  // Handle validate - re-validates existing credentials
+  // Handle validate
   const handleValidate = async () => {
     setError(null)
     setSuccessMessage(null)
@@ -278,7 +317,10 @@ export default function GCPIntegrationPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-[#007A78]" />
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin text-[#007A78] mx-auto mb-4" />
+          <p className="text-sm text-muted-foreground">Loading GCP integration...</p>
+        </div>
       </div>
     )
   }
@@ -288,49 +330,57 @@ export default function GCPIntegrationPage() {
       {/* Header with back link */}
       <div className="flex items-center gap-4">
         <Link href={`/${orgSlug}/integrations/cloud-providers`}>
-          <Button variant="ghost" size="sm" className="h-11 rounded-xl">
-            <ArrowLeft className="h-4 w-4 mr-1" />
-            Cloud Providers
+          <Button variant="ghost" size="sm" className="h-11 px-4 rounded-xl hover:bg-muted">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Providers
           </Button>
         </Link>
       </div>
 
-      <div>
-        <h1 className="console-page-title">GCP Integration</h1>
-        <p className="console-subheading mt-1">
-          Connect your Google Cloud Platform Service Account to enable billing data access and other GCP services.
-        </p>
+      {/* Header Section */}
+      <div className="flex items-center gap-4">
+        <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-[#4285F4] to-[#3367D6] flex items-center justify-center shadow-lg">
+          <svg className="h-7 w-7 text-white" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12.19 2.38a9.344 9.344 0 0 1 9.426 9.428 9.344 9.344 0 0 1-9.426 9.428 9.344 9.344 0 0 1-9.426-9.428A9.344 9.344 0 0 1 12.19 2.38m-.012 2.544a6.751 6.751 0 0 0-6.768 6.76c0 1.745.675 3.408 1.9 4.686l4.796-4.796v-.001a2.423 2.423 0 0 1-.489-1.449c0-1.326 1.07-2.4 2.392-2.4a2.385 2.385 0 0 1 1.447.49v.001l4.796-4.796a6.733 6.733 0 0 0-4.686-1.9 6.705 6.705 0 0 0-3.388.905m0 9.56a2.388 2.388 0 0 1-2.398-2.396c0-.492.149-.965.424-1.364l-1.904-1.904A5.844 5.844 0 0 0 6.388 12c0 3.197 2.593 5.79 5.79 5.79.927 0 1.802-.224 2.578-.619l-1.904-1.904c-.399.275-.872.424-1.364.424m9.228-2.396a5.844 5.844 0 0 0-1.912-3.182l-1.904 1.904c.275.399.424.872.424 1.364a2.388 2.388 0 0 1-2.398 2.398c-.492 0-.965-.149-1.364-.424l-1.904 1.904a5.807 5.807 0 0 0 2.578.619 5.798 5.798 0 0 0 5.79-5.79z"/>
+          </svg>
+        </div>
+        <div>
+          <h1 className="text-[32px] font-bold text-black tracking-tight">Google Cloud Platform</h1>
+          <p className="text-[15px] text-muted-foreground mt-1">
+            Connect your GCP Service Account to enable billing data access and cloud cost analytics
+          </p>
+        </div>
       </div>
 
       {/* Alerts */}
       {error && (
-        <Alert variant="destructive" className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
-          <AlertCircle className="h-4 w-4 text-[#FF6E50]" />
-          <AlertTitle className="text-[#FF6E50]">Error</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
+        <Alert variant="destructive" className="border-[#FF6E50]/20 bg-gradient-to-br from-[#FF6E50]/10 to-[#FF6E50]/5">
+          <AlertCircle className="h-5 w-5 text-[#FF6E50]" />
+          <AlertTitle className="text-[#FF6E50] font-bold">Error</AlertTitle>
+          <AlertDescription className="text-[14px]">{error}</AlertDescription>
         </Alert>
       )}
 
       {successMessage && (
-        <Alert className="border-[#007A78]/20 bg-[#F0FDFA]">
-          <Check className="h-4 w-4 text-[#007A78]" />
-          <AlertTitle className="text-[#007A78]">Success</AlertTitle>
-          <AlertDescription>{successMessage}</AlertDescription>
+        <Alert className="border-[#007A78]/20 bg-gradient-to-br from-[#007A78]/10 to-[#007A78]/5">
+          <CheckCircle2 className="h-5 w-5 text-[#007A78]" />
+          <AlertTitle className="text-[#007A78] font-bold">Success</AlertTitle>
+          <AlertDescription className="text-[14px]">{successMessage}</AlertDescription>
         </Alert>
       )}
 
       {/* Integration Card */}
-      <Card className={status === "INVALID" ? "border-destructive" : ""}>
+      <Card className={`border-2 transition-all ${status === "INVALID" ? "border-[#FF6E50]/40" : "border-border/50"}`}>
         <CardHeader>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-3 bg-muted rounded-lg">
-                <Cloud className="h-6 w-6" />
+              <div className="p-3 bg-[#4285F4]/10 rounded-xl">
+                <Cloud className="h-6 w-6 text-[#4285F4]" />
               </div>
               <div>
-                <CardTitle className="text-xl">Google Cloud Platform</CardTitle>
+                <CardTitle className="text-xl font-bold">Service Account Connection</CardTitle>
                 <CardDescription className="mt-1">
-                  Service Account for accessing GCP Billing, BigQuery, and other Google Cloud services
+                  Upload your GCP Service Account JSON for secure authentication
                 </CardDescription>
               </div>
             </div>
@@ -338,20 +388,24 @@ export default function GCPIntegrationPage() {
           </div>
         </CardHeader>
 
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-6">
           {/* Error Alert */}
           {integration?.last_error && status === "INVALID" && (
-            <Alert variant="destructive" className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
+            <Alert variant="destructive" className="border-[#FF6E50]/20 bg-gradient-to-br from-[#FF6E50]/10 to-[#FF6E50]/5">
               <AlertCircle className="h-4 w-4 text-[#FF6E50]" />
-              <AlertTitle className="text-[#FF6E50]">Validation Error</AlertTitle>
+              <AlertTitle className="text-[#FF6E50] font-bold">Validation Error</AlertTitle>
               <AlertDescription>{integration.last_error}</AlertDescription>
             </Alert>
           )}
 
           {/* Upload Form */}
           {showUpload ? (
-            <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
-              <Label className="text-sm font-medium">Upload Service Account JSON</Label>
+            <div className="space-y-6 p-6 border-2 border-border/50 rounded-2xl bg-gradient-to-br from-background to-muted/20">
+              {/* Step Indicator */}
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-bold text-black">Connection Wizard</Label>
+                <StepIndicator currentStep={wizardStep} totalSteps={3} />
+              </div>
 
               {/* Hidden file input */}
               <input
@@ -365,126 +419,179 @@ export default function GCPIntegrationPage() {
                 className="hidden"
               />
 
-              {/* Drop zone */}
-              {!uploadedFile ? (
+              {/* Step 1: Upload */}
+              {wizardStep === 1 && !uploadedFile && (
                 <div
                   onDrop={handleDrop}
                   onDragOver={handleDragOver}
                   onDragLeave={handleDragLeave}
                   onClick={() => fileInputRef.current?.click()}
                   className={`
-                    border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors
+                    relative overflow-hidden border-3 border-dashed rounded-2xl p-12 text-center cursor-pointer transition-all
                     ${isDragging
-                      ? "border-primary bg-primary/5"
-                      : "border-border/50 hover:border-primary/50 hover:bg-muted/50"
+                      ? "border-[#007A78] bg-[#007A78]/10 scale-105"
+                      : "border-border/50 hover:border-[#007A78]/50 hover:bg-muted/50"
                     }
                   `}
                 >
-                  <Upload className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
-                  <p className="text-sm font-medium">
-                    Drop your Service Account JSON here
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    or click to browse
-                  </p>
-                </div>
-              ) : (
-                /* File preview */
-                <div className="border rounded-lg p-4 bg-background">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start gap-3">
-                      <div className="p-2 bg-muted rounded-md">
-                        <FileJson className="h-5 w-5 text-[#007A78]" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-sm">{uploadedFile.name}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {(uploadedFile.size / 1024).toFixed(1)} KB
-                        </p>
-                        {parsedSA && (
-                          <div className="mt-2 space-y-1">
-                            <p className="text-xs">
-                              <span className="text-muted-foreground">Project:</span>{" "}
-                              <span className="font-mono">{parsedSA.project_id}</span>
-                            </p>
-                            <p className="text-xs">
-                              <span className="text-muted-foreground">Service Account:</span>{" "}
-                              <span className="font-mono text-xs">{parsedSA.client_email}</span>
-                            </p>
-                          </div>
-                        )}
-                      </div>
+                  <div className={`transition-all ${isDragging ? 'scale-110' : ''}`}>
+                    <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-[#007A78]/20 to-[#007A78]/10 flex items-center justify-center mx-auto mb-4">
+                      <Upload className="h-8 w-8 text-[#007A78]" />
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={clearFile}
-                      className="h-11 w-11 p-0 rounded-xl"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
+                    <p className="text-[16px] font-bold text-black mb-2">
+                      {isDragging ? 'Drop your file here' : 'Upload Service Account JSON'}
+                    </p>
+                    <p className="text-[13px] text-muted-foreground">
+                      Drag and drop or click to browse
+                    </p>
+                    <p className="text-[12px] text-muted-foreground mt-2">
+                      Maximum file size: 50KB
+                    </p>
                   </div>
                 </div>
               )}
 
-              <p className="console-small">
-                Your credentials will be encrypted using Google Cloud KMS before storage.
-              </p>
+              {/* Step 2: Review */}
+              {wizardStep === 2 && uploadedFile && (
+                <div className="space-y-4">
+                  <div className="border-2 border-[#007A78]/20 rounded-2xl p-5 bg-gradient-to-br from-[#007A78]/5 to-background">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-start gap-3 flex-1">
+                        <div className="p-2.5 bg-[#007A78]/10 rounded-xl">
+                          <FileJson className="h-6 w-6 text-[#007A78]" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-bold text-[15px] text-black mb-1">{uploadedFile.name}</p>
+                          <p className="text-[12px] text-muted-foreground">
+                            {(uploadedFile.size / 1024).toFixed(1)} KB
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={clearFile}
+                        className="h-10 w-10 p-0 rounded-xl hover:bg-[#FF6E50]/10"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
 
-              <div className="flex gap-2">
-                <Button
-                  onClick={handleSetup}
-                  disabled={!fileContent || uploadLoading}
-                  className="console-button-primary"
-                >
-                  {uploadLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {isConfigured ? "Update Credential" : "Connect"}
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setShowUpload(false)
-                    clearFile()
-                  }}
-                  className="console-button-secondary"
-                >
-                  Cancel
-                </Button>
+                    {parsedSA && (
+                      <div className="space-y-3 pt-4 border-t border-border/50">
+                        <div className="flex items-start gap-3">
+                          <div className="h-5 w-5 rounded-lg bg-[#007A78]/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <Check className="h-3 w-3 text-[#007A78]" />
+                          </div>
+                          <div>
+                            <p className="text-[12px] font-semibold text-muted-foreground mb-0.5">Project ID</p>
+                            <p className="text-[14px] font-mono font-medium text-black">{parsedSA.project_id}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <div className="h-5 w-5 rounded-lg bg-[#007A78]/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <Check className="h-3 w-3 text-[#007A78]" />
+                          </div>
+                          <div>
+                            <p className="text-[12px] font-semibold text-muted-foreground mb-0.5">Service Account</p>
+                            <p className="text-[13px] font-mono text-black break-all">{parsedSA.client_email}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Step 3: Connecting */}
+              {wizardStep === 3 && (
+                <div className="text-center py-8">
+                  <Loader2 className="h-12 w-12 animate-spin text-[#007A78] mx-auto mb-4" />
+                  <p className="text-[16px] font-bold text-black mb-2">Connecting to GCP...</p>
+                  <p className="text-[13px] text-muted-foreground">
+                    Encrypting and validating your credentials
+                  </p>
+                </div>
+              )}
+
+              {/* Security Notice */}
+              <div className="flex items-start gap-3 p-4 rounded-xl bg-[#007A78]/5 border border-[#007A78]/10">
+                <Shield className="h-5 w-5 mt-0.5 flex-shrink-0 text-[#007A78]" />
+                <p className="text-[13px] text-muted-foreground leading-relaxed">
+                  Your credentials will be encrypted using Google Cloud KMS before storage. We never store plain text credentials.
+                </p>
               </div>
+
+              {/* Actions */}
+              {wizardStep !== 3 && (
+                <div className="flex gap-3 pt-2">
+                  <Button
+                    onClick={handleSetup}
+                    disabled={!fileContent || uploadLoading}
+                    className="flex-1 h-12 bg-[#007A78] hover:bg-[#006664] text-white text-[15px] font-bold rounded-xl shadow-sm hover:shadow-md transition-all"
+                  >
+                    {uploadLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {isConfigured ? "Update Credential" : "Connect GCP"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowUpload(false)
+                      clearFile()
+                    }}
+                    className="h-12 px-6 text-[15px] font-semibold rounded-xl border-2"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              )}
             </div>
           ) : isConfigured ? (
             /* Configured state */
-            <div className="space-y-4">
-              <div className="flex items-center gap-4 p-4 border rounded-lg bg-muted/30">
-                <div className="p-2 bg-background rounded-md">
-                  <Key className="h-5 w-5 text-muted-foreground" />
+            <div className="space-y-5">
+              <div className="flex items-center gap-4 p-5 border-2 border-[#007A78]/20 rounded-2xl bg-gradient-to-br from-[#007A78]/5 to-background">
+                <div className="p-3 bg-[#007A78]/10 rounded-xl">
+                  <Key className="h-6 w-6 text-[#007A78]" />
                 </div>
                 <div className="flex-1">
-                  <p className="font-medium">{integration?.credential_name || "GCP Service Account"}</p>
-                  <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-3.5 w-3.5" />
-                      Last validated: {formatDate(integration?.last_validated_at)}
-                    </span>
+                  <p className="font-bold text-[15px] text-black mb-1">
+                    {integration?.credential_name || "GCP Service Account"}
+                  </p>
+                  <div className="flex items-center gap-2 text-[13px] text-muted-foreground">
+                    <Clock className="h-3.5 w-3.5" />
+                    <span>Last validated: {formatDate(integration?.last_validated_at)}</span>
                   </div>
                 </div>
               </div>
 
-              <div className="flex items-start gap-2 console-small">
+              <div className="flex items-start gap-3 p-4 rounded-xl bg-muted/30">
                 <Shield className="h-4 w-4 mt-0.5 flex-shrink-0 text-[#007A78]" />
-                <span>Credentials are encrypted using Google Cloud KMS and never stored in plain text.</span>
+                <span className="text-[13px] text-muted-foreground">
+                  Credentials are encrypted using Google Cloud KMS and never stored in plain text.
+                </span>
               </div>
             </div>
           ) : (
             /* Not configured state */
-            <div className="text-center py-8">
-              <Cloud className="h-12 w-12 mx-auto mb-4 text-[#007A78]/50" />
-              <p className="console-body mb-4">
-                No GCP Service Account configured. Upload your JSON key file to get started.
+            <div className="text-center py-12">
+              <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-[#4285F4]/20 to-[#4285F4]/10 flex items-center justify-center mx-auto mb-6">
+                <Cloud className="h-10 w-10 text-[#4285F4]" />
+              </div>
+              <p className="text-[16px] font-bold text-black mb-2">
+                No Service Account Connected
               </p>
-              <Button onClick={() => setShowUpload(true)} className="console-button-primary">
+              <p className="text-[14px] text-muted-foreground mb-6 max-w-md mx-auto">
+                Upload your GCP Service Account JSON to enable billing data access and start tracking cloud costs
+              </p>
+              <Button
+                onClick={() => {
+                  setShowUpload(true)
+                  setWizardStep(1)
+                }}
+                className="h-12 px-6 bg-[#007A78] hover:bg-[#006664] text-white text-[15px] font-bold rounded-xl shadow-sm hover:shadow-md transition-all"
+              >
                 <Upload className="h-4 w-4 mr-2" />
-                Upload Service Account JSON
+                Start Connection Wizard
               </Button>
             </div>
           )}
@@ -492,29 +599,32 @@ export default function GCPIntegrationPage() {
 
         {/* Actions Footer */}
         {isConfigured && !showUpload && (
-          <CardFooter className="flex justify-between border-t pt-4">
+          <CardFooter className="flex justify-between border-t pt-5">
             <div className="flex gap-2">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleValidate}
                 disabled={uploadLoading}
-                className="console-button-secondary"
+                className="h-11 px-5 text-[14px] font-semibold rounded-xl border-2 hover:bg-muted"
               >
                 {uploadLoading ? (
-                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                 ) : (
-                  <RefreshCw className="h-4 w-4 mr-1" />
+                  <RefreshCw className="h-4 w-4 mr-2" />
                 )}
                 Re-validate
               </Button>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setShowUpload(true)}
-                className="console-button-secondary"
+                onClick={() => {
+                  setShowUpload(true)
+                  setWizardStep(1)
+                }}
+                className="h-11 px-5 text-[14px] font-semibold rounded-xl border-2 hover:bg-muted"
               >
-                <Upload className="h-4 w-4 mr-1" />
+                <Upload className="h-4 w-4 mr-2" />
                 Update Credential
               </Button>
             </div>
@@ -522,24 +632,33 @@ export default function GCPIntegrationPage() {
             {/* Delete Dialog */}
             <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
               <DialogTrigger asChild>
-                <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
-                  <Trash2 className="h-4 w-4 mr-1" />
+                <Button variant="ghost" size="sm" className="text-[#FF6E50] hover:text-[#FF6E50] hover:bg-[#FF6E50]/10 h-11 px-5 rounded-xl">
+                  <Trash2 className="h-4 w-4 mr-2" />
                   Remove
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="rounded-2xl">
                 <DialogHeader>
-                  <DialogTitle>Remove GCP Integration</DialogTitle>
-                  <DialogDescription>
+                  <DialogTitle className="text-xl font-bold">Remove GCP Integration</DialogTitle>
+                  <DialogDescription className="text-[14px] leading-relaxed">
                     Are you sure you want to remove this integration? This will delete the stored credentials
                     and any pipelines using this integration will stop working.
                   </DialogDescription>
                 </DialogHeader>
                 <DialogFooter>
-                  <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowDeleteDialog(false)}
+                    className="h-11 px-5 rounded-xl border-2"
+                  >
                     Cancel
                   </Button>
-                  <Button variant="destructive" onClick={handleDelete} disabled={uploadLoading}>
+                  <Button
+                    variant="destructive"
+                    onClick={handleDelete}
+                    disabled={uploadLoading}
+                    className="h-11 px-5 rounded-xl bg-[#FF6E50] hover:bg-[#FF5533]"
+                  >
                     {uploadLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Remove Integration
                   </Button>
@@ -551,17 +670,34 @@ export default function GCPIntegrationPage() {
       </Card>
 
       {/* Help Section */}
-      <div className="rounded-lg border border-[#007A78]/20 p-4 bg-[#F0FDFA]">
-        <h3 className="console-card-title mb-2">How to get your Service Account JSON</h3>
-        <ol className="list-decimal list-inside space-y-2 console-body">
-          <li>Go to <a href="https://console.cloud.google.com/iam-admin/serviceaccounts" target="_blank" rel="noopener noreferrer" className="text-[#007A78] underline">GCP Console → IAM & Admin → Service Accounts</a></li>
+      <div className="rounded-2xl border-2 border-[#4285F4]/20 p-6 bg-gradient-to-br from-[#4285F4]/5 to-background">
+        <h3 className="text-[16px] font-bold text-black mb-4 flex items-center gap-2">
+          <div className="h-8 w-8 rounded-lg bg-[#4285F4]/10 flex items-center justify-center">
+            <Cloud className="h-4 w-4 text-[#4285F4]" />
+          </div>
+          How to get your Service Account JSON
+        </h3>
+        <ol className="list-decimal list-inside space-y-3 text-[14px] leading-relaxed ml-1">
+          <li>
+            Go to{' '}
+            <a
+              href="https://console.cloud.google.com/iam-admin/serviceaccounts"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#007A78] font-semibold hover:underline"
+            >
+              GCP Console → IAM & Admin → Service Accounts
+            </a>
+          </li>
           <li>Create a new service account or select an existing one</li>
           <li>Click "Keys" tab → "Add Key" → "Create new key" → JSON</li>
-          <li>Download the JSON file and upload it here</li>
+          <li>Download the JSON file and upload it using the wizard above</li>
         </ol>
-        <p className="console-body mt-3">
-          <strong>Required roles:</strong> BigQuery Data Viewer, Billing Account Viewer (for cost data)
-        </p>
+        <div className="mt-5 p-4 rounded-xl bg-[#007A78]/5 border border-[#007A78]/10">
+          <p className="text-[13px] text-muted-foreground">
+            <strong className="text-black font-bold">Required roles:</strong> BigQuery Data Viewer, Billing Account Viewer (for cost data)
+          </p>
+        </div>
       </div>
     </div>
   )

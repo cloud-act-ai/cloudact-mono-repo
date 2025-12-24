@@ -16,6 +16,8 @@ import {
   History,
   Brain,
   Plug,
+  TrendingUp,
+  CalendarClock,
 } from "lucide-react"
 import Link from "next/link"
 
@@ -185,7 +187,23 @@ export default function GenAIRunsPage() {
   const formatDateTime = (dateString?: string) => {
     if (!dateString) return "-"
     try {
-      return new Date(dateString).toLocaleString()
+      const date = new Date(dateString)
+      const now = new Date()
+      const diff = now.getTime() - date.getTime()
+      const hours = Math.floor(diff / (1000 * 60 * 60))
+      const minutes = Math.floor(diff / (1000 * 60))
+
+      if (minutes < 1) return "Just now"
+      if (minutes < 60) return `${minutes}m ago`
+      if (hours < 24) return `${hours}h ago`
+
+      return date.toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      })
     } catch {
       return dateString
     }
@@ -196,6 +214,13 @@ export default function GenAIRunsPage() {
     if (ms < 1000) return `${ms}ms`
     if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`
     return `${Math.floor(ms / 60000)}m ${Math.floor((ms % 60000) / 1000)}s`
+  }
+
+  const getDurationWidth = (ms?: number) => {
+    if (!ms) return "0%"
+    const maxMs = 300000 // 5 minutes max for visualization
+    const percentage = Math.min((ms / maxMs) * 100, 100)
+    return `${percentage}%`
   }
 
   const getStatusColor = (status: string) => {
@@ -218,6 +243,21 @@ export default function GenAIRunsPage() {
     }
   }
 
+  const getStatusIcon = (status: string) => {
+    switch (status.toUpperCase()) {
+      case "COMPLETED":
+        return <CheckCircle2 className="h-4 w-4" />
+      case "FAILED":
+      case "TIMEOUT":
+        return <XCircle className="h-4 w-4" />
+      case "RUNNING":
+      case "PENDING":
+        return <Loader2 className="h-4 w-4 animate-spin" />
+      default:
+        return null
+    }
+  }
+
   // Filter to only connected pipelines
   const connectedPipelines = pipelines.filter((pipeline) => {
     if (!pipeline.required_integration || pipeline.required_integration === "") {
@@ -226,6 +266,14 @@ export default function GenAIRunsPage() {
     const integration = integrations[pipeline.required_integration]
     return integration?.status === "VALID"
   })
+
+  // Calculate run statistics
+  const runStats = {
+    total: pipelineRuns.length,
+    completed: pipelineRuns.filter(r => r.status === "COMPLETED").length,
+    failed: pipelineRuns.filter(r => r.status === "FAILED" || r.status === "TIMEOUT").length,
+    running: pipelineRuns.filter(r => r.status === "RUNNING" || r.status === "PENDING").length,
+  }
 
   if (isLoading) {
     return (
@@ -345,7 +393,7 @@ export default function GenAIRunsPage() {
                       <button
                         onClick={() => handleRun(pipeline.id)}
                         disabled={isRunning}
-                        className="inline-flex items-center gap-2 h-11 px-4 bg-[#007A78] text-white text-[15px] font-semibold rounded-xl hover:bg-[#005F5D] disabled:bg-[#E5E5EA] disabled:text-[#C7C7CC] disabled:cursor-not-allowed disabled:opacity-70 transition-all touch-manipulation"
+                        className="inline-flex items-center gap-2 h-11 px-4 bg-[#007A78] text-white text-[15px] font-semibold rounded-xl hover:bg-[#005F5D] disabled:bg-[#E5E5EA] disabled:text-[#C7C7CC] disabled:cursor-not-allowed disabled:opacity-70 transition-all touch-manipulation shadow-sm hover:shadow-md"
                       >
                         {isRunning ? (
                           <>
@@ -405,7 +453,7 @@ export default function GenAIRunsPage() {
                           <button
                             onClick={() => handleRun(pipeline.id)}
                             disabled={isRunning}
-                            className="inline-flex items-center gap-2 h-11 px-4 bg-[#007A78] text-white text-[15px] font-semibold rounded-xl hover:bg-[#005F5D] disabled:bg-[#E5E5EA] disabled:text-[#C7C7CC] disabled:cursor-not-allowed disabled:opacity-70 transition-all touch-manipulation"
+                            className="inline-flex items-center gap-2 h-11 px-4 bg-[#007A78] text-white text-[15px] font-semibold rounded-xl hover:bg-[#005F5D] disabled:bg-[#E5E5EA] disabled:text-[#C7C7CC] disabled:cursor-not-allowed disabled:opacity-70 transition-all touch-manipulation shadow-sm hover:shadow-md"
                           >
                             {isRunning ? (
                               <>
@@ -433,7 +481,29 @@ export default function GenAIRunsPage() {
       {backendConnected && hasApiKey && (
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <h2 className="text-[22px] font-bold text-black">Run History</h2>
+            <div>
+              <h2 className="text-[22px] font-bold text-black">Run History</h2>
+              {pipelineRuns.length > 0 && (
+                <div className="flex items-center gap-4 mt-2">
+                  <div className="flex items-center gap-1.5">
+                    <div className="h-2 w-2 rounded-full bg-[#007A78]"></div>
+                    <span className="text-[13px] text-muted-foreground">{runStats.completed} completed</span>
+                  </div>
+                  {runStats.failed > 0 && (
+                    <div className="flex items-center gap-1.5">
+                      <div className="h-2 w-2 rounded-full bg-[#FF6E50]"></div>
+                      <span className="text-[13px] text-muted-foreground">{runStats.failed} failed</span>
+                    </div>
+                  )}
+                  {runStats.running > 0 && (
+                    <div className="flex items-center gap-1.5">
+                      <div className="h-2 w-2 rounded-full bg-[#007A78] animate-pulse"></div>
+                      <span className="text-[13px] text-muted-foreground">{runStats.running} running</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
             <button
               onClick={loadPipelineRuns}
               disabled={runsLoading}
@@ -483,7 +553,7 @@ export default function GenAIRunsPage() {
                         className="w-full p-4 text-left touch-manipulation hover:bg-[#007A78]/5 transition-colors"
                         onClick={() => toggleRunExpansion(run.pipeline_logging_id)}
                       >
-                        <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-start justify-between gap-3 mb-3">
                           <div className="flex items-start gap-2 flex-1 min-w-0">
                             {isExpanded ? (
                               <ChevronDown className="h-4 w-4 text-[#C7C7CC] mt-1 flex-shrink-0" />
@@ -498,20 +568,31 @@ export default function GenAIRunsPage() {
                             </div>
                           </div>
                           <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium rounded-full border flex-shrink-0 ${getStatusColor(run.status)}`}>
-                            {run.status === "COMPLETED" && <CheckCircle2 className="h-3 w-3" />}
-                            {run.status === "FAILED" && <XCircle className="h-3 w-3" />}
-                            {(run.status === "RUNNING" || run.status === "PENDING") && (
-                              <Loader2 className="h-3 w-3 animate-spin" />
-                            )}
+                            {getStatusIcon(run.status)}
                             {run.status}
                           </span>
                         </div>
-                        <div className="flex items-center gap-4 mt-2 ml-6 text-[13px] text-muted-foreground">
-                          <span>{formatDateTime(run.start_time)}</span>
-                          <span className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            {formatDuration(run.duration_ms)}
-                          </span>
+
+                        <div className="ml-6 space-y-2">
+                          <div className="flex items-center gap-4 text-[13px] text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <CalendarClock className="h-3 w-3" />
+                              {formatDateTime(run.start_time)}
+                            </span>
+                          </div>
+
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between text-[11px]">
+                              <span className="text-muted-foreground">Duration</span>
+                              <span className="font-medium text-black">{formatDuration(run.duration_ms)}</span>
+                            </div>
+                            <div className="h-1.5 bg-[#E5E5EA] rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full transition-all ${run.status === 'COMPLETED' ? 'bg-[#007A78]' : run.status === 'FAILED' ? 'bg-[#FF6E50]' : 'bg-[#007A78]/50'}`}
+                                style={{ width: getDurationWidth(run.duration_ms) }}
+                              ></div>
+                            </div>
+                          </div>
                         </div>
                       </button>
 
@@ -524,34 +605,50 @@ export default function GenAIRunsPage() {
                           ) : detail ? (
                             <div className="space-y-4">
                               {run.error_message && (
-                                <div className="health-card bg-[#FF6E50]/10 p-4">
+                                <div className="health-card bg-[#FF6E50]/10 p-4 border-l-4 border-[#FF6E50]">
                                   <div className="flex items-start gap-3">
-                                    <AlertCircle className="h-5 w-5 text-[#FF6E50] mt-0.5 flex-shrink-0" />
-                                    <div>
-                                      <p className="text-[15px] font-semibold text-black">Error</p>
-                                      <p className="text-[13px] text-muted-foreground mt-1 break-words">{run.error_message}</p>
+                                    <XCircle className="h-5 w-5 text-[#FF6E50] mt-0.5 flex-shrink-0" />
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-[15px] font-semibold text-black">Error Details</p>
+                                      <p className="text-[13px] text-muted-foreground mt-1 break-words font-mono">{run.error_message}</p>
                                     </div>
                                   </div>
                                 </div>
                               )}
 
                               <div className="space-y-3">
-                                <h4 className="text-[15px] font-semibold text-black">Steps</h4>
+                                <div className="flex items-center gap-2">
+                                  <TrendingUp className="h-4 w-4 text-[#007A78]" />
+                                  <h4 className="text-[15px] font-semibold text-black">Pipeline Steps</h4>
+                                </div>
                                 {detail.steps.length === 0 ? (
                                   <p className="text-center text-muted-foreground text-[13px] py-4">No step logs available</p>
                                 ) : (
                                   <div className="space-y-2">
                                     {detail.steps.map((step) => (
-                                      <div key={step.step_logging_id} className="health-card p-3 flex items-center justify-between gap-3">
-                                        <div className="flex items-center gap-2 min-w-0">
-                                          <span className="text-[13px] font-medium text-black flex-shrink-0">#{step.step_index}</span>
-                                          <span className="text-[13px] font-semibold text-black truncate">{step.step_name}</span>
-                                        </div>
-                                        <div className="flex items-center gap-2 flex-shrink-0">
-                                          <span className={`inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-full ${getStatusColor(step.status)}`}>
+                                      <div key={step.step_logging_id} className="health-card p-3">
+                                        <div className="flex items-center justify-between gap-3 mb-2">
+                                          <div className="flex items-center gap-2 min-w-0">
+                                            <span className="flex items-center justify-center h-6 w-6 rounded-full bg-[#007A78]/10 text-[#007A78] text-[11px] font-bold flex-shrink-0">
+                                              {step.step_index}
+                                            </span>
+                                            <span className="text-[13px] font-semibold text-black truncate">{step.step_name}</span>
+                                          </div>
+                                          <span className={`inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-full flex-shrink-0 ${getStatusColor(step.status)}`}>
                                             {step.status}
                                           </span>
-                                          <span className="text-[11px] text-muted-foreground">{formatDuration(step.duration_ms)}</span>
+                                        </div>
+                                        <div className="ml-8 space-y-1">
+                                          <div className="flex items-center justify-between text-[11px]">
+                                            <span className="text-muted-foreground">Duration</span>
+                                            <span className="font-medium text-black">{formatDuration(step.duration_ms)}</span>
+                                          </div>
+                                          <div className="h-1 bg-[#E5E5EA] rounded-full overflow-hidden">
+                                            <div
+                                              className={`h-full rounded-full ${step.status === 'COMPLETED' ? 'bg-[#007A78]' : step.status === 'FAILED' ? 'bg-[#FF6E50]' : 'bg-[#007A78]/50'}`}
+                                              style={{ width: getDurationWidth(step.duration_ms) }}
+                                            ></div>
+                                          </div>
                                         </div>
                                       </div>
                                     ))}
@@ -612,11 +709,7 @@ export default function GenAIRunsPage() {
                             </TableCell>
                             <TableCell className="console-table-cell">
                               <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium rounded-full border ${getStatusColor(run.status)}`}>
-                                {run.status === "COMPLETED" && <CheckCircle2 className="h-3 w-3" />}
-                                {run.status === "FAILED" && <XCircle className="h-3 w-3" />}
-                                {(run.status === "RUNNING" || run.status === "PENDING") && (
-                                  <Loader2 className="h-3 w-3 animate-spin" />
-                                )}
+                                {getStatusIcon(run.status)}
                                 {run.status}
                               </span>
                             </TableCell>
@@ -624,9 +717,14 @@ export default function GenAIRunsPage() {
                               <div className="text-[13px] text-black">{formatDateTime(run.start_time)}</div>
                             </TableCell>
                             <TableCell className="console-table-cell">
-                              <div className="flex items-center gap-1 text-[13px] text-black">
-                                <Clock className="h-3 w-3 text-muted-foreground" />
-                                {formatDuration(run.duration_ms)}
+                              <div className="space-y-1.5">
+                                <div className="text-[13px] font-medium text-black">{formatDuration(run.duration_ms)}</div>
+                                <div className="h-1.5 w-24 bg-[#E5E5EA] rounded-full overflow-hidden">
+                                  <div
+                                    className={`h-full rounded-full ${run.status === 'COMPLETED' ? 'bg-[#007A78]' : run.status === 'FAILED' ? 'bg-[#FF6E50]' : 'bg-[#007A78]/50'}`}
+                                    style={{ width: getDurationWidth(run.duration_ms) }}
+                                  ></div>
+                                </div>
                               </div>
                             </TableCell>
                           </TableRow>
@@ -641,52 +739,54 @@ export default function GenAIRunsPage() {
                                 ) : detail ? (
                                   <div className="space-y-4">
                                     {run.error_message && (
-                                      <div className="health-card bg-[#FF6E50]/10 p-4">
+                                      <div className="health-card bg-[#FF6E50]/10 p-4 border-l-4 border-[#FF6E50]">
                                         <div className="flex items-start gap-3">
-                                          <AlertCircle className="h-5 w-5 text-[#FF6E50] mt-0.5 flex-shrink-0" />
-                                          <div>
-                                            <p className="text-[15px] font-semibold text-black">Error</p>
-                                            <p className="text-[13px] text-muted-foreground mt-1">{run.error_message}</p>
+                                          <XCircle className="h-5 w-5 text-[#FF6E50] mt-0.5 flex-shrink-0" />
+                                          <div className="flex-1">
+                                            <p className="text-[15px] font-semibold text-black">Error Details</p>
+                                            <p className="text-[13px] text-muted-foreground mt-1 font-mono">{run.error_message}</p>
                                           </div>
                                         </div>
                                       </div>
                                     )}
 
                                     <div className="space-y-3">
-                                      <h4 className="text-[15px] font-semibold text-black">Steps</h4>
-                                      <div className="health-card p-0 overflow-hidden">
-                                        <Table>
-                                          <TableHeader>
-                                            <TableRow className="border-b border-[#E5E5EA]">
-                                              <TableHead className="console-table-header">#</TableHead>
-                                              <TableHead className="console-table-header">Step</TableHead>
-                                              <TableHead className="console-table-header">Status</TableHead>
-                                              <TableHead className="console-table-header">Duration</TableHead>
-                                            </TableRow>
-                                          </TableHeader>
-                                          <TableBody>
-                                            {detail.steps.length === 0 ? (
-                                              <TableRow>
-                                                <TableCell colSpan={4} className="text-center text-muted-foreground text-[13px] py-6">
-                                                  No step logs available
-                                                </TableCell>
-                                              </TableRow>
-                                            ) : (
-                                              detail.steps.map((step) => (
-                                                <TableRow key={step.step_logging_id} className="console-table-row">
-                                                  <TableCell className="console-table-cell text-[13px] font-medium text-black">{step.step_index}</TableCell>
-                                                  <TableCell className="console-table-cell text-[13px] font-semibold text-black">{step.step_name}</TableCell>
-                                                  <TableCell className="console-table-cell">
-                                                    <span className={`inline-flex items-center px-2.5 py-1 text-[11px] font-semibold rounded-full ${getStatusColor(step.status)}`}>
-                                                      {step.status}
-                                                    </span>
-                                                  </TableCell>
-                                                  <TableCell className="console-table-cell text-[13px] text-black">{formatDuration(step.duration_ms)}</TableCell>
-                                                </TableRow>
-                                              ))
-                                            )}
-                                          </TableBody>
-                                        </Table>
+                                      <div className="flex items-center gap-2">
+                                        <TrendingUp className="h-4 w-4 text-[#007A78]" />
+                                        <h4 className="text-[15px] font-semibold text-black">Pipeline Steps</h4>
+                                      </div>
+                                      <div className="grid gap-3">
+                                        {detail.steps.length === 0 ? (
+                                          <p className="text-center text-muted-foreground text-[13px] py-6">No step logs available</p>
+                                        ) : (
+                                          detail.steps.map((step) => (
+                                            <div key={step.step_logging_id} className="health-card p-4">
+                                              <div className="flex items-center justify-between gap-4 mb-3">
+                                                <div className="flex items-center gap-3">
+                                                  <span className="flex items-center justify-center h-8 w-8 rounded-full bg-[#007A78]/10 text-[#007A78] text-[13px] font-bold">
+                                                    {step.step_index}
+                                                  </span>
+                                                  <span className="text-[15px] font-semibold text-black">{step.step_name}</span>
+                                                </div>
+                                                <span className={`inline-flex items-center px-2.5 py-1 text-[11px] font-semibold rounded-full ${getStatusColor(step.status)}`}>
+                                                  {step.status}
+                                                </span>
+                                              </div>
+                                              <div className="ml-11 space-y-1.5">
+                                                <div className="flex items-center justify-between text-[13px]">
+                                                  <span className="text-muted-foreground">Duration</span>
+                                                  <span className="font-medium text-black">{formatDuration(step.duration_ms)}</span>
+                                                </div>
+                                                <div className="h-2 bg-[#E5E5EA] rounded-full overflow-hidden">
+                                                  <div
+                                                    className={`h-full rounded-full ${step.status === 'COMPLETED' ? 'bg-[#007A78]' : step.status === 'FAILED' ? 'bg-[#FF6E50]' : 'bg-[#007A78]/50'}`}
+                                                    style={{ width: getDurationWidth(step.duration_ms) }}
+                                                  ></div>
+                                                </div>
+                                              </div>
+                                            </div>
+                                          ))
+                                        )}
                                       </div>
                                     </div>
                                   </div>

@@ -16,10 +16,13 @@ import {
   RefreshCw,
   History,
   Plug,
+  TrendingUp,
+  Activity,
+  Zap,
+  ArrowRight,
 } from "lucide-react"
 import Link from "next/link"
 
-// Alert imports removed - using health-card pattern for Apple Health styling
 import {
   Table,
   TableBody,
@@ -49,6 +52,117 @@ interface PipelineConfig {
   enabled: boolean
 }
 
+interface QuickStats {
+  runsToday: number
+  successRate: number
+  avgDuration: number
+  totalRuns: number
+}
+
+// ============================================
+// Progress Ring Component
+// ============================================
+
+function ProgressRing({ progress, size = 60, strokeWidth = 4, color = "#007A78" }: {
+  progress: number;
+  size?: number;
+  strokeWidth?: number;
+  color?: string;
+}) {
+  const radius = (size - strokeWidth) / 2
+  const circumference = radius * 2 * Math.PI
+  const offset = circumference - (progress / 100) * circumference
+
+  return (
+    <svg width={size} height={size} className="transform -rotate-90">
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        stroke="#E5E5EA"
+        strokeWidth={strokeWidth}
+        fill="none"
+      />
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        stroke={color}
+        strokeWidth={strokeWidth}
+        fill="none"
+        strokeDasharray={circumference}
+        strokeDashoffset={offset}
+        strokeLinecap="round"
+        className="transition-all duration-500 ease-out"
+      />
+    </svg>
+  )
+}
+
+// ============================================
+// Animated Flow Visualization Component
+// ============================================
+
+function AnimatedPipelineFlow() {
+  return (
+    <div className="relative w-full h-32 bg-gradient-to-br from-[#007A78]/5 via-[#F0FDFA] to-[#FF6E50]/5 rounded-2xl overflow-hidden border border-[#007A78]/10">
+      <div className="absolute inset-0 flex items-center justify-between px-8">
+        {/* Source */}
+        <div className="flex flex-col items-center gap-2 z-10">
+          <div className="w-12 h-12 rounded-full bg-[#007A78] flex items-center justify-center shadow-lg">
+            <Cloud className="h-6 w-6 text-white" />
+          </div>
+          <span className="text-[11px] font-semibold text-[#007A78]">Source</span>
+        </div>
+
+        {/* Animated Flow Lines */}
+        <div className="flex-1 relative h-1 mx-4">
+          <div className="absolute inset-0 bg-[#007A78]/20 rounded-full"></div>
+          <div className="absolute inset-0 bg-gradient-to-r from-[#007A78] to-transparent rounded-full animate-[flow_2s_ease-in-out_infinite]"></div>
+        </div>
+
+        {/* Processing */}
+        <div className="flex flex-col items-center gap-2 z-10">
+          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#007A78] to-[#14B8A6] flex items-center justify-center shadow-lg animate-pulse">
+            <Activity className="h-6 w-6 text-white" />
+          </div>
+          <span className="text-[11px] font-semibold text-[#007A78]">Process</span>
+        </div>
+
+        {/* Animated Flow Lines */}
+        <div className="flex-1 relative h-1 mx-4">
+          <div className="absolute inset-0 bg-[#FF6E50]/20 rounded-full"></div>
+          <div className="absolute inset-0 bg-gradient-to-r from-[#FF6E50] to-transparent rounded-full animate-[flow_2s_ease-in-out_infinite_0.5s]"></div>
+        </div>
+
+        {/* Destination */}
+        <div className="flex flex-col items-center gap-2 z-10">
+          <div className="w-12 h-12 rounded-full bg-[#FF6E50] flex items-center justify-center shadow-lg">
+            <Zap className="h-6 w-6 text-white" />
+          </div>
+          <span className="text-[11px] font-semibold text-[#FF6E50]">Analytics</span>
+        </div>
+      </div>
+
+      <style jsx>{`
+        @keyframes flow {
+          0% {
+            transform: translateX(-100%);
+            opacity: 0;
+          }
+          50% {
+            opacity: 1;
+          }
+          100% {
+            transform: translateX(200%);
+            opacity: 0;
+          }
+        }
+      `}</style>
+    </div>
+  )
+}
+
 // ============================================
 // Main Page
 // ============================================
@@ -72,8 +186,52 @@ export default function PipelinesPage() {
   const [runDetails, setRunDetails] = useState<Record<string, PipelineRunDetailType>>({})
   const [loadingDetail, setLoadingDetail] = useState<string | null>(null)
 
+  // Quick stats
+  const [quickStats, setQuickStats] = useState<QuickStats>({
+    runsToday: 0,
+    successRate: 0,
+    avgDuration: 0,
+    totalRuns: 0,
+  })
+
   // Run history limit - show latest 100 runs
   const MAX_RUNS = 100
+
+  // Calculate quick stats from pipeline runs
+  const calculateQuickStats = useCallback((runs: PipelineRunSummary[]) => {
+    if (runs.length === 0) {
+      setQuickStats({ runsToday: 0, successRate: 0, avgDuration: 0, totalRuns: 0 })
+      return
+    }
+
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    const runsToday = runs.filter(run => {
+      if (!run.start_time) return false
+      const runDate = new Date(run.start_time)
+      runDate.setHours(0, 0, 0, 0)
+      return runDate.getTime() === today.getTime()
+    }).length
+
+    const completedRuns = runs.filter(r => r.status === "COMPLETED" || r.status === "FAILED")
+    const successfulRuns = runs.filter(r => r.status === "COMPLETED")
+    const successRate = completedRuns.length > 0
+      ? Math.round((successfulRuns.length / completedRuns.length) * 100)
+      : 0
+
+    const runsWithDuration = runs.filter(r => r.duration_ms !== null && r.duration_ms !== undefined)
+    const avgDuration = runsWithDuration.length > 0
+      ? Math.round(runsWithDuration.reduce((sum, r) => sum + (r.duration_ms || 0), 0) / runsWithDuration.length)
+      : 0
+
+    setQuickStats({
+      runsToday,
+      successRate,
+      avgDuration,
+      totalRuns: runs.length,
+    })
+  }, [])
 
   // Load pipeline runs (latest 100)
   const loadPipelineRuns = useCallback(async () => {
@@ -82,12 +240,13 @@ export default function PipelinesPage() {
       const result = await getPipelineRuns(orgSlug, { limit: MAX_RUNS })
       if (result.success && result.data) {
         setPipelineRuns(result.data.runs)
+        calculateQuickStats(result.data.runs)
       }
     } catch {
       // Pipeline runs load failure handled silently - will retry on next poll
     }
     setRunsLoading(false)
-  }, [orgSlug])
+  }, [orgSlug, calculateQuickStats])
 
   // Load pipelines, integrations, and backend status
   const loadData = useCallback(async () => {
@@ -251,6 +410,79 @@ export default function PipelinesPage() {
         </p>
       </div>
 
+      {/* Animated Hero - Pipeline Flow Visualization */}
+      <div className="animate-fade-in">
+        <AnimatedPipelineFlow />
+      </div>
+
+      {/* Quick Stats Dashboard */}
+      {backendConnected && hasApiKey && pipelineRuns.length > 0 && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 animate-slide-up">
+          {/* Runs Today */}
+          <div className="health-card p-4 sm:p-5 relative overflow-hidden group hover:shadow-premium-md transition-all">
+            <div className="absolute top-0 right-0 w-20 h-20 bg-[#007A78]/5 rounded-full -translate-y-10 translate-x-10 group-hover:scale-150 transition-transform duration-500"></div>
+            <div className="relative">
+              <div className="flex items-center justify-between mb-3">
+                <Clock className="h-5 w-5 text-[#007A78]" />
+                <div className="text-[24px] sm:text-[28px] font-bold text-[#007A78]">
+                  {quickStats.runsToday}
+                </div>
+              </div>
+              <p className="text-[13px] font-semibold text-black">Runs Today</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Last 24 hours</p>
+            </div>
+          </div>
+
+          {/* Success Rate */}
+          <div className="health-card p-4 sm:p-5 relative overflow-hidden group hover:shadow-premium-md transition-all">
+            <div className="absolute top-0 right-0 w-20 h-20 bg-[#007A78]/5 rounded-full -translate-y-10 translate-x-10 group-hover:scale-150 transition-transform duration-500"></div>
+            <div className="relative">
+              <div className="flex items-center justify-between mb-3">
+                <div className="relative">
+                  <ProgressRing progress={quickStats.successRate} size={48} strokeWidth={4} color="#007A78" />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-[11px] font-bold text-[#007A78]">{quickStats.successRate}%</span>
+                  </div>
+                </div>
+                <TrendingUp className="h-5 w-5 text-[#007A78]" />
+              </div>
+              <p className="text-[13px] font-semibold text-black">Success Rate</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">All completed runs</p>
+            </div>
+          </div>
+
+          {/* Avg Duration */}
+          <div className="health-card p-4 sm:p-5 relative overflow-hidden group hover:shadow-premium-md transition-all">
+            <div className="absolute top-0 right-0 w-20 h-20 bg-[#FF6E50]/5 rounded-full -translate-y-10 translate-x-10 group-hover:scale-150 transition-transform duration-500"></div>
+            <div className="relative">
+              <div className="flex items-center justify-between mb-3">
+                <Activity className="h-5 w-5 text-[#FF6E50]" />
+                <div className="text-[24px] sm:text-[28px] font-bold text-[#FF6E50]">
+                  {formatDuration(quickStats.avgDuration)}
+                </div>
+              </div>
+              <p className="text-[13px] font-semibold text-black">Avg Duration</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Execution time</p>
+            </div>
+          </div>
+
+          {/* Total Runs */}
+          <div className="health-card p-4 sm:p-5 relative overflow-hidden group hover:shadow-premium-md transition-all">
+            <div className="absolute top-0 right-0 w-20 h-20 bg-[#007A78]/5 rounded-full -translate-y-10 translate-x-10 group-hover:scale-150 transition-transform duration-500"></div>
+            <div className="relative">
+              <div className="flex items-center justify-between mb-3">
+                <History className="h-5 w-5 text-[#007A78]" />
+                <div className="text-[24px] sm:text-[28px] font-bold text-black">
+                  {quickStats.totalRuns}
+                </div>
+              </div>
+              <p className="text-[13px] font-semibold text-black">Total Runs</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Last {MAX_RUNS} records</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Backend Connection Warning - Apple Health Style */}
       {(!backendConnected || !hasApiKey) && (
         <div className="health-card bg-[#FF6E50]/10 p-4 sm:p-5">
@@ -310,12 +542,10 @@ export default function PipelinesPage() {
         </div>
       )}
 
-      {/* Pipelines Table - Only show pipelines for connected providers */}
+      {/* Pipelines Cards - Enhanced Design */}
       {(() => {
         // Filter pipelines to only show those with connected integrations
-        // OR pipelines that don't require any integration (like SaaS subscriptions)
         const connectedPipelines = pipelines.filter((pipeline) => {
-          // If no integration required, always show the pipeline
           if (!pipeline.required_integration || pipeline.required_integration === "") {
             return true
           }
@@ -325,174 +555,117 @@ export default function PipelinesPage() {
 
         return (
           <div>
-            <h2 className="text-[22px] font-bold text-black mb-4">Available Pipelines</h2>
-            <div className="health-card p-0 overflow-hidden">
-              <div className="px-4 sm:px-6 py-4 border-b border-[#E5E5EA]">
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2 text-[#007A78]">
-                    <Play className="h-[18px] w-[18px]" />
-                    <span className="text-[15px] font-semibold">Run data pipelines to sync your costs</span>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-[22px] font-bold text-black">Available Pipelines</h2>
+              <span className="text-[13px] text-muted-foreground font-medium">
+                {connectedPipelines.length} pipeline{connectedPipelines.length !== 1 ? 's' : ''} ready
+              </span>
+            </div>
+
+            {/* Empty state */}
+            {connectedPipelines.length === 0 && (
+              <div className="health-card p-8 sm:p-12 text-center">
+                <div className="space-y-4">
+                  <div className="inline-flex p-4 rounded-2xl bg-[#007A78]/10 mb-2">
+                    <Plug className="h-12 w-12 text-[#007A78]" />
                   </div>
+                  <h3 className="text-[20px] font-semibold text-black">No pipelines available</h3>
+                  <p className="text-[15px] text-muted-foreground max-w-md mx-auto">
+                    Connect a provider to see available pipelines.
+                  </p>
+                  <Link href={`/${orgSlug}/integrations/cloud-providers`}>
+                    <button className="inline-flex items-center gap-2 h-11 px-6 bg-[#007A78] text-white text-[15px] font-semibold rounded-xl hover:bg-[#005F5D] transition-colors shadow-sm">
+                      <Plug className="h-4 w-4" />
+                      Add New Provider
+                    </button>
+                  </Link>
                 </div>
               </div>
-              {/* Empty state */}
-              {connectedPipelines.length === 0 && (
-                <div className="px-4 sm:px-6 py-12 text-center">
-                  <div className="space-y-4">
-                    <div className="inline-flex p-4 rounded-2xl bg-[#007A78]/10 mb-2">
-                      <Plug className="h-12 w-12 text-[#007A78]" />
-                    </div>
-                    <h3 className="text-[20px] font-semibold text-black">No pipelines available</h3>
-                    <p className="text-[15px] text-muted-foreground max-w-md mx-auto">
-                      Connect a provider to see available pipelines.
-                    </p>
-                    <Link href={`/${orgSlug}/integrations/cloud-providers`}>
-                      <button className="inline-flex items-center gap-2 h-11 px-6 bg-[#007A78] text-white text-[15px] font-semibold rounded-xl hover:bg-[#005F5D] transition-colors shadow-sm">
-                        <Plug className="h-4 w-4" />
-                        Add New Provider
-                      </button>
-                    </Link>
-                  </div>
-                </div>
-              )}
+            )}
 
-              {/* Mobile card view */}
-              {connectedPipelines.length > 0 && (
-                <div className="md:hidden divide-y divide-[#E5E5EA]">
-                  {connectedPipelines.map((pipeline) => {
-                    const isRunning = runningPipeline === pipeline.id
+            {/* Pipeline Cards Grid - Mobile and Desktop */}
+            {connectedPipelines.length > 0 && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {connectedPipelines.map((pipeline) => {
+                  const isRunning = runningPipeline === pipeline.id
 
-                    return (
-                      <div key={pipeline.id} className="p-4 space-y-3">
+                  return (
+                    <div
+                      key={pipeline.id}
+                      className="health-card p-5 sm:p-6 group hover:shadow-premium-md transition-all relative overflow-hidden"
+                    >
+                      {/* Background Gradient */}
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-[#007A78]/5 to-transparent rounded-full -translate-y-16 translate-x-16 group-hover:scale-150 transition-transform duration-500"></div>
+
+                      <div className="relative space-y-4">
+                        {/* Header */}
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex-1 min-w-0">
-                            <div className="text-[15px] font-semibold text-black">{pipeline.name}</div>
-                            <div className="text-[13px] text-muted-foreground mt-0.5">{pipeline.description}</div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <div className="w-2 h-2 rounded-full bg-[#007A78] animate-pulse"></div>
+                              <h3 className="text-[17px] font-bold text-black">{pipeline.name}</h3>
+                            </div>
+                            <p className="text-[13px] text-muted-foreground">{pipeline.description}</p>
                           </div>
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#F0FDFA] text-[#007A78] border border-[#007A78]/10 flex-shrink-0">
                             <CheckCircle2 className="h-3 w-3" />
                             {!pipeline.required_integration || pipeline.required_integration === "" ? "Ready" : "Connected"}
                           </span>
                         </div>
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="flex items-center gap-2">
-                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#007A78]/5 text-muted-foreground border border-border">
-                              {pipeline.provider}
+
+                        {/* Tags */}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#007A78]/5 text-muted-foreground border border-border">
+                            {pipeline.provider}
+                          </span>
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#007A78]/5 text-muted-foreground border border-border">
+                            {pipeline.domain}
+                          </span>
+                          {pipeline.schedule && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#FF6E50]/5 text-[#FF6E50] border border-[#FF6E50]/10">
+                              <Clock className="h-3 w-3" />
+                              {pipeline.schedule}
                             </span>
-                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#007A78]/5 text-muted-foreground border border-border">
-                              {pipeline.domain}
-                            </span>
-                          </div>
-                          <button
-                            onClick={() => handleRun(pipeline.id)}
-                            disabled={isRunning}
-                            className="inline-flex items-center gap-2 h-11 px-4 bg-[#007A78] text-white text-[15px] font-semibold rounded-xl hover:bg-[#005F5D] disabled:bg-[#E5E5EA] disabled:text-[#C7C7CC] disabled:cursor-not-allowed disabled:opacity-70 transition-all touch-manipulation"
-                          >
-                            {isRunning ? (
-                              <>
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                                Running...
-                              </>
-                            ) : (
-                              <>
-                                <Play className="h-4 w-4" />
-                                Run Now
-                              </>
-                            )}
-                          </button>
+                          )}
                         </div>
+
+                        {/* Action Button */}
+                        <button
+                          onClick={() => handleRun(pipeline.id)}
+                          disabled={isRunning}
+                          className="w-full inline-flex items-center justify-center gap-2 h-11 px-4 bg-[#007A78] text-white text-[15px] font-semibold rounded-xl hover:bg-[#005F5D] disabled:bg-[#E5E5EA] disabled:text-[#C7C7CC] disabled:cursor-not-allowed disabled:opacity-70 transition-all touch-manipulation shadow-sm hover:shadow-md group"
+                        >
+                          {isRunning ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              Running...
+                            </>
+                          ) : (
+                            <>
+                              <Play className="h-4 w-4 group-hover:scale-110 transition-transform" />
+                              Run Now
+                              <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                            </>
+                          )}
+                        </button>
                       </div>
-                    )
-                  })}
-                </div>
-              )}
-
-              {/* Desktop table view */}
-              {connectedPipelines.length > 0 && (
-                <div className="hidden md:block overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="border-b border-[#E5E5EA]">
-                        <TableHead className="console-table-header">Pipeline</TableHead>
-                        <TableHead className="console-table-header">Provider</TableHead>
-                        <TableHead className="console-table-header">Domain</TableHead>
-                        <TableHead className="console-table-header">Status</TableHead>
-                        <TableHead className="console-table-header text-right">Action</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {connectedPipelines.map((pipeline) => {
-                        const isRunning = runningPipeline === pipeline.id
-
-                        return (
-                          <TableRow key={pipeline.id} className="console-table-row">
-                            <TableCell className="console-table-cell">
-                              <div className="flex items-center gap-3">
-                                <div className="space-y-0.5">
-                                  <div className="text-[15px] font-semibold text-black">{pipeline.name}</div>
-                                  <div className="text-[13px] text-muted-foreground">{pipeline.description}</div>
-                                </div>
-                              </div>
-                            </TableCell>
-                            <TableCell className="console-table-cell">
-                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#007A78]/5 text-muted-foreground border border-border">
-                                {pipeline.provider}
-                              </span>
-                            </TableCell>
-                            <TableCell className="console-table-cell">
-                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#007A78]/5 text-muted-foreground border border-border">
-                                {pipeline.domain}
-                              </span>
-                            </TableCell>
-                            <TableCell className="console-table-cell">
-                              {!pipeline.required_integration || pipeline.required_integration === "" ? (
-                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#F0FDFA] text-[#007A78] border border-[#007A78]/10">
-                                  <CheckCircle2 className="h-3 w-3" />
-                                  Ready
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#F0FDFA] text-[#007A78] border border-[#007A78]/10">
-                                  <CheckCircle2 className="h-3 w-3" />
-                                  Connected
-                                </span>
-                              )}
-                            </TableCell>
-                            <TableCell className="console-table-cell text-right">
-                              <button
-                                onClick={() => handleRun(pipeline.id)}
-                                disabled={isRunning}
-                                className="inline-flex items-center gap-2 h-11 px-4 bg-[#007A78] text-white text-[15px] font-semibold rounded-xl hover:bg-[#005F5D] disabled:bg-[#E5E5EA] disabled:text-[#C7C7CC] disabled:cursor-not-allowed disabled:opacity-70 transition-all touch-manipulation"
-                              >
-                                {isRunning ? (
-                                  <>
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                    Running...
-                                  </>
-                                ) : (
-                                  <>
-                                    <Play className="h-4 w-4" />
-                                    Run Now
-                                  </>
-                                )}
-                              </button>
-                            </TableCell>
-                          </TableRow>
-                        )
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </div>
         )
       })()}
 
-      {/* Run History Section - Apple Health Style */}
+      {/* Run History Section - Timeline Visualization */}
       {backendConnected && hasApiKey && (
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <h2 className="text-[22px] font-bold text-black">Run History</h2>
+            <div>
+              <h2 className="text-[22px] font-bold text-black">Run History</h2>
+              <p className="text-[13px] text-muted-foreground mt-0.5">Recent pipeline executions</p>
+            </div>
             <button
               onClick={loadPipelineRuns}
               disabled={runsLoading}
@@ -528,57 +701,75 @@ export default function PipelinesPage() {
               </div>
             )}
 
-            {/* Mobile card view */}
+            {/* Mobile Timeline View */}
             {pipelineRuns.length > 0 && (
               <div className="md:hidden divide-y divide-[#E5E5EA]">
-                {pipelineRuns.map((run) => {
+                {pipelineRuns.map((run, index) => {
                   const isExpanded = expandedRun === run.pipeline_logging_id
                   const detail = runDetails[run.pipeline_logging_id]
                   const isLoadingThisDetail = loadingDetail === run.pipeline_logging_id
 
                   return (
-                    <div key={run.pipeline_logging_id}>
+                    <div key={run.pipeline_logging_id} className="relative">
+                      {/* Timeline connector */}
+                      {index < pipelineRuns.length - 1 && (
+                        <div className="absolute left-9 top-16 bottom-0 w-0.5 bg-[#E5E5EA]"></div>
+                      )}
+
                       <button
-                        className="w-full p-4 text-left touch-manipulation hover:bg-[#007A78]/5 transition-colors"
+                        className="w-full p-4 text-left touch-manipulation hover:bg-[#007A78]/5 transition-colors relative"
                         onClick={() => toggleRunExpansion(run.pipeline_logging_id)}
                       >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex items-start gap-2 flex-1 min-w-0">
-                            {isExpanded ? (
-                              <ChevronDown className="h-4 w-4 text-[#C7C7CC] mt-1 flex-shrink-0" />
-                            ) : (
-                              <ChevronRight className="h-4 w-4 text-[#C7C7CC] mt-1 flex-shrink-0" />
-                            )}
-                            <div className="min-w-0">
-                              <div className="text-[15px] font-semibold text-black truncate">{run.pipeline_id}</div>
-                              <div className="text-[11px] text-muted-foreground font-mono mt-0.5">
-                                {run.pipeline_logging_id.slice(0, 8)}...
+                        <div className="flex items-start gap-3">
+                          {/* Timeline dot with status */}
+                          <div className="relative flex-shrink-0 z-10">
+                            {run.status === "COMPLETED" ? (
+                              <div className="w-8 h-8 rounded-full bg-[#007A78] flex items-center justify-center shadow-md">
+                                <CheckCircle2 className="h-4 w-4 text-white" />
                               </div>
+                            ) : run.status === "FAILED" ? (
+                              <div className="w-8 h-8 rounded-full bg-[#FF6E50] flex items-center justify-center shadow-md">
+                                <XCircle className="h-4 w-4 text-white" />
+                              </div>
+                            ) : (
+                              <div className="w-8 h-8 rounded-full bg-[#007A78]/20 flex items-center justify-center shadow-md">
+                                <Loader2 className="h-4 w-4 text-[#007A78] animate-spin" />
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-3 mb-2">
+                              <div className="min-w-0">
+                                <div className="text-[15px] font-semibold text-black truncate">{run.pipeline_id}</div>
+                                <div className="text-[11px] text-muted-foreground font-mono mt-0.5">
+                                  {run.pipeline_logging_id.slice(0, 8)}...
+                                </div>
+                              </div>
+                              {isExpanded ? (
+                                <ChevronDown className="h-4 w-4 text-[#C7C7CC] flex-shrink-0" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4 text-[#C7C7CC] flex-shrink-0" />
+                              )}
+                            </div>
+                            <div className="flex items-center flex-wrap gap-x-3 gap-y-1 text-[13px] text-muted-foreground">
+                              <span className="flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                {formatDuration(run.duration_ms)}
+                              </span>
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#007A78]/5 border border-border">
+                                {run.trigger_type}
+                              </span>
+                            </div>
+                            <div className="text-[11px] text-muted-foreground mt-1">
+                              {formatDateTime(run.start_time)}
                             </div>
                           </div>
-                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium rounded-full border flex-shrink-0 ${getStatusColor(run.status)}`}>
-                            {run.status === "COMPLETED" && <CheckCircle2 className="h-3 w-3" />}
-                            {run.status === "FAILED" && <XCircle className="h-3 w-3" />}
-                            {(run.status === "RUNNING" || run.status === "PENDING") && (
-                              <Loader2 className="h-3 w-3 animate-spin" />
-                            )}
-                            {run.status}
-                          </span>
-                        </div>
-                        <div className="flex items-center flex-wrap gap-x-4 gap-y-1 mt-2 ml-6 text-[13px] text-muted-foreground">
-                          <span>{formatDateTime(run.start_time)}</span>
-                          <span className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            {formatDuration(run.duration_ms)}
-                          </span>
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#007A78]/5 border border-border">
-                            {run.trigger_type}
-                          </span>
                         </div>
                       </button>
 
                       {isExpanded && (
-                        <div className="px-4 pb-4 bg-[#007A78]/5">
+                        <div className="px-4 pb-4 bg-[#007A78]/5 ml-11">
                           {isLoadingThisDetail ? (
                             <div className="flex items-center justify-center py-6">
                               <Loader2 className="h-6 w-6 animate-spin text-[#007A78]" />
@@ -610,7 +801,7 @@ export default function PipelinesPage() {
                                       <p className="text-[13px] text-muted-foreground mt-1 break-words">{run.error_message}</p>
                                       {run.error_context?.suggested_action && (
                                         <p className="text-[12px] text-[#007A78] mt-2 font-medium">
-                                          💡 {run.error_context.suggested_action}
+                                          Suggestion: {run.error_context.suggested_action}
                                         </p>
                                       )}
                                       {run.error_context?.retry_count !== undefined && run.error_context.retry_count > 0 && (
@@ -780,7 +971,7 @@ export default function PipelinesPage() {
                                             <p className="text-[13px] text-muted-foreground mt-1">{run.error_message}</p>
                                             {run.error_context?.suggested_action && (
                                               <p className="text-[12px] text-[#007A78] mt-2 font-medium">
-                                                💡 {run.error_context.suggested_action}
+                                                Suggestion: {run.error_context.suggested_action}
                                               </p>
                                             )}
                                             {run.error_context?.retry_count !== undefined && run.error_context.retry_count > 0 && (

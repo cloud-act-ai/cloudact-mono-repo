@@ -474,16 +474,28 @@ export default function OpenAIIntegrationPage() {
         </Link>
       </div>
 
-      <div className="space-y-2">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-lg bg-gradient-to-br from-[#007A78]/10 to-[#007A78]/5">
-            <Brain className="h-6 w-6 text-[#007A78]" />
+      {/* Enhanced Provider Header */}
+      <div className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-emerald-50 via-white to-white p-6 shadow-sm">
+        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#10A37F] to-[#0D8A6C]" />
+        <div className="flex items-start gap-4">
+          <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-emerald-100 to-emerald-50 flex items-center justify-center flex-shrink-0 ring-1 ring-emerald-200/50 shadow-sm">
+            <Brain className="h-8 w-8 text-[#10A37F]" />
           </div>
-          <h1 className="console-page-title">OpenAI Integration</h1>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-3 mb-2">
+              <h1 className="text-[28px] font-bold text-black tracking-tight">OpenAI Integration</h1>
+              {isConnected && (
+                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#007A78]/10 animate-pulse">
+                  <div className="h-2 w-2 rounded-full bg-[#007A78]" />
+                  <span className="text-[11px] font-bold text-[#007A78] uppercase tracking-wide">Connected</span>
+                </div>
+              )}
+            </div>
+            <p className="text-[15px] text-muted-foreground leading-relaxed">
+              Connect your OpenAI API key to track GPT-4, GPT-3.5, and DALL-E usage with real-time cost analysis
+            </p>
+          </div>
         </div>
-        <p className="console-subheading ml-12">
-          Connect your OpenAI API key to track usage, costs, and access GPT models.
-        </p>
       </div>
 
       {/* Alerts */}

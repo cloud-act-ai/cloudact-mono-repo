@@ -52,8 +52,11 @@ import {
   Link as LinkIcon,
   Phone,
   MapPin,
+  Sparkles,
+  Shield,
+  Activity,
+  TrendingUp,
 } from "lucide-react"
-import Image from "next/image"
 import { logError } from "@/lib/utils"
 import { SUPPORTED_CURRENCIES, SUPPORTED_TIMEZONES, FISCAL_YEAR_OPTIONS, getFiscalYearFromTimezone } from "@/lib/i18n/constants"
 import {
@@ -801,47 +804,68 @@ export default function OrganizationSettingsPage() {
   }
 
   return (
-    <div className="space-y-6 sm:space-y-8">
+    <div className="space-y-6 sm:space-y-8 animate-in fade-in duration-500">
       <div>
-        <h1 className="text-[32px] sm:text-[34px] font-bold text-black tracking-tight">Organization Settings</h1>
-        <p className="text-[15px] text-muted-foreground mt-1">
-          Manage your organization locale and settings
+        <h1 className="text-[32px] sm:text-[34px] font-bold text-black tracking-tight flex items-center gap-3">
+          <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-[#007A78] to-[#005F5D] flex items-center justify-center shadow-sm">
+            <Building2 className="h-5 w-5 text-white" />
+          </div>
+          Organization Settings
+        </h1>
+        <p className="text-[15px] text-muted-foreground mt-2 ml-[52px]">
+          Manage your organization locale, branding, and backend configuration
         </p>
       </div>
 
       {error && (
-        <Alert variant="destructive" className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
+        <Alert variant="destructive" className="border-[#FF6E50]/30 bg-[#FF6E50]/5 animate-in slide-in-from-top-2 duration-300">
           <AlertTriangle className="h-4 w-4 text-[#FF6E50]" />
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
       {success && (
-        <Alert className="bg-[#007A78]/5 border-[#007A78]/30">
+        <Alert className="bg-[#007A78]/5 border-[#007A78]/30 animate-in slide-in-from-top-2 duration-300">
           <CheckCircle2 className="h-4 w-4 text-[#007A78]" />
           <AlertDescription className="text-foreground">{success}</AlertDescription>
         </Alert>
       )}
 
       <Tabs defaultValue="general" className="w-full">
-        <TabsList className="w-full sm:w-auto flex-wrap touch-manipulation">
-          <TabsTrigger value="general" className="cursor-pointer">General</TabsTrigger>
-          <TabsTrigger value="contact" className="cursor-pointer">Contact Details</TabsTrigger>
-          <TabsTrigger value="backend" className="cursor-pointer">Backend</TabsTrigger>
-          <TabsTrigger value="danger" className="text-[#FF6E50] data-[state=active]:text-[#FF6E50] cursor-pointer">Danger Zone</TabsTrigger>
+        <TabsList className="w-full sm:w-auto flex-wrap touch-manipulation bg-white border border-border">
+          <TabsTrigger value="general" className="cursor-pointer data-[state=active]:bg-[#007A78]/10 data-[state=active]:text-[#007A78]">
+            <Sparkles className="h-4 w-4 mr-2" />
+            General
+          </TabsTrigger>
+          <TabsTrigger value="contact" className="cursor-pointer data-[state=active]:bg-[#007A78]/10 data-[state=active]:text-[#007A78]">
+            <User className="h-4 w-4 mr-2" />
+            Contact
+          </TabsTrigger>
+          <TabsTrigger value="backend" className="cursor-pointer data-[state=active]:bg-[#007A78]/10 data-[state=active]:text-[#007A78]">
+            <Activity className="h-4 w-4 mr-2" />
+            Backend
+          </TabsTrigger>
+          <TabsTrigger value="danger" className="text-[#FF6E50] data-[state=active]:bg-[#FF6E50]/10 data-[state=active]:text-[#FF6E50] cursor-pointer">
+            <Shield className="h-4 w-4 mr-2" />
+            Danger Zone
+          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="general" className="space-y-6">
+        <TabsContent value="general" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Organization Branding */}
-      <div className="metric-card shadow-sm">
+      <div className="metric-card shadow-sm hover:shadow-md transition-shadow duration-300 border-l-4 border-l-[#007A78]">
         <div className="metric-card-header mb-6">
-          <div className="flex items-center gap-2">
-            <Building2 className="h-5 w-5 text-muted-foreground" />
-            <h2 className="text-[22px] font-bold text-black">Organization Branding</h2>
+          <div className="flex items-center gap-3">
+            <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-[#007A78] to-[#005F5D] flex items-center justify-center shadow-sm">
+              <Sparkles className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <h2 className="text-[22px] font-bold text-black">Organization Branding</h2>
+              <p className="text-[13px] sm:text-[15px] text-muted-foreground mt-0.5">
+                Customize your organization's visual identity
+              </p>
+            </div>
           </div>
-          <p className="text-[13px] sm:text-[15px] text-muted-foreground mt-1">
-            Customize your organization&apos;s appearance in the sidebar
-          </p>
         </div>
 
         <div className="metric-card-content space-y-4 sm:space-y-6">
@@ -852,21 +876,21 @@ export default function OrganizationSettingsPage() {
               <Label className="text-[13px] sm:text-[15px] font-medium text-foreground mb-2 block">
                 Logo Preview
               </Label>
-              <div className="h-20 w-20 rounded-lg border-2 border-dashed border-[#E5E5EA] flex items-center justify-center bg-[#007A78]/5 overflow-hidden">
+              <div className="group relative h-24 w-24 rounded-2xl border-2 border-dashed border-[#E5E5EA] hover:border-[#007A78] transition-colors flex items-center justify-center bg-gradient-to-br from-[#007A78]/5 to-[#007A78]/10 overflow-hidden">
                 {logoUrl ? (
                   <img
                     src={logoUrl}
                     alt="Organization logo"
-                    width={80}
-                    height={80}
-                    className="object-contain max-h-full max-w-full"
+                    width={96}
+                    height={96}
+                    className="object-contain max-h-full max-w-full transition-transform group-hover:scale-105"
                     onError={(e) => {
                       e.currentTarget.style.display = 'none'
                       setLogoUrl("")
                     }}
                   />
                 ) : (
-                  <ImageIcon className="h-8 w-8 text-muted-foreground" />
+                  <ImageIcon className="h-10 w-10 text-muted-foreground group-hover:text-[#007A78] transition-colors" />
                 )}
               </div>
             </div>
@@ -883,17 +907,17 @@ export default function OrganizationSettingsPage() {
                 value={logoUrl}
                 onChange={(e) => { setLogoUrl(e.target.value); setError(null); }}
                 placeholder="https://example.com/logo.png"
-                className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg focus:border-[#007A78] focus:ring-1 focus:ring-[#007A78]"
+                className="h-11 px-4 text-[15px] border border-[#E5E5EA] rounded-xl focus:border-[#007A78] focus:ring-2 focus:ring-[#007A78]/20 transition-all"
               />
-              <p className="text-[13px] text-muted-foreground">
-                Enter a URL to your organization&apos;s logo (PNG, JPG, SVG). Must be HTTPS.
-                The logo will appear in the sidebar next to your organization name.
+              <p className="text-[13px] text-muted-foreground flex items-start gap-2">
+                <TrendingUp className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-[#007A78]" />
+                Enter a URL to your organization's logo (PNG, JPG, SVG). Must be HTTPS. The logo will appear in the sidebar.
               </p>
             </div>
           </div>
 
           {hasLogoChanges && (
-            <Alert className="bg-[#007A78]/5 border-[#007A78]/20">
+            <Alert className="bg-gradient-to-r from-[#007A78]/5 to-[#007A78]/10 border-[#007A78]/20 animate-in slide-in-from-top-2">
               <AlertTriangle className="h-4 w-4 text-[#007A78]" />
               <AlertDescription className="text-[#005F5D]">
                 Logo URL has been changed. Click Save Logo to apply.
@@ -906,7 +930,7 @@ export default function OrganizationSettingsPage() {
           <Button
             onClick={handleSaveLogo}
             disabled={isSavingLogo || !hasLogoChanges}
-            className="console-button-primary h-11 px-4"
+            className="console-button-primary h-11 px-6 transition-all hover:shadow-md"
           >
             {isSavingLogo ? (
               <>
@@ -935,27 +959,30 @@ export default function OrganizationSettingsPage() {
       </div>
 
       {/* Organization Locale */}
-      <div className="metric-card shadow-sm">
+      <div className="metric-card shadow-sm hover:shadow-md transition-shadow duration-300 border-l-4 border-l-[#007A78]">
         <div className="metric-card-header mb-6">
-          <div className="flex items-center gap-2">
-            <Globe className="h-5 w-5 text-muted-foreground" />
-            <h2 className="text-[22px] font-bold text-black">Organization Locale</h2>
+          <div className="flex items-center gap-3">
+            <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-[#007A78] to-[#005F5D] flex items-center justify-center shadow-sm">
+              <Globe className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <h2 className="text-[22px] font-bold text-black">Organization Locale</h2>
+              <p className="text-[13px] sm:text-[15px] text-muted-foreground mt-0.5">
+                Configure currency, timezone, and fiscal year settings
+              </p>
+            </div>
           </div>
-          <p className="text-[13px] sm:text-[15px] text-muted-foreground mt-1">
-            Configure currency and timezone for your organization. These settings affect all cost
-            calculations and time displays.
-          </p>
         </div>
 
         <div className="metric-card-content space-y-4 sm:space-y-6">
           {/* Currency Selection */}
           <div className="space-y-2">
             <Label htmlFor="currency" className="text-[13px] sm:text-[15px] font-medium text-foreground flex items-center gap-2">
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              <DollarSign className="h-4 w-4 text-[#007A78]" />
               Currency <span className="text-[#FF6E50]">*</span>
             </Label>
             <Select value={currency} onValueChange={(val) => { setCurrency(val); setError(null); }}>
-              <SelectTrigger id="currency" className="h-10 text-[15px] border border-[#E5E5EA] rounded-lg">
+              <SelectTrigger id="currency" className="h-11 text-[15px] border border-[#E5E5EA] rounded-xl hover:border-[#007A78] transition-colors">
                 <SelectValue placeholder="Select currency" />
               </SelectTrigger>
               <SelectContent className="max-h-[300px]">
@@ -966,9 +993,9 @@ export default function OrganizationSettingsPage() {
                 ))}
               </SelectContent>
             </Select>
-            <p className="text-[13px] text-muted-foreground">
-              All costs and billing will be displayed in this currency. This setting affects cost
-              calculations across integrations and analytics.
+            <p className="text-[13px] text-muted-foreground flex items-start gap-2">
+              <TrendingUp className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-[#007A78]" />
+              All costs and billing displayed in this currency. Affects cost calculations across integrations.
             </p>
           </div>
 
@@ -977,11 +1004,11 @@ export default function OrganizationSettingsPage() {
           {/* Timezone Selection */}
           <div className="space-y-2">
             <Label htmlFor="timezone" className="text-[13px] sm:text-[15px] font-medium text-foreground flex items-center gap-2">
-              <Clock className="h-4 w-4 text-muted-foreground" />
+              <Clock className="h-4 w-4 text-[#007A78]" />
               Timezone <span className="text-[#FF6E50]">*</span>
             </Label>
             <Select value={timezone} onValueChange={handleTimezoneChange}>
-              <SelectTrigger id="timezone" className="h-10 text-[15px] border border-[#E5E5EA] rounded-lg">
+              <SelectTrigger id="timezone" className="h-11 text-[15px] border border-[#E5E5EA] rounded-xl hover:border-[#007A78] transition-colors">
                 <SelectValue placeholder="Select timezone" />
               </SelectTrigger>
               <SelectContent className="max-h-[300px]">
@@ -992,21 +1019,21 @@ export default function OrganizationSettingsPage() {
                 ))}
               </SelectContent>
             </Select>
-            <p className="text-[13px] text-muted-foreground">
-              Used for displaying timestamps in dashboards, reports, and activity logs. Pipeline
-              schedules and billing dates use this timezone.
+            <p className="text-[13px] text-muted-foreground flex items-start gap-2">
+              <TrendingUp className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-[#007A78]" />
+              Used for timestamps in dashboards, reports, and activity logs. Pipeline schedules use this timezone.
             </p>
           </div>
 
           {/* Fiscal Year Start */}
           <div className="space-y-2">
             <Label htmlFor="fiscal-year" className="text-[13px] sm:text-[15px] font-medium text-foreground flex items-center gap-2">
-              <Globe className="h-4 w-4 text-muted-foreground" />
+              <Globe className="h-4 w-4 text-[#007A78]" />
               Fiscal Year Start
             </Label>
             <div className="flex gap-3">
               <Select value={fiscalYearStart.toString()} onValueChange={(val) => { setFiscalYearStart(parseInt(val)); setError(null); }}>
-                <SelectTrigger id="fiscal-year" className="h-10 text-[15px] border border-[#E5E5EA] rounded-lg flex-1">
+                <SelectTrigger id="fiscal-year" className="h-11 text-[15px] border border-[#E5E5EA] rounded-xl flex-1 hover:border-[#007A78] transition-colors">
                   <SelectValue placeholder="Select fiscal year start" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1020,7 +1047,7 @@ export default function OrganizationSettingsPage() {
               <Button
                 onClick={handleSaveFiscalYear}
                 disabled={isSavingFiscalYear || !hasFiscalYearChanges}
-                className="h-11 px-4 bg-[#007A78] hover:bg-[#006664] text-white text-[15px] font-semibold rounded-xl"
+                className="h-11 px-4 bg-[#007A78] hover:bg-[#006664] text-white text-[15px] font-semibold rounded-xl shadow-sm hover:shadow-md transition-all"
               >
                 {isSavingFiscalYear ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -1029,14 +1056,14 @@ export default function OrganizationSettingsPage() {
                 )}
               </Button>
             </div>
-            <p className="text-[13px] text-muted-foreground">
-              When your fiscal year begins. Auto-suggested based on timezone: India/Japan/UK = April, Australia = July, others = January.
-              Affects cost analytics reporting periods.
+            <p className="text-[13px] text-muted-foreground flex items-start gap-2">
+              <TrendingUp className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-[#007A78]" />
+              When your fiscal year begins. Auto-suggested based on timezone. Affects cost analytics reporting periods.
             </p>
           </div>
 
           {hasLocaleChanges && (
-            <Alert className="bg-[#007A78]/5 border-[#007A78]/20">
+            <Alert className="bg-gradient-to-r from-[#007A78]/5 to-[#007A78]/10 border-[#007A78]/20 animate-in slide-in-from-top-2">
               <AlertTriangle className="h-4 w-4 text-[#007A78]" />
               <AlertDescription className="text-[#005F5D]">
                 You have unsaved changes. Click Save to apply or Reset to discard.
@@ -1049,7 +1076,7 @@ export default function OrganizationSettingsPage() {
           <Button
             onClick={handleSave}
             disabled={isSaving || !hasLocaleChanges}
-            className="console-button-primary h-11 px-4"
+            className="console-button-primary h-11 px-6 transition-all hover:shadow-md"
           >
             {isSaving ? (
               <>
@@ -1078,25 +1105,30 @@ export default function OrganizationSettingsPage() {
       </div>
 
       {/* Information Card */}
-      <div className="metric-card shadow-sm bg-[#007A78]/5 border-[#007A78]/20">
+      <div className="metric-card shadow-sm bg-gradient-to-br from-[#007A78]/5 via-[#007A78]/8 to-[#007A78]/5 border-[#007A78]/20">
         <div className="metric-card-content">
           <div className="flex items-start gap-3">
-            <AlertTriangle className="h-5 w-5 text-[#007A78] mt-0.5 flex-shrink-0" />
+            <div className="h-10 w-10 rounded-xl bg-[#007A78]/10 flex items-center justify-center flex-shrink-0">
+              <AlertTriangle className="h-5 w-5 text-[#007A78]" />
+            </div>
             <div className="space-y-2">
               <h3 className="text-[15px] font-semibold text-[#005F5D]">Important Notes</h3>
-              <ul className="text-[13px] text-[#007A78] space-y-1 list-disc list-inside">
-                <li>
+              <ul className="text-[13px] text-[#007A78] space-y-1.5 list-none">
+                <li className="flex items-start gap-2">
+                  <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
                   Currency changes affect how costs are displayed but do not convert historical data.
                 </li>
-                <li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
                   Timezone changes affect future timestamps and scheduled pipeline runs.
                 </li>
-                <li>
-                  These settings sync to backend BigQuery for cost calculations and pipeline
-                  scheduling.
+                <li className="flex items-start gap-2">
+                  <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
+                  These settings sync to backend BigQuery for cost calculations and pipeline scheduling.
                 </li>
-                <li>
-                  All team members will see costs and times in the organization&apos;s locale.
+                <li className="flex items-start gap-2">
+                  <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
+                  All team members will see costs and times in the organization's locale.
                 </li>
               </ul>
             </div>
@@ -1105,31 +1137,35 @@ export default function OrganizationSettingsPage() {
       </div>
         </TabsContent>
 
-        <TabsContent value="contact" className="space-y-6">
+        <TabsContent value="contact" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Contact Details */}
-      <div className="metric-card shadow-sm">
+      <div className="metric-card shadow-sm hover:shadow-md transition-shadow duration-300 border-l-4 border-l-[#007A78]">
         <div className="metric-card-header mb-6">
-          <div className="flex items-center gap-2">
-            <User className="h-5 w-5 text-muted-foreground" />
-            <h2 className="text-[22px] font-bold text-black">Contact Details</h2>
+          <div className="flex items-center gap-3">
+            <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-[#007A78] to-[#005F5D] flex items-center justify-center shadow-sm">
+              <User className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <h2 className="text-[22px] font-bold text-black">Contact Details</h2>
+              <p className="text-[13px] sm:text-[15px] text-muted-foreground mt-0.5">
+                Business contact person and address for your organization
+              </p>
+            </div>
           </div>
-          <p className="text-[13px] sm:text-[15px] text-muted-foreground mt-1">
-            Business contact person and address for your organization
-          </p>
         </div>
 
         <div className="metric-card-content space-y-6">
           {loadingContactDetails ? (
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 py-8">
               <Loader2 className="h-5 w-5 animate-spin text-[#007A78]" />
               <span className="text-[15px] text-muted-foreground">Loading contact details...</span>
             </div>
           ) : (
             <>
               {/* Business Person Section */}
-              <div className="space-y-4">
+              <div className="space-y-4 p-4 rounded-xl bg-gradient-to-br from-[#007A78]/5 to-transparent border border-[#007A78]/10">
                 <h3 className="text-[15px] font-medium text-black flex items-center gap-2">
-                  <UserCog className="h-4 w-4 text-muted-foreground" />
+                  <UserCog className="h-4 w-4 text-[#007A78]" />
                   Business Contact Person
                 </h3>
 
@@ -1184,7 +1220,7 @@ export default function OrganizationSettingsPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="contactEmail" className="text-[13px] sm:text-[15px] font-medium text-foreground flex items-center gap-2">
-                    <Mail className="h-4 w-4 text-muted-foreground" />
+                    <Mail className="h-4 w-4 text-[#007A78]" />
                     Business Email
                   </Label>
                   <Input
@@ -1199,7 +1235,7 @@ export default function OrganizationSettingsPage() {
 
                 <div className="space-y-2">
                   <Label htmlFor="contactPhone" className="text-[13px] sm:text-[15px] font-medium text-foreground flex items-center gap-2">
-                    <Phone className="h-4 w-4 text-muted-foreground" />
+                    <Phone className="h-4 w-4 text-[#007A78]" />
                     Business Phone
                   </Label>
                   <Input
@@ -1216,9 +1252,9 @@ export default function OrganizationSettingsPage() {
               <Separator />
 
               {/* Address Section */}
-              <div className="space-y-4">
+              <div className="space-y-4 p-4 rounded-xl bg-gradient-to-br from-[#007A78]/5 to-transparent border border-[#007A78]/10">
                 <h3 className="text-[15px] font-medium text-black flex items-center gap-2">
-                  <Building2 className="h-4 w-4 text-muted-foreground" />
+                  <MapPin className="h-4 w-4 text-[#007A78]" />
                   Business Address
                 </h3>
 
@@ -1314,7 +1350,7 @@ export default function OrganizationSettingsPage() {
               </div>
 
               {hasContactChanges && (
-                <Alert className="bg-[#007A78]/5 border-[#007A78]/20">
+                <Alert className="bg-gradient-to-r from-[#007A78]/5 to-[#007A78]/10 border-[#007A78]/20 animate-in slide-in-from-top-2">
                   <AlertTriangle className="h-4 w-4 text-[#007A78]" />
                   <AlertDescription className="text-[#005F5D]">
                     You have unsaved changes. Click Save to apply or Reset to discard.
@@ -1329,7 +1365,7 @@ export default function OrganizationSettingsPage() {
           <Button
             onClick={handleSaveContactDetails}
             disabled={isSavingContactDetails || !hasContactChanges}
-            className="console-button-primary h-11 px-4"
+            className="console-button-primary h-11 px-6 transition-all hover:shadow-md"
           >
             {isSavingContactDetails ? (
               <>
@@ -1358,22 +1394,26 @@ export default function OrganizationSettingsPage() {
       </div>
         </TabsContent>
 
-        <TabsContent value="backend" className="space-y-6">
+        <TabsContent value="backend" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Backend Connection */}
-      <div className="metric-card shadow-sm">
+      <div className="metric-card shadow-sm hover:shadow-md transition-shadow duration-300 border-l-4 border-l-[#007A78]">
         <div className="metric-card-header mb-6">
-          <div className="flex items-center gap-2">
-            <Server className="h-5 w-5 text-muted-foreground" />
-            <h2 className="text-[22px] font-bold text-black">Backend Connection</h2>
+          <div className="flex items-center gap-3">
+            <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-[#007A78] to-[#005F5D] flex items-center justify-center shadow-sm">
+              <Server className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <h2 className="text-[22px] font-bold text-black">Backend Connection</h2>
+              <p className="text-[13px] sm:text-[15px] text-muted-foreground mt-0.5">
+                Status of your BigQuery backend connection and API key
+              </p>
+            </div>
           </div>
-          <p className="text-[13px] sm:text-[15px] text-muted-foreground mt-1">
-            Status of your BigQuery backend connection and API key
-          </p>
         </div>
 
         <div className="metric-card-content space-y-4">
           {loadingBackendStatus ? (
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 py-8">
               <Loader2 className="h-5 w-5 animate-spin text-[#007A78]" />
               <span className="text-[15px] text-muted-foreground">Checking connection status...</span>
             </div>
@@ -1381,7 +1421,7 @@ export default function OrganizationSettingsPage() {
             <>
               {/* Backend Error Alert */}
               {backendError && (
-                <Alert variant="destructive" className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
+                <Alert variant="destructive" className="border-[#FF6E50]/30 bg-[#FF6E50]/5 animate-in slide-in-from-top-2">
                   <AlertTriangle className="h-4 w-4 text-[#FF6E50]" />
                   <AlertDescription className="text-[#FF6E50]">
                     {backendError}
@@ -1390,17 +1430,21 @@ export default function OrganizationSettingsPage() {
               )}
 
               {/* Connection Status */}
-              <div className={`flex items-center justify-between p-4 border rounded-xl ${
+              <div className={`flex items-center justify-between p-5 border-2 rounded-2xl transition-all ${
                 backendOnboarded && apiKeyValid !== false
-                  ? 'border-border bg-[#007A78]/5'
-                  : 'border-[#FF6E50]/30 bg-[#FF6E50]/5'
+                  ? 'border-[#007A78]/30 bg-gradient-to-br from-[#007A78]/5 to-[#007A78]/10'
+                  : 'border-[#FF6E50]/30 bg-gradient-to-br from-[#FF6E50]/5 to-[#FF6E50]/10'
               }`}>
-                <div className="flex items-center gap-3">
-                  <div className={`h-3 w-3 rounded-full ${
+                <div className="flex items-center gap-4">
+                  <div className={`relative h-4 w-4 rounded-full ${
                     backendOnboarded && apiKeyValid !== false ? 'bg-[#007A78]' : 'bg-[#FF6E50]'
-                  }`} />
+                  }`}>
+                    <div className={`absolute inset-0 rounded-full ${
+                      backendOnboarded && apiKeyValid !== false ? 'bg-[#007A78]' : 'bg-[#FF6E50]'
+                    } animate-ping opacity-75`} />
+                  </div>
                   <div>
-                    <p className="text-[15px] font-medium text-black">
+                    <p className="text-[17px] font-semibold text-black">
                       {backendOnboarded && apiKeyValid !== false ? "Connected" : "Not Connected"}
                     </p>
                     <p className="text-[13px] text-muted-foreground">
@@ -1413,13 +1457,13 @@ export default function OrganizationSettingsPage() {
                   </div>
                 </div>
                 {backendOnboarded && apiKeyValid !== false && (
-                  <Badge className="flex-shrink-0 bg-[#007A78]/10 text-[#007A78] border-0">
+                  <Badge className="flex-shrink-0 bg-[#007A78] text-white border-0 px-3 py-1">
                     <CheckCircle2 className="h-3 w-3 mr-1" />
                     Active
                   </Badge>
                 )}
                 {apiKeyValid === false && (
-                  <Badge className="flex-shrink-0 bg-[#FF6E50]/10 text-[#FF6E50] border-0">
+                  <Badge className="flex-shrink-0 bg-[#FF6E50] text-white border-0 px-3 py-1">
                     <AlertTriangle className="h-3 w-3 mr-1" />
                     Invalid
                   </Badge>
@@ -1428,11 +1472,17 @@ export default function OrganizationSettingsPage() {
 
               {/* API Key Fingerprint */}
               {apiKeyFingerprint && (
-                <div className={`flex items-center justify-between p-4 border rounded-xl ${
-                  apiKeyValid === false ? 'border-[#FF6E50]/30 bg-[#FF6E50]/5' : 'border-border bg-[#007A78]/5'
+                <div className={`flex items-center justify-between p-5 border-2 rounded-2xl transition-all ${
+                  apiKeyValid === false
+                    ? 'border-[#FF6E50]/30 bg-gradient-to-br from-[#FF6E50]/5 to-[#FF6E50]/10'
+                    : 'border-[#007A78]/30 bg-gradient-to-br from-[#007A78]/5 to-[#007A78]/10'
                 }`}>
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <Key className={`h-5 w-5 flex-shrink-0 ${apiKeyValid === false ? 'text-[#FF6E50]' : 'text-muted-foreground'}`} />
+                  <div className="flex items-center gap-4 flex-1 min-w-0">
+                    <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${
+                      apiKeyValid === false ? 'bg-[#FF6E50]/10' : 'bg-[#007A78]/10'
+                    }`}>
+                      <Key className={`h-5 w-5 ${apiKeyValid === false ? 'text-[#FF6E50]' : 'text-[#007A78]'}`} />
+                    </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-[15px] font-medium text-black">API Key</p>
                       <p className={`text-[13px] font-mono truncate ${apiKeyValid === false ? 'text-[#FF6E50]' : 'text-muted-foreground'}`}>
@@ -1452,10 +1502,13 @@ export default function OrganizationSettingsPage() {
 
               {/* Help text for invalid API key */}
               {apiKeyValid === false && (
-                <div className="p-4 border border-[#007A78]/20 rounded-lg bg-[#007A78]/5">
-                  <p className="text-[13px] text-[#005F5D]">
-                    <strong>How to fix:</strong> Your API key may have been rotated or deactivated.
-                    Try clicking &quot;Resync Connection&quot; below, or contact support if the issue persists.
+                <div className="p-4 border-2 border-[#007A78]/20 rounded-xl bg-gradient-to-br from-[#007A78]/5 to-transparent">
+                  <p className="text-[13px] text-[#005F5D] flex items-start gap-2">
+                    <TrendingUp className="h-4 w-4 mt-0.5 flex-shrink-0 text-[#007A78]" />
+                    <span>
+                      <strong>How to fix:</strong> Your API key may have been rotated or deactivated.
+                      Try clicking "Resync Connection" below, or contact support if the issue persists.
+                    </span>
                   </p>
                 </div>
               )}
@@ -1469,7 +1522,7 @@ export default function OrganizationSettingsPage() {
               onClick={handleResync}
               disabled={isResyncing || loadingBackendStatus}
               variant={(!backendOnboarded || apiKeyValid === false) ? "default" : "outline"}
-              className={`h-11 px-4 rounded-xl ${
+              className={`h-11 px-6 rounded-xl transition-all hover:shadow-md ${
                 (!backendOnboarded || apiKeyValid === false)
                   ? "console-button-primary"
                   : "console-button-secondary"
@@ -1501,7 +1554,7 @@ export default function OrganizationSettingsPage() {
                 onClick={handleSyncBilling}
                 disabled={isBillingSyncing || loadingBackendStatus}
                 variant="outline"
-                className="h-11 px-4 rounded-xl border border-[#007A78]/30 text-[#007A78] hover:bg-[#007A78]/5"
+                className="h-11 px-6 rounded-xl border-2 border-[#007A78]/30 text-[#007A78] hover:bg-[#007A78]/5 transition-all hover:shadow-md"
               >
                 {isBillingSyncing ? (
                   <>
@@ -1524,13 +1577,15 @@ export default function OrganizationSettingsPage() {
       </div>
         </TabsContent>
 
-        <TabsContent value="danger" className="space-y-6">
+        <TabsContent value="danger" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Danger Zone Section */}
       <div className="pt-4 sm:pt-6">
-        <h2 className="text-[22px] font-bold text-[#FF6E50] mb-4 flex items-center gap-2">
-          <AlertTriangle className="h-5 w-5" />
-          Danger Zone
-        </h2>
+        <div className="flex items-center gap-3 mb-6">
+          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-[#FF6E50] to-[#E55A3C] flex items-center justify-center shadow-sm">
+            <AlertTriangle className="h-5 w-5 text-white" />
+          </div>
+          <h2 className="text-[22px] font-bold text-[#FF6E50]">Danger Zone</h2>
+        </div>
 
         {/* Owned Organizations Management */}
         {loadingOwnedOrgs ? (
@@ -1543,7 +1598,7 @@ export default function OrganizationSettingsPage() {
             </div>
           </div>
         ) : ownedOrgs.length > 0 ? (
-          <div className="metric-card shadow-sm border-[#FF6E50]/30 mb-6">
+          <div className="metric-card shadow-sm border-2 border-[#FF6E50]/30 mb-6">
             <div className="metric-card-header mb-4">
               <div className="flex items-center gap-2">
                 <Building2 className="h-5 w-5 text-[#FF6E50]" />
@@ -1557,7 +1612,7 @@ export default function OrganizationSettingsPage() {
               {ownedOrgs.map((org) => (
                 <div
                   key={org.id}
-                  className="flex items-center justify-between p-4 border border-border rounded-xl bg-[#007A78]/5"
+                  className="flex items-center justify-between p-4 border-2 border-border rounded-xl bg-gradient-to-br from-[#007A78]/5 to-transparent hover:border-[#007A78]/30 transition-all"
                 >
                   <div className="flex items-center gap-3">
                     <Building2 className="h-5 w-5 text-muted-foreground" />
@@ -1604,7 +1659,7 @@ export default function OrganizationSettingsPage() {
             <DialogHeader>
               <DialogTitle>Transfer Ownership</DialogTitle>
               <DialogDescription>
-                Transfer ownership of &quot;{selectedOrgForTransfer?.org_name}&quot; to another member.
+                Transfer ownership of "{selectedOrgForTransfer?.org_name}" to another member.
                 You will become a collaborator after the transfer.
               </DialogDescription>
             </DialogHeader>
@@ -1669,7 +1724,7 @@ export default function OrganizationSettingsPage() {
             <DialogHeader>
               <DialogTitle className="text-destructive">Delete Organization</DialogTitle>
               <DialogDescription>
-                This will permanently delete &quot;{selectedOrgForDelete?.org_name}&quot; and all associated data.
+                This will permanently delete "{selectedOrgForDelete?.org_name}" and all associated data.
                 This action cannot be undone.
               </DialogDescription>
             </DialogHeader>
@@ -1727,7 +1782,7 @@ export default function OrganizationSettingsPage() {
         </Dialog>
 
         {/* Account Deletion Card */}
-        <div className="metric-card shadow-sm border-[#FF6E50]/30">
+        <div className="metric-card shadow-sm border-2 border-[#FF6E50]/30">
           <div className="metric-card-header mb-4">
             <div className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-[#FF6E50]" />
@@ -1771,7 +1826,7 @@ export default function OrganizationSettingsPage() {
                 <Button
                   variant="destructive"
                   disabled={ownedOrgs.length > 0 || isRequestingDeletion || deletionRequested}
-                  className="bg-[#FF6E50] hover:bg-[#E55A3C] text-white shadow-sm"
+                  className="bg-[#FF6E50] hover:bg-[#E55A3C] text-white shadow-sm hover:shadow-md transition-all"
                 >
                   {isRequestingDeletion ? (
                     <>

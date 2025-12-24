@@ -1,0 +1,104 @@
+# Unified Cost Pipeline (Parallel Execution Demo)
+# Extracts usage/cost from ALL providers in parallel, then aggregates
+#
+# Demonstatres "Parallel Agents" pattern:
+# 1. Agent A: OpenAI Extractor
+# 2. Agent B: Anthropic Extractor
+# 3. Agent C: GCP Billing Extractor
+# -> All run concurrently
+# -> Aggregator runs when all complete
+
+pipeline_id: "{org_slug}-unified-cost-sync"
+name: "Unified Cost Sync (Parallel)"
+description: "Parallel extraction of all provider costs followed by aggregation"
+version: "1.0.0"
+
+# Pipeline-level timeout
+timeout_minutes: 30
+
+schedule:
+  type: daily
+  time: "06:00"
+  timezone: UTC
+
+variables:
+  org_slug: "{org_slug}"
+  # Defaults (can be overridden)
+  gcp_project_id: "{gcp_project_id}"
+  # NOTE: In real prod, these would be dynamic per-org
+  source_billing_table: "{billing_export_table}"
+
+steps:
+  # ==========================================
+  # PARALLEL EXTRACTION PHASE (AGENTS)
+  # ==========================================
+
+  # Agent 1: OpenAI Usage
+  - step_id: "openai_extract"
+    ps_type: "openai.usage"
+    description: "Agent A: Fetch OpenAI usage"
+    depends_on: [] # Explicit empty list = Start Immediately (Parallel)
+    timeout_minutes: 5
+    config:
+      start_date: "{start_date}"
+      end_date: "{end_date}"
+      destination_table: "openai_usage_daily_raw"
+
+  # Agent 2: Anthropic Usage
+  - step_id: "anthropic_extract"
+    ps_type: "anthropic.usage"
+    description: "Agent B: Fetch Anthropic usage"
+    depends_on: [] # Explicit empty list = Start Immediately (Parallel)
+    timeout_minutes: 5
+    config:
+      start_date: "{start_date}"
+      end_date: "{end_date}"
+      destination_table: "anthropic_usage_daily_raw"
+
+  # Agent 3: GCP Billing
+  - step_id: "gcp_extract"
+    ps_type: "gcp.external_bq_extractor"
+    description: "Agent C: Fetch GCP billing"
+    depends_on: [] # Explicit empty list = Start Immediately (Parallel)
+    timeout_minutes: 20
+    source:
+      bq_project_id: "{gcp_project_id}"
+      query: |
+        SELECT *
+        FROM `{source_billing_table}`
+        WHERE DATE(usage_start_time) = '{date}'
+        LIMIT 100
+    destination:
+      dataset_type: "gcp"
+      table: "gcp_billing_daily_raw"
+      write_mode: "append"
+      schema_template: "billing_cost"
+
+  # ==========================================
+  # AGGREGATION PHASE
+  # ==========================================
+
+  # Step 4: Aggregate all costs
+  # This implies a "Fan-In" pattern - waits for A, B, and C
+  - step_id: "log_completion"
+    ps_type: "generic.procedure_executor"
+    description: "Log completion of parallel agents"
+    depends_on:
+      - "openai_extract"
+      - "anthropic_extract"
+      - "gcp_extract"
+    config:
+      procedure: "log_pipeline_stats"
+      params:
+        pipeline_id: "{org_slug}-unified-cost-sync"
+        status: "SUCCESS"
+
+requires_auth: true
+auth_type: "org_api_key"
+
+tags:
+  - unified
+  - parallel
+  - cost
+  - daily
+category: "analytics"

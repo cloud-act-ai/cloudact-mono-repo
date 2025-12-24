@@ -1450,6 +1450,359 @@ button[role="combobox"] > span:first-child {
 }
 
 /* ============================================
+   PREMIUM ANIMATIONS - CloudAct Branded
+   Stunning micro-interactions and transitions
+   ============================================ */
+
+/* Staggered fade-in animation for grids */
+@keyframes stagger-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.stagger-animation > * {
+  opacity: 0;
+  animation: stagger-fade-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.stagger-animation > *:nth-child(1) { animation-delay: 0.05s; }
+.stagger-animation > *:nth-child(2) { animation-delay: 0.1s; }
+.stagger-animation > *:nth-child(3) { animation-delay: 0.15s; }
+.stagger-animation > *:nth-child(4) { animation-delay: 0.2s; }
+.stagger-animation > *:nth-child(5) { animation-delay: 0.25s; }
+.stagger-animation > *:nth-child(6) { animation-delay: 0.3s; }
+.stagger-animation > *:nth-child(7) { animation-delay: 0.35s; }
+.stagger-animation > *:nth-child(8) { animation-delay: 0.4s; }
+
+/* Gradient text animation */
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.animate-gradient-text {
+  background: linear-gradient(90deg, var(--cloudact-teal), var(--cloudact-teal-light), var(--cloudact-coral), var(--cloudact-teal));
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gradient-shift 4s ease infinite;
+}
+
+/* Pulse glow effect for status indicators */
+@keyframes pulse-glow-teal {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(0, 122, 120, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(0, 122, 120, 0);
+  }
+}
+
+@keyframes pulse-glow-coral {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(255, 110, 80, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(255, 110, 80, 0);
+  }
+}
+
+.pulse-glow-teal {
+  animation: pulse-glow-teal 2s ease-in-out infinite;
+}
+
+.pulse-glow-coral {
+  animation: pulse-glow-coral 2s ease-in-out infinite;
+}
+
+/* Floating animation for icons */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-6px); }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Scale bounce on hover */
+.hover-scale {
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.hover-scale:hover {
+  transform: scale(1.05);
+}
+
+/* Shimmer loading effect */
+@keyframes shimmer-sweep {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(0, 122, 120, 0.03) 0%,
+    rgba(0, 122, 120, 0.08) 50%,
+    rgba(0, 122, 120, 0.03) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer-sweep 1.5s ease-in-out infinite;
+}
+
+/* Card lift effect */
+.card-lift {
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 0.3s ease;
+}
+
+.card-lift:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 20px 40px rgba(0, 122, 120, 0.12),
+              0 8px 16px rgba(0, 0, 0, 0.06);
+}
+
+/* Rotating border gradient */
+@keyframes rotate-gradient {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.rotating-border {
+  position: relative;
+  overflow: hidden;
+}
+
+.rotating-border::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  background: conic-gradient(
+    from 0deg,
+    var(--cloudact-teal),
+    var(--cloudact-teal-light),
+    var(--cloudact-coral),
+    var(--cloudact-teal)
+  );
+  border-radius: inherit;
+  animation: rotate-gradient 3s linear infinite;
+  z-index: -1;
+}
+
+.rotating-border::after {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  background: white;
+  border-radius: inherit;
+  z-index: -1;
+}
+
+/* Premium hero gradient background */
+.hero-gradient {
+  background: linear-gradient(135deg,
+    rgba(0, 122, 120, 0.08) 0%,
+    rgba(255, 255, 255, 1) 40%,
+    rgba(255, 110, 80, 0.05) 100%
+  );
+  position: relative;
+  overflow: hidden;
+}
+
+.hero-gradient::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(0, 122, 120, 0.03) 0%, transparent 50%);
+  animation: float 8s ease-in-out infinite;
+}
+
+/* Mesh gradient background */
+.mesh-bg {
+  background:
+    radial-gradient(at 0% 0%, rgba(0, 122, 120, 0.1) 0%, transparent 50%),
+    radial-gradient(at 100% 0%, rgba(255, 110, 80, 0.08) 0%, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(0, 122, 120, 0.06) 0%, transparent 50%),
+    radial-gradient(at 0% 100%, rgba(255, 110, 80, 0.04) 0%, transparent 50%),
+    linear-gradient(180deg, #ffffff 0%, #fafafa 100%);
+}
+
+/* Grid pattern overlay */
+.grid-pattern {
+  background-image:
+    linear-gradient(to right, rgba(0, 122, 120, 0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 122, 120, 0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* Number count-up animation base */
+.count-up {
+  display: inline-block;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Icon container with gradient */
+.icon-gradient-teal {
+  background: linear-gradient(135deg, var(--cloudact-teal) 0%, var(--cloudact-teal-light) 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(0, 122, 120, 0.25);
+}
+
+.icon-gradient-coral {
+  background: linear-gradient(135deg, var(--cloudact-coral) 0%, var(--cloudact-coral-light) 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(255, 110, 80, 0.25);
+}
+
+/* Progress bar animations */
+@keyframes progress-grow {
+  from { width: 0; }
+}
+
+.progress-animated {
+  animation: progress-grow 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Slide in from side */
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.slide-in-right {
+  animation: slide-in-right 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.slide-in-left {
+  animation: slide-in-left 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Blur in animation */
+@keyframes blur-in {
+  from {
+    opacity: 0;
+    filter: blur(10px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+.blur-in {
+  animation: blur-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Premium glow effect */
+.glow-teal {
+  box-shadow: 0 0 30px rgba(0, 122, 120, 0.15),
+              0 0 60px rgba(0, 122, 120, 0.1);
+}
+
+.glow-coral {
+  box-shadow: 0 0 30px rgba(255, 110, 80, 0.15),
+              0 0 60px rgba(255, 110, 80, 0.1);
+}
+
+/* Interactive highlight line */
+.highlight-line {
+  position: relative;
+  overflow: hidden;
+}
+
+.highlight-line::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--cloudact-teal), var(--cloudact-coral));
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.highlight-line:hover::after {
+  transform: scaleX(1);
+}
+
+/* Glassmorphism card */
+.glass-premium {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+}
+
+/* Sparkle effect */
+@keyframes sparkle {
+  0%, 100% { opacity: 0; transform: scale(0); }
+  50% { opacity: 1; transform: scale(1); }
+}
+
+.sparkle-container {
+  position: relative;
+}
+
+.sparkle-container::before,
+.sparkle-container::after {
+  content: '';
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: var(--cloudact-teal);
+  border-radius: 50%;
+  animation: sparkle 2s ease-in-out infinite;
+}
+
+.sparkle-container::before {
+  top: 10%;
+  right: 10%;
+  animation-delay: 0.3s;
+}
+
+.sparkle-container::after {
+  bottom: 20%;
+  left: 5%;
+  animation-delay: 0.8s;
+}
+
+/* ============================================
    DARK MODE SUPPORT
    ============================================ */
 

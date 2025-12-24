@@ -300,11 +300,28 @@ export default function DeepSeekIntegrationPage() {
         </Link>
       </div>
 
-      <div>
-        <h1 className="console-page-title">DeepSeek Integration</h1>
-        <p className="console-subheading mt-1">
-          Connect your DeepSeek API key to track DeepSeek usage and costs.
-        </p>
+      {/* Enhanced Provider Header */}
+      <div className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-purple-50 via-white to-white p-6 shadow-sm">
+        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#8B5CF6] to-[#7C3AED]" />
+        <div className="flex items-start gap-4">
+          <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-purple-100 to-purple-50 flex items-center justify-center flex-shrink-0 ring-1 ring-purple-200/50 shadow-sm">
+            <Cpu className="h-8 w-8 text-[#8B5CF6]" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-3 mb-2">
+              <h1 className="text-[28px] font-bold text-black tracking-tight">DeepSeek Integration</h1>
+              {isConnected && (
+                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#007A78]/10 animate-pulse">
+                  <div className="h-2 w-2 rounded-full bg-[#007A78]" />
+                  <span className="text-[11px] font-bold text-[#007A78] uppercase tracking-wide">Connected</span>
+                </div>
+              )}
+            </div>
+            <p className="text-[15px] text-muted-foreground leading-relaxed">
+              Connect your DeepSeek API key to track DeepSeek-V3 and DeepSeek-Coder usage with competitive pricing analytics
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Alerts */}

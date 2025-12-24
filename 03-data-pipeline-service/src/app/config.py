@@ -227,9 +227,9 @@ class Settings(BaseSettings):
     rate_limit_pipeline_concurrency: int = Field(default=5, ge=1, le=50)
     # Global (platform-wide) pipeline concurrency limit for scalability
     pipeline_global_concurrent_limit: int = Field(
-        default=100,
+        default=500,
         ge=10,
-        le=1000,
+        le=5000,
         description="Maximum concurrent pipelines across ALL organizations (prevents resource exhaustion)"
     )
 
@@ -254,7 +254,7 @@ class Settings(BaseSettings):
     # ============================================
     bq_max_results_per_page: int = Field(default=10000, ge=100, le=100000)
     bq_query_timeout_seconds: int = Field(default=300, ge=10)
-    bq_max_retry_attempts: int = Field(default=3, ge=1, le=10)
+    bq_max_retry_attempts: int = Field(default=5, ge=1, le=10)
 
     # ============================================
     # Polars Configuration
