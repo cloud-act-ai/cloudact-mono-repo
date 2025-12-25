@@ -71,7 +71,7 @@ class OnboardOrgRequest(BaseModel):
     )
     # i18n fields (set at signup)
     default_currency: str = Field(
-        default="USD",
+        default=DEFAULT_CURRENCY.value,
         description="ISO 4217 currency code (e.g., USD, EUR, AED). Selected at signup."
     )
     default_timezone: str = Field(
@@ -140,10 +140,10 @@ class OnboardOrgResponse(BaseModel):
     api_key: str  # Unencrypted - show once!
     subscription_plan: str
     # i18n fields
-    default_currency: str = "USD"
-    default_country: str = "US"
-    default_language: str = "en"
-    default_timezone: str = "UTC"
+    default_currency: str = DEFAULT_CURRENCY.value
+    default_country: str = DEFAULT_COUNTRY
+    default_language: str = DEFAULT_LANGUAGE.value
+    default_timezone: str = DEFAULT_TIMEZONE
     dataset_location: str  # (#49) Where the dataset was created
     dataset_created: bool
     tables_created: List[str]
@@ -2434,8 +2434,8 @@ async def list_organizations(
                 admin_email=row["admin_email"],
                 subscription_plan=row["subscription_plan"],
                 status=row["status"],
-                default_currency=row.get("default_currency", "USD"),
-                default_timezone=row.get("default_timezone", "UTC"),
+                default_currency=row.get("default_currency", DEFAULT_CURRENCY.value),
+                default_timezone=row.get("default_timezone", DEFAULT_TIMEZONE),
                 created_at=row["created_at"].isoformat() if row.get("created_at") else None
             ))
 

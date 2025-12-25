@@ -135,6 +135,7 @@ from src.app.config import get_settings
 from src.core.utils.cache import get_cache, invalidate_org_cache, invalidate_provider_cache
 from src.core.utils.query_performance import QueryPerformanceMonitor, log_query_performance
 from src.core.utils.audit_logger import log_create, log_update, log_delete, AuditLogger
+from src.app.models.i18n_models import DEFAULT_CURRENCY, validate_currency
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -1034,7 +1035,7 @@ async def list_plans(
                 start_date=row.start_date if hasattr(row, "start_date") else None,
                 end_date=row.end_date if hasattr(row, "end_date") else None,
                 billing_cycle=row.billing_cycle or "monthly",
-                currency=row.currency if hasattr(row, "currency") else "USD",
+                currency=row.currency if hasattr(row, "currency") else DEFAULT_CURRENCY.value,
                 seats=row.seats if hasattr(row, "seats") else 0,
                 pricing_model=row.pricing_model if hasattr(row, "pricing_model") else "PER_SEAT",
                 unit_price=float(row.unit_price or 0),
@@ -1298,7 +1299,7 @@ async def create_plan(
         result = bq_client.client.query(org_currency_query, job_config=job_config).result()
         org_currency = None
         for row in result:
-            org_currency = row.default_currency or "USD"
+            org_currency = row.default_currency or DEFAULT_CURRENCY.value
             break
 
         # FIX: Return 404 if org not found (don't silently default)
@@ -1747,7 +1748,7 @@ async def update_plan(
                 start_date=row.start_date if hasattr(row, "start_date") else None,
                 end_date=row.end_date if hasattr(row, "end_date") else None,
                 billing_cycle=row.billing_cycle or "monthly",
-                currency=row.currency if hasattr(row, "currency") else "USD",
+                currency=row.currency if hasattr(row, "currency") else DEFAULT_CURRENCY.value,
                 seats=row.seats if hasattr(row, "seats") else 0,
                 pricing_model=row.pricing_model if hasattr(row, "pricing_model") else "PER_SEAT",
                 unit_price=float(row.unit_price or 0),
@@ -1989,7 +1990,7 @@ async def edit_plan_with_version(
         new_display_name = request.display_name if request.display_name is not None else (current_row.display_name or current_row.plan_name)
         new_unit_price = request.unit_price if request.unit_price is not None else float(current_row.unit_price or 0)
         new_billing_cycle = request.billing_cycle if request.billing_cycle is not None else (current_row.billing_cycle or "monthly")
-        new_currency = request.currency if request.currency is not None else (current_row.currency if hasattr(current_row, "currency") else "USD")
+        new_currency = request.currency if request.currency is not None else (current_row.currency if hasattr(current_row, "currency") else DEFAULT_CURRENCY.value)
         new_seats = request.seats if request.seats is not None else (current_row.seats if hasattr(current_row, "seats") else 0)
         new_pricing_model = request.pricing_model if request.pricing_model is not None else (current_row.pricing_model if hasattr(current_row, "pricing_model") else "PER_SEAT")
         new_yearly_price = request.yearly_price if request.yearly_price is not None else (float(current_row.yearly_price) if hasattr(current_row, "yearly_price") and current_row.yearly_price else None)
@@ -2100,7 +2101,7 @@ async def edit_plan_with_version(
             start_date=current_row.start_date if hasattr(current_row, "start_date") else None,
             end_date=old_end_date,
             billing_cycle=current_row.billing_cycle or "monthly",
-            currency=current_row.currency if hasattr(current_row, "currency") else "USD",
+            currency=current_row.currency if hasattr(current_row, "currency") else DEFAULT_CURRENCY.value,
             seats=current_row.seats if hasattr(current_row, "seats") else 0,
             pricing_model=current_row.pricing_model if hasattr(current_row, "pricing_model") else "PER_SEAT",
             unit_price=float(current_row.unit_price or 0),
@@ -2507,7 +2508,7 @@ async def get_all_plans(
                 start_date=row.start_date if hasattr(row, "start_date") else None,
                 end_date=row.end_date if hasattr(row, "end_date") else None,
                 billing_cycle=row.billing_cycle or "monthly",
-                currency=row.currency if hasattr(row, "currency") else "USD",
+                currency=row.currency if hasattr(row, "currency") else DEFAULT_CURRENCY.value,
                 seats=row.seats if hasattr(row, "seats") else 0,
                 pricing_model=row.pricing_model if hasattr(row, "pricing_model") else "PER_SEAT",
                 unit_price=float(row.unit_price or 0),
