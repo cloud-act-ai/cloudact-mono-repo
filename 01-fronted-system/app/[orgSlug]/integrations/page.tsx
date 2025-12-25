@@ -107,7 +107,7 @@ export default function IntegrationsPage() {
     setIsLoading(true)
 
     const [onboardingStatus, apiKeyResult, integrationsResult, saasResult] = await Promise.all([
-      checkBackendOnboarding(orgSlug),
+      checkBackendOnboarding(orgSlug, { skipValidation: true, timeout: 3000 }),
       hasStoredApiKey(orgSlug),
       getIntegrations(orgSlug),
       getAllProviders(orgSlug),

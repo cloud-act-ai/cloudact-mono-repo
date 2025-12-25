@@ -338,14 +338,22 @@ export async function onboardToBackend(input: {
 
 /**
  * Check if organization has been onboarded to backend.
- * Now also verifies the API key is actually valid in BigQuery.
+ *
+ * @param orgSlug - Organization slug
+ * @param options.skipValidation - Skip the backend API call to validate key (faster, uses cached status)
+ * @param options.timeout - Timeout in ms for backend validation call (default: 5000ms)
  */
-export async function checkBackendOnboarding(orgSlug: string): Promise<{
+export async function checkBackendOnboarding(
+  orgSlug: string,
+  options: { skipValidation?: boolean; timeout?: number } = {}
+): Promise<{
   onboarded: boolean
   apiKeyFingerprint?: string
   apiKeyValid?: boolean
   error?: string
 }> {
+  const { skipValidation = false, timeout = 5000 } = options
+
   try {
     // Validate orgSlug format to prevent injection
     if (!isValidOrgSlug(orgSlug)) {
@@ -369,6 +377,15 @@ export async function checkBackendOnboarding(orgSlug: string): Promise<{
       return { onboarded: false }
     }
 
+    // If skipValidation is true, just return Supabase status (faster)
+    if (skipValidation) {
+      return {
+        onboarded: true,
+        apiKeyFingerprint: data.backend_api_key_fingerprint,
+        apiKeyValid: undefined, // Not validated
+      }
+    }
+
     // Verify the API key is actually valid in BigQuery by making a test call
     const orgApiKey = await getOrgApiKeySecure(orgSlug)
     if (!orgApiKey) {
@@ -384,13 +401,20 @@ export async function checkBackendOnboarding(orgSlug: string): Promise<{
     const backendUrl = process.env.API_SERVICE_URL || process.env.NEXT_PUBLIC_API_SERVICE_URL
     if (backendUrl) {
       try {
+        // Add timeout with AbortController
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), timeout)
+
         const response = await fetch(`${backendUrl}/api/v1/organizations/${orgSlug}/locale`, {
           method: "GET",
           headers: {
             "X-API-Key": orgApiKey,
             "Content-Type": "application/json",
           },
+          signal: controller.signal,
         })
+
+        clearTimeout(timeoutId)
 
         if (response.status === 401 || response.status === 403) {
           await response.json().catch(() => ({}))
@@ -408,7 +432,17 @@ export async function checkBackendOnboarding(orgSlug: string): Promise<{
           apiKeyFingerprint: data.backend_api_key_fingerprint,
           apiKeyValid: true,
         }
-      } catch {
+      } catch (err) {
+        // Check if it was a timeout
+        const error = err as { name?: string }
+        if (error.name === "AbortError") {
+          // Timeout - return cached status, don't block the UI
+          return {
+            onboarded: data.backend_onboarded || false,
+            apiKeyFingerprint: data.backend_api_key_fingerprint,
+            apiKeyValid: undefined,
+          }
+        }
         // Network error - backend might be down, but don't mark as not onboarded
         return {
           onboarded: data.backend_onboarded || false,

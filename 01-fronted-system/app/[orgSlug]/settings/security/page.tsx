@@ -3,13 +3,15 @@
 import { useState, useEffect, useCallback } from "react"
 import { useRouter, useParams } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
-import { Button } from "@/components/ui/button"
-import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   Loader2,
-  AlertTriangle,
   Key,
-  CheckCircle2,
+  Check,
+  AlertCircle,
+  Shield,
+  Lock,
+  Eye,
+  Fingerprint,
 } from "lucide-react"
 
 export default function SecurityPage() {
@@ -48,6 +50,13 @@ export default function SecurityPage() {
     void fetchUser()
   }, [fetchUser])
 
+  useEffect(() => {
+    if (success) {
+      const timer = setTimeout(() => setSuccess(null), 6000)
+      return () => clearTimeout(timer)
+    }
+  }, [success])
+
   const handleResetPassword = async () => {
     setIsResettingPassword(true)
     setError(null)
@@ -67,7 +76,6 @@ export default function SecurityPage() {
       }
 
       setSuccess(data.message || "Password reset email sent! Check your inbox.")
-      setTimeout(() => setSuccess(null), 6000)
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "An error occurred")
     } finally {
@@ -77,55 +85,184 @@ export default function SecurityPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <Loader2 className="h-8 w-8 animate-spin text-[#007A78]" />
+      <div className="flex items-center justify-center min-h-[500px]">
+        <div className="text-center">
+          <div className="h-12 w-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
+            <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+          </div>
+          <p className="text-[14px] text-slate-500 font-medium">Loading security settings...</p>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-4 sm:space-y-6">
-      <div>
-        <h1 className="text-[32px] sm:text-[34px] font-bold text-black tracking-tight">Security</h1>
-        <p className="text-[15px] text-muted-foreground mt-1">
-          Manage your password and security settings
+    <div className="max-w-6xl mx-auto">
+      {/* Header */}
+      <div className="mb-10">
+        <h1 className="text-[32px] font-bold text-slate-900 tracking-tight leading-none">
+          Security
+        </h1>
+        <p className="text-[15px] text-slate-500 mt-2 max-w-lg">
+          Manage your password and account security settings
         </p>
       </div>
 
+      {/* Stats Row */}
+      <div className="flex items-center gap-6 mb-8">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-[#007A78]/10 flex items-center justify-center">
+            <Shield className="h-5 w-5 text-[#007A78]" />
+          </div>
+          <div>
+            <p className="text-[14px] text-slate-600 font-medium">Account Status</p>
+            <p className="text-[12px] text-[#007A78] font-semibold">Protected</p>
+          </div>
+        </div>
+        <div className="h-8 w-px bg-slate-200"></div>
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center">
+            <Lock className="h-5 w-5 text-slate-500" />
+          </div>
+          <div>
+            <p className="text-[14px] text-slate-600 font-medium">Password</p>
+            <p className="text-[12px] text-slate-500 font-medium">Set</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Alerts */}
       {error && (
-        <Alert variant="destructive" className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
-          <AlertTriangle className="h-4 w-4 text-[#FF6E50]" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
+        <div className="mb-6 p-4 rounded-xl bg-rose-50 border border-rose-200 flex items-center gap-3">
+          <AlertCircle className="h-4 w-4 text-rose-500 flex-shrink-0" />
+          <p className="text-[13px] font-medium text-rose-700">{error}</p>
+        </div>
       )}
 
       {success && (
-        <Alert className="bg-muted border-[#007A78]/30">
-          <CheckCircle2 className="h-4 w-4 text-[#007A78]" />
-          <AlertDescription className="text-foreground">{success}</AlertDescription>
-        </Alert>
+        <div className="mb-6 p-4 rounded-xl bg-[#007A78]/5 border border-[#007A78]/20 flex items-center gap-3">
+          <Check className="h-4 w-4 text-[#007A78] flex-shrink-0" />
+          <p className="text-[13px] font-medium text-[#007A78]">{success}</p>
+        </div>
       )}
 
-      <div className="health-card shadow-sm">
-        <div className="health-card-content space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border border-border rounded-xl bg-[#007A78]/5">
-            <div className="flex items-center gap-3">
-              <Key className="h-5 w-5 text-muted-foreground" />
-              <div>
-                <p className="text-[15px] font-medium text-black">Password</p>
-                <p className="text-[13px] text-muted-foreground">Reset your password via email</p>
+      {/* Password Section */}
+      <section className="mb-8">
+        <div className="flex items-center gap-2 mb-4">
+          <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide">
+            Authentication
+          </h2>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="group relative">
+            {/* Left accent */}
+            <div className="absolute left-0 top-4 bottom-4 w-1 rounded-full bg-[#007A78] opacity-60 group-hover:opacity-100 transition-opacity" />
+
+            <div className="pl-5 py-5 pr-5 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-4 min-w-0 flex-1">
+                <div className="h-11 w-11 rounded-xl bg-[#007A78]/10 flex items-center justify-center flex-shrink-0">
+                  <Key className="h-5 w-5 text-[#007A78]" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-[15px] font-semibold text-slate-900 tracking-tight">
+                    Password
+                  </h3>
+                  <p className="text-[12px] text-slate-500 mt-0.5">
+                    Reset your password via email verification
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={handleResetPassword}
+                disabled={isResettingPassword}
+                className="h-10 px-5 text-[13px] font-semibold bg-[#007A78] hover:bg-[#006664] text-white rounded-xl transition-colors flex items-center gap-2 disabled:opacity-50"
+              >
+                {isResettingPassword ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  "Reset Password"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Security Tips */}
+      <section>
+        <div className="flex items-center gap-2 mb-4">
+          <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide">
+            Security Best Practices
+          </h2>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {[
+            {
+              icon: <Lock className="h-4 w-4" />,
+              title: "Strong Password",
+              description: "Use a unique password with mixed characters",
+              accent: "#007A78",
+            },
+            {
+              icon: <Eye className="h-4 w-4" />,
+              title: "Never Share",
+              description: "Keep your password and reset links private",
+              accent: "#8B5CF6",
+            },
+            {
+              icon: <Shield className="h-4 w-4" />,
+              title: "Monitor Activity",
+              description: "Check email for security notifications",
+              accent: "#10B981",
+            },
+            {
+              icon: <Fingerprint className="h-4 w-4" />,
+              title: "Secure Logout",
+              description: "Always log out on shared devices",
+              accent: "#F59E0B",
+            },
+          ].map((tip, idx) => (
+            <div
+              key={idx}
+              className="p-4 rounded-xl bg-white border border-slate-200 hover:border-slate-300 hover:shadow-sm transition-all"
+            >
+              <div className="flex items-start gap-3">
+                <div
+                  className="h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0"
+                  style={{ backgroundColor: `${tip.accent}10` }}
+                >
+                  <div style={{ color: tip.accent }}>{tip.icon}</div>
+                </div>
+                <div>
+                  <h3 className="text-[13px] font-semibold text-slate-900">{tip.title}</h3>
+                  <p className="text-[12px] text-slate-500 mt-0.5">{tip.description}</p>
+                </div>
               </div>
             </div>
-            <Button variant="outline" onClick={handleResetPassword} disabled={isResettingPassword} className="console-button-secondary h-11 px-4">
-              {isResettingPassword ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Sending...
-                </>
-              ) : (
-                "Reset Password"
-              )}
-            </Button>
+          ))}
+        </div>
+      </section>
+
+      {/* Info Footer */}
+      <div className="mt-10 p-5 rounded-2xl bg-gradient-to-br from-slate-50 to-slate-100/50 border border-slate-200">
+        <div className="flex items-start gap-4">
+          <div className="h-10 w-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center flex-shrink-0 shadow-sm">
+            <Shield className="h-5 w-5 text-[#007A78]" />
+          </div>
+          <div>
+            <h3 className="text-[15px] font-semibold text-slate-900 mb-1">
+              Your account is protected
+            </h3>
+            <p className="text-[13px] text-slate-500 leading-relaxed">
+              All passwords are encrypted using industry-standard hashing algorithms.
+              We never store your password in plain text.
+            </p>
           </div>
         </div>
       </div>

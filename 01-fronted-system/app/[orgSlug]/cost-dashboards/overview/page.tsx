@@ -57,12 +57,14 @@ export default async function CostOverviewPage({
     orgResult = results[1]
   } catch {
     return (
-      <div className="flex items-center justify-center p-4 min-h-[60vh]">
-        <div className="metric-card max-w-md mx-auto px-6 py-10 text-center space-y-6">
-          <AlertCircle className="h-14 w-14 text-[#FF6E50] mx-auto" />
-          <div className="space-y-2">
-            <h2 className="text-[22px] font-bold text-black">Failed to load dashboard</h2>
-            <p className="text-[15px] text-muted-foreground leading-relaxed">Please try refreshing the page</p>
+      <div className="max-w-6xl mx-auto">
+        <div className="flex items-center justify-center p-4 min-h-[60vh]">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm max-w-md mx-auto px-6 py-10 text-center space-y-6">
+            <AlertCircle className="h-14 w-14 text-[#FF6E50] mx-auto" />
+            <div className="space-y-2">
+              <h2 className="text-[22px] font-bold text-slate-900">Failed to load dashboard</h2>
+              <p className="text-[15px] text-muted-foreground leading-relaxed">Please try refreshing the page</p>
+            </div>
           </div>
         </div>
       </div>
@@ -74,17 +76,19 @@ export default async function CostOverviewPage({
 
   if (!user) {
     return (
-      <div className="flex items-center justify-center p-4 min-h-[60vh]">
-        <div className="metric-card max-w-md mx-auto px-6 py-10 text-center space-y-6">
-          <AlertCircle className="h-14 w-14 text-[#FF6E50] mx-auto" />
-          <div className="space-y-2">
-            <h2 className="text-[22px] font-bold text-black">Not authenticated</h2>
-            <p className="text-[15px] text-muted-foreground leading-relaxed">Please sign in to access the dashboard</p>
+      <div className="max-w-6xl mx-auto">
+        <div className="flex items-center justify-center p-4 min-h-[60vh]">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm max-w-md mx-auto px-6 py-10 text-center space-y-6">
+            <AlertCircle className="h-14 w-14 text-[#FF6E50] mx-auto" />
+            <div className="space-y-2">
+              <h2 className="text-[22px] font-bold text-slate-900">Not authenticated</h2>
+              <p className="text-[15px] text-muted-foreground leading-relaxed">Please sign in to access the dashboard</p>
+            </div>
+            <Link href="/login" className="console-button-primary inline-flex items-center gap-2">
+              <LogIn className="h-4 w-4" />
+              Sign In
+            </Link>
           </div>
-          <Link href="/login" className="console-button-primary inline-flex items-center gap-2">
-            <LogIn className="h-4 w-4" />
-            Sign In
-          </Link>
         </div>
       </div>
     )
@@ -92,12 +96,14 @@ export default async function CostOverviewPage({
 
   if (!org) {
     return (
-      <div className="flex items-center justify-center p-4 min-h-[60vh]">
-        <div className="metric-card max-w-md mx-auto px-6 py-10 text-center space-y-6">
-          <AlertCircle className="h-14 w-14 text-[#FF6E50] mx-auto" />
-          <div className="space-y-2">
-            <h2 className="text-[22px] font-bold text-black">Organization not found</h2>
-            <p className="text-[15px] text-muted-foreground leading-relaxed">The organization you're looking for doesn't exist</p>
+      <div className="max-w-6xl mx-auto">
+        <div className="flex items-center justify-center p-4 min-h-[60vh]">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm max-w-md mx-auto px-6 py-10 text-center space-y-6">
+            <AlertCircle className="h-14 w-14 text-[#FF6E50] mx-auto" />
+            <div className="space-y-2">
+              <h2 className="text-[22px] font-bold text-slate-900">Organization not found</h2>
+              <p className="text-[15px] text-muted-foreground leading-relaxed">The organization you're looking for doesn't exist</p>
+            </div>
           </div>
         </div>
       </div>
@@ -125,12 +131,14 @@ export default async function CostOverviewPage({
     memberCountResult = results[1]
   } catch {
     return (
-      <div className="flex items-center justify-center p-4 min-h-[60vh]">
-        <div className="metric-card max-w-md mx-auto px-6 py-10 text-center space-y-6">
-          <AlertCircle className="h-14 w-14 text-[#FF6E50] mx-auto" />
-          <div className="space-y-2">
-            <h2 className="text-[22px] font-bold text-black">Failed to load membership data</h2>
-            <p className="text-[15px] text-muted-foreground leading-relaxed">Please try refreshing the page</p>
+      <div className="max-w-6xl mx-auto">
+        <div className="flex items-center justify-center p-4 min-h-[60vh]">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm max-w-md mx-auto px-6 py-10 text-center space-y-6">
+            <AlertCircle className="h-14 w-14 text-[#FF6E50] mx-auto" />
+            <div className="space-y-2">
+              <h2 className="text-[22px] font-bold text-slate-900">Failed to load membership data</h2>
+              <p className="text-[15px] text-muted-foreground leading-relaxed">Please try refreshing the page</p>
+            </div>
           </div>
         </div>
       </div>
@@ -191,7 +199,7 @@ export default async function CostOverviewPage({
   ]
 
   return (
-    <div className="space-y-8">
+    <div className="max-w-6xl mx-auto space-y-8">
       {success === "true" && (
         <div className="flex items-center gap-3 p-4 rounded-xl bg-[#007A78]/10 border border-[#007A78]/20 animate-fade-in">
           <CheckCircle2 className="h-5 w-5 text-[#007A78] flex-shrink-0" />
@@ -205,17 +213,26 @@ export default async function CostOverviewPage({
       )}
 
       {/* Page Header */}
-      <div className="flex flex-col gap-1 pb-2">
-        <h1 className="text-[34px] font-bold text-[#1C1C1E] tracking-tight">Cost Overview</h1>
-        <p className="text-[15px] text-muted-foreground font-medium">
-          Consolidated costs for <span className="text-[#1C1C1E]">{data.organization.org_name}</span>
+      <div className="mb-10">
+        <h1 className="text-[32px] font-bold text-slate-900 tracking-tight leading-none">
+          Cost Overview
+        </h1>
+        <p className="text-[15px] text-slate-500 mt-2 max-w-lg">
+          Unified view of all your cloud and SaaS spending
         </p>
+      </div>
+
+      {/* Current Month Summary */}
+      <div>
+        <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide mb-4">
+          Current Month Summary
+        </h2>
       </div>
 
       {/* Hero Metrics Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Total Cost - Hero Card */}
-        <div className="md:col-span-2 metric-card bg-gradient-to-br from-[#007A78] to-[#005F5D] text-white relative overflow-hidden">
+        <div className="md:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm p-8 bg-gradient-to-br from-[#007A78] to-[#005F5D] text-white relative overflow-hidden">
           {/* Background Pattern */}
           <div className="absolute inset-0 opacity-10">
             <div className="absolute top-0 right-0 w-64 h-64 bg-white rounded-full -translate-y-1/2 translate-x-1/2" />
@@ -263,7 +280,7 @@ export default async function CostOverviewPage({
         </div>
 
         {/* Month Summary */}
-        <div className="metric-card flex flex-col justify-between">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col justify-between">
           <div>
             <div className="flex items-center gap-2 mb-6">
               <div className="h-10 w-10 rounded-full bg-[#007A78]/10 flex items-center justify-center">
@@ -275,7 +292,7 @@ export default async function CostOverviewPage({
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-[13px] text-muted-foreground">Daily Average</span>
-                <span className="text-[17px] font-bold text-[#1C1C1E]">$821.35</span>
+                <span className="text-[17px] font-bold text-slate-900">$821.35</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-[13px] text-muted-foreground">Projected Total</span>
@@ -283,7 +300,7 @@ export default async function CostOverviewPage({
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-[13px] text-muted-foreground">Days Remaining</span>
-                <span className="text-[17px] font-bold text-[#1C1C1E]">8 days</span>
+                <span className="text-[17px] font-bold text-slate-900">8 days</span>
               </div>
             </div>
           </div>
@@ -291,11 +308,17 @@ export default async function CostOverviewPage({
       </div>
 
       {/* Cost Breakdown by Category */}
+      <div>
+        <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide mb-4">
+          Cost Breakdown by Category
+        </h2>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {costBreakdown.map((item) => {
           const Icon = item.icon
           return (
-            <div key={item.category} className="metric-card group hover:shadow-lg transition-shadow">
+            <div key={item.category} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 group hover:shadow-lg transition-shadow">
               <div className="flex items-start justify-between mb-4">
                 <div className={`h-12 w-12 rounded-xl ${item.bgColor} flex items-center justify-center group-hover:scale-110 transition-transform`}>
                   <Icon className={`h-6 w-6 ${item.color}`} />
@@ -306,7 +329,7 @@ export default async function CostOverviewPage({
               </div>
 
               <h3 className="text-[15px] font-semibold text-muted-foreground mb-2">{item.category}</h3>
-              <div className="text-[32px] font-bold text-[#1C1C1E] leading-none mb-4">
+              <div className="text-[32px] font-bold text-slate-900 leading-none mb-4">
                 ${item.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
               </div>
 
@@ -322,6 +345,13 @@ export default async function CostOverviewPage({
         })}
       </div>
 
+      {/* Spending Trends */}
+      <div>
+        <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide mb-4">
+          Spending Trends
+        </h2>
+      </div>
+
       {/* Chart and Top Drivers */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Spending Trend Chart */}
@@ -330,12 +360,12 @@ export default async function CostOverviewPage({
         </div>
 
         {/* Top Cost Drivers */}
-        <div className="metric-card">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
           <div className="flex items-center gap-2 mb-6">
             <div className="h-10 w-10 rounded-full bg-[#FF6E50]/10 flex items-center justify-center">
               <Zap className="h-5 w-5 text-[#FF6E50]" />
             </div>
-            <h3 className="text-[17px] font-bold text-[#1C1C1E]">Top Cost Drivers</h3>
+            <h3 className="text-[17px] font-bold text-slate-900">Top Cost Drivers</h3>
           </div>
 
           <div className="space-y-3">
@@ -349,12 +379,12 @@ export default async function CostOverviewPage({
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <p className="text-[13px] font-semibold text-[#1C1C1E] truncate">{driver.name}</p>
+                    <p className="text-[13px] font-semibold text-slate-900 truncate">{driver.name}</p>
                     <p className="text-[11px] text-muted-foreground">{driver.category}</p>
                   </div>
 
                   <div className="text-right flex-shrink-0">
-                    <p className="text-[14px] font-bold text-[#1C1C1E]">
+                    <p className="text-[14px] font-bold text-slate-900">
                       ${driver.cost.toLocaleString('en-US')}
                     </p>
                     {driver.trend !== 0 && (
@@ -385,13 +415,20 @@ export default async function CostOverviewPage({
         </div>
       </div>
 
+      {/* Budget Tracking */}
+      <div>
+        <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide mb-4">
+          Budget Tracking
+        </h2>
+      </div>
+
       {/* Budget vs Actual */}
-      <div className="metric-card">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
         <div className="flex items-center gap-2 mb-6">
           <div className="h-10 w-10 rounded-full bg-[#007A78]/10 flex items-center justify-center">
             <Target className="h-5 w-5 text-[#007A78]" />
           </div>
-          <h3 className="text-[20px] font-bold text-[#1C1C1E]">Budget vs Actual</h3>
+          <h3 className="text-[20px] font-bold text-slate-900">Budget vs Actual</h3>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -403,7 +440,7 @@ export default async function CostOverviewPage({
             return (
               <div key={budget.category} className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-[15px] font-semibold text-[#1C1C1E]">{budget.category}</span>
+                  <span className="text-[15px] font-semibold text-slate-900">{budget.category}</span>
                   {isOverBudget && (
                     <Badge variant="warning" className="gap-1">
                       <AlertTriangle className="h-3 w-3" />
@@ -421,7 +458,7 @@ export default async function CostOverviewPage({
                 <div className="space-y-2">
                   <div className="flex items-baseline justify-between">
                     <span className="text-[13px] text-muted-foreground">Actual</span>
-                    <span className={`text-[20px] font-bold ${isOverBudget ? 'text-[#FF6E50]' : 'text-[#1C1C1E]'}`}>
+                    <span className={`text-[20px] font-bold ${isOverBudget ? 'text-[#FF6E50]' : 'text-slate-900'}`}>
                       ${budget.actual.toLocaleString('en-US')}
                     </span>
                   </div>
@@ -453,14 +490,21 @@ export default async function CostOverviewPage({
         </div>
       </div>
 
+      {/* Optimization */}
+      <div>
+        <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide mb-4">
+          Cost Optimization
+        </h2>
+      </div>
+
       {/* Cost Optimization Recommendations */}
-      <div className="metric-card bg-gradient-to-br from-[#F5F5F7] to-white">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 bg-gradient-to-br from-[#F5F5F7] to-white">
         <div className="flex items-center gap-2 mb-6">
           <div className="h-10 w-10 rounded-full bg-gradient-to-br from-[#007A78] to-[#005F5D] flex items-center justify-center">
             <Sparkles className="h-5 w-5 text-white" />
           </div>
           <div>
-            <h3 className="text-[20px] font-bold text-[#1C1C1E]">Cost Optimization Opportunities</h3>
+            <h3 className="text-[20px] font-bold text-slate-900">Cost Optimization Opportunities</h3>
             <p className="text-[13px] text-muted-foreground">Potential savings: <span className="font-semibold text-[#007A78]">$950/month</span></p>
           </div>
         </div>
@@ -476,7 +520,7 @@ export default async function CostOverviewPage({
                 <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-[#007A78] group-hover:translate-x-1 transition-all" />
               </div>
 
-              <h4 className="text-[15px] font-bold text-[#1C1C1E] mb-2 group-hover:text-[#007A78] transition-colors">
+              <h4 className="text-[15px] font-bold text-slate-900 mb-2 group-hover:text-[#007A78] transition-colors">
                 {rec.title}
               </h4>
               <p className="text-[13px] text-muted-foreground leading-relaxed mb-3">
@@ -493,49 +537,56 @@ export default async function CostOverviewPage({
         </div>
       </div>
 
+      {/* Quick Access */}
+      <div>
+        <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide mb-4">
+          Quick Access
+        </h2>
+      </div>
+
       {/* Quick Access Links */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Link
           href={`/${orgSlug}/cost-dashboards/subscription-costs`}
-          className="group metric-card p-5 !shadow-sm hover:!shadow-md border-transparent bg-[#FFFFFF] hover:bg-[#007A78]/5 transition-all"
+          className="group bg-white rounded-2xl border border-slate-200 shadow-sm p-5 hover:shadow-md hover:bg-[#007A78]/5 transition-all"
         >
           <div className="h-10 w-10 rounded-full bg-[#FF6E50]/10 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
             <Wallet className="h-5 w-5 text-[#FF6E50]" />
           </div>
-          <h3 className="text-[15px] font-bold text-[#1C1C1E] mb-1">Subscription Costs</h3>
+          <h3 className="text-[15px] font-bold text-slate-900 mb-1">Subscription Costs</h3>
           <p className="text-[13px] text-muted-foreground">SaaS & software</p>
         </Link>
 
         <Link
           href={`/${orgSlug}/cost-dashboards/genai-costs`}
-          className="group metric-card p-5 !shadow-sm hover:!shadow-md border-transparent bg-[#FFFFFF] hover:bg-[#007A78]/5 transition-all"
+          className="group bg-white rounded-2xl border border-slate-200 shadow-sm p-5 hover:shadow-md hover:bg-[#007A78]/5 transition-all"
         >
           <div className="h-10 w-10 rounded-full bg-[#007A78]/10 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
             <Brain className="h-5 w-5 text-[#007A78]" />
           </div>
-          <h3 className="text-[15px] font-bold text-[#1C1C1E] mb-1">GenAI Costs</h3>
+          <h3 className="text-[15px] font-bold text-slate-900 mb-1">GenAI Costs</h3>
           <p className="text-[13px] text-muted-foreground">LLM API usage</p>
         </Link>
 
         <Link
           href={`/${orgSlug}/cost-dashboards/cloud-costs`}
-          className="group metric-card p-5 !shadow-sm hover:!shadow-md border-transparent bg-[#FFFFFF] hover:bg-[#007A78]/5 transition-all"
+          className="group bg-white rounded-2xl border border-slate-200 shadow-sm p-5 hover:shadow-md hover:bg-[#007A78]/5 transition-all"
         >
           <div className="h-10 w-10 rounded-full bg-[#FF6E50]/10 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
             <Cloud className="h-5 w-5 text-[#FF6E50]" />
           </div>
-          <h3 className="text-[15px] font-bold text-[#1C1C1E] mb-1">Cloud Costs</h3>
+          <h3 className="text-[15px] font-bold text-slate-900 mb-1">Cloud Costs</h3>
           <p className="text-[13px] text-muted-foreground">GCP, AWS, Azure</p>
         </Link>
 
         <Link
           href={`/${orgSlug}/pipelines/subscription-runs`}
-          className="group metric-card p-5 !shadow-sm hover:!shadow-md border-transparent bg-[#FFFFFF] hover:bg-[#007A78]/5 transition-all"
+          className="group bg-white rounded-2xl border border-slate-200 shadow-sm p-5 hover:shadow-md hover:bg-[#007A78]/5 transition-all"
         >
           <div className="h-10 w-10 rounded-full bg-[#007A78]/10 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
             <TrendingUp className="h-5 w-5 text-[#007A78]" />
           </div>
-          <h3 className="text-[15px] font-bold text-[#1C1C1E] mb-1">Run Pipelines</h3>
+          <h3 className="text-[15px] font-bold text-slate-900 mb-1">Run Pipelines</h3>
           <p className="text-[13px] text-muted-foreground">Update data</p>
         </Link>
       </div>

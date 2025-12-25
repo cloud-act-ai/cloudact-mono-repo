@@ -2,17 +2,17 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useParams } from "next/navigation"
-import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   Loader2,
-  AlertTriangle,
+  AlertCircle,
   Users,
   Plug,
   Zap,
   Clock,
   Calendar,
   CalendarDays,
-  BarChart3,
+  TrendingUp,
+  Check,
 } from "lucide-react"
 import {
   getOrgQuotaLimits,
@@ -41,7 +41,7 @@ export default function QuotaUsagePage() {
       } else {
         setError(result.error || "Failed to load quota information")
       }
-    } catch (err: unknown) {
+    } catch {
       setError("Failed to load quota information")
     } finally {
       setIsLoading(false)
@@ -54,120 +54,204 @@ export default function QuotaUsagePage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <Loader2 className="h-8 w-8 animate-spin text-[#007A78]" />
+      <div className="flex items-center justify-center min-h-[500px]">
+        <div className="text-center">
+          <div className="h-12 w-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
+            <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+          </div>
+          <p className="text-[14px] text-slate-500 font-medium">Loading quotas...</p>
+        </div>
       </div>
     )
   }
 
+  // Calculate usage percentages
+  const seatUsage = quotaLimits && quotaLimits.seat_limit > 0
+    ? Math.round((quotaLimits.team_members_count / quotaLimits.seat_limit) * 100)
+    : 0
+  const providerUsage = quotaLimits && quotaLimits.providers_limit > 0
+    ? Math.round((quotaLimits.configured_providers_count / quotaLimits.providers_limit) * 100)
+    : 0
+
   return (
-    <div className="space-y-6 sm:space-y-8">
-      <div>
-        <h1 className="text-[32px] sm:text-[34px] font-bold text-black tracking-tight">Usage & Quotas</h1>
-        <p className="text-[15px] text-muted-foreground mt-1">
-          Current usage and limits based on your Stripe subscription plan
+    <div className="max-w-6xl mx-auto">
+      {/* Header */}
+      <div className="mb-10">
+        <h1 className="text-[32px] font-bold text-slate-900 tracking-tight leading-none">
+          Usage & Quotas
+        </h1>
+        <p className="text-[15px] text-slate-500 mt-2 max-w-lg">
+          Monitor your plan usage and resource limits
         </p>
       </div>
 
+      {/* Stats Row */}
+      {quotaLimits && (
+        <div className="flex items-center gap-6 mb-8">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-[#007A78]/10 flex items-center justify-center">
+              <Users className="h-5 w-5 text-[#007A78]" />
+            </div>
+            <div>
+              <p className="text-[24px] font-bold text-slate-900 leading-none">
+                {quotaLimits.team_members_count}
+              </p>
+              <p className="text-[12px] text-slate-500 font-medium mt-0.5">
+                of {quotaLimits.seat_limit > 0 ? quotaLimits.seat_limit : "∞"} seats
+              </p>
+            </div>
+          </div>
+
+          <div className="h-8 w-px bg-slate-200"></div>
+
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-[#8B5CF6]/10 flex items-center justify-center">
+              <Plug className="h-5 w-5 text-[#8B5CF6]" />
+            </div>
+            <div>
+              <p className="text-[24px] font-bold text-slate-900 leading-none">
+                {quotaLimits.configured_providers_count}
+              </p>
+              <p className="text-[12px] text-slate-500 font-medium mt-0.5">
+                of {quotaLimits.providers_limit > 0 ? quotaLimits.providers_limit : "∞"} integrations
+              </p>
+            </div>
+          </div>
+
+          <div className="h-8 w-px bg-slate-200"></div>
+
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-[#007A78]/10 flex items-center justify-center">
+              <Check className="h-5 w-5 text-[#007A78]" />
+            </div>
+            <div>
+              <p className="text-[14px] text-slate-600 font-medium">Plan Status</p>
+              <p className="text-[12px] text-[#007A78] font-semibold">Active</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Error Alert */}
       {error && (
-        <Alert variant="destructive" className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
-          <AlertTriangle className="h-4 w-4 text-[#FF6E50]" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
+        <div className="mb-6 p-4 rounded-xl bg-rose-50 border border-rose-200 flex items-center gap-3">
+          <AlertCircle className="h-4 w-4 text-rose-500 flex-shrink-0" />
+          <p className="text-[13px] font-medium text-rose-700">{error}</p>
+        </div>
       )}
 
       {quotaLimits && (
         <>
           {/* Resource Usage Section */}
-          <div className="metric-card shadow-sm">
-            <div className="metric-card-header mb-6">
-              <div className="flex items-center gap-2">
-                <BarChart3 className="h-5 w-5 text-muted-foreground" />
-                <h2 className="text-[22px] font-bold text-black">Resource Usage</h2>
-              </div>
-              <p className="text-[13px] sm:text-[15px] text-muted-foreground mt-1">
-                Current usage of your plan resources
-              </p>
+          <section className="mb-8">
+            <div className="flex items-center gap-2 mb-4">
+              <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide">
+                Resource Usage
+              </h2>
             </div>
 
-            <div className="metric-card-content">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Team Members Quota */}
-                <div className="p-6 border border-border rounded-xl bg-[#007A78]/5">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="h-10 w-10 rounded-xl bg-[#007A78]/10 flex items-center justify-center">
-                      <Users className="h-5 w-5 text-[#007A78]" />
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+              {/* Team Members */}
+              <div className="group relative">
+                <div
+                  className="absolute left-0 top-4 bottom-4 w-1 rounded-full opacity-60 group-hover:opacity-100 transition-opacity"
+                  style={{ backgroundColor: "#007A78" }}
+                />
+                <div className="pl-5 py-5 pr-5">
+                  <div className="flex items-center justify-between gap-4 mb-3">
+                    <div className="flex items-center gap-4 min-w-0 flex-1">
+                      <div className="h-11 w-11 rounded-xl bg-[#007A78]/10 flex items-center justify-center flex-shrink-0">
+                        <Users className="h-5 w-5 text-[#007A78]" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-[15px] font-semibold text-slate-900 tracking-tight">
+                          Team Members
+                        </h3>
+                        <p className="text-[12px] text-slate-500 mt-0.5">
+                          Active members in your organization
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-[17px] font-semibold text-black">Team Members</span>
-                      <p className="text-[13px] text-muted-foreground">Active members in your organization</p>
+                    <div className="text-right">
+                      <p className="text-[20px] font-bold text-slate-900">
+                        {quotaLimits.team_members_count}
+                        <span className="text-[14px] font-normal text-slate-500">
+                          {" "}/ {quotaLimits.seat_limit > 0 ? quotaLimits.seat_limit : "∞"}
+                        </span>
+                      </p>
                     </div>
-                  </div>
-                  <div className="flex items-end gap-2">
-                    <span className="text-[36px] font-bold text-black">{quotaLimits.team_members_count}</span>
-                    <span className="text-[17px] text-muted-foreground mb-2">
-                      / {quotaLimits.seat_limit > 0 ? quotaLimits.seat_limit : "Unlimited"}
-                    </span>
                   </div>
                   {quotaLimits.seat_limit > 0 && (
-                    <div className="mt-4">
-                      <div className="flex justify-between text-[12px] text-muted-foreground mb-1">
+                    <div className="ml-[60px]">
+                      <div className="flex justify-between text-[11px] text-slate-500 mb-1">
                         <span>Usage</span>
-                        <span>{Math.round((quotaLimits.team_members_count / quotaLimits.seat_limit) * 100)}%</span>
+                        <span>{seatUsage}%</span>
                       </div>
-                      <div className="h-3 bg-border rounded-full overflow-hidden">
+                      <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
                         <div
                           className={`h-full rounded-full transition-all ${
-                            quotaLimits.team_members_count >= quotaLimits.seat_limit
+                            seatUsage >= 100
                               ? "bg-[#FF6E50]"
-                              : quotaLimits.team_members_count >= quotaLimits.seat_limit * 0.8
-                                ? "bg-yellow-500"
+                              : seatUsage >= 80
+                                ? "bg-amber-500"
                                 : "bg-[#007A78]"
                           }`}
-                          style={{
-                            width: `${Math.min((quotaLimits.team_members_count / quotaLimits.seat_limit) * 100, 100)}%`,
-                          }}
+                          style={{ width: `${Math.min(seatUsage, 100)}%` }}
                         />
                       </div>
                     </div>
                   )}
                 </div>
+              </div>
 
-                {/* Providers Quota */}
-                <div className="p-6 border border-border rounded-xl bg-[#007A78]/5">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="h-10 w-10 rounded-xl bg-[#007A78]/10 flex items-center justify-center">
-                      <Plug className="h-5 w-5 text-[#007A78]" />
+              <div className="h-px bg-slate-100"></div>
+
+              {/* Integrations */}
+              <div className="group relative">
+                <div
+                  className="absolute left-0 top-4 bottom-4 w-1 rounded-full opacity-60 group-hover:opacity-100 transition-opacity"
+                  style={{ backgroundColor: "#8B5CF6" }}
+                />
+                <div className="pl-5 py-5 pr-5">
+                  <div className="flex items-center justify-between gap-4 mb-3">
+                    <div className="flex items-center gap-4 min-w-0 flex-1">
+                      <div className="h-11 w-11 rounded-xl bg-[#8B5CF6]/10 flex items-center justify-center flex-shrink-0">
+                        <Plug className="h-5 w-5 text-[#8B5CF6]" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-[15px] font-semibold text-slate-900 tracking-tight">
+                          Integrations
+                        </h3>
+                        <p className="text-[12px] text-slate-500 mt-0.5">
+                          Configured provider integrations
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-[17px] font-semibold text-black">Integrations</span>
-                      <p className="text-[13px] text-muted-foreground">Configured provider integrations</p>
+                    <div className="text-right">
+                      <p className="text-[20px] font-bold text-slate-900">
+                        {quotaLimits.configured_providers_count}
+                        <span className="text-[14px] font-normal text-slate-500">
+                          {" "}/ {quotaLimits.providers_limit > 0 ? quotaLimits.providers_limit : "∞"}
+                        </span>
+                      </p>
                     </div>
-                  </div>
-                  <div className="flex items-end gap-2">
-                    <span className="text-[36px] font-bold text-black">{quotaLimits.configured_providers_count}</span>
-                    <span className="text-[17px] text-muted-foreground mb-2">
-                      / {quotaLimits.providers_limit > 0 ? quotaLimits.providers_limit : "Unlimited"}
-                    </span>
                   </div>
                   {quotaLimits.providers_limit > 0 && (
-                    <div className="mt-4">
-                      <div className="flex justify-between text-[12px] text-muted-foreground mb-1">
+                    <div className="ml-[60px]">
+                      <div className="flex justify-between text-[11px] text-slate-500 mb-1">
                         <span>Usage</span>
-                        <span>{Math.round((quotaLimits.configured_providers_count / quotaLimits.providers_limit) * 100)}%</span>
+                        <span>{providerUsage}%</span>
                       </div>
-                      <div className="h-3 bg-border rounded-full overflow-hidden">
+                      <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
                         <div
                           className={`h-full rounded-full transition-all ${
-                            quotaLimits.configured_providers_count >= quotaLimits.providers_limit
+                            providerUsage >= 100
                               ? "bg-[#FF6E50]"
-                              : quotaLimits.configured_providers_count >= quotaLimits.providers_limit * 0.8
-                                ? "bg-yellow-500"
-                                : "bg-[#007A78]"
+                              : providerUsage >= 80
+                                ? "bg-amber-500"
+                                : "bg-[#8B5CF6]"
                           }`}
-                          style={{
-                            width: `${Math.min((quotaLimits.configured_providers_count / quotaLimits.providers_limit) * 100, 100)}%`,
-                          }}
+                          style={{ width: `${Math.min(providerUsage, 100)}%` }}
                         />
                       </div>
                     </div>
@@ -175,81 +259,76 @@ export default function QuotaUsagePage() {
                 </div>
               </div>
             </div>
-          </div>
+          </section>
 
-          {/* Pipeline Execution Limits Section */}
-          <div className="metric-card shadow-sm">
-            <div className="metric-card-header mb-6">
-              <div className="flex items-center gap-2">
-                <Zap className="h-5 w-5 text-muted-foreground" />
-                <h2 className="text-[22px] font-bold text-black">Pipeline Execution Limits</h2>
-              </div>
-              <p className="text-[13px] sm:text-[15px] text-muted-foreground mt-1">
-                Maximum number of pipeline runs allowed per time period
-              </p>
+          {/* Pipeline Limits Section */}
+          <section className="mb-8">
+            <div className="flex items-center gap-2 mb-4">
+              <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide">
+                Pipeline Execution Limits
+              </h2>
             </div>
 
-            <div className="metric-card-content">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Daily Limit */}
-                <div className="p-6 border border-border rounded-xl bg-[#007A78]/5 text-center">
-                  <div className="h-12 w-12 rounded-full bg-[#007A78]/10 flex items-center justify-center mx-auto mb-4">
-                    <Clock className="h-6 w-6 text-[#007A78]" />
-                  </div>
-                  <span className="text-[13px] font-medium text-muted-foreground uppercase tracking-wide">Daily</span>
-                  <div className="mt-2">
-                    <span className="text-[42px] font-bold text-black">
-                      {quotaLimits.pipelines_per_day_limit > 0 ? quotaLimits.pipelines_per_day_limit : "∞"}
-                    </span>
-                  </div>
-                  <p className="text-[13px] text-muted-foreground mt-1">runs per day</p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {/* Daily */}
+              <div className="p-5 rounded-2xl bg-white border border-slate-200 hover:border-slate-300 hover:shadow-sm transition-all text-center">
+                <div className="h-12 w-12 rounded-xl bg-[#007A78]/10 flex items-center justify-center mx-auto mb-3">
+                  <Clock className="h-6 w-6 text-[#007A78]" />
                 </div>
+                <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">
+                  Daily
+                </p>
+                <p className="text-[32px] font-bold text-slate-900 leading-none">
+                  {quotaLimits.pipelines_per_day_limit > 0 ? quotaLimits.pipelines_per_day_limit : "∞"}
+                </p>
+                <p className="text-[12px] text-slate-500 mt-1">runs per day</p>
+              </div>
 
-                {/* Weekly Limit */}
-                <div className="p-6 border border-border rounded-xl bg-[#007A78]/5 text-center">
-                  <div className="h-12 w-12 rounded-full bg-[#007A78]/10 flex items-center justify-center mx-auto mb-4">
-                    <Calendar className="h-6 w-6 text-[#007A78]" />
-                  </div>
-                  <span className="text-[13px] font-medium text-muted-foreground uppercase tracking-wide">Weekly</span>
-                  <div className="mt-2">
-                    <span className="text-[42px] font-bold text-black">
-                      {quotaLimits.pipelines_per_week_limit > 0 ? quotaLimits.pipelines_per_week_limit : "∞"}
-                    </span>
-                  </div>
-                  <p className="text-[13px] text-muted-foreground mt-1">runs per week</p>
+              {/* Weekly */}
+              <div className="p-5 rounded-2xl bg-white border border-slate-200 hover:border-slate-300 hover:shadow-sm transition-all text-center">
+                <div className="h-12 w-12 rounded-xl bg-[#8B5CF6]/10 flex items-center justify-center mx-auto mb-3">
+                  <Calendar className="h-6 w-6 text-[#8B5CF6]" />
                 </div>
+                <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">
+                  Weekly
+                </p>
+                <p className="text-[32px] font-bold text-slate-900 leading-none">
+                  {quotaLimits.pipelines_per_week_limit > 0 ? quotaLimits.pipelines_per_week_limit : "∞"}
+                </p>
+                <p className="text-[12px] text-slate-500 mt-1">runs per week</p>
+              </div>
 
-                {/* Monthly Limit */}
-                <div className="p-6 border border-border rounded-xl bg-[#007A78]/5 text-center">
-                  <div className="h-12 w-12 rounded-full bg-[#007A78]/10 flex items-center justify-center mx-auto mb-4">
-                    <CalendarDays className="h-6 w-6 text-[#007A78]" />
-                  </div>
-                  <span className="text-[13px] font-medium text-muted-foreground uppercase tracking-wide">Monthly</span>
-                  <div className="mt-2">
-                    <span className="text-[42px] font-bold text-black">
-                      {quotaLimits.pipelines_per_month_limit > 0 ? quotaLimits.pipelines_per_month_limit : "∞"}
-                    </span>
-                  </div>
-                  <p className="text-[13px] text-muted-foreground mt-1">runs per month</p>
+              {/* Monthly */}
+              <div className="p-5 rounded-2xl bg-white border border-slate-200 hover:border-slate-300 hover:shadow-sm transition-all text-center">
+                <div className="h-12 w-12 rounded-xl bg-[#10B981]/10 flex items-center justify-center mx-auto mb-3">
+                  <CalendarDays className="h-6 w-6 text-[#10B981]" />
                 </div>
+                <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">
+                  Monthly
+                </p>
+                <p className="text-[32px] font-bold text-slate-900 leading-none">
+                  {quotaLimits.pipelines_per_month_limit > 0 ? quotaLimits.pipelines_per_month_limit : "∞"}
+                </p>
+                <p className="text-[12px] text-slate-500 mt-1">runs per month</p>
               </div>
             </div>
-          </div>
+          </section>
 
-          {/* Info Card */}
-          <div className="metric-card shadow-sm bg-[#007A78]/5 border-[#007A78]/20">
-            <div className="metric-card-content">
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="h-5 w-5 text-[#007A78] mt-0.5 flex-shrink-0" />
-                <div className="space-y-2">
-                  <h3 className="text-[15px] font-semibold text-[#005F5D]">About Your Quotas</h3>
-                  <ul className="text-[13px] text-[#007A78] space-y-1 list-disc list-inside">
-                    <li>All limits are dynamically set based on your Stripe subscription plan</li>
-                    <li>Usage counters reset at the start of each day/week/month (UTC)</li>
-                    <li>Upgrade your plan to increase limits and unlock more resources</li>
-                    <li>Contact support if you need custom limits for enterprise use cases</li>
-                  </ul>
-                </div>
+          {/* Info Footer */}
+          <div className="p-5 rounded-2xl bg-gradient-to-br from-slate-50 to-slate-100/50 border border-slate-200">
+            <div className="flex items-start gap-4">
+              <div className="h-10 w-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center flex-shrink-0 shadow-sm">
+                <TrendingUp className="h-5 w-5 text-[#007A78]" />
+              </div>
+              <div>
+                <h3 className="text-[15px] font-semibold text-slate-900 mb-1">
+                  About Your Quotas
+                </h3>
+                <ul className="text-[13px] text-slate-500 space-y-1">
+                  <li>• All limits are set based on your Stripe subscription plan</li>
+                  <li>• Usage counters reset at the start of each day/week/month (UTC)</li>
+                  <li>• Upgrade your plan to increase limits and unlock more resources</li>
+                </ul>
               </div>
             </div>
           </div>
@@ -257,12 +336,17 @@ export default function QuotaUsagePage() {
       )}
 
       {!quotaLimits && !error && (
-        <Alert className="bg-yellow-50 border-yellow-200">
-          <AlertTriangle className="h-4 w-4 text-yellow-600" />
-          <AlertDescription className="text-yellow-700">
-            Unable to load quota information. Please refresh the page.
-          </AlertDescription>
-        </Alert>
+        <div className="p-5 rounded-2xl bg-amber-50 border border-amber-200 flex items-start gap-4">
+          <div className="h-10 w-10 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
+            <AlertCircle className="h-5 w-5 text-amber-600" />
+          </div>
+          <div>
+            <h3 className="text-[15px] font-semibold text-amber-800">Unable to load quotas</h3>
+            <p className="text-[13px] text-amber-700 mt-1">
+              Please refresh the page to try again.
+            </p>
+          </div>
+        </div>
       )}
     </div>
   )

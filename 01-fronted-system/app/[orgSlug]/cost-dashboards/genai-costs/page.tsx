@@ -207,14 +207,14 @@ export default function GenAICostsPage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6 sm:space-y-8">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-[32px] sm:text-[34px] font-bold text-black tracking-tight">GenAI Costs</h1>
-            <p className="text-[15px] text-muted-foreground mt-1">
-              Track your LLM API usage and costs
-            </p>
-          </div>
+      <div className="max-w-6xl mx-auto">
+        <div className="mb-10">
+          <h1 className="text-[32px] font-bold text-slate-900 tracking-tight leading-none">
+            GenAI Costs
+          </h1>
+          <p className="text-[15px] text-slate-500 mt-2 max-w-lg">
+            Monitor your AI and ML service usage costs
+          </p>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -223,7 +223,7 @@ export default function GenAICostsPage() {
 
         <div className="metric-card p-0 overflow-hidden">
           <div className="px-4 sm:px-6 py-4 sm:py-5">
-            <h2 className="text-[17px] font-semibold text-black">Usage by Provider</h2>
+            <h2 className="text-[17px] font-semibold text-slate-900">Usage by Provider</h2>
             <p className="text-[13px] text-muted-foreground mt-0.5">
               View LLM API usage across all providers
             </p>
@@ -238,11 +238,13 @@ export default function GenAICostsPage() {
 
   if (error) {
     return (
-      <div className="space-y-6 sm:space-y-8">
-        <div>
-          <h1 className="text-[32px] sm:text-[34px] font-bold text-black tracking-tight">GenAI Costs</h1>
-          <p className="text-[15px] text-muted-foreground mt-1">
-            Track your LLM API usage and costs
+      <div className="max-w-6xl mx-auto">
+        <div className="mb-10">
+          <h1 className="text-[32px] font-bold text-slate-900 tracking-tight leading-none">
+            GenAI Costs
+          </h1>
+          <p className="text-[15px] text-slate-500 mt-2 max-w-lg">
+            Monitor your AI and ML service usage costs
           </p>
         </div>
 
@@ -250,7 +252,7 @@ export default function GenAICostsPage() {
           <div className="flex items-start gap-3">
             <AlertCircle className="h-5 w-5 text-[#FF6E50] mt-0.5 flex-shrink-0" />
             <div>
-              <h3 className="font-semibold text-black text-[15px]">{error}</h3>
+              <h3 className="font-semibold text-slate-900 text-[15px]">{error}</h3>
               <p className="text-[13px] text-muted-foreground mt-1">
                 Please try again later or contact support if the issue persists.
               </p>
@@ -262,38 +264,70 @@ export default function GenAICostsPage() {
   }
 
   return (
-    <div className="space-y-6 sm:space-y-8">
+    <div className="max-w-6xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <div className="inline-flex p-2.5 rounded-xl bg-gradient-to-br from-[#FF6E50]/20 to-[#FF6E50]/5 border border-[#FF6E50]/20">
-              <Sparkles className="h-6 w-6 text-[#FF6E50]" />
-            </div>
-            <h1 className="text-[32px] sm:text-[34px] font-bold text-black tracking-tight">GenAI Costs</h1>
+      <div className="mb-10">
+        <div className="flex items-start justify-between gap-6 mb-6">
+          <div>
+            <h1 className="text-[32px] font-bold text-slate-900 tracking-tight leading-none">
+              GenAI Costs
+            </h1>
+            <p className="text-[15px] text-slate-500 mt-2 max-w-lg">
+              Monitor your AI and ML service usage costs
+            </p>
           </div>
-          <p className="text-[15px] text-muted-foreground">
-            Track your LLM API usage and costs across all providers
-          </p>
-        </div>
-        <div className="flex items-center gap-2 sm:gap-3">
-          <Button
-            onClick={handleManualRefresh}
-            disabled={isRefreshing}
-            variant="ghost"
-            size="sm"
-            className="h-11 px-4 text-[15px] text-muted-foreground hover:bg-[#FF6E50]/5 rounded-xl transition-all duration-200"
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
-            <span className="hidden sm:inline">Refresh</span>
-          </Button>
-          <Link href={`/${orgSlug}/integrations/llm`}>
-            <Button className="h-11 px-4 rounded-xl text-[15px] font-semibold bg-gradient-to-r from-[#FF6E50] to-[#FF8C6F] hover:from-[#FF5A3C] hover:to-[#FF7A5B] text-white shadow-lg shadow-[#FF6E50]/25 transition-all duration-200 hover:shadow-xl hover:shadow-[#FF6E50]/30">
-              <Plus className="h-4 w-4 mr-2" />
-              <span className="hidden sm:inline">Configure LLM</span>
-              <span className="sm:hidden">Configure</span>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={handleManualRefresh}
+              disabled={isRefreshing}
+              variant="ghost"
+              size="sm"
+              className="h-11 px-4 text-[15px] text-muted-foreground hover:bg-[#FF6E50]/5 rounded-xl transition-all duration-200"
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
+              <span className="hidden sm:inline">Refresh</span>
             </Button>
-          </Link>
+            <Link href={`/${orgSlug}/integrations/llm`}>
+              <Button className="h-11 px-4 rounded-xl text-[15px] font-semibold bg-gradient-to-r from-[#FF6E50] to-[#FF8C6F] hover:from-[#FF5A3C] hover:to-[#FF7A5B] text-white shadow-lg shadow-[#FF6E50]/25 transition-all duration-200 hover:shadow-xl hover:shadow-[#FF6E50]/30">
+                <Plus className="h-4 w-4 mr-2" />
+                <span className="hidden sm:inline">Configure LLM</span>
+                <span className="sm:hidden">Configure</span>
+              </Button>
+            </Link>
+          </div>
+        </div>
+
+        {/* Stats Row */}
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-[#FF6E50]/10 flex items-center justify-center">
+              <Sparkles className="h-5 w-5 text-[#FF6E50]" />
+            </div>
+            <div>
+              <p className="text-[24px] font-bold text-slate-900 leading-none">{summary?.providers_count || 0}</p>
+              <p className="text-[12px] text-slate-500 font-medium mt-0.5">Active Providers</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-[#007A78]/10 flex items-center justify-center">
+              <Activity className="h-5 w-5 text-[#007A78]" />
+            </div>
+            <div>
+              <p className="text-[24px] font-bold text-slate-900 leading-none">{summary?.total_requests.toLocaleString() || 0}</p>
+              <p className="text-[12px] text-slate-500 font-medium mt-0.5">API Requests</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-[#007A78]/10 flex items-center justify-center">
+              <DollarSign className="h-5 w-5 text-[#007A78]" />
+            </div>
+            <div>
+              <p className="text-[24px] font-bold text-slate-900 leading-none">{formatCurrency(summary?.mtd_cost || 0, orgCurrency)}</p>
+              <p className="text-[12px] text-slate-500 font-medium mt-0.5">MTD Spend</p>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -531,7 +565,7 @@ export default function GenAICostsPage() {
                         <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-[#FF6E50]/20 to-[#FF6E50]/5 text-[#FF6E50] font-bold text-sm">
                           {index + 1}
                         </div>
-                        <span className="font-semibold text-black text-[15px]">{model.model}</span>
+                        <span className="font-semibold text-slate-900 text-[15px]">{model.model}</span>
                       </div>
                       <span className="font-bold text-[#FF6E50] text-[17px]">{formatCurrency(model.cost, orgCurrency)}</span>
                     </div>
@@ -561,7 +595,7 @@ export default function GenAICostsPage() {
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="font-semibold text-black text-[15px] truncate">{app.app}</span>
+                          <span className="font-semibold text-slate-900 text-[15px] truncate">{app.app}</span>
                           <Badge className={`text-[10px] font-bold px-2 py-0.5 ${
                             app.trend.startsWith('+')
                               ? 'bg-[#FF6E50]/10 text-[#FF6E50] border-[#FF6E50]/20'
@@ -644,7 +678,7 @@ export default function GenAICostsPage() {
       {/* Usage Table */}
       <div>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-[22px] font-bold text-black">Detailed Usage</h2>
+          <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide">Detailed Usage</h2>
           <Link href={`/${orgSlug}/cost-dashboards/genai-costs/details`}>
             <Button variant="ghost" className="text-[#FF6E50] hover:bg-[#FF6E50]/5 text-[14px] font-semibold">
               View All
@@ -658,7 +692,7 @@ export default function GenAICostsPage() {
               <div className="inline-flex p-5 rounded-2xl bg-gradient-to-br from-[#FF6E50]/20 to-[#FF6E50]/5 border border-[#FF6E50]/20 mb-5">
                 <Brain className="h-14 w-14 text-[#FF6E50]" />
               </div>
-              <h3 className="text-[20px] font-semibold text-black mb-2">No LLM usage data yet</h3>
+              <h3 className="text-[20px] font-semibold text-slate-900 mb-2">No LLM usage data yet</h3>
               <p className="text-[15px] text-muted-foreground mb-6 max-w-md mx-auto">
                 Configure LLM integrations and run the GenAI pipeline to start tracking usage costs.
               </p>
@@ -704,7 +738,7 @@ export default function GenAICostsPage() {
                           </div>
                         </TableCell>
                         <TableCell className="console-table-cell">
-                          <span className="font-medium text-black text-[15px]">{record.model}</span>
+                          <span className="font-medium text-slate-900 text-[15px]">{record.model}</span>
                         </TableCell>
                         <TableCell className="console-table-cell text-right">
                           <span className="text-muted-foreground text-[15px]">{record.input_tokens.toLocaleString()}</span>

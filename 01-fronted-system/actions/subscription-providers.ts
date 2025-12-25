@@ -89,8 +89,8 @@ function escapeDisplayName(name: string): string {
 const RESERVED_PROVIDER_NAMES = ["system", "admin", "api", "internal", "test", "default"]
 
 
-// Valid enum values for plan fields
-const VALID_BILLING_CYCLES = new Set(["monthly", "annual", "quarterly"])
+// Valid enum values for plan fields (must match backend validation)
+const VALID_BILLING_CYCLES = new Set(["monthly", "annual", "quarterly", "semi-annual", "weekly"])
 const VALID_PRICING_MODELS = new Set(["PER_SEAT", "FLAT_FEE"])
 const VALID_DISCOUNT_TYPES = new Set(["percent", "fixed"])
 const VALID_STATUS_VALUES = new Set(["active", "cancelled", "expired", "pending"])
@@ -125,8 +125,8 @@ export async function triggerCostBackfill(
   try {
     // Use API service (8000) instead of pipeline service (8001)
     const apiUrl = getApiServiceUrl()
-    const today = new Date().toISOString().split("T")[0]
-    const actualEndDate = endDate || today
+    // FIX: Use UTC helper for consistent date handling across timezones
+    const actualEndDate = endDate || getTodayDateUTC()
 
     
 
@@ -1552,7 +1552,8 @@ export async function createCustomPlan(
           "Content-Type": "application/json",
         },
         body: JSON.stringify(plan),
-      }
+      },
+      30000 // FIX: Add explicit 30 second timeout
     )
 
     if (!response.ok) {
@@ -1562,12 +1563,18 @@ export async function createCustomPlan(
 
     const result = await safeJsonParse<{ plan?: SubscriptionPlan }>(response, { plan: undefined })
 
+    // FIX: Validate response contains plan
+    if (!result.plan) {
+      return { success: false, error: "Failed to create plan: Server returned invalid response" }
+    }
+
     // Always trigger cost pipeline to keep costs up-to-date
     // Uses start_date for backdated plans, or current month start for new plans
     let pipelineTriggered = false
     let pipelineMessage: string | undefined
 
-    const startDateStr = plan.start_date || new Date().toISOString().split("T")[0]
+    // FIX: Use UTC helper for consistent date handling
+    const startDateStr = plan.start_date || getTodayDateUTC()
     const pipelineStartDate = isDateInPast(startDateStr)
       ? startDateStr
       : getMonthStart() // Use month start for current/future plans
@@ -1649,7 +1656,8 @@ export async function updatePlan(
           "Content-Type": "application/json",
         },
         body: JSON.stringify(updates),
-      }
+      },
+      30000 // FIX: Add explicit 30 second timeout
     )
 
     if (!response.ok) {
@@ -1658,6 +1666,12 @@ export async function updatePlan(
     }
 
     const result = await safeJsonParse<{ plan?: SubscriptionPlan }>(response, { plan: undefined })
+
+    // FIX: Validate response contains plan
+    if (!result.plan) {
+      return { success: false, error: "Failed to update plan: Server returned invalid response" }
+    }
+
     return { success: true, plan: result.plan }
   } catch (error) {
     return { success: false, error: logError("updatePlan", error) }
@@ -1824,11 +1838,10 @@ export async function editPlanWithVersion(
       return { success: false, error: "Invalid date format. Use YYYY-MM-DD" }
     }
 
-    // Issue 5: Validate effective_date is not in the past
-    const effectiveDateObj = new Date(effectiveDate)
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    if (effectiveDateObj < today) {
+    // FIX: Validate effective_date is not in the past using UTC string comparison
+    // This avoids timezone-related bugs where local Date parsing can shift dates
+    const todayUTC = getTodayDateUTC()
+    if (effectiveDate < todayUTC) {
       return { success: false, error: "Effective date cannot be in the past" }
     }
 
@@ -1858,7 +1871,8 @@ export async function editPlanWithVersion(
           effective_date: effectiveDate,
           ...updates,
         }),
-      }
+      },
+      30000 // FIX: Add explicit 30 second timeout
     )
 
     if (!response.ok) {
@@ -1870,6 +1884,11 @@ export async function editPlanWithVersion(
       response,
       { new_plan: undefined, old_plan: undefined }
     )
+
+    // FIX: Validate response contains plans
+    if (!result.new_plan || !result.old_plan) {
+      return { success: false, error: "Failed to create plan version: Server returned invalid response" }
+    }
 
     // Trigger cost pipeline to recalculate costs with the new version
     // Start from the effective date if in past, or month start otherwise

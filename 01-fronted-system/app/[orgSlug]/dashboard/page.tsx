@@ -56,7 +56,7 @@ function MetricCard({ title, value, change, trend, icon, color }: MetricCardProp
           <div className="space-y-3 flex-1">
             <p className="text-sm font-medium text-muted-foreground">{title}</p>
             <div className="space-y-1">
-              <p className="text-3xl font-bold tracking-tight text-black">{value}</p>
+              <p className="text-3xl font-bold tracking-tight text-slate-900">{value}</p>
               {change && (
                 <div className="flex items-center gap-1.5">
                   {trend === "up" && <TrendingUp className="h-4 w-4 text-[#007A78]" />}
@@ -108,12 +108,17 @@ export default function DashboardPage() {
   const params = useParams()
   const orgSlug = params.orgSlug as string
   const [greeting, setGreeting] = useState("")
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     const hour = new Date().getHours()
     if (hour < 12) setGreeting("Good morning")
     else if (hour < 18) setGreeting("Good afternoon")
     else setGreeting("Good evening")
+
+    // Simulate data loading
+    const timer = setTimeout(() => setIsLoading(false), 500)
+    return () => clearTimeout(timer)
   }, [])
 
   // Mock data - replace with real data fetching
@@ -209,14 +214,30 @@ export default function DashboardPage() {
     }
   }
 
+  if (isLoading) {
+    return (
+      <div className="max-w-6xl mx-auto space-y-8">
+        <div className="mb-10">
+          <div className="h-8 w-64 bg-slate-200 rounded animate-pulse"></div>
+          <div className="h-5 w-96 bg-slate-100 rounded animate-pulse mt-2"></div>
+        </div>
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-32 bg-slate-100 rounded-xl animate-pulse"></div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="space-y-8">
+    <div className="max-w-6xl mx-auto space-y-8">
       {/* Welcome Header */}
-      <div className="space-y-2">
-        <h1 className="text-[32px] sm:text-[40px] font-bold text-black tracking-tight">
+      <div className="mb-10">
+        <h1 className="text-[32px] font-bold text-slate-900 tracking-tight leading-none">
           {greeting}
         </h1>
-        <p className="text-[15px] text-muted-foreground">
+        <p className="text-[15px] text-slate-500 mt-2 max-w-lg">
           Here&#39;s what&#39;s happening with your cloud costs today.
         </p>
       </div>
@@ -264,7 +285,7 @@ export default function DashboardPage() {
           <Card className="h-full">
             <CardHeader className="border-b border-border">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-[20px] font-bold text-black">Cost Trends</CardTitle>
+                <CardTitle className="text-[20px] font-bold text-slate-900">Cost Trends</CardTitle>
                 <Link href={`/${orgSlug}/cost-dashboards/overview`}>
                   <button className="inline-flex items-center gap-2 text-sm font-semibold text-[#007A78] hover:text-[#005F5D] transition-colors">
                     View Details
@@ -279,7 +300,7 @@ export default function DashboardPage() {
                 <div className="text-center space-y-3">
                   <Activity className="h-12 w-12 mx-auto text-[#007A78]" />
                   <div className="space-y-1">
-                    <p className="text-[15px] font-semibold text-black">
+                    <p className="text-[15px] font-semibold text-slate-900">
                       Cost trend visualization
                     </p>
                     <p className="text-sm text-muted-foreground">
@@ -302,7 +323,7 @@ export default function DashboardPage() {
         <div className="lg:col-span-1">
           <Card className="h-full">
             <CardHeader className="border-b border-border">
-              <CardTitle className="text-[20px] font-bold text-black">Integrations</CardTitle>
+              <CardTitle className="text-[20px] font-bold text-slate-900">Integrations</CardTitle>
             </CardHeader>
             <CardContent className="p-6">
               <div className="space-y-3">
@@ -315,7 +336,7 @@ export default function DashboardPage() {
                       <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#007A78]/10">
                         <Cloud className="h-4 w-4 text-[#007A78]" />
                       </div>
-                      <span className="text-sm font-semibold text-black">
+                      <span className="text-sm font-semibold text-slate-900">
                         {integration.name}
                       </span>
                     </div>
@@ -342,7 +363,7 @@ export default function DashboardPage() {
 
       {/* Quick Actions */}
       <div>
-        <h2 className="text-[22px] font-bold text-black mb-4">Quick Actions</h2>
+        <h2 className="text-[13px] font-semibold text-slate-500 uppercase tracking-wide mb-4">Quick Actions</h2>
         <div className="grid gap-4 sm:grid-cols-3">
           {quickActions.map((action) => {
             const colorClasses = {
@@ -370,7 +391,7 @@ export default function DashboardPage() {
                         {action.icon}
                       </div>
                       <div className="space-y-1">
-                        <h3 className="text-[17px] font-bold text-black">{action.title}</h3>
+                        <h3 className="text-[17px] font-bold text-slate-900">{action.title}</h3>
                         <p className="text-sm text-muted-foreground">{action.description}</p>
                       </div>
                     </div>
@@ -384,7 +405,7 @@ export default function DashboardPage() {
 
       {/* Recent Activity */}
       <div>
-        <h2 className="text-[22px] font-bold text-black mb-4">Recent Activity</h2>
+        <h2 className="text-[13px] font-semibold text-slate-500 uppercase tracking-wide mb-4">Recent Activity</h2>
         <Card>
           <CardContent className="p-0">
             <div className="divide-y divide-border">
@@ -403,7 +424,7 @@ export default function DashboardPage() {
                   <div className="flex-1 min-w-0 space-y-1">
                     <div className="flex items-start justify-between gap-3">
                       <div className="space-y-0.5">
-                        <p className="text-[15px] font-semibold text-black">{activity.title}</p>
+                        <p className="text-[15px] font-semibold text-slate-900">{activity.title}</p>
                         <p className="text-sm text-muted-foreground">{activity.description}</p>
                       </div>
                       <Badge
@@ -443,7 +464,7 @@ export default function DashboardPage() {
             <div className="space-y-2 text-center sm:text-left">
               <div className="flex items-center gap-2 justify-center sm:justify-start">
                 <Users className="h-5 w-5 text-[#007A78]" />
-                <h3 className="text-[20px] font-bold text-black">Invite Your Team</h3>
+                <h3 className="text-[20px] font-bold text-slate-900">Invite Your Team</h3>
               </div>
               <p className="text-sm text-muted-foreground">
                 Collaborate on cost optimization with your team members

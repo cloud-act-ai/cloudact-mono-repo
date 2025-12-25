@@ -6,14 +6,12 @@
  * Clean header for mobile with:
  * - Hamburger menu toggle
  * - Org logo and name
- * - User menu
- * - Full-screen navigation overlay
+ * - Full-screen navigation overlay (contains user profile)
  */
 
 import { useState, useEffect } from "react"
 import { Menu, Building2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { UserMenu } from "@/components/user-menu"
 import Image from "next/image"
 import Link from "next/link"
 import { getOrgDetails } from "@/actions/organization-locale"

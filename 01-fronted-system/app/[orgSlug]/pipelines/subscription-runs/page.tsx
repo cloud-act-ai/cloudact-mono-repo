@@ -94,7 +94,7 @@ export default function SubscriptionRunsPage() {
     setIsLoading(true)
 
     const [onboardingStatus, apiKeyResult, pipelinesResult] = await Promise.all([
-      checkBackendOnboarding(orgSlug),
+      checkBackendOnboarding(orgSlug, { skipValidation: true, timeout: 3000 }),
       hasStoredApiKey(orgSlug),
       getAvailablePipelines(),
     ])
@@ -261,34 +261,43 @@ export default function SubscriptionRunsPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-10 w-10 animate-spin text-[#007A78]" />
+      <div className="flex items-center justify-center min-h-[500px]">
+        <div className="text-center">
+          <div className="h-12 w-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
+            <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+          </div>
+          <p className="text-[14px] text-slate-500 font-medium">Loading subscription pipelines...</p>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6 sm:space-y-8">
-      <div>
-        <h1 className="text-[32px] sm:text-[34px] font-bold text-black tracking-tight">Subscription Runs</h1>
-        <p className="text-[15px] text-muted-foreground mt-1">
-          Run and monitor SaaS subscription cost pipelines.
+    <div className="max-w-6xl mx-auto">
+      <div className="mb-10">
+        <h1 className="text-[32px] font-bold text-slate-900 tracking-tight leading-none">
+          Subscription Pipeline Runs
+        </h1>
+        <p className="text-[15px] text-slate-500 mt-2 max-w-lg">
+          Monitor your SaaS subscription sync pipeline executions
         </p>
       </div>
 
       {(!backendConnected || !hasApiKey) && (
-        <div className="health-card bg-[#FF6E50]/10 p-4 sm:p-5">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 text-[#FF6E50] mt-0.5 flex-shrink-0" />
-            <div className="space-y-3">
-              <h3 className="text-[15px] font-semibold text-black">
-                {!backendConnected ? "Backend Not Connected" : "API Key Missing"}
+        <div className="mb-8 p-5 rounded-2xl bg-gradient-to-r from-rose-50 to-orange-50 border border-rose-200">
+          <div className="flex items-start gap-4">
+            <div className="h-10 w-10 rounded-xl bg-white shadow-sm flex items-center justify-center flex-shrink-0">
+              <AlertCircle className="h-5 w-5 text-rose-500" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-[15px] font-semibold text-slate-900">
+                {!backendConnected ? "Backend not connected" : "API key missing"}
               </h3>
-              <p className="text-[13px] text-muted-foreground">
+              <p className="text-[13px] text-slate-600 mt-1">
                 Complete organization onboarding to run pipelines.
               </p>
               <Link href={`/${orgSlug}/settings/organization`}>
-                <button className="inline-flex items-center gap-2 h-11 px-4 bg-[#007A78] text-white text-[15px] font-semibold rounded-xl hover:bg-[#005F5D] transition-colors">
+                <button className="mt-3 h-9 px-4 bg-slate-900 text-white text-[12px] font-semibold rounded-lg hover:bg-slate-800 transition-colors">
                   Go to Settings
                 </button>
               </Link>
@@ -297,33 +306,31 @@ export default function SubscriptionRunsPage() {
         </div>
       )}
 
-      <div className="health-card bg-[#007A78]/5 p-4 border border-border">
+      <div className="mb-8 p-4 rounded-xl bg-teal-50 border border-teal-200">
         <div className="flex items-center gap-3">
-          <Info className="h-5 w-5 text-[#007A78] flex-shrink-0" />
-          <p className="text-[15px] text-black">
+          <Info className="h-5 w-5 text-teal-600 flex-shrink-0" />
+          <p className="text-[13px] text-slate-700 font-medium">
             Subscription pipelines calculate daily costs from your SaaS subscription plans.
           </p>
         </div>
       </div>
 
       {lastResult && (
-        <div className={`health-card p-4 ${lastResult.success ? 'bg-[#007A78]/10' : 'bg-[#FF6E50]/10'}`}>
-          <div className="flex items-center gap-3">
-            {lastResult.success ? (
-              <CheckCircle2 className="h-5 w-5 text-[#007A78] flex-shrink-0" />
-            ) : (
-              <AlertCircle className="h-5 w-5 text-[#FF6E50] flex-shrink-0" />
-            )}
-            <p className={`text-[15px] font-medium ${lastResult.success ? 'text-[#007A78]' : 'text-[#FF6E50]'}`}>
-              {lastResult.message}
-            </p>
-          </div>
+        <div className={`mb-6 p-4 rounded-xl border flex items-center gap-3 ${lastResult.success ? 'bg-[#007A78]/5 border-[#007A78]/20' : 'bg-rose-50 border-rose-200'}`}>
+          {lastResult.success ? (
+            <CheckCircle2 className="h-4 w-4 text-[#007A78] flex-shrink-0" />
+          ) : (
+            <AlertCircle className="h-4 w-4 text-rose-500 flex-shrink-0" />
+          )}
+          <p className={`text-[13px] font-medium ${lastResult.success ? 'text-[#007A78]' : 'text-rose-700'}`}>
+            {lastResult.message}
+          </p>
         </div>
       )}
 
-      <div>
-        <h2 className="text-[22px] font-bold text-black mb-4">Available Pipelines</h2>
-        <div className="health-card p-0 overflow-hidden">
+      <div className="mb-10">
+        <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide mb-4">Available Pipelines</h2>
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="px-4 sm:px-6 py-4 border-b border-[#E5E5EA]">
             <div className="flex items-center gap-2 text-[#007A78]">
               <Wallet className="h-[18px] w-[18px]" />
@@ -338,8 +345,8 @@ export default function SubscriptionRunsPage() {
                 <div className="inline-flex p-4 rounded-2xl bg-[#007A78]/10 mb-2">
                   <Wallet className="h-12 w-12 text-[#007A78]" />
                 </div>
-                <h3 className="text-[20px] font-semibold text-black">No subscription pipelines</h3>
-                <p className="text-[15px] text-muted-foreground max-w-md mx-auto">
+                <h3 className="text-[20px] font-semibold text-slate-900">No subscription pipelines</h3>
+                <p className="text-[15px] text-slate-500 max-w-md mx-auto">
                   Enable subscription providers in Integrations to run cost pipelines.
                 </p>
                 <Link href={`/${orgSlug}/integrations/subscriptions`}>
@@ -362,8 +369,8 @@ export default function SubscriptionRunsPage() {
                   <div key={pipeline.id} className="p-4 space-y-3">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
-                        <div className="text-[15px] font-semibold text-black">{pipeline.name}</div>
-                        <div className="text-[13px] text-muted-foreground mt-0.5">{pipeline.description}</div>
+                        <div className="text-[15px] font-semibold text-slate-900">{pipeline.name}</div>
+                        <div className="text-[13px] text-slate-500 mt-0.5">{pipeline.description}</div>
                       </div>
                       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#F0FDFA] text-[#007A78] border border-[#007A78]/10 flex-shrink-0">
                         <CheckCircle2 className="h-3 w-3" />
@@ -418,8 +425,8 @@ export default function SubscriptionRunsPage() {
                       <TableRow key={pipeline.id} className="console-table-row">
                         <TableCell className="console-table-cell">
                           <div className="space-y-0.5">
-                            <div className="text-[15px] font-semibold text-black">{pipeline.name}</div>
-                            <div className="text-[13px] text-muted-foreground">{pipeline.description}</div>
+                            <div className="text-[15px] font-semibold text-slate-900">{pipeline.name}</div>
+                            <div className="text-[13px] text-slate-500">{pipeline.description}</div>
                           </div>
                         </TableCell>
                         <TableCell className="console-table-cell">
@@ -463,35 +470,62 @@ export default function SubscriptionRunsPage() {
       </div>
 
       {backendConnected && hasApiKey && (
-        <div className="space-y-4">
+        <div className="space-y-6">
+          {/* Stats Row */}
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center">
+                <History className="h-5 w-5 text-slate-500" />
+              </div>
+              <div>
+                <p className="text-[24px] font-bold text-slate-900 leading-none">{runStats.total}</p>
+                <p className="text-[12px] text-slate-500 font-medium mt-0.5">Total Runs</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-[#007A78]/10 flex items-center justify-center">
+                <CheckCircle2 className="h-5 w-5 text-[#007A78]" />
+              </div>
+              <div>
+                <p className="text-[24px] font-bold text-slate-900 leading-none">{runStats.completed}</p>
+                <p className="text-[12px] text-slate-500 font-medium mt-0.5">Completed</p>
+              </div>
+            </div>
+
+            {runStats.failed > 0 && (
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-rose-100 flex items-center justify-center">
+                  <XCircle className="h-5 w-5 text-rose-500" />
+                </div>
+                <div>
+                  <p className="text-[24px] font-bold text-slate-900 leading-none">{runStats.failed}</p>
+                  <p className="text-[12px] text-slate-500 font-medium mt-0.5">Failed</p>
+                </div>
+              </div>
+            )}
+
+            {runStats.running > 0 && (
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-blue-100 flex items-center justify-center">
+                  <Loader2 className="h-5 w-5 text-blue-600 animate-spin" />
+                </div>
+                <div>
+                  <p className="text-[24px] font-bold text-slate-900 leading-none">{runStats.running}</p>
+                  <p className="text-[12px] text-slate-500 font-medium mt-0.5">Running</p>
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
-              <h2 className="text-[22px] font-bold text-black">Run History</h2>
-              {pipelineRuns.length > 0 && (
-                <div className="flex items-center gap-4 mt-2">
-                  <div className="flex items-center gap-1.5">
-                    <div className="h-2 w-2 rounded-full bg-[#007A78]"></div>
-                    <span className="text-[13px] text-muted-foreground">{runStats.completed} completed</span>
-                  </div>
-                  {runStats.failed > 0 && (
-                    <div className="flex items-center gap-1.5">
-                      <div className="h-2 w-2 rounded-full bg-[#FF6E50]"></div>
-                      <span className="text-[13px] text-muted-foreground">{runStats.failed} failed</span>
-                    </div>
-                  )}
-                  {runStats.running > 0 && (
-                    <div className="flex items-center gap-1.5">
-                      <div className="h-2 w-2 rounded-full bg-[#007A78] animate-pulse"></div>
-                      <span className="text-[13px] text-muted-foreground">{runStats.running} running</span>
-                    </div>
-                  )}
-                </div>
-              )}
+              <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide">Run History</h2>
             </div>
             <button
               onClick={loadPipelineRuns}
               disabled={runsLoading}
-              className="inline-flex items-center justify-center gap-2 h-11 px-4 bg-[#007A78]/5 text-muted-foreground text-[15px] font-medium rounded-xl hover:bg-[#007A78]/10 disabled:text-[#C7C7CC] disabled:cursor-not-allowed disabled:opacity-50 transition-colors touch-manipulation border border-border"
+              className="inline-flex items-center justify-center gap-2 h-9 px-4 bg-slate-100 text-slate-600 text-[13px] font-semibold rounded-lg hover:bg-slate-200 hover:text-slate-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {runsLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -502,11 +536,14 @@ export default function SubscriptionRunsPage() {
             </button>
           </div>
 
-          <div className="health-card p-0 overflow-hidden">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
             {/* Loading state */}
             {runsLoading && pipelineRuns.length === 0 && (
               <div className="px-4 sm:px-6 py-12 text-center">
-                <Loader2 className="h-8 w-8 animate-spin mx-auto text-[#007A78]" />
+                <div className="h-12 w-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
+                  <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+                </div>
+                <p className="text-[14px] text-slate-500 font-medium">Loading run history...</p>
               </div>
             )}
 
@@ -514,11 +551,11 @@ export default function SubscriptionRunsPage() {
             {!runsLoading && pipelineRuns.length === 0 && (
               <div className="px-4 sm:px-6 py-12 text-center">
                 <div className="space-y-3">
-                  <div className="inline-flex p-3 rounded-2xl bg-[#8E8E93]/10 mb-2">
-                    <History className="h-10 w-10 text-muted-foreground" />
+                  <div className="inline-flex p-3 rounded-2xl bg-slate-100 mb-2">
+                    <History className="h-10 w-10 text-slate-400" />
                   </div>
-                  <h3 className="text-[17px] font-semibold text-black">No runs yet</h3>
-                  <p className="text-[15px] text-muted-foreground">Run a subscription pipeline to see history</p>
+                  <h3 className="text-[17px] font-semibold text-slate-900">No runs yet</h3>
+                  <p className="text-[15px] text-slate-500">Run a subscription pipeline to see history</p>
                 </div>
               </div>
             )}
@@ -545,8 +582,8 @@ export default function SubscriptionRunsPage() {
                               <ChevronRight className="h-4 w-4 text-[#C7C7CC] mt-1 flex-shrink-0" />
                             )}
                             <div className="min-w-0">
-                              <div className="text-[15px] font-semibold text-black truncate">{run.pipeline_id}</div>
-                              <div className="text-[11px] text-muted-foreground font-mono mt-0.5">
+                              <div className="text-[15px] font-semibold text-slate-900 truncate">{run.pipeline_id}</div>
+                              <div className="text-[11px] text-slate-500 font-mono mt-0.5">
                                 {run.pipeline_logging_id.slice(0, 8)}...
                               </div>
                             </div>
@@ -558,7 +595,7 @@ export default function SubscriptionRunsPage() {
                         </div>
 
                         <div className="ml-6 space-y-2">
-                          <div className="flex items-center gap-4 text-[13px] text-muted-foreground">
+                          <div className="flex items-center gap-4 text-[13px] text-slate-500">
                             <span className="flex items-center gap-1">
                               <CalendarClock className="h-3 w-3" />
                               {formatDateTime(run.start_time)}
@@ -567,8 +604,8 @@ export default function SubscriptionRunsPage() {
 
                           <div className="space-y-1">
                             <div className="flex items-center justify-between text-[11px]">
-                              <span className="text-muted-foreground">Duration</span>
-                              <span className="font-medium text-black">{formatDuration(run.duration_ms)}</span>
+                              <span className="text-slate-500">Duration</span>
+                              <span className="font-medium text-slate-900">{formatDuration(run.duration_ms)}</span>
                             </div>
                             <div className="h-1.5 bg-[#E5E5EA] rounded-full overflow-hidden">
                               <div
@@ -589,12 +626,12 @@ export default function SubscriptionRunsPage() {
                           ) : detail ? (
                             <div className="space-y-4">
                               {run.error_message && (
-                                <div className="health-card bg-[#FF6E50]/10 p-4 border-l-4 border-[#FF6E50]">
+                                <div className="bg-rose-50 border border-rose-200 p-4 rounded-xl border-l-4 border-l-rose-500">
                                   <div className="flex items-start gap-3">
-                                    <XCircle className="h-5 w-5 text-[#FF6E50] mt-0.5 flex-shrink-0" />
+                                    <XCircle className="h-5 w-5 text-rose-500 mt-0.5 flex-shrink-0" />
                                     <div className="flex-1 min-w-0">
-                                      <p className="text-[15px] font-semibold text-black">Error Details</p>
-                                      <p className="text-[13px] text-muted-foreground mt-1 break-words font-mono">{run.error_message}</p>
+                                      <p className="text-[15px] font-semibold text-slate-900">Error Details</p>
+                                      <p className="text-[13px] text-slate-600 mt-1 break-words font-mono">{run.error_message}</p>
                                     </div>
                                   </div>
                                 </div>
@@ -603,20 +640,20 @@ export default function SubscriptionRunsPage() {
                               <div className="space-y-3">
                                 <div className="flex items-center gap-2">
                                   <TrendingUp className="h-4 w-4 text-[#007A78]" />
-                                  <h4 className="text-[15px] font-semibold text-black">Pipeline Steps</h4>
+                                  <h4 className="text-[15px] font-semibold text-slate-900">Pipeline Steps</h4>
                                 </div>
                                 {detail.steps.length === 0 ? (
-                                  <p className="text-center text-muted-foreground text-[13px] py-4">No step logs available</p>
+                                  <p className="text-center text-slate-500 text-[13px] py-4">No step logs available</p>
                                 ) : (
                                   <div className="space-y-2">
                                     {detail.steps.map((step) => (
-                                      <div key={step.step_logging_id} className="health-card p-3">
+                                      <div key={step.step_logging_id} className="bg-white rounded-xl border border-slate-200 p-3">
                                         <div className="flex items-center justify-between gap-3 mb-2">
                                           <div className="flex items-center gap-2 min-w-0">
                                             <span className="flex items-center justify-center h-6 w-6 rounded-full bg-[#007A78]/10 text-[#007A78] text-[11px] font-bold flex-shrink-0">
                                               {step.step_index}
                                             </span>
-                                            <span className="text-[13px] font-semibold text-black truncate">{step.step_name}</span>
+                                            <span className="text-[13px] font-semibold text-slate-900 truncate">{step.step_name}</span>
                                           </div>
                                           <span className={`inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-full flex-shrink-0 ${getStatusColor(step.status)}`}>
                                             {step.status}
@@ -624,8 +661,8 @@ export default function SubscriptionRunsPage() {
                                         </div>
                                         <div className="ml-8 space-y-1">
                                           <div className="flex items-center justify-between text-[11px]">
-                                            <span className="text-muted-foreground">Duration</span>
-                                            <span className="font-medium text-black">{formatDuration(step.duration_ms)}</span>
+                                            <span className="text-slate-500">Duration</span>
+                                            <span className="font-medium text-slate-900">{formatDuration(step.duration_ms)}</span>
                                           </div>
                                           <div className="h-1 bg-[#E5E5EA] rounded-full overflow-hidden">
                                             <div
@@ -641,7 +678,7 @@ export default function SubscriptionRunsPage() {
                               </div>
                             </div>
                           ) : (
-                            <div className="text-center text-muted-foreground text-[13px] py-6">
+                            <div className="text-center text-slate-500 text-[13px] py-6">
                               Failed to load details
                             </div>
                           )}
@@ -686,8 +723,8 @@ export default function SubscriptionRunsPage() {
                               )}
                             </TableCell>
                             <TableCell className="console-table-cell">
-                              <div className="text-[15px] font-semibold text-black">{run.pipeline_id}</div>
-                              <div className="text-[11px] text-muted-foreground font-mono mt-0.5">
+                              <div className="text-[15px] font-semibold text-slate-900">{run.pipeline_id}</div>
+                              <div className="text-[11px] text-slate-500 font-mono mt-0.5">
                                 {run.pipeline_logging_id.slice(0, 8)}...
                               </div>
                             </TableCell>
@@ -698,11 +735,11 @@ export default function SubscriptionRunsPage() {
                               </span>
                             </TableCell>
                             <TableCell className="console-table-cell">
-                              <div className="text-[13px] text-black">{formatDateTime(run.start_time)}</div>
+                              <div className="text-[13px] text-slate-700">{formatDateTime(run.start_time)}</div>
                             </TableCell>
                             <TableCell className="console-table-cell">
                               <div className="space-y-1.5">
-                                <div className="text-[13px] font-medium text-black">{formatDuration(run.duration_ms)}</div>
+                                <div className="text-[13px] font-medium text-slate-900">{formatDuration(run.duration_ms)}</div>
                                 <div className="h-1.5 w-24 bg-[#E5E5EA] rounded-full overflow-hidden">
                                   <div
                                     className={`h-full rounded-full ${run.status === 'COMPLETED' ? 'bg-[#007A78]' : run.status === 'FAILED' ? 'bg-[#FF6E50]' : 'bg-[#007A78]/50'}`}
@@ -723,12 +760,12 @@ export default function SubscriptionRunsPage() {
                                 ) : detail ? (
                                   <div className="space-y-4">
                                     {run.error_message && (
-                                      <div className="health-card bg-[#FF6E50]/10 p-4 border-l-4 border-[#FF6E50]">
+                                      <div className="bg-rose-50 border border-rose-200 p-4 rounded-xl border-l-4 border-l-rose-500">
                                         <div className="flex items-start gap-3">
-                                          <XCircle className="h-5 w-5 text-[#FF6E50] mt-0.5 flex-shrink-0" />
+                                          <XCircle className="h-5 w-5 text-rose-500 mt-0.5 flex-shrink-0" />
                                           <div className="flex-1">
-                                            <p className="text-[15px] font-semibold text-black">Error Details</p>
-                                            <p className="text-[13px] text-muted-foreground mt-1 font-mono">{run.error_message}</p>
+                                            <p className="text-[15px] font-semibold text-slate-900">Error Details</p>
+                                            <p className="text-[13px] text-slate-600 mt-1 font-mono">{run.error_message}</p>
                                           </div>
                                         </div>
                                       </div>
@@ -737,20 +774,20 @@ export default function SubscriptionRunsPage() {
                                     <div className="space-y-3">
                                       <div className="flex items-center gap-2">
                                         <TrendingUp className="h-4 w-4 text-[#007A78]" />
-                                        <h4 className="text-[15px] font-semibold text-black">Pipeline Steps</h4>
+                                        <h4 className="text-[15px] font-semibold text-slate-900">Pipeline Steps</h4>
                                       </div>
                                       <div className="grid gap-3">
                                         {detail.steps.length === 0 ? (
-                                          <p className="text-center text-muted-foreground text-[13px] py-6">No step logs available</p>
+                                          <p className="text-center text-slate-500 text-[13px] py-6">No step logs available</p>
                                         ) : (
                                           detail.steps.map((step) => (
-                                            <div key={step.step_logging_id} className="health-card p-4">
+                                            <div key={step.step_logging_id} className="bg-white rounded-xl border border-slate-200 p-4">
                                               <div className="flex items-center justify-between gap-4 mb-3">
                                                 <div className="flex items-center gap-3">
                                                   <span className="flex items-center justify-center h-8 w-8 rounded-full bg-[#007A78]/10 text-[#007A78] text-[13px] font-bold">
                                                     {step.step_index}
                                                   </span>
-                                                  <span className="text-[15px] font-semibold text-black">{step.step_name}</span>
+                                                  <span className="text-[15px] font-semibold text-slate-900">{step.step_name}</span>
                                                 </div>
                                                 <span className={`inline-flex items-center px-2.5 py-1 text-[11px] font-semibold rounded-full ${getStatusColor(step.status)}`}>
                                                   {step.status}
@@ -758,8 +795,8 @@ export default function SubscriptionRunsPage() {
                                               </div>
                                               <div className="ml-11 space-y-1.5">
                                                 <div className="flex items-center justify-between text-[13px]">
-                                                  <span className="text-muted-foreground">Duration</span>
-                                                  <span className="font-medium text-black">{formatDuration(step.duration_ms)}</span>
+                                                  <span className="text-slate-500">Duration</span>
+                                                  <span className="font-medium text-slate-900">{formatDuration(step.duration_ms)}</span>
                                                 </div>
                                                 <div className="h-2 bg-[#E5E5EA] rounded-full overflow-hidden">
                                                   <div
@@ -775,7 +812,7 @@ export default function SubscriptionRunsPage() {
                                     </div>
                                   </div>
                                 ) : (
-                                  <div className="text-center text-muted-foreground text-[13px] py-6">
+                                  <div className="text-center text-slate-500 text-[13px] py-6">
                                     Failed to load details
                                   </div>
                                 )}

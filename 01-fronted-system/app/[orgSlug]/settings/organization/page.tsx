@@ -194,7 +194,7 @@ export default function OrganizationSettingsPage() {
     setLoadingBackendStatus(true)
     setBackendError(null)
     try {
-      const result = await checkBackendOnboarding(orgSlug)
+      const result = await checkBackendOnboarding(orgSlug, { timeout: 5000 })
       setBackendOnboarded(result.onboarded)
       setApiKeyFingerprint(result.apiKeyFingerprint || null)
       setApiKeyValid(result.apiKeyValid)

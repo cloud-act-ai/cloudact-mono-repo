@@ -3,12 +3,6 @@
 import { useState, useEffect, useCallback } from "react"
 import { useRouter, useParams } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Separator } from "@/components/ui/separator"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   AlertDialog,
@@ -23,18 +17,18 @@ import {
 } from "@/components/ui/alert-dialog"
 import {
   Loader2,
-  Save,
-  AlertTriangle,
+  AlertCircle,
   User,
   Mail,
   Phone,
   Globe,
-  CheckCircle2,
+  Check,
   Key,
   Shield,
   Trash2,
   Building2,
   Users,
+  Save,
 } from "lucide-react"
 import { logError } from "@/lib/utils"
 import { COUNTRY_CODES } from "@/lib/constants/countries"
@@ -47,19 +41,16 @@ import {
 function parsePhone(phone: string | null): { countryCode: string; phoneNumber: string } {
   if (!phone) return { countryCode: "+1", phoneNumber: "" }
 
-  // Try to match country code at start
   const match = phone.match(/^(\+\d{1,4})\s*(.*)$/)
   if (match) {
     const code = match[1]
     const number = match[2].trim()
-    // Check if it's a known country code
     const known = COUNTRY_CODES.find(c => c.code === code)
     if (known) {
       return { countryCode: code, phoneNumber: number }
     }
   }
 
-  // Default: assume US/CA and use the whole string as number
   return { countryCode: "+1", phoneNumber: phone.replace(/^\+1\s*/, "") }
 }
 
@@ -83,12 +74,14 @@ const TIMEZONES = [
 
 export default function PersonalSettingsPage() {
   const router = useRouter()
-  useParams()
+  const params = useParams()
+  const orgSlug = params.orgSlug as string
 
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<"profile" | "security" | "danger">("profile")
 
   // Profile fields
   const [email, setEmail] = useState("")
@@ -121,9 +114,7 @@ export default function PersonalSettingsPage() {
   const fetchProfile = useCallback(async () => {
     try {
       const supabase = createClient()
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
+      const { data: { user } } = await supabase.auth.getUser()
 
       if (!user) {
         router.push("/login")
@@ -132,7 +123,6 @@ export default function PersonalSettingsPage() {
 
       setEmail(user.email || "")
 
-      // Fetch profile data
       const { data: profile } = await supabase
         .from("profiles")
         .select("full_name, phone, timezone")
@@ -140,11 +130,9 @@ export default function PersonalSettingsPage() {
         .single()
 
       if (profile) {
-        // Split full_name into first and last name
         const nameParts = (profile.full_name || "").split(" ")
         setFirstName(nameParts[0] || "")
         setLastName(nameParts.slice(1).join(" ") || "")
-        // Parse phone into country code and number
         const { countryCode: parsedCode, phoneNumber: parsedNumber } = parsePhone(profile.phone)
         setCountryCode(parsedCode)
         setPhoneNumber(parsedNumber)
@@ -162,6 +150,14 @@ export default function PersonalSettingsPage() {
     void fetchProfile()
   }, [fetchProfile])
 
+  // Clear success after timeout
+  useEffect(() => {
+    if (success) {
+      const timer = setTimeout(() => setSuccess(null), 4000)
+      return () => clearTimeout(timer)
+    }
+  }, [success])
+
   const handleSave = async () => {
     setIsSaving(true)
     setError(null)
@@ -169,23 +165,17 @@ export default function PersonalSettingsPage() {
 
     try {
       const supabase = createClient()
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
+      const { data: { user } } = await supabase.auth.getUser()
 
       if (!user) throw new Error("Not authenticated")
 
-      // Validate phone number (required)
       if (!phoneNumber.trim()) {
         setError("Phone number is required")
         setIsSaving(false)
         return
       }
 
-      // Combine first and last name
       const fullName = [firstName.trim(), lastName.trim()].filter(Boolean).join(" ")
-
-      // Combine country code and phone number
       const fullPhone = `${countryCode} ${phoneNumber.trim()}`
 
       const { error: updateError } = await supabase
@@ -200,7 +190,6 @@ export default function PersonalSettingsPage() {
       if (updateError) throw updateError
 
       setSuccess("Profile updated successfully!")
-      setTimeout(() => setSuccess(null), 4000)
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "An error occurred")
     } finally {
@@ -227,7 +216,6 @@ export default function PersonalSettingsPage() {
       }
 
       setSuccess(data.message || "Password reset email sent! Check your inbox.")
-      setTimeout(() => setSuccess(null), 6000)
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "An error occurred")
     } finally {
@@ -235,7 +223,6 @@ export default function PersonalSettingsPage() {
     }
   }
 
-  // Load owned organizations
   const loadOwnedOrganizations = useCallback(async () => {
     setLoadingOwnedOrgs(true)
     try {
@@ -243,18 +230,17 @@ export default function PersonalSettingsPage() {
       if (result.success && result.data) {
         setOwnedOrgs(result.data)
       }
-    } catch (err: unknown) {
+    } catch {
+      // Silent fail
     } finally {
       setLoadingOwnedOrgs(false)
     }
   }, [])
 
-  // Load owned orgs when viewing danger zone
   useEffect(() => {
     void loadOwnedOrganizations()
   }, [loadOwnedOrganizations])
 
-  // Request account deletion
   const handleRequestAccountDeletion = async () => {
     setIsRequestingDeletion(true)
     setError(null)
@@ -276,107 +262,159 @@ export default function PersonalSettingsPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <Loader2 className="h-8 w-8 animate-spin text-[#007A78]" />
+      <div className="flex items-center justify-center min-h-[500px]">
+        <div className="text-center">
+          <div className="h-12 w-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
+            <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+          </div>
+          <p className="text-[14px] text-slate-500 font-medium">Loading settings...</p>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-4 sm:space-y-6">
-      <div>
-        <h1 className="text-[32px] sm:text-[34px] font-bold text-black tracking-tight">Personal Settings</h1>
-        <p className="text-[15px] text-muted-foreground mt-1">
-          Manage your personal profile and security settings
+    <div className="max-w-6xl mx-auto">
+      {/* Header */}
+      <div className="mb-10">
+        <h1 className="text-[32px] font-bold text-slate-900 tracking-tight leading-none">
+          Personal Settings
+        </h1>
+        <p className="text-[15px] text-slate-500 mt-2 max-w-lg">
+          Manage your profile, security, and account settings
         </p>
       </div>
 
+      {/* Stats Row */}
+      <div className="flex items-center gap-6 mb-8">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-[#007A78]/10 flex items-center justify-center">
+            <User className="h-5 w-5 text-[#007A78]" />
+          </div>
+          <div>
+            <p className="text-[14px] text-slate-600 font-medium">Account</p>
+            <p className="text-[12px] text-[#007A78] font-semibold">Active</p>
+          </div>
+        </div>
+        <div className="h-8 w-px bg-slate-200"></div>
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center">
+            <Shield className="h-5 w-5 text-slate-500" />
+          </div>
+          <div>
+            <p className="text-[14px] text-slate-600 font-medium">Security</p>
+            <p className="text-[12px] text-slate-500 font-medium">Protected</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Alerts */}
       {error && (
-        <Alert variant="destructive" className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
-          <AlertTriangle className="h-4 w-4 text-[#FF6E50]" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
+        <div className="mb-6 p-4 rounded-xl bg-rose-50 border border-rose-200 flex items-center gap-3">
+          <AlertCircle className="h-4 w-4 text-rose-500 flex-shrink-0" />
+          <p className="text-[13px] font-medium text-rose-700">{error}</p>
+        </div>
       )}
 
       {success && (
-        <Alert className="bg-muted border-[#007A78]/30">
-          <CheckCircle2 className="h-4 w-4 text-[#007A78]" />
-          <AlertDescription className="text-foreground">{success}</AlertDescription>
-        </Alert>
+        <div className="mb-6 p-4 rounded-xl bg-[#007A78]/5 border border-[#007A78]/20 flex items-center gap-3">
+          <Check className="h-4 w-4 text-[#007A78] flex-shrink-0" />
+          <p className="text-[13px] font-medium text-[#007A78]">{success}</p>
+        </div>
       )}
 
-      <Tabs defaultValue="profile" className="w-full">
-        <TabsList className="w-full sm:w-auto flex-wrap touch-manipulation">
-          <TabsTrigger value="profile" className="cursor-pointer">Profile</TabsTrigger>
-          <TabsTrigger value="security" className="cursor-pointer">Security</TabsTrigger>
-          <TabsTrigger value="danger" className="text-[#FF6E50] data-[state=active]:text-[#FF6E50] cursor-pointer">Danger Zone</TabsTrigger>
-        </TabsList>
+      {/* Tab Navigation */}
+      <div className="flex items-center gap-1 mb-8 p-1 bg-slate-100 rounded-xl w-fit">
+        {[
+          { id: "profile", label: "Profile", icon: <User className="h-4 w-4" /> },
+          { id: "security", label: "Security", icon: <Shield className="h-4 w-4" /> },
+          { id: "danger", label: "Danger Zone", icon: <AlertCircle className="h-4 w-4" />, danger: true },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id as "profile" | "security" | "danger")}
+            className={`h-9 px-4 text-[13px] font-semibold rounded-lg flex items-center gap-2 transition-all ${
+              activeTab === tab.id
+                ? tab.danger
+                  ? "bg-rose-500 text-white shadow-sm"
+                  : "bg-white text-slate-900 shadow-sm"
+                : tab.danger
+                  ? "text-rose-500 hover:text-rose-600"
+                  : "text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            {tab.icon}
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
-        <TabsContent value="profile" className="space-y-6">
-          <div className="metric-card shadow-sm">
-            <div className="metric-card-header mb-6">
-              <div className="flex items-center gap-2">
-                <User className="h-5 w-5 text-muted-foreground" />
-                <h2 className="text-[22px] font-bold text-black">Personal Information</h2>
-              </div>
-              <p className="text-[13px] sm:text-[15px] text-muted-foreground mt-1">Update your personal details and preferences</p>
-            </div>
-            <div className="metric-card-content space-y-4 sm:space-y-6">
+      {/* Profile Tab */}
+      {activeTab === "profile" && (
+        <section>
+          <div className="flex items-center gap-2 mb-4">
+            <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide">
+              Personal Information
+            </h2>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="p-6 space-y-6">
               {/* Email - Read Only */}
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-[13px] sm:text-[15px] font-medium text-foreground flex items-center gap-2">
-                  <Mail className="h-4 w-4 text-muted-foreground" />
-                  Email Address
-                </Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  disabled
-                  className="h-10 px-3 text-[15px] bg-[#007A78]/5 text-muted-foreground border border-[#E5E5EA] rounded-lg"
-                />
-                <p className="text-[13px] text-muted-foreground">
-                  Email address cannot be changed. Contact support if you need to update it.
-                </p>
+              <div className="group relative">
+                <div className="absolute left-0 top-2 bottom-2 w-1 rounded-full bg-slate-300 opacity-60" />
+                <div className="pl-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Mail className="h-4 w-4 text-slate-400" />
+                    <label className="text-[13px] font-medium text-slate-700">Email Address</label>
+                  </div>
+                  <input
+                    type="email"
+                    value={email}
+                    disabled
+                    className="w-full h-11 px-4 text-[14px] bg-slate-50 text-slate-500 border border-slate-200 rounded-xl"
+                  />
+                  <p className="text-[12px] text-slate-400 mt-1.5">Contact support to update your email</p>
+                </div>
               </div>
 
-              <Separator />
+              <div className="h-px bg-slate-100"></div>
 
               {/* Name Fields */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="firstName" className="text-[13px] sm:text-[15px] font-medium text-foreground">First Name</Label>
-                  <Input
-                    id="firstName"
+                <div>
+                  <label className="text-[13px] font-medium text-slate-700 mb-2 block">First Name</label>
+                  <input
                     type="text"
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
-                    placeholder="Enter your first name"
-                    className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg focus:border-[#8E8E93] focus:ring-1 focus:ring-[#8E8E93]"
+                    placeholder="Enter first name"
+                    className="w-full h-11 px-4 text-[14px] bg-white border border-slate-200 rounded-xl focus:border-[#007A78] focus:ring-1 focus:ring-[#007A78] transition-colors"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="lastName" className="text-[13px] sm:text-[15px] font-medium text-foreground">Last Name</Label>
-                  <Input
-                    id="lastName"
+                <div>
+                  <label className="text-[13px] font-medium text-slate-700 mb-2 block">Last Name</label>
+                  <input
                     type="text"
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
-                    placeholder="Enter your last name"
-                    className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg focus:border-[#8E8E93] focus:ring-1 focus:ring-[#8E8E93]"
+                    placeholder="Enter last name"
+                    className="w-full h-11 px-4 text-[14px] bg-white border border-slate-200 rounded-xl focus:border-[#007A78] focus:ring-1 focus:ring-[#007A78] transition-colors"
                   />
                 </div>
               </div>
 
-              {/* Phone Number with Country Code */}
-              <div className="space-y-2">
-                <Label htmlFor="phone" className="text-[13px] sm:text-[15px] font-medium text-foreground flex items-center gap-2">
-                  <Phone className="h-4 w-4 text-muted-foreground" />
-                  Phone Number <span className="text-[#FF6E50]">*</span>
-                </Label>
+              {/* Phone */}
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <Phone className="h-4 w-4 text-slate-400" />
+                  <label className="text-[13px] font-medium text-slate-700">
+                    Phone Number <span className="text-rose-500">*</span>
+                  </label>
+                </div>
                 <div className="flex gap-2">
                   <Select value={countryCode} onValueChange={setCountryCode}>
-                    <SelectTrigger className="w-[90px] sm:w-24 h-10 text-[15px] border border-[#E5E5EA] rounded-lg">
+                    <SelectTrigger className="w-[100px] h-11 text-[13px] border-slate-200 rounded-xl">
                       <SelectValue>{countryCode}</SelectValue>
                     </SelectTrigger>
                     <SelectContent className="max-h-[300px]">
@@ -387,8 +425,7 @@ export default function PersonalSettingsPage() {
                       ))}
                     </SelectContent>
                   </Select>
-                  <Input
-                    id="phone"
+                  <input
                     type="tel"
                     value={phoneNumber}
                     onChange={(e) => {
@@ -396,23 +433,21 @@ export default function PersonalSettingsPage() {
                       if (error) setError(null)
                     }}
                     placeholder="555 123 4567"
-                    className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg flex-1 focus:border-[#8E8E93] focus:ring-1 focus:ring-[#8E8E93]"
+                    className="flex-1 h-11 px-4 text-[14px] bg-white border border-slate-200 rounded-xl focus:border-[#007A78] focus:ring-1 focus:ring-[#007A78] transition-colors"
                   />
                 </div>
-                <p className="text-[13px] text-muted-foreground">
-                  Used for account recovery and notifications.
-                </p>
+                <p className="text-[12px] text-slate-400 mt-1.5">Used for account recovery and notifications</p>
               </div>
 
               {/* Timezone */}
-              <div className="space-y-2">
-                <Label htmlFor="timezone" className="text-[13px] sm:text-[15px] font-medium text-foreground flex items-center gap-2">
-                  <Globe className="h-4 w-4 text-muted-foreground" />
-                  Timezone
-                </Label>
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <Globe className="h-4 w-4 text-slate-400" />
+                  <label className="text-[13px] font-medium text-slate-700">Timezone</label>
+                </div>
                 <Select value={timezone} onValueChange={setTimezone}>
-                  <SelectTrigger id="timezone" className="h-10 text-[15px] border border-[#E5E5EA] rounded-lg">
-                    <SelectValue placeholder="Select your timezone" />
+                  <SelectTrigger className="w-full h-11 text-[13px] border-slate-200 rounded-xl">
+                    <SelectValue placeholder="Select timezone" />
                   </SelectTrigger>
                   <SelectContent>
                     {TIMEZONES.map((tz) => (
@@ -422,210 +457,214 @@ export default function PersonalSettingsPage() {
                     ))}
                   </SelectContent>
                 </Select>
-                <p className="text-[13px] text-muted-foreground">
-                  Used for displaying times in your local timezone.
-                </p>
               </div>
             </div>
-            <div className="pt-4 sm:pt-6 border-t border-border">
-              <Button onClick={handleSave} disabled={isSaving} className="console-button-primary h-11 px-4">
+
+            {/* Save Button */}
+            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50">
+              <button
+                onClick={handleSave}
+                disabled={isSaving}
+                className="h-10 px-5 text-[13px] font-semibold bg-[#007A78] hover:bg-[#006664] text-white rounded-xl transition-colors flex items-center gap-2 disabled:opacity-50"
+              >
                 {isSaving ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <Loader2 className="h-4 w-4 animate-spin" />
                     Saving...
                   </>
                 ) : (
                   <>
-                    <Save className="mr-2 h-4 w-4" />
+                    <Save className="h-4 w-4" />
                     Save Changes
                   </>
                 )}
-              </Button>
+              </button>
             </div>
           </div>
-        </TabsContent>
+        </section>
+      )}
 
-        <TabsContent value="security" className="space-y-6">
-          <div className="metric-card shadow-sm">
-            <div className="metric-card-header mb-6">
-              <div className="flex items-center gap-2">
-                <Shield className="h-5 w-5 text-muted-foreground" />
-                <h2 className="text-[22px] font-bold text-black">Security</h2>
-              </div>
-              <p className="text-[13px] sm:text-[15px] text-muted-foreground mt-1">Manage your password and security settings</p>
-            </div>
-            <div className="metric-card-content space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border border-border rounded-xl bg-[#007A78]/5">
-                <div className="flex items-center gap-3">
-                  <Key className="h-5 w-5 text-muted-foreground" />
-                  <div>
-                    <p className="text-[15px] font-medium text-black">Password</p>
-                    <p className="text-[13px] text-muted-foreground">Reset your password via email</p>
+      {/* Security Tab */}
+      {activeTab === "security" && (
+        <section className="space-y-6">
+          <div className="flex items-center gap-2 mb-4">
+            <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide">
+              Authentication
+            </h2>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="group relative">
+              <div className="absolute left-0 top-4 bottom-4 w-1 rounded-full bg-[#007A78] opacity-60 group-hover:opacity-100 transition-opacity" />
+              <div className="pl-5 py-5 pr-5 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-4 min-w-0 flex-1">
+                  <div className="h-11 w-11 rounded-xl bg-[#007A78]/10 flex items-center justify-center flex-shrink-0">
+                    <Key className="h-5 w-5 text-[#007A78]" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-[15px] font-semibold text-slate-900 tracking-tight">Password</h3>
+                    <p className="text-[12px] text-slate-500 mt-0.5">Reset your password via email verification</p>
                   </div>
                 </div>
-                <Button
-                  variant="outline"
+                <button
                   onClick={handleResetPassword}
                   disabled={isResettingPassword}
-                  className="console-button-secondary h-11 px-4"
+                  className="h-10 px-5 text-[13px] font-semibold bg-[#007A78] hover:bg-[#006664] text-white rounded-xl transition-colors flex items-center gap-2 disabled:opacity-50"
                 >
                   {isResettingPassword ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      <Loader2 className="h-4 w-4 animate-spin" />
                       Sending...
                     </>
                   ) : (
                     "Reset Password"
                   )}
-                </Button>
+                </button>
               </div>
             </div>
           </div>
 
-          {/* Security Info Card */}
-          <div className="metric-card shadow-sm bg-[#007A78]/5 border-[#007A78]/20">
-            <div className="metric-card-content">
-              <div className="flex items-start gap-3">
-                <Shield className="h-5 w-5 text-[#007A78] mt-0.5 flex-shrink-0" />
-                <div className="space-y-2">
-                  <h3 className="text-[15px] font-semibold text-[#005F5D]">Security Tips</h3>
-                  <ul className="text-[13px] text-[#007A78] space-y-1 list-disc list-inside">
-                    <li>Use a strong, unique password for your account</li>
-                    <li>Never share your password or reset links with anyone</li>
-                    <li>Check your email regularly for security notifications</li>
-                    <li>Log out when using shared or public devices</li>
-                  </ul>
-                </div>
+          {/* Security Tips */}
+          <div className="p-5 rounded-2xl bg-gradient-to-br from-slate-50 to-slate-100/50 border border-slate-200">
+            <div className="flex items-start gap-4">
+              <div className="h-10 w-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center flex-shrink-0 shadow-sm">
+                <Shield className="h-5 w-5 text-[#007A78]" />
+              </div>
+              <div>
+                <h3 className="text-[15px] font-semibold text-slate-900 mb-2">Security Tips</h3>
+                <ul className="text-[13px] text-slate-500 space-y-1">
+                  <li>• Use a strong, unique password for your account</li>
+                  <li>• Never share your password or reset links with anyone</li>
+                  <li>• Log out when using shared or public devices</li>
+                </ul>
               </div>
             </div>
           </div>
-        </TabsContent>
+        </section>
+      )}
 
-        <TabsContent value="danger" className="space-y-6">
-          {/* Danger Zone Header */}
-          <div className="pt-4 sm:pt-6">
-            <h2 className="text-[22px] font-bold text-[#FF6E50] mb-4 flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5" />
+      {/* Danger Zone Tab */}
+      {activeTab === "danger" && (
+        <section className="space-y-6">
+          <div className="flex items-center gap-2 mb-4">
+            <h2 className="text-[13px] font-semibold text-rose-600 uppercase tracking-wide">
               Danger Zone
             </h2>
           </div>
 
           {/* Owned Organizations Warning */}
           {loadingOwnedOrgs ? (
-            <div className="metric-card shadow-sm border-[#FF6E50]/30">
-              <div className="metric-card-content py-8">
-                <div className="flex items-center justify-center">
-                  <Loader2 className="h-6 w-6 animate-spin text-[#007A78]" />
-                  <span className="ml-2 text-[15px] text-muted-foreground">Loading organizations...</span>
-                </div>
-              </div>
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
             </div>
-          ) : ownedOrgs.length > 0 ? (
-            <div className="metric-card shadow-sm border-[#FF6E50]/30 mb-6">
-              <div className="metric-card-header mb-4">
-                <div className="flex items-center gap-2">
-                  <Building2 className="h-5 w-5 text-[#FF6E50]" />
-                  <h3 className="text-[18px] font-bold text-[#FF6E50]">Organizations You Own</h3>
+          ) : ownedOrgs.length > 0 && (
+            <div className="bg-white rounded-2xl border border-amber-200 shadow-sm overflow-hidden">
+              <div className="p-5">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="h-10 w-10 rounded-xl bg-amber-100 flex items-center justify-center">
+                    <Building2 className="h-5 w-5 text-amber-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-[15px] font-semibold text-amber-800">Organizations You Own</h3>
+                    <p className="text-[12px] text-amber-600">Transfer or delete these before deleting your account</p>
+                  </div>
                 </div>
-                <p className="text-[13px] sm:text-[15px] text-muted-foreground mt-1">
-                  You must transfer ownership or delete these organizations before you can delete your account.
-                  Go to Organization Settings &gt; Danger Zone to manage them.
-                </p>
-              </div>
-              <div className="metric-card-content space-y-3">
-                {ownedOrgs.map((org) => (
-                  <div
-                    key={org.id}
-                    className="flex items-center justify-between p-3 border border-border rounded-xl bg-[#007A78]/5"
-                  >
-                    <div className="flex items-center gap-3">
-                      <Building2 className="h-4 w-4 text-muted-foreground" />
-                      <div>
-                        <p className="text-[15px] font-medium text-black">{org.org_name}</p>
-                        <div className="flex items-center gap-2 text-[13px] text-muted-foreground">
-                          <Users className="h-3 w-3" />
-                          <span>{org.member_count} member{org.member_count !== 1 ? "s" : ""}</span>
+                <div className="space-y-2">
+                  {ownedOrgs.map((org) => (
+                    <div key={org.id} className="flex items-center justify-between p-3 bg-amber-50 rounded-xl">
+                      <div className="flex items-center gap-3">
+                        <Building2 className="h-4 w-4 text-amber-600" />
+                        <div>
+                          <p className="text-[14px] font-medium text-amber-900">{org.org_name}</p>
+                          <div className="flex items-center gap-1 text-[12px] text-amber-600">
+                            <Users className="h-3 w-3" />
+                            <span>{org.member_count} member{org.member_count !== 1 ? "s" : ""}</span>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
-          ) : null}
+          )}
 
-          {/* Account Deletion Card */}
-          <div className="metric-card shadow-sm border-[#FF6E50]/30">
-            <div className="metric-card-header mb-4">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-[#FF6E50]" />
-                <h3 className="text-[18px] font-bold text-[#FF6E50]">Delete Account</h3>
-              </div>
-              <p className="text-[13px] sm:text-[15px] text-muted-foreground mt-1">Permanently delete your account and all associated data</p>
-            </div>
-            <div className="metric-card-content">
-              {deletionRequested ? (
-                <Alert className="bg-muted border-[#007A78]/30">
-                  <Mail className="h-4 w-4 text-[#007A78]" />
-                  <AlertDescription>
-                    <p className="font-medium text-foreground">Verification email sent!</p>
-                    <p className="text-sm mt-1">
-                      Please check your inbox and click the confirmation link to complete account deletion.
-                      The link will expire in 30 minutes.
+          {/* Delete Account Card */}
+          <div className="bg-white rounded-2xl border border-rose-200 shadow-sm overflow-hidden">
+            <div className="group relative">
+              <div className="absolute left-0 top-4 bottom-4 w-1 rounded-full bg-rose-500 opacity-60" />
+              <div className="pl-5 py-5 pr-5">
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="h-11 w-11 rounded-xl bg-rose-100 flex items-center justify-center flex-shrink-0">
+                    <Trash2 className="h-5 w-5 text-rose-500" />
+                  </div>
+                  <div>
+                    <h3 className="text-[15px] font-semibold text-rose-700">Delete Account</h3>
+                    <p className="text-[12px] text-rose-500 mt-0.5">Permanently delete your account and all data</p>
+                  </div>
+                </div>
+
+                {deletionRequested ? (
+                  <div className="p-4 rounded-xl bg-[#007A78]/5 border border-[#007A78]/20 flex items-start gap-3">
+                    <Mail className="h-4 w-4 text-[#007A78] mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-[13px] font-semibold text-[#005F5D]">Verification email sent!</p>
+                      <p className="text-[12px] text-[#007A78] mt-1">
+                        Check your inbox and click the confirmation link. The link expires in 30 minutes.
+                      </p>
+                    </div>
+                  </div>
+                ) : ownedOrgs.length > 0 ? (
+                  <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 flex items-center gap-3">
+                    <AlertCircle className="h-4 w-4 text-rose-500 flex-shrink-0" />
+                    <p className="text-[13px] text-rose-700">
+                      You own {ownedOrgs.length} organization{ownedOrgs.length !== 1 ? "s" : ""}.
+                      Transfer or delete them first.
                     </p>
-                  </AlertDescription>
-                </Alert>
-              ) : ownedOrgs.length > 0 ? (
-                <Alert variant="destructive" className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
-                  <AlertTriangle className="h-4 w-4 text-[#FF6E50]" />
-                  <AlertDescription>
-                    You own {ownedOrgs.length} organization{ownedOrgs.length !== 1 ? "s" : ""}.
-                    Please transfer ownership or delete them before deleting your account.
-                  </AlertDescription>
-                </Alert>
-              ) : (
-                <Alert variant="destructive" className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
-                  <AlertTriangle className="h-4 w-4 text-[#FF6E50]" />
-                  <AlertDescription>
-                    Deleting your account will permanently remove you from all organizations and cannot be
-                    undone. Your data will be lost forever.
-                  </AlertDescription>
-                </Alert>
-              )}
+                  </div>
+                ) : (
+                  <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 flex items-center gap-3">
+                    <AlertCircle className="h-4 w-4 text-rose-500 flex-shrink-0" />
+                    <p className="text-[13px] text-rose-700">
+                      This action is permanent and cannot be undone. Your data will be lost forever.
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
-            <div className="pt-4 border-t border-[#E5E5EA]">
+
+            <div className="px-6 py-4 border-t border-rose-100 bg-rose-50/30">
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button
-                    variant="destructive"
+                  <button
                     disabled={ownedOrgs.length > 0 || isRequestingDeletion || deletionRequested}
-                    className="bg-[#FF6E50] hover:bg-[#E55A3C] text-white shadow-sm"
+                    className="h-10 px-5 text-[13px] font-semibold bg-rose-500 hover:bg-rose-600 text-white rounded-xl transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isRequestingDeletion ? (
                       <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        <Loader2 className="h-4 w-4 animate-spin" />
                         Requesting...
                       </>
                     ) : deletionRequested ? (
                       <>
-                        <Mail className="mr-2 h-4 w-4" />
+                        <Mail className="h-4 w-4" />
                         Check Email
                       </>
                     ) : (
                       <>
-                        <Trash2 className="mr-2 h-4 w-4" />
+                        <Trash2 className="h-4 w-4" />
                         Delete Account
                       </>
                     )}
-                  </Button>
+                  </button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>Request Account Deletion</AlertDialogTitle>
                     <AlertDialogDescription>
                       We will send a verification email to <span className="font-medium">{email}</span>.
-                      You must click the link in the email to confirm the deletion.
-                      <span className="block mt-2 text-destructive">
+                      Click the link to confirm deletion.
+                      <span className="block mt-2 text-rose-600 font-medium">
                         This action is permanent and cannot be undone.
                       </span>
                     </AlertDialogDescription>
@@ -634,7 +673,7 @@ export default function PersonalSettingsPage() {
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
                     <AlertDialogAction
                       onClick={handleRequestAccountDeletion}
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      className="bg-rose-500 hover:bg-rose-600 text-white"
                     >
                       Send Verification Email
                     </AlertDialogAction>
@@ -643,8 +682,8 @@ export default function PersonalSettingsPage() {
               </AlertDialog>
             </div>
           </div>
-        </TabsContent>
-      </Tabs>
+        </section>
+      )}
     </div>
   )
 }

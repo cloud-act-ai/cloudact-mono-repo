@@ -50,7 +50,7 @@ export default async function OrgRootRedirectPage({
         {/* Stats Row */}
         <div className="flex flex-wrap items-center gap-6 py-4 px-5 bg-slate-50 rounded-2xl border border-slate-100">
           <div className="flex items-center gap-3">
-            <div className="h-2.5 w-2.5 rounded-full bg-emerald-500"></div>
+            <div className="h-2.5 w-2.5 rounded-full bg-[#007A78]"></div>
             <span className="text-[14px] font-semibold text-slate-900">Active</span>
           </div>
           <div className="h-5 w-px bg-slate-200"></div>
@@ -166,7 +166,7 @@ export default async function OrgRootRedirectPage({
                 </div>
                 <div className="flex items-center gap-3">
                   {hasCloudIntegration ? (
-                    <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 text-[11px] font-semibold">
+                    <span className="px-2.5 py-1 rounded-full bg-[#007A78]/10 text-[#007A78] text-[11px] font-semibold">
                       Connected
                     </span>
                   ) : (
@@ -196,7 +196,7 @@ export default async function OrgRootRedirectPage({
                 </div>
                 <div className="flex items-center gap-3">
                   {hasLLMIntegration ? (
-                    <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 text-[11px] font-semibold">
+                    <span className="px-2.5 py-1 rounded-full bg-[#007A78]/10 text-[#007A78] text-[11px] font-semibold">
                       Connected
                     </span>
                   ) : (
@@ -263,8 +263,8 @@ export default async function OrgRootRedirectPage({
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></div>
-            <span className="text-[13px] font-medium text-emerald-600">Active</span>
+            <div className="h-2 w-2 rounded-full bg-[#007A78] animate-pulse"></div>
+            <span className="text-[13px] font-medium text-[#007A78]">Active</span>
           </div>
         </div>
 

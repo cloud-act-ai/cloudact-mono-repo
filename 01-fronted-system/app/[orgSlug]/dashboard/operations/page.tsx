@@ -36,12 +36,14 @@ export default async function OperationsPage({
   ]
 
   return (
-    <div className="space-y-8 max-w-5xl">
+    <div className="space-y-8 max-w-6xl mx-auto">
       {/* Header */}
-      <div className="space-y-1">
-        <h1 className="text-[32px] font-bold text-slate-900 tracking-tight">Operations</h1>
-        <p className="text-[15px] text-slate-500">
-          Monitor pipelines, system health, and operational metrics
+      <div className="mb-10">
+        <h1 className="text-[32px] font-bold text-slate-900 tracking-tight leading-none">
+          Operations
+        </h1>
+        <p className="text-[15px] text-slate-500 mt-2 max-w-lg">
+          Monitor your system operations and health
         </p>
       </div>
 
@@ -53,21 +55,21 @@ export default async function OperationsPage({
             <span className="font-semibold text-slate-900">{pipelineStats.total}</span> Total
           </span>
         </div>
-        <div className="h-5 w-px bg-slate-200"></div>
+        <div className="h-8 w-px bg-slate-200"></div>
         <div className="flex items-center gap-3">
           <div className="h-2 w-2 rounded-full bg-[#FF6E50] animate-pulse"></div>
           <span className="text-[14px] text-slate-600">
             <span className="font-semibold text-[#FF6E50]">{pipelineStats.running}</span> Running
           </span>
         </div>
-        <div className="h-5 w-px bg-slate-200"></div>
+        <div className="h-8 w-px bg-slate-200"></div>
         <div className="flex items-center gap-3">
-          <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+          <CheckCircle2 className="h-4 w-4 text-[#007A78]" />
           <span className="text-[14px] text-slate-600">
-            <span className="font-semibold text-emerald-600">{pipelineStats.successRate}%</span> Success
+            <span className="font-semibold text-[#007A78]">{pipelineStats.successRate}%</span> Success
           </span>
         </div>
-        <div className="h-5 w-px bg-slate-200"></div>
+        <div className="h-8 w-px bg-slate-200"></div>
         <div className="flex items-center gap-3">
           <AlertTriangle className="h-4 w-4 text-amber-500" />
           <span className="text-[14px] text-slate-600">
@@ -101,12 +103,12 @@ export default async function OperationsPage({
 
         <div className="p-4 bg-white rounded-2xl border border-slate-200">
           <div className="flex items-center gap-3 mb-3">
-            <div className="h-9 w-9 rounded-xl bg-emerald-500/10 flex items-center justify-center">
-              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+            <div className="h-9 w-9 rounded-xl bg-[#007A78]/10 flex items-center justify-center">
+              <CheckCircle2 className="h-4 w-4 text-[#007A78]" />
             </div>
           </div>
           <p className="text-[12px] text-slate-500 uppercase tracking-wide">Success Rate</p>
-          <p className="text-[24px] font-bold text-emerald-600 mt-1">{pipelineStats.successRate}%</p>
+          <p className="text-[24px] font-bold text-[#007A78] mt-1">{pipelineStats.successRate}%</p>
         </div>
 
         <div className="p-4 bg-white rounded-2xl border border-slate-200">
@@ -142,7 +144,7 @@ export default async function OperationsPage({
               {/* Left accent */}
               <div
                 className={`absolute left-0 top-3 bottom-3 w-1 rounded-full ${
-                  pipeline.status === 'running' ? 'bg-[#FF6E50]' : 'bg-emerald-500'
+                  pipeline.status === 'running' ? 'bg-[#FF6E50]' : 'bg-[#007A78]'
                 }`}
               />
 
@@ -168,7 +170,7 @@ export default async function OperationsPage({
                 <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ${
                   pipeline.status === 'running'
                     ? 'bg-[#FF6E50]/10 text-[#FF6E50]'
-                    : 'bg-emerald-100 text-emerald-700'
+                    : 'bg-[#007A78]/10 text-[#007A78]'
                 }`}>
                   {pipeline.status === 'running' ? (
                     <span className="flex items-center gap-1.5">
@@ -237,8 +239,8 @@ export default async function OperationsPage({
       <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="h-10 w-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
-              <Database className="h-5 w-5 text-emerald-500" />
+            <div className="h-10 w-10 rounded-xl bg-[#007A78]/10 flex items-center justify-center">
+              <Database className="h-5 w-5 text-[#007A78]" />
             </div>
             <div>
               <h3 className="text-[15px] font-semibold text-slate-900">System Health</h3>
@@ -246,8 +248,8 @@ export default async function OperationsPage({
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></div>
-            <span className="text-[13px] font-semibold text-emerald-600">Healthy</span>
+            <div className="h-2 w-2 rounded-full bg-[#007A78] animate-pulse"></div>
+            <span className="text-[13px] font-semibold text-[#007A78]">Healthy</span>
           </div>
         </div>
       </div>

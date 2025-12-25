@@ -281,30 +281,17 @@ export default function SubscriptionCostsPage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6 sm:space-y-8">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-[32px] sm:text-[34px] font-bold text-black tracking-tight">Subscription Costs</h1>
-            <p className="text-[15px] text-muted-foreground mt-1">
-              View your SaaS subscription costs and usage
-            </p>
-          </div>
+      <div className="max-w-6xl mx-auto">
+        <div className="mb-10">
+          <h1 className="text-[32px] font-bold text-slate-900 tracking-tight leading-none">
+            Subscription Costs
+          </h1>
+          <p className="text-[15px] text-slate-500 mt-2 max-w-lg">
+            Track your SaaS and subscription spending
+          </p>
         </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <CardSkeleton count={4} showDescription />
-        </div>
-
-        <div className="metric-card p-0 overflow-hidden">
-          <div className="px-4 sm:px-6 py-4 sm:py-5">
-            <h2 className="text-[17px] font-semibold text-black">All Subscriptions</h2>
-            <p className="text-[13px] text-muted-foreground mt-0.5">
-              View and manage all your SaaS subscriptions
-            </p>
-          </div>
-          <div className="px-4 sm:px-6 pb-4 sm:pb-6">
-            <TableSkeleton rows={8} columns={8} />
-          </div>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Loader2 className="h-8 w-8 animate-spin text-[#007A78]" />
         </div>
       </div>
     )
@@ -312,24 +299,26 @@ export default function SubscriptionCostsPage() {
 
   if (error) {
     return (
-      <div className="space-y-6 sm:space-y-8">
-        <div>
-          <h1 className="text-[32px] sm:text-[34px] font-bold text-black tracking-tight">Subscription Costs</h1>
-          <p className="text-[15px] text-muted-foreground mt-1">
-            View your SaaS subscription costs and usage
+      <div className="max-w-6xl mx-auto">
+        <div className="mb-10">
+          <h1 className="text-[32px] font-bold text-slate-900 tracking-tight leading-none">
+            Subscription Costs
+          </h1>
+          <p className="text-[15px] text-slate-500 mt-2 max-w-lg">
+            Track your SaaS and subscription spending
           </p>
         </div>
 
-        <div className="metric-card p-4 sm:p-5">
+        <div className="p-4 rounded-xl bg-red-50 border border-red-200">
           <div className="flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 text-[#FF6E50] mt-0.5 flex-shrink-0" />
+            <AlertCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
             <div>
-              <h3 className="font-semibold text-black text-[15px]">{error}</h3>
-              <p className="text-[13px] text-muted-foreground mt-1">
+              <h3 className="text-[14px] font-semibold text-slate-900">{error}</h3>
+              <p className="text-[13px] text-slate-600 mt-0.5">
                 {error.includes("API key") ? (
                   <>
                     Please complete organization onboarding in{" "}
-                    <Link href={`/${orgSlug}/settings/organization`} className="text-[#007A78] hover:underline font-medium">
+                    <Link href={`/${orgSlug}/settings/organization`} className="text-[#007A78] hover:text-[#005F5D] font-medium">
                       Settings → Organization
                     </Link>{" "}
                     to enable subscription tracking.
@@ -346,7 +335,7 @@ export default function SubscriptionCostsPage() {
   }
 
   return (
-    <div className="space-y-6 sm:space-y-8">
+    <div className="max-w-6xl mx-auto space-y-8">
       {/* Hero Section with Provider Logos Grid */}
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#007A78] via-[#007A78] to-[#005F5D] p-8 sm:p-10">
         {/* Decorative elements */}
@@ -437,12 +426,7 @@ export default function SubscriptionCostsPage() {
       {/* Cost Breakdown by Category */}
       {Object.keys(categoryBreakdown).length > 0 && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-[24px] font-bold text-black">Cost Breakdown by Category</h2>
-            <Badge className="bg-[#007A78]/10 text-[#007A78] border border-[#007A78]/20 px-3 py-1">
-              {Object.keys(categoryBreakdown).length} Categories
-            </Badge>
-          </div>
+          <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide mb-4">Cost Breakdown by Category</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {Object.entries(categoryBreakdown)
               .sort((a, b) => b[1].totalCost - a[1].totalCost)
@@ -470,8 +454,8 @@ export default function SubscriptionCostsPage() {
                         </div>
                       </div>
                       <div className="space-y-1">
-                        <h3 className="text-[15px] font-semibold text-black capitalize">{category}</h3>
-                        <div className="text-[28px] font-bold text-black tracking-tight">
+                        <h3 className="text-[15px] font-semibold text-slate-900 capitalize">{category}</h3>
+                        <div className="text-[28px] font-bold text-slate-900 tracking-tight">
                           {formatCurrency(data.totalCost, orgCurrency)}
                         </div>
                         <div className="text-[13px] text-muted-foreground">per month</div>
@@ -494,10 +478,7 @@ export default function SubscriptionCostsPage() {
       {/* Savings Opportunities */}
       {savingsOpportunities.length > 0 && (
         <div className="space-y-4">
-          <div className="flex items-center gap-3">
-            <Target className="h-6 w-6 text-[#FF6E50]" />
-            <h2 className="text-[24px] font-bold text-black">Savings Opportunities</h2>
-          </div>
+          <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide mb-4">Savings Opportunities</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {savingsOpportunities.map((opportunity, idx) => {
               const Icon = opportunity.icon
@@ -519,7 +500,7 @@ export default function SubscriptionCostsPage() {
                           Action Required
                         </span>
                       </div>
-                      <h3 className="text-[15px] font-semibold text-black mb-1">{opportunity.title}</h3>
+                      <h3 className="text-[15px] font-semibold text-slate-900 mb-1">{opportunity.title}</h3>
                       <p className="text-[13px] text-muted-foreground">{opportunity.description}</p>
                     </div>
                   </div>
@@ -533,7 +514,7 @@ export default function SubscriptionCostsPage() {
       {/* Detailed Cost Metrics */}
       {summary && (
         <div className="space-y-4">
-          <h2 className="text-[24px] font-bold text-black">Detailed Metrics</h2>
+          <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide mb-4">Detailed Metrics</h2>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="metric-card">
               <div className="metric-card-header">
@@ -593,10 +574,7 @@ export default function SubscriptionCostsPage() {
       {/* Subscription Renewal Timeline */}
       {plans.filter(p => p.status === 'active' && p.renewal_date).length > 0 && (
         <div className="space-y-4">
-          <div className="flex items-center gap-3">
-            <Clock className="h-6 w-6 text-[#007A78]" />
-            <h2 className="text-[24px] font-bold text-black">Upcoming Renewals</h2>
-          </div>
+          <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide mb-4">Upcoming Renewals</h2>
           <div className="metric-card p-6">
             <div className="space-y-4">
               {plans
@@ -616,7 +594,7 @@ export default function SubscriptionCostsPage() {
                           <CalendarDays className={`h-5 w-5 ${isUrgent ? 'text-[#FF6E50]' : 'text-[#007A78]'}`} />
                         </div>
                         <div>
-                          <div className="font-semibold text-black text-[15px]">{plan.display_name || plan.plan_name}</div>
+                          <div className="font-semibold text-slate-900 text-[15px]">{plan.display_name || plan.plan_name}</div>
                           <div className="text-[13px] text-muted-foreground">{plan.provider_name}</div>
                         </div>
                       </div>
@@ -629,7 +607,7 @@ export default function SubscriptionCostsPage() {
                         </div>
                       </div>
                       <div className="ml-6 text-right">
-                        <div className="text-[17px] font-bold text-black">{formatCurrency(getTotalCost(plan), orgCurrency)}</div>
+                        <div className="text-[17px] font-bold text-slate-900">{formatCurrency(getTotalCost(plan), orgCurrency)}</div>
                         <div className="text-[11px] text-muted-foreground">{formatBillingCycle(plan.billing_cycle)}</div>
                       </div>
                     </div>
@@ -642,7 +620,7 @@ export default function SubscriptionCostsPage() {
 
       {/* All Subscriptions Table */}
       <div>
-        <h2 className="text-[24px] font-bold text-black mb-4">All Subscriptions</h2>
+        <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide mb-4">All Subscriptions</h2>
         <div className="metric-card p-0 overflow-hidden">
           {/* Empty State */}
           {plans.length === 0 && (
@@ -650,7 +628,7 @@ export default function SubscriptionCostsPage() {
               <div className="inline-flex p-4 rounded-2xl bg-[#007A78]/10 mb-4">
                 <Wallet className="h-12 w-12 text-[#007A78]" />
               </div>
-              <h3 className="text-[20px] font-semibold text-black mb-2">No subscriptions yet</h3>
+              <h3 className="text-[20px] font-semibold text-slate-900 mb-2">No subscriptions yet</h3>
               <p className="text-[15px] text-muted-foreground mb-6 max-w-md mx-auto">
                 Enable providers from Integrations to start tracking your SaaS costs.
               </p>
@@ -709,13 +687,13 @@ export default function SubscriptionCostsPage() {
                               {category}
                             </Badge>
                           </div>
-                          <h3 className="font-semibold text-black text-[15px] truncate">
+                          <h3 className="font-semibold text-slate-900 text-[15px] truncate">
                             {plan.display_name || plan.plan_name}
                           </h3>
                           <p className="text-[13px] text-muted-foreground mt-0.5">{plan.provider_name}</p>
                         </div>
                         <div className="text-right flex-shrink-0">
-                          <div className={`font-bold text-[17px] ${isActive ? "text-black" : "text-[#C7C7CC]"}`}>
+                          <div className={`font-bold text-[17px] ${isActive ? "text-slate-900" : "text-[#C7C7CC]"}`}>
                             {formatCurrency(totalCost, orgCurrency)}
                           </div>
                           <div className="text-[11px] text-muted-foreground">
@@ -766,21 +744,21 @@ export default function SubscriptionCostsPage() {
                           <div className="space-y-1">
                             <div className="flex justify-between text-[13px]">
                               <span className="text-muted-foreground">Unit Price:</span>
-                              <span className="font-semibold text-black">{formatCurrency(plan.unit_price ?? 0, orgCurrency)}</span>
+                              <span className="font-semibold text-slate-900">{formatCurrency(plan.unit_price ?? 0, orgCurrency)}</span>
                             </div>
                             <div className="flex justify-between text-[13px]">
                               <span className="text-muted-foreground">Model:</span>
-                              <span className="font-medium text-black">{plan.pricing_model === 'PER_SEAT' ? 'Per Seat' : 'Flat Fee'}</span>
+                              <span className="font-medium text-slate-900">{plan.pricing_model === 'PER_SEAT' ? 'Per Seat' : 'Flat Fee'}</span>
                             </div>
                             {plan.seats && (
                               <div className="flex justify-between text-[13px]">
                                 <span className="text-muted-foreground">Seats:</span>
-                                <span className="font-medium text-black">{plan.seats}</span>
+                                <span className="font-medium text-slate-900">{plan.seats}</span>
                               </div>
                             )}
                             <div className="flex justify-between text-[13px] pt-1 border-t border-border mt-1">
                               <span className="text-muted-foreground font-medium">Total:</span>
-                              <span className="font-bold text-black">{formatCurrency(totalCost, orgCurrency)}</span>
+                              <span className="font-bold text-slate-900">{formatCurrency(totalCost, orgCurrency)}</span>
                             </div>
                           </div>
                         </div>
@@ -794,25 +772,25 @@ export default function SubscriptionCostsPage() {
                           <div className="grid grid-cols-2 gap-2">
                             <div>
                               <p className="text-[11px] text-muted-foreground">Start Date</p>
-                              <p className="text-[13px] font-semibold text-black">
+                              <p className="text-[13px] font-semibold text-slate-900">
                                 {plan.start_date ? format(new Date(plan.start_date), 'MMM d, yyyy') : '-'}
                               </p>
                             </div>
                             <div>
                               <p className="text-[11px] text-muted-foreground">Renewal</p>
-                              <p className="text-[13px] font-semibold text-black">
+                              <p className="text-[13px] font-semibold text-slate-900">
                                 {plan.renewal_date ? format(new Date(plan.renewal_date), 'MMM d, yyyy') : '-'}
                               </p>
                             </div>
                             <div>
                               <p className="text-[11px] text-muted-foreground">End Date</p>
-                              <p className="text-[13px] font-semibold text-black">
+                              <p className="text-[13px] font-semibold text-slate-900">
                                 {plan.end_date ? format(new Date(plan.end_date), 'MMM d, yyyy') : 'Active'}
                               </p>
                             </div>
                             <div>
                               <p className="text-[11px] text-muted-foreground">Currency</p>
-                              <p className="text-[13px] font-semibold text-black">{plan.currency || orgCurrency}</p>
+                              <p className="text-[13px] font-semibold text-slate-900">{plan.currency || orgCurrency}</p>
                             </div>
                           </div>
                         </div>
@@ -820,14 +798,14 @@ export default function SubscriptionCostsPage() {
                         {/* Subscription ID */}
                         <div className="p-3 bg-white rounded-xl border border-border">
                           <p className="text-[11px] text-muted-foreground uppercase mb-1">Subscription ID</p>
-                          <p className="text-[12px] font-mono text-black break-all">{plan.subscription_id}</p>
+                          <p className="text-[12px] font-mono text-slate-900 break-all">{plan.subscription_id}</p>
                         </div>
 
                         {/* Description if available */}
                         {plan.description && (
                           <div className="p-3 bg-white rounded-xl border border-border">
                             <p className="text-[11px] text-muted-foreground uppercase mb-1">Description</p>
-                            <p className="text-[13px] text-black">{plan.description}</p>
+                            <p className="text-[13px] text-slate-900">{plan.description}</p>
                           </div>
                         )}
 
@@ -936,7 +914,7 @@ export default function SubscriptionCostsPage() {
                         <TableCell className="console-table-cell">
                           <div className="flex items-center gap-3">
                             <div>
-                              <div className="font-semibold text-black text-[15px]">{plan.display_name || plan.plan_name}</div>
+                              <div className="font-semibold text-slate-900 text-[15px]">{plan.display_name || plan.plan_name}</div>
                               <div className="text-[13px] text-muted-foreground">{plan.plan_name}</div>
                             </div>
                           </div>
@@ -967,7 +945,7 @@ export default function SubscriptionCostsPage() {
                         </TableCell>
                         <TableCell className="console-table-cell text-right">
                           <div className="whitespace-nowrap">
-                            <span className="font-semibold text-black text-[15px]">{formatCurrency(plan.unit_price ?? 0, orgCurrency)}</span>
+                            <span className="font-semibold text-slate-900 text-[15px]">{formatCurrency(plan.unit_price ?? 0, orgCurrency)}</span>
                             {plan.pricing_model && (
                               <div className="text-[11px] text-muted-foreground font-medium">
                                 {plan.pricing_model === 'PER_SEAT' ? '/seat' : 'flat fee'}
@@ -982,7 +960,7 @@ export default function SubscriptionCostsPage() {
                         </TableCell>
                         <TableCell className="console-table-cell text-right">
                           {plan.seats ? (
-                            <div className="flex items-center justify-end gap-1.5 text-black font-semibold text-[15px]">
+                            <div className="flex items-center justify-end gap-1.5 text-slate-900 font-semibold text-[15px]">
                               <Users className="h-4 w-4 text-[#FF6E50]" />
                               <span>{plan.seats}</span>
                             </div>
@@ -991,7 +969,7 @@ export default function SubscriptionCostsPage() {
                           )}
                         </TableCell>
                         <TableCell className="console-table-cell text-right">
-                          <span className={`whitespace-nowrap ${isActive ? "text-black font-bold text-[17px]" : "text-[#C7C7CC] font-medium"}`}>
+                          <span className={`whitespace-nowrap ${isActive ? "text-slate-900 font-bold text-[17px]" : "text-[#C7C7CC] font-medium"}`}>
                             {formatCurrency(totalCost, orgCurrency)}
                           </span>
                         </TableCell>
@@ -1033,7 +1011,7 @@ export default function SubscriptionCostsPage() {
                                 </div>
                                 <div>
                                   <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Subscription ID</p>
-                                  <p className="text-[13px] font-mono text-black mt-0.5 break-all">{plan.subscription_id}</p>
+                                  <p className="text-[13px] font-mono text-slate-900 mt-0.5 break-all">{plan.subscription_id}</p>
                                 </div>
                               </div>
 
@@ -1044,7 +1022,7 @@ export default function SubscriptionCostsPage() {
                                 </div>
                                 <div>
                                   <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Start Date</p>
-                                  <p className="text-[13px] font-semibold text-black mt-0.5">
+                                  <p className="text-[13px] font-semibold text-slate-900 mt-0.5">
                                     {plan.start_date ? format(new Date(plan.start_date), 'MMM d, yyyy') : '-'}
                                   </p>
                                 </div>
@@ -1057,7 +1035,7 @@ export default function SubscriptionCostsPage() {
                                 </div>
                                 <div>
                                   <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Renewal Date</p>
-                                  <p className="text-[13px] font-semibold text-black mt-0.5">
+                                  <p className="text-[13px] font-semibold text-slate-900 mt-0.5">
                                     {plan.renewal_date ? format(new Date(plan.renewal_date), 'MMM d, yyyy') : '-'}
                                   </p>
                                 </div>
@@ -1070,7 +1048,7 @@ export default function SubscriptionCostsPage() {
                                 </div>
                                 <div>
                                   <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">End Date</p>
-                                  <p className="text-[13px] font-semibold text-black mt-0.5">
+                                  <p className="text-[13px] font-semibold text-slate-900 mt-0.5">
                                     {plan.end_date ? format(new Date(plan.end_date), 'MMM d, yyyy') : 'Active'}
                                   </p>
                                 </div>
@@ -1083,7 +1061,7 @@ export default function SubscriptionCostsPage() {
                                 </div>
                                 <div>
                                   <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Pricing Model</p>
-                                  <p className="text-[13px] font-semibold text-black mt-0.5">
+                                  <p className="text-[13px] font-semibold text-slate-900 mt-0.5">
                                     {plan.pricing_model === 'PER_SEAT' ? 'Per Seat' : 'Flat Fee'}
                                   </p>
                                 </div>
@@ -1096,7 +1074,7 @@ export default function SubscriptionCostsPage() {
                                 </div>
                                 <div>
                                   <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Currency</p>
-                                  <p className="text-[13px] font-semibold text-black mt-0.5">{plan.currency || orgCurrency}</p>
+                                  <p className="text-[13px] font-semibold text-slate-900 mt-0.5">{plan.currency || orgCurrency}</p>
                                 </div>
                               </div>
 
@@ -1107,7 +1085,7 @@ export default function SubscriptionCostsPage() {
                                 </div>
                                 <div>
                                   <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Category</p>
-                                  <p className="text-[13px] font-semibold text-black mt-0.5 capitalize">{category}</p>
+                                  <p className="text-[13px] font-semibold text-slate-900 mt-0.5 capitalize">{category}</p>
                                 </div>
                               </div>
 
@@ -1118,7 +1096,7 @@ export default function SubscriptionCostsPage() {
                                 </div>
                                 <div>
                                   <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Monthly Cost</p>
-                                  <p className="text-[13px] font-semibold text-black mt-0.5">
+                                  <p className="text-[13px] font-semibold text-slate-900 mt-0.5">
                                     {formatCurrency(totalCost, orgCurrency)}
                                     {plan.seats && plan.seats > 1 && (
                                       <span className="text-[11px] text-muted-foreground font-normal ml-1">
@@ -1134,7 +1112,7 @@ export default function SubscriptionCostsPage() {
                             {plan.description && (
                               <div className="mt-4 p-3 bg-white rounded-xl border border-border">
                                 <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1">Description</p>
-                                <p className="text-[13px] text-black">{plan.description}</p>
+                                <p className="text-[13px] text-slate-900">{plan.description}</p>
                               </div>
                             )}
 

@@ -522,7 +522,7 @@ export function DashboardSidebar({
                 >
                   <Link href={`/${orgSlug}/settings/personal`}>
                     <User className="h-3.5 w-3.5 mr-2" />
-                    Personal
+                    Profile
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -566,7 +566,7 @@ export function DashboardSidebar({
                 >
                   <Link href={`/${orgSlug}/settings/invite`}>
                     <UserPlus className="h-3.5 w-3.5 mr-2" />
-                    Invite
+                    Team Members
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

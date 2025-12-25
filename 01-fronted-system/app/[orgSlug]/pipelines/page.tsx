@@ -254,7 +254,7 @@ export default function PipelinesPage() {
 
     // Check backend connection status and fetch pipelines
     const [onboardingStatus, apiKeyResult, pipelinesResult] = await Promise.all([
-      checkBackendOnboarding(orgSlug),
+      checkBackendOnboarding(orgSlug, { skipValidation: true, timeout: 3000 }),
       hasStoredApiKey(orgSlug),
       getAvailablePipelines(),
     ])
@@ -394,19 +394,26 @@ export default function PipelinesPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-10 w-10 animate-spin text-[#007A78]" />
+      <div className="flex items-center justify-center min-h-[500px]">
+        <div className="text-center">
+          <div className="h-12 w-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
+            <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+          </div>
+          <p className="text-[14px] text-slate-500 font-medium">Loading pipelines...</p>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6 sm:space-y-8">
-      {/* Header Section - Apple Health Style */}
-      <div>
-        <h1 className="text-[32px] sm:text-[34px] font-bold text-black tracking-tight">Pipelines</h1>
-        <p className="text-[15px] text-muted-foreground mt-1">
-          Run data pipelines to fetch your cloud data.
+    <div className="max-w-6xl mx-auto space-y-6 sm:space-y-8">
+      {/* Header Section */}
+      <div className="mb-10">
+        <h1 className="text-[32px] font-bold text-slate-900 tracking-tight leading-none">
+          Pipelines
+        </h1>
+        <p className="text-[15px] text-slate-500 mt-2 max-w-lg">
+          Run data pipelines to fetch your cloud data
         </p>
       </div>
 
@@ -415,84 +422,71 @@ export default function PipelinesPage() {
         <AnimatedPipelineFlow />
       </div>
 
-      {/* Quick Stats Dashboard */}
+      {/* Quick Stats Row */}
       {backendConnected && hasApiKey && pipelineRuns.length > 0 && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 animate-slide-up">
+        <div className="flex items-center gap-6 mb-8 overflow-x-auto pb-2">
           {/* Runs Today */}
-          <div className="health-card p-4 sm:p-5 relative overflow-hidden group hover:shadow-premium-md transition-all">
-            <div className="absolute top-0 right-0 w-20 h-20 bg-[#007A78]/5 rounded-full -translate-y-10 translate-x-10 group-hover:scale-150 transition-transform duration-500"></div>
-            <div className="relative">
-              <div className="flex items-center justify-between mb-3">
-                <Clock className="h-5 w-5 text-[#007A78]" />
-                <div className="text-[24px] sm:text-[28px] font-bold text-[#007A78]">
-                  {quickStats.runsToday}
-                </div>
-              </div>
-              <p className="text-[13px] font-semibold text-black">Runs Today</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">Last 24 hours</p>
+          <div className="flex items-center gap-3 flex-shrink-0">
+            <div className="h-10 w-10 rounded-xl bg-[#007A78]/10 flex items-center justify-center">
+              <Clock className="h-5 w-5 text-[#007A78]" />
+            </div>
+            <div>
+              <p className="text-[24px] font-bold text-slate-900 leading-none">{quickStats.runsToday}</p>
+              <p className="text-[12px] text-slate-500 font-medium mt-0.5">Runs Today</p>
             </div>
           </div>
+
+          <div className="h-8 w-px bg-slate-200 flex-shrink-0"></div>
 
           {/* Success Rate */}
-          <div className="health-card p-4 sm:p-5 relative overflow-hidden group hover:shadow-premium-md transition-all">
-            <div className="absolute top-0 right-0 w-20 h-20 bg-[#007A78]/5 rounded-full -translate-y-10 translate-x-10 group-hover:scale-150 transition-transform duration-500"></div>
-            <div className="relative">
-              <div className="flex items-center justify-between mb-3">
-                <div className="relative">
-                  <ProgressRing progress={quickStats.successRate} size={48} strokeWidth={4} color="#007A78" />
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-[11px] font-bold text-[#007A78]">{quickStats.successRate}%</span>
-                  </div>
-                </div>
-                <TrendingUp className="h-5 w-5 text-[#007A78]" />
-              </div>
-              <p className="text-[13px] font-semibold text-black">Success Rate</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">All completed runs</p>
+          <div className="flex items-center gap-3 flex-shrink-0">
+            <div className="h-10 w-10 rounded-xl bg-[#007A78]/10 flex items-center justify-center">
+              <TrendingUp className="h-5 w-5 text-[#007A78]" />
+            </div>
+            <div>
+              <p className="text-[24px] font-bold text-slate-900 leading-none">{quickStats.successRate}%</p>
+              <p className="text-[12px] text-slate-500 font-medium mt-0.5">Success Rate</p>
             </div>
           </div>
+
+          <div className="h-8 w-px bg-slate-200 flex-shrink-0"></div>
 
           {/* Avg Duration */}
-          <div className="health-card p-4 sm:p-5 relative overflow-hidden group hover:shadow-premium-md transition-all">
-            <div className="absolute top-0 right-0 w-20 h-20 bg-[#FF6E50]/5 rounded-full -translate-y-10 translate-x-10 group-hover:scale-150 transition-transform duration-500"></div>
-            <div className="relative">
-              <div className="flex items-center justify-between mb-3">
-                <Activity className="h-5 w-5 text-[#FF6E50]" />
-                <div className="text-[24px] sm:text-[28px] font-bold text-[#FF6E50]">
-                  {formatDuration(quickStats.avgDuration)}
-                </div>
-              </div>
-              <p className="text-[13px] font-semibold text-black">Avg Duration</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">Execution time</p>
+          <div className="flex items-center gap-3 flex-shrink-0">
+            <div className="h-10 w-10 rounded-xl bg-[#FF6E50]/10 flex items-center justify-center">
+              <Activity className="h-5 w-5 text-[#FF6E50]" />
+            </div>
+            <div>
+              <p className="text-[24px] font-bold text-slate-900 leading-none">{formatDuration(quickStats.avgDuration)}</p>
+              <p className="text-[12px] text-slate-500 font-medium mt-0.5">Avg Duration</p>
             </div>
           </div>
 
+          <div className="h-8 w-px bg-slate-200 flex-shrink-0"></div>
+
           {/* Total Runs */}
-          <div className="health-card p-4 sm:p-5 relative overflow-hidden group hover:shadow-premium-md transition-all">
-            <div className="absolute top-0 right-0 w-20 h-20 bg-[#007A78]/5 rounded-full -translate-y-10 translate-x-10 group-hover:scale-150 transition-transform duration-500"></div>
-            <div className="relative">
-              <div className="flex items-center justify-between mb-3">
-                <History className="h-5 w-5 text-[#007A78]" />
-                <div className="text-[24px] sm:text-[28px] font-bold text-black">
-                  {quickStats.totalRuns}
-                </div>
-              </div>
-              <p className="text-[13px] font-semibold text-black">Total Runs</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">Last {MAX_RUNS} records</p>
+          <div className="flex items-center gap-3 flex-shrink-0">
+            <div className="h-10 w-10 rounded-xl bg-[#007A78]/10 flex items-center justify-center">
+              <History className="h-5 w-5 text-[#007A78]" />
+            </div>
+            <div>
+              <p className="text-[24px] font-bold text-slate-900 leading-none">{quickStats.totalRuns}</p>
+              <p className="text-[12px] text-slate-500 font-medium mt-0.5">Total Runs</p>
             </div>
           </div>
         </div>
       )}
 
-      {/* Backend Connection Warning - Apple Health Style */}
+      {/* Backend Connection Warning */}
       {(!backendConnected || !hasApiKey) && (
-        <div className="health-card bg-[#FF6E50]/10 p-4 sm:p-5">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm bg-[#FF6E50]/10 p-4 sm:p-5">
           <div className="flex items-start gap-3">
             <AlertCircle className="h-5 w-5 text-[#FF6E50] mt-0.5 flex-shrink-0" />
             <div className="space-y-3">
-              <h3 className="text-[15px] font-semibold text-black">
+              <h3 className="text-[15px] font-semibold text-slate-900">
                 {!backendConnected ? "Backend Not Connected" : "API Key Missing"}
               </h3>
-              <p className="text-[13px] text-muted-foreground">
+              <p className="text-[13px] text-slate-600">
                 {!backendConnected ? (
                   <>
                     Your organization is not connected to the pipeline backend.
@@ -506,7 +500,7 @@ export default function PipelinesPage() {
                 )}
               </p>
               <Link href={`/${orgSlug}/settings/organization`}>
-                <button className="inline-flex items-center gap-2 h-11 px-4 bg-[#007A78] text-white text-[15px] font-semibold rounded-xl hover:bg-[#005F5D] transition-colors">
+                <button className="h-10 px-5 bg-[#007A78] hover:bg-[#006664] text-white text-[13px] font-semibold rounded-xl inline-flex items-center gap-2 transition-colors">
                   <Cloud className="h-4 w-4" />
                   Go to Organization Settings
                 </button>
@@ -516,19 +510,19 @@ export default function PipelinesPage() {
         </div>
       )}
 
-      {/* Info Alert - Apple Health Style */}
-      <div className="health-card bg-[#007A78]/5 p-4 border border-border">
+      {/* Info Alert */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm bg-[#007A78]/5 p-4">
         <div className="flex items-center gap-3">
           <Info className="h-5 w-5 text-[#007A78] flex-shrink-0" />
-          <p className="text-[15px] text-black">
+          <p className="text-[15px] text-slate-900">
             Pipelines run daily automatically. Use "Run Now" for manual runs or backfills.
           </p>
         </div>
       </div>
 
-      {/* Result Alert - Apple Health Style */}
+      {/* Result Alert */}
       {lastResult && (
-        <div className={`health-card p-4 ${lastResult.success ? 'bg-[#007A78]/10' : 'bg-[#FF6E50]/10'}`}>
+        <div className={`bg-white rounded-2xl border border-slate-200 shadow-sm p-4 ${lastResult.success ? 'bg-[#007A78]/10' : 'bg-[#FF6E50]/10'}`}>
           <div className="flex items-center gap-3">
             {lastResult.success ? (
               <CheckCircle2 className="h-5 w-5 text-[#007A78] flex-shrink-0" />
@@ -555,26 +549,23 @@ export default function PipelinesPage() {
 
         return (
           <div>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-[22px] font-bold text-black">Available Pipelines</h2>
-              <span className="text-[13px] text-muted-foreground font-medium">
-                {connectedPipelines.length} pipeline{connectedPipelines.length !== 1 ? 's' : ''} ready
-              </span>
-            </div>
+            <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide mb-4">
+              Available Pipelines
+            </h2>
 
             {/* Empty state */}
             {connectedPipelines.length === 0 && (
-              <div className="health-card p-8 sm:p-12 text-center">
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 sm:p-12 text-center">
                 <div className="space-y-4">
                   <div className="inline-flex p-4 rounded-2xl bg-[#007A78]/10 mb-2">
                     <Plug className="h-12 w-12 text-[#007A78]" />
                   </div>
-                  <h3 className="text-[20px] font-semibold text-black">No pipelines available</h3>
-                  <p className="text-[15px] text-muted-foreground max-w-md mx-auto">
+                  <h3 className="text-[20px] font-semibold text-slate-900">No pipelines available</h3>
+                  <p className="text-[15px] text-slate-600 max-w-md mx-auto">
                     Connect a provider to see available pipelines.
                   </p>
                   <Link href={`/${orgSlug}/integrations/cloud-providers`}>
-                    <button className="inline-flex items-center gap-2 h-11 px-6 bg-[#007A78] text-white text-[15px] font-semibold rounded-xl hover:bg-[#005F5D] transition-colors shadow-sm">
+                    <button className="h-10 px-5 bg-[#007A78] hover:bg-[#006664] text-white text-[13px] font-semibold rounded-xl inline-flex items-center gap-2 transition-colors shadow-sm">
                       <Plug className="h-4 w-4" />
                       Add New Provider
                     </button>
@@ -592,62 +583,58 @@ export default function PipelinesPage() {
                   return (
                     <div
                       key={pipeline.id}
-                      className="health-card p-5 sm:p-6 group hover:shadow-premium-md transition-all relative overflow-hidden"
+                      className="group relative"
                     >
-                      {/* Background Gradient */}
-                      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-[#007A78]/5 to-transparent rounded-full -translate-y-16 translate-x-16 group-hover:scale-150 transition-transform duration-500"></div>
-
-                      <div className="relative space-y-4">
-                        {/* Header */}
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <div className="w-2 h-2 rounded-full bg-[#007A78] animate-pulse"></div>
-                              <h3 className="text-[17px] font-bold text-black">{pipeline.name}</h3>
+                      <div className="absolute left-0 top-4 bottom-4 w-1 rounded-full bg-[#007A78] opacity-60 group-hover:opacity-100 transition-opacity" />
+                      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm pl-5 py-5 pr-5 hover:shadow-md transition-shadow">
+                        <div className="space-y-4">
+                          {/* Header */}
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1 min-w-0">
+                              <h3 className="text-[17px] font-bold text-slate-900 mb-1">{pipeline.name}</h3>
+                              <p className="text-[13px] text-slate-600">{pipeline.description}</p>
                             </div>
-                            <p className="text-[13px] text-muted-foreground">{pipeline.description}</p>
-                          </div>
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#F0FDFA] text-[#007A78] border border-[#007A78]/10 flex-shrink-0">
-                            <CheckCircle2 className="h-3 w-3" />
-                            {!pipeline.required_integration || pipeline.required_integration === "" ? "Ready" : "Connected"}
-                          </span>
-                        </div>
-
-                        {/* Tags */}
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#007A78]/5 text-muted-foreground border border-border">
-                            {pipeline.provider}
-                          </span>
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#007A78]/5 text-muted-foreground border border-border">
-                            {pipeline.domain}
-                          </span>
-                          {pipeline.schedule && (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#FF6E50]/5 text-[#FF6E50] border border-[#FF6E50]/10">
-                              <Clock className="h-3 w-3" />
-                              {pipeline.schedule}
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#F0FDFA] text-[#007A78] border border-[#007A78]/10 flex-shrink-0">
+                              <CheckCircle2 className="h-3 w-3" />
+                              {!pipeline.required_integration || pipeline.required_integration === "" ? "Ready" : "Connected"}
                             </span>
-                          )}
-                        </div>
+                          </div>
 
-                        {/* Action Button */}
-                        <button
-                          onClick={() => handleRun(pipeline.id)}
-                          disabled={isRunning}
-                          className="w-full inline-flex items-center justify-center gap-2 h-11 px-4 bg-[#007A78] text-white text-[15px] font-semibold rounded-xl hover:bg-[#005F5D] disabled:bg-[#E5E5EA] disabled:text-[#C7C7CC] disabled:cursor-not-allowed disabled:opacity-70 transition-all touch-manipulation shadow-sm hover:shadow-md group"
-                        >
-                          {isRunning ? (
-                            <>
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                              Running...
-                            </>
-                          ) : (
-                            <>
-                              <Play className="h-4 w-4 group-hover:scale-110 transition-transform" />
-                              Run Now
-                              <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
-                            </>
-                          )}
-                        </button>
+                          {/* Tags */}
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+                              {pipeline.provider}
+                            </span>
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+                              {pipeline.domain}
+                            </span>
+                            {pipeline.schedule && (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#FF6E50]/5 text-[#FF6E50] border border-[#FF6E50]/10">
+                                <Clock className="h-3 w-3" />
+                                {pipeline.schedule}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Action Button */}
+                          <button
+                            onClick={() => handleRun(pipeline.id)}
+                            disabled={isRunning}
+                            className="w-full h-10 px-5 bg-[#007A78] hover:bg-[#006664] text-white text-[13px] font-semibold rounded-xl disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed transition-colors inline-flex items-center justify-center gap-2"
+                          >
+                            {isRunning ? (
+                              <>
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                Running...
+                              </>
+                            ) : (
+                              <>
+                                <Play className="h-4 w-4" />
+                                Run Now
+                              </>
+                            )}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   )
@@ -658,18 +645,18 @@ export default function PipelinesPage() {
         )
       })()}
 
-      {/* Run History Section - Timeline Visualization */}
+      {/* Run History Section */}
       {backendConnected && hasApiKey && (
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
-              <h2 className="text-[22px] font-bold text-black">Run History</h2>
-              <p className="text-[13px] text-muted-foreground mt-0.5">Recent pipeline executions</p>
+              <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide">Run History</h2>
+              <p className="text-[13px] text-slate-500 mt-1">Recent pipeline executions</p>
             </div>
             <button
               onClick={loadPipelineRuns}
               disabled={runsLoading}
-              className="inline-flex items-center justify-center gap-2 h-11 px-4 bg-[#007A78]/5 text-muted-foreground text-[15px] font-medium rounded-xl hover:bg-[#007A78]/10 disabled:text-[#C7C7CC] disabled:cursor-not-allowed disabled:opacity-50 transition-colors touch-manipulation border border-border"
+              className="h-9 px-4 text-[13px] font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg disabled:text-slate-400 disabled:cursor-not-allowed transition-colors inline-flex items-center gap-2"
             >
               {runsLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -680,11 +667,16 @@ export default function PipelinesPage() {
             </button>
           </div>
 
-          <div className="health-card p-0 overflow-hidden">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
             {/* Loading state */}
             {runsLoading && pipelineRuns.length === 0 && (
-              <div className="px-4 sm:px-6 py-12 text-center">
-                <Loader2 className="h-8 w-8 animate-spin mx-auto text-[#007A78]" />
+              <div className="flex items-center justify-center min-h-[500px]">
+                <div className="text-center">
+                  <div className="h-12 w-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
+                    <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+                  </div>
+                  <p className="text-[14px] text-slate-500 font-medium">Loading pipeline runs...</p>
+                </div>
               </div>
             )}
 
@@ -692,11 +684,11 @@ export default function PipelinesPage() {
             {!runsLoading && pipelineRuns.length === 0 && (
               <div className="px-4 sm:px-6 py-12 text-center">
                 <div className="space-y-3">
-                  <div className="inline-flex p-3 rounded-2xl bg-[#8E8E93]/10 mb-2">
-                    <History className="h-10 w-10 text-muted-foreground" />
+                  <div className="inline-flex p-3 rounded-2xl bg-slate-100 mb-2">
+                    <History className="h-10 w-10 text-slate-400" />
                   </div>
-                  <h3 className="text-[17px] font-semibold text-black">No pipeline runs yet</h3>
-                  <p className="text-[15px] text-muted-foreground">Run a pipeline to see history</p>
+                  <h3 className="text-[17px] font-semibold text-slate-900">No pipeline runs yet</h3>
+                  <p className="text-[15px] text-slate-600">Run a pipeline to see history</p>
                 </div>
               </div>
             )}
@@ -741,8 +733,8 @@ export default function PipelinesPage() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-start justify-between gap-3 mb-2">
                               <div className="min-w-0">
-                                <div className="text-[15px] font-semibold text-black truncate">{run.pipeline_id}</div>
-                                <div className="text-[11px] text-muted-foreground font-mono mt-0.5">
+                                <div className="text-[15px] font-semibold text-slate-900 truncate">{run.pipeline_id}</div>
+                                <div className="text-[11px] text-slate-500 font-mono mt-0.5">
                                   {run.pipeline_logging_id.slice(0, 8)}...
                                 </div>
                               </div>
@@ -752,16 +744,16 @@ export default function PipelinesPage() {
                                 <ChevronRight className="h-4 w-4 text-[#C7C7CC] flex-shrink-0" />
                               )}
                             </div>
-                            <div className="flex items-center flex-wrap gap-x-3 gap-y-1 text-[13px] text-muted-foreground">
+                            <div className="flex items-center flex-wrap gap-x-3 gap-y-1 text-[13px] text-slate-600">
                               <span className="flex items-center gap-1">
                                 <Clock className="h-3 w-3" />
                                 {formatDuration(run.duration_ms)}
                               </span>
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#007A78]/5 border border-border">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 border border-slate-200">
                                 {run.trigger_type}
                               </span>
                             </div>
-                            <div className="text-[11px] text-muted-foreground mt-1">
+                            <div className="text-[11px] text-slate-500 mt-1">
                               {formatDateTime(run.start_time)}
                             </div>
                           </div>
@@ -777,12 +769,12 @@ export default function PipelinesPage() {
                           ) : detail ? (
                             <div className="space-y-4">
                               {(run.error_message || run.error_context) && (
-                                <div className="health-card bg-[#FF6E50]/10 p-4">
+                                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm bg-[#FF6E50]/10 p-4">
                                   <div className="flex items-start gap-3">
                                     <AlertCircle className="h-5 w-5 text-[#FF6E50] mt-0.5 flex-shrink-0" />
                                     <div className="flex-1 min-w-0">
                                       <div className="flex items-center gap-2 flex-wrap">
-                                        <p className="text-[15px] font-semibold text-black">Error</p>
+                                        <p className="text-[15px] font-semibold text-slate-900">Error</p>
                                         {run.error_context?.error_type && (
                                           <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
                                             run.error_context.error_type === 'TRANSIENT' ? 'bg-amber-100 text-amber-700' :
@@ -798,14 +790,14 @@ export default function PipelinesPage() {
                                           </span>
                                         )}
                                       </div>
-                                      <p className="text-[13px] text-muted-foreground mt-1 break-words">{run.error_message}</p>
+                                      <p className="text-[13px] text-slate-600 mt-1 break-words">{run.error_message}</p>
                                       {run.error_context?.suggested_action && (
                                         <p className="text-[12px] text-[#007A78] mt-2 font-medium">
                                           Suggestion: {run.error_context.suggested_action}
                                         </p>
                                       )}
                                       {run.error_context?.retry_count !== undefined && run.error_context.retry_count > 0 && (
-                                        <p className="text-[11px] text-muted-foreground mt-1">
+                                        <p className="text-[11px] text-slate-500 mt-1">
                                           Retry attempts: {run.error_context.retry_count}
                                         </p>
                                       )}
@@ -815,24 +807,24 @@ export default function PipelinesPage() {
                               )}
 
                               <div className="space-y-3">
-                                <h4 className="text-[15px] font-semibold text-black">Steps</h4>
+                                <h4 className="text-[15px] font-semibold text-slate-900">Steps</h4>
                                 {detail.steps.length === 0 ? (
-                                  <p className="text-center text-muted-foreground text-[13px] py-4">No step logs available</p>
+                                  <p className="text-center text-slate-500 text-[13px] py-4">No step logs available</p>
                                 ) : (
                                   <div className="space-y-2">
                                     {detail.steps.map((step) => (
-                                      <div key={step.step_logging_id} className="health-card p-3 space-y-2">
+                                      <div key={step.step_logging_id} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-3 space-y-2">
                                         <div className="flex items-center justify-between gap-3">
                                           <div className="flex items-center gap-2 min-w-0">
-                                            <span className="text-[13px] font-medium text-black flex-shrink-0">#{step.step_index}</span>
-                                            <span className="text-[13px] font-semibold text-black truncate">{step.step_name}</span>
+                                            <span className="text-[13px] font-medium text-slate-900 flex-shrink-0">#{step.step_index}</span>
+                                            <span className="text-[13px] font-semibold text-slate-900 truncate">{step.step_name}</span>
                                           </div>
                                           <span className={`inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-full flex-shrink-0 ${getStatusColor(step.status)}`}>
                                             {step.status}
                                           </span>
                                         </div>
-                                        <div className="flex items-center flex-wrap gap-2 text-[11px] text-muted-foreground">
-                                          <span className="bg-[#007A78]/5 px-2 py-0.5 rounded-full font-mono border border-border">{step.step_type}</span>
+                                        <div className="flex items-center flex-wrap gap-2 text-[11px] text-slate-600">
+                                          <span className="bg-slate-100 px-2 py-0.5 rounded-full font-mono border border-slate-200">{step.step_type}</span>
                                           <span className="flex items-center gap-1">
                                             <Clock className="h-3 w-3" />
                                             {formatDuration(step.duration_ms)}
@@ -848,19 +840,19 @@ export default function PipelinesPage() {
                               </div>
 
                               {detail.steps.filter(s => s.error_message).map((step) => (
-                                <div key={step.step_logging_id} className="health-card bg-[#FF6E50]/10 p-4">
+                                <div key={step.step_logging_id} className="bg-white rounded-2xl border border-slate-200 shadow-sm bg-[#FF6E50]/10 p-4">
                                   <div className="flex items-start gap-3">
                                     <AlertCircle className="h-5 w-5 text-[#FF6E50] mt-0.5 flex-shrink-0" />
                                     <div>
-                                      <p className="text-[15px] font-semibold text-black">{step.step_name} Error</p>
-                                      <p className="text-[13px] text-muted-foreground mt-1 break-words">{step.error_message}</p>
+                                      <p className="text-[15px] font-semibold text-slate-900">{step.step_name} Error</p>
+                                      <p className="text-[13px] text-slate-600 mt-1 break-words">{step.error_message}</p>
                                     </div>
                                   </div>
                                 </div>
                               ))}
                             </div>
                           ) : (
-                            <div className="text-center text-muted-foreground text-[13px] py-6">
+                            <div className="text-center text-slate-500 text-[13px] py-6">
                               Failed to load details
                             </div>
                           )}
@@ -906,8 +898,8 @@ export default function PipelinesPage() {
                               )}
                             </TableCell>
                             <TableCell className="console-table-cell">
-                              <div className="text-[15px] font-semibold text-black">{run.pipeline_id}</div>
-                              <div className="text-[11px] text-muted-foreground font-mono mt-0.5">
+                              <div className="text-[15px] font-semibold text-slate-900">{run.pipeline_id}</div>
+                              <div className="text-[11px] text-slate-500 font-mono mt-0.5">
                                 {run.pipeline_logging_id.slice(0, 8)}...
                               </div>
                             </TableCell>
@@ -922,16 +914,16 @@ export default function PipelinesPage() {
                               </span>
                             </TableCell>
                             <TableCell className="console-table-cell">
-                              <div className="text-[13px] text-black">{formatDateTime(run.start_time)}</div>
+                              <div className="text-[13px] text-slate-900">{formatDateTime(run.start_time)}</div>
                             </TableCell>
                             <TableCell className="console-table-cell">
-                              <div className="flex items-center gap-1 text-[13px] text-black">
-                                <Clock className="h-3 w-3 text-muted-foreground" />
+                              <div className="flex items-center gap-1 text-[13px] text-slate-900">
+                                <Clock className="h-3 w-3 text-slate-500" />
                                 {formatDuration(run.duration_ms)}
                               </div>
                             </TableCell>
                             <TableCell className="console-table-cell">
-                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#007A78]/5 text-muted-foreground border border-border">
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">
                                 {run.trigger_type}
                               </span>
                             </TableCell>
@@ -947,12 +939,12 @@ export default function PipelinesPage() {
                                 ) : detail ? (
                                   <div className="space-y-4">
                                     {(run.error_message || run.error_context) && (
-                                      <div className="health-card bg-[#FF6E50]/10 p-4">
+                                      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm bg-[#FF6E50]/10 p-4">
                                         <div className="flex items-start gap-3">
                                           <AlertCircle className="h-5 w-5 text-[#FF6E50] mt-0.5 flex-shrink-0" />
                                           <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2 flex-wrap">
-                                              <p className="text-[15px] font-semibold text-black">Error</p>
+                                              <p className="text-[15px] font-semibold text-slate-900">Error</p>
                                               {run.error_context?.error_type && (
                                                 <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
                                                   run.error_context.error_type === 'TRANSIENT' ? 'bg-amber-100 text-amber-700' :
@@ -968,14 +960,14 @@ export default function PipelinesPage() {
                                                 </span>
                                               )}
                                             </div>
-                                            <p className="text-[13px] text-muted-foreground mt-1">{run.error_message}</p>
+                                            <p className="text-[13px] text-slate-600 mt-1">{run.error_message}</p>
                                             {run.error_context?.suggested_action && (
                                               <p className="text-[12px] text-[#007A78] mt-2 font-medium">
                                                 Suggestion: {run.error_context.suggested_action}
                                               </p>
                                             )}
                                             {run.error_context?.retry_count !== undefined && run.error_context.retry_count > 0 && (
-                                              <p className="text-[11px] text-muted-foreground mt-1">
+                                              <p className="text-[11px] text-slate-500 mt-1">
                                                 Retry attempts: {run.error_context.retry_count}
                                               </p>
                                             )}
@@ -985,11 +977,11 @@ export default function PipelinesPage() {
                                     )}
 
                                     <div className="space-y-3">
-                                      <h4 className="text-[15px] font-semibold text-black">Steps</h4>
-                                      <div className="health-card p-0 overflow-hidden">
+                                      <h4 className="text-[15px] font-semibold text-slate-900">Steps</h4>
+                                      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                                         <Table>
                                           <TableHeader>
-                                            <TableRow className="border-b border-[#E5E5EA]">
+                                            <TableRow className="border-b border-slate-200">
                                               <TableHead className="console-table-header">#</TableHead>
                                               <TableHead className="console-table-header">Step</TableHead>
                                               <TableHead className="console-table-header">Type</TableHead>
@@ -1001,28 +993,28 @@ export default function PipelinesPage() {
                                           <TableBody>
                                             {detail.steps.length === 0 ? (
                                               <TableRow>
-                                                <TableCell colSpan={6} className="text-center text-muted-foreground text-[13px] py-6">
+                                                <TableCell colSpan={6} className="text-center text-slate-500 text-[13px] py-6">
                                                   No step logs available
                                                 </TableCell>
                                               </TableRow>
                                             ) : (
                                               detail.steps.map((step) => (
                                                 <TableRow key={step.step_logging_id} className="console-table-row">
-                                                  <TableCell className="console-table-cell text-[13px] font-medium text-black">{step.step_index}</TableCell>
-                                                  <TableCell className="console-table-cell text-[13px] font-semibold text-black">{step.step_name}</TableCell>
+                                                  <TableCell className="console-table-cell text-[13px] font-medium text-slate-900">{step.step_index}</TableCell>
+                                                  <TableCell className="console-table-cell text-[13px] font-semibold text-slate-900">{step.step_name}</TableCell>
                                                   <TableCell className="console-table-cell">
-                                                    <span className="text-[11px] bg-[#007A78]/5 text-muted-foreground px-2 py-1 rounded-full font-mono border border-border">{step.step_type}</span>
+                                                    <span className="text-[11px] bg-slate-100 text-slate-600 px-2 py-1 rounded-full font-mono border border-slate-200">{step.step_type}</span>
                                                   </TableCell>
                                                   <TableCell className="console-table-cell">
                                                     <span className={`inline-flex items-center px-2.5 py-1 text-[11px] font-semibold rounded-full ${getStatusColor(step.status)}`}>
                                                       {step.status}
                                                     </span>
                                                   </TableCell>
-                                                  <TableCell className="console-table-cell text-[13px] text-black">{formatDuration(step.duration_ms)}</TableCell>
-                                                  <TableCell className="console-table-cell text-[13px] text-black">
+                                                  <TableCell className="console-table-cell text-[13px] text-slate-900">{formatDuration(step.duration_ms)}</TableCell>
+                                                  <TableCell className="console-table-cell text-[13px] text-slate-900">
                                                     {step.rows_processed !== null && step.rows_processed !== undefined
                                                       ? step.rows_processed.toLocaleString()
-                                                      : <span className="text-[#C7C7CC]">N/A</span>}
+                                                      : <span className="text-slate-400">N/A</span>}
                                                   </TableCell>
                                                 </TableRow>
                                               ))
@@ -1032,12 +1024,12 @@ export default function PipelinesPage() {
                                       </div>
 
                                       {detail.steps.filter(s => s.error_message).map((step) => (
-                                        <div key={step.step_logging_id} className="health-card bg-[#FF6E50]/10 p-4">
+                                        <div key={step.step_logging_id} className="bg-white rounded-2xl border border-slate-200 shadow-sm bg-[#FF6E50]/10 p-4">
                                           <div className="flex items-start gap-3">
                                             <AlertCircle className="h-5 w-5 text-[#FF6E50] mt-0.5 flex-shrink-0" />
                                             <div>
-                                              <p className="text-[15px] font-semibold text-black">{step.step_name} Error</p>
-                                              <p className="text-[13px] text-muted-foreground mt-1">{step.error_message}</p>
+                                              <p className="text-[15px] font-semibold text-slate-900">{step.step_name} Error</p>
+                                              <p className="text-[13px] text-slate-600 mt-1">{step.error_message}</p>
                                             </div>
                                           </div>
                                         </div>
@@ -1045,7 +1037,7 @@ export default function PipelinesPage() {
                                     </div>
                                   </div>
                                 ) : (
-                                  <div className="text-center text-muted-foreground text-[13px] py-6">
+                                  <div className="text-center text-slate-500 text-[13px] py-6">
                                     Failed to load details
                                   </div>
                                 )}
@@ -1063,9 +1055,9 @@ export default function PipelinesPage() {
         </div>
       )}
 
-      {/* Coming Soon - Apple Health Style */}
-      <div className="health-card p-6 sm:p-8 text-center border border-border">
-        <p className="text-[13px] text-muted-foreground font-medium">
+      {/* Coming Soon */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8 text-center">
+        <p className="text-[13px] text-slate-500 font-medium">
           More pipelines coming soon: AWS Cost Explorer, Azure, LLM Usage Analytics
         </p>
       </div>

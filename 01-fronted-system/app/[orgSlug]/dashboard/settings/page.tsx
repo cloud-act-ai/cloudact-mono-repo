@@ -93,7 +93,7 @@ export default async function SettingsPage({
           label: "Cloud Providers",
           description: "GCP, AWS, Azure cost tracking",
           href: `/${orgSlug}/integrations/cloud-providers`,
-          accent: "#4285F4",
+          accent: "#007A78",
           badge: cloudCount > 0 ? `${cloudCount} connected` : null
         },
         {
@@ -156,43 +156,60 @@ export default async function SettingsPage({
   ]
 
   return (
-    <div className="space-y-8 max-w-4xl">
+    <div className="max-w-6xl mx-auto">
       {/* Header */}
-      <div className="space-y-1">
-        <h1 className="text-[32px] font-bold text-slate-900 tracking-tight">Settings</h1>
-        <p className="text-[15px] text-slate-500">
+      <div className="mb-10">
+        <h1 className="text-[32px] font-bold text-slate-900 tracking-tight leading-none">
+          Dashboard Settings
+        </h1>
+        <p className="text-[15px] text-slate-500 mt-2 max-w-lg">
           Configure your organization, integrations, and preferences
         </p>
       </div>
 
       {/* Stats Row */}
-      <div className="flex flex-wrap items-center gap-6 py-4 px-5 bg-slate-50 rounded-2xl border border-slate-100">
+      <div className="flex items-center gap-6 mb-10">
         <div className="flex items-center gap-3">
-          <Cloud className="h-4 w-4 text-slate-400" />
-          <span className="text-[14px] text-slate-600">
-            <span className="font-semibold text-[#007A78]">{cloudCount}</span> Cloud
-          </span>
+          <div className="h-10 w-10 rounded-xl bg-[#007A78]/10 flex items-center justify-center">
+            <Cloud className="h-5 w-5 text-[#007A78]" />
+          </div>
+          <div>
+            <p className="text-[24px] font-bold text-slate-900 leading-none">{cloudCount}</p>
+            <p className="text-[12px] text-slate-500 font-medium mt-0.5">Cloud Providers</p>
+          </div>
         </div>
-        <div className="h-5 w-px bg-slate-200"></div>
+
         <div className="flex items-center gap-3">
-          <Brain className="h-4 w-4 text-slate-400" />
-          <span className="text-[14px] text-slate-600">
-            <span className="font-semibold text-[#8B5CF6]">{llmCount}</span> LLM
-          </span>
+          <div className="h-10 w-10 rounded-xl bg-[#8B5CF6]/10 flex items-center justify-center">
+            <Brain className="h-5 w-5 text-[#8B5CF6]" />
+          </div>
+          <div>
+            <p className="text-[24px] font-bold text-slate-900 leading-none">{llmCount}</p>
+            <p className="text-[12px] text-slate-500 font-medium mt-0.5">LLM Providers</p>
+          </div>
         </div>
-        <div className="h-5 w-px bg-slate-200"></div>
-        <div className="flex items-center gap-2">
-          <Shield className="h-4 w-4 text-emerald-500" />
-          <span className="text-[14px] font-medium text-emerald-600">Protected</span>
+
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-[#007A78]/10 flex items-center justify-center">
+            <Shield className="h-5 w-5 text-[#007A78]" />
+          </div>
+          <div>
+            <p className="text-[24px] font-bold text-slate-900 leading-none">Protected</p>
+            <p className="text-[12px] text-slate-500 font-medium mt-0.5">Security Status</p>
+          </div>
         </div>
       </div>
 
       {/* Settings Sections */}
       {settingsSections.map((section) => (
-        <div key={section.id} className="space-y-4">
-          <h2 className="text-[13px] font-semibold text-slate-500 uppercase tracking-wide">{section.title}</h2>
+        <section key={section.id} className="mb-10">
+          <div className="flex items-center gap-2 mb-4">
+            <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide">
+              {section.title}
+            </h2>
+          </div>
 
-          <div className="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100">
+          <div className="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100 overflow-hidden shadow-sm">
             {section.items.map((item, idx) => {
               const Icon = item.icon
               return (
@@ -203,59 +220,61 @@ export default async function SettingsPage({
                 >
                   {/* Left accent on hover */}
                   <div
-                    className="absolute left-0 top-4 bottom-4 w-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute left-0 top-4 bottom-4 w-1 rounded-full opacity-60 group-hover:opacity-100 transition-opacity"
                     style={{ backgroundColor: item.accent }}
                   />
 
-                  <div className="flex items-center justify-between p-4 pl-5 hover:bg-slate-50/50 transition-colors">
-                    <div className="flex items-center gap-4">
+                  <div className="pl-5 py-4 pr-4 flex items-center justify-between gap-4 hover:bg-slate-50/50 transition-colors">
+                    <div className="flex items-center gap-4 min-w-0 flex-1">
                       <div
-                        className="h-10 w-10 rounded-xl flex items-center justify-center"
-                        style={{ backgroundColor: `${item.accent}15` }}
+                        className="h-11 w-11 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-105"
+                        style={{ backgroundColor: `${item.accent}12` }}
                       >
                         <Icon className="h-5 w-5" style={{ color: item.accent }} />
                       </div>
-                      <div>
-                        <h3 className="text-[15px] font-semibold text-slate-900">{item.label}</h3>
-                        <p className="text-[13px] text-slate-500">{item.description}</p>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-[15px] font-semibold text-slate-900 truncate tracking-tight">
+                          {item.label}
+                        </h3>
+                        <p className="text-[12px] text-slate-500 font-medium mt-0.5">
+                          {item.description}
+                        </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
                       {item.badge && (
-                        <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 text-[11px] font-semibold">
+                        <span className="px-2.5 py-1 rounded-full bg-[#007A78]/10 text-[#007A78] text-[11px] font-semibold">
                           {item.badge}
                         </span>
                       )}
-                      <ChevronRight className="h-5 w-5 text-slate-300 group-hover:text-slate-500 transition-colors" />
+                      <ChevronRight className="h-5 w-5 text-slate-300 group-hover:text-slate-500 transition-colors flex-shrink-0" />
                     </div>
                   </div>
                 </Link>
               )
             })}
           </div>
-        </div>
+        </section>
       ))}
 
       {/* Help Section */}
-      <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100">
-        <div className="flex items-start gap-4">
-          <div className="h-10 w-10 rounded-xl bg-[#007A78]/10 flex items-center justify-center flex-shrink-0">
-            <Database className="h-5 w-5 text-[#007A78]" />
-          </div>
-          <div>
-            <h3 className="text-[15px] font-semibold text-slate-900">Need Help?</h3>
-            <p className="text-[13px] text-slate-500 mt-1">
-              Check our documentation or contact support for configuration assistance.
-            </p>
-            <div className="flex gap-2 mt-3">
-              <button className="h-9 px-4 text-[13px] font-semibold text-white bg-[#007A78] hover:bg-[#006664] rounded-lg transition-colors">
-                View Docs
-              </button>
-              <button className="h-9 px-4 text-[13px] font-semibold text-[#007A78] bg-[#007A78]/10 hover:bg-[#007A78]/15 rounded-lg transition-colors">
-                Contact Support
-              </button>
-            </div>
-          </div>
+      <div className="p-6 rounded-2xl bg-gradient-to-br from-slate-50 to-slate-100/50 border border-slate-200 text-center">
+        <div className="h-12 w-12 rounded-xl bg-white border border-slate-200 flex items-center justify-center mx-auto mb-4 shadow-sm">
+          <Database className="h-5 w-5 text-slate-600" />
+        </div>
+        <h3 className="text-[16px] font-semibold text-slate-900 mb-1">
+          Need Help?
+        </h3>
+        <p className="text-[13px] text-slate-500 mb-5 max-w-sm mx-auto">
+          Check our documentation or contact support for configuration assistance.
+        </p>
+        <div className="flex gap-3 justify-center">
+          <button className="h-10 px-5 bg-[#007A78] hover:bg-[#006664] text-white text-[13px] font-semibold rounded-xl transition-colors inline-flex items-center gap-2">
+            View Docs
+          </button>
+          <button className="h-10 px-5 bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 text-[13px] font-semibold rounded-xl transition-colors inline-flex items-center gap-2">
+            Contact Support
+          </button>
         </div>
       </div>
     </div>

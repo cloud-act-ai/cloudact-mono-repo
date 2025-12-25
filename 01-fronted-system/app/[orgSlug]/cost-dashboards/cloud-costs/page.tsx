@@ -167,30 +167,12 @@ export default function CloudCostsPage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6 sm:space-y-8">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-[32px] sm:text-[34px] font-bold text-black tracking-tight">Cloud Costs</h1>
-            <p className="text-[15px] text-muted-foreground mt-1">
-              Track your cloud infrastructure costs
-            </p>
+      <div className="flex items-center justify-center min-h-[500px]">
+        <div className="text-center">
+          <div className="h-12 w-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
+            <RefreshCw className="h-6 w-6 animate-spin text-slate-400" />
           </div>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <CardSkeleton count={4} showDescription />
-        </div>
-
-        <div className="metric-card p-0 overflow-hidden">
-          <div className="px-4 sm:px-6 py-4 sm:py-5">
-            <h2 className="text-[17px] font-semibold text-black">Costs by Service</h2>
-            <p className="text-[13px] text-muted-foreground mt-0.5">
-              View cloud costs across all providers and services
-            </p>
-          </div>
-          <div className="px-4 sm:px-6 pb-4 sm:pb-6">
-            <TableSkeleton rows={6} columns={6} />
-          </div>
+          <p className="text-[14px] text-slate-500 font-medium">Loading cloud costs...</p>
         </div>
       </div>
     )
@@ -198,20 +180,24 @@ export default function CloudCostsPage() {
 
   if (error) {
     return (
-      <div className="space-y-6 sm:space-y-8">
-        <div>
-          <h1 className="text-[32px] sm:text-[34px] font-bold text-black tracking-tight">Cloud Costs</h1>
-          <p className="text-[15px] text-muted-foreground mt-1">
-            Track your cloud infrastructure costs
+      <div className="max-w-6xl mx-auto">
+        <div className="mb-10">
+          <h1 className="text-[32px] font-bold text-slate-900 tracking-tight leading-none">
+            Cloud Costs
+          </h1>
+          <p className="text-[15px] text-slate-500 mt-2 max-w-lg">
+            Track and analyze your cloud infrastructure spending
           </p>
         </div>
 
-        <div className="metric-card p-4 sm:p-5">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 text-[#FF6E50] mt-0.5 flex-shrink-0" />
-            <div>
-              <h3 className="font-semibold text-black text-[15px]">{error}</h3>
-              <p className="text-[13px] text-muted-foreground mt-1">
+        <div className="p-5 rounded-2xl bg-gradient-to-r from-rose-50 to-orange-50 border border-rose-200">
+          <div className="flex items-start gap-4">
+            <div className="h-10 w-10 rounded-xl bg-white shadow-sm flex items-center justify-center flex-shrink-0">
+              <AlertCircle className="h-5 w-5 text-rose-500" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-[15px] font-semibold text-slate-900">{error}</h3>
+              <p className="text-[13px] text-slate-600 mt-1">
                 Please try again later or contact support if the issue persists.
               </p>
             </div>
@@ -222,46 +208,65 @@ export default function CloudCostsPage() {
   }
 
   return (
-    <div className="space-y-6 sm:space-y-8">
-      {/* Enhanced Hero Section with Animated Gradient Text */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#007A78]/5 via-white to-[#FF6E50]/5 border border-[#007A78]/10">
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(0,122,120,0.03)_1px,transparent_1px),linear-gradient(to_bottom,rgba(0,122,120,0.03)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000,transparent)]"></div>
+    <div className="max-w-6xl mx-auto">
+      {/* Header */}
+      <div className="mb-10">
+        <div className="flex items-start justify-between gap-6 mb-6">
+          <div>
+            <h1 className="text-[32px] font-bold text-slate-900 tracking-tight leading-none">
+              Cloud Costs
+            </h1>
+            <p className="text-[15px] text-slate-500 mt-2 max-w-lg">
+              Track and analyze your cloud infrastructure spending across GCP, AWS, and Azure
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleManualRefresh}
+              disabled={isRefreshing}
+              className="h-11 px-4 text-[13px] font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors flex items-center gap-2"
+            >
+              <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+              <span className="hidden sm:inline">Refresh</span>
+            </button>
+            <Link href={`/${orgSlug}/integrations/cloud-providers`}>
+              <button className="h-11 px-5 bg-[#007A78] hover:bg-[#006664] text-white text-[13px] font-semibold rounded-xl transition-colors flex items-center gap-2 shadow-sm">
+                <Plus className="h-4 w-4" />
+                Configure Cloud
+              </button>
+            </Link>
+          </div>
+        </div>
 
-        <div className="relative px-6 sm:px-8 py-8 sm:py-12">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
-            <div className="space-y-3">
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#007A78]/10 border border-[#007A78]/20">
-                <Sparkles className="h-3.5 w-3.5 text-[#007A78]" />
-                <span className="text-[13px] font-semibold text-[#007A78]">Cloud Infrastructure</span>
-              </div>
-
-              <h1 className="text-[40px] sm:text-[48px] font-bold tracking-tight bg-gradient-to-r from-[#007A78] via-[#14b8a6] to-[#FF6E50] bg-clip-text text-transparent animate-gradient bg-[length:200%_auto]">
-                Cloud Costs
-              </h1>
-
-              <p className="text-[17px] text-muted-foreground max-w-2xl">
-                Monitor infrastructure spending across GCP, AWS, and Azure in real-time with intelligent analytics
-              </p>
+        {/* Stats Row */}
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-[#007A78]/10 flex items-center justify-center">
+              <Cloud className="h-5 w-5 text-[#007A78]" />
             </div>
+            <div>
+              <p className="text-[24px] font-bold text-slate-900 leading-none">{summary?.providers_count || 0}</p>
+              <p className="text-[12px] text-slate-500 font-medium mt-0.5">Providers</p>
+            </div>
+          </div>
 
-            <div className="flex items-center gap-3">
-              <Button
-                onClick={handleManualRefresh}
-                disabled={isRefreshing}
-                variant="ghost"
-                size="sm"
-                className="h-11 px-4 text-[15px] text-muted-foreground hover:bg-[#007A78]/5 rounded-xl group"
-              >
-                <RefreshCw className={`h-4 w-4 mr-2 group-hover:text-[#007A78] transition-colors ${isRefreshing ? "animate-spin" : ""}`} />
-                <span className="hidden sm:inline">Refresh</span>
-              </Button>
-              <Link href={`/${orgSlug}/integrations/cloud-providers`}>
-                <Button className="console-button-primary h-11 px-5 rounded-xl text-[15px] font-semibold shadow-lg hover:shadow-xl transition-all">
-                  <Plus className="h-4 w-4 mr-2" />
-                  <span className="hidden sm:inline">Configure Cloud</span>
-                  <span className="sm:hidden">Configure</span>
-                </Button>
-              </Link>
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-[#007A78]/10 flex items-center justify-center">
+              <Server className="h-5 w-5 text-[#007A78]" />
+            </div>
+            <div>
+              <p className="text-[24px] font-bold text-slate-900 leading-none">{summary?.services_count || 0}</p>
+              <p className="text-[12px] text-slate-500 font-medium mt-0.5">Services</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-[#FF6E50]/10 flex items-center justify-center">
+              <DollarSign className="h-5 w-5 text-[#FF6E50]" />
+            </div>
+            <div>
+              <p className="text-[24px] font-bold text-slate-900 leading-none">{formatCurrency(summary?.mtd_cost || 0, orgCurrency)}</p>
+              <p className="text-[12px] text-slate-500 font-medium mt-0.5">MTD Cost</p>
             </div>
           </div>
         </div>
@@ -269,19 +274,18 @@ export default function CloudCostsPage() {
 
       {/* Provider Constellation Visualization */}
       {summary && summary.providers_count > 0 && (
-        <div className="metric-card p-6 sm:p-8 overflow-hidden relative">
-          <div className="absolute inset-0 bg-gradient-to-br from-[#007A78]/5 via-transparent to-[#FF6E50]/5 pointer-events-none"></div>
+        <section className="mb-10">
+          <div className="flex items-center gap-2 mb-4">
+            <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide">
+              Provider Ecosystem
+            </h2>
+            <span className="text-[11px] text-[#007A78] font-semibold bg-[#007A78]/10 px-2 py-0.5 rounded-full">
+              {summary.providers_count} Provider{summary.providers_count !== 1 ? 's' : ''}
+            </span>
+          </div>
 
-          <div className="relative">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-[22px] font-bold text-black mb-1">Provider Ecosystem</h2>
-                <p className="text-[15px] text-muted-foreground">Active cloud integrations</p>
-              </div>
-              <Badge className="bg-[#007A78]/10 text-[#007A78] border border-[#007A78]/20 px-3 py-1.5 text-[15px] font-semibold">
-                {summary.providers_count} Provider{summary.providers_count !== 1 ? 's' : ''}
-              </Badge>
-            </div>
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+            <div className="relative">
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {['gcp', 'aws', 'azure'].map((provider, idx) => (
@@ -298,24 +302,26 @@ export default function CloudCostsPage() {
                       <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></div>
                     </div>
 
-                    <h3 className="text-[18px] font-bold text-black uppercase mb-1">{provider}</h3>
-                    <p className="text-[13px] text-muted-foreground">
+                    <h3 className="text-[18px] font-bold text-slate-900 uppercase mb-1">{provider}</h3>
+                    <p className="text-[13px] text-slate-500">
                       {provider === 'gcp' ? 'Google Cloud' : provider === 'aws' ? 'Amazon Web Services' : 'Microsoft Azure'}
                     </p>
                   </div>
                 </div>
               ))}
             </div>
+            </div>
           </div>
-        </div>
+        </section>
       )}
 
-      {/* Enhanced Cost Summary Grid */}
+      {/* Cost Overview */}
       {summary && (
-        <div className="space-y-6">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-1 bg-gradient-to-b from-[#007A78] to-[#FF6E50] rounded-full"></div>
-            <h2 className="text-[24px] font-bold text-black">Cost Overview</h2>
+        <section className="mb-10">
+          <div className="flex items-center gap-2 mb-4">
+            <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide">
+              Cost Overview
+            </h2>
           </div>
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -397,8 +403,18 @@ export default function CloudCostsPage() {
               </div>
             </div>
           </div>
+        </section>
+      )}
 
-          {/* Forecast & Services */}
+      {/* Forecast & Services */}
+      {summary && (
+        <section className="mb-10">
+          <div className="flex items-center gap-2 mb-4">
+            <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide">
+              Forecast
+            </h2>
+          </div>
+
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
             {/* Monthly Forecast */}
             <div className="metric-card relative overflow-hidden group hover:shadow-xl transition-all duration-300">
@@ -468,17 +484,18 @@ export default function CloudCostsPage() {
               </div>
             </div>
           </div>
-        </div>
+        </section>
       )}
 
-      {/* Interactive Cost Breakdown Table */}
-      <div className="space-y-4">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-1 bg-gradient-to-b from-[#007A78] to-[#FF6E50] rounded-full"></div>
-          <h2 className="text-[24px] font-bold text-black">Service Breakdown</h2>
+      {/* Service Breakdown */}
+      <section className="mb-10">
+        <div className="flex items-center gap-2 mb-4">
+          <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide">
+            Service Breakdown
+          </h2>
         </div>
 
-        <div className="metric-card p-0 overflow-hidden">
+        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
           {costRecords.length === 0 ? (
             <div className="text-center py-16 sm:py-20 px-4 sm:px-6 relative">
               <div className="absolute inset-0 bg-gradient-to-br from-[#007A78]/5 via-transparent to-[#FF6E50]/5 pointer-events-none"></div>
@@ -488,8 +505,8 @@ export default function CloudCostsPage() {
                   <Cloud className="h-16 w-16 text-[#007A78]" />
                 </div>
 
-                <h3 className="text-[24px] font-bold text-black mb-3">No cloud cost data yet</h3>
-                <p className="text-[17px] text-muted-foreground mb-8 max-w-lg mx-auto leading-relaxed">
+                <h3 className="text-[24px] font-bold text-slate-900 mb-3">No cloud cost data yet</h3>
+                <p className="text-[17px] text-slate-500 mb-8 max-w-lg mx-auto leading-relaxed">
                   Configure cloud provider integrations and run the cost pipeline to start tracking infrastructure costs across GCP, AWS, and Azure.
                 </p>
 
@@ -513,12 +530,12 @@ export default function CloudCostsPage() {
             <div className="overflow-x-auto">
               <Table className="w-full min-w-[700px]">
                 <TableHeader>
-                  <TableRow className="border-b border-border bg-gradient-to-r from-[#007A78]/5 via-transparent to-[#FF6E50]/5">
-                    <TableHead className="console-table-header">Provider</TableHead>
-                    <TableHead className="console-table-header">Service</TableHead>
-                    <TableHead className="console-table-header">Project</TableHead>
-                    <TableHead className="console-table-header text-right">Usage</TableHead>
-                    <TableHead className="console-table-header text-right">Cost</TableHead>
+                  <TableRow className="border-b border-slate-200 bg-slate-50">
+                    <TableHead className="text-[12px] font-semibold text-slate-600 uppercase tracking-wide">Provider</TableHead>
+                    <TableHead className="text-[12px] font-semibold text-slate-600 uppercase tracking-wide">Service</TableHead>
+                    <TableHead className="text-[12px] font-semibold text-slate-600 uppercase tracking-wide">Project</TableHead>
+                    <TableHead className="text-[12px] font-semibold text-slate-600 uppercase tracking-wide text-right">Usage</TableHead>
+                    <TableHead className="text-[12px] font-semibold text-slate-600 uppercase tracking-wide text-right">Cost</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -528,35 +545,35 @@ export default function CloudCostsPage() {
                     return (
                       <TableRow
                         key={record.id}
-                        className="console-table-row group hover:bg-gradient-to-r hover:from-[#007A78]/5 hover:via-transparent hover:to-transparent transition-all"
+                        className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors"
                         style={{ animationDelay: `${idx * 50}ms` }}
                       >
-                        <TableCell className="console-table-cell">
-                          <Badge className={`uppercase text-[11px] font-semibold px-3 py-1.5 ${PROVIDER_COLORS[record.provider.toLowerCase()] || PROVIDER_COLORS.other} group-hover:shadow-sm transition-shadow`}>
+                        <TableCell className="py-3">
+                          <Badge className={`uppercase text-[11px] font-semibold px-3 py-1.5 ${PROVIDER_COLORS[record.provider.toLowerCase()] || PROVIDER_COLORS.other}`}>
                             {record.provider}
                           </Badge>
                         </TableCell>
-                        <TableCell className="console-table-cell">
+                        <TableCell className="py-3">
                           <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-lg bg-[#007A78]/10 group-hover:bg-[#007A78]/20 transition-colors">
+                            <div className="p-2 rounded-lg bg-[#007A78]/10">
                               <ServiceIcon className="h-4 w-4 text-[#007A78]" />
                             </div>
-                            <span className="font-semibold text-black text-[15px]">{record.service}</span>
+                            <span className="font-semibold text-slate-900 text-[15px]">{record.service}</span>
                           </div>
                         </TableCell>
-                        <TableCell className="console-table-cell">
-                          <span className="text-muted-foreground text-[15px]">{record.project || '-'}</span>
+                        <TableCell className="py-3">
+                          <span className="text-slate-500 text-[15px]">{record.project || '-'}</span>
                         </TableCell>
-                        <TableCell className="console-table-cell text-right">
+                        <TableCell className="py-3 text-right">
                           <div className="flex items-center justify-end gap-2">
-                            <Activity className="h-3.5 w-3.5 text-muted-foreground" />
-                            <span className="text-muted-foreground text-[15px]">
+                            <Activity className="h-3.5 w-3.5 text-slate-400" />
+                            <span className="text-slate-500 text-[15px]">
                               {record.usage_amount.toLocaleString()} {record.usage_unit}
                             </span>
                           </div>
                         </TableCell>
-                        <TableCell className="console-table-cell text-right">
-                          <span className="font-bold text-black text-[17px] bg-gradient-to-r from-[#FF6E50] to-[#ff8a73] bg-clip-text text-transparent">
+                        <TableCell className="py-3 text-right">
+                          <span className="font-bold text-slate-900 text-[17px]">
                             {formatCurrency(record.cost, orgCurrency)}
                           </span>
                         </TableCell>
@@ -568,66 +585,8 @@ export default function CloudCostsPage() {
             </div>
           )}
         </div>
-      </div>
+      </section>
 
-      {/* Quick Action Cards with Hover Effects */}
-      {costRecords.length === 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="metric-card group cursor-pointer hover:shadow-xl hover:scale-105 transition-all duration-300 bg-gradient-to-br from-white to-[#007A78]/5">
-            <div className="flex items-start gap-4">
-              <div className="p-3 rounded-2xl bg-[#007A78]/10 group-hover:bg-[#007A78]/20 transition-colors">
-                <Server className="h-6 w-6 text-[#007A78]" />
-              </div>
-              <div className="flex-1">
-                <h3 className="text-[17px] font-bold text-black mb-1 group-hover:text-[#007A78] transition-colors">GCP Integration</h3>
-                <p className="text-[14px] text-muted-foreground leading-relaxed">Connect Google Cloud Platform</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="metric-card group cursor-pointer hover:shadow-xl hover:scale-105 transition-all duration-300 bg-gradient-to-br from-white to-[#FF6E50]/5">
-            <div className="flex items-start gap-4">
-              <div className="p-3 rounded-2xl bg-[#FF6E50]/10 group-hover:bg-[#FF6E50]/20 transition-colors">
-                <Database className="h-6 w-6 text-[#FF6E50]" />
-              </div>
-              <div className="flex-1">
-                <h3 className="text-[17px] font-bold text-black mb-1 group-hover:text-[#FF6E50] transition-colors">AWS Integration</h3>
-                <p className="text-[14px] text-muted-foreground leading-relaxed">Connect Amazon Web Services</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="metric-card group cursor-pointer hover:shadow-xl hover:scale-105 transition-all duration-300 bg-gradient-to-br from-white to-[#005F5D]/5">
-            <div className="flex items-start gap-4">
-              <div className="p-3 rounded-2xl bg-[#005F5D]/10 group-hover:bg-[#005F5D]/20 transition-colors">
-                <Network className="h-6 w-6 text-[#005F5D]" />
-              </div>
-              <div className="flex-1">
-                <h3 className="text-[17px] font-bold text-black mb-1 group-hover:text-[#005F5D] transition-colors">Azure Integration</h3>
-                <p className="text-[14px] text-muted-foreground leading-relaxed">Connect Microsoft Azure</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <style jsx>{`
-        @keyframes gradient {
-          0% {
-            background-position: 0% 50%;
-          }
-          50% {
-            background-position: 100% 50%;
-          }
-          100% {
-            background-position: 0% 50%;
-          }
-        }
-
-        .animate-gradient {
-          animation: gradient 3s ease infinite;
-        }
-      `}</style>
     </div>
   )
 }

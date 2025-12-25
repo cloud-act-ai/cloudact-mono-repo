@@ -95,7 +95,7 @@ export default function GenAIRunsPage() {
     setIsLoading(true)
 
     const [onboardingStatus, apiKeyResult, pipelinesResult] = await Promise.all([
-      checkBackendOnboarding(orgSlug),
+      checkBackendOnboarding(orgSlug, { skipValidation: true, timeout: 3000 }),
       hasStoredApiKey(orgSlug),
       getAvailablePipelines(),
     ])
@@ -277,30 +277,98 @@ export default function GenAIRunsPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-10 w-10 animate-spin text-[#007A78]" />
+      <div className="max-w-6xl mx-auto">
+        <div className="mb-10">
+          <div className="h-8 w-64 bg-slate-200 rounded-lg animate-pulse"></div>
+          <div className="h-4 w-96 bg-slate-100 rounded-lg animate-pulse mt-2"></div>
+        </div>
+        <div className="flex items-center gap-6 mb-8">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-slate-200 animate-pulse"></div>
+              <div>
+                <div className="h-6 w-12 bg-slate-200 rounded animate-pulse"></div>
+                <div className="h-3 w-16 bg-slate-100 rounded animate-pulse mt-1"></div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8">
+          <div className="flex items-center justify-center">
+            <Loader2 className="h-10 w-10 animate-spin text-[#007A78]" />
+          </div>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6 sm:space-y-8">
-      <div>
-        <h1 className="text-[32px] sm:text-[34px] font-bold text-black tracking-tight">GenAI Runs</h1>
-        <p className="text-[15px] text-muted-foreground mt-1">
-          Run and monitor LLM API usage pipelines.
+    <div className="max-w-6xl mx-auto space-y-6 sm:space-y-8">
+      <div className="mb-10">
+        <h1 className="text-[32px] font-bold text-slate-900 tracking-tight leading-none">
+          GenAI Pipeline Runs
+        </h1>
+        <p className="text-[15px] text-slate-500 mt-2 max-w-lg">
+          Monitor your AI/ML cost pipeline executions
         </p>
       </div>
 
+      {/* Stats Row */}
+      <div className="flex items-center gap-6 mb-8">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-[#8B5CF6]/10 flex items-center justify-center">
+            <Brain className="h-5 w-5 text-[#8B5CF6]" />
+          </div>
+          <div>
+            <p className="text-[24px] font-bold text-slate-900 leading-none">{runStats.total}</p>
+            <p className="text-[12px] text-slate-500 font-medium mt-0.5">Total Runs</p>
+          </div>
+        </div>
+        <div className="h-8 w-px bg-slate-200"></div>
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-[#007A78]/10 flex items-center justify-center">
+            <CheckCircle2 className="h-5 w-5 text-[#007A78]" />
+          </div>
+          <div>
+            <p className="text-[24px] font-bold text-slate-900 leading-none">{runStats.completed}</p>
+            <p className="text-[12px] text-slate-500 font-medium mt-0.5">Completed</p>
+          </div>
+        </div>
+        <div className="h-8 w-px bg-slate-200"></div>
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-[#FF6E50]/10 flex items-center justify-center">
+            <XCircle className="h-5 w-5 text-[#FF6E50]" />
+          </div>
+          <div>
+            <p className="text-[24px] font-bold text-slate-900 leading-none">{runStats.failed}</p>
+            <p className="text-[12px] text-slate-500 font-medium mt-0.5">Failed</p>
+          </div>
+        </div>
+        {runStats.running > 0 && (
+          <>
+            <div className="h-8 w-px bg-slate-200"></div>
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-blue-50 flex items-center justify-center">
+                <Loader2 className="h-5 w-5 text-blue-500 animate-spin" />
+              </div>
+              <div>
+                <p className="text-[24px] font-bold text-slate-900 leading-none">{runStats.running}</p>
+                <p className="text-[12px] text-slate-500 font-medium mt-0.5">Running</p>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
       {(!backendConnected || !hasApiKey) && (
-        <div className="health-card bg-[#FF6E50]/10 p-4 sm:p-5">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-5 bg-[#FF6E50]/10">
           <div className="flex items-start gap-3">
             <AlertCircle className="h-5 w-5 text-[#FF6E50] mt-0.5 flex-shrink-0" />
             <div className="space-y-3">
-              <h3 className="text-[15px] font-semibold text-black">
+              <h3 className="text-[15px] font-semibold text-slate-900">
                 {!backendConnected ? "Backend Not Connected" : "API Key Missing"}
               </h3>
-              <p className="text-[13px] text-muted-foreground">
+              <p className="text-[13px] text-slate-500">
                 Complete organization onboarding to run pipelines.
               </p>
               <Link href={`/${orgSlug}/settings/organization`}>
@@ -313,17 +381,17 @@ export default function GenAIRunsPage() {
         </div>
       )}
 
-      <div className="health-card bg-[#007A78]/5 p-4 border border-border">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 bg-[#007A78]/5">
         <div className="flex items-center gap-3">
           <Info className="h-5 w-5 text-[#007A78] flex-shrink-0" />
-          <p className="text-[15px] text-black">
+          <p className="text-[15px] text-slate-900">
             GenAI pipelines track API usage and costs from LLM providers like OpenAI, Anthropic, and Google.
           </p>
         </div>
       </div>
 
       {lastResult && (
-        <div className={`health-card p-4 ${lastResult.success ? 'bg-[#007A78]/10' : 'bg-[#FF6E50]/10'}`}>
+        <div className={`bg-white rounded-2xl border border-slate-200 shadow-sm p-4 ${lastResult.success ? 'bg-[#007A78]/10' : 'bg-[#FF6E50]/10'}`}>
           <div className="flex items-center gap-3">
             {lastResult.success ? (
               <CheckCircle2 className="h-5 w-5 text-[#007A78] flex-shrink-0" />
@@ -338,8 +406,8 @@ export default function GenAIRunsPage() {
       )}
 
       <div>
-        <h2 className="text-[22px] font-bold text-black mb-4">Available Pipelines</h2>
-        <div className="health-card p-0 overflow-hidden">
+        <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide mb-4">Available Pipelines</h2>
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-0 overflow-hidden">
           <div className="px-4 sm:px-6 py-4 border-b border-[#E5E5EA]">
             <div className="flex items-center gap-2 text-[#007A78]">
               <Brain className="h-[18px] w-[18px]" />
@@ -378,8 +446,8 @@ export default function GenAIRunsPage() {
                   <div key={pipeline.id} className="p-4 space-y-3">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
-                        <div className="text-[15px] font-semibold text-black">{pipeline.name}</div>
-                        <div className="text-[13px] text-muted-foreground mt-0.5">{pipeline.description}</div>
+                        <div className="text-[15px] font-semibold text-slate-900">{pipeline.name}</div>
+                        <div className="text-[13px] text-slate-500 mt-0.5">{pipeline.description}</div>
                       </div>
                       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#F0FDFA] text-[#007A78] border border-[#007A78]/10 flex-shrink-0">
                         <CheckCircle2 className="h-3 w-3" />
@@ -434,8 +502,8 @@ export default function GenAIRunsPage() {
                       <TableRow key={pipeline.id} className="console-table-row">
                         <TableCell className="console-table-cell">
                           <div className="space-y-0.5">
-                            <div className="text-[15px] font-semibold text-black">{pipeline.name}</div>
-                            <div className="text-[13px] text-muted-foreground">{pipeline.description}</div>
+                            <div className="text-[15px] font-semibold text-slate-900">{pipeline.name}</div>
+                            <div className="text-[13px] text-slate-500">{pipeline.description}</div>
                           </div>
                         </TableCell>
                         <TableCell className="console-table-cell">
@@ -482,23 +550,23 @@ export default function GenAIRunsPage() {
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
-              <h2 className="text-[22px] font-bold text-black">Run History</h2>
+              <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide">Run History</h2>
               {pipelineRuns.length > 0 && (
                 <div className="flex items-center gap-4 mt-2">
                   <div className="flex items-center gap-1.5">
                     <div className="h-2 w-2 rounded-full bg-[#007A78]"></div>
-                    <span className="text-[13px] text-muted-foreground">{runStats.completed} completed</span>
+                    <span className="text-[13px] text-slate-500">{runStats.completed} completed</span>
                   </div>
                   {runStats.failed > 0 && (
                     <div className="flex items-center gap-1.5">
                       <div className="h-2 w-2 rounded-full bg-[#FF6E50]"></div>
-                      <span className="text-[13px] text-muted-foreground">{runStats.failed} failed</span>
+                      <span className="text-[13px] text-slate-500">{runStats.failed} failed</span>
                     </div>
                   )}
                   {runStats.running > 0 && (
                     <div className="flex items-center gap-1.5">
                       <div className="h-2 w-2 rounded-full bg-[#007A78] animate-pulse"></div>
-                      <span className="text-[13px] text-muted-foreground">{runStats.running} running</span>
+                      <span className="text-[13px] text-slate-500">{runStats.running} running</span>
                     </div>
                   )}
                 </div>
@@ -518,7 +586,7 @@ export default function GenAIRunsPage() {
             </button>
           </div>
 
-          <div className="health-card p-0 overflow-hidden">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-0 overflow-hidden">
             {/* Loading state */}
             {runsLoading && pipelineRuns.length === 0 && (
               <div className="px-4 sm:px-6 py-12 text-center">
@@ -531,10 +599,10 @@ export default function GenAIRunsPage() {
               <div className="px-4 sm:px-6 py-12 text-center">
                 <div className="space-y-3">
                   <div className="inline-flex p-3 rounded-2xl bg-[#8E8E93]/10 mb-2">
-                    <History className="h-10 w-10 text-muted-foreground" />
+                    <History className="h-10 w-10 text-slate-400" />
                   </div>
-                  <h3 className="text-[17px] font-semibold text-black">No runs yet</h3>
-                  <p className="text-[15px] text-muted-foreground">Run a GenAI pipeline to see history</p>
+                  <h3 className="text-[17px] font-semibold text-slate-900">No runs yet</h3>
+                  <p className="text-[15px] text-slate-500">Run a GenAI pipeline to see history</p>
                 </div>
               </div>
             )}
@@ -561,8 +629,8 @@ export default function GenAIRunsPage() {
                               <ChevronRight className="h-4 w-4 text-[#C7C7CC] mt-1 flex-shrink-0" />
                             )}
                             <div className="min-w-0">
-                              <div className="text-[15px] font-semibold text-black truncate">{run.pipeline_id}</div>
-                              <div className="text-[11px] text-muted-foreground font-mono mt-0.5">
+                              <div className="text-[15px] font-semibold text-slate-900 truncate">{run.pipeline_id}</div>
+                              <div className="text-[11px] text-slate-500 font-mono mt-0.5">
                                 {run.pipeline_logging_id.slice(0, 8)}...
                               </div>
                             </div>
@@ -574,7 +642,7 @@ export default function GenAIRunsPage() {
                         </div>
 
                         <div className="ml-6 space-y-2">
-                          <div className="flex items-center gap-4 text-[13px] text-muted-foreground">
+                          <div className="flex items-center gap-4 text-[13px] text-slate-500">
                             <span className="flex items-center gap-1">
                               <CalendarClock className="h-3 w-3" />
                               {formatDateTime(run.start_time)}
@@ -583,8 +651,8 @@ export default function GenAIRunsPage() {
 
                           <div className="space-y-1">
                             <div className="flex items-center justify-between text-[11px]">
-                              <span className="text-muted-foreground">Duration</span>
-                              <span className="font-medium text-black">{formatDuration(run.duration_ms)}</span>
+                              <span className="text-slate-500">Duration</span>
+                              <span className="font-medium text-slate-900">{formatDuration(run.duration_ms)}</span>
                             </div>
                             <div className="h-1.5 bg-[#E5E5EA] rounded-full overflow-hidden">
                               <div
@@ -605,12 +673,12 @@ export default function GenAIRunsPage() {
                           ) : detail ? (
                             <div className="space-y-4">
                               {run.error_message && (
-                                <div className="health-card bg-[#FF6E50]/10 p-4 border-l-4 border-[#FF6E50]">
+                                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 bg-[#FF6E50]/10 border-l-4 border-[#FF6E50]">
                                   <div className="flex items-start gap-3">
                                     <XCircle className="h-5 w-5 text-[#FF6E50] mt-0.5 flex-shrink-0" />
                                     <div className="flex-1 min-w-0">
-                                      <p className="text-[15px] font-semibold text-black">Error Details</p>
-                                      <p className="text-[13px] text-muted-foreground mt-1 break-words font-mono">{run.error_message}</p>
+                                      <p className="text-[15px] font-semibold text-slate-900">Error Details</p>
+                                      <p className="text-[13px] text-slate-500 mt-1 break-words font-mono">{run.error_message}</p>
                                     </div>
                                   </div>
                                 </div>
@@ -619,20 +687,20 @@ export default function GenAIRunsPage() {
                               <div className="space-y-3">
                                 <div className="flex items-center gap-2">
                                   <TrendingUp className="h-4 w-4 text-[#007A78]" />
-                                  <h4 className="text-[15px] font-semibold text-black">Pipeline Steps</h4>
+                                  <h4 className="text-[15px] font-semibold text-slate-900">Pipeline Steps</h4>
                                 </div>
                                 {detail.steps.length === 0 ? (
-                                  <p className="text-center text-muted-foreground text-[13px] py-4">No step logs available</p>
+                                  <p className="text-center text-slate-500 text-[13px] py-4">No step logs available</p>
                                 ) : (
                                   <div className="space-y-2">
                                     {detail.steps.map((step) => (
-                                      <div key={step.step_logging_id} className="health-card p-3">
+                                      <div key={step.step_logging_id} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-3">
                                         <div className="flex items-center justify-between gap-3 mb-2">
                                           <div className="flex items-center gap-2 min-w-0">
                                             <span className="flex items-center justify-center h-6 w-6 rounded-full bg-[#007A78]/10 text-[#007A78] text-[11px] font-bold flex-shrink-0">
                                               {step.step_index}
                                             </span>
-                                            <span className="text-[13px] font-semibold text-black truncate">{step.step_name}</span>
+                                            <span className="text-[13px] font-semibold text-slate-900 truncate">{step.step_name}</span>
                                           </div>
                                           <span className={`inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-full flex-shrink-0 ${getStatusColor(step.status)}`}>
                                             {step.status}
@@ -640,8 +708,8 @@ export default function GenAIRunsPage() {
                                         </div>
                                         <div className="ml-8 space-y-1">
                                           <div className="flex items-center justify-between text-[11px]">
-                                            <span className="text-muted-foreground">Duration</span>
-                                            <span className="font-medium text-black">{formatDuration(step.duration_ms)}</span>
+                                            <span className="text-slate-500">Duration</span>
+                                            <span className="font-medium text-slate-900">{formatDuration(step.duration_ms)}</span>
                                           </div>
                                           <div className="h-1 bg-[#E5E5EA] rounded-full overflow-hidden">
                                             <div
@@ -657,7 +725,7 @@ export default function GenAIRunsPage() {
                               </div>
                             </div>
                           ) : (
-                            <div className="text-center text-muted-foreground text-[13px] py-6">
+                            <div className="text-center text-slate-500 text-[13px] py-6">
                               Failed to load details
                             </div>
                           )}
@@ -702,8 +770,8 @@ export default function GenAIRunsPage() {
                               )}
                             </TableCell>
                             <TableCell className="console-table-cell">
-                              <div className="text-[15px] font-semibold text-black">{run.pipeline_id}</div>
-                              <div className="text-[11px] text-muted-foreground font-mono mt-0.5">
+                              <div className="text-[15px] font-semibold text-slate-900">{run.pipeline_id}</div>
+                              <div className="text-[11px] text-slate-500 font-mono mt-0.5">
                                 {run.pipeline_logging_id.slice(0, 8)}...
                               </div>
                             </TableCell>
@@ -714,11 +782,11 @@ export default function GenAIRunsPage() {
                               </span>
                             </TableCell>
                             <TableCell className="console-table-cell">
-                              <div className="text-[13px] text-black">{formatDateTime(run.start_time)}</div>
+                              <div className="text-[13px] text-slate-900">{formatDateTime(run.start_time)}</div>
                             </TableCell>
                             <TableCell className="console-table-cell">
                               <div className="space-y-1.5">
-                                <div className="text-[13px] font-medium text-black">{formatDuration(run.duration_ms)}</div>
+                                <div className="text-[13px] font-medium text-slate-900">{formatDuration(run.duration_ms)}</div>
                                 <div className="h-1.5 w-24 bg-[#E5E5EA] rounded-full overflow-hidden">
                                   <div
                                     className={`h-full rounded-full ${run.status === 'COMPLETED' ? 'bg-[#007A78]' : run.status === 'FAILED' ? 'bg-[#FF6E50]' : 'bg-[#007A78]/50'}`}
@@ -739,12 +807,12 @@ export default function GenAIRunsPage() {
                                 ) : detail ? (
                                   <div className="space-y-4">
                                     {run.error_message && (
-                                      <div className="health-card bg-[#FF6E50]/10 p-4 border-l-4 border-[#FF6E50]">
+                                      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 bg-[#FF6E50]/10 border-l-4 border-[#FF6E50]">
                                         <div className="flex items-start gap-3">
                                           <XCircle className="h-5 w-5 text-[#FF6E50] mt-0.5 flex-shrink-0" />
                                           <div className="flex-1">
-                                            <p className="text-[15px] font-semibold text-black">Error Details</p>
-                                            <p className="text-[13px] text-muted-foreground mt-1 font-mono">{run.error_message}</p>
+                                            <p className="text-[15px] font-semibold text-slate-900">Error Details</p>
+                                            <p className="text-[13px] text-slate-500 mt-1 font-mono">{run.error_message}</p>
                                           </div>
                                         </div>
                                       </div>
@@ -753,20 +821,20 @@ export default function GenAIRunsPage() {
                                     <div className="space-y-3">
                                       <div className="flex items-center gap-2">
                                         <TrendingUp className="h-4 w-4 text-[#007A78]" />
-                                        <h4 className="text-[15px] font-semibold text-black">Pipeline Steps</h4>
+                                        <h4 className="text-[15px] font-semibold text-slate-900">Pipeline Steps</h4>
                                       </div>
                                       <div className="grid gap-3">
                                         {detail.steps.length === 0 ? (
-                                          <p className="text-center text-muted-foreground text-[13px] py-6">No step logs available</p>
+                                          <p className="text-center text-slate-500 text-[13px] py-6">No step logs available</p>
                                         ) : (
                                           detail.steps.map((step) => (
-                                            <div key={step.step_logging_id} className="health-card p-4">
+                                            <div key={step.step_logging_id} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
                                               <div className="flex items-center justify-between gap-4 mb-3">
                                                 <div className="flex items-center gap-3">
                                                   <span className="flex items-center justify-center h-8 w-8 rounded-full bg-[#007A78]/10 text-[#007A78] text-[13px] font-bold">
                                                     {step.step_index}
                                                   </span>
-                                                  <span className="text-[15px] font-semibold text-black">{step.step_name}</span>
+                                                  <span className="text-[15px] font-semibold text-slate-900">{step.step_name}</span>
                                                 </div>
                                                 <span className={`inline-flex items-center px-2.5 py-1 text-[11px] font-semibold rounded-full ${getStatusColor(step.status)}`}>
                                                   {step.status}
@@ -774,8 +842,8 @@ export default function GenAIRunsPage() {
                                               </div>
                                               <div className="ml-11 space-y-1.5">
                                                 <div className="flex items-center justify-between text-[13px]">
-                                                  <span className="text-muted-foreground">Duration</span>
-                                                  <span className="font-medium text-black">{formatDuration(step.duration_ms)}</span>
+                                                  <span className="text-slate-500">Duration</span>
+                                                  <span className="font-medium text-slate-900">{formatDuration(step.duration_ms)}</span>
                                                 </div>
                                                 <div className="h-2 bg-[#E5E5EA] rounded-full overflow-hidden">
                                                   <div
@@ -791,7 +859,7 @@ export default function GenAIRunsPage() {
                                     </div>
                                   </div>
                                 ) : (
-                                  <div className="text-center text-muted-foreground text-[13px] py-6">
+                                  <div className="text-center text-slate-500 text-[13px] py-6">
                                     Failed to load details
                                   </div>
                                 )}

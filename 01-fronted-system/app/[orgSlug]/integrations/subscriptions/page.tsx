@@ -65,7 +65,7 @@ function TrackingCard({
             <div className="flex items-center gap-2 mt-0.5">
               <span className="text-[12px] text-slate-500 font-medium">{category.label}</span>
               <span className="text-slate-300">·</span>
-              <span className="text-[12px] font-semibold text-emerald-600">
+              <span className="text-[12px] font-semibold text-[#007A78]">
                 {provider.plan_count} plan{provider.plan_count !== 1 ? 's' : ''}
               </span>
             </div>
@@ -208,7 +208,7 @@ export default function SubscriptionIntegrationsPage() {
     setError(null)
 
     const [onboardingStatus, apiKeyResult, providersResult] = await Promise.all([
-      checkBackendOnboarding(orgSlug),
+      checkBackendOnboarding(orgSlug, { skipValidation: true, timeout: 3000 }),
       hasStoredApiKey(orgSlug),
       getAllProviders(orgSlug),
     ])
@@ -315,8 +315,8 @@ export default function SubscriptionIntegrationsPage() {
         {/* Stats Row */}
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-emerald-100 flex items-center justify-center">
-              <Check className="h-5 w-5 text-emerald-600" />
+            <div className="h-10 w-10 rounded-xl bg-[#007A78]/10 flex items-center justify-center">
+              <Check className="h-5 w-5 text-[#007A78]" />
             </div>
             <div>
               <p className="text-[24px] font-bold text-slate-900 leading-none">{trackingProviders.length}</p>
@@ -325,17 +325,21 @@ export default function SubscriptionIntegrationsPage() {
           </div>
 
           {setupProviders.length > 0 && (
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-amber-100 flex items-center justify-center">
-                <Settings2 className="h-5 w-5 text-amber-600" />
+            <>
+              <div className="h-8 w-px bg-slate-200"></div>
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-amber-100 flex items-center justify-center">
+                  <Settings2 className="h-5 w-5 text-amber-600" />
+                </div>
+                <div>
+                  <p className="text-[24px] font-bold text-slate-900 leading-none">{setupProviders.length}</p>
+                  <p className="text-[12px] text-slate-500 font-medium mt-0.5">Needs Setup</p>
+                </div>
               </div>
-              <div>
-                <p className="text-[24px] font-bold text-slate-900 leading-none">{setupProviders.length}</p>
-                <p className="text-[12px] text-slate-500 font-medium mt-0.5">Needs Setup</p>
-              </div>
-            </div>
+            </>
           )}
 
+          <div className="h-8 w-px bg-slate-200"></div>
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center">
               <Layers className="h-5 w-5 text-slate-500" />
@@ -381,9 +385,9 @@ export default function SubscriptionIntegrationsPage() {
       )}
 
       {successMessage && (
-        <div className="mb-6 p-4 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center gap-3">
-          <Check className="h-4 w-4 text-emerald-600 flex-shrink-0" />
-          <p className="text-[13px] font-medium text-emerald-700">{successMessage}</p>
+        <div className="mb-6 p-4 rounded-xl bg-[#007A78]/5 border border-[#007A78]/20 flex items-center gap-3">
+          <Check className="h-4 w-4 text-[#007A78] flex-shrink-0" />
+          <p className="text-[13px] font-medium text-[#007A78]">{successMessage}</p>
         </div>
       )}
 
@@ -394,7 +398,7 @@ export default function SubscriptionIntegrationsPage() {
             <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide">
               Active Tracking
             </h2>
-            <span className="text-[11px] text-emerald-600 font-semibold bg-emerald-100 px-2 py-0.5 rounded-full">
+            <span className="text-[11px] text-[#007A78] font-semibold bg-[#007A78]/10 px-2 py-0.5 rounded-full">
               {trackingProviders.length}
             </span>
           </div>
