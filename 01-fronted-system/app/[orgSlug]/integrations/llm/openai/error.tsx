@@ -11,14 +11,14 @@ export default function Error({
 }) {
   return (
     <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
-      <AlertCircle className="h-12 w-12 text-[#FF6E50]" />
+      <AlertCircle className="h-12 w-12 text-coral" />
       <h2 className="text-lg font-semibold text-[#1C1C1E]">Something went wrong</h2>
       <p className="text-sm text-muted-foreground max-w-md text-center">
         {error.message || "An unexpected error occurred. Please try again."}
       </p>
       <button
         onClick={reset}
-        className="h-11 px-4 bg-[#007A78] text-white rounded-xl hover:bg-[#005F5D] transition-colors"
+        className="h-11 px-4 bg-mint text-black rounded-xl hover:bg-mint-dark transition-colors"
       >
         Try again
       </button>

@@ -11,14 +11,14 @@ function Input({ className, type, ...props }: React.ComponentProps<'input'>) {
         'h-9 w-full min-w-0 rounded-xl border bg-background px-3 py-1 text-base outline-none transition-[color,border-color,box-shadow] md:text-sm',
         // Border - visible 1px solid
         'border-[rgba(0,0,0,0.1)] dark:border-[rgba(255,255,255,0.1)]',
-        // Focus state - Teal (#007A78 light, #14B8A6 dark)
-        'focus-visible:border-[#007A78] focus-visible:ring-2 focus-visible:ring-[#007A78]/20',
-        'dark:focus-visible:border-[#14B8A6] dark:focus-visible:ring-[#14B8A6]/20',
-        // Hover state - Teal
-        'hover:border-[#007A78]/50 dark:hover:border-[#14B8A6]/50',
-        // Error state - Coral (#FF6E50)
-        'aria-invalid:border-[#FF6E50] aria-invalid:ring-2 aria-invalid:ring-[#FF6E50]/20',
-        'aria-invalid:focus-visible:border-[#FF6E50] aria-invalid:focus-visible:ring-[#FF6E50]/20',
+        // Focus state - Mint
+        'focus-visible:border-[var(--cloudact-mint)] focus-visible:ring-2 focus-visible:ring-[var(--cloudact-mint)]/20',
+        'dark:focus-visible:border-[var(--cloudact-mint-light)] dark:focus-visible:ring-[var(--cloudact-mint-light)]/20',
+        // Hover state - Mint
+        'hover:border-[var(--cloudact-mint)]/50 dark:hover:border-[var(--cloudact-mint-light)]/50',
+        // Error state - Coral
+        'aria-invalid:border-[var(--cloudact-coral)] aria-invalid:ring-2 aria-invalid:ring-[var(--cloudact-coral)]/20',
+        'aria-invalid:focus-visible:border-[var(--cloudact-coral)] aria-invalid:focus-visible:ring-[var(--cloudact-coral)]/20',
         // Placeholder
         'placeholder:text-[#8E8E93]',
         // Selection

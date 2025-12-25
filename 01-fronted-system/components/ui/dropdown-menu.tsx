@@ -28,8 +28,8 @@ const DropdownMenuSubTrigger = React.forwardRef<
     ref={ref}
     className={cn(
       "flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none",
-      "focus:bg-[#007A78]/10 focus:text-[#007A78]",
-      "data-[state=open]:bg-[#007A78]/10 data-[state=open]:text-[#007A78]",
+      "focus:bg-[#90FCA6]/10 focus:text-[#000000]",
+      "data-[state=open]:bg-[#90FCA6]/10 data-[state=open]:text-[#000000]",
       "transition-colors duration-150",
       inset && "pl-8",
       className
@@ -100,8 +100,8 @@ const DropdownMenuItem = React.forwardRef<
     ref={ref}
     className={cn(
       "relative flex cursor-pointer select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors duration-150",
-      "focus:bg-[#007A78]/10 focus:text-[#007A78]",
-      destructive && "text-[#FF6E50] focus:bg-[#FF6E50]/10 focus:text-[#FF6E50]",
+      "focus:bg-[#90FCA6]/10 focus:text-[#000000]",
+      destructive && "text-[#FF6C5E] focus:bg-[#FF6C5E]/10 focus:text-[#FF6C5E]",
       "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
       inset && "pl-8",
       className
@@ -119,7 +119,7 @@ const DropdownMenuCheckboxItem = React.forwardRef<
     ref={ref}
     className={cn(
       "relative flex cursor-pointer select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none transition-colors duration-150",
-      "focus:bg-[#007A78]/10 focus:text-[#007A78]",
+      "focus:bg-[#90FCA6]/10 focus:text-[#000000]",
       "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
       className
     )}
@@ -128,7 +128,7 @@ const DropdownMenuCheckboxItem = React.forwardRef<
   >
     <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
       <DropdownMenuPrimitive.ItemIndicator>
-        <CheckIcon className="h-4 w-4 text-[#007A78]" />
+        <CheckIcon className="h-4 w-4 text-[#6EE890]" />
       </DropdownMenuPrimitive.ItemIndicator>
     </span>
     {children}
@@ -145,7 +145,7 @@ const DropdownMenuRadioItem = React.forwardRef<
     ref={ref}
     className={cn(
       "relative flex cursor-pointer select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none transition-colors duration-150",
-      "focus:bg-[#007A78]/10 focus:text-[#007A78]",
+      "focus:bg-[#90FCA6]/10 focus:text-[#000000]",
       "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
       className
     )}
@@ -153,7 +153,7 @@ const DropdownMenuRadioItem = React.forwardRef<
   >
     <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
       <DropdownMenuPrimitive.ItemIndicator>
-        <CircleIcon className="h-2 w-2 fill-[#007A78] text-[#007A78]" />
+        <CircleIcon className="h-2 w-2 fill-[#6EE890] text-[#6EE890]" />
       </DropdownMenuPrimitive.ItemIndicator>
     </span>
     {children}

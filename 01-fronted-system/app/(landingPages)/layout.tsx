@@ -124,7 +124,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
       {/* Skip to main content link for accessibility */}
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:px-4 focus:py-2 focus:bg-[#007A78] focus:text-white focus:rounded-lg focus:font-medium focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:px-4 focus:py-2 focus:bg-mint focus:text-black focus:rounded-lg focus:font-medium focus:outline-none focus:ring-2 focus:ring-mint focus:ring-offset-2"
         style={{ zIndex: 'var(--z-skip-link)' }}
       >
         Skip to main content
@@ -139,7 +139,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
         <div className="container flex h-16 items-center justify-between px-4 md:px-12">
           <Link
             href="/"
-            className="flex items-center gap-2 text-2xl md:text-3xl font-bold text-[#007A78] tracking-tight hover:text-[#005F5D] transition-colors focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2 rounded-lg px-2 -ml-2"
+            className="flex items-center gap-2 text-2xl md:text-3xl font-bold text-mint-text tracking-tight hover:text-mint-dark transition-colors focus:outline-none focus:ring-2 focus:ring-mint focus:ring-offset-2 rounded-lg px-2 -ml-2"
           >
             CloudAct.ai
           </Link>
@@ -150,7 +150,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
               <Link
                 key={link.href}
                 href={link.href}
-                className="text-gray-900 text-[15px] font-medium hover:text-[#007A78] transition-colors focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2 rounded px-2 py-1"
+                className="text-gray-900 text-[15px] font-medium hover:text-mint-text transition-colors focus:outline-none focus:ring-2 focus:ring-mint focus:ring-offset-2 rounded px-2 py-1"
               >
                 {link.label}
               </Link>
@@ -161,13 +161,13 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
           <div className="hidden md:flex items-center gap-4">
             <Link
               href="/login"
-              className="text-[#007A78] font-semibold text-sm hover:text-[#005F5D] hover:underline transition-colors focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2 rounded px-3 py-2"
+              className="text-ca-blue font-semibold text-sm hover:text-ca-blue-dark hover:underline transition-colors focus:outline-none focus:ring-2 focus:ring-mint focus:ring-offset-2 rounded px-3 py-2"
             >
               Sign In
             </Link>
             <Link
               href="/signup"
-              className="cloudact-btn-primary focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2"
+              className="cloudact-btn-primary focus:outline-none focus:ring-2 focus:ring-mint focus:ring-offset-2"
             >
               Get Started
               <ArrowRight className="ml-1.5 h-4 w-4" />
@@ -176,15 +176,15 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
 
           {/* Mobile Menu Button */}
           <button
-            className="lg:hidden flex h-10 w-10 items-center justify-center rounded-lg hover:bg-[#007A78]/10 transition-colors focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2"
+            className="lg:hidden flex h-10 w-10 items-center justify-center rounded-lg hover:bg-mint/10 transition-colors focus:outline-none focus:ring-2 focus:ring-mint focus:ring-offset-2"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
             aria-expanded={mobileMenuOpen}
           >
             {mobileMenuOpen ? (
-              <X className="h-5 w-5 text-[#007A78]" aria-hidden="true" />
+              <X className="h-5 w-5 text-mint-text" aria-hidden="true" />
             ) : (
-              <Menu className="h-5 w-5 text-[#007A78]" aria-hidden="true" />
+              <Menu className="h-5 w-5 text-mint-text" aria-hidden="true" />
             )}
           </button>
         </div>
@@ -197,7 +197,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
                 <Link
                   key={link.href}
                   href={link.href}
-                  className="block text-gray-900 text-base font-medium hover:text-[#007A78] hover:bg-[#007A78]/5 transition-colors rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2"
+                  className="block text-gray-900 text-base font-medium hover:text-mint-text hover:bg-mint/5 transition-colors rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-mint focus:ring-offset-2"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   {link.label}
@@ -206,14 +206,14 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
               <div className="pt-4 space-y-3 border-t border-gray-200 mt-4">
                 <Link
                   href="/login"
-                  className="block py-3 px-3 text-[#007A78] font-semibold hover:text-[#005F5D] hover:bg-[#007A78]/5 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2"
+                  className="block py-3 px-3 text-ca-blue font-semibold hover:text-ca-blue-dark hover:bg-mint/5 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-mint focus:ring-offset-2"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Sign In
                 </Link>
                 <Link
                   href="/signup"
-                  className="cloudact-btn-primary w-full justify-center focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2"
+                  className="cloudact-btn-primary w-full justify-center focus:outline-none focus:ring-2 focus:ring-mint focus:ring-offset-2"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Get Started
@@ -231,18 +231,18 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
         <div className="container px-4 md:px-12 py-12 md:py-16 max-w-[1400px] mx-auto">
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-8 mb-12">
             <div className="col-span-2 space-y-4">
-              <div className="text-2xl font-bold text-[#007A78] tracking-tight">
+              <div className="text-2xl font-bold text-mint-text tracking-tight">
                 CloudAct.ai
               </div>
               <p className="text-sm text-gray-600 leading-relaxed max-w-xs">
                 The enterprise standard for GenAI and cloud cost intelligence.
               </p>
               <div className="flex gap-4">
-                <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-[#E6F7F6] transition-colors text-gray-600 hover:text-[#007A78]">
+                <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-[var(--cloudact-bg-mint)] transition-colors text-gray-600 hover:text-mint-text">
                   <span className="sr-only">X (Twitter)</span>
                   <svg className="h-4 w-4 fill-current" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>
                 </a>
-                <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-[#E6F7F6] transition-colors text-gray-600 hover:text-[#007A78]">
+                <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-[var(--cloudact-bg-mint)] transition-colors text-gray-600 hover:text-mint-text">
                   <span className="sr-only">LinkedIn</span>
                   <svg className="h-4 w-4 fill-current" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" /></svg>
                 </a>
@@ -251,37 +251,37 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
             <div className="space-y-3">
               <h4 className="font-semibold text-sm text-gray-900">Platform</h4>
               <ul className="space-y-2 text-sm">
-                <li><Link href="/features" className="text-gray-600 hover:text-[#007A78] transition-colors">Features</Link></li>
-                <li><Link href="/pricing" className="text-gray-600 hover:text-[#007A78] transition-colors">Pricing</Link></li>
-                <li><Link href="/solutions" className="text-gray-600 hover:text-[#007A78] transition-colors">Solutions</Link></li>
-                <li><Link href="/changelog" className="text-gray-600 hover:text-[#007A78] transition-colors">Changelog</Link></li>
+                <li><Link href="/features" className="text-gray-600 hover:text-mint-text transition-colors">Features</Link></li>
+                <li><Link href="/pricing" className="text-gray-600 hover:text-mint-text transition-colors">Pricing</Link></li>
+                <li><Link href="/solutions" className="text-gray-600 hover:text-mint-text transition-colors">Solutions</Link></li>
+                <li><Link href="/changelog" className="text-gray-600 hover:text-mint-text transition-colors">Changelog</Link></li>
               </ul>
             </div>
             <div className="space-y-3">
               <h4 className="font-semibold text-sm text-gray-900">Company</h4>
               <ul className="space-y-2 text-sm">
-                <li><Link href="/about" className="text-gray-600 hover:text-[#007A78] transition-colors">About Us</Link></li>
-                <li><Link href="/careers" className="text-gray-600 hover:text-[#007A78] transition-colors">Careers</Link></li>
-                <li><Link href="/resources" className="text-gray-600 hover:text-[#007A78] transition-colors">Resources</Link></li>
-                <li><Link href="/contact" className="text-gray-600 hover:text-[#007A78] transition-colors">Contact</Link></li>
+                <li><Link href="/about" className="text-gray-600 hover:text-mint-text transition-colors">About Us</Link></li>
+                <li><Link href="/careers" className="text-gray-600 hover:text-mint-text transition-colors">Careers</Link></li>
+                <li><Link href="/resources" className="text-gray-600 hover:text-mint-text transition-colors">Resources</Link></li>
+                <li><Link href="/contact" className="text-gray-600 hover:text-mint-text transition-colors">Contact</Link></li>
               </ul>
             </div>
             <div className="space-y-3">
               <h4 className="font-semibold text-sm text-gray-900">Resources</h4>
               <ul className="space-y-2 text-sm">
-                <li><Link href="/blog" className="text-gray-600 hover:text-[#007A78] transition-colors">Blog</Link></li>
-                <li><Link href="/docs" className="text-gray-600 hover:text-[#007A78] transition-colors">Documentation</Link></li>
-                <li><Link href="/help" className="text-gray-600 hover:text-[#007A78] transition-colors">Help Center</Link></li>
-                <li><Link href="/guides" className="text-gray-600 hover:text-[#007A78] transition-colors">Guides</Link></li>
+                <li><Link href="/blog" className="text-gray-600 hover:text-mint-text transition-colors">Blog</Link></li>
+                <li><Link href="/docs" className="text-gray-600 hover:text-mint-text transition-colors">Documentation</Link></li>
+                <li><Link href="/help" className="text-gray-600 hover:text-mint-text transition-colors">Help Center</Link></li>
+                <li><Link href="/guides" className="text-gray-600 hover:text-mint-text transition-colors">Guides</Link></li>
               </ul>
             </div>
             <div className="space-y-3">
               <h4 className="font-semibold text-sm text-gray-900">Legal</h4>
               <ul className="space-y-2 text-sm">
-                <li><Link href="/privacy" className="text-gray-600 hover:text-[#007A78] transition-colors">Privacy</Link></li>
-                <li><Link href="/terms" className="text-gray-600 hover:text-[#007A78] transition-colors">Terms</Link></li>
-                <li><Link href="/security" className="text-gray-600 hover:text-[#007A78] transition-colors">Security</Link></li>
-                <li><Link href="/compliance" className="text-gray-600 hover:text-[#007A78] transition-colors">Compliance</Link></li>
+                <li><Link href="/privacy" className="text-gray-600 hover:text-mint-text transition-colors">Privacy</Link></li>
+                <li><Link href="/terms" className="text-gray-600 hover:text-mint-text transition-colors">Terms</Link></li>
+                <li><Link href="/security" className="text-gray-600 hover:text-mint-text transition-colors">Security</Link></li>
+                <li><Link href="/compliance" className="text-gray-600 hover:text-mint-text transition-colors">Compliance</Link></li>
               </ul>
             </div>
           </div>
@@ -290,24 +290,24 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
           <div className="border-t border-gray-200 pt-8">
             <div className="flex flex-col md:flex-row items-center justify-center gap-6 md:gap-12 mb-8">
               <div className="flex items-center gap-2 text-sm text-gray-600">
-                <Shield className="h-4 w-4 text-[#007A78]" />
+                <Shield className="h-4 w-4 text-mint" />
                 <span>SOC 2 Certified</span>
               </div>
               <div className="flex items-center gap-2 text-sm text-gray-600">
-                <Lock className="h-4 w-4 text-[#007A78]" />
+                <Lock className="h-4 w-4 text-mint" />
                 <span>GDPR Compliant</span>
               </div>
               <div className="flex items-center gap-2 text-sm text-gray-600">
-                <CreditCard className="h-4 w-4 text-[#007A78]" />
+                <CreditCard className="h-4 w-4 text-mint" />
                 <span>Secure Payments via Stripe</span>
               </div>
             </div>
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
               <p className="text-sm text-gray-600">© 2025 CloudAct.ai. All rights reserved.</p>
               <div className="flex gap-6 text-sm text-gray-600">
-                <Link href="/privacy" className="hover:text-[#007A78] transition-colors">Privacy Policy</Link>
-                <Link href="/terms" className="hover:text-[#007A78] transition-colors">Terms of Service</Link>
-                <Link href="/cookies" className="hover:text-[#007A78] transition-colors">Cookie Policy</Link>
+                <Link href="/privacy" className="hover:text-mint-text transition-colors">Privacy Policy</Link>
+                <Link href="/terms" className="hover:text-mint-text transition-colors">Terms of Service</Link>
+                <Link href="/cookies" className="hover:text-mint-text transition-colors">Cookie Policy</Link>
               </div>
             </div>
           </div>

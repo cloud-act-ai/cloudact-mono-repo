@@ -219,20 +219,20 @@ export default function SubscriptionRunsPage() {
   const getStatusColor = (status: string) => {
     switch (status.toUpperCase()) {
       case "COMPLETED":
-        return "bg-[#F0FDFA] text-[#007A78] border border-[#007A78]/10"
+        return "bg-[#B8FDCA] text-[var(--cloudact-mint-dark)] border border-[var(--cloudact-mint)]/10"
       case "FAILED":
       case "TIMEOUT":
-        return "bg-[#FF6E50]/10 text-[#FF6E50] border border-[#FF6E50]/10"
+        return "bg-[var(--cloudact-coral)]/10 text-[var(--cloudact-coral)] border border-[var(--cloudact-coral)]/10"
       case "RUNNING":
       case "PENDING":
       case "CANCELLING":
-        return "bg-[#007A78]/5 text-[#007A78] border border-[#007A78]/10"
+        return "bg-[var(--cloudact-mint)]/5 text-[var(--cloudact-mint-dark)] border border-[var(--cloudact-mint)]/10"
       case "CANCELLED":
         return "bg-amber-100 text-amber-700 border border-amber-200"
       case "SKIPPED":
-        return "bg-[#007A78]/5 text-muted-foreground border border-border"
+        return "bg-[var(--cloudact-mint)]/5 text-muted-foreground border border-border"
       default:
-        return "bg-[#007A78]/5 text-muted-foreground border border-border"
+        return "bg-[var(--cloudact-mint)]/5 text-muted-foreground border border-border"
     }
   }
 
@@ -316,13 +316,13 @@ export default function SubscriptionRunsPage() {
       </div>
 
       {lastResult && (
-        <div className={`mb-6 p-4 rounded-xl border flex items-center gap-3 ${lastResult.success ? 'bg-[#007A78]/5 border-[#007A78]/20' : 'bg-rose-50 border-rose-200'}`}>
+        <div className={`mb-6 p-4 rounded-xl border flex items-center gap-3 ${lastResult.success ? 'bg-[var(--cloudact-mint)]/5 border-[var(--cloudact-mint)]/20' : 'bg-rose-50 border-rose-200'}`}>
           {lastResult.success ? (
-            <CheckCircle2 className="h-4 w-4 text-[#007A78] flex-shrink-0" />
+            <CheckCircle2 className="h-4 w-4 text-[var(--cloudact-mint-dark)] flex-shrink-0" />
           ) : (
             <AlertCircle className="h-4 w-4 text-rose-500 flex-shrink-0" />
           )}
-          <p className={`text-[13px] font-medium ${lastResult.success ? 'text-[#007A78]' : 'text-rose-700'}`}>
+          <p className={`text-[13px] font-medium ${lastResult.success ? 'text-[var(--cloudact-mint-dark)]' : 'text-rose-700'}`}>
             {lastResult.message}
           </p>
         </div>
@@ -332,7 +332,7 @@ export default function SubscriptionRunsPage() {
         <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide mb-4">Available Pipelines</h2>
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="px-4 sm:px-6 py-4 border-b border-[#E5E5EA]">
-            <div className="flex items-center gap-2 text-[#007A78]">
+            <div className="flex items-center gap-2 text-[var(--cloudact-mint-dark)]">
               <Wallet className="h-[18px] w-[18px]" />
               <span className="text-[15px] font-semibold">SaaS subscription cost pipelines</span>
             </div>
@@ -342,15 +342,15 @@ export default function SubscriptionRunsPage() {
           {pipelines.length === 0 && (
             <div className="px-4 sm:px-6 py-12 text-center">
               <div className="space-y-4">
-                <div className="inline-flex p-4 rounded-2xl bg-[#007A78]/10 mb-2">
-                  <Wallet className="h-12 w-12 text-[#007A78]" />
+                <div className="inline-flex p-4 rounded-2xl bg-[var(--cloudact-mint)]/10 mb-2">
+                  <Wallet className="h-12 w-12 text-[var(--cloudact-mint-dark)]" />
                 </div>
                 <h3 className="text-[20px] font-semibold text-slate-900">No subscription pipelines</h3>
                 <p className="text-[15px] text-slate-500 max-w-md mx-auto">
                   Enable subscription providers in Integrations to run cost pipelines.
                 </p>
                 <Link href={`/${orgSlug}/integrations/subscriptions`}>
-                  <button className="inline-flex items-center gap-2 h-11 px-6 bg-[#007A78] text-white text-[15px] font-semibold rounded-xl hover:bg-[#005F5D] transition-colors shadow-sm">
+                  <button className="inline-flex items-center gap-2 h-11 px-6 bg-[var(--cloudact-mint)] text-white text-[15px] font-semibold rounded-xl hover:bg-[var(--cloudact-mint-dark)] transition-colors shadow-sm">
                     <Wallet className="h-4 w-4" />
                     Manage Subscriptions
                   </button>
@@ -372,19 +372,19 @@ export default function SubscriptionRunsPage() {
                         <div className="text-[15px] font-semibold text-slate-900">{pipeline.name}</div>
                         <div className="text-[13px] text-slate-500 mt-0.5">{pipeline.description}</div>
                       </div>
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#F0FDFA] text-[#007A78] border border-[#007A78]/10 flex-shrink-0">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#B8FDCA] text-[var(--cloudact-mint-dark)] border border-[var(--cloudact-mint)]/10 flex-shrink-0">
                         <CheckCircle2 className="h-3 w-3" />
                         Ready
                       </span>
                     </div>
                     <div className="flex items-center justify-between gap-3">
-                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#007A78]/5 text-muted-foreground border border-border">
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[var(--cloudact-mint)]/5 text-muted-foreground border border-border">
                         {pipeline.provider}
                       </span>
                       <button
                         onClick={() => handleRun(pipeline.id)}
                         disabled={isRunning}
-                        className="inline-flex items-center gap-2 h-11 px-4 bg-[#007A78] text-white text-[15px] font-semibold rounded-xl hover:bg-[#005F5D] disabled:bg-[#E5E5EA] disabled:text-[#C7C7CC] disabled:cursor-not-allowed disabled:opacity-70 transition-all touch-manipulation shadow-sm hover:shadow-md"
+                        className="inline-flex items-center gap-2 h-11 px-4 bg-[var(--cloudact-mint)] text-white text-[15px] font-semibold rounded-xl hover:bg-[var(--cloudact-mint-dark)] disabled:bg-[#E5E5EA] disabled:text-[#C7C7CC] disabled:cursor-not-allowed disabled:opacity-70 transition-all touch-manipulation shadow-sm hover:shadow-md"
                       >
                         {isRunning ? (
                           <>
@@ -430,12 +430,12 @@ export default function SubscriptionRunsPage() {
                           </div>
                         </TableCell>
                         <TableCell className="console-table-cell">
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#007A78]/5 text-muted-foreground border border-border">
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[var(--cloudact-mint)]/5 text-muted-foreground border border-border">
                             {pipeline.provider}
                           </span>
                         </TableCell>
                         <TableCell className="console-table-cell">
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#F0FDFA] text-[#007A78] border border-[#007A78]/10">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#B8FDCA] text-[var(--cloudact-mint-dark)] border border-[var(--cloudact-mint)]/10">
                             <CheckCircle2 className="h-3 w-3" />
                             Ready
                           </span>
@@ -444,7 +444,7 @@ export default function SubscriptionRunsPage() {
                           <button
                             onClick={() => handleRun(pipeline.id)}
                             disabled={isRunning}
-                            className="inline-flex items-center gap-2 h-11 px-4 bg-[#007A78] text-white text-[15px] font-semibold rounded-xl hover:bg-[#005F5D] disabled:bg-[#E5E5EA] disabled:text-[#C7C7CC] disabled:cursor-not-allowed disabled:opacity-70 transition-all touch-manipulation shadow-sm hover:shadow-md"
+                            className="inline-flex items-center gap-2 h-11 px-4 bg-[var(--cloudact-mint)] text-white text-[15px] font-semibold rounded-xl hover:bg-[var(--cloudact-mint-dark)] disabled:bg-[#E5E5EA] disabled:text-[#C7C7CC] disabled:cursor-not-allowed disabled:opacity-70 transition-all touch-manipulation shadow-sm hover:shadow-md"
                           >
                             {isRunning ? (
                               <>
@@ -484,8 +484,8 @@ export default function SubscriptionRunsPage() {
             </div>
 
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-[#007A78]/10 flex items-center justify-center">
-                <CheckCircle2 className="h-5 w-5 text-[#007A78]" />
+              <div className="h-10 w-10 rounded-xl bg-[var(--cloudact-mint)]/10 flex items-center justify-center">
+                <CheckCircle2 className="h-5 w-5 text-[var(--cloudact-mint-dark)]" />
               </div>
               <div>
                 <p className="text-[24px] font-bold text-slate-900 leading-none">{runStats.completed}</p>
@@ -571,7 +571,7 @@ export default function SubscriptionRunsPage() {
                   return (
                     <div key={run.pipeline_logging_id}>
                       <button
-                        className="w-full p-4 text-left touch-manipulation hover:bg-[#007A78]/5 transition-colors"
+                        className="w-full p-4 text-left touch-manipulation hover:bg-[var(--cloudact-mint)]/5 transition-colors"
                         onClick={() => toggleRunExpansion(run.pipeline_logging_id)}
                       >
                         <div className="flex items-start justify-between gap-3 mb-3">
@@ -609,7 +609,7 @@ export default function SubscriptionRunsPage() {
                             </div>
                             <div className="h-1.5 bg-[#E5E5EA] rounded-full overflow-hidden">
                               <div
-                                className={`h-full rounded-full transition-all ${run.status === 'COMPLETED' ? 'bg-[#007A78]' : run.status === 'FAILED' ? 'bg-[#FF6E50]' : 'bg-[#007A78]/50'}`}
+                                className={`h-full rounded-full transition-all ${run.status === 'COMPLETED' ? 'bg-[var(--cloudact-mint)]' : run.status === 'FAILED' ? 'bg-[var(--cloudact-coral)]' : 'bg-[var(--cloudact-mint)]/50'}`}
                                 style={{ width: getDurationWidth(run.duration_ms) }}
                               ></div>
                             </div>
@@ -618,10 +618,10 @@ export default function SubscriptionRunsPage() {
                       </button>
 
                       {isExpanded && (
-                        <div className="px-4 pb-4 bg-[#007A78]/5">
+                        <div className="px-4 pb-4 bg-[var(--cloudact-mint)]/5">
                           {isLoadingThisDetail ? (
                             <div className="flex items-center justify-center py-6">
-                              <Loader2 className="h-6 w-6 animate-spin text-[#007A78]" />
+                              <Loader2 className="h-6 w-6 animate-spin text-[var(--cloudact-mint-dark)]" />
                             </div>
                           ) : detail ? (
                             <div className="space-y-4">
@@ -639,7 +639,7 @@ export default function SubscriptionRunsPage() {
 
                               <div className="space-y-3">
                                 <div className="flex items-center gap-2">
-                                  <TrendingUp className="h-4 w-4 text-[#007A78]" />
+                                  <TrendingUp className="h-4 w-4 text-[var(--cloudact-mint-dark)]" />
                                   <h4 className="text-[15px] font-semibold text-slate-900">Pipeline Steps</h4>
                                 </div>
                                 {detail.steps.length === 0 ? (
@@ -650,7 +650,7 @@ export default function SubscriptionRunsPage() {
                                       <div key={step.step_logging_id} className="bg-white rounded-xl border border-slate-200 p-3">
                                         <div className="flex items-center justify-between gap-3 mb-2">
                                           <div className="flex items-center gap-2 min-w-0">
-                                            <span className="flex items-center justify-center h-6 w-6 rounded-full bg-[#007A78]/10 text-[#007A78] text-[11px] font-bold flex-shrink-0">
+                                            <span className="flex items-center justify-center h-6 w-6 rounded-full bg-[var(--cloudact-mint)]/10 text-[var(--cloudact-mint-dark)] text-[11px] font-bold flex-shrink-0">
                                               {step.step_index}
                                             </span>
                                             <span className="text-[13px] font-semibold text-slate-900 truncate">{step.step_name}</span>
@@ -666,7 +666,7 @@ export default function SubscriptionRunsPage() {
                                           </div>
                                           <div className="h-1 bg-[#E5E5EA] rounded-full overflow-hidden">
                                             <div
-                                              className={`h-full rounded-full ${step.status === 'COMPLETED' ? 'bg-[#007A78]' : step.status === 'FAILED' ? 'bg-[#FF6E50]' : 'bg-[#007A78]/50'}`}
+                                              className={`h-full rounded-full ${step.status === 'COMPLETED' ? 'bg-[var(--cloudact-mint)]' : step.status === 'FAILED' ? 'bg-[var(--cloudact-coral)]' : 'bg-[var(--cloudact-mint)]/50'}`}
                                               style={{ width: getDurationWidth(step.duration_ms) }}
                                             ></div>
                                           </div>
@@ -712,7 +712,7 @@ export default function SubscriptionRunsPage() {
                       return (
                         <React.Fragment key={run.pipeline_logging_id}>
                           <TableRow
-                            className="console-table-row cursor-pointer touch-manipulation hover:bg-[#007A78]/5 transition-colors"
+                            className="console-table-row cursor-pointer touch-manipulation hover:bg-[var(--cloudact-mint)]/5 transition-colors"
                             onClick={() => toggleRunExpansion(run.pipeline_logging_id)}
                           >
                             <TableCell className="console-table-cell">
@@ -742,7 +742,7 @@ export default function SubscriptionRunsPage() {
                                 <div className="text-[13px] font-medium text-slate-900">{formatDuration(run.duration_ms)}</div>
                                 <div className="h-1.5 w-24 bg-[#E5E5EA] rounded-full overflow-hidden">
                                   <div
-                                    className={`h-full rounded-full ${run.status === 'COMPLETED' ? 'bg-[#007A78]' : run.status === 'FAILED' ? 'bg-[#FF6E50]' : 'bg-[#007A78]/50'}`}
+                                    className={`h-full rounded-full ${run.status === 'COMPLETED' ? 'bg-[var(--cloudact-mint)]' : run.status === 'FAILED' ? 'bg-[var(--cloudact-coral)]' : 'bg-[var(--cloudact-mint)]/50'}`}
                                     style={{ width: getDurationWidth(run.duration_ms) }}
                                   ></div>
                                 </div>
@@ -751,11 +751,11 @@ export default function SubscriptionRunsPage() {
                           </TableRow>
 
                           {isExpanded && (
-                            <TableRow className="bg-[#007A78]/5">
+                            <TableRow className="bg-[var(--cloudact-mint)]/5">
                               <TableCell colSpan={5} className="px-4 sm:px-6 py-6">
                                 {isLoadingThisDetail ? (
                                   <div className="flex items-center justify-center py-6">
-                                    <Loader2 className="h-6 w-6 animate-spin text-[#007A78]" />
+                                    <Loader2 className="h-6 w-6 animate-spin text-[var(--cloudact-mint-dark)]" />
                                   </div>
                                 ) : detail ? (
                                   <div className="space-y-4">
@@ -773,7 +773,7 @@ export default function SubscriptionRunsPage() {
 
                                     <div className="space-y-3">
                                       <div className="flex items-center gap-2">
-                                        <TrendingUp className="h-4 w-4 text-[#007A78]" />
+                                        <TrendingUp className="h-4 w-4 text-[var(--cloudact-mint-dark)]" />
                                         <h4 className="text-[15px] font-semibold text-slate-900">Pipeline Steps</h4>
                                       </div>
                                       <div className="grid gap-3">
@@ -784,7 +784,7 @@ export default function SubscriptionRunsPage() {
                                             <div key={step.step_logging_id} className="bg-white rounded-xl border border-slate-200 p-4">
                                               <div className="flex items-center justify-between gap-4 mb-3">
                                                 <div className="flex items-center gap-3">
-                                                  <span className="flex items-center justify-center h-8 w-8 rounded-full bg-[#007A78]/10 text-[#007A78] text-[13px] font-bold">
+                                                  <span className="flex items-center justify-center h-8 w-8 rounded-full bg-[var(--cloudact-mint)]/10 text-[var(--cloudact-mint-dark)] text-[13px] font-bold">
                                                     {step.step_index}
                                                   </span>
                                                   <span className="text-[15px] font-semibold text-slate-900">{step.step_name}</span>
@@ -800,7 +800,7 @@ export default function SubscriptionRunsPage() {
                                                 </div>
                                                 <div className="h-2 bg-[#E5E5EA] rounded-full overflow-hidden">
                                                   <div
-                                                    className={`h-full rounded-full ${step.status === 'COMPLETED' ? 'bg-[#007A78]' : step.status === 'FAILED' ? 'bg-[#FF6E50]' : 'bg-[#007A78]/50'}`}
+                                                    className={`h-full rounded-full ${step.status === 'COMPLETED' ? 'bg-[var(--cloudact-mint)]' : step.status === 'FAILED' ? 'bg-[var(--cloudact-coral)]' : 'bg-[var(--cloudact-mint)]/50'}`}
                                                     style={{ width: getDurationWidth(step.duration_ms) }}
                                                   ></div>
                                                 </div>

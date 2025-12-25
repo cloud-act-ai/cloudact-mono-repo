@@ -283,7 +283,7 @@ export default function AnthropicIntegrationPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-[#007A78]" />
+        <Loader2 className="h-8 w-8 animate-spin text-[#1a7a3a]" />
       </div>
     )
   }
@@ -313,9 +313,9 @@ export default function AnthropicIntegrationPage() {
             <div className="flex items-center gap-3 mb-2">
               <h1 className="text-[28px] font-bold text-black tracking-tight">Anthropic (Claude) Integration</h1>
               {isConnected && (
-                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#007A78]/10 animate-pulse">
-                  <div className="h-2 w-2 rounded-full bg-[#007A78]" />
-                  <span className="text-[11px] font-bold text-[#007A78] uppercase tracking-wide">Connected</span>
+                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#90FCA6]/10 animate-pulse">
+                  <div className="h-2 w-2 rounded-full bg-[#90FCA6]" />
+                  <span className="text-[11px] font-bold text-[#1a7a3a] uppercase tracking-wide">Connected</span>
                 </div>
               )}
             </div>
@@ -328,17 +328,17 @@ export default function AnthropicIntegrationPage() {
 
       {/* Alerts */}
       {error && (
-        <Alert variant="destructive" className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
-          <AlertCircle className="h-4 w-4 text-[#FF6E50]" />
-          <AlertTitle className="text-[#FF6E50]">Error</AlertTitle>
+        <Alert variant="destructive" className="border-[#FF6C5E]/30 bg-[#FF6C5E]/5">
+          <AlertCircle className="h-4 w-4 text-[#FF6C5E]" />
+          <AlertTitle className="text-[#FF6C5E]">Error</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
       {successMessage && (
-        <Alert className="border-[#007A78]/20 bg-[#F0FDFA]">
-          <Check className="h-4 w-4 text-[#007A78]" />
-          <AlertTitle className="text-[#007A78]">Success</AlertTitle>
+        <Alert className="border-[#90FCA6]/20 bg-[#F0FDFA]">
+          <Check className="h-4 w-4 text-[#1a7a3a]" />
+          <AlertTitle className="text-[#1a7a3a]">Success</AlertTitle>
           <AlertDescription>{successMessage}</AlertDescription>
         </Alert>
       )}
@@ -367,7 +367,7 @@ export default function AnthropicIntegrationPage() {
           <AccordionItem value="subscriptions" className="border rounded-lg px-4">
             <AccordionTrigger className="hover:no-underline">
               <div className="flex items-center gap-2">
-                <CreditCard className="h-5 w-5 text-[#007A78]" />
+                <CreditCard className="h-5 w-5 text-[#1a7a3a]" />
                 <span className="font-semibold">Subscriptions</span>
                 <span className="console-subheading ml-2">
                   ({subscriptions.length} plans)
@@ -388,7 +388,7 @@ export default function AnthropicIntegrationPage() {
 
                 {subscriptionsLoading ? (
                   <div className="flex justify-center py-4">
-                    <Loader2 className="h-6 w-6 animate-spin text-[#007A78]" />
+                    <Loader2 className="h-6 w-6 animate-spin text-[#1a7a3a]" />
                     <span className="ml-2 console-body">Loading subscriptions...</span>
                   </div>
                 ) : subscriptions.length === 0 ? (
@@ -487,7 +487,7 @@ export default function AnthropicIntegrationPage() {
           <AccordionItem value="pricing" className="border rounded-lg px-4 mt-4">
             <AccordionTrigger className="hover:no-underline">
               <div className="flex items-center gap-2">
-                <DollarSign className="h-5 w-5 text-[#FF6E50]" />
+                <DollarSign className="h-5 w-5 text-[#FF6C5E]" />
                 <span className="font-semibold">Model Pricing</span>
                 <span className="console-subheading ml-2">
                   ({pricing.length} models)
@@ -508,7 +508,7 @@ export default function AnthropicIntegrationPage() {
 
                 {pricingLoading ? (
                   <div className="flex justify-center py-4">
-                    <Loader2 className="h-6 w-6 animate-spin text-[#007A78]" />
+                    <Loader2 className="h-6 w-6 animate-spin text-[#1a7a3a]" />
                     <span className="ml-2 console-body">Loading pricing...</span>
                   </div>
                 ) : pricing.length === 0 ? (
@@ -609,10 +609,10 @@ export default function AnthropicIntegrationPage() {
       )}
 
       {/* Help Section */}
-      <div className="rounded-lg border border-[#007A78]/20 p-4 bg-[#F0FDFA]">
+      <div className="rounded-lg border border-[#90FCA6]/20 p-4 bg-[#F0FDFA]">
         <h3 className="console-card-title mb-2">How to get your Anthropic API key</h3>
         <ol className="list-decimal list-inside space-y-2 console-body">
-          <li>Go to <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer" className="text-[#007A78] underline">Anthropic Console → API Keys</a></li>
+          <li>Go to <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer" className="text-[#1a7a3a] underline">Anthropic Console → API Keys</a></li>
           <li>Click "Create Key"</li>
           <li>Give it a name (e.g., "CloudAct Integration")</li>
           <li>Copy the key immediately (it won't be shown again)</li>

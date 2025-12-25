@@ -35,8 +35,8 @@ export default function GlobalError({
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="max-w-md w-full text-center space-y-6">
         <div className="flex justify-center">
-          <div className="h-16 w-16 rounded-full bg-[#FF6E50]/10 flex items-center justify-center">
-            <AlertTriangle className="h-8 w-8 text-[#FF6E50]" />
+          <div className="h-16 w-16 rounded-full bg-coral/10 flex items-center justify-center">
+            <AlertTriangle className="h-8 w-8 text-coral" />
           </div>
         </div>
 
@@ -61,7 +61,7 @@ export default function GlobalError({
         )}
 
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          <Button onClick={reset} className="bg-[#007A78] hover:bg-[#005F5D] text-white">
+          <Button onClick={reset} className="bg-mint hover:bg-mint-dark text-black">
             <RefreshCw className="h-4 w-4 mr-2" />
             Try again
           </Button>
@@ -77,7 +77,7 @@ export default function GlobalError({
           If this problem persists, please contact{" "}
           <a
             href={`mailto:${process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "support@cloudact.ai"}`}
-            className="text-[#007A78] hover:text-[#005F5D] hover:underline font-medium"
+            className="text-ca-blue hover:underline font-medium"
           >
             support
           </a>

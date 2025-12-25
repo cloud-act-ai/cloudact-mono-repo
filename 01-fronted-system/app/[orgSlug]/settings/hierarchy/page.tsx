@@ -143,7 +143,7 @@ export default function HierarchySettingsPage() {
       if (teamsResult.success && teamsResult.data) {
         setTeams(teamsResult.data)
       }
-    } catch {
+    } catch (err) {
       const errorMessage = logError("HierarchySettingsPage:loadData", err)
       setError(errorMessage)
     } finally {
@@ -352,9 +352,9 @@ export default function HierarchySettingsPage() {
 
     const getIcon = () => {
       switch (node.entity_type) {
-        case "department": return <Building2 className="h-4 w-4 text-[#007A78]" />
-        case "project": return <FolderKanban className="h-4 w-4 text-[#FF6E50]" />
-        case "team": return <Users className="h-4 w-4 text-blue-500" />
+        case "department": return <Building2 className="h-4 w-4 text-mint" />
+        case "project": return <FolderKanban className="h-4 w-4 text-coral" />
+        case "team": return <Users className="h-4 w-4 text-ca-blue" />
       }
     }
 
@@ -369,11 +369,11 @@ export default function HierarchySettingsPage() {
     return (
       <div key={node.entity_id} className="select-none">
         <div
-          className={`flex items-center gap-2 py-2 px-3 rounded-lg hover:bg-[#007A78]/5 cursor-pointer transition-colors`}
+          className={`flex items-center gap-2 py-2 px-3 rounded-lg hover:bg-mint/5 cursor-pointer transition-colors`}
           style={{ paddingLeft: `${level * 24 + 12}px` }}
         >
           {hasChildren ? (
-            <button onClick={toggleExpand} className="p-0.5 hover:bg-[#007A78]/10 rounded">
+            <button onClick={toggleExpand} className="p-0.5 hover:bg-mint/10 rounded">
               {isExpanded ? (
                 <ChevronDown className="h-4 w-4 text-muted-foreground" />
               ) : (
@@ -396,7 +396,7 @@ export default function HierarchySettingsPage() {
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7 ml-2 opacity-0 group-hover:opacity-100 hover:bg-[#FF6E50]/10 hover:text-[#FF6E50]"
+            className="h-7 w-7 ml-2 opacity-0 group-hover:opacity-100 hover:bg-coral/10 hover:text-coral"
             onClick={(e) => {
               e.stopPropagation()
               openDeleteDialog(node.entity_type, node.entity_id, node.entity_name)
@@ -408,7 +408,7 @@ export default function HierarchySettingsPage() {
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7 opacity-0 group-hover:opacity-100 hover:bg-[#007A78]/10 hover:text-[#007A78]"
+              className="h-7 w-7 opacity-0 group-hover:opacity-100 hover:bg-mint/10 hover:text-mint"
               onClick={(e) => {
                 e.stopPropagation()
                 openCreateDialog("project", node.entity_id)
@@ -421,7 +421,7 @@ export default function HierarchySettingsPage() {
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7 opacity-0 group-hover:opacity-100 hover:bg-[#007A78]/10 hover:text-[#007A78]"
+              className="h-7 w-7 opacity-0 group-hover:opacity-100 hover:bg-mint/10 hover:text-mint"
               onClick={(e) => {
                 e.stopPropagation()
                 openCreateDialog("team", node.entity_id)
@@ -443,7 +443,7 @@ export default function HierarchySettingsPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <Loader2 className="h-8 w-8 animate-spin text-[#007A78]" />
+        <Loader2 className="h-8 w-8 animate-spin text-mint" />
       </div>
     )
   }
@@ -452,7 +452,7 @@ export default function HierarchySettingsPage() {
     <div className="space-y-6 sm:space-y-8 animate-in fade-in duration-500">
       <div>
         <h1 className="text-[32px] sm:text-[34px] font-bold text-black tracking-tight flex items-center gap-3">
-          <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-[#007A78] to-[#005F5D] flex items-center justify-center shadow-sm">
+          <div className="h-10 w-10 rounded-2xl bg-gradient-mint flex items-center justify-center shadow-sm">
             <Network className="h-5 w-5 text-white" />
           </div>
           Organizational Hierarchy
@@ -463,15 +463,15 @@ export default function HierarchySettingsPage() {
       </div>
 
       {error && (
-        <Alert variant="destructive" className="border-[#FF6E50]/30 bg-[#FF6E50]/5 animate-in slide-in-from-top-2 duration-300">
-          <AlertTriangle className="h-4 w-4 text-[#FF6E50]" />
+        <Alert variant="destructive" className="border-coral/30 bg-coral/5 animate-in slide-in-from-top-2 duration-300">
+          <AlertTriangle className="h-4 w-4 text-coral" />
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
       {success && (
-        <Alert className="bg-[#007A78]/5 border-[#007A78]/30 animate-in slide-in-from-top-2 duration-300">
-          <CheckCircle2 className="h-4 w-4 text-[#007A78]" />
+        <Alert className="bg-mint/5 border-mint/30 animate-in slide-in-from-top-2 duration-300">
+          <CheckCircle2 className="h-4 w-4 text-mint" />
           <AlertDescription className="text-foreground">{success}</AlertDescription>
         </Alert>
       )}
@@ -517,7 +517,7 @@ export default function HierarchySettingsPage() {
                 value={importData}
                 onChange={(e) => setImportData(e.target.value)}
                 placeholder="entity_type,entity_id,entity_name,parent_id,owner_id,owner_name,owner_email,description&#10;department,DEPT-001,Engineering,,,John Doe,john@example.com,Engineering department"
-                className="w-full h-48 p-3 text-[14px] font-mono border border-[#E5E5EA] rounded-xl focus:border-[#007A78] focus:ring-2 focus:ring-[#007A78]/20"
+                className="w-full h-48 p-3 text-[14px] font-mono border border-[#E5E5EA] rounded-xl focus:border-mint focus:ring-2 focus:ring-mint/20"
               />
             </div>
             <DialogFooter>
@@ -541,10 +541,10 @@ export default function HierarchySettingsPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="metric-card shadow-sm border-l-4 border-l-[#007A78]">
+        <div className="metric-card shadow-sm border-l-4 border-l-mint">
           <div className="metric-card-content flex items-center gap-4">
-            <div className="h-12 w-12 rounded-xl bg-[#007A78]/10 flex items-center justify-center">
-              <Building2 className="h-6 w-6 text-[#007A78]" />
+            <div className="h-12 w-12 rounded-xl bg-mint/10 flex items-center justify-center">
+              <Building2 className="h-6 w-6 text-mint" />
             </div>
             <div>
               <p className="text-[13px] text-muted-foreground">Departments</p>
@@ -552,10 +552,10 @@ export default function HierarchySettingsPage() {
             </div>
           </div>
         </div>
-        <div className="metric-card shadow-sm border-l-4 border-l-[#FF6E50]">
+        <div className="metric-card shadow-sm border-l-4 border-l-coral">
           <div className="metric-card-content flex items-center gap-4">
-            <div className="h-12 w-12 rounded-xl bg-[#FF6E50]/10 flex items-center justify-center">
-              <FolderKanban className="h-6 w-6 text-[#FF6E50]" />
+            <div className="h-12 w-12 rounded-xl bg-coral/10 flex items-center justify-center">
+              <FolderKanban className="h-6 w-6 text-coral" />
             </div>
             <div>
               <p className="text-[13px] text-muted-foreground">Projects</p>
@@ -563,10 +563,10 @@ export default function HierarchySettingsPage() {
             </div>
           </div>
         </div>
-        <div className="metric-card shadow-sm border-l-4 border-l-blue-500">
+        <div className="metric-card shadow-sm border-l-4 border-l-ca-blue">
           <div className="metric-card-content flex items-center gap-4">
-            <div className="h-12 w-12 rounded-xl bg-blue-500/10 flex items-center justify-center">
-              <Users className="h-6 w-6 text-blue-500" />
+            <div className="h-12 w-12 rounded-xl bg-ca-blue/10 flex items-center justify-center">
+              <Users className="h-6 w-6 text-ca-blue" />
             </div>
             <div>
               <p className="text-[13px] text-muted-foreground">Teams</p>
@@ -579,19 +579,19 @@ export default function HierarchySettingsPage() {
       {/* Content Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="w-full sm:w-auto bg-white border border-border">
-          <TabsTrigger value="tree" className="data-[state=active]:bg-[#007A78]/10 data-[state=active]:text-[#007A78]">
+          <TabsTrigger value="tree" className="data-[state=active]:bg-mint/10 data-[state=active]:text-mint">
             <Network className="h-4 w-4 mr-2" />
             Tree View
           </TabsTrigger>
-          <TabsTrigger value="departments" className="data-[state=active]:bg-[#007A78]/10 data-[state=active]:text-[#007A78]">
+          <TabsTrigger value="departments" className="data-[state=active]:bg-mint/10 data-[state=active]:text-mint">
             <Building2 className="h-4 w-4 mr-2" />
             Departments
           </TabsTrigger>
-          <TabsTrigger value="projects" className="data-[state=active]:bg-[#007A78]/10 data-[state=active]:text-[#007A78]">
+          <TabsTrigger value="projects" className="data-[state=active]:bg-mint/10 data-[state=active]:text-mint">
             <FolderKanban className="h-4 w-4 mr-2" />
             Projects
           </TabsTrigger>
-          <TabsTrigger value="teams" className="data-[state=active]:bg-[#007A78]/10 data-[state=active]:text-[#007A78]">
+          <TabsTrigger value="teams" className="data-[state=active]:bg-mint/10 data-[state=active]:text-mint">
             <Users className="h-4 w-4 mr-2" />
             Teams
           </TabsTrigger>
@@ -643,7 +643,7 @@ export default function HierarchySettingsPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 hover:bg-[#007A78]/10 hover:text-[#007A78]"
+                          className="h-8 w-8 hover:bg-mint/10 hover:text-mint"
                           onClick={() => openCreateDialog("project", dept.entity_id)}
                         >
                           <Plus className="h-4 w-4" />
@@ -651,7 +651,7 @@ export default function HierarchySettingsPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 hover:bg-[#FF6E50]/10 hover:text-[#FF6E50]"
+                          className="h-8 w-8 hover:bg-coral/10 hover:text-coral"
                           onClick={() => openDeleteDialog("department", dept.entity_id, dept.entity_name)}
                         >
                           <Trash2 className="h-4 w-4" />
@@ -701,7 +701,7 @@ export default function HierarchySettingsPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 hover:bg-[#007A78]/10 hover:text-[#007A78]"
+                          className="h-8 w-8 hover:bg-mint/10 hover:text-mint"
                           onClick={() => openCreateDialog("team", proj.entity_id)}
                         >
                           <Plus className="h-4 w-4" />
@@ -709,7 +709,7 @@ export default function HierarchySettingsPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 hover:bg-[#FF6E50]/10 hover:text-[#FF6E50]"
+                          className="h-8 w-8 hover:bg-coral/10 hover:text-coral"
                           onClick={() => openDeleteDialog("project", proj.entity_id, proj.entity_name)}
                         >
                           <Trash2 className="h-4 w-4" />
@@ -754,7 +754,7 @@ export default function HierarchySettingsPage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 hover:bg-[#FF6E50]/10 hover:text-[#FF6E50]"
+                        className="h-8 w-8 hover:bg-coral/10 hover:text-coral"
                         onClick={() => openDeleteDialog("team", team.entity_id, team.entity_name)}
                       >
                         <Trash2 className="h-4 w-4" />
@@ -890,14 +890,14 @@ export default function HierarchySettingsPage() {
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-[#FF6E50]">Delete {deleteTarget?.type}</DialogTitle>
+            <DialogTitle className="text-coral">Delete {deleteTarget?.type}</DialogTitle>
             <DialogDescription>
               Are you sure you want to delete "{deleteTarget?.name}"? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           {deleteBlocked && (
-            <Alert variant="destructive" className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
-              <AlertTriangle className="h-4 w-4 text-[#FF6E50]" />
+            <Alert variant="destructive" className="border-coral/30 bg-coral/5">
+              <AlertTriangle className="h-4 w-4 text-coral" />
               <AlertDescription>{deleteBlocked}</AlertDescription>
             </Alert>
           )}
@@ -909,7 +909,7 @@ export default function HierarchySettingsPage() {
               variant="destructive"
               onClick={handleDelete}
               disabled={isDeleting || !!deleteBlocked}
-              className="bg-[#FF6E50] hover:bg-[#E55A3C]"
+              className="bg-coral hover:bg-coral-dark"
             >
               {isDeleting ? (
                 <>

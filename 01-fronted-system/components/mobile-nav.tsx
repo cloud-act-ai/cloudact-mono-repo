@@ -198,8 +198,8 @@ export function MobileNav({
       className={cn(
         "w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors rounded-lg",
         isItemActive
-          ? "bg-[#FF6E50]/10 text-[#FF6E50] font-semibold"
-          : "text-slate-600 hover:bg-[#FF6E50]/10 hover:text-[#FF6E50]"
+          ? "bg-[var(--cloudact-coral)]/10 text-[var(--cloudact-coral)] font-semibold"
+          : "text-slate-600 hover:bg-[var(--cloudact-coral)]/10 hover:text-[var(--cloudact-coral)]"
       )}
     >
       <Icon className="h-4 w-4 flex-shrink-0" />
@@ -244,7 +244,7 @@ export function MobileNav({
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
           <div className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded-lg overflow-hidden bg-gradient-to-br from-[#007A78] to-[#14B8A6] flex items-center justify-center flex-shrink-0">
+            <div className="h-8 w-8 rounded-lg overflow-hidden bg-gradient-to-br from-[var(--cloudact-mint)] to-[var(--cloudact-mint-light)] flex items-center justify-center flex-shrink-0">
               {logoUrl ? (
                 <Image
                   src={logoUrl}
@@ -254,7 +254,7 @@ export function MobileNav({
                   className="object-contain"
                 />
               ) : (
-                <Building2 className="h-4 w-4 text-white" />
+                <Building2 className="h-4 w-4 text-[var(--cloudact-mint-text)]" />
               )}
             </div>
             <span className="text-[13px] font-semibold text-slate-900 truncate">
@@ -341,8 +341,8 @@ export function MobileNav({
         <div className="border-t border-slate-100 p-4 space-y-3">
           {/* User Info - First */}
           <div className="flex items-center gap-3 px-2">
-            <div className="h-9 w-9 rounded-full bg-gradient-to-br from-[#007A78] to-[#14B8A6] flex items-center justify-center flex-shrink-0">
-              <span className="text-white text-[11px] font-semibold">
+            <div className="h-9 w-9 rounded-full bg-gradient-to-br from-[var(--cloudact-mint)] to-[var(--cloudact-mint-light)] flex items-center justify-center flex-shrink-0">
+              <span className="text-[var(--cloudact-mint-text)] text-[11px] font-semibold">
                 {getUserInitials(userName)}
               </span>
             </div>
@@ -443,7 +443,7 @@ export function MobileNav({
             <Link
               href="/user-docs"
               target="_blank"
-              className="flex-1 flex items-center justify-center gap-2 h-9 px-3 text-[12px] font-medium text-[#007A78] bg-[#007A78]/5 hover:bg-[#007A78]/10 rounded-lg transition-colors"
+              className="flex-1 flex items-center justify-center gap-2 h-9 px-3 text-[12px] font-medium text-[var(--cloudact-blue)] bg-[var(--cloudact-blue)]/5 hover:bg-[var(--cloudact-blue)]/10 rounded-lg transition-colors"
             >
               <HelpCircle className="h-3.5 w-3.5" />
               Help

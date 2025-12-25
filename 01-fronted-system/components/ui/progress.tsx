@@ -10,8 +10,8 @@ interface ProgressProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 const variantClasses = {
-  teal: 'bg-[#007A78] dark:bg-[#14B8A6]',
-  coral: 'bg-[#FF6E50] dark:bg-[#FF8A73]',
+  teal: 'bg-[var(--cloudact-mint)] dark:bg-[var(--cloudact-mint-light)]',
+  coral: 'bg-[var(--cloudact-coral)] dark:bg-[var(--cloudact-coral-light)]',
   default: 'bg-primary',
 }
 

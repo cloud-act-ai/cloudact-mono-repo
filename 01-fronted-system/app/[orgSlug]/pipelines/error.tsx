@@ -30,10 +30,10 @@ export default function PipelinesError({
       </div>
 
       {/* Error Card - Apple Health Style */}
-      <div className="health-card bg-[#FF6E50]/10 border-[#FF6E50]/20">
+      <div className="health-card bg-coral/10 border-coral/20">
         <div className="flex items-start gap-4">
-          <div className="flex-shrink-0 w-12 h-12 rounded-full bg-[#FF6E50]/15 flex items-center justify-center">
-            <AlertTriangle className="h-6 w-6 text-[#FF6E50]" />
+          <div className="flex-shrink-0 w-12 h-12 rounded-full bg-coral/15 flex items-center justify-center">
+            <AlertTriangle className="h-6 w-6 text-coral" />
           </div>
           <div className="flex-1 space-y-3">
             <h3 className="text-[17px] font-semibold text-black">An Error Occurred</h3>
@@ -42,7 +42,7 @@ export default function PipelinesError({
               Please try refreshing the page or contact support if the problem persists.
             </p>
             {error.digest && (
-              <div className="bg-[#007A78]/5 rounded-xl p-3 border border-[#E5E5EA]">
+              <div className="bg-mint/5 rounded-xl p-3 border border-[#E5E5EA]">
                 <p className="text-[13px] font-semibold text-black mb-1">Error Reference ID:</p>
                 <p className="text-[11px] font-mono text-muted-foreground">{error.digest}</p>
               </div>
@@ -55,13 +55,13 @@ export default function PipelinesError({
       <div className="flex flex-col sm:flex-row gap-3">
         <button
           onClick={reset}
-          className="inline-flex items-center justify-center gap-2 h-[44px] px-6 bg-[#007A78] text-white text-[15px] font-semibold rounded-xl hover:bg-[#005F5D] transition-colors"
+          className="inline-flex items-center justify-center gap-2 h-[44px] px-6 bg-mint text-mint-text text-[15px] font-semibold rounded-xl hover:bg-mint-dark transition-colors"
         >
           <RefreshCw className="h-4 w-4" />
           Try Again
         </button>
         <Link href="/">
-          <button className="inline-flex items-center justify-center gap-2 h-[44px] px-6 bg-[#007A78]/5 text-muted-foreground text-[15px] font-semibold rounded-xl hover:bg-[#007A78]/10 transition-colors w-full sm:w-auto">
+          <button className="inline-flex items-center justify-center gap-2 h-[44px] px-6 bg-mint/5 text-muted-foreground text-[15px] font-semibold rounded-xl hover:bg-mint/10 transition-colors w-full sm:w-auto">
             <Home className="h-4 w-4" />
             Go Home
           </button>
@@ -74,7 +74,7 @@ export default function PipelinesError({
           If this problem persists, please contact{" "}
           <a
             href={`mailto:${process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "support@cloudact.ai"}`}
-            className="text-[#007A78] font-semibold hover:underline"
+            className="text-ca-blue font-semibold hover:underline"
           >
             support
           </a>

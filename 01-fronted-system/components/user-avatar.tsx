@@ -60,7 +60,7 @@ export function UserAvatar({
     <Avatar
       className={cn(
         sizeClasses[size],
-        showRing && "ring-2 ring-[#007A78] ring-offset-2",
+        showRing && "ring-2 ring-[var(--cloudact-mint)] ring-offset-2",
         className
       )}
     >

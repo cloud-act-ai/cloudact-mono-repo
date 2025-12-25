@@ -115,9 +115,9 @@ export function Stepper({
                   sizes.circle,
                   sizes.text,
                   isCompleted &&
-                    "border-[#007A78] bg-[#007A78] text-white shadow-md",
+                    "border-[var(--cloudact-mint)] bg-[var(--cloudact-mint)] text-black shadow-md",
                   isCurrent &&
-                    "border-[#007A78] bg-white text-[#007A78] ring-4 ring-[#007A78]/20 shadow-lg scale-110",
+                    "border-[var(--cloudact-mint)] bg-white text-[var(--cloudact-mint-text)] ring-4 ring-[var(--cloudact-mint)]/20 shadow-lg scale-110",
                   isUpcoming &&
                     "border-gray-300 bg-white text-gray-400",
                   isClickable && "hover:scale-105 hover:shadow-md"
@@ -153,8 +153,8 @@ export function Stepper({
                   className={cn(
                     "font-medium transition-colors duration-300",
                     sizes.label,
-                    isCompleted && "text-[#007A78]",
-                    isCurrent && "text-[#007A78] font-semibold",
+                    isCompleted && "text-[var(--cloudact-mint-text)]",
+                    isCurrent && "text-[var(--cloudact-mint-text)] font-semibold",
                     isUpcoming && "text-gray-400"
                   )}
                 >
@@ -185,7 +185,7 @@ export function Stepper({
                     ? cn("flex-1 mx-3", sizes.connector)
                     : cn("w-0.5 ml-5 my-2", "min-h-[2rem]"),
                   index < currentStep
-                    ? "bg-[#007A78]"
+                    ? "bg-[var(--cloudact-mint)]"
                     : "bg-gray-300"
                 )}
                 aria-hidden="true"
@@ -221,8 +221,8 @@ export function StepperCompact({
                 "h-2 rounded-full transition-all duration-300",
                 isCurrent && "flex-[2]",
                 !isCurrent && "flex-1",
-                isCompleted && "bg-[#007A78]",
-                isCurrent && "bg-[#007A78]",
+                isCompleted && "bg-[var(--cloudact-mint)]",
+                isCurrent && "bg-[var(--cloudact-mint)]",
                 index > currentStep && "bg-gray-300"
               )}
               aria-label={`${step.label}${isCurrent ? " (current)" : ""}${isCompleted ? " (completed)" : ""}`}
@@ -255,8 +255,8 @@ export function StepperDots({
             key={step.id}
             className={cn(
               "h-2 w-2 rounded-full transition-all duration-300",
-              isCompleted && "bg-[#007A78] scale-100",
-              isCurrent && "bg-[#007A78] scale-150 ring-2 ring-[#007A78]/30",
+              isCompleted && "bg-[var(--cloudact-mint)] scale-100",
+              isCurrent && "bg-[var(--cloudact-mint)] scale-150 ring-2 ring-[var(--cloudact-mint)]/30",
               index > currentStep && "bg-gray-300 scale-75"
             )}
             aria-label={`${step.label}${isCurrent ? " (current)" : ""}${isCompleted ? " (completed)" : ""}`}

@@ -77,10 +77,11 @@ CA_ROOT_API_KEY (system admin)
 ## Key Endpoints
 
 ### api-service (8000)
-- `POST /api/v1/admin/bootstrap` - Initialize system (14 tables)
-- `POST /api/v1/organizations/onboard` - Create org + API key
+- `POST /api/v1/admin/bootstrap` - Initialize system (15 meta tables)
+- `POST /api/v1/organizations/onboard` - Create org + API key + 6 tables
 - `POST /api/v1/integrations/{org}/{provider}/setup` - Setup integration
 - `GET/POST /api/v1/subscriptions/{org}/providers/*/plans` - SaaS CRUD
+- `GET/POST /api/v1/hierarchy/{org}/*` - Org hierarchy CRUD (Dept → Project → Team)
 
 ### pipeline-service (8001)
 - `POST /api/v1/pipelines/run/{org}/{provider}/{domain}/{pipeline}` - Run pipeline
@@ -144,5 +145,15 @@ pkill -f "uvicorn.*8001"
 - **Stage:** `https://convergence-pipeline-stage-526075321773.us-central1.run.app`
 - **Prod:** `https://convergence-pipeline-prod-820784027009.us-central1.run.app`
 
+## Organizational Hierarchy
+
+**Structure:** Org → Department → Project → Team (strict parent-child for cost allocation)
+
+**Tables per org:**
+- `org_hierarchy` - All hierarchy entities with version history
+- Subscription plans include `hierarchy_dept_id/name`, `hierarchy_project_id/name`, `hierarchy_team_id/name`
+
+**Cost Flow:** Subscriptions → Daily Costs → FOCUS 1.3 (with hierarchy extension fields)
+
 ---
-**Last Updated:** 2025-12-22
+**Last Updated:** 2025-12-25

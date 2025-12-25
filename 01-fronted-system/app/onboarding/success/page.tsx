@@ -126,7 +126,7 @@ function SuccessContent() {
     return (
       <div className="flex flex-col items-center gap-6 text-center">
         <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[#F0FDFA]">
-          <Loader2 className="h-10 w-10 animate-spin text-[#007A78]" />
+          <Loader2 className="h-10 w-10 animate-spin text-[#6EE890]" />
         </div>
         <div className="space-y-2">
           <h1 className="text-2xl font-bold text-gray-900">Setting up your organization...</h1>
@@ -153,12 +153,12 @@ function SuccessContent() {
     return (
       <div className="flex flex-col items-center gap-6 text-center max-w-md">
         <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[#FFF5F3]">
-          <AlertTriangle className="h-10 w-10 text-[#FF6E50]" />
+          <AlertTriangle className="h-10 w-10 text-[#FF6C5E]" />
         </div>
         <div className="space-y-2">
           <h1 className="text-2xl font-bold text-gray-900">Setup Failed</h1>
-          <Alert variant="destructive" className="bg-[#FFF5F3] border-[#FF6E50]">
-            <AlertDescription className="text-[#FF6E50]">{error}</AlertDescription>
+          <Alert variant="destructive" className="bg-[#FFF5F3] border-[#FF6C5E]">
+            <AlertDescription className="text-[#FF6C5E]">{error}</AlertDescription>
           </Alert>
         </div>
         <div className="flex gap-4">
@@ -196,7 +196,7 @@ function SuccessContent() {
   return (
     <div className="flex flex-col items-center gap-6 text-center max-w-md">
       <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[#F0FDFA]">
-        <CheckCircle className="h-10 w-10 text-[#007A78]" />
+        <CheckCircle className="h-10 w-10 text-[#6EE890]" />
       </div>
       <div className="space-y-2">
         <h1 className="text-2xl font-bold text-gray-900">Welcome aboard!</h1>
@@ -204,7 +204,7 @@ function SuccessContent() {
           Your organization has been created successfully. Redirecting you to your dashboard...
         </p>
       </div>
-      <Loader2 className="h-6 w-6 animate-spin text-[#007A78]" />
+      <Loader2 className="h-6 w-6 animate-spin text-[#6EE890]" />
     </div>
   )
 }
@@ -213,7 +213,7 @@ function SuccessFallback() {
   return (
     <div className="flex flex-col items-center gap-6 text-center">
       <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[#F0FDFA]">
-        <Loader2 className="h-10 w-10 animate-spin text-[#007A78]" />
+        <Loader2 className="h-10 w-10 animate-spin text-[#1a7a3a]" />
       </div>
       <div className="space-y-2">
         <h1 className="text-2xl font-bold text-gray-900">Loading...</h1>
@@ -228,7 +228,7 @@ export default function SuccessPage() {
     <div className="flex min-h-svh w-full flex-col bg-white">
       {/* Header with Logo */}
       <div className="flex items-center gap-2 p-6 md:p-8">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#007A78] text-white shadow">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#90FCA6] text-black shadow">
           <Cloud className="h-5 w-5" />
         </div>
         <span className="font-semibold text-gray-900">CloudAct.ai</span>

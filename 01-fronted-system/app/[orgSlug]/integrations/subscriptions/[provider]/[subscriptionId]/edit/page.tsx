@@ -297,9 +297,9 @@ export default function EditSubscriptionPage() {
   if (!currentPlan) {
     return (
       <div className="p-6 space-y-6">
-        <Card className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
+        <Card className="border-[#FF6C5E]/30 bg-[#FF6C5E]/5">
           <CardContent className="pt-6">
-            <p className="text-sm text-[#FF6E50]">{error || "Subscription not found"}</p>
+            <p className="text-sm text-[#FF6C5E]">{error || "Subscription not found"}</p>
             <div className="mt-4">
               <Link href={`/${orgSlug}/integrations/subscriptions/${provider}`}>
                 <Button variant="outline">
@@ -320,7 +320,7 @@ export default function EditSubscriptionPage() {
       <nav className="flex items-center gap-2 text-sm" aria-label="Breadcrumb">
         <Link
           href={`/${orgSlug}/integrations/subscriptions`}
-          className="text-[#007A78] hover:text-[#005F5D] transition-colors focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2 rounded truncate max-w-[200px]"
+          className="text-[#1a7a3a] hover:text-[#007AFF] transition-colors focus:outline-none focus:ring-2 focus:ring-[#90FCA6] focus:ring-offset-2 rounded truncate max-w-[200px]"
           title="Subscription Providers"
         >
           Subscription Providers
@@ -328,7 +328,7 @@ export default function EditSubscriptionPage() {
         <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" aria-hidden="true" />
         <Link
           href={`/${orgSlug}/integrations/subscriptions/${provider}`}
-          className="text-[#007A78] hover:text-[#005F5D] transition-colors focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2 rounded truncate max-w-[200px]"
+          className="text-[#1a7a3a] hover:text-[#007AFF] transition-colors focus:outline-none focus:ring-2 focus:ring-[#90FCA6] focus:ring-offset-2 rounded truncate max-w-[200px]"
           title={providerDisplayName}
         >
           {providerDisplayName}
@@ -358,19 +358,19 @@ export default function EditSubscriptionPage() {
 
       {/* Error Message */}
       {error && (
-        <Card className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
+        <Card className="border-[#FF6C5E]/30 bg-[#FF6C5E]/5">
           <CardContent className="pt-6">
-            <p className="text-sm text-[#FF6E50]">{error}</p>
+            <p className="text-sm text-[#FF6C5E]">{error}</p>
           </CardContent>
         </Card>
       )}
 
       {/* Info Banner - Version History */}
-      <Card className="border-[#007A78]/20 bg-[#007A78]/5">
+      <Card className="border-[#90FCA6]/20 bg-[#90FCA6]/5">
         <CardContent className="py-3 px-4">
           <div className="flex items-center gap-3">
-            <Info className="h-5 w-5 text-[#007A78] flex-shrink-0" />
-            <p className="text-sm text-[#005F5D]">
+            <Info className="h-5 w-5 text-[#1a7a3a] flex-shrink-0" />
+            <p className="text-sm text-[#6EE890]">
               Changes will create a new version. Current plan ends the day before the start date, and the new version starts on the selected date.
             </p>
           </div>
@@ -402,7 +402,7 @@ export default function EditSubscriptionPage() {
               )}
               <div>
                 <span className="text-muted-foreground block text-xs uppercase tracking-wide mb-1">Current Price</span>
-                <span className="font-medium text-[#FF6E50]">
+                <span className="font-medium text-[#FF6C5E]">
                   {formatCurrency(currentPlan.unit_price, orgCurrency)}/{currentPlan.billing_cycle}
                 </span>
               </div>

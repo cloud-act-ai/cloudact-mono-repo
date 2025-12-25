@@ -85,7 +85,7 @@ export function CodeBlockExample() {
 const example = {
   scrollbar: {
     thumb: "#CBD5E1",
-    thumbHover: "#007A78",
+    thumbHover: "#90FCA6",
     track: "#F1F5F9",
     width: "8px",
     borderRadius: "4px"

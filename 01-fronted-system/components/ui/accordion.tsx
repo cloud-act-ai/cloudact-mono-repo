@@ -29,8 +29,8 @@ const AccordionTrigger = React.forwardRef<
             ref={ref}
             className={cn(
                 "flex flex-1 items-center justify-between py-4 px-1 font-medium text-base transition-colors duration-150 ease-in-out",
-                "hover:bg-slate-50 hover:text-cloudact-teal dark:hover:bg-slate-800 dark:hover:text-cloudact-teal-light",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cloudact-teal focus-visible:ring-offset-2",
+                "hover:bg-[#90FCA6]/10 hover:text-[#000000] dark:hover:bg-[#90FCA6]/10 dark:hover:text-[#000000]",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#90FCA6] focus-visible:ring-offset-2",
                 "disabled:pointer-events-none disabled:opacity-50",
                 "text-slate-900 dark:text-slate-100",
                 "[&[data-state=open]>svg]:rotate-180",

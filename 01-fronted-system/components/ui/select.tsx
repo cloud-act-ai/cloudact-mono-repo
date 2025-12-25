@@ -42,14 +42,14 @@ function SelectTrigger({
         'min-w-0 overflow-hidden',
         // Border - visible 1px solid
         'border-[rgba(0,0,0,0.1)] dark:border-[rgba(255,255,255,0.1)]',
-        // Focus state - Teal (#007A78 light, #14B8A6 dark)
-        'focus-visible:border-[#007A78] focus-visible:ring-2 focus-visible:ring-[#007A78]/20',
-        'dark:focus-visible:border-[#14B8A6] dark:focus-visible:ring-[#14B8A6]/20',
+        // Focus state - Mint (#90FCA6 light, #B8FDCA dark)
+        'focus-visible:border-[#90FCA6] focus-visible:ring-2 focus-visible:ring-[#90FCA6]/20',
+        'dark:focus-visible:border-[#B8FDCA] dark:focus-visible:ring-[#B8FDCA]/20',
         // Hover state
-        'hover:border-[#007A78]/50 dark:hover:border-[#14B8A6]/50 dark:hover:bg-input/50',
-        // Error state - Coral (#FF6E50)
-        'aria-invalid:border-[#FF6E50] aria-invalid:ring-2 aria-invalid:ring-[#FF6E50]/20',
-        'aria-invalid:focus-visible:border-[#FF6E50] aria-invalid:focus-visible:ring-[#FF6E50]/20',
+        'hover:border-[#90FCA6]/50 dark:hover:border-[#B8FDCA]/50 dark:hover:bg-input/50',
+        // Error state - Coral (#FF6C5E)
+        'aria-invalid:border-[#FF6C5E] aria-invalid:ring-2 aria-invalid:ring-[#FF6C5E]/20',
+        'aria-invalid:focus-visible:border-[#FF6C5E] aria-invalid:focus-visible:ring-[#FF6C5E]/20',
         // Placeholder
         'data-[placeholder]:text-[#8E8E93]',
         // Disabled state
@@ -133,8 +133,8 @@ function SelectItem({
       data-slot="select-item"
       className={cn(
         "relative flex w-full cursor-default items-center gap-2 rounded-md py-1.5 pr-8 pl-2 text-sm outline-none select-none transition-colors duration-150",
-        "focus:bg-[#007A78]/10 focus:text-[#007A78]",
-        "dark:focus:bg-[#14B8A6]/10 dark:focus:text-[#14B8A6]",
+        "focus:bg-[#90FCA6]/10 focus:text-[#000000]",
+        "dark:focus:bg-[#B8FDCA]/10 dark:focus:text-[#000000]",
         "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
         "[&_svg:not([class*='text-'])]:text-[#8E8E93] [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         "*:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2",
@@ -144,7 +144,7 @@ function SelectItem({
     >
       <span className="absolute right-2 flex size-3.5 items-center justify-center">
         <SelectPrimitive.ItemIndicator>
-          <CheckIcon className="size-4 text-[#007A78] dark:text-[#14B8A6]" />
+          <CheckIcon className="size-4 text-[#6EE890] dark:text-[#6EE890]" />
         </SelectPrimitive.ItemIndicator>
       </span>
       <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>

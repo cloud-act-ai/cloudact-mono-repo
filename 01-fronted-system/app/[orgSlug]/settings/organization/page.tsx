@@ -798,7 +798,7 @@ export default function OrganizationSettingsPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <Loader2 className="h-8 w-8 animate-spin text-[#007A78]" />
+        <Loader2 className="h-8 w-8 animate-spin text-[#90FCA6]" />
       </div>
     )
   }
@@ -807,8 +807,8 @@ export default function OrganizationSettingsPage() {
     <div className="space-y-6 sm:space-y-8 animate-in fade-in duration-500">
       <div>
         <h1 className="text-[32px] sm:text-[34px] font-bold text-black tracking-tight flex items-center gap-3">
-          <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-[#007A78] to-[#005F5D] flex items-center justify-center shadow-sm">
-            <Building2 className="h-5 w-5 text-white" />
+          <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-[#90FCA6] to-[#6EE890] flex items-center justify-center shadow-sm">
+            <Building2 className="h-5 w-5 text-[#1a7a3a]" />
           </div>
           Organization Settings
         </h1>
@@ -818,34 +818,34 @@ export default function OrganizationSettingsPage() {
       </div>
 
       {error && (
-        <Alert variant="destructive" className="border-[#FF6E50]/30 bg-[#FF6E50]/5 animate-in slide-in-from-top-2 duration-300">
-          <AlertTriangle className="h-4 w-4 text-[#FF6E50]" />
+        <Alert variant="destructive" className="border-[#FF6C5E]/30 bg-[#FF6C5E]/5 animate-in slide-in-from-top-2 duration-300">
+          <AlertTriangle className="h-4 w-4 text-[#FF6C5E]" />
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
       {success && (
-        <Alert className="bg-[#007A78]/5 border-[#007A78]/30 animate-in slide-in-from-top-2 duration-300">
-          <CheckCircle2 className="h-4 w-4 text-[#007A78]" />
+        <Alert className="bg-[#90FCA6]/5 border-[#90FCA6]/30 animate-in slide-in-from-top-2 duration-300">
+          <CheckCircle2 className="h-4 w-4 text-[#6EE890]" />
           <AlertDescription className="text-foreground">{success}</AlertDescription>
         </Alert>
       )}
 
       <Tabs defaultValue="general" className="w-full">
         <TabsList className="w-full sm:w-auto flex-wrap touch-manipulation bg-white border border-border">
-          <TabsTrigger value="general" className="cursor-pointer data-[state=active]:bg-[#007A78]/10 data-[state=active]:text-[#007A78]">
+          <TabsTrigger value="general" className="cursor-pointer data-[state=active]:bg-[#90FCA6]/10 data-[state=active]:text-[#90FCA6]">
             <Sparkles className="h-4 w-4 mr-2" />
             General
           </TabsTrigger>
-          <TabsTrigger value="contact" className="cursor-pointer data-[state=active]:bg-[#007A78]/10 data-[state=active]:text-[#007A78]">
+          <TabsTrigger value="contact" className="cursor-pointer data-[state=active]:bg-[#90FCA6]/10 data-[state=active]:text-[#90FCA6]">
             <User className="h-4 w-4 mr-2" />
             Contact
           </TabsTrigger>
-          <TabsTrigger value="backend" className="cursor-pointer data-[state=active]:bg-[#007A78]/10 data-[state=active]:text-[#007A78]">
+          <TabsTrigger value="backend" className="cursor-pointer data-[state=active]:bg-[#90FCA6]/10 data-[state=active]:text-[#90FCA6]">
             <Activity className="h-4 w-4 mr-2" />
             Backend
           </TabsTrigger>
-          <TabsTrigger value="danger" className="text-[#FF6E50] data-[state=active]:bg-[#FF6E50]/10 data-[state=active]:text-[#FF6E50] cursor-pointer">
+          <TabsTrigger value="danger" className="text-[#FF6C5E] data-[state=active]:bg-[#FF6C5E]/10 data-[state=active]:text-[#FF6C5E] cursor-pointer">
             <Shield className="h-4 w-4 mr-2" />
             Danger Zone
           </TabsTrigger>
@@ -853,10 +853,10 @@ export default function OrganizationSettingsPage() {
 
         <TabsContent value="general" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Organization Branding */}
-      <div className="metric-card shadow-sm hover:shadow-md transition-shadow duration-300 border-l-4 border-l-[#007A78]">
+      <div className="metric-card shadow-sm hover:shadow-md transition-shadow duration-300 border-l-4 border-l-[#90FCA6]">
         <div className="metric-card-header mb-6">
           <div className="flex items-center gap-3">
-            <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-[#007A78] to-[#005F5D] flex items-center justify-center shadow-sm">
+            <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-[#90FCA6] to-[#6EE890] flex items-center justify-center shadow-sm">
               <Sparkles className="h-6 w-6 text-white" />
             </div>
             <div>
@@ -876,7 +876,7 @@ export default function OrganizationSettingsPage() {
               <Label className="text-[13px] sm:text-[15px] font-medium text-foreground mb-2 block">
                 Logo Preview
               </Label>
-              <div className="group relative h-24 w-24 rounded-2xl border-2 border-dashed border-[#E5E5EA] hover:border-[#007A78] transition-colors flex items-center justify-center bg-gradient-to-br from-[#007A78]/5 to-[#007A78]/10 overflow-hidden">
+              <div className="group relative h-24 w-24 rounded-2xl border-2 border-dashed border-[#E5E5EA] hover:border-[#90FCA6] transition-colors flex items-center justify-center bg-gradient-to-br from-[#90FCA6]/5 to-[#90FCA6]/10 overflow-hidden">
                 {logoUrl ? (
                   <img
                     src={logoUrl}
@@ -890,7 +890,7 @@ export default function OrganizationSettingsPage() {
                     }}
                   />
                 ) : (
-                  <ImageIcon className="h-10 w-10 text-muted-foreground group-hover:text-[#007A78] transition-colors" />
+                  <ImageIcon className="h-10 w-10 text-muted-foreground group-hover:text-[#90FCA6] transition-colors" />
                 )}
               </div>
             </div>
@@ -907,19 +907,19 @@ export default function OrganizationSettingsPage() {
                 value={logoUrl}
                 onChange={(e) => { setLogoUrl(e.target.value); setError(null); }}
                 placeholder="https://example.com/logo.png"
-                className="h-11 px-4 text-[15px] border border-[#E5E5EA] rounded-xl focus:border-[#007A78] focus:ring-2 focus:ring-[#007A78]/20 transition-all"
+                className="h-11 px-4 text-[15px] border border-[#E5E5EA] rounded-xl focus:border-[#90FCA6] focus:ring-2 focus:ring-[#90FCA6]/20 transition-all"
               />
               <p className="text-[13px] text-muted-foreground flex items-start gap-2">
-                <TrendingUp className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-[#007A78]" />
+                <TrendingUp className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-[#90FCA6]" />
                 Enter a URL to your organization's logo (PNG, JPG, SVG). Must be HTTPS. The logo will appear in the sidebar.
               </p>
             </div>
           </div>
 
           {hasLogoChanges && (
-            <Alert className="bg-gradient-to-r from-[#007A78]/5 to-[#007A78]/10 border-[#007A78]/20 animate-in slide-in-from-top-2">
-              <AlertTriangle className="h-4 w-4 text-[#007A78]" />
-              <AlertDescription className="text-[#005F5D]">
+            <Alert className="bg-gradient-to-r from-[#90FCA6]/5 to-[#90FCA6]/10 border-[#90FCA6]/20 animate-in slide-in-from-top-2">
+              <AlertTriangle className="h-4 w-4 text-[#90FCA6]" />
+              <AlertDescription className="text-[#6EE890]">
                 Logo URL has been changed. Click Save Logo to apply.
               </AlertDescription>
             </Alert>
@@ -959,10 +959,10 @@ export default function OrganizationSettingsPage() {
       </div>
 
       {/* Organization Locale */}
-      <div className="metric-card shadow-sm hover:shadow-md transition-shadow duration-300 border-l-4 border-l-[#007A78]">
+      <div className="metric-card shadow-sm hover:shadow-md transition-shadow duration-300 border-l-4 border-l-[#90FCA6]">
         <div className="metric-card-header mb-6">
           <div className="flex items-center gap-3">
-            <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-[#007A78] to-[#005F5D] flex items-center justify-center shadow-sm">
+            <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-[#90FCA6] to-[#6EE890] flex items-center justify-center shadow-sm">
               <Globe className="h-6 w-6 text-white" />
             </div>
             <div>
@@ -978,11 +978,11 @@ export default function OrganizationSettingsPage() {
           {/* Currency Selection */}
           <div className="space-y-2">
             <Label htmlFor="currency" className="text-[13px] sm:text-[15px] font-medium text-foreground flex items-center gap-2">
-              <DollarSign className="h-4 w-4 text-[#007A78]" />
-              Currency <span className="text-[#FF6E50]">*</span>
+              <DollarSign className="h-4 w-4 text-[#90FCA6]" />
+              Currency <span className="text-[#FF6C5E]">*</span>
             </Label>
             <Select value={currency} onValueChange={(val) => { setCurrency(val); setError(null); }}>
-              <SelectTrigger id="currency" className="h-11 text-[15px] border border-[#E5E5EA] rounded-xl hover:border-[#007A78] transition-colors">
+              <SelectTrigger id="currency" className="h-11 text-[15px] border border-[#E5E5EA] rounded-xl hover:border-[#90FCA6] transition-colors">
                 <SelectValue placeholder="Select currency" />
               </SelectTrigger>
               <SelectContent className="max-h-[300px]">
@@ -994,7 +994,7 @@ export default function OrganizationSettingsPage() {
               </SelectContent>
             </Select>
             <p className="text-[13px] text-muted-foreground flex items-start gap-2">
-              <TrendingUp className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-[#007A78]" />
+              <TrendingUp className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-[#90FCA6]" />
               All costs and billing displayed in this currency. Affects cost calculations across integrations.
             </p>
           </div>
@@ -1004,11 +1004,11 @@ export default function OrganizationSettingsPage() {
           {/* Timezone Selection */}
           <div className="space-y-2">
             <Label htmlFor="timezone" className="text-[13px] sm:text-[15px] font-medium text-foreground flex items-center gap-2">
-              <Clock className="h-4 w-4 text-[#007A78]" />
-              Timezone <span className="text-[#FF6E50]">*</span>
+              <Clock className="h-4 w-4 text-[#90FCA6]" />
+              Timezone <span className="text-[#FF6C5E]">*</span>
             </Label>
             <Select value={timezone} onValueChange={handleTimezoneChange}>
-              <SelectTrigger id="timezone" className="h-11 text-[15px] border border-[#E5E5EA] rounded-xl hover:border-[#007A78] transition-colors">
+              <SelectTrigger id="timezone" className="h-11 text-[15px] border border-[#E5E5EA] rounded-xl hover:border-[#90FCA6] transition-colors">
                 <SelectValue placeholder="Select timezone" />
               </SelectTrigger>
               <SelectContent className="max-h-[300px]">
@@ -1020,7 +1020,7 @@ export default function OrganizationSettingsPage() {
               </SelectContent>
             </Select>
             <p className="text-[13px] text-muted-foreground flex items-start gap-2">
-              <TrendingUp className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-[#007A78]" />
+              <TrendingUp className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-[#90FCA6]" />
               Used for timestamps in dashboards, reports, and activity logs. Pipeline schedules use this timezone.
             </p>
           </div>
@@ -1028,12 +1028,12 @@ export default function OrganizationSettingsPage() {
           {/* Fiscal Year Start */}
           <div className="space-y-2">
             <Label htmlFor="fiscal-year" className="text-[13px] sm:text-[15px] font-medium text-foreground flex items-center gap-2">
-              <Globe className="h-4 w-4 text-[#007A78]" />
+              <Globe className="h-4 w-4 text-[#90FCA6]" />
               Fiscal Year Start
             </Label>
             <div className="flex gap-3">
               <Select value={fiscalYearStart.toString()} onValueChange={(val) => { setFiscalYearStart(parseInt(val)); setError(null); }}>
-                <SelectTrigger id="fiscal-year" className="h-11 text-[15px] border border-[#E5E5EA] rounded-xl flex-1 hover:border-[#007A78] transition-colors">
+                <SelectTrigger id="fiscal-year" className="h-11 text-[15px] border border-[#E5E5EA] rounded-xl flex-1 hover:border-[#90FCA6] transition-colors">
                   <SelectValue placeholder="Select fiscal year start" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1047,7 +1047,7 @@ export default function OrganizationSettingsPage() {
               <Button
                 onClick={handleSaveFiscalYear}
                 disabled={isSavingFiscalYear || !hasFiscalYearChanges}
-                className="h-11 px-4 bg-[#007A78] hover:bg-[#006664] text-white text-[15px] font-semibold rounded-xl shadow-sm hover:shadow-md transition-all"
+                className="h-11 px-4 bg-[#90FCA6] hover:bg-[#6EE890] text-[#000000] text-[15px] font-semibold rounded-xl shadow-sm hover:shadow-md transition-all"
               >
                 {isSavingFiscalYear ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -1057,15 +1057,15 @@ export default function OrganizationSettingsPage() {
               </Button>
             </div>
             <p className="text-[13px] text-muted-foreground flex items-start gap-2">
-              <TrendingUp className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-[#007A78]" />
+              <TrendingUp className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-[#90FCA6]" />
               When your fiscal year begins. Auto-suggested based on timezone. Affects cost analytics reporting periods.
             </p>
           </div>
 
           {hasLocaleChanges && (
-            <Alert className="bg-gradient-to-r from-[#007A78]/5 to-[#007A78]/10 border-[#007A78]/20 animate-in slide-in-from-top-2">
-              <AlertTriangle className="h-4 w-4 text-[#007A78]" />
-              <AlertDescription className="text-[#005F5D]">
+            <Alert className="bg-gradient-to-r from-[#90FCA6]/5 to-[#90FCA6]/10 border-[#90FCA6]/20 animate-in slide-in-from-top-2">
+              <AlertTriangle className="h-4 w-4 text-[#90FCA6]" />
+              <AlertDescription className="text-[#6EE890]">
                 You have unsaved changes. Click Save to apply or Reset to discard.
               </AlertDescription>
             </Alert>
@@ -1105,15 +1105,15 @@ export default function OrganizationSettingsPage() {
       </div>
 
       {/* Information Card */}
-      <div className="metric-card shadow-sm bg-gradient-to-br from-[#007A78]/5 via-[#007A78]/8 to-[#007A78]/5 border-[#007A78]/20">
+      <div className="metric-card shadow-sm bg-gradient-to-br from-[#90FCA6]/5 via-[#90FCA6]/8 to-[#90FCA6]/5 border-[#90FCA6]/20">
         <div className="metric-card-content">
           <div className="flex items-start gap-3">
-            <div className="h-10 w-10 rounded-xl bg-[#007A78]/10 flex items-center justify-center flex-shrink-0">
-              <AlertTriangle className="h-5 w-5 text-[#007A78]" />
+            <div className="h-10 w-10 rounded-xl bg-[#90FCA6]/10 flex items-center justify-center flex-shrink-0">
+              <AlertTriangle className="h-5 w-5 text-[#90FCA6]" />
             </div>
             <div className="space-y-2">
-              <h3 className="text-[15px] font-semibold text-[#005F5D]">Important Notes</h3>
-              <ul className="text-[13px] text-[#007A78] space-y-1.5 list-none">
+              <h3 className="text-[15px] font-semibold text-[#6EE890]">Important Notes</h3>
+              <ul className="text-[13px] text-[#90FCA6] space-y-1.5 list-none">
                 <li className="flex items-start gap-2">
                   <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
                   Currency changes affect how costs are displayed but do not convert historical data.
@@ -1139,10 +1139,10 @@ export default function OrganizationSettingsPage() {
 
         <TabsContent value="contact" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Contact Details */}
-      <div className="metric-card shadow-sm hover:shadow-md transition-shadow duration-300 border-l-4 border-l-[#007A78]">
+      <div className="metric-card shadow-sm hover:shadow-md transition-shadow duration-300 border-l-4 border-l-[#90FCA6]">
         <div className="metric-card-header mb-6">
           <div className="flex items-center gap-3">
-            <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-[#007A78] to-[#005F5D] flex items-center justify-center shadow-sm">
+            <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-[#90FCA6] to-[#6EE890] flex items-center justify-center shadow-sm">
               <User className="h-6 w-6 text-white" />
             </div>
             <div>
@@ -1157,15 +1157,15 @@ export default function OrganizationSettingsPage() {
         <div className="metric-card-content space-y-6">
           {loadingContactDetails ? (
             <div className="flex items-center gap-3 py-8">
-              <Loader2 className="h-5 w-5 animate-spin text-[#007A78]" />
+              <Loader2 className="h-5 w-5 animate-spin text-[#90FCA6]" />
               <span className="text-[15px] text-muted-foreground">Loading contact details...</span>
             </div>
           ) : (
             <>
               {/* Business Person Section */}
-              <div className="space-y-4 p-4 rounded-xl bg-gradient-to-br from-[#007A78]/5 to-transparent border border-[#007A78]/10">
+              <div className="space-y-4 p-4 rounded-xl bg-gradient-to-br from-[#90FCA6]/5 to-transparent border border-[#90FCA6]/10">
                 <h3 className="text-[15px] font-medium text-black flex items-center gap-2">
-                  <UserCog className="h-4 w-4 text-[#007A78]" />
+                  <UserCog className="h-4 w-4 text-[#90FCA6]" />
                   Business Contact Person
                 </h3>
 
@@ -1180,7 +1180,7 @@ export default function OrganizationSettingsPage() {
                       value={contactDetails.business_person_name || ""}
                       onChange={(e) => updateContactField("business_person_name", e.target.value)}
                       placeholder="John Smith"
-                      className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg focus:border-[#007A78] focus:ring-1 focus:ring-[#007A78]"
+                      className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6]"
                     />
                   </div>
 
@@ -1194,7 +1194,7 @@ export default function OrganizationSettingsPage() {
                       value={contactDetails.business_person_position || ""}
                       onChange={(e) => updateContactField("business_person_position", e.target.value)}
                       placeholder="CTO, Finance Manager"
-                      className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg focus:border-[#007A78] focus:ring-1 focus:ring-[#007A78]"
+                      className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6]"
                     />
                   </div>
 
@@ -1208,7 +1208,7 @@ export default function OrganizationSettingsPage() {
                       value={contactDetails.business_person_department || ""}
                       onChange={(e) => updateContactField("business_person_department", e.target.value)}
                       placeholder="Engineering, Finance"
-                      className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg focus:border-[#007A78] focus:ring-1 focus:ring-[#007A78]"
+                      className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6]"
                     />
                   </div>
                 </div>
@@ -1220,7 +1220,7 @@ export default function OrganizationSettingsPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="contactEmail" className="text-[13px] sm:text-[15px] font-medium text-foreground flex items-center gap-2">
-                    <Mail className="h-4 w-4 text-[#007A78]" />
+                    <Mail className="h-4 w-4 text-[#90FCA6]" />
                     Business Email
                   </Label>
                   <Input
@@ -1229,13 +1229,13 @@ export default function OrganizationSettingsPage() {
                     value={contactDetails.contact_email || ""}
                     onChange={(e) => updateContactField("contact_email", e.target.value)}
                     placeholder="contact@company.com"
-                    className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg focus:border-[#007A78] focus:ring-1 focus:ring-[#007A78]"
+                    className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6]"
                   />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="contactPhone" className="text-[13px] sm:text-[15px] font-medium text-foreground flex items-center gap-2">
-                    <Phone className="h-4 w-4 text-[#007A78]" />
+                    <Phone className="h-4 w-4 text-[#90FCA6]" />
                     Business Phone
                   </Label>
                   <Input
@@ -1244,7 +1244,7 @@ export default function OrganizationSettingsPage() {
                     value={contactDetails.contact_phone || ""}
                     onChange={(e) => updateContactField("contact_phone", e.target.value)}
                     placeholder="+1 234-567-8900"
-                    className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg focus:border-[#007A78] focus:ring-1 focus:ring-[#007A78]"
+                    className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6]"
                   />
                 </div>
               </div>
@@ -1252,9 +1252,9 @@ export default function OrganizationSettingsPage() {
               <Separator />
 
               {/* Address Section */}
-              <div className="space-y-4 p-4 rounded-xl bg-gradient-to-br from-[#007A78]/5 to-transparent border border-[#007A78]/10">
+              <div className="space-y-4 p-4 rounded-xl bg-gradient-to-br from-[#90FCA6]/5 to-transparent border border-[#90FCA6]/10">
                 <h3 className="text-[15px] font-medium text-black flex items-center gap-2">
-                  <MapPin className="h-4 w-4 text-[#007A78]" />
+                  <MapPin className="h-4 w-4 text-[#90FCA6]" />
                   Business Address
                 </h3>
 
@@ -1269,7 +1269,7 @@ export default function OrganizationSettingsPage() {
                       value={contactDetails.business_address_line1 || ""}
                       onChange={(e) => updateContactField("business_address_line1", e.target.value)}
                       placeholder="123 Main Street"
-                      className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg focus:border-[#007A78] focus:ring-1 focus:ring-[#007A78]"
+                      className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6]"
                     />
                   </div>
 
@@ -1283,7 +1283,7 @@ export default function OrganizationSettingsPage() {
                       value={contactDetails.business_address_line2 || ""}
                       onChange={(e) => updateContactField("business_address_line2", e.target.value)}
                       placeholder="Suite 100, Floor 2"
-                      className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg focus:border-[#007A78] focus:ring-1 focus:ring-[#007A78]"
+                      className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6]"
                     />
                   </div>
 
@@ -1298,7 +1298,7 @@ export default function OrganizationSettingsPage() {
                         value={contactDetails.business_city || ""}
                         onChange={(e) => updateContactField("business_city", e.target.value)}
                         placeholder="San Francisco"
-                        className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg focus:border-[#007A78] focus:ring-1 focus:ring-[#007A78]"
+                        className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6]"
                       />
                     </div>
 
@@ -1312,7 +1312,7 @@ export default function OrganizationSettingsPage() {
                         value={contactDetails.business_state || ""}
                         onChange={(e) => updateContactField("business_state", e.target.value)}
                         placeholder="CA"
-                        className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg focus:border-[#007A78] focus:ring-1 focus:ring-[#007A78]"
+                        className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6]"
                       />
                     </div>
 
@@ -1326,7 +1326,7 @@ export default function OrganizationSettingsPage() {
                         value={contactDetails.business_postal_code || ""}
                         onChange={(e) => updateContactField("business_postal_code", e.target.value)}
                         placeholder="94102"
-                        className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg focus:border-[#007A78] focus:ring-1 focus:ring-[#007A78]"
+                        className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6]"
                       />
                     </div>
 
@@ -1341,7 +1341,7 @@ export default function OrganizationSettingsPage() {
                         onChange={(e) => updateContactField("business_country", e.target.value.toUpperCase())}
                         placeholder="US"
                         maxLength={2}
-                        className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg focus:border-[#007A78] focus:ring-1 focus:ring-[#007A78] uppercase"
+                        className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6] uppercase"
                       />
                       <p className="text-[11px] text-muted-foreground">ISO 3166-1 (e.g., US, GB, IN)</p>
                     </div>
@@ -1350,9 +1350,9 @@ export default function OrganizationSettingsPage() {
               </div>
 
               {hasContactChanges && (
-                <Alert className="bg-gradient-to-r from-[#007A78]/5 to-[#007A78]/10 border-[#007A78]/20 animate-in slide-in-from-top-2">
-                  <AlertTriangle className="h-4 w-4 text-[#007A78]" />
-                  <AlertDescription className="text-[#005F5D]">
+                <Alert className="bg-gradient-to-r from-[#90FCA6]/5 to-[#90FCA6]/10 border-[#90FCA6]/20 animate-in slide-in-from-top-2">
+                  <AlertTriangle className="h-4 w-4 text-[#90FCA6]" />
+                  <AlertDescription className="text-[#6EE890]">
                     You have unsaved changes. Click Save to apply or Reset to discard.
                   </AlertDescription>
                 </Alert>
@@ -1396,10 +1396,10 @@ export default function OrganizationSettingsPage() {
 
         <TabsContent value="backend" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Backend Connection */}
-      <div className="metric-card shadow-sm hover:shadow-md transition-shadow duration-300 border-l-4 border-l-[#007A78]">
+      <div className="metric-card shadow-sm hover:shadow-md transition-shadow duration-300 border-l-4 border-l-[#90FCA6]">
         <div className="metric-card-header mb-6">
           <div className="flex items-center gap-3">
-            <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-[#007A78] to-[#005F5D] flex items-center justify-center shadow-sm">
+            <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-[#90FCA6] to-[#6EE890] flex items-center justify-center shadow-sm">
               <Server className="h-6 w-6 text-white" />
             </div>
             <div>
@@ -1414,16 +1414,16 @@ export default function OrganizationSettingsPage() {
         <div className="metric-card-content space-y-4">
           {loadingBackendStatus ? (
             <div className="flex items-center gap-3 py-8">
-              <Loader2 className="h-5 w-5 animate-spin text-[#007A78]" />
+              <Loader2 className="h-5 w-5 animate-spin text-[#90FCA6]" />
               <span className="text-[15px] text-muted-foreground">Checking connection status...</span>
             </div>
           ) : (
             <>
               {/* Backend Error Alert */}
               {backendError && (
-                <Alert variant="destructive" className="border-[#FF6E50]/30 bg-[#FF6E50]/5 animate-in slide-in-from-top-2">
-                  <AlertTriangle className="h-4 w-4 text-[#FF6E50]" />
-                  <AlertDescription className="text-[#FF6E50]">
+                <Alert variant="destructive" className="border-[#FF6C5E]/30 bg-[#FF6C5E]/5 animate-in slide-in-from-top-2">
+                  <AlertTriangle className="h-4 w-4 text-[#FF6C5E]" />
+                  <AlertDescription className="text-[#FF6C5E]">
                     {backendError}
                   </AlertDescription>
                 </Alert>
@@ -1432,15 +1432,15 @@ export default function OrganizationSettingsPage() {
               {/* Connection Status */}
               <div className={`flex items-center justify-between p-5 border-2 rounded-2xl transition-all ${
                 backendOnboarded && apiKeyValid !== false
-                  ? 'border-[#007A78]/30 bg-gradient-to-br from-[#007A78]/5 to-[#007A78]/10'
-                  : 'border-[#FF6E50]/30 bg-gradient-to-br from-[#FF6E50]/5 to-[#FF6E50]/10'
+                  ? 'border-[#90FCA6]/30 bg-gradient-to-br from-[#90FCA6]/5 to-[#90FCA6]/10'
+                  : 'border-[#FF6C5E]/30 bg-gradient-to-br from-[#FF6C5E]/5 to-[#FF6C5E]/10'
               }`}>
                 <div className="flex items-center gap-4">
                   <div className={`relative h-4 w-4 rounded-full ${
-                    backendOnboarded && apiKeyValid !== false ? 'bg-[#007A78]' : 'bg-[#FF6E50]'
+                    backendOnboarded && apiKeyValid !== false ? 'bg-[#90FCA6]' : 'bg-[#FF6C5E]'
                   }`}>
                     <div className={`absolute inset-0 rounded-full ${
-                      backendOnboarded && apiKeyValid !== false ? 'bg-[#007A78]' : 'bg-[#FF6E50]'
+                      backendOnboarded && apiKeyValid !== false ? 'bg-[#90FCA6]' : 'bg-[#FF6C5E]'
                     } animate-ping opacity-75`} />
                   </div>
                   <div>
@@ -1457,13 +1457,13 @@ export default function OrganizationSettingsPage() {
                   </div>
                 </div>
                 {backendOnboarded && apiKeyValid !== false && (
-                  <Badge className="flex-shrink-0 bg-[#007A78] text-white border-0 px-3 py-1">
+                  <Badge className="flex-shrink-0 bg-[#90FCA6] text-[#1a7a3a] border-0 px-3 py-1">
                     <CheckCircle2 className="h-3 w-3 mr-1" />
                     Active
                   </Badge>
                 )}
                 {apiKeyValid === false && (
-                  <Badge className="flex-shrink-0 bg-[#FF6E50] text-white border-0 px-3 py-1">
+                  <Badge className="flex-shrink-0 bg-[#FF6C5E] text-white border-0 px-3 py-1">
                     <AlertTriangle className="h-3 w-3 mr-1" />
                     Invalid
                   </Badge>
@@ -1474,25 +1474,25 @@ export default function OrganizationSettingsPage() {
               {apiKeyFingerprint && (
                 <div className={`flex items-center justify-between p-5 border-2 rounded-2xl transition-all ${
                   apiKeyValid === false
-                    ? 'border-[#FF6E50]/30 bg-gradient-to-br from-[#FF6E50]/5 to-[#FF6E50]/10'
-                    : 'border-[#007A78]/30 bg-gradient-to-br from-[#007A78]/5 to-[#007A78]/10'
+                    ? 'border-[#FF6C5E]/30 bg-gradient-to-br from-[#FF6C5E]/5 to-[#FF6C5E]/10'
+                    : 'border-[#90FCA6]/30 bg-gradient-to-br from-[#90FCA6]/5 to-[#90FCA6]/10'
                 }`}>
                   <div className="flex items-center gap-4 flex-1 min-w-0">
                     <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${
-                      apiKeyValid === false ? 'bg-[#FF6E50]/10' : 'bg-[#007A78]/10'
+                      apiKeyValid === false ? 'bg-[#FF6C5E]/10' : 'bg-[#90FCA6]/10'
                     }`}>
-                      <Key className={`h-5 w-5 ${apiKeyValid === false ? 'text-[#FF6E50]' : 'text-[#007A78]'}`} />
+                      <Key className={`h-5 w-5 ${apiKeyValid === false ? 'text-[#FF6C5E]' : 'text-[#90FCA6]'}`} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-[15px] font-medium text-black">API Key</p>
-                      <p className={`text-[13px] font-mono truncate ${apiKeyValid === false ? 'text-[#FF6E50]' : 'text-muted-foreground'}`}>
+                      <p className={`text-[13px] font-mono truncate ${apiKeyValid === false ? 'text-[#FF6C5E]' : 'text-muted-foreground'}`}>
                         ••••••••{apiKeyFingerprint}
                         {apiKeyValid === false && " (invalid)"}
                       </p>
                     </div>
                   </div>
                   {apiKeyValid === true && (
-                    <Badge className="flex-shrink-0 ml-3 bg-[#007A78]/10 text-[#007A78] border-0">
+                    <Badge className="flex-shrink-0 ml-3 bg-[#90FCA6]/10 text-[#90FCA6] border-0">
                       <CheckCircle2 className="h-3 w-3 mr-1" />
                       Valid
                     </Badge>
@@ -1502,9 +1502,9 @@ export default function OrganizationSettingsPage() {
 
               {/* Help text for invalid API key */}
               {apiKeyValid === false && (
-                <div className="p-4 border-2 border-[#007A78]/20 rounded-xl bg-gradient-to-br from-[#007A78]/5 to-transparent">
-                  <p className="text-[13px] text-[#005F5D] flex items-start gap-2">
-                    <TrendingUp className="h-4 w-4 mt-0.5 flex-shrink-0 text-[#007A78]" />
+                <div className="p-4 border-2 border-[#90FCA6]/20 rounded-xl bg-gradient-to-br from-[#90FCA6]/5 to-transparent">
+                  <p className="text-[13px] text-[#6EE890] flex items-start gap-2">
+                    <TrendingUp className="h-4 w-4 mt-0.5 flex-shrink-0 text-[#90FCA6]" />
                     <span>
                       <strong>How to fix:</strong> Your API key may have been rotated or deactivated.
                       Try clicking "Resync Connection" below, or contact support if the issue persists.
@@ -1554,7 +1554,7 @@ export default function OrganizationSettingsPage() {
                 onClick={handleSyncBilling}
                 disabled={isBillingSyncing || loadingBackendStatus}
                 variant="outline"
-                className="h-11 px-6 rounded-xl border-2 border-[#007A78]/30 text-[#007A78] hover:bg-[#007A78]/5 transition-all hover:shadow-md"
+                className="h-11 px-6 rounded-xl border-2 border-[#90FCA6]/30 text-[#90FCA6] hover:bg-[#90FCA6]/5 transition-all hover:shadow-md"
               >
                 {isBillingSyncing ? (
                   <>
@@ -1581,28 +1581,28 @@ export default function OrganizationSettingsPage() {
       {/* Danger Zone Section */}
       <div className="pt-4 sm:pt-6">
         <div className="flex items-center gap-3 mb-6">
-          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-[#FF6E50] to-[#E55A3C] flex items-center justify-center shadow-sm">
+          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-[#FF6C5E] to-[#E55A3C] flex items-center justify-center shadow-sm">
             <AlertTriangle className="h-5 w-5 text-white" />
           </div>
-          <h2 className="text-[22px] font-bold text-[#FF6E50]">Danger Zone</h2>
+          <h2 className="text-[22px] font-bold text-[#FF6C5E]">Danger Zone</h2>
         </div>
 
         {/* Owned Organizations Management */}
         {loadingOwnedOrgs ? (
-          <div className="metric-card shadow-sm border-[#FF6E50]/30">
+          <div className="metric-card shadow-sm border-[#FF6C5E]/30">
             <div className="metric-card-content py-8">
               <div className="flex items-center justify-center">
-                <Loader2 className="h-6 w-6 animate-spin text-[#007A78]" />
+                <Loader2 className="h-6 w-6 animate-spin text-[#90FCA6]" />
                 <span className="ml-2 text-[15px] text-muted-foreground">Loading organizations...</span>
               </div>
             </div>
           </div>
         ) : ownedOrgs.length > 0 ? (
-          <div className="metric-card shadow-sm border-2 border-[#FF6E50]/30 mb-6">
+          <div className="metric-card shadow-sm border-2 border-[#FF6C5E]/30 mb-6">
             <div className="metric-card-header mb-4">
               <div className="flex items-center gap-2">
-                <Building2 className="h-5 w-5 text-[#FF6E50]" />
-                <h3 className="text-[18px] font-bold text-[#FF6E50]">Organizations You Own</h3>
+                <Building2 className="h-5 w-5 text-[#FF6C5E]" />
+                <h3 className="text-[18px] font-bold text-[#FF6C5E]">Organizations You Own</h3>
               </div>
               <p className="text-[13px] sm:text-[15px] text-muted-foreground mt-1">
                 You must transfer ownership or delete these organizations before you can delete your account.
@@ -1612,7 +1612,7 @@ export default function OrganizationSettingsPage() {
               {ownedOrgs.map((org) => (
                 <div
                   key={org.id}
-                  className="flex items-center justify-between p-4 border-2 border-border rounded-xl bg-gradient-to-br from-[#007A78]/5 to-transparent hover:border-[#007A78]/30 transition-all"
+                  className="flex items-center justify-between p-4 border-2 border-border rounded-xl bg-gradient-to-br from-[#90FCA6]/5 to-transparent hover:border-[#90FCA6]/30 transition-all"
                 >
                   <div className="flex items-center gap-3">
                     <Building2 className="h-5 w-5 text-muted-foreground" />
@@ -1621,7 +1621,7 @@ export default function OrganizationSettingsPage() {
                       <div className="flex items-center gap-2 text-[13px] text-muted-foreground">
                         <Users className="h-3 w-3" />
                         <span>{org.member_count} member{org.member_count !== 1 ? "s" : ""}</span>
-                        <Badge variant="outline" className="flex-shrink-0 ml-2 bg-[#007A78]/12 text-[#007A78] border-0">Owner</Badge>
+                        <Badge variant="outline" className="flex-shrink-0 ml-2 bg-[#90FCA6]/12 text-[#90FCA6] border-0">Owner</Badge>
                       </div>
                     </div>
                   </div>
@@ -1641,7 +1641,7 @@ export default function OrganizationSettingsPage() {
                       variant="destructive"
                       size="sm"
                       onClick={() => openDeleteOrgDialog(org)}
-                      className="h-11 rounded-xl bg-[#FF6E50] hover:bg-[#E55A3C] text-white shadow-sm"
+                      className="h-11 rounded-xl bg-[#FF6C5E] hover:bg-[#E55A3C] text-white shadow-sm"
                     >
                       <Trash2 className="h-4 w-4 mr-2" />
                       Delete
@@ -1729,8 +1729,8 @@ export default function OrganizationSettingsPage() {
               </DialogDescription>
             </DialogHeader>
             <div className="py-4">
-              <Alert variant="destructive" className="mb-4 border-[#FF6E50]/30 bg-[#FF6E50]/5">
-                <AlertTriangle className="h-4 w-4 text-[#FF6E50]" />
+              <Alert variant="destructive" className="mb-4 border-[#FF6C5E]/30 bg-[#FF6C5E]/5">
+                <AlertTriangle className="h-4 w-4 text-[#FF6C5E]" />
                 <AlertDescription>
                   All organization data, members, invites, and settings will be permanently deleted.
                   {selectedOrgForDelete?.member_count && selectedOrgForDelete.member_count > 1 && (
@@ -1782,18 +1782,18 @@ export default function OrganizationSettingsPage() {
         </Dialog>
 
         {/* Account Deletion Card */}
-        <div className="metric-card shadow-sm border-2 border-[#FF6E50]/30">
+        <div className="metric-card shadow-sm border-2 border-[#FF6C5E]/30">
           <div className="metric-card-header mb-4">
             <div className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-[#FF6E50]" />
-              <h3 className="text-[18px] font-bold text-[#FF6E50]">Delete Account</h3>
+              <AlertTriangle className="h-5 w-5 text-[#FF6C5E]" />
+              <h3 className="text-[18px] font-bold text-[#FF6C5E]">Delete Account</h3>
             </div>
             <p className="text-[13px] sm:text-[15px] text-muted-foreground mt-1">Permanently delete your account and all associated data</p>
           </div>
           <div className="metric-card-content">
             {deletionRequested ? (
-              <Alert className="bg-muted border-[#007A78]/30">
-                <Mail className="h-4 w-4 text-[#007A78]" />
+              <Alert className="bg-muted border-[#90FCA6]/30">
+                <Mail className="h-4 w-4 text-[#90FCA6]" />
                 <AlertDescription>
                   <p className="font-medium text-foreground">Verification email sent!</p>
                   <p className="text-sm mt-1">
@@ -1803,16 +1803,16 @@ export default function OrganizationSettingsPage() {
                 </AlertDescription>
               </Alert>
             ) : ownedOrgs.length > 0 ? (
-              <Alert variant="destructive" className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
-                <AlertTriangle className="h-4 w-4 text-[#FF6E50]" />
+              <Alert variant="destructive" className="border-[#FF6C5E]/30 bg-[#FF6C5E]/5">
+                <AlertTriangle className="h-4 w-4 text-[#FF6C5E]" />
                 <AlertDescription>
                   You own {ownedOrgs.length} organization{ownedOrgs.length !== 1 ? "s" : ""}.
                   Please transfer ownership or delete them before deleting your account.
                 </AlertDescription>
               </Alert>
             ) : (
-              <Alert variant="destructive" className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
-                <AlertTriangle className="h-4 w-4 text-[#FF6E50]" />
+              <Alert variant="destructive" className="border-[#FF6C5E]/30 bg-[#FF6C5E]/5">
+                <AlertTriangle className="h-4 w-4 text-[#FF6C5E]" />
                 <AlertDescription>
                   Deleting your account will permanently remove you from all organizations and cannot be
                   undone. Your data will be lost forever.
@@ -1826,7 +1826,7 @@ export default function OrganizationSettingsPage() {
                 <Button
                   variant="destructive"
                   disabled={ownedOrgs.length > 0 || isRequestingDeletion || deletionRequested}
-                  className="bg-[#FF6E50] hover:bg-[#E55A3C] text-white shadow-sm hover:shadow-md transition-all"
+                  className="bg-[#FF6C5E] hover:bg-[#E55A3C] text-white shadow-sm hover:shadow-md transition-all"
                 >
                   {isRequestingDeletion ? (
                     <>

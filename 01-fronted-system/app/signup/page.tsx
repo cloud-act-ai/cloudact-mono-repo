@@ -169,7 +169,7 @@ function SignupForm() {
   return (
     <div className="w-full max-w-[480px] space-y-3">
       <div className="flex flex-col items-center gap-2 text-center">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#007A78] text-white shadow-lg shadow-[#007A78]/20">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-mint text-black shadow-lg shadow-mint/20">
           <Cloud className="h-5 w-5" />
         </div>
         <div className="space-y-1">
@@ -203,7 +203,7 @@ function SignupForm() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="h-10 focus:border-[#007A78] focus:ring-[#007A78]"
+                  className="h-10 focus:border-mint focus:ring-mint"
                   disabled={isLoading}
                   autoComplete="email"
                 />
@@ -222,7 +222,7 @@ function SignupForm() {
                   minLength={8}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="h-10 focus:border-[#007A78] focus:ring-[#007A78]"
+                  className="h-10 focus:border-mint focus:ring-mint"
                   disabled={isLoading}
                   autoComplete="new-password"
                 />
@@ -237,7 +237,7 @@ function SignupForm() {
               </Label>
               <div className="flex gap-2">
                 <Select value={countryCode} onValueChange={setCountryCode} disabled={isLoading}>
-                  <SelectTrigger className="w-24 h-10 justify-center focus:border-[#007A78] focus:ring-[#007A78]">
+                  <SelectTrigger className="w-24 h-10 justify-center focus:border-mint focus:ring-mint">
                     <SelectValue className="text-center">{countryCode}</SelectValue>
                   </SelectTrigger>
                   <SelectContent className="max-h-[300px]">
@@ -255,7 +255,7 @@ function SignupForm() {
                   required
                   value={phoneNumber}
                   onChange={(e) => setPhoneNumber(e.target.value)}
-                  className="h-10 flex-1 focus:border-[#007A78] focus:ring-[#007A78]"
+                  className="h-10 flex-1 focus:border-mint focus:ring-mint"
                   disabled={isLoading}
                   autoComplete="tel-national"
                 />
@@ -283,7 +283,7 @@ function SignupForm() {
                     maxLength={100}
                     value={companyName}
                     onChange={(e) => setCompanyName(e.target.value)}
-                    className="h-10 focus:border-[#007A78] focus:ring-[#007A78]"
+                    className="h-10 focus:border-mint focus:ring-mint"
                     disabled={isLoading}
                     autoComplete="organization"
                   />
@@ -298,7 +298,7 @@ function SignupForm() {
                     id="companyType"
                     value={companyType}
                     onChange={(e) => setCompanyType(e.target.value)}
-                    className="flex h-10 w-full rounded-md border border-input bg-white px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="flex h-10 w-full rounded-md border border-input bg-white px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-mint focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                     disabled={isLoading}
                     aria-label="Select company type"
                   >
@@ -319,7 +319,7 @@ function SignupForm() {
                     Currency
                   </Label>
                   <Select value={currency} onValueChange={setCurrency} disabled={isLoading}>
-                    <SelectTrigger className="h-10 focus:border-[#007A78] focus:ring-[#007A78]">
+                    <SelectTrigger className="h-10 focus:border-mint focus:ring-mint">
                       <SelectValue placeholder="Select currency" />
                     </SelectTrigger>
                     <SelectContent className="max-h-[300px]">
@@ -338,7 +338,7 @@ function SignupForm() {
                     Timezone
                   </Label>
                   <Select value={timezone} onValueChange={setTimezone} disabled={isLoading}>
-                    <SelectTrigger className="h-10 focus:border-[#007A78] focus:ring-[#007A78]">
+                    <SelectTrigger className="h-10 focus:border-mint focus:ring-mint">
                       <SelectValue placeholder="Select timezone" />
                     </SelectTrigger>
                     <SelectContent className="max-h-[300px]">
@@ -355,8 +355,8 @@ function SignupForm() {
           )}
 
           {serverError && (
-            <Alert variant="destructive" className="py-2 bg-[#FFF5F3] border-[#FF6E50]">
-              <AlertDescription className="text-sm text-[#FF6E50]">{serverError}</AlertDescription>
+            <Alert variant="destructive" className="py-2 bg-[var(--cloudact-bg-coral)] border-coral">
+              <AlertDescription className="text-sm text-coral">{serverError}</AlertDescription>
             </Alert>
           )}
 
@@ -381,7 +381,7 @@ function SignupForm() {
 
       <div className="text-center text-sm text-gray-600">
         Already have an account?{" "}
-        <Link href="/login" className="font-semibold text-[#007A78] hover:text-[#005F5D] hover:underline">
+        <Link href="/login" className="font-semibold text-ca-blue hover:text-ca-blue-dark hover:underline">
           Sign in
         </Link>
       </div>
@@ -393,7 +393,7 @@ function SignupFormFallback() {
   return (
     <div className="w-full max-w-[480px] space-y-3">
       <div className="flex flex-col items-center gap-2 text-center">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#007A78] text-white shadow-lg">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-mint text-black shadow-lg">
           <Cloud className="h-5 w-5" />
         </div>
         <div className="space-y-1">
@@ -402,7 +402,7 @@ function SignupFormFallback() {
         </div>
       </div>
       <div className="glass-card p-5 flex items-center justify-center min-h-[300px]">
-        <Loader2 className="h-6 w-6 animate-spin text-[#007A78]" />
+        <Loader2 className="h-6 w-6 animate-spin text-mint-dark" />
       </div>
     </div>
   )

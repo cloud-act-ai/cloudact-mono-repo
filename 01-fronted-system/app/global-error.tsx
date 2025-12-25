@@ -34,7 +34,7 @@ export default function GlobalError({
         backgroundColor: '#fff'
       }}>
         <div style={{ maxWidth: '600px', margin: '0 auto' }}>
-          <h1 style={{ color: '#FF6E50', marginBottom: '1rem' }}>
+          <h1 style={{ color: 'var(--cloudact-coral)', marginBottom: '1rem' }}>
             Application Error
           </h1>
           <p style={{ color: '#666', marginBottom: '1rem' }}>
@@ -90,8 +90,8 @@ export default function GlobalError({
             <button
               onClick={reset}
               style={{
-                backgroundColor: '#007A78',
-                color: 'white',
+                backgroundColor: 'var(--cloudact-mint)',
+                color: 'black',
                 border: 'none',
                 padding: '0.75rem 1.5rem',
                 borderRadius: '8px',

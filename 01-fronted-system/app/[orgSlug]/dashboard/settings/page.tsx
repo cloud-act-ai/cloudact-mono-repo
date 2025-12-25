@@ -66,21 +66,21 @@ export default async function SettingsPage({
           label: "Organization Settings",
           description: "Name, branding, and locale preferences",
           href: `/${orgSlug}/settings/organization`,
-          accent: "#007A78"
+          accent: "#90FCA6"
         },
         {
           icon: Users,
           label: "Team Members",
           description: "Invite and manage team members",
           href: `/${orgSlug}/settings/invite`,
-          accent: "#FF6E50"
+          accent: "#FF6C5E"
         },
         {
           icon: Globe,
           label: "Localization",
           description: "Currency, timezone, and fiscal year",
           href: `/${orgSlug}/settings/organization`,
-          accent: "#007A78"
+          accent: "#90FCA6"
         }
       ]
     },
@@ -93,7 +93,7 @@ export default async function SettingsPage({
           label: "Cloud Providers",
           description: "GCP, AWS, Azure cost tracking",
           href: `/${orgSlug}/integrations/cloud-providers`,
-          accent: "#007A78",
+          accent: "#90FCA6",
           badge: cloudCount > 0 ? `${cloudCount} connected` : null
         },
         {
@@ -109,7 +109,7 @@ export default async function SettingsPage({
           label: "SaaS Subscriptions",
           description: "Track subscription costs",
           href: `/${orgSlug}/integrations/subscriptions`,
-          accent: "#007A78"
+          accent: "#90FCA6"
         }
       ]
     },
@@ -122,21 +122,21 @@ export default async function SettingsPage({
           label: "Personal Settings",
           description: "Your profile and preferences",
           href: `/${orgSlug}/settings/profile`,
-          accent: "#007A78"
+          accent: "#90FCA6"
         },
         {
           icon: Shield,
           label: "Security",
           description: "API keys and access control",
           href: `/${orgSlug}/settings/security`,
-          accent: "#FF6E50"
+          accent: "#FF6C5E"
         },
         {
           icon: Activity,
           label: "Quota & Usage",
           description: "Monitor API usage limits",
           href: `/${orgSlug}/settings/quota-usage`,
-          accent: "#007A78"
+          accent: "#90FCA6"
         }
       ]
     },
@@ -149,7 +149,7 @@ export default async function SettingsPage({
           label: "Subscription & Billing",
           description: "Plan, payments, and invoices",
           href: `/${orgSlug}/billing`,
-          accent: "#007A78"
+          accent: "#90FCA6"
         }
       ]
     }
@@ -170,8 +170,8 @@ export default async function SettingsPage({
       {/* Stats Row */}
       <div className="flex items-center gap-6 mb-10">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-[#007A78]/10 flex items-center justify-center">
-            <Cloud className="h-5 w-5 text-[#007A78]" />
+          <div className="h-10 w-10 rounded-xl bg-[#90FCA6]/10 flex items-center justify-center">
+            <Cloud className="h-5 w-5 text-[#1a7a3a]" />
           </div>
           <div>
             <p className="text-[24px] font-bold text-slate-900 leading-none">{cloudCount}</p>
@@ -190,8 +190,8 @@ export default async function SettingsPage({
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-[#007A78]/10 flex items-center justify-center">
-            <Shield className="h-5 w-5 text-[#007A78]" />
+          <div className="h-10 w-10 rounded-xl bg-[#90FCA6]/10 flex items-center justify-center">
+            <Shield className="h-5 w-5 text-[#1a7a3a]" />
           </div>
           <div>
             <p className="text-[24px] font-bold text-slate-900 leading-none">Protected</p>
@@ -243,7 +243,7 @@ export default async function SettingsPage({
                     </div>
                     <div className="flex items-center gap-3">
                       {item.badge && (
-                        <span className="px-2.5 py-1 rounded-full bg-[#007A78]/10 text-[#007A78] text-[11px] font-semibold">
+                        <span className="px-2.5 py-1 rounded-full bg-[#90FCA6]/10 text-[#1a7a3a] text-[11px] font-semibold">
                           {item.badge}
                         </span>
                       )}
@@ -269,7 +269,7 @@ export default async function SettingsPage({
           Check our documentation or contact support for configuration assistance.
         </p>
         <div className="flex gap-3 justify-center">
-          <button className="h-10 px-5 bg-[#007A78] hover:bg-[#006664] text-white text-[13px] font-semibold rounded-xl transition-colors inline-flex items-center gap-2">
+          <button className="h-10 px-5 bg-[#90FCA6] hover:bg-[#B8FDCA] text-[#000000] text-[13px] font-semibold rounded-xl transition-colors inline-flex items-center gap-2">
             View Docs
           </button>
           <button className="h-10 px-5 bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 text-[13px] font-semibold rounded-xl transition-colors inline-flex items-center gap-2">

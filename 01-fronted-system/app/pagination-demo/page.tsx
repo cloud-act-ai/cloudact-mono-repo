@@ -55,10 +55,10 @@ export default function PaginationDemoPage() {
               <h3 className="font-semibold text-lg mb-4">Brand Colors</h3>
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-lg bg-[#007A78]"></div>
+                  <div className="w-12 h-12 rounded-lg bg-[#90FCA6]"></div>
                   <div>
                     <div className="font-medium">Active Page</div>
-                    <div className="text-sm text-gray-500">#007A78</div>
+                    <div className="text-sm text-gray-500">#90FCA6</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -82,23 +82,23 @@ export default function PaginationDemoPage() {
               <h3 className="font-semibold text-lg mb-4">Accessibility</h3>
               <ul className="space-y-2 text-sm">
                 <li className="flex items-start gap-2">
-                  <span className="text-[#007A78]">✓</span>
+                  <span className="text-[#1a7a3a]">✓</span>
                   <span>Touch targets: 44px minimum</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-[#007A78]">✓</span>
+                  <span className="text-[#1a7a3a]">✓</span>
                   <span>Keyboard navigation supported</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-[#007A78]">✓</span>
+                  <span className="text-[#1a7a3a]">✓</span>
                   <span>Screen reader friendly (ARIA labels)</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-[#007A78]">✓</span>
+                  <span className="text-[#1a7a3a]">✓</span>
                   <span>Focus indicators visible</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-[#007A78]">✓</span>
+                  <span className="text-[#1a7a3a]">✓</span>
                   <span>Color contrast compliant (WCAG AA)</span>
                 </li>
               </ul>
@@ -136,9 +136,9 @@ export default function PaginationDemoPage() {
           </div>
         </section>
 
-        <section className="bg-[#007A78]/5 border border-[#007A78]/20 rounded-lg p-6">
-          <h2 className="text-xl font-bold text-[#005F5D] mb-3">Usage Instructions</h2>
-          <p className="text-[#007A78] mb-4">
+        <section className="bg-[#90FCA6]/5 border border-[#90FCA6]/20 rounded-lg p-6">
+          <h2 className="text-xl font-bold text-[#1a7a3a] mb-3">Usage Instructions</h2>
+          <p className="text-[#1a7a3a] mb-4">
             Import the pagination components in your pages:
           </p>
           <pre className="bg-white rounded-lg p-4 overflow-x-auto text-sm border">
@@ -152,7 +152,7 @@ export default function PaginationDemoPage() {
   PaginationPrevious,
 } from "@/components/ui/pagination"`}</code>
           </pre>
-          <p className="text-[#007A78] mt-4">
+          <p className="text-[#1a7a3a] mt-4">
             See <code className="bg-white px-2 py-1 rounded">components/ui/PAGINATION_README.md</code> for full documentation.
           </p>
         </section>

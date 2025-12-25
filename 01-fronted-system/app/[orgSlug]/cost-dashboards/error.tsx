@@ -26,7 +26,7 @@ export default function CostDashboardsError({
   return (
     <div className="flex items-center justify-center p-4 min-h-[60vh]">
       <div className="metric-card max-w-md mx-auto px-6 py-10 text-center space-y-6">
-        <AlertCircle className="h-14 w-14 text-[#FF6E50] mx-auto" />
+        <AlertCircle className="h-14 w-14 text-coral mx-auto" />
         <div className="space-y-2">
           <h2 className="text-[22px] font-bold text-black">Something went wrong</h2>
           <p className="text-[15px] text-muted-foreground leading-relaxed">

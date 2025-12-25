@@ -30,7 +30,7 @@ export function CostChart() {
           <span>Spending Trend</span>
         </div>
         <div className="flex items-center gap-2">
-           <div className="text-xs font-semibold text-[#FF6E50] bg-[#FF6E50]/10 px-2 py-1 rounded-md">
+           <div className="text-xs font-semibold text-[var(--cloudact-coral)] bg-[var(--cloudact-coral)]/10 px-2 py-1 rounded-md">
              +12.5%
            </div>
         </div>
@@ -43,8 +43,8 @@ export function CostChart() {
             <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
               <defs>
                 <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#FF6E50" stopOpacity={0.2} />
-                  <stop offset="95%" stopColor="#FF6E50" stopOpacity={0} />
+                  <stop offset="5%" stopColor="var(--cloudact-coral)" stopOpacity={0.2} />
+                  <stop offset="95%" stopColor="var(--cloudact-coral)" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#E5E5EA" />
@@ -66,16 +66,16 @@ export function CostChart() {
                   border: "none",
                   boxShadow: "0 4px 12px rgba(0,0,0,0.1)"
                 }}
-                cursor={{ stroke: "#FF6E50", strokeWidth: 1, strokeDasharray: "4 4" }}
+                cursor={{ stroke: "var(--cloudact-coral)", strokeWidth: 1, strokeDasharray: "4 4" }}
               />
               <Area
                 type="monotone"
                 dataKey="amount"
-                stroke="#FF6E50"
+                stroke="var(--cloudact-coral)"
                 strokeWidth={3}
                 fillOpacity={1}
                 fill="url(#colorAmount)"
-                activeDot={{ r: 6, stroke: "#fff", strokeWidth: 2, fill: "#FF6E50" }}
+                activeDot={{ r: 6, stroke: "#fff", strokeWidth: 2, fill: "var(--cloudact-coral)" }}
               />
             </AreaChart>
           </ResponsiveContainer>

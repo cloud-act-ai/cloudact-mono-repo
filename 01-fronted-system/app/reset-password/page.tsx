@@ -80,7 +80,7 @@ export default function ResetPasswordPage() {
     <div className="flex min-h-svh w-full flex-col items-center justify-center bg-gradient-to-br from-background via-muted/20 to-background p-6">
       <div className="w-full max-w-[420px] space-y-6">
         <div className="flex flex-col items-center gap-3 text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#007A78] text-white shadow-lg">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-mint text-black shadow-lg">
             <Command className="h-7 w-7" />
           </div>
           <div className="space-y-2">
@@ -102,7 +102,7 @@ export default function ResetPasswordPage() {
                 minLength={8}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="h-11 focus:border-[#007A78] focus:ring-[#007A78]"
+                className="h-11 focus:border-mint focus:ring-mint"
                 autoComplete="new-password"
               />
             </div>
@@ -117,14 +117,14 @@ export default function ResetPasswordPage() {
                 minLength={8}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="h-11 focus:border-[#007A78] focus:ring-[#007A78]"
+                className="h-11 focus:border-mint focus:ring-mint"
                 autoComplete="new-password"
               />
             </div>
 
             {error && (
-              <Alert variant="destructive" className="py-3 bg-[#FFF5F3] border-[#FF6E50]">
-                <AlertDescription className="text-sm text-[#FF6E50]">{error}</AlertDescription>
+              <Alert variant="destructive" className="py-3 bg-[var(--cloudact-bg-coral)] border-coral">
+                <AlertDescription className="text-sm text-coral">{error}</AlertDescription>
               </Alert>
             )}
 

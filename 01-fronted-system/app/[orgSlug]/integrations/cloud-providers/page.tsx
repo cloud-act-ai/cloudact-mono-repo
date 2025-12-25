@@ -168,7 +168,7 @@ export default function CloudProvidersPage() {
           </p>
         </div>
         <div className="flex items-center justify-center min-h-[400px]">
-          <Loader2 className="h-8 w-8 animate-spin text-[#007A78]" />
+          <Loader2 className="h-8 w-8 animate-spin text-[#1a7a3a]" />
         </div>
       </div>
     )
@@ -189,8 +189,8 @@ export default function CloudProvidersPage() {
       {/* Stats Row */}
       <div className="flex items-center gap-6 mb-8">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-[#007A78]/10 flex items-center justify-center">
-            <Check className="h-5 w-5 text-[#007A78]" />
+          <div className="h-10 w-10 rounded-xl bg-[#90FCA6]/10 flex items-center justify-center">
+            <Check className="h-5 w-5 text-[#1a7a3a]" />
           </div>
           <div>
             <p className="text-[24px] font-bold text-slate-900 leading-none">{connectedProviders.length}</p>
@@ -233,7 +233,7 @@ export default function CloudProvidersPage() {
               </p>
               <Link
                 href={`/${orgSlug}/settings/organization`}
-                className="inline-flex items-center gap-1 mt-2 text-[13px] font-semibold text-[#007A78] hover:text-[#005F5D]"
+                className="inline-flex items-center gap-1 mt-2 text-[13px] font-semibold text-[#007AFF] hover:text-[#0051D5]"
               >
                 Go to Settings
                 <ChevronRight className="h-3.5 w-3.5" />
@@ -254,10 +254,10 @@ export default function CloudProvidersPage() {
       )}
 
       {successMessage && (
-        <div className="p-4 rounded-xl bg-[#007A78]/5 border border-[#007A78]/20">
+        <div className="p-4 rounded-xl bg-[#90FCA6]/5 border border-[#90FCA6]/20">
           <div className="flex items-center gap-3">
-            <Check className="h-5 w-5 text-[#007A78] flex-shrink-0" />
-            <p className="text-[14px] font-medium text-[#007A78]">{successMessage}</p>
+            <Check className="h-5 w-5 text-[#1a7a3a] flex-shrink-0" />
+            <p className="text-[14px] font-medium text-[#1a7a3a]">{successMessage}</p>
           </div>
         </div>
       )}
@@ -294,7 +294,7 @@ export default function CloudProvidersPage() {
                           <div className="flex items-center gap-2">
                             <h3 className="text-[15px] font-semibold text-slate-900">{provider.name}</h3>
                             {isEnabled && (
-                              <span className="px-2 py-0.5 rounded-full bg-[#007A78]/10 text-[#007A78] text-[10px] font-semibold uppercase">
+                              <span className="px-2 py-0.5 rounded-full bg-[#90FCA6]/10 text-[#1a7a3a] text-[10px] font-semibold uppercase">
                                 Live
                               </span>
                             )}
@@ -326,7 +326,7 @@ export default function CloudProvidersPage() {
                           checked={isEnabled}
                           onCheckedChange={(checked) => handleToggle(provider.id, checked)}
                           disabled={isToggling}
-                          className="data-[state=checked]:bg-[#007A78]"
+                          className="data-[state=checked]:bg-[#90FCA6]"
                         />
                       </div>
                     </div>
@@ -362,7 +362,7 @@ export default function CloudProvidersPage() {
                       <p className="text-[12px] text-slate-500">{provider.description}</p>
                     </div>
                   </div>
-                  <button className="h-8 px-3 text-[12px] font-semibold text-white bg-[#007A78] hover:bg-[#006664] rounded-lg transition-colors">
+                  <button className="h-8 px-3 text-[12px] font-semibold text-black bg-[#90FCA6] hover:bg-[#B8FDCA] rounded-lg transition-colors">
                     Connect
                   </button>
                 </div>
@@ -405,8 +405,8 @@ export default function CloudProvidersPage() {
       {/* Security Notice */}
       <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100">
         <div className="flex items-start gap-4">
-          <div className="h-10 w-10 rounded-xl bg-[#007A78]/10 flex items-center justify-center flex-shrink-0">
-            <Shield className="h-5 w-5 text-[#007A78]" />
+          <div className="h-10 w-10 rounded-xl bg-[#90FCA6]/10 flex items-center justify-center flex-shrink-0">
+            <Shield className="h-5 w-5 text-[#1a7a3a]" />
           </div>
           <div>
             <h3 className="text-[15px] font-semibold text-slate-900">Secure Storage</h3>

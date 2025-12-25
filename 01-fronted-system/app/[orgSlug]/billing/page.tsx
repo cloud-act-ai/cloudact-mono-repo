@@ -447,15 +447,15 @@ export default function BillingPage() {
           <div className="p-6">
             <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
               <div className="flex items-start gap-4">
-                <div className="h-12 w-12 rounded-xl bg-[#007A78]/10 flex items-center justify-center flex-shrink-0">
-                  <CreditCard className="h-6 w-6 text-[#007A78]" />
+                <div className="h-12 w-12 rounded-xl bg-[var(--cloudact-mint)]/10 flex items-center justify-center flex-shrink-0">
+                  <CreditCard className="h-6 w-6 text-[var(--cloudact-mint-text)]" />
                 </div>
                 <div className="space-y-2">
                   <div className="flex flex-wrap items-center gap-3">
                     <h2 className="text-[20px] font-bold text-slate-900">{billingInfo.subscription.plan.name} Plan</h2>
                     <span className={isCanceledButActive
                       ? "flex-shrink-0 bg-rose-50 text-rose-600 text-[11px] font-bold px-2.5 py-1 rounded-md border border-rose-200"
-                      : "flex-shrink-0 bg-[#007A78]/5 text-[#007A78] text-[11px] font-bold px-2.5 py-1 rounded-md border border-[#007A78]/20"}>
+                      : "flex-shrink-0 bg-[var(--cloudact-mint)]/5 text-[#90FCA6] text-[11px] font-bold px-2.5 py-1 rounded-md border border-[#90FCA6]/20"}>
                       {isCanceledButActive ? "Cancels at period end" : billingInfo.subscription.status}
                     </span>
                   </div>
@@ -502,8 +502,8 @@ export default function BillingPage() {
       {hasStripeSubscription && billingInfo?.subscription && (
         <div className="flex items-center gap-6 mb-8">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-[#007A78]/10 flex items-center justify-center">
-              <Users className="h-5 w-5 text-[#007A78]" />
+            <div className="h-10 w-10 rounded-xl bg-[var(--cloudact-mint)]/10 flex items-center justify-center">
+              <Users className="h-5 w-5 text-[var(--cloudact-mint-text)]" />
             </div>
             <div>
               <p className="text-[24px] font-bold text-slate-900 leading-none">
@@ -627,11 +627,11 @@ export default function BillingPage() {
       })()}
 
       {planChangeSuccess && (
-        <div className="mb-6 p-4 rounded-xl bg-[#007A78]/5 border border-[#007A78]/20 flex items-center gap-3">
-          <Check className="h-4 w-4 text-[#007A78] flex-shrink-0" />
+        <div className="mb-6 p-4 rounded-xl bg-[var(--cloudact-mint)]/5 border border-[#90FCA6]/20 flex items-center gap-3">
+          <Check className="h-4 w-4 text-[var(--cloudact-mint-text)] flex-shrink-0" />
           <div>
-            <p className="text-[13px] font-semibold text-[#005F5D] mb-0.5">Plan Changed Successfully</p>
-            <p className="text-[13px] text-[#007A78]">{planChangeSuccess}</p>
+            <p className="text-[13px] font-semibold text-[var(--cloudact-mint-text)] mb-0.5">Plan Changed Successfully</p>
+            <p className="text-[13px] text-[var(--cloudact-mint-text)]">{planChangeSuccess}</p>
           </div>
         </div>
       )}
@@ -717,7 +717,7 @@ export default function BillingPage() {
                   key={plan.priceId}
                   className={`relative flex flex-col rounded-2xl bg-white border shadow-sm transition-all duration-300 group ${
                     isCurrentPlan
-                      ? "border-[#007A78]/20 ring-2 ring-[#007A78]/10"
+                      ? "border-[#90FCA6]/20 ring-2 ring-[#90FCA6]/10"
                       : isPopular
                       ? "border-slate-300 ring-2 ring-slate-100"
                       : "border-slate-200 hover:border-slate-300"
@@ -726,7 +726,7 @@ export default function BillingPage() {
                   {/* Popular Badge */}
                   {isPopular && !isCurrentPlan && (
                     <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
-                      <div className="bg-[#007A78] text-white px-3 py-1 rounded-md text-[11px] font-bold shadow-sm">
+                      <div className="bg-[var(--cloudact-mint)] text-[#000000] px-3 py-1 rounded-md text-[11px] font-bold shadow-sm">
                         MOST POPULAR
                       </div>
                     </div>
@@ -735,7 +735,7 @@ export default function BillingPage() {
                   {/* Current Plan Badge */}
                   {isCurrentPlan && (
                     <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
-                      <div className="bg-[#007A78] text-white px-3 py-1 rounded-md text-[11px] font-bold shadow-sm flex items-center gap-1.5">
+                      <div className="bg-[var(--cloudact-mint)] text-[#000000] px-3 py-1 rounded-md text-[11px] font-bold shadow-sm flex items-center gap-1.5">
                         <Check className="h-3 w-3" />
                         CURRENT PLAN
                       </div>
@@ -775,8 +775,8 @@ export default function BillingPage() {
                         <ul className="space-y-2.5">
                           {plan.features.map((feature, i) => (
                             <li key={i} className="flex items-start gap-2.5 text-[13px]">
-                              <div className="h-4 w-4 rounded-full bg-[#007A78]/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                                <Check className="h-3 w-3 text-[#007A78]" />
+                              <div className="h-4 w-4 rounded-full bg-[var(--cloudact-mint)]/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                <Check className="h-3 w-3 text-[var(--cloudact-mint-text)]" />
                               </div>
                               <span className="text-slate-600 leading-relaxed">{feature}</span>
                             </li>
@@ -793,7 +793,7 @@ export default function BillingPage() {
                     <div>
                       {isCurrentPlan ? (
                         <button
-                          className="h-11 px-6 w-full text-[#007A78] bg-[#007A78]/5 rounded-xl text-[14px] font-semibold border border-[#007A78]/20 cursor-not-allowed"
+                          className="h-11 px-6 w-full text-[var(--cloudact-mint-text)] bg-[var(--cloudact-mint)]/5 rounded-xl text-[14px] font-semibold border border-[#90FCA6]/20 cursor-not-allowed"
                           disabled
                         >
                           <Check className="h-4 w-4 mr-2 inline-block" />
@@ -995,7 +995,7 @@ export default function BillingPage() {
                       <span
                         className={
                           invoice.status === "paid"
-                            ? "bg-[#007A78]/5 text-[#007A78] text-[11px] font-bold px-2.5 py-1 rounded-md inline-flex items-center gap-1 border border-[#007A78]/20 w-fit"
+                            ? "bg-[var(--cloudact-mint)]/5 text-[var(--cloudact-mint-text)] text-[11px] font-bold px-2.5 py-1 rounded-md inline-flex items-center gap-1 border border-[#90FCA6]/20 w-fit"
                             : invoice.status === "open"
                             ? "bg-amber-50 text-amber-700 text-[11px] font-bold px-2.5 py-1 rounded-md inline-flex items-center gap-1 border border-amber-200 w-fit"
                             : (invoice.status === "uncollectible" || invoice.status === "void")
@@ -1059,7 +1059,7 @@ export default function BillingPage() {
                   <p>
                     You're upgrading from <strong>{billingInfo?.subscription?.plan.name}</strong> ({formatCurrency(billingInfo?.subscription?.plan.price ?? 0, billingInfo?.subscription?.plan.currency || "USD")}/{billingInfo?.subscription?.plan.interval}) to <strong>{confirmDialog.plan?.name}</strong> ({formatCurrency(confirmDialog.plan?.price ?? 0, confirmDialog.plan?.currency || "USD")}/{confirmDialog.plan?.interval}).
                   </p>
-                  <p className="text-[#007A78] font-medium">
+                  <p className="text-[var(--cloudact-mint-text)] font-medium">
                     Your card will be charged the prorated difference immediately.
                   </p>
                 </>
@@ -1068,7 +1068,7 @@ export default function BillingPage() {
                   <p>
                     You're downgrading from <strong>{billingInfo?.subscription?.plan.name}</strong> ({formatCurrency(billingInfo?.subscription?.plan.price ?? 0, billingInfo?.subscription?.plan.currency || "USD")}/{billingInfo?.subscription?.plan.interval}) to <strong>{confirmDialog.plan?.name}</strong> ({formatCurrency(confirmDialog.plan?.price ?? 0, confirmDialog.plan?.currency || "USD")}/{confirmDialog.plan?.interval}).
                   </p>
-                  <p className="text-[#007A78] font-medium">
+                  <p className="text-[var(--cloudact-mint-text)] font-medium">
                     You'll receive a prorated credit on your next invoice.
                   </p>
                   <div className="rounded-lg bg-amber-50 p-3 border border-amber-200">
@@ -1085,7 +1085,7 @@ export default function BillingPage() {
                           <span className={`font-semibold ${
                             currentMemberCount > (confirmDialog.plan?.limits?.teamMembers ?? 0)
                               ? "text-rose-600"
-                              : "text-[#007A78]"
+                              : "text-[var(--cloudact-mint-text)]"
                           }`}>
                             {currentMemberCount} / {confirmDialog.plan?.limits?.teamMembers ?? 0}
                           </span>

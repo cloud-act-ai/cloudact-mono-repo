@@ -63,6 +63,7 @@ const ALL_PROVIDERS: ProviderConfig[] = [
   { id: "canva", name: "Canva", icon: <Palette className="h-4 w-4" />, category: "saas" },
 ]
 
+// Use semantic accent names that map to CSS variables in globals.css
 const INTEGRATION_CATEGORIES: IntegrationCategory[] = [
   {
     id: "cloud-providers",
@@ -70,7 +71,7 @@ const INTEGRATION_CATEGORIES: IntegrationCategory[] = [
     description: "GCP, AWS, Azure billing data",
     icon: Cloud,
     href: "cloud-providers",
-    accent: "#007A78",
+    accent: "mint", // Maps to --cloudact-mint
     providers: ALL_PROVIDERS.filter((p) => p.category === "cloud"),
   },
   {
@@ -79,7 +80,7 @@ const INTEGRATION_CATEGORIES: IntegrationCategory[] = [
     description: "OpenAI, Claude, Gemini usage",
     icon: Brain,
     href: "llm",
-    accent: "#FF6E50",
+    accent: "coral", // Maps to --cloudact-coral
     providers: ALL_PROVIDERS.filter((p) => p.category === "llm"),
   },
   {
@@ -88,10 +89,38 @@ const INTEGRATION_CATEGORIES: IntegrationCategory[] = [
     description: "Track software costs",
     icon: CreditCard,
     href: "subscriptions",
-    accent: "#8B5CF6",
+    accent: "blue", // Maps to --cloudact-blue
     providers: ALL_PROVIDERS.filter((p) => p.category === "saas"),
   },
 ]
+
+// Accent color mapping - uses CSS variables for consistency
+const accentStyles: Record<string, {
+  css: string;  // CSS variable name
+  bg: string;   // Background class
+  iconBg: string;  // Icon container class
+}> = {
+  mint: {
+    css: "var(--cloudact-mint)",
+    bg: "bg-gradient-mint",
+    iconBg: "bg-[#90FCA6]/15 text-mint-text",
+  },
+  coral: {
+    css: "var(--cloudact-coral)",
+    bg: "bg-gradient-coral",
+    iconBg: "bg-[#FF6C5E]/15 text-coral",
+  },
+  blue: {
+    css: "var(--cloudact-blue)",
+    bg: "bg-gradient-blue",
+    iconBg: "bg-[#007AFF]/15 text-ca-blue",
+  },
+}
+
+// Helper to get accent style safely
+const getAccentStyle = (accent: string) => {
+  return accentStyles[accent] || accentStyles.mint;
+}
 
 export default function IntegrationsPage() {
   const params = useParams()
@@ -168,7 +197,7 @@ export default function IntegrationsPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-[#007A78]" />
+        <Loader2 className="h-8 w-8 animate-spin text-[#6EE890]" />
       </div>
     )
   }
@@ -197,7 +226,7 @@ export default function IntegrationsPage() {
               </p>
               <Link
                 href={`/${orgSlug}/settings/organization`}
-                className="inline-flex items-center gap-1 mt-2 text-[13px] font-semibold text-[#007A78] hover:text-[#005F5D]"
+                className="inline-flex items-center gap-1 mt-2 text-[13px] font-semibold text-[#007AFF] hover:text-[#0051D5]"
               >
                 Go to Settings
                 <ChevronRight className="h-3.5 w-3.5" />
@@ -210,7 +239,7 @@ export default function IntegrationsPage() {
       {/* Stats Row */}
       <div className="flex flex-wrap items-center gap-6 py-4 px-5 bg-slate-50 rounded-2xl border border-slate-100">
         <div className="flex items-center gap-3">
-          <div className="h-2.5 w-2.5 rounded-full bg-[#007A78]"></div>
+          <div className="h-2.5 w-2.5 rounded-full bg-[#90FCA6]"></div>
           <span className="text-[14px] text-slate-600">
             <span className="font-semibold text-slate-900">{connectedCount}</span> Connected
           </span>
@@ -219,14 +248,14 @@ export default function IntegrationsPage() {
         <div className="flex items-center gap-2">
           <Cloud className="h-4 w-4 text-slate-400" />
           <span className="text-[14px] text-slate-600">
-            <span className="font-semibold text-[#007A78]">{cloudCount}</span> Cloud
+            <span className="font-semibold text-[#1a7a3a]">{cloudCount}</span> Cloud
           </span>
         </div>
         <div className="h-5 w-px bg-slate-200"></div>
         <div className="flex items-center gap-2">
           <Brain className="h-4 w-4 text-slate-400" />
           <span className="text-[14px] text-slate-600">
-            <span className="font-semibold text-[#FF6E50]">{llmCount}</span> LLM
+            <span className="font-semibold text-[#FF6C5E]">{llmCount}</span> LLM
           </span>
         </div>
         <div className="h-5 w-px bg-slate-200"></div>
@@ -257,16 +286,15 @@ export default function IntegrationsPage() {
                   {/* Left accent */}
                   <div
                     className="absolute left-0 top-5 bottom-5 w-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                    style={{ backgroundColor: category.accent }}
+                    style={{ backgroundColor: getAccentStyle(category.accent).css }}
                   />
 
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
                       <div
-                        className="h-12 w-12 rounded-xl flex items-center justify-center"
-                        style={{ backgroundColor: `${category.accent}15` }}
+                        className={`h-12 w-12 rounded-xl flex items-center justify-center ${getAccentStyle(category.accent).iconBg}`}
                       >
-                        <Icon className="h-6 w-6" style={{ color: category.accent }} />
+                        <Icon className="h-6 w-6" />
                       </div>
                       <div>
                         <h3 className="text-[16px] font-semibold text-slate-900">{category.name}</h3>
@@ -296,11 +324,7 @@ export default function IntegrationsPage() {
                       <div className="flex items-center gap-3">
                         {connected > 0 ? (
                           <span
-                            className="px-2.5 py-1 rounded-full text-[11px] font-semibold"
-                            style={{
-                              backgroundColor: `${category.accent}15`,
-                              color: category.accent
-                            }}
+                            className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ${getAccentStyle(category.accent).iconBg}`}
                           >
                             {connected} active
                           </span>
@@ -323,8 +347,8 @@ export default function IntegrationsPage() {
       {/* Security Notice */}
       <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100">
         <div className="flex items-start gap-4">
-          <div className="h-10 w-10 rounded-xl bg-[#007A78]/10 flex items-center justify-center flex-shrink-0">
-            <Shield className="h-5 w-5 text-[#007A78]" />
+          <div className="h-10 w-10 rounded-xl bg-[#B8FDCA]/10 flex items-center justify-center flex-shrink-0">
+            <Shield className="h-5 w-5 text-[#6EE890]" />
           </div>
           <div>
             <h3 className="text-[15px] font-semibold text-slate-900">Enterprise Security</h3>

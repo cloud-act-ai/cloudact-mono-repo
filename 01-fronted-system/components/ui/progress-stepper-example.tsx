@@ -4,7 +4,7 @@
  * Progress and Stepper Components Example
  *
  * This file demonstrates the usage of both Progress and Stepper components
- * with the Teal brand color (#007A78). Use this as a reference for implementing
+ * with the Mint brand color (#90FCA6). Use this as a reference for implementing
  * multi-step forms and progress indicators throughout the application.
  *
  * To use this example:
@@ -63,7 +63,7 @@ export function ProgressStepperExample() {
         {/* Header */}
         <div className="text-center space-y-2">
           <h1 className="text-3xl font-bold text-gray-900">Progress & Stepper Components</h1>
-          <p className="text-gray-600">Brand-compliant UI components with Teal (#007A78)</p>
+          <p className="text-gray-600">Brand-compliant UI components with Mint (#90FCA6)</p>
         </div>
 
         {/* Main Content Card */}
@@ -169,19 +169,19 @@ export function ProgressStepperExample() {
 
             {/* Current Step Content */}
             <div className="pt-4 border-t">
-              <div className="bg-[#F0FDFA] border border-[#007A78]/20 rounded-lg p-6">
+              <div className="bg-[#F0FDFA] border border-[#90FCA6]/20 rounded-lg p-6">
                 <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#007A78] text-white">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#90FCA6] text-white">
                     {steps[currentStep].icon}
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-[#007A78]">
+                    <h3 className="text-lg font-semibold text-[#90FCA6]">
                       {steps[currentStep].label}
                     </h3>
                     <p className="text-sm text-gray-700 mt-1">
                       {steps[currentStep].description}
                     </p>
-                    <div className="mt-4 p-4 bg-white rounded border border-[#007A78]/10">
+                    <div className="mt-4 p-4 bg-white rounded border border-[#90FCA6]/10">
                       <p className="text-sm text-gray-600">
                         This is where your step content would go. Forms, information, or
                         interactive elements would be displayed here.
@@ -207,7 +207,7 @@ export function ProgressStepperExample() {
               <Button
                 onClick={handleNext}
                 disabled={currentStep === steps.length - 1}
-                className="flex items-center gap-2 bg-[#007A78] hover:bg-[#005F5D]"
+                className="flex items-center gap-2 bg-[#90FCA6] hover:bg-[#6EE890] text-black"
               >
                 {currentStep === steps.length - 1 ? "Finish" : "Continue"}
                 <ArrowRight className="h-4 w-4" />
@@ -267,8 +267,8 @@ const steps = [
                 <h4 className="text-sm font-semibold text-gray-900">Colors</h4>
                 <div className="space-y-2 text-sm">
                   <div className="flex items-center gap-3">
-                    <div className="h-6 w-6 rounded bg-[#007A78] border" />
-                    <span className="text-gray-700">Teal: #007A78 (Primary)</span>
+                    <div className="h-6 w-6 rounded bg-[#90FCA6] border" />
+                    <span className="text-gray-700">Teal: #90FCA6 (Primary)</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="h-6 w-6 rounded bg-[#FF6E50] border" />
@@ -285,23 +285,23 @@ const steps = [
                 <h4 className="text-sm font-semibold text-gray-900">Features</h4>
                 <ul className="space-y-1 text-sm text-gray-700">
                   <li className="flex items-start gap-2">
-                    <CheckCircle className="h-4 w-4 text-[#007A78] shrink-0 mt-0.5" />
+                    <CheckCircle className="h-4 w-4 text-[#90FCA6] shrink-0 mt-0.5" />
                     <span>Fully accessible (ARIA)</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <CheckCircle className="h-4 w-4 text-[#007A78] shrink-0 mt-0.5" />
+                    <CheckCircle className="h-4 w-4 text-[#90FCA6] shrink-0 mt-0.5" />
                     <span>Smooth animations (300ms)</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <CheckCircle className="h-4 w-4 text-[#007A78] shrink-0 mt-0.5" />
+                    <CheckCircle className="h-4 w-4 text-[#90FCA6] shrink-0 mt-0.5" />
                     <span>Keyboard navigation</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <CheckCircle className="h-4 w-4 text-[#007A78] shrink-0 mt-0.5" />
+                    <CheckCircle className="h-4 w-4 text-[#90FCA6] shrink-0 mt-0.5" />
                     <span>Responsive design</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <CheckCircle className="h-4 w-4 text-[#007A78] shrink-0 mt-0.5" />
+                    <CheckCircle className="h-4 w-4 text-[#90FCA6] shrink-0 mt-0.5" />
                     <span>Multiple size variants</span>
                   </li>
                 </ul>

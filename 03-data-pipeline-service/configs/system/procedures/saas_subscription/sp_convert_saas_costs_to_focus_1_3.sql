@@ -100,7 +100,11 @@ BEGIN
         -- Org-specific extension fields (from org_profiles)
         x_OrgSlug, x_OrgName, x_OrgOwnerEmail, x_OrgDefaultCurrency, x_OrgDefaultTimezone,
         x_OrgDefaultCountry, x_OrgSubscriptionPlan, x_OrgSubscriptionStatus,
-        x_PipelineId, x_PipelineRunId, x_DataQualityScore, x_CreatedAt
+        x_PipelineId, x_PipelineRunId, x_DataQualityScore, x_CreatedAt,
+        -- Hierarchy extension fields for cost allocation
+        x_HierarchyDeptId, x_HierarchyDeptName,
+        x_HierarchyProjectId, x_HierarchyProjectName,
+        x_HierarchyTeamId, x_HierarchyTeamName
       )
       SELECT
         -- Billing Account (REQUIRED - use subscription_id as fallback)
@@ -275,7 +279,15 @@ BEGIN
         'saas_subscription_costs_pipeline' AS x_PipelineId,
         GENERATE_UUID() AS x_PipelineRunId,
         1.0 AS x_DataQualityScore,
-        CURRENT_TIMESTAMP() AS x_CreatedAt
+        CURRENT_TIMESTAMP() AS x_CreatedAt,
+
+        -- Hierarchy extension fields for cost allocation (from subscription plans)
+        spc.hierarchy_dept_id AS x_HierarchyDeptId,
+        spc.hierarchy_dept_name AS x_HierarchyDeptName,
+        spc.hierarchy_project_id AS x_HierarchyProjectId,
+        spc.hierarchy_project_name AS x_HierarchyProjectName,
+        spc.hierarchy_team_id AS x_HierarchyTeamId,
+        spc.hierarchy_team_name AS x_HierarchyTeamName
 
       FROM `%s.%s.saas_subscription_plan_costs_daily` spc
       LEFT JOIN `%s.%s.saas_subscription_plans` sp

@@ -120,8 +120,8 @@ const CommandItem = React.forwardRef<
     ref={ref}
     className={cn(
       "relative flex cursor-pointer select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors duration-150",
-      "aria-selected:bg-[#007A78]/10 aria-selected:text-[#007A78]",
-      destructive && "text-[#FF6E50] aria-selected:bg-[#FF6E50]/10 aria-selected:text-[#FF6E50]",
+      "aria-selected:bg-[#90FCA6]/10 aria-selected:text-[#000000]",
+      destructive && "text-[#FF6C5E] aria-selected:bg-[#FF6C5E]/10 aria-selected:text-[#FF6C5E]",
       "data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50",
       className
     )}

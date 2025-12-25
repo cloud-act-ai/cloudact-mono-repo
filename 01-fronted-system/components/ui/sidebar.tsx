@@ -316,7 +316,7 @@ function SidebarRail({ className, ...props }: React.ComponentProps<'button'>) {
         '[[data-side=left][data-collapsible=offcanvas]_&]:-right-2',
         '[[data-side=right][data-collapsible=offcanvas]_&]:-left-2',
         // Focus state (even though tabIndex=-1, for programmatic focus)
-        'focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#007A78] focus-visible:outline-offset-2',
+        'focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--cloudact-mint)] focus-visible:outline-offset-2',
         className,
       )}
       {...props}

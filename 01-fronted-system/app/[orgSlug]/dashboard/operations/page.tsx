@@ -57,16 +57,16 @@ export default async function OperationsPage({
         </div>
         <div className="h-8 w-px bg-slate-200"></div>
         <div className="flex items-center gap-3">
-          <div className="h-2 w-2 rounded-full bg-[#FF6E50] animate-pulse"></div>
+          <div className="h-2 w-2 rounded-full bg-[var(--cloudact-coral)] animate-pulse"></div>
           <span className="text-[14px] text-slate-600">
-            <span className="font-semibold text-[#FF6E50]">{pipelineStats.running}</span> Running
+            <span className="font-semibold text-[var(--cloudact-coral)]">{pipelineStats.running}</span> Running
           </span>
         </div>
         <div className="h-8 w-px bg-slate-200"></div>
         <div className="flex items-center gap-3">
-          <CheckCircle2 className="h-4 w-4 text-[#007A78]" />
+          <CheckCircle2 className="h-4 w-4 text-[var(--cloudact-mint-dark)]" />
           <span className="text-[14px] text-slate-600">
-            <span className="font-semibold text-[#007A78]">{pipelineStats.successRate}%</span> Success
+            <span className="font-semibold text-[var(--cloudact-mint-dark)]">{pipelineStats.successRate}%</span> Success
           </span>
         </div>
         <div className="h-8 w-px bg-slate-200"></div>
@@ -82,8 +82,8 @@ export default async function OperationsPage({
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="p-4 bg-white rounded-2xl border border-slate-200">
           <div className="flex items-center gap-3 mb-3">
-            <div className="h-9 w-9 rounded-xl bg-[#007A78]/10 flex items-center justify-center">
-              <Activity className="h-4 w-4 text-[#007A78]" />
+            <div className="h-9 w-9 rounded-xl bg-[var(--cloudact-mint)]/10 flex items-center justify-center">
+              <Activity className="h-4 w-4 text-[var(--cloudact-mint-text)]" />
             </div>
           </div>
           <p className="text-[12px] text-slate-500 uppercase tracking-wide">Total Runs</p>
@@ -92,10 +92,10 @@ export default async function OperationsPage({
 
         <div className="p-4 bg-white rounded-2xl border border-slate-200">
           <div className="flex items-center gap-3 mb-3">
-            <div className="h-9 w-9 rounded-xl bg-[#FF6E50]/10 flex items-center justify-center">
-              <Zap className="h-4 w-4 text-[#FF6E50]" />
+            <div className="h-9 w-9 rounded-xl bg-[var(--cloudact-coral)]/10 flex items-center justify-center">
+              <Zap className="h-4 w-4 text-[var(--cloudact-coral)]" />
             </div>
-            <div className="h-2 w-2 rounded-full bg-[#FF6E50] animate-pulse"></div>
+            <div className="h-2 w-2 rounded-full bg-[var(--cloudact-coral)] animate-pulse"></div>
           </div>
           <p className="text-[12px] text-slate-500 uppercase tracking-wide">Running Now</p>
           <p className="text-[24px] font-bold text-slate-900 mt-1">{pipelineStats.running}</p>
@@ -103,12 +103,12 @@ export default async function OperationsPage({
 
         <div className="p-4 bg-white rounded-2xl border border-slate-200">
           <div className="flex items-center gap-3 mb-3">
-            <div className="h-9 w-9 rounded-xl bg-[#007A78]/10 flex items-center justify-center">
-              <CheckCircle2 className="h-4 w-4 text-[#007A78]" />
+            <div className="h-9 w-9 rounded-xl bg-[var(--cloudact-mint)]/10 flex items-center justify-center">
+              <CheckCircle2 className="h-4 w-4 text-[var(--cloudact-mint-text)]" />
             </div>
           </div>
           <p className="text-[12px] text-slate-500 uppercase tracking-wide">Success Rate</p>
-          <p className="text-[24px] font-bold text-[#007A78] mt-1">{pipelineStats.successRate}%</p>
+          <p className="text-[24px] font-bold text-[var(--cloudact-mint-dark)] mt-1">{pipelineStats.successRate}%</p>
         </div>
 
         <div className="p-4 bg-white rounded-2xl border border-slate-200">
@@ -128,7 +128,7 @@ export default async function OperationsPage({
           <h2 className="text-[13px] font-semibold text-slate-500 uppercase tracking-wide">Recent Runs</h2>
           <Link
             href={`/${orgSlug}/pipelines`}
-            className="text-[13px] font-semibold text-[#007A78] hover:text-[#005F5D] transition-colors flex items-center gap-1"
+            className="text-[13px] font-semibold text-[var(--cloudact-blue)] hover:text-[var(--cloudact-blue-dark)] transition-colors flex items-center gap-1"
           >
             View all
             <ChevronRight className="h-3.5 w-3.5" />
@@ -144,7 +144,7 @@ export default async function OperationsPage({
               {/* Left accent */}
               <div
                 className={`absolute left-0 top-3 bottom-3 w-1 rounded-full ${
-                  pipeline.status === 'running' ? 'bg-[#FF6E50]' : 'bg-[#007A78]'
+                  pipeline.status === 'running' ? 'bg-[var(--cloudact-coral)]' : 'bg-[var(--cloudact-mint)]'
                 }`}
               />
 
@@ -169,12 +169,12 @@ export default async function OperationsPage({
                 </div>
                 <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ${
                   pipeline.status === 'running'
-                    ? 'bg-[#FF6E50]/10 text-[#FF6E50]'
-                    : 'bg-[#007A78]/10 text-[#007A78]'
+                    ? 'bg-[var(--cloudact-coral)]/10 text-[var(--cloudact-coral)]'
+                    : 'bg-[var(--cloudact-mint)]/10 text-[var(--cloudact-mint-text)]'
                 }`}>
                   {pipeline.status === 'running' ? (
                     <span className="flex items-center gap-1.5">
-                      <span className="h-1.5 w-1.5 rounded-full bg-[#FF6E50] animate-pulse"></span>
+                      <span className="h-1.5 w-1.5 rounded-full bg-[var(--cloudact-coral)] animate-pulse"></span>
                       Running
                     </span>
                   ) : (
@@ -203,13 +203,13 @@ export default async function OperationsPage({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <Link
             href={`/${orgSlug}/pipelines`}
-            className="group p-5 bg-white rounded-2xl border border-slate-200 hover:border-[#007A78]/30 hover:shadow-sm transition-all"
+            className="group p-5 bg-white rounded-2xl border border-slate-200 hover:border-[var(--cloudact-mint)]/30 hover:shadow-sm transition-all"
           >
             <div className="flex items-start justify-between mb-3">
-              <div className="h-11 w-11 rounded-xl bg-[#007A78]/10 flex items-center justify-center">
-                <PlayCircle className="h-5 w-5 text-[#007A78]" />
+              <div className="h-11 w-11 rounded-xl bg-[var(--cloudact-mint)]/10 flex items-center justify-center">
+                <PlayCircle className="h-5 w-5 text-[var(--cloudact-mint-text)]" />
               </div>
-              <ChevronRight className="h-5 w-5 text-slate-300 group-hover:text-[#007A78] transition-colors" />
+              <ChevronRight className="h-5 w-5 text-slate-300 group-hover:text-[var(--cloudact-mint-dark)] transition-colors" />
             </div>
             <h3 className="text-[16px] font-semibold text-slate-900 mb-1">Run Pipeline</h3>
             <p className="text-[13px] text-slate-500">
@@ -219,13 +219,13 @@ export default async function OperationsPage({
 
           <Link
             href={`/${orgSlug}/cost-dashboards/overview`}
-            className="group p-5 bg-white rounded-2xl border border-slate-200 hover:border-[#FF6E50]/30 hover:shadow-sm transition-all"
+            className="group p-5 bg-white rounded-2xl border border-slate-200 hover:border-[#FF6C5E]/30 hover:shadow-sm transition-all"
           >
             <div className="flex items-start justify-between mb-3">
-              <div className="h-11 w-11 rounded-xl bg-[#FF6E50]/10 flex items-center justify-center">
-                <BarChart3 className="h-5 w-5 text-[#FF6E50]" />
+              <div className="h-11 w-11 rounded-xl bg-[var(--cloudact-coral)]/10 flex items-center justify-center">
+                <BarChart3 className="h-5 w-5 text-[var(--cloudact-coral)]" />
               </div>
-              <ChevronRight className="h-5 w-5 text-slate-300 group-hover:text-[#FF6E50] transition-colors" />
+              <ChevronRight className="h-5 w-5 text-slate-300 group-hover:text-[var(--cloudact-coral)] transition-colors" />
             </div>
             <h3 className="text-[16px] font-semibold text-slate-900 mb-1">Cost Analytics</h3>
             <p className="text-[13px] text-slate-500">
@@ -239,8 +239,8 @@ export default async function OperationsPage({
       <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="h-10 w-10 rounded-xl bg-[#007A78]/10 flex items-center justify-center">
-              <Database className="h-5 w-5 text-[#007A78]" />
+            <div className="h-10 w-10 rounded-xl bg-[var(--cloudact-mint)]/10 flex items-center justify-center">
+              <Database className="h-5 w-5 text-[var(--cloudact-mint-text)]" />
             </div>
             <div>
               <h3 className="text-[15px] font-semibold text-slate-900">System Health</h3>
@@ -248,8 +248,8 @@ export default async function OperationsPage({
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <div className="h-2 w-2 rounded-full bg-[#007A78] animate-pulse"></div>
-            <span className="text-[13px] font-semibold text-[#007A78]">Healthy</span>
+            <div className="h-2 w-2 rounded-full bg-[#6EE890] animate-pulse"></div>
+            <span className="text-[13px] font-semibold text-[var(--cloudact-mint-dark)]">Healthy</span>
           </div>
         </div>
       </div>

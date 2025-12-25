@@ -58,17 +58,17 @@ const PaginationLink = ({
       }),
       // Base styles for all pagination items
       "min-w-[44px] min-h-[44px] rounded-xl font-semibold transition-all cursor-pointer",
-      // Active state - Teal background with white text
+      // Active state - Mint background with black text
       isActive && [
-        "bg-[#007A78] text-white border-[#007A78]",
-        "hover:bg-[#005F5D] hover:border-[#005F5D]",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#007A78] focus-visible:ring-offset-2",
+        "bg-[#90FCA6] text-black border-[#90FCA6]",
+        "hover:bg-[#6EE890] hover:border-[#6EE890]",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#90FCA6] focus-visible:ring-offset-2",
       ],
       // Default/Inactive state
       !isActive && !disabled && [
         "bg-background text-foreground border-border",
-        "hover:bg-[#F0FDFA] hover:text-[#007A78] hover:border-[#007A78]/30",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#007A78] focus-visible:ring-offset-2",
+        "hover:bg-[#F0FFF4] hover:text-[#1a7a3a] hover:border-[#90FCA6]/30",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#90FCA6] focus-visible:ring-offset-2",
       ],
       // Disabled state
       disabled && [

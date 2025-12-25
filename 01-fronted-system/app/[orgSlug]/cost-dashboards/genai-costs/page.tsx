@@ -65,20 +65,20 @@ const PROVIDER_ICONS: Record<string, React.ComponentType<{ className?: string }>
 
 // Provider colors - CloudAct coral-themed
 const PROVIDER_COLORS: Record<string, string> = {
-  openai: "bg-[#FF6E50]/10 text-[#FF6E50] border border-[#FF6E50]/20",
-  anthropic: "bg-[#FF8C6F]/10 text-[#FF8C6F] border border-[#FF8C6F]/20",
-  google: "bg-[#FFAA8F]/10 text-[#FF6E50] border border-[#FFAA8F]/20",
-  deepseek: "bg-[#FFC8AF]/10 text-[#FF6E50] border border-[#FFC8AF]/20",
-  other: "bg-[#007A78]/5 text-muted-foreground border border-border",
+  openai: "bg-[var(--cloudact-coral)]/10 text-[var(--cloudact-coral)] border border-[var(--cloudact-coral)]/20",
+  anthropic: "bg-[var(--cloudact-coral-light)]/10 text-[var(--cloudact-coral-light)] border border-[var(--cloudact-coral-light)]/20",
+  google: "bg-[#FFAA8F]/10 text-[var(--cloudact-coral)] border border-[#FFAA8F]/20",
+  deepseek: "bg-[#FFC8AF]/10 text-[var(--cloudact-coral)] border border-[#FFC8AF]/20",
+  other: "bg-[var(--cloudact-mint)]/5 text-muted-foreground border border-border",
 }
 
 // Chart colors for providers
 const CHART_COLORS = {
-  openai: "#FF6E50",
-  anthropic: "#FF8C6F",
+  openai: "var(--cloudact-coral)",
+  anthropic: "var(--cloudact-coral-light)",
   google: "#FFAA8F",
   deepseek: "#FFC8AF",
-  other: "#007A78",
+  other: "var(--cloudact-mint)",
 }
 
 interface LLMUsageSummary {
@@ -251,7 +251,7 @@ export default function GenAICostsPage() {
 
         <div className="metric-card p-4 sm:p-5">
           <div className="flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 text-[#FF6E50] mt-0.5 flex-shrink-0" />
+            <AlertCircle className="h-5 w-5 text-[var(--cloudact-coral)] mt-0.5 flex-shrink-0" />
             <div>
               <h3 className="font-semibold text-slate-900 text-[15px]">{error}</h3>
               <p className="text-[13px] text-muted-foreground mt-1">
@@ -283,13 +283,13 @@ export default function GenAICostsPage() {
               disabled={isRefreshing}
               variant="ghost"
               size="sm"
-              className="h-11 px-4 text-[15px] text-muted-foreground hover:bg-[#FF6E50]/5 rounded-xl transition-all duration-200"
+              className="h-11 px-4 text-[15px] text-muted-foreground hover:bg-[var(--cloudact-coral)]/5 rounded-xl transition-all duration-200"
             >
               <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
               <span className="hidden sm:inline">Refresh</span>
             </Button>
             <Link href={`/${orgSlug}/integrations/llm`}>
-              <Button className="h-11 px-4 rounded-xl text-[15px] font-semibold bg-gradient-to-r from-[#FF6E50] to-[#FF8C6F] hover:from-[#FF5A3C] hover:to-[#FF7A5B] text-white shadow-lg shadow-[#FF6E50]/25 transition-all duration-200 hover:shadow-xl hover:shadow-[#FF6E50]/30">
+              <Button className="h-11 px-4 rounded-xl text-[15px] font-semibold bg-gradient-to-r from-[var(--cloudact-coral)] to-[#FFA591] hover:from-[#FF5947] hover:to-[#FF9684] text-white shadow-lg shadow-[var(--cloudact-coral)]/25 transition-all duration-200 hover:shadow-xl hover:shadow-[var(--cloudact-coral)]/30">
                 <Plus className="h-4 w-4 mr-2" />
                 <span className="hidden sm:inline">Configure LLM</span>
                 <span className="sm:hidden">Configure</span>
@@ -301,8 +301,8 @@ export default function GenAICostsPage() {
         {/* Stats Row */}
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-[#FF6E50]/10 flex items-center justify-center">
-              <Sparkles className="h-5 w-5 text-[#FF6E50]" />
+            <div className="h-10 w-10 rounded-xl bg-[var(--cloudact-coral)]/10 flex items-center justify-center">
+              <Sparkles className="h-5 w-5 text-[var(--cloudact-coral)]" />
             </div>
             <div>
               <p className="text-[24px] font-bold text-slate-900 leading-none">{summary?.providers_count || 0}</p>
@@ -311,8 +311,8 @@ export default function GenAICostsPage() {
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-[#007A78]/10 flex items-center justify-center">
-              <Activity className="h-5 w-5 text-[#007A78]" />
+            <div className="h-10 w-10 rounded-xl bg-[var(--cloudact-mint)]/10 flex items-center justify-center">
+              <Activity className="h-5 w-5 text-[var(--cloudact-mint-text)]" />
             </div>
             <div>
               <p className="text-[24px] font-bold text-slate-900 leading-none">{summary?.total_requests.toLocaleString() || 0}</p>
@@ -321,8 +321,8 @@ export default function GenAICostsPage() {
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-[#007A78]/10 flex items-center justify-center">
-              <DollarSign className="h-5 w-5 text-[#007A78]" />
+            <div className="h-10 w-10 rounded-xl bg-[var(--cloudact-mint)]/10 flex items-center justify-center">
+              <DollarSign className="h-5 w-5 text-[var(--cloudact-mint-text)]" />
             </div>
             <div>
               <p className="text-[24px] font-bold text-slate-900 leading-none">{formatCurrency(summary?.mtd_cost || 0, orgCurrency)}</p>
@@ -336,51 +336,51 @@ export default function GenAICostsPage() {
         <>
           {/* Key Metrics Grid */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="metric-card group hover:shadow-lg hover:shadow-[#FF6E50]/10 transition-all duration-300 cursor-pointer">
+            <div className="metric-card group hover:shadow-lg hover:shadow-[var(--cloudact-coral)]/10 transition-all duration-300 cursor-pointer">
               <div className="metric-card-header">
-                <div className="metric-card-label bg-gradient-to-r from-[#FF6E50]/15 to-[#FF6E50]/5 text-[#FF6E50] border-[#FF6E50]/20">
+                <div className="metric-card-label bg-gradient-to-r from-[var(--cloudact-coral)]/15 to-[#FF6E50]/5 text-[var(--cloudact-coral)] border-[var(--cloudact-coral)]/20">
                   <DollarSign className="h-[18px] w-[18px]" />
                   <span>MTD Spend</span>
                 </div>
               </div>
               <div className="metric-card-content">
-                <div className="metric-card-value text-[#FF6E50]">{formatCurrency(summary.mtd_cost, orgCurrency)}</div>
+                <div className="metric-card-value text-[var(--cloudact-coral)]">{formatCurrency(summary.mtd_cost, orgCurrency)}</div>
                 <div className="metric-card-description mt-1 flex items-center gap-2">
                   <span>This month actual</span>
-                  <div className="ml-auto text-xs font-bold text-[#FF6E50] bg-[#FF6E50]/10 px-2 py-0.5 rounded-md">
+                  <div className="ml-auto text-xs font-bold text-[var(--cloudact-coral)] bg-[var(--cloudact-coral)]/10 px-2 py-0.5 rounded-md">
                     +0%
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="metric-card group hover:shadow-lg hover:shadow-[#FF8C6F]/10 transition-all duration-300 cursor-pointer">
+            <div className="metric-card group hover:shadow-lg hover:shadow-[var(--cloudact-coral-light)]/10 transition-all duration-300 cursor-pointer">
               <div className="metric-card-header">
-                <div className="metric-card-label bg-gradient-to-r from-[#FF8C6F]/15 to-[#FF8C6F]/5 text-[#FF8C6F] border-[#FF8C6F]/20">
+                <div className="metric-card-label bg-gradient-to-r from-[var(--cloudact-coral-light)]/15 to-[#FFA591]/5 text-[var(--cloudact-coral-light)] border-[var(--cloudact-coral-light)]/20">
                   <TrendingUp className="h-[18px] w-[18px]" />
                   <span>Monthly Forecast</span>
                 </div>
               </div>
               <div className="metric-card-content">
-                <div className="metric-card-value text-[#FF8C6F]">{formatCurrency(summary.forecast_monthly_cost, orgCurrency)}</div>
+                <div className="metric-card-value text-[var(--cloudact-coral-light)]">{formatCurrency(summary.forecast_monthly_cost, orgCurrency)}</div>
                 <div className="metric-card-description mt-1">Projected full month</div>
               </div>
             </div>
 
             <div className="metric-card group hover:shadow-lg hover:shadow-[#FFAA8F]/10 transition-all duration-300 cursor-pointer">
               <div className="metric-card-header">
-                <div className="metric-card-label bg-gradient-to-r from-[#FFAA8F]/15 to-[#FFAA8F]/5 text-[#FF6E50] border-[#FFAA8F]/20">
+                <div className="metric-card-label bg-gradient-to-r from-[#FFAA8F]/15 to-[#FFAA8F]/5 text-[var(--cloudact-coral)] border-[#FFAA8F]/20">
                   <Zap className="h-[18px] w-[18px]" />
                   <span>Total Tokens</span>
                 </div>
               </div>
               <div className="metric-card-content">
-                <div className="metric-card-value text-[#FF6E50]">{summary.total_tokens.toLocaleString()}</div>
+                <div className="metric-card-value text-[var(--cloudact-coral)]">{summary.total_tokens.toLocaleString()}</div>
                 <div className="metric-card-description mt-1">This month</div>
               </div>
             </div>
 
-            <div className="metric-card group hover:shadow-lg hover:shadow-[#007A78]/10 transition-all duration-300 cursor-pointer">
+            <div className="metric-card group hover:shadow-lg hover:shadow-[var(--cloudact-mint)]/10 transition-all duration-300 cursor-pointer">
               <div className="metric-card-header">
                 <div className="metric-card-label metric-card-label-teal">
                   <Activity className="h-[18px] w-[18px]" />
@@ -388,7 +388,7 @@ export default function GenAICostsPage() {
                 </div>
               </div>
               <div className="metric-card-content">
-                <div className="metric-card-value text-[#007A78]">{summary.total_requests.toLocaleString()}</div>
+                <div className="metric-card-value text-[var(--cloudact-mint-text)]">{summary.total_requests.toLocaleString()}</div>
                 <div className="metric-card-description mt-1">This month</div>
               </div>
             </div>
@@ -399,12 +399,12 @@ export default function GenAICostsPage() {
             {/* Cost Trend Chart - Takes 2 columns */}
             <div className="lg:col-span-2 metric-card h-[380px] flex flex-col overflow-hidden">
               <div className="metric-card-header">
-                <div className="metric-card-label bg-gradient-to-r from-[#FF6E50]/15 to-[#FF6E50]/5 text-[#FF6E50] border-[#FF6E50]/20">
+                <div className="metric-card-label bg-gradient-to-r from-[var(--cloudact-coral)]/15 to-[#FF6E50]/5 text-[var(--cloudact-coral)] border-[var(--cloudact-coral)]/20">
                   <TrendingUp className="h-[18px] w-[18px]" />
                   <span>Cost Trends (Last 7 Days)</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="text-xs font-semibold text-[#FF6E50] bg-[#FF6E50]/10 px-2.5 py-1 rounded-lg border border-[#FF6E50]/20">
+                  <div className="text-xs font-semibold text-[var(--cloudact-coral)] bg-[var(--cloudact-coral)]/10 px-2.5 py-1 rounded-lg border border-[var(--cloudact-coral)]/20">
                     +18.2%
                   </div>
                 </div>
@@ -498,7 +498,7 @@ export default function GenAICostsPage() {
             {/* Provider Breakdown Pie Chart */}
             <div className="metric-card h-[380px] flex flex-col overflow-hidden">
               <div className="metric-card-header">
-                <div className="metric-card-label bg-gradient-to-r from-[#FF6E50]/15 to-[#FF6E50]/5 text-[#FF6E50] border-[#FF6E50]/20">
+                <div className="metric-card-label bg-gradient-to-r from-[var(--cloudact-coral)]/15 to-[#FF6E50]/5 text-[var(--cloudact-coral)] border-[var(--cloudact-coral)]/20">
                   <PieChart className="h-[18px] w-[18px]" />
                   <span>By Provider</span>
                 </div>
@@ -550,7 +550,7 @@ export default function GenAICostsPage() {
             {/* Model Usage Comparison */}
             <div className="metric-card overflow-hidden">
               <div className="metric-card-header">
-                <div className="metric-card-label bg-gradient-to-r from-[#FF8C6F]/15 to-[#FF8C6F]/5 text-[#FF8C6F] border-[#FF8C6F]/20">
+                <div className="metric-card-label bg-gradient-to-r from-[var(--cloudact-coral-light)]/15 to-[#FFA591]/5 text-[var(--cloudact-coral-light)] border-[var(--cloudact-coral-light)]/20">
                   <Layers className="h-[18px] w-[18px]" />
                   <span>Model Comparison</span>
                 </div>
@@ -559,16 +559,16 @@ export default function GenAICostsPage() {
                 {mockModelComparison.map((model, index) => (
                   <div
                     key={model.model}
-                    className="group p-4 rounded-xl bg-gradient-to-r from-white to-[#FF6E50]/5 border border-border hover:border-[#FF6E50]/30 hover:shadow-md transition-all duration-200"
+                    className="group p-4 rounded-xl bg-gradient-to-r from-white to-[#FF6E50]/5 border border-border hover:border-[var(--cloudact-coral)]/30 hover:shadow-md transition-all duration-200"
                   >
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-3">
-                        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-[#FF6E50]/20 to-[#FF6E50]/5 text-[#FF6E50] font-bold text-sm">
+                        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--cloudact-coral)]/20 to-[#FF6E50]/5 text-[var(--cloudact-coral)] font-bold text-sm">
                           {index + 1}
                         </div>
                         <span className="font-semibold text-slate-900 text-[15px]">{model.model}</span>
                       </div>
-                      <span className="font-bold text-[#FF6E50] text-[17px]">{formatCurrency(model.cost, orgCurrency)}</span>
+                      <span className="font-bold text-[var(--cloudact-coral)] text-[17px]">{formatCurrency(model.cost, orgCurrency)}</span>
                     </div>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <Zap className="h-3.5 w-3.5" />
@@ -582,7 +582,7 @@ export default function GenAICostsPage() {
             {/* Top Consuming Applications */}
             <div className="metric-card overflow-hidden">
               <div className="metric-card-header">
-                <div className="metric-card-label bg-gradient-to-r from-[#FFAA8F]/15 to-[#FFAA8F]/5 text-[#FF6E50] border-[#FFAA8F]/20">
+                <div className="metric-card-label bg-gradient-to-r from-[#FFAA8F]/15 to-[#FFAA8F]/5 text-[var(--cloudact-coral)] border-[#FFAA8F]/20">
                   <Target className="h-[18px] w-[18px]" />
                   <span>Top Applications</span>
                 </div>
@@ -591,7 +591,7 @@ export default function GenAICostsPage() {
                 {mockTopApps.map((app, index) => (
                   <div
                     key={app.app}
-                    className="group p-4 rounded-xl bg-gradient-to-r from-white to-[#007A78]/5 border border-border hover:border-[#007A78]/30 hover:shadow-md transition-all duration-200 cursor-pointer"
+                    className="group p-4 rounded-xl bg-gradient-to-r from-white to-[var(--cloudact-mint)]/5 border border-border hover:border-[var(--cloudact-mint)]/30 hover:shadow-md transition-all duration-200 cursor-pointer"
                   >
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex-1 min-w-0">
@@ -599,8 +599,8 @@ export default function GenAICostsPage() {
                           <span className="font-semibold text-slate-900 text-[15px] truncate">{app.app}</span>
                           <Badge className={`text-[10px] font-bold px-2 py-0.5 ${
                             app.trend.startsWith('+')
-                              ? 'bg-[#FF6E50]/10 text-[#FF6E50] border-[#FF6E50]/20'
-                              : 'bg-[#007A78]/10 text-[#007A78] border-[#007A78]/20'
+                              ? 'bg-[var(--cloudact-coral)]/10 text-[var(--cloudact-coral)] border-[var(--cloudact-coral)]/20'
+                              : 'bg-[var(--cloudact-mint)]/10 text-[var(--cloudact-mint-text)] border-[var(--cloudact-mint)]/20'
                           }`}>
                             {app.trend}
                           </Badge>
@@ -610,7 +610,7 @@ export default function GenAICostsPage() {
                         </div>
                       </div>
                       <div className="text-right ml-4">
-                        <div className="font-bold text-[#007A78] text-[17px]">{formatCurrency(app.cost, orgCurrency)}</div>
+                        <div className="font-bold text-[var(--cloudact-mint-text)] text-[17px]">{formatCurrency(app.cost, orgCurrency)}</div>
                       </div>
                     </div>
                   </div>
@@ -681,7 +681,7 @@ export default function GenAICostsPage() {
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide">Detailed Usage</h2>
           <Link href={`/${orgSlug}/cost-dashboards/genai-costs/details`}>
-            <Button variant="ghost" className="text-[#FF6E50] hover:bg-[#FF6E50]/5 text-[14px] font-semibold">
+            <Button variant="ghost" className="text-[var(--cloudact-coral)] hover:bg-[var(--cloudact-coral)]/5 text-[14px] font-semibold">
               View All
               <ChevronRight className="h-4 w-4 ml-1" />
             </Button>
@@ -690,8 +690,8 @@ export default function GenAICostsPage() {
         <div className="metric-card p-0 overflow-hidden">
           {usageRecords.length === 0 ? (
             <div className="text-center py-12 sm:py-16 px-4 sm:px-6">
-              <div className="inline-flex p-5 rounded-2xl bg-gradient-to-br from-[#FF6E50]/20 to-[#FF6E50]/5 border border-[#FF6E50]/20 mb-5">
-                <Brain className="h-14 w-14 text-[#FF6E50]" />
+              <div className="inline-flex p-5 rounded-2xl bg-gradient-to-br from-[var(--cloudact-coral)]/20 to-[#FF6E50]/5 border border-[var(--cloudact-coral)]/20 mb-5">
+                <Brain className="h-14 w-14 text-[var(--cloudact-coral)]" />
               </div>
               <h3 className="text-[20px] font-semibold text-slate-900 mb-2">No LLM usage data yet</h3>
               <p className="text-[15px] text-muted-foreground mb-6 max-w-md mx-auto">
@@ -699,13 +699,13 @@ export default function GenAICostsPage() {
               </p>
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <Link href={`/${orgSlug}/integrations/llm`}>
-                  <Button className="h-11 px-6 rounded-xl text-[15px] font-semibold bg-gradient-to-r from-[#FF6E50] to-[#FF8C6F] hover:from-[#FF5A3C] hover:to-[#FF7A5B] text-white shadow-lg shadow-[#FF6E50]/25">
+                  <Button className="h-11 px-6 rounded-xl text-[15px] font-semibold bg-gradient-to-r from-[var(--cloudact-coral)] to-[#FFA591] hover:from-[#FF5947] hover:to-[#FF9684] text-white shadow-lg shadow-[var(--cloudact-coral)]/25">
                     <Plus className="h-4 w-4 mr-2" />
                     Configure LLM Providers
                   </Button>
                 </Link>
                 <Link href={`/${orgSlug}/pipelines/genai-runs`}>
-                  <Button variant="outline" className="console-button-secondary h-11 px-6 rounded-xl text-[15px] font-semibold border-[#FF6E50]/30 text-[#FF6E50] hover:bg-[#FF6E50]/5">
+                  <Button variant="outline" className="console-button-secondary h-11 px-6 rounded-xl text-[15px] font-semibold border-[var(--cloudact-coral)]/30 text-[var(--cloudact-coral)] hover:bg-[var(--cloudact-coral)]/5">
                     <ArrowUpRight className="h-4 w-4 mr-2" />
                     Run Pipeline
                   </Button>
@@ -729,10 +729,10 @@ export default function GenAICostsPage() {
                   {usageRecords.map((record) => {
                     const ProviderIcon = PROVIDER_ICONS[record.provider] || Brain
                     return (
-                      <TableRow key={record.id} className="console-table-row hover:bg-[#FF6E50]/5 transition-colors duration-150">
+                      <TableRow key={record.id} className="console-table-row hover:bg-[var(--cloudact-coral)]/5 transition-colors duration-150">
                         <TableCell className="console-table-cell">
                           <div className="flex items-center gap-2">
-                            <ProviderIcon className="h-4 w-4 text-[#FF6E50]" />
+                            <ProviderIcon className="h-4 w-4 text-[var(--cloudact-coral)]" />
                             <Badge className={`capitalize text-[11px] font-semibold px-2.5 py-1 ${PROVIDER_COLORS[record.provider] || PROVIDER_COLORS.other}`}>
                               {record.provider}
                             </Badge>
@@ -751,7 +751,7 @@ export default function GenAICostsPage() {
                           <span className="text-muted-foreground text-[15px]">{record.requests.toLocaleString()}</span>
                         </TableCell>
                         <TableCell className="console-table-cell text-right">
-                          <span className="font-bold text-[#FF6E50] text-[17px]">{formatCurrency(record.cost, orgCurrency)}</span>
+                          <span className="font-bold text-[var(--cloudact-coral)] text-[17px]">{formatCurrency(record.cost, orgCurrency)}</span>
                         </TableCell>
                       </TableRow>
                     )

@@ -219,7 +219,7 @@ export default function AddCustomProviderPage() {
     return (
       <div className="p-6 space-y-6">
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-[#007A78]" />
+          <Loader2 className="h-8 w-8 animate-spin text-[#1a7a3a]" />
         </div>
       </div>
     )
@@ -231,7 +231,7 @@ export default function AddCustomProviderPage() {
       <nav className="flex items-center gap-2 text-sm" aria-label="Breadcrumb">
         <Link
           href={`/${orgSlug}/integrations/subscriptions`}
-          className="text-[#007A78] hover:text-[#005F5D] transition-colors"
+          className="text-[#1a7a3a] hover:text-[#007AFF] transition-colors"
         >
           Subscription Providers
         </Link>
@@ -256,9 +256,9 @@ export default function AddCustomProviderPage() {
 
       {/* Error Message */}
       {error && (
-        <Card className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
+        <Card className="border-[#FF6C5E]/30 bg-[#FF6C5E]/5">
           <CardContent className="pt-6">
-            <p className="text-sm text-[#FF6E50]">{error}</p>
+            <p className="text-sm text-[#FF6C5E]">{error}</p>
           </CardContent>
         </Card>
       )}
@@ -451,7 +451,7 @@ export default function AddCustomProviderPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="currency">Currency</Label>
-                <div className="flex items-center h-10 px-3 rounded-md border border-border bg-[#007A78]/5 text-foreground">
+                <div className="flex items-center h-10 px-3 rounded-md border border-border bg-[#90FCA6]/5 text-foreground">
                   <span className="font-medium">{formData.currency}</span>
                   <span className="ml-2 text-slate-400">
                     ({getCurrencySymbol(formData.currency)})
@@ -545,7 +545,7 @@ export default function AddCustomProviderPage() {
           <Button
             type="submit"
             disabled={submitting}
-            className="bg-[#007A78] hover:bg-[#006664] text-white"
+            className="bg-[#90FCA6] hover:bg-[#006664] text-white"
           >
             {submitting ? (
               <>

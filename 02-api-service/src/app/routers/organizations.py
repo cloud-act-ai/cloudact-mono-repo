@@ -963,6 +963,13 @@ async def onboard_org(
                             "schema_file": "llm_model_pricing.json",
                             "description": "Unified LLM model pricing (OpenAI, Anthropic, Gemini)",
                             "clustering_fields": ["provider", "model_id"]
+                        },
+                        # Organizational Hierarchy table (departments, projects, teams)
+                        {
+                            "table_name": "org_hierarchy",
+                            "schema_file": "org_hierarchy.json",
+                            "description": "Organizational hierarchy for cost allocation. Stores departments, projects, and teams with version history.",
+                            "clustering_fields": ["entity_type", "entity_id"]
                         }
                     ],
                     # LLM tables created empty - customers add custom plans via UI
@@ -2552,6 +2559,11 @@ async def repair_org_tables(
             "table_name": "llm_model_pricing",
             "schema_file": "llm_model_pricing.json",
             "clustering_fields": ["provider", "model_id"]
+        },
+        {
+            "table_name": "org_hierarchy",
+            "schema_file": "org_hierarchy.json",
+            "clustering_fields": ["entity_type", "entity_id"]
         }
     ]
 

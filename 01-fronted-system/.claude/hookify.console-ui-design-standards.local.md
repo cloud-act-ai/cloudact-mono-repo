@@ -16,8 +16,9 @@ conditions:
 You are adding **black/dark button styling** to a console UI component. This violates the CloudAct design system.
 
 ### Brand Colors
-- **Primary (Teal):** #007A78
-- **Secondary (Coral):** #FF6E50
+- **Primary (Mint):** #90FCA6 (text: black)
+- **Secondary (Coral):** #FF6C5E
+- **Accent (Blue):** #007AFF
 
 ### Required Changes
 

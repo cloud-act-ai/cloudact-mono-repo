@@ -234,7 +234,7 @@ export default function AddFromTemplatePage() {
       <nav className="flex items-center gap-2 text-sm" aria-label="Breadcrumb">
         <Link
           href={`/${orgSlug}/integrations/subscriptions`}
-          className="text-[#007A78] hover:text-[#005F5D] transition-colors focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2 rounded truncate max-w-[200px]"
+          className="text-[#1a7a3a] hover:text-[#007AFF] transition-colors focus:outline-none focus:ring-2 focus:ring-[#90FCA6] focus:ring-offset-2 rounded truncate max-w-[200px]"
           title="Subscription Providers"
         >
           Subscription Providers
@@ -242,7 +242,7 @@ export default function AddFromTemplatePage() {
         <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" aria-hidden="true" />
         <Link
           href={`/${orgSlug}/integrations/subscriptions/${provider}`}
-          className="text-[#007A78] hover:text-[#005F5D] transition-colors focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2 rounded truncate max-w-[200px]"
+          className="text-[#1a7a3a] hover:text-[#007AFF] transition-colors focus:outline-none focus:ring-2 focus:ring-[#90FCA6] focus:ring-offset-2 rounded truncate max-w-[200px]"
           title={providerDisplayName}
         >
           {providerDisplayName}
@@ -271,7 +271,7 @@ export default function AddFromTemplatePage() {
         <Link href={`/${orgSlug}/integrations/subscriptions/${provider}/add/custom`}>
           <Button
             variant="outline"
-            className="border-[#007A78]/30 text-[#007A78] hover:bg-[#007A78]/5 rounded-xl"
+            className="border-[#90FCA6]/30 text-[#1a7a3a] hover:bg-[#90FCA6]/5 rounded-xl"
           >
             <Plus className="h-4 w-4 mr-2" />
             Create Custom
@@ -281,10 +281,10 @@ export default function AddFromTemplatePage() {
 
       {/* Error Message */}
       {error && (
-        <Card className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
+        <Card className="border-[#FF6C5E]/30 bg-[#FF6C5E]/5">
           <CardContent className="pt-6">
-            <p className="text-sm text-[#FF6E50]">{error}</p>
-            <p className="text-xs text-[#FF6E50] mt-1">
+            <p className="text-sm text-[#FF6C5E]">{error}</p>
+            <p className="text-xs text-[#FF6C5E] mt-1">
               Make sure the provider is enabled and API service is running.
             </p>
           </CardContent>
@@ -293,25 +293,25 @@ export default function AddFromTemplatePage() {
 
       {/* Template Loading Error */}
       {templateError && (
-        <Card className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
+        <Card className="border-[#FF6C5E]/30 bg-[#FF6C5E]/5">
           <CardContent className="py-8 text-center">
-            <div className="inline-flex p-4 rounded-2xl bg-[#FF6E50]/10 mb-4">
-              <CreditCard className="h-12 w-12 text-[#FF6E50]" />
+            <div className="inline-flex p-4 rounded-2xl bg-[#FF6C5E]/10 mb-4">
+              <CreditCard className="h-12 w-12 text-[#FF6C5E]" />
             </div>
-            <h3 className="text-[20px] font-semibold text-[#FF6E50] mb-2">Failed to Load Templates</h3>
-            <p className="text-[15px] text-[#FF6E50]/80 mb-6">
+            <h3 className="text-[20px] font-semibold text-[#FF6C5E] mb-2">Failed to Load Templates</h3>
+            <p className="text-[15px] text-[#FF6C5E]/80 mb-6">
               {templateError}
             </p>
             <div className="flex gap-3 justify-center">
               <Button
                 variant="outline"
-                className="border-[#FF6E50]/30 text-[#FF6E50] hover:bg-[#FF6E50]/5 rounded-xl"
+                className="border-[#FF6C5E]/30 text-[#FF6C5E] hover:bg-[#FF6C5E]/5 rounded-xl"
                 onClick={() => loadData(() => true)}
               >
                 Try Again
               </Button>
               <Link href={`/${orgSlug}/integrations/subscriptions/${provider}/add/custom`}>
-                <Button className="h-[44px] px-6 bg-[#007A78] text-white hover:bg-[#006664] rounded-xl text-[15px] font-semibold shadow-sm">
+                <Button className="h-[44px] px-6 bg-[#90FCA6] text-black hover:bg-[#006664] rounded-xl text-[15px] font-semibold shadow-sm">
                   <Plus className="h-4 w-4 mr-2" />
                   Create Custom Plan
                 </Button>
@@ -333,7 +333,7 @@ export default function AddFromTemplatePage() {
               No predefined templates found for {providerDisplayName}. You can create a custom subscription plan instead.
             </p>
             <Link href={`/${orgSlug}/integrations/subscriptions/${provider}/add/custom`}>
-              <Button className="h-[44px] px-6 bg-[#007A78] text-white hover:bg-[#006664] rounded-xl text-[15px] font-semibold shadow-sm">
+              <Button className="h-[44px] px-6 bg-[#90FCA6] text-black hover:bg-[#006664] rounded-xl text-[15px] font-semibold shadow-sm">
                 <Plus className="h-4 w-4 mr-2" />
                 Create Custom Plan
               </Button>
@@ -345,12 +345,12 @@ export default function AddFromTemplatePage() {
           {availablePlans.map((plan, index) => (
             <Card
               key={`${plan.plan_name}-${index}`}
-              className="console-table-card hover:border-[#007A78] hover:shadow-md transition-all cursor-pointer group"
+              className="console-table-card hover:border-[#90FCA6] hover:shadow-md transition-all cursor-pointer group"
               onClick={() => handleSelectTemplate(plan)}
             >
               <CardHeader>
                 <div className="flex items-start justify-between mb-3">
-                  <div className="p-2.5 rounded-lg bg-gradient-to-br from-[#007A78]/10 to-[#14B8A6]/10 text-[#007A78]">
+                  <div className="p-2.5 rounded-lg bg-gradient-to-br from-[#90FCA6]/10 to-[#B8FDCA]/10 text-[#1a7a3a]">
                     {plan.category && categoryIcons[plan.category] ? categoryIcons[plan.category] : categoryIcons.other}
                   </div>
                   <Badge variant="outline" className="capitalize text-xs">
@@ -370,7 +370,7 @@ export default function AddFromTemplatePage() {
                 {/* Pricing - converted to org currency */}
                 <div className="flex items-baseline justify-between">
                   <div>
-                    <div className="text-2xl font-bold text-[#FF6E50]">
+                    <div className="text-2xl font-bold text-[#FF6C5E]">
                       {formatCurrency(convertFromUSD(plan.unit_price, orgCurrency), orgCurrency)}
                     </div>
                     <div className="text-xs text-muted-foreground">
@@ -393,14 +393,14 @@ export default function AddFromTemplatePage() {
 
                 {/* Discount Badge */}
                 {plan.discount_type && plan.discount_value && plan.discount_value > 0 && (
-                  <Badge variant="outline" className="text-xs bg-[#F0FDFA] text-[#007A78] border-[#007A78]/20">
+                  <Badge variant="outline" className="text-xs bg-[#F0FDFA] text-[#1a7a3a] border-[#90FCA6]/20">
                     {plan.discount_type === 'percent' ? `${plan.discount_value}% off` : `${formatCurrency(convertFromUSD(plan.discount_value, orgCurrency), orgCurrency)} discount`}
                   </Badge>
                 )}
 
                 {/* Select Button */}
                 <Button
-                  className="w-full h-[40px] bg-[#007A78] text-white hover:bg-[#006664] rounded-xl text-[15px] font-semibold group-hover:bg-[#006664]"
+                  className="w-full h-[40px] bg-[#90FCA6] text-black hover:bg-[#006664] rounded-xl text-[15px] font-semibold group-hover:bg-[#006664]"
                   onClick={(e) => {
                     e.stopPropagation()
                     handleSelectTemplate(plan)
@@ -416,7 +416,7 @@ export default function AddFromTemplatePage() {
 
       {/* Custom Plan CTA */}
       {!templateError && availablePlans.length > 0 && (
-        <Card className="border-[#007A78]/20 bg-[#007A78]/5">
+        <Card className="border-[#90FCA6]/20 bg-[#90FCA6]/5">
           <CardContent className="py-6">
             <div className="flex items-center justify-between">
               <div>
@@ -428,7 +428,7 @@ export default function AddFromTemplatePage() {
               <Link href={`/${orgSlug}/integrations/subscriptions/${provider}/add/custom`}>
                 <Button
                   variant="outline"
-                  className="border-[#007A78]/30 text-[#007A78] hover:bg-[#007A78]/5 rounded-xl"
+                  className="border-[#90FCA6]/30 text-[#1a7a3a] hover:bg-[#90FCA6]/5 rounded-xl"
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Create Custom

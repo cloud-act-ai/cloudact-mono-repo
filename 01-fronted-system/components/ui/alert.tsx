@@ -10,13 +10,13 @@ const alertVariants = cva(
       variant: {
         default: 'bg-card text-card-foreground border-border',
         destructive:
-          'bg-[#FF6E50]/5 dark:bg-[#FF6E50]/10 border-[#FF6E50] text-[#FF6E50] dark:text-[#FF6E50] [&>svg]:text-[#FF6E50]',
+          'bg-[#FF6C5E]/5 dark:bg-[#FF6C5E]/10 border-[#FF6C5E] text-[#FF6C5E] dark:text-[#FF6C5E] [&>svg]:text-[#FF6C5E]',
         success:
-          'bg-[#007A78]/5 dark:bg-[#007A78]/10 border-[#007A78] text-[#007A78] dark:text-[#007A78] [&>svg]:text-[#007A78]',
+          'bg-[#90FCA6]/5 dark:bg-[#90FCA6]/10 border-[#90FCA6] text-[#000000] dark:text-[#000000] [&>svg]:text-[#6EE890]',
         warning:
-          'bg-[#FF6E50]/5 dark:bg-[#FF6E50]/10 border-[#FF6E50] text-[#FF6E50] dark:text-[#FF6E50] [&>svg]:text-[#FF6E50]',
+          'bg-[#FF6C5E]/5 dark:bg-[#FF6C5E]/10 border-[#FF6C5E] text-[#FF6C5E] dark:text-[#FF6C5E] [&>svg]:text-[#FF6C5E]',
         info:
-          'bg-teal-50 dark:bg-teal-950 border-[#007A78] text-teal-900 dark:text-teal-200 [&>svg]:text-[#007A78]',
+          'bg-[#B8FDCA]/20 dark:bg-[#90FCA6]/10 border-[#90FCA6] text-[#000000] dark:text-[#000000] [&>svg]:text-[#6EE890]',
       },
     },
     defaultVariants: {

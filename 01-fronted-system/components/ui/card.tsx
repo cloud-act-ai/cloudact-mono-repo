@@ -9,9 +9,9 @@ function Card({ className, ...props }: React.ComponentProps<'div'>) {
       className={cn(
         'bg-card text-card-foreground flex flex-col gap-6 rounded-xl border border-border shadow-sm py-6',
         'transition-all duration-200 ease-in-out',
-        'hover:shadow-[0_4px_16px_rgba(0,122,120,0.08),0_2px_4px_rgba(0,0,0,0.04)]',
+        'hover:shadow-[0_4px_16px_rgba(144,252,166,0.08),0_2px_4px_rgba(0,0,0,0.04)]',
         'hover:-translate-y-0.5',
-        'focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#007A78] focus-visible:outline-offset-2',
+        'focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--cloudact-mint)] focus-visible:outline-offset-2',
         'active:translate-y-0 active:shadow-sm',
         className,
       )}

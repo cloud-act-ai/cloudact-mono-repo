@@ -63,7 +63,7 @@ interface QuickStats {
 // Progress Ring Component
 // ============================================
 
-function ProgressRing({ progress, size = 60, strokeWidth = 4, color = "#007A78" }: {
+function ProgressRing({ progress, size = 60, strokeWidth = 4, color = "var(--cloudact-mint)" }: {
   progress: number;
   size?: number;
   strokeWidth?: number;
@@ -79,7 +79,7 @@ function ProgressRing({ progress, size = 60, strokeWidth = 4, color = "#007A78" 
         cx={size / 2}
         cy={size / 2}
         r={radius}
-        stroke="#E5E5EA"
+        stroke="var(--cloudact-border)"
         strokeWidth={strokeWidth}
         fill="none"
       />
@@ -105,42 +105,42 @@ function ProgressRing({ progress, size = 60, strokeWidth = 4, color = "#007A78" 
 
 function AnimatedPipelineFlow() {
   return (
-    <div className="relative w-full h-32 bg-gradient-to-br from-[#007A78]/5 via-[#F0FDFA] to-[#FF6E50]/5 rounded-2xl overflow-hidden border border-[#007A78]/10">
+    <div className="relative w-full h-32 bg-gradient-to-br from-[var(--cloudact-mint)]/5 via-[var(--cloudact-mint-light)] to-[var(--cloudact-coral)]/5 rounded-2xl overflow-hidden border border-[var(--cloudact-mint)]/10">
       <div className="absolute inset-0 flex items-center justify-between px-8">
         {/* Source */}
         <div className="flex flex-col items-center gap-2 z-10">
-          <div className="w-12 h-12 rounded-full bg-[#007A78] flex items-center justify-center shadow-lg">
-            <Cloud className="h-6 w-6 text-white" />
+          <div className="w-12 h-12 rounded-full bg-[var(--cloudact-mint)] flex items-center justify-center shadow-lg">
+            <Cloud className="h-6 w-6 text-[var(--cloudact-mint-text)]" />
           </div>
-          <span className="text-[11px] font-semibold text-[#007A78]">Source</span>
+          <span className="text-[11px] font-semibold text-[var(--cloudact-mint-text)]">Source</span>
         </div>
 
         {/* Animated Flow Lines */}
         <div className="flex-1 relative h-1 mx-4">
-          <div className="absolute inset-0 bg-[#007A78]/20 rounded-full"></div>
-          <div className="absolute inset-0 bg-gradient-to-r from-[#007A78] to-transparent rounded-full animate-[flow_2s_ease-in-out_infinite]"></div>
+          <div className="absolute inset-0 bg-[var(--cloudact-mint)]/20 rounded-full"></div>
+          <div className="absolute inset-0 bg-gradient-to-r from-[var(--cloudact-mint)] to-transparent rounded-full animate-[flow_2s_ease-in-out_infinite]"></div>
         </div>
 
         {/* Processing */}
         <div className="flex flex-col items-center gap-2 z-10">
-          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#007A78] to-[#14B8A6] flex items-center justify-center shadow-lg animate-pulse">
-            <Activity className="h-6 w-6 text-white" />
+          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[var(--cloudact-mint)] to-[var(--cloudact-mint-light)] flex items-center justify-center shadow-lg animate-pulse">
+            <Activity className="h-6 w-6 text-[var(--cloudact-mint-text)]" />
           </div>
-          <span className="text-[11px] font-semibold text-[#007A78]">Process</span>
+          <span className="text-[11px] font-semibold text-[var(--cloudact-mint-text)]">Process</span>
         </div>
 
         {/* Animated Flow Lines */}
         <div className="flex-1 relative h-1 mx-4">
-          <div className="absolute inset-0 bg-[#FF6E50]/20 rounded-full"></div>
-          <div className="absolute inset-0 bg-gradient-to-r from-[#FF6E50] to-transparent rounded-full animate-[flow_2s_ease-in-out_infinite_0.5s]"></div>
+          <div className="absolute inset-0 bg-[var(--cloudact-coral)]/20 rounded-full"></div>
+          <div className="absolute inset-0 bg-gradient-to-r from-[var(--cloudact-coral)] to-transparent rounded-full animate-[flow_2s_ease-in-out_infinite_0.5s]"></div>
         </div>
 
         {/* Destination */}
         <div className="flex flex-col items-center gap-2 z-10">
-          <div className="w-12 h-12 rounded-full bg-[#FF6E50] flex items-center justify-center shadow-lg">
+          <div className="w-12 h-12 rounded-full bg-[var(--cloudact-coral)] flex items-center justify-center shadow-lg">
             <Zap className="h-6 w-6 text-white" />
           </div>
-          <span className="text-[11px] font-semibold text-[#FF6E50]">Analytics</span>
+          <span className="text-[11px] font-semibold text-[var(--cloudact-coral)]">Analytics</span>
         </div>
       </div>
 
@@ -375,20 +375,20 @@ export default function PipelinesPage() {
   const getStatusColor = (status: string) => {
     switch (status.toUpperCase()) {
       case "COMPLETED":
-        return "bg-[#F0FDFA] text-[#007A78] border border-[#007A78]/10"
+        return "bg-[var(--cloudact-mint-light)] text-[var(--cloudact-mint-text)] border border-[var(--cloudact-mint)]/10"
       case "FAILED":
       case "TIMEOUT":
-        return "bg-[#FF6E50]/10 text-[#FF6E50] border border-[#FF6E50]/10"
+        return "bg-[var(--cloudact-coral)]/10 text-[var(--cloudact-coral)] border border-[var(--cloudact-coral)]/10"
       case "RUNNING":
       case "PENDING":
       case "CANCELLING":
-        return "bg-[#007A78]/5 text-[#007A78] border border-[#007A78]/10"
+        return "bg-[var(--cloudact-mint)]/5 text-[var(--cloudact-mint-text)] border border-[var(--cloudact-mint)]/10"
       case "CANCELLED":
         return "bg-amber-100 text-amber-700 border border-amber-200"
       case "SKIPPED":
-        return "bg-[#007A78]/5 text-muted-foreground border border-border"
+        return "bg-[var(--cloudact-mint)]/5 text-muted-foreground border border-border"
       default:
-        return "bg-[#007A78]/5 text-muted-foreground border border-border"
+        return "bg-[var(--cloudact-mint)]/5 text-muted-foreground border border-border"
     }
   }
 
@@ -427,8 +427,8 @@ export default function PipelinesPage() {
         <div className="flex items-center gap-6 mb-8 overflow-x-auto pb-2">
           {/* Runs Today */}
           <div className="flex items-center gap-3 flex-shrink-0">
-            <div className="h-10 w-10 rounded-xl bg-[#007A78]/10 flex items-center justify-center">
-              <Clock className="h-5 w-5 text-[#007A78]" />
+            <div className="h-10 w-10 rounded-xl bg-[var(--cloudact-mint)]/10 flex items-center justify-center">
+              <Clock className="h-5 w-5 text-[var(--cloudact-mint-dark)]" />
             </div>
             <div>
               <p className="text-[24px] font-bold text-slate-900 leading-none">{quickStats.runsToday}</p>
@@ -440,8 +440,8 @@ export default function PipelinesPage() {
 
           {/* Success Rate */}
           <div className="flex items-center gap-3 flex-shrink-0">
-            <div className="h-10 w-10 rounded-xl bg-[#007A78]/10 flex items-center justify-center">
-              <TrendingUp className="h-5 w-5 text-[#007A78]" />
+            <div className="h-10 w-10 rounded-xl bg-[var(--cloudact-mint)]/10 flex items-center justify-center">
+              <TrendingUp className="h-5 w-5 text-[var(--cloudact-mint-dark)]" />
             </div>
             <div>
               <p className="text-[24px] font-bold text-slate-900 leading-none">{quickStats.successRate}%</p>
@@ -453,8 +453,8 @@ export default function PipelinesPage() {
 
           {/* Avg Duration */}
           <div className="flex items-center gap-3 flex-shrink-0">
-            <div className="h-10 w-10 rounded-xl bg-[#FF6E50]/10 flex items-center justify-center">
-              <Activity className="h-5 w-5 text-[#FF6E50]" />
+            <div className="h-10 w-10 rounded-xl bg-[var(--cloudact-coral)]/10 flex items-center justify-center">
+              <Activity className="h-5 w-5 text-[var(--cloudact-coral)]" />
             </div>
             <div>
               <p className="text-[24px] font-bold text-slate-900 leading-none">{formatDuration(quickStats.avgDuration)}</p>
@@ -466,8 +466,8 @@ export default function PipelinesPage() {
 
           {/* Total Runs */}
           <div className="flex items-center gap-3 flex-shrink-0">
-            <div className="h-10 w-10 rounded-xl bg-[#007A78]/10 flex items-center justify-center">
-              <History className="h-5 w-5 text-[#007A78]" />
+            <div className="h-10 w-10 rounded-xl bg-[var(--cloudact-mint)]/10 flex items-center justify-center">
+              <History className="h-5 w-5 text-[var(--cloudact-mint-dark)]" />
             </div>
             <div>
               <p className="text-[24px] font-bold text-slate-900 leading-none">{quickStats.totalRuns}</p>
@@ -479,9 +479,9 @@ export default function PipelinesPage() {
 
       {/* Backend Connection Warning */}
       {(!backendConnected || !hasApiKey) && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm bg-[#FF6E50]/10 p-4 sm:p-5">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm bg-[var(--cloudact-coral)]/10 p-4 sm:p-5">
           <div className="flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 text-[#FF6E50] mt-0.5 flex-shrink-0" />
+            <AlertCircle className="h-5 w-5 text-[var(--cloudact-coral)] mt-0.5 flex-shrink-0" />
             <div className="space-y-3">
               <h3 className="text-[15px] font-semibold text-slate-900">
                 {!backendConnected ? "Backend Not Connected" : "API Key Missing"}
@@ -500,7 +500,7 @@ export default function PipelinesPage() {
                 )}
               </p>
               <Link href={`/${orgSlug}/settings/organization`}>
-                <button className="h-10 px-5 bg-[#007A78] hover:bg-[#006664] text-white text-[13px] font-semibold rounded-xl inline-flex items-center gap-2 transition-colors">
+                <button className="h-10 px-5 bg-[var(--cloudact-mint)] hover:bg-[var(--cloudact-mint-dark)] text-[var(--cloudact-mint-text)] text-[13px] font-semibold rounded-xl inline-flex items-center gap-2 transition-colors">
                   <Cloud className="h-4 w-4" />
                   Go to Organization Settings
                 </button>
@@ -511,9 +511,9 @@ export default function PipelinesPage() {
       )}
 
       {/* Info Alert */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm bg-[#007A78]/5 p-4">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm bg-[var(--cloudact-mint)]/5 p-4">
         <div className="flex items-center gap-3">
-          <Info className="h-5 w-5 text-[#007A78] flex-shrink-0" />
+          <Info className="h-5 w-5 text-[var(--cloudact-mint-dark)] flex-shrink-0" />
           <p className="text-[15px] text-slate-900">
             Pipelines run daily automatically. Use "Run Now" for manual runs or backfills.
           </p>
@@ -522,14 +522,14 @@ export default function PipelinesPage() {
 
       {/* Result Alert */}
       {lastResult && (
-        <div className={`bg-white rounded-2xl border border-slate-200 shadow-sm p-4 ${lastResult.success ? 'bg-[#007A78]/10' : 'bg-[#FF6E50]/10'}`}>
+        <div className={`bg-white rounded-2xl border border-slate-200 shadow-sm p-4 ${lastResult.success ? 'bg-[var(--cloudact-mint)]/10' : 'bg-[var(--cloudact-coral)]/10'}`}>
           <div className="flex items-center gap-3">
             {lastResult.success ? (
-              <CheckCircle2 className="h-5 w-5 text-[#007A78] flex-shrink-0" />
+              <CheckCircle2 className="h-5 w-5 text-[var(--cloudact-mint-dark)] flex-shrink-0" />
             ) : (
-              <AlertCircle className="h-5 w-5 text-[#FF6E50] flex-shrink-0" />
+              <AlertCircle className="h-5 w-5 text-[var(--cloudact-coral)] flex-shrink-0" />
             )}
-            <p className={`text-[15px] font-medium ${lastResult.success ? 'text-[#007A78]' : 'text-[#FF6E50]'}`}>
+            <p className={`text-[15px] font-medium ${lastResult.success ? 'text-[var(--cloudact-mint-text)]' : 'text-[var(--cloudact-coral)]'}`}>
               {lastResult.message}
             </p>
           </div>
@@ -557,15 +557,15 @@ export default function PipelinesPage() {
             {connectedPipelines.length === 0 && (
               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 sm:p-12 text-center">
                 <div className="space-y-4">
-                  <div className="inline-flex p-4 rounded-2xl bg-[#007A78]/10 mb-2">
-                    <Plug className="h-12 w-12 text-[#007A78]" />
+                  <div className="inline-flex p-4 rounded-2xl bg-[var(--cloudact-mint)]/10 mb-2">
+                    <Plug className="h-12 w-12 text-[var(--cloudact-mint-dark)]" />
                   </div>
                   <h3 className="text-[20px] font-semibold text-slate-900">No pipelines available</h3>
                   <p className="text-[15px] text-slate-600 max-w-md mx-auto">
                     Connect a provider to see available pipelines.
                   </p>
                   <Link href={`/${orgSlug}/integrations/cloud-providers`}>
-                    <button className="h-10 px-5 bg-[#007A78] hover:bg-[#006664] text-white text-[13px] font-semibold rounded-xl inline-flex items-center gap-2 transition-colors shadow-sm">
+                    <button className="h-10 px-5 bg-[var(--cloudact-mint)] hover:bg-[var(--cloudact-mint-dark)] text-[var(--cloudact-mint-text)] text-[13px] font-semibold rounded-xl inline-flex items-center gap-2 transition-colors shadow-sm">
                       <Plug className="h-4 w-4" />
                       Add New Provider
                     </button>
@@ -585,7 +585,7 @@ export default function PipelinesPage() {
                       key={pipeline.id}
                       className="group relative"
                     >
-                      <div className="absolute left-0 top-4 bottom-4 w-1 rounded-full bg-[#007A78] opacity-60 group-hover:opacity-100 transition-opacity" />
+                      <div className="absolute left-0 top-4 bottom-4 w-1 rounded-full bg-[var(--cloudact-mint)] opacity-60 group-hover:opacity-100 transition-opacity" />
                       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm pl-5 py-5 pr-5 hover:shadow-md transition-shadow">
                         <div className="space-y-4">
                           {/* Header */}
@@ -594,7 +594,7 @@ export default function PipelinesPage() {
                               <h3 className="text-[17px] font-bold text-slate-900 mb-1">{pipeline.name}</h3>
                               <p className="text-[13px] text-slate-600">{pipeline.description}</p>
                             </div>
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#F0FDFA] text-[#007A78] border border-[#007A78]/10 flex-shrink-0">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-[var(--cloudact-mint-light)] text-[var(--cloudact-mint-dark)] border border-[var(--cloudact-mint)]/10 flex-shrink-0">
                               <CheckCircle2 className="h-3 w-3" />
                               {!pipeline.required_integration || pipeline.required_integration === "" ? "Ready" : "Connected"}
                             </span>
@@ -609,7 +609,7 @@ export default function PipelinesPage() {
                               {pipeline.domain}
                             </span>
                             {pipeline.schedule && (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#FF6E50]/5 text-[#FF6E50] border border-[#FF6E50]/10">
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[var(--cloudact-coral)]/5 text-[var(--cloudact-coral)] border border-[var(--cloudact-coral)]/10">
                                 <Clock className="h-3 w-3" />
                                 {pipeline.schedule}
                               </span>
@@ -620,7 +620,7 @@ export default function PipelinesPage() {
                           <button
                             onClick={() => handleRun(pipeline.id)}
                             disabled={isRunning}
-                            className="w-full h-10 px-5 bg-[#007A78] hover:bg-[#006664] text-white text-[13px] font-semibold rounded-xl disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed transition-colors inline-flex items-center justify-center gap-2"
+                            className="w-full h-10 px-5 bg-[var(--cloudact-mint)] hover:bg-[var(--cloudact-mint-dark)] text-[var(--cloudact-mint-text)] text-[13px] font-semibold rounded-xl disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed transition-colors inline-flex items-center justify-center gap-2"
                           >
                             {isRunning ? (
                               <>
@@ -705,27 +705,27 @@ export default function PipelinesPage() {
                     <div key={run.pipeline_logging_id} className="relative">
                       {/* Timeline connector */}
                       {index < pipelineRuns.length - 1 && (
-                        <div className="absolute left-9 top-16 bottom-0 w-0.5 bg-[#E5E5EA]"></div>
+                        <div className="absolute left-9 top-16 bottom-0 w-0.5 bg-[var(--cloudact-border)]"></div>
                       )}
 
                       <button
-                        className="w-full p-4 text-left touch-manipulation hover:bg-[#007A78]/5 transition-colors relative"
+                        className="w-full p-4 text-left touch-manipulation hover:bg-[var(--cloudact-mint)]/5 transition-colors relative"
                         onClick={() => toggleRunExpansion(run.pipeline_logging_id)}
                       >
                         <div className="flex items-start gap-3">
                           {/* Timeline dot with status */}
                           <div className="relative flex-shrink-0 z-10">
                             {run.status === "COMPLETED" ? (
-                              <div className="w-8 h-8 rounded-full bg-[#007A78] flex items-center justify-center shadow-md">
+                              <div className="w-8 h-8 rounded-full bg-[var(--cloudact-mint)] flex items-center justify-center shadow-md">
                                 <CheckCircle2 className="h-4 w-4 text-white" />
                               </div>
                             ) : run.status === "FAILED" ? (
-                              <div className="w-8 h-8 rounded-full bg-[#FF6E50] flex items-center justify-center shadow-md">
+                              <div className="w-8 h-8 rounded-full bg-[var(--cloudact-coral)] flex items-center justify-center shadow-md">
                                 <XCircle className="h-4 w-4 text-white" />
                               </div>
                             ) : (
-                              <div className="w-8 h-8 rounded-full bg-[#007A78]/20 flex items-center justify-center shadow-md">
-                                <Loader2 className="h-4 w-4 text-[#007A78] animate-spin" />
+                              <div className="w-8 h-8 rounded-full bg-[var(--cloudact-mint)]/20 flex items-center justify-center shadow-md">
+                                <Loader2 className="h-4 w-4 text-[var(--cloudact-mint-dark)] animate-spin" />
                               </div>
                             )}
                           </div>
@@ -761,17 +761,17 @@ export default function PipelinesPage() {
                       </button>
 
                       {isExpanded && (
-                        <div className="px-4 pb-4 bg-[#007A78]/5 ml-11">
+                        <div className="px-4 pb-4 bg-[var(--cloudact-mint)]/5 ml-11">
                           {isLoadingThisDetail ? (
                             <div className="flex items-center justify-center py-6">
-                              <Loader2 className="h-6 w-6 animate-spin text-[#007A78]" />
+                              <Loader2 className="h-6 w-6 animate-spin text-[var(--cloudact-mint-dark)]" />
                             </div>
                           ) : detail ? (
                             <div className="space-y-4">
                               {(run.error_message || run.error_context) && (
-                                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm bg-[#FF6E50]/10 p-4">
+                                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm bg-[var(--cloudact-coral)]/10 p-4">
                                   <div className="flex items-start gap-3">
-                                    <AlertCircle className="h-5 w-5 text-[#FF6E50] mt-0.5 flex-shrink-0" />
+                                    <AlertCircle className="h-5 w-5 text-[var(--cloudact-coral)] mt-0.5 flex-shrink-0" />
                                     <div className="flex-1 min-w-0">
                                       <div className="flex items-center gap-2 flex-wrap">
                                         <p className="text-[15px] font-semibold text-slate-900">Error</p>
@@ -792,7 +792,7 @@ export default function PipelinesPage() {
                                       </div>
                                       <p className="text-[13px] text-slate-600 mt-1 break-words">{run.error_message}</p>
                                       {run.error_context?.suggested_action && (
-                                        <p className="text-[12px] text-[#007A78] mt-2 font-medium">
+                                        <p className="text-[12px] text-[var(--cloudact-mint-dark)] mt-2 font-medium">
                                           Suggestion: {run.error_context.suggested_action}
                                         </p>
                                       )}
@@ -840,9 +840,9 @@ export default function PipelinesPage() {
                               </div>
 
                               {detail.steps.filter(s => s.error_message).map((step) => (
-                                <div key={step.step_logging_id} className="bg-white rounded-2xl border border-slate-200 shadow-sm bg-[#FF6E50]/10 p-4">
+                                <div key={step.step_logging_id} className="bg-white rounded-2xl border border-slate-200 shadow-sm bg-[var(--cloudact-coral)]/10 p-4">
                                   <div className="flex items-start gap-3">
-                                    <AlertCircle className="h-5 w-5 text-[#FF6E50] mt-0.5 flex-shrink-0" />
+                                    <AlertCircle className="h-5 w-5 text-[var(--cloudact-coral)] mt-0.5 flex-shrink-0" />
                                     <div>
                                       <p className="text-[15px] font-semibold text-slate-900">{step.step_name} Error</p>
                                       <p className="text-[13px] text-slate-600 mt-1 break-words">{step.error_message}</p>
@@ -869,7 +869,7 @@ export default function PipelinesPage() {
               <div className="hidden md:block overflow-x-auto">
                 <Table>
                   <TableHeader>
-                    <TableRow className="border-b border-[#E5E5EA]">
+                    <TableRow className="border-b border-[var(--cloudact-border)]">
                       <TableHead className="console-table-header w-10"></TableHead>
                       <TableHead className="console-table-header">Pipeline</TableHead>
                       <TableHead className="console-table-header">Status</TableHead>
@@ -887,7 +887,7 @@ export default function PipelinesPage() {
                       return (
                         <React.Fragment key={run.pipeline_logging_id}>
                           <TableRow
-                            className="console-table-row cursor-pointer touch-manipulation hover:bg-[#007A78]/5 transition-colors"
+                            className="console-table-row cursor-pointer touch-manipulation hover:bg-[var(--cloudact-mint)]/5 transition-colors"
                             onClick={() => toggleRunExpansion(run.pipeline_logging_id)}
                           >
                             <TableCell className="console-table-cell">
@@ -930,18 +930,18 @@ export default function PipelinesPage() {
                           </TableRow>
 
                           {isExpanded && (
-                            <TableRow className="bg-[#007A78]/5">
+                            <TableRow className="bg-[var(--cloudact-mint)]/5">
                               <TableCell colSpan={6} className="px-4 sm:px-6 py-6">
                                 {isLoadingThisDetail ? (
                                   <div className="flex items-center justify-center py-6">
-                                    <Loader2 className="h-6 w-6 animate-spin text-[#007A78]" />
+                                    <Loader2 className="h-6 w-6 animate-spin text-[var(--cloudact-mint-dark)]" />
                                   </div>
                                 ) : detail ? (
                                   <div className="space-y-4">
                                     {(run.error_message || run.error_context) && (
-                                      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm bg-[#FF6E50]/10 p-4">
+                                      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm bg-[var(--cloudact-coral)]/10 p-4">
                                         <div className="flex items-start gap-3">
-                                          <AlertCircle className="h-5 w-5 text-[#FF6E50] mt-0.5 flex-shrink-0" />
+                                          <AlertCircle className="h-5 w-5 text-[var(--cloudact-coral)] mt-0.5 flex-shrink-0" />
                                           <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2 flex-wrap">
                                               <p className="text-[15px] font-semibold text-slate-900">Error</p>
@@ -962,7 +962,7 @@ export default function PipelinesPage() {
                                             </div>
                                             <p className="text-[13px] text-slate-600 mt-1">{run.error_message}</p>
                                             {run.error_context?.suggested_action && (
-                                              <p className="text-[12px] text-[#007A78] mt-2 font-medium">
+                                              <p className="text-[12px] text-[var(--cloudact-mint-dark)] mt-2 font-medium">
                                                 Suggestion: {run.error_context.suggested_action}
                                               </p>
                                             )}
@@ -1024,9 +1024,9 @@ export default function PipelinesPage() {
                                       </div>
 
                                       {detail.steps.filter(s => s.error_message).map((step) => (
-                                        <div key={step.step_logging_id} className="bg-white rounded-2xl border border-slate-200 shadow-sm bg-[#FF6E50]/10 p-4">
+                                        <div key={step.step_logging_id} className="bg-white rounded-2xl border border-slate-200 shadow-sm bg-[var(--cloudact-coral)]/10 p-4">
                                           <div className="flex items-start gap-3">
-                                            <AlertCircle className="h-5 w-5 text-[#FF6E50] mt-0.5 flex-shrink-0" />
+                                            <AlertCircle className="h-5 w-5 text-[var(--cloudact-coral)] mt-0.5 flex-shrink-0" />
                                             <div>
                                               <p className="text-[15px] font-semibold text-slate-900">{step.step_name} Error</p>
                                               <p className="text-[13px] text-slate-600 mt-1">{step.error_message}</p>

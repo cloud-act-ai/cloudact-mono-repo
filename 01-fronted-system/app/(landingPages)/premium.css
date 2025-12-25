@@ -1,7 +1,7 @@
 /* ============================================
    CLOUDACT PREMIUM LANDING PAGE
    Sophisticated data-driven aesthetic
-   Brand: Teal (#007A78) + Coral (#FF6E50)
+   Brand: Mint (#90FCA6) + Coral (#FF6C5E) + Blue (#007AFF)
    ============================================ */
 
 /* Typography imports */
@@ -11,19 +11,34 @@
    CSS VARIABLES
    ============================================ */
 :root {
-  /* Brand Colors */
-  --ca-teal: #007A78;
-  --ca-teal-light: #00968F;
-  --ca-teal-dark: #005C5A;
-  --ca-teal-50: #E6F5F5;
-  --ca-teal-100: #CCE9E8;
-  --ca-teal-glow: rgba(0, 122, 120, 0.2);
+  /* Brand Colors - NEW PALETTE */
+  --ca-mint: #90FCA6;
+  --ca-mint-light: #B8FDCA;
+  --ca-mint-dark: #6EE890;
+  --ca-mint-50: #E8FFF0;
+  --ca-mint-100: #D0FFE0;
+  --ca-mint-glow: rgba(144, 252, 166, 0.25);
 
-  --ca-coral: #FF6E50;
-  --ca-coral-light: #FF8F77;
-  --ca-coral-dark: #E55A3C;
+  /* Legacy aliases for backward compatibility */
+  --ca-teal: #90FCA6;
+  --ca-teal-light: #B8FDCA;
+  --ca-teal-dark: #6EE890;
+  --ca-teal-50: #E8FFF0;
+  --ca-teal-100: #D0FFE0;
+  --ca-teal-glow: rgba(144, 252, 166, 0.25);
+
+  --ca-coral: #FF6C5E;
+  --ca-coral-light: #FF8A7F;
+  --ca-coral-dark: #E5544A;
   --ca-coral-50: #FFF0ED;
-  --ca-coral-glow: rgba(255, 110, 80, 0.2);
+  --ca-coral-glow: rgba(255, 108, 94, 0.25);
+
+  /* Blue - for links/info */
+  --ca-blue: #007AFF;
+  --ca-blue-light: #4DA3FF;
+  --ca-blue-dark: #0062CC;
+  --ca-blue-50: #EBF5FF;
+  --ca-blue-glow: rgba(0, 122, 255, 0.2);
 
   /* Neutrals */
   --ca-white: #FFFFFF;
@@ -193,15 +208,15 @@
 }
 
 .ca-btn-primary {
-  background: var(--ca-teal);
-  color: white;
-  box-shadow: var(--shadow-md), 0 0 0 0 var(--ca-teal-glow);
+  background: var(--ca-mint);
+  color: #000000;
+  box-shadow: var(--shadow-md), 0 0 0 0 var(--ca-mint-glow);
 }
 
 .ca-btn-primary:hover {
-  background: var(--ca-teal-dark);
+  background: var(--ca-mint-dark);
   transform: translateY(-2px);
-  box-shadow: var(--shadow-xl), 0 0 30px var(--ca-teal-glow);
+  box-shadow: var(--shadow-xl), 0 0 30px var(--ca-mint-glow);
 }
 
 .ca-btn-primary:active {
@@ -216,8 +231,8 @@
 }
 
 .ca-btn-secondary:hover {
-  border-color: var(--ca-teal);
-  color: var(--ca-teal);
+  border-color: var(--ca-mint);
+  color: #1a7a3a;
   box-shadow: var(--shadow-md);
 }
 
@@ -230,7 +245,7 @@
 .ca-btn-coral:hover {
   background: var(--ca-coral-dark);
   transform: translateY(-2px);
-  box-shadow: var(--shadow-xl), 0 0 30px var(--ca-coral-glow);
+  box-shadow: var(--shadow-xl), 0 0 40px var(--ca-coral-glow);
 }
 
 .ca-btn-lg {
@@ -257,8 +272,8 @@
 }
 
 .ca-card:hover {
-  border-color: var(--ca-teal);
-  box-shadow: var(--shadow-xl), 0 0 40px var(--ca-teal-glow);
+  border-color: var(--ca-mint);
+  box-shadow: var(--shadow-xl), 0 0 50px var(--ca-mint-glow);
   transform: translateY(-4px);
 }
 
@@ -421,21 +436,21 @@
   transform: translate(-50%, -50%);
   width: 140px;
   height: 140px;
-  background: linear-gradient(135deg, var(--ca-teal) 0%, var(--ca-teal-dark) 100%);
+  background: linear-gradient(135deg, var(--ca-mint) 0%, var(--ca-mint-dark) 100%);
   border-radius: 32px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: white;
-  box-shadow: var(--shadow-2xl), 0 0 80px var(--ca-teal-glow);
+  color: #000000;
+  box-shadow: var(--shadow-2xl), 0 0 80px var(--ca-mint-glow);
   z-index: 20;
   animation: centerGlow 4s ease-in-out infinite;
 }
 
 @keyframes centerGlow {
-  0%, 100% { box-shadow: var(--shadow-2xl), 0 0 60px var(--ca-teal-glow); }
-  50% { box-shadow: var(--shadow-2xl), 0 0 100px var(--ca-teal-glow); }
+  0%, 100% { box-shadow: var(--shadow-2xl), 0 0 60px var(--ca-mint-glow); }
+  50% { box-shadow: var(--shadow-2xl), 0 0 100px var(--ca-mint-glow); }
 }
 
 .ca-constellation-center-logo {
@@ -472,8 +487,8 @@
 
 .ca-constellation-node:hover {
   transform: scale(1.15);
-  border-color: var(--ca-teal);
-  box-shadow: var(--shadow-xl), 0 0 30px var(--ca-teal-glow);
+  border-color: var(--ca-mint);
+  box-shadow: var(--shadow-xl), 0 0 30px var(--ca-mint-glow);
   z-index: 30;
 }
 
@@ -539,7 +554,7 @@
   border: 1px solid var(--ca-gray-200);
   border-radius: 20px;
   overflow: hidden;
-  box-shadow: var(--shadow-2xl), 0 0 100px var(--ca-teal-glow);
+  box-shadow: var(--shadow-2xl), 0 0 100px var(--ca-mint-glow);
 }
 
 .ca-dashboard-header {
@@ -595,22 +610,22 @@
 }
 
 .ca-metric-card:hover {
-  border-color: var(--ca-teal);
+  border-color: var(--ca-mint);
   box-shadow: var(--shadow-md);
 }
 
 .ca-metric-card-highlight {
-  background: linear-gradient(135deg, var(--ca-teal) 0%, var(--ca-teal-dark) 100%);
+  background: linear-gradient(135deg, var(--ca-mint) 0%, var(--ca-mint-dark) 100%);
   border: none;
-  color: white;
+  color: #000000;
 }
 
 .ca-metric-card-highlight .ca-metric-label {
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(0, 0, 0, 0.7);
 }
 
 .ca-metric-card-highlight .ca-metric-value {
-  color: white;
+  color: #000000;
 }
 
 .ca-metric-label {
@@ -783,9 +798,9 @@
 }
 
 .ca-feature-card:hover {
-  border-color: var(--ca-teal);
+  border-color: var(--ca-mint);
   transform: translateY(-8px);
-  box-shadow: var(--shadow-xl), 0 0 50px var(--ca-teal-glow);
+  box-shadow: var(--shadow-xl), 0 0 50px var(--ca-mint-glow);
 }
 
 .ca-feature-card:hover::before {
@@ -808,8 +823,8 @@
 }
 
 .ca-feature-icon-teal {
-  background: var(--ca-teal-50);
-  color: var(--ca-teal);
+  background: var(--ca-mint-50);
+  color: #1a7a3a;
 }
 
 .ca-feature-icon-coral {
@@ -839,9 +854,9 @@
    STATS SECTION
    ============================================ */
 .ca-stats-section {
-  background: linear-gradient(135deg, var(--ca-teal) 0%, var(--ca-teal-dark) 100%);
+  background: linear-gradient(135deg, var(--ca-mint) 0%, var(--ca-mint-dark) 100%);
   padding: var(--space-20) var(--space-4);
-  color: white;
+  color: #000000;
   position: relative;
   overflow: hidden;
 }
@@ -851,8 +866,8 @@
   position: absolute;
   inset: 0;
   background-image:
-    radial-gradient(circle at 20% 50%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
-    radial-gradient(circle at 80% 50%, rgba(255, 110, 80, 0.15) 0%, transparent 50%);
+    radial-gradient(circle at 20% 50%, rgba(255, 255, 255, 0.3) 0%, transparent 50%),
+    radial-gradient(circle at 80% 50%, rgba(255, 108, 94, 0.2) 0%, transparent 50%);
 }
 
 .ca-stats-grid {
@@ -993,8 +1008,8 @@
 }
 
 .ca-testimonial-btn:hover {
-  border-color: var(--ca-teal);
-  color: var(--ca-teal);
+  border-color: var(--ca-mint);
+  color: #1a7a3a;
   box-shadow: var(--shadow-md);
 }
 
@@ -1015,7 +1030,7 @@
 
 .ca-testimonial-dot.active {
   width: 32px;
-  background: var(--ca-teal);
+  background: var(--ca-mint);
 }
 
 /* ============================================
@@ -1051,8 +1066,8 @@
 }
 
 .ca-pricing-card-featured {
-  border: 2px solid var(--ca-teal);
-  box-shadow: var(--shadow-xl), 0 0 60px var(--ca-teal-glow);
+  border: 2px solid var(--ca-mint);
+  box-shadow: var(--shadow-xl), 0 0 60px var(--ca-mint-glow);
 }
 
 .ca-pricing-card-featured::before {
@@ -1129,7 +1144,7 @@
 .ca-pricing-feature svg {
   width: 20px;
   height: 20px;
-  color: var(--ca-teal);
+  color: #1a7a3a;
   flex-shrink: 0;
   margin-top: 2px;
 }
@@ -1144,11 +1159,11 @@
 .ca-cta-box {
   max-width: 900px;
   margin: 0 auto;
-  background: linear-gradient(135deg, var(--ca-teal) 0%, var(--ca-teal-dark) 100%);
+  background: linear-gradient(135deg, var(--ca-mint) 0%, var(--ca-mint-dark) 100%);
   border-radius: 32px;
   padding: var(--space-16);
   text-align: center;
-  color: white;
+  color: #000000;
   position: relative;
   overflow: hidden;
 }
@@ -1214,7 +1229,7 @@
 
 .ca-cta-btn-white {
   background: white;
-  color: var(--ca-teal);
+  color: #1a7a3a;
   padding: var(--space-4) var(--space-8);
   border-radius: 12px;
   font-weight: 600;
@@ -1232,9 +1247,9 @@
 
 .ca-cta-btn-outline {
   background: transparent;
-  color: white;
+  color: #000000;
   padding: var(--space-4) var(--space-8);
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  border: 2px solid rgba(0, 0, 0, 0.2);
   border-radius: 12px;
   font-weight: 600;
   display: inline-flex;
@@ -1245,8 +1260,8 @@
 }
 
 .ca-cta-btn-outline:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.5);
+  background: rgba(0, 0, 0, 0.05);
+  border-color: rgba(0, 0, 0, 0.3);
 }
 
 /* ============================================

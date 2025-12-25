@@ -55,7 +55,7 @@ export function UserMenu({ user, orgSlug, userRole, className }: UserMenuProps) 
         <Button
           variant="ghost"
           className={cn(
-            "relative h-11 w-11 rounded-full p-0 hover:bg-[#007A78]/5 focus-visible:ring-2 focus-visible:ring-[#007A78] focus-visible:ring-offset-2 focus-visible:outline-[#007A78]",
+            "relative h-11 w-11 rounded-full p-0 hover:bg-[var(--cloudact-mint)]/5 focus-visible:ring-2 focus-visible:ring-[var(--cloudact-mint-dark)] focus-visible:ring-offset-2 focus-visible:outline-[var(--cloudact-mint-dark)]",
             className
           )}
           aria-label="User menu"
@@ -76,7 +76,7 @@ export function UserMenu({ user, orgSlug, userRole, className }: UserMenuProps) 
               {user.email}
             </p>
             {userRole && (
-              <p className="text-xs text-[#007A78] font-medium capitalize mt-1">
+              <p className="text-xs text-[var(--cloudact-mint-dark)] font-medium capitalize mt-1">
                 {userRole === "read_only" ? "Read Only" : userRole}
               </p>
             )}
@@ -89,9 +89,9 @@ export function UserMenu({ user, orgSlug, userRole, className }: UserMenuProps) 
             setOpen(false)
             router.push(`/${orgSlug}/settings/profile`)
           }}
-          className="px-3 py-2.5 text-sm text-black hover:bg-[#007A78]/5 hover:text-[#007A78] cursor-pointer rounded-lg focus:bg-[#007A78]/5 focus:text-[#007A78]"
+          className="px-3 py-2.5 text-sm text-black hover:bg-[var(--cloudact-mint)]/5 hover:text-[var(--cloudact-mint-dark)] cursor-pointer rounded-lg focus:bg-[var(--cloudact-mint)]/5 focus:text-[var(--cloudact-mint-dark)]"
         >
-          <User className="mr-3 h-4 w-4 text-[#007A78]" />
+          <User className="mr-3 h-4 w-4 text-[var(--cloudact-mint-dark)]" />
           <span>Profile Settings</span>
         </DropdownMenuItem>
 
@@ -102,9 +102,9 @@ export function UserMenu({ user, orgSlug, userRole, className }: UserMenuProps) 
                 setOpen(false)
                 router.push(`/${orgSlug}/settings/onboarding`)
               }}
-              className="px-3 py-2.5 text-sm text-black hover:bg-[#007A78]/5 hover:text-[#007A78] cursor-pointer rounded-lg focus:bg-[#007A78]/5 focus:text-[#007A78]"
+              className="px-3 py-2.5 text-sm text-black hover:bg-[var(--cloudact-mint)]/5 hover:text-[var(--cloudact-mint-dark)] cursor-pointer rounded-lg focus:bg-[var(--cloudact-mint)]/5 focus:text-[var(--cloudact-mint-dark)]"
             >
-              <Building2 className="mr-3 h-4 w-4 text-[#007A78]" />
+              <Building2 className="mr-3 h-4 w-4 text-[var(--cloudact-mint-dark)]" />
               <span>Organization</span>
             </DropdownMenuItem>
 
@@ -113,9 +113,9 @@ export function UserMenu({ user, orgSlug, userRole, className }: UserMenuProps) 
                 setOpen(false)
                 router.push(`/${orgSlug}/billing`)
               }}
-              className="px-3 py-2.5 text-sm text-black hover:bg-[#FF6E50]/5 hover:text-[#FF6E50] cursor-pointer rounded-lg focus:bg-[#FF6E50]/5 focus:text-[#FF6E50]"
+              className="px-3 py-2.5 text-sm text-black hover:bg-[var(--cloudact-coral)]/5 hover:text-[var(--cloudact-coral)] cursor-pointer rounded-lg focus:bg-[var(--cloudact-coral)]/5 focus:text-[var(--cloudact-coral)]"
             >
-              <CreditCard className="mr-3 h-4 w-4 text-[#FF8A73]" />
+              <CreditCard className="mr-3 h-4 w-4 text-[var(--cloudact-coral)]" />
               <span>Billing</span>
             </DropdownMenuItem>
           </>
@@ -126,9 +126,9 @@ export function UserMenu({ user, orgSlug, userRole, className }: UserMenuProps) 
             setOpen(false)
             router.push(`/${orgSlug}/settings/members`)
           }}
-          className="px-3 py-2.5 text-sm text-black hover:bg-[#007A78]/5 hover:text-[#007A78] cursor-pointer rounded-lg focus:bg-[#007A78]/5 focus:text-[#007A78]"
+          className="px-3 py-2.5 text-sm text-black hover:bg-[var(--cloudact-mint)]/5 hover:text-[var(--cloudact-mint-dark)] cursor-pointer rounded-lg focus:bg-[var(--cloudact-mint)]/5 focus:text-[var(--cloudact-mint-dark)]"
         >
-          <Users className="mr-3 h-4 w-4 text-[#14B8A6]" />
+          <Users className="mr-3 h-4 w-4 text-[var(--cloudact-mint-light)]" />
           <span>Team Members</span>
         </DropdownMenuItem>
 
@@ -137,7 +137,7 @@ export function UserMenu({ user, orgSlug, userRole, className }: UserMenuProps) 
         <DropdownMenuItem
           onClick={handleLogout}
           disabled={isLoading}
-          className="px-3 py-2.5 text-sm text-[#FF6E50] hover:bg-[#FF6E50]/10 hover:text-[#FF6E50] cursor-pointer rounded-lg focus:bg-[#FF6E50]/10 focus:text-[#FF6E50]"
+          className="px-3 py-2.5 text-sm text-[var(--cloudact-coral)] hover:bg-[var(--cloudact-coral)]/10 hover:text-[var(--cloudact-coral)] cursor-pointer rounded-lg focus:bg-[var(--cloudact-coral)]/10 focus:text-[var(--cloudact-coral)]"
         >
           {isLoading ? (
             <>

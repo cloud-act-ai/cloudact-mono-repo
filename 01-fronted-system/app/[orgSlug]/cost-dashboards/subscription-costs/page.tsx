@@ -88,22 +88,22 @@ const CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: string }>
 
 // Category colors - CloudAct Standard (Teal/Coral/Neutral)
 const CATEGORY_COLORS: Record<string, string> = {
-  ai: "bg-[#007A78]/10 text-[#007A78] border border-[#007A78]/10",
-  design: "bg-[#007A78]/5 text-[#007A78] border border-[#007A78]/10",
-  productivity: "bg-[#F0FDFA] text-[#007A78] border border-[#007A78]/10",
-  communication: "bg-[#007A78]/5 text-[#005F5D] border border-[#007A78]/10",
-  development: "bg-[#F0FDFA] text-[#005F5D] border border-[#007A78]/10",
-  cloud: "bg-[#007A78]/10 text-[#007A78] border border-[#007A78]/10",
-  other: "bg-[#007A78]/5 text-muted-foreground border border-border",
+  ai: "bg-[var(--cloudact-mint)]/10 text-[var(--cloudact-mint)] border border-[var(--cloudact-mint)]/10",
+  design: "bg-[var(--cloudact-mint)]/5 text-[var(--cloudact-mint)] border border-[var(--cloudact-mint)]/10",
+  productivity: "bg-[#F0FDFA] text-[var(--cloudact-mint)] border border-[var(--cloudact-mint)]/10",
+  communication: "bg-[var(--cloudact-mint)]/5 text-[var(--cloudact-mint-dark)] border border-[var(--cloudact-mint)]/10",
+  development: "bg-[#F0FDFA] text-[var(--cloudact-mint-dark)] border border-[var(--cloudact-mint)]/10",
+  cloud: "bg-[var(--cloudact-mint)]/10 text-[var(--cloudact-mint)] border border-[var(--cloudact-mint)]/10",
+  other: "bg-[var(--cloudact-mint)]/5 text-muted-foreground border border-border",
 }
 
 const CATEGORY_GRADIENTS: Record<string, string> = {
-  ai: "from-[#007A78]/20 to-[#007A78]/5",
-  design: "from-[#FF6E50]/20 to-[#FF6E50]/5",
-  productivity: "from-[#007A78]/15 to-transparent",
-  communication: "from-[#FF6E50]/15 to-transparent",
-  development: "from-[#007A78]/20 to-[#007A78]/5",
-  cloud: "from-[#FF6E50]/20 to-[#FF6E50]/5",
+  ai: "from-[var(--cloudact-mint)]/20 to-[var(--cloudact-mint-dark)]/5",
+  design: "from-[var(--cloudact-coral)]/20 to-[var(--cloudact-coral)]/5",
+  productivity: "from-[var(--cloudact-mint)]/15 to-transparent",
+  communication: "from-[var(--cloudact-coral)]/15 to-transparent",
+  development: "from-[var(--cloudact-mint)]/20 to-[var(--cloudact-mint-dark)]/5",
+  cloud: "from-[var(--cloudact-coral)]/20 to-[var(--cloudact-coral)]/5",
   other: "from-slate-200/50 to-transparent",
 }
 
@@ -292,7 +292,7 @@ export default function SubscriptionCostsPage() {
           </p>
         </div>
         <div className="flex items-center justify-center min-h-[400px]">
-          <Loader2 className="h-8 w-8 animate-spin text-[#007A78]" />
+          <Loader2 className="h-8 w-8 animate-spin text-[var(--cloudact-mint-text)]" />
         </div>
       </div>
     )
@@ -319,7 +319,7 @@ export default function SubscriptionCostsPage() {
                 {error.includes("API key") ? (
                   <>
                     Please complete organization onboarding in{" "}
-                    <Link href={`/${orgSlug}/settings/organization`} className="text-[#007A78] hover:text-[#005F5D] font-medium">
+                    <Link href={`/${orgSlug}/settings/organization`} className="text-[var(--cloudact-blue)] hover:text-[#0056B3] font-medium">
                       Settings → Organization
                     </Link>{" "}
                     to enable subscription tracking.
@@ -338,9 +338,9 @@ export default function SubscriptionCostsPage() {
   return (
     <div className="max-w-6xl mx-auto space-y-8">
       {/* Hero Section with Provider Logos Grid */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#007A78] via-[#007A78] to-[#005F5D] p-8 sm:p-10">
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[var(--cloudact-mint)] via-[var(--cloudact-mint-dark)] to-[var(--cloudact-mint-dark)] p-8 sm:p-10">
         {/* Decorative elements */}
-        <div className="absolute top-0 right-0 w-96 h-96 bg-[#FF6E50]/10 rounded-full blur-3xl"></div>
+        <div className="absolute top-0 right-0 w-96 h-96 bg-[var(--cloudact-coral)]/10 rounded-full blur-3xl"></div>
         <div className="absolute bottom-0 left-0 w-64 h-64 bg-white/5 rounded-full blur-2xl"></div>
 
         <div className="relative z-10">
@@ -350,7 +350,7 @@ export default function SubscriptionCostsPage() {
                 <div className="p-2.5 rounded-xl bg-white/10 backdrop-blur-sm">
                   <Sparkles className="h-6 w-6 text-white" />
                 </div>
-                <Badge className="bg-[#FF6E50] text-white border-0 px-3 py-1 text-[11px] font-semibold">
+                <Badge className="bg-[var(--cloudact-coral)] text-white border-0 px-3 py-1 text-[11px] font-semibold">
                   SaaS Analytics
                 </Badge>
               </div>
@@ -395,7 +395,7 @@ export default function SubscriptionCostsPage() {
                 <span className="hidden sm:inline">Refresh</span>
               </Button>
               <Link href={`/${orgSlug}/integrations/subscriptions`}>
-                <Button className="bg-white text-[#007A78] hover:bg-white/90 h-11 px-4 rounded-xl text-[15px] font-semibold shadow-lg">
+                <Button className="bg-white text-[#000000] hover:bg-white/90 h-11 px-4 rounded-xl text-[15px] font-semibold shadow-lg">
                   <Plus className="h-4 w-4 mr-2" />
                   <span className="hidden sm:inline">Add Provider</span>
                   <span className="sm:hidden">Add</span>
@@ -449,7 +449,7 @@ export default function SubscriptionCostsPage() {
                           <div className="text-[11px] text-muted-foreground font-medium mb-0.5">
                             {data.count} {data.count === 1 ? 'subscription' : 'subscriptions'}
                           </div>
-                          <div className="text-[13px] font-semibold text-[#007A78]">
+                          <div className="text-[13px] font-semibold text-[var(--cloudact-mint-text)]">
                             {percentage.toFixed(1)}% of total
                           </div>
                         </div>
@@ -464,7 +464,7 @@ export default function SubscriptionCostsPage() {
                       {/* Progress bar */}
                       <div className="mt-3 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-gradient-to-r from-[#007A78] to-[#14b8a6] rounded-full transition-all"
+                          className="h-full bg-gradient-to-r from-[var(--cloudact-mint)] to-[var(--cloudact-mint-light)] rounded-full transition-all"
                           style={{ width: `${Math.min(percentage, 100)}%` }}
                         ></div>
                       </div>
@@ -486,15 +486,15 @@ export default function SubscriptionCostsPage() {
               return (
                 <div
                   key={idx}
-                  className="metric-card bg-gradient-to-br from-white to-[#FF6E50]/5 border-l-4 border-[#FF6E50] hover:shadow-xl transition-all group"
+                  className="metric-card bg-gradient-to-br from-white to-[var(--cloudact-coral)]/5 border-l-4 border-[var(--cloudact-coral)] hover:shadow-xl transition-all group"
                 >
                   <div className="flex items-start gap-4">
-                    <div className="p-3 rounded-xl bg-[#FF6E50]/10 group-hover:bg-[#FF6E50]/20 transition-colors">
-                      <Icon className="h-6 w-6 text-[#FF6E50]" />
+                    <div className="p-3 rounded-xl bg-[var(--cloudact-coral)]/10 group-hover:bg-[var(--cloudact-coral)]/20 transition-colors">
+                      <Icon className="h-6 w-6 text-[var(--cloudact-coral)]" />
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <Badge className="bg-[#FF6E50] text-white border-0 px-2 py-0.5 text-[11px] font-semibold">
+                        <Badge className="bg-[var(--cloudact-coral)] text-white border-0 px-2 py-0.5 text-[11px] font-semibold">
                           {opportunity.count}
                         </Badge>
                         <span className="text-[11px] text-muted-foreground uppercase tracking-wide font-medium">
@@ -591,8 +591,8 @@ export default function SubscriptionCostsPage() {
                       className="flex items-center justify-between p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors"
                     >
                       <div className="flex items-center gap-4 flex-1">
-                        <div className={`p-2.5 rounded-lg ${isUrgent ? 'bg-[#FF6E50]/10' : 'bg-[#007A78]/10'}`}>
-                          <CalendarDays className={`h-5 w-5 ${isUrgent ? 'text-[#FF6E50]' : 'text-[#007A78]'}`} />
+                        <div className={`p-2.5 rounded-lg ${isUrgent ? 'bg-[var(--cloudact-coral)]/10' : 'bg-[var(--cloudact-mint)]/10'}`}>
+                          <CalendarDays className={`h-5 w-5 ${isUrgent ? 'text-[var(--cloudact-coral)]' : 'text-[var(--cloudact-mint-text)]'}`} />
                         </div>
                         <div>
                           <div className="font-semibold text-slate-900 text-[15px]">{plan.display_name || plan.plan_name}</div>
@@ -600,7 +600,7 @@ export default function SubscriptionCostsPage() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className={`text-[15px] font-bold ${isUrgent ? 'text-[#FF6E50]' : 'text-[#007A78]'}`}>
+                        <div className={`text-[15px] font-bold ${isUrgent ? 'text-[var(--cloudact-coral)]' : 'text-[var(--cloudact-mint-text)]'}`}>
                           {daysUntilRenewal === 0 ? 'Today' : daysUntilRenewal === 1 ? 'Tomorrow' : `${daysUntilRenewal} days`}
                         </div>
                         <div className="text-[13px] text-muted-foreground">
@@ -626,8 +626,8 @@ export default function SubscriptionCostsPage() {
           {/* Empty State */}
           {plans.length === 0 && (
             <div className="text-center py-12 sm:py-16 px-4 sm:px-6">
-              <div className="inline-flex p-4 rounded-2xl bg-[#007A78]/10 mb-4">
-                <Wallet className="h-12 w-12 text-[#007A78]" />
+              <div className="inline-flex p-4 rounded-2xl bg-[var(--cloudact-mint)]/10 mb-4">
+                <Wallet className="h-12 w-12 text-[var(--cloudact-mint-text)]" />
               </div>
               <h3 className="text-[20px] font-semibold text-slate-900 mb-2">No subscriptions yet</h3>
               <p className="text-[15px] text-muted-foreground mb-6 max-w-md mx-auto">
@@ -662,17 +662,17 @@ export default function SubscriptionCostsPage() {
                 const integrationPath = providerMapping[plan.provider_name]
 
                 const statusColors: Record<string, string> = {
-                  active: "bg-[#F0FDFA] text-[#007A78] border border-[#007A78]/10",
-                  pending: "bg-[#007A78]/5 text-[#007A78] border border-[#007A78]/10",
-                  cancelled: "bg-[#007A78]/5 text-muted-foreground border border-border",
-                  expired: "bg-[#FF6E50]/10 text-[#FF6E50] border border-[#FF6E50]/10"
+                  active: "bg-[var(--cloudact-mint-light)] text-[var(--cloudact-mint-text)] border border-[var(--cloudact-mint)]/10",
+                  pending: "bg-[var(--cloudact-mint)]/5 text-[var(--cloudact-mint-text)] border border-[var(--cloudact-mint)]/10",
+                  cancelled: "bg-[var(--cloudact-mint)]/5 text-muted-foreground border border-border",
+                  expired: "bg-[var(--cloudact-coral)]/10 text-[var(--cloudact-coral)] border border-[var(--cloudact-coral)]/10"
                 }
 
                 return (
                   <div key={plan.subscription_id} className={!isActive ? "opacity-60" : ""}>
                     <button
                       onClick={() => toggleRowExpansion(plan.subscription_id)}
-                      className="w-full p-4 text-left touch-manipulation hover:bg-[#007A78]/5 transition-colors"
+                      className="w-full p-4 text-left touch-manipulation hover:bg-[var(--cloudact-mint)]/5 transition-colors"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1 min-w-0">
@@ -712,7 +712,7 @@ export default function SubscriptionCostsPage() {
                       {/* Date info */}
                       <div className="flex flex-wrap gap-2 mt-3 text-[11px]">
                         {isPending && plan.start_date && (
-                          <span className="text-[#FF6E50] font-medium">
+                          <span className="text-[var(--cloudact-coral)] font-medium">
                             Starts {format(new Date(plan.start_date), 'MMM d')}
                           </span>
                         )}
@@ -735,11 +735,11 @@ export default function SubscriptionCostsPage() {
 
                     {/* Expanded details */}
                     {isExpanded && (
-                      <div className="px-4 pb-4 bg-[#007A78]/5 space-y-3">
+                      <div className="px-4 pb-4 bg-[var(--cloudact-mint)]/5 space-y-3">
                         {/* Price breakdown */}
                         <div className="p-3 bg-white rounded-xl border border-border">
                           <div className="flex items-center gap-2 mb-2">
-                            <CreditCard className="h-4 w-4 text-[#007A78]" />
+                            <CreditCard className="h-4 w-4 text-[var(--cloudact-mint-text)]" />
                             <span className="text-[11px] font-medium text-muted-foreground uppercase">Pricing</span>
                           </div>
                           <div className="space-y-1">
@@ -767,7 +767,7 @@ export default function SubscriptionCostsPage() {
                         {/* Dates */}
                         <div className="p-3 bg-white rounded-xl border border-border">
                           <div className="flex items-center gap-2 mb-2">
-                            <CalendarDays className="h-4 w-4 text-[#007A78]" />
+                            <CalendarDays className="h-4 w-4 text-[var(--cloudact-mint-text)]" />
                             <span className="text-[11px] font-medium text-muted-foreground uppercase">Schedule</span>
                           </div>
                           <div className="grid grid-cols-2 gap-2">
@@ -874,16 +874,16 @@ export default function SubscriptionCostsPage() {
                   const integrationPath = providerMapping[plan.provider_name]
 
                   const statusColors: Record<string, string> = {
-                    active: "bg-[#F0FDFA] text-[#007A78] border border-[#007A78]/10",
-                    pending: "bg-[#007A78]/5 text-[#007A78] border border-[#007A78]/10",
-                    cancelled: "bg-[#007A78]/5 text-muted-foreground border border-border",
-                    expired: "bg-[#FF6E50]/10 text-[#FF6E50] border border-[#FF6E50]/10"
+                    active: "bg-[#F0FDFA] text-[var(--cloudact-mint)] border border-[var(--cloudact-mint)]/10",
+                    pending: "bg-[var(--cloudact-mint)]/5 text-[var(--cloudact-mint)] border border-[var(--cloudact-mint)]/10",
+                    cancelled: "bg-[var(--cloudact-mint)]/5 text-muted-foreground border border-border",
+                    expired: "bg-[var(--cloudact-coral)]/10 text-[var(--cloudact-coral)] border border-[var(--cloudact-coral)]/10"
                   }
 
                   return (
                     <React.Fragment key={plan.subscription_id}>
                       <TableRow
-                        className={`console-table-row cursor-pointer hover:bg-[#007A78]/5 touch-manipulation ${!isActive ? "opacity-60" : ""}`}
+                        className={`console-table-row cursor-pointer hover:bg-[var(--cloudact-mint)]/5 touch-manipulation ${!isActive ? "opacity-60" : ""}`}
                         onClick={() => toggleRowExpansion(plan.subscription_id)}
                       >
                         <TableCell className="console-table-cell">
@@ -901,7 +901,7 @@ export default function SubscriptionCostsPage() {
                               {plan.status}
                             </Badge>
                             {isPending && plan.start_date && (
-                              <span className="text-[11px] text-[#FF6E50] font-medium whitespace-nowrap">
+                              <span className="text-[11px] text-[var(--cloudact-coral)] font-medium whitespace-nowrap">
                                 Starts {format(new Date(plan.start_date), 'MMM d')}
                               </span>
                             )}
@@ -923,14 +923,14 @@ export default function SubscriptionCostsPage() {
                         <TableCell className="console-table-cell" onClick={(e) => e.stopPropagation()}>
                           {integrationPath ? (
                             <Link href={`/${orgSlug}/integrations/llm`}>
-                              <span className="text-[#007A78] hover:underline cursor-pointer flex items-center gap-1 font-medium text-[15px] transition-colors">
+                              <span className="text-[var(--cloudact-blue)] hover:underline cursor-pointer flex items-center gap-1 font-medium text-[15px] transition-colors">
                                 {plan.provider_name}
                                 <ArrowUpRight className="h-3.5 w-3.5" />
                               </span>
                             </Link>
                           ) : (
                             <Link href={`/${orgSlug}/integrations/subscriptions/${plan.provider_name}`}>
-                              <span className="text-[#007A78] hover:underline cursor-pointer flex items-center gap-1 font-medium text-[15px] transition-colors">
+                              <span className="text-[var(--cloudact-blue)] hover:underline cursor-pointer flex items-center gap-1 font-medium text-[15px] transition-colors">
                                 {plan.provider_name}
                                 <ArrowUpRight className="h-3.5 w-3.5" />
                               </span>
@@ -955,14 +955,14 @@ export default function SubscriptionCostsPage() {
                           </div>
                         </TableCell>
                         <TableCell className="console-table-cell">
-                          <Badge className="capitalize text-[11px] font-semibold px-2.5 py-1 bg-[#007A78]/5 text-muted-foreground border-0 whitespace-nowrap">
+                          <Badge className="capitalize text-[11px] font-semibold px-2.5 py-1 bg-[var(--cloudact-mint)]/5 text-muted-foreground border-0 whitespace-nowrap">
                             {formatBillingCycle(plan.billing_cycle)}
                           </Badge>
                         </TableCell>
                         <TableCell className="console-table-cell text-right">
                           {plan.seats ? (
                             <div className="flex items-center justify-end gap-1.5 text-slate-900 font-semibold text-[15px]">
-                              <Users className="h-4 w-4 text-[#FF6E50]" />
+                              <Users className="h-4 w-4 text-[var(--cloudact-coral)]" />
                               <span>{plan.seats}</span>
                             </div>
                           ) : (
@@ -985,7 +985,7 @@ export default function SubscriptionCostsPage() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-11 w-11 text-[#007A78] hover:bg-[#007A78]/10 transition-all rounded-xl"
+                                className="h-11 w-11 text-[var(--cloudact-mint-text)] hover:bg-[var(--cloudact-mint)]/10 transition-all rounded-xl"
                                 title="Edit plan"
                               >
                                 <Pencil className="h-4 w-4" />
@@ -995,7 +995,7 @@ export default function SubscriptionCostsPage() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-11 w-11 text-muted-foreground hover:text-[#FF6E50] hover:bg-[#FF6E50]/10 transition-all rounded-xl"
+                                className="h-11 w-11 text-muted-foreground hover:text-[var(--cloudact-coral)] hover:bg-[var(--cloudact-coral)]/10 transition-all rounded-xl"
                                 title="End subscription"
                               >
                                 <CalendarX className="h-4 w-4" />
@@ -1007,13 +1007,13 @@ export default function SubscriptionCostsPage() {
 
                       {/* Expanded Details Row */}
                       {isExpanded && (
-                        <TableRow className="bg-[#007A78]/5">
+                        <TableRow className="bg-[var(--cloudact-mint)]/5">
                           <TableCell colSpan={10} className="px-4 sm:px-6 py-5">
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                               {/* Subscription ID */}
                               <div className="flex items-start gap-3 p-3 bg-white rounded-xl border border-border">
-                                <div className="p-2 rounded-lg bg-[#007A78]/10">
-                                  <Hash className="h-4 w-4 text-[#007A78]" />
+                                <div className="p-2 rounded-lg bg-[var(--cloudact-mint)]/10">
+                                  <Hash className="h-4 w-4 text-[var(--cloudact-mint-text)]" />
                                 </div>
                                 <div>
                                   <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Subscription ID</p>
@@ -1023,8 +1023,8 @@ export default function SubscriptionCostsPage() {
 
                               {/* Start Date */}
                               <div className="flex items-start gap-3 p-3 bg-white rounded-xl border border-border">
-                                <div className="p-2 rounded-lg bg-[#007A78]/10">
-                                  <CalendarDays className="h-4 w-4 text-[#007A78]" />
+                                <div className="p-2 rounded-lg bg-[var(--cloudact-mint)]/10">
+                                  <CalendarDays className="h-4 w-4 text-[var(--cloudact-mint-text)]" />
                                 </div>
                                 <div>
                                   <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Start Date</p>
@@ -1036,8 +1036,8 @@ export default function SubscriptionCostsPage() {
 
                               {/* Renewal Date */}
                               <div className="flex items-start gap-3 p-3 bg-white rounded-xl border border-border">
-                                <div className="p-2 rounded-lg bg-[#FF6E50]/10">
-                                  <Clock className="h-4 w-4 text-[#FF6E50]" />
+                                <div className="p-2 rounded-lg bg-[var(--cloudact-coral)]/10">
+                                  <Clock className="h-4 w-4 text-[var(--cloudact-coral)]" />
                                 </div>
                                 <div>
                                   <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Renewal Date</p>
@@ -1049,8 +1049,8 @@ export default function SubscriptionCostsPage() {
 
                               {/* End Date */}
                               <div className="flex items-start gap-3 p-3 bg-white rounded-xl border border-border">
-                                <div className="p-2 rounded-lg bg-[#007A78]/10">
-                                  <CalendarX className="h-4 w-4 text-[#007A78]" />
+                                <div className="p-2 rounded-lg bg-[var(--cloudact-mint)]/10">
+                                  <CalendarX className="h-4 w-4 text-[var(--cloudact-mint-text)]" />
                                 </div>
                                 <div>
                                   <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">End Date</p>
@@ -1062,8 +1062,8 @@ export default function SubscriptionCostsPage() {
 
                               {/* Pricing Model */}
                               <div className="flex items-start gap-3 p-3 bg-white rounded-xl border border-border">
-                                <div className="p-2 rounded-lg bg-[#007A78]/10">
-                                  <CreditCard className="h-4 w-4 text-[#007A78]" />
+                                <div className="p-2 rounded-lg bg-[var(--cloudact-mint)]/10">
+                                  <CreditCard className="h-4 w-4 text-[var(--cloudact-mint-text)]" />
                                 </div>
                                 <div>
                                   <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Pricing Model</p>
@@ -1075,8 +1075,8 @@ export default function SubscriptionCostsPage() {
 
                               {/* Currency */}
                               <div className="flex items-start gap-3 p-3 bg-white rounded-xl border border-border">
-                                <div className="p-2 rounded-lg bg-[#007A78]/10">
-                                  <DollarSign className="h-4 w-4 text-[#007A78]" />
+                                <div className="p-2 rounded-lg bg-[var(--cloudact-mint)]/10">
+                                  <DollarSign className="h-4 w-4 text-[var(--cloudact-mint-text)]" />
                                 </div>
                                 <div>
                                   <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Currency</p>
@@ -1086,8 +1086,8 @@ export default function SubscriptionCostsPage() {
 
                               {/* Category */}
                               <div className="flex items-start gap-3 p-3 bg-white rounded-xl border border-border">
-                                <div className="p-2 rounded-lg bg-[#007A78]/10">
-                                  <Tag className="h-4 w-4 text-[#007A78]" />
+                                <div className="p-2 rounded-lg bg-[var(--cloudact-mint)]/10">
+                                  <Tag className="h-4 w-4 text-[var(--cloudact-mint-text)]" />
                                 </div>
                                 <div>
                                   <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Category</p>
@@ -1097,8 +1097,8 @@ export default function SubscriptionCostsPage() {
 
                               {/* Monthly Cost Breakdown */}
                               <div className="flex items-start gap-3 p-3 bg-white rounded-xl border border-border">
-                                <div className="p-2 rounded-lg bg-[#FF6E50]/10">
-                                  <TrendingUp className="h-4 w-4 text-[#FF6E50]" />
+                                <div className="p-2 rounded-lg bg-[var(--cloudact-coral)]/10">
+                                  <TrendingUp className="h-4 w-4 text-[var(--cloudact-coral)]" />
                                 </div>
                                 <div>
                                   <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Monthly Cost</p>

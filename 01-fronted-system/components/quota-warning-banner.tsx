@@ -17,9 +17,9 @@ function getAlertVariant(level: string): "destructive" | undefined {
 function getAlertStyles(level: string): string {
   switch (level) {
     case 'critical':
-      return 'border-[#FF6E50] bg-[#FF6E50]/10 dark:bg-[#FF6E50]/20'
+      return 'border-[var(--cloudact-coral)] bg-[var(--cloudact-coral)]/10 dark:bg-[var(--cloudact-coral)]/20'
     case 'warning':
-      return 'border-[#007A78] bg-[#007A78]/10 dark:bg-[#14B8A6]/20'
+      return 'border-[var(--cloudact-mint)] bg-[var(--cloudact-mint)]/10 dark:bg-[var(--cloudact-mint-light)]/20'
     default:
       return ''
   }
@@ -28,9 +28,9 @@ function getAlertStyles(level: string): string {
 function getTitleStyles(level: string): string {
   switch (level) {
     case 'critical':
-      return 'text-[#E55A3C] dark:text-[#FF8A73]'
+      return 'text-[var(--cloudact-coral)] dark:text-[var(--cloudact-coral)]'
     case 'warning':
-      return 'text-[#005F5D] dark:text-[#14B8A6]'
+      return 'text-[var(--cloudact-mint-dark)] dark:text-[var(--cloudact-mint-light)]'
     default:
       return ''
   }
@@ -39,9 +39,9 @@ function getTitleStyles(level: string): string {
 function getDescStyles(level: string): string {
   switch (level) {
     case 'critical':
-      return 'text-[#E55A3C] dark:text-[#FF8A73]'
+      return 'text-[var(--cloudact-coral)] dark:text-[var(--cloudact-coral)]'
     case 'warning':
-      return 'text-[#005F5D] dark:text-[#14B8A6]'
+      return 'text-[var(--cloudact-mint-dark)] dark:text-[var(--cloudact-mint-light)]'
     default:
       return ''
   }
@@ -206,7 +206,7 @@ export function QuotaWarningBanner({
                       asChild
                       size="sm"
                       variant={warning.level === 'exceeded' ? 'default' : 'outline'}
-                      className={warning.level === 'warning' ? 'h-11 rounded-xl border-border text-foreground hover:bg-[#007A78]/5 focus-visible:outline-[#007A78] focus-visible:ring-[#007A78] dark:border-[#14B8A6] dark:text-[#14B8A6] dark:hover:bg-[#14B8A6]/20' : 'h-11 rounded-xl focus-visible:outline-[#007A78] focus-visible:ring-[#007A78]'}
+                      className={warning.level === 'warning' ? 'h-11 rounded-xl border-border text-foreground hover:bg-[var(--cloudact-mint)]/5 focus-visible:outline-[var(--cloudact-mint-dark)] focus-visible:ring-[var(--cloudact-mint-dark)] dark:border-[var(--cloudact-mint-light)] dark:text-[var(--cloudact-mint-light)] dark:hover:bg-[var(--cloudact-mint-light)]/20' : 'h-11 rounded-xl focus-visible:outline-[var(--cloudact-mint-dark)] focus-visible:ring-[var(--cloudact-mint-dark)]'}
                     >
                       <Link href={warning.action.href}>{warning.action.label}</Link>
                     </Button>
@@ -214,7 +214,7 @@ export function QuotaWarningBanner({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-11 rounded-xl p-1 hover:bg-[#007A78]/5 focus-visible:outline-[#007A78] focus-visible:ring-[#007A78]"
+                    className="h-11 rounded-xl p-1 hover:bg-[var(--cloudact-mint)]/5 focus-visible:outline-[var(--cloudact-mint-dark)] focus-visible:ring-[var(--cloudact-mint-dark)]"
                     onClick={() => setDismissed(prev => new Set([...prev, warning.id]))}
                     aria-label={`Dismiss ${warning.title} warning`}
                   >

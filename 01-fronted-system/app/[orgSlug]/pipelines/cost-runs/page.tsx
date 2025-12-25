@@ -227,7 +227,7 @@ export default function CostRunsPage() {
   const getStatusColor = (status: string) => {
     switch (status.toUpperCase()) {
       case "COMPLETED":
-        return "bg-[#007A78]/5 text-[#007A78] border border-[#007A78]/20"
+        return "bg-[#B8FDCA] text-[var(--cloudact-mint-text)] border border-[var(--cloudact-mint)]/20"
       case "FAILED":
       case "TIMEOUT":
         return "bg-rose-50 text-rose-600 border border-rose-200"
@@ -312,7 +312,7 @@ export default function CostRunsPage() {
                 Complete organization onboarding to run pipelines.
               </p>
               <Link href={`/${orgSlug}/settings/organization`}>
-                <button className="inline-flex items-center gap-2 h-11 px-4 bg-[#007A78] text-white text-[15px] font-semibold rounded-xl hover:bg-[#005F5D] transition-colors">
+                <button className="inline-flex items-center gap-2 h-11 px-4 bg-[var(--cloudact-mint)] text-white text-[15px] font-semibold rounded-xl hover:bg-[var(--cloudact-mint-dark)] transition-colors">
                   Go to Settings
                 </button>
               </Link>
@@ -331,14 +331,14 @@ export default function CostRunsPage() {
       </div>
 
       {lastResult && (
-        <div className={`bg-white rounded-2xl border border-slate-200 shadow-sm p-4 ${lastResult.success ? 'bg-[#007A78]/5 border-[#007A78]/20' : 'bg-rose-50 border-rose-200'}`}>
+        <div className={`bg-white rounded-2xl border border-slate-200 shadow-sm p-4 ${lastResult.success ? 'bg-[var(--cloudact-mint)]/5 border-[var(--cloudact-mint)]/20' : 'bg-rose-50 border-rose-200'}`}>
           <div className="flex items-center gap-3">
             {lastResult.success ? (
-              <CheckCircle2 className="h-5 w-5 text-[#007A78] flex-shrink-0" />
+              <CheckCircle2 className="h-5 w-5 text-[var(--cloudact-mint-dark)] flex-shrink-0" />
             ) : (
               <AlertCircle className="h-5 w-5 text-rose-600 flex-shrink-0" />
             )}
-            <p className={`text-[15px] font-medium ${lastResult.success ? 'text-[#007A78]' : 'text-rose-600'}`}>
+            <p className={`text-[15px] font-medium ${lastResult.success ? 'text-[var(--cloudact-mint-dark)]' : 'text-rose-600'}`}>
               {lastResult.message}
             </p>
           </div>
@@ -349,7 +349,7 @@ export default function CostRunsPage() {
         <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide mb-4">Available Pipelines</h2>
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-0 overflow-hidden">
           <div className="px-4 sm:px-6 py-4 border-b border-slate-200">
-            <div className="flex items-center gap-2 text-[#007A78]">
+            <div className="flex items-center gap-2 text-[var(--cloudact-mint-dark)]">
               <Cloud className="h-[18px] w-[18px]" />
               <span className="text-[15px] font-semibold">Cloud provider billing pipelines</span>
             </div>
@@ -367,7 +367,7 @@ export default function CostRunsPage() {
                   Connect a cloud provider to see available cost pipelines.
                 </p>
                 <Link href={`/${orgSlug}/integrations/cloud-providers`}>
-                  <button className="inline-flex items-center gap-2 h-11 px-6 bg-[#007A78] text-white text-[15px] font-semibold rounded-xl hover:bg-[#005F5D] transition-colors shadow-sm">
+                  <button className="inline-flex items-center gap-2 h-11 px-6 bg-[var(--cloudact-mint)] text-white text-[15px] font-semibold rounded-xl hover:bg-[var(--cloudact-mint-dark)] transition-colors shadow-sm">
                     <Cloud className="h-4 w-4" />
                     Configure Cloud Providers
                   </button>
@@ -389,7 +389,7 @@ export default function CostRunsPage() {
                         <div className="text-[15px] font-semibold text-slate-900">{pipeline.name}</div>
                         <div className="text-[13px] text-slate-500 mt-0.5">{pipeline.description}</div>
                       </div>
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#007A78]/5 text-[#007A78] border border-[#007A78]/20 flex-shrink-0">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#B8FDCA] text-[var(--cloudact-mint-text)] border border-[var(--cloudact-mint)]/20 flex-shrink-0">
                         <CheckCircle2 className="h-3 w-3" />
                         Connected
                       </span>
@@ -401,7 +401,7 @@ export default function CostRunsPage() {
                       <button
                         onClick={() => handleRun(pipeline.id)}
                         disabled={isRunning}
-                        className="inline-flex items-center gap-2 h-11 px-4 bg-[#007A78] text-white text-[15px] font-semibold rounded-xl hover:bg-[#005F5D] disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed disabled:opacity-70 transition-all touch-manipulation shadow-sm hover:shadow-md"
+                        className="inline-flex items-center gap-2 h-11 px-4 bg-[var(--cloudact-mint)] text-white text-[15px] font-semibold rounded-xl hover:bg-[var(--cloudact-mint-dark)] disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed disabled:opacity-70 transition-all touch-manipulation shadow-sm hover:shadow-md"
                       >
                         {isRunning ? (
                           <>
@@ -452,7 +452,7 @@ export default function CostRunsPage() {
                           </span>
                         </TableCell>
                         <TableCell className="console-table-cell">
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#007A78]/5 text-[#007A78] border border-[#007A78]/20">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#B8FDCA] text-[var(--cloudact-mint-text)] border border-[var(--cloudact-mint)]/20">
                             <CheckCircle2 className="h-3 w-3" />
                             Connected
                           </span>
@@ -461,7 +461,7 @@ export default function CostRunsPage() {
                           <button
                             onClick={() => handleRun(pipeline.id)}
                             disabled={isRunning}
-                            className="inline-flex items-center gap-2 h-11 px-4 bg-[#007A78] text-white text-[15px] font-semibold rounded-xl hover:bg-[#005F5D] disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed disabled:opacity-70 transition-all touch-manipulation shadow-sm hover:shadow-md"
+                            className="inline-flex items-center gap-2 h-11 px-4 bg-[var(--cloudact-mint)] text-white text-[15px] font-semibold rounded-xl hover:bg-[var(--cloudact-mint-dark)] disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed disabled:opacity-70 transition-all touch-manipulation shadow-sm hover:shadow-md"
                           >
                             {isRunning ? (
                               <>
@@ -494,8 +494,8 @@ export default function CostRunsPage() {
             {pipelineRuns.length > 0 && (
               <div className="flex items-center gap-6 mb-8">
                 <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-xl bg-[#007A78]/10 flex items-center justify-center">
-                    <Check className="h-5 w-5 text-[#007A78]" />
+                  <div className="h-10 w-10 rounded-xl bg-[var(--cloudact-mint)]/10 flex items-center justify-center">
+                    <Check className="h-5 w-5 text-[var(--cloudact-mint-dark)]" />
                   </div>
                   <div>
                     <p className="text-[24px] font-bold text-slate-900 leading-none">{runStats.completed}</p>
@@ -618,7 +618,7 @@ export default function CostRunsPage() {
                             </div>
                             <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
                               <div
-                                className={`h-full rounded-full transition-all ${run.status === 'COMPLETED' ? 'bg-[#007A78]' : run.status === 'FAILED' ? 'bg-rose-500' : 'bg-amber-500'}`}
+                                className={`h-full rounded-full transition-all ${run.status === 'COMPLETED' ? 'bg-[var(--cloudact-mint)]' : run.status === 'FAILED' ? 'bg-rose-500' : 'bg-amber-500'}`}
                                 style={{ width: getDurationWidth(run.duration_ms) }}
                               ></div>
                             </div>
@@ -648,7 +648,7 @@ export default function CostRunsPage() {
 
                               <div className="space-y-3">
                                 <div className="flex items-center gap-2">
-                                  <TrendingUp className="h-4 w-4 text-[#007A78]" />
+                                  <TrendingUp className="h-4 w-4 text-[var(--cloudact-mint-dark)]" />
                                   <h4 className="text-[15px] font-semibold text-slate-900">Pipeline Steps</h4>
                                 </div>
                                 {detail.steps.length === 0 ? (
@@ -675,7 +675,7 @@ export default function CostRunsPage() {
                                           </div>
                                           <div className="h-1 bg-slate-200 rounded-full overflow-hidden">
                                             <div
-                                              className={`h-full rounded-full ${step.status === 'COMPLETED' ? 'bg-[#007A78]' : step.status === 'FAILED' ? 'bg-rose-500' : 'bg-amber-500'}`}
+                                              className={`h-full rounded-full ${step.status === 'COMPLETED' ? 'bg-[var(--cloudact-mint)]' : step.status === 'FAILED' ? 'bg-rose-500' : 'bg-amber-500'}`}
                                               style={{ width: getDurationWidth(step.duration_ms) }}
                                             ></div>
                                           </div>
@@ -751,7 +751,7 @@ export default function CostRunsPage() {
                                 <div className="text-[13px] font-medium text-slate-900">{formatDuration(run.duration_ms)}</div>
                                 <div className="h-1.5 w-24 bg-slate-200 rounded-full overflow-hidden">
                                   <div
-                                    className={`h-full rounded-full ${run.status === 'COMPLETED' ? 'bg-[#007A78]' : run.status === 'FAILED' ? 'bg-rose-500' : 'bg-amber-500'}`}
+                                    className={`h-full rounded-full ${run.status === 'COMPLETED' ? 'bg-[var(--cloudact-mint)]' : run.status === 'FAILED' ? 'bg-rose-500' : 'bg-amber-500'}`}
                                     style={{ width: getDurationWidth(run.duration_ms) }}
                                   ></div>
                                 </div>
@@ -782,7 +782,7 @@ export default function CostRunsPage() {
 
                                     <div className="space-y-3">
                                       <div className="flex items-center gap-2">
-                                        <TrendingUp className="h-4 w-4 text-[#007A78]" />
+                                        <TrendingUp className="h-4 w-4 text-[var(--cloudact-mint-dark)]" />
                                         <h4 className="text-[15px] font-semibold text-slate-900">Pipeline Steps</h4>
                                       </div>
                                       <div className="grid gap-3">
@@ -809,7 +809,7 @@ export default function CostRunsPage() {
                                                 </div>
                                                 <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
                                                   <div
-                                                    className={`h-full rounded-full ${step.status === 'COMPLETED' ? 'bg-[#007A78]' : step.status === 'FAILED' ? 'bg-rose-500' : 'bg-amber-500'}`}
+                                                    className={`h-full rounded-full ${step.status === 'COMPLETED' ? 'bg-[var(--cloudact-mint)]' : step.status === 'FAILED' ? 'bg-rose-500' : 'bg-amber-500'}`}
                                                     style={{ width: getDurationWidth(step.duration_ms) }}
                                                   ></div>
                                                 </div>

@@ -136,7 +136,7 @@ function LoginForm() {
   return (
     <div className="w-full max-w-[420px] space-y-6">
       <div className="flex flex-col items-center gap-3 text-center">
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#007A78] text-white shadow-lg">
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-mint text-black shadow-lg">
           <Cloud className="h-7 w-7" />
         </div>
         <div className="space-y-2">
@@ -161,7 +161,7 @@ function LoginForm() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="h-11 bg-white/50 border-black/5 focus:border-[#007A78] focus:ring-[#007A78]/20 transition-all"
+              className="h-11 bg-white/50 border-black/5 focus:border-mint focus:ring-mint/20 transition-all"
               disabled={isLoading}
               autoComplete="email"
             />
@@ -179,21 +179,21 @@ function LoginForm() {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="h-11 bg-white/50 border-black/5 focus:border-[#007A78] focus:ring-[#007A78]/20 transition-all"
+              className="h-11 bg-white/50 border-black/5 focus:border-mint focus:ring-mint/20 transition-all"
               disabled={isLoading}
               autoComplete="current-password"
             />
           </div>
 
           {error && (
-            <Alert variant="destructive" className="py-3 bg-[#FFF5F3] border-[#FF6E50]/30 text-[#FF6E50]">
+            <Alert variant="destructive" className="py-3 bg-[var(--cloudact-bg-coral)] border-coral/30 text-coral">
               <AlertDescription className="text-sm font-medium">{error}</AlertDescription>
             </Alert>
           )}
 
           <button
             type="submit"
-            className="cloudact-btn-primary w-full h-11 text-[15px] shadow-lg shadow-[#007A78]/20 hover:shadow-[#007A78]/30 hover:-translate-y-0.5 transition-all"
+            className="cloudact-btn-primary w-full h-11 text-[15px] shadow-lg shadow-mint/20 hover:shadow-mint/30 hover:-translate-y-0.5 transition-all"
             disabled={isLoading}
           >
             {isLoading ? (
@@ -207,7 +207,7 @@ function LoginForm() {
           </button>
 
           <div className="text-center">
-            <Link href="/forgot-password" className="text-sm font-medium text-[#007A78] hover:text-[#005F5D] hover:underline">
+            <Link href="/forgot-password" className="text-sm font-medium text-ca-blue hover:text-ca-blue-dark hover:underline">
               Forgot password?
             </Link>
           </div>
@@ -216,7 +216,7 @@ function LoginForm() {
 
       <div className="text-center text-sm text-gray-600">
         Don't have an account?{" "}
-        <Link href="/signup" className="font-semibold text-[#007A78] hover:text-[#005F5D] hover:underline">
+        <Link href="/signup" className="font-semibold text-ca-blue hover:text-ca-blue-dark hover:underline">
           Start free trial
         </Link>
       </div>
@@ -238,7 +238,7 @@ function LoginFormFallback() {
   return (
     <div className="w-full max-w-[420px] space-y-6">
       <div className="flex flex-col items-center gap-3 text-center">
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#007A78] text-white shadow-xl shadow-[#007A78]/20">
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-mint text-black shadow-xl shadow-mint/20">
           <Cloud className="h-7 w-7" />
         </div>
         <div className="space-y-2">
@@ -247,7 +247,7 @@ function LoginFormFallback() {
         </div>
       </div>
       <div className="glass-card p-8 flex items-center justify-center min-h-[300px]">
-        <Loader2 className="h-8 w-8 animate-spin text-[#007A78]" />
+        <Loader2 className="h-8 w-8 animate-spin text-mint-dark" />
       </div>
     </div>
   )

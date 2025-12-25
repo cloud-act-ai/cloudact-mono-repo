@@ -19,10 +19,10 @@ export default function ProfileError({
 
   return (
     <div className="container mx-auto py-10 max-w-2xl">
-      <Card className="border-[#FF6E50]/30">
+      <Card className="border-coral/30">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-[#FF6E50]/10 flex items-center justify-center">
-            <AlertCircle className="h-6 w-6 text-[#FF6E50]" />
+          <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-coral/10 flex items-center justify-center">
+            <AlertCircle className="h-6 w-6 text-coral" />
           </div>
           <CardTitle className="text-xl">Something went wrong</CardTitle>
           <CardDescription>
@@ -39,7 +39,7 @@ export default function ProfileError({
           </div>
         </CardContent>
         <CardFooter className="flex justify-center gap-4">
-          <Button onClick={reset} className="bg-[#007A78] hover:bg-[#005F5D] text-white">
+          <Button onClick={reset} className="bg-mint hover:bg-mint-dark text-black">
             <RefreshCw className="mr-2 h-4 w-4" />
             Try Again
           </Button>
@@ -55,7 +55,7 @@ export default function ProfileError({
         If this problem persists, please contact{" "}
         <a
           href={`mailto:${process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "support@cloudact.ai"}`}
-          className="text-[#007A78] hover:text-[#005F5D] hover:underline font-medium"
+          className="text-ca-blue hover:underline font-medium"
         >
           support
         </a>

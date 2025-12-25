@@ -1,0 +1,2 @@
+entity_type,entity_id,entity_name,parent_id,owner_id,owner_name,owner_email,description
+department,DEPT-001,Engineering,,,Guru Kallam,guru@example.com,Engineering department

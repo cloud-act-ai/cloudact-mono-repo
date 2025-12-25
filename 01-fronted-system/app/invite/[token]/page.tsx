@@ -133,7 +133,7 @@ export default function InvitePage() {
     return (
       <div className="flex min-h-svh items-center justify-center bg-white">
         <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-8 w-8 animate-spin text-[#007A78]" />
+          <Loader2 className="h-8 w-8 animate-spin text-[#6EE890]" />
           <p className="text-sm text-gray-600">Loading invite...</p>
         </div>
       </div>
@@ -146,7 +146,7 @@ export default function InvitePage() {
         <Card className="w-full max-w-md bg-white">
           <CardHeader className="text-center">
             <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#FFF5F3]">
-              <AlertTriangle className="h-6 w-6 text-[#FF6E50]" />
+              <AlertTriangle className="h-6 w-6 text-[#FF6C5E]" />
             </div>
             <CardTitle className="text-gray-900">Invalid Invite</CardTitle>
             <CardDescription className="text-gray-600">{error}</CardDescription>
@@ -165,7 +165,7 @@ export default function InvitePage() {
         <Card className="w-full max-w-md bg-white">
           <CardHeader className="text-center">
             <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#F0FDFA]">
-              <CheckCircle2 className="h-6 w-6 text-[#007A78]" />
+              <CheckCircle2 className="h-6 w-6 text-[#6EE890]" />
             </div>
             <CardTitle className="text-gray-900">Welcome!</CardTitle>
             <CardDescription className="text-gray-600">{success}</CardDescription>
@@ -187,7 +187,7 @@ export default function InvitePage() {
       <Card className="w-full max-w-md bg-white">
         <CardHeader className="text-center">
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#F0FDFA]">
-            <UserPlus className="h-6 w-6 text-[#007A78]" />
+            <UserPlus className="h-6 w-6 text-[#6EE890]" />
           </div>
           <CardTitle className="text-gray-900">Team Invitation</CardTitle>
           <CardDescription className="text-gray-600">
@@ -226,26 +226,26 @@ export default function InvitePage() {
           </div>
 
           {inviteData?.status !== "pending" && (
-            <Alert variant="destructive" className="bg-[#FFF5F3] border-[#FF6E50]">
-              <AlertTriangle className="h-4 w-4 text-[#FF6E50]" />
-              <AlertDescription className="text-[#FF6E50]">
+            <Alert variant="destructive" className="bg-[#FFF5F3] border-[#FF6C5E]">
+              <AlertTriangle className="h-4 w-4 text-[#FF6C5E]" />
+              <AlertDescription className="text-[#FF6C5E]">
                 This invite has already been {inviteData?.status}.
               </AlertDescription>
             </Alert>
           )}
 
           {inviteData?.isExpired && (
-            <Alert variant="destructive" className="bg-[#FFF5F3] border-[#FF6E50]">
+            <Alert variant="destructive" className="bg-[#FFF5F3] border-[#FF6C5E]">
               <Clock className="h-4 w-4 text-[#FF6E50]" />
-              <AlertDescription className="text-[#FF6E50]">
+              <AlertDescription className="text-[#FF6C5E]">
                 This invite has expired. Please ask the organization owner for a new invite.
               </AlertDescription>
             </Alert>
           )}
 
           {emailMismatch && (
-            <Alert className="bg-[#F0FDFA] border-[#007A78]">
-              <AlertTriangle className="h-4 w-4 text-[#007A78]" />
+            <Alert className="bg-[#F0FDFA] border-[#90FCA6]">
+              <AlertTriangle className="h-4 w-4 text-[#6EE890]" />
               <AlertDescription className="text-gray-700">
                 You are signed in as <strong>{currentUserEmail}</strong>, but this invite was sent to{" "}
                 <strong>{inviteData?.email}</strong>. Please sign in with the correct account.
@@ -254,8 +254,8 @@ export default function InvitePage() {
           )}
 
           {error && (
-            <Alert variant="destructive" className="bg-[#FFF5F3] border-[#FF6E50]">
-              <AlertDescription className="text-[#FF6E50]">{error}</AlertDescription>
+            <Alert variant="destructive" className="bg-[#FFF5F3] border-[#FF6C5E]">
+              <AlertDescription className="text-[#FF6C5E]">{error}</AlertDescription>
             </Alert>
           )}
         </CardContent>
@@ -292,7 +292,7 @@ export default function InvitePage() {
                     Already have an account?{" "}
                     <button
                       onClick={handleSignIn}
-                      className="font-semibold text-[#007A78] hover:text-[#005F5D] hover:underline"
+                      className="font-semibold text-[#007AFF] hover:text-[#0051D5] hover:underline"
                     >
                       Sign in
                     </button>

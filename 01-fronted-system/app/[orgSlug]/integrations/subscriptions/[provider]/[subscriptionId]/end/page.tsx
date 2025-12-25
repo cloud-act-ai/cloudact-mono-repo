@@ -226,14 +226,14 @@ export default function EndSubscriptionPage() {
         <nav className="flex items-center gap-2 text-sm" aria-label="Breadcrumb">
           <Link
             href={`/${orgSlug}/integrations/subscriptions`}
-            className="text-[#007A78] hover:text-[#005F5D] transition-colors"
+            className="text-[#1a7a3a] hover:text-[#007AFF] transition-colors"
           >
             Subscription Providers
           </Link>
           <ChevronRight className="h-4 w-4 text-muted-foreground" />
           <Link
             href={`/${orgSlug}/integrations/subscriptions/${provider}`}
-            className="text-[#007A78] hover:text-[#005F5D] transition-colors"
+            className="text-[#1a7a3a] hover:text-[#007AFF] transition-colors"
           >
             {providerDisplayName}
           </Link>
@@ -241,9 +241,9 @@ export default function EndSubscriptionPage() {
           <span className="text-gray-900 font-medium">End Subscription</span>
         </nav>
 
-        <Card className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
+        <Card className="border-[#FF6C5E]/30 bg-[#FF6C5E]/5">
           <CardContent className="pt-6">
-            <p className="text-sm text-[#FF6E50]">{error}</p>
+            <p className="text-sm text-[#FF6C5E]">{error}</p>
           </CardContent>
         </Card>
       </div>
@@ -258,7 +258,7 @@ export default function EndSubscriptionPage() {
       <nav className="flex items-center gap-2 text-sm" aria-label="Breadcrumb">
         <Link
           href={`/${orgSlug}/integrations/subscriptions`}
-          className="text-[#007A78] hover:text-[#005F5D] transition-colors focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2 rounded truncate max-w-[200px]"
+          className="text-[#1a7a3a] hover:text-[#007AFF] transition-colors focus:outline-none focus:ring-2 focus:ring-[#90FCA6] focus:ring-offset-2 rounded truncate max-w-[200px]"
           title="Subscription Providers"
         >
           Subscription Providers
@@ -266,7 +266,7 @@ export default function EndSubscriptionPage() {
         <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" aria-hidden="true" />
         <Link
           href={`/${orgSlug}/integrations/subscriptions/${provider}`}
-          className="text-[#007A78] hover:text-[#005F5D] transition-colors focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2 rounded truncate max-w-[200px]"
+          className="text-[#1a7a3a] hover:text-[#007AFF] transition-colors focus:outline-none focus:ring-2 focus:ring-[#90FCA6] focus:ring-offset-2 rounded truncate max-w-[200px]"
           title={providerDisplayName}
         >
           {providerDisplayName}
@@ -290,15 +290,15 @@ export default function EndSubscriptionPage() {
       </div>
 
       {/* Warning Banner */}
-      <Card className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
+      <Card className="border-[#FF6C5E]/30 bg-[#FF6C5E]/5">
         <CardContent className="py-4 px-4">
           <div className="flex items-start gap-3">
-            <AlertTriangle className="h-5 w-5 text-[#FF6E50] flex-shrink-0 mt-0.5" />
+            <AlertTriangle className="h-5 w-5 text-[#FF6C5E] flex-shrink-0 mt-0.5" />
             <div>
               <p className="text-sm font-medium text-[#E55A3C] mb-1">
                 This action will end your subscription
               </p>
-              <p className="text-sm text-[#FF6E50]">
+              <p className="text-sm text-[#FF6C5E]">
                 Cost calculations will stop after the end date you select. This change cannot be undone automatically - you'll need to create a new subscription to resume tracking.
               </p>
             </div>
@@ -335,7 +335,7 @@ export default function EndSubscriptionPage() {
             )}
             <div className="space-y-1">
               <span className="text-muted-foreground block text-xs uppercase tracking-wide">Monthly Cost</span>
-              <span className="font-medium text-[#FF6E50]">
+              <span className="font-medium text-[#FF6C5E]">
                 {formatCurrency(getMonthlyDisplayCost(plan), currency)}
               </span>
             </div>
@@ -370,7 +370,7 @@ export default function EndSubscriptionPage() {
           {/* End Date Picker */}
           <div className="space-y-2 pt-4 border-t">
             <label className="text-sm font-medium text-slate-900">
-              End Date <span className="text-[#FF6E50]">*</span>
+              End Date <span className="text-[#FF6C5E]">*</span>
             </label>
             <DatePicker
               date={endDate}
@@ -386,8 +386,8 @@ export default function EndSubscriptionPage() {
 
           {/* Error Display */}
           {error && (
-            <div className="rounded-lg bg-[#FF6E50]/5 border border-[#FF6E50]/30 p-3">
-              <p className="text-sm text-[#FF6E50]">{error}</p>
+            <div className="rounded-lg bg-[#FF6C5E]/5 border border-[#FF6C5E]/30 p-3">
+              <p className="text-sm text-[#FF6C5E]">{error}</p>
             </div>
           )}
 
@@ -405,7 +405,7 @@ export default function EndSubscriptionPage() {
               type="button"
               onClick={handleEndSubscription}
               disabled={ending || !endDate}
-              className="min-w-[160px] bg-[#FF6E50] text-white hover:bg-[#E55A3C] rounded-xl"
+              className="min-w-[160px] bg-[#FF6C5E] text-white hover:bg-[#E55A3C] rounded-xl"
             >
               {ending ? (
                 <>

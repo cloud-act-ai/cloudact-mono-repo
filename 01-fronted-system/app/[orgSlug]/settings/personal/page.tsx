@@ -288,12 +288,12 @@ export default function PersonalSettingsPage() {
       {/* Stats Row */}
       <div className="flex items-center gap-6 mb-8">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-[#007A78]/10 flex items-center justify-center">
-            <User className="h-5 w-5 text-[#007A78]" />
+          <div className="h-10 w-10 rounded-xl bg-[#90FCA6]/10 flex items-center justify-center">
+            <User className="h-5 w-5 text-[#90FCA6]" />
           </div>
           <div>
             <p className="text-[14px] text-slate-600 font-medium">Account</p>
-            <p className="text-[12px] text-[#007A78] font-semibold">Active</p>
+            <p className="text-[12px] text-[#90FCA6] font-semibold">Active</p>
           </div>
         </div>
         <div className="h-8 w-px bg-slate-200"></div>
@@ -317,9 +317,9 @@ export default function PersonalSettingsPage() {
       )}
 
       {success && (
-        <div className="mb-6 p-4 rounded-xl bg-[#007A78]/5 border border-[#007A78]/20 flex items-center gap-3">
-          <Check className="h-4 w-4 text-[#007A78] flex-shrink-0" />
-          <p className="text-[13px] font-medium text-[#007A78]">{success}</p>
+        <div className="mb-6 p-4 rounded-xl bg-[#90FCA6]/5 border border-[#90FCA6]/20 flex items-center gap-3">
+          <Check className="h-4 w-4 text-[#90FCA6] flex-shrink-0" />
+          <p className="text-[13px] font-medium text-[#90FCA6]">{success}</p>
         </div>
       )}
 
@@ -389,7 +389,7 @@ export default function PersonalSettingsPage() {
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
                     placeholder="Enter first name"
-                    className="w-full h-11 px-4 text-[14px] bg-white border border-slate-200 rounded-xl focus:border-[#007A78] focus:ring-1 focus:ring-[#007A78] transition-colors"
+                    className="w-full h-11 px-4 text-[14px] bg-white border border-slate-200 rounded-xl focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6] transition-colors"
                   />
                 </div>
                 <div>
@@ -399,7 +399,7 @@ export default function PersonalSettingsPage() {
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
                     placeholder="Enter last name"
-                    className="w-full h-11 px-4 text-[14px] bg-white border border-slate-200 rounded-xl focus:border-[#007A78] focus:ring-1 focus:ring-[#007A78] transition-colors"
+                    className="w-full h-11 px-4 text-[14px] bg-white border border-slate-200 rounded-xl focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6] transition-colors"
                   />
                 </div>
               </div>
@@ -433,7 +433,7 @@ export default function PersonalSettingsPage() {
                       if (error) setError(null)
                     }}
                     placeholder="555 123 4567"
-                    className="flex-1 h-11 px-4 text-[14px] bg-white border border-slate-200 rounded-xl focus:border-[#007A78] focus:ring-1 focus:ring-[#007A78] transition-colors"
+                    className="flex-1 h-11 px-4 text-[14px] bg-white border border-slate-200 rounded-xl focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6] transition-colors"
                   />
                 </div>
                 <p className="text-[12px] text-slate-400 mt-1.5">Used for account recovery and notifications</p>
@@ -465,7 +465,7 @@ export default function PersonalSettingsPage() {
               <button
                 onClick={handleSave}
                 disabled={isSaving}
-                className="h-10 px-5 text-[13px] font-semibold bg-[#007A78] hover:bg-[#006664] text-white rounded-xl transition-colors flex items-center gap-2 disabled:opacity-50"
+                className="h-10 px-5 text-[13px] font-semibold bg-[#90FCA6] hover:bg-[#6EE890] text-[#000000] rounded-xl transition-colors flex items-center gap-2 disabled:opacity-50"
               >
                 {isSaving ? (
                   <>
@@ -495,11 +495,11 @@ export default function PersonalSettingsPage() {
 
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
             <div className="group relative">
-              <div className="absolute left-0 top-4 bottom-4 w-1 rounded-full bg-[#007A78] opacity-60 group-hover:opacity-100 transition-opacity" />
+              <div className="absolute left-0 top-4 bottom-4 w-1 rounded-full bg-[#90FCA6] opacity-60 group-hover:opacity-100 transition-opacity" />
               <div className="pl-5 py-5 pr-5 flex items-center justify-between gap-4">
                 <div className="flex items-center gap-4 min-w-0 flex-1">
-                  <div className="h-11 w-11 rounded-xl bg-[#007A78]/10 flex items-center justify-center flex-shrink-0">
-                    <Key className="h-5 w-5 text-[#007A78]" />
+                  <div className="h-11 w-11 rounded-xl bg-[#90FCA6]/10 flex items-center justify-center flex-shrink-0">
+                    <Key className="h-5 w-5 text-[#90FCA6]" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <h3 className="text-[15px] font-semibold text-slate-900 tracking-tight">Password</h3>
@@ -509,7 +509,7 @@ export default function PersonalSettingsPage() {
                 <button
                   onClick={handleResetPassword}
                   disabled={isResettingPassword}
-                  className="h-10 px-5 text-[13px] font-semibold bg-[#007A78] hover:bg-[#006664] text-white rounded-xl transition-colors flex items-center gap-2 disabled:opacity-50"
+                  className="h-10 px-5 text-[13px] font-semibold bg-[#90FCA6] hover:bg-[#6EE890] text-[#000000] rounded-xl transition-colors flex items-center gap-2 disabled:opacity-50"
                 >
                   {isResettingPassword ? (
                     <>
@@ -528,7 +528,7 @@ export default function PersonalSettingsPage() {
           <div className="p-5 rounded-2xl bg-gradient-to-br from-slate-50 to-slate-100/50 border border-slate-200">
             <div className="flex items-start gap-4">
               <div className="h-10 w-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center flex-shrink-0 shadow-sm">
-                <Shield className="h-5 w-5 text-[#007A78]" />
+                <Shield className="h-5 w-5 text-[#90FCA6]" />
               </div>
               <div>
                 <h3 className="text-[15px] font-semibold text-slate-900 mb-2">Security Tips</h3>
@@ -605,11 +605,11 @@ export default function PersonalSettingsPage() {
                 </div>
 
                 {deletionRequested ? (
-                  <div className="p-4 rounded-xl bg-[#007A78]/5 border border-[#007A78]/20 flex items-start gap-3">
-                    <Mail className="h-4 w-4 text-[#007A78] mt-0.5 flex-shrink-0" />
+                  <div className="p-4 rounded-xl bg-[#90FCA6]/5 border border-[#90FCA6]/20 flex items-start gap-3">
+                    <Mail className="h-4 w-4 text-[#90FCA6] mt-0.5 flex-shrink-0" />
                     <div>
-                      <p className="text-[13px] font-semibold text-[#005F5D]">Verification email sent!</p>
-                      <p className="text-[12px] text-[#007A78] mt-1">
+                      <p className="text-[13px] font-semibold text-[#6EE890]">Verification email sent!</p>
+                      <p className="text-[12px] text-[#90FCA6] mt-1">
                         Check your inbox and click the confirmation link. The link expires in 30 minutes.
                       </p>
                     </div>

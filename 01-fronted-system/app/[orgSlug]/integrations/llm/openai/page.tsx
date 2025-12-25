@@ -455,7 +455,7 @@ export default function OpenAIIntegrationPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-[#007A78]" />
+        <Loader2 className="h-8 w-8 animate-spin text-[#1a7a3a]" />
       </div>
     )
   }
@@ -485,9 +485,9 @@ export default function OpenAIIntegrationPage() {
             <div className="flex items-center gap-3 mb-2">
               <h1 className="text-[28px] font-bold text-black tracking-tight">OpenAI Integration</h1>
               {isConnected && (
-                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#007A78]/10 animate-pulse">
-                  <div className="h-2 w-2 rounded-full bg-[#007A78]" />
-                  <span className="text-[11px] font-bold text-[#007A78] uppercase tracking-wide">Connected</span>
+                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#90FCA6]/10 animate-pulse">
+                  <div className="h-2 w-2 rounded-full bg-[#90FCA6]" />
+                  <span className="text-[11px] font-bold text-[#1a7a3a] uppercase tracking-wide">Connected</span>
                 </div>
               )}
             </div>
@@ -500,17 +500,17 @@ export default function OpenAIIntegrationPage() {
 
       {/* Alerts */}
       {error && (
-        <Alert variant="destructive" className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
-          <AlertCircle className="h-4 w-4 text-[#FF6E50]" />
-          <AlertTitle className="text-[#FF6E50]">Error</AlertTitle>
+        <Alert variant="destructive" className="border-[#FF6C5E]/30 bg-[#FF6C5E]/5">
+          <AlertCircle className="h-4 w-4 text-[#FF6C5E]" />
+          <AlertTitle className="text-[#FF6C5E]">Error</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
       {successMessage && (
-        <Alert className="border-[#007A78]/20 bg-[#F0FDFA]">
-          <Check className="h-4 w-4 text-[#007A78]" />
-          <AlertTitle className="text-[#007A78]">Success</AlertTitle>
+        <Alert className="border-[#90FCA6]/20 bg-[#F0FDFA]">
+          <Check className="h-4 w-4 text-[#1a7a3a]" />
+          <AlertTitle className="text-[#1a7a3a]">Success</AlertTitle>
           <AlertDescription>{successMessage}</AlertDescription>
         </Alert>
       )}
@@ -518,7 +518,7 @@ export default function OpenAIIntegrationPage() {
       {/* ===== SECTION 1: Connect & Pricing ===== */}
       <div className="space-y-6">
         <h2 className="console-heading flex items-center gap-2">
-          <Plug className="h-5 w-5 text-[#007A78]" />
+          <Plug className="h-5 w-5 text-[#1a7a3a]" />
           Connect
         </h2>
 
@@ -545,8 +545,8 @@ export default function OpenAIIntegrationPage() {
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-[#FF6E50]/10">
-                    <DollarSign className="h-5 w-5 text-[#FF6E50]" />
+                  <div className="p-2 rounded-lg bg-[#FF6C5E]/10">
+                    <DollarSign className="h-5 w-5 text-[#FF6C5E]" />
                   </div>
                   <div>
                     <CardTitle className="console-card-title">Model Pricing</CardTitle>
@@ -581,7 +581,7 @@ export default function OpenAIIntegrationPage() {
 
                 {pricingLoading ? (
                   <div className="flex justify-center py-4">
-                    <Loader2 className="h-6 w-6 animate-spin text-[#007A78]" />
+                    <Loader2 className="h-6 w-6 animate-spin text-[#1a7a3a]" />
                   </div>
                 ) : pricing.length === 0 ? (
                   <p className="console-body text-center py-4 text-muted-foreground">
@@ -680,7 +680,7 @@ export default function OpenAIIntegrationPage() {
                                 <Button
                                   size="sm"
                                   variant="ghost"
-                                  className="text-[#FF6E50] hover:text-[#E55A3C] hover:bg-[#FF6E50]/10"
+                                  className="text-[#FF6C5E] hover:text-[#E55A3C] hover:bg-[#FF6C5E]/10"
                                   onClick={() => setDeletePricingDialog({ open: true, model })}
                                   disabled={deletingPricing === model.model_id}
                                 >
@@ -705,10 +705,10 @@ export default function OpenAIIntegrationPage() {
       </div>
 
       {/* Help Section */}
-      <div className="rounded-lg border border-[#007A78]/20 p-4 bg-[#F0FDFA]">
+      <div className="rounded-lg border border-[#90FCA6]/20 p-4 bg-[#F0FDFA]">
         <h3 className="console-card-title mb-2">How to get your OpenAI API key</h3>
         <ol className="list-decimal list-inside space-y-2 console-body">
-          <li>Go to <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-[#007A78] underline">OpenAI API Keys</a></li>
+          <li>Go to <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-[#1a7a3a] underline">OpenAI API Keys</a></li>
           <li>Click "Create new secret key"</li>
           <li>Give it a name (e.g., "CloudAct Integration")</li>
           <li>Copy the key immediately (it won't be shown again)</li>
@@ -826,7 +826,7 @@ export default function OpenAIIntegrationPage() {
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="sub-plan" className="text-right">
-                Plan Name <span className="text-[#FF6E50]">*</span>
+                Plan Name <span className="text-[#FF6C5E]">*</span>
               </Label>
               <div className="col-span-3">
                 <Input

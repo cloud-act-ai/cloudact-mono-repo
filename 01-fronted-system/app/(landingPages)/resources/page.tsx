@@ -197,8 +197,8 @@ export default function ResourcesPage() {
         <div className="container mx-auto px-4 md:px-12 relative z-10">
           <div className="max-w-4xl mx-auto text-center">
             <div className="inline-flex items-center gap-2 px-4 py-2 mb-6 bg-white border border-gray-200 rounded-full shadow-md">
-              <span className="flex h-2 w-2 rounded-full bg-[#007A78] animate-pulse" />
-              <span className="ca-label text-[#007A78]">Knowledge Hub</span>
+              <span className="flex h-2 w-2 rounded-full bg-mint animate-pulse" />
+              <span className="ca-label text-mint-text">Knowledge Hub</span>
             </div>
 
             <h1 className="ca-display-xl mb-6">
@@ -217,7 +217,7 @@ export default function ResourcesPage() {
                 <input
                   type="text"
                   placeholder="Search resources, guides, tutorials..."
-                  className="w-full pl-12 pr-4 py-4 bg-white border-2 border-gray-200 rounded-xl text-base focus:border-[#007A78] focus:outline-none focus:ring-4 focus:ring-[#007A78]/10 transition-all"
+                  className="w-full pl-12 pr-4 py-4 bg-white border-2 border-gray-200 rounded-xl text-base focus:border-mint focus:outline-none focus:ring-4 focus:ring-mint/10 transition-all"
                 />
                 <button className="absolute right-2 top-1/2 -translate-y-1/2 ca-btn ca-btn-primary ca-btn-sm">
                   Search
@@ -233,7 +233,7 @@ export default function ResourcesPage() {
                 return (
                   <button
                     key={topic.name}
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg hover:border-[#007A78] hover:bg-[#E6F5F5] transition-all text-sm font-medium text-gray-700"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg hover:border-mint hover:bg-[var(--cloudact-bg-mint)] transition-all text-sm font-medium text-gray-700"
                   >
                     <Icon className="h-4 w-4" />
                     {topic.name}
@@ -249,7 +249,7 @@ export default function ResourcesPage() {
       <section className="py-16 md:py-20 bg-gray-50">
         <div className="container mx-auto px-4 md:px-12">
           <div className="text-center mb-12">
-            <span className="ca-label text-[#007A78]">Browse by Category</span>
+            <span className="ca-label text-mint-text">Browse by Category</span>
             <h2 className="ca-display-md mt-3 mb-4">Explore Our Resources</h2>
             <p className="ca-body max-w-2xl mx-auto">
               Choose from our comprehensive collection of learning materials and resources
@@ -270,7 +270,7 @@ export default function ResourcesPage() {
                   <div className={`ca-feature-icon ${iconColorClass} mb-5`}>
                     <Icon className="h-7 w-7" />
                   </div>
-                  <h3 className="ca-heading mb-2 group-hover:text-[#007A78] transition-colors">
+                  <h3 className="ca-heading mb-2 group-hover:text-mint-text transition-colors">
                     {category.title}
                   </h3>
                   <p className="ca-body-sm mb-4 leading-relaxed">
@@ -278,7 +278,7 @@ export default function ResourcesPage() {
                   </p>
                   <div className="flex items-center justify-between">
                     <span className="ca-label text-gray-400">{category.count}</span>
-                    <ArrowRight className="h-5 w-5 text-[#007A78] transition-transform group-hover:translate-x-1" />
+                    <ArrowRight className="h-5 w-5 text-mint transition-transform group-hover:translate-x-1" />
                   </div>
                 </Link>
               )
@@ -292,7 +292,7 @@ export default function ResourcesPage() {
         <div className="container mx-auto px-4 md:px-12">
           <div className="flex items-center justify-between mb-12">
             <div>
-              <span className="ca-label text-[#FF6E50]">Featured Content</span>
+              <span className="ca-label text-coral">Featured Content</span>
               <h2 className="ca-display-md mt-3">Latest Resources</h2>
             </div>
             <button className="hidden md:inline-flex items-center gap-2 ca-btn ca-btn-secondary">
@@ -305,7 +305,7 @@ export default function ResourcesPage() {
             {featuredResources.map((resource, index) => {
               const isFeatured = resource.featured
               const cardClass = isFeatured
-                ? "ca-card border-2 border-[#007A78] shadow-xl"
+                ? "ca-card border-2 border-mint shadow-xl"
                 : "ca-card"
 
               return (
@@ -315,18 +315,18 @@ export default function ResourcesPage() {
                   className={`${cardClass} group relative`}
                 >
                   {isFeatured && (
-                    <div className="absolute -top-3 left-6 px-3 py-1 bg-gradient-to-r from-[#007A78] to-[#00968F] text-white text-xs font-bold rounded-full uppercase tracking-wide">
+                    <div className="absolute -top-3 left-6 px-3 py-1 bg-gradient-to-r from-mint to-mint-dark text-black text-xs font-bold rounded-full uppercase tracking-wide">
                       Featured
                     </div>
                   )}
 
                   <div className="mb-4">
-                    <span className="inline-block px-3 py-1 bg-[#E6F5F5] text-[#007A78] text-xs font-semibold rounded-lg">
+                    <span className="inline-block px-3 py-1 bg-[var(--cloudact-bg-mint)] text-mint-text text-xs font-semibold rounded-lg">
                       {resource.category}
                     </span>
                   </div>
 
-                  <h3 className="ca-heading text-xl mb-3 group-hover:text-[#007A78] transition-colors">
+                  <h3 className="ca-heading text-xl mb-3 group-hover:text-mint-text transition-colors">
                     {resource.title}
                   </h3>
 
@@ -353,7 +353,7 @@ export default function ResourcesPage() {
                       </span>
                       <span>{resource.date}</span>
                     </div>
-                    <ArrowRight className="h-5 w-5 text-[#007A78] transition-transform group-hover:translate-x-1" />
+                    <ArrowRight className="h-5 w-5 text-mint transition-transform group-hover:translate-x-1" />
                   </div>
                 </Link>
               )
@@ -370,11 +370,11 @@ export default function ResourcesPage() {
       </section>
 
       {/* Popular Downloads */}
-      <section className="py-16 md:py-20 bg-gradient-to-br from-[#E6F5F5] to-white">
+      <section className="py-16 md:py-20 bg-gradient-to-br from-[var(--cloudact-bg-mint)] to-white">
         <div className="container mx-auto px-4 md:px-12">
           <div className="max-w-5xl mx-auto">
             <div className="text-center mb-12">
-              <span className="ca-label text-[#007A78]">Free Downloads</span>
+              <span className="ca-label text-mint-text">Free Downloads</span>
               <h2 className="ca-display-md mt-3 mb-4">Popular Resources</h2>
               <p className="ca-body max-w-2xl mx-auto">
                 Download our most popular guides, templates, and tools
@@ -393,7 +393,7 @@ export default function ResourcesPage() {
                       <Download className="h-6 w-6" />
                     </div>
                     <div>
-                      <h3 className="ca-subheading mb-1 group-hover:text-[#007A78] transition-colors">
+                      <h3 className="ca-subheading mb-1 group-hover:text-mint-text transition-colors">
                         {download.title}
                       </h3>
                       <div className="flex items-center gap-4 text-sm text-gray-500">
@@ -406,7 +406,7 @@ export default function ResourcesPage() {
                       </div>
                     </div>
                   </div>
-                  <ExternalLink className="h-5 w-5 text-[#007A78] transition-transform group-hover:translate-x-1" />
+                  <ExternalLink className="h-5 w-5 text-mint transition-transform group-hover:translate-x-1" />
                 </Link>
               ))}
             </div>
@@ -420,8 +420,8 @@ export default function ResourcesPage() {
           <div className="max-w-6xl mx-auto">
             <div className="grid md:grid-cols-3 gap-8">
               <div className="text-center">
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-[#E6F5F5] rounded-2xl mb-6">
-                  <GraduationCap className="h-8 w-8 text-[#007A78]" />
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-[var(--cloudact-bg-mint)] rounded-2xl mb-6">
+                  <GraduationCap className="h-8 w-8 text-mint-text" />
                 </div>
                 <h3 className="ca-heading mb-3">Learning Paths</h3>
                 <p className="ca-body-sm mb-5">
@@ -433,8 +433,8 @@ export default function ResourcesPage() {
               </div>
 
               <div className="text-center">
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-[#FFF0ED] rounded-2xl mb-6">
-                  <Users className="h-8 w-8 text-[#FF6E50]" />
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-[var(--cloudact-bg-coral)] rounded-2xl mb-6">
+                  <Users className="h-8 w-8 text-coral" />
                 </div>
                 <h3 className="ca-heading mb-3">Community Forum</h3>
                 <p className="ca-body-sm mb-5">
@@ -446,8 +446,8 @@ export default function ResourcesPage() {
               </div>
 
               <div className="text-center">
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-[#E6F5F5] rounded-2xl mb-6">
-                  <Code className="h-8 w-8 text-[#007A78]" />
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-[var(--cloudact-bg-mint)] rounded-2xl mb-6">
+                  <Code className="h-8 w-8 text-mint-text" />
                 </div>
                 <h3 className="ca-heading mb-3">Developer Docs</h3>
                 <p className="ca-body-sm mb-5">
@@ -463,18 +463,18 @@ export default function ResourcesPage() {
       </section>
 
       {/* Newsletter Signup */}
-      <section className="py-16 md:py-20 bg-gradient-to-br from-[#007A78] to-[#005C5A]">
+      <section className="py-16 md:py-20 bg-gradient-to-br from-mint to-mint-dark">
         <div className="container mx-auto px-4 md:px-12">
           <div className="max-w-4xl mx-auto">
             <div className="ca-card-glass text-center p-12 md:p-16">
-              <div className="inline-flex items-center justify-center w-20 h-20 bg-white/20 backdrop-blur-sm rounded-2xl mb-6">
-                <Mail className="h-10 w-10 text-white" />
+              <div className="inline-flex items-center justify-center w-20 h-20 bg-black/10 backdrop-blur-sm rounded-2xl mb-6">
+                <Mail className="h-10 w-10 text-black" />
               </div>
 
-              <h2 className="ca-display-md text-white mb-4">
+              <h2 className="ca-display-md text-black mb-4">
                 Stay Updated
               </h2>
-              <p className="ca-body text-white/90 text-lg mb-8 max-w-2xl mx-auto">
+              <p className="ca-body text-black/80 text-lg mb-8 max-w-2xl mx-auto">
                 Get the latest guides, case studies, and cloud cost optimization insights delivered to your inbox every week
               </p>
 
@@ -483,7 +483,7 @@ export default function ResourcesPage() {
                   <input
                     type="email"
                     placeholder="Enter your email"
-                    className="flex-1 px-5 py-4 bg-white/95 backdrop-blur-sm border-0 rounded-xl text-base focus:outline-none focus:ring-4 focus:ring-white/30 transition-all"
+                    className="flex-1 px-5 py-4 bg-white/95 backdrop-blur-sm border-0 rounded-xl text-base focus:outline-none focus:ring-4 focus:ring-black/10 transition-all"
                   />
                   <button
                     type="submit"
@@ -493,24 +493,24 @@ export default function ResourcesPage() {
                     <CheckCircle2 className="h-5 w-5" />
                   </button>
                 </div>
-                <p className="text-white/70 text-sm mt-4">
+                <p className="text-black/70 text-sm mt-4">
                   Join 5,000+ cloud professionals. Unsubscribe anytime.
                 </p>
               </form>
 
               {/* Social Proof */}
-              <div className="mt-10 pt-8 border-t border-white/20">
-                <div className="flex flex-wrap items-center justify-center gap-8 text-white/90">
+              <div className="mt-10 pt-8 border-t border-black/10">
+                <div className="flex flex-wrap items-center justify-center gap-8 text-black/80">
                   <div className="text-center">
-                    <div className="ca-mono text-3xl font-bold text-white mb-1">5K+</div>
+                    <div className="ca-mono text-3xl font-bold text-black mb-1">5K+</div>
                     <div className="text-sm">Subscribers</div>
                   </div>
                   <div className="text-center">
-                    <div className="ca-mono text-3xl font-bold text-white mb-1">50+</div>
+                    <div className="ca-mono text-3xl font-bold text-black mb-1">50+</div>
                     <div className="text-sm">Articles/Month</div>
                   </div>
                   <div className="text-center">
-                    <div className="ca-mono text-3xl font-bold text-white mb-1">4.9</div>
+                    <div className="ca-mono text-3xl font-bold text-black mb-1">4.9</div>
                     <div className="text-sm">Avg. Rating</div>
                   </div>
                 </div>

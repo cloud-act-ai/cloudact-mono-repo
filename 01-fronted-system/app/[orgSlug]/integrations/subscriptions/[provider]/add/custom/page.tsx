@@ -330,7 +330,7 @@ export default function AddCustomSubscriptionPage() {
     return (
       <div className="p-6 space-y-6">
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-[#007A78]" />
+          <Loader2 className="h-8 w-8 animate-spin text-[#1a7a3a]" />
         </div>
       </div>
     )
@@ -342,7 +342,7 @@ export default function AddCustomSubscriptionPage() {
       <nav className="flex items-center gap-2 text-sm" aria-label="Breadcrumb">
         <Link
           href={`/${orgSlug}/integrations/subscriptions`}
-          className="text-[#007A78] hover:text-[#005F5D] transition-colors focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2 rounded truncate max-w-[200px]"
+          className="text-[#1a7a3a] hover:text-[#007AFF] transition-colors focus:outline-none focus:ring-2 focus:ring-[#90FCA6] focus:ring-offset-2 rounded truncate max-w-[200px]"
           title="Subscription Providers"
         >
           Subscription Providers
@@ -350,7 +350,7 @@ export default function AddCustomSubscriptionPage() {
         <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" aria-hidden="true" />
         <Link
           href={`/${orgSlug}/integrations/subscriptions/${provider}`}
-          className="text-[#007A78] hover:text-[#005F5D] transition-colors focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2 rounded truncate max-w-[200px]"
+          className="text-[#1a7a3a] hover:text-[#007AFF] transition-colors focus:outline-none focus:ring-2 focus:ring-[#90FCA6] focus:ring-offset-2 rounded truncate max-w-[200px]"
           title={providerDisplayName}
         >
           {providerDisplayName}
@@ -378,9 +378,9 @@ export default function AddCustomSubscriptionPage() {
 
       {/* Error Message */}
       {error && (
-        <Card className="border-[#FF6E50]/30 bg-[#FF6E50]/5">
+        <Card className="border-[#FF6C5E]/30 bg-[#FF6C5E]/5">
           <CardContent className="pt-6">
-            <p className="text-sm text-[#FF6E50]">{error}</p>
+            <p className="text-sm text-[#FF6C5E]">{error}</p>
           </CardContent>
         </Card>
       )}
@@ -530,7 +530,7 @@ export default function AddCustomSubscriptionPage() {
               <div className="space-y-2">
                 <Label htmlFor="currency">Currency</Label>
                 {/* Currency is locked to org default for consistency */}
-                <div className="flex items-center h-10 px-3 rounded-md border border-border bg-[#007A78]/5 text-foreground">
+                <div className="flex items-center h-10 px-3 rounded-md border border-border bg-[#90FCA6]/5 text-foreground">
                   <span className="font-medium">{formData.currency}</span>
                   <span className="ml-2 text-muted-foreground">
                     ({getCurrencySymbol(formData.currency)})
@@ -635,19 +635,19 @@ export default function AddCustomSubscriptionPage() {
 
             {/* Template Conversion Info */}
             {isFromTemplate && formData.source_currency && formData.source_price !== undefined && (
-              <Card className="bg-[#007A78]/5 border-[#007A78]/20">
+              <Card className="bg-[#90FCA6]/5 border-[#90FCA6]/20">
                 <CardContent className="pt-6">
                   <div className="space-y-2">
-                    <p className="text-sm font-medium text-[#005F5D]">Template Price Converted</p>
-                    <p className="text-sm text-[#007A78]">
+                    <p className="text-sm font-medium text-[#6EE890]">Template Price Converted</p>
+                    <p className="text-sm text-[#1a7a3a]">
                       Original template price: <span className="font-semibold">${formData.source_price?.toFixed(2)} {formData.source_currency}</span>
                       {formData.exchange_rate_used && formData.exchange_rate_used !== 1 && (
-                        <span className="text-[#14B8A6] ml-2">
+                        <span className="text-[#B8FDCA] ml-2">
                           (rate: {formData.exchange_rate_used?.toFixed(4)})
                         </span>
                       )}
                     </p>
-                    <p className="text-xs text-[#14B8A6]">
+                    <p className="text-xs text-[#B8FDCA]">
                       This price has been automatically converted to your organization's currency ({formData.currency}).
                     </p>
                   </div>
@@ -657,14 +657,14 @@ export default function AddCustomSubscriptionPage() {
 
             {/* Cost Preview */}
             {formData.unit_price > 0 && (
-              <Card className="bg-[#007A78]/5 border-border">
+              <Card className="bg-[#90FCA6]/5 border-border">
                 <CardContent className="pt-6">
                   <div className="space-y-2">
                     <p className="text-sm font-medium text-foreground">Cost Preview</p>
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
                         <span className="text-muted-foreground">Total Cost:</span>
-                        <span className="ml-2 font-semibold text-[#FF6E50]">
+                        <span className="ml-2 font-semibold text-[#FF6C5E]">
                           {(() => {
                             let totalCost = formData.unit_price
                             if (formData.pricing_model === 'PER_SEAT') {

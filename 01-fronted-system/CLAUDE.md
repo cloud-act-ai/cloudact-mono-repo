@@ -162,13 +162,58 @@ Checkout: 1 per 30sec | Invites: 10 per hour
 
 ## Design System
 
-**Brand:** Teal (#007A78) + Coral (#FF6E50) | Font: DM Sans | Spacing: 8px
+### Brand Colors (Updated 2025-12-25)
 
-**CSS Files:** `globals.css`, `console.css`, `landing.css`
+| Color | Hex | Usage |
+|-------|-----|-------|
+| **Mint** | `#90FCA6` | Primary buttons, success states, active indicators |
+| **Mint Light** | `#B8FDCA` | Hover states, light backgrounds |
+| **Mint Dark** | `#6EE890` | Pressed states, borders |
+| **Coral** | `#FF6C5E` | Warnings, destructive actions, accents |
+| **Blue** | `#007AFF` | Links, info states, secondary actions |
 
-**Premium theme:** White surfaces, teal tints - NO gray backgrounds
+**Typography:** DM Sans | **Spacing:** 8px grid
 
-### Sidebar Navigation (Updated 2025-12-24)
+### Color Usage Rules
+
+```css
+/* Primary buttons - BLACK text on mint */
+.btn-primary { background: #90FCA6; color: #000000; }
+
+/* Links always use blue */
+a { color: #007AFF; }
+
+/* Text on mint backgrounds */
+.text-on-mint { color: #1a7a3a; } /* Dark green for readability */
+
+/* Success states */
+.success { background: #90FCA6/10; border-color: #90FCA6; color: #1a7a3a; }
+
+/* Destructive/warning */
+.destructive { background: #FF6C5E; color: #FFFFFF; }
+```
+
+### CSS Variables (in landing.css, console.css, premium.css)
+
+```css
+:root {
+  --cloudact-mint: #90FCA6;
+  --cloudact-mint-light: #B8FDCA;
+  --cloudact-mint-dark: #6EE890;
+  --cloudact-coral: #FF6C5E;
+  --cloudact-blue: #007AFF;
+
+  /* Legacy aliases for backward compatibility */
+  --cloudact-teal: #90FCA6;
+  --cloudact-coral-legacy: #FF6C5E;
+}
+```
+
+**CSS Files:** `globals.css`, `console.css`, `landing.css`, `premium.css`
+
+**Premium theme:** White surfaces, mint tints - NO gray backgrounds
+
+### Sidebar Navigation
 
 **Two-zone layout with accordion behavior:**
 - Main Content: Dashboards, Pipelines (scrollable)
@@ -176,7 +221,7 @@ Checkout: 1 per 30sec | Invites: 10 per hour
 
 **Accordion:** Only ONE section open at a time. Auto-expands based on route.
 
-**Coral highlights:** `hover:bg-[#FF6E50]/10 hover:text-[#FF6E50]` for menu items.
+**Coral highlights:** `hover:bg-[#FF6C5E]/10 hover:text-[#FF6C5E]` for menu items.
 
 **Key Components:**
 - `components/dashboard-sidebar.tsx` - Desktop sidebar
@@ -193,5 +238,44 @@ Checkout: 1 per 30sec | Invites: 10 per hour
 
 **Backend Columns:** `backend_onboarded`, `backend_api_key_fingerprint`, `integration_*_status`
 
+## Organizational Hierarchy
+
+**Structure:** Org → Department → Project → Team (strict parent-child)
+
+**BigQuery Table:** `org_hierarchy` in each org's dataset
+
+**Frontend:** `app/[orgSlug]/settings/hierarchy/page.tsx`
+
+**Actions:** `actions/hierarchy.ts`
+- `getHierarchy(orgSlug)` - List all entities
+- `getHierarchyTree(orgSlug)` - Get tree structure
+- `createDepartment/Project/Team(orgSlug, data)`
+- `updateEntity(orgSlug, entityType, entityId, data)`
+- `deleteEntity(orgSlug, entityType, entityId)` - Blocks if children exist
+- `importHierarchy(orgSlug, csvData)` - Bulk import
+- `exportHierarchy(orgSlug)` - CSV export
+
+**CSV Format:**
+```csv
+entity_type,entity_id,entity_name,parent_id,owner_id,owner_name,owner_email,description
+department,DEPT-001,Engineering,,,John Doe,john@example.com,Engineering department
+project,PROJ-001,Platform,DEPT-001,,Jane Smith,jane@example.com,Platform project
+team,TEAM-001,Backend,PROJ-001,,Bob Wilson,bob@example.com,Backend team
+```
+
+**Subscription Integration:** Each subscription can be assigned to dept/project/team via:
+- `hierarchy_dept_id`, `hierarchy_dept_name`
+- `hierarchy_project_id`, `hierarchy_project_name`
+- `hierarchy_team_id`, `hierarchy_team_name`
+
+**Cost Allocation Flow:**
+```
+saas_subscription_plans (hierarchy IDs)
+    ↓ sp_calculate_saas_subscription_plan_costs_daily
+saas_subscription_plan_costs_daily (with hierarchy)
+    ↓ sp_convert_saas_costs_to_focus_1_3
+cost_data_standard_1_3 (x_Hierarchy* extension fields)
+```
+
 ---
-**Last Updated:** 2025-12-24
+**Last Updated:** 2025-12-25

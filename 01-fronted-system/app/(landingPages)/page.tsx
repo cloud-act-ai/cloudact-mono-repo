@@ -119,8 +119,8 @@ function Constellation() {
       <svg className="ca-constellation-lines" viewBox="0 0 900 420">
         <defs>
           <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#007A78" />
-            <stop offset="100%" stopColor="#FF6E50" />
+            <stop offset="0%" stopColor="var(--cloudact-mint)" />
+            <stop offset="100%" stopColor="var(--cloudact-coral)" />
           </linearGradient>
         </defs>
         {PROVIDERS.map((provider, i) => {
@@ -214,7 +214,7 @@ function DashboardPreview() {
           </div>
           <div className="ca-metric-card">
             <div className="ca-metric-label">GenAI Costs</div>
-            <div className="ca-metric-value ca-mono" style={{ color: '#FF6E50' }}>$43,892</div>
+            <div className="ca-metric-value ca-mono text-coral">$43,892</div>
             <div className="ca-metric-change ca-metric-change-negative">
               <Activity className="w-3 h-3" /> 4.2M tokens
             </div>
@@ -240,11 +240,11 @@ function DashboardPreview() {
             <span className="ca-chart-title">Cost Trend (30 days)</span>
             <div className="ca-chart-legend">
               <div className="ca-chart-legend-item">
-                <div className="ca-chart-legend-dot" style={{ background: '#007A78' }} />
+                <div className="ca-chart-legend-dot bg-mint" />
                 Cloud
               </div>
               <div className="ca-chart-legend-item">
-                <div className="ca-chart-legend-dot" style={{ background: '#FF6E50' }} />
+                <div className="ca-chart-legend-dot bg-coral" />
                 GenAI
               </div>
               <div className="ca-chart-legend-item">
@@ -389,8 +389,8 @@ export default function PremiumLandingPage() {
     <div className="ca-landing">
       {/* Promo Banner */}
       <div style={{
-        background: 'linear-gradient(90deg, #007A78 0%, #005C5A 100%)',
-        color: 'white',
+        background: 'linear-gradient(90deg, var(--cloudact-mint) 0%, var(--cloudact-mint-dark) 100%)',
+        color: '#000000',
         padding: '12px 16px',
         textAlign: 'center',
         fontSize: '0.875rem',
@@ -449,11 +449,11 @@ export default function PremiumLandingPage() {
 
           <div className="ca-animate ca-delay-4" style={{ display: 'flex', gap: '24px', justifyContent: 'center', marginTop: '32px', flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#52525B', fontSize: '0.875rem' }}>
-              <Shield className="w-4 h-4" style={{ color: '#007A78' }} />
+              <Shield className="w-4 h-4 text-mint" />
               SOC 2 Type II
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#52525B', fontSize: '0.875rem' }}>
-              <Zap className="w-4 h-4" style={{ color: '#FF6E50' }} />
+              <Zap className="w-4 h-4 text-coral" />
               5-minute setup
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#52525B', fontSize: '0.875rem' }}>

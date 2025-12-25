@@ -183,7 +183,7 @@ export function DatePicker({
                 type="button"
                 disabled={disabled}
                 className={cn(
-                  "absolute right-2 top-1/2 -translate-y-1/2 text-[#8E8E93] hover:text-[#007A78] transition-colors p-1 rounded",
+                  "absolute right-2 top-1/2 -translate-y-1/2 text-[#8E8E93] hover:text-[#1a7a3a] transition-colors p-1 rounded",
                   disabled && "opacity-50 cursor-not-allowed"
                 )}
                 aria-label="Open calendar"
@@ -246,7 +246,7 @@ export function DatePicker({
                     variant="ghost"
                     size="sm"
                     type="button"
-                    className="w-full justify-start text-left h-8 px-2 text-sm font-normal hover:bg-[#007A78]/10 hover:text-[#007A78]"
+                    className="w-full justify-start text-left h-8 px-2 text-sm font-normal hover:bg-[#90FCA6]/10 hover:text-[#1a7a3a]"
                     onClick={(e) => {
                       e.stopPropagation()
                       e.preventDefault()
@@ -280,7 +280,7 @@ export function DatePicker({
       {/* Selected date display */}
       {date && !inputError && (
         <p className="text-xs text-[#8E8E93] mt-1">
-          Selected: <span className="font-medium text-[#007A78]">{format(date, "EEEE, MMMM d, yyyy")}</span>
+          Selected: <span className="font-medium text-[#1a7a3a]">{format(date, "EEEE, MMMM d, yyyy")}</span>
         </p>
       )}
     </div>

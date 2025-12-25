@@ -142,7 +142,7 @@ export default function BillingPage() {
     return (
       <div className="flex min-h-svh w-full items-center justify-center bg-white">
         <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-8 w-8 animate-spin text-[#007A78]" />
+          <Loader2 className="h-8 w-8 animate-spin text-[#6EE890]" />
           <p className="text-sm text-gray-600">Verifying your account...</p>
         </div>
       </div>
@@ -157,7 +157,7 @@ export default function BillingPage() {
       <div className="w-full max-w-[900px] space-y-4">
         {/* Header */}
         <div className="flex flex-col items-center gap-2 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#007A78] text-white shadow-lg">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#90FCA6] text-black shadow-lg">
             <Cloud className="h-6 w-6" />
           </div>
           <div className="space-y-1">
@@ -170,8 +170,8 @@ export default function BillingPage() {
 
         {/* Error Alert */}
         {error && (
-          <Alert variant="destructive" className="mx-auto max-w-md bg-[#FFF5F3] border-[#FF6E50]">
-            <AlertDescription className="text-sm text-[#FF6E50]">{error}</AlertDescription>
+          <Alert variant="destructive" className="mx-auto max-w-md bg-[#FFF5F3] border-[#FF6C5E]">
+            <AlertDescription className="text-sm text-[#FF6C5E]">{error}</AlertDescription>
           </Alert>
         )}
 
@@ -198,13 +198,13 @@ export default function BillingPage() {
                   key={plan.priceId}
                   className={cn(
                     "relative cursor-pointer rounded-xl border bg-white p-4 shadow-sm transition-all hover:shadow-md flex flex-col",
-                    isSelected ? "border-[#007A78] ring-1 ring-[#007A78] bg-[#007A78]/5" : "hover:border-[#007A78]/50 hover:ring-2 hover:ring-[#007A78]/10",
-                    isPopular && !isSelected && "border-[#007A78]/30"
+                    isSelected ? "border-[#90FCA6] ring-1 ring-[#90FCA6] bg-[#B8FDCA]/5" : "hover:border-[#90FCA6]/50 hover:ring-2 hover:ring-[#90FCA6]/10",
+                    isPopular && !isSelected && "border-[#90FCA6]/30"
                   )}
                   onClick={() => handleSelectPlan(plan.priceId)}
                 >
                   {isPopular && (
-                    <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-2.5 py-0.5 bg-[#007A78] text-white text-xs font-medium rounded-full">
+                    <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-2.5 py-0.5 bg-[#90FCA6] text-black text-xs font-medium rounded-full">
                       Most Popular
                     </div>
                   )}
@@ -215,8 +215,8 @@ export default function BillingPage() {
                       <p className="text-xs text-gray-600">{plan.description || "Perfect for growing teams"}</p>
                     </div>
                     {isSelected && (
-                      <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#007A78]">
-                        <Check className="h-3 w-3 text-white" />
+                      <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#90FCA6]">
+                        <Check className="h-3 w-3 text-black" />
                       </div>
                     )}
                   </div>
@@ -229,20 +229,20 @@ export default function BillingPage() {
                   <ul className="space-y-1.5 mb-4 flex-1">
                     {/* Show limits as features */}
                     <li className="flex items-start gap-1.5 text-xs">
-                      <Check className="h-3.5 w-3.5 text-[#007A78] shrink-0 mt-0.5" />
+                      <Check className="h-3.5 w-3.5 text-[#6EE890] shrink-0 mt-0.5" />
                       <span className="text-gray-600">{plan.limits.teamMembers} team members</span>
                     </li>
                     <li className="flex items-start gap-1.5 text-xs">
-                      <Check className="h-3.5 w-3.5 text-[#007A78] shrink-0 mt-0.5" />
+                      <Check className="h-3.5 w-3.5 text-[#6EE890] shrink-0 mt-0.5" />
                       <span className="text-gray-600">{plan.limits.providers} providers</span>
                     </li>
                     <li className="flex items-start gap-1.5 text-xs">
-                      <Check className="h-3.5 w-3.5 text-[#007A78] shrink-0 mt-0.5" />
+                      <Check className="h-3.5 w-3.5 text-[#6EE890] shrink-0 mt-0.5" />
                       <span className="text-gray-600">{plan.limits.pipelinesPerDay} pipelines/day</span>
                     </li>
                     {plan.features.slice(0, 2).map((feature, i) => (
                       <li key={i} className="flex items-start gap-1.5 text-xs">
-                        <Check className="h-3.5 w-3.5 text-[#007A78] shrink-0 mt-0.5" />
+                        <Check className="h-3.5 w-3.5 text-[#6EE890] shrink-0 mt-0.5" />
                         <span className="text-gray-600">{feature}</span>
                       </li>
                     ))}
@@ -272,7 +272,7 @@ export default function BillingPage() {
           <button
             className={cn(
               "w-full max-w-md h-14 text-lg font-bold shadow-lg transition-all",
-              selectedPlan ? "cloudact-btn-primary animate-pulse ring-4 ring-[#007A78]/30" : "cloudact-btn-primary opacity-50 cursor-not-allowed"
+              selectedPlan ? "cloudact-btn-primary animate-pulse ring-4 ring-[#90FCA6]/30" : "cloudact-btn-primary opacity-50 cursor-not-allowed"
             )}
             disabled={isLoading || isLoadingPlans || plans.length === 0 || !selectedPlan}
             onClick={handleContinue}
@@ -307,7 +307,7 @@ export default function BillingPage() {
             <Shield className="h-3 w-3" />
             <span>Powered by Stripe</span>
           </div>
-          <Link href="/signup" className="hover:underline ml-2 text-[#007A78] hover:text-[#005F5D]">
+          <Link href="/signup" className="hover:underline ml-2 text-[#007AFF] hover:text-[#0051D5]">
             ← Back to sign up
           </Link>
         </div>

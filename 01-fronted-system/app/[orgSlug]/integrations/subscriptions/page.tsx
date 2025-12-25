@@ -65,7 +65,7 @@ function TrackingCard({
             <div className="flex items-center gap-2 mt-0.5">
               <span className="text-[12px] text-slate-500 font-medium">{category.label}</span>
               <span className="text-slate-300">·</span>
-              <span className="text-[12px] font-semibold text-[#007A78]">
+              <span className="text-[12px] font-semibold text-[#1a7a3a]">
                 {provider.plan_count} plan{provider.plan_count !== 1 ? 's' : ''}
               </span>
             </div>
@@ -121,7 +121,7 @@ function SetupCard({
         <div className="flex items-center gap-2">
           <button
             onClick={() => router.push(`/${orgSlug}/integrations/subscriptions/${provider.provider}`)}
-            className="h-8 px-3 text-[12px] font-semibold bg-[#FF6E50] hover:bg-[#E55A3C] text-white rounded-lg transition-colors flex items-center gap-1"
+            className="h-8 px-3 text-[12px] font-semibold bg-[#FF6C5E] hover:bg-[#E55A3C] text-white rounded-lg transition-colors flex items-center gap-1"
           >
             <Plus className="h-3 w-3" />
             Add Plans
@@ -176,7 +176,7 @@ function AvailableCard({
           </h3>
           <p className="text-[11px] text-slate-400 mt-0.5">{category.label}</p>
         </div>
-        <Plus className="h-4 w-4 text-slate-300 group-hover:text-[#007A78] transition-colors flex-shrink-0" />
+        <Plus className="h-4 w-4 text-slate-300 group-hover:text-[#1a7a3a] transition-colors flex-shrink-0" />
       </div>
     </button>
   )
@@ -304,7 +304,7 @@ export default function SubscriptionIntegrationsPage() {
             </p>
           </div>
           <Link href={`/${orgSlug}/cost-dashboards/subscription-costs`}>
-            <button className="h-11 px-5 bg-[#007A78] hover:bg-[#006664] text-white text-[13px] font-semibold rounded-xl transition-colors flex items-center gap-2 shadow-sm">
+            <button className="h-11 px-5 bg-[#90FCA6] hover:bg-[#B8FDCA] text-black text-[13px] font-semibold rounded-xl transition-colors flex items-center gap-2 shadow-sm">
               <TrendingUp className="h-4 w-4" />
               View Costs
               <ArrowUpRight className="h-3.5 w-3.5 opacity-50" />
@@ -315,8 +315,8 @@ export default function SubscriptionIntegrationsPage() {
         {/* Stats Row */}
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-[#007A78]/10 flex items-center justify-center">
-              <Check className="h-5 w-5 text-[#007A78]" />
+            <div className="h-10 w-10 rounded-xl bg-[#90FCA6]/10 flex items-center justify-center">
+              <Check className="h-5 w-5 text-[#1a7a3a]" />
             </div>
             <div>
               <p className="text-[24px] font-bold text-slate-900 leading-none">{trackingProviders.length}</p>
@@ -385,9 +385,9 @@ export default function SubscriptionIntegrationsPage() {
       )}
 
       {successMessage && (
-        <div className="mb-6 p-4 rounded-xl bg-[#007A78]/5 border border-[#007A78]/20 flex items-center gap-3">
-          <Check className="h-4 w-4 text-[#007A78] flex-shrink-0" />
-          <p className="text-[13px] font-medium text-[#007A78]">{successMessage}</p>
+        <div className="mb-6 p-4 rounded-xl bg-[#90FCA6]/5 border border-[#90FCA6]/20 flex items-center gap-3">
+          <Check className="h-4 w-4 text-[#1a7a3a] flex-shrink-0" />
+          <p className="text-[13px] font-medium text-[#1a7a3a]">{successMessage}</p>
         </div>
       )}
 
@@ -398,7 +398,7 @@ export default function SubscriptionIntegrationsPage() {
             <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide">
               Active Tracking
             </h2>
-            <span className="text-[11px] text-[#007A78] font-semibold bg-[#007A78]/10 px-2 py-0.5 rounded-full">
+            <span className="text-[11px] text-[#1a7a3a] font-semibold bg-[#90FCA6]/10 px-2 py-0.5 rounded-full">
               {trackingProviders.length}
             </span>
           </div>
@@ -508,7 +508,7 @@ export default function SubscriptionIntegrationsPage() {
           Add custom subscriptions to track any SaaS tool not in our catalog.
         </p>
         <Link href={`/${orgSlug}/integrations/subscriptions/custom/add`}>
-          <button className="h-10 px-5 bg-[#007A78] hover:bg-[#006664] text-white text-[13px] font-semibold rounded-xl transition-colors inline-flex items-center gap-2">
+          <button className="h-10 px-5 bg-[#90FCA6] hover:bg-[#B8FDCA] text-black text-[13px] font-semibold rounded-xl transition-colors inline-flex items-center gap-2">
             <Plus className="h-4 w-4" />
             Add Custom Provider
           </button>

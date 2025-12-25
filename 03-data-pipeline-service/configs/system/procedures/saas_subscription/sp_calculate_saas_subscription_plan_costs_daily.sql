@@ -108,7 +108,11 @@ BEGIN
         org_slug, provider, subscription_id, plan_name, display_name,
         cost_date, billing_cycle, currency, seats, pricing_model,
         cycle_cost, daily_cost, monthly_run_rate, annual_run_rate,
-        invoice_id_last, source, run_date, updated_at
+        invoice_id_last, source, run_date,
+        hierarchy_dept_id, hierarchy_dept_name,
+        hierarchy_project_id, hierarchy_project_name,
+        hierarchy_team_id, hierarchy_team_name,
+        updated_at
       )
       WITH subscriptions AS (
         -- Read all subscriptions that overlap with date range
@@ -151,7 +155,14 @@ BEGIN
           -- Billing anchor day for non-calendar-aligned billing (1-28)
           -- NULL or 1 = calendar-aligned (1st of month)
           -- ASC 606 / IFRS 15 compliant: Track billing cycle anniversary
-          COALESCE(billing_anchor_day, 1) AS billing_anchor_day
+          COALESCE(billing_anchor_day, 1) AS billing_anchor_day,
+          -- Hierarchy fields for cost allocation
+          hierarchy_dept_id,
+          hierarchy_dept_name,
+          hierarchy_project_id,
+          hierarchy_project_name,
+          hierarchy_team_id,
+          hierarchy_team_name
         FROM `%s.%s.saas_subscription_plans`
         WHERE status IN ('active', 'expired', 'cancelled')
           AND (start_date <= @p_end OR start_date IS NULL)
@@ -370,7 +381,14 @@ BEGIN
               ELSE s.cycle_cost / 30
             END AS NUMERIC
           ) AS daily_cost,
-          s.invoice_id_last
+          s.invoice_id_last,
+          -- Hierarchy fields for cost allocation
+          s.hierarchy_dept_id,
+          s.hierarchy_dept_name,
+          s.hierarchy_project_id,
+          s.hierarchy_project_name,
+          s.hierarchy_team_id,
+          s.hierarchy_team_name
         FROM with_cycle_cost s
         CROSS JOIN UNNEST(
           GENERATE_DATE_ARRAY(
@@ -406,6 +424,13 @@ BEGIN
         invoice_id_last,
         'subscription_amortization' AS source,
         CURRENT_DATE() AS run_date,
+        -- Hierarchy fields for cost allocation
+        hierarchy_dept_id,
+        hierarchy_dept_name,
+        hierarchy_project_id,
+        hierarchy_project_name,
+        hierarchy_team_id,
+        hierarchy_team_name,
         CURRENT_TIMESTAMP() AS updated_at
       FROM daily_expanded
       WHERE daily_cost > 0  -- Skip zero-cost rows (FREE plans)

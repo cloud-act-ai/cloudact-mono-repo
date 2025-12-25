@@ -102,6 +102,42 @@
     "description": "Date when pipeline job ran to calculate this cost."
   },
   {
+    "name": "hierarchy_dept_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Reference to org_hierarchy department entity_id for cost allocation."
+  },
+  {
+    "name": "hierarchy_dept_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Department name for reporting (denormalized from org_hierarchy)."
+  },
+  {
+    "name": "hierarchy_project_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Reference to org_hierarchy project entity_id for cost allocation."
+  },
+  {
+    "name": "hierarchy_project_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Project name for reporting (denormalized from org_hierarchy)."
+  },
+  {
+    "name": "hierarchy_team_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Reference to org_hierarchy team entity_id for cost allocation."
+  },
+  {
+    "name": "hierarchy_team_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Team name for reporting (denormalized from org_hierarchy)."
+  },
+  {
     "name": "updated_at",
     "type": "TIMESTAMP",
     "mode": "REQUIRED",

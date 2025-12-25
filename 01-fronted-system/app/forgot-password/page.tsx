@@ -47,7 +47,7 @@ export default function ForgotPasswordPage() {
       <div className="flex min-h-svh w-full flex-col items-center justify-center bg-gradient-to-br from-background via-muted/20 to-background p-6">
         <div className="w-full max-w-[420px] space-y-6">
           <div className="flex flex-col items-center gap-3 text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#007A78] text-white shadow-lg">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-mint text-black shadow-lg">
               <CheckCircle2 className="h-7 w-7" />
             </div>
             <div className="space-y-2">
@@ -76,7 +76,7 @@ export default function ForgotPasswordPage() {
     <div className="flex min-h-svh w-full flex-col items-center justify-center bg-gradient-to-br from-background via-muted/20 to-background p-6">
       <div className="w-full max-w-[420px] space-y-6">
         <div className="flex flex-col items-center gap-3 text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#007A78] text-white shadow-lg">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#90FCA6] text-black shadow-lg">
             <Command className="h-7 w-7" />
           </div>
           <div className="space-y-2">
@@ -97,13 +97,13 @@ export default function ForgotPasswordPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="h-11 focus:border-[#007A78] focus:ring-[#007A78]"
+                className="h-11 focus:border-mint focus:ring-mint"
               />
             </div>
 
             {error && (
-              <Alert variant="destructive" className="py-3 bg-[#FFF5F3] border-[#FF6E50]">
-                <AlertDescription className="text-sm text-[#FF6E50]">{error}</AlertDescription>
+              <Alert variant="destructive" className="py-3 bg-[var(--cloudact-bg-coral)] border-coral">
+                <AlertDescription className="text-sm text-coral">{error}</AlertDescription>
               </Alert>
             )}
 
@@ -122,7 +122,7 @@ export default function ForgotPasswordPage() {
 
         <div className="text-center text-sm text-gray-600">
           Remember your password?{" "}
-          <Link href="/login" className="font-semibold text-[#007A78] hover:text-[#005F5D] hover:underline">
+          <Link href="/login" className="font-semibold text-ca-blue hover:text-ca-blue-dark hover:underline">
             Sign in
           </Link>
         </div>

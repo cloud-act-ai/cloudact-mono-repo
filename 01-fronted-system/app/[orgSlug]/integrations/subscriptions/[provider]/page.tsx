@@ -435,8 +435,8 @@ export default function ProviderDetailPage() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Skeleton className="h-8 w-8 rounded" />
-            <div className="p-2.5 rounded-lg bg-gradient-to-br from-[#007A78]/10 to-[#14B8A6]/10">
-              <CreditCard className="h-6 w-6 text-[#007A78]" />
+            <div className="p-2.5 rounded-lg bg-gradient-to-br from-[#90FCA6]/10 to-[#B8FDCA]/10">
+              <CreditCard className="h-6 w-6 text-[#1a7a3a]" />
             </div>
             <div>
               <Skeleton className="h-8 w-48 mb-2" />
@@ -459,7 +459,7 @@ export default function ProviderDetailPage() {
           </CardHeader>
           <CardContent className="px-0">
             {/* Table Header */}
-            <div className="console-table-header-row grid grid-cols-12 gap-4 px-4 py-3 border-b bg-[#007A78]/[0.02]">
+            <div className="console-table-header-row grid grid-cols-12 gap-4 px-4 py-3 border-b bg-[#90FCA6]/[0.02]">
               {[1, 3, 2, 2, 2, 2].map((span, i) => (
                 <div key={i} className={`col-span-${span}`}>
                   <Skeleton className="h-4 w-full" />
@@ -491,7 +491,7 @@ export default function ProviderDetailPage() {
       <nav className="flex items-center gap-2 text-sm" aria-label="Breadcrumb">
         <Link
           href={`/${orgSlug}/integrations/subscriptions`}
-          className="text-[#007A78] hover:text-[#005F5D] transition-colors focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2 rounded truncate max-w-[200px]"
+          className="text-[#1a7a3a] hover:text-[#007AFF] transition-colors focus:outline-none focus:ring-2 focus:ring-[#90FCA6] focus:ring-offset-2 rounded truncate max-w-[200px]"
           title="Subscription Providers"
         >
           Subscription Providers
@@ -508,7 +508,7 @@ export default function ProviderDetailPage() {
               <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>
-          <div className="p-2.5 rounded-lg bg-gradient-to-br from-[#007A78]/10 to-[#14B8A6]/10 text-[#007A78]">
+          <div className="p-2.5 rounded-lg bg-gradient-to-br from-[#90FCA6]/10 to-[#B8FDCA]/10 text-[#1a7a3a]">
             {/* Get category from first plan if available, otherwise use default icon */}
             {plans.length > 0 && plans[0].category ? categoryIcons[plans[0].category] || categoryIcons.other : <CreditCard className="h-6 w-6" />}
           </div>
@@ -543,11 +543,11 @@ export default function ProviderDetailPage() {
 
       {/* Provider Alias Info Banner */}
       {isAliased && (
-        <Card className="border-[#007A78]/20 bg-[#007A78]/5">
+        <Card className="border-[#90FCA6]/20 bg-[#90FCA6]/5">
           <CardContent className="py-3 px-4">
             <div className="flex items-center gap-3">
-              <Info className="h-5 w-5 text-[#007A78] flex-shrink-0" />
-              <p className="text-sm text-[#005F5D]">
+              <Info className="h-5 w-5 text-[#1a7a3a] flex-shrink-0" />
+              <p className="text-sm text-[#6EE890]">
                 All {rawProvider.replace(/_/g, " ")} plans are managed under <strong>{getProviderDisplayName(provider)}</strong>.
                 You&apos;re viewing the correct provider page.
               </p>
@@ -558,18 +558,18 @@ export default function ProviderDetailPage() {
 
       {/* Error Message */}
       {error && (
-        <Card className="border-[#FF6E50]/30 bg-[#FF6E50]/5 relative">
+        <Card className="border-[#FF6C5E]/30 bg-[#FF6C5E]/5 relative">
           <Button
             variant="ghost"
             size="icon"
-            className="absolute top-2 right-2 h-6 w-6 text-[#FF6E50] hover:text-[#E55A3C] hover:bg-[#FF6E50]/10"
+            className="absolute top-2 right-2 h-6 w-6 text-[#FF6C5E] hover:text-[#E55A3C] hover:bg-[#FF6C5E]/10"
             onClick={() => setError(null)}
           >
             <X className="h-4 w-4" />
           </Button>
           <CardContent className="pt-6 pr-10">
-            <p className="text-sm text-[#FF6E50]">{error}</p>
-            <p className="text-xs text-[#FF6E50] mt-1">
+            <p className="text-sm text-[#FF6C5E]">{error}</p>
+            <p className="text-xs text-[#FF6C5E] mt-1">
               Make sure the provider is enabled and API service is running.
             </p>
           </CardContent>
@@ -578,21 +578,21 @@ export default function ProviderDetailPage() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="console-stat-card border-[#FF6E50]/20">
+        <Card className="console-stat-card border-[#FF6C5E]/20">
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-[#FF6E50]">{totalActiveSeats}</div>
+            <div className="text-2xl font-bold text-[#FF6C5E]">{totalActiveSeats}</div>
             <p className="text-sm text-muted-foreground">Total Active Seats</p>
           </CardContent>
         </Card>
-        <Card className="console-stat-card border-[#FF6E50]/20">
+        <Card className="console-stat-card border-[#FF6C5E]/20">
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-[#FF6E50]">{activeSubscriptionsCount}</div>
+            <div className="text-2xl font-bold text-[#FF6C5E]">{activeSubscriptionsCount}</div>
             <p className="text-sm text-muted-foreground">Active Subscriptions</p>
           </CardContent>
         </Card>
-        <Card className="console-stat-card border-[#FF6E50]/20">
+        <Card className="console-stat-card border-[#FF6C5E]/20">
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-[#FF6E50]">{visiblePlans.length}</div>
+            <div className="text-2xl font-bold text-[#FF6C5E]">{visiblePlans.length}</div>
             <p className="text-sm text-muted-foreground">Available Plans</p>
           </CardContent>
         </Card>
@@ -618,7 +618,7 @@ export default function ProviderDetailPage() {
                   type="checkbox"
                   checked={showDeleted}
                   onChange={(e) => setShowDeleted(e.target.checked)}
-                  className="h-4 w-4 rounded border-border text-[#007A78] focus:ring-[#007A78] cursor-pointer"
+                  className="h-4 w-4 rounded border-border text-[#1a7a3a] focus:ring-[#90FCA6] cursor-pointer"
                   data-testid="show-deleted-checkbox"
                 />
               </div>
@@ -628,8 +628,8 @@ export default function ProviderDetailPage() {
         <CardContent className="px-0">
           {visiblePlans.length === 0 ? (
             <div className="text-center py-12 px-6">
-              <div className="inline-flex p-4 rounded-2xl bg-[#007A78]/10 mb-4">
-                <CreditCard className="h-12 w-12 text-[#007A78]" />
+              <div className="inline-flex p-4 rounded-2xl bg-[#90FCA6]/10 mb-4">
+                <CreditCard className="h-12 w-12 text-[#1a7a3a]" />
               </div>
               <h3 className="text-[20px] font-semibold text-black mb-2">No subscriptions yet</h3>
               <p className="text-[15px] text-muted-foreground mb-6">
@@ -656,7 +656,7 @@ export default function ProviderDetailPage() {
           ) : (
             <>
               {/* Table Header */}
-              <div className="console-table-header-row grid grid-cols-12 gap-4 px-4 py-3 border-b bg-[#007A78]/[0.02]">
+              <div className="console-table-header-row grid grid-cols-12 gap-4 px-4 py-3 border-b bg-[#90FCA6]/[0.02]">
                 <div className="col-span-1 console-table-header">Status</div>
                 <div className="col-span-3 console-table-header">Plan Name</div>
                 <div className="col-span-2 console-table-header text-right">Cost</div>
@@ -675,10 +675,10 @@ export default function ProviderDetailPage() {
                   // Display status: show "inactive" for plans with 0 seats
                   const displayStatus = hasActiveSeats ? plan.status : 'inactive'
                   const statusColors: Record<string, string> = {
-                    active: "bg-[#F0FDFA] text-[#007A78] border-[#007A78]/20",
-                    inactive: "bg-[#007A78]/5 text-muted-foreground border-border",
-                    pending: "bg-[#FF6E50]/10 text-[#FF6E50] border-[#FF6E50]/20",
-                    cancelled: "bg-[#007A78]/5 text-muted-foreground border-border",
+                    active: "bg-[#F0FDFA] text-[#1a7a3a] border-[#90FCA6]/20",
+                    inactive: "bg-[#90FCA6]/5 text-muted-foreground border-border",
+                    pending: "bg-[#FF6C5E]/10 text-[#FF6C5E] border-[#FF6C5E]/20",
+                    cancelled: "bg-[#90FCA6]/5 text-muted-foreground border-border",
                     expired: "bg-[#8E8E93]/12 text-muted-foreground border-[#8E8E93]/20"
                   }
 
@@ -706,7 +706,7 @@ export default function ProviderDetailPage() {
                           {isPending && (
                             <Badge
                               variant="outline"
-                              className="text-xs bg-[#FF6E50]/10 text-[#FF6E50] border-[#FF6E50]/20"
+                              className="text-xs bg-[#FF6C5E]/10 text-[#FF6C5E] border-[#FF6C5E]/20"
                               title="This plan will become active when the start date arrives"
                             >
                               Pending {plan.start_date && `(${format(new Date(plan.start_date), 'MMM d')})`}
@@ -720,7 +720,7 @@ export default function ProviderDetailPage() {
                         </div>
                       </div>
                       <div className="col-span-2 text-right">
-                        <div className="font-medium text-[#FF6E50]">
+                        <div className="font-medium text-[#FF6C5E]">
                           {formatCurrency(plan.unit_price, orgCurrency)}
                         </div>
                         {plan.pricing_model && (
@@ -730,7 +730,7 @@ export default function ProviderDetailPage() {
                         )}
                       </div>
                       <div className="col-span-2">
-                        <Badge variant="outline" className="capitalize bg-[#007A78]/5">
+                        <Badge variant="outline" className="capitalize bg-[#90FCA6]/5">
                           {plan.billing_cycle}
                         </Badge>
                       </div>
@@ -742,7 +742,7 @@ export default function ProviderDetailPage() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-[#007A78] hover:bg-[#007A78]/10"
+                            className="h-8 w-8 text-[#1a7a3a] hover:bg-[#90FCA6]/10"
                             title="Edit plan"
                             aria-label="Edit plan"
                             data-testid={`edit-plan-${plan.subscription_id}`}
@@ -754,7 +754,7 @@ export default function ProviderDetailPage() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-muted-foreground hover:text-[#FF6E50] hover:bg-[#FF6E50]/10"
+                            className="h-8 w-8 text-muted-foreground hover:text-[#FF6C5E] hover:bg-[#FF6C5E]/10"
                             title="End subscription"
                             aria-label="End subscription"
                             data-testid={`end-plan-${plan.subscription_id}`}
@@ -767,7 +767,7 @@ export default function ProviderDetailPage() {
 
                     {/* Expanded Details Row */}
                     {expandedRow === plan.subscription_id && (
-                      <div className="bg-[#007A78]/[0.02] px-4 py-4 border-t border-border">
+                      <div className="bg-[#90FCA6]/[0.02] px-4 py-4 border-t border-border">
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                           {plan.start_date && (
                             <div>
@@ -820,7 +820,7 @@ export default function ProviderDetailPage() {
                           {plan.discount_type && plan.discount_value !== undefined && plan.discount_value > 0 && (
                             <div>
                               <span className="text-muted-foreground block text-xs uppercase tracking-wide mb-1">Discount</span>
-                              <span className="font-medium text-[#007A78]">
+                              <span className="font-medium text-[#1a7a3a]">
                                 {plan.discount_type === 'percent' ? `${plan.discount_value}%` : formatCurrency(plan.discount_value, orgCurrency)}
                               </span>
                             </div>
@@ -846,7 +846,7 @@ export default function ProviderDetailPage() {
               </div>
 
               {/* Add Custom Subscription Footer */}
-              <div className="px-4 py-4 border-t border-border bg-[#007A78]/[0.02]">
+              <div className="px-4 py-4 border-t border-border bg-[#90FCA6]/[0.02]">
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
                   <p className="text-sm text-muted-foreground">
                     Don&apos;t see your subscription plan?
@@ -871,8 +871,8 @@ export default function ProviderDetailPage() {
         <SheetContent side="right" size="xl" className="overflow-y-auto bg-white flex flex-col">
           <SheetHeader className="px-6 pt-6 pb-4 border-b border-border shrink-0">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-gradient-to-br from-[#007A78]/10 to-[#14B8A6]/10">
-                <CreditCard className="h-5 w-5 text-[#007A78]" />
+              <div className="p-2.5 rounded-xl bg-gradient-to-br from-[#90FCA6]/10 to-[#B8FDCA]/10">
+                <CreditCard className="h-5 w-5 text-[#1a7a3a]" />
               </div>
               <div>
                 <SheetTitle className="text-xl font-semibold text-foreground">Select a Template</SheetTitle>
@@ -887,14 +887,14 @@ export default function ProviderDetailPage() {
             {loadingTemplates ? (
               <div className="flex items-center justify-center py-16">
                 <div className="text-center">
-                  <Loader2 className="h-10 w-10 animate-spin text-[#007A78] mx-auto mb-3" />
+                  <Loader2 className="h-10 w-10 animate-spin text-[#1a7a3a] mx-auto mb-3" />
                   <p className="text-sm text-muted-foreground">Loading templates...</p>
                 </div>
               </div>
             ) : availablePlans.length === 0 ? (
               <div className="text-center py-16 px-4">
-                <div className="inline-flex p-4 rounded-2xl bg-[#007A78]/10 mb-4">
-                  <CreditCard className="h-12 w-12 text-[#007A78]" />
+                <div className="inline-flex p-4 rounded-2xl bg-[#90FCA6]/10 mb-4">
+                  <CreditCard className="h-12 w-12 text-[#1a7a3a]" />
                 </div>
                 <h3 className="text-lg font-semibold text-foreground mb-2">No Templates Available</h3>
                 <p className="text-sm text-muted-foreground mb-6 max-w-xs mx-auto">
@@ -918,16 +918,16 @@ export default function ProviderDetailPage() {
                   return (
                     <div
                       key={template.plan_name}
-                      className="border border-border rounded-2xl p-5 hover:border-[#007A78] hover:shadow-md hover:shadow-[#007A78]/5 cursor-pointer transition-all duration-200 group bg-white"
+                      className="border border-border rounded-2xl p-5 hover:border-[#90FCA6] hover:shadow-md hover:shadow-[#90FCA6]/5 cursor-pointer transition-all duration-200 group bg-white"
                       onClick={() => handleSelectTemplate(template)}
                     >
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
-                            <h4 className="font-semibold text-foreground group-hover:text-[#007A78] truncate transition-colors">
+                            <h4 className="font-semibold text-foreground group-hover:text-[#1a7a3a] truncate transition-colors">
                               {template.display_name || template.plan_name}
                             </h4>
-                            <Badge variant="outline" className="capitalize text-[11px] shrink-0 bg-[#007A78]/5">
+                            <Badge variant="outline" className="capitalize text-[11px] shrink-0 bg-[#90FCA6]/5">
                               {template.billing_cycle}
                             </Badge>
                           </div>
@@ -940,7 +940,7 @@ export default function ProviderDetailPage() {
                           )}
                         </div>
                         <div className="text-right shrink-0">
-                          <div className="text-xl font-bold text-[#FF6E50]">
+                          <div className="text-xl font-bold text-[#FF6C5E]">
                             {formatCurrency(convertedPrice, orgCurrency)}
                           </div>
                           <p className="text-xs text-muted-foreground/70 mt-0.5">
@@ -950,16 +950,16 @@ export default function ProviderDetailPage() {
                       </div>
                       <div className="mt-4 pt-3 border-t border-border flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-xs bg-[#007A78]/5 text-[#007A78] border-[#007A78]/20">
+                          <Badge variant="outline" className="text-xs bg-[#90FCA6]/5 text-[#1a7a3a] border-[#90FCA6]/20">
                             {template.seats || 1} seat{(template.seats || 1) > 1 ? 's' : ''}
                           </Badge>
                           {template.category && (
-                            <Badge variant="outline" className="text-xs capitalize bg-[#007A78]/5">
+                            <Badge variant="outline" className="text-xs capitalize bg-[#90FCA6]/5">
                               {template.category}
                             </Badge>
                           )}
                         </div>
-                        <div className="flex items-center gap-1 text-sm font-medium text-[#007A78] opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex items-center gap-1 text-sm font-medium text-[#1a7a3a] opacity-0 group-hover:opacity-100 transition-opacity">
                           Select
                           <ChevronRight className="h-4 w-4" />
                         </div>
@@ -971,7 +971,7 @@ export default function ProviderDetailPage() {
             )}
           </div>
 
-          <div className="px-6 py-4 border-t border-border bg-[#007A78]/[0.02] shrink-0">
+          <div className="px-6 py-4 border-t border-border bg-[#90FCA6]/[0.02] shrink-0">
             <Button
               onClick={() => {
                 setTemplateSheetOpen(false)
@@ -991,8 +991,8 @@ export default function ProviderDetailPage() {
         <SheetContent side="right" size="xl" className="overflow-y-auto bg-white flex flex-col">
           <SheetHeader className="px-6 pt-6 pb-4 border-b border-border shrink-0">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-gradient-to-br from-[#007A78]/10 to-[#14B8A6]/10">
-                <Plus className="h-5 w-5 text-[#007A78]" />
+              <div className="p-2.5 rounded-xl bg-gradient-to-br from-[#90FCA6]/10 to-[#B8FDCA]/10">
+                <Plus className="h-5 w-5 text-[#1a7a3a]" />
               </div>
               <div>
                 <SheetTitle className="text-xl font-semibold text-foreground">
@@ -1171,15 +1171,15 @@ export default function ProviderDetailPage() {
 
             {/* Error Message */}
             {error && (
-              <div className="p-3 bg-[#FF6E50]/10 border border-[#FF6E50]/30 rounded-lg">
-                <p className="text-sm text-[#FF6E50]">{error}</p>
+              <div className="p-3 bg-[#FF6C5E]/10 border border-[#FF6C5E]/30 rounded-lg">
+                <p className="text-sm text-[#FF6C5E]">{error}</p>
               </div>
             )}
 
           </form>
 
           {/* Submit Buttons - Fixed Footer */}
-          <div className="px-6 py-4 border-t border-border bg-[#007A78]/[0.02] shrink-0 flex flex-col sm:flex-row gap-3">
+          <div className="px-6 py-4 border-t border-border bg-[#90FCA6]/[0.02] shrink-0 flex flex-col sm:flex-row gap-3">
             <Button
               type="button"
               onClick={() => {

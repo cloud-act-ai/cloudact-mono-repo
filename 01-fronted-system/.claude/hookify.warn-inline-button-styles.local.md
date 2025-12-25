@@ -17,7 +17,7 @@ You're using **inline Tailwind background colors** on a button in the console UI
 
 ### Why This Matters
 The console UI has a **design system with predefined button styles** that ensure:
-- Consistent brand colors (Teal #007A78, Coral #FF6E50)
+- Consistent brand colors (Mint #90FCA6, Coral #FF6C5E, Blue #007AFF)
 - Proper hover/focus/active states
 - Accessibility compliance
 - Visual consistency across the app

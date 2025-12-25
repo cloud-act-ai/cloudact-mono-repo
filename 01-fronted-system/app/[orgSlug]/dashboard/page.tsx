@@ -35,22 +35,23 @@ interface MetricCardProps {
 }
 
 function MetricCard({ title, value, change, trend, icon, color }: MetricCardProps) {
+  // Use CSS utility classes from globals.css for brand colors
   const colorClasses = {
-    teal: "from-[#007A78]/10 to-[#007A78]/5 border-[#007A78]/20",
-    coral: "from-[#FF6E50]/10 to-[#FF6E50]/5 border-[#FF6E50]/20",
-    purple: "from-purple-500/10 to-purple-500/5 border-purple-500/20",
-    blue: "from-blue-500/10 to-blue-500/5 border-blue-500/20",
+    teal: "bg-gradient-mint",
+    coral: "bg-gradient-coral",
+    purple: "bg-gradient-blue",
+    blue: "bg-gradient-blue",
   }
 
   const iconColorClasses = {
-    teal: "bg-[#007A78] text-white",
-    coral: "bg-[#FF6E50] text-white",
-    purple: "bg-purple-500 text-white",
-    blue: "bg-blue-500 text-white",
+    teal: "icon-container-mint",
+    coral: "icon-container-coral",
+    purple: "icon-container-blue",
+    blue: "icon-container-blue",
   }
 
   return (
-    <Card className={`relative overflow-hidden border bg-gradient-to-br ${colorClasses[color]} group`}>
+    <Card className={`relative overflow-hidden border ${colorClasses[color]} group`}>
       <CardContent className="p-6">
         <div className="flex items-start justify-between">
           <div className="space-y-3 flex-1">
@@ -59,14 +60,14 @@ function MetricCard({ title, value, change, trend, icon, color }: MetricCardProp
               <p className="text-3xl font-bold tracking-tight text-slate-900">{value}</p>
               {change && (
                 <div className="flex items-center gap-1.5">
-                  {trend === "up" && <TrendingUp className="h-4 w-4 text-[#007A78]" />}
-                  {trend === "down" && <TrendingDown className="h-4 w-4 text-[#FF6E50]" />}
+                  {trend === "up" && <TrendingUp className="h-4 w-4 text-mint-dark" />}
+                  {trend === "down" && <TrendingDown className="h-4 w-4 text-coral" />}
                   <span
                     className={`text-sm font-semibold ${
                       trend === "up"
-                        ? "text-[#007A78]"
+                        ? "text-mint-dark"
                         : trend === "down"
-                        ? "text-[#FF6E50]"
+                        ? "text-coral"
                         : "text-muted-foreground"
                     }`}
                   >
@@ -204,9 +205,9 @@ export default function DashboardPage() {
   const getActivityStatusColor = (status: ActivityItem["status"]) => {
     switch (status) {
       case "success":
-        return "bg-[#007A78]/10 text-[#007A78] border-[#007A78]/20"
+        return "bg-[#90FCA6]/10 text-[#1a7a3a] border-[#90FCA6]/20"
       case "warning":
-        return "bg-[#FF6E50]/10 text-[#FF6E50] border-[#FF6E50]/20"
+        return "bg-[#FF6C5E]/10 text-[#FF6C5E] border-[#FF6C5E]/20"
       case "error":
         return "bg-red-500/10 text-red-600 border-red-500/20"
       case "info":
@@ -287,7 +288,7 @@ export default function DashboardPage() {
               <div className="flex items-center justify-between">
                 <CardTitle className="text-[20px] font-bold text-slate-900">Cost Trends</CardTitle>
                 <Link href={`/${orgSlug}/cost-dashboards/overview`}>
-                  <button className="inline-flex items-center gap-2 text-sm font-semibold text-[#007A78] hover:text-[#005F5D] transition-colors">
+                  <button className="inline-flex items-center gap-2 text-sm font-semibold text-[#007AFF] hover:text-[#0051D5] transition-colors">
                     View Details
                     <ArrowRight className="h-4 w-4" />
                   </button>
@@ -296,9 +297,9 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent className="p-6">
               {/* Placeholder for chart */}
-              <div className="flex h-[280px] items-center justify-center rounded-xl bg-gradient-to-br from-[#007A78]/5 to-[#FF6E50]/5 border border-border">
+              <div className="flex h-[280px] items-center justify-center rounded-xl bg-gradient-to-br from-[#90FCA6]/5 to-[#FF6C5E]/5 border border-border">
                 <div className="text-center space-y-3">
-                  <Activity className="h-12 w-12 mx-auto text-[#007A78]" />
+                  <Activity className="h-12 w-12 mx-auto text-[#6EE890]" />
                   <div className="space-y-1">
                     <p className="text-[15px] font-semibold text-slate-900">
                       Cost trend visualization
@@ -308,7 +309,7 @@ export default function DashboardPage() {
                     </p>
                   </div>
                   <Link href={`/${orgSlug}/cost-dashboards/overview`}>
-                    <button className="inline-flex items-center gap-2 h-11 px-6 bg-[#007A78] text-white text-[15px] font-semibold rounded-xl hover:bg-[#005F5D] transition-colors shadow-sm">
+                    <button className="inline-flex items-center gap-2 h-11 px-6 bg-[#90FCA6] text-[#000000] text-[15px] font-semibold rounded-xl hover:bg-[#B8FDCA] transition-colors shadow-sm">
                       <BarChart3 className="h-4 w-4" />
                       Open Analytics
                     </button>
@@ -330,11 +331,11 @@ export default function DashboardPage() {
                 {integrationStatus.map((integration) => (
                   <div
                     key={integration.name}
-                    className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-white to-[#007A78]/5 border border-border hover:shadow-md transition-all duration-200"
+                    className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-white to-[#90FCA6]/5 border border-border hover:shadow-md transition-all duration-200"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#007A78]/10">
-                        <Cloud className="h-4 w-4 text-[#007A78]" />
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#90FCA6]/10">
+                        <Cloud className="h-4 w-4 text-[#1a7a3a]" />
                       </div>
                       <span className="text-sm font-semibold text-slate-900">
                         {integration.name}
@@ -350,7 +351,7 @@ export default function DashboardPage() {
                   </div>
                 ))}
                 <Link href={`/${orgSlug}/integrations/cloud-providers`}>
-                  <button className="w-full mt-2 inline-flex items-center justify-center gap-2 h-11 px-4 bg-[#007A78]/5 text-[#007A78] text-[15px] font-semibold rounded-xl hover:bg-[#007A78]/10 transition-colors border border-[#007A78]/20">
+                  <button className="w-full mt-2 inline-flex items-center justify-center gap-2 h-11 px-4 bg-[#90FCA6]/5 text-[#1a7a3a] text-[15px] font-semibold rounded-xl hover:bg-[#90FCA6]/10 transition-colors border border-[#90FCA6]/20">
                     Manage Integrations
                     <ArrowRight className="h-4 w-4" />
                   </button>
@@ -367,14 +368,14 @@ export default function DashboardPage() {
         <div className="grid gap-4 sm:grid-cols-3">
           {quickActions.map((action) => {
             const colorClasses = {
-              teal: "from-[#007A78]/10 to-[#007A78]/5 border-[#007A78]/20 hover:shadow-[0_8px_24px_rgba(0,122,120,0.15)]",
-              coral: "from-[#FF6E50]/10 to-[#FF6E50]/5 border-[#FF6E50]/20 hover:shadow-[0_8px_24px_rgba(255,110,80,0.15)]",
+              teal: "from-[#90FCA6]/10 to-[#90FCA6]/5 border-[#90FCA6]/20 hover:shadow-[0_8px_24px_rgba(144,252,166,0.15)]",
+              coral: "from-[#FF6C5E]/10 to-[#FF6C5E]/5 border-[#FF6C5E]/20 hover:shadow-[0_8px_24px_rgba(255,108,94,0.15)]",
               purple: "from-purple-500/10 to-purple-500/5 border-purple-500/20 hover:shadow-[0_8px_24px_rgba(168,85,247,0.15)]",
             }
 
             const iconColorClasses = {
-              teal: "bg-[#007A78] text-white",
-              coral: "bg-[#FF6E50] text-white",
+              teal: "bg-[#90FCA6] text-[#1a7a3a]",
+              coral: "bg-[#FF6C5E] text-white",
               purple: "bg-purple-500 text-white",
             }
 
@@ -412,7 +413,7 @@ export default function DashboardPage() {
               {recentActivity.map((activity) => (
                 <div
                   key={activity.id}
-                  className="flex items-start gap-4 p-4 hover:bg-[#007A78]/5 transition-colors"
+                  className="flex items-start gap-4 p-4 hover:bg-[#90FCA6]/5 transition-colors"
                 >
                   <div
                     className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border ${getActivityStatusColor(
@@ -445,9 +446,9 @@ export default function DashboardPage() {
                 </div>
               ))}
             </div>
-            <div className="border-t border-border p-4 bg-[#007A78]/5">
+            <div className="border-t border-border p-4 bg-[#90FCA6]/5">
               <Link href={`/${orgSlug}/pipelines`}>
-                <button className="w-full inline-flex items-center justify-center gap-2 text-sm font-semibold text-[#007A78] hover:text-[#005F5D] transition-colors">
+                <button className="w-full inline-flex items-center justify-center gap-2 text-sm font-semibold text-[#007AFF] hover:text-[#0051D5] transition-colors">
                   View All Activity
                   <ArrowRight className="h-4 w-4" />
                 </button>
@@ -458,12 +459,12 @@ export default function DashboardPage() {
       </div>
 
       {/* Bottom CTA Section */}
-      <Card className="relative overflow-hidden border-2 border-[#007A78]/20 bg-gradient-to-br from-[#007A78]/5 via-white to-[#FF6E50]/5">
+      <Card className="relative overflow-hidden border-2 border-[#90FCA6]/20 bg-gradient-to-br from-[#90FCA6]/5 via-white to-[#FF6C5E]/5">
         <CardContent className="p-8">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
             <div className="space-y-2 text-center sm:text-left">
               <div className="flex items-center gap-2 justify-center sm:justify-start">
-                <Users className="h-5 w-5 text-[#007A78]" />
+                <Users className="h-5 w-5 text-[#6EE890]" />
                 <h3 className="text-[20px] font-bold text-slate-900">Invite Your Team</h3>
               </div>
               <p className="text-sm text-muted-foreground">
@@ -471,7 +472,7 @@ export default function DashboardPage() {
               </p>
             </div>
             <Link href={`/${orgSlug}/settings/members`}>
-              <button className="inline-flex items-center gap-2 h-12 px-8 bg-[#007A78] text-white text-[15px] font-semibold rounded-xl hover:bg-[#005F5D] transition-all shadow-lg hover:shadow-xl">
+              <button className="inline-flex items-center gap-2 h-12 px-8 bg-[#90FCA6] text-[#000000] text-[15px] font-semibold rounded-xl hover:bg-[#B8FDCA] transition-all shadow-lg hover:shadow-xl">
                 <Users className="h-5 w-5" />
                 Manage Team
               </button>

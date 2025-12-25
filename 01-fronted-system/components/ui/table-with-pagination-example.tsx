@@ -101,7 +101,7 @@ export function TableWithPaginationExample() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "active":
-        return "bg-[#007A78]/10 text-[#007A78] border-[#007A78]/30"
+        return "bg-[#90FCA6]/10 text-[#1a7a3a] border-[#90FCA6]/30"
       case "cancelled":
         return "bg-gray-100 text-gray-700 border-gray-200"
       case "pending":
@@ -140,7 +140,7 @@ export function TableWithPaginationExample() {
                   </TableCell>
                   <TableCell className="font-medium">{item.provider}</TableCell>
                   <TableCell>{item.plan}</TableCell>
-                  <TableCell className="text-right font-semibold text-[#007A78]">
+                  <TableCell className="text-right font-semibold text-[#1a7a3a]">
                     ${item.cost.toFixed(2)}
                   </TableCell>
                   <TableCell>
@@ -291,7 +291,7 @@ export function TableWithItemsPerPage() {
                   setItemsPerPage(Number(e.target.value))
                   setCurrentPage(1) // Reset to first page
                 }}
-                className="h-9 rounded-xl border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2"
+                className="h-9 rounded-xl border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#90FCA6] focus:ring-offset-2"
               >
                 <option value={5}>5</option>
                 <option value={10}>10</option>

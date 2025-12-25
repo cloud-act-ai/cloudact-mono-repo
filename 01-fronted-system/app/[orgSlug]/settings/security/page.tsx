@@ -111,12 +111,12 @@ export default function SecurityPage() {
       {/* Stats Row */}
       <div className="flex items-center gap-6 mb-8">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-[#007A78]/10 flex items-center justify-center">
-            <Shield className="h-5 w-5 text-[#007A78]" />
+          <div className="h-10 w-10 rounded-xl bg-[#90FCA6]/10 flex items-center justify-center">
+            <Shield className="h-5 w-5 text-[#90FCA6]" />
           </div>
           <div>
             <p className="text-[14px] text-slate-600 font-medium">Account Status</p>
-            <p className="text-[12px] text-[#007A78] font-semibold">Protected</p>
+            <p className="text-[12px] text-[#90FCA6] font-semibold">Protected</p>
           </div>
         </div>
         <div className="h-8 w-px bg-slate-200"></div>
@@ -140,9 +140,9 @@ export default function SecurityPage() {
       )}
 
       {success && (
-        <div className="mb-6 p-4 rounded-xl bg-[#007A78]/5 border border-[#007A78]/20 flex items-center gap-3">
-          <Check className="h-4 w-4 text-[#007A78] flex-shrink-0" />
-          <p className="text-[13px] font-medium text-[#007A78]">{success}</p>
+        <div className="mb-6 p-4 rounded-xl bg-[#90FCA6]/5 border border-[#90FCA6]/20 flex items-center gap-3">
+          <Check className="h-4 w-4 text-[#90FCA6] flex-shrink-0" />
+          <p className="text-[13px] font-medium text-[#90FCA6]">{success}</p>
         </div>
       )}
 
@@ -157,12 +157,12 @@ export default function SecurityPage() {
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="group relative">
             {/* Left accent */}
-            <div className="absolute left-0 top-4 bottom-4 w-1 rounded-full bg-[#007A78] opacity-60 group-hover:opacity-100 transition-opacity" />
+            <div className="absolute left-0 top-4 bottom-4 w-1 rounded-full bg-[#90FCA6] opacity-60 group-hover:opacity-100 transition-opacity" />
 
             <div className="pl-5 py-5 pr-5 flex items-center justify-between gap-4">
               <div className="flex items-center gap-4 min-w-0 flex-1">
-                <div className="h-11 w-11 rounded-xl bg-[#007A78]/10 flex items-center justify-center flex-shrink-0">
-                  <Key className="h-5 w-5 text-[#007A78]" />
+                <div className="h-11 w-11 rounded-xl bg-[#90FCA6]/10 flex items-center justify-center flex-shrink-0">
+                  <Key className="h-5 w-5 text-[#90FCA6]" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <h3 className="text-[15px] font-semibold text-slate-900 tracking-tight">
@@ -177,7 +177,7 @@ export default function SecurityPage() {
               <button
                 onClick={handleResetPassword}
                 disabled={isResettingPassword}
-                className="h-10 px-5 text-[13px] font-semibold bg-[#007A78] hover:bg-[#006664] text-white rounded-xl transition-colors flex items-center gap-2 disabled:opacity-50"
+                className="h-10 px-5 text-[13px] font-semibold bg-[#90FCA6] hover:bg-[#6EE890] text-[#000000] rounded-xl transition-colors flex items-center gap-2 disabled:opacity-50"
               >
                 {isResettingPassword ? (
                   <>
@@ -207,7 +207,7 @@ export default function SecurityPage() {
               icon: <Lock className="h-4 w-4" />,
               title: "Strong Password",
               description: "Use a unique password with mixed characters",
-              accent: "#007A78",
+              accent: "#90FCA6",
             },
             {
               icon: <Eye className="h-4 w-4" />,
@@ -253,7 +253,7 @@ export default function SecurityPage() {
       <div className="mt-10 p-5 rounded-2xl bg-gradient-to-br from-slate-50 to-slate-100/50 border border-slate-200">
         <div className="flex items-start gap-4">
           <div className="h-10 w-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center flex-shrink-0 shadow-sm">
-            <Shield className="h-5 w-5 text-[#007A78]" />
+            <Shield className="h-5 w-5 text-[#90FCA6]" />
           </div>
           <div>
             <h3 className="text-[15px] font-semibold text-slate-900 mb-1">

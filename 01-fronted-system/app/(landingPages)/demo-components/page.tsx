@@ -174,7 +174,7 @@ export default function ComponentDemoPage() {
             <div>
               <h3 className="font-semibold text-slate-900 mb-2">Brand Colors</h3>
               <ul className="text-sm text-slate-600 space-y-1">
-                <li>• Trigger Hover: Light Teal (#F0FDFA → Teal #007A78)</li>
+                <li>• Trigger Hover: Light Mint (#F0FFF4 → Mint #90FCA6)</li>
                 <li>• Chevron: Gray (#64748B), rotates 180° on open</li>
                 <li>• Border: Light Gray (#E2E8F0)</li>
               </ul>

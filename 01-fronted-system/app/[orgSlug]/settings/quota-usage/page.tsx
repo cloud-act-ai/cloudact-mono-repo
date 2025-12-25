@@ -89,8 +89,8 @@ export default function QuotaUsagePage() {
       {quotaLimits && (
         <div className="flex items-center gap-6 mb-8">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-[#007A78]/10 flex items-center justify-center">
-              <Users className="h-5 w-5 text-[#007A78]" />
+            <div className="h-10 w-10 rounded-xl bg-mint/10 flex items-center justify-center">
+              <Users className="h-5 w-5 text-mint" />
             </div>
             <div>
               <p className="text-[24px] font-bold text-slate-900 leading-none">
@@ -121,12 +121,12 @@ export default function QuotaUsagePage() {
           <div className="h-8 w-px bg-slate-200"></div>
 
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-[#007A78]/10 flex items-center justify-center">
-              <Check className="h-5 w-5 text-[#007A78]" />
+            <div className="h-10 w-10 rounded-xl bg-mint/10 flex items-center justify-center">
+              <Check className="h-5 w-5 text-mint" />
             </div>
             <div>
               <p className="text-[14px] text-slate-600 font-medium">Plan Status</p>
-              <p className="text-[12px] text-[#007A78] font-semibold">Active</p>
+              <p className="text-[12px] text-mint font-semibold">Active</p>
             </div>
           </div>
         </div>
@@ -154,14 +154,13 @@ export default function QuotaUsagePage() {
               {/* Team Members */}
               <div className="group relative">
                 <div
-                  className="absolute left-0 top-4 bottom-4 w-1 rounded-full opacity-60 group-hover:opacity-100 transition-opacity"
-                  style={{ backgroundColor: "#007A78" }}
+                  className="absolute left-0 top-4 bottom-4 w-1 rounded-full bg-mint opacity-60 group-hover:opacity-100 transition-opacity"
                 />
                 <div className="pl-5 py-5 pr-5">
                   <div className="flex items-center justify-between gap-4 mb-3">
                     <div className="flex items-center gap-4 min-w-0 flex-1">
-                      <div className="h-11 w-11 rounded-xl bg-[#007A78]/10 flex items-center justify-center flex-shrink-0">
-                        <Users className="h-5 w-5 text-[#007A78]" />
+                      <div className="h-11 w-11 rounded-xl bg-mint/10 flex items-center justify-center flex-shrink-0">
+                        <Users className="h-5 w-5 text-mint" />
                       </div>
                       <div className="min-w-0 flex-1">
                         <h3 className="text-[15px] font-semibold text-slate-900 tracking-tight">
@@ -191,10 +190,10 @@ export default function QuotaUsagePage() {
                         <div
                           className={`h-full rounded-full transition-all ${
                             seatUsage >= 100
-                              ? "bg-[#FF6E50]"
+                              ? "bg-coral"
                               : seatUsage >= 80
                                 ? "bg-amber-500"
-                                : "bg-[#007A78]"
+                                : "bg-mint"
                           }`}
                           style={{ width: `${Math.min(seatUsage, 100)}%` }}
                         />
@@ -246,7 +245,7 @@ export default function QuotaUsagePage() {
                         <div
                           className={`h-full rounded-full transition-all ${
                             providerUsage >= 100
-                              ? "bg-[#FF6E50]"
+                              ? "bg-coral"
                               : providerUsage >= 80
                                 ? "bg-amber-500"
                                 : "bg-[#8B5CF6]"
@@ -272,8 +271,8 @@ export default function QuotaUsagePage() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {/* Daily */}
               <div className="p-5 rounded-2xl bg-white border border-slate-200 hover:border-slate-300 hover:shadow-sm transition-all text-center">
-                <div className="h-12 w-12 rounded-xl bg-[#007A78]/10 flex items-center justify-center mx-auto mb-3">
-                  <Clock className="h-6 w-6 text-[#007A78]" />
+                <div className="h-12 w-12 rounded-xl bg-mint/10 flex items-center justify-center mx-auto mb-3">
+                  <Clock className="h-6 w-6 text-mint" />
                 </div>
                 <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">
                   Daily
@@ -318,7 +317,7 @@ export default function QuotaUsagePage() {
           <div className="p-5 rounded-2xl bg-gradient-to-br from-slate-50 to-slate-100/50 border border-slate-200">
             <div className="flex items-start gap-4">
               <div className="h-10 w-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center flex-shrink-0 shadow-sm">
-                <TrendingUp className="h-5 w-5 text-[#007A78]" />
+                <TrendingUp className="h-5 w-5 text-mint" />
               </div>
               <div>
                 <h3 className="text-[15px] font-semibold text-slate-900 mb-1">

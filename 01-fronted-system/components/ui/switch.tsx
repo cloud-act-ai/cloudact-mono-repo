@@ -14,12 +14,12 @@ function Switch({
       data-slot="switch"
       className={cn(
         'peer inline-flex h-[1.15rem] w-8 shrink-0 items-center rounded-full border border-transparent outline-none transition-all',
-        // Checked state - Teal (#007A78)
-        'data-[state=checked]:bg-[#007A78]',
+        // Checked state - Mint (#90FCA6)
+        'data-[state=checked]:bg-[#90FCA6]',
         // Unchecked state
         'data-[state=unchecked]:bg-input dark:data-[state=unchecked]:bg-input/80',
-        // Focus state - Teal ring
-        'focus-visible:ring-2 focus-visible:ring-[#007A78]/20 focus-visible:ring-offset-2',
+        // Focus state - Mint ring
+        'focus-visible:ring-2 focus-visible:ring-[#90FCA6]/20 focus-visible:ring-offset-2',
         // Disabled state
         'disabled:cursor-not-allowed disabled:opacity-50',
         className

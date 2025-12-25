@@ -30,6 +30,7 @@ import {
   UserPlus,
   ChevronDown,
   ChevronRight,
+  ChevronLeft,
   HelpCircle,
   BarChart3,
   LayoutDashboard,
@@ -43,6 +44,8 @@ import {
   Brain,
   CreditCard as SubscriptionIcon,
   Network,
+  PanelLeftClose,
+  PanelLeft,
 } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
@@ -131,7 +134,7 @@ export function DashboardSidebar({
   const [activeSection, setActiveSection] = useState<SectionId>("dashboards")
 
   const formattedOrgName = formatOrgName(orgName)
-  const { state } = useSidebar()
+  const { state, toggleSidebar } = useSidebar()
   const isCollapsed = state === "collapsed"
 
   // Auto-expand section based on current route
@@ -196,9 +199,29 @@ export function DashboardSidebar({
     return pathname === path || pathname.startsWith(path + "/")
   }
 
-  // Clean editorial styling - coral hover highlight
-  const itemClass = "h-[26px] px-3 text-[12px] font-medium text-slate-600 hover:bg-[#FF6E50]/10 hover:text-[#FF6E50] rounded-md mx-2 transition-colors"
-  const activeItemClass = "h-[26px] px-3 text-[12px] font-semibold text-[#FF6E50] bg-[#FF6E50]/10 rounded-md mx-2"
+  // Premium editorial styling - compact menu items with coral highlight
+  // Using 12px for menu items, smaller icons for refined look
+  const itemClass = cn(
+    "h-[28px] px-3 text-[12px] font-medium text-slate-600",
+    "hover:bg-[var(--cloudact-coral)]/8 hover:text-[var(--cloudact-coral)]",
+    "rounded-lg mx-2 transition-all duration-150",
+    "flex items-center gap-2"
+  )
+  const activeItemClass = cn(
+    "h-[28px] px-3 text-[12px] font-semibold text-[var(--cloudact-coral)]",
+    "bg-[var(--cloudact-coral)]/10 rounded-lg mx-2",
+    "flex items-center gap-2",
+    "relative before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2",
+    "before:w-[3px] before:h-3.5 before:bg-[var(--cloudact-coral)] before:rounded-full"
+  )
+
+  // Section icons for visual hierarchy
+  const sectionIcons: Record<SectionId, React.ReactNode> = {
+    dashboards: <BarChart3 className="h-3.5 w-3.5" />,
+    pipelines: <Workflow className="h-3.5 w-3.5" />,
+    integrations: <Server className="h-3.5 w-3.5" />,
+    settings: <User className="h-3.5 w-3.5" />,
+  }
 
   const SectionHeader = ({
     title,
@@ -210,55 +233,99 @@ export function DashboardSidebar({
     isExpanded: boolean
   }) => (
     <div
-      className="py-2 px-4 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors"
+      className={cn(
+        "py-2.5 px-4 flex items-center justify-between cursor-pointer",
+        "hover:bg-slate-50/80 transition-all duration-150",
+        isExpanded && "bg-slate-50/50"
+      )}
       onClick={() => toggleSection(section)}
     >
-      <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
-        {title}
-      </span>
-      {isExpanded ? (
-        <ChevronDown className="h-3 w-3 text-slate-400" />
-      ) : (
-        <ChevronRight className="h-3 w-3 text-slate-400" />
-      )}
+      <div className="flex items-center gap-2">
+        <span className={cn(
+          "text-slate-400 transition-colors",
+          isExpanded && "text-[var(--cloudact-coral)]"
+        )}>
+          {sectionIcons[section]}
+        </span>
+        <span className={cn(
+          "text-[13px] font-semibold uppercase tracking-wider transition-colors",
+          isExpanded ? "text-slate-700" : "text-slate-500"
+        )}>
+          {title}
+        </span>
+      </div>
+      <div className={cn(
+        "h-5 w-5 rounded-md flex items-center justify-center transition-all",
+        isExpanded ? "bg-[var(--cloudact-coral)]/10" : "bg-transparent"
+      )}>
+        {isExpanded ? (
+          <ChevronDown className={cn(
+            "h-3.5 w-3.5 transition-colors",
+            isExpanded ? "text-[var(--cloudact-coral)]" : "text-slate-400"
+          )} />
+        ) : (
+          <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
+        )}
+      </div>
     </div>
   )
 
   return (
     <Sidebar collapsible="icon" className="border-r border-slate-100 bg-white" {...props}>
-      {/* Header: Logo + Org Name */}
+      {/* Header: Logo + Org Name + Toggle */}
       <div className={cn(
         "border-b border-slate-100 hidden md:block",
         isCollapsed ? "p-2" : "px-4 py-3"
       )}>
-        <Link
-          href={`/${orgSlug}/cost-dashboards/overview`}
-          className="flex items-center gap-3 hover:opacity-80 transition-opacity"
-        >
-          <div className={cn(
-            "flex-shrink-0 rounded-lg overflow-hidden bg-gradient-to-br from-[#007A78] to-[#14B8A6] flex items-center justify-center",
-            "h-8 w-8"
-          )}>
-            {logoLoading ? (
-              <div className="h-4 w-4 animate-pulse bg-white/20 rounded" />
-            ) : logoUrl ? (
-              <Image
-                src={logoUrl}
-                alt={formattedOrgName}
-                width={32}
-                height={32}
-                className="object-contain"
-              />
-            ) : (
-              <Building2 className="h-4 w-4 text-white" />
+        <div className="flex items-center justify-between">
+          <Link
+            href={`/${orgSlug}/cost-dashboards/overview`}
+            className="flex items-center gap-3 hover:opacity-80 transition-opacity flex-1 min-w-0"
+          >
+            <div className={cn(
+              "flex-shrink-0 rounded-lg overflow-hidden bg-gradient-to-br from-[var(--cloudact-mint)] to-[var(--cloudact-mint-light)] flex items-center justify-center",
+              "h-8 w-8"
+            )}>
+              {logoLoading ? (
+                <div className="h-4 w-4 animate-pulse bg-white/20 rounded" />
+              ) : logoUrl ? (
+                <Image
+                  src={logoUrl}
+                  alt={formattedOrgName}
+                  width={32}
+                  height={32}
+                  className="object-contain"
+                />
+              ) : (
+                <Building2 className="h-4 w-4 text-[var(--cloudact-mint-text)]" />
+              )}
+            </div>
+            {!isCollapsed && (
+              <span className="text-[13px] font-semibold text-slate-900 truncate max-w-[120px]">
+                {formattedOrgName}
+              </span>
             )}
-          </div>
-          {!isCollapsed && (
-            <span className="text-[13px] font-semibold text-slate-900 truncate max-w-[140px]">
-              {formattedOrgName}
-            </span>
-          )}
-        </Link>
+          </Link>
+          {/* Collapse/Expand Toggle Button */}
+          <button
+            onClick={toggleSidebar}
+            className={cn(
+              "flex-shrink-0 h-7 w-7 rounded-md flex items-center justify-center",
+              "text-slate-400 hover:text-slate-600 hover:bg-slate-100",
+              "transition-all duration-200 ease-in-out",
+              "focus-visible:outline-2 focus-visible:outline-[var(--cloudact-mint)] focus-visible:outline-offset-2",
+              isCollapsed && "mx-auto"
+            )}
+            title={isCollapsed ? "Expand sidebar (⌘B)" : "Collapse sidebar (⌘B)"}
+            aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {isCollapsed ? (
+              <PanelLeft className="h-4 w-4" />
+            ) : (
+              <PanelLeftClose className="h-4 w-4" />
+            )}
+          </button>
+        </div>
       </div>
 
       <SidebarContent className="px-0 py-2 overflow-y-auto">
@@ -282,7 +349,7 @@ export function DashboardSidebar({
             </SidebarMenuItem>
           )}
           {!isCollapsed && activeSection === "dashboards" && (
-            <div className="pb-2">
+            <div className="pb-2 space-y-0.5">
               <SidebarMenuItem>
                 <SidebarMenuButton
                   asChild
@@ -291,8 +358,8 @@ export function DashboardSidebar({
                   )}
                 >
                   <Link href={`/${orgSlug}/cost-dashboards/overview`}>
-                    <LayoutDashboard className="h-3.5 w-3.5 mr-2" />
-                    Overview
+                    <LayoutDashboard className="h-3.5 w-3.5 flex-shrink-0" />
+                    <span>Overview</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -304,8 +371,8 @@ export function DashboardSidebar({
                   )}
                 >
                   <Link href={`/${orgSlug}/cost-dashboards/subscription-costs`}>
-                    <Receipt className="h-3.5 w-3.5 mr-2" />
-                    Subscriptions
+                    <Receipt className="h-3.5 w-3.5 flex-shrink-0" />
+                    <span>Subscriptions</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -317,8 +384,8 @@ export function DashboardSidebar({
                   )}
                 >
                   <Link href={`/${orgSlug}/cost-dashboards/genai-costs`}>
-                    <Sparkles className="h-3.5 w-3.5 mr-2" />
-                    GenAI
+                    <Sparkles className="h-3.5 w-3.5 flex-shrink-0" />
+                    <span>GenAI</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -330,8 +397,8 @@ export function DashboardSidebar({
                   )}
                 >
                   <Link href={`/${orgSlug}/cost-dashboards/cloud-costs`}>
-                    <Cloud className="h-3.5 w-3.5 mr-2" />
-                    Cloud
+                    <Cloud className="h-3.5 w-3.5 flex-shrink-0" />
+                    <span>Cloud</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -356,7 +423,7 @@ export function DashboardSidebar({
             </SidebarMenuItem>
           )}
           {!isCollapsed && activeSection === "pipelines" && (
-            <div className="pb-2">
+            <div className="pb-2 space-y-0.5">
               <SidebarMenuItem>
                 <SidebarMenuButton
                   asChild
@@ -365,8 +432,8 @@ export function DashboardSidebar({
                   )}
                 >
                   <Link href={`/${orgSlug}/pipelines/subscription-runs`}>
-                    <RefreshCw className="h-3.5 w-3.5 mr-2" />
-                    Subscription Runs
+                    <RefreshCw className="h-3.5 w-3.5 flex-shrink-0" />
+                    <span>Subscription Runs</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -378,8 +445,8 @@ export function DashboardSidebar({
                   )}
                 >
                   <Link href={`/${orgSlug}/pipelines/cost-runs`}>
-                    <Workflow className="h-3.5 w-3.5 mr-2" />
-                    Cost Runs
+                    <Workflow className="h-3.5 w-3.5 flex-shrink-0" />
+                    <span>Cost Runs</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -391,8 +458,8 @@ export function DashboardSidebar({
                   )}
                 >
                   <Link href={`/${orgSlug}/pipelines/genai-runs`}>
-                    <Cpu className="h-3.5 w-3.5 mr-2" />
-                    GenAI Runs
+                    <Cpu className="h-3.5 w-3.5 flex-shrink-0" />
+                    <span>GenAI Runs</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -409,8 +476,8 @@ export function DashboardSidebar({
           {/* User Profile - First */}
           {!isCollapsed && (
             <div className="px-4 py-3 flex items-center gap-3">
-              <div className="h-8 w-8 rounded-full bg-gradient-to-br from-[#007A78] to-[#14B8A6] flex items-center justify-center flex-shrink-0">
-                <span className="text-white text-[11px] font-semibold">
+              <div className="h-8 w-8 rounded-full bg-gradient-to-br from-[var(--cloudact-mint)] to-[var(--cloudact-mint-light)] flex items-center justify-center flex-shrink-0">
+                <span className="text-[var(--cloudact-mint-text)] text-[11px] font-semibold">
                   {getUserInitials(userName)}
                 </span>
               </div>
@@ -426,8 +493,8 @@ export function DashboardSidebar({
           )}
           {isCollapsed && (
             <div className="flex justify-center py-2">
-              <div className="h-8 w-8 rounded-full bg-gradient-to-br from-[#007A78] to-[#14B8A6] flex items-center justify-center">
-                <span className="text-white text-[11px] font-semibold">
+              <div className="h-8 w-8 rounded-full bg-gradient-to-br from-[var(--cloudact-mint)] to-[var(--cloudact-mint-light)] flex items-center justify-center">
+                <span className="text-[var(--cloudact-mint-text)] text-[11px] font-semibold">
                   {getUserInitials(userName)}
                 </span>
               </div>
@@ -611,8 +678,8 @@ export function DashboardSidebar({
             <SidebarMenuButton
               asChild
               className={cn(
-                "h-9 px-3 text-[12px] font-medium text-[#007A78]",
-                "hover:bg-[#007A78]/5 rounded-lg mx-2 transition-colors",
+                "h-9 px-3 text-[12px] font-medium text-[var(--cloudact-blue)]",
+                "hover:bg-[var(--cloudact-blue)]/5 rounded-lg mx-2 transition-colors",
                 isCollapsed && "justify-center px-2"
               )}
             >

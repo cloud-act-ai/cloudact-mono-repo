@@ -22,6 +22,7 @@ from google.cloud import bigquery
 import google.api_core.exceptions
 
 from src.core.engine.bq_client import get_bigquery_client
+from src.core.exceptions import BigQueryResourceNotFoundError
 from src.app.config import get_settings
 from src.app.models.hierarchy_models import (
     HierarchyEntityType,
@@ -81,11 +82,11 @@ class HierarchyService:
     def __init__(self, bq_client: bigquery.Client = None):
         """Initialize with optional BigQuery client."""
         self.bq_client = bq_client or get_bigquery_client()
-        self.project_id = settings.GCP_PROJECT_ID
+        self.project_id = settings.gcp_project_id
 
     def _get_dataset_id(self, org_slug: str) -> str:
-        """Get the org-specific dataset ID."""
-        return f"{org_slug}_prod"
+        """Get the org-specific dataset ID based on environment."""
+        return settings.get_org_dataset_name(org_slug)
 
     def _get_table_ref(self, org_slug: str, table_name: str) -> str:
         """Get fully qualified table reference."""
@@ -121,36 +122,35 @@ class HierarchyService:
         query += " ORDER BY entity_type, entity_id"
 
         try:
-            query_job = self.bq_client.query(query)
-            results = list(query_job.result())
+            results = list(self.bq_client.query(query))
 
             entities = []
             for row in results:
                 entities.append(HierarchyEntityResponse(
-                    id=row.id,
-                    org_slug=row.org_slug,
-                    entity_type=HierarchyEntityType(row.entity_type),
-                    entity_id=row.entity_id,
-                    entity_name=row.entity_name,
-                    parent_id=row.parent_id,
-                    parent_type=row.parent_type,
-                    dept_id=row.dept_id,
-                    dept_name=row.dept_name,
-                    project_id=row.project_id,
-                    project_name=row.project_name,
-                    team_id=row.team_id,
-                    team_name=row.team_name,
-                    owner_id=row.owner_id,
-                    owner_name=row.owner_name,
-                    owner_email=row.owner_email,
-                    description=row.description,
-                    metadata=row.metadata,
-                    is_active=row.is_active,
-                    created_at=row.created_at,
-                    created_by=row.created_by,
-                    updated_at=row.updated_at,
-                    updated_by=row.updated_by,
-                    version=row.version,
+                    id=row['id'],
+                    org_slug=row['org_slug'],
+                    entity_type=HierarchyEntityType(row['entity_type']),
+                    entity_id=row['entity_id'],
+                    entity_name=row['entity_name'],
+                    parent_id=row.get('parent_id'),
+                    parent_type=row.get('parent_type'),
+                    dept_id=row.get('dept_id'),
+                    dept_name=row.get('dept_name'),
+                    project_id=row.get('project_id'),
+                    project_name=row.get('project_name'),
+                    team_id=row.get('team_id'),
+                    team_name=row.get('team_name'),
+                    owner_id=row.get('owner_id'),
+                    owner_name=row.get('owner_name'),
+                    owner_email=row.get('owner_email'),
+                    description=row.get('description'),
+                    metadata=row.get('metadata'),
+                    is_active=row['is_active'],
+                    created_at=row['created_at'],
+                    created_by=row['created_by'],
+                    updated_at=row.get('updated_at'),
+                    updated_by=row.get('updated_by'),
+                    version=row['version'],
                 ))
 
             return HierarchyListResponse(
@@ -158,7 +158,8 @@ class HierarchyService:
                 entities=entities,
                 total=len(entities)
             )
-        except google.api_core.exceptions.NotFound:
+        except (google.api_core.exceptions.NotFound, BigQueryResourceNotFoundError):
+            # Table or dataset doesn't exist yet - return empty list
             return HierarchyListResponse(org_slug=org_slug, entities=[], total=0)
 
     async def get_entity(
@@ -182,40 +183,39 @@ class HierarchyService:
         """
 
         try:
-            query_job = self.bq_client.query(query)
-            results = list(query_job.result())
+            results = list(self.bq_client.query(query))
 
             if not results:
                 return None
 
             row = results[0]
             return HierarchyEntityResponse(
-                id=row.id,
-                org_slug=row.org_slug,
-                entity_type=HierarchyEntityType(row.entity_type),
-                entity_id=row.entity_id,
-                entity_name=row.entity_name,
-                parent_id=row.parent_id,
-                parent_type=row.parent_type,
-                dept_id=row.dept_id,
-                dept_name=row.dept_name,
-                project_id=row.project_id,
-                project_name=row.project_name,
-                team_id=row.team_id,
-                team_name=row.team_name,
-                owner_id=row.owner_id,
-                owner_name=row.owner_name,
-                owner_email=row.owner_email,
-                description=row.description,
-                metadata=row.metadata,
-                is_active=row.is_active,
-                created_at=row.created_at,
-                created_by=row.created_by,
-                updated_at=row.updated_at,
-                updated_by=row.updated_by,
-                version=row.version,
+                id=row['id'],
+                org_slug=row['org_slug'],
+                entity_type=HierarchyEntityType(row['entity_type']),
+                entity_id=row['entity_id'],
+                entity_name=row['entity_name'],
+                parent_id=row.get('parent_id'),
+                parent_type=row.get('parent_type'),
+                dept_id=row.get('dept_id'),
+                dept_name=row.get('dept_name'),
+                project_id=row.get('project_id'),
+                project_name=row.get('project_name'),
+                team_id=row.get('team_id'),
+                team_name=row.get('team_name'),
+                owner_id=row.get('owner_id'),
+                owner_name=row.get('owner_name'),
+                owner_email=row.get('owner_email'),
+                description=row.get('description'),
+                metadata=row.get('metadata'),
+                is_active=row['is_active'],
+                created_at=row['created_at'],
+                created_by=row['created_by'],
+                updated_at=row.get('updated_at'),
+                updated_by=row.get('updated_by'),
+                version=row['version'],
             )
-        except google.api_core.exceptions.NotFound:
+        except (google.api_core.exceptions.NotFound, BigQueryResourceNotFoundError):
             return None
 
     async def get_hierarchy_tree(self, org_slug: str) -> HierarchyTreeResponse:
@@ -291,7 +291,7 @@ class HierarchyService:
         if existing:
             raise ValueError(f"Department {entity_id} already exists")
 
-        now = datetime.utcnow()
+        now = datetime.utcnow().isoformat()
         record_id = str(uuid.uuid4())
 
         row = {
@@ -322,12 +322,11 @@ class HierarchyService:
             "end_date": None,
         }
 
-        table_ref = self._get_table_ref(org_slug, ORG_HIERARCHY_TABLE)
-        errors = self.bq_client.insert_rows_json(table_ref, [row])
-
-        if errors:
-            logger.error(f"Failed to create department: {errors}")
-            raise RuntimeError(f"Failed to create department: {errors}")
+        try:
+            self.bq_client.insert_rows(org_slug, "prod", ORG_HIERARCHY_TABLE, [row])
+        except Exception as e:
+            logger.error(f"Failed to create department: {e}")
+            raise RuntimeError(f"Failed to create department: {e}")
 
         return await self.get_entity(org_slug, HierarchyEntityType.DEPARTMENT, entity_id)
 
@@ -352,7 +351,7 @@ class HierarchyService:
         if existing:
             raise ValueError(f"Project {entity_id} already exists")
 
-        now = datetime.utcnow()
+        now = datetime.utcnow().isoformat()
         record_id = str(uuid.uuid4())
 
         row = {
@@ -383,12 +382,11 @@ class HierarchyService:
             "end_date": None,
         }
 
-        table_ref = self._get_table_ref(org_slug, ORG_HIERARCHY_TABLE)
-        errors = self.bq_client.insert_rows_json(table_ref, [row])
-
-        if errors:
-            logger.error(f"Failed to create project: {errors}")
-            raise RuntimeError(f"Failed to create project: {errors}")
+        try:
+            self.bq_client.insert_rows(org_slug, "prod", ORG_HIERARCHY_TABLE, [row])
+        except Exception as e:
+            logger.error(f"Failed to create project: {e}")
+            raise RuntimeError(f"Failed to create project: {e}")
 
         return await self.get_entity(org_slug, HierarchyEntityType.PROJECT, entity_id)
 
@@ -413,7 +411,7 @@ class HierarchyService:
         if existing:
             raise ValueError(f"Team {entity_id} already exists")
 
-        now = datetime.utcnow()
+        now = datetime.utcnow().isoformat()
         record_id = str(uuid.uuid4())
 
         row = {
@@ -444,12 +442,11 @@ class HierarchyService:
             "end_date": None,
         }
 
-        table_ref = self._get_table_ref(org_slug, ORG_HIERARCHY_TABLE)
-        errors = self.bq_client.insert_rows_json(table_ref, [row])
-
-        if errors:
-            logger.error(f"Failed to create team: {errors}")
-            raise RuntimeError(f"Failed to create team: {errors}")
+        try:
+            self.bq_client.insert_rows(org_slug, "prod", ORG_HIERARCHY_TABLE, [row])
+        except Exception as e:
+            logger.error(f"Failed to create team: {e}")
+            raise RuntimeError(f"Failed to create team: {e}")
 
         return await self.get_entity(org_slug, HierarchyEntityType.TEAM, entity_id)
 
@@ -474,7 +471,7 @@ class HierarchyService:
         if not existing:
             raise ValueError(f"{entity_type.value.title()} {entity_id} does not exist")
 
-        now = datetime.utcnow()
+        now = datetime.utcnow().isoformat()
         table_ref = self._get_table_ref(org_slug, ORG_HIERARCHY_TABLE)
 
         # Mark old version as ended
@@ -485,7 +482,7 @@ class HierarchyService:
             updated_by = '{updated_by}'
         WHERE id = '{existing.id}'
         """
-        self.bq_client.query(end_query).result()
+        list(self.bq_client.query(end_query))  # Execute UPDATE
 
         # Create new version
         new_id = str(uuid.uuid4())
@@ -509,7 +506,7 @@ class HierarchyService:
             "description": request.description if request.description is not None else existing.description,
             "metadata": request.metadata if request.metadata is not None else existing.metadata,
             "is_active": request.is_active if request.is_active is not None else existing.is_active,
-            "created_at": existing.created_at,
+            "created_at": existing.created_at.isoformat() if hasattr(existing.created_at, 'isoformat') else existing.created_at,
             "created_by": existing.created_by,
             "updated_at": now,
             "updated_by": updated_by,
@@ -526,10 +523,11 @@ class HierarchyService:
             elif entity_type == HierarchyEntityType.TEAM:
                 row["team_name"] = request.entity_name
 
-        errors = self.bq_client.insert_rows_json(table_ref, [row])
-        if errors:
-            logger.error(f"Failed to update entity: {errors}")
-            raise RuntimeError(f"Failed to update entity: {errors}")
+        try:
+            self.bq_client.insert_rows(org_slug, "prod", ORG_HIERARCHY_TABLE, [row])
+        except Exception as e:
+            logger.error(f"Failed to update entity: {e}")
+            raise RuntimeError(f"Failed to update entity: {e}")
 
         return await self.get_entity(org_slug, entity_type, entity_id)
 
@@ -561,12 +559,12 @@ class HierarchyService:
               AND end_date IS NULL
               AND is_active = TRUE
             """
-            results = list(self.bq_client.query(query).result())
+            results = list(self.bq_client.query(query))
             for row in results:
                 blocking_entities.append({
-                    "entity_type": row.entity_type,
-                    "entity_id": row.entity_id,
-                    "entity_name": row.entity_name
+                    "entity_type": row['entity_type'],
+                    "entity_id": row['entity_id'],
+                    "entity_name": row['entity_name']
                 })
 
         elif entity_type == HierarchyEntityType.PROJECT:
@@ -579,12 +577,12 @@ class HierarchyService:
               AND end_date IS NULL
               AND is_active = TRUE
             """
-            results = list(self.bq_client.query(query).result())
+            results = list(self.bq_client.query(query))
             for row in results:
                 blocking_entities.append({
-                    "entity_type": row.entity_type,
-                    "entity_id": row.entity_id,
-                    "entity_name": row.entity_name
+                    "entity_type": row['entity_type'],
+                    "entity_id": row['entity_id'],
+                    "entity_name": row['entity_name']
                 })
 
         # Check for references in subscription plans
@@ -615,12 +613,12 @@ class HierarchyService:
                 LIMIT 10
                 """
 
-            ref_results = list(self.bq_client.query(ref_query).result())
+            ref_results = list(self.bq_client.query(ref_query))
             for row in ref_results:
                 blocking_entities.append({
                     "entity_type": "subscription",
-                    "entity_id": row.subscription_id,
-                    "entity_name": f"{row.provider} - {row.plan_name}"
+                    "entity_id": row['subscription_id'],
+                    "entity_name": f"{row['provider']} - {row['plan_name']}"
                 })
         except google.api_core.exceptions.NotFound:
             pass  # Table doesn't exist yet
@@ -670,7 +668,7 @@ class HierarchyService:
         if not existing:
             raise ValueError(f"{entity_type.value.title()} {entity_id} does not exist")
 
-        now = datetime.utcnow()
+        now = datetime.utcnow().isoformat()
         table_ref = self._get_table_ref(org_slug, ORG_HIERARCHY_TABLE)
 
         # Soft delete by setting end_date and is_active = false
@@ -683,7 +681,7 @@ class HierarchyService:
         WHERE id = '{existing.id}'
         """
 
-        self.bq_client.query(delete_query).result()
+        list(self.bq_client.query(delete_query))  # Execute UPDATE
         return True
 
     # ==========================================================================
@@ -715,7 +713,7 @@ class HierarchyService:
         if mode == "replace":
             # Delete all existing entities
             table_ref = self._get_table_ref(org_slug, ORG_HIERARCHY_TABLE)
-            now = datetime.utcnow()
+            now = datetime.utcnow().isoformat()
             delete_query = f"""
             UPDATE `{table_ref}`
             SET end_date = TIMESTAMP('{now.isoformat()}'),
@@ -724,7 +722,7 @@ class HierarchyService:
             WHERE end_date IS NULL
             """
             try:
-                self.bq_client.query(delete_query).result()
+                list(self.bq_client.query(delete_query))  # Execute UPDATE
             except google.api_core.exceptions.NotFound:
                 pass
 

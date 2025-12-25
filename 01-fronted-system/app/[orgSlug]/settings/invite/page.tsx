@@ -264,7 +264,7 @@ export default function InviteMembersPage() {
               <DialogTrigger asChild>
                 <button
                   disabled={!seatLimit || seatsAvailable <= 0}
-                  className="h-10 px-5 text-[13px] font-semibold bg-[#007A78] hover:bg-[#006664] text-white rounded-xl transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="h-10 px-5 text-[13px] font-semibold bg-mint hover:bg-mint-dark text-[#000000] rounded-xl transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <UserPlus className="h-4 w-4" />
                   Invite Member
@@ -280,9 +280,9 @@ export default function InviteMembersPage() {
 
                 {inviteLink ? (
                   <div className="space-y-4">
-                    <div className="p-4 rounded-xl bg-[#007A78]/5 border border-[#007A78]/20 flex items-center gap-3">
-                      <CheckCircle2 className="h-4 w-4 text-[#007A78] flex-shrink-0" />
-                      <p className="text-[13px] font-medium text-[#007A78]">
+                    <div className="p-4 rounded-xl bg-[#90FCA6]/5 border border-[#90FCA6]/20 flex items-center gap-3">
+                      <CheckCircle2 className="h-4 w-4 text-[#90FCA6] flex-shrink-0" />
+                      <p className="text-[13px] font-medium text-[#90FCA6]">
                         Invite created! Share this link with the new member:
                       </p>
                     </div>
@@ -293,7 +293,7 @@ export default function InviteMembersPage() {
                       </Button>
                     </div>
                     <button
-                      className="w-full h-11 text-[13px] font-semibold bg-[#007A78] hover:bg-[#006664] text-white rounded-xl transition-colors"
+                      className="w-full h-11 text-[13px] font-semibold bg-[#90FCA6] hover:bg-[#6EE890] text-[#000000] rounded-xl transition-colors"
                       onClick={() => {
                         setInviteLink(null)
                         setIsInviteDialogOpen(false)
@@ -351,7 +351,7 @@ export default function InviteMembersPage() {
                       <button
                         onClick={handleInvite}
                         disabled={isInviting || !inviteEmail || !validateEmail(inviteEmail)}
-                        className="h-10 px-5 text-[13px] font-semibold bg-[#007A78] hover:bg-[#006664] text-white rounded-xl transition-colors flex items-center gap-2 disabled:opacity-50"
+                        className="h-10 px-5 text-[13px] font-semibold bg-[#90FCA6] hover:bg-[#6EE890] text-[#000000] rounded-xl transition-colors flex items-center gap-2 disabled:opacity-50"
                       >
                         {isInviting ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
@@ -372,8 +372,8 @@ export default function InviteMembersPage() {
       {/* Stats Row */}
       <div className="flex items-center gap-6 mb-8">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-[#007A78]/10 flex items-center justify-center">
-            <Users className="h-5 w-5 text-[#007A78]" />
+          <div className="h-10 w-10 rounded-xl bg-[#90FCA6]/10 flex items-center justify-center">
+            <Users className="h-5 w-5 text-[#90FCA6]" />
           </div>
           <div>
             <p className="text-[24px] font-bold text-slate-900 leading-none">{currentSeats}</p>
@@ -398,12 +398,12 @@ export default function InviteMembersPage() {
         <div className="h-8 w-px bg-slate-200"></div>
 
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-[#007A78]/10 flex items-center justify-center">
-            <Check className="h-5 w-5 text-[#007A78]" />
+          <div className="h-10 w-10 rounded-xl bg-[#90FCA6]/10 flex items-center justify-center">
+            <Check className="h-5 w-5 text-[#90FCA6]" />
           </div>
           <div>
             <p className="text-[14px] text-slate-600 font-medium">Available</p>
-            <p className="text-[12px] text-[#007A78] font-semibold">{seatsAvailable} seats</p>
+            <p className="text-[12px] text-[#90FCA6] font-semibold">{seatsAvailable} seats</p>
           </div>
         </div>
       </div>
@@ -428,7 +428,7 @@ export default function InviteMembersPage() {
           </div>
           <a
             href={`/${orgSlug}/billing`}
-            className="text-[13px] font-semibold text-[#007A78] hover:underline"
+            className="text-[13px] font-semibold text-[#90FCA6] hover:underline"
           >
             Upgrade plan →
           </a>
@@ -457,7 +457,7 @@ export default function InviteMembersPage() {
                 <button
                   onClick={() => setIsInviteDialogOpen(true)}
                   disabled={!seatLimit || seatsAvailable <= 0}
-                  className="h-10 px-5 text-[13px] font-semibold bg-[#007A78] hover:bg-[#006664] text-white rounded-xl transition-colors inline-flex items-center gap-2 disabled:opacity-50"
+                  className="h-10 px-5 text-[13px] font-semibold bg-[#90FCA6] hover:bg-[#6EE890] text-[#000000] rounded-xl transition-colors inline-flex items-center gap-2 disabled:opacity-50"
                 >
                   <UserPlus className="h-4 w-4" />
                   Invite Member
@@ -471,13 +471,13 @@ export default function InviteMembersPage() {
                   {/* Left accent */}
                   <div
                     className="absolute left-0 top-4 bottom-4 w-1 rounded-full opacity-60 group-hover:opacity-100 transition-opacity"
-                    style={{ backgroundColor: member.role === "owner" ? "#007A78" : "#8B5CF6" }}
+                    style={{ backgroundColor: member.role === "owner" ? "#90FCA6" : "#8B5CF6" }}
                   />
                   <div className="pl-5 py-4 pr-5 flex items-center justify-between gap-4">
                     <div className="flex items-center gap-4 min-w-0 flex-1">
                       <div
                         className="h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0 text-[14px] font-bold text-white"
-                        style={{ backgroundColor: member.role === "owner" ? "#007A78" : "#8B5CF6" }}
+                        style={{ backgroundColor: member.role === "owner" ? "#90FCA6" : "#8B5CF6" }}
                       >
                         {(member.profiles?.full_name?.[0] || member.profiles?.email?.[0] || "?").toUpperCase()}
                       </div>
@@ -506,7 +506,7 @@ export default function InviteMembersPage() {
                         <Badge
                           className={`text-[11px] font-semibold px-2.5 py-1 ${
                             member.role === "owner"
-                              ? "bg-[#007A78]/10 text-[#007A78] border-0"
+                              ? "bg-[#90FCA6]/10 text-[#90FCA6] border-0"
                               : "bg-slate-100 text-slate-600 border-0"
                           }`}
                         >
@@ -611,15 +611,15 @@ export default function InviteMembersPage() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {/* Owner */}
           <div className="p-5 rounded-2xl bg-white border border-slate-200 hover:border-slate-300 hover:shadow-sm transition-all">
-            <div className="h-10 w-10 rounded-xl bg-[#007A78]/10 flex items-center justify-center mb-3">
-              <Users className="h-5 w-5 text-[#007A78]" />
+            <div className="h-10 w-10 rounded-xl bg-[#90FCA6]/10 flex items-center justify-center mb-3">
+              <Users className="h-5 w-5 text-[#90FCA6]" />
             </div>
             <h3 className="text-[15px] font-semibold text-slate-900 mb-1">Owner</h3>
             <p className="text-[12px] text-slate-500 mb-3">Full access to everything</p>
             <div className="space-y-1">
               {["View data", "Edit data", "Invite members", "Manage roles", "Access billing"].map((perm) => (
                 <div key={perm} className="flex items-center gap-2">
-                  <Check className="h-3.5 w-3.5 text-[#007A78]" />
+                  <Check className="h-3.5 w-3.5 text-[#90FCA6]" />
                   <span className="text-[12px] text-slate-600">{perm}</span>
                 </div>
               ))}

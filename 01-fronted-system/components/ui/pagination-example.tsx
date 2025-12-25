@@ -4,8 +4,8 @@
  * Pagination Component Examples
  *
  * This file demonstrates how to use the Pagination component with the CloudAct brand colors:
- * - Active page: Teal #007A78 background with white text
- * - Hover state: Light Teal #F0FDFA background
+ * - Active page: Mint #90FCA6 background with black text
+ * - Hover state: Light Mint #F0FFF4 background
  * - Disabled state: Gray styling
  * - Touch targets: Minimum 44px for accessibility
  */

@@ -17,7 +17,7 @@ You're using **black/dark colors** for a promotional badge or label.
 
 ### CloudAct Brand Guidelines
 
-Badges like "MOST POPULAR", "RECOMMENDED", etc. should use **brand teal**:
+Badges like "MOST POPULAR", "RECOMMENDED", etc. should use **brand mint**:
 
 **Wrong:**
 ```tsx
@@ -26,16 +26,17 @@ Badges like "MOST POPULAR", "RECOMMENDED", etc. should use **brand teal**:
 
 **Correct:**
 ```tsx
-<div className="bg-[#007A78] text-white">MOST POPULAR</div>
+<div className="bg-[#90FCA6] text-black">MOST POPULAR</div>
 ```
 
 Or use CSS variable:
 ```tsx
-<div className="bg-[var(--cloudact-teal)] text-white">MOST POPULAR</div>
+<div className="bg-[var(--cloudact-mint)] text-black">MOST POPULAR</div>
 ```
 
 ### Brand Colors Reference
-- **Teal (Primary):** #007A78 / `var(--cloudact-teal)`
-- **Coral (Accent):** #FF6E50 / `var(--cloudact-coral)`
+- **Mint (Primary):** #90FCA6 / `var(--cloudact-mint)` - use black text
+- **Coral (Accent):** #FF6C5E / `var(--cloudact-coral)` - use white text
+- **Blue (Links/Info):** #007AFF / `var(--cloudact-blue)`
 
-Use teal for trust/professional badges, coral for attention-grabbing CTAs.
+Use mint for trust/professional badges, coral for attention-grabbing CTAs.

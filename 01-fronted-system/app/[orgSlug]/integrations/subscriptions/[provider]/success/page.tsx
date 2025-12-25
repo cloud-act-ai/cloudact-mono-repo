@@ -62,19 +62,19 @@ function SuccessContent() {
     created: {
       title: "Subscription Added Successfully",
       description: "Your subscription has been added and will be included in cost tracking.",
-      color: "text-[#007A78]",
+      color: "text-[#1a7a3a]",
       bgColor: "bg-[#F0FDFA]"
     },
     updated: {
       title: "Subscription Updated Successfully",
       description: "Your subscription changes have been saved with version history.",
-      color: "text-[#007A78]",
+      color: "text-[#1a7a3a]",
       bgColor: "bg-[#F0FDFA]"
     },
     ended: {
       title: "Subscription Ended Successfully",
       description: "Your subscription has been marked as ended. Costs will stop being calculated after the end date.",
-      color: "text-[#FF6E50]",
+      color: "text-[#FF6C5E]",
       bgColor: "bg-[#FFF5F3]"
     }
   }
@@ -126,7 +126,7 @@ function SuccessContent() {
       <div className="flex flex-col sm:flex-row gap-3 w-full">
         <Link href={`/${orgSlug}/integrations/subscriptions/${provider}/add`} className="flex-1">
           <Button
-            className="w-full h-[44px] px-6 bg-[#007A78] text-white hover:bg-[#006664] rounded-xl text-[15px] font-semibold shadow-sm"
+            className="w-full h-[44px] px-6 bg-[#90FCA6] text-black hover:bg-[#006664] rounded-xl text-[15px] font-semibold shadow-sm"
           >
             Add Another Subscription
           </Button>
@@ -134,7 +134,7 @@ function SuccessContent() {
         <Link href={`/${orgSlug}/integrations/subscriptions/${provider}`} className="flex-1">
           <Button
             variant="outline"
-            className="w-full h-[44px] px-6 border-[#007A78]/30 text-[#007A78] hover:bg-[#007A78]/5 rounded-xl text-[15px] font-semibold"
+            className="w-full h-[44px] px-6 border-[#90FCA6]/30 text-[#1a7a3a] hover:bg-[#90FCA6]/5 rounded-xl text-[15px] font-semibold"
           >
             Back to {providerDisplayName}
           </Button>
@@ -144,7 +144,7 @@ function SuccessContent() {
       <Link href={`/${orgSlug}/integrations/subscriptions`} className="w-full">
         <Button
           variant="ghost"
-          className="w-full h-[44px] px-6 text-muted-foreground hover:bg-[#007A78]/5 rounded-xl text-[15px] font-medium"
+          className="w-full h-[44px] px-6 text-muted-foreground hover:bg-[#90FCA6]/5 rounded-xl text-[15px] font-medium"
         >
           View All Providers
         </Button>
@@ -157,7 +157,7 @@ function SuccessFallback() {
   return (
     <div className="flex flex-col items-center gap-6 text-center">
       <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[#F0FDFA]">
-        <Loader2 className="h-10 w-10 animate-spin text-[#007A78]" />
+        <Loader2 className="h-10 w-10 animate-spin text-[#1a7a3a]" />
       </div>
       <div className="space-y-2">
         <h1 className="text-[24px] font-bold text-black">Loading...</h1>
@@ -212,7 +212,7 @@ export default function SubscriptionSuccessPage() {
         <nav className="flex items-center gap-2 text-sm" aria-label="Breadcrumb">
           <Link
             href={`/${orgSlug}/integrations/subscriptions`}
-            className="text-[#007A78] hover:text-[#005F5D] transition-colors focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2 rounded truncate max-w-[200px]"
+            className="text-[#1a7a3a] hover:text-[#007AFF] transition-colors focus:outline-none focus:ring-2 focus:ring-[#90FCA6] focus:ring-offset-2 rounded truncate max-w-[200px]"
             title="Subscription Providers"
           >
             Subscription Providers
@@ -220,7 +220,7 @@ export default function SubscriptionSuccessPage() {
           <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" aria-hidden="true" />
           <Link
             href={`/${orgSlug}/integrations/subscriptions/${provider}`}
-            className="text-[#007A78] hover:text-[#005F5D] transition-colors focus:outline-none focus:ring-2 focus:ring-[#007A78] focus:ring-offset-2 rounded truncate max-w-[200px]"
+            className="text-[#1a7a3a] hover:text-[#007AFF] transition-colors focus:outline-none focus:ring-2 focus:ring-[#90FCA6] focus:ring-offset-2 rounded truncate max-w-[200px]"
             title={providerDisplayName}
           >
             {providerDisplayName}

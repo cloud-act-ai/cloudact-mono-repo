@@ -23,10 +23,10 @@ export default function SubscriptionsError({
 
   return (
     <div className="container mx-auto py-10 max-w-2xl">
-      <Card className="border-[#FF6E50]/30">
+      <Card className="border-coral/30">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-[#FF6E50]/10 flex items-center justify-center">
-            <AlertTriangle className="h-6 w-6 text-[#FF6E50]" />
+          <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-coral/10 flex items-center justify-center">
+            <AlertTriangle className="h-6 w-6 text-coral" />
           </div>
           <CardTitle className="text-xl">Something went wrong</CardTitle>
           <CardDescription>
@@ -35,14 +35,14 @@ export default function SubscriptionsError({
         </CardHeader>
         <CardContent className="text-center">
           {error.digest && (
-            <div className="rounded-lg bg-[#007A78]/5 p-4 text-sm text-muted-foreground">
+            <div className="rounded-lg bg-mint/5 p-4 text-sm text-muted-foreground">
               <p className="font-medium text-black mb-1">Error Reference ID:</p>
               <p className="font-mono text-xs">{error.digest}</p>
             </div>
           )}
         </CardContent>
         <CardFooter className="flex justify-center gap-4">
-          <Button onClick={reset} className="bg-[#007A78] hover:bg-[#005F5D] text-white">
+          <Button onClick={reset} className="bg-mint hover:bg-mint-dark text-black">
             <RefreshCw className="mr-2 h-4 w-4" />
             Try Again
           </Button>
@@ -58,7 +58,7 @@ export default function SubscriptionsError({
         If this problem persists, please contact{" "}
         <a
           href={`mailto:${process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "support@cloudact.ai"}`}
-          className="text-[#007A78] hover:text-[#005F5D] hover:underline font-medium"
+          className="text-ca-blue hover:underline font-medium"
         >
           support
         </a>
