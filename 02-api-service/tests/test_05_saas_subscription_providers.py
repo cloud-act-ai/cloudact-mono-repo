@@ -421,7 +421,9 @@ class TestSeedingBehavior:
 
         assert data["success"] is True
         assert data["plans_seeded"] == 0, "Should skip re-seeding"
-        assert "already has" in data["message"].lower()
+        # Accept either old "already has" format or new "enabled" format
+        msg_lower = data["message"].lower()
+        assert "already has" in msg_lower or "enabled" in msg_lower, f"Unexpected message: {data['message']}"
 
         print(f"Re-enable correctly skipped seeding: {data['message']}")
 

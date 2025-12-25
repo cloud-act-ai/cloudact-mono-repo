@@ -1087,16 +1087,17 @@ export default function ProviderDetailPage() {
                 <Label>Billing Cycle *</Label>
                 <Select
                   value={formData.billing_cycle}
-                  onValueChange={(value) => setFormData({ ...formData, billing_cycle: value as 'monthly' | 'annual' | 'quarterly' | 'weekly' })}
+                  onValueChange={(value) => setFormData({ ...formData, billing_cycle: value })}
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="weekly">Weekly</SelectItem>
                     <SelectItem value="monthly">Monthly</SelectItem>
                     <SelectItem value="quarterly">Quarterly</SelectItem>
+                    <SelectItem value="semi-annual">Semi-Annual</SelectItem>
                     <SelectItem value="annual">Annual</SelectItem>
-                    <SelectItem value="weekly">Weekly</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

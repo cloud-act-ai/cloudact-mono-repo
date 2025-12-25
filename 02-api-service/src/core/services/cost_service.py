@@ -322,7 +322,7 @@ class PolarsCostService:
             where_conditions.append(f"DATE(ChargePeriodStart) >= '{query.start_date}'")
 
         if query.end_date:
-            where_conditions.append(f"DATE(ChargePeriodEnd) <= '{query.end_date}'")
+            where_conditions.append(f"DATE(ChargePeriodStart) <= '{query.end_date}'")
 
         if query.providers:
             providers_list = ", ".join(f"'{p}'" for p in query.providers)
@@ -356,7 +356,7 @@ class PolarsCostService:
         if query.start_date:
             where_conditions.append(f"DATE(ChargePeriodStart) >= '{query.start_date}'")
         if query.end_date:
-            where_conditions.append(f"DATE(ChargePeriodEnd) <= '{query.end_date}'")
+            where_conditions.append(f"DATE(ChargePeriodStart) <= '{query.end_date}'")
         if query.providers:
             providers_list = ", ".join(f"'{p}'" for p in query.providers)
             where_conditions.append(f"ServiceProviderName IN ({providers_list})")
@@ -549,7 +549,7 @@ class PolarsCostService:
             if start_date:
                 where_conditions.append(f"DATE(ChargePeriodStart) >= '{start_date}'")
             if end_date:
-                where_conditions.append(f"DATE(ChargePeriodEnd) <= '{end_date}'")
+                where_conditions.append(f"DATE(ChargePeriodStart) <= '{end_date}'")
 
             where_clause = " AND ".join(where_conditions)
 
@@ -610,7 +610,7 @@ class PolarsCostService:
             if start_date:
                 where_conditions.append(f"DATE(ChargePeriodStart) >= '{start_date}'")
             if end_date:
-                where_conditions.append(f"DATE(ChargePeriodEnd) <= '{end_date}'")
+                where_conditions.append(f"DATE(ChargePeriodStart) <= '{end_date}'")
 
             where_clause = " AND ".join(where_conditions)
 
@@ -869,7 +869,7 @@ class PolarsCostService:
             WHERE SubAccountId = @org_slug
               AND x_SourceSystem = @source_system
               AND DATE(ChargePeriodStart) >= @start_date
-              AND DATE(ChargePeriodEnd) <= @end_date
+              AND DATE(ChargePeriodStart) <= @end_date
             ORDER BY BilledCost DESC
             """
 
@@ -971,7 +971,7 @@ class PolarsCostService:
                 OR LOWER(ServiceProviderName) IN ('gcp', 'aws', 'azure', 'google', 'amazon', 'microsoft')
               )
               AND DATE(ChargePeriodStart) >= @start_date
-              AND DATE(ChargePeriodEnd) <= @end_date
+              AND DATE(ChargePeriodStart) <= @end_date
             ORDER BY BilledCost DESC
             """
 
@@ -1072,7 +1072,7 @@ class PolarsCostService:
                 OR LOWER(ServiceCategory) = 'ai'
               )
               AND DATE(ChargePeriodStart) >= @start_date
-              AND DATE(ChargePeriodEnd) <= @end_date
+              AND DATE(ChargePeriodStart) <= @end_date
             ORDER BY BilledCost DESC
             """
 
@@ -1133,16 +1133,45 @@ class PolarsCostService:
         # Calculate total billed (sum of all costs in date range)
         total_billed = sum(row.get('BilledCost', 0) or 0 for row in data)
 
-        # Group by resource and get latest day's projection per resource
-        latest_by_resource: Dict[str, Dict[str, Any]] = {}
+        # FIX: Calculate daily cost based on TODAY's costs only (not "latest per resource")
+        # This ensures cancelled subscriptions don't inflate today's daily rate
+        # For example: if Jira ended Dec 22 and GitHub is active, only GitHub's Dec 24 cost counts
+        total_daily = 0.0
         for row in data:
-            resource_id = row.get('ResourceId') or row.get('ServiceName') or 'unknown'
-            charge_date = row.get('ChargePeriodStart', '')
-            if resource_id not in latest_by_resource or charge_date > latest_by_resource[resource_id].get('ChargePeriodStart', ''):
-                latest_by_resource[resource_id] = row
+            charge_date_str = row.get('ChargePeriodStart', '')
+            if charge_date_str:
+                try:
+                    if isinstance(charge_date_str, str):
+                        charge_date = date.fromisoformat(charge_date_str.split('T')[0])
+                    elif hasattr(charge_date_str, 'date'):
+                        charge_date = charge_date_str.date()
+                    else:
+                        charge_date = charge_date_str
 
-        # Total daily cost (latest day's cost per resource)
-        total_daily = sum(row.get('BilledCost', 0) or 0 for row in latest_by_resource.values())
+                    # Only include costs from TODAY for daily cost calculation
+                    if charge_date == today:
+                        total_daily += row.get('BilledCost', 0) or 0
+                except (ValueError, AttributeError):
+                    pass
+
+        # If no costs for today, fall back to yesterday's costs (data might not be generated yet)
+        if total_daily == 0:
+            yesterday = today - timedelta(days=1)
+            for row in data:
+                charge_date_str = row.get('ChargePeriodStart', '')
+                if charge_date_str:
+                    try:
+                        if isinstance(charge_date_str, str):
+                            charge_date = date.fromisoformat(charge_date_str.split('T')[0])
+                        elif hasattr(charge_date_str, 'date'):
+                            charge_date = charge_date_str.date()
+                        else:
+                            charge_date = charge_date_str
+
+                        if charge_date == yesterday:
+                            total_daily += row.get('BilledCost', 0) or 0
+                    except (ValueError, AttributeError):
+                        pass
 
         # Calculate MTD costs (actual costs from start of current month)
         mtd_cost = 0.0

@@ -219,6 +219,7 @@ class SubscriptionPlan(BaseModel):
     source_currency: Optional[str] = None
     source_price: Optional[float] = None
     exchange_rate_used: Optional[float] = None
+    billing_anchor_day: Optional[int] = None
     updated_at: Optional[datetime] = None
 
 
@@ -256,8 +257,8 @@ class AvailablePlansResponse(BaseModel):
 # Valid enum values for validation
 VALID_STATUS_VALUES = {"active", "cancelled", "expired", "pending"}
 VALID_PRICING_MODELS = {"PER_SEAT", "FLAT_FEE"}
-VALID_BILLING_CYCLES = {"monthly", "annual", "quarterly"}
-VALID_DISCOUNT_TYPES = {"percent", "fixed", None}
+VALID_BILLING_CYCLES = {"monthly", "annual", "quarterly", "semi-annual", "weekly"}
+VALID_DISCOUNT_TYPES = {"percent", "fixed"}
 
 # Status transition state machine
 # SECURITY FIX: Prevents illogical transitions (e.g., expired -> active, cancelled -> pending)
@@ -347,6 +348,50 @@ def validate_business_rules(
     return warnings
 
 
+def validate_discount_fields(
+    discount_type: Optional[str],
+    discount_value: Optional[int]
+) -> None:
+    """
+    Validate discount_type and discount_value consistency.
+
+    Rules:
+    - If discount_type is provided, discount_value must also be provided (and > 0)
+    - If discount_value is provided, discount_type must also be provided
+    - discount_type must be one of: 'percent', 'fixed'
+    - For 'percent' discount, value must be 0-100
+    """
+    # Both must be provided or both must be None
+    if (discount_type and not discount_value) or (discount_value and not discount_type):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="discount_type and discount_value must both be provided or both be None"
+        )
+
+    # If both provided, validate values
+    if discount_type and discount_value:
+        # Validate discount_type
+        if discount_type not in VALID_DISCOUNT_TYPES:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid discount_type: '{discount_type}'. Must be one of: {', '.join(VALID_DISCOUNT_TYPES)}"
+            )
+
+        # Validate discount_value > 0
+        if discount_value <= 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="discount_value must be greater than 0"
+            )
+
+        # For percent discount, max is 100
+        if discount_type == "percent" and discount_value > 100:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Percent discount cannot exceed 100"
+            )
+
+
 class PlanCreate(BaseModel):
     """Request to create a custom plan."""
     plan_name: str = Field(..., min_length=1, max_length=50, description="Plan identifier")
@@ -371,6 +416,7 @@ class PlanCreate(BaseModel):
     source_currency: Optional[str] = Field(None, max_length=3, description="Original currency of template price")
     source_price: Optional[float] = Field(None, ge=0, description="Original price before conversion")
     exchange_rate_used: Optional[float] = Field(None, ge=0, description="Exchange rate at time of creation")
+    billing_anchor_day: Optional[int] = Field(None, ge=1, le=28, description="Day of month billing cycle starts (1-28). NULL = calendar-aligned (1st of month)")
 
     model_config = ConfigDict(extra="forbid")
 
@@ -397,6 +443,7 @@ class PlanUpdate(BaseModel):
     source_currency: Optional[str] = Field(None, max_length=3)
     source_price: Optional[float] = Field(None, ge=0)
     exchange_rate_used: Optional[float] = Field(None, ge=0)
+    billing_anchor_day: Optional[int] = Field(None, ge=1, le=28)
     end_date: Optional[date] = None
 
     model_config = ConfigDict(extra="forbid")
@@ -439,6 +486,8 @@ class EditVersionRequest(BaseModel):
     source_currency: Optional[str] = Field(None, max_length=3)
     source_price: Optional[float] = Field(None, ge=0)
     exchange_rate_used: Optional[float] = Field(None, ge=0)
+    billing_anchor_day: Optional[int] = Field(None, ge=1, le=28)
+    status: Optional[str] = Field(None, description="New status for the plan version")
 
     model_config = ConfigDict(extra="forbid")
 
@@ -1211,7 +1260,8 @@ async def create_plan(
     # Validate enum fields
     validate_enum_field(plan.billing_cycle, VALID_BILLING_CYCLES, "billing_cycle")
     validate_enum_field(plan.pricing_model, VALID_PRICING_MODELS, "pricing_model")
-    validate_enum_field(plan.discount_type, VALID_DISCOUNT_TYPES, "discount_type")
+    # Validate discount type and value consistency
+    validate_discount_fields(plan.discount_type, plan.discount_value)
 
     # BOUNDS VALIDATION: Check business rules and collect warnings
     business_warnings = validate_business_rules(
@@ -1871,6 +1921,23 @@ async def edit_plan_with_version(
                 detail=f"effective_date ({request.effective_date}) cannot be more than 1 year in the past. "
                        f"Minimum allowed date: {one_year_ago}"
             )
+
+        # VALIDATION FIX: Validate enum fields if they are being changed
+        if request.billing_cycle is not None:
+            validate_enum_field(request.billing_cycle, VALID_BILLING_CYCLES, "billing_cycle")
+        if request.pricing_model is not None:
+            validate_enum_field(request.pricing_model, VALID_PRICING_MODELS, "pricing_model")
+
+        # VALIDATION FIX: Validate status transition if status is being changed
+        current_status = current_row.status if hasattr(current_row, "status") else "active"
+        if request.status is not None and request.status != current_status:
+            validate_status_transition(current_status, request.status)
+
+        # VALIDATION FIX: Validate discount type and value consistency
+        # Get the final discount values (merged with current values)
+        final_discount_type = request.discount_type if request.discount_type is not None else (current_row.discount_type if hasattr(current_row, "discount_type") else None)
+        final_discount_value = request.discount_value if request.discount_value is not None else (current_row.discount_value if hasattr(current_row, "discount_value") else None)
+        validate_discount_fields(final_discount_type, final_discount_value)
 
         # OPTIMISTIC LOCKING: Store original updated_at for concurrency check
         original_updated_at = current_row.updated_at if hasattr(current_row, "updated_at") else None

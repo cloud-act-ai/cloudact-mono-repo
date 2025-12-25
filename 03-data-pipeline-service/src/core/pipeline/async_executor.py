@@ -317,6 +317,7 @@ class AsyncPipelineExecutor:
             steps: List of step configurations
         """
         # Build DAG from step configurations
+        step_ids_in_order = []
         for idx, step in enumerate(steps):
             node = StepNode(step, idx)
             self.step_dag[node.step_id] = node
@@ -598,6 +599,52 @@ class AsyncPipelineExecutor:
                 exc_info=True
             )
 
+    async def _decrement_concurrent_counter(self) -> None:
+        """
+        Decrement only the concurrent_pipelines_running counter.
+
+        Used for BLOCKED pipelines where we need to release the quota slot
+        without updating success/fail counters since the pipeline never ran.
+        """
+        from google.cloud import bigquery
+        from src.app.config import settings
+
+        try:
+            decrement_query = f"""
+            UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
+            SET
+                concurrent_pipelines_running = GREATEST(concurrent_pipelines_running - 1, 0),
+                last_updated = CURRENT_TIMESTAMP()
+            WHERE
+                org_slug = @org_slug
+                AND usage_date = CURRENT_DATE()
+            """
+
+            job_config = bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("org_slug", "STRING", self.org_slug),
+                ]
+            )
+
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(
+                BQ_EXECUTOR,
+                lambda: self.bq_client.client.query(decrement_query, job_config=job_config).result()
+            )
+
+            self.logger.info(
+                f"Decremented concurrent counter for blocked pipeline",
+                org_slug=self.org_slug,
+                pipeline_id=self.tracking_pipeline_id
+            )
+
+        except Exception as e:
+            self.logger.warning(
+                f"Failed to decrement concurrent counter: {e}",
+                org_slug=self.org_slug,
+                exc_info=True
+            )
+
     async def _update_org_usage_quotas(self) -> None:
         """
         Update customer usage quotas after pipeline completion.
@@ -624,11 +671,12 @@ class AsyncPipelineExecutor:
                 failed_increment = 0
 
             # Update usage quotas directly by org_slug
+            # NOTE: pipelines_run_today and pipelines_run_month are NOT incremented here
+            # because api-service's reserve_pipeline_quota_atomic() already incremented them
+            # when the pipeline was started. We only update success/fail counters and decrement concurrent.
             update_query = f"""
             UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
             SET
-                pipelines_run_today = pipelines_run_today + 1,
-                pipelines_run_month = pipelines_run_month + 1,
                 pipelines_succeeded_today = pipelines_succeeded_today + @success_increment,
                 pipelines_failed_today = pipelines_failed_today + @failed_increment,
                 concurrent_pipelines_running = GREATEST(concurrent_pipelines_running - 1, 0),
@@ -657,8 +705,6 @@ class AsyncPipelineExecutor:
                 f"Updated customer usage quotas",
                 org_slug=self.org_slug,
                 status=self.status,
-                pipelines_run_today=1,
-                pipelines_run_month=1,
                 pipelines_succeeded=success_increment,
                 pipelines_failed=failed_increment,
                 concurrent_decremented=1
@@ -744,6 +790,14 @@ class AsyncPipelineExecutor:
                 )
             except Exception as e:
                 self.logger.warning(f"Failed to log BLOCKED state transition: {e}")
+
+            # CRITICAL: Decrement concurrent counter even for BLOCKED pipelines
+            # The api-service already incremented it via reserve_pipeline_quota_atomic()
+            # before we detected the duplicate, so we must decrement to avoid counter drift.
+            try:
+                await self._decrement_concurrent_counter()
+            except Exception as e:
+                self.logger.warning(f"Failed to decrement concurrent counter for BLOCKED pipeline: {e}")
 
             return {
                 "pipeline_logging_id": self.pipeline_logging_id,

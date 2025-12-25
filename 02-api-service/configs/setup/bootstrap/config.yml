@@ -71,6 +71,13 @@ tables:
       field: "start_time"
     clustering: ["org_slug", "pipeline_logging_id"]
 
+  org_meta_state_transitions:
+    description: "Pipeline and step state transition history for debugging and analytics"
+    partition:
+      type: "DAY"
+      field: "transition_time"
+    clustering: ["org_slug", "entity_type", "from_state", "to_state"]
+
   org_meta_dq_results:
     description: "Data quality results"
     partition:

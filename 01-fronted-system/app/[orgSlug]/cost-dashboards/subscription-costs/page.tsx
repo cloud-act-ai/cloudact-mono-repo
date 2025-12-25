@@ -697,7 +697,7 @@ export default function SubscriptionCostsPage() {
                             {formatCurrency(totalCost, orgCurrency)}
                           </div>
                           <div className="text-[11px] text-muted-foreground">
-                            {formatBillingCycle(plan.billing_cycle)}
+                            billed {formatBillingCycle(plan.billing_cycle).toLowerCase()}
                           </div>
                           {plan.seats && (
                             <div className="flex items-center justify-end gap-1 mt-1 text-[11px] text-muted-foreground">
@@ -969,9 +969,14 @@ export default function SubscriptionCostsPage() {
                           )}
                         </TableCell>
                         <TableCell className="console-table-cell text-right">
-                          <span className={`whitespace-nowrap ${isActive ? "text-slate-900 font-bold text-[17px]" : "text-[#C7C7CC] font-medium"}`}>
-                            {formatCurrency(totalCost, orgCurrency)}
-                          </span>
+                          <div className="whitespace-nowrap">
+                            <span className={`${isActive ? "text-slate-900 font-bold text-[17px]" : "text-[#C7C7CC] font-medium"}`}>
+                              {formatCurrency(totalCost, orgCurrency)}
+                            </span>
+                            <div className="text-[11px] text-muted-foreground font-medium">
+                              billed {formatBillingCycle(plan.billing_cycle).toLowerCase()}
+                            </div>
+                          </div>
                         </TableCell>
                         <TableCell className="console-table-cell text-right" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center justify-end gap-2">

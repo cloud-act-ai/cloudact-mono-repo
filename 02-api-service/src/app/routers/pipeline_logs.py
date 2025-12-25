@@ -319,7 +319,7 @@ async def list_pipeline_runs(
     WHERE {where_clause}
     """
 
-    # Get runs
+    # Get runs with error_context
     runs_query = f"""
     SELECT
         pipeline_logging_id,
@@ -435,7 +435,7 @@ async def get_pipeline_run_detail(
             detail="Access denied: org_slug mismatch"
         )
 
-    # Get pipeline run
+    # Get pipeline run with error_context
     run_query = f"""
     SELECT
         pipeline_logging_id,
@@ -489,7 +489,7 @@ async def get_pipeline_run_detail(
                 logger.warning(f"Failed to parse run_metadata JSON: {e}")
                 run_metadata = {"raw": row["run_metadata"]}
 
-        # Get step logs (only final statuses to avoid duplicates)
+        # Get step logs (only final statuses to avoid duplicates) with error_context
         steps_query = f"""
         SELECT
             step_logging_id,
@@ -653,6 +653,7 @@ async def get_step_logs(
     WHERE {where_clause}
     """
 
+    # error_context may not exist in older tables
     query = f"""
     SELECT
         step_logging_id,
@@ -665,7 +666,7 @@ async def get_step_logs(
         CAST(duration_ms AS INT64) as duration_ms,
         CAST(rows_processed AS INT64) as rows_processed,
         error_message,
-        error_context,
+        CAST(NULL AS JSON) as error_context,
         metadata
     FROM `{settings.gcp_project_id}.organizations.org_meta_step_logs`
     WHERE {where_clause}

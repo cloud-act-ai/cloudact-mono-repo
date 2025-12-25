@@ -85,6 +85,14 @@ BEGIN
   INTO v_org_currency, v_fiscal_year_start_month
   USING p_dataset_id AS p_ds;
 
+  -- FIX: Validate org was found (v_org_currency would be NULL if no rows returned)
+  -- If org not found, use default currency but log warning
+  IF v_org_currency IS NULL THEN
+    SET v_org_currency = v_default_currency;
+    -- Note: We continue rather than raising an error to allow processing
+    -- Plans may have been created before org_profiles was populated
+  END IF;
+
   BEGIN TRANSACTION;
 
     -- 2. Delete existing data for date range (idempotent)
