@@ -35,6 +35,7 @@ import {
   LogOut,
   ChevronDown,
   ChevronRight,
+  Network,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
@@ -404,6 +405,14 @@ export function MobileNav({
                   icon={Building}
                   label="Organization"
                   isItemActive={isActive(`/${orgSlug}/settings/organization`)}
+                />
+              )}
+              {userRole === "owner" && (
+                <NavItem
+                  href={`/${orgSlug}/settings/hierarchy`}
+                  icon={Network}
+                  label="Hierarchy"
+                  isItemActive={isActive(`/${orgSlug}/settings/hierarchy`)}
                 />
               )}
               <NavItem

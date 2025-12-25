@@ -1,0 +1,13 @@
+entity_type,entity_id,entity_name,parent_id,owner_id,owner_name,owner_email,description
+department,DEPT-ENG,Engineering,,,John Doe,john@example.com,Engineering department responsible for product development
+department,DEPT-SALES,Sales,,,Sarah Johnson,sarah@example.com,Sales and business development
+department,DEPT-OPS,Operations,,,Mike Chen,mike@example.com,IT Operations and infrastructure
+project,PROJ-PLATFORM,Platform,DEPT-ENG,,Jane Smith,jane@example.com,Core platform infrastructure project
+project,PROJ-MOBILE,Mobile App,DEPT-ENG,,Alex Wong,alex@example.com,Mobile application development
+project,PROJ-CRM,CRM System,DEPT-SALES,,Tom Brown,tom@example.com,Customer relationship management system
+project,PROJ-CLOUD,Cloud Infra,DEPT-OPS,,Lisa Park,lisa@example.com,Cloud infrastructure and DevOps
+team,TEAM-BACKEND,Backend,PROJ-PLATFORM,,Bob Wilson,bob@example.com,Backend API development team
+team,TEAM-FRONTEND,Frontend,PROJ-PLATFORM,,Emma Davis,emma@example.com,Frontend UI/UX development team
+team,TEAM-IOS,iOS,PROJ-MOBILE,,Chris Lee,chris@example.com,iOS mobile app team
+team,TEAM-ANDROID,Android,PROJ-MOBILE,,Nina Patel,nina@example.com,Android mobile app team
+team,TEAM-DEVOPS,DevOps,PROJ-CLOUD,,Kevin Zhang,kevin@example.com,DevOps and CI/CD team

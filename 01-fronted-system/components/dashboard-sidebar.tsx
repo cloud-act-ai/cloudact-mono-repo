@@ -42,6 +42,7 @@ import {
   Server,
   Brain,
   CreditCard as SubscriptionIcon,
+  Network,
 } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
@@ -538,6 +539,22 @@ export function DashboardSidebar({
                     <Link href={`/${orgSlug}/settings/organization`}>
                       <Building className="h-3.5 w-3.5 mr-2" />
                       Organization
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+
+              {userRole === "owner" && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    className={cn(
+                      isActive(`/${orgSlug}/settings/hierarchy`) ? activeItemClass : itemClass
+                    )}
+                  >
+                    <Link href={`/${orgSlug}/settings/hierarchy`}>
+                      <Network className="h-3.5 w-3.5 mr-2" />
+                      Hierarchy
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
