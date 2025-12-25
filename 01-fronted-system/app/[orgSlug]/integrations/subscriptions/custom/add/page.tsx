@@ -43,7 +43,7 @@ import {
   createCustomProviderWithPlan,
 } from "@/actions/subscription-providers"
 import { getOrgLocale } from "@/actions/organization-locale"
-import { SUPPORTED_CURRENCIES, getCurrencySymbol } from "@/lib/i18n"
+import { SUPPORTED_CURRENCIES, getCurrencySymbol, DEFAULT_CURRENCY } from "@/lib/i18n"
 
 // Categories with icons
 const CATEGORIES = [
@@ -79,7 +79,7 @@ export default function AddCustomProviderPage() {
   const isValidParams = orgSlug && typeof orgSlug === "string"
 
   // State
-  const [orgCurrency, setOrgCurrency] = useState<string>("USD")
+  const [orgCurrency, setOrgCurrency] = useState<string>(DEFAULT_CURRENCY)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)

@@ -58,7 +58,7 @@ import {
   TrendingUp,
 } from "lucide-react"
 import { logError } from "@/lib/utils"
-import { SUPPORTED_CURRENCIES, SUPPORTED_TIMEZONES, FISCAL_YEAR_OPTIONS, getFiscalYearFromTimezone } from "@/lib/i18n/constants"
+import { SUPPORTED_CURRENCIES, SUPPORTED_TIMEZONES, FISCAL_YEAR_OPTIONS, getFiscalYearFromTimezone, DEFAULT_CURRENCY } from "@/lib/i18n/constants"
 import {
   getOrgLocale,
   updateOrgLocale,
@@ -110,13 +110,13 @@ export default function OrganizationSettingsPage() {
   const [success, setSuccess] = useState<string | null>(null)
 
   // Locale fields
-  const [currency, setCurrency] = useState("USD")
+  const [currency, setCurrency] = useState(DEFAULT_CURRENCY)
   const [timezone, setTimezone] = useState("UTC")
   const [logoUrl, setLogoUrl] = useState("")
   const [fiscalYearStart, setFiscalYearStart] = useState(1) // 1=Jan, 4=Apr, 7=Jul, 10=Oct
 
   // Track original values to detect changes
-  const [originalCurrency, setOriginalCurrency] = useState("USD")
+  const [originalCurrency, setOriginalCurrency] = useState(DEFAULT_CURRENCY)
   const [originalTimezone, setOriginalTimezone] = useState("UTC")
   const [originalLogoUrl, setOriginalLogoUrl] = useState("")
   const [originalFiscalYearStart, setOriginalFiscalYearStart] = useState(1)

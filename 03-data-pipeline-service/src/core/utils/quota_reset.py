@@ -6,7 +6,7 @@ Should be called by a scheduler (Cloud Scheduler, cron, etc.)
 """
 
 import logging
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 from typing import Dict, Any, List
 from google.cloud import bigquery
 
@@ -14,6 +14,11 @@ from src.app.config import settings
 from src.core.engine.bq_client import get_bigquery_client
 
 logger = logging.getLogger(__name__)
+
+
+def get_utc_date() -> date:
+    """Get current date in UTC timezone to ensure consistency with BigQuery."""
+    return datetime.now(timezone.utc).date()
 
 
 async def reset_daily_quotas() -> Dict[str, Any]:
@@ -32,7 +37,7 @@ async def reset_daily_quotas() -> Dict[str, Any]:
         Dict with reset statistics
     """
     bq_client = get_bigquery_client()
-    today = date.today()
+    today = get_utc_date()  # Use UTC date for consistency with BigQuery
 
     # Insert new quota records for today for all active orgs
     # Copy limits from subscriptions
@@ -115,7 +120,7 @@ async def reset_monthly_quotas() -> Dict[str, Any]:
         Dict with reset statistics
     """
     bq_client = get_bigquery_client()
-    today = date.today()
+    today = get_utc_date()  # Use UTC date for consistency with BigQuery
 
     # Only run on the 1st of the month
     if today.day != 1:
@@ -184,6 +189,7 @@ async def reset_stale_concurrent_counts() -> Dict[str, Any]:
         Dict with reset statistics
     """
     bq_client = get_bigquery_client()
+    today = get_utc_date()  # Use UTC date for consistency
 
     # Find orgs with stale concurrent counts
     # A pipeline is stale if it's been RUNNING/PENDING for > 1 hour
@@ -202,7 +208,7 @@ async def reset_stale_concurrent_counts() -> Dict[str, Any]:
             org_slug,
             concurrent_pipelines_running
         FROM `{settings.gcp_project_id}.organizations.org_usage_quotas`
-        WHERE usage_date = CURRENT_DATE()
+        WHERE usage_date = @usage_date
     )
     SELECT
         q.org_slug,
@@ -214,7 +220,12 @@ async def reset_stale_concurrent_counts() -> Dict[str, Any]:
     """
 
     try:
-        results = list(bq_client.client.query(query).result())
+        results = list(bq_client.client.query(
+            query,
+            job_config=bigquery.QueryJobConfig(query_parameters=[
+                bigquery.ScalarQueryParameter("usage_date", "DATE", today)
+            ])
+        ).result())
 
         orgs_fixed = 0
 
@@ -247,14 +258,15 @@ async def reset_stale_concurrent_counts() -> Dict[str, Any]:
                 UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
                 SET concurrent_pipelines_running = @actual_count,
                     last_updated = CURRENT_TIMESTAMP()
-                WHERE org_slug = @org_slug AND usage_date = CURRENT_DATE()
+                WHERE org_slug = @org_slug AND usage_date = @usage_date
                 """
 
                 bq_client.client.query(
                     update_query,
                     job_config=bigquery.QueryJobConfig(query_parameters=[
                         bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
-                        bigquery.ScalarQueryParameter("actual_count", "INT64", actual_count)
+                        bigquery.ScalarQueryParameter("actual_count", "INT64", actual_count),
+                        bigquery.ScalarQueryParameter("usage_date", "DATE", today)
                     ])
                 ).result()
 
@@ -318,7 +330,7 @@ async def cleanup_old_quota_records(days_to_keep: int = 90) -> Dict[str, Any]:
         Dict with cleanup statistics
     """
     bq_client = get_bigquery_client()
-    cutoff_date = date.today() - timedelta(days=days_to_keep)
+    cutoff_date = get_utc_date() - timedelta(days=days_to_keep)
 
     delete_query = f"""
     DELETE FROM `{settings.gcp_project_id}.organizations.org_usage_quotas`

@@ -43,7 +43,7 @@ import {
   PlanUpdate,
 } from "@/actions/subscription-providers"
 import { getOrgLocale } from "@/actions/organization-locale"
-import { formatCurrency, formatDateOnly } from "@/lib/i18n"
+import { formatCurrency, formatDateOnly, DEFAULT_CURRENCY } from "@/lib/i18n"
 
 // Provider display names
 const PROVIDER_DISPLAY_NAMES: Record<string, string> = {
@@ -96,7 +96,7 @@ export default function EditSubscriptionPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [effectiveDate, setEffectiveDate] = useState<Date | undefined>(new Date())
-  const [orgCurrency, setOrgCurrency] = useState("USD")
+  const [orgCurrency, setOrgCurrency] = useState(DEFAULT_CURRENCY)
 
   // Edit form state
   // CRITICAL FIX: Initialize with undefined for numeric fields to avoid 0 validation issues

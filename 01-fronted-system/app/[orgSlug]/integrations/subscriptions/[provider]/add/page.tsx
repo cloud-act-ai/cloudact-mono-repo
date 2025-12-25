@@ -36,7 +36,7 @@ import {
   type AvailablePlan,
 } from "@/actions/subscription-providers"
 import { getOrgLocale } from "@/actions/organization-locale"
-import { formatCurrency, convertFromUSD, getExchangeRate } from "@/lib/i18n"
+import { formatCurrency, convertFromUSD, getExchangeRate, DEFAULT_CURRENCY } from "@/lib/i18n"
 
 // Provider display names
 const PROVIDER_DISPLAY_NAMES: Record<string, string> = {
@@ -98,7 +98,7 @@ export default function AddFromTemplatePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [templateError, setTemplateError] = useState<string | null>(null)
-  const [orgCurrency, setOrgCurrency] = useState<string>("USD")
+  const [orgCurrency, setOrgCurrency] = useState<string>(DEFAULT_CURRENCY)
 
   // Load org currency and available plans
   const loadData = useCallback(async (isMounted?: () => boolean) => {

@@ -67,7 +67,7 @@ import {
   type AvailablePlan,
   type PlanCreate,
 } from "@/actions/subscription-providers"
-import { formatCurrency, formatDateOnly, convertFromUSD, getExchangeRate, SUPPORTED_CURRENCIES, getCurrencySymbol } from "@/lib/i18n"
+import { formatCurrency, formatDateOnly, convertFromUSD, getExchangeRate, SUPPORTED_CURRENCIES, getCurrencySymbol, DEFAULT_CURRENCY } from "@/lib/i18n"
 import { getOrgLocale } from "@/actions/organization-locale"
 
 // Provider display names
@@ -169,7 +169,7 @@ export default function ProviderDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [providerMeta, setProviderMeta] = useState<ProviderMeta | null>(null)
   const [showDeleted, setShowDeleted] = useState(false)
-  const [orgCurrency, setOrgCurrency] = useState<string>("USD")
+  const [orgCurrency, setOrgCurrency] = useState<string>(DEFAULT_CURRENCY)
 
   // Sheet state
   const [templateSheetOpen, setTemplateSheetOpen] = useState(false)

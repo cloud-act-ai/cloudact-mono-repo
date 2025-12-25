@@ -38,7 +38,7 @@ import {
 import { CardSkeleton } from "@/components/ui/card-skeleton"
 import { TableSkeleton } from "@/components/ui/table-skeleton"
 import { createClient } from "@/lib/supabase/client"
-import { formatCurrency } from "@/lib/i18n"
+import { formatCurrency, DEFAULT_CURRENCY } from "@/lib/i18n"
 
 // Service icons
 const SERVICE_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -95,7 +95,7 @@ export default function CloudCostsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [orgCurrency, setOrgCurrency] = useState<string>("USD")
+  const [orgCurrency, setOrgCurrency] = useState<string>(DEFAULT_CURRENCY)
   const [summary, setSummary] = useState<CloudCostSummary | null>(null)
 
   const loadData = useCallback(async () => {

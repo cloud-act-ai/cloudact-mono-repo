@@ -57,6 +57,7 @@ import {
 } from "@/actions/subscription-providers"
 import { createClient } from "@/lib/supabase/client"
 import { formatCurrency } from "@/lib/i18n"
+import { DEFAULT_CURRENCY } from "@/lib/i18n/constants"
 
 // SaaS provider logos and metadata
 const SAAS_PROVIDERS = [
@@ -116,7 +117,7 @@ export default function SubscriptionCostsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [orgCurrency, setOrgCurrency] = useState<string>("USD")
+  const [orgCurrency, setOrgCurrency] = useState<string>(DEFAULT_CURRENCY)
   const [expandedRow, setExpandedRow] = useState<string | null>(null)
   const [planSummary, setPlanSummary] = useState<{
     total_monthly_cost: number

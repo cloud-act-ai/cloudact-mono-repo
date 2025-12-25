@@ -46,7 +46,7 @@ import {
   type DynamicPlan,
 } from "@/actions/stripe"
 import { logError } from "@/lib/utils"
-import { formatCurrency as formatCurrencyI18n } from "@/lib/i18n"
+import { formatCurrency as formatCurrencyI18n, DEFAULT_CURRENCY } from "@/lib/i18n"
 
 export default function BillingPage() {
   const params = useParams<{ orgSlug: string }>()
@@ -73,7 +73,7 @@ export default function BillingPage() {
   }>({ open: false, plan: null, isUpgrade: false })
   const [downgradeLimitError, setDowngradeLimitError] = useState<string | null>(null)
   const [currentMemberCount, setCurrentMemberCount] = useState<number>(0)
-  const [orgCurrency, setOrgCurrency] = useState<string>("USD")
+  const [orgCurrency, setOrgCurrency] = useState<string>(DEFAULT_CURRENCY)
 
   const orgSlug = params.orgSlug
 

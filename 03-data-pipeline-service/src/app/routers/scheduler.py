@@ -7,7 +7,7 @@ Supports hourly triggers, queue processing, and org pipeline configurations.
 from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks, Request
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field, ConfigDict
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 import uuid
 import logging
 from croniter import croniter
@@ -20,6 +20,11 @@ from google.cloud import bigquery
 import json
 
 logger = logging.getLogger(__name__)
+
+
+def get_utc_date() -> date:
+    """Get current date in UTC timezone to ensure consistency with BigQuery."""
+    return datetime.now(timezone.utc).date()
 
 router = APIRouter()
 
@@ -194,6 +199,7 @@ async def get_pipelines_due_now(
     """
     # Note: This assumes org_pipeline_configs table exists in organizations dataset
     # Schema should be created as part of scheduler setup
+    today = get_utc_date()  # Use UTC date for consistency
     query = f"""
     WITH due_pipelines AS (
         SELECT
@@ -216,7 +222,7 @@ async def get_pipelines_due_now(
         LEFT JOIN `{settings.gcp_project_id}.organizations.org_subscriptions` s
             ON p.org_slug = s.org_slug AND s.status = 'ACTIVE'
         LEFT JOIN `{settings.gcp_project_id}.organizations.org_usage_quotas` u
-            ON p.org_slug = u.org_slug AND u.usage_date = CURRENT_DATE()
+            ON p.org_slug = u.org_slug AND u.usage_date = @usage_date
         WHERE c.is_active = TRUE
           AND c.next_run_time <= CURRENT_TIMESTAMP()
           AND p.status = 'ACTIVE'
@@ -233,7 +239,8 @@ async def get_pipelines_due_now(
 
     job_config = bigquery.QueryJobConfig(
         query_parameters=[
-            bigquery.ScalarQueryParameter("limit", "INT64", limit)
+            bigquery.ScalarQueryParameter("limit", "INT64", limit),
+            bigquery.ScalarQueryParameter("usage_date", "DATE", today)
         ]
     )
 
@@ -558,6 +565,7 @@ async def process_queue(
                 break
 
             # Get next pipeline from queue (excluding orgs at their concurrent limit)
+            today = get_utc_date()  # Use UTC date for consistency
             query = f"""
             SELECT
                 q.run_id,
@@ -567,7 +575,7 @@ async def process_queue(
                 q.priority
             FROM `{settings.gcp_project_id}.organizations.org_pipeline_execution_queue` q
             LEFT JOIN `{settings.gcp_project_id}.organizations.org_usage_quotas` u
-                ON q.org_slug = u.org_slug AND u.usage_date = CURRENT_DATE()
+                ON q.org_slug = u.org_slug AND u.usage_date = @usage_date
             WHERE q.state = 'QUEUED'
               -- Only pick pipelines from orgs NOT at their concurrent limit
               AND (
@@ -578,7 +586,12 @@ async def process_queue(
             LIMIT 1
             """
 
-            results = list(bq_client.client.query(query).result())
+            results = list(bq_client.client.query(
+                query,
+                job_config=bigquery.QueryJobConfig(query_parameters=[
+                    bigquery.ScalarQueryParameter("usage_date", "DATE", today)
+                ])
+            ).result())
 
             if not results:
                 # Queue is empty

@@ -25,7 +25,7 @@ import {
   SubscriptionPlan,
 } from "@/actions/subscription-providers"
 import { getOrgLocale } from "@/actions/organization-locale"
-import { formatCurrency } from "@/lib/i18n"
+import { formatCurrency, DEFAULT_CURRENCY } from "@/lib/i18n"
 
 // Provider display names
 const PROVIDER_DISPLAY_NAMES: Record<string, string> = {
@@ -74,7 +74,7 @@ export default function EndSubscriptionPage() {
 
   // State
   const [plan, setPlan] = useState<SubscriptionPlan | null>(null)
-  const [currency, setCurrency] = useState<string>("USD")
+  const [currency, setCurrency] = useState<string>(DEFAULT_CURRENCY)
   const [loading, setLoading] = useState(true)
   const [ending, setEnding] = useState(false)
   const [error, setError] = useState<string | null>(null)

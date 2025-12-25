@@ -28,11 +28,11 @@ export const SUPPORTED_CURRENCIES: readonly CurrencyInfo[] = [
   { code: "USD", symbol: "$", name: "US Dollar", decimals: 2, country: "US" },
   { code: "EUR", symbol: "€", name: "Euro", decimals: 2, country: "DE" },
   { code: "GBP", symbol: "£", name: "British Pound", decimals: 2, country: "GB" },
-  { code: "JPY", symbol: "¥", name: "Japanese Yen", decimals: 0, country: "JP" },
+  { code: "JPY", symbol: "JP¥", name: "Japanese Yen", decimals: 0, country: "JP" },
   { code: "CHF", symbol: "Fr", name: "Swiss Franc", decimals: 2, country: "CH" },
   { code: "CAD", symbol: "C$", name: "Canadian Dollar", decimals: 2, country: "CA" },
   { code: "AUD", symbol: "A$", name: "Australian Dollar", decimals: 2, country: "AU" },
-  { code: "CNY", symbol: "¥", name: "Chinese Yuan", decimals: 2, country: "CN" },
+  { code: "CNY", symbol: "CN¥", name: "Chinese Yuan", decimals: 2, country: "CN" },
   { code: "INR", symbol: "₹", name: "Indian Rupee", decimals: 2, country: "IN" },
   { code: "SGD", symbol: "S$", name: "Singapore Dollar", decimals: 2, country: "SG" },
   // Arab Countries (6)

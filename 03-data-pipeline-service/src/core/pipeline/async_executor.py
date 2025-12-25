@@ -11,7 +11,7 @@ import importlib
 import traceback
 import atexit
 from typing import Dict, Any, List, Optional, Set
-from datetime import datetime
+from datetime import datetime, timezone, date
 from pathlib import Path
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
@@ -32,6 +32,14 @@ from src.core.observability.metrics import (
 from src.core.notifications.service import get_notification_service
 from src.core.utils.pipeline_lock import get_pipeline_lock_manager, PipelineLockManager
 from pydantic import ValidationError
+
+# ============================================
+# UTC Date Helper
+# ============================================
+def get_utc_date() -> date:
+    """Get current date in UTC timezone to ensure consistency with BigQuery."""
+    return datetime.now(timezone.utc).date()
+
 
 # Import OpenTelemetry for distributed tracing
 try:
@@ -547,6 +555,7 @@ class AsyncPipelineExecutor:
             # BigQuery UPDATE is atomic: all SET expressions evaluate OLD values first,
             # then apply updates transactionally. This prevents race conditions when
             # multiple pipeline instances increment counters concurrently.
+            today = get_utc_date()  # Use UTC date for consistency
             update_query = f"""
             UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
             SET
@@ -555,12 +564,13 @@ class AsyncPipelineExecutor:
                 last_updated = CURRENT_TIMESTAMP()
             WHERE
                 org_slug = @org_slug
-                AND usage_date = CURRENT_DATE()
+                AND usage_date = @usage_date
             """
 
             job_config = bigquery.QueryJobConfig(
                 query_parameters=[
                     bigquery.ScalarQueryParameter("org_slug", "STRING", self.org_slug),
+                    bigquery.ScalarQueryParameter("usage_date", "DATE", today),
                 ]
             )
 
@@ -579,7 +589,7 @@ class AsyncPipelineExecutor:
             query_count = f"""
             SELECT concurrent_pipelines_running
             FROM `{settings.gcp_project_id}.organizations.org_usage_quotas`
-            WHERE org_slug = @org_slug AND usage_date = CURRENT_DATE()
+            WHERE org_slug = @org_slug AND usage_date = @usage_date
             """
 
             count_result = await loop.run_in_executor(
@@ -610,6 +620,7 @@ class AsyncPipelineExecutor:
         from src.app.config import settings
 
         try:
+            today = get_utc_date()  # Use UTC date for consistency
             decrement_query = f"""
             UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
             SET
@@ -617,12 +628,13 @@ class AsyncPipelineExecutor:
                 last_updated = CURRENT_TIMESTAMP()
             WHERE
                 org_slug = @org_slug
-                AND usage_date = CURRENT_DATE()
+                AND usage_date = @usage_date
             """
 
             job_config = bigquery.QueryJobConfig(
                 query_parameters=[
                     bigquery.ScalarQueryParameter("org_slug", "STRING", self.org_slug),
+                    bigquery.ScalarQueryParameter("usage_date", "DATE", today),
                 ]
             )
 
@@ -674,6 +686,7 @@ class AsyncPipelineExecutor:
             # NOTE: pipelines_run_today and pipelines_run_month are NOT incremented here
             # because api-service's reserve_pipeline_quota_atomic() already incremented them
             # when the pipeline was started. We only update success/fail counters and decrement concurrent.
+            today = get_utc_date()  # Use UTC date for consistency
             update_query = f"""
             UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
             SET
@@ -684,7 +697,7 @@ class AsyncPipelineExecutor:
                 last_updated = CURRENT_TIMESTAMP()
             WHERE
                 org_slug = @org_slug
-                AND usage_date = CURRENT_DATE()
+                AND usage_date = @usage_date
             """
 
             job_config = bigquery.QueryJobConfig(
@@ -692,6 +705,7 @@ class AsyncPipelineExecutor:
                     bigquery.ScalarQueryParameter("org_slug", "STRING", self.org_slug),
                     bigquery.ScalarQueryParameter("success_increment", "INT64", success_increment),
                     bigquery.ScalarQueryParameter("failed_increment", "INT64", failed_increment),
+                    bigquery.ScalarQueryParameter("usage_date", "DATE", today),
                 ]
             )
 

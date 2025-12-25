@@ -30,6 +30,7 @@ import json
 from google.cloud import bigquery
 from src.core.engine.bq_client import get_bigquery_client
 from src.app.config import settings
+from src.app.models.i18n_models import DEFAULT_CURRENCY
 
 logger = logging.getLogger(__name__)
 
@@ -227,7 +228,7 @@ class CostSummary:
     date_range: Tuple[Optional[date], Optional[date]]
     providers: List[str]
     service_categories: List[str]
-    currency: str = "USD"
+    currency: str = field(default_factory=lambda: DEFAULT_CURRENCY.value)
 
 
 @dataclass

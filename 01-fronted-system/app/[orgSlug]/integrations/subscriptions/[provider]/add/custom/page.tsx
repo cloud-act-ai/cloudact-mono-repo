@@ -37,7 +37,7 @@ import {
   type PlanCreate,
 } from "@/actions/subscription-providers"
 import { getOrgLocale } from "@/actions/organization-locale"
-import { formatCurrency, SUPPORTED_CURRENCIES, getCurrencySymbol } from "@/lib/i18n"
+import { formatCurrency, SUPPORTED_CURRENCIES, getCurrencySymbol, DEFAULT_CURRENCY } from "@/lib/i18n"
 
 // Extended form data to include audit trail from template
 interface FormDataWithAudit extends PlanCreate {
@@ -92,7 +92,7 @@ export default function AddCustomSubscriptionPage() {
   const isValidParams = orgSlug && provider && typeof orgSlug === "string" && typeof provider === "string"
 
   // State
-  const [orgCurrency, setOrgCurrency] = useState<string>("USD")
+  const [orgCurrency, setOrgCurrency] = useState<string>(DEFAULT_CURRENCY)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)

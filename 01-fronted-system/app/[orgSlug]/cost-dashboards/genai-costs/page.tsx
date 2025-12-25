@@ -52,6 +52,7 @@ import { CardSkeleton } from "@/components/ui/card-skeleton"
 import { TableSkeleton } from "@/components/ui/table-skeleton"
 import { createClient } from "@/lib/supabase/client"
 import { formatCurrency } from "@/lib/i18n"
+import { DEFAULT_CURRENCY } from "@/lib/i18n/constants"
 
 // LLM Provider icons
 const PROVIDER_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -147,7 +148,7 @@ export default function GenAICostsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [orgCurrency, setOrgCurrency] = useState<string>("USD")
+  const [orgCurrency, setOrgCurrency] = useState<string>(DEFAULT_CURRENCY)
   const [summary, setSummary] = useState<LLMUsageSummary | null>(null)
   const [isMounted, setIsMounted] = useState(false)
 

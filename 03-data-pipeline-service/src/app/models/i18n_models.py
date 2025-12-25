@@ -46,15 +46,16 @@ class SupportedCurrency(str, Enum):
 
 
 # Currency metadata for display and formatting
+# NOTE: JPY and CNY use distinct symbols (JP¥ and CN¥) to avoid ambiguity
 CURRENCY_METADATA: Dict[str, Dict[str, Any]] = {
     "USD": {"symbol": "$", "name": "US Dollar", "decimals": 2, "country": "US"},
     "EUR": {"symbol": "€", "name": "Euro", "decimals": 2, "country": "DE"},
     "GBP": {"symbol": "£", "name": "British Pound", "decimals": 2, "country": "GB"},
-    "JPY": {"symbol": "¥", "name": "Japanese Yen", "decimals": 0, "country": "JP"},
+    "JPY": {"symbol": "JP¥", "name": "Japanese Yen", "decimals": 0, "country": "JP"},
     "CHF": {"symbol": "Fr", "name": "Swiss Franc", "decimals": 2, "country": "CH"},
     "CAD": {"symbol": "C$", "name": "Canadian Dollar", "decimals": 2, "country": "CA"},
     "AUD": {"symbol": "A$", "name": "Australian Dollar", "decimals": 2, "country": "AU"},
-    "CNY": {"symbol": "¥", "name": "Chinese Yuan", "decimals": 2, "country": "CN"},
+    "CNY": {"symbol": "CN¥", "name": "Chinese Yuan", "decimals": 2, "country": "CN"},
     "INR": {"symbol": "₹", "name": "Indian Rupee", "decimals": 2, "country": "IN"},
     "SGD": {"symbol": "S$", "name": "Singapore Dollar", "decimals": 2, "country": "SG"},
     "AED": {"symbol": "د.إ", "name": "UAE Dirham", "decimals": 2, "country": "AE"},

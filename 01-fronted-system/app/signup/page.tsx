@@ -60,7 +60,7 @@ function SignupForm() {
   const [phoneNumber, setPhoneNumber] = useState("")
   const [companyName, setCompanyName] = useState("")
   const [companyType, setCompanyType] = useState("company")
-  const [currency, setCurrency] = useState("USD")
+  const [currency, setCurrency] = useState(DEFAULT_CURRENCY)
   const [timezone, setTimezone] = useState("UTC")
   const [serverError, setServerError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)

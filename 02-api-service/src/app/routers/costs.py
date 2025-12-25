@@ -27,6 +27,7 @@ from src.core.services.cost_service import (
     CostResponse,
     PolarsCostService
 )
+from src.app.models.i18n_models import DEFAULT_CURRENCY, validate_currency
 from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
 from src.app.config import settings
 from google.cloud import bigquery
@@ -163,7 +164,7 @@ async def _get_org_currency(org_slug: str, bq_client: BigQueryClient) -> str:
     Fetch organization's default currency from org_profiles table.
 
     Returns:
-        Currency code (e.g., USD, INR, AED) or "USD" if not found
+        Currency code (e.g., USD, INR, AED) or DEFAULT_CURRENCY if not found/invalid
     """
     try:
         query = f"""
@@ -181,16 +182,25 @@ async def _get_org_currency(org_slug: str, bq_client: BigQueryClient) -> str:
         ))
 
         if results and results[0].get("default_currency"):
-            return results[0]["default_currency"]
+            currency = results[0]["default_currency"]
+            # Validate the currency is in supported list
+            if validate_currency(currency):
+                return currency
+            else:
+                logger.warning(
+                    f"Invalid currency '{currency}' for org {org_slug}, using default",
+                    extra={"org_slug": org_slug, "invalid_currency": currency}
+                )
+                return DEFAULT_CURRENCY.value
 
-        # Default to USD if not found
-        return "USD"
+        # Default if not found
+        return DEFAULT_CURRENCY.value
     except Exception as e:
         logger.warning(
-            f"Failed to fetch org currency for {org_slug}, defaulting to USD",
+            f"Failed to fetch org currency for {org_slug}, using default",
             extra={"org_slug": org_slug, "error": str(e)}
         )
-        return "USD"
+        return DEFAULT_CURRENCY.value
 
 
 def _to_response(cost_response: CostResponse, currency: Optional[str] = None) -> CostDataResponse:
