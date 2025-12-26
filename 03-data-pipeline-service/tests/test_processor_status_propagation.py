@@ -50,10 +50,13 @@ async def test_processor_failure_status_propagation():
             ]
         }
 
-        # Mock metadata logger
+        # Mock metadata logger - all async methods need AsyncMock
         executor.metadata_logger = MagicMock()
         executor.metadata_logger.log_step_start = AsyncMock()
         executor.metadata_logger.log_step_end = AsyncMock()
+        executor.metadata_logger.log_state_transition = AsyncMock()
+        executor.metadata_logger.log_pipeline_start = AsyncMock()
+        executor.metadata_logger.log_pipeline_end = AsyncMock()
 
         # Execute the step - should raise exception due to FAILED status
         step_config = {
@@ -116,10 +119,13 @@ async def test_processor_success_status_propagation():
             ]
         }
 
-        # Mock metadata logger
+        # Mock metadata logger - all async methods need AsyncMock
         executor.metadata_logger = MagicMock()
         executor.metadata_logger.log_step_start = AsyncMock()
         executor.metadata_logger.log_step_end = AsyncMock()
+        executor.metadata_logger.log_state_transition = AsyncMock()
+        executor.metadata_logger.log_pipeline_start = AsyncMock()
+        executor.metadata_logger.log_pipeline_end = AsyncMock()
 
         # Execute the step - should NOT raise exception
         step_config = {
@@ -174,10 +180,13 @@ async def test_processor_missing_status_defaults_to_success():
             ]
         }
 
-        # Mock metadata logger
+        # Mock metadata logger - all async methods need AsyncMock
         executor.metadata_logger = MagicMock()
         executor.metadata_logger.log_step_start = AsyncMock()
         executor.metadata_logger.log_step_end = AsyncMock()
+        executor.metadata_logger.log_state_transition = AsyncMock()
+        executor.metadata_logger.log_pipeline_start = AsyncMock()
+        executor.metadata_logger.log_pipeline_end = AsyncMock()
 
         # Execute the step - should NOT raise exception (backward compatibility)
         step_config = {

@@ -11,6 +11,7 @@ Usage:
     python calculate_costs.py --provider openai                  # Specific provider
     python calculate_costs.py --consolidate                      # Run consolidation after
 """
+import os
 import sys
 import csv
 import argparse
@@ -19,7 +20,16 @@ from pathlib import Path
 from typing import List, Dict
 
 # Add current directory to path for imports
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+SCRIPT_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(SCRIPT_DIR))
+
+# Load .env file if exists
+ENV_FILE = SCRIPT_DIR / ".env"
+if ENV_FILE.exists():
+    for line in ENV_FILE.read_text().splitlines():
+        if line.strip() and not line.startswith("#") and "=" in line:
+            key, value = line.split("=", 1)
+            os.environ.setdefault(key.strip(), value.strip())
 
 from utils.pricing_loader import (
     calculate_cost,

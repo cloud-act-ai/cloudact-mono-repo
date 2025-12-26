@@ -5,7 +5,7 @@ export_usage.py
 Export comprehensive raw usage data to CSV with 50+ columns.
 Appends to existing CSV file for ongoing analysis.
 
-Output: output/usage/usage_raw.csv
+Output: output/usage/genai_payg_usage.csv
 """
 import sys
 import csv
@@ -15,16 +15,30 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Dict, Optional
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+# Add current directory to path for imports
+SCRIPT_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(SCRIPT_DIR))
+
+# Load .env file if exists
+ENV_FILE = SCRIPT_DIR / ".env"
+if ENV_FILE.exists():
+    for line in ENV_FILE.read_text().splitlines():
+        if line.strip() and not line.startswith("#") and "=" in line:
+            key, value = line.split("=", 1)
+            os.environ.setdefault(key.strip(), value.strip())
 
 from utils.usage_store import get_usage
 from utils.pricing_loader import calculate_cost, get_model_pricing
 
-# Paths
+# Paths - Updated for genai structure
 DATA_DIR = Path(__file__).resolve().parent / "data"
 OUTPUT_DIR = Path("output")
-USAGE_ADVANCED_CSV = OUTPUT_DIR / "usage_advanced.csv"
-COST_ADVANCED_CSV = OUTPUT_DIR / "cost_advanced.csv"
+USAGE_DIR = OUTPUT_DIR / "usage"
+COSTS_DIR = OUTPUT_DIR / "costs"
+
+# New genai paths
+USAGE_ADVANCED_CSV = USAGE_DIR / "genai_payg_usage.csv"
+COST_ADVANCED_CSV = COSTS_DIR / "genai_payg_costs.csv"
 EXCHANGE_RATES_CSV = DATA_DIR / "exchange-rates.csv"
 
 # Exchange rate cache

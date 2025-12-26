@@ -42,20 +42,25 @@ def run_openai() -> dict:
     try:
         result = openai_api.generate_traffic()
 
-        # Calculate cost using new pricing loader
+        # Extract cached tokens from API response
+        cached_tokens = result.get("cached_tokens", 0)
+
+        # Calculate cost using new pricing loader (with cached tokens)
         cost_data = calculate_cost(
             provider="openai",
             model=result["model"],
             input_tokens=result["input_tokens"],
             output_tokens=result["output_tokens"],
+            cached_input_tokens=cached_tokens,
         )
 
-        # Log to genai_payg_usage.csv
+        # Log to genai_payg_usage.csv (with cached tokens)
         log_payg_usage(
             provider="openai",
             model=result["model"],
             input_tokens=result["input_tokens"],
             output_tokens=result["output_tokens"],
+            cached_tokens=cached_tokens,
             cost_usd=cost_data["total_cost"],
             request_id=result.get("request_id", ""),
             org_slug="acme",
@@ -67,6 +72,8 @@ def run_openai() -> dict:
         print(f"  Model: {result['model']}")
         print(f"  Input tokens: {result['input_tokens']}")
         print(f"  Output tokens: {result['output_tokens']}")
+        if cached_tokens > 0:
+            print(f"  Cached tokens: {cached_tokens}")
         print(f"  Total cost: ${cost_data['total_cost']:.6f}")
         print(f"  Latency: {result['latency_ms']:.2f}ms")
         print(f"  Request ID: {result.get('request_id')}")
@@ -86,20 +93,28 @@ def run_anthropic() -> dict:
     try:
         result = anthropic_api.generate_traffic()
 
-        # Calculate cost using new pricing loader
+        # Extract cached tokens (Anthropic has read + write cache)
+        cached_read = result.get("cache_read_tokens", 0)
+        cached_write = result.get("cache_creation_tokens", 0)
+        cached_tokens = cached_read + cached_write
+
+        # Calculate cost using new pricing loader (with cached tokens)
         cost_data = calculate_cost(
             provider="anthropic",
             model=result["model"],
             input_tokens=result["input_tokens"],
             output_tokens=result["output_tokens"],
+            cached_input_tokens=cached_read,
+            cached_write_tokens=cached_write,
         )
 
-        # Log to genai_payg_usage.csv
+        # Log to genai_payg_usage.csv (with cached tokens)
         log_payg_usage(
             provider="anthropic",
             model=result["model"],
             input_tokens=result["input_tokens"],
             output_tokens=result["output_tokens"],
+            cached_tokens=cached_tokens,
             cost_usd=cost_data["total_cost"],
             request_id=result.get("request_id", ""),
             org_slug="acme",
@@ -111,6 +126,8 @@ def run_anthropic() -> dict:
         print(f"  Model: {result['model']}")
         print(f"  Input tokens: {result['input_tokens']}")
         print(f"  Output tokens: {result['output_tokens']}")
+        if cached_tokens > 0:
+            print(f"  Cached tokens: {cached_tokens} (read={cached_read}, write={cached_write})")
         print(f"  Total cost: ${cost_data['total_cost']:.6f}")
         print(f"  Latency: {result['latency_ms']:.2f}ms")
         print(f"  Request ID: {result.get('request_id')}")
@@ -130,20 +147,25 @@ def run_gemini() -> dict:
     try:
         result = gemini_api.generate_traffic()
 
-        # Calculate cost using new pricing loader
+        # Extract cached tokens from Gemini response
+        cached_tokens = result.get("cached_tokens", 0)
+
+        # Calculate cost using new pricing loader (with cached tokens)
         cost_data = calculate_cost(
             provider="gemini",
             model=result["model"],
             input_tokens=result["input_tokens"],
             output_tokens=result["output_tokens"],
+            cached_input_tokens=cached_tokens,
         )
 
-        # Log to genai_payg_usage.csv
+        # Log to genai_payg_usage.csv (with cached tokens)
         log_payg_usage(
             provider="gemini",
             model=result["model"],
             input_tokens=result["input_tokens"],
             output_tokens=result["output_tokens"],
+            cached_tokens=cached_tokens,
             cost_usd=cost_data["total_cost"],
             org_slug="acme",
             environment="dev",
@@ -154,6 +176,8 @@ def run_gemini() -> dict:
         print(f"  Model: {result['model']}")
         print(f"  Input tokens: {result['input_tokens']}")
         print(f"  Output tokens: {result['output_tokens']}")
+        if cached_tokens > 0:
+            print(f"  Cached tokens: {cached_tokens}")
         print(f"  Total cost: ${cost_data['total_cost']:.6f}")
         print(f"  Latency: {result['latency_ms']:.2f}ms")
         print("  Status: SUCCESS\n")
@@ -179,20 +203,25 @@ def run_azure_openai() -> dict:
         # Override with Azure-equivalent model
         azure_model = "gpt-4o"  # Azure hosted
 
-        # Calculate cost using azure_openai pricing
+        # Extract cached tokens from response
+        cached_tokens = result.get("cached_tokens", 0)
+
+        # Calculate cost using azure_openai pricing (with cached tokens)
         cost_data = calculate_cost(
             provider="azure_openai",
             model=azure_model,
             input_tokens=result["input_tokens"],
             output_tokens=result["output_tokens"],
+            cached_input_tokens=cached_tokens,
         )
 
-        # Log to genai_payg_usage.csv as azure_openai
+        # Log to genai_payg_usage.csv as azure_openai (with cached tokens)
         log_payg_usage(
             provider="azure_openai",
             model=azure_model,
             input_tokens=result["input_tokens"],
             output_tokens=result["output_tokens"],
+            cached_tokens=cached_tokens,
             cost_usd=cost_data["total_cost"],
             request_id=result.get("request_id", ""),
             org_slug="acme",
@@ -204,6 +233,8 @@ def run_azure_openai() -> dict:
         print(f"  Model: {azure_model} (Azure hosted)")
         print(f"  Input tokens: {result['input_tokens']}")
         print(f"  Output tokens: {result['output_tokens']}")
+        if cached_tokens > 0:
+            print(f"  Cached tokens: {cached_tokens}")
         print(f"  Total cost: ${cost_data['total_cost']:.6f}")
         print(f"  Latency: {result['latency_ms']:.2f}ms")
         print("  Status: SUCCESS\n")
@@ -213,6 +244,7 @@ def run_azure_openai() -> dict:
             "model": azure_model,
             "input_tokens": result["input_tokens"],
             "output_tokens": result["output_tokens"],
+            "cached_tokens": cached_tokens,
             "calculated_cost_usd": cost_data["total_cost"],
             "latency_ms": result.get("latency_ms", 0),
         }

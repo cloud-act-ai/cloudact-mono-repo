@@ -200,28 +200,28 @@ export function DashboardSidebar({
     return pathname === path || pathname.startsWith(path + "/")
   }
 
-  // Premium editorial styling - compact menu items with coral highlight
-  // Using 12px for menu items, smaller icons for refined look
+  // Premium editorial styling - refined menu items with subtle interactions
+  // Using text-sm (14px) for better readability, subtle hover states
   const itemClass = cn(
-    "h-[28px] px-3 text-[12px] font-medium text-slate-600",
-    "hover:bg-[var(--cloudact-coral)]/8 hover:text-[var(--cloudact-coral)]",
-    "rounded-lg mx-2 transition-all duration-150",
-    "flex items-center gap-2"
+    "h-[36px] px-3 text-sm font-medium text-slate-600",
+    "hover:bg-slate-100 hover:text-slate-900",
+    "rounded-md mx-2 transition-all duration-200",
+    "flex items-center gap-3"
   )
   const activeItemClass = cn(
-    "h-[28px] px-3 text-[12px] font-semibold text-[var(--cloudact-coral)]",
-    "bg-[var(--cloudact-coral)]/10 rounded-lg mx-2",
-    "flex items-center gap-2",
+    "h-[36px] px-3 text-sm font-semibold text-[var(--cloudact-mint-text)]",
+    "bg-[var(--cloudact-mint)]/10 rounded-md mx-2",
+    "flex items-center gap-3",
     "relative before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2",
-    "before:w-[3px] before:h-3.5 before:bg-[var(--cloudact-coral)] before:rounded-full"
+    "before:w-[3px] before:h-4 before:bg-[var(--cloudact-mint)] before:rounded-r-full"
   )
 
-  // Section icons for visual hierarchy
+  // Section icons for visual hierarchy - slightly larger
   const sectionIcons: Record<SectionId, React.ReactNode> = {
-    dashboards: <BarChart3 className="h-3.5 w-3.5" />,
-    pipelines: <Workflow className="h-3.5 w-3.5" />,
-    integrations: <Server className="h-3.5 w-3.5" />,
-    settings: <Settings className="h-3.5 w-3.5" />,
+    dashboards: <BarChart3 className="h-4 w-4" />,
+    pipelines: <Workflow className="h-4 w-4" />,
+    integrations: <Server className="h-4 w-4" />,
+    settings: <Settings className="h-4 w-4" />,
   }
 
   const SectionHeader = ({
@@ -235,37 +235,37 @@ export function DashboardSidebar({
   }) => (
     <div
       className={cn(
-        "py-2.5 px-4 flex items-center justify-between cursor-pointer",
-        "hover:bg-slate-50/80 transition-all duration-150",
+        "py-3 px-4 flex items-center justify-between cursor-pointer group",
+        "hover:bg-slate-50 transition-colors duration-200",
         isExpanded && "bg-slate-50/50"
       )}
       onClick={() => toggleSection(section)}
     >
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2.5">
         <span className={cn(
-          "text-slate-400 transition-colors",
-          isExpanded && "text-[var(--cloudact-coral)]"
+          "text-slate-400 transition-colors group-hover:text-slate-600",
+          isExpanded && "text-[var(--cloudact-mint-text)]"
         )}>
           {sectionIcons[section]}
         </span>
         <span className={cn(
-          "text-[13px] font-semibold uppercase tracking-wider transition-colors",
-          isExpanded ? "text-slate-700" : "text-slate-500"
+          "text-xs font-semibold uppercase tracking-wider transition-colors",
+          isExpanded ? "text-slate-900" : "text-slate-500 group-hover:text-slate-700"
         )}>
           {title}
         </span>
       </div>
       <div className={cn(
         "h-5 w-5 rounded-md flex items-center justify-center transition-all",
-        isExpanded ? "bg-[var(--cloudact-coral)]/10" : "bg-transparent"
+        isExpanded ? "bg-[var(--cloudact-mint)]/10" : "bg-transparent"
       )}>
         {isExpanded ? (
           <ChevronDown className={cn(
             "h-3.5 w-3.5 transition-colors",
-            isExpanded ? "text-[var(--cloudact-coral)]" : "text-slate-400"
+            isExpanded ? "text-[var(--cloudact-mint-text)]" : "text-slate-400"
           )} />
         ) : (
-          <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
+          <ChevronRight className="h-3.5 w-3.5 text-slate-400 group-hover:text-slate-500" />
         )}
       </div>
     </div>
@@ -302,7 +302,7 @@ export function DashboardSidebar({
               )}
             </div>
             {!isCollapsed && (
-              <span className="text-[13px] font-semibold text-slate-900 truncate max-w-[120px]">
+              <span className="text-sm font-bold text-slate-900 truncate max-w-[140px] tracking-tight">
                 {formattedOrgName}
               </span>
             )}
@@ -359,7 +359,7 @@ export function DashboardSidebar({
                   )}
                 >
                   <Link href={`/${orgSlug}/cost-dashboards/overview`}>
-                    <LayoutDashboard className="h-3.5 w-3.5 flex-shrink-0" />
+                    <LayoutDashboard className="h-4 w-4 flex-shrink-0" />
                     <span>Overview</span>
                   </Link>
                 </SidebarMenuButton>
@@ -372,7 +372,7 @@ export function DashboardSidebar({
                   )}
                 >
                   <Link href={`/${orgSlug}/cost-dashboards/subscription-costs`}>
-                    <Receipt className="h-3.5 w-3.5 flex-shrink-0" />
+                    <Receipt className="h-4 w-4 flex-shrink-0" />
                     <span>Subscriptions</span>
                   </Link>
                 </SidebarMenuButton>
@@ -385,7 +385,7 @@ export function DashboardSidebar({
                   )}
                 >
                   <Link href={`/${orgSlug}/cost-dashboards/genai-costs`}>
-                    <Sparkles className="h-3.5 w-3.5 flex-shrink-0" />
+                    <Sparkles className="h-4 w-4 flex-shrink-0" />
                     <span>GenAI</span>
                   </Link>
                 </SidebarMenuButton>
@@ -398,7 +398,7 @@ export function DashboardSidebar({
                   )}
                 >
                   <Link href={`/${orgSlug}/cost-dashboards/cloud-costs`}>
-                    <Cloud className="h-3.5 w-3.5 flex-shrink-0" />
+                    <Cloud className="h-4 w-4 flex-shrink-0" />
                     <span>Cloud</span>
                   </Link>
                 </SidebarMenuButton>
@@ -433,7 +433,7 @@ export function DashboardSidebar({
                   )}
                 >
                   <Link href={`/${orgSlug}/pipelines/subscription-runs`}>
-                    <RefreshCw className="h-3.5 w-3.5 flex-shrink-0" />
+                    <RefreshCw className="h-4 w-4 flex-shrink-0" />
                     <span>Subscription Runs</span>
                   </Link>
                 </SidebarMenuButton>
@@ -446,7 +446,7 @@ export function DashboardSidebar({
                   )}
                 >
                   <Link href={`/${orgSlug}/pipelines/cost-runs`}>
-                    <Workflow className="h-3.5 w-3.5 flex-shrink-0" />
+                    <Workflow className="h-4 w-4 flex-shrink-0" />
                     <span>Cost Runs</span>
                   </Link>
                 </SidebarMenuButton>
@@ -459,7 +459,7 @@ export function DashboardSidebar({
                   )}
                 >
                   <Link href={`/${orgSlug}/pipelines/genai-runs`}>
-                    <Cpu className="h-3.5 w-3.5 flex-shrink-0" />
+                    <Cpu className="h-4 w-4 flex-shrink-0" />
                     <span>GenAI Runs</span>
                   </Link>
                 </SidebarMenuButton>
@@ -476,17 +476,17 @@ export function DashboardSidebar({
 
           {/* User Profile - First */}
           {!isCollapsed && (
-            <div className="px-4 py-3 flex items-center gap-3">
-              <div className="h-8 w-8 rounded-full bg-gradient-to-br from-[var(--cloudact-mint)] to-[var(--cloudact-mint-light)] flex items-center justify-center flex-shrink-0">
-                <span className="text-[var(--cloudact-mint-text)] text-[11px] font-semibold">
+            <div className="px-4 py-3 flex items-center gap-3 hover:bg-slate-50 transition-colors cursor-pointer group rounded-md mx-2 mb-1">
+              <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-slate-100 to-slate-200 border border-slate-200 flex items-center justify-center flex-shrink-0 shadow-sm group-hover:from-[var(--cloudact-mint)] group-hover:to-[var(--cloudact-mint-light)] transition-all">
+                <span className="text-slate-600 group-hover:text-[var(--cloudact-mint-text)] text-xs font-bold">
                   {getUserInitials(userName)}
                 </span>
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-[12px] font-semibold text-slate-900 truncate">
+                <p className="text-sm font-semibold text-slate-800 truncate group-hover:text-slate-900">
                   {formatUserName(userName)}
                 </p>
-                <p className="text-[10px] text-slate-500 truncate">
+                <p className="text-[11px] text-slate-400 truncate group-hover:text-slate-500">
                   {userEmail}
                 </p>
               </div>
@@ -529,7 +529,7 @@ export function DashboardSidebar({
                   )}
                 >
                   <Link href={`/${orgSlug}/integrations/cloud-providers`}>
-                    <Server className="h-3.5 w-3.5 flex-shrink-0" />
+                    <Server className="h-4 w-4 flex-shrink-0" />
                     <span>Cloud Providers</span>
                   </Link>
                 </SidebarMenuButton>
@@ -542,7 +542,7 @@ export function DashboardSidebar({
                   )}
                 >
                   <Link href={`/${orgSlug}/integrations/llm`}>
-                    <Brain className="h-3.5 w-3.5 flex-shrink-0" />
+                    <Brain className="h-4 w-4 flex-shrink-0" />
                     <span>LLM Providers</span>
                   </Link>
                 </SidebarMenuButton>
@@ -555,7 +555,7 @@ export function DashboardSidebar({
                   )}
                 >
                   <Link href={`/${orgSlug}/integrations/subscriptions`}>
-                    <SubscriptionIcon className="h-3.5 w-3.5 flex-shrink-0" />
+                    <SubscriptionIcon className="h-4 w-4 flex-shrink-0" />
                     <span>Subscriptions</span>
                   </Link>
                 </SidebarMenuButton>
@@ -590,7 +590,7 @@ export function DashboardSidebar({
                   )}
                 >
                   <Link href={`/${orgSlug}/settings/personal`}>
-                    <User className="h-3.5 w-3.5 flex-shrink-0" />
+                    <User className="h-4 w-4 flex-shrink-0" />
                     <span>Profile</span>
                   </Link>
                 </SidebarMenuButton>
@@ -605,7 +605,7 @@ export function DashboardSidebar({
                     )}
                   >
                     <Link href={`/${orgSlug}/settings/organization`}>
-                      <Building className="h-3.5 w-3.5 flex-shrink-0" />
+                      <Building className="h-4 w-4 flex-shrink-0" />
                       <span>Organization</span>
                     </Link>
                   </SidebarMenuButton>
@@ -621,7 +621,7 @@ export function DashboardSidebar({
                     )}
                   >
                     <Link href={`/${orgSlug}/settings/hierarchy`}>
-                      <Network className="h-3.5 w-3.5 flex-shrink-0" />
+                      <Network className="h-4 w-4 flex-shrink-0" />
                       <span>Hierarchy</span>
                     </Link>
                   </SidebarMenuButton>
@@ -636,7 +636,7 @@ export function DashboardSidebar({
                   )}
                 >
                   <Link href={`/${orgSlug}/settings/quota-usage`}>
-                    <BarChart3 className="h-3.5 w-3.5 flex-shrink-0" />
+                    <BarChart3 className="h-4 w-4 flex-shrink-0" />
                     <span>Usage & Quotas</span>
                   </Link>
                 </SidebarMenuButton>
@@ -650,7 +650,7 @@ export function DashboardSidebar({
                   )}
                 >
                   <Link href={`/${orgSlug}/settings/invite`}>
-                    <UserPlus className="h-3.5 w-3.5 flex-shrink-0" />
+                    <UserPlus className="h-4 w-4 flex-shrink-0" />
                     <span>Team Members</span>
                   </Link>
                 </SidebarMenuButton>
@@ -665,7 +665,7 @@ export function DashboardSidebar({
                     )}
                   >
                     <Link href={`/${orgSlug}/billing`}>
-                      <CreditCard className="h-3.5 w-3.5 flex-shrink-0" />
+                      <CreditCard className="h-4 w-4 flex-shrink-0" />
                       <span>Billing</span>
                     </Link>
                   </SidebarMenuButton>
@@ -679,14 +679,14 @@ export function DashboardSidebar({
             <SidebarMenuButton
               asChild
               className={cn(
-                "h-[28px] px-3 text-[12px] font-medium text-[var(--cloudact-blue)]",
-                "hover:bg-[var(--cloudact-blue)]/5 rounded-lg mx-2 transition-colors",
-                "flex items-center gap-2",
+                "h-[36px] px-3 text-sm font-medium text-[var(--cloudact-blue)]",
+                "hover:bg-[var(--cloudact-blue)]/5 rounded-md mx-2 transition-colors",
+                "flex items-center gap-3",
                 isCollapsed && "justify-center px-2"
               )}
             >
               <Link href="/user-docs" target="_blank">
-                <HelpCircle className="h-3.5 w-3.5 flex-shrink-0" />
+                <HelpCircle className="h-4 w-4 flex-shrink-0" />
                 {!isCollapsed && <span>Get Help</span>}
               </Link>
             </SidebarMenuButton>
@@ -698,13 +698,13 @@ export function DashboardSidebar({
               onClick={handleLogout}
               disabled={isLoading}
               className={cn(
-                "h-[28px] px-3 text-[12px] font-medium text-slate-500",
-                "hover:bg-slate-50 hover:text-slate-700 rounded-lg mx-2 transition-colors",
-                "flex items-center gap-2",
+                "h-[36px] px-3 text-sm font-medium text-slate-500",
+                "hover:bg-slate-100 hover:text-slate-800 rounded-md mx-2 transition-colors",
+                "flex items-center gap-3",
                 isCollapsed && "justify-center px-2"
               )}
             >
-              <LogOut className="h-3.5 w-3.5 flex-shrink-0" />
+              <LogOut className="h-4 w-4 flex-shrink-0" />
               {!isCollapsed && <span>{isLoading ? "Signing out..." : "Sign Out"}</span>}
             </SidebarMenuButton>
           </SidebarMenuItem>

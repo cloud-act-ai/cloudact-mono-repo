@@ -79,11 +79,15 @@ def test_currency_metadata_completeness():
 
 
 def test_get_currency_symbol():
-    """Test currency symbol retrieval."""
+    """Test currency symbol retrieval.
+
+    Note: JPY and CNY use prefixed symbols (JP¥, CN¥) to avoid ambiguity.
+    """
     assert get_currency_symbol("USD") == "$"
     assert get_currency_symbol("EUR") == "€"
     assert get_currency_symbol("GBP") == "£"
-    assert get_currency_symbol("JPY") == "¥"
+    assert get_currency_symbol("JPY") == "JP¥"  # Prefixed to distinguish from CNY
+    assert get_currency_symbol("CNY") == "CN¥"  # Prefixed to distinguish from JPY
     assert get_currency_symbol("AED") == "د.إ"
     assert get_currency_symbol("UNKNOWN") == "$"  # Default
 
