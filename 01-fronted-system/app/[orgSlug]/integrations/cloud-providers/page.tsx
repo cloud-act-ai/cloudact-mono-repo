@@ -209,8 +209,8 @@ export default function CloudProvidersPage() {
         </div>
         <div className="h-8 w-px bg-slate-200"></div>
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-[#007AFF]/15 flex items-center justify-center">
-            <Cloud className="h-5 w-5 text-[#007AFF]" />
+          <div className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center">
+            <Cloud className="h-5 w-5 text-slate-600" />
           </div>
           <div>
             <p className="text-[24px] font-bold text-black leading-none">{availableProviders.length}</p>
@@ -245,7 +245,7 @@ export default function CloudProvidersPage() {
               </p>
               <Link
                 href={`/${orgSlug}/settings/organization`}
-                className="inline-flex items-center gap-1.5 mt-3 text-[13px] font-semibold text-[#007AFF] hover:text-[#0051D5] transition-colors"
+                className="inline-flex items-center gap-1.5 mt-3 text-[13px] font-semibold text-slate-900 hover:text-black transition-colors"
               >
                 Go to Settings
                 <ChevronRight className="h-4 w-4" />

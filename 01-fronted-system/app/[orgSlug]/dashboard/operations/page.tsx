@@ -128,7 +128,7 @@ export default async function OperationsPage({
           <h2 className="text-[13px] font-semibold text-slate-500 uppercase tracking-wide">Recent Runs</h2>
           <Link
             href={`/${orgSlug}/pipelines`}
-            className="text-[13px] font-semibold text-[var(--cloudact-blue)] hover:text-[var(--cloudact-blue-dark)] transition-colors flex items-center gap-1"
+            className="text-[13px] font-semibold text-slate-900 hover:text-black transition-colors flex items-center gap-1"
           >
             View all
             <ChevronRight className="h-3.5 w-3.5" />

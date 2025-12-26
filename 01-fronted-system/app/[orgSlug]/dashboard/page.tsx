@@ -288,7 +288,7 @@ export default function DashboardPage() {
               <div className="flex items-center justify-between">
                 <CardTitle className="text-[20px] font-bold text-slate-900">Cost Trends</CardTitle>
                 <Link href={`/${orgSlug}/cost-dashboards/overview`}>
-                  <button className="inline-flex items-center gap-2 text-sm font-semibold text-[#007AFF] hover:text-[#0051D5] transition-colors">
+                  <button className="inline-flex items-center gap-2 text-sm font-semibold text-slate-900 hover:text-black transition-colors">
                     View Details
                     <ArrowRight className="h-4 w-4" />
                   </button>
@@ -448,7 +448,7 @@ export default function DashboardPage() {
             </div>
             <div className="border-t border-border p-4 bg-[#90FCA6]/5">
               <Link href={`/${orgSlug}/pipelines`}>
-                <button className="w-full inline-flex items-center justify-center gap-2 text-sm font-semibold text-[#007AFF] hover:text-[#0051D5] transition-colors">
+                <button className="w-full inline-flex items-center justify-center gap-2 text-sm font-semibold text-slate-900 hover:text-black transition-colors">
                   View All Activity
                   <ArrowRight className="h-4 w-4" />
                 </button>

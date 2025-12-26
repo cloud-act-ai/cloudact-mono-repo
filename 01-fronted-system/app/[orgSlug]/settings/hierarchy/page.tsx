@@ -407,7 +407,7 @@ team,TEAM-ANDROID,Android Team,PROJ-MOBILE,,Grace Chen,grace@example.com,Android
       switch (node.entity_type) {
         case "department": return <Building2 className="h-4 w-4 text-[#1a7a3a]" />
         case "project": return <FolderKanban className="h-4 w-4 text-[#FF6C5E]" />
-        case "team": return <Users className="h-4 w-4 text-[#007AFF]" />
+        case "team": return <Users className="h-4 w-4 text-slate-600" />
       }
     }
 
@@ -415,7 +415,7 @@ team,TEAM-ANDROID,Android Team,PROJ-MOBILE,,Grace Chen,grace@example.com,Android
       switch (node.entity_type) {
         case "department": return "bg-[#90FCA6]/15"
         case "project": return "bg-[#FF6C5E]/10"
-        case "team": return "bg-[#007AFF]/10"
+        case "team": return "bg-slate-100"
       }
     }
 
@@ -686,7 +686,7 @@ team,TEAM-ANDROID,Android Team,PROJ-MOBILE,,Grace Chen,grace@example.com,Android
                     <strong>project</strong> → parent_id = dept
                   </span>
                   <span className="flex items-center gap-1">
-                    <Users className="h-3 w-3 text-[#007AFF]" />
+                    <Users className="h-3 w-3 text-slate-600" />
                     <strong>team</strong> → parent_id = project
                   </span>
                 </div>

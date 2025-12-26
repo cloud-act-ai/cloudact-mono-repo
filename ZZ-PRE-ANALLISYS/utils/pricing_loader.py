@@ -82,10 +82,10 @@ class InfrastructurePricing:
     gpu_type: str
     gpu_count: int
     gpu_memory_gb: int
-    hourly_rate: float  # on-demand
-    spot_rate: float  # spot/preemptible (~70% off)
-    reserved_1yr_rate: float  # 1-year commitment (~35% off)
-    reserved_3yr_rate: float  # 3-year commitment (~55% off)
+    hourly_rate: float  # on-demand base rate
+    spot_discount_pct: float  # spot discount % (e.g., 70 = 70% off)
+    reserved_1yr_discount_pct: float  # 1-year commitment discount %
+    reserved_3yr_discount_pct: float  # 3-year commitment discount %
     region: str
     cloud_provider: str
     status: str
@@ -238,9 +238,9 @@ def load_infrastructure_pricing() -> Dict[str, InfrastructurePricing]:
                 gpu_count=_safe_int(row.get("gpu_count")),
                 gpu_memory_gb=_safe_int(row.get("gpu_memory_gb")),
                 hourly_rate=_safe_float(row.get("hourly_rate")),
-                spot_rate=_safe_float(row.get("spot_rate")),
-                reserved_1yr_rate=_safe_float(row.get("reserved_1yr_rate")),
-                reserved_3yr_rate=_safe_float(row.get("reserved_3yr_rate")),
+                spot_discount_pct=_safe_float(row.get("spot_discount_pct")),
+                reserved_1yr_discount_pct=_safe_float(row.get("reserved_1yr_discount_pct")),
+                reserved_3yr_discount_pct=_safe_float(row.get("reserved_3yr_discount_pct")),
                 region=row.get("region", ""),
                 cloud_provider=row.get("cloud_provider", ""),
                 status=row.get("status", "active"),
@@ -460,12 +460,15 @@ def calculate_infrastructure_cost(
     instance_count: int = 1,
     region: str = "",
     pricing_type: str = "on_demand",  # on_demand, spot, reserved_1yr, reserved_3yr
+    custom_discount_pct: float = None,  # Override with custom company discount
 ) -> Dict:
     """
     Calculate cost for infrastructure (GPU/TPU) usage.
 
     Args:
         pricing_type: on_demand, spot, reserved_1yr, reserved_3yr
+        custom_discount_pct: Override discount % (e.g., 50 = 50% off).
+                            If provided, ignores pricing_type discount.
 
     Returns dict with cost breakdown.
     """
@@ -481,14 +484,22 @@ def calculate_infrastructure_cost(
             "currency": "USD"
         }
 
-    # Select rate based on pricing type
-    rate_map = {
-        "on_demand": pricing.hourly_rate,
-        "spot": pricing.spot_rate or pricing.hourly_rate,
-        "reserved_1yr": pricing.reserved_1yr_rate or pricing.hourly_rate,
-        "reserved_3yr": pricing.reserved_3yr_rate or pricing.hourly_rate,
-    }
-    hourly_rate = rate_map.get(pricing_type, pricing.hourly_rate)
+    # Get discount percentage based on pricing type or custom override
+    if custom_discount_pct is not None:
+        discount_pct = custom_discount_pct
+        effective_pricing_type = "custom"
+    else:
+        discount_map = {
+            "on_demand": 0,
+            "spot": pricing.spot_discount_pct,
+            "reserved_1yr": pricing.reserved_1yr_discount_pct,
+            "reserved_3yr": pricing.reserved_3yr_discount_pct,
+        }
+        discount_pct = discount_map.get(pricing_type, 0)
+        effective_pricing_type = pricing_type
+
+    # Calculate discounted rate
+    hourly_rate = pricing.hourly_rate * (1 - discount_pct / 100)
 
     hourly_cost = hourly_rate * instance_count
     total_cost = hourly_cost * hours
@@ -496,15 +507,15 @@ def calculate_infrastructure_cost(
     # Calculate savings vs on-demand
     on_demand_cost = pricing.hourly_rate * instance_count * hours
     savings = on_demand_cost - total_cost
-    savings_pct = (savings / on_demand_cost * 100) if on_demand_cost > 0 else 0
 
     return {
         "total_cost": round(total_cost, 2),
         "hourly_cost": round(hourly_cost, 2),
-        "hourly_rate": hourly_rate,
+        "hourly_rate": round(hourly_rate, 2),
         "hours": hours,
         "instance_count": instance_count,
-        "pricing_type": pricing_type,
+        "pricing_type": effective_pricing_type,
+        "discount_pct_applied": discount_pct,
         "pricing_found": True,
         "instance_type": pricing.instance_type,
         "gpu_type": pricing.gpu_type,
@@ -515,14 +526,13 @@ def calculate_infrastructure_cost(
         "region": pricing.region,
         "cloud_provider": pricing.cloud_provider,
         "currency": "USD",
-        # All rates for comparison
+        # Base rate and discount percentages from pricing file
         "on_demand_rate": pricing.hourly_rate,
-        "spot_rate": pricing.spot_rate,
-        "reserved_1yr_rate": pricing.reserved_1yr_rate,
-        "reserved_3yr_rate": pricing.reserved_3yr_rate,
+        "spot_discount_pct": pricing.spot_discount_pct,
+        "reserved_1yr_discount_pct": pricing.reserved_1yr_discount_pct,
+        "reserved_3yr_discount_pct": pricing.reserved_3yr_discount_pct,
         # Savings info
         "savings_vs_on_demand": round(savings, 2),
-        "savings_pct": round(savings_pct, 1),
     }
 
 
@@ -551,9 +561,9 @@ def list_infrastructure(
             "gpu_count": p.gpu_count,
             "gpu_memory_gb": p.gpu_memory_gb,
             "hourly_rate": p.hourly_rate,
-            "spot_rate": p.spot_rate,
-            "reserved_1yr_rate": p.reserved_1yr_rate,
-            "reserved_3yr_rate": p.reserved_3yr_rate,
+            "spot_discount_pct": p.spot_discount_pct,
+            "reserved_1yr_discount_pct": p.reserved_1yr_discount_pct,
+            "reserved_3yr_discount_pct": p.reserved_3yr_discount_pct,
             "region": p.region,
             "cloud_provider": p.cloud_provider,
             "status": p.status,

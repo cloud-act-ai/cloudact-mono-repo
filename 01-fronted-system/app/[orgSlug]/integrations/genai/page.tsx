@@ -224,7 +224,7 @@ export default function GenAIIntegrationsPage() {
               </p>
               <Link
                 href={`/${orgSlug}/settings/organization`}
-                className="inline-flex items-center gap-1 mt-2 text-[13px] font-semibold text-[#007AFF] hover:text-[#0051D5] transition-colors"
+                className="inline-flex items-center gap-1 mt-2 text-[13px] font-semibold text-slate-900 hover:text-black transition-colors"
               >
                 Go to Settings
                 <ChevronRight className="h-3.5 w-3.5" />

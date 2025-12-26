@@ -86,13 +86,13 @@ const CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: string }>
   other: Wallet,
 }
 
-// Category colors - CloudAct Standard (Dark green text #1a7a3a for readability)
+// Category colors - CloudAct Standard (Mint + Coral + Neutral only)
 const CATEGORY_COLORS: Record<string, string> = {
   ai: "bg-[var(--cloudact-coral)]/10 text-[var(--cloudact-coral)] border border-[var(--cloudact-coral)]/20",
-  design: "bg-[var(--cloudact-blue)]/10 text-[var(--cloudact-blue)] border border-[var(--cloudact-blue)]/20",
+  design: "bg-[var(--cloudact-coral)]/10 text-[var(--cloudact-coral)] border border-[var(--cloudact-coral)]/20",
   productivity: "bg-[var(--cloudact-mint)]/15 text-[#1a7a3a] border border-[var(--cloudact-mint)]/30",
-  communication: "bg-[var(--cloudact-coral)]/10 text-[var(--cloudact-coral)] border border-[var(--cloudact-coral)]/20",
-  development: "bg-[var(--cloudact-blue)]/10 text-[var(--cloudact-blue)] border border-[var(--cloudact-blue)]/20",
+  communication: "bg-slate-100 text-slate-700 border border-slate-200",
+  development: "bg-[var(--cloudact-mint)]/15 text-[#1a7a3a] border border-[var(--cloudact-mint)]/30",
   cloud: "bg-[var(--cloudact-mint)]/15 text-[#1a7a3a] border border-[var(--cloudact-mint)]/30",
   other: "bg-slate-100 text-slate-600 border border-slate-200",
 }
@@ -319,7 +319,7 @@ export default function SubscriptionCostsPage() {
                 {error.includes("API key") ? (
                   <>
                     Please complete organization onboarding in{" "}
-                    <Link href={`/${orgSlug}/settings/organization`} className="text-[var(--cloudact-blue)] hover:text-[#0056B3] font-medium">
+                    <Link href={`/${orgSlug}/settings/organization`} className="text-slate-900 hover:text-black underline underline-offset-2 font-medium">
                       Settings → Organization
                     </Link>{" "}
                     to enable subscription tracking.
@@ -923,14 +923,14 @@ export default function SubscriptionCostsPage() {
                         <TableCell className="console-table-cell" onClick={(e) => e.stopPropagation()}>
                           {integrationPath ? (
                             <Link href={`/${orgSlug}/integrations/genai`}>
-                              <span className="text-[var(--cloudact-blue)] hover:underline cursor-pointer flex items-center gap-1 font-medium text-[15px] transition-colors">
+                              <span className="text-slate-900 hover:underline cursor-pointer flex items-center gap-1 font-medium text-[15px] transition-colors">
                                 {plan.provider_name}
                                 <ArrowUpRight className="h-3.5 w-3.5" />
                               </span>
                             </Link>
                           ) : (
                             <Link href={`/${orgSlug}/integrations/subscriptions/${plan.provider_name}`}>
-                              <span className="text-[var(--cloudact-blue)] hover:underline cursor-pointer flex items-center gap-1 font-medium text-[15px] transition-colors">
+                              <span className="text-slate-900 hover:underline cursor-pointer flex items-center gap-1 font-medium text-[15px] transition-colors">
                                 {plan.provider_name}
                                 <ArrowUpRight className="h-3.5 w-3.5" />
                               </span>

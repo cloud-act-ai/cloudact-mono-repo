@@ -41,7 +41,7 @@ export default function OrgNotFound() {
           Need help? Contact{" "}
           <a
             href={`mailto:${process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "support@cloudact.ai"}`}
-            className="text-[#007AFF] hover:underline font-medium"
+            className="text-slate-900 hover:underline font-medium"
           >
             support
           </a>

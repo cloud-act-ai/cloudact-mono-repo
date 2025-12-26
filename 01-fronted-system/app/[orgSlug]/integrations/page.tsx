@@ -233,7 +233,7 @@ export default function IntegrationsPage() {
               </p>
               <Link
                 href={`/${orgSlug}/settings/organization`}
-                className="inline-flex items-center gap-1.5 mt-3 text-[13px] font-semibold text-[#007AFF] hover:text-[#0051D5] transition-colors"
+                className="inline-flex items-center gap-1.5 mt-3 text-[13px] font-semibold text-slate-900 hover:text-black transition-colors"
               >
                 Go to Settings
                 <ChevronRight className="h-4 w-4" />
@@ -267,7 +267,7 @@ export default function IntegrationsPage() {
         </div>
         <div className="h-5 w-px bg-slate-200"></div>
         <div className="flex items-center gap-2">
-          <CreditCard className="h-4 w-4 text-[#007AFF]" />
+          <CreditCard className="h-4 w-4 text-slate-600" />
           <span className="text-[14px] text-slate-600">
             <span className="font-semibold text-black">{saasCount}</span> SaaS
           </span>

@@ -435,7 +435,7 @@ export default function InviteMembersPage() {
           </div>
           <a
             href={`/${orgSlug}/billing`}
-            className="text-[13px] font-semibold text-[#007AFF] hover:underline"
+            className="text-[13px] font-semibold text-slate-900 hover:underline"
           >
             Upgrade plan →
           </a>

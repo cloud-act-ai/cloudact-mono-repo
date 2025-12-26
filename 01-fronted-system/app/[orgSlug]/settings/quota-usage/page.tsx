@@ -308,8 +308,8 @@ export default function QuotaUsagePage() {
 
               {/* Monthly */}
               <div className="metric-card text-center">
-                <div className="h-14 w-14 rounded-2xl bg-[#007AFF]/15 flex items-center justify-center mx-auto mb-4 shadow-sm">
-                  <CalendarDays className="h-7 w-7 text-[#007AFF]" />
+                <div className="h-14 w-14 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4 shadow-sm">
+                  <CalendarDays className="h-7 w-7 text-slate-600" />
                 </div>
                 <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-2">
                   Monthly
@@ -325,8 +325,8 @@ export default function QuotaUsagePage() {
           {/* Info Footer */}
           <div className="metric-card bg-gradient-to-br from-slate-50 to-white">
             <div className="flex items-start gap-4">
-              <div className="h-12 w-12 rounded-2xl bg-[#007AFF]/15 flex items-center justify-center flex-shrink-0 shadow-sm">
-                <Zap className="h-6 w-6 text-[#007AFF]" />
+              <div className="h-12 w-12 rounded-2xl bg-[#90FCA6]/15 flex items-center justify-center flex-shrink-0 shadow-sm">
+                <Zap className="h-6 w-6 text-[#1a7a3a]" />
               </div>
               <div>
                 <h3 className="text-[16px] font-semibold text-black mb-2">
@@ -334,15 +334,15 @@ export default function QuotaUsagePage() {
                 </h3>
                 <ul className="text-[13px] text-slate-600 space-y-1.5">
                   <li className="flex items-start gap-2">
-                    <span className="text-[#007AFF] mt-0.5">•</span>
+                    <span className="text-[#1a7a3a] mt-0.5">•</span>
                     <span>All limits are set based on your Stripe subscription plan</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <span className="text-[#007AFF] mt-0.5">•</span>
+                    <span className="text-[#1a7a3a] mt-0.5">•</span>
                     <span>Usage counters reset at the start of each day/week/month (UTC)</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <span className="text-[#007AFF] mt-0.5">•</span>
+                    <span className="text-[#1a7a3a] mt-0.5">•</span>
                     <span>Upgrade your plan to increase limits and unlock more resources</span>
                   </li>
                 </ul>

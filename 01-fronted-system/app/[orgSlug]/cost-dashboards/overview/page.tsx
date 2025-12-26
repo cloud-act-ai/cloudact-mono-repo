@@ -407,7 +407,7 @@ export default async function CostOverviewPage({
 
           <Link
             href={`/${orgSlug}/cost-dashboards/genai-costs`}
-            className="mt-4 flex items-center justify-center gap-2 text-[13px] font-semibold text-[var(--cloudact-blue)] hover:text-[var(--cloudact-blue-dark)] transition-colors"
+            className="mt-4 flex items-center justify-center gap-2 text-[13px] font-semibold text-slate-900 hover:text-black transition-colors"
           >
             View All Details
             <ChevronRight className="h-4 w-4" />
