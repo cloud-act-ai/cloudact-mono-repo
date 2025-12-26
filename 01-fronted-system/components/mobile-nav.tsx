@@ -443,7 +443,7 @@ export function MobileNav({
             <Link
               href="/user-docs"
               target="_blank"
-              className="flex-1 flex items-center justify-center gap-2 h-9 px-3 text-[12px] font-medium text-[var(--cloudact-blue)] bg-[var(--cloudact-blue)]/5 hover:bg-[var(--cloudact-blue)]/10 rounded-lg transition-colors"
+              className="flex-1 flex items-center justify-center gap-2 h-9 px-3 text-[12px] font-medium text-slate-600 bg-slate-50 hover:bg-slate-100 hover:text-slate-900 rounded-lg transition-colors"
             >
               <HelpCircle className="h-3.5 w-3.5" />
               Help

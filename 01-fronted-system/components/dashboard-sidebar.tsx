@@ -680,8 +680,8 @@ export function DashboardSidebar({
             <SidebarMenuButton
               asChild
               className={cn(
-                "h-[36px] px-3 text-sm font-medium text-[var(--cloudact-blue)]",
-                "hover:bg-[var(--cloudact-blue)]/5 rounded-md mx-2 transition-colors",
+                "h-[36px] px-3 text-sm font-medium text-slate-600",
+                "hover:bg-slate-100 hover:text-slate-900 rounded-md mx-2 transition-colors",
                 "flex items-center gap-3",
                 isCollapsed && "justify-center px-2"
               )}

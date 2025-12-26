@@ -1,6 +1,6 @@
 /* ============================================
    CLOUDACT CONSOLE - APPLE HEALTH DESIGN SYSTEM
-   Mint (#90FCA6) + Coral (#FF6C5E) + Blue (#007AFF)
+   Mint (#90FCA6) + Coral (#FF6C5E) + Neutral Black
    ============================================ */
 
 /* :root block removed - using globals.css variables */
@@ -616,19 +616,19 @@
   box-shadow: var(--shadow-button-mint);
 }
 
-/* Secondary Button - Premium White with Blue tint */
+/* Secondary Button - Premium White with subtle neutral tint */
 .console-button-secondary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  background: rgba(0, 122, 255, 0.06);
+  background: rgba(60, 60, 67, 0.04);
   color: #000000;
   border-radius: 12px;
   font-size: 0.9375rem;
   font-weight: 600;
   padding: 12px 24px;
-  border: 1px solid rgba(0, 122, 255, 0.1);
+  border: 1px solid rgba(60, 60, 67, 0.1);
   min-height: 44px;
   box-shadow: var(--shadow-premium-xs);
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -636,19 +636,19 @@
 }
 
 .console-button-secondary:hover {
-  background: rgba(0, 122, 255, 0.1);
+  background: rgba(60, 60, 67, 0.08);
   box-shadow: var(--shadow-premium-sm);
   transform: translateY(-1px);
 }
 
 .console-button-secondary:focus-visible {
-  outline: 2px solid var(--cloudact-blue);
+  outline: 2px solid var(--cloudact-mint);
   outline-offset: 2px;
-  box-shadow: var(--shadow-premium-glow-blue);
+  box-shadow: var(--shadow-premium-glow-mint);
 }
 
 .console-button-secondary:active {
-  background: rgba(0, 122, 255, 0.15);
+  background: rgba(60, 60, 67, 0.12);
   transform: scale(0.98);
 }
 

@@ -162,7 +162,7 @@ Checkout: 1 per 30sec | Invites: 10 per hour
 
 ## Design System
 
-### Brand Colors (Updated 2025-12-25)
+### Brand Colors (Updated 2025-12-26)
 
 | Color | Hex | Usage |
 |-------|-----|-------|
@@ -170,7 +170,7 @@ Checkout: 1 per 30sec | Invites: 10 per hour
 | **Mint Light** | `#B8FDCA` | Hover states, light backgrounds |
 | **Mint Dark** | `#6EE890` | Pressed states, borders |
 | **Coral** | `#FF6C5E` | Warnings, destructive actions, accents |
-| **Blue** | `#007AFF` | Links, info states, secondary actions |
+| **Black/Slate** | `#1C1C1E` | Links, text, secondary actions |
 
 **Typography:** DM Sans | **Spacing:** 8px grid
 
@@ -180,8 +180,8 @@ Checkout: 1 per 30sec | Invites: 10 per hour
 /* Primary buttons - BLACK text on mint */
 .btn-primary { background: #90FCA6; color: #000000; }
 
-/* Links always use blue */
-a { color: #007AFF; }
+/* Links use neutral black/slate (NOT blue) */
+a { color: #1C1C1E; }
 
 /* Text on mint backgrounds */
 .text-on-mint { color: #1a7a3a; } /* Dark green for readability */
@@ -201,7 +201,7 @@ a { color: #007AFF; }
   --cloudact-mint-light: #B8FDCA;
   --cloudact-mint-dark: #6EE890;
   --cloudact-coral: #FF6C5E;
-  --cloudact-blue: #007AFF;
+  --cloudact-blue: #007AFF; /* Legacy - avoid using in console */
 
   /* Legacy aliases for backward compatibility */
   --cloudact-teal: #90FCA6;
