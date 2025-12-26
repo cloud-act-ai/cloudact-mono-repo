@@ -225,32 +225,79 @@ export default defineConfig({
 | Currency mismatch | Verify exchange rate in fixtures |
 | Auth failure in tests | Set DISABLE_AUTH=true for unit tests only |
 
+## Quick Commands
+
+```bash
+# === QUICK TESTS (< 5 min, no external deps) ===
+cd 02-api-service && python -m pytest tests/ -v -m "not integration"
+cd 03-data-pipeline-service && python -m pytest tests/ -v -m "not integration"
+cd 01-fronted-system && npm run test
+
+# === FULL SYSTEM (15-30 min) ===
+pytest 02-api-service/tests/ -v --cov
+pytest 03-data-pipeline-service/tests/ -v --cov
+cd 01-fronted-system && npm run test
+
+# === SECURITY ONLY ===
+pytest 02-api-service/tests/test_security.py -v
+pytest 03-data-pipeline-service/tests/test_security.py -v
+
+# === SINGLE TEST FILE ===
+python -m pytest tests/test_bootstrap.py -v
+
+# === PATTERN MATCHING ===
+python -m pytest tests/ -v -k "subscription"
+python -m pytest tests/ -v -k "cost and not integration"
+```
+
 ## Example Prompts
 
 ```
-# Running Tests
-"Run all API tests"
-"Execute the frontend E2E tests"
-"Run pipeline processor tests"
+# Quick Validation
+"Run full test suite and fix all issues"
+"Quick test check before commit"
+"Run fast tests only (no integration)"
 
-# Multi-Org Testing
-"Test with all 6 org fixtures"
-"Run currency conversion tests"
-"Test across different fiscal years"
+# Single Service
+"Run API service tests"
+"Run pipeline service tests"
+"Run frontend tests"
 
-# Specific Suites
-"Run security tests only"
-"Execute cost calculation unit tests"
-"Run the subscription tests"
+# Full System
+"Run full test suite across all services"
+"Test the entire system with coverage"
 
-# Infrastructure
-"How do I add a new test fixture?"
-"What org fixtures are available?"
+# Security
+"Run security tests for all services"
+"Test KMS encryption"
+"Run auth validation tests"
+
+# Multi-Org/Currency
+"Run tests across all 6 org fixtures"
+"Test with USD, EUR, and INR organizations"
+"Multi-currency cost calculation tests"
+
+# Specific Categories
+"Run cost calculation unit tests"
+"Run subscription tests"
+"Test pipeline processors"
+"Run the quota enforcement tests"
 
 # Debugging
-"Test failing with async timeout"
-"How do I run a single test?"
+"Debug failing test in pipeline service"
+"Run tests with verbose output"
+"Why is test_xyz failing?"
 ```
+
+## Common Test Failures & Fixes
+
+| Pattern | Cause | Fix |
+|---------|-------|-----|
+| `MagicMock can't be used in await` | Async method mocked with `MagicMock` | Use `AsyncMock` for all async methods |
+| `assert 'JP¥' == '¥'` | Test expectation mismatch | Check actual implementation - may be intentional |
+| `ValidationError` in tests | Model schema changed | Update test data to match new schema |
+| Timeout in async tests | Slow or hanging operation | Check missing `AsyncMock` or increase timeout |
+| `KeyError: 'org_slug'` | Missing context in mocks | Add required fields to mock config |
 
 ## Related Skills
 - `config-validator` - Validate test configs

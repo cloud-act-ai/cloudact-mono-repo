@@ -922,7 +922,7 @@ export default function SubscriptionCostsPage() {
                         </TableCell>
                         <TableCell className="console-table-cell" onClick={(e) => e.stopPropagation()}>
                           {integrationPath ? (
-                            <Link href={`/${orgSlug}/integrations/llm`}>
+                            <Link href={`/${orgSlug}/integrations/genai`}>
                               <span className="text-[var(--cloudact-blue)] hover:underline cursor-pointer flex items-center gap-1 font-medium text-[15px] transition-colors">
                                 {plan.provider_name}
                                 <ArrowUpRight className="h-3.5 w-3.5" />

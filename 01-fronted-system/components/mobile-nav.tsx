@@ -59,7 +59,7 @@ function formatOrgName(name: string): string {
     { pattern: /saas/gi, replacement: "SaaS" },
     { pattern: /\bapi\b/gi, replacement: "API" },
     { pattern: /\bai\b/gi, replacement: "AI" },
-    { pattern: /\bllm\b/gi, replacement: "LLM" },
+    { pattern: /\bgenai\b/gi, replacement: "GenAI" },
     { pattern: /\bgcp\b/gi, replacement: "GCP" },
     { pattern: /\baws\b/gi, replacement: "AWS" },
   ]
@@ -371,10 +371,10 @@ export function MobileNav({
                 isItemActive={isActive(`/${orgSlug}/integrations/cloud-providers`)}
               />
               <NavItem
-                href={`/${orgSlug}/integrations/llm`}
+                href={`/${orgSlug}/integrations/genai`}
                 icon={Brain}
-                label="LLM Providers"
-                isItemActive={isActive(`/${orgSlug}/integrations/llm`)}
+                label="GenAI Providers"
+                isItemActive={isActive(`/${orgSlug}/integrations/genai`)}
               />
               <NavItem
                 href={`/${orgSlug}/integrations/subscriptions`}

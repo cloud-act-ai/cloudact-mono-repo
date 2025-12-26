@@ -76,7 +76,7 @@ const INTEGRATION_CATEGORIES: IntegrationCategory[] = [
   },
   {
     id: "llm",
-    name: "LLM Providers",
+    name: "GenAI Providers",
     description: "OpenAI, Claude, Gemini usage",
     icon: Brain,
     href: "llm",

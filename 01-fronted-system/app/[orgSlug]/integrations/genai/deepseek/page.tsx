@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useParams } from "next/navigation"
-import { Sparkles, Loader2, Check, AlertCircle, ArrowLeft, DollarSign, CreditCard, RotateCcw, Pencil, Save, X } from "lucide-react"
+import { Cpu, Loader2, Check, AlertCircle, ArrowLeft, DollarSign, CreditCard, RotateCcw, Pencil, Save, X } from "lucide-react"
 import Link from "next/link"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -39,17 +39,17 @@ import {
 } from "@/actions/integrations"
 
 // Client-side API key format validation
-function validateAnthropicKey(credential: string): { valid: boolean; error?: string } {
+function validateDeepSeekKey(credential: string): { valid: boolean; error?: string } {
   if (!credential || credential.length < 20) {
-    return { valid: false, error: "API key is too short. Anthropic keys are typically 50+ characters." }
+    return { valid: false, error: "API key is too short. DeepSeek keys are typically 30+ characters." }
   }
-  if (!credential.startsWith("sk-ant-")) {
-    return { valid: false, error: "Anthropic API keys must start with 'sk-ant-'. Please check your key." }
+  if (!credential.startsWith("sk-")) {
+    return { valid: false, error: "DeepSeek API keys typically start with 'sk-'. Please check your key." }
   }
   return { valid: true }
 }
 
-export default function AnthropicIntegrationPage() {
+export default function DeepSeekIntegrationPage() {
   const params = useParams()
   const orgSlug = params.orgSlug as string
 
@@ -77,9 +77,8 @@ export default function AnthropicIntegrationPage() {
     const result = await getIntegrations(orgSlug)
 
     if (result.success && result.integrations) {
-      // Check both ANTHROPIC and CLAUDE keys (backend may use either)
-      const anthropicIntegration = result.integrations?.integrations?.["ANTHROPIC"] || result.integrations?.integrations?.["CLAUDE"]
-      setIntegration(anthropicIntegration)
+      const deepseekIntegration = result.integrations?.integrations?.["DEEPSEEK"]
+      setIntegration(deepseekIntegration)
     } else {
       setError(result.error || "Failed to load integration status")
     }
@@ -90,7 +89,7 @@ export default function AnthropicIntegrationPage() {
   // Load pricing
   const loadPricing = useCallback(async () => {
     setPricingLoading(true)
-    const result = await listLLMPricing(orgSlug, "anthropic")
+    const result = await listLLMPricing(orgSlug, "deepseek")
     if (result.success && result.pricing) {
       setPricing(result.pricing)
     }
@@ -100,7 +99,7 @@ export default function AnthropicIntegrationPage() {
   // Load subscriptions
   const loadSubscriptions = useCallback(async () => {
     setSubscriptionsLoading(true)
-    const result = await listSaaSSubscriptions(orgSlug, "anthropic")
+    const result = await listSaaSSubscriptions(orgSlug, "deepseek")
     if (result.success && result.subscriptions) {
       setSubscriptions(result.subscriptions)
     }
@@ -142,19 +141,18 @@ export default function AnthropicIntegrationPage() {
 
     const result = await setupIntegration({
       orgSlug,
-      provider: "anthropic",
+      provider: "deepseek",
       credential,
     })
 
     if (result.success) {
       setSuccessMessage(
         result.validationStatus === "VALID"
-          ? "Anthropic API key connected and validated successfully!"
-          : `Anthropic API key saved (Status: ${result.validationStatus})`
+          ? "DeepSeek API key connected and validated successfully!"
+          : `DeepSeek API key saved (Status: ${result.validationStatus})`
       )
       await loadIntegration()
     } else {
-      // Use error, message, or a descriptive fallback
       setError(result.error || result.message || "Setup failed. Please check your API key and try again.")
     }
   }
@@ -164,10 +162,10 @@ export default function AnthropicIntegrationPage() {
     setError(null)
     setSuccessMessage(null)
 
-    const result = await validateIntegration(orgSlug, "anthropic")
+    const result = await validateIntegration(orgSlug, "deepseek")
 
     if (result.validationStatus === "VALID") {
-      setSuccessMessage("Anthropic API key validated successfully!")
+      setSuccessMessage("DeepSeek API key validated successfully!")
     } else {
       setError(result.error || "Validation failed")
     }
@@ -180,10 +178,10 @@ export default function AnthropicIntegrationPage() {
     setError(null)
     setSuccessMessage(null)
 
-    const result = await deleteIntegration(orgSlug, "anthropic")
+    const result = await deleteIntegration(orgSlug, "deepseek")
 
     if (result.success) {
-      setSuccessMessage("Anthropic integration removed")
+      setSuccessMessage("DeepSeek integration removed")
       setPricing([])
       setSubscriptions([])
       await loadIntegration()
@@ -197,7 +195,7 @@ export default function AnthropicIntegrationPage() {
     const values = editValues[modelId]
     if (!values) return
 
-    const result = await updateLLMPricing(orgSlug, "anthropic", modelId, {
+    const result = await updateLLMPricing(orgSlug, "deepseek", modelId, {
       input_price_per_1k: parseFloat(values.input_price_per_1k),
       output_price_per_1k: parseFloat(values.output_price_per_1k),
     })
@@ -216,7 +214,7 @@ export default function AnthropicIntegrationPage() {
     const values = editValues[planName]
     if (!values) return
 
-    const result = await updateSaaSSubscription(orgSlug, "anthropic", planName, {
+    const result = await updateSaaSSubscription(orgSlug, "deepseek", planName, {
       quantity: parseInt(values.quantity),
       unit_price_usd: parseFloat(values.unit_price_usd),
     })
@@ -234,7 +232,7 @@ export default function AnthropicIntegrationPage() {
   const handleResetPricing = async () => {
     if (!confirm("Reset all pricing to default values? This cannot be undone.")) return
 
-    const result = await resetLLMPricing(orgSlug, "anthropic")
+    const result = await resetLLMPricing(orgSlug, "deepseek")
     if (result.success) {
       setSuccessMessage("Pricing reset to defaults")
       await loadPricing()
@@ -247,7 +245,7 @@ export default function AnthropicIntegrationPage() {
   const handleResetSubscriptions = async () => {
     if (!confirm("Reset all subscriptions to default values? This cannot be undone.")) return
 
-    const result = await resetSaaSSubscriptions(orgSlug, "anthropic")
+    const result = await resetSaaSSubscriptions(orgSlug, "deepseek")
     if (result.success) {
       setSuccessMessage("Subscriptions reset to defaults")
       await loadSubscriptions()
@@ -294,24 +292,24 @@ export default function AnthropicIntegrationPage() {
     <div className="space-y-6">
       {/* Header with back link */}
       <div className="flex items-center gap-4">
-        <Link href={`/${orgSlug}/integrations/llm`}>
+        <Link href={`/${orgSlug}/integrations/genai`}>
           <Button variant="ghost" size="sm" className="text-slate-600 hover:text-black hover:bg-slate-50 h-9 rounded-xl transition-colors">
             <ArrowLeft className="h-4 w-4 mr-1" />
-            LLM Providers
+            GenAI Providers
           </Button>
         </Link>
       </div>
 
       {/* Enhanced Provider Header */}
       <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#D97706] to-[#B45309]" />
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#8B5CF6] to-[#7C3AED]" />
         <div className="flex items-start gap-4">
-          <div className="h-14 w-14 rounded-2xl bg-[#D97706]/10 flex items-center justify-center flex-shrink-0">
-            <Sparkles className="h-7 w-7 text-[#D97706]" />
+          <div className="h-14 w-14 rounded-2xl bg-[#8B5CF6]/10 flex items-center justify-center flex-shrink-0">
+            <Cpu className="h-7 w-7 text-[#8B5CF6]" />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3 mb-2">
-              <h1 className="text-[32px] font-bold text-black tracking-tight">Anthropic (Claude) Integration</h1>
+              <h1 className="text-[32px] font-bold text-black tracking-tight">DeepSeek Integration</h1>
               {isConnected && (
                 <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#90FCA6]/15">
                   <div className="h-1.5 w-1.5 rounded-full bg-[#1a7a3a]" />
@@ -320,7 +318,7 @@ export default function AnthropicIntegrationPage() {
               )}
             </div>
             <p className="text-[15px] text-slate-600 leading-relaxed">
-              Connect your Anthropic API key to track Claude 3.5 Sonnet, Opus, and Haiku usage with detailed cost analytics
+              Connect your DeepSeek API key to track DeepSeek-V3 and DeepSeek-Coder usage with competitive pricing analytics
             </p>
           </div>
         </div>
@@ -345,19 +343,19 @@ export default function AnthropicIntegrationPage() {
 
       {/* Integration Card */}
       <IntegrationConfigCard
-        provider="anthropic"
-        providerName="Anthropic (Claude)"
-        providerDescription="Claude 3.5 Sonnet, Claude 3 Opus, Haiku, and other Claude models"
-        icon={<Sparkles className="h-6 w-6" />}
-        placeholder="sk-ant-..."
+        provider="deepseek"
+        providerName="DeepSeek"
+        providerDescription="DeepSeek-V3, DeepSeek-Coder, and other DeepSeek models"
+        icon={<Cpu className="h-6 w-6" />}
+        placeholder="sk-..."
         inputType="text"
-        helperText="Enter your Anthropic API key starting with 'sk-ant-'. You can find this in your Anthropic console."
+        helperText="Enter your DeepSeek API key starting with 'sk-'. You can find this in your DeepSeek platform console."
         integration={integration}
         onSetup={handleSetup}
         onValidate={handleValidate}
         onDelete={handleDelete}
         isLoading={isLoading}
-        validateCredentialFormat={validateAnthropicKey}
+        validateCredentialFormat={validateDeepSeekKey}
       />
 
       {/* Pricing & Subscriptions Management - Only show when connected */}
@@ -378,7 +376,7 @@ export default function AnthropicIntegrationPage() {
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <p className="console-body">
-                    Manage your Anthropic subscription tiers and quantities.
+                    Manage your DeepSeek subscription tiers and quantities.
                   </p>
                   <Button variant="outline" size="sm" onClick={handleResetSubscriptions} className="console-button-secondary">
                     <RotateCcw className="h-4 w-4 mr-1" />
@@ -393,7 +391,7 @@ export default function AnthropicIntegrationPage() {
                   </div>
                 ) : subscriptions.length === 0 ? (
                   <p className="console-body text-center py-4">
-                    No subscriptions found. Use "Reset to Defaults" to initialize with default subscription data.
+                    No subscriptions configured. Click "Reset to Defaults" to load data from BigQuery.
                   </p>
                 ) : (
                   <Table>
@@ -513,7 +511,7 @@ export default function AnthropicIntegrationPage() {
                   </div>
                 ) : pricing.length === 0 ? (
                   <p className="console-body text-center py-4">
-                    No pricing found. Use "Reset to Defaults" to initialize with default pricing data.
+                    No pricing configured. Click "Reset to Defaults" to load data from BigQuery.
                   </p>
                 ) : (
                   <Table>
@@ -610,15 +608,15 @@ export default function AnthropicIntegrationPage() {
 
       {/* Help Section */}
       <div className="rounded-2xl border border-slate-200 p-5 bg-slate-50">
-        <h3 className="text-[15px] font-semibold text-black mb-3">How to get your Anthropic API key</h3>
+        <h3 className="text-[15px] font-semibold text-black mb-3">How to get your DeepSeek API key</h3>
         <ol className="list-decimal list-inside space-y-2 text-[13px] text-slate-700">
-          <li>Go to <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer" className="text-[#007AFF] font-medium hover:underline transition-all">Anthropic Console → API Keys</a></li>
-          <li>Click "Create Key"</li>
-          <li>Give it a name (e.g., "CloudAct Integration")</li>
-          <li>Copy the key immediately (it won't be shown again)</li>
+          <li>Go to <a href="https://platform.deepseek.com/api_keys" target="_blank" rel="noopener noreferrer" className="text-[#007AFF] font-medium hover:underline transition-all">DeepSeek Platform</a></li>
+          <li>Sign in or create an account</li>
+          <li>Navigate to API Keys section</li>
+          <li>Click "Create API Key" and copy it</li>
         </ol>
         <p className="text-[13px] text-slate-700 mt-3">
-          <strong className="text-black">Note:</strong> Make sure your Anthropic account has billing enabled to use the API.
+          <strong className="text-black">Note:</strong> DeepSeek offers competitive pricing for their models. Make sure your account has credits.
         </p>
       </div>
     </div>

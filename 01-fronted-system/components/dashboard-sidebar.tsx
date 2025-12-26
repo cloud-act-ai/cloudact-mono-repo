@@ -64,7 +64,7 @@ function formatOrgName(name: string): string {
     { pattern: /saas/gi, replacement: "SaaS" },
     { pattern: /\bapi\b/gi, replacement: "API" },
     { pattern: /\bai\b/gi, replacement: "AI" },
-    { pattern: /\bllm\b/gi, replacement: "LLM" },
+    { pattern: /\bgenai\b/gi, replacement: "GenAI" },
     { pattern: /\bgcp\b/gi, replacement: "GCP" },
     { pattern: /\baws\b/gi, replacement: "AWS" },
   ]
@@ -538,12 +538,12 @@ export function DashboardSidebar({
                 <SidebarMenuButton
                   asChild
                   className={cn(
-                    isActive(`/${orgSlug}/integrations/llm`) ? activeItemClass : itemClass
+                    isActive(`/${orgSlug}/integrations/genai`) ? activeItemClass : itemClass
                   )}
                 >
-                  <Link href={`/${orgSlug}/integrations/llm`}>
+                  <Link href={`/${orgSlug}/integrations/genai`}>
                     <Brain className="h-4 w-4 flex-shrink-0" />
-                    <span>LLM Providers</span>
+                    <span>GenAI Providers</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

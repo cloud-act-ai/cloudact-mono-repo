@@ -1,10 +1,10 @@
 import { redirect } from "next/navigation"
 
-export default async function GeminiRedirectPage({
+export default async function OpenAIRedirectPage({
   params,
 }: {
   params: Promise<{ orgSlug: string }>
 }) {
   const { orgSlug } = await params
-  redirect(`/${orgSlug}/integrations/llm/gemini`)
+  redirect(`/${orgSlug}/integrations/genai/openai`)
 }

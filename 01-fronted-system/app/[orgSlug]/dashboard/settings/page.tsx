@@ -98,9 +98,9 @@ export default async function SettingsPage({
         },
         {
           icon: Brain,
-          label: "LLM Providers",
+          label: "GenAI Providers",
           description: "OpenAI, Claude, Gemini usage",
-          href: `/${orgSlug}/integrations/llm`,
+          href: `/${orgSlug}/integrations/genai`,
           accent: "#8B5CF6",
           badge: llmCount > 0 ? `${llmCount} connected` : null
         },
@@ -185,7 +185,7 @@ export default async function SettingsPage({
           </div>
           <div>
             <p className="text-[24px] font-bold text-slate-900 leading-none">{llmCount}</p>
-            <p className="text-[12px] text-slate-500 font-medium mt-0.5">LLM Providers</p>
+            <p className="text-[12px] text-slate-500 font-medium mt-0.5">GenAI Providers</p>
           </div>
         </div>
 

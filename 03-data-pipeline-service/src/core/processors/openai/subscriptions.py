@@ -1,16 +1,19 @@
 """
 OpenAI Subscriptions Processor
 
-Fetches subscription and organization data from OpenAI API.
-Stores in BigQuery for billing/quota tracking.
+Fetches organization data from OpenAI API using the /v1/me endpoint.
+Stores in BigQuery for tracking OpenAI account metadata.
 
 Usage in pipeline:
     ps_type: openai.subscriptions
+
+Note: OpenAI's public API provides limited subscription data.
+For billing/usage data, use the separate Cost API or Usage API.
 """
 
 import logging
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, List
 
 from src.core.processors.openai.authenticator import OpenAIAuthenticator
@@ -20,9 +23,14 @@ from src.app.config import get_settings
 
 class SubscriptionsProcessor:
     """
-    Fetches OpenAI subscription and organization data.
+    Fetches OpenAI organization/user data via the /v1/me endpoint.
 
-    Writes to: {org_slug}_{env}.openai_subscriptions
+    Writes to: {org_slug}_{env}.openai_subscriptions_monthly
+
+    Note: OpenAI's public API endpoints:
+    - /v1/me - Returns user and org info for the API key (works with any key)
+    - /v1/organization/usage/* - Requires Admin Key
+    - /v1/organization/costs - Requires Admin Key
     """
 
     def __init__(self):
@@ -35,20 +43,18 @@ class SubscriptionsProcessor:
         context: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
-        Fetch OpenAI subscription data.
+        Fetch OpenAI organization data.
 
         Args:
             step_config: Step configuration containing:
-                - config.destination_table: Table name (default: openai_subscriptions)
-                - config.include_limits: Include rate limits (default: True)
-                - config.include_usage_limits: Include usage limits (default: True)
+                - config.destination_table: Table name (default: openai_subscriptions_monthly)
             context: Execution context containing:
                 - org_slug: Organization identifier (REQUIRED)
 
         Returns:
             Dict with:
                 - status: SUCCESS or FAILED
-                - subscription_data: Subscription details
+                - subscription_data: Organization details
         """
         org_slug = context.get("org_slug")
         config = step_config.get("config", {})
@@ -57,11 +63,9 @@ class SubscriptionsProcessor:
             return {"status": "FAILED", "error": "org_slug is required"}
 
         destination_table = config.get("destination_table", "openai_subscriptions_monthly")
-        include_limits = config.get("include_limits", True)
-        include_usage_limits = config.get("include_usage_limits", True)
 
         self.logger.info(
-            f"Fetching OpenAI subscription for {org_slug}",
+            f"Fetching OpenAI organization data for {org_slug}",
             extra={"org_slug": org_slug}
         )
 
@@ -75,68 +79,68 @@ class SubscriptionsProcessor:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 headers = {"Authorization": f"Bearer {api_key}"}
 
-                # Fetch organization info
-                org_response = await client.get(
-                    "https://api.openai.com/v1/organization",
+                # Use the public /v1/me endpoint (works with any API key)
+                me_response = await client.get(
+                    "https://api.openai.com/v1/me",
                     headers=headers
                 )
 
                 subscription_data = {
                     "org_slug": org_slug,
                     "provider": "OPENAI",
-                    "fetched_at": datetime.utcnow().isoformat()
+                    "fetched_at": datetime.now(timezone.utc).isoformat()
                 }
 
-                if org_response.status_code == 200:
+                if me_response.status_code == 200:
                     try:
-                        org_data = org_response.json()
+                        me_data = me_response.json()
                     except json.JSONDecodeError as e:
-                        self.logger.error(f"Invalid JSON from OpenAI org API: {e}")
+                        self.logger.error(f"Invalid JSON from OpenAI /v1/me API: {e}")
                         return {"status": "FAILED", "error": "Invalid response format from OpenAI"}
 
+                    # Extract user info
                     subscription_data.update({
-                        "openai_org_id": org_data.get("id"),
-                        "openai_org_name": org_data.get("name"),
-                        "is_default": org_data.get("is_default", False),
-                        "tier": org_data.get("tier", "unknown"),
+                        "openai_user_id": me_data.get("id"),
+                        "openai_user_name": me_data.get("name"),
+                        "openai_email": me_data.get("email"),
                     })
+
+                    # Extract organization info from orgs array
+                    orgs = me_data.get("orgs", {}).get("data", [])
+                    if orgs:
+                        # Use the first org (default org)
+                        default_org = orgs[0]
+                        subscription_data.update({
+                            "openai_org_id": default_org.get("id"),
+                            "openai_org_name": default_org.get("name"),
+                            "openai_org_title": default_org.get("title"),
+                            "openai_org_role": default_org.get("role"),
+                            "is_default": default_org.get("is_default", False),
+                        })
+
+                        # Check settings if available
+                        settings = default_org.get("settings", {})
+                        if settings:
+                            subscription_data.update({
+                                "threads_ui_visibility": settings.get("threads_ui_visibility"),
+                                "usage_dashboard_visibility": settings.get("usage_dashboard_visibility"),
+                            })
+
+                    self.logger.info(
+                        f"Successfully fetched OpenAI org data",
+                        extra={
+                            "org_slug": org_slug,
+                            "openai_org_id": subscription_data.get("openai_org_id")
+                        }
+                    )
                 else:
-                    self.logger.error(f"OpenAI org API error: {org_response.status_code}")
-                    if org_response.status_code in (401, 403):
-                        return {"status": "FAILED", "error": f"Authentication failed: {org_response.status_code}"}
-                    elif org_response.status_code == 429:
+                    self.logger.error(f"OpenAI /v1/me API error: {me_response.status_code}")
+                    if me_response.status_code in (401, 403):
+                        return {"status": "FAILED", "error": f"Authentication failed: {me_response.status_code}"}
+                    elif me_response.status_code == 429:
                         return {"status": "FAILED", "error": "Rate limited by OpenAI API"}
                     else:
-                        return {"status": "FAILED", "error": f"OpenAI API error: {org_response.status_code}"}
-
-                # Fetch billing/subscription info if available
-                if include_limits:
-                    limits_response = await client.get(
-                        "https://api.openai.com/v1/dashboard/billing/subscription",
-                        headers=headers
-                    )
-                    if limits_response.status_code == 200:
-                        try:
-                            limits_data = limits_response.json()
-                        except json.JSONDecodeError as e:
-                            self.logger.error(f"Invalid JSON from OpenAI billing API: {e}")
-                            return {"status": "FAILED", "error": "Invalid response format from OpenAI billing API"}
-
-                        subscription_data.update({
-                            "plan_id": limits_data.get("plan", {}).get("id"),
-                            "plan_name": limits_data.get("plan", {}).get("name"),
-                            "hard_limit_usd": limits_data.get("hard_limit_usd"),
-                            "soft_limit_usd": limits_data.get("soft_limit_usd"),
-                            "system_hard_limit_usd": limits_data.get("system_hard_limit_usd"),
-                        })
-                    else:
-                        self.logger.error(f"OpenAI billing API error: {limits_response.status_code}")
-                        if limits_response.status_code in (401, 403):
-                            return {"status": "FAILED", "error": f"Authentication failed: {limits_response.status_code}"}
-                        elif limits_response.status_code == 429:
-                            return {"status": "FAILED", "error": "Rate limited by OpenAI API"}
-                        else:
-                            return {"status": "FAILED", "error": f"OpenAI billing API error: {limits_response.status_code}"}
+                        return {"status": "FAILED", "error": f"OpenAI API error: {me_response.status_code}"}
 
                 # Store to BigQuery
                 await self._store_subscription_data(
@@ -147,7 +151,7 @@ class SubscriptionsProcessor:
                     "status": "SUCCESS",
                     "provider": "OPENAI",
                     "subscription": subscription_data,
-                    "message": "Fetched subscription data successfully"
+                    "message": "Fetched organization data successfully"
                 }
 
         except ValueError as e:

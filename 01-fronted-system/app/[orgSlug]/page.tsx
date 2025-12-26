@@ -179,9 +179,9 @@ export default async function OrgRootRedirectPage({
               </div>
             </Link>
 
-            {/* LLM Providers */}
+            {/* GenAI Providers */}
             <Link
-              href={`/${orgSlug}/integrations/llm`}
+              href={`/${orgSlug}/integrations/genai`}
               className="group p-5 bg-white rounded-2xl border border-slate-200 hover:border-[#FF6E50]/30 hover:shadow-sm transition-all"
             >
               <div className="flex items-center justify-between">
@@ -190,7 +190,7 @@ export default async function OrgRootRedirectPage({
                     <Brain className="h-6 w-6 text-[#FF6E50]" />
                   </div>
                   <div>
-                    <h3 className="text-[15px] font-semibold text-slate-900">LLM Providers</h3>
+                    <h3 className="text-[15px] font-semibold text-slate-900">GenAI Providers</h3>
                     <p className="text-[13px] text-slate-500 mt-0.5">OpenAI, Claude, Gemini</p>
                   </div>
                 </div>

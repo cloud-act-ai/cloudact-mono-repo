@@ -54,7 +54,7 @@ import { createClient } from "@/lib/supabase/client"
 import { formatCurrency } from "@/lib/i18n"
 import { DEFAULT_CURRENCY } from "@/lib/i18n/constants"
 
-// LLM Provider icons
+// GenAI Provider icons
 const PROVIDER_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   openai: Zap,
   anthropic: MessageSquare,
@@ -288,7 +288,7 @@ export default function GenAICostsPage() {
               <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
               <span className="hidden sm:inline">Refresh</span>
             </Button>
-            <Link href={`/${orgSlug}/integrations/llm`}>
+            <Link href={`/${orgSlug}/integrations/genai`}>
               <Button className="h-11 px-4 rounded-xl text-[15px] font-semibold bg-gradient-to-r from-[var(--cloudact-coral)] to-[#FFA591] hover:from-[#FF5947] hover:to-[#FF9684] text-white shadow-lg shadow-[var(--cloudact-coral)]/25 transition-all duration-200 hover:shadow-xl hover:shadow-[var(--cloudact-coral)]/30">
                 <Plus className="h-4 w-4 mr-2" />
                 <span className="hidden sm:inline">Configure LLM</span>
@@ -698,10 +698,10 @@ export default function GenAICostsPage() {
                 Configure LLM integrations and run the GenAI pipeline to start tracking usage costs.
               </p>
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                <Link href={`/${orgSlug}/integrations/llm`}>
+                <Link href={`/${orgSlug}/integrations/genai`}>
                   <Button className="h-11 px-6 rounded-xl text-[15px] font-semibold bg-gradient-to-r from-[var(--cloudact-coral)] to-[#FFA591] hover:from-[#FF5947] hover:to-[#FF9684] text-white shadow-lg shadow-[var(--cloudact-coral)]/25">
                     <Plus className="h-4 w-4 mr-2" />
-                    Configure LLM Providers
+                    Configure GenAI Providers
                   </Button>
                 </Link>
                 <Link href={`/${orgSlug}/pipelines/genai-runs`}>

@@ -29,14 +29,14 @@ interface ProviderConfig {
   accent: string
 }
 
-const LLM_PROVIDERS: ProviderConfig[] = [
+const GENAI_PROVIDERS: ProviderConfig[] = [
   {
     id: "openai",
     backendKey: "OPENAI",
     name: "OpenAI",
     description: "GPT-4, GPT-3.5, DALL-E",
     icon: <Brain className="h-5 w-5" />,
-    href: "llm/openai",
+    href: "genai/openai",
     accent: "#10A37F",
   },
   {
@@ -45,7 +45,7 @@ const LLM_PROVIDERS: ProviderConfig[] = [
     name: "Anthropic",
     description: "Claude 3.5 Sonnet, Opus, Haiku",
     icon: <Sparkles className="h-5 w-5" />,
-    href: "llm/anthropic",
+    href: "genai/anthropic",
     accent: "#D97706",
   },
   {
@@ -54,7 +54,7 @@ const LLM_PROVIDERS: ProviderConfig[] = [
     name: "Google Gemini",
     description: "Gemini Pro, Flash, Gemma",
     icon: <Gem className="h-5 w-5" />,
-    href: "llm/gemini",
+    href: "genai/gemini",
     accent: "#4285F4",
   },
   {
@@ -63,12 +63,12 @@ const LLM_PROVIDERS: ProviderConfig[] = [
     name: "DeepSeek",
     description: "DeepSeek-V3, DeepSeek-Coder",
     icon: <Cpu className="h-5 w-5" />,
-    href: "llm/deepseek",
+    href: "genai/deepseek",
     accent: "#8B5CF6",
   },
 ]
 
-export default function LLMIntegrationsPage() {
+export default function GenAIIntegrationsPage() {
   const params = useParams()
   const orgSlug = params.orgSlug as string
 
@@ -158,15 +158,15 @@ export default function LLMIntegrationsPage() {
     }
   }
 
-  const connectedProviders = LLM_PROVIDERS.filter(p => integrations[p.backendKey]?.status === "VALID")
-  const unconnectedProviders = LLM_PROVIDERS.filter(p => integrations[p.backendKey]?.status !== "VALID")
+  const connectedProviders = GENAI_PROVIDERS.filter(p => integrations[p.backendKey]?.status === "VALID")
+  const unconnectedProviders = GENAI_PROVIDERS.filter(p => integrations[p.backendKey]?.status !== "VALID")
 
   if (isLoading) {
     return (
       <div className="max-w-6xl mx-auto">
         <div className="mb-10">
           <h1 className="text-[32px] font-bold text-black tracking-tight leading-none">
-            LLM Providers
+            GenAI Providers
           </h1>
           <p className="text-[15px] text-slate-500 mt-2 max-w-lg">
             Connect your AI/ML providers to track usage and costs
@@ -184,7 +184,7 @@ export default function LLMIntegrationsPage() {
       {/* Header */}
       <div className="mb-10">
         <h1 className="text-[32px] font-bold text-black tracking-tight leading-none">
-          LLM Providers
+          GenAI Providers
         </h1>
         <p className="text-[15px] text-slate-500 mt-2 max-w-lg">
           Connect your AI/ML providers to track usage and costs

@@ -4,7 +4,7 @@ export async function generateMetadata({ params }: { params: Promise<{ orgSlug: 
   const { orgSlug } = await params
   return {
     title: `Integrations | ${orgSlug}`,
-    description: "Connect your cloud providers, LLM APIs, and SaaS subscriptions",
+    description: "Connect your cloud providers, GenAI APIs, and SaaS subscriptions",
   }
 }
 

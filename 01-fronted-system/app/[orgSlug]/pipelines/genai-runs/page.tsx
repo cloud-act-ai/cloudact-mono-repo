@@ -426,10 +426,10 @@ export default function GenAIRunsPage() {
                 <p className="text-[15px] text-muted-foreground max-w-md mx-auto">
                   Connect an LLM provider to see available usage pipelines.
                 </p>
-                <Link href={`/${orgSlug}/integrations/llm`}>
+                <Link href={`/${orgSlug}/integrations/genai`}>
                   <button className="inline-flex items-center gap-2 h-11 px-6 bg-[var(--cloudact-mint)] text-black text-[15px] font-semibold rounded-xl hover:bg-[var(--cloudact-mint-dark)] transition-colors shadow-sm">
                     <Brain className="h-4 w-4" />
-                    Configure LLM Providers
+                    Configure GenAI Providers
                   </button>
                 </Link>
               </div>

@@ -466,10 +466,10 @@ export default function OpenAIIntegrationPage() {
     <div className="space-y-8">
       {/* Header with back link */}
       <div className="flex items-center gap-3">
-        <Link href={`/${orgSlug}/integrations/llm`}>
+        <Link href={`/${orgSlug}/integrations/genai`}>
           <Button variant="ghost" size="sm" className="text-slate-600 hover:text-black hover:bg-slate-50 h-9 rounded-xl transition-colors">
             <ArrowLeft className="h-4 w-4 mr-1.5" />
-            LLM Providers
+            GenAI Providers
           </Button>
         </Link>
       </div>
