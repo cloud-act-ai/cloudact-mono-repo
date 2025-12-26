@@ -114,14 +114,49 @@
 
 | Stage | What Happens | State |
 |-------|--------------|-------|
-| **Table Created** | Org onboarding creates empty `org_hierarchy` table | Empty table |
-| **Dept Created** | User creates department via UI or CSV | 1+ departments |
-| **Project Created** | User creates project under a dept | 1+ projects |
-| **Team Created** | User creates team under a project | 1+ teams |
+| **Table Created** | Org onboarding creates `org_hierarchy` table | Table ready |
+| **Default Seeding** | Onboarding seeds default hierarchy (2 depts, 3 projects, 4 teams) | 9 entities |
+| **Dept Created** | User creates department via UI or CSV | Additional departments |
+| **Project Created** | User creates project under a dept | Additional projects |
+| **Team Created** | User creates team under a project | Additional teams |
 | **Entity Updated** | Edit creates new version, old gets `end_date` | Version incremented |
 | **Entity Deleted** | Soft delete sets `is_active=false`, `end_date=now` | Inactive |
 | **CSV Import** | Bulk create/update entities | Multiple entities |
 | **CSV Export** | Download all active hierarchy | CSV file |
+
+---
+
+## Default Hierarchy (Seeded on Onboarding)
+
+New organizations get a default hierarchy seeded during onboarding:
+
+```
+Organization
+├── Corporate (DEPT-CORP)
+│   └── Operations (PROJ-OPS)
+│       ├── Finance (TEAM-FIN)
+│       └── HR (TEAM-HR)
+│
+└── Engineering (DEPT-ENG)
+    ├── Platform (PROJ-PLAT)
+    │   ├── Backend (TEAM-BE)
+    │   └── Frontend (TEAM-FE)
+    │
+    └── Product (PROJ-PROD)
+```
+
+**Implementation:** `02-api-service/src/core/processors/setup/organizations/onboarding.py` → `_seed_default_hierarchy()`
+
+**Note:** For existing orgs without hierarchy, seed via API:
+
+```bash
+# Create departments
+curl -X POST "http://localhost:8000/api/v1/hierarchy/{org}/departments" \
+  -H "X-API-Key: $ORG_API_KEY" -H "Content-Type: application/json" \
+  -d '{"entity_id":"DEPT-CORP","entity_name":"Corporate","description":"Corporate departments"}'
+
+# ... (continue with projects and teams)
+```
 
 ---
 
@@ -283,18 +318,51 @@ This provides full audit trail of changes.
 
 ## Integration with Subscriptions
 
-Subscription plans can reference hierarchy entities for cost allocation:
+### Subscription Form UI
+
+When adding/editing subscriptions, users can assign hierarchy for cost allocation via cascading dropdowns:
+
+**UI Location:** `/{orgSlug}/integrations/subscriptions/{provider}` → Add/Edit Sheet
+
+**Dropdowns:**
+1. **Department** - Select from available departments
+2. **Project** - Filtered by selected department
+3. **Team** - Filtered by selected project
+
+**Implementation:**
+- `01-fronted-system/app/[orgSlug]/integrations/subscriptions/[provider]/page.tsx`
+- Uses `loadHierarchy()` to fetch departments, projects, teams
+- `handleDepartmentChange()`, `handleProjectChange()`, `handleTeamChange()` for cascading filters
+
+### API Payload
+
+Subscription plans reference hierarchy entities for cost allocation:
 
 ```json
 {
   "plan_name": "Slack Pro",
   "hierarchy_dept_id": "DEPT-001",
+  "hierarchy_dept_name": "Engineering",
   "hierarchy_project_id": "PROJ-001",
-  "hierarchy_team_id": "TEAM-001"
+  "hierarchy_project_name": "Platform",
+  "hierarchy_team_id": "TEAM-001",
+  "hierarchy_team_name": "Backend"
 }
 ```
 
 **Display Path:** Engineering > Platform > Backend
+
+### Cost Calculation Flow
+
+```
+saas_subscription_plans (with hierarchy IDs)
+    ↓ sp_calculate_saas_subscription_plan_costs_daily
+saas_subscription_plan_costs_daily (hierarchy propagated)
+    ↓ sp_convert_saas_costs_to_focus_1_3
+cost_data_standard_1_3 (x_HierarchyDeptId, x_HierarchyProjectId, x_HierarchyTeamId)
+```
+
+**Stored Procedures Location:** `03-data-pipeline-service/configs/system/procedures/saas_subscription/`
 
 ---
 
@@ -452,4 +520,4 @@ curl -X POST "http://localhost:8000/api/v1/hierarchy/acme_corp/import" \
 
 ---
 
-**Last Updated:** 2025-12-25
+**Last Updated:** 2025-12-26 (Added default hierarchy seeding, subscription form integration)

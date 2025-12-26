@@ -655,6 +655,12 @@ export interface UpdateOrgLogoResult {
   error?: string
 }
 
+export interface UploadOrgLogoResult {
+  success: boolean
+  logoUrl?: string
+  error?: string
+}
+
 /**
  * Validate logo URL format.
  * Must be a valid HTTPS URL pointing to an image.
@@ -768,8 +774,186 @@ export async function updateOrgLogo(
       logoUrl: logoUrl?.trim() || undefined,
     }
   } catch (err: unknown) {
-    
+
     const errorMessage = err instanceof Error ? err.message : "Failed to update organization logo"
+    return { success: false, error: errorMessage }
+  }
+}
+
+/**
+ * Upload organization logo to Supabase Storage.
+ * Stores file in org-logos bucket at path: {org_slug}/logo-{timestamp}.{ext}
+ * Automatically updates the logo_url in organizations table.
+ *
+ * SECURITY: Requires org membership.
+ */
+export async function uploadOrgLogo(
+  orgSlug: string,
+  formData: FormData
+): Promise<UploadOrgLogoResult> {
+  try {
+    // Validate input
+    if (!isValidOrgSlug(orgSlug)) {
+      return { success: false, error: "Invalid organization identifier" }
+    }
+
+    // Verify authentication AND org membership
+    const authResult = await verifyOrgMembership(orgSlug)
+    if (!authResult.authorized) {
+      return { success: false, error: authResult.error || "Not authorized" }
+    }
+
+    // Get the file from FormData
+    const file = formData.get("logo") as File | null
+    if (!file) {
+      return { success: false, error: "No file provided" }
+    }
+
+    // Validate file type
+    const allowedTypes = ["image/png", "image/jpeg", "image/gif", "image/svg+xml", "image/webp"]
+    if (!allowedTypes.includes(file.type)) {
+      return { success: false, error: "Invalid file type. Allowed: PNG, JPG, GIF, SVG, WebP" }
+    }
+
+    // Validate file size (max 1MB)
+    const maxSize = 1 * 1024 * 1024 // 1MB
+    if (file.size > maxSize) {
+      return { success: false, error: "File too large. Maximum size is 1MB" }
+    }
+
+    // Get file extension
+    const ext = file.name.split(".").pop()?.toLowerCase() || "png"
+    const validExtensions = ["png", "jpg", "jpeg", "gif", "svg", "webp"]
+    if (!validExtensions.includes(ext)) {
+      return { success: false, error: "Invalid file extension" }
+    }
+
+    // Generate unique filename with timestamp
+    const timestamp = Date.now()
+    const fileName = `logo-${timestamp}.${ext}`
+    const filePath = `${orgSlug}/${fileName}`
+
+    // Upload to Supabase Storage
+    const supabase = await createClient()
+
+    // First, try to delete any existing logo files for this org
+    const { data: existingFiles } = await supabase.storage
+      .from("org-logos")
+      .list(orgSlug)
+
+    if (existingFiles && existingFiles.length > 0) {
+      const filesToDelete = existingFiles.map(f => `${orgSlug}/${f.name}`)
+      await supabase.storage.from("org-logos").remove(filesToDelete)
+    }
+
+    // Upload the new file
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from("org-logos")
+      .upload(filePath, file, {
+        cacheControl: "3600",
+        upsert: true,
+      })
+
+    if (uploadError) {
+      console.error("[uploadOrgLogo] Storage upload error:", uploadError)
+      return { success: false, error: `Failed to upload logo: ${uploadError.message}` }
+    }
+
+    // Get the public URL
+    const { data: urlData } = supabase.storage
+      .from("org-logos")
+      .getPublicUrl(filePath)
+
+    if (!urlData?.publicUrl) {
+      return { success: false, error: "Failed to get public URL for uploaded logo" }
+    }
+
+    const logoUrl = urlData.publicUrl
+
+    // Update the organizations table with the new logo URL
+    const { error: updateError } = await supabase
+      .from("organizations")
+      .update({ logo_url: logoUrl })
+      .eq("org_slug", orgSlug)
+
+    if (updateError) {
+      console.error("[uploadOrgLogo] Database update error:", updateError)
+      // Logo was uploaded but DB update failed - still return success with URL
+      return {
+        success: true,
+        logoUrl,
+        error: "Logo uploaded but database update failed. Please save the URL manually.",
+      }
+    }
+
+    console.log(`[uploadOrgLogo] Successfully uploaded logo for ${orgSlug}: ${logoUrl}`)
+
+    return {
+      success: true,
+      logoUrl,
+    }
+  } catch (err: unknown) {
+    console.error("[uploadOrgLogo] Unexpected error:", err)
+    const errorMessage = err instanceof Error ? err.message : "Failed to upload organization logo"
+    return { success: false, error: errorMessage }
+  }
+}
+
+/**
+ * Delete organization logo from Supabase Storage.
+ * Removes the file and clears the logo_url in organizations table.
+ *
+ * SECURITY: Requires org membership.
+ */
+export async function deleteOrgLogo(orgSlug: string): Promise<UpdateOrgLogoResult> {
+  try {
+    // Validate input
+    if (!isValidOrgSlug(orgSlug)) {
+      return { success: false, error: "Invalid organization identifier" }
+    }
+
+    // Verify authentication AND org membership
+    const authResult = await verifyOrgMembership(orgSlug)
+    if (!authResult.authorized) {
+      return { success: false, error: authResult.error || "Not authorized" }
+    }
+
+    const supabase = await createClient()
+
+    // List and delete all files in the org's folder
+    const { data: existingFiles } = await supabase.storage
+      .from("org-logos")
+      .list(orgSlug)
+
+    if (existingFiles && existingFiles.length > 0) {
+      const filesToDelete = existingFiles.map(f => `${orgSlug}/${f.name}`)
+      const { error: deleteError } = await supabase.storage
+        .from("org-logos")
+        .remove(filesToDelete)
+
+      if (deleteError) {
+        console.error("[deleteOrgLogo] Storage delete error:", deleteError)
+        // Continue anyway to clear the URL from database
+      }
+    }
+
+    // Clear the logo_url in database
+    const { error: updateError } = await supabase
+      .from("organizations")
+      .update({ logo_url: null })
+      .eq("org_slug", orgSlug)
+
+    if (updateError) {
+      console.error("[deleteOrgLogo] Database update error:", updateError)
+      return { success: false, error: "Failed to clear logo URL from database" }
+    }
+
+    console.log(`[deleteOrgLogo] Successfully deleted logo for ${orgSlug}`)
+
+    return { success: true }
+  } catch (err: unknown) {
+    console.error("[deleteOrgLogo] Unexpected error:", err)
+    const errorMessage = err instanceof Error ? err.message : "Failed to delete organization logo"
     return { success: false, error: errorMessage }
   }
 }

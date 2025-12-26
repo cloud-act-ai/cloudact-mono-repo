@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useParams } from "next/navigation"
-import { Loader2, Check, Brain, Sparkles, Cpu, ChevronRight, RefreshCw, AlertCircle, Gem, Shield } from "lucide-react"
+import { Loader2, Check, Brain, Sparkles, ChevronRight, RefreshCw, AlertCircle, Shield } from "lucide-react"
 import Link from "next/link"
 
 import { Switch } from "@/components/ui/switch"
+import { ProviderLogo } from "@/components/ui/provider-logo"
 import { getIntegrations, validateIntegration, IntegrationProvider, toggleIntegrationEnabled } from "@/actions/integrations"
 import { checkBackendOnboarding, hasStoredApiKey } from "@/actions/backend-onboarding"
 
@@ -24,7 +25,6 @@ interface ProviderConfig {
   backendKey: string
   name: string
   description: string
-  icon: React.ReactNode
   href: string
   accent: string
 }
@@ -35,7 +35,6 @@ const GENAI_PROVIDERS: ProviderConfig[] = [
     backendKey: "OPENAI",
     name: "OpenAI",
     description: "GPT-4, GPT-3.5, DALL-E",
-    icon: <Brain className="h-5 w-5" />,
     href: "genai/openai",
     accent: "#10A37F",
   },
@@ -44,7 +43,6 @@ const GENAI_PROVIDERS: ProviderConfig[] = [
     backendKey: "ANTHROPIC",
     name: "Anthropic",
     description: "Claude 3.5 Sonnet, Opus, Haiku",
-    icon: <Sparkles className="h-5 w-5" />,
     href: "genai/anthropic",
     accent: "#D97706",
   },
@@ -53,7 +51,6 @@ const GENAI_PROVIDERS: ProviderConfig[] = [
     backendKey: "GEMINI",
     name: "Google Gemini",
     description: "Gemini Pro, Flash, Gemma",
-    icon: <Gem className="h-5 w-5" />,
     href: "genai/gemini",
     accent: "#4285F4",
   },
@@ -62,7 +59,6 @@ const GENAI_PROVIDERS: ProviderConfig[] = [
     backendKey: "DEEPSEEK",
     name: "DeepSeek",
     description: "DeepSeek-V3, DeepSeek-Coder",
-    icon: <Cpu className="h-5 w-5" />,
     href: "genai/deepseek",
     accent: "#8B5CF6",
   },
@@ -283,7 +279,7 @@ export default function GenAIIntegrationsPage() {
                           className="h-11 w-11 rounded-xl flex items-center justify-center flex-shrink-0"
                           style={{ backgroundColor: `${provider.accent}15` }}
                         >
-                          <div style={{ color: provider.accent }}>{provider.icon}</div>
+                          <ProviderLogo provider={provider.id} category="genai" size={22} />
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
@@ -350,7 +346,7 @@ export default function GenAIIntegrationsPage() {
                       className="h-10 w-10 rounded-xl flex items-center justify-center"
                       style={{ backgroundColor: `${provider.accent}10` }}
                     >
-                      <div style={{ color: provider.accent }}>{provider.icon}</div>
+                      <ProviderLogo provider={provider.id} category="genai" size={20} />
                     </div>
                     <div>
                       <h3 className="text-[14px] font-semibold text-black">{provider.name}</h3>

@@ -244,7 +244,7 @@ export function MobileNav({
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
           <div className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded-lg overflow-hidden bg-gradient-to-br from-[var(--cloudact-mint)] to-[var(--cloudact-mint-light)] flex items-center justify-center flex-shrink-0">
+            <div className="h-8 w-8 rounded-lg overflow-hidden bg-white border border-gray-200 shadow-sm flex items-center justify-center flex-shrink-0">
               {logoUrl ? (
                 <Image
                   src={logoUrl}
@@ -254,7 +254,7 @@ export function MobileNav({
                   className="object-contain"
                 />
               ) : (
-                <Building2 className="h-4 w-4 text-[var(--cloudact-mint-text)]" />
+                <Building2 className="h-4 w-4 text-slate-400" />
               )}
             </div>
             <span className="text-[13px] font-semibold text-slate-900 truncate">

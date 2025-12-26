@@ -284,11 +284,12 @@ export function DashboardSidebar({
             className="flex items-center gap-3 hover:opacity-80 transition-opacity flex-1 min-w-0"
           >
             <div className={cn(
-              "flex-shrink-0 rounded-lg overflow-hidden bg-gradient-to-br from-[var(--cloudact-mint)] to-[var(--cloudact-mint-light)] flex items-center justify-center",
-              "h-8 w-8"
+              "flex-shrink-0 rounded-lg overflow-hidden flex items-center justify-center",
+              "h-8 w-8 border border-gray-200 bg-white shadow-sm",
+              "transition-all duration-200 hover:border-[var(--cloudact-mint)] hover:shadow-md"
             )}>
               {logoLoading ? (
-                <div className="h-4 w-4 animate-pulse bg-white/20 rounded" />
+                <div className="h-4 w-4 animate-pulse bg-gray-100 rounded" />
               ) : logoUrl ? (
                 <Image
                   src={logoUrl}
@@ -298,7 +299,7 @@ export function DashboardSidebar({
                   className="object-contain"
                 />
               ) : (
-                <Building2 className="h-4 w-4 text-[var(--cloudact-mint-text)]" />
+                <Building2 className="h-4 w-4 text-slate-400" />
               )}
             </div>
             {!isCollapsed && (

@@ -1,0 +1,5 @@
+date,provider,deployment_name,model,region,ptu_count,ptu_utilisation_avg,ptu_utilisation_p50,ptu_utilisation_p90,ptu_utilisation_p99,inference_tokens,prompt_tokens,completion_tokens,api_calls,daily_cost_usd,org_slug
+2025-12-26,azure_openai_ptu,prod-gpt4,gpt-4,eastus,100,0.75,0.7,0.85,0.92,1000000,600000,400000,5000,14400.0,acme
+2025-12-26,azure_openai_ptu,prod-gpt4o,gpt-4o,eastus,50,0.75,0.7,0.85,0.92,1000000,600000,400000,5000,1600.0,acme
+2025-12-26,azure_openai_ptu,prod-gpt4omini,gpt-4o-mini,eastus,200,0.75,0.7,0.85,0.92,1000000,600000,400000,5000,4800.0,acme
+2025-12-26,aws_bedrock_pt,prod-claude3sonnet,claude-3-sonnet,us-east-1,10,0.75,0.7,0.85,0.92,1000000,600000,400000,5000,8400.0,acme

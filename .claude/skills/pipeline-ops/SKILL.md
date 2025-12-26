@@ -48,13 +48,14 @@ category: "cost|usage|subscription|etl"
 |----------|---------|---------|
 | OpenAI | `openai.usage` | Extract usage data |
 | OpenAI | `openai.cost` | Calculate costs |
-| OpenAI | `openai.subscriptions` | Sync subscriptions |
 | Anthropic | `anthropic.usage` | Extract usage data |
 | Anthropic | `anthropic.cost` | Calculate costs |
 | GCP | `gcp.bq_etl` | BigQuery ETL operations |
 | GCP | `gcp.api_extractor` | GCP API data extraction |
 | Generic | `generic.api_extractor` | Generic REST API extraction |
 | Generic | `generic.procedure_executor` | Execute stored procedures |
+
+**Note:** SaaS subscription costs use `generic.procedure_executor` with stored procedures. See `subscription-costs` skill.
 
 ## Instructions
 
@@ -136,6 +137,7 @@ curl -s "http://localhost:8000/api/v1/pipeline-logs/{org_slug}?limit=10" \
 ```
 
 ## Related Skills
+- `subscription-costs` - SaaS subscription cost pipeline
 - `config-validator` - Validate pipeline YAML
 - `bigquery-ops` - BigQuery table operations
 - `integration-setup` - Setup provider credentials

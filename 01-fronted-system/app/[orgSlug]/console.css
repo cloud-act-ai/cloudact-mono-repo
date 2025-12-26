@@ -135,7 +135,7 @@
 .health-card-label-teal { color: #1a7a3a; }
 .health-card-label-mint { color: #1a7a3a; }
 .health-card-label-coral { color: #FF6C5E; }
-.health-card-label-blue { color: #007AFF; }
+.health-card-label-blue { color: #1C1C1E; }
 
 .health-card-value {
   font-size: 1.75rem;
@@ -260,10 +260,10 @@
 .metric-card-label-secondary { color: #6EE890; }  /* Mint-dark */
 .metric-card-label-tertiary { color: #4DD979; }   /* Mint-darker */
 
-/* Blue family (info/links) */
-.metric-card-label-blue { color: #007AFF; }
-.metric-card-label-blue-light { color: #4DA3FF; }
-.metric-card-label-blue-dark { color: #0062CC; }
+/* Blue family (info/links) - Now using neutral black */
+.metric-card-label-blue { color: #1C1C1E; }
+.metric-card-label-blue-light { color: #3C3C43; }
+.metric-card-label-blue-dark { color: #000000; }
 
 /* Coral family (costs/billing) */
 .metric-card-label-coral { color: #FF6C5E; }
@@ -828,7 +828,7 @@
 /* Link Button - Text only */
 .console-button-link {
   background: transparent;
-  color: var(--cloudact-blue);
+  color: #1C1C1E;
   border-radius: 0;
   font-size: 0.9375rem;
   font-weight: 600;
@@ -840,7 +840,7 @@
 }
 
 .console-button-link:hover {
-  color: #0062CC;
+  color: #000000;
 }
 
 /* Icon Button Sizes */
@@ -946,8 +946,8 @@
 }
 
 .console-badge-blue {
-  background: rgba(0, 122, 255, 0.12);
-  color: #007AFF;
+  background: rgba(60, 60, 67, 0.08);
+  color: #3C3C43;
 }
 
 .console-badge-success {
@@ -1018,10 +1018,10 @@
 .category-teal-light { color: #6EE890; }
 .category-teal-dark { color: #4DD979; }
 
-/* Blue family - Info/Links */
-.category-blue { color: #007AFF; }
-.category-blue-light { color: #4DA3FF; }
-.category-blue-dark { color: #0062CC; }
+/* Neutral family - Info/Links (replaced blue with neutral) */
+.category-blue { color: #1C1C1E; }
+.category-blue-light { color: #3C3C43; }
+.category-blue-dark { color: #000000; }
 
 /* Coral family - Costs/Billing */
 .category-coral { color: #FF6C5E; }
@@ -1034,7 +1034,7 @@
 /* Category backgrounds */
 .category-bg-mint { background: rgba(144, 252, 166, 0.15); }
 .category-bg-teal { background: rgba(144, 252, 166, 0.15); }
-.category-bg-blue { background: rgba(0, 122, 255, 0.1); }
+.category-bg-blue { background: rgba(60, 60, 67, 0.06); }
 .category-bg-coral { background: rgba(255, 108, 94, 0.1); }
 
 /* ============================================

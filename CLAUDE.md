@@ -156,4 +156,4 @@ pkill -f "uvicorn.*8001"
 **Cost Flow:** Subscriptions → Daily Costs → FOCUS 1.3 (with hierarchy extension fields)
 
 ---
-**Last Updated:** 2025-12-25
+**Last Updated:** 2025-12-26

@@ -1,0 +1,56 @@
+provider_id,display_name,category,logo_slug,logo_color,accent_color,description
+# GenAI API Providers (for integrations page)
+openai,OpenAI,genai,openai,412991,10A37F,GPT-4 and DALL-E API
+anthropic,Anthropic,genai,anthropic,191919,D97706,Claude API
+gemini,Google Gemini,genai,googlegemini,8E75B2,4285F4,Gemini API
+deepseek,DeepSeek,genai,deepseek,0066FF,8B5CF6,DeepSeek API
+# AI Subscription Services (for subscriptions page)
+chatgpt_plus,ChatGPT Plus,ai,openai,412991,10A37F,ChatGPT subscription plans
+claude_pro,Claude Pro,ai,anthropic,191919,D97706,Claude subscription plans
+gemini_advanced,Gemini Advanced,ai,googlegemini,8E75B2,4285F4,Gemini Advanced subscription
+copilot,GitHub Copilot,ai,githubcopilot,000000,000000,AI code assistant
+cursor,Cursor,ai,cursor,000000,000000,AI-powered code editor
+lovable,Lovable,ai,,FF6B6B,FF6B6B,AI app builder
+v0,v0,ai,vercel,000000,000000,Vercel AI UI generator
+windsurf,Windsurf,ai,codeium,09B6A2,09B6A2,AI code editor by Codeium
+replit,Replit,ai,replit,F26207,F26207,AI-powered IDE
+# Design Tools
+canva,Canva,design,canva,00C4CC,00C4CC,Design platform
+figma,Figma,design,figma,F24E1E,F24E1E,UI/UX design tool
+miro,Miro,design,miro,050038,050038,Visual collaboration
+adobe_cc,Adobe Creative Cloud,design,adobecreativecloud,DA1F26,DA1F26,Creative suite
+# Communication
+slack,Slack,communication,slack,4A154B,4A154B,Team messaging
+zoom,Zoom,communication,zoom,0B5CFF,0B5CFF,Video conferencing
+teams,Microsoft Teams,communication,microsoftteams,6264A7,6264A7,Team collaboration
+discord,Discord,communication,discord,5865F2,5865F2,Community platform
+# Development
+github,GitHub,development,github,181717,181717,Code hosting
+gitlab,GitLab,development,gitlab,FC6D26,FC6D26,DevOps platform
+jira,Jira,development,jira,0052CC,0052CC,Project tracking
+linear,Linear,development,linear,5E6AD2,5E6AD2,Issue tracking
+vercel,Vercel,development,vercel,000000,000000,Frontend platform
+netlify,Netlify,development,netlify,00C7B7,00C7B7,Web hosting
+railway,Railway,development,railway,0B0D0E,0B0D0E,App hosting
+supabase,Supabase,development,supabase,3FCF8E,3FCF8E,Backend platform
+bitbucket,Bitbucket,development,bitbucket,0052CC,0052CC,Code hosting
+# Productivity
+notion,Notion,productivity,notion,000000,000000,Workspace tool
+confluence,Confluence,productivity,confluence,172B4D,172B4D,Documentation
+asana,Asana,productivity,asana,F06A6A,F06A6A,Work management
+monday,Monday.com,productivity,monday,FF3D57,FF3D57,Work OS
+trello,Trello,productivity,trello,0052CC,0052CC,Kanban boards
+airtable,Airtable,productivity,airtable,18BFFF,18BFFF,Spreadsheet database
+dropbox,Dropbox,productivity,dropbox,0061FF,0061FF,File storage
+# Video
+loom,Loom,video,loom,625DF5,625DF5,Video messaging
+# Cloud Providers
+aws,Amazon Web Services,cloud,amazonwebservices,232F3E,FF9900,AWS cloud
+gcp,Google Cloud,cloud,googlecloud,4285F4,4285F4,GCP cloud
+azure,Microsoft Azure,cloud,microsoftazure,0078D4,0078D4,Azure cloud
+# Other
+zapier,Zapier,automation,zapier,FF4F00,FF4F00,Workflow automation
+huggingface,Hugging Face,ai,huggingface,FFD21E,FFD21E,ML platform
+perplexity,Perplexity,ai,perplexity,20808D,20808D,AI search
+mistral,Mistral AI,ai,mistral,FF7000,FF7000,AI models
+cohere,Cohere,ai,cohere,39594D,39594D,Enterprise AI

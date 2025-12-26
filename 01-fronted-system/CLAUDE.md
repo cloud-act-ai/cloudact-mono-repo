@@ -263,6 +263,12 @@ project,PROJ-001,Platform,DEPT-001,,Jane Smith,jane@example.com,Platform project
 team,TEAM-001,Backend,PROJ-001,,Bob Wilson,bob@example.com,Backend team
 ```
 
+**Default Seeding:** New orgs get default hierarchy (2 depts, 3 projects, 4 teams) during onboarding.
+
+**Subscription Form UI:** `app/[orgSlug]/integrations/subscriptions/[provider]/page.tsx`
+- Cascading dropdowns: Department → Project → Team
+- Uses `loadHierarchy()`, `handleDepartmentChange/ProjectChange/TeamChange()`
+
 **Subscription Integration:** Each subscription can be assigned to dept/project/team via:
 - `hierarchy_dept_id`, `hierarchy_dept_name`
 - `hierarchy_project_id`, `hierarchy_project_name`
@@ -278,4 +284,4 @@ cost_data_standard_1_3 (x_Hierarchy* extension fields)
 ```
 
 ---
-**Last Updated:** 2025-12-25
+**Last Updated:** 2025-12-26

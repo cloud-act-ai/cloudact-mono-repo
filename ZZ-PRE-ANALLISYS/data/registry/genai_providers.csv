@@ -5,5 +5,13 @@ gemini,Google Gemini,payg,api,https://generativelanguage.googleapis.com,api_key,
 azure_openai,Azure OpenAI (PAYG),payg,azure,https://{resource}.openai.azure.com,azure_ad,active,Azure hosted OpenAI
 azure_openai_ptu,Azure OpenAI (PTU),commitment,azure,https://{resource}.openai.azure.com,azure_ad,active,Provisioned throughput
 aws_bedrock,AWS Bedrock,payg,aws,bedrock.{region}.amazonaws.com,iam,active,AWS managed
+aws_bedrock_pt,AWS Bedrock (PT),commitment,aws,bedrock.{region}.amazonaws.com,iam,active,Provisioned throughput
 gcp_vertex,GCP Vertex AI,payg,gcp,https://{region}-aiplatform.googleapis.com,service_account,active,Google Cloud
+gcp_vertex_pt,GCP Vertex AI (PT),commitment,gcp,https://{region}-aiplatform.googleapis.com,service_account,active,Provisioned throughput (GSU)
+gcp_gpu,GCP GPU (Compute Engine),infrastructure,gcp,https://compute.googleapis.com,service_account,active,A100/H100/L4 instances
+gcp_tpu,GCP TPU,infrastructure,gcp,https://tpu.googleapis.com,service_account,active,TPU v4/v5e/v5p/v6e
+aws_gpu,AWS GPU (EC2),infrastructure,aws,https://ec2.amazonaws.com,iam,active,P4d/P5/G5/G6 instances
+aws_inf,AWS Inferentia (EC2),infrastructure,aws,https://ec2.amazonaws.com,iam,active,Inf2 instances
+aws_trn,AWS Trainium (EC2),infrastructure,aws,https://ec2.amazonaws.com,iam,active,Trn1/Trn2 instances
+azure_gpu,Azure GPU (VMs),infrastructure,azure,https://management.azure.com,azure_ad,active,NC/ND series VMs
 self_hosted,Self-Hosted,infrastructure,local,http://localhost:8080,none,active,Local deployment

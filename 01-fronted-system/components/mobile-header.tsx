@@ -102,7 +102,7 @@ export function MobileHeader({ orgName, orgSlug, user, userRole }: MobileHeaderP
             href={`/${orgSlug}/cost-dashboards/overview`}
             className="flex items-center gap-2 hover:opacity-80 transition-opacity"
           >
-            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg overflow-hidden bg-gradient-to-br from-[var(--cloudact-mint)] to-[var(--cloudact-mint-light)]">
+            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg overflow-hidden bg-white border border-gray-200 shadow-sm">
               {logoUrl ? (
                 <Image
                   src={logoUrl}
@@ -112,7 +112,7 @@ export function MobileHeader({ orgName, orgSlug, user, userRole }: MobileHeaderP
                   className="object-contain"
                 />
               ) : (
-                <Building2 className="h-4 w-4 text-[var(--cloudact-mint-text)]" />
+                <Building2 className="h-4 w-4 text-slate-400" />
               )}
             </div>
             <span className="text-[13px] font-semibold text-slate-900 truncate max-w-[120px]">

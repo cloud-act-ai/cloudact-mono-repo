@@ -67,6 +67,7 @@ import {
   type AvailablePlan,
   type PlanCreate,
 } from "@/actions/subscription-providers"
+import { getDepartments, getProjects, getTeams, type HierarchyEntity } from "@/actions/hierarchy"
 import { formatCurrency, formatDateOnly, convertFromUSD, getExchangeRate, SUPPORTED_CURRENCIES, getCurrencySymbol, DEFAULT_CURRENCY } from "@/lib/i18n"
 import { getOrgLocale } from "@/actions/organization-locale"
 
@@ -132,7 +133,7 @@ const categoryIcons: Record<string, React.ReactNode> = {
   other: <CreditCard className="h-6 w-6" />,
 }
 
-// Extended form data to include audit trail from template
+// Extended form data to include audit trail and hierarchy
 interface FormDataWithAudit {
   plan_name: string
   display_name: string
@@ -145,6 +146,20 @@ interface FormDataWithAudit {
   source_currency?: string
   source_price?: number
   exchange_rate_used?: number
+  // Hierarchy fields for cost allocation
+  hierarchy_dept_id?: string
+  hierarchy_dept_name?: string
+  hierarchy_project_id?: string
+  hierarchy_project_name?: string
+  hierarchy_team_id?: string
+  hierarchy_team_name?: string
+}
+
+// Hierarchy entity for dropdown
+interface HierarchyOption {
+  entity_id: string
+  entity_name: string
+  parent_id: string | null
 }
 
 export default function ProviderDetailPage() {
@@ -194,6 +209,14 @@ export default function ProviderDetailPage() {
     exchange_rate_used: undefined,
   })
   const [isFromTemplate, setIsFromTemplate] = useState(false)
+
+  // Hierarchy state for cost allocation dropdowns
+  const [departments, setDepartments] = useState<HierarchyOption[]>([])
+  const [projects, setProjects] = useState<HierarchyOption[]>([])
+  const [teams, setTeams] = useState<HierarchyOption[]>([])
+  const [filteredProjects, setFilteredProjects] = useState<HierarchyOption[]>([])
+  const [filteredTeams, setFilteredTeams] = useState<HierarchyOption[]>([])
+  const [loadingHierarchy, setLoadingHierarchy] = useState(false)
 
   // Load plans from BigQuery
   const loadPlans = useCallback(async (isMounted?: () => boolean) => {
@@ -301,12 +324,99 @@ export default function ProviderDetailPage() {
     setIsFromTemplate(true)
     setStartDate(new Date())
     setTemplateSheetOpen(false)
+    loadHierarchy()
     setCustomSheetOpen(true)
+  }
+
+  // Load hierarchy entities for cost allocation dropdowns
+  const loadHierarchy = useCallback(async () => {
+    setLoadingHierarchy(true)
+    try {
+      const [deptsResult, projsResult, teamsResult] = await Promise.all([
+        getDepartments(orgSlug),
+        getProjects(orgSlug),
+        getTeams(orgSlug),
+      ])
+
+      if (deptsResult.success && deptsResult.data) {
+        setDepartments(deptsResult.data.map((d: HierarchyEntity) => ({
+          entity_id: d.entity_id,
+          entity_name: d.entity_name,
+          parent_id: d.parent_id,
+        })))
+      }
+      if (projsResult.success && projsResult.data) {
+        const projOptions = projsResult.data.map((p: HierarchyEntity) => ({
+          entity_id: p.entity_id,
+          entity_name: p.entity_name,
+          parent_id: p.parent_id,
+        }))
+        setProjects(projOptions)
+        setFilteredProjects(projOptions)
+      }
+      if (teamsResult.success && teamsResult.data) {
+        const teamOptions = teamsResult.data.map((t: HierarchyEntity) => ({
+          entity_id: t.entity_id,
+          entity_name: t.entity_name,
+          parent_id: t.parent_id,
+        }))
+        setTeams(teamOptions)
+        setFilteredTeams(teamOptions)
+      }
+    } catch (err) {
+      console.error("Failed to load hierarchy:", err)
+    } finally {
+      setLoadingHierarchy(false)
+    }
+  }, [orgSlug])
+
+  // Filter projects when department changes
+  const handleDepartmentChange = (deptId: string) => {
+    const dept = departments.find(d => d.entity_id === deptId)
+    setFormData({
+      ...formData,
+      hierarchy_dept_id: deptId,
+      hierarchy_dept_name: dept?.entity_name || "",
+      hierarchy_project_id: undefined,
+      hierarchy_project_name: undefined,
+      hierarchy_team_id: undefined,
+      hierarchy_team_name: undefined,
+    })
+    // Filter projects by department
+    const filtered = projects.filter(p => p.parent_id === deptId)
+    setFilteredProjects(filtered)
+    setFilteredTeams([])
+  }
+
+  // Filter teams when project changes
+  const handleProjectChange = (projId: string) => {
+    const proj = projects.find(p => p.entity_id === projId)
+    setFormData({
+      ...formData,
+      hierarchy_project_id: projId,
+      hierarchy_project_name: proj?.entity_name || "",
+      hierarchy_team_id: undefined,
+      hierarchy_team_name: undefined,
+    })
+    // Filter teams by project
+    const filtered = teams.filter(t => t.parent_id === projId)
+    setFilteredTeams(filtered)
+  }
+
+  // Handle team selection
+  const handleTeamChange = (teamId: string) => {
+    const team = teams.find(t => t.entity_id === teamId)
+    setFormData({
+      ...formData,
+      hierarchy_team_id: teamId,
+      hierarchy_team_name: team?.entity_name || "",
+    })
   }
 
   // Open custom sheet with empty form
   const openCustomSheet = () => {
     resetForm()
+    loadHierarchy()
     setCustomSheetOpen(true)
   }
 
@@ -324,10 +434,19 @@ export default function ProviderDetailPage() {
       source_currency: undefined,
       source_price: undefined,
       exchange_rate_used: undefined,
+      hierarchy_dept_id: undefined,
+      hierarchy_dept_name: undefined,
+      hierarchy_project_id: undefined,
+      hierarchy_project_name: undefined,
+      hierarchy_team_id: undefined,
+      hierarchy_team_name: undefined,
     })
     setIsFromTemplate(false)
     setStartDate(new Date())
     setError(null)
+    // Reset filtered hierarchy lists
+    setFilteredProjects(projects)
+    setFilteredTeams(teams)
   }
 
   // Handle form submission
@@ -380,6 +499,12 @@ export default function ProviderDetailPage() {
         source_currency?: string
         source_price?: number
         exchange_rate_used?: number
+        hierarchy_dept_id?: string
+        hierarchy_dept_name?: string
+        hierarchy_project_id?: string
+        hierarchy_project_name?: string
+        hierarchy_team_id?: string
+        hierarchy_team_name?: string
       } = {
         plan_name: formData.plan_name.toUpperCase().replace(/\s+/g, "_"),
         display_name: formData.display_name || formData.plan_name,
@@ -392,10 +517,25 @@ export default function ProviderDetailPage() {
         start_date: startDateStr,
       }
 
+      // Add audit trail for currency conversion
       if (formData.source_currency && formData.source_price !== undefined && formData.exchange_rate_used) {
         planData.source_currency = formData.source_currency
         planData.source_price = formData.source_price
         planData.exchange_rate_used = formData.exchange_rate_used
+      }
+
+      // Add hierarchy fields for cost allocation
+      if (formData.hierarchy_dept_id) {
+        planData.hierarchy_dept_id = formData.hierarchy_dept_id
+        planData.hierarchy_dept_name = formData.hierarchy_dept_name
+      }
+      if (formData.hierarchy_project_id) {
+        planData.hierarchy_project_id = formData.hierarchy_project_id
+        planData.hierarchy_project_name = formData.hierarchy_project_name
+      }
+      if (formData.hierarchy_team_id) {
+        planData.hierarchy_team_id = formData.hierarchy_team_id
+        planData.hierarchy_team_name = formData.hierarchy_team_name
       }
 
       const result = await createCustomPlan(orgSlug, provider, planData)
@@ -1167,6 +1307,102 @@ export default function ProviderDetailPage() {
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                 placeholder="Optional notes about this subscription"
               />
+            </div>
+
+            {/* Cost Allocation - Hierarchy Selection */}
+            <div className="space-y-4 pt-4 border-t border-border">
+              <div className="flex items-center gap-2">
+                <h4 className="text-sm font-semibold text-foreground">Cost Allocation</h4>
+                <Badge variant="outline" className="text-[10px] bg-[#90FCA6]/10 text-[#1a7a3a] border-[#90FCA6]/30">
+                  Optional
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground -mt-2">
+                Assign this subscription to a department, project, or team for cost tracking
+              </p>
+
+              {loadingHierarchy ? (
+                <div className="flex items-center gap-2 py-4">
+                  <Loader2 className="h-4 w-4 animate-spin text-[#1a7a3a]" />
+                  <span className="text-sm text-muted-foreground">Loading hierarchy...</span>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-4">
+                  {/* Department */}
+                  <div className="space-y-2">
+                    <Label>Department</Label>
+                    <Select
+                      value={formData.hierarchy_dept_id || ""}
+                      onValueChange={handleDepartmentChange}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select department..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {departments.map((dept) => (
+                          <SelectItem key={dept.entity_id} value={dept.entity_id}>
+                            {dept.entity_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Project - filtered by department */}
+                  <div className="space-y-2">
+                    <Label>Project</Label>
+                    <Select
+                      value={formData.hierarchy_project_id || ""}
+                      onValueChange={handleProjectChange}
+                      disabled={!formData.hierarchy_dept_id || filteredProjects.length === 0}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={
+                          !formData.hierarchy_dept_id
+                            ? "Select department first..."
+                            : filteredProjects.length === 0
+                              ? "No projects in this department"
+                              : "Select project..."
+                        } />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {filteredProjects.map((proj) => (
+                          <SelectItem key={proj.entity_id} value={proj.entity_id}>
+                            {proj.entity_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Team - filtered by project */}
+                  <div className="space-y-2">
+                    <Label>Team</Label>
+                    <Select
+                      value={formData.hierarchy_team_id || ""}
+                      onValueChange={handleTeamChange}
+                      disabled={!formData.hierarchy_project_id || filteredTeams.length === 0}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={
+                          !formData.hierarchy_project_id
+                            ? "Select project first..."
+                            : filteredTeams.length === 0
+                              ? "No teams in this project"
+                              : "Select team..."
+                        } />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {filteredTeams.map((team) => (
+                          <SelectItem key={team.entity_id} value={team.entity_id}>
+                            {team.entity_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Error Message */}

@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -32,30 +31,21 @@ import {
 } from "@/components/ui/alert-dialog"
 import {
   Loader2,
-  Save,
   AlertTriangle,
-  Globe,
-  DollarSign,
   CheckCircle2,
-  Clock,
   Building2,
   Trash2,
   ArrowRightLeft,
   Users,
   User,
-  Mail,
   UserCog,
   RefreshCw,
-  Server,
   Key,
-  ImageIcon,
-  Link as LinkIcon,
-  Phone,
-  MapPin,
   Sparkles,
   Shield,
   Activity,
-  TrendingUp,
+  Save,
+  Mail,
 } from "lucide-react"
 import { logError } from "@/lib/utils"
 import { SUPPORTED_CURRENCIES, SUPPORTED_TIMEZONES, FISCAL_YEAR_OPTIONS, getFiscalYearFromTimezone, DEFAULT_CURRENCY } from "@/lib/i18n/constants"
@@ -64,11 +54,11 @@ import {
   updateOrgLocale,
   updateFiscalYear,
   getOrgLogo,
-  updateOrgLogo,
   getOrgContactDetails,
   updateOrgContactDetails,
   type OrgContactDetails,
 } from "@/actions/organization-locale"
+import { LogoUpload } from "@/components/ui/logo-upload"
 import {
   getOwnedOrganizations,
   getEligibleTransferMembers,
@@ -112,15 +102,13 @@ export default function OrganizationSettingsPage() {
   // Locale fields
   const [currency, setCurrency] = useState(DEFAULT_CURRENCY)
   const [timezone, setTimezone] = useState("UTC")
-  const [logoUrl, setLogoUrl] = useState("")
+  const [logoUrl, setLogoUrl] = useState<string | null>(null)
   const [fiscalYearStart, setFiscalYearStart] = useState(1) // 1=Jan, 4=Apr, 7=Jul, 10=Oct
 
   // Track original values to detect changes
   const [originalCurrency, setOriginalCurrency] = useState(DEFAULT_CURRENCY)
   const [originalTimezone, setOriginalTimezone] = useState("UTC")
-  const [originalLogoUrl, setOriginalLogoUrl] = useState("")
   const [originalFiscalYearStart, setOriginalFiscalYearStart] = useState(1)
-  const [isSavingLogo, setIsSavingLogo] = useState(false)
   const [isSavingFiscalYear, setIsSavingFiscalYear] = useState(false)
 
   // Danger zone state
@@ -485,8 +473,7 @@ export default function OrganizationSettingsPage() {
 
       // Set logo URL
       if (logoResult.success) {
-        setLogoUrl(logoResult.logoUrl || "")
-        setOriginalLogoUrl(logoResult.logoUrl || "")
+        setLogoUrl(logoResult.logoUrl || null)
       }
     } catch (err: unknown) {
       const errorMessage = logError("OrganizationSettingsPage:fetchLocale", err)
@@ -532,7 +519,6 @@ export default function OrganizationSettingsPage() {
   }, [fetchLocale, loadUserAndOrgs, loadBackendStatus, loadContactDetails])
 
   const hasLocaleChanges = currency !== originalCurrency || timezone !== originalTimezone
-  const hasLogoChanges = logoUrl !== originalLogoUrl
   const hasFiscalYearChanges = fiscalYearStart !== originalFiscalYearStart
   const hasContactChanges =
     contactDetails.business_person_name !== originalContactDetails.business_person_name ||
@@ -546,31 +532,6 @@ export default function OrganizationSettingsPage() {
     contactDetails.business_state !== originalContactDetails.business_state ||
     contactDetails.business_postal_code !== originalContactDetails.business_postal_code ||
     contactDetails.business_country !== originalContactDetails.business_country
-
-  const handleSaveLogo = async () => {
-    if (!hasLogoChanges) return
-
-    setIsSavingLogo(true)
-    setError(null)
-    setSuccess(null)
-
-    try {
-      const result = await updateOrgLogo(orgSlug, logoUrl || null)
-
-      if (!result.success) {
-        setError(result.error || "Failed to update logo")
-        return
-      }
-
-      setOriginalLogoUrl(logoUrl)
-      setSuccess("Logo updated successfully!")
-      setTimeout(() => setSuccess(null), 4000)
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "An error occurred")
-    } finally {
-      setIsSavingLogo(false)
-    }
-  }
 
   const handleSaveFiscalYear = async () => {
     if (!hasFiscalYearChanges) return
@@ -855,136 +816,48 @@ export default function OrganizationSettingsPage() {
 
         <TabsContent value="general" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Organization Branding */}
-      <div className="metric-card shadow-sm hover:shadow-md transition-shadow duration-300 border-l-4 border-l-[#90FCA6]">
-        <div className="metric-card-header mb-6">
-          <div className="flex items-center gap-3">
-            <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-[#90FCA6] to-[#6EE890] flex items-center justify-center shadow-sm">
-              <Sparkles className="h-6 w-6 text-white" />
-            </div>
-            <div>
-              <h2 className="text-[22px] font-bold text-black">Organization Branding</h2>
-              <p className="text-[13px] sm:text-[15px] text-muted-foreground mt-0.5">
-                Customize your organization's visual identity
-              </p>
-            </div>
-          </div>
+      <div className="metric-card shadow-sm hover:shadow-md transition-shadow duration-300">
+        <div className="metric-card-header mb-4">
+          <h2 className="text-[18px] font-semibold text-black">Organization Logo</h2>
+          <p className="text-[14px] text-muted-foreground mt-1">
+            Upload or link your organization's logo (displayed in sidebar)
+          </p>
         </div>
 
-        <div className="metric-card-content space-y-4 sm:space-y-6">
-          {/* Logo Preview & URL Input */}
-          <div className="flex flex-col sm:flex-row gap-6">
-            {/* Logo Preview */}
-            <div className="flex-shrink-0">
-              <Label className="text-[13px] sm:text-[15px] font-medium text-foreground mb-2 block">
-                Logo Preview
-              </Label>
-              <div className="group relative h-24 w-24 rounded-2xl border-2 border-dashed border-[#E5E5EA] hover:border-[#90FCA6] transition-colors flex items-center justify-center bg-gradient-to-br from-[#90FCA6]/5 to-[#90FCA6]/10 overflow-hidden">
-                {logoUrl ? (
-                  <img
-                    src={logoUrl}
-                    alt="Organization logo"
-                    width={96}
-                    height={96}
-                    className="object-contain max-h-full max-w-full transition-transform group-hover:scale-105"
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none'
-                      setLogoUrl("")
-                    }}
-                  />
-                ) : (
-                  <ImageIcon className="h-10 w-10 text-muted-foreground group-hover:text-[#90FCA6] transition-colors" />
-                )}
-              </div>
-            </div>
-
-            {/* Logo URL Input */}
-            <div className="flex-1 space-y-2">
-              <Label htmlFor="logoUrl" className="text-[13px] sm:text-[15px] font-medium text-foreground flex items-center gap-2">
-                <LinkIcon className="h-4 w-4 text-muted-foreground" />
-                Logo URL
-              </Label>
-              <Input
-                id="logoUrl"
-                type="url"
-                value={logoUrl}
-                onChange={(e) => { setLogoUrl(e.target.value); setError(null); }}
-                placeholder="https://example.com/logo.png"
-                className="h-11 px-4 text-[15px] border border-[#E5E5EA] rounded-xl focus:border-[#90FCA6] focus:ring-2 focus:ring-[#90FCA6]/20 transition-all"
-              />
-              <p className="text-[13px] text-muted-foreground flex items-start gap-2">
-                <TrendingUp className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-[#90FCA6]" />
-                Enter a URL to your organization's logo (PNG, JPG, SVG). Must be HTTPS. The logo will appear in the sidebar.
-              </p>
-            </div>
-          </div>
-
-          {hasLogoChanges && (
-            <Alert className="bg-[#90FCA6]/15 border-[#90FCA6]/30 animate-in slide-in-from-top-2">
-              <AlertTriangle className="h-4 w-4 text-[#1a7a3a]" />
-              <AlertDescription className="text-[#1a7a3a] font-medium">
-                Logo URL has been changed. Click Save Logo to apply.
-              </AlertDescription>
-            </Alert>
-          )}
-        </div>
-
-        <div className="pt-4 sm:pt-6 border-t border-border flex gap-3">
-          <Button
-            onClick={handleSaveLogo}
-            disabled={isSavingLogo || !hasLogoChanges}
-            className="console-button-primary h-11 px-6 transition-all hover:shadow-md"
-          >
-            {isSavingLogo ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              <>
-                <Save className="mr-2 h-4 w-4" />
-                Save Logo
-              </>
-            )}
-          </Button>
-
-          {hasLogoChanges && (
-            <Button
-              onClick={() => setLogoUrl(originalLogoUrl)}
-              disabled={isSavingLogo}
-              variant="outline"
-              className="console-button-secondary h-11 px-4"
-            >
-              Reset
-            </Button>
-          )}
+        <div className="metric-card-content">
+          <LogoUpload
+            orgSlug={orgSlug}
+            currentLogoUrl={logoUrl}
+            onLogoChange={(newUrl) => setLogoUrl(newUrl)}
+            onError={(err) => {
+              setError(err)
+              setTimeout(() => setError(null), 5000)
+            }}
+            onSuccess={(msg) => {
+              setSuccess(msg)
+              setTimeout(() => setSuccess(null), 4000)
+            }}
+          />
         </div>
       </div>
 
       {/* Organization Locale */}
-      <div className="metric-card shadow-sm hover:shadow-md transition-shadow duration-300 border-l-4 border-l-[#90FCA6]">
-        <div className="metric-card-header mb-6">
-          <div className="flex items-center gap-3">
-            <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-[#90FCA6] to-[#6EE890] flex items-center justify-center shadow-sm">
-              <Globe className="h-6 w-6 text-white" />
-            </div>
-            <div>
-              <h2 className="text-[22px] font-bold text-black">Organization Locale</h2>
-              <p className="text-[13px] sm:text-[15px] text-muted-foreground mt-0.5">
-                Configure currency, timezone, and fiscal year settings
-              </p>
-            </div>
-          </div>
+      <div className="metric-card shadow-sm hover:shadow-md transition-shadow duration-300">
+        <div className="metric-card-header mb-4">
+          <h2 className="text-[18px] font-semibold text-black">Locale Settings</h2>
+          <p className="text-[14px] text-muted-foreground mt-1">
+            Configure currency, timezone, and fiscal year
+          </p>
         </div>
 
-        <div className="metric-card-content space-y-4 sm:space-y-6">
+        <div className="metric-card-content space-y-5">
           {/* Currency Selection */}
           <div className="space-y-2">
-            <Label htmlFor="currency" className="text-[13px] sm:text-[15px] font-medium text-foreground flex items-center gap-2">
-              <DollarSign className="h-4 w-4 text-[#90FCA6]" />
+            <Label htmlFor="currency" className="text-[14px] font-medium text-foreground">
               Currency <span className="text-[#FF6C5E]">*</span>
             </Label>
             <Select value={currency} onValueChange={(val) => { setCurrency(val); setError(null); }}>
-              <SelectTrigger id="currency" className="h-11 text-[15px] border border-[#E5E5EA] rounded-xl hover:border-[#90FCA6] transition-colors">
+              <SelectTrigger id="currency" className="h-10 text-[14px] border border-[#E5E5EA] rounded-lg hover:border-[#90FCA6] transition-colors">
                 <SelectValue placeholder="Select currency" />
               </SelectTrigger>
               <SelectContent className="max-h-[300px]">
@@ -995,22 +868,18 @@ export default function OrganizationSettingsPage() {
                 ))}
               </SelectContent>
             </Select>
-            <p className="text-[13px] text-muted-foreground flex items-start gap-2">
-              <TrendingUp className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-[#90FCA6]" />
-              All costs and billing displayed in this currency. Affects cost calculations across integrations.
+            <p className="text-[13px] text-muted-foreground">
+              All costs displayed in this currency
             </p>
           </div>
 
-          <Separator />
-
           {/* Timezone Selection */}
           <div className="space-y-2">
-            <Label htmlFor="timezone" className="text-[13px] sm:text-[15px] font-medium text-foreground flex items-center gap-2">
-              <Clock className="h-4 w-4 text-[#90FCA6]" />
+            <Label htmlFor="timezone" className="text-[14px] font-medium text-foreground">
               Timezone <span className="text-[#FF6C5E]">*</span>
             </Label>
             <Select value={timezone} onValueChange={handleTimezoneChange}>
-              <SelectTrigger id="timezone" className="h-11 text-[15px] border border-[#E5E5EA] rounded-xl hover:border-[#90FCA6] transition-colors">
+              <SelectTrigger id="timezone" className="h-10 text-[14px] border border-[#E5E5EA] rounded-lg hover:border-[#90FCA6] transition-colors">
                 <SelectValue placeholder="Select timezone" />
               </SelectTrigger>
               <SelectContent className="max-h-[300px]">
@@ -1021,21 +890,19 @@ export default function OrganizationSettingsPage() {
                 ))}
               </SelectContent>
             </Select>
-            <p className="text-[13px] text-muted-foreground flex items-start gap-2">
-              <TrendingUp className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-[#90FCA6]" />
-              Used for timestamps in dashboards, reports, and activity logs. Pipeline schedules use this timezone.
+            <p className="text-[13px] text-muted-foreground">
+              Used for dashboards and pipeline schedules
             </p>
           </div>
 
           {/* Fiscal Year Start */}
           <div className="space-y-2">
-            <Label htmlFor="fiscal-year" className="text-[13px] sm:text-[15px] font-medium text-foreground flex items-center gap-2">
-              <Globe className="h-4 w-4 text-[#90FCA6]" />
+            <Label htmlFor="fiscal-year" className="text-[14px] font-medium text-foreground">
               Fiscal Year Start
             </Label>
-            <div className="flex gap-3">
+            <div className="flex gap-2">
               <Select value={fiscalYearStart.toString()} onValueChange={(val) => { setFiscalYearStart(parseInt(val)); setError(null); }}>
-                <SelectTrigger id="fiscal-year" className="h-11 text-[15px] border border-[#E5E5EA] rounded-xl flex-1 hover:border-[#90FCA6] transition-colors">
+                <SelectTrigger id="fiscal-year" className="h-10 text-[14px] border border-[#E5E5EA] rounded-lg flex-1 hover:border-[#90FCA6] transition-colors">
                   <SelectValue placeholder="Select fiscal year start" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1046,129 +913,84 @@ export default function OrganizationSettingsPage() {
                   ))}
                 </SelectContent>
               </Select>
-              <Button
-                onClick={handleSaveFiscalYear}
-                disabled={isSavingFiscalYear || !hasFiscalYearChanges}
-                className="h-11 px-4 bg-[#90FCA6] hover:bg-[#6EE890] text-[#000000] text-[15px] font-semibold rounded-xl shadow-sm hover:shadow-md transition-all"
-              >
-                {isSavingFiscalYear ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Save className="h-4 w-4" />
-                )}
-              </Button>
+              {hasFiscalYearChanges && (
+                <Button
+                  onClick={handleSaveFiscalYear}
+                  disabled={isSavingFiscalYear}
+                  size="sm"
+                  className="h-10 px-3 bg-[#90FCA6] hover:bg-[#6EE890] text-black font-medium rounded-lg"
+                >
+                  {isSavingFiscalYear ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
+                </Button>
+              )}
             </div>
-            <p className="text-[13px] text-muted-foreground flex items-start gap-2">
-              <TrendingUp className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-[#90FCA6]" />
-              When your fiscal year begins. Auto-suggested based on timezone. Affects cost analytics reporting periods.
+            <p className="text-[13px] text-muted-foreground">
+              Auto-suggested based on timezone
             </p>
           </div>
 
           {hasLocaleChanges && (
-            <Alert className="bg-[#90FCA6]/15 border-[#90FCA6]/30 animate-in slide-in-from-top-2">
-              <AlertTriangle className="h-4 w-4 text-[#1a7a3a]" />
-              <AlertDescription className="text-[#1a7a3a] font-medium">
-                You have unsaved changes. Click Save to apply or Reset to discard.
+            <Alert className="bg-amber-50 border-amber-200">
+              <AlertDescription className="text-amber-800 text-[13px]">
+                You have unsaved locale changes
               </AlertDescription>
             </Alert>
           )}
         </div>
 
-        <div className="pt-4 sm:pt-6 border-t border-border flex gap-3">
-          <Button
-            onClick={handleSave}
-            disabled={isSaving || !hasLocaleChanges}
-            className="console-button-primary h-11 px-6 transition-all hover:shadow-md"
-          >
-            {isSaving ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              <>
-                <Save className="mr-2 h-4 w-4" />
-                Save Changes
-              </>
-            )}
-          </Button>
-
-          {hasLocaleChanges && (
+        {hasLocaleChanges && (
+          <div className="pt-4 border-t border-border flex gap-2">
+            <Button
+              onClick={handleSave}
+              disabled={isSaving}
+              className="h-9 px-4 bg-[#90FCA6] hover:bg-[#6EE890] text-black font-medium rounded-lg"
+            >
+              {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Save Changes
+            </Button>
             <Button
               onClick={handleReset}
               disabled={isSaving}
               variant="outline"
-              className="console-button-secondary h-11 px-4"
+              className="h-9 px-4 rounded-lg"
             >
               Reset
             </Button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
-      {/* Information Card */}
-      <div className="metric-card shadow-sm bg-gradient-to-br from-[#90FCA6]/5 via-slate-50 to-white border-[#90FCA6]/10">
-        <div className="metric-card-content">
-          <div className="flex items-start gap-3">
-            <div className="h-10 w-10 rounded-xl bg-white border border-[#90FCA6]/20 flex items-center justify-center flex-shrink-0 shadow-sm">
-              <AlertTriangle className="h-5 w-5 text-[#1a7a3a]" />
-            </div>
-            <div className="space-y-2">
-              <h3 className="text-[15px] font-semibold text-black">Important Notes</h3>
-              <ul className="text-[13px] text-slate-600 space-y-1.5 list-none">
-                <li className="flex items-start gap-2">
-                  <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-[#1a7a3a]" />
-                  <span>Currency changes affect how costs are displayed but do not convert historical data.</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-[#1a7a3a]" />
-                  <span>Timezone changes affect future timestamps and scheduled pipeline runs.</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-[#1a7a3a]" />
-                  <span>These settings sync to backend BigQuery for cost calculations and pipeline scheduling.</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-[#1a7a3a]" />
-                  <span>All team members will see costs and times in the organization's locale.</span>
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
+      {/* Information Note */}
+      <div className="p-4 rounded-lg bg-slate-50 border border-slate-200">
+        <p className="text-[13px] text-slate-600 leading-relaxed">
+          <strong className="text-slate-700">Note:</strong> Currency and timezone changes affect how data is displayed.
+          Settings sync to BigQuery for cost calculations. All team members share these locale settings.
+        </p>
       </div>
         </TabsContent>
 
         <TabsContent value="contact" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Contact Details */}
-      <div className="metric-card shadow-sm hover:shadow-md transition-shadow duration-300 border-l-4 border-l-[#90FCA6]">
-        <div className="metric-card-header mb-6">
-          <div className="flex items-center gap-3">
-            <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-[#90FCA6] to-[#6EE890] flex items-center justify-center shadow-sm">
-              <User className="h-6 w-6 text-white" />
-            </div>
-            <div>
-              <h2 className="text-[22px] font-bold text-black">Contact Details</h2>
-              <p className="text-[13px] sm:text-[15px] text-muted-foreground mt-0.5">
-                Business contact person and address for your organization
-              </p>
-            </div>
-          </div>
+      <div className="metric-card shadow-sm hover:shadow-md transition-shadow duration-300">
+        <div className="metric-card-header mb-4">
+          <h2 className="text-[18px] font-semibold text-black">Contact Details</h2>
+          <p className="text-[14px] text-muted-foreground mt-1">
+            Business contact person and address
+          </p>
         </div>
 
         <div className="metric-card-content space-y-6">
           {loadingContactDetails ? (
             <div className="flex items-center gap-3 py-8">
               <Loader2 className="h-5 w-5 animate-spin text-[#90FCA6]" />
-              <span className="text-[15px] text-muted-foreground">Loading contact details...</span>
+              <span className="text-[14px] text-muted-foreground">Loading...</span>
             </div>
           ) : (
             <>
               {/* Business Person Section */}
-              <div className="space-y-4 p-4 rounded-xl bg-gradient-to-br from-[#90FCA6]/5 to-transparent border border-[#90FCA6]/10">
-                <h3 className="text-[15px] font-medium text-black flex items-center gap-2">
-                  <UserCog className="h-4 w-4 text-[#90FCA6]" />
-                  Business Contact Person
+              <div className="space-y-4">
+                <h3 className="text-[14px] font-medium text-slate-700">
+                  Contact Person
                 </h3>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1216,13 +1038,10 @@ export default function OrganizationSettingsPage() {
                 </div>
               </div>
 
-              <Separator />
-
               {/* Contact Info Row */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="contactEmail" className="text-[13px] sm:text-[15px] font-medium text-foreground flex items-center gap-2">
-                    <Mail className="h-4 w-4 text-[#90FCA6]" />
+                  <Label htmlFor="contactEmail" className="text-[13px] font-medium text-foreground">
                     Business Email
                   </Label>
                   <Input
@@ -1231,13 +1050,12 @@ export default function OrganizationSettingsPage() {
                     value={contactDetails.contact_email || ""}
                     onChange={(e) => updateContactField("contact_email", e.target.value)}
                     placeholder="contact@company.com"
-                    className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6]"
+                    className="h-10 px-3 text-[14px] border border-[#E5E5EA] rounded-lg focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6]"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="contactPhone" className="text-[13px] sm:text-[15px] font-medium text-foreground flex items-center gap-2">
-                    <Phone className="h-4 w-4 text-[#90FCA6]" />
+                  <Label htmlFor="contactPhone" className="text-[13px] font-medium text-foreground">
                     Business Phone
                   </Label>
                   <Input
@@ -1246,17 +1064,14 @@ export default function OrganizationSettingsPage() {
                     value={contactDetails.contact_phone || ""}
                     onChange={(e) => updateContactField("contact_phone", e.target.value)}
                     placeholder="+1 234-567-8900"
-                    className="h-10 px-3 text-[15px] border border-[#E5E5EA] rounded-lg focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6]"
+                    className="h-10 px-3 text-[14px] border border-[#E5E5EA] rounded-lg focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6]"
                   />
                 </div>
               </div>
 
-              <Separator />
-
               {/* Address Section */}
-              <div className="space-y-4 p-4 rounded-xl bg-gradient-to-br from-[#90FCA6]/5 to-transparent border border-[#90FCA6]/10">
-                <h3 className="text-[15px] font-medium text-black flex items-center gap-2">
-                  <MapPin className="h-4 w-4 text-[#90FCA6]" />
+              <div className="space-y-4 pt-4 border-t border-slate-200">
+                <h3 className="text-[14px] font-medium text-slate-700">
                   Business Address
                 </h3>
 
@@ -1398,26 +1213,19 @@ export default function OrganizationSettingsPage() {
 
         <TabsContent value="backend" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Backend Connection */}
-      <div className="metric-card shadow-sm hover:shadow-md transition-shadow duration-300 border-l-4 border-l-[#90FCA6]">
-        <div className="metric-card-header mb-6">
-          <div className="flex items-center gap-3">
-            <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-[#90FCA6] to-[#6EE890] flex items-center justify-center shadow-sm">
-              <Server className="h-6 w-6 text-white" />
-            </div>
-            <div>
-              <h2 className="text-[22px] font-bold text-black">Backend Connection</h2>
-              <p className="text-[13px] sm:text-[15px] text-muted-foreground mt-0.5">
-                Status of your BigQuery backend connection and API key
-              </p>
-            </div>
-          </div>
+      <div className="metric-card shadow-sm hover:shadow-md transition-shadow duration-300">
+        <div className="metric-card-header mb-4">
+          <h2 className="text-[18px] font-semibold text-black">Backend Connection</h2>
+          <p className="text-[14px] text-muted-foreground mt-1">
+            BigQuery backend status and API key
+          </p>
         </div>
 
         <div className="metric-card-content space-y-4">
           {loadingBackendStatus ? (
             <div className="flex items-center gap-3 py-8">
               <Loader2 className="h-5 w-5 animate-spin text-[#90FCA6]" />
-              <span className="text-[15px] text-muted-foreground">Checking connection status...</span>
+              <span className="text-[14px] text-muted-foreground">Checking connection...</span>
             </div>
           ) : (
             <>
@@ -1504,13 +1312,10 @@ export default function OrganizationSettingsPage() {
 
               {/* Help text for invalid API key */}
               {apiKeyValid === false && (
-                <div className="p-4 border-2 border-[#90FCA6]/20 rounded-xl bg-gradient-to-br from-[#90FCA6]/10 to-white">
-                  <p className="text-[13px] text-slate-700 flex items-start gap-2">
-                    <TrendingUp className="h-4 w-4 mt-0.5 flex-shrink-0 text-[#1a7a3a]" />
-                    <span>
-                      <strong className="text-black">How to fix:</strong> Your API key may have been rotated or deactivated.
-                      Try clicking "Resync Connection" below, or contact support if the issue persists.
-                    </span>
+                <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                  <p className="text-[13px] text-slate-600">
+                    <strong className="text-slate-700">How to fix:</strong> Your API key may have been rotated or deactivated.
+                    Try "Resync Connection" below or contact support.
                   </p>
                 </div>
               )}

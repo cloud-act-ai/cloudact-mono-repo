@@ -9,6 +9,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 
+import { ProviderLogo } from "@/components/ui/provider-logo"
 import { checkBackendOnboarding, hasStoredApiKey } from "@/actions/backend-onboarding"
 import {
   getAllProviders,
@@ -54,7 +55,7 @@ function TrackingCard({
             className="h-11 w-11 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-105"
             style={{ backgroundColor: `${category.accent}12` }}
           >
-            <div style={{ color: category.accent }}>{category.icon}</div>
+            <ProviderLogo provider={provider.provider} category={provider.category} size={22} fallbackColor={category.accent} />
           </div>
 
           {/* Info */}
@@ -110,7 +111,7 @@ function SetupCard({
             className="h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0"
             style={{ backgroundColor: `${category.accent}15` }}
           >
-            <div style={{ color: category.accent }}>{category.icon}</div>
+            <ProviderLogo provider={provider.provider} category={provider.category} size={20} fallbackColor={category.accent} />
           </div>
           <div className="min-w-0">
             <h3 className="text-[14px] font-semibold text-slate-900 truncate">{provider.display_name}</h3>
@@ -165,8 +166,8 @@ function AvailableCard({
           {isToggling ? (
             <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
           ) : (
-            <div style={{ color: category.accent }} className="opacity-70 group-hover:opacity-100 transition-opacity">
-              {category.icon}
+            <div className="opacity-70 group-hover:opacity-100 transition-opacity">
+              <ProviderLogo provider={provider.provider} category={provider.category} size={18} fallbackColor={category.accent} />
             </div>
           )}
         </div>

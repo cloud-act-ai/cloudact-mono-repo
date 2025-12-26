@@ -231,6 +231,38 @@ class SaaSSubscriptionBase(BaseModel):
         description="User notes, plan description, or limitations"
     )
 
+    # Hierarchy fields for cost allocation (v13.0)
+    hierarchy_dept_id: Optional[str] = Field(
+        default=None,
+        max_length=50,
+        description="Reference to org_hierarchy department entity_id for cost allocation"
+    )
+    hierarchy_dept_name: Optional[str] = Field(
+        default=None,
+        max_length=200,
+        description="Department name for reporting (denormalized from org_hierarchy)"
+    )
+    hierarchy_project_id: Optional[str] = Field(
+        default=None,
+        max_length=50,
+        description="Reference to org_hierarchy project entity_id for cost allocation"
+    )
+    hierarchy_project_name: Optional[str] = Field(
+        default=None,
+        max_length=200,
+        description="Project name for reporting (denormalized from org_hierarchy)"
+    )
+    hierarchy_team_id: Optional[str] = Field(
+        default=None,
+        max_length=50,
+        description="Reference to org_hierarchy team entity_id for cost allocation"
+    )
+    hierarchy_team_name: Optional[str] = Field(
+        default=None,
+        max_length=200,
+        description="Team name for reporting (denormalized from org_hierarchy)"
+    )
+
     # Additional fields (not in BigQuery schema, but used in CSV and logic)
     category: CategoryEnum = Field(
         ...,

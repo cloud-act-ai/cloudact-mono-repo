@@ -165,6 +165,320 @@ class OrgOnboardingProcessor:
             self.logger.error(f"Error loading CSV {csv_path}: {e}")
             return []
 
+    async def _seed_default_hierarchy(
+        self,
+        bq_client: BigQueryClient,
+        dataset_id: str,
+        org_slug: str
+    ) -> Dict[str, Any]:
+        """
+        Seed default organizational hierarchy with sample departments, projects, and teams.
+
+        Creates a starter hierarchy so organizations don't start with empty data:
+        - 2 departments: Corporate, Engineering
+        - 3 projects: Operations, Platform, Product
+        - 4 teams: Finance, HR, Backend, Frontend
+
+        Args:
+            bq_client: BigQuery client
+            dataset_id: Organization dataset ID
+            org_slug: Organization slug
+
+        Returns:
+            Dict with seeding results
+        """
+        result = {
+            "departments_seeded": 0,
+            "projects_seeded": 0,
+            "teams_seeded": 0,
+            "errors": []
+        }
+
+        now = datetime.utcnow().isoformat() + "Z"
+        table_id = f"{self.settings.gcp_project_id}.{dataset_id}.org_hierarchy"
+
+        # Default hierarchy structure
+        default_hierarchy = [
+            # Departments (no parent)
+            {
+                "id": str(uuid.uuid4()),
+                "org_slug": org_slug,
+                "entity_type": "department",
+                "entity_id": "DEPT-CORP",
+                "entity_name": "Corporate",
+                "parent_id": None,
+                "parent_type": None,
+                "dept_id": "DEPT-CORP",
+                "dept_name": "Corporate",
+                "project_id": None,
+                "project_name": None,
+                "team_id": None,
+                "team_name": None,
+                "owner_id": None,
+                "owner_name": "Admin",
+                "owner_email": None,
+                "description": "Corporate departments including Finance, HR, and Operations",
+                "metadata": None,
+                "is_active": True,
+                "created_at": now,
+                "created_by": "system",
+                "updated_at": now,
+                "updated_by": "system",
+                "version": 1,
+                "end_date": None
+            },
+            {
+                "id": str(uuid.uuid4()),
+                "org_slug": org_slug,
+                "entity_type": "department",
+                "entity_id": "DEPT-ENG",
+                "entity_name": "Engineering",
+                "parent_id": None,
+                "parent_type": None,
+                "dept_id": "DEPT-ENG",
+                "dept_name": "Engineering",
+                "project_id": None,
+                "project_name": None,
+                "team_id": None,
+                "team_name": None,
+                "owner_id": None,
+                "owner_name": "Admin",
+                "owner_email": None,
+                "description": "Engineering and product development teams",
+                "metadata": None,
+                "is_active": True,
+                "created_at": now,
+                "created_by": "system",
+                "updated_at": now,
+                "updated_by": "system",
+                "version": 1,
+                "end_date": None
+            },
+            # Projects (parent = department)
+            {
+                "id": str(uuid.uuid4()),
+                "org_slug": org_slug,
+                "entity_type": "project",
+                "entity_id": "PROJ-OPS",
+                "entity_name": "Operations",
+                "parent_id": "DEPT-CORP",
+                "parent_type": "department",
+                "dept_id": "DEPT-CORP",
+                "dept_name": "Corporate",
+                "project_id": "PROJ-OPS",
+                "project_name": "Operations",
+                "team_id": None,
+                "team_name": None,
+                "owner_id": None,
+                "owner_name": "Admin",
+                "owner_email": None,
+                "description": "Business operations and administrative functions",
+                "metadata": None,
+                "is_active": True,
+                "created_at": now,
+                "created_by": "system",
+                "updated_at": now,
+                "updated_by": "system",
+                "version": 1,
+                "end_date": None
+            },
+            {
+                "id": str(uuid.uuid4()),
+                "org_slug": org_slug,
+                "entity_type": "project",
+                "entity_id": "PROJ-PLATFORM",
+                "entity_name": "Platform",
+                "parent_id": "DEPT-ENG",
+                "parent_type": "department",
+                "dept_id": "DEPT-ENG",
+                "dept_name": "Engineering",
+                "project_id": "PROJ-PLATFORM",
+                "project_name": "Platform",
+                "team_id": None,
+                "team_name": None,
+                "owner_id": None,
+                "owner_name": "Admin",
+                "owner_email": None,
+                "description": "Core platform infrastructure and services",
+                "metadata": None,
+                "is_active": True,
+                "created_at": now,
+                "created_by": "system",
+                "updated_at": now,
+                "updated_by": "system",
+                "version": 1,
+                "end_date": None
+            },
+            {
+                "id": str(uuid.uuid4()),
+                "org_slug": org_slug,
+                "entity_type": "project",
+                "entity_id": "PROJ-PRODUCT",
+                "entity_name": "Product",
+                "parent_id": "DEPT-ENG",
+                "parent_type": "department",
+                "dept_id": "DEPT-ENG",
+                "dept_name": "Engineering",
+                "project_id": "PROJ-PRODUCT",
+                "project_name": "Product",
+                "team_id": None,
+                "team_name": None,
+                "owner_id": None,
+                "owner_name": "Admin",
+                "owner_email": None,
+                "description": "Product development and features",
+                "metadata": None,
+                "is_active": True,
+                "created_at": now,
+                "created_by": "system",
+                "updated_at": now,
+                "updated_by": "system",
+                "version": 1,
+                "end_date": None
+            },
+            # Teams (parent = project)
+            {
+                "id": str(uuid.uuid4()),
+                "org_slug": org_slug,
+                "entity_type": "team",
+                "entity_id": "TEAM-FIN",
+                "entity_name": "Finance",
+                "parent_id": "PROJ-OPS",
+                "parent_type": "project",
+                "dept_id": "DEPT-CORP",
+                "dept_name": "Corporate",
+                "project_id": "PROJ-OPS",
+                "project_name": "Operations",
+                "team_id": "TEAM-FIN",
+                "team_name": "Finance",
+                "owner_id": None,
+                "owner_name": "Admin",
+                "owner_email": None,
+                "description": "Financial planning and accounting",
+                "metadata": None,
+                "is_active": True,
+                "created_at": now,
+                "created_by": "system",
+                "updated_at": now,
+                "updated_by": "system",
+                "version": 1,
+                "end_date": None
+            },
+            {
+                "id": str(uuid.uuid4()),
+                "org_slug": org_slug,
+                "entity_type": "team",
+                "entity_id": "TEAM-HR",
+                "entity_name": "Human Resources",
+                "parent_id": "PROJ-OPS",
+                "parent_type": "project",
+                "dept_id": "DEPT-CORP",
+                "dept_name": "Corporate",
+                "project_id": "PROJ-OPS",
+                "project_name": "Operations",
+                "team_id": "TEAM-HR",
+                "team_name": "Human Resources",
+                "owner_id": None,
+                "owner_name": "Admin",
+                "owner_email": None,
+                "description": "Human resources and people operations",
+                "metadata": None,
+                "is_active": True,
+                "created_at": now,
+                "created_by": "system",
+                "updated_at": now,
+                "updated_by": "system",
+                "version": 1,
+                "end_date": None
+            },
+            {
+                "id": str(uuid.uuid4()),
+                "org_slug": org_slug,
+                "entity_type": "team",
+                "entity_id": "TEAM-BACKEND",
+                "entity_name": "Backend",
+                "parent_id": "PROJ-PLATFORM",
+                "parent_type": "project",
+                "dept_id": "DEPT-ENG",
+                "dept_name": "Engineering",
+                "project_id": "PROJ-PLATFORM",
+                "project_name": "Platform",
+                "team_id": "TEAM-BACKEND",
+                "team_name": "Backend",
+                "owner_id": None,
+                "owner_name": "Admin",
+                "owner_email": None,
+                "description": "Backend API and services development",
+                "metadata": None,
+                "is_active": True,
+                "created_at": now,
+                "created_by": "system",
+                "updated_at": now,
+                "updated_by": "system",
+                "version": 1,
+                "end_date": None
+            },
+            {
+                "id": str(uuid.uuid4()),
+                "org_slug": org_slug,
+                "entity_type": "team",
+                "entity_id": "TEAM-FRONTEND",
+                "entity_name": "Frontend",
+                "parent_id": "PROJ-PLATFORM",
+                "parent_type": "project",
+                "dept_id": "DEPT-ENG",
+                "dept_name": "Engineering",
+                "project_id": "PROJ-PLATFORM",
+                "project_name": "Platform",
+                "team_id": "TEAM-FRONTEND",
+                "team_name": "Frontend",
+                "owner_id": None,
+                "owner_name": "Admin",
+                "owner_email": None,
+                "description": "Frontend and UI development",
+                "metadata": None,
+                "is_active": True,
+                "created_at": now,
+                "created_by": "system",
+                "updated_at": now,
+                "updated_by": "system",
+                "version": 1,
+                "end_date": None
+            },
+        ]
+
+        try:
+            # Use BigQuery streaming insert
+            client = bigquery.Client(project=self.settings.gcp_project_id)
+            errors = client.insert_rows_json(table_id, default_hierarchy)
+
+            if errors:
+                self.logger.error(f"Errors inserting default hierarchy: {errors}")
+                result["errors"].extend([str(e) for e in errors])
+            else:
+                # Count by entity type
+                for entity in default_hierarchy:
+                    entity_type = entity["entity_type"]
+                    if entity_type == "department":
+                        result["departments_seeded"] += 1
+                    elif entity_type == "project":
+                        result["projects_seeded"] += 1
+                    elif entity_type == "team":
+                        result["teams_seeded"] += 1
+
+                self.logger.info(
+                    f"Seeded default hierarchy for {org_slug}: "
+                    f"{result['departments_seeded']} departments, "
+                    f"{result['projects_seeded']} projects, "
+                    f"{result['teams_seeded']} teams"
+                )
+
+        except Exception as e:
+            self.logger.error(f"Failed to seed default hierarchy: {e}")
+            result["errors"].append(str(e))
+
+        return result
+
     async def _seed_llm_data(
         self,
         bq_client: BigQueryClient,
@@ -445,7 +759,13 @@ class OrgOnboardingProcessor:
         else:
             self.logger.info(f"Skipping quota creation (handled by API endpoint)")
 
-        # Step 4: Create organization-specific materialized view (x_pipeline_exec_logs)
+        # Step 4: Seed default hierarchy data (always enabled for new orgs)
+        # Creates: 2 departments, 3 projects, 4 teams
+        hierarchy_result = await self._seed_default_hierarchy(bq_client, dataset_id, org_slug)
+        if hierarchy_result.get("errors"):
+            self.logger.warning(f"Default hierarchy seeding had errors: {hierarchy_result['errors']}")
+
+        # Step 5: Create organization-specific materialized view (x_pipeline_exec_logs)
         # This MV queries central organizations tables filtered by org_slug
         views_created, views_failed = self._create_org_materialized_views(org_slug, dataset_id)
 
@@ -466,6 +786,11 @@ class OrgOnboardingProcessor:
 
         # Prepare result
         all_tables_failed = tables_failed + views_failed
+        hierarchy_total = (
+            hierarchy_result.get("departments_seeded", 0) +
+            hierarchy_result.get("projects_seeded", 0) +
+            hierarchy_result.get("teams_seeded", 0)
+        )
         result = {
             "status": "SUCCESS" if not all_tables_failed else "PARTIAL",
             "org_slug": org_slug,
@@ -475,9 +800,15 @@ class OrgOnboardingProcessor:
             "views_created": views_created,
             "tables_failed": tables_failed,
             "views_failed": views_failed,
+            "hierarchy_seeded": {
+                "departments": hierarchy_result.get("departments_seeded", 0),
+                "projects": hierarchy_result.get("projects_seeded", 0),
+                "teams": hierarchy_result.get("teams_seeded", 0),
+                "total": hierarchy_total
+            },
             "saas_subscriptions_seeded": llm_seed_result.get("subscriptions_seeded", 0),
             "llm_pricing_seeded": llm_seed_result.get("pricing_seeded", 0),
-            "message": f"Created {len(tables_created)} tables and {len(views_created)} views for organization {org_slug}"
+            "message": f"Created {len(tables_created)} tables, {len(views_created)} views, and {hierarchy_total} hierarchy entities for organization {org_slug}"
         }
 
         if all_tables_failed:

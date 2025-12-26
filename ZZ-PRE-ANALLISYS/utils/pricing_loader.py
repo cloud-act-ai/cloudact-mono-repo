@@ -73,6 +73,25 @@ class CommitmentPricing:
     last_updated: str
 
 
+@dataclass
+class InfrastructurePricing:
+    """Infrastructure (GPU/TPU) pricing information."""
+    provider: str
+    resource_type: str  # gpu, tpu, inferentia, trainium
+    instance_type: str
+    gpu_type: str
+    gpu_count: int
+    gpu_memory_gb: int
+    hourly_rate: float  # on-demand
+    spot_rate: float  # spot/preemptible (~70% off)
+    reserved_1yr_rate: float  # 1-year commitment (~35% off)
+    reserved_3yr_rate: float  # 3-year commitment (~55% off)
+    region: str
+    cloud_provider: str
+    status: str
+    last_updated: str
+
+
 def _safe_float(val: str, default: float = 0.0) -> float:
     """Safely convert string to float."""
     if not val or val.strip() == "":
@@ -190,6 +209,40 @@ def load_commitment_pricing() -> Dict[str, CommitmentPricing]:
                 max_ptu=_safe_int(row.get("max_ptu")),
                 commitment_term_months=_safe_int(row.get("commitment_term_months")),
                 tokens_per_ptu_minute=_safe_int(row.get("tokens_per_ptu_minute")),
+                status=row.get("status", "active"),
+                last_updated=row.get("last_updated", ""),
+            )
+
+    return pricing
+
+
+@lru_cache(maxsize=1)
+def load_infrastructure_pricing() -> Dict[str, InfrastructurePricing]:
+    """Load infrastructure (GPU/TPU) pricing from CSV. Cached for performance."""
+    pricing = {}
+
+    if not INFRASTRUCTURE_PRICING_CSV.exists():
+        print(f"Warning: Infrastructure pricing file not found: {INFRASTRUCTURE_PRICING_CSV}")
+        return pricing
+
+    with INFRASTRUCTURE_PRICING_CSV.open("r", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            key = f"{row['provider']}:{row['instance_type']}:{row.get('region', '')}"
+
+            pricing[key] = InfrastructurePricing(
+                provider=row.get("provider", ""),
+                resource_type=row.get("resource_type", "gpu"),
+                instance_type=row.get("instance_type", ""),
+                gpu_type=row.get("gpu_type", ""),
+                gpu_count=_safe_int(row.get("gpu_count")),
+                gpu_memory_gb=_safe_int(row.get("gpu_memory_gb")),
+                hourly_rate=_safe_float(row.get("hourly_rate")),
+                spot_rate=_safe_float(row.get("spot_rate")),
+                reserved_1yr_rate=_safe_float(row.get("reserved_1yr_rate")),
+                reserved_3yr_rate=_safe_float(row.get("reserved_3yr_rate")),
+                region=row.get("region", ""),
+                cloud_provider=row.get("cloud_provider", ""),
                 status=row.get("status", "active"),
                 last_updated=row.get("last_updated", ""),
             )
@@ -325,9 +378,14 @@ def calculate_ptu_cost(
     region: str = "",
 ) -> Dict:
     """
-    Calculate cost for PTU/commitment usage.
+    Calculate cost for PTU/GSU/commitment usage.
 
-    Returns dict with PTU cost breakdown.
+    Supports:
+    - Azure PTU (hourly rate)
+    - AWS Bedrock PT (hourly rate)
+    - GCP Vertex AI GSU (monthly rate - pricing not public)
+
+    Returns dict with cost breakdown.
     """
     pricing = get_commitment_pricing(provider, model, region)
 
@@ -341,6 +399,24 @@ def calculate_ptu_cost(
             "currency": "USD"
         }
 
+    # Handle GCP GSU (no public pricing)
+    if pricing.commitment_type == "gsu":
+        return {
+            "total_cost": 0,
+            "ptu_cost": 0,
+            "gsu_count": ptu_count,
+            "tokens_per_minute": pricing.tokens_per_ptu_minute,
+            "throughput_tokens_per_sec": pricing.tokens_per_ptu_minute // 60 if pricing.tokens_per_ptu_minute else 0,
+            "pricing_found": False,  # GSU pricing not publicly available
+            "pricing_note": "Contact Google Cloud sales for GSU pricing",
+            "model": pricing.model,
+            "provider": provider,
+            "region": pricing.region,
+            "commitment_type": pricing.commitment_type,
+            "currency": "USD",
+        }
+
+    # Standard PTU/PT calculation (hourly rate)
     ptu_cost = ptu_count * pricing.ptu_hourly_rate * hours
 
     return {
@@ -356,6 +432,134 @@ def calculate_ptu_cost(
         "commitment_type": pricing.commitment_type,
         "currency": "USD",
     }
+
+
+def get_infrastructure_pricing(
+    provider: str, instance_type: str, region: str = ""
+) -> Optional[InfrastructurePricing]:
+    """Get infrastructure pricing for a specific instance type."""
+    pricing = load_infrastructure_pricing()
+
+    # Try exact match with region
+    key = f"{provider}:{instance_type}:{region}"
+    if key in pricing:
+        return pricing[key]
+
+    # Try without region
+    for k, v in pricing.items():
+        if k.startswith(f"{provider}:{instance_type}"):
+            return v
+
+    return None
+
+
+def calculate_infrastructure_cost(
+    provider: str,
+    instance_type: str,
+    hours: float = 24,
+    instance_count: int = 1,
+    region: str = "",
+    pricing_type: str = "on_demand",  # on_demand, spot, reserved_1yr, reserved_3yr
+) -> Dict:
+    """
+    Calculate cost for infrastructure (GPU/TPU) usage.
+
+    Args:
+        pricing_type: on_demand, spot, reserved_1yr, reserved_3yr
+
+    Returns dict with cost breakdown.
+    """
+    pricing = get_infrastructure_pricing(provider, instance_type, region)
+
+    if not pricing:
+        return {
+            "total_cost": 0,
+            "hourly_cost": 0,
+            "pricing_found": False,
+            "instance_type": instance_type,
+            "provider": provider,
+            "currency": "USD"
+        }
+
+    # Select rate based on pricing type
+    rate_map = {
+        "on_demand": pricing.hourly_rate,
+        "spot": pricing.spot_rate or pricing.hourly_rate,
+        "reserved_1yr": pricing.reserved_1yr_rate or pricing.hourly_rate,
+        "reserved_3yr": pricing.reserved_3yr_rate or pricing.hourly_rate,
+    }
+    hourly_rate = rate_map.get(pricing_type, pricing.hourly_rate)
+
+    hourly_cost = hourly_rate * instance_count
+    total_cost = hourly_cost * hours
+
+    # Calculate savings vs on-demand
+    on_demand_cost = pricing.hourly_rate * instance_count * hours
+    savings = on_demand_cost - total_cost
+    savings_pct = (savings / on_demand_cost * 100) if on_demand_cost > 0 else 0
+
+    return {
+        "total_cost": round(total_cost, 2),
+        "hourly_cost": round(hourly_cost, 2),
+        "hourly_rate": hourly_rate,
+        "hours": hours,
+        "instance_count": instance_count,
+        "pricing_type": pricing_type,
+        "pricing_found": True,
+        "instance_type": pricing.instance_type,
+        "gpu_type": pricing.gpu_type,
+        "gpu_count": pricing.gpu_count,
+        "gpu_memory_gb": pricing.gpu_memory_gb,
+        "resource_type": pricing.resource_type,
+        "provider": provider,
+        "region": pricing.region,
+        "cloud_provider": pricing.cloud_provider,
+        "currency": "USD",
+        # All rates for comparison
+        "on_demand_rate": pricing.hourly_rate,
+        "spot_rate": pricing.spot_rate,
+        "reserved_1yr_rate": pricing.reserved_1yr_rate,
+        "reserved_3yr_rate": pricing.reserved_3yr_rate,
+        # Savings info
+        "savings_vs_on_demand": round(savings, 2),
+        "savings_pct": round(savings_pct, 1),
+    }
+
+
+def list_infrastructure(
+    provider: str = None,
+    resource_type: str = None,
+    cloud_provider: str = None,
+) -> List[Dict]:
+    """List all infrastructure resources, optionally filtered."""
+    pricing = load_infrastructure_pricing()
+
+    resources = []
+    for key, p in pricing.items():
+        if provider and p.provider != provider:
+            continue
+        if resource_type and p.resource_type != resource_type:
+            continue
+        if cloud_provider and p.cloud_provider != cloud_provider:
+            continue
+
+        resources.append({
+            "provider": p.provider,
+            "resource_type": p.resource_type,
+            "instance_type": p.instance_type,
+            "gpu_type": p.gpu_type,
+            "gpu_count": p.gpu_count,
+            "gpu_memory_gb": p.gpu_memory_gb,
+            "hourly_rate": p.hourly_rate,
+            "spot_rate": p.spot_rate,
+            "reserved_1yr_rate": p.reserved_1yr_rate,
+            "reserved_3yr_rate": p.reserved_3yr_rate,
+            "region": p.region,
+            "cloud_provider": p.cloud_provider,
+            "status": p.status,
+        })
+
+    return sorted(resources, key=lambda x: (x["cloud_provider"], x["provider"], x["hourly_rate"]))
 
 
 def list_models(provider: str = None, pricing_model: str = "payg") -> List[Dict]:
@@ -402,21 +606,26 @@ def get_pricing_summary() -> Dict:
     """Get summary statistics of pricing data."""
     payg = load_payg_pricing()
     commitment = load_commitment_pricing()
+    infrastructure = load_infrastructure_pricing()
     registry = load_provider_registry()
 
     payg_providers = set(p.provider for p in payg.values())
     commitment_providers = set(p.provider for p in commitment.values())
+    infrastructure_providers = set(p.provider for p in infrastructure.values())
 
     return {
         "total_payg_models": len(payg),
         "total_commitment_entries": len(commitment),
+        "total_infrastructure_entries": len(infrastructure),
         "total_providers_registered": len(registry),
         "payg_providers": sorted(list(payg_providers)),
         "commitment_providers": sorted(list(commitment_providers)),
+        "infrastructure_providers": sorted(list(infrastructure_providers)),
         "pricing_files": {
             "registry": str(REGISTRY_CSV),
             "payg": str(PAYG_PRICING_CSV),
             "commitment": str(COMMITMENT_PRICING_CSV),
+            "infrastructure": str(INFRASTRUCTURE_PRICING_CSV),
         },
     }
 

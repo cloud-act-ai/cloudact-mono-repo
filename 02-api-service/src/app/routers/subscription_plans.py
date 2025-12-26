@@ -221,6 +221,13 @@ class SubscriptionPlan(BaseModel):
     source_price: Optional[float] = None
     exchange_rate_used: Optional[float] = None
     billing_anchor_day: Optional[int] = None
+    # Hierarchy fields for cost allocation
+    hierarchy_dept_id: Optional[str] = None
+    hierarchy_dept_name: Optional[str] = None
+    hierarchy_project_id: Optional[str] = None
+    hierarchy_project_name: Optional[str] = None
+    hierarchy_team_id: Optional[str] = None
+    hierarchy_team_name: Optional[str] = None
     updated_at: Optional[datetime] = None
 
 

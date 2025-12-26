@@ -6,3 +6,6 @@ azure_openai_ptu,ptu,gpt-4o-mini,eastus,1.00,730,10,500,1,10000,active,2024-12-0
 azure_openai_ptu,ptu,gpt-35-turbo,eastus,0.50,365,10,1000,1,15000,active,2024-12-01
 aws_bedrock_pt,provisioned_throughput,claude-3-sonnet,us-east-1,35.00,25550,1,100,1,,active,2024-12-01
 aws_bedrock_pt,provisioned_throughput,claude-3-haiku,us-east-1,8.00,5840,1,100,1,,active,2024-12-01
+gcp_vertex_pt,gsu,gemini-2.0-flash,us-central1,,,1,100,1,201600,active,2024-12-01
+gcp_vertex_pt,gsu,gemini-2.5-flash,us-central1,,,1,100,1,168000,active,2024-12-01
+gcp_vertex_pt,gsu,gemini-2.5-pro,us-central1,,,1,50,1,60000,active,2024-12-01
