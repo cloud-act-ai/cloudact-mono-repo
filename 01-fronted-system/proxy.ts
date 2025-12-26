@@ -42,6 +42,8 @@ export async function proxy(request: NextRequest) {
     "/invite",
     "/onboarding",
     "/unauthorized",
+    "/demo-components",
+    "/pagination-demo",
   ]
 
   // Check if path is a public path or starts with a public path prefix
@@ -58,8 +60,15 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // Only run Supabase session update for protected routes
-  return await updateSession(request)
+  // Run Supabase session update for protected routes
+  const response = await updateSession(request)
+
+  // Add pathname header for layout to use (avoids extra headers() call)
+  if (response.headers) {
+    response.headers.set("x-pathname", path)
+  }
+
+  return response
 }
 
 export const config = {

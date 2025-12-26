@@ -467,7 +467,7 @@ export default function OpenAIIntegrationPage() {
       {/* Header with back link */}
       <div className="flex items-center gap-3">
         <Link href={`/${orgSlug}/integrations/llm`}>
-          <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground h-11 rounded-xl">
+          <Button variant="ghost" size="sm" className="text-slate-600 hover:text-black hover:bg-slate-50 h-9 rounded-xl transition-colors">
             <ArrowLeft className="h-4 w-4 mr-1.5" />
             LLM Providers
           </Button>
@@ -475,23 +475,23 @@ export default function OpenAIIntegrationPage() {
       </div>
 
       {/* Enhanced Provider Header */}
-      <div className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-emerald-50 via-white to-white p-6 shadow-sm">
-        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#10A37F] to-[#0D8A6C]" />
+      <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#10A37F] to-[#0D8A6C]" />
         <div className="flex items-start gap-4">
-          <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-emerald-100 to-emerald-50 flex items-center justify-center flex-shrink-0 ring-1 ring-emerald-200/50 shadow-sm">
-            <Brain className="h-8 w-8 text-[#10A37F]" />
+          <div className="h-14 w-14 rounded-2xl bg-[#10A37F]/10 flex items-center justify-center flex-shrink-0">
+            <Brain className="h-7 w-7 text-[#10A37F]" />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3 mb-2">
-              <h1 className="text-[28px] font-bold text-black tracking-tight">OpenAI Integration</h1>
+              <h1 className="text-[32px] font-bold text-black tracking-tight">OpenAI Integration</h1>
               {isConnected && (
-                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#90FCA6]/10 animate-pulse">
-                  <div className="h-2 w-2 rounded-full bg-[#90FCA6]" />
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#90FCA6]/15">
+                  <div className="h-1.5 w-1.5 rounded-full bg-[#1a7a3a]" />
                   <span className="text-[11px] font-bold text-[#1a7a3a] uppercase tracking-wide">Connected</span>
                 </div>
               )}
             </div>
-            <p className="text-[15px] text-muted-foreground leading-relaxed">
+            <p className="text-[15px] text-slate-600 leading-relaxed">
               Connect your OpenAI API key to track GPT-4, GPT-3.5, and DALL-E usage with real-time cost analysis
             </p>
           </div>
@@ -500,18 +500,18 @@ export default function OpenAIIntegrationPage() {
 
       {/* Alerts */}
       {error && (
-        <Alert variant="destructive" className="border-[#FF6C5E]/30 bg-[#FF6C5E]/5">
+        <Alert variant="destructive" className="border-[#FF6C5E]/30 bg-[#FF6C5E]/10 rounded-xl">
           <AlertCircle className="h-4 w-4 text-[#FF6C5E]" />
-          <AlertTitle className="text-[#FF6C5E]">Error</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
+          <AlertTitle className="text-[#FF6C5E] font-semibold">Error</AlertTitle>
+          <AlertDescription className="text-[#FF6C5E]">{error}</AlertDescription>
         </Alert>
       )}
 
       {successMessage && (
-        <Alert className="border-[#90FCA6]/20 bg-[#F0FDFA]">
+        <Alert className="border-[#90FCA6]/30 bg-[#90FCA6]/15 rounded-xl">
           <Check className="h-4 w-4 text-[#1a7a3a]" />
-          <AlertTitle className="text-[#1a7a3a]">Success</AlertTitle>
-          <AlertDescription>{successMessage}</AlertDescription>
+          <AlertTitle className="text-[#1a7a3a] font-semibold">Success</AlertTitle>
+          <AlertDescription className="text-[#1a7a3a]">{successMessage}</AlertDescription>
         </Alert>
       )}
 
@@ -541,21 +541,21 @@ export default function OpenAIIntegrationPage() {
 
         {/* Model Pricing - Only show when connected */}
         {isConnected && (
-          <Card className="border border-border shadow-sm">
-            <CardHeader className="pb-2">
+          <Card className="border border-slate-200 shadow-sm rounded-2xl">
+            <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-[#FF6C5E]/10">
+                  <div className="h-10 w-10 rounded-xl bg-[#FF6C5E]/10 flex items-center justify-center">
                     <DollarSign className="h-5 w-5 text-[#FF6C5E]" />
                   </div>
                   <div>
-                    <CardTitle className="console-card-title">Model Pricing</CardTitle>
-                    <CardDescription className="console-small">
+                    <CardTitle className="text-[17px] font-bold text-black">Model Pricing</CardTitle>
+                    <CardDescription className="text-[13px] text-slate-600 mt-0.5">
                       Configure pricing per 1K tokens for cost calculation
                     </CardDescription>
                   </div>
                 </div>
-                <Badge variant="outline" className="text-xs flex-shrink-0">
+                <Badge variant="outline" className="text-xs font-semibold border-slate-200 text-slate-700">
                   {pricing.length} models
                 </Badge>
               </div>
@@ -563,7 +563,7 @@ export default function OpenAIIntegrationPage() {
             <CardContent>
               <div className="space-y-4">
                 <div className="flex justify-end gap-2">
-                  <Button variant="outline" size="sm" onClick={() => setCreatePricingModal(true)} className="console-button-secondary">
+                  <Button variant="outline" size="sm" onClick={() => setCreatePricingModal(true)} className="rounded-xl border-slate-200 hover:bg-slate-50 text-black font-semibold transition-colors">
                     <Plus className="h-4 w-4 mr-1" />
                     Add Model
                   </Button>
@@ -571,7 +571,7 @@ export default function OpenAIIntegrationPage() {
                     variant="outline"
                     size="sm"
                     onClick={() => setResetPricingDialog(true)}
-                    className="console-button-secondary"
+                    className="rounded-xl border-slate-200 hover:bg-slate-50 text-black font-semibold transition-colors"
                     disabled={resettingPricing}
                   >
                     {resettingPricing ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <RotateCcw className="h-4 w-4 mr-1" />}
@@ -580,27 +580,27 @@ export default function OpenAIIntegrationPage() {
                 </div>
 
                 {pricingLoading ? (
-                  <div className="flex justify-center py-4">
+                  <div className="flex justify-center py-6">
                     <Loader2 className="h-6 w-6 animate-spin text-[#1a7a3a]" />
                   </div>
                 ) : pricing.length === 0 ? (
-                  <p className="console-body text-center py-4 text-muted-foreground">
+                  <p className="text-[13px] text-slate-500 text-center py-6">
                     No pricing configured. Click "Reset" to load default pricing.
                   </p>
                 ) : (
                   <Table>
                     <TableHeader>
-                      <TableRow>
-                        <TableHead>Model</TableHead>
-                        <TableHead className="text-right">Input ($/1K)</TableHead>
-                        <TableHead className="text-right">Output ($/1K)</TableHead>
-                        <TableHead className="text-right w-24">Actions</TableHead>
+                      <TableRow className="border-slate-200">
+                        <TableHead className="font-semibold text-black">Model</TableHead>
+                        <TableHead className="text-right font-semibold text-black">Input ($/1K)</TableHead>
+                        <TableHead className="text-right font-semibold text-black">Output ($/1K)</TableHead>
+                        <TableHead className="text-right w-24 font-semibold text-black">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {pricing.map((model) => (
-                        <TableRow key={model.model_id}>
-                          <TableCell className="font-medium">
+                        <TableRow key={model.model_id} className="border-slate-100">
+                          <TableCell className="font-semibold text-black">
                             {model.model_name || model.model_id}
                           </TableCell>
                           <TableCell className="text-right">
@@ -609,7 +609,7 @@ export default function OpenAIIntegrationPage() {
                                 type="number"
                                 step="0.0001"
                                 min="0"
-                                className="w-28 ml-auto"
+                                className="w-28 ml-auto font-mono rounded-xl border-slate-200"
                                 value={editValues[model.model_id]?.input_price_per_1k ?? model.input_price_per_1k}
                                 onChange={(e) => setEditValues({
                                   ...editValues,
@@ -620,7 +620,7 @@ export default function OpenAIIntegrationPage() {
                                 })}
                               />
                             ) : (
-                              `$${model.input_price_per_1k.toFixed(4)}`
+                              <span className="font-mono text-slate-700">${model.input_price_per_1k.toFixed(4)}</span>
                             )}
                           </TableCell>
                           <TableCell className="text-right">
@@ -629,7 +629,7 @@ export default function OpenAIIntegrationPage() {
                                 type="number"
                                 step="0.0001"
                                 min="0"
-                                className="w-28 ml-auto"
+                                className="w-28 ml-auto font-mono rounded-xl border-slate-200"
                                 value={editValues[model.model_id]?.output_price_per_1k ?? model.output_price_per_1k}
                                 onChange={(e) => setEditValues({
                                   ...editValues,
@@ -640,7 +640,7 @@ export default function OpenAIIntegrationPage() {
                                 })}
                               />
                             ) : (
-                              `$${model.output_price_per_1k.toFixed(4)}`
+                              <span className="font-mono text-slate-700">${model.output_price_per_1k.toFixed(4)}</span>
                             )}
                           </TableCell>
                           <TableCell className="text-right">
@@ -680,7 +680,7 @@ export default function OpenAIIntegrationPage() {
                                 <Button
                                   size="sm"
                                   variant="ghost"
-                                  className="text-[#FF6C5E] hover:text-[#E55A3C] hover:bg-[#FF6C5E]/10"
+                                  className="text-[#FF6C5E] hover:text-[#E55A3C] hover:bg-[#FF6C5E]/10 rounded-lg"
                                   onClick={() => setDeletePricingDialog({ open: true, model })}
                                   disabled={deletingPricing === model.model_id}
                                 >
@@ -705,16 +705,16 @@ export default function OpenAIIntegrationPage() {
       </div>
 
       {/* Help Section */}
-      <div className="rounded-lg border border-[#90FCA6]/20 p-4 bg-[#F0FDFA]">
-        <h3 className="console-card-title mb-2">How to get your OpenAI API key</h3>
-        <ol className="list-decimal list-inside space-y-2 console-body">
-          <li>Go to <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-[#1a7a3a] underline">OpenAI API Keys</a></li>
+      <div className="rounded-2xl border border-slate-200 p-5 bg-slate-50">
+        <h3 className="text-[15px] font-semibold text-black mb-3">How to get your OpenAI API key</h3>
+        <ol className="list-decimal list-inside space-y-2 text-[13px] text-slate-700">
+          <li>Go to <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-[#007AFF] font-medium hover:underline transition-all">OpenAI API Keys</a></li>
           <li>Click "Create new secret key"</li>
           <li>Give it a name (e.g., "CloudAct Integration")</li>
           <li>Copy the key immediately (it won't be shown again)</li>
         </ol>
-        <p className="console-body mt-3">
-          <strong>Note:</strong> Make sure your OpenAI account has billing enabled to use the API.
+        <p className="text-[13px] text-slate-700 mt-3">
+          <strong className="text-black">Note:</strong> Make sure your OpenAI account has billing enabled to use the API.
         </p>
       </div>
 

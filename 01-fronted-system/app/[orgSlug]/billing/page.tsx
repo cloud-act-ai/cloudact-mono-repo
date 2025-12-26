@@ -455,7 +455,7 @@ export default function BillingPage() {
                     <h2 className="text-[20px] font-bold text-slate-900">{billingInfo.subscription.plan.name} Plan</h2>
                     <span className={isCanceledButActive
                       ? "flex-shrink-0 bg-rose-50 text-rose-600 text-[11px] font-bold px-2.5 py-1 rounded-md border border-rose-200"
-                      : "flex-shrink-0 bg-[var(--cloudact-mint)]/5 text-[#90FCA6] text-[11px] font-bold px-2.5 py-1 rounded-md border border-[#90FCA6]/20"}>
+                      : "flex-shrink-0 bg-[#B8FDCA] text-[#1a7a3a] text-[11px] font-bold px-2.5 py-1 rounded-md border border-[var(--cloudact-mint)]/20"}>
                       {isCanceledButActive ? "Cancels at period end" : billingInfo.subscription.status}
                     </span>
                   </div>

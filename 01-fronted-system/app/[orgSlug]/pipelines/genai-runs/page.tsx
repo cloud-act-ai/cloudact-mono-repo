@@ -226,14 +226,14 @@ export default function GenAIRunsPage() {
   const getStatusColor = (status: string) => {
     switch (status.toUpperCase()) {
       case "COMPLETED":
-        return "bg-[#B8FDCA] text-[var(--cloudact-mint-dark)] border border-[var(--cloudact-mint)]/10"
+        return "bg-[#B8FDCA] text-[#1a7a3a] border border-[var(--cloudact-mint)]/20"
       case "FAILED":
       case "TIMEOUT":
-        return "bg-[var(--cloudact-coral)]/10 text-[var(--cloudact-coral)] border border-[var(--cloudact-coral)]/10"
+        return "bg-[var(--cloudact-coral)]/10 text-[var(--cloudact-coral)] border border-[var(--cloudact-coral)]/20"
       case "RUNNING":
       case "PENDING":
       case "CANCELLING":
-        return "bg-[var(--cloudact-mint)]/5 text-[var(--cloudact-mint-dark)] border border-[var(--cloudact-mint)]/10"
+        return "bg-[var(--cloudact-mint)]/10 text-[#1a7a3a] border border-[var(--cloudact-mint)]/20"
       case "CANCELLED":
         return "bg-amber-100 text-amber-700 border border-amber-200"
       case "SKIPPED":
@@ -372,7 +372,7 @@ export default function GenAIRunsPage() {
                 Complete organization onboarding to run pipelines.
               </p>
               <Link href={`/${orgSlug}/settings/organization`}>
-                <button className="inline-flex items-center gap-2 h-11 px-4 bg-[var(--cloudact-mint)] text-white text-[15px] font-semibold rounded-xl hover:bg-[var(--cloudact-mint-dark)] transition-colors">
+                <button className="inline-flex items-center gap-2 h-11 px-4 bg-[var(--cloudact-mint)] text-black text-[15px] font-semibold rounded-xl hover:bg-[var(--cloudact-mint-dark)] transition-colors">
                   Go to Settings
                 </button>
               </Link>
@@ -398,7 +398,7 @@ export default function GenAIRunsPage() {
             ) : (
               <AlertCircle className="h-5 w-5 text-[var(--cloudact-coral)] flex-shrink-0" />
             )}
-            <p className={`text-[15px] font-medium ${lastResult.success ? 'text-[var(--cloudact-mint-dark)]' : 'text-[var(--cloudact-coral)]'}`}>
+            <p className={`text-[15px] font-medium ${lastResult.success ? 'text-[#1a7a3a]' : 'text-[var(--cloudact-coral)]'}`}>
               {lastResult.message}
             </p>
           </div>
@@ -409,9 +409,9 @@ export default function GenAIRunsPage() {
         <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide mb-4">Available Pipelines</h2>
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-0 overflow-hidden">
           <div className="px-4 sm:px-6 py-4 border-b border-[#E5E5EA]">
-            <div className="flex items-center gap-2 text-[var(--cloudact-mint-dark)]">
-              <Brain className="h-[18px] w-[18px]" />
-              <span className="text-[15px] font-semibold">LLM usage tracking pipelines</span>
+            <div className="flex items-center gap-2">
+              <Brain className="h-[18px] w-[18px] text-[#1a7a3a]" />
+              <span className="text-[15px] font-semibold text-[#1a7a3a]">LLM usage tracking pipelines</span>
             </div>
           </div>
 
@@ -427,7 +427,7 @@ export default function GenAIRunsPage() {
                   Connect an LLM provider to see available usage pipelines.
                 </p>
                 <Link href={`/${orgSlug}/integrations/llm`}>
-                  <button className="inline-flex items-center gap-2 h-11 px-6 bg-[var(--cloudact-mint)] text-white text-[15px] font-semibold rounded-xl hover:bg-[var(--cloudact-mint-dark)] transition-colors shadow-sm">
+                  <button className="inline-flex items-center gap-2 h-11 px-6 bg-[var(--cloudact-mint)] text-black text-[15px] font-semibold rounded-xl hover:bg-[var(--cloudact-mint-dark)] transition-colors shadow-sm">
                     <Brain className="h-4 w-4" />
                     Configure LLM Providers
                   </button>
@@ -449,7 +449,7 @@ export default function GenAIRunsPage() {
                         <div className="text-[15px] font-semibold text-slate-900">{pipeline.name}</div>
                         <div className="text-[13px] text-slate-500 mt-0.5">{pipeline.description}</div>
                       </div>
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#B8FDCA] text-[var(--cloudact-mint-dark)] border border-[var(--cloudact-mint)]/10 flex-shrink-0">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#B8FDCA] text-[#1a7a3a] border border-[var(--cloudact-mint)]/20 flex-shrink-0">
                         <CheckCircle2 className="h-3 w-3" />
                         Connected
                       </span>
@@ -461,7 +461,7 @@ export default function GenAIRunsPage() {
                       <button
                         onClick={() => handleRun(pipeline.id)}
                         disabled={isRunning}
-                        className="inline-flex items-center gap-2 h-11 px-4 bg-[var(--cloudact-mint)] text-white text-[15px] font-semibold rounded-xl hover:bg-[var(--cloudact-mint-dark)] disabled:bg-[#E5E5EA] disabled:text-[#C7C7CC] disabled:cursor-not-allowed disabled:opacity-70 transition-all touch-manipulation shadow-sm hover:shadow-md"
+                        className="inline-flex items-center gap-2 h-11 px-4 bg-[var(--cloudact-mint)] text-black text-[15px] font-semibold rounded-xl hover:bg-[var(--cloudact-mint-dark)] disabled:bg-[#E5E5EA] disabled:text-[#C7C7CC] disabled:cursor-not-allowed disabled:opacity-70 transition-all touch-manipulation shadow-sm hover:shadow-md"
                       >
                         {isRunning ? (
                           <>
@@ -512,7 +512,7 @@ export default function GenAIRunsPage() {
                           </span>
                         </TableCell>
                         <TableCell className="console-table-cell">
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#B8FDCA] text-[var(--cloudact-mint-dark)] border border-[var(--cloudact-mint)]/10">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#B8FDCA] text-[#1a7a3a] border border-[var(--cloudact-mint)]/20">
                             <CheckCircle2 className="h-3 w-3" />
                             Connected
                           </span>
@@ -521,7 +521,7 @@ export default function GenAIRunsPage() {
                           <button
                             onClick={() => handleRun(pipeline.id)}
                             disabled={isRunning}
-                            className="inline-flex items-center gap-2 h-11 px-4 bg-[var(--cloudact-mint)] text-white text-[15px] font-semibold rounded-xl hover:bg-[var(--cloudact-mint-dark)] disabled:bg-[#E5E5EA] disabled:text-[#C7C7CC] disabled:cursor-not-allowed disabled:opacity-70 transition-all touch-manipulation shadow-sm hover:shadow-md"
+                            className="inline-flex items-center gap-2 h-11 px-4 bg-[var(--cloudact-mint)] text-black text-[15px] font-semibold rounded-xl hover:bg-[var(--cloudact-mint-dark)] disabled:bg-[#E5E5EA] disabled:text-[#C7C7CC] disabled:cursor-not-allowed disabled:opacity-70 transition-all touch-manipulation shadow-sm hover:shadow-md"
                           >
                             {isRunning ? (
                               <>
@@ -598,8 +598,8 @@ export default function GenAIRunsPage() {
             {!runsLoading && pipelineRuns.length === 0 && (
               <div className="px-4 sm:px-6 py-12 text-center">
                 <div className="space-y-3">
-                  <div className="inline-flex p-3 rounded-2xl bg-[#8E8E93]/10 mb-2">
-                    <History className="h-10 w-10 text-slate-400" />
+                  <div className="inline-flex p-3 rounded-2xl bg-[var(--cloudact-mint)]/10 mb-2">
+                    <History className="h-10 w-10 text-[var(--cloudact-mint-dark)]" />
                   </div>
                   <h3 className="text-[17px] font-semibold text-slate-900">No runs yet</h3>
                   <p className="text-[15px] text-slate-500">Run a GenAI pipeline to see history</p>

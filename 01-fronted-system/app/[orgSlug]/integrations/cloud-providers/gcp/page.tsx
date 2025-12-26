@@ -58,22 +58,22 @@ function StepIndicator({ currentStep, totalSteps }: { currentStep: number; total
 function StatusBadge({ status }: { status: string }) {
   const variants: Record<string, { className: string; icon: React.ReactNode; text: string }> = {
     VALID: {
-      className: "bg-[#90FCA6] text-black border-0 shadow-sm",
-      icon: <div className="h-2 w-2 rounded-full bg-white animate-pulse" />,
+      className: "bg-[#90FCA6]/15 text-[#1a7a3a] border border-[#90FCA6]/30",
+      icon: <div className="h-2 w-2 rounded-full bg-[#1a7a3a] animate-pulse" />,
       text: "Connected"
     },
     INVALID: {
-      className: "bg-[#FF6C5E] text-white border-0",
+      className: "bg-red-50 text-red-700 border border-red-200",
       icon: <X className="h-3 w-3" />,
       text: "Invalid"
     },
     PENDING: {
-      className: "bg-muted text-muted-foreground border-0",
+      className: "bg-slate-100 text-slate-600 border border-slate-200",
       icon: <Loader2 className="h-3 w-3 animate-spin" />,
       text: "Validating..."
     },
     NOT_CONFIGURED: {
-      className: "bg-muted text-muted-foreground border-0",
+      className: "bg-slate-100 text-slate-500 border border-slate-200",
       icon: null,
       text: "Not Connected"
     },
@@ -82,12 +82,10 @@ function StatusBadge({ status }: { status: string }) {
   const config = variants[status] || variants.NOT_CONFIGURED
 
   return (
-    <Badge className={`${config.className} px-3 py-1 text-[11px] font-semibold`}>
-      <div className="flex items-center gap-1.5">
-        {config.icon}
-        {config.text}
-      </div>
-    </Badge>
+    <div className={`${config.className} px-3 py-1.5 rounded-full text-[11px] font-semibold flex items-center gap-1.5`}>
+      {config.icon}
+      {config.text}
+    </div>
   )
 }
 
@@ -319,34 +317,34 @@ export default function GCPIntegrationPage() {
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <Loader2 className="h-12 w-12 animate-spin text-[#1a7a3a] mx-auto mb-4" />
-          <p className="text-sm text-muted-foreground">Loading GCP integration...</p>
+          <p className="text-[14px] text-slate-500">Loading GCP integration...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 max-w-5xl">
       {/* Header with back link */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
         <Link href={`/${orgSlug}/integrations/cloud-providers`}>
-          <Button variant="ghost" size="sm" className="h-11 px-4 rounded-xl hover:bg-muted">
-            <ArrowLeft className="h-4 w-4 mr-2" />
+          <button className="h-10 px-4 rounded-xl hover:bg-slate-100 transition-colors flex items-center gap-2 text-slate-600 hover:text-black font-medium text-[14px]">
+            <ArrowLeft className="h-4 w-4" />
             Back to Providers
-          </Button>
+          </button>
         </Link>
       </div>
 
       {/* Header Section */}
-      <div className="flex items-center gap-4">
-        <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-[#4285F4] to-[#3367D6] flex items-center justify-center shadow-lg">
-          <svg className="h-7 w-7 text-white" viewBox="0 0 24 24" fill="currentColor">
+      <div className="flex items-center gap-5">
+        <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-[#4285F4] to-[#3367D6] flex items-center justify-center shadow-lg">
+          <svg className="h-8 w-8 text-white" viewBox="0 0 24 24" fill="currentColor">
             <path d="M12.19 2.38a9.344 9.344 0 0 1 9.426 9.428 9.344 9.344 0 0 1-9.426 9.428 9.344 9.344 0 0 1-9.426-9.428A9.344 9.344 0 0 1 12.19 2.38m-.012 2.544a6.751 6.751 0 0 0-6.768 6.76c0 1.745.675 3.408 1.9 4.686l4.796-4.796v-.001a2.423 2.423 0 0 1-.489-1.449c0-1.326 1.07-2.4 2.392-2.4a2.385 2.385 0 0 1 1.447.49v.001l4.796-4.796a6.733 6.733 0 0 0-4.686-1.9 6.705 6.705 0 0 0-3.388.905m0 9.56a2.388 2.388 0 0 1-2.398-2.396c0-.492.149-.965.424-1.364l-1.904-1.904A5.844 5.844 0 0 0 6.388 12c0 3.197 2.593 5.79 5.79 5.79.927 0 1.802-.224 2.578-.619l-1.904-1.904c-.399.275-.872.424-1.364.424m9.228-2.396a5.844 5.844 0 0 0-1.912-3.182l-1.904 1.904c.275.399.424.872.424 1.364a2.388 2.388 0 0 1-2.398 2.398c-.492 0-.965-.149-1.364-.424l-1.904 1.904a5.807 5.807 0 0 0 2.578.619 5.798 5.798 0 0 0 5.79-5.79z"/>
           </svg>
         </div>
         <div>
           <h1 className="text-[32px] font-bold text-black tracking-tight">Google Cloud Platform</h1>
-          <p className="text-[15px] text-muted-foreground mt-1">
+          <p className="text-[15px] text-slate-500 mt-2">
             Connect your GCP Service Account to enable billing data access and cloud cost analytics
           </p>
         </div>
@@ -354,56 +352,72 @@ export default function GCPIntegrationPage() {
 
       {/* Alerts */}
       {error && (
-        <Alert variant="destructive" className="border-[#FF6C5E]/20 bg-gradient-to-br from-[#FF6C5E]/10 to-[#FF6C5E]/5">
-          <AlertCircle className="h-5 w-5 text-[#FF6C5E]" />
-          <AlertTitle className="text-[#FF6C5E] font-bold">Error</AlertTitle>
-          <AlertDescription className="text-[14px]">{error}</AlertDescription>
-        </Alert>
+        <div className="p-5 rounded-2xl bg-red-50 border border-red-200 shadow-sm">
+          <div className="flex items-start gap-4">
+            <div className="h-10 w-10 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0">
+              <AlertCircle className="h-5 w-5 text-red-600" />
+            </div>
+            <div>
+              <h3 className="text-[15px] font-semibold text-black">Error</h3>
+              <p className="text-[14px] text-red-700 mt-1">{error}</p>
+            </div>
+          </div>
+        </div>
       )}
 
       {successMessage && (
-        <Alert className="border-[#90FCA6]/20 bg-gradient-to-br from-[#90FCA6]/10 to-[#90FCA6]/5">
-          <CheckCircle2 className="h-5 w-5 text-[#1a7a3a]" />
-          <AlertTitle className="text-[#1a7a3a] font-bold">Success</AlertTitle>
-          <AlertDescription className="text-[14px]">{successMessage}</AlertDescription>
-        </Alert>
+        <div className="p-5 rounded-2xl bg-[#90FCA6]/10 border border-[#90FCA6]/30 shadow-sm">
+          <div className="flex items-start gap-4">
+            <div className="h-10 w-10 rounded-xl bg-[#90FCA6]/20 flex items-center justify-center flex-shrink-0">
+              <CheckCircle2 className="h-5 w-5 text-[#1a7a3a]" />
+            </div>
+            <div>
+              <h3 className="text-[15px] font-semibold text-black">Success</h3>
+              <p className="text-[14px] text-[#1a7a3a] mt-1">{successMessage}</p>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Integration Card */}
-      <Card className={`border-2 transition-all ${status === "INVALID" ? "border-[#FF6C5E]/40" : "border-border/50"}`}>
-        <CardHeader>
+      <div className={`bg-white rounded-2xl border-2 ${status === "INVALID" ? "border-[#FF6C5E]/40" : "border-slate-200"} shadow-sm transition-all`}>
+        <div className="p-6 border-b border-slate-100">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-[#4285F4]/10 rounded-xl">
+            <div className="flex items-center gap-4">
+              <div className="h-12 w-12 rounded-xl bg-[#4285F4]/15 flex items-center justify-center">
                 <Cloud className="h-6 w-6 text-[#4285F4]" />
               </div>
               <div>
-                <CardTitle className="text-xl font-bold">Service Account Connection</CardTitle>
-                <CardDescription className="mt-1">
+                <h2 className="text-[18px] font-bold text-black">Service Account Connection</h2>
+                <p className="text-[14px] text-slate-500 mt-1">
                   Upload your GCP Service Account JSON for secure authentication
-                </CardDescription>
+                </p>
               </div>
             </div>
             <StatusBadge status={status} />
           </div>
-        </CardHeader>
+        </div>
 
-        <CardContent className="space-y-6">
+        <div className="p-6 space-y-6">
           {/* Error Alert */}
           {integration?.last_error && status === "INVALID" && (
-            <Alert variant="destructive" className="border-[#FF6C5E]/20 bg-gradient-to-br from-[#FF6C5E]/10 to-[#FF6C5E]/5">
-              <AlertCircle className="h-4 w-4 text-[#FF6C5E]" />
-              <AlertTitle className="text-[#FF6C5E] font-bold">Validation Error</AlertTitle>
-              <AlertDescription>{integration.last_error}</AlertDescription>
-            </Alert>
+            <div className="p-4 rounded-xl bg-red-50 border border-red-200">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="text-[14px] font-semibold text-black">Validation Error</h4>
+                  <p className="text-[13px] text-red-700 mt-1">{integration.last_error}</p>
+                </div>
+              </div>
+            </div>
           )}
 
           {/* Upload Form */}
           {showUpload ? (
-            <div className="space-y-6 p-6 border-2 border-border/50 rounded-2xl bg-gradient-to-br from-background to-muted/20">
+            <div className="space-y-6 p-6 border-2 border-slate-200 rounded-2xl bg-slate-50">
               {/* Step Indicator */}
               <div className="flex items-center justify-between">
-                <Label className="text-sm font-bold text-black">Connection Wizard</Label>
+                <span className="text-[14px] font-semibold text-black">Connection Wizard</span>
                 <StepIndicator currentStep={wizardStep} totalSteps={3} />
               </div>
 
@@ -427,24 +441,24 @@ export default function GCPIntegrationPage() {
                   onDragLeave={handleDragLeave}
                   onClick={() => fileInputRef.current?.click()}
                   className={`
-                    relative overflow-hidden border-3 border-dashed rounded-2xl p-12 text-center cursor-pointer transition-all
+                    relative overflow-hidden border-3 border-dashed rounded-2xl p-12 text-center cursor-pointer transition-all bg-white
                     ${isDragging
-                      ? "border-[#90FCA6] bg-[#90FCA6]/10 scale-105"
-                      : "border-border/50 hover:border-[#90FCA6]/50 hover:bg-muted/50"
+                      ? "border-[#90FCA6] bg-[#90FCA6]/10 scale-[1.02]"
+                      : "border-slate-300 hover:border-[#90FCA6] hover:bg-slate-50"
                     }
                   `}
                 >
                   <div className={`transition-all ${isDragging ? 'scale-110' : ''}`}>
-                    <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-[#90FCA6]/20 to-[#90FCA6]/10 flex items-center justify-center mx-auto mb-4">
+                    <div className="h-16 w-16 rounded-2xl bg-[#90FCA6]/15 flex items-center justify-center mx-auto mb-4">
                       <Upload className="h-8 w-8 text-[#1a7a3a]" />
                     </div>
                     <p className="text-[16px] font-bold text-black mb-2">
                       {isDragging ? 'Drop your file here' : 'Upload Service Account JSON'}
                     </p>
-                    <p className="text-[13px] text-muted-foreground">
+                    <p className="text-[14px] text-slate-500">
                       Drag and drop or click to browse
                     </p>
-                    <p className="text-[12px] text-muted-foreground mt-2">
+                    <p className="text-[13px] text-slate-400 mt-2">
                       Maximum file size: 50KB
                     </p>
                   </div>
@@ -454,46 +468,44 @@ export default function GCPIntegrationPage() {
               {/* Step 2: Review */}
               {wizardStep === 2 && uploadedFile && (
                 <div className="space-y-4">
-                  <div className="border-2 border-[#90FCA6]/20 rounded-2xl p-5 bg-gradient-to-br from-[#90FCA6]/5 to-background">
+                  <div className="border-2 border-[#90FCA6]/30 rounded-2xl p-5 bg-white">
                     <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-start gap-3 flex-1">
-                        <div className="p-2.5 bg-[#90FCA6]/10 rounded-xl">
+                      <div className="flex items-start gap-4 flex-1">
+                        <div className="p-3 bg-[#90FCA6]/15 rounded-xl">
                           <FileJson className="h-6 w-6 text-[#1a7a3a]" />
                         </div>
                         <div className="flex-1">
-                          <p className="font-bold text-[15px] text-black mb-1">{uploadedFile.name}</p>
-                          <p className="text-[12px] text-muted-foreground">
+                          <p className="font-semibold text-[15px] text-black mb-1">{uploadedFile.name}</p>
+                          <p className="text-[13px] text-slate-500">
                             {(uploadedFile.size / 1024).toFixed(1)} KB
                           </p>
                         </div>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
+                      <button
                         onClick={clearFile}
-                        className="h-10 w-10 p-0 rounded-xl hover:bg-[#FF6C5E]/10"
+                        className="h-10 w-10 rounded-xl hover:bg-slate-100 transition-colors flex items-center justify-center"
                       >
-                        <X className="h-4 w-4" />
-                      </Button>
+                        <X className="h-4 w-4 text-slate-600" />
+                      </button>
                     </div>
 
                     {parsedSA && (
-                      <div className="space-y-3 pt-4 border-t border-border/50">
+                      <div className="space-y-3 pt-4 border-t border-slate-200">
                         <div className="flex items-start gap-3">
-                          <div className="h-5 w-5 rounded-lg bg-[#90FCA6]/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                            <Check className="h-3 w-3 text-[#1a7a3a]" />
+                          <div className="h-6 w-6 rounded-lg bg-[#90FCA6]/15 flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <Check className="h-4 w-4 text-[#1a7a3a]" />
                           </div>
                           <div>
-                            <p className="text-[12px] font-semibold text-muted-foreground mb-0.5">Project ID</p>
+                            <p className="text-[12px] font-semibold text-slate-500 mb-1">Project ID</p>
                             <p className="text-[14px] font-mono font-medium text-black">{parsedSA.project_id}</p>
                           </div>
                         </div>
                         <div className="flex items-start gap-3">
-                          <div className="h-5 w-5 rounded-lg bg-[#90FCA6]/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                            <Check className="h-3 w-3 text-[#1a7a3a]" />
+                          <div className="h-6 w-6 rounded-lg bg-[#90FCA6]/15 flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <Check className="h-4 w-4 text-[#1a7a3a]" />
                           </div>
                           <div>
-                            <p className="text-[12px] font-semibold text-muted-foreground mb-0.5">Service Account</p>
+                            <p className="text-[12px] font-semibold text-slate-500 mb-1">Service Account</p>
                             <p className="text-[13px] font-mono text-black break-all">{parsedSA.client_email}</p>
                           </div>
                         </div>
@@ -515,9 +527,9 @@ export default function GCPIntegrationPage() {
               )}
 
               {/* Security Notice */}
-              <div className="flex items-start gap-3 p-4 rounded-xl bg-[#90FCA6]/5 border border-[#90FCA6]/10">
+              <div className="flex items-start gap-4 p-5 rounded-xl bg-[#90FCA6]/10 border border-[#90FCA6]/20">
                 <Shield className="h-5 w-5 mt-0.5 flex-shrink-0 text-[#1a7a3a]" />
-                <p className="text-[13px] text-muted-foreground leading-relaxed">
+                <p className="text-[14px] text-slate-600 leading-relaxed">
                   Your credentials will be encrypted using Google Cloud KMS before storage. We never store plain text credentials.
                 </p>
               </div>
@@ -525,48 +537,47 @@ export default function GCPIntegrationPage() {
               {/* Actions */}
               {wizardStep !== 3 && (
                 <div className="flex gap-3 pt-2">
-                  <Button
+                  <button
                     onClick={handleSetup}
                     disabled={!fileContent || uploadLoading}
-                    className="flex-1 h-12 bg-[#90FCA6] hover:bg-[#006664] text-white text-[15px] font-bold rounded-xl shadow-sm hover:shadow-md transition-all"
+                    className="flex-1 h-12 bg-[#90FCA6] hover:bg-[#6EE890] text-black text-[15px] font-semibold rounded-xl shadow-sm hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
-                    {uploadLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {uploadLoading && <Loader2 className="h-4 w-4 animate-spin" />}
                     {isConfigured ? "Update Credential" : "Connect GCP"}
-                  </Button>
-                  <Button
-                    variant="outline"
+                  </button>
+                  <button
                     onClick={() => {
                       setShowUpload(false)
                       clearFile()
                     }}
-                    className="h-12 px-6 text-[15px] font-semibold rounded-xl border-2"
+                    className="h-12 px-6 text-[15px] font-semibold rounded-xl border-2 border-slate-200 hover:bg-slate-50 transition-colors"
                   >
                     Cancel
-                  </Button>
+                  </button>
                 </div>
               )}
             </div>
           ) : isConfigured ? (
             /* Configured state */
             <div className="space-y-5">
-              <div className="flex items-center gap-4 p-5 border-2 border-[#90FCA6]/20 rounded-2xl bg-gradient-to-br from-[#90FCA6]/5 to-background">
-                <div className="p-3 bg-[#90FCA6]/10 rounded-xl">
+              <div className="flex items-center gap-4 p-5 border-2 border-[#90FCA6]/30 rounded-2xl bg-white">
+                <div className="h-12 w-12 bg-[#90FCA6]/15 rounded-xl flex items-center justify-center">
                   <Key className="h-6 w-6 text-[#1a7a3a]" />
                 </div>
                 <div className="flex-1">
-                  <p className="font-bold text-[15px] text-black mb-1">
+                  <p className="font-semibold text-[16px] text-black mb-1">
                     {integration?.credential_name || "GCP Service Account"}
                   </p>
-                  <div className="flex items-center gap-2 text-[13px] text-muted-foreground">
-                    <Clock className="h-3.5 w-3.5" />
+                  <div className="flex items-center gap-2 text-[13px] text-slate-500">
+                    <Clock className="h-4 w-4" />
                     <span>Last validated: {formatDate(integration?.last_validated_at)}</span>
                   </div>
                 </div>
               </div>
 
-              <div className="flex items-start gap-3 p-4 rounded-xl bg-muted/30">
-                <Shield className="h-4 w-4 mt-0.5 flex-shrink-0 text-[#1a7a3a]" />
-                <span className="text-[13px] text-muted-foreground">
+              <div className="flex items-start gap-4 p-5 rounded-xl bg-slate-50 border border-slate-200">
+                <Shield className="h-5 w-5 mt-0.5 flex-shrink-0 text-[#1a7a3a]" />
+                <span className="text-[14px] text-slate-600 leading-relaxed">
                   Credentials are encrypted using Google Cloud KMS and never stored in plain text.
                 </span>
               </div>
@@ -574,117 +585,113 @@ export default function GCPIntegrationPage() {
           ) : (
             /* Not configured state */
             <div className="text-center py-12">
-              <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-[#4285F4]/20 to-[#4285F4]/10 flex items-center justify-center mx-auto mb-6">
+              <div className="h-20 w-20 rounded-2xl bg-[#4285F4]/15 flex items-center justify-center mx-auto mb-6">
                 <Cloud className="h-10 w-10 text-[#4285F4]" />
               </div>
-              <p className="text-[16px] font-bold text-black mb-2">
+              <p className="text-[18px] font-bold text-black mb-3">
                 No Service Account Connected
               </p>
-              <p className="text-[14px] text-muted-foreground mb-6 max-w-md mx-auto">
+              <p className="text-[15px] text-slate-500 mb-8 max-w-md mx-auto leading-relaxed">
                 Upload your GCP Service Account JSON to enable billing data access and start tracking cloud costs
               </p>
-              <Button
+              <button
                 onClick={() => {
                   setShowUpload(true)
                   setWizardStep(1)
                 }}
-                className="h-12 px-6 bg-[#90FCA6] hover:bg-[#006664] text-white text-[15px] font-bold rounded-xl shadow-sm hover:shadow-md transition-all"
+                className="h-12 px-6 bg-[#90FCA6] hover:bg-[#6EE890] text-black text-[15px] font-semibold rounded-xl shadow-sm hover:shadow-md transition-all inline-flex items-center gap-2"
               >
-                <Upload className="h-4 w-4 mr-2" />
+                <Upload className="h-4 w-4" />
                 Start Connection Wizard
-              </Button>
+              </button>
             </div>
           )}
-        </CardContent>
+        </div>
 
         {/* Actions Footer */}
         {isConfigured && !showUpload && (
-          <CardFooter className="flex justify-between border-t pt-5">
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
+          <div className="flex justify-between border-t border-slate-100 pt-6 px-6 pb-6">
+            <div className="flex gap-3">
+              <button
                 onClick={handleValidate}
                 disabled={uploadLoading}
-                className="h-11 px-5 text-[14px] font-semibold rounded-xl border-2 hover:bg-muted"
+                className="h-11 px-5 text-[14px] font-semibold rounded-xl border-2 border-slate-200 hover:bg-slate-50 transition-colors flex items-center gap-2 disabled:opacity-50"
               >
                 {uploadLoading ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  <RefreshCw className="h-4 w-4 mr-2" />
+                  <RefreshCw className="h-4 w-4" />
                 )}
                 Re-validate
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
+              </button>
+              <button
                 onClick={() => {
                   setShowUpload(true)
                   setWizardStep(1)
                 }}
-                className="h-11 px-5 text-[14px] font-semibold rounded-xl border-2 hover:bg-muted"
+                className="h-11 px-5 text-[14px] font-semibold rounded-xl border-2 border-slate-200 hover:bg-slate-50 transition-colors flex items-center gap-2"
               >
-                <Upload className="h-4 w-4 mr-2" />
+                <Upload className="h-4 w-4" />
                 Update Credential
-              </Button>
+              </button>
             </div>
 
             {/* Delete Dialog */}
             <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
               <DialogTrigger asChild>
-                <Button variant="ghost" size="sm" className="text-[#FF6C5E] hover:text-[#FF6C5E] hover:bg-[#FF6C5E]/10 h-11 px-5 rounded-xl">
-                  <Trash2 className="h-4 w-4 mr-2" />
+                <button className="text-[#FF6C5E] hover:bg-[#FF6C5E]/10 h-11 px-5 rounded-xl font-semibold text-[14px] transition-colors flex items-center gap-2">
+                  <Trash2 className="h-4 w-4" />
                   Remove
-                </Button>
+                </button>
               </DialogTrigger>
               <DialogContent className="rounded-2xl">
                 <DialogHeader>
-                  <DialogTitle className="text-xl font-bold">Remove GCP Integration</DialogTitle>
-                  <DialogDescription className="text-[14px] leading-relaxed">
+                  <DialogTitle className="text-[20px] font-bold text-black">Remove GCP Integration</DialogTitle>
+                  <DialogDescription className="text-[14px] leading-relaxed text-slate-600 mt-2">
                     Are you sure you want to remove this integration? This will delete the stored credentials
                     and any pipelines using this integration will stop working.
                   </DialogDescription>
                 </DialogHeader>
-                <DialogFooter>
-                  <Button
-                    variant="outline"
+                <DialogFooter className="gap-3">
+                  <button
                     onClick={() => setShowDeleteDialog(false)}
-                    className="h-11 px-5 rounded-xl border-2"
+                    className="h-11 px-5 rounded-xl border-2 border-slate-200 hover:bg-slate-50 font-semibold text-[14px] transition-colors"
                   >
                     Cancel
-                  </Button>
-                  <Button
-                    variant="destructive"
+                  </button>
+                  <button
                     onClick={handleDelete}
                     disabled={uploadLoading}
-                    className="h-11 px-5 rounded-xl bg-[#FF6C5E] hover:bg-[#FF5533]"
+                    className="h-11 px-5 rounded-xl bg-[#FF6C5E] hover:bg-[#FF5533] text-white font-semibold text-[14px] transition-colors disabled:opacity-50 flex items-center gap-2"
                   >
-                    {uploadLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {uploadLoading && <Loader2 className="h-4 w-4 animate-spin" />}
                     Remove Integration
-                  </Button>
+                  </button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-          </CardFooter>
+          </div>
         )}
-      </Card>
+      </div>
 
       {/* Help Section */}
-      <div className="rounded-2xl border-2 border-[#4285F4]/20 p-6 bg-gradient-to-br from-[#4285F4]/5 to-background">
-        <h3 className="text-[16px] font-bold text-black mb-4 flex items-center gap-2">
-          <div className="h-8 w-8 rounded-lg bg-[#4285F4]/10 flex items-center justify-center">
-            <Cloud className="h-4 w-4 text-[#4285F4]" />
+      <div className="rounded-2xl border-2 border-[#4285F4]/20 p-6 bg-white shadow-sm">
+        <div className="flex items-center gap-3 mb-5">
+          <div className="h-10 w-10 rounded-xl bg-[#4285F4]/15 flex items-center justify-center">
+            <Cloud className="h-5 w-5 text-[#4285F4]" />
           </div>
-          How to get your Service Account JSON
-        </h3>
-        <ol className="list-decimal list-inside space-y-3 text-[14px] leading-relaxed ml-1">
+          <h3 className="text-[18px] font-bold text-black">
+            How to get your Service Account JSON
+          </h3>
+        </div>
+        <ol className="list-decimal list-inside space-y-3 text-[14px] leading-relaxed ml-1 text-slate-600">
           <li>
             Go to{' '}
             <a
               href="https://console.cloud.google.com/iam-admin/serviceaccounts"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[#1a7a3a] font-semibold hover:underline"
+              className="text-[#007AFF] font-semibold hover:underline"
             >
               GCP Console → IAM & Admin → Service Accounts
             </a>
@@ -693,9 +700,9 @@ export default function GCPIntegrationPage() {
           <li>Click "Keys" tab → "Add Key" → "Create new key" → JSON</li>
           <li>Download the JSON file and upload it using the wizard above</li>
         </ol>
-        <div className="mt-5 p-4 rounded-xl bg-[#90FCA6]/5 border border-[#90FCA6]/10">
-          <p className="text-[13px] text-muted-foreground">
-            <strong className="text-black font-bold">Required roles:</strong> BigQuery Data Viewer, Billing Account Viewer (for cost data)
+        <div className="mt-5 p-5 rounded-xl bg-[#90FCA6]/10 border border-[#90FCA6]/20">
+          <p className="text-[14px] text-slate-600 leading-relaxed">
+            <strong className="text-black font-semibold">Required roles:</strong> BigQuery Data Viewer, Billing Account Viewer (for cost data)
           </p>
         </div>
       </div>

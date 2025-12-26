@@ -66,7 +66,7 @@ export default async function OperationsPage({
         <div className="flex items-center gap-3">
           <CheckCircle2 className="h-4 w-4 text-[var(--cloudact-mint-dark)]" />
           <span className="text-[14px] text-slate-600">
-            <span className="font-semibold text-[var(--cloudact-mint-dark)]">{pipelineStats.successRate}%</span> Success
+            <span className="font-semibold text-[#1a7a3a]">{pipelineStats.successRate}%</span> Success
           </span>
         </div>
         <div className="h-8 w-px bg-slate-200"></div>
@@ -108,7 +108,7 @@ export default async function OperationsPage({
             </div>
           </div>
           <p className="text-[12px] text-slate-500 uppercase tracking-wide">Success Rate</p>
-          <p className="text-[24px] font-bold text-[var(--cloudact-mint-dark)] mt-1">{pipelineStats.successRate}%</p>
+          <p className="text-[24px] font-bold text-[#1a7a3a] mt-1">{pipelineStats.successRate}%</p>
         </div>
 
         <div className="p-4 bg-white rounded-2xl border border-slate-200">
@@ -249,7 +249,7 @@ export default async function OperationsPage({
           </div>
           <div className="flex items-center gap-2">
             <div className="h-2 w-2 rounded-full bg-[#6EE890] animate-pulse"></div>
-            <span className="text-[13px] font-semibold text-[var(--cloudact-mint-dark)]">Healthy</span>
+            <span className="text-[13px] font-semibold text-[#1a7a3a]">Healthy</span>
           </div>
         </div>
       </div>

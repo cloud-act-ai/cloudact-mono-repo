@@ -8,6 +8,7 @@ import { SidebarProvider } from "@/components/ui/sidebar"
 import { PipelineAutoTrigger } from "@/components/pipeline-auto-trigger"
 import "./console.css"
 import { ErrorBoundary } from "@/components/ui/error-boundary"
+import { getOrgLayoutData } from "@/lib/data/org-data"
 
 export default async function OrgLayout({
   children,
@@ -16,26 +17,24 @@ export default async function OrgLayout({
   children: React.ReactNode
   params: Promise<{ orgSlug: string }>
 }) {
-  const { orgSlug } = await params
-  const supabase = await createClient()
+  const [{ orgSlug }, headersList] = await Promise.all([
+    params,
+    headers()
+  ])
 
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser()
+  // Use cached data layer - queries are deduplicated within this request
+  const layoutData = await getOrgLayoutData(orgSlug)
 
-  if (userError || !user) {
-    redirect("/login")
-  }
+  if (!layoutData) {
+    // No valid session or org - check why
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
 
-  const { data: org, error: orgError } = await supabase
-    .from("organizations")
-    .select("id, org_name, org_slug, billing_status, plan")
-    .eq("org_slug", orgSlug)
-    .single()
+    if (!user) {
+      redirect("/login")
+    }
 
-  if (orgError || !org) {
-    // Org not found - check if user has any other organizations
+    // User exists but org not found - check for other orgs
     const { data: userOrgs } = await supabase
       .from("organization_members")
       .select("org_id, organizations(org_slug)")
@@ -44,46 +43,18 @@ export default async function OrgLayout({
       .limit(1)
 
     if (userOrgs && userOrgs.length > 0) {
-      // User has another org - redirect to that org's dashboard
       const existingOrg = userOrgs[0].organizations as { org_slug?: string } | null
       if (existingOrg?.org_slug) {
         redirect(`/${existingOrg.org_slug}/dashboard`)
       }
     }
-    // No existing org - redirect to onboarding
+
     redirect("/onboarding/billing")
   }
 
-  const { data: membership } = await supabase
-    .from("organization_members")
-    .select("role, status")
-    .eq("org_id", org.id)
-    .eq("user_id", user.id)
-    .eq("status", "active")
-    .single()
-
-  if (!membership) {
-    redirect("/unauthorized")
-  }
-
-  // Get user profile for avatar/name
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("full_name, avatar_url")
-    .eq("id", user.id)
-    .single()
-
-  // Get member count for the org
-  const { count: memberCount } = await supabase
-    .from("organization_members")
-    .select("*", { count: "exact", head: true })
-    .eq("org_id", org.id)
-    .eq("status", "active")
+  const { user, org, membership, profile, memberCount } = layoutData
 
   // Enforce active subscription for dashboard access
-  // Exempt billing and subscriptions pages from this check to allow users to manage their billing/subscriptions
-  // even when their subscription is inactive
-  const headersList = await headers()
   const pathname = headersList.get('x-pathname') || ''
   const isExemptRoute = pathname.includes('/billing') || pathname.includes('/subscriptions')
 

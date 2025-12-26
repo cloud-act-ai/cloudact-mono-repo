@@ -805,47 +805,49 @@ export default function OrganizationSettingsPage() {
 
   return (
     <div className="space-y-6 sm:space-y-8 animate-in fade-in duration-500">
-      <div>
-        <h1 className="text-[32px] sm:text-[34px] font-bold text-black tracking-tight flex items-center gap-3">
-          <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-[#90FCA6] to-[#6EE890] flex items-center justify-center shadow-sm">
-            <Building2 className="h-5 w-5 text-[#1a7a3a]" />
+      <div className="mb-10">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-[#90FCA6] to-[#B8FDCA] flex items-center justify-center shadow-sm">
+            <Building2 className="h-6 w-6 text-black" />
           </div>
-          Organization Settings
-        </h1>
-        <p className="text-[15px] text-muted-foreground mt-2 ml-[52px]">
+          <h1 className="text-[32px] font-bold text-black tracking-tight leading-none">
+            Organization Settings
+          </h1>
+        </div>
+        <p className="text-[15px] text-slate-500 mt-2 max-w-lg ml-[60px]">
           Manage your organization locale, branding, and backend configuration
         </p>
       </div>
 
       {error && (
-        <Alert variant="destructive" className="border-[#FF6C5E]/30 bg-[#FF6C5E]/5 animate-in slide-in-from-top-2 duration-300">
+        <Alert variant="destructive" className="border-[#FF6C5E]/30 bg-[#FF6C5E]/10 animate-in slide-in-from-top-2 duration-300">
           <AlertTriangle className="h-4 w-4 text-[#FF6C5E]" />
-          <AlertDescription>{error}</AlertDescription>
+          <AlertDescription className="text-[#FF6C5E]">{error}</AlertDescription>
         </Alert>
       )}
 
       {success && (
-        <Alert className="bg-[#90FCA6]/5 border-[#90FCA6]/30 animate-in slide-in-from-top-2 duration-300">
-          <CheckCircle2 className="h-4 w-4 text-[#6EE890]" />
-          <AlertDescription className="text-foreground">{success}</AlertDescription>
+        <Alert className="bg-[#90FCA6]/15 border-[#90FCA6]/30 animate-in slide-in-from-top-2 duration-300">
+          <CheckCircle2 className="h-4 w-4 text-[#1a7a3a]" />
+          <AlertDescription className="text-[#1a7a3a] font-medium">{success}</AlertDescription>
         </Alert>
       )}
 
       <Tabs defaultValue="general" className="w-full">
-        <TabsList className="w-full sm:w-auto flex-wrap touch-manipulation bg-white border border-border">
-          <TabsTrigger value="general" className="cursor-pointer data-[state=active]:bg-[#90FCA6]/10 data-[state=active]:text-[#90FCA6]">
+        <TabsList className="w-full sm:w-auto flex-wrap touch-manipulation bg-slate-50/80 border border-slate-200/50 p-1 rounded-xl">
+          <TabsTrigger value="general" className="cursor-pointer data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-slate-200/50 rounded-lg">
             <Sparkles className="h-4 w-4 mr-2" />
             General
           </TabsTrigger>
-          <TabsTrigger value="contact" className="cursor-pointer data-[state=active]:bg-[#90FCA6]/10 data-[state=active]:text-[#90FCA6]">
+          <TabsTrigger value="contact" className="cursor-pointer data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-slate-200/50 rounded-lg">
             <User className="h-4 w-4 mr-2" />
             Contact
           </TabsTrigger>
-          <TabsTrigger value="backend" className="cursor-pointer data-[state=active]:bg-[#90FCA6]/10 data-[state=active]:text-[#90FCA6]">
+          <TabsTrigger value="backend" className="cursor-pointer data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-slate-200/50 rounded-lg">
             <Activity className="h-4 w-4 mr-2" />
             Backend
           </TabsTrigger>
-          <TabsTrigger value="danger" className="text-[#FF6C5E] data-[state=active]:bg-[#FF6C5E]/10 data-[state=active]:text-[#FF6C5E] cursor-pointer">
+          <TabsTrigger value="danger" className="text-[#FF6C5E] data-[state=active]:bg-[#FF6C5E] data-[state=active]:text-white data-[state=active]:shadow-sm cursor-pointer rounded-lg">
             <Shield className="h-4 w-4 mr-2" />
             Danger Zone
           </TabsTrigger>
@@ -917,9 +919,9 @@ export default function OrganizationSettingsPage() {
           </div>
 
           {hasLogoChanges && (
-            <Alert className="bg-gradient-to-r from-[#90FCA6]/5 to-[#90FCA6]/10 border-[#90FCA6]/20 animate-in slide-in-from-top-2">
-              <AlertTriangle className="h-4 w-4 text-[#90FCA6]" />
-              <AlertDescription className="text-[#6EE890]">
+            <Alert className="bg-[#90FCA6]/15 border-[#90FCA6]/30 animate-in slide-in-from-top-2">
+              <AlertTriangle className="h-4 w-4 text-[#1a7a3a]" />
+              <AlertDescription className="text-[#1a7a3a] font-medium">
                 Logo URL has been changed. Click Save Logo to apply.
               </AlertDescription>
             </Alert>
@@ -1063,9 +1065,9 @@ export default function OrganizationSettingsPage() {
           </div>
 
           {hasLocaleChanges && (
-            <Alert className="bg-gradient-to-r from-[#90FCA6]/5 to-[#90FCA6]/10 border-[#90FCA6]/20 animate-in slide-in-from-top-2">
-              <AlertTriangle className="h-4 w-4 text-[#90FCA6]" />
-              <AlertDescription className="text-[#6EE890]">
+            <Alert className="bg-[#90FCA6]/15 border-[#90FCA6]/30 animate-in slide-in-from-top-2">
+              <AlertTriangle className="h-4 w-4 text-[#1a7a3a]" />
+              <AlertDescription className="text-[#1a7a3a] font-medium">
                 You have unsaved changes. Click Save to apply or Reset to discard.
               </AlertDescription>
             </Alert>
@@ -1105,30 +1107,30 @@ export default function OrganizationSettingsPage() {
       </div>
 
       {/* Information Card */}
-      <div className="metric-card shadow-sm bg-gradient-to-br from-[#90FCA6]/5 via-[#90FCA6]/8 to-[#90FCA6]/5 border-[#90FCA6]/20">
+      <div className="metric-card shadow-sm bg-gradient-to-br from-[#90FCA6]/5 via-slate-50 to-white border-[#90FCA6]/10">
         <div className="metric-card-content">
           <div className="flex items-start gap-3">
-            <div className="h-10 w-10 rounded-xl bg-[#90FCA6]/10 flex items-center justify-center flex-shrink-0">
-              <AlertTriangle className="h-5 w-5 text-[#90FCA6]" />
+            <div className="h-10 w-10 rounded-xl bg-white border border-[#90FCA6]/20 flex items-center justify-center flex-shrink-0 shadow-sm">
+              <AlertTriangle className="h-5 w-5 text-[#1a7a3a]" />
             </div>
             <div className="space-y-2">
-              <h3 className="text-[15px] font-semibold text-[#6EE890]">Important Notes</h3>
-              <ul className="text-[13px] text-[#90FCA6] space-y-1.5 list-none">
+              <h3 className="text-[15px] font-semibold text-black">Important Notes</h3>
+              <ul className="text-[13px] text-slate-600 space-y-1.5 list-none">
                 <li className="flex items-start gap-2">
-                  <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
-                  Currency changes affect how costs are displayed but do not convert historical data.
+                  <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-[#1a7a3a]" />
+                  <span>Currency changes affect how costs are displayed but do not convert historical data.</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
-                  Timezone changes affect future timestamps and scheduled pipeline runs.
+                  <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-[#1a7a3a]" />
+                  <span>Timezone changes affect future timestamps and scheduled pipeline runs.</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
-                  These settings sync to backend BigQuery for cost calculations and pipeline scheduling.
+                  <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-[#1a7a3a]" />
+                  <span>These settings sync to backend BigQuery for cost calculations and pipeline scheduling.</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
-                  All team members will see costs and times in the organization's locale.
+                  <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-[#1a7a3a]" />
+                  <span>All team members will see costs and times in the organization's locale.</span>
                 </li>
               </ul>
             </div>
@@ -1350,9 +1352,9 @@ export default function OrganizationSettingsPage() {
               </div>
 
               {hasContactChanges && (
-                <Alert className="bg-gradient-to-r from-[#90FCA6]/5 to-[#90FCA6]/10 border-[#90FCA6]/20 animate-in slide-in-from-top-2">
-                  <AlertTriangle className="h-4 w-4 text-[#90FCA6]" />
-                  <AlertDescription className="text-[#6EE890]">
+                <Alert className="bg-[#90FCA6]/15 border-[#90FCA6]/30 animate-in slide-in-from-top-2">
+                  <AlertTriangle className="h-4 w-4 text-[#1a7a3a]" />
+                  <AlertDescription className="text-[#1a7a3a] font-medium">
                     You have unsaved changes. Click Save to apply or Reset to discard.
                   </AlertDescription>
                 </Alert>
@@ -1421,9 +1423,9 @@ export default function OrganizationSettingsPage() {
             <>
               {/* Backend Error Alert */}
               {backendError && (
-                <Alert variant="destructive" className="border-[#FF6C5E]/30 bg-[#FF6C5E]/5 animate-in slide-in-from-top-2">
+                <Alert variant="destructive" className="border-[#FF6C5E]/30 bg-[#FF6C5E]/10 animate-in slide-in-from-top-2">
                   <AlertTriangle className="h-4 w-4 text-[#FF6C5E]" />
-                  <AlertDescription className="text-[#FF6C5E]">
+                  <AlertDescription className="text-[#FF6C5E] font-medium">
                     {backendError}
                   </AlertDescription>
                 </Alert>
@@ -1432,22 +1434,22 @@ export default function OrganizationSettingsPage() {
               {/* Connection Status */}
               <div className={`flex items-center justify-between p-5 border-2 rounded-2xl transition-all ${
                 backendOnboarded && apiKeyValid !== false
-                  ? 'border-[#90FCA6]/30 bg-gradient-to-br from-[#90FCA6]/5 to-[#90FCA6]/10'
-                  : 'border-[#FF6C5E]/30 bg-gradient-to-br from-[#FF6C5E]/5 to-[#FF6C5E]/10'
+                  ? 'border-[#90FCA6]/30 bg-gradient-to-br from-[#90FCA6]/10 to-white'
+                  : 'border-[#FF6C5E]/30 bg-gradient-to-br from-[#FF6C5E]/10 to-white'
               }`}>
                 <div className="flex items-center gap-4">
                   <div className={`relative h-4 w-4 rounded-full ${
-                    backendOnboarded && apiKeyValid !== false ? 'bg-[#90FCA6]' : 'bg-[#FF6C5E]'
+                    backendOnboarded && apiKeyValid !== false ? 'bg-[#1a7a3a]' : 'bg-[#FF6C5E]'
                   }`}>
                     <div className={`absolute inset-0 rounded-full ${
-                      backendOnboarded && apiKeyValid !== false ? 'bg-[#90FCA6]' : 'bg-[#FF6C5E]'
+                      backendOnboarded && apiKeyValid !== false ? 'bg-[#1a7a3a]' : 'bg-[#FF6C5E]'
                     } animate-ping opacity-75`} />
                   </div>
                   <div>
                     <p className="text-[17px] font-semibold text-black">
                       {backendOnboarded && apiKeyValid !== false ? "Connected" : "Not Connected"}
                     </p>
-                    <p className="text-[13px] text-muted-foreground">
+                    <p className="text-[13px] text-slate-600">
                       {apiKeyValid === false
                         ? "API key is invalid or inactive in backend"
                         : backendOnboarded
@@ -1457,13 +1459,13 @@ export default function OrganizationSettingsPage() {
                   </div>
                 </div>
                 {backendOnboarded && apiKeyValid !== false && (
-                  <Badge className="flex-shrink-0 bg-[#90FCA6] text-[#1a7a3a] border-0 px-3 py-1">
+                  <Badge className="flex-shrink-0 bg-[#90FCA6]/15 text-[#1a7a3a] border-0 px-3 py-1 font-semibold">
                     <CheckCircle2 className="h-3 w-3 mr-1" />
                     Active
                   </Badge>
                 )}
                 {apiKeyValid === false && (
-                  <Badge className="flex-shrink-0 bg-[#FF6C5E] text-white border-0 px-3 py-1">
+                  <Badge className="flex-shrink-0 bg-[#FF6C5E] text-white border-0 px-3 py-1 font-semibold">
                     <AlertTriangle className="h-3 w-3 mr-1" />
                     Invalid
                   </Badge>
@@ -1474,25 +1476,25 @@ export default function OrganizationSettingsPage() {
               {apiKeyFingerprint && (
                 <div className={`flex items-center justify-between p-5 border-2 rounded-2xl transition-all ${
                   apiKeyValid === false
-                    ? 'border-[#FF6C5E]/30 bg-gradient-to-br from-[#FF6C5E]/5 to-[#FF6C5E]/10'
-                    : 'border-[#90FCA6]/30 bg-gradient-to-br from-[#90FCA6]/5 to-[#90FCA6]/10'
+                    ? 'border-[#FF6C5E]/30 bg-gradient-to-br from-[#FF6C5E]/10 to-white'
+                    : 'border-[#90FCA6]/30 bg-gradient-to-br from-[#90FCA6]/10 to-white'
                 }`}>
                   <div className="flex items-center gap-4 flex-1 min-w-0">
                     <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${
-                      apiKeyValid === false ? 'bg-[#FF6C5E]/10' : 'bg-[#90FCA6]/10'
+                      apiKeyValid === false ? 'bg-[#FF6C5E]/15' : 'bg-[#90FCA6]/15'
                     }`}>
-                      <Key className={`h-5 w-5 ${apiKeyValid === false ? 'text-[#FF6C5E]' : 'text-[#90FCA6]'}`} />
+                      <Key className={`h-5 w-5 ${apiKeyValid === false ? 'text-[#FF6C5E]' : 'text-[#1a7a3a]'}`} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-[15px] font-medium text-black">API Key</p>
-                      <p className={`text-[13px] font-mono truncate ${apiKeyValid === false ? 'text-[#FF6C5E]' : 'text-muted-foreground'}`}>
+                      <p className={`text-[13px] font-mono truncate ${apiKeyValid === false ? 'text-[#FF6C5E]' : 'text-slate-600'}`}>
                         ••••••••{apiKeyFingerprint}
                         {apiKeyValid === false && " (invalid)"}
                       </p>
                     </div>
                   </div>
                   {apiKeyValid === true && (
-                    <Badge className="flex-shrink-0 ml-3 bg-[#90FCA6]/10 text-[#90FCA6] border-0">
+                    <Badge className="flex-shrink-0 ml-3 bg-[#90FCA6]/15 text-[#1a7a3a] border-0 font-semibold">
                       <CheckCircle2 className="h-3 w-3 mr-1" />
                       Valid
                     </Badge>
@@ -1502,11 +1504,11 @@ export default function OrganizationSettingsPage() {
 
               {/* Help text for invalid API key */}
               {apiKeyValid === false && (
-                <div className="p-4 border-2 border-[#90FCA6]/20 rounded-xl bg-gradient-to-br from-[#90FCA6]/5 to-transparent">
-                  <p className="text-[13px] text-[#6EE890] flex items-start gap-2">
-                    <TrendingUp className="h-4 w-4 mt-0.5 flex-shrink-0 text-[#90FCA6]" />
+                <div className="p-4 border-2 border-[#90FCA6]/20 rounded-xl bg-gradient-to-br from-[#90FCA6]/10 to-white">
+                  <p className="text-[13px] text-slate-700 flex items-start gap-2">
+                    <TrendingUp className="h-4 w-4 mt-0.5 flex-shrink-0 text-[#1a7a3a]" />
                     <span>
-                      <strong>How to fix:</strong> Your API key may have been rotated or deactivated.
+                      <strong className="text-black">How to fix:</strong> Your API key may have been rotated or deactivated.
                       Try clicking "Resync Connection" below, or contact support if the issue persists.
                     </span>
                   </p>
@@ -1554,7 +1556,7 @@ export default function OrganizationSettingsPage() {
                 onClick={handleSyncBilling}
                 disabled={isBillingSyncing || loadingBackendStatus}
                 variant="outline"
-                className="h-11 px-6 rounded-xl border-2 border-[#90FCA6]/30 text-[#90FCA6] hover:bg-[#90FCA6]/5 transition-all hover:shadow-md"
+                className="h-11 px-6 rounded-xl console-button-outline transition-all hover:shadow-md"
               >
                 {isBillingSyncing ? (
                   <>
@@ -1581,8 +1583,8 @@ export default function OrganizationSettingsPage() {
       {/* Danger Zone Section */}
       <div className="pt-4 sm:pt-6">
         <div className="flex items-center gap-3 mb-6">
-          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-[#FF6C5E] to-[#E55A3C] flex items-center justify-center shadow-sm">
-            <AlertTriangle className="h-5 w-5 text-white" />
+          <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-[#FF6C5E] to-[#E55A3C] flex items-center justify-center shadow-sm">
+            <AlertTriangle className="h-6 w-6 text-white" />
           </div>
           <h2 className="text-[22px] font-bold text-[#FF6C5E]">Danger Zone</h2>
         </div>
@@ -1621,7 +1623,7 @@ export default function OrganizationSettingsPage() {
                       <div className="flex items-center gap-2 text-[13px] text-muted-foreground">
                         <Users className="h-3 w-3" />
                         <span>{org.member_count} member{org.member_count !== 1 ? "s" : ""}</span>
-                        <Badge variant="outline" className="flex-shrink-0 ml-2 bg-[#90FCA6]/12 text-[#90FCA6] border-0">Owner</Badge>
+                        <Badge variant="outline" className="flex-shrink-0 ml-2 bg-[#B8FDCA] text-[#1a7a3a] border-0">Owner</Badge>
                       </div>
                     </div>
                   </div>

@@ -219,20 +219,20 @@ export default function SubscriptionRunsPage() {
   const getStatusColor = (status: string) => {
     switch (status.toUpperCase()) {
       case "COMPLETED":
-        return "bg-[#B8FDCA] text-[var(--cloudact-mint-dark)] border border-[var(--cloudact-mint)]/10"
+        return "bg-[#B8FDCA] text-[#1a7a3a] border border-[var(--cloudact-mint)]/20"
       case "FAILED":
       case "TIMEOUT":
-        return "bg-[var(--cloudact-coral)]/10 text-[var(--cloudact-coral)] border border-[var(--cloudact-coral)]/10"
+        return "bg-[var(--cloudact-coral)]/10 text-[var(--cloudact-coral)] border border-[var(--cloudact-coral)]/20"
       case "RUNNING":
       case "PENDING":
       case "CANCELLING":
-        return "bg-[var(--cloudact-mint)]/5 text-[var(--cloudact-mint-dark)] border border-[var(--cloudact-mint)]/10"
+        return "bg-[var(--cloudact-mint)]/10 text-[#1a7a3a] border border-[var(--cloudact-mint)]/20"
       case "CANCELLED":
         return "bg-amber-100 text-amber-700 border border-amber-200"
       case "SKIPPED":
-        return "bg-[var(--cloudact-mint)]/5 text-muted-foreground border border-border"
+        return "bg-slate-100 text-slate-600 border border-slate-200"
       default:
-        return "bg-[var(--cloudact-mint)]/5 text-muted-foreground border border-border"
+        return "bg-slate-100 text-slate-600 border border-slate-200"
     }
   }
 
@@ -263,8 +263,8 @@ export default function SubscriptionRunsPage() {
     return (
       <div className="flex items-center justify-center min-h-[500px]">
         <div className="text-center">
-          <div className="h-12 w-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
-            <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+          <div className="h-12 w-12 rounded-2xl bg-[var(--cloudact-mint)]/10 flex items-center justify-center mx-auto mb-4">
+            <Loader2 className="h-6 w-6 animate-spin text-[var(--cloudact-mint-dark)]" />
           </div>
           <p className="text-[14px] text-slate-500 font-medium">Loading subscription pipelines...</p>
         </div>
@@ -306,9 +306,9 @@ export default function SubscriptionRunsPage() {
         </div>
       )}
 
-      <div className="mb-8 p-4 rounded-xl bg-teal-50 border border-teal-200">
+      <div className="mb-8 p-4 rounded-xl bg-[var(--cloudact-mint)]/10 border border-[var(--cloudact-mint)]/20">
         <div className="flex items-center gap-3">
-          <Info className="h-5 w-5 text-teal-600 flex-shrink-0" />
+          <Info className="h-5 w-5 text-[var(--cloudact-mint-dark)] flex-shrink-0" />
           <p className="text-[13px] text-slate-700 font-medium">
             Subscription pipelines calculate daily costs from your SaaS subscription plans.
           </p>
@@ -316,13 +316,13 @@ export default function SubscriptionRunsPage() {
       </div>
 
       {lastResult && (
-        <div className={`mb-6 p-4 rounded-xl border flex items-center gap-3 ${lastResult.success ? 'bg-[var(--cloudact-mint)]/5 border-[var(--cloudact-mint)]/20' : 'bg-rose-50 border-rose-200'}`}>
+        <div className={`mb-6 p-4 rounded-xl border flex items-center gap-3 ${lastResult.success ? 'bg-[var(--cloudact-mint)]/10 border-[var(--cloudact-mint)]/20' : 'bg-rose-50 border-rose-200'}`}>
           {lastResult.success ? (
-            <CheckCircle2 className="h-4 w-4 text-[var(--cloudact-mint-dark)] flex-shrink-0" />
+            <CheckCircle2 className="h-4 w-4 text-[#1a7a3a] flex-shrink-0" />
           ) : (
             <AlertCircle className="h-4 w-4 text-rose-500 flex-shrink-0" />
           )}
-          <p className={`text-[13px] font-medium ${lastResult.success ? 'text-[var(--cloudact-mint-dark)]' : 'text-rose-700'}`}>
+          <p className={`text-[13px] font-medium ${lastResult.success ? 'text-[#1a7a3a]' : 'text-rose-700'}`}>
             {lastResult.message}
           </p>
         </div>
@@ -332,9 +332,9 @@ export default function SubscriptionRunsPage() {
         <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide mb-4">Available Pipelines</h2>
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="px-4 sm:px-6 py-4 border-b border-[#E5E5EA]">
-            <div className="flex items-center gap-2 text-[var(--cloudact-mint-dark)]">
-              <Wallet className="h-[18px] w-[18px]" />
-              <span className="text-[15px] font-semibold">SaaS subscription cost pipelines</span>
+            <div className="flex items-center gap-2">
+              <Wallet className="h-[18px] w-[18px] text-[#1a7a3a]" />
+              <span className="text-[15px] font-semibold text-[#1a7a3a]">SaaS subscription cost pipelines</span>
             </div>
           </div>
 
@@ -350,7 +350,7 @@ export default function SubscriptionRunsPage() {
                   Enable subscription providers in Integrations to run cost pipelines.
                 </p>
                 <Link href={`/${orgSlug}/integrations/subscriptions`}>
-                  <button className="inline-flex items-center gap-2 h-11 px-6 bg-[var(--cloudact-mint)] text-white text-[15px] font-semibold rounded-xl hover:bg-[var(--cloudact-mint-dark)] transition-colors shadow-sm">
+                  <button className="inline-flex items-center gap-2 h-11 px-6 bg-[var(--cloudact-mint)] text-black text-[15px] font-semibold rounded-xl hover:bg-[var(--cloudact-mint-dark)] transition-colors shadow-sm">
                     <Wallet className="h-4 w-4" />
                     Manage Subscriptions
                   </button>
@@ -372,7 +372,7 @@ export default function SubscriptionRunsPage() {
                         <div className="text-[15px] font-semibold text-slate-900">{pipeline.name}</div>
                         <div className="text-[13px] text-slate-500 mt-0.5">{pipeline.description}</div>
                       </div>
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#B8FDCA] text-[var(--cloudact-mint-dark)] border border-[var(--cloudact-mint)]/10 flex-shrink-0">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#B8FDCA] text-[#1a7a3a] border border-[var(--cloudact-mint)]/20 flex-shrink-0">
                         <CheckCircle2 className="h-3 w-3" />
                         Ready
                       </span>
@@ -384,7 +384,7 @@ export default function SubscriptionRunsPage() {
                       <button
                         onClick={() => handleRun(pipeline.id)}
                         disabled={isRunning}
-                        className="inline-flex items-center gap-2 h-11 px-4 bg-[var(--cloudact-mint)] text-white text-[15px] font-semibold rounded-xl hover:bg-[var(--cloudact-mint-dark)] disabled:bg-[#E5E5EA] disabled:text-[#C7C7CC] disabled:cursor-not-allowed disabled:opacity-70 transition-all touch-manipulation shadow-sm hover:shadow-md"
+                        className="inline-flex items-center gap-2 h-11 px-4 bg-[var(--cloudact-mint)] text-black text-[15px] font-semibold rounded-xl hover:bg-[var(--cloudact-mint-dark)] disabled:bg-[#E5E5EA] disabled:text-[#C7C7CC] disabled:cursor-not-allowed disabled:opacity-70 transition-all touch-manipulation shadow-sm hover:shadow-md"
                       >
                         {isRunning ? (
                           <>
@@ -435,7 +435,7 @@ export default function SubscriptionRunsPage() {
                           </span>
                         </TableCell>
                         <TableCell className="console-table-cell">
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#B8FDCA] text-[var(--cloudact-mint-dark)] border border-[var(--cloudact-mint)]/10">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#B8FDCA] text-[#1a7a3a] border border-[var(--cloudact-mint)]/20">
                             <CheckCircle2 className="h-3 w-3" />
                             Ready
                           </span>
@@ -444,7 +444,7 @@ export default function SubscriptionRunsPage() {
                           <button
                             onClick={() => handleRun(pipeline.id)}
                             disabled={isRunning}
-                            className="inline-flex items-center gap-2 h-11 px-4 bg-[var(--cloudact-mint)] text-white text-[15px] font-semibold rounded-xl hover:bg-[var(--cloudact-mint-dark)] disabled:bg-[#E5E5EA] disabled:text-[#C7C7CC] disabled:cursor-not-allowed disabled:opacity-70 transition-all touch-manipulation shadow-sm hover:shadow-md"
+                            className="inline-flex items-center gap-2 h-11 px-4 bg-[var(--cloudact-mint)] text-black text-[15px] font-semibold rounded-xl hover:bg-[var(--cloudact-mint-dark)] disabled:bg-[#E5E5EA] disabled:text-[#C7C7CC] disabled:cursor-not-allowed disabled:opacity-70 transition-all touch-manipulation shadow-sm hover:shadow-md"
                           >
                             {isRunning ? (
                               <>
@@ -474,8 +474,8 @@ export default function SubscriptionRunsPage() {
           {/* Stats Row */}
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center">
-                <History className="h-5 w-5 text-slate-500" />
+              <div className="h-10 w-10 rounded-xl bg-[var(--cloudact-mint)]/10 flex items-center justify-center">
+                <History className="h-5 w-5 text-[var(--cloudact-mint-dark)]" />
               </div>
               <div>
                 <p className="text-[24px] font-bold text-slate-900 leading-none">{runStats.total}</p>
@@ -525,7 +525,7 @@ export default function SubscriptionRunsPage() {
             <button
               onClick={loadPipelineRuns}
               disabled={runsLoading}
-              className="inline-flex items-center justify-center gap-2 h-9 px-4 bg-slate-100 text-slate-600 text-[13px] font-semibold rounded-lg hover:bg-slate-200 hover:text-slate-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="inline-flex items-center justify-center gap-2 h-9 px-4 bg-[var(--cloudact-mint)]/10 text-[#1a7a3a] text-[13px] font-semibold rounded-lg hover:bg-[var(--cloudact-mint)]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {runsLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -540,8 +540,8 @@ export default function SubscriptionRunsPage() {
             {/* Loading state */}
             {runsLoading && pipelineRuns.length === 0 && (
               <div className="px-4 sm:px-6 py-12 text-center">
-                <div className="h-12 w-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
-                  <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+                <div className="h-12 w-12 rounded-2xl bg-[var(--cloudact-mint)]/10 flex items-center justify-center mx-auto mb-4">
+                  <Loader2 className="h-6 w-6 animate-spin text-[var(--cloudact-mint-dark)]" />
                 </div>
                 <p className="text-[14px] text-slate-500 font-medium">Loading run history...</p>
               </div>
@@ -551,8 +551,8 @@ export default function SubscriptionRunsPage() {
             {!runsLoading && pipelineRuns.length === 0 && (
               <div className="px-4 sm:px-6 py-12 text-center">
                 <div className="space-y-3">
-                  <div className="inline-flex p-3 rounded-2xl bg-slate-100 mb-2">
-                    <History className="h-10 w-10 text-slate-400" />
+                  <div className="inline-flex p-3 rounded-2xl bg-[var(--cloudact-mint)]/10 mb-2">
+                    <History className="h-10 w-10 text-[var(--cloudact-mint-dark)]" />
                   </div>
                   <h3 className="text-[17px] font-semibold text-slate-900">No runs yet</h3>
                   <p className="text-[15px] text-slate-500">Run a subscription pipeline to see history</p>

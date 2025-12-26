@@ -280,8 +280,8 @@ export default function CostRunsPage() {
     return (
       <div className="flex items-center justify-center min-h-[500px]">
         <div className="text-center">
-          <div className="h-12 w-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
-            <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+          <div className="h-12 w-12 rounded-2xl bg-[var(--cloudact-mint)]/10 flex items-center justify-center mx-auto mb-4">
+            <Loader2 className="h-6 w-6 animate-spin text-[var(--cloudact-mint-dark)]" />
           </div>
           <p className="text-[14px] text-slate-500 font-medium">Loading runs...</p>
         </div>
@@ -312,7 +312,7 @@ export default function CostRunsPage() {
                 Complete organization onboarding to run pipelines.
               </p>
               <Link href={`/${orgSlug}/settings/organization`}>
-                <button className="inline-flex items-center gap-2 h-11 px-4 bg-[var(--cloudact-mint)] text-white text-[15px] font-semibold rounded-xl hover:bg-[var(--cloudact-mint-dark)] transition-colors">
+                <button className="inline-flex items-center gap-2 h-11 px-4 bg-[var(--cloudact-mint)] text-black text-[15px] font-semibold rounded-xl hover:bg-[var(--cloudact-mint-dark)] transition-colors">
                   Go to Settings
                 </button>
               </Link>
@@ -321,9 +321,9 @@ export default function CostRunsPage() {
         </div>
       )}
 
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm bg-blue-50 p-4 border border-blue-200">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm bg-[var(--cloudact-mint)]/5 p-4 border border-[var(--cloudact-mint)]/20">
         <div className="flex items-center gap-3">
-          <Info className="h-5 w-5 text-blue-600 flex-shrink-0" />
+          <Info className="h-5 w-5 text-[var(--cloudact-mint-dark)] flex-shrink-0" />
           <p className="text-[15px] text-slate-900">
             Cloud cost pipelines sync billing data from your cloud provider accounts.
           </p>
@@ -338,7 +338,7 @@ export default function CostRunsPage() {
             ) : (
               <AlertCircle className="h-5 w-5 text-rose-600 flex-shrink-0" />
             )}
-            <p className={`text-[15px] font-medium ${lastResult.success ? 'text-[var(--cloudact-mint-dark)]' : 'text-rose-600'}`}>
+            <p className={`text-[15px] font-medium ${lastResult.success ? 'text-[#1a7a3a]' : 'text-rose-600'}`}>
               {lastResult.message}
             </p>
           </div>
@@ -349,9 +349,9 @@ export default function CostRunsPage() {
         <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide mb-4">Available Pipelines</h2>
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-0 overflow-hidden">
           <div className="px-4 sm:px-6 py-4 border-b border-slate-200">
-            <div className="flex items-center gap-2 text-[var(--cloudact-mint-dark)]">
-              <Cloud className="h-[18px] w-[18px]" />
-              <span className="text-[15px] font-semibold">Cloud provider billing pipelines</span>
+            <div className="flex items-center gap-2">
+              <Cloud className="h-[18px] w-[18px] text-[#1a7a3a]" />
+              <span className="text-[15px] font-semibold text-[#1a7a3a]">Cloud provider billing pipelines</span>
             </div>
           </div>
 
@@ -359,15 +359,15 @@ export default function CostRunsPage() {
           {connectedPipelines.length === 0 && (
             <div className="px-4 sm:px-6 py-12 text-center">
               <div className="space-y-4">
-                <div className="inline-flex p-4 rounded-2xl bg-slate-100 mb-2">
-                  <Plug className="h-12 w-12 text-slate-400" />
+                <div className="inline-flex p-4 rounded-2xl bg-[var(--cloudact-mint)]/10 mb-2">
+                  <Plug className="h-12 w-12 text-[var(--cloudact-mint-dark)]" />
                 </div>
                 <h3 className="text-[20px] font-semibold text-slate-900">No cloud cost pipelines</h3>
                 <p className="text-[15px] text-slate-500 max-w-md mx-auto">
                   Connect a cloud provider to see available cost pipelines.
                 </p>
                 <Link href={`/${orgSlug}/integrations/cloud-providers`}>
-                  <button className="inline-flex items-center gap-2 h-11 px-6 bg-[var(--cloudact-mint)] text-white text-[15px] font-semibold rounded-xl hover:bg-[var(--cloudact-mint-dark)] transition-colors shadow-sm">
+                  <button className="inline-flex items-center gap-2 h-11 px-6 bg-[var(--cloudact-mint)] text-black text-[15px] font-semibold rounded-xl hover:bg-[var(--cloudact-mint-dark)] transition-colors shadow-sm">
                     <Cloud className="h-4 w-4" />
                     Configure Cloud Providers
                   </button>
@@ -401,7 +401,7 @@ export default function CostRunsPage() {
                       <button
                         onClick={() => handleRun(pipeline.id)}
                         disabled={isRunning}
-                        className="inline-flex items-center gap-2 h-11 px-4 bg-[var(--cloudact-mint)] text-white text-[15px] font-semibold rounded-xl hover:bg-[var(--cloudact-mint-dark)] disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed disabled:opacity-70 transition-all touch-manipulation shadow-sm hover:shadow-md"
+                        className="inline-flex items-center gap-2 h-11 px-4 bg-[var(--cloudact-mint)] text-black text-[15px] font-semibold rounded-xl hover:bg-[var(--cloudact-mint-dark)] disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed disabled:opacity-70 transition-all touch-manipulation shadow-sm hover:shadow-md"
                       >
                         {isRunning ? (
                           <>
@@ -461,7 +461,7 @@ export default function CostRunsPage() {
                           <button
                             onClick={() => handleRun(pipeline.id)}
                             disabled={isRunning}
-                            className="inline-flex items-center gap-2 h-11 px-4 bg-[var(--cloudact-mint)] text-white text-[15px] font-semibold rounded-xl hover:bg-[var(--cloudact-mint-dark)] disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed disabled:opacity-70 transition-all touch-manipulation shadow-sm hover:shadow-md"
+                            className="inline-flex items-center gap-2 h-11 px-4 bg-[var(--cloudact-mint)] text-black text-[15px] font-semibold rounded-xl hover:bg-[var(--cloudact-mint-dark)] disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed disabled:opacity-70 transition-all touch-manipulation shadow-sm hover:shadow-md"
                           >
                             {isRunning ? (
                               <>
@@ -532,7 +532,7 @@ export default function CostRunsPage() {
             <button
               onClick={loadPipelineRuns}
               disabled={runsLoading}
-              className="inline-flex items-center justify-center gap-2 h-11 px-4 bg-slate-100 text-slate-600 text-[15px] font-medium rounded-xl hover:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed disabled:opacity-50 transition-colors touch-manipulation border border-slate-200"
+              className="inline-flex items-center justify-center gap-2 h-11 px-4 bg-[var(--cloudact-mint)]/10 text-[#1a7a3a] text-[15px] font-medium rounded-xl hover:bg-[var(--cloudact-mint)]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors touch-manipulation border border-[var(--cloudact-mint)]/20"
             >
               {runsLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -548,8 +548,8 @@ export default function CostRunsPage() {
             {runsLoading && pipelineRuns.length === 0 && (
               <div className="flex items-center justify-center min-h-[400px]">
                 <div className="text-center">
-                  <div className="h-12 w-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
-                    <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+                  <div className="h-12 w-12 rounded-2xl bg-[var(--cloudact-mint)]/10 flex items-center justify-center mx-auto mb-4">
+                    <Loader2 className="h-6 w-6 animate-spin text-[var(--cloudact-mint-dark)]" />
                   </div>
                   <p className="text-[14px] text-slate-500 font-medium">Loading runs...</p>
                 </div>
@@ -560,8 +560,8 @@ export default function CostRunsPage() {
             {!runsLoading && pipelineRuns.length === 0 && (
               <div className="px-4 sm:px-6 py-12 text-center">
                 <div className="space-y-3">
-                  <div className="inline-flex p-3 rounded-2xl bg-slate-100 mb-2">
-                    <History className="h-10 w-10 text-slate-400" />
+                  <div className="inline-flex p-3 rounded-2xl bg-[var(--cloudact-mint)]/10 mb-2">
+                    <History className="h-10 w-10 text-[var(--cloudact-mint-dark)]" />
                   </div>
                   <h3 className="text-[17px] font-semibold text-slate-900">No runs yet</h3>
                   <p className="text-[15px] text-slate-500">Run a cost pipeline to see history</p>

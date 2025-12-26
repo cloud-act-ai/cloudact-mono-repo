@@ -51,10 +51,10 @@ const SERVICE_ICONS: Record<string, React.ComponentType<{ className?: string }>>
 
 // Provider colors - CloudAct Standard
 const PROVIDER_COLORS: Record<string, string> = {
-  gcp: "bg-[var(--cloudact-mint)]/10 text-[var(--cloudact-mint-text)] border border-[var(--cloudact-mint)]/10",
-  aws: "bg-[var(--cloudact-coral)]/10 text-[var(--cloudact-coral)] border border-[var(--cloudact-coral)]/10",
-  azure: "bg-[var(--cloudact-mint)]/5 text-[var(--cloudact-mint-dark)] border border-[var(--cloudact-mint)]/10",
-  other: "bg-[var(--cloudact-mint)]/5 text-muted-foreground border border-border",
+  gcp: "bg-[var(--cloudact-mint)]/10 text-[#1a7a3a] border border-[var(--cloudact-mint)]/20",
+  aws: "bg-[var(--cloudact-coral)]/10 text-[var(--cloudact-coral)] border border-[var(--cloudact-coral)]/20",
+  azure: "bg-blue-500/10 text-blue-600 border border-blue-500/20",
+  other: "bg-slate-100 text-slate-600 border border-slate-200",
 }
 
 // Provider gradient classes for constellation

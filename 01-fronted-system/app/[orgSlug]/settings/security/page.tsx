@@ -100,10 +100,15 @@ export default function SecurityPage() {
     <div className="max-w-6xl mx-auto">
       {/* Header */}
       <div className="mb-10">
-        <h1 className="text-[32px] font-bold text-slate-900 tracking-tight leading-none">
-          Security
-        </h1>
-        <p className="text-[15px] text-slate-500 mt-2 max-w-lg">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-[#90FCA6] to-[#B8FDCA] flex items-center justify-center shadow-sm">
+            <Shield className="h-6 w-6 text-black" />
+          </div>
+          <h1 className="text-[32px] font-bold text-black tracking-tight leading-none">
+            Security
+          </h1>
+        </div>
+        <p className="text-[15px] text-slate-500 mt-2 max-w-lg ml-[60px]">
           Manage your password and account security settings
         </p>
       </div>
@@ -111,12 +116,15 @@ export default function SecurityPage() {
       {/* Stats Row */}
       <div className="flex items-center gap-6 mb-8">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-[#90FCA6]/10 flex items-center justify-center">
-            <Shield className="h-5 w-5 text-[#90FCA6]" />
+          <div className="h-10 w-10 rounded-xl bg-[#90FCA6]/15 flex items-center justify-center">
+            <Shield className="h-5 w-5 text-[#1a7a3a]" />
           </div>
           <div>
             <p className="text-[14px] text-slate-600 font-medium">Account Status</p>
-            <p className="text-[12px] text-[#90FCA6] font-semibold">Protected</p>
+            <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#90FCA6]/15">
+              <div className="h-1.5 w-1.5 rounded-full bg-[#1a7a3a]" />
+              <p className="text-[12px] text-[#1a7a3a] font-semibold">Protected</p>
+            </div>
           </div>
         </div>
         <div className="h-8 w-px bg-slate-200"></div>
@@ -140,54 +148,56 @@ export default function SecurityPage() {
       )}
 
       {success && (
-        <div className="mb-6 p-4 rounded-xl bg-[#90FCA6]/5 border border-[#90FCA6]/20 flex items-center gap-3">
-          <Check className="h-4 w-4 text-[#90FCA6] flex-shrink-0" />
-          <p className="text-[13px] font-medium text-[#90FCA6]">{success}</p>
+        <div className="mb-6 p-4 rounded-xl bg-[#90FCA6]/15 border border-[#90FCA6]/20 flex items-center gap-3">
+          <Check className="h-4 w-4 text-[#1a7a3a] flex-shrink-0" />
+          <p className="text-[13px] font-medium text-[#1a7a3a]">{success}</p>
         </div>
       )}
 
       {/* Password Section */}
       <section className="mb-8">
         <div className="flex items-center gap-2 mb-4">
-          <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide">
+          <h2 className="text-[13px] font-semibold text-black uppercase tracking-wide">
             Authentication
           </h2>
         </div>
 
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="group relative">
-            {/* Left accent */}
-            <div className="absolute left-0 top-4 bottom-4 w-1 rounded-full bg-[#90FCA6] opacity-60 group-hover:opacity-100 transition-opacity" />
+        <div className="metric-card shadow-sm hover:shadow-md transition-shadow duration-300">
+          <div className="metric-card-content">
+            <div className="group relative">
+              {/* Left accent */}
+              <div className="absolute left-0 top-4 bottom-4 w-1 rounded-full bg-[#90FCA6] opacity-60 group-hover:opacity-100 transition-opacity" />
 
-            <div className="pl-5 py-5 pr-5 flex items-center justify-between gap-4">
-              <div className="flex items-center gap-4 min-w-0 flex-1">
-                <div className="h-11 w-11 rounded-xl bg-[#90FCA6]/10 flex items-center justify-center flex-shrink-0">
-                  <Key className="h-5 w-5 text-[#90FCA6]" />
+              <div className="pl-5 py-5 pr-5 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-4 min-w-0 flex-1">
+                  <div className="h-11 w-11 rounded-xl bg-[#90FCA6]/15 flex items-center justify-center flex-shrink-0">
+                    <Key className="h-5 w-5 text-[#1a7a3a]" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-[15px] font-semibold text-black tracking-tight">
+                      Password
+                    </h3>
+                    <p className="text-[12px] text-slate-500 mt-0.5">
+                      Reset your password via email verification
+                    </p>
+                  </div>
                 </div>
-                <div className="min-w-0 flex-1">
-                  <h3 className="text-[15px] font-semibold text-slate-900 tracking-tight">
-                    Password
-                  </h3>
-                  <p className="text-[12px] text-slate-500 mt-0.5">
-                    Reset your password via email verification
-                  </p>
-                </div>
+
+                <button
+                  onClick={handleResetPassword}
+                  disabled={isResettingPassword}
+                  className="console-button-primary h-11 px-6 transition-all hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isResettingPassword ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Sending...
+                    </>
+                  ) : (
+                    "Reset Password"
+                  )}
+                </button>
               </div>
-
-              <button
-                onClick={handleResetPassword}
-                disabled={isResettingPassword}
-                className="h-10 px-5 text-[13px] font-semibold bg-[#90FCA6] hover:bg-[#6EE890] text-[#000000] rounded-xl transition-colors flex items-center gap-2 disabled:opacity-50"
-              >
-                {isResettingPassword ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Sending...
-                  </>
-                ) : (
-                  "Reset Password"
-                )}
-              </button>
             </div>
           </div>
         </div>
@@ -196,7 +206,7 @@ export default function SecurityPage() {
       {/* Security Tips */}
       <section>
         <div className="flex items-center gap-2 mb-4">
-          <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide">
+          <h2 className="text-[13px] font-semibold text-black uppercase tracking-wide">
             Security Best Practices
           </h2>
         </div>
@@ -207,41 +217,41 @@ export default function SecurityPage() {
               icon: <Lock className="h-4 w-4" />,
               title: "Strong Password",
               description: "Use a unique password with mixed characters",
-              accent: "#90FCA6",
+              accent: "#1a7a3a",
             },
             {
               icon: <Eye className="h-4 w-4" />,
               title: "Never Share",
               description: "Keep your password and reset links private",
-              accent: "#8B5CF6",
+              accent: "#007AFF",
             },
             {
               icon: <Shield className="h-4 w-4" />,
               title: "Monitor Activity",
               description: "Check email for security notifications",
-              accent: "#10B981",
+              accent: "#1a7a3a",
             },
             {
               icon: <Fingerprint className="h-4 w-4" />,
               title: "Secure Logout",
               description: "Always log out on shared devices",
-              accent: "#F59E0B",
+              accent: "#FF6C5E",
             },
           ].map((tip, idx) => (
             <div
               key={idx}
-              className="p-4 rounded-xl bg-white border border-slate-200 hover:border-slate-300 hover:shadow-sm transition-all"
+              className="metric-card p-4 hover:shadow-md transition-all duration-300"
             >
               <div className="flex items-start gap-3">
                 <div
                   className="h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0"
-                  style={{ backgroundColor: `${tip.accent}10` }}
+                  style={{ backgroundColor: `${tip.accent}15` }}
                 >
                   <div style={{ color: tip.accent }}>{tip.icon}</div>
                 </div>
                 <div>
-                  <h3 className="text-[13px] font-semibold text-slate-900">{tip.title}</h3>
-                  <p className="text-[12px] text-slate-500 mt-0.5">{tip.description}</p>
+                  <h3 className="text-[13px] font-semibold text-black">{tip.title}</h3>
+                  <p className="text-[12px] text-slate-600 mt-0.5">{tip.description}</p>
                 </div>
               </div>
             </div>
@@ -250,19 +260,21 @@ export default function SecurityPage() {
       </section>
 
       {/* Info Footer */}
-      <div className="mt-10 p-5 rounded-2xl bg-gradient-to-br from-slate-50 to-slate-100/50 border border-slate-200">
-        <div className="flex items-start gap-4">
-          <div className="h-10 w-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center flex-shrink-0 shadow-sm">
-            <Shield className="h-5 w-5 text-[#90FCA6]" />
-          </div>
-          <div>
-            <h3 className="text-[15px] font-semibold text-slate-900 mb-1">
-              Your account is protected
-            </h3>
-            <p className="text-[13px] text-slate-500 leading-relaxed">
-              All passwords are encrypted using industry-standard hashing algorithms.
-              We never store your password in plain text.
-            </p>
+      <div className="mt-10 metric-card shadow-sm bg-gradient-to-br from-[#90FCA6]/5 via-slate-50 to-white border-[#90FCA6]/10">
+        <div className="metric-card-content">
+          <div className="flex items-start gap-4">
+            <div className="h-10 w-10 rounded-xl bg-white border border-[#90FCA6]/20 flex items-center justify-center flex-shrink-0 shadow-sm">
+              <Shield className="h-5 w-5 text-[#1a7a3a]" />
+            </div>
+            <div>
+              <h3 className="text-[15px] font-semibold text-black mb-1">
+                Your account is protected
+              </h3>
+              <p className="text-[13px] text-slate-600 leading-relaxed">
+                All passwords are encrypted using industry-standard hashing algorithms.
+                We never store your password in plain text.
+              </p>
+            </div>
           </div>
         </div>
       </div>

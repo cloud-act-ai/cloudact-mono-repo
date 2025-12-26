@@ -396,8 +396,8 @@ export default function PipelinesPage() {
     return (
       <div className="flex items-center justify-center min-h-[500px]">
         <div className="text-center">
-          <div className="h-12 w-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
-            <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+          <div className="h-12 w-12 rounded-2xl bg-[var(--cloudact-mint)]/10 flex items-center justify-center mx-auto mb-4">
+            <Loader2 className="h-6 w-6 animate-spin text-[var(--cloudact-mint-dark)]" />
           </div>
           <p className="text-[14px] text-slate-500 font-medium">Loading pipelines...</p>
         </div>
@@ -594,7 +594,7 @@ export default function PipelinesPage() {
                               <h3 className="text-[17px] font-bold text-slate-900 mb-1">{pipeline.name}</h3>
                               <p className="text-[13px] text-slate-600">{pipeline.description}</p>
                             </div>
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-[var(--cloudact-mint-light)] text-[var(--cloudact-mint-dark)] border border-[var(--cloudact-mint)]/10 flex-shrink-0">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#B8FDCA] text-[#1a7a3a] border border-[var(--cloudact-mint)]/20 flex-shrink-0">
                               <CheckCircle2 className="h-3 w-3" />
                               {!pipeline.required_integration || pipeline.required_integration === "" ? "Ready" : "Connected"}
                             </span>
@@ -672,8 +672,8 @@ export default function PipelinesPage() {
             {runsLoading && pipelineRuns.length === 0 && (
               <div className="flex items-center justify-center min-h-[500px]">
                 <div className="text-center">
-                  <div className="h-12 w-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
-                    <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+                  <div className="h-12 w-12 rounded-2xl bg-[var(--cloudact-mint)]/10 flex items-center justify-center mx-auto mb-4">
+                    <Loader2 className="h-6 w-6 animate-spin text-[var(--cloudact-mint-dark)]" />
                   </div>
                   <p className="text-[14px] text-slate-500 font-medium">Loading pipeline runs...</p>
                 </div>
@@ -684,8 +684,8 @@ export default function PipelinesPage() {
             {!runsLoading && pipelineRuns.length === 0 && (
               <div className="px-4 sm:px-6 py-12 text-center">
                 <div className="space-y-3">
-                  <div className="inline-flex p-3 rounded-2xl bg-slate-100 mb-2">
-                    <History className="h-10 w-10 text-slate-400" />
+                  <div className="inline-flex p-3 rounded-2xl bg-[var(--cloudact-mint)]/10 mb-2">
+                    <History className="h-10 w-10 text-[var(--cloudact-mint-dark)]" />
                   </div>
                   <h3 className="text-[17px] font-semibold text-slate-900">No pipeline runs yet</h3>
                   <p className="text-[15px] text-slate-600">Run a pipeline to see history</p>
@@ -792,7 +792,7 @@ export default function PipelinesPage() {
                                       </div>
                                       <p className="text-[13px] text-slate-600 mt-1 break-words">{run.error_message}</p>
                                       {run.error_context?.suggested_action && (
-                                        <p className="text-[12px] text-[var(--cloudact-mint-dark)] mt-2 font-medium">
+                                        <p className="text-[12px] text-[#1a7a3a] mt-2 font-medium">
                                           Suggestion: {run.error_context.suggested_action}
                                         </p>
                                       )}
@@ -962,7 +962,7 @@ export default function PipelinesPage() {
                                             </div>
                                             <p className="text-[13px] text-slate-600 mt-1">{run.error_message}</p>
                                             {run.error_context?.suggested_action && (
-                                              <p className="text-[12px] text-[var(--cloudact-mint-dark)] mt-2 font-medium">
+                                              <p className="text-[12px] text-[#1a7a3a] mt-2 font-medium">
                                                 Suggestion: {run.error_context.suggested_action}
                                               </p>
                                             )}

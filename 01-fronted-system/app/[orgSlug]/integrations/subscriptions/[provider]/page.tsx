@@ -547,7 +547,7 @@ export default function ProviderDetailPage() {
           <CardContent className="py-3 px-4">
             <div className="flex items-center gap-3">
               <Info className="h-5 w-5 text-[#1a7a3a] flex-shrink-0" />
-              <p className="text-sm text-[#6EE890]">
+              <p className="text-sm text-[#1a7a3a]">
                 All {rawProvider.replace(/_/g, " ")} plans are managed under <strong>{getProviderDisplayName(provider)}</strong>.
                 You&apos;re viewing the correct provider page.
               </p>

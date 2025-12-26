@@ -219,4 +219,5 @@ __marimo__/
 # Screenshots and Test Artifacts
 **/__screenshots__/
 *.webp
+.playwright-mcp/
 

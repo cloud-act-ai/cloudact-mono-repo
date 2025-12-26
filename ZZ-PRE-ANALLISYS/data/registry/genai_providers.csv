@@ -1,0 +1,9 @@
+provider_id,provider_name,pricing_model,api_type,api_base_url,auth_type,status,notes
+openai,OpenAI,payg,api,https://api.openai.com/v1,api_key,active,Primary LLM provider
+anthropic,Anthropic,payg,api,https://api.anthropic.com,api_key,active,Claude models
+gemini,Google Gemini,payg,api,https://generativelanguage.googleapis.com,api_key,active,Google AI
+azure_openai,Azure OpenAI (PAYG),payg,azure,https://{resource}.openai.azure.com,azure_ad,active,Azure hosted OpenAI
+azure_openai_ptu,Azure OpenAI (PTU),commitment,azure,https://{resource}.openai.azure.com,azure_ad,active,Provisioned throughput
+aws_bedrock,AWS Bedrock,payg,aws,bedrock.{region}.amazonaws.com,iam,active,AWS managed
+gcp_vertex,GCP Vertex AI,payg,gcp,https://{region}-aiplatform.googleapis.com,service_account,active,Google Cloud
+self_hosted,Self-Hosted,infrastructure,local,http://localhost:8080,none,active,Local deployment

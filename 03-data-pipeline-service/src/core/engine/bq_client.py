@@ -725,11 +725,34 @@ class BigQueryClient:
             extra={"org_slug": org_slug, "table_name": table_name})
 
 
+# Global singleton instance for connection reuse
+_global_bq_client: Optional[BigQueryClient] = None
+_global_client_lock = threading.Lock()
+
+
 def get_bigquery_client() -> BigQueryClient:
     """
-    Get new BigQuery client instance.
+    Get shared BigQuery client instance (singleton).
 
-    Each executor creates its own client for tenant isolation.
-    Client should be closed when done (executor handles cleanup in finally block).
+    Returns the same BigQueryClient instance across all requests to reuse
+    the underlying connection pool. This prevents cold connection overhead
+    on every request.
+
+    Thread-safe: Uses double-checked locking pattern.
+
+    Note: Tenant isolation is enforced at the query level (org_slug in dataset names),
+    not at the connection level. All orgs share the same BigQuery project.
     """
-    return BigQueryClient()
+    global _global_bq_client
+
+    # Fast path: already initialized
+    if _global_bq_client is not None:
+        return _global_bq_client
+
+    # Slow path: initialize with lock
+    with _global_client_lock:
+        if _global_bq_client is None:
+            _global_bq_client = BigQueryClient()
+            logger.info("Created global BigQuery client singleton")
+
+    return _global_bq_client

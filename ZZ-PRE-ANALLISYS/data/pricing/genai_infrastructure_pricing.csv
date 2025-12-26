@@ -1,0 +1,10 @@
+provider,resource_type,instance_type,gpu_type,gpu_count,gpu_memory_gb,hourly_rate,region,cloud_provider,status,last_updated
+gcp_gpu,gpu,a2-highgpu-1g,A100,1,40,3.67,us-central1,gcp,active,2024-12-01
+gcp_gpu,gpu,a2-ultragpu-1g,A100,1,80,5.07,us-central1,gcp,active,2024-12-01
+gcp_gpu,gpu,a3-highgpu-1g,H100,1,80,10.20,us-central1,gcp,active,2024-12-01
+gcp_gpu,gpu,g2-standard-4,L4,1,24,0.70,us-central1,gcp,active,2024-12-01
+aws_gpu,gpu,p4d.24xlarge,A100,8,40,32.77,us-east-1,aws,active,2024-12-01
+aws_gpu,gpu,p5.48xlarge,H100,8,80,98.32,us-east-1,aws,active,2024-12-01
+azure_gpu,gpu,Standard_NC24ads_A100_v4,A100,1,80,3.67,eastus,azure,active,2024-12-01
+self_hosted,gpu,local,RTX4090,1,24,0.50,on-prem,local,active,2024-12-01
+self_hosted,gpu,local,RTX3090,1,24,0.30,on-prem,local,active,2024-12-01

@@ -295,7 +295,7 @@ export default function AnthropicIntegrationPage() {
       {/* Header with back link */}
       <div className="flex items-center gap-4">
         <Link href={`/${orgSlug}/integrations/llm`}>
-          <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground h-11 rounded-xl">
+          <Button variant="ghost" size="sm" className="text-slate-600 hover:text-black hover:bg-slate-50 h-9 rounded-xl transition-colors">
             <ArrowLeft className="h-4 w-4 mr-1" />
             LLM Providers
           </Button>
@@ -303,23 +303,23 @@ export default function AnthropicIntegrationPage() {
       </div>
 
       {/* Enhanced Provider Header */}
-      <div className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-amber-50 via-white to-white p-6 shadow-sm">
-        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#D97706] to-[#B45309]" />
+      <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#D97706] to-[#B45309]" />
         <div className="flex items-start gap-4">
-          <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-amber-100 to-amber-50 flex items-center justify-center flex-shrink-0 ring-1 ring-amber-200/50 shadow-sm">
-            <Sparkles className="h-8 w-8 text-[#D97706]" />
+          <div className="h-14 w-14 rounded-2xl bg-[#D97706]/10 flex items-center justify-center flex-shrink-0">
+            <Sparkles className="h-7 w-7 text-[#D97706]" />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3 mb-2">
-              <h1 className="text-[28px] font-bold text-black tracking-tight">Anthropic (Claude) Integration</h1>
+              <h1 className="text-[32px] font-bold text-black tracking-tight">Anthropic (Claude) Integration</h1>
               {isConnected && (
-                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#90FCA6]/10 animate-pulse">
-                  <div className="h-2 w-2 rounded-full bg-[#90FCA6]" />
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#90FCA6]/15">
+                  <div className="h-1.5 w-1.5 rounded-full bg-[#1a7a3a]" />
                   <span className="text-[11px] font-bold text-[#1a7a3a] uppercase tracking-wide">Connected</span>
                 </div>
               )}
             </div>
-            <p className="text-[15px] text-muted-foreground leading-relaxed">
+            <p className="text-[15px] text-slate-600 leading-relaxed">
               Connect your Anthropic API key to track Claude 3.5 Sonnet, Opus, and Haiku usage with detailed cost analytics
             </p>
           </div>
@@ -328,18 +328,18 @@ export default function AnthropicIntegrationPage() {
 
       {/* Alerts */}
       {error && (
-        <Alert variant="destructive" className="border-[#FF6C5E]/30 bg-[#FF6C5E]/5">
+        <Alert variant="destructive" className="border-[#FF6C5E]/30 bg-[#FF6C5E]/10 rounded-xl">
           <AlertCircle className="h-4 w-4 text-[#FF6C5E]" />
-          <AlertTitle className="text-[#FF6C5E]">Error</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
+          <AlertTitle className="text-[#FF6C5E] font-semibold">Error</AlertTitle>
+          <AlertDescription className="text-[#FF6C5E]">{error}</AlertDescription>
         </Alert>
       )}
 
       {successMessage && (
-        <Alert className="border-[#90FCA6]/20 bg-[#F0FDFA]">
+        <Alert className="border-[#90FCA6]/30 bg-[#90FCA6]/15 rounded-xl">
           <Check className="h-4 w-4 text-[#1a7a3a]" />
-          <AlertTitle className="text-[#1a7a3a]">Success</AlertTitle>
-          <AlertDescription>{successMessage}</AlertDescription>
+          <AlertTitle className="text-[#1a7a3a] font-semibold">Success</AlertTitle>
+          <AlertDescription className="text-[#1a7a3a]">{successMessage}</AlertDescription>
         </Alert>
       )}
 
@@ -609,16 +609,16 @@ export default function AnthropicIntegrationPage() {
       )}
 
       {/* Help Section */}
-      <div className="rounded-lg border border-[#90FCA6]/20 p-4 bg-[#F0FDFA]">
-        <h3 className="console-card-title mb-2">How to get your Anthropic API key</h3>
-        <ol className="list-decimal list-inside space-y-2 console-body">
-          <li>Go to <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer" className="text-[#1a7a3a] underline">Anthropic Console → API Keys</a></li>
+      <div className="rounded-2xl border border-slate-200 p-5 bg-slate-50">
+        <h3 className="text-[15px] font-semibold text-black mb-3">How to get your Anthropic API key</h3>
+        <ol className="list-decimal list-inside space-y-2 text-[13px] text-slate-700">
+          <li>Go to <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer" className="text-[#007AFF] font-medium hover:underline transition-all">Anthropic Console → API Keys</a></li>
           <li>Click "Create Key"</li>
           <li>Give it a name (e.g., "CloudAct Integration")</li>
           <li>Copy the key immediately (it won't be shown again)</li>
         </ol>
-        <p className="console-body mt-3">
-          <strong>Note:</strong> Make sure your Anthropic account has billing enabled to use the API.
+        <p className="text-[13px] text-slate-700 mt-3">
+          <strong className="text-black">Note:</strong> Make sure your Anthropic account has billing enabled to use the API.
         </p>
       </div>
     </div>

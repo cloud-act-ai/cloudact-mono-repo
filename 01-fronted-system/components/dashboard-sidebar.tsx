@@ -46,6 +46,7 @@ import {
   Network,
   PanelLeftClose,
   PanelLeft,
+  Settings,
 } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
@@ -220,7 +221,7 @@ export function DashboardSidebar({
     dashboards: <BarChart3 className="h-3.5 w-3.5" />,
     pipelines: <Workflow className="h-3.5 w-3.5" />,
     integrations: <Server className="h-3.5 w-3.5" />,
-    settings: <User className="h-3.5 w-3.5" />,
+    settings: <Settings className="h-3.5 w-3.5" />,
   }
 
   const SectionHeader = ({
@@ -519,7 +520,7 @@ export function DashboardSidebar({
             </SidebarMenuItem>
           )}
           {!isCollapsed && activeSection === "integrations" && (
-            <div className="pb-2">
+            <div className="pb-2 space-y-0.5">
               <SidebarMenuItem>
                 <SidebarMenuButton
                   asChild
@@ -528,8 +529,8 @@ export function DashboardSidebar({
                   )}
                 >
                   <Link href={`/${orgSlug}/integrations/cloud-providers`}>
-                    <Server className="h-3.5 w-3.5 mr-2" />
-                    Cloud Providers
+                    <Server className="h-3.5 w-3.5 flex-shrink-0" />
+                    <span>Cloud Providers</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -541,8 +542,8 @@ export function DashboardSidebar({
                   )}
                 >
                   <Link href={`/${orgSlug}/integrations/llm`}>
-                    <Brain className="h-3.5 w-3.5 mr-2" />
-                    LLM Providers
+                    <Brain className="h-3.5 w-3.5 flex-shrink-0" />
+                    <span>LLM Providers</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -554,8 +555,8 @@ export function DashboardSidebar({
                   )}
                 >
                   <Link href={`/${orgSlug}/integrations/subscriptions`}>
-                    <SubscriptionIcon className="h-3.5 w-3.5 mr-2" />
-                    Subscriptions
+                    <SubscriptionIcon className="h-3.5 w-3.5 flex-shrink-0" />
+                    <span>Subscriptions</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -574,13 +575,13 @@ export function DashboardSidebar({
             <SidebarMenuItem>
               <SidebarMenuButton asChild className="h-10 rounded-lg justify-center px-2 mx-1">
                 <Link href={`/${orgSlug}/settings/personal`}>
-                  <User className="h-4 w-4 text-slate-500" />
+                  <Settings className="h-4 w-4 text-slate-500" />
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
           )}
           {!isCollapsed && activeSection === "settings" && (
-            <div className="pb-2">
+            <div className="pb-2 space-y-0.5">
               <SidebarMenuItem>
                 <SidebarMenuButton
                   asChild
@@ -589,8 +590,8 @@ export function DashboardSidebar({
                   )}
                 >
                   <Link href={`/${orgSlug}/settings/personal`}>
-                    <User className="h-3.5 w-3.5 mr-2" />
-                    Profile
+                    <User className="h-3.5 w-3.5 flex-shrink-0" />
+                    <span>Profile</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -604,8 +605,8 @@ export function DashboardSidebar({
                     )}
                   >
                     <Link href={`/${orgSlug}/settings/organization`}>
-                      <Building className="h-3.5 w-3.5 mr-2" />
-                      Organization
+                      <Building className="h-3.5 w-3.5 flex-shrink-0" />
+                      <span>Organization</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -620,8 +621,8 @@ export function DashboardSidebar({
                     )}
                   >
                     <Link href={`/${orgSlug}/settings/hierarchy`}>
-                      <Network className="h-3.5 w-3.5 mr-2" />
-                      Hierarchy
+                      <Network className="h-3.5 w-3.5 flex-shrink-0" />
+                      <span>Hierarchy</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -635,8 +636,8 @@ export function DashboardSidebar({
                   )}
                 >
                   <Link href={`/${orgSlug}/settings/quota-usage`}>
-                    <BarChart3 className="h-3.5 w-3.5 mr-2" />
-                    Usage & Quotas
+                    <BarChart3 className="h-3.5 w-3.5 flex-shrink-0" />
+                    <span>Usage & Quotas</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -649,8 +650,8 @@ export function DashboardSidebar({
                   )}
                 >
                   <Link href={`/${orgSlug}/settings/invite`}>
-                    <UserPlus className="h-3.5 w-3.5 mr-2" />
-                    Team Members
+                    <UserPlus className="h-3.5 w-3.5 flex-shrink-0" />
+                    <span>Team Members</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -664,8 +665,8 @@ export function DashboardSidebar({
                     )}
                   >
                     <Link href={`/${orgSlug}/billing`}>
-                      <CreditCard className="h-3.5 w-3.5 mr-2" />
-                      Billing
+                      <CreditCard className="h-3.5 w-3.5 flex-shrink-0" />
+                      <span>Billing</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -678,14 +679,15 @@ export function DashboardSidebar({
             <SidebarMenuButton
               asChild
               className={cn(
-                "h-9 px-3 text-[12px] font-medium text-[var(--cloudact-blue)]",
+                "h-[28px] px-3 text-[12px] font-medium text-[var(--cloudact-blue)]",
                 "hover:bg-[var(--cloudact-blue)]/5 rounded-lg mx-2 transition-colors",
+                "flex items-center gap-2",
                 isCollapsed && "justify-center px-2"
               )}
             >
               <Link href="/user-docs" target="_blank">
-                <HelpCircle className={cn("h-3.5 w-3.5", isCollapsed ? "" : "mr-2")} />
-                {!isCollapsed && "Get Help"}
+                <HelpCircle className="h-3.5 w-3.5 flex-shrink-0" />
+                {!isCollapsed && <span>Get Help</span>}
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -696,13 +698,14 @@ export function DashboardSidebar({
               onClick={handleLogout}
               disabled={isLoading}
               className={cn(
-                "h-9 px-3 text-[12px] font-medium text-slate-500",
+                "h-[28px] px-3 text-[12px] font-medium text-slate-500",
                 "hover:bg-slate-50 hover:text-slate-700 rounded-lg mx-2 transition-colors",
+                "flex items-center gap-2",
                 isCollapsed && "justify-center px-2"
               )}
             >
-              <LogOut className={cn("h-3.5 w-3.5", isCollapsed ? "" : "mr-2")} />
-              {!isCollapsed && (isLoading ? "Signing out..." : "Sign Out")}
+              <LogOut className="h-3.5 w-3.5 flex-shrink-0" />
+              {!isCollapsed && <span>{isLoading ? "Signing out..." : "Sign Out"}</span>}
             </SidebarMenuButton>
           </SidebarMenuItem>
 

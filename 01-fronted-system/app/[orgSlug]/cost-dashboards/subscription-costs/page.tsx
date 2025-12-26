@@ -86,15 +86,15 @@ const CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: string }>
   other: Wallet,
 }
 
-// Category colors - CloudAct Standard (Teal/Coral/Neutral)
+// Category colors - CloudAct Standard (Dark green text #1a7a3a for readability)
 const CATEGORY_COLORS: Record<string, string> = {
-  ai: "bg-[var(--cloudact-mint)]/10 text-[var(--cloudact-mint)] border border-[var(--cloudact-mint)]/10",
-  design: "bg-[var(--cloudact-mint)]/5 text-[var(--cloudact-mint)] border border-[var(--cloudact-mint)]/10",
-  productivity: "bg-[#F0FDFA] text-[var(--cloudact-mint)] border border-[var(--cloudact-mint)]/10",
-  communication: "bg-[var(--cloudact-mint)]/5 text-[var(--cloudact-mint-dark)] border border-[var(--cloudact-mint)]/10",
-  development: "bg-[#F0FDFA] text-[var(--cloudact-mint-dark)] border border-[var(--cloudact-mint)]/10",
-  cloud: "bg-[var(--cloudact-mint)]/10 text-[var(--cloudact-mint)] border border-[var(--cloudact-mint)]/10",
-  other: "bg-[var(--cloudact-mint)]/5 text-muted-foreground border border-border",
+  ai: "bg-[var(--cloudact-coral)]/10 text-[var(--cloudact-coral)] border border-[var(--cloudact-coral)]/20",
+  design: "bg-[var(--cloudact-blue)]/10 text-[var(--cloudact-blue)] border border-[var(--cloudact-blue)]/20",
+  productivity: "bg-[var(--cloudact-mint)]/15 text-[#1a7a3a] border border-[var(--cloudact-mint)]/30",
+  communication: "bg-[var(--cloudact-coral)]/10 text-[var(--cloudact-coral)] border border-[var(--cloudact-coral)]/20",
+  development: "bg-[var(--cloudact-blue)]/10 text-[var(--cloudact-blue)] border border-[var(--cloudact-blue)]/20",
+  cloud: "bg-[var(--cloudact-mint)]/15 text-[#1a7a3a] border border-[var(--cloudact-mint)]/30",
+  other: "bg-slate-100 text-slate-600 border border-slate-200",
 }
 
 const CATEGORY_GRADIENTS: Record<string, string> = {
@@ -449,7 +449,7 @@ export default function SubscriptionCostsPage() {
                           <div className="text-[11px] text-muted-foreground font-medium mb-0.5">
                             {data.count} {data.count === 1 ? 'subscription' : 'subscriptions'}
                           </div>
-                          <div className="text-[13px] font-semibold text-[var(--cloudact-mint-text)]">
+                          <div className="text-[13px] font-semibold text-[#1a7a3a]">
                             {percentage.toFixed(1)}% of total
                           </div>
                         </div>
@@ -874,10 +874,10 @@ export default function SubscriptionCostsPage() {
                   const integrationPath = providerMapping[plan.provider_name]
 
                   const statusColors: Record<string, string> = {
-                    active: "bg-[#F0FDFA] text-[var(--cloudact-mint)] border border-[var(--cloudact-mint)]/10",
-                    pending: "bg-[var(--cloudact-mint)]/5 text-[var(--cloudact-mint)] border border-[var(--cloudact-mint)]/10",
-                    cancelled: "bg-[var(--cloudact-mint)]/5 text-muted-foreground border border-border",
-                    expired: "bg-[var(--cloudact-coral)]/10 text-[var(--cloudact-coral)] border border-[var(--cloudact-coral)]/10"
+                    active: "bg-[#B8FDCA] text-[#1a7a3a] border border-[var(--cloudact-mint)]/20",
+                    pending: "bg-[var(--cloudact-mint)]/10 text-[#1a7a3a] border border-[var(--cloudact-mint)]/20",
+                    cancelled: "bg-slate-100 text-slate-600 border border-slate-200",
+                    expired: "bg-[var(--cloudact-coral)]/10 text-[var(--cloudact-coral)] border border-[var(--cloudact-coral)]/20"
                   }
 
                   return (

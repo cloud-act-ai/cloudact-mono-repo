@@ -370,7 +370,7 @@ export default function EditSubscriptionPage() {
         <CardContent className="py-3 px-4">
           <div className="flex items-center gap-3">
             <Info className="h-5 w-5 text-[#1a7a3a] flex-shrink-0" />
-            <p className="text-sm text-[#6EE890]">
+            <p className="text-sm text-[#1a7a3a]">
               Changes will create a new version. Current plan ends the day before the start date, and the new version starts on the selected date.
             </p>
           </div>

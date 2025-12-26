@@ -293,7 +293,7 @@ export default function GeminiIntegrationPage() {
       {/* Header with back link */}
       <div className="flex items-center gap-4">
         <Link href={`/${orgSlug}/integrations/llm`}>
-          <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground h-11 rounded-xl">
+          <Button variant="ghost" size="sm" className="text-slate-600 hover:text-black hover:bg-slate-50 h-9 rounded-xl transition-colors">
             <ArrowLeft className="h-4 w-4 mr-1" />
             LLM Providers
           </Button>
@@ -301,23 +301,23 @@ export default function GeminiIntegrationPage() {
       </div>
 
       {/* Enhanced Provider Header */}
-      <div className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-blue-50 via-white to-white p-6 shadow-sm">
-        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#4285F4] to-[#1A73E8]" />
+      <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#4285F4] to-[#1A73E8]" />
         <div className="flex items-start gap-4">
-          <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-blue-100 to-blue-50 flex items-center justify-center flex-shrink-0 ring-1 ring-blue-200/50 shadow-sm">
-            <Gem className="h-8 w-8 text-[#4285F4]" />
+          <div className="h-14 w-14 rounded-2xl bg-[#4285F4]/10 flex items-center justify-center flex-shrink-0">
+            <Gem className="h-7 w-7 text-[#4285F4]" />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3 mb-2">
-              <h1 className="text-[28px] font-bold text-black tracking-tight">Google Gemini Integration</h1>
+              <h1 className="text-[32px] font-bold text-black tracking-tight">Google Gemini Integration</h1>
               {isConnected && (
-                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#90FCA6]/10 animate-pulse">
-                  <div className="h-2 w-2 rounded-full bg-[#90FCA6]" />
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#90FCA6]/15">
+                  <div className="h-1.5 w-1.5 rounded-full bg-[#1a7a3a]" />
                   <span className="text-[11px] font-bold text-[#1a7a3a] uppercase tracking-wide">Connected</span>
                 </div>
               )}
             </div>
-            <p className="text-[15px] text-muted-foreground leading-relaxed">
+            <p className="text-[15px] text-slate-600 leading-relaxed">
               Connect your Google AI Studio API key to track Gemini Pro, Flash, and Gemma model usage with comprehensive cost tracking
             </p>
           </div>
@@ -326,18 +326,18 @@ export default function GeminiIntegrationPage() {
 
       {/* Alerts */}
       {error && (
-        <Alert variant="destructive" className="border-[#FF6C5E]/30 bg-[#FF6C5E]/5">
+        <Alert variant="destructive" className="border-[#FF6C5E]/30 bg-[#FF6C5E]/10 rounded-xl">
           <AlertCircle className="h-4 w-4 text-[#FF6C5E]" />
-          <AlertTitle className="text-[#FF6C5E]">Error</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
+          <AlertTitle className="text-[#FF6C5E] font-semibold">Error</AlertTitle>
+          <AlertDescription className="text-[#FF6C5E]">{error}</AlertDescription>
         </Alert>
       )}
 
       {successMessage && (
-        <Alert className="border-[#90FCA6]/20 bg-[#F0FDFA]">
+        <Alert className="border-[#90FCA6]/30 bg-[#90FCA6]/15 rounded-xl">
           <Check className="h-4 w-4 text-[#1a7a3a]" />
-          <AlertTitle className="text-[#1a7a3a]">Success</AlertTitle>
-          <AlertDescription>{successMessage}</AlertDescription>
+          <AlertTitle className="text-[#1a7a3a] font-semibold">Success</AlertTitle>
+          <AlertDescription className="text-[#1a7a3a]">{successMessage}</AlertDescription>
         </Alert>
       )}
 
@@ -607,16 +607,16 @@ export default function GeminiIntegrationPage() {
       )}
 
       {/* Help Section */}
-      <div className="rounded-lg border border-[#90FCA6]/20 p-4 bg-[#F0FDFA]">
-        <h3 className="console-card-title mb-2">How to get your Google Gemini API key</h3>
-        <ol className="list-decimal list-inside space-y-2 console-body">
-          <li>Go to <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" className="text-[#1a7a3a] underline">Google AI Studio</a></li>
+      <div className="rounded-2xl border border-slate-200 p-5 bg-slate-50">
+        <h3 className="text-[15px] font-semibold text-black mb-3">How to get your Google Gemini API key</h3>
+        <ol className="list-decimal list-inside space-y-2 text-[13px] text-slate-700">
+          <li>Go to <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" className="text-[#007AFF] font-medium hover:underline transition-all">Google AI Studio</a></li>
           <li>Click "Create API Key"</li>
           <li>Select your Google Cloud project (or create a new one)</li>
           <li>Copy the API key immediately</li>
         </ol>
-        <p className="console-body mt-3">
-          <strong>Note:</strong> Make sure you have enabled the Gemini API in your Google Cloud project.
+        <p className="text-[13px] text-slate-700 mt-3">
+          <strong className="text-black">Note:</strong> Make sure you have enabled the Gemini API in your Google Cloud project.
         </p>
       </div>
     </div>

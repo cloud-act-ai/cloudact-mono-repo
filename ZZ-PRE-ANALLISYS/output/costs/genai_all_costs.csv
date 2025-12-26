@@ -1,0 +1,15 @@
+date,provider,pricing_model,model,cost_usd,cost_category,tokens_or_units,org_slug,source_table
+2025-12-26,anthropic,payg,claude-3-5-sonnet-20241022,0.00189,token_based,270,acme,genai_payg_costs
+2025-12-26,anthropic,payg,claude-3-haiku-20240307,0.0002125,token_based,370,acme,genai_payg_costs
+2025-12-26,anthropic,payg,claude-3-haiku-20240307,5.35e-05,token_based,74,acme,genai_payg_costs
+2025-12-26,anthropic,payg,claude-3-haiku-20240307,5.35e-05,token_based,74,acme,genai_payg_costs
+2025-12-26,azure_openai,payg,gpt-4o,0.001275,token_based,255,acme,genai_payg_costs
+2025-12-26,azure_openai,payg,gpt-4o-mini,0.00018,token_based,600,acme,genai_payg_costs
+2025-12-26,azure_openai,payg,gpt-4o,0.000245,token_based,53,acme,genai_payg_costs
+2025-12-26,azure_openai,payg,gpt-4o,0.000245,token_based,53,acme,genai_payg_costs
+2025-12-26,gemini,payg,gemini-2.5-flash,0.000135,token_based,450,acme,genai_payg_costs
+2025-12-26,gemini,payg,gemini-1.5-pro,0.000825,token_based,330,acme,genai_payg_costs
+2025-12-26,openai,payg,gpt-4o-mini,6.75e-05,token_based,225,acme,genai_payg_costs
+2025-12-26,openai,payg,gpt-4o,0.0015,token_based,300,acme,genai_payg_costs
+2025-12-26,openai,payg,gpt-4o-mini-2024-07-18,1.47e-05,token_based,53,acme,genai_payg_costs
+2025-12-26,openai,payg,gpt-4o-mini-2024-07-18,1.65e-05,token_based,56,acme,genai_payg_costs

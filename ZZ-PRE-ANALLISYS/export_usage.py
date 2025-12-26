@@ -22,8 +22,9 @@ from utils.pricing_loader import calculate_cost, get_model_pricing
 
 # Paths
 DATA_DIR = Path(__file__).resolve().parent / "data"
-OUTPUT_DIR = Path("output/usage")
-RAW_USAGE_CSV = OUTPUT_DIR / "usage_raw.csv"
+OUTPUT_DIR = Path("output")
+USAGE_ADVANCED_CSV = OUTPUT_DIR / "usage_advanced.csv"
+COST_ADVANCED_CSV = OUTPUT_DIR / "cost_advanced.csv"
 EXCHANGE_RATES_CSV = DATA_DIR / "exchange-rates.csv"
 
 # Exchange rate cache
@@ -329,10 +330,10 @@ def parse_timestamp(ts: str) -> Dict:
 
 def get_existing_row_count() -> int:
     """Get number of existing rows in CSV."""
-    if not RAW_USAGE_CSV.exists():
+    if not USAGE_ADVANCED_CSV.exists():
         return 0
 
-    with RAW_USAGE_CSV.open("r", encoding="utf-8") as f:
+    with USAGE_ADVANCED_CSV.open("r", encoding="utf-8") as f:
         return sum(1 for _ in f) - 1  # Subtract header
 
 
@@ -547,14 +548,14 @@ def export_to_csv(events: List[Dict], append: bool = True, run_date: str = None,
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     # Check if file exists and has header
-    file_exists = RAW_USAGE_CSV.exists() and RAW_USAGE_CSV.stat().st_size > 0
+    file_exists = USAGE_ADVANCED_CSV.exists() and USAGE_ADVANCED_CSV.stat().st_size > 0
 
     # Get starting row_id
     start_row_id = get_existing_row_count() + 1 if append and file_exists else 1
 
     mode = "a" if append and file_exists else "w"
 
-    with RAW_USAGE_CSV.open(mode, newline="", encoding="utf-8") as f:
+    with USAGE_ADVANCED_CSV.open(mode, newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=COLUMNS, extrasaction='ignore')
 
         if not file_exists or mode == "w":
@@ -624,7 +625,7 @@ def main():
     if args.org:
         print(f"Org Slug: {args.org}")
     print(f"Display Currency: {display_currency} (1 USD = {rates[display_currency]['rate']} {display_currency})")
-    print(f"Output: {RAW_USAGE_CSV}")
+    print(f"Output: {USAGE_ADVANCED_CSV}")
     print(f"Columns: {len(COLUMNS)}")
     print(f"Mode: {'Fresh' if args.fresh else 'Append'}")
     print("Pricing: Advanced (llm_pricing_advanced.csv)")
@@ -647,14 +648,14 @@ def main():
     )
 
     print(f"\nExported {count} rows (IDs {start_id} to {start_id + count - 1})")
-    print(f"File: {RAW_USAGE_CSV}")
+    print(f"File: {USAGE_ADVANCED_CSV}")
 
     # Show sample with new column order including currency
     print("\n" + "-" * 70)
     print("Sample row (key columns - with currency):")
     print("-" * 70)
 
-    with RAW_USAGE_CSV.open("r", encoding="utf-8") as f:
+    with USAGE_ADVANCED_CSV.open("r", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
             # Show key columns including currency info

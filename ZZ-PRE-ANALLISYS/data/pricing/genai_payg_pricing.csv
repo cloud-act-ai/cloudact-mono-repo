@@ -1,0 +1,33 @@
+provider,model,model_family,model_version,input_per_1m,output_per_1m,cached_input_per_1m,cached_write_per_1m,batch_input_per_1m,batch_output_per_1m,context_window,max_output_tokens,supports_vision,supports_streaming,supports_tools,status,last_updated,notes
+openai,gpt-4o,gpt-4o,latest,2.50,10.00,1.25,,1.25,5.00,128000,16384,true,true,true,active,2024-12-01,Latest GPT-4o
+openai,gpt-4o-2024-11-20,gpt-4o,2024-11-20,2.50,10.00,1.25,,1.25,5.00,128000,16384,true,true,true,active,2024-12-01,
+openai,gpt-4o-2024-08-06,gpt-4o,2024-08-06,2.50,10.00,1.25,,1.25,5.00,128000,16384,true,true,true,active,2024-12-01,Structured outputs
+openai,gpt-4o-mini,gpt-4o,mini,0.15,0.60,0.075,,0.075,0.30,128000,16384,true,true,true,active,2024-12-01,Cost effective
+openai,gpt-4o-mini-2024-07-18,gpt-4o,mini-2024-07-18,0.15,0.60,0.075,,0.075,0.30,128000,16384,true,true,true,active,2024-12-01,
+openai,gpt-4-turbo,gpt-4,turbo,10.00,30.00,,,5.00,15.00,128000,4096,true,true,true,active,2024-12-01,
+openai,gpt-4,gpt-4,base,30.00,60.00,,,15.00,30.00,8192,8192,false,true,true,active,2024-12-01,Original GPT-4
+openai,gpt-3.5-turbo,gpt-3.5,turbo,0.50,1.50,,,0.25,0.75,16385,4096,false,true,true,active,2024-12-01,Legacy
+openai,o1,o1,latest,15.00,60.00,7.50,,,,200000,100000,true,true,false,active,2024-12-01,Reasoning model
+openai,o1-preview,o1,preview,15.00,60.00,,,,,128000,32768,true,true,false,active,2024-12-01,Preview reasoning
+openai,o1-mini,o1,mini,3.00,12.00,1.50,,,,128000,65536,false,true,false,active,2024-12-01,Fast reasoning
+openai,text-embedding-3-small,embedding,3-small,0.02,0,,,0.01,,8191,,false,false,false,active,2024-12-01,1536 dimensions
+openai,text-embedding-3-large,embedding,3-large,0.13,0,,,0.065,,8191,,false,false,false,active,2024-12-01,3072 dimensions
+anthropic,claude-3-5-sonnet-20241022,claude-3.5,sonnet,3.00,15.00,0.30,3.75,1.50,7.50,200000,8192,true,true,true,active,2024-12-01,Latest Sonnet
+anthropic,claude-3-5-sonnet-20240620,claude-3.5,sonnet-june,3.00,15.00,,,1.50,7.50,200000,8192,true,true,true,active,2024-12-01,June Sonnet
+anthropic,claude-3-5-haiku-20241022,claude-3.5,haiku,0.80,4.00,0.08,1.00,0.40,2.00,200000,8192,true,true,true,active,2024-12-01,Fast Haiku
+anthropic,claude-3-opus-20240229,claude-3,opus,15.00,75.00,1.50,18.75,7.50,37.50,200000,4096,true,true,true,active,2024-12-01,Most capable
+anthropic,claude-3-sonnet-20240229,claude-3,sonnet,3.00,15.00,,,1.50,7.50,200000,4096,true,true,true,active,2024-12-01,Balanced
+anthropic,claude-3-haiku-20240307,claude-3,haiku,0.25,1.25,0.03,0.30,0.125,0.625,200000,4096,true,true,true,active,2024-12-01,Fastest
+gemini,gemini-2.5-flash,gemini-2.5,flash,0.15,0.60,0.0375,,0.075,0.30,1000000,8192,true,true,true,active,2024-12-01,Latest Flash
+gemini,gemini-2.5-pro,gemini-2.5,pro,1.25,10.00,0.3125,,0.625,5.00,1000000,8192,true,true,true,active,2024-12-01,Latest Pro
+gemini,gemini-2.0-flash,gemini-2.0,flash,0,0,,,,,1000000,8192,true,true,true,preview,2024-12-01,Free experimental
+gemini,gemini-1.5-flash,gemini-1.5,flash,0.075,0.30,0.01875,,0.0375,0.15,1000000,8192,true,true,true,active,2024-12-01,<128K context
+gemini,gemini-1.5-flash-8b,gemini-1.5,flash-8b,0.0375,0.15,0.009375,,0.01875,0.075,1000000,8192,false,true,true,active,2024-12-01,Smallest Flash
+gemini,gemini-1.5-pro,gemini-1.5,pro,1.25,5.00,0.3125,,0.625,2.50,2000000,8192,true,true,true,active,2024-12-01,<128K context
+gemini,gemini-1.0-pro,gemini-1.0,pro,0.50,1.50,,,0.25,0.75,32000,8192,false,true,true,legacy,2024-12-01,Legacy
+azure_openai,gpt-4o,gpt-4o,latest,2.50,10.00,1.25,,1.25,5.00,128000,16384,true,true,true,active,2024-12-01,Azure hosted
+azure_openai,gpt-4o-mini,gpt-4o,mini,0.15,0.60,0.075,,0.075,0.30,128000,16384,true,true,true,active,2024-12-01,Azure hosted
+aws_bedrock,claude-3-5-sonnet-v2,claude-3.5,sonnet,3.00,15.00,,,,,200000,8192,true,true,true,active,2024-12-01,AWS Bedrock
+aws_bedrock,claude-3-haiku,claude-3,haiku,0.25,1.25,,,,,200000,4096,true,true,true,active,2024-12-01,AWS Bedrock
+gcp_vertex,gemini-1.5-pro,gemini-1.5,pro,1.25,5.00,0.3125,,0.625,2.50,2000000,8192,true,true,true,active,2024-12-01,Vertex AI
+gcp_vertex,gemini-1.5-flash,gemini-1.5,flash,0.075,0.30,0.01875,,0.0375,0.15,1000000,8192,true,true,true,active,2024-12-01,Vertex AI

@@ -277,10 +277,15 @@ export default function PersonalSettingsPage() {
     <div className="max-w-6xl mx-auto">
       {/* Header */}
       <div className="mb-10">
-        <h1 className="text-[32px] font-bold text-slate-900 tracking-tight leading-none">
-          Personal Settings
-        </h1>
-        <p className="text-[15px] text-slate-500 mt-2 max-w-lg">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-[#90FCA6] to-[#B8FDCA] flex items-center justify-center shadow-sm">
+            <User className="h-6 w-6 text-black" />
+          </div>
+          <h1 className="text-[32px] font-bold text-black tracking-tight leading-none">
+            Personal Settings
+          </h1>
+        </div>
+        <p className="text-[15px] text-slate-500 mt-2 max-w-lg ml-[60px]">
           Manage your profile, security, and account settings
         </p>
       </div>
@@ -288,12 +293,15 @@ export default function PersonalSettingsPage() {
       {/* Stats Row */}
       <div className="flex items-center gap-6 mb-8">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-[#90FCA6]/10 flex items-center justify-center">
-            <User className="h-5 w-5 text-[#90FCA6]" />
+          <div className="h-10 w-10 rounded-xl bg-[#90FCA6]/15 flex items-center justify-center">
+            <User className="h-5 w-5 text-[#1a7a3a]" />
           </div>
           <div>
             <p className="text-[14px] text-slate-600 font-medium">Account</p>
-            <p className="text-[12px] text-[#90FCA6] font-semibold">Active</p>
+            <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#90FCA6]/15">
+              <div className="h-1.5 w-1.5 rounded-full bg-[#1a7a3a]" />
+              <p className="text-[12px] text-[#1a7a3a] font-semibold">Active</p>
+            </div>
           </div>
         </div>
         <div className="h-8 w-px bg-slate-200"></div>
@@ -317,14 +325,14 @@ export default function PersonalSettingsPage() {
       )}
 
       {success && (
-        <div className="mb-6 p-4 rounded-xl bg-[#90FCA6]/5 border border-[#90FCA6]/20 flex items-center gap-3">
-          <Check className="h-4 w-4 text-[#90FCA6] flex-shrink-0" />
-          <p className="text-[13px] font-medium text-[#90FCA6]">{success}</p>
+        <div className="mb-6 p-4 rounded-xl bg-[#90FCA6]/15 border border-[#90FCA6]/20 flex items-center gap-3">
+          <Check className="h-4 w-4 text-[#1a7a3a] flex-shrink-0" />
+          <p className="text-[13px] font-medium text-[#1a7a3a]">{success}</p>
         </div>
       )}
 
       {/* Tab Navigation */}
-      <div className="flex items-center gap-1 mb-8 p-1 bg-slate-100 rounded-xl w-fit">
+      <div className="flex items-center gap-1 mb-8 p-1 bg-slate-50/80 rounded-xl w-fit border border-slate-200/50">
         {[
           { id: "profile", label: "Profile", icon: <User className="h-4 w-4" /> },
           { id: "security", label: "Security", icon: <Shield className="h-4 w-4" /> },
@@ -336,10 +344,10 @@ export default function PersonalSettingsPage() {
             className={`h-9 px-4 text-[13px] font-semibold rounded-lg flex items-center gap-2 transition-all ${
               activeTab === tab.id
                 ? tab.danger
-                  ? "bg-rose-500 text-white shadow-sm"
-                  : "bg-white text-slate-900 shadow-sm"
+                  ? "bg-[#FF6C5E] text-white shadow-sm"
+                  : "bg-white text-black shadow-sm border border-slate-200/50"
                 : tab.danger
-                  ? "text-rose-500 hover:text-rose-600"
+                  ? "text-[#FF6C5E] hover:text-[#E55A3C]"
                   : "text-slate-500 hover:text-slate-700"
             }`}
           >
@@ -353,26 +361,26 @@ export default function PersonalSettingsPage() {
       {activeTab === "profile" && (
         <section>
           <div className="flex items-center gap-2 mb-4">
-            <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide">
+            <h2 className="text-[13px] font-semibold text-black uppercase tracking-wide">
               Personal Information
             </h2>
           </div>
 
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-            <div className="p-6 space-y-6">
+          <div className="metric-card shadow-sm hover:shadow-md transition-shadow duration-300">
+            <div className="metric-card-content space-y-6">
               {/* Email - Read Only */}
               <div className="group relative">
-                <div className="absolute left-0 top-2 bottom-2 w-1 rounded-full bg-slate-300 opacity-60" />
+                <div className="absolute left-0 top-2 bottom-2 w-1 rounded-full bg-[#90FCA6]/40 opacity-60" />
                 <div className="pl-4">
                   <div className="flex items-center gap-2 mb-2">
-                    <Mail className="h-4 w-4 text-slate-400" />
+                    <Mail className="h-4 w-4 text-[#1a7a3a]" />
                     <label className="text-[13px] font-medium text-slate-700">Email Address</label>
                   </div>
                   <input
                     type="email"
                     value={email}
                     disabled
-                    className="w-full h-11 px-4 text-[14px] bg-slate-50 text-slate-500 border border-slate-200 rounded-xl"
+                    className="w-full h-11 px-4 text-[14px] bg-slate-50 text-slate-500 border border-slate-200 rounded-xl cursor-not-allowed"
                   />
                   <p className="text-[12px] text-slate-400 mt-1.5">Contact support to update your email</p>
                 </div>
@@ -461,11 +469,11 @@ export default function PersonalSettingsPage() {
             </div>
 
             {/* Save Button */}
-            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50">
+            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/30">
               <button
                 onClick={handleSave}
                 disabled={isSaving}
-                className="h-10 px-5 text-[13px] font-semibold bg-[#90FCA6] hover:bg-[#6EE890] text-[#000000] rounded-xl transition-colors flex items-center gap-2 disabled:opacity-50"
+                className="console-button-primary h-11 px-6 transition-all hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isSaving ? (
                   <>
@@ -488,55 +496,68 @@ export default function PersonalSettingsPage() {
       {activeTab === "security" && (
         <section className="space-y-6">
           <div className="flex items-center gap-2 mb-4">
-            <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide">
+            <h2 className="text-[13px] font-semibold text-black uppercase tracking-wide">
               Authentication
             </h2>
           </div>
 
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-            <div className="group relative">
-              <div className="absolute left-0 top-4 bottom-4 w-1 rounded-full bg-[#90FCA6] opacity-60 group-hover:opacity-100 transition-opacity" />
-              <div className="pl-5 py-5 pr-5 flex items-center justify-between gap-4">
-                <div className="flex items-center gap-4 min-w-0 flex-1">
-                  <div className="h-11 w-11 rounded-xl bg-[#90FCA6]/10 flex items-center justify-center flex-shrink-0">
-                    <Key className="h-5 w-5 text-[#90FCA6]" />
+          <div className="metric-card shadow-sm hover:shadow-md transition-shadow duration-300">
+            <div className="metric-card-content">
+              <div className="group relative">
+                <div className="absolute left-0 top-4 bottom-4 w-1 rounded-full bg-[#90FCA6] opacity-60 group-hover:opacity-100 transition-opacity" />
+                <div className="pl-5 py-5 pr-5 flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-4 min-w-0 flex-1">
+                    <div className="h-11 w-11 rounded-xl bg-[#90FCA6]/15 flex items-center justify-center flex-shrink-0">
+                      <Key className="h-5 w-5 text-[#1a7a3a]" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-[15px] font-semibold text-black tracking-tight">Password</h3>
+                      <p className="text-[12px] text-slate-500 mt-0.5">Reset your password via email verification</p>
+                    </div>
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <h3 className="text-[15px] font-semibold text-slate-900 tracking-tight">Password</h3>
-                    <p className="text-[12px] text-slate-500 mt-0.5">Reset your password via email verification</p>
-                  </div>
+                  <button
+                    onClick={handleResetPassword}
+                    disabled={isResettingPassword}
+                    className="console-button-primary h-11 px-6 transition-all hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isResettingPassword ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Sending...
+                      </>
+                    ) : (
+                      "Reset Password"
+                    )}
+                  </button>
                 </div>
-                <button
-                  onClick={handleResetPassword}
-                  disabled={isResettingPassword}
-                  className="h-10 px-5 text-[13px] font-semibold bg-[#90FCA6] hover:bg-[#6EE890] text-[#000000] rounded-xl transition-colors flex items-center gap-2 disabled:opacity-50"
-                >
-                  {isResettingPassword ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Sending...
-                    </>
-                  ) : (
-                    "Reset Password"
-                  )}
-                </button>
               </div>
             </div>
           </div>
 
           {/* Security Tips */}
-          <div className="p-5 rounded-2xl bg-gradient-to-br from-slate-50 to-slate-100/50 border border-slate-200">
-            <div className="flex items-start gap-4">
-              <div className="h-10 w-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center flex-shrink-0 shadow-sm">
-                <Shield className="h-5 w-5 text-[#90FCA6]" />
-              </div>
-              <div>
-                <h3 className="text-[15px] font-semibold text-slate-900 mb-2">Security Tips</h3>
-                <ul className="text-[13px] text-slate-500 space-y-1">
-                  <li>• Use a strong, unique password for your account</li>
-                  <li>• Never share your password or reset links with anyone</li>
-                  <li>• Log out when using shared or public devices</li>
-                </ul>
+          <div className="metric-card shadow-sm bg-gradient-to-br from-[#90FCA6]/5 via-slate-50 to-white border-[#90FCA6]/10">
+            <div className="metric-card-content">
+              <div className="flex items-start gap-4">
+                <div className="h-10 w-10 rounded-xl bg-white border border-[#90FCA6]/20 flex items-center justify-center flex-shrink-0 shadow-sm">
+                  <Shield className="h-5 w-5 text-[#1a7a3a]" />
+                </div>
+                <div>
+                  <h3 className="text-[15px] font-semibold text-black mb-2">Security Tips</h3>
+                  <ul className="text-[13px] text-slate-600 space-y-1.5">
+                    <li className="flex items-start gap-2">
+                      <span className="text-[#1a7a3a] font-bold">•</span>
+                      <span>Use a strong, unique password for your account</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-[#1a7a3a] font-bold">•</span>
+                      <span>Never share your password or reset links with anyone</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-[#1a7a3a] font-bold">•</span>
+                      <span>Log out when using shared or public devices</span>
+                    </li>
+                  </ul>
+                </div>
               </div>
             </div>
           </div>
@@ -547,7 +568,7 @@ export default function PersonalSettingsPage() {
       {activeTab === "danger" && (
         <section className="space-y-6">
           <div className="flex items-center gap-2 mb-4">
-            <h2 className="text-[13px] font-semibold text-rose-600 uppercase tracking-wide">
+            <h2 className="text-[13px] font-semibold text-[#FF6C5E] uppercase tracking-wide">
               Danger Zone
             </h2>
           </div>
@@ -558,8 +579,8 @@ export default function PersonalSettingsPage() {
               <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
             </div>
           ) : ownedOrgs.length > 0 && (
-            <div className="bg-white rounded-2xl border border-amber-200 shadow-sm overflow-hidden">
-              <div className="p-5">
+            <div className="metric-card shadow-sm border-2 border-amber-200/50 bg-gradient-to-br from-amber-50/50 to-white">
+              <div className="metric-card-content">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="h-10 w-10 rounded-xl bg-amber-100 flex items-center justify-center">
                     <Building2 className="h-5 w-5 text-amber-600" />
@@ -590,55 +611,59 @@ export default function PersonalSettingsPage() {
           )}
 
           {/* Delete Account Card */}
-          <div className="bg-white rounded-2xl border border-rose-200 shadow-sm overflow-hidden">
-            <div className="group relative">
-              <div className="absolute left-0 top-4 bottom-4 w-1 rounded-full bg-rose-500 opacity-60" />
-              <div className="pl-5 py-5 pr-5">
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="h-11 w-11 rounded-xl bg-rose-100 flex items-center justify-center flex-shrink-0">
-                    <Trash2 className="h-5 w-5 text-rose-500" />
-                  </div>
-                  <div>
-                    <h3 className="text-[15px] font-semibold text-rose-700">Delete Account</h3>
-                    <p className="text-[12px] text-rose-500 mt-0.5">Permanently delete your account and all data</p>
-                  </div>
-                </div>
-
-                {deletionRequested ? (
-                  <div className="p-4 rounded-xl bg-[#90FCA6]/5 border border-[#90FCA6]/20 flex items-start gap-3">
-                    <Mail className="h-4 w-4 text-[#90FCA6] mt-0.5 flex-shrink-0" />
+          <div className="metric-card shadow-sm border-2 border-[#FF6C5E]/30 bg-gradient-to-br from-rose-50/50 to-white">
+            <div className="metric-card-content">
+              <div className="group relative">
+                <div className="absolute left-0 top-4 bottom-4 w-1 rounded-full bg-[#FF6C5E] opacity-60" />
+                <div className="pl-5 py-5 pr-5">
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="h-11 w-11 rounded-xl bg-[#FF6C5E]/10 flex items-center justify-center flex-shrink-0">
+                      <Trash2 className="h-5 w-5 text-[#FF6C5E]" />
+                    </div>
                     <div>
-                      <p className="text-[13px] font-semibold text-[#6EE890]">Verification email sent!</p>
-                      <p className="text-[12px] text-[#90FCA6] mt-1">
-                        Check your inbox and click the confirmation link. The link expires in 30 minutes.
-                      </p>
+                      <h3 className="text-[15px] font-semibold text-[#FF6C5E]">Delete Account</h3>
+                      <p className="text-[12px] text-rose-600 mt-0.5">Permanently delete your account and all data</p>
                     </div>
                   </div>
-                ) : ownedOrgs.length > 0 ? (
-                  <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 flex items-center gap-3">
-                    <AlertCircle className="h-4 w-4 text-rose-500 flex-shrink-0" />
-                    <p className="text-[13px] text-rose-700">
-                      You own {ownedOrgs.length} organization{ownedOrgs.length !== 1 ? "s" : ""}.
-                      Transfer or delete them first.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 flex items-center gap-3">
-                    <AlertCircle className="h-4 w-4 text-rose-500 flex-shrink-0" />
-                    <p className="text-[13px] text-rose-700">
-                      This action is permanent and cannot be undone. Your data will be lost forever.
-                    </p>
-                  </div>
-                )}
+
+                  {deletionRequested ? (
+                    <div className="p-4 rounded-xl bg-[#90FCA6]/15 border border-[#90FCA6]/30 flex items-start gap-3">
+                      <Mail className="h-4 w-4 text-[#1a7a3a] mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="text-[13px] font-semibold text-[#1a7a3a]">Verification email sent!</p>
+                        <p className="text-[12px] text-[#1a7a3a]/80 mt-1">
+                          Check your inbox and click the confirmation link. The link expires in 30 minutes.
+                        </p>
+                      </div>
+                    </div>
+                  ) : ownedOrgs.length > 0 ? (
+                    <div className="p-4 rounded-xl bg-[#FF6C5E]/10 border border-[#FF6C5E]/30 flex items-center gap-3">
+                      <AlertCircle className="h-4 w-4 text-[#FF6C5E] flex-shrink-0" />
+                      <p className="text-[13px] text-[#FF6C5E]">
+                        You own {ownedOrgs.length} organization{ownedOrgs.length !== 1 ? "s" : ""}.
+                        Transfer or delete them first.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="p-4 rounded-xl bg-[#FF6C5E]/10 border border-[#FF6C5E]/30 flex items-center gap-3">
+                      <AlertCircle className="h-4 w-4 text-[#FF6C5E] flex-shrink-0" />
+                      <p className="text-[13px] text-[#FF6C5E]">
+                        This action is permanent and cannot be undone. Your data will be lost forever.
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
+          </div>
 
-            <div className="px-6 py-4 border-t border-rose-100 bg-rose-50/30">
+          <div className="metric-card shadow-sm border-2 border-[#FF6C5E]/30 bg-gradient-to-br from-rose-50/50 to-white">
+            <div className="px-6 py-4 border-t border-[#FF6C5E]/10 bg-[#FF6C5E]/5">
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <button
                     disabled={ownedOrgs.length > 0 || isRequestingDeletion || deletionRequested}
-                    className="h-10 px-5 text-[13px] font-semibold bg-rose-500 hover:bg-rose-600 text-white rounded-xl transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="h-11 px-6 text-[13px] font-semibold bg-[#FF6C5E] hover:bg-[#E55A3C] text-white rounded-xl transition-all hover:shadow-md flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isRequestingDeletion ? (
                       <>

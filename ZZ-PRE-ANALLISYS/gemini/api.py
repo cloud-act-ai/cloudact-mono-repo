@@ -20,7 +20,7 @@ from utils.pricing_loader import calculate_cost, get_model_pricing
 # ============================================================================
 
 AI_STUDIO_URL = "https://generativelanguage.googleapis.com/v1beta"
-DEFAULT_MODEL = "gemini-2.5-flash"
+DEFAULT_MODEL = "gemini-1.5-pro"
 
 
 def get_api_key() -> str:

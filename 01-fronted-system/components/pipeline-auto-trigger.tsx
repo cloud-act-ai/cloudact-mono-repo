@@ -154,7 +154,7 @@ export function PipelineAutoTrigger({
       const status = await getPipelineStatus(orgSlug)
 
       if (!status) {
-        console.warn(`[PipelineAutoTrigger] Could not get pipeline status for ${orgSlug}`)
+        if (debug) console.warn(`[PipelineAutoTrigger] Could not get pipeline status for ${orgSlug}`)
         result.errors.push("Failed to get pipeline status")
         onErrorRef.current?.(result.errors)
         onCompleteRef.current?.(result)
@@ -177,27 +177,27 @@ export function PipelineAutoTrigger({
 
         // Check 1: Already completed today? → Skip
         if (pipelineStatus?.succeeded_today) {
-          console.log(`[PipelineAutoTrigger] ${pipeline.id}: Already completed today, skipping`)
+          if (debug) console.log(`[PipelineAutoTrigger] ${pipeline.id}: Already completed today, skipping`)
           result.skipped.push(pipeline.id)
           continue
         }
 
         // Check 2: Currently running or pending? → Skip
         if (pipelineStatus?.status === "RUNNING" || pipelineStatus?.status === "PENDING") {
-          console.log(`[PipelineAutoTrigger] ${pipeline.id}: Currently ${pipelineStatus.status}, skipping`)
+          if (debug) console.log(`[PipelineAutoTrigger] ${pipeline.id}: Currently ${pipelineStatus.status}, skipping`)
           result.already_running.push(pipeline.id)
           continue
         }
 
         // Check 3: Ran today but failed? → Log and retry
         if (pipelineStatus?.ran_today && !pipelineStatus?.succeeded_today) {
-          console.log(`[PipelineAutoTrigger] ${pipeline.id}: Failed today, retrying`)
+          if (debug) console.log(`[PipelineAutoTrigger] ${pipeline.id}: Failed today, retrying`)
         }
 
         // ============================================
         // STEP 3: Trigger pipeline (not running, not completed)
         // ============================================
-        console.log(`[PipelineAutoTrigger] ${pipeline.id}: Triggering pipeline...`)
+        if (debug) console.log(`[PipelineAutoTrigger] ${pipeline.id}: Triggering pipeline...`)
 
         const triggerResult = await triggerPipelineViaApi(
           orgSlug,
@@ -207,15 +207,15 @@ export function PipelineAutoTrigger({
         )
 
         if (triggerResult.success) {
-          console.log(`[PipelineAutoTrigger] ${pipeline.id}: Triggered successfully`)
+          if (debug) console.log(`[PipelineAutoTrigger] ${pipeline.id}: Triggered successfully`)
           result.triggered.push(pipeline.id)
         } else {
           // Check if error indicates already running (race condition)
           if (triggerResult.error?.includes("already running")) {
-            console.log(`[PipelineAutoTrigger] ${pipeline.id}: Already running (race condition)`)
+            if (debug) console.log(`[PipelineAutoTrigger] ${pipeline.id}: Already running (race condition)`)
             result.already_running.push(pipeline.id)
           } else {
-            console.warn(`[PipelineAutoTrigger] ${pipeline.id}: Trigger failed - ${triggerResult.error}`)
+            if (debug) console.warn(`[PipelineAutoTrigger] ${pipeline.id}: Trigger failed - ${triggerResult.error}`)
             result.errors.push(`${pipeline.id}: ${triggerResult.error}`)
           }
         }
@@ -224,7 +224,7 @@ export function PipelineAutoTrigger({
       // ============================================
       // STEP 4: Report results via callbacks
       // ============================================
-      if (debug || result.triggered.length > 0) {
+      if (debug) {
         console.log(`[PipelineAutoTrigger] Summary:`, {
           triggered: result.triggered,
           skipped: result.skipped,
@@ -245,7 +245,7 @@ export function PipelineAutoTrigger({
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Unknown error"
-      console.warn(`[PipelineAutoTrigger] Check failed:`, error)
+      if (debug) console.warn(`[PipelineAutoTrigger] Check failed:`, error)
       result.errors.push(errorMessage)
       onErrorRef.current?.(result.errors)
       onCompleteRef.current?.(result)

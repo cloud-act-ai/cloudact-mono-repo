@@ -165,7 +165,7 @@ export default function LLMIntegrationsPage() {
     return (
       <div className="max-w-6xl mx-auto">
         <div className="mb-10">
-          <h1 className="text-[32px] font-bold text-slate-900 tracking-tight leading-none">
+          <h1 className="text-[32px] font-bold text-black tracking-tight leading-none">
             LLM Providers
           </h1>
           <p className="text-[15px] text-slate-500 mt-2 max-w-lg">
@@ -173,7 +173,7 @@ export default function LLMIntegrationsPage() {
           </p>
         </div>
         <div className="flex items-center justify-center min-h-[400px]">
-          <Loader2 className="h-8 w-8 animate-spin text-[#8B5CF6]" />
+          <Loader2 className="h-8 w-8 animate-spin text-[#1a7a3a]" />
         </div>
       </div>
     )
@@ -183,7 +183,7 @@ export default function LLMIntegrationsPage() {
     <div className="max-w-6xl mx-auto space-y-8">
       {/* Header */}
       <div className="mb-10">
-        <h1 className="text-[32px] font-bold text-slate-900 tracking-tight leading-none">
+        <h1 className="text-[32px] font-bold text-black tracking-tight leading-none">
           LLM Providers
         </h1>
         <p className="text-[15px] text-slate-500 mt-2 max-w-lg">
@@ -198,7 +198,7 @@ export default function LLMIntegrationsPage() {
             <Brain className="h-5 w-5 text-[#1a7a3a]" />
           </div>
           <div>
-            <p className="text-[24px] font-bold text-slate-900 leading-none">{connectedProviders.length}</p>
+            <p className="text-[24px] font-bold text-black leading-none">{connectedProviders.length}</p>
             <p className="text-[12px] text-slate-500 font-medium mt-0.5">Connected</p>
           </div>
         </div>
@@ -208,7 +208,7 @@ export default function LLMIntegrationsPage() {
             <Sparkles className="h-5 w-5 text-slate-400" />
           </div>
           <div>
-            <p className="text-[24px] font-bold text-slate-900 leading-none">{unconnectedProviders.length}</p>
+            <p className="text-[24px] font-bold text-black leading-none">{unconnectedProviders.length}</p>
             <p className="text-[12px] text-slate-500 font-medium mt-0.5">Available</p>
           </div>
         </div>
@@ -220,7 +220,7 @@ export default function LLMIntegrationsPage() {
           <div className="flex items-start gap-3">
             <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
             <div>
-              <h3 className="text-[14px] font-semibold text-slate-900">
+              <h3 className="text-[14px] font-semibold text-black">
                 {!backendConnected ? "Backend Not Connected" : "API Key Missing"}
               </h3>
               <p className="text-[13px] text-slate-600 mt-0.5">
@@ -228,7 +228,7 @@ export default function LLMIntegrationsPage() {
               </p>
               <Link
                 href={`/${orgSlug}/settings/organization`}
-                className="inline-flex items-center gap-1 mt-2 text-[13px] font-semibold text-[#007AFF] hover:text-[#0051D5]"
+                className="inline-flex items-center gap-1 mt-2 text-[13px] font-semibold text-[#007AFF] hover:text-[#0051D5] transition-colors"
               >
                 Go to Settings
                 <ChevronRight className="h-3.5 w-3.5" />
@@ -240,16 +240,16 @@ export default function LLMIntegrationsPage() {
 
       {/* Alerts */}
       {error && (
-        <div className="p-4 rounded-xl bg-red-50 border border-red-200">
+        <div className="p-4 rounded-xl bg-[#FF6C5E]/10 border border-[#FF6C5E]/30">
           <div className="flex items-center gap-3">
-            <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
-            <p className="text-[14px] font-medium text-red-700">{error}</p>
+            <AlertCircle className="h-5 w-5 text-[#FF6C5E] flex-shrink-0" />
+            <p className="text-[14px] font-medium text-[#FF6C5E]">{error}</p>
           </div>
         </div>
       )}
 
       {successMessage && (
-        <div className="p-4 rounded-xl bg-[#90FCA6]/5 border border-[#90FCA6]/20">
+        <div className="p-4 rounded-xl bg-[#90FCA6]/15 border border-[#90FCA6]/30">
           <div className="flex items-center gap-3">
             <Check className="h-5 w-5 text-[#1a7a3a] flex-shrink-0" />
             <p className="text-[14px] font-medium text-[#1a7a3a]">{successMessage}</p>
@@ -260,7 +260,7 @@ export default function LLMIntegrationsPage() {
       {/* Connected Providers */}
       {connectedProviders.length > 0 && (
         <div className="space-y-4">
-          <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide">Connected</h2>
+          <h2 className="text-[13px] font-semibold text-black uppercase tracking-wide">Connected</h2>
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm divide-y divide-slate-100">
             {connectedProviders.map((provider) => {
               const integration = integrations[provider.backendKey]
@@ -287,9 +287,9 @@ export default function LLMIntegrationsPage() {
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
-                            <h3 className="text-[15px] font-semibold text-slate-900">{provider.name}</h3>
+                            <h3 className="text-[15px] font-semibold text-black">{provider.name}</h3>
                             {isEnabled && (
-                              <span className="px-2 py-0.5 rounded-full bg-[#90FCA6]/10 text-[#1a7a3a] text-[10px] font-semibold uppercase">
+                              <span className="px-2 py-0.5 rounded-full bg-[#90FCA6]/15 text-[#1a7a3a] text-[10px] font-semibold uppercase tracking-wide">
                                 Live
                               </span>
                             )}
@@ -302,7 +302,7 @@ export default function LLMIntegrationsPage() {
                         <button
                           onClick={() => handleValidate(provider.id)}
                           disabled={isValidating}
-                          className="h-9 px-3 text-[13px] font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors flex items-center gap-1.5"
+                          className="h-9 px-3 text-[13px] font-medium text-slate-600 hover:text-black hover:bg-slate-50 rounded-xl border border-slate-200 transition-all flex items-center gap-1.5"
                         >
                           {isValidating ? (
                             <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -312,7 +312,7 @@ export default function LLMIntegrationsPage() {
                           Validate
                         </button>
                         <Link href={`/${orgSlug}/integrations/${provider.href}`}>
-                          <button className="h-9 px-3 text-[13px] font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors flex items-center gap-1">
+                          <button className="h-9 px-3 text-[13px] font-semibold text-black hover:bg-slate-50 rounded-xl border border-slate-200 transition-all flex items-center gap-1">
                             Configure
                             <ChevronRight className="h-3.5 w-3.5" />
                           </button>
@@ -336,13 +336,13 @@ export default function LLMIntegrationsPage() {
       {/* Available Providers */}
       {unconnectedProviders.length > 0 && (
         <div className="space-y-4">
-          <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide">Available</h2>
+          <h2 className="text-[13px] font-semibold text-black uppercase tracking-wide">Available</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {unconnectedProviders.map((provider) => (
               <Link
                 key={provider.id}
                 href={`/${orgSlug}/integrations/${provider.href}`}
-                className="group p-4 bg-white rounded-2xl border border-slate-200 shadow-sm hover:border-slate-300 hover:shadow-md transition-all"
+                className="group p-5 bg-white rounded-2xl border border-slate-200 hover:border-slate-300 hover:shadow-md transition-all"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -353,11 +353,11 @@ export default function LLMIntegrationsPage() {
                       <div style={{ color: provider.accent }}>{provider.icon}</div>
                     </div>
                     <div>
-                      <h3 className="text-[14px] font-semibold text-slate-900">{provider.name}</h3>
+                      <h3 className="text-[14px] font-semibold text-black">{provider.name}</h3>
                       <p className="text-[12px] text-slate-500">{provider.description}</p>
                     </div>
                   </div>
-                  <button className="h-8 px-3 text-[12px] font-semibold text-black bg-[#90FCA6] hover:bg-[#B8FDCA] rounded-lg transition-colors">
+                  <button className="h-8 px-3 text-[12px] font-semibold text-black bg-[#90FCA6] hover:bg-[#B8FDCA] rounded-xl transition-all">
                     Connect
                   </button>
                 </div>
@@ -368,14 +368,14 @@ export default function LLMIntegrationsPage() {
       )}
 
       {/* Security Notice */}
-      <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100">
+      <div className="p-5 bg-slate-50 rounded-2xl border border-slate-200">
         <div className="flex items-start gap-4">
-          <div className="h-10 w-10 rounded-xl bg-[#90FCA6]/10 flex items-center justify-center flex-shrink-0">
+          <div className="h-10 w-10 rounded-xl bg-[#90FCA6]/15 flex items-center justify-center flex-shrink-0">
             <Shield className="h-5 w-5 text-[#1a7a3a]" />
           </div>
           <div>
-            <h3 className="text-[15px] font-semibold text-slate-900">Secure Storage</h3>
-            <p className="text-[13px] text-slate-500 mt-1 leading-relaxed">
+            <h3 className="text-[15px] font-semibold text-black">Secure Storage</h3>
+            <p className="text-[13px] text-slate-600 mt-1 leading-relaxed">
               All API keys are encrypted using Google Cloud KMS with AES-256 encryption before storage.
             </p>
           </div>
