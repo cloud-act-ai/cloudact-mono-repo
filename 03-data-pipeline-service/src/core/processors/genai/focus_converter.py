@@ -168,7 +168,13 @@ class FOCUSConverterProcessor:
                         hierarchy_project_id as x_hierarchy_project_id,
                         hierarchy_project_name as x_hierarchy_project_name,
                         hierarchy_team_id as x_hierarchy_team_id,
-                        hierarchy_team_name as x_hierarchy_team_name
+                        hierarchy_team_name as x_hierarchy_team_name,
+                        -- Lineage columns (REQUIRED)
+                        'focus_convert_genai' as x_PipelineId,
+                        @credential_id as x_CredentialId,
+                        @process_date as x_PipelineRunDate,
+                        @run_id as x_PipelineRunId,
+                        CURRENT_TIMESTAMP() as x_IngestedAt
                     FROM `{project_id}.{dataset_id}.genai_costs_daily_unified`
                     WHERE cost_date = @process_date
                       AND org_slug = @org_slug
@@ -180,6 +186,9 @@ class FOCUSConverterProcessor:
                     AND T.x_genai_provider = S.x_genai_provider
                     AND COALESCE(T.ResourceId, '') = COALESCE(S.ResourceId, '')
                     AND COALESCE(T.RegionId, 'global') = COALESCE(S.RegionId, 'global')
+                    AND T.x_PipelineId = S.x_PipelineId
+                    AND T.x_CredentialId = S.x_CredentialId
+                    AND T.x_PipelineRunDate = S.x_PipelineRunDate
                 WHEN MATCHED THEN
                     UPDATE SET
                         ChargePeriodEnd = S.ChargePeriodEnd,
@@ -210,7 +219,9 @@ class FOCUSConverterProcessor:
                         x_hierarchy_project_id = S.x_hierarchy_project_id,
                         x_hierarchy_project_name = S.x_hierarchy_project_name,
                         x_hierarchy_team_id = S.x_hierarchy_team_id,
-                        x_hierarchy_team_name = S.x_hierarchy_team_name
+                        x_hierarchy_team_name = S.x_hierarchy_team_name,
+                        x_PipelineRunId = S.x_PipelineRunId,
+                        x_IngestedAt = S.x_IngestedAt
                 WHEN NOT MATCHED THEN
                     INSERT (ChargePeriodStart, ChargePeriodEnd, BillingPeriodStart, BillingPeriodEnd,
                             InvoiceIssuerName, ServiceProviderName, ServiceCategory, ServiceName,
@@ -223,7 +234,8 @@ class FOCUSConverterProcessor:
                             x_genai_cost_type, x_genai_provider, x_genai_model,
                             x_hierarchy_dept_id, x_hierarchy_dept_name,
                             x_hierarchy_project_id, x_hierarchy_project_name,
-                            x_hierarchy_team_id, x_hierarchy_team_name)
+                            x_hierarchy_team_id, x_hierarchy_team_name,
+                            x_PipelineId, x_CredentialId, x_PipelineRunDate, x_PipelineRunId, x_IngestedAt)
                     VALUES (S.ChargePeriodStart, S.ChargePeriodEnd, S.BillingPeriodStart, S.BillingPeriodEnd,
                             S.InvoiceIssuerName, S.ServiceProviderName, S.ServiceCategory, S.ServiceName,
                             S.ResourceId, S.ResourceName, S.ResourceType, S.RegionId, S.RegionName,
@@ -235,13 +247,20 @@ class FOCUSConverterProcessor:
                             S.x_genai_cost_type, S.x_genai_provider, S.x_genai_model,
                             S.x_hierarchy_dept_id, S.x_hierarchy_dept_name,
                             S.x_hierarchy_project_id, S.x_hierarchy_project_name,
-                            S.x_hierarchy_team_id, S.x_hierarchy_team_name)
+                            S.x_hierarchy_team_id, S.x_hierarchy_team_name,
+                            S.x_PipelineId, S.x_CredentialId, S.x_PipelineRunDate, S.x_PipelineRunId, S.x_IngestedAt)
             """
+
+            # Get lineage context from pipeline execution
+            credential_id = context.get("credential_id", "unknown")
+            run_id = context.get("run_id", "unknown")
 
             job = bq_client.client.query(merge_query, job_config=bigquery.QueryJobConfig(
                 query_parameters=[
                     bigquery.ScalarQueryParameter("process_date", "DATE", process_date),
-                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
+                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+                    bigquery.ScalarQueryParameter("credential_id", "STRING", credential_id),
+                    bigquery.ScalarQueryParameter("run_id", "STRING", run_id)
                 ]
             ))
             job.result()

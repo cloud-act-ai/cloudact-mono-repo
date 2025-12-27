@@ -17,12 +17,13 @@ import asyncio
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 from datetime import datetime, date
+import uuid
 from google.cloud import bigquery
 from google.cloud.exceptions import NotFound
 from google.api_core import exceptions as core_exceptions
 
 from src.core.engine.bq_client import BigQueryClient
-from src.core.processors.gcp.authenticator import GCPAuthenticator
+from src.core.processors.cloud.gcp.authenticator import GCPAuthenticator
 from src.core.utils.bq_helpers import build_parameterized_query
 from src.app.config import get_settings
 
@@ -387,7 +388,15 @@ class ExternalBqExtractor:
             }
         )
 
+        # Generate lineage metadata
+        run_id = str(uuid.uuid4())
+        pipeline_id = context.get("pipeline_id", "cloud_cost_gcp")
+        credential_id = context.get("credential_id", "")
+        pipeline_run_date = variables.get("date", date.today().isoformat())
+        ingested_at = datetime.utcnow().isoformat()
+
         # Convert datetime objects to ISO format strings for JSON serialization
+        # and add standardized lineage columns
         json_rows = []
         for row in result_rows:
             json_row = {}
@@ -396,6 +405,12 @@ class ExternalBqExtractor:
                     json_row[key] = value.isoformat()
                 else:
                     json_row[key] = value
+            # Add standardized lineage columns
+            json_row["x_pipeline_id"] = pipeline_id
+            json_row["x_credential_id"] = credential_id
+            json_row["x_pipeline_run_date"] = pipeline_run_date
+            json_row["x_run_id"] = run_id
+            json_row["x_ingested_at"] = ingested_at
             json_rows.append(json_row)
 
         # Insert rows using load_table_from_json (more robust than insert_rows_json)

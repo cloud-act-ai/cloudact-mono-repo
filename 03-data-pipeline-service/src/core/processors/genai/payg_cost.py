@@ -410,7 +410,12 @@ class PAYGCostProcessor:
                         NULLIF(TRIM(COALESCE(u.hierarchy_team_name, '')), '') as hierarchy_team_name,
 
                         CURRENT_TIMESTAMP() as calculated_at,
-                        @run_id as run_id
+                        -- Standardized lineage columns (x_ prefix)
+                        CONCAT('genai_payg_cost_', COALESCE(u.provider, 'unknown')) as x_pipeline_id,
+                        u.credential_id as x_credential_id,
+                        @process_date as x_pipeline_run_date,
+                        @run_id as x_run_id,
+                        CURRENT_TIMESTAMP() as x_ingested_at
                     FROM `{project_id}.{dataset_id}.genai_payg_usage_raw` u
                     LEFT JOIN `{project_id}.{dataset_id}.genai_payg_pricing` p
                         ON u.provider = p.provider
@@ -449,7 +454,11 @@ class PAYGCostProcessor:
                         hierarchy_team_id = S.hierarchy_team_id,
                         hierarchy_team_name = S.hierarchy_team_name,
                         calculated_at = S.calculated_at,
-                        run_id = S.run_id
+                        x_pipeline_id = S.x_pipeline_id,
+                        x_credential_id = S.x_credential_id,
+                        x_pipeline_run_date = S.x_pipeline_run_date,
+                        x_run_id = S.x_run_id,
+                        x_ingested_at = S.x_ingested_at
                 WHEN NOT MATCHED THEN
                     INSERT (cost_date, org_slug, provider, model, model_family, region,
                             input_tokens, output_tokens, cached_input_tokens, total_tokens,
@@ -458,7 +467,8 @@ class PAYGCostProcessor:
                             request_count, credential_id,
                             hierarchy_dept_id, hierarchy_dept_name, hierarchy_project_id,
                             hierarchy_project_name, hierarchy_team_id, hierarchy_team_name,
-                            calculated_at, run_id)
+                            calculated_at, x_pipeline_id, x_credential_id, x_pipeline_run_date,
+                            x_run_id, x_ingested_at)
                     VALUES (S.cost_date, S.org_slug, S.provider, S.model, S.model_family, S.region,
                             S.input_tokens, S.output_tokens, S.cached_input_tokens, S.total_tokens,
                             S.input_cost_usd, S.output_cost_usd, S.cached_cost_usd, S.total_cost_usd,
@@ -466,7 +476,8 @@ class PAYGCostProcessor:
                             S.request_count, S.credential_id,
                             S.hierarchy_dept_id, S.hierarchy_dept_name, S.hierarchy_project_id,
                             S.hierarchy_project_name, S.hierarchy_team_id, S.hierarchy_team_name,
-                            S.calculated_at, S.run_id)
+                            S.calculated_at, S.x_pipeline_id, S.x_credential_id, S.x_pipeline_run_date,
+                            S.x_run_id, S.x_ingested_at)
             """
 
             job_config = bigquery.QueryJobConfig(query_parameters=query_params)

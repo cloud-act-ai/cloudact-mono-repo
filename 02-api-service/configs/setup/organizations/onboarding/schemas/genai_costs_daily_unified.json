@@ -23,5 +23,10 @@
   {"name": "hierarchy_team_id", "type": "STRING", "mode": "NULLABLE", "description": "Team ID for cost allocation."},
   {"name": "hierarchy_team_name", "type": "STRING", "mode": "NULLABLE", "description": "Team name (denormalized)."},
   {"name": "source_table", "type": "STRING", "mode": "NULLABLE", "description": "Source table name for lineage."},
-  {"name": "consolidated_at", "type": "TIMESTAMP", "mode": "NULLABLE", "description": "Timestamp when consolidated."}
+  {"name": "consolidated_at", "type": "TIMESTAMP", "mode": "NULLABLE", "description": "Timestamp when consolidated."},
+  {"name": "x_pipeline_id", "type": "STRING", "mode": "REQUIRED", "description": "Pipeline template name. Example: genai_unified_consolidate."},
+  {"name": "x_credential_id", "type": "STRING", "mode": "REQUIRED", "description": "Credential ID from org_integration_credentials. KEY for multi-account isolation."},
+  {"name": "x_pipeline_run_date", "type": "DATE", "mode": "REQUIRED", "description": "The DATA date being processed. KEY for idempotent re-runs."},
+  {"name": "x_run_id", "type": "STRING", "mode": "REQUIRED", "description": "Unique pipeline run UUID for full traceability."},
+  {"name": "x_ingested_at", "type": "TIMESTAMP", "mode": "REQUIRED", "description": "Timestamp when data was written to this table."}
 ]

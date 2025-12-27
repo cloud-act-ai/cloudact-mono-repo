@@ -133,8 +133,10 @@ export interface SetupIntegrationResponse {
 
 export interface IntegrationStatus {
   provider: string
-  status: "VALID" | "INVALID" | "PENDING" | "NOT_CONFIGURED"
-  credential_name?: string
+  status: "VALID" | "INVALID" | "PENDING" | "NOT_CONFIGURED" | "EXPIRED"
+  credential_id?: string      // For multi-credential cloud providers
+  credential_name?: string    // Human-readable name for the credential
+  account_identifier?: string // Provider-specific: GCP project_id, AWS account_id, etc.
   last_validated_at?: string
   last_error?: string
   created_at?: string

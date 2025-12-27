@@ -5,7 +5,7 @@ Shared authentication utility for all GCP processors.
 Handles credential decryption, validation, and client factory methods.
 
 Usage:
-    from src.core.processors.gcp.authenticator import GCPAuthenticator
+    from src.core.processors.cloud.gcp.authenticator import GCPAuthenticator
 
     auth = GCPAuthenticator(org_slug="myorg_123")
     bq_client = await auth.get_bigquery_client()

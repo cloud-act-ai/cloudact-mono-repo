@@ -1,0 +1,34 @@
+# OCI Cost Analysis Pipeline
+# Extracts billing data from Oracle Cloud Infrastructure Cost Analysis
+pipeline_name: "{pipeline_id}"
+description: "Extract OCI Cost Analysis data for {org_slug}"
+
+variables:
+  org_slug: "{org_slug}"
+  provider: "oci"
+  domain: "cost"
+  template_name: "{template_name}"
+
+steps:
+  - id: authenticate
+    name: "Authenticate with OCI"
+    ps_type: cloud.oci.authenticator
+    config:
+      provider: "OCI"
+
+  - id: extract_costs
+    name: "Extract Cost Data"
+    ps_type: cloud.oci.cost_extractor
+    depends_on: [authenticate]
+    config:
+      date_filter: "{date}"
+      granularity: "DAILY"
+
+  - id: load_to_bq
+    name: "Load to BigQuery"
+    ps_type: generic.bq_loader
+    depends_on: [extract_costs]
+    config:
+      destination_table: "{org_slug}_prod.oci_billing_cost_daily"
+      write_disposition: "WRITE_APPEND"
+      partition_field: "usage_date"

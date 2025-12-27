@@ -4,10 +4,9 @@ import type React from "react"
 import Link from "next/link"
 import { useState, useEffect, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
-import { Cloud, Loader2 } from "lucide-react"
+import { Loader2, Mail, Lock, ArrowRight, Sparkles } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { AuthLayout } from "@/components/auth/auth-layout"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
 /**
@@ -41,6 +40,7 @@ function LoginForm() {
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [sessionCleared, setSessionCleared] = useState(false)
+  const [focusedField, setFocusedField] = useState<string | null>(null)
 
   // Clear any stale sessions when arriving at login page
   // This prevents "Invalid Refresh Token" errors from persisting
@@ -134,121 +134,163 @@ function LoginForm() {
   }
 
   return (
-    <div className="w-full max-w-[420px] space-y-6">
-      <div className="flex flex-col items-center gap-3 text-center">
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-mint text-black shadow-lg">
-          <Cloud className="h-7 w-7" />
+    <AuthLayout variant="login">
+      <div className="space-y-8">
+        {/* Header */}
+        <div className="space-y-3">
+          <h1 className="text-[32px] font-bold text-[#0a0a0b] tracking-[-0.02em] leading-tight">
+            Welcome back
+          </h1>
+          <p className="text-[15px] text-gray-500 leading-relaxed">
+            Sign in to your account to continue
+          </p>
         </div>
-        <div className="space-y-2">
-          <h1 className="text-3xl font-bold text-gray-900">Welcome back</h1>
-          <p className="text-gray-600">Sign in to access your CloudAct console</p>
-        </div>
-      </div>
 
-      <div className="glass-card p-8">
-        {/* suppressHydrationWarning: Password manager extensions (LastPass, 1Password, etc.)
-            inject elements into forms before React hydrates, causing harmless mismatches */}
+        {/* Form */}
         <form onSubmit={handlePasswordLogin} className="space-y-5" suppressHydrationWarning>
+          {/* Email Field */}
           <div className="space-y-2" suppressHydrationWarning>
-            <Label htmlFor="email" className="text-sm font-semibold text-[#1C1C1E]">
+            <label
+              htmlFor="email"
+              className="block text-[13px] font-semibold text-[#0a0a0b] tracking-wide"
+            >
               Email address
-            </Label>
-            <Input
-              id="email"
-              name="email"
-              type="email"
-              placeholder="you@company.com"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="h-11 bg-white/50 border-black/5 focus:border-mint focus:ring-mint/20 transition-all"
-              disabled={isLoading}
-              autoComplete="email"
-            />
+            </label>
+            <div className="relative group">
+              <div className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-200 ${focusedField === 'email' ? 'text-[#1a7a3a]' : 'text-gray-400'}`}>
+                <Mail className="h-[18px] w-[18px]" strokeWidth={2} />
+              </div>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                placeholder="you@company.com"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                onFocus={() => setFocusedField('email')}
+                onBlur={() => setFocusedField(null)}
+                className="w-full h-[52px] pl-12 pr-4 rounded-2xl border-2 border-gray-100 bg-gray-50/50 text-[15px] text-[#0a0a0b] placeholder:text-gray-400 outline-none transition-all duration-200 hover:border-gray-200 focus:border-[#90FCA6] focus:bg-white focus:ring-4 focus:ring-[#90FCA6]/10"
+                disabled={isLoading}
+                autoComplete="email"
+              />
+            </div>
           </div>
 
+          {/* Password Field */}
           <div className="space-y-2" suppressHydrationWarning>
-            <Label htmlFor="password" className="text-sm font-semibold text-[#1C1C1E]">
-              Password
-            </Label>
-            <Input
-              id="password"
-              name="password"
-              type="password"
-              placeholder="Enter your password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="h-11 bg-white/50 border-black/5 focus:border-mint focus:ring-mint/20 transition-all"
-              disabled={isLoading}
-              autoComplete="current-password"
-            />
+            <div className="flex items-center justify-between">
+              <label
+                htmlFor="password"
+                className="block text-[13px] font-semibold text-[#0a0a0b] tracking-wide"
+              >
+                Password
+              </label>
+              <Link
+                href="/forgot-password"
+                className="text-[13px] font-medium text-gray-500 hover:text-[#0a0a0b] transition-colors"
+              >
+                Forgot password?
+              </Link>
+            </div>
+            <div className="relative group">
+              <div className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-200 ${focusedField === 'password' ? 'text-[#1a7a3a]' : 'text-gray-400'}`}>
+                <Lock className="h-[18px] w-[18px]" strokeWidth={2} />
+              </div>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                placeholder="Enter your password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onFocus={() => setFocusedField('password')}
+                onBlur={() => setFocusedField(null)}
+                className="w-full h-[52px] pl-12 pr-4 rounded-2xl border-2 border-gray-100 bg-gray-50/50 text-[15px] text-[#0a0a0b] placeholder:text-gray-400 outline-none transition-all duration-200 hover:border-gray-200 focus:border-[#90FCA6] focus:bg-white focus:ring-4 focus:ring-[#90FCA6]/10"
+                disabled={isLoading}
+                autoComplete="current-password"
+              />
+            </div>
           </div>
 
+          {/* Error Alert */}
           {error && (
-            <Alert variant="destructive" className="py-3 bg-[var(--cloudact-bg-coral)] border-coral/30 text-coral">
-              <AlertDescription className="text-sm font-medium">{error}</AlertDescription>
-            </Alert>
+            <div className="p-4 rounded-2xl bg-[#FFF5F3] border border-[#FF6C5E]/20">
+              <p className="text-[14px] font-medium text-[#CC4F35]">{error}</p>
+            </div>
           )}
 
+          {/* Submit Button */}
           <button
             type="submit"
-            className="cloudact-btn-primary w-full h-11 text-[15px] shadow-lg shadow-mint/20 hover:shadow-mint/30 hover:-translate-y-0.5 transition-all"
             disabled={isLoading}
+            className="group relative w-full h-[52px] rounded-2xl bg-[#0a0a0b] text-white font-semibold text-[15px] transition-all duration-300 hover:bg-[#1a1a1b] hover:shadow-xl hover:shadow-black/10 hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none overflow-hidden"
           >
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                Signing in...
-              </>
-            ) : (
-              "Sign in"
-            )}
+            <span className="relative z-10 flex items-center justify-center gap-2">
+              {isLoading ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  Signing in...
+                </>
+              ) : (
+                <>
+                  Sign in
+                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                </>
+              )}
+            </span>
+            {/* Shimmer effect */}
+            <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
           </button>
-
-          <div className="text-center">
-            <Link href="/forgot-password" className="text-sm font-medium text-ca-blue hover:text-ca-blue-dark hover:underline">
-              Forgot password?
-            </Link>
-          </div>
         </form>
-      </div>
 
-      <div className="text-center text-sm text-gray-600">
-        Don't have an account?{" "}
-        <Link href="/signup" className="font-semibold text-ca-blue hover:text-ca-blue-dark hover:underline">
-          Start free trial
+        {/* Divider */}
+        <div className="relative">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-gray-100" />
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="px-4 bg-white text-gray-400 text-[13px]">New to CloudAct?</span>
+          </div>
+        </div>
+
+        {/* Sign Up Link */}
+        <Link
+          href="/signup"
+          className="group flex items-center justify-center gap-3 w-full h-[52px] rounded-2xl border-2 border-gray-100 bg-white text-[15px] font-semibold text-[#0a0a0b] transition-all duration-300 hover:border-[#90FCA6] hover:bg-[#90FCA6]/5"
+        >
+          <Sparkles className="h-4 w-4 text-[#90FCA6]" />
+          <span>Start your free trial</span>
+          <ArrowRight className="h-4 w-4 text-gray-400 transition-all duration-300 group-hover:text-[#1a7a3a] group-hover:translate-x-1" />
         </Link>
       </div>
-    </div>
+    </AuthLayout>
   )
 }
 
 export default function LoginPage() {
   return (
-    <div className="flex min-h-svh w-full flex-col items-center justify-center mesh-gradient p-6">
-      <Suspense fallback={<LoginFormFallback />}>
-        <LoginForm />
-      </Suspense>
-    </div>
+    <Suspense fallback={<LoginFormFallback />}>
+      <LoginForm />
+    </Suspense>
   )
 }
 
 function LoginFormFallback() {
   return (
-    <div className="w-full max-w-[420px] space-y-6">
-      <div className="flex flex-col items-center gap-3 text-center">
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-mint text-black shadow-xl shadow-mint/20">
-          <Cloud className="h-7 w-7" />
+    <AuthLayout variant="login">
+      <div className="space-y-8">
+        <div className="space-y-3">
+          <div className="h-10 w-48 bg-gray-100 rounded-xl animate-pulse" />
+          <div className="h-5 w-64 bg-gray-100 rounded-lg animate-pulse" />
         </div>
-        <div className="space-y-2">
-          <h1 className="text-3xl font-bold text-[#1C1C1E] tracking-tight">Welcome back</h1>
-          <p className="text-muted-foreground font-medium">Sign in to access your CloudAct console</p>
+        <div className="space-y-5">
+          <div className="h-[52px] bg-gray-100 rounded-2xl animate-pulse" />
+          <div className="h-[52px] bg-gray-100 rounded-2xl animate-pulse" />
+          <div className="h-[52px] bg-gray-100 rounded-2xl animate-pulse" />
         </div>
       </div>
-      <div className="glass-card p-8 flex items-center justify-center min-h-[300px]">
-        <Loader2 className="h-8 w-8 animate-spin text-mint-dark" />
-      </div>
-    </div>
+    </AuthLayout>
   )
 }

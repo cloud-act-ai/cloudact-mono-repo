@@ -23,6 +23,7 @@ import {
   Code,
   Cloud,
   CreditCard,
+  HelpCircle,
 } from "lucide-react"
 import { format } from "date-fns"
 
@@ -560,6 +561,39 @@ export default function AddCustomProviderPage() {
             )}
           </Button>
         </div>
+
+        {/* Help Documentation */}
+        <Card className="border-slate-200">
+          <CardContent className="py-6">
+            <div className="flex items-start gap-4">
+              <div className="h-10 w-10 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
+                <HelpCircle className="h-5 w-5 text-blue-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-[15px] font-semibold text-slate-900 mb-2">
+                  Creating a Custom Provider
+                </h3>
+                <div className="text-[13px] text-slate-600 space-y-2">
+                  <p><strong>Provider Name:</strong> Enter the exact name of your SaaS service (e.g., "Airtable", "Mixpanel"). This will be used as the identifier for all subscriptions under this provider.</p>
+                  <p><strong>Category:</strong> Choose the category that best fits this service. Categories help organize your subscriptions in reports and dashboards.</p>
+                  <p><strong>Pricing Model:</strong></p>
+                  <ul className="list-disc list-inside pl-2 space-y-1">
+                    <li><strong>Per Seat:</strong> Price × Number of seats (e.g., Slack at $8.75/user/month)</li>
+                    <li><strong>Flat Fee:</strong> Fixed monthly/annual cost regardless of seats (e.g., $99/month for unlimited users)</li>
+                  </ul>
+                  <p><strong>Billing Cycle:</strong> Monthly subscriptions are calculated daily (price ÷ days in month). Annual subscriptions are amortized over 365 days.</p>
+                  <div className="text-[12px] text-amber-700 bg-amber-50 p-2 rounded-lg mt-3">
+                    <strong>Examples:</strong>
+                    <ul className="list-disc list-inside mt-1">
+                      <li>Acme Inc adds "Hotjar" as custom provider → Category: Productivity → Plan: Business at $99/month flat fee</li>
+                      <li>Acme Inc adds "Linear" → Category: Development → Plan: Pro at $8/seat/month for 15 seats</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </form>
     </div>
   )

@@ -356,16 +356,14 @@ async def run_async_pipeline_task(
 
 
 @router.post(
-    "/pipelines/run/{org_slug}/{provider}/{domain}/{template_name}",
+    "/pipelines/run/{org_slug}/{path:path}",
     response_model=TriggerPipelineResponse,
     summary="Trigger a templated pipeline",
     description="Start execution of a pipeline from a template with automatic variable substitution. Rate limited: 50 requests/minute per org"
 )
 async def trigger_templated_pipeline(
     org_slug: str,
-    provider: str,
-    domain: str,
-    template_name: str,
+    path: str,
     background_tasks: BackgroundTasks,
     http_request: Request,
     request: TriggerPipelineRequest = TriggerPipelineRequest(),
@@ -375,34 +373,39 @@ async def trigger_templated_pipeline(
     """
     Trigger a pipeline execution from a template with automatic variable substitution.
 
-    This endpoint loads a template from `configs/{provider}/{domain}/{template_name}.yml`
-    and replaces all template variables before execution.
+    This endpoint loads a template based on the path structure:
+    - Cloud providers (4 segments): configs/{category}/{provider}/{domain}/{pipeline}.yml
+    - GenAI/SaaS (3 segments): configs/{category}/{domain}/{pipeline}.yml
+
+    Path Formats:
+    - Cloud: /cloud/gcp/cost/billing → configs/cloud/gcp/cost/billing.yml
+    - GenAI: /genai/payg/openai → configs/genai/payg/openai.yml
+    - SaaS: /saas/costs/saas_cost → configs/saas/costs/saas_cost.yml
 
     Template Variables:
     - {org_slug} - Replaced with org_slug from path
-    - {provider} - Replaced with provider from path (e.g., 'gcp', 'aws')
-    - {domain} - Replaced with domain from path (e.g., 'cost', 'security')
-    - {template_name} - Replaced with template_name from path
-    - {pipeline_id} - Auto-generated: {org_slug}-{provider}-{domain}-{template_name}
+    - {category} - Replaced with category (cloud, genai, saas)
+    - {provider} - Replaced with provider (gcp, aws, azure) or empty for genai/saas
+    - {domain} - Replaced with domain (cost, payg, costs)
+    - {pipeline_name} - Replaced with pipeline name
+    - {pipeline_id} - Auto-generated tracking ID
 
     Example:
     ```
-    POST /api/v1/pipelines/run/acmeinc_23xv2/gcp/cost/bill-sample-export-template
+    POST /api/v1/pipelines/run/acmeinc_23xv2/cloud/gcp/cost/billing
     Headers: X-API-Key: your-api-key
     Body: {"date": "2025-11-15"}
     ```
 
     This will:
-    1. Load template from: configs/gcp/cost/bill-sample-export-template.yml
+    1. Load template from: configs/cloud/gcp/cost/billing.yml
     2. Replace {org_slug} with 'acmeinc_23xv2'
-    3. Replace {pipeline_id} with 'acmeinc_23xv2-gcp-cost-bill-sample-export-template'
+    3. Replace {pipeline_id} with 'acmeinc_23xv2-cloud-gcp-cost-billing'
     4. Execute the resolved pipeline
 
     Args:
         org_slug: Organization identifier (must match authenticated org)
-        provider: Cloud provider (gcp, aws, azure)
-        domain: Domain category (cost, security, compute)
-        template_name: Template name (without .yml extension)
+        path: Pipeline path (e.g., 'cloud/gcp/cost/billing' or 'genai/payg/openai')
         request: Pipeline trigger request with optional parameters
 
     Returns:
@@ -417,6 +420,21 @@ async def trigger_templated_pipeline(
     - Built-in concurrency control - prevents duplicate pipeline execution
     - Rate limited: 50 requests/minute per org (prevents resource exhaustion)
     """
+    # Parse path segments to determine category, provider, domain, pipeline
+    path_parts = path.strip('/').split('/')
+
+    if len(path_parts) == 4:
+        # Cloud providers: category/provider/domain/pipeline
+        category, provider, domain, template_name = path_parts
+    elif len(path_parts) == 3:
+        # GenAI/SaaS: category/domain/pipeline (no provider)
+        category, domain, template_name = path_parts
+        provider = ""
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid path format. Expected 'category/provider/domain/pipeline' (4 segments) or 'category/domain/pipeline' (3 segments). Got {len(path_parts)} segments: {path}"
+        )
     # Apply rate limiting for expensive pipeline execution
     await rate_limit_by_org(
         http_request,
@@ -455,12 +473,12 @@ async def trigger_templated_pipeline(
     api_key = http_request.headers.get("X-API-Key", "")
 
     # Construct pipeline_id for validation (matches registry format)
-    # e.g., "gcp_billing" (no domain), "genai_payg_openai" (with domain)
-    # Format: {provider}_{domain}_{pipeline} when domain exists, else {provider}_{pipeline}
-    if domain:
-        validation_pipeline_id = f"{provider}_{domain}_{template_name}"
+    # Format: {category}_{provider}_{domain}_{pipeline} for cloud, {category}_{domain}_{pipeline} for others
+    # Examples: "cloud_gcp_cost_billing", "genai_payg_openai", "saas_costs_saas_cost"
+    if provider:
+        validation_pipeline_id = f"{category}_{provider}_{domain}_{template_name}"
     else:
-        validation_pipeline_id = f"{provider}_{template_name}"
+        validation_pipeline_id = f"{category}_{domain}_{template_name}"
 
     logger.info(f"Calling api-service for validation: org={org_slug}, pipeline={validation_pipeline_id}")
 
@@ -519,17 +537,22 @@ async def trigger_templated_pipeline(
     # all in one atomic UPDATE query at validation time.
 
     # Generate pipeline_id for tracking (includes org prefix)
-    pipeline_id = f"{org_slug}-{provider}-{domain}-{template_name}"
+    # Format: org_slug-category-provider-domain-pipeline or org_slug-category-domain-pipeline
+    if provider:
+        pipeline_id = f"{org_slug}-{category}-{provider}-{domain}-{template_name}"
+    else:
+        pipeline_id = f"{org_slug}-{category}-{domain}-{template_name}"
 
     # File identifier for config lookup (just the template name for glob search)
-    file_identifier = template_name  # e.g., "billing_cost"
+    file_identifier = template_name  # e.g., "billing"
 
-    # Get template path
-    template_path = get_template_path(provider, domain, template_name)
+    # Get template path using category-based structure
+    template_path = get_template_path(category, provider, domain, template_name)
 
     # Prepare template variables
     template_variables = {
         "org_slug": org_slug,
+        "category": category,
         "provider": provider,
         "domain": domain,
         "template_name": template_name,

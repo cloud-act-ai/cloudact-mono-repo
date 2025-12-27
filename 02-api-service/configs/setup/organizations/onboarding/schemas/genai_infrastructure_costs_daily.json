@@ -1,7 +1,6 @@
 [
   {"name": "cost_date", "type": "DATE", "mode": "REQUIRED", "description": "Date of cost (partition field)."},
   {"name": "org_slug", "type": "STRING", "mode": "REQUIRED", "description": "Organization identifier for multi-tenancy."},
-  {"name": "credential_id", "type": "STRING", "mode": "NULLABLE", "description": "Integration credential ID that sourced this cost data. Issue #49: Required for audit trail - links to org_integration_credentials table."},
   {"name": "provider", "type": "STRING", "mode": "REQUIRED", "description": "Infrastructure provider: gcp_gpu, aws_gpu, azure_gpu, etc."},
   {"name": "resource_type", "type": "STRING", "mode": "REQUIRED", "description": "Resource type: gpu, tpu, inferentia, trainium."},
   {"name": "instance_type", "type": "STRING", "mode": "REQUIRED", "description": "Instance type used. Issue #47: Part of composite key for pricing lookup (instance_type + gpu_type + region)."},
@@ -23,5 +22,9 @@
   {"name": "hierarchy_team_name", "type": "STRING", "mode": "NULLABLE", "description": "Team name (denormalized from org_hierarchy)."},
   {"name": "hierarchy_validated_at", "type": "TIMESTAMP", "mode": "NULLABLE", "description": "Issue #50: Timestamp when hierarchy IDs were last validated against org_hierarchy table."},
   {"name": "calculated_at", "type": "TIMESTAMP", "mode": "NULLABLE", "description": "Timestamp when cost was calculated."},
-  {"name": "run_id", "type": "STRING", "mode": "NULLABLE", "description": "Pipeline run ID."}
+  {"name": "x_pipeline_id", "type": "STRING", "mode": "REQUIRED", "description": "Pipeline template name. Example: genai_infrastructure_cost."},
+  {"name": "x_credential_id", "type": "STRING", "mode": "REQUIRED", "description": "Credential ID from org_integration_credentials. KEY for multi-account isolation."},
+  {"name": "x_pipeline_run_date", "type": "DATE", "mode": "REQUIRED", "description": "The DATA date being processed. KEY for idempotent re-runs."},
+  {"name": "x_run_id", "type": "STRING", "mode": "REQUIRED", "description": "Unique pipeline run UUID for full traceability."},
+  {"name": "x_ingested_at", "type": "TIMESTAMP", "mode": "REQUIRED", "description": "Timestamp when data was written to this table."}
 ]

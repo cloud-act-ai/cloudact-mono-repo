@@ -193,11 +193,16 @@ class PAYGUsageProcessor:
                     "message": f"No usage data for {provider} in date range"
                 }
 
-            # Add metadata to records
+            # Add lineage metadata to records (standardized x_ prefix columns)
             now = datetime.utcnow().isoformat() + "Z"
+            pipeline_id = f"genai_payg_{provider}"
+            credential_id = credentials.get("credential_id", "default")
             for record in usage_records:
-                record["run_id"] = run_id
-                record["ingested_at"] = now
+                record["x_pipeline_id"] = pipeline_id
+                record["x_credential_id"] = credential_id
+                record["x_pipeline_run_date"] = start_date.isoformat()
+                record["x_run_id"] = run_id
+                record["x_ingested_at"] = now
 
             # Write to BigQuery using MERGE (CRITICAL FIX #1)
             table_id = f"{project_id}.{dataset_id}.genai_payg_usage_raw"
@@ -467,15 +472,18 @@ class PAYGUsageProcessor:
                         "total_tokens": record.get("total_tokens") or 0,
                         "request_count": record.get("request_count") or 0,
                         "is_batch": record.get("is_batch") or False,
-                        "credential_id": record.get("credential_id"),
                         "hierarchy_dept_id": record.get("hierarchy_dept_id"),
                         "hierarchy_dept_name": record.get("hierarchy_dept_name"),
                         "hierarchy_project_id": record.get("hierarchy_project_id"),
                         "hierarchy_project_name": record.get("hierarchy_project_name"),
                         "hierarchy_team_id": record.get("hierarchy_team_id"),
                         "hierarchy_team_name": record.get("hierarchy_team_name"),
-                        "run_id": record.get("run_id"),
-                        "ingested_at": record.get("ingested_at"),
+                        # Standardized lineage columns (x_ prefix)
+                        "x_pipeline_id": record.get("x_pipeline_id"),
+                        "x_credential_id": record.get("x_credential_id"),
+                        "x_pipeline_run_date": record.get("x_pipeline_run_date"),
+                        "x_run_id": record.get("x_run_id"),
+                        "x_ingested_at": record.get("x_ingested_at"),
                     })
 
                 # Use CREATE TEMP TABLE + MERGE pattern for safety
@@ -487,10 +495,12 @@ class PAYGUsageProcessor:
                         org_slug STRING, provider STRING, model STRING, model_family STRING,
                         usage_date DATE, region STRING, input_tokens INT64, output_tokens INT64,
                         cached_input_tokens INT64, total_tokens INT64, request_count INT64,
-                        is_batch BOOL, credential_id STRING, hierarchy_dept_id STRING,
+                        is_batch BOOL, hierarchy_dept_id STRING,
                         hierarchy_dept_name STRING, hierarchy_project_id STRING,
                         hierarchy_project_name STRING, hierarchy_team_id STRING,
-                        hierarchy_team_name STRING, run_id STRING, ingested_at TIMESTAMP
+                        hierarchy_team_name STRING,
+                        x_pipeline_id STRING, x_credential_id STRING, x_pipeline_run_date DATE,
+                        x_run_id STRING, x_ingested_at TIMESTAMP
                     )
                 """
                 client.query(create_temp).result()
@@ -500,10 +510,14 @@ class PAYGUsageProcessor:
                 client.insert_rows_json(temp_table_ref, values_rows)
 
                 # Now MERGE from temp table to target
+                # Uses composite key: (org_slug, x_pipeline_id, x_credential_id, x_pipeline_run_date)
                 merge_query = f"""
                     MERGE `{table_id}` T
                     USING `{temp_table}` S
                     ON T.org_slug = S.org_slug
+                        AND T.x_pipeline_id = S.x_pipeline_id
+                        AND T.x_credential_id = S.x_credential_id
+                        AND T.x_pipeline_run_date = S.x_pipeline_run_date
                         AND T.provider = S.provider
                         AND T.model = S.model
                         AND T.usage_date = S.usage_date
@@ -522,19 +536,21 @@ class PAYGUsageProcessor:
                             hierarchy_project_name = S.hierarchy_project_name,
                             hierarchy_team_id = S.hierarchy_team_id,
                             hierarchy_team_name = S.hierarchy_team_name,
-                            run_id = S.run_id,
-                            ingested_at = S.ingested_at
+                            x_run_id = S.x_run_id,
+                            x_ingested_at = S.x_ingested_at
                     WHEN NOT MATCHED THEN
                         INSERT (org_slug, provider, model, model_family, usage_date, region,
                                 input_tokens, output_tokens, cached_input_tokens, total_tokens,
-                                request_count, is_batch, credential_id, hierarchy_dept_id,
+                                request_count, is_batch, hierarchy_dept_id,
                                 hierarchy_dept_name, hierarchy_project_id, hierarchy_project_name,
-                                hierarchy_team_id, hierarchy_team_name, run_id, ingested_at)
+                                hierarchy_team_id, hierarchy_team_name,
+                                x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
                         VALUES (S.org_slug, S.provider, S.model, S.model_family, S.usage_date, S.region,
                                 S.input_tokens, S.output_tokens, S.cached_input_tokens, S.total_tokens,
-                                S.request_count, S.is_batch, S.credential_id, S.hierarchy_dept_id,
+                                S.request_count, S.is_batch, S.hierarchy_dept_id,
                                 S.hierarchy_dept_name, S.hierarchy_project_id, S.hierarchy_project_name,
-                                S.hierarchy_team_id, S.hierarchy_team_name, S.run_id, S.ingested_at)
+                                S.hierarchy_team_id, S.hierarchy_team_name,
+                                S.x_pipeline_id, S.x_credential_id, S.x_pipeline_run_date, S.x_run_id, S.x_ingested_at)
                 """
 
                 job = client.query(merge_query)

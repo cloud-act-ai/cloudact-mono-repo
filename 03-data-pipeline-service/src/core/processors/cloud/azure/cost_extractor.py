@@ -1,0 +1,201 @@
+"""
+Azure Cost Management Extractor
+
+Extracts cost data from Azure Cost Management API.
+Uses AzureAuthenticator for OAuth2 authentication.
+
+ps_type: cloud.azure.cost_extractor
+"""
+
+import logging
+from typing import Dict, Any, List, Optional
+from datetime import datetime, timedelta
+import uuid
+
+import httpx
+
+from src.core.processors.cloud.azure.authenticator import AzureAuthenticator
+from src.app.config import get_settings
+
+logger = logging.getLogger(__name__)
+
+
+class AzureCostExtractor:
+    """
+    Extracts cost data from Azure Cost Management API.
+
+    Uses the Cost Management Query API to retrieve cost and usage data.
+    """
+
+    def __init__(self, org_slug: str):
+        self.org_slug = org_slug
+        self.settings = get_settings()
+        self._auth: Optional[AzureAuthenticator] = None
+
+    async def execute(
+        self,
+        step_config: Dict[str, Any],
+        context: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Extract Azure cost data.
+
+        Args:
+            step_config: Configuration with date_filter, granularity
+            context: Pipeline context with org_slug
+
+        Returns:
+            Dict with extracted cost rows and metadata
+        """
+        config = step_config.get("config", {})
+        date_filter = config.get("date_filter") or context.get("date")
+        granularity = config.get("granularity", "Daily")
+
+        logger.info(
+            f"Extracting Azure cost data",
+            extra={
+                "org_slug": self.org_slug,
+                "date": date_filter,
+                "granularity": granularity
+            }
+        )
+
+        try:
+            # Authenticate with Azure
+            self._auth = AzureAuthenticator(self.org_slug)
+            client_config = await self._auth.get_cost_management_client()
+
+            # Parse date range
+            if date_filter:
+                start_date = datetime.strptime(date_filter, "%Y-%m-%d")
+            else:
+                start_date = datetime.now() - timedelta(days=1)
+            end_date = start_date + timedelta(days=1)
+
+            # Generate lineage metadata
+            run_id = str(uuid.uuid4())
+            pipeline_id = context.get("pipeline_id", "cloud_cost_azure")
+            credential_id = context.get("credential_id", "")
+            pipeline_run_date = date_filter or start_date.strftime("%Y-%m-%d")
+            ingested_at = datetime.utcnow().isoformat()
+
+            # Query Cost Management API
+            rows = await self._query_costs(
+                client_config,
+                start_date.strftime("%Y-%m-%d"),
+                end_date.strftime("%Y-%m-%d"),
+                granularity
+            )
+
+            # Add standardized lineage columns to each row
+            for row in rows:
+                row["x_pipeline_id"] = pipeline_id
+                row["x_credential_id"] = credential_id
+                row["x_pipeline_run_date"] = pipeline_run_date
+                row["x_run_id"] = run_id
+                row["x_ingested_at"] = ingested_at
+
+            # Store in context for downstream steps
+            context["extracted_data"] = rows
+
+            logger.info(
+                f"Azure cost extraction complete",
+                extra={
+                    "org_slug": self.org_slug,
+                    "row_count": len(rows),
+                    "date_range": f"{start_date.date()} to {end_date.date()}"
+                }
+            )
+
+            return {
+                "status": "SUCCESS",
+                "rows": rows,
+                "row_count": len(rows),
+                "subscription_id": client_config["subscription_id"],
+                "date_range": f"{start_date.date()} to {end_date.date()}"
+            }
+
+        except Exception as e:
+            logger.error(f"Azure cost extraction failed: {e}", exc_info=True)
+            return {"status": "FAILED", "error": str(e)}
+
+    async def _query_costs(
+        self,
+        client_config: Dict[str, Any],
+        start_date: str,
+        end_date: str,
+        granularity: str
+    ) -> List[Dict[str, Any]]:
+        """Query Azure Cost Management API."""
+        subscription_id = client_config["subscription_id"]
+        api_version = client_config["api_version"]
+
+        url = (
+            f"{client_config['base_url']}/subscriptions/{subscription_id}"
+            f"/providers/Microsoft.CostManagement/query"
+        )
+
+        # Cost Management Query payload
+        query_body = {
+            "type": "Usage",
+            "timeframe": "Custom",
+            "timePeriod": {
+                "from": f"{start_date}T00:00:00Z",
+                "to": f"{end_date}T00:00:00Z"
+            },
+            "dataset": {
+                "granularity": granularity,
+                "aggregation": {
+                    "totalCost": {"name": "Cost", "function": "Sum"},
+                    "totalCostUSD": {"name": "CostUSD", "function": "Sum"}
+                },
+                "grouping": [
+                    {"type": "Dimension", "name": "ServiceName"},
+                    {"type": "Dimension", "name": "ResourceGroup"},
+                    {"type": "Dimension", "name": "ResourceLocation"},
+                    {"type": "Dimension", "name": "MeterCategory"},
+                    {"type": "Dimension", "name": "MeterSubCategory"}
+                ]
+            }
+        }
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                url,
+                headers=client_config["headers"],
+                params={"api-version": api_version},
+                json=query_body,
+                timeout=60.0
+            )
+            response.raise_for_status()
+            data = response.json()
+
+        # Transform response to rows
+        rows = []
+        columns = [col["name"] for col in data.get("properties", {}).get("columns", [])]
+
+        for row_data in data.get("properties", {}).get("rows", []):
+            row = dict(zip(columns, row_data))
+            # Add metadata
+            row["usage_date"] = start_date
+            row["org_slug"] = self.org_slug
+            row["provider"] = "azure"
+            row["subscription_id"] = subscription_id
+            rows.append(row)
+
+        return rows
+
+
+async def execute(step_config: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    """Entry point for pipeline executor."""
+    org_slug = context.get("org_slug")
+    if not org_slug:
+        return {"status": "FAILED", "error": "org_slug is required"}
+
+    extractor = AzureCostExtractor(org_slug)
+    return await extractor.execute(step_config, context)
+
+
+def get_engine():
+    """Factory function for pipeline executor."""
+    return AzureCostExtractor

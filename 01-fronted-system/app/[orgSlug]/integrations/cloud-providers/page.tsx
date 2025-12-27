@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useParams } from "next/navigation"
-import { Loader2, Check, Cloud, ChevronRight, RefreshCw, AlertCircle, Server, Database, Shield } from "lucide-react"
+import { Loader2, Check, Cloud, ChevronRight, RefreshCw, AlertCircle, Server, Shield } from "lucide-react"
 import Link from "next/link"
 
 import { Switch } from "@/components/ui/switch"
+import { ProviderLogo } from "@/components/ui/provider-logo"
 import { getIntegrations, validateIntegration, IntegrationProvider, toggleIntegrationEnabled } from "@/actions/integrations"
 import { checkBackendOnboarding, hasStoredApiKey } from "@/actions/backend-onboarding"
 
@@ -24,7 +25,6 @@ interface ProviderConfig {
   backendKey: string
   name: string
   description: string
-  icon: React.ReactNode
   accent: string
   href: string
   comingSoon?: boolean
@@ -36,29 +36,32 @@ const CLOUD_PROVIDERS: ProviderConfig[] = [
     backendKey: "GCP_SA",
     name: "Google Cloud",
     description: "Service Account for GCP Billing",
-    icon: <Cloud className="h-5 w-5" />,
     accent: "#4285F4",
     href: "cloud-providers/gcp",
   },
   {
     id: "aws",
-    backendKey: "AWS",
+    backendKey: "AWS_IAM",
     name: "Amazon Web Services",
     description: "IAM Role for Cost Explorer",
-    icon: <Server className="h-5 w-5" />,
     accent: "#FF9900",
     href: "cloud-providers/aws",
-    comingSoon: true,
   },
   {
     id: "azure",
     backendKey: "AZURE",
     name: "Microsoft Azure",
     description: "Service Principal for Cost Management",
-    icon: <Database className="h-5 w-5" />,
     accent: "#0078D4",
     href: "cloud-providers/azure",
-    comingSoon: true,
+  },
+  {
+    id: "oci",
+    backendKey: "OCI",
+    name: "Oracle Cloud",
+    description: "API Key for Cost Analysis",
+    accent: "#F80000",
+    href: "cloud-providers/oci",
   },
 ]
 
@@ -304,7 +307,7 @@ export default function CloudProvidersPage() {
                           className="h-12 w-12 rounded-xl flex items-center justify-center flex-shrink-0"
                           style={{ backgroundColor: `${provider.accent}15` }}
                         >
-                          <div style={{ color: provider.accent }}>{provider.icon}</div>
+                          <ProviderLogo provider={provider.id} category="cloud" size={24} />
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
@@ -371,7 +374,7 @@ export default function CloudProvidersPage() {
                       className="h-12 w-12 rounded-xl flex items-center justify-center"
                       style={{ backgroundColor: `${provider.accent}15` }}
                     >
-                      <div style={{ color: provider.accent }}>{provider.icon}</div>
+                      <ProviderLogo provider={provider.id} category="cloud" size={24} />
                     </div>
                     <div>
                       <h3 className="text-[15px] font-semibold text-black">{provider.name}</h3>
@@ -403,7 +406,7 @@ export default function CloudProvidersPage() {
                     <div
                       className="h-12 w-12 rounded-xl flex items-center justify-center bg-white border border-slate-200"
                     >
-                      <div className="text-slate-400">{provider.icon}</div>
+                      <ProviderLogo provider={provider.id} category="cloud" size={24} fallbackColor="#94a3b8" />
                     </div>
                     <div>
                       <h3 className="text-[15px] font-semibold text-slate-700">{provider.name}</h3>

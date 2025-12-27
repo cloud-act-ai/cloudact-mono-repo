@@ -1,0 +1,38 @@
+# OCI Billing to FOCUS 1.3 Conversion Pipeline
+#
+# Converts OCI Cost Analysis data to FOCUS 1.3 standard format
+# Schedule: Daily at 6:45 AM UTC (after billing pipeline completes)
+# URL: POST /api/v1/pipelines/run/{org}/cloud/oci/cost/focus_convert
+
+pipeline_id: "{org_slug}-oci-focus-convert"
+name: "OCI FOCUS 1.3 Conversion"
+description: "Convert OCI Cost Analysis data to FOCUS 1.3 standard"
+provider: "oci"
+domain: "cost"
+version: "1.0.0"
+
+schedule:
+  cron: "45 6 * * *"
+  timezone: "UTC"
+  enabled: true
+
+variables:
+  org_slug: "{org_slug}"
+  provider: "oci"
+
+steps:
+  - step_id: convert_oci_to_focus
+    name: "Convert OCI Costs to FOCUS 1.3"
+    ps_type: cloud.focus_converter
+    description: "Convert OCI billing data to FOCUS 1.3 format"
+    config:
+      provider: "oci"
+      date: "{date}"
+    timeout_seconds: 600
+    retry:
+      max_attempts: 3
+      backoff_seconds: 60
+
+notifications:
+  on_failure:
+    - email

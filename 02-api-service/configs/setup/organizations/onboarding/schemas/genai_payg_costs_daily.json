@@ -24,7 +24,10 @@
   {"name": "hierarchy_team_id", "type": "STRING", "mode": "NULLABLE", "description": "Team ID for cost allocation. Issue #50: MUST be validated against org_hierarchy table where entity_type='team'. Pipeline should reject invalid team IDs."},
   {"name": "hierarchy_team_name", "type": "STRING", "mode": "NULLABLE", "description": "Team name (denormalized from org_hierarchy)."},
   {"name": "hierarchy_validated_at", "type": "TIMESTAMP", "mode": "NULLABLE", "description": "Issue #50: Timestamp when hierarchy IDs were last validated against org_hierarchy table."},
-  {"name": "credential_id", "type": "STRING", "mode": "NULLABLE", "description": "Integration credential ID that generated this usage. Issue #49: Required for audit trail - links to org_integration_credentials table."},
   {"name": "calculated_at", "type": "TIMESTAMP", "mode": "NULLABLE", "description": "Timestamp when cost was calculated."},
-  {"name": "run_id", "type": "STRING", "mode": "NULLABLE", "description": "Pipeline run ID."}
+  {"name": "x_pipeline_id", "type": "STRING", "mode": "REQUIRED", "description": "Pipeline template name. Example: genai_payg_openai."},
+  {"name": "x_credential_id", "type": "STRING", "mode": "REQUIRED", "description": "Credential ID from org_integration_credentials. KEY for multi-account isolation."},
+  {"name": "x_pipeline_run_date", "type": "DATE", "mode": "REQUIRED", "description": "The DATA date being processed. KEY for idempotent re-runs."},
+  {"name": "x_run_id", "type": "STRING", "mode": "REQUIRED", "description": "Unique pipeline run UUID for full traceability."},
+  {"name": "x_ingested_at", "type": "TIMESTAMP", "mode": "REQUIRED", "description": "Timestamp when data was written to this table."}
 ]

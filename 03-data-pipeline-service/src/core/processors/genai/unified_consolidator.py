@@ -129,7 +129,9 @@ class UnifiedConsolidatorProcessor:
                     CAST(NULL AS FLOAT64) as instance_hours,
                     request_count, hierarchy_dept_id, hierarchy_dept_name,
                     hierarchy_project_id, hierarchy_project_name, hierarchy_team_id,
-                    hierarchy_team_name, 'genai_payg_usage_raw' as source_table
+                    hierarchy_team_name, 'genai_payg_usage_raw' as source_table,
+                    -- Standardized lineage columns (x_ prefix)
+                    x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at
                 FROM `{project_id}.{dataset_id}.genai_payg_usage_raw`
                 WHERE usage_date = @process_date AND org_slug = @org_slug
 
@@ -146,7 +148,9 @@ class UnifiedConsolidatorProcessor:
                     CAST(NULL AS FLOAT64) as gpu_hours, CAST(NULL AS FLOAT64) as instance_hours,
                     CAST(NULL AS INT64) as request_count, hierarchy_dept_id, hierarchy_dept_name,
                     hierarchy_project_id, hierarchy_project_name, hierarchy_team_id,
-                    hierarchy_team_name, 'genai_commitment_usage_raw' as source_table
+                    hierarchy_team_name, 'genai_commitment_usage_raw' as source_table,
+                    -- Standardized lineage columns (x_ prefix)
+                    x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at
                 FROM `{project_id}.{dataset_id}.genai_commitment_usage_raw`
                 WHERE usage_date = @process_date AND org_slug = @org_slug
 
@@ -162,7 +166,9 @@ class UnifiedConsolidatorProcessor:
                     avg_gpu_utilization_pct as utilization_pct, gpu_hours, hours_used as instance_hours,
                     CAST(NULL AS INT64) as request_count, hierarchy_dept_id, hierarchy_dept_name,
                     hierarchy_project_id, hierarchy_project_name, hierarchy_team_id,
-                    hierarchy_team_name, 'genai_infrastructure_usage_raw' as source_table
+                    hierarchy_team_name, 'genai_infrastructure_usage_raw' as source_table,
+                    -- Standardized lineage columns (x_ prefix)
+                    x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at
                 FROM `{project_id}.{dataset_id}.genai_infrastructure_usage_raw`
                 WHERE usage_date = @process_date AND org_slug = @org_slug
             ) S
@@ -193,20 +199,27 @@ class UnifiedConsolidatorProcessor:
                     hierarchy_team_id = S.hierarchy_team_id,
                     hierarchy_team_name = S.hierarchy_team_name,
                     source_table = S.source_table,
-                    consolidated_at = CURRENT_TIMESTAMP()
+                    consolidated_at = CURRENT_TIMESTAMP(),
+                    x_pipeline_id = S.x_pipeline_id,
+                    x_credential_id = S.x_credential_id,
+                    x_pipeline_run_date = S.x_pipeline_run_date,
+                    x_run_id = S.x_run_id,
+                    x_ingested_at = S.x_ingested_at
             WHEN NOT MATCHED THEN
                 INSERT (usage_date, org_slug, cost_type, provider, model, instance_type, gpu_type,
                         region, input_tokens, output_tokens, cached_tokens, total_tokens,
                         ptu_units, used_units, utilization_pct, gpu_hours, instance_hours,
                         request_count, hierarchy_dept_id, hierarchy_dept_name,
                         hierarchy_project_id, hierarchy_project_name, hierarchy_team_id,
-                        hierarchy_team_name, source_table, consolidated_at)
+                        hierarchy_team_name, source_table, consolidated_at,
+                        x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
                 VALUES (S.usage_date, S.org_slug, S.cost_type, S.provider, S.model, S.instance_type, S.gpu_type,
                         S.region, S.input_tokens, S.output_tokens, S.cached_tokens, S.total_tokens,
                         S.ptu_units, S.used_units, S.utilization_pct, S.gpu_hours, S.instance_hours,
                         S.request_count, S.hierarchy_dept_id, S.hierarchy_dept_name,
                         S.hierarchy_project_id, S.hierarchy_project_name, S.hierarchy_team_id,
-                        S.hierarchy_team_name, S.source_table, CURRENT_TIMESTAMP())
+                        S.hierarchy_team_name, S.source_table, CURRENT_TIMESTAMP(),
+                        S.x_pipeline_id, S.x_credential_id, S.x_pipeline_run_date, S.x_run_id, S.x_ingested_at)
         """
 
         job = bq_client.client.query(merge_query, job_config=bigquery.QueryJobConfig(
@@ -242,7 +255,9 @@ class UnifiedConsolidatorProcessor:
                     CAST(total_tokens AS FLOAT64) as usage_quantity, 'tokens' as usage_unit,
                     hierarchy_dept_id, hierarchy_dept_name, hierarchy_project_id,
                     hierarchy_project_name, hierarchy_team_id, hierarchy_team_name,
-                    'genai_payg_costs_daily' as source_table
+                    'genai_payg_costs_daily' as source_table,
+                    -- Standardized lineage columns (x_ prefix)
+                    x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at
                 FROM `{project_id}.{dataset_id}.genai_payg_costs_daily`
                 WHERE cost_date = @process_date AND org_slug = @org_slug
 
@@ -259,7 +274,9 @@ class UnifiedConsolidatorProcessor:
                     CAST(provisioned_units AS FLOAT64) as usage_quantity, 'ptu_hours' as usage_unit,
                     hierarchy_dept_id, hierarchy_dept_name, hierarchy_project_id,
                     hierarchy_project_name, hierarchy_team_id, hierarchy_team_name,
-                    'genai_commitment_costs_daily' as source_table
+                    'genai_commitment_costs_daily' as source_table,
+                    -- Standardized lineage columns (x_ prefix)
+                    x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at
                 FROM `{project_id}.{dataset_id}.genai_commitment_costs_daily`
                 WHERE cost_date = @process_date AND org_slug = @org_slug
 
@@ -276,7 +293,9 @@ class UnifiedConsolidatorProcessor:
                     gpu_hours as usage_quantity, 'gpu_hours' as usage_unit,
                     hierarchy_dept_id, hierarchy_dept_name, hierarchy_project_id,
                     hierarchy_project_name, hierarchy_team_id, hierarchy_team_name,
-                    'genai_infrastructure_costs_daily' as source_table
+                    'genai_infrastructure_costs_daily' as source_table,
+                    -- Standardized lineage columns (x_ prefix)
+                    x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at
                 FROM `{project_id}.{dataset_id}.genai_infrastructure_costs_daily`
                 WHERE cost_date = @process_date AND org_slug = @org_slug
             ) S
@@ -306,20 +325,27 @@ class UnifiedConsolidatorProcessor:
                     hierarchy_team_id = S.hierarchy_team_id,
                     hierarchy_team_name = S.hierarchy_team_name,
                     source_table = S.source_table,
-                    consolidated_at = CURRENT_TIMESTAMP()
+                    consolidated_at = CURRENT_TIMESTAMP(),
+                    x_pipeline_id = S.x_pipeline_id,
+                    x_credential_id = S.x_credential_id,
+                    x_pipeline_run_date = S.x_pipeline_run_date,
+                    x_run_id = S.x_run_id,
+                    x_ingested_at = S.x_ingested_at
             WHEN NOT MATCHED THEN
                 INSERT (cost_date, org_slug, cost_type, provider, model, instance_type, gpu_type,
                         region, input_cost_usd, output_cost_usd, commitment_cost_usd, overage_cost_usd,
                         infrastructure_cost_usd, total_cost_usd, discount_applied_pct,
                         usage_quantity, usage_unit, hierarchy_dept_id, hierarchy_dept_name,
                         hierarchy_project_id, hierarchy_project_name, hierarchy_team_id,
-                        hierarchy_team_name, source_table, consolidated_at)
+                        hierarchy_team_name, source_table, consolidated_at,
+                        x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
                 VALUES (S.cost_date, S.org_slug, S.cost_type, S.provider, S.model, S.instance_type, S.gpu_type,
                         S.region, S.input_cost_usd, S.output_cost_usd, S.commitment_cost_usd, S.overage_cost_usd,
                         S.infrastructure_cost_usd, S.total_cost_usd, S.discount_applied_pct,
                         S.usage_quantity, S.usage_unit, S.hierarchy_dept_id, S.hierarchy_dept_name,
                         S.hierarchy_project_id, S.hierarchy_project_name, S.hierarchy_team_id,
-                        S.hierarchy_team_name, S.source_table, CURRENT_TIMESTAMP())
+                        S.hierarchy_team_name, S.source_table, CURRENT_TIMESTAMP(),
+                        S.x_pipeline_id, S.x_credential_id, S.x_pipeline_run_date, S.x_run_id, S.x_ingested_at)
         """
 
         job = bq_client.client.query(merge_query, job_config=bigquery.QueryJobConfig(

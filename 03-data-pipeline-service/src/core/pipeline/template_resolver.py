@@ -148,20 +148,52 @@ def resolve_template(template_path: str, variables: Dict[str, str]) -> Dict[str,
     return resolved_config
 
 
-def get_template_path(provider: str, domain: str, template_name: str) -> str:
+def get_template_path(
+    category: str,
+    provider: str,
+    domain: str,
+    template_name: str
+) -> str:
     """
-    Construct template file path from provider/domain/template_name.
+    Construct template file path from category/provider/domain/template_name.
+
+    Supports multiple path structures:
+    - Cloud providers: configs/cloud/gcp/cost/billing.yml (4 segments)
+    - GenAI: configs/genai/payg/openai.yml (3 segments, empty provider)
+    - SaaS: configs/saas/costs/saas_cost.yml (3 segments, empty provider)
 
     Args:
-        provider: Cloud provider (e.g., 'gcp', 'aws', 'azure')
-        domain: Domain category (e.g., 'cost', 'security', 'compute')
+        category: Top-level category (e.g., 'cloud', 'genai', 'saas')
+        provider: Provider within category (e.g., 'gcp', 'aws') or empty string
+        domain: Domain category (e.g., 'cost', 'payg', 'costs')
         template_name: Template name (without .yml extension)
 
     Returns:
         Template file path relative to configs directory
 
-    Example:
-        >>> get_template_path("gcp", "cost", "bill-sample-export-template")
-        'configs/gcp/cost/bill-sample-export-template.yml'
+    Examples:
+        >>> get_template_path("cloud", "gcp", "cost", "billing")
+        'configs/cloud/gcp/cost/billing.yml'
+        >>> get_template_path("genai", "", "payg", "openai")
+        'configs/genai/payg/openai.yml'
+        >>> get_template_path("saas", "", "costs", "saas_cost")
+        'configs/saas/costs/saas_cost.yml'
     """
-    return f"configs/{provider}/{domain}/{template_name}.yml"
+    if provider:
+        # 4-segment path for cloud providers
+        return f"configs/{category}/{provider}/{domain}/{template_name}.yml"
+    else:
+        # 3-segment path for genai, saas
+        return f"configs/{category}/{domain}/{template_name}.yml"
+
+
+def get_template_path_legacy(provider: str, domain: str, template_name: str) -> str:
+    """
+    Legacy function for backward compatibility.
+
+    DEPRECATED: Use get_template_path with category parameter instead.
+    """
+    if domain:
+        return f"configs/{provider}/{domain}/{template_name}.yml"
+    else:
+        return f"configs/{provider}/{template_name}.yml"

@@ -24,6 +24,7 @@ import {
   MessageSquare,
   Code,
   Cloud,
+  HelpCircle,
 } from "lucide-react"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -438,6 +439,30 @@ export default function AddFromTemplatePage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Help Documentation */}
+      <Card className="border-slate-200 mt-6">
+        <CardContent className="py-6">
+          <div className="flex items-start gap-4">
+            <div className="h-10 w-10 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
+              <HelpCircle className="h-5 w-5 text-blue-600" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-[15px] font-semibold text-slate-900 mb-2">
+                Adding a Subscription Plan
+              </h3>
+              <div className="text-[13px] text-slate-600 space-y-2">
+                <p><strong>Templates:</strong> Pre-configured plans based on standard {providerDisplayName} pricing. Select a template to auto-fill pricing details, then customize as needed.</p>
+                <p><strong>Custom Plans:</strong> Create your own plan if you have negotiated pricing, enterprise agreements, or a plan not listed above.</p>
+                <p><strong>Currency:</strong> Prices are automatically converted to your organization's default currency ({orgCurrency}). Original USD pricing is preserved for audit purposes.</p>
+                <p className="text-[12px] text-amber-700 bg-amber-50 p-2 rounded-lg mt-3">
+                  <strong>Tip:</strong> After selecting a template, you can modify the number of seats, billing cycle, and assign the subscription to a department/project/team for cost allocation.
+                </p>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }

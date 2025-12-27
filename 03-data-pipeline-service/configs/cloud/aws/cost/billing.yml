@@ -1,0 +1,105 @@
+# AWS Cost & Usage Report Pipeline
+# Extracts billing data from AWS CUR exports
+#
+# Schedule: Daily at 05:00 UTC
+# Tables: aws_billing_cost_daily
+#
+# Usage: POST /api/v1/pipelines/run/{org_slug}/cloud/aws/cost/billing
+#
+# PREREQUISITES:
+# 1. Organization must have a valid AWS_IAM or AWS_KEYS integration configured
+# 2. IAM Role/User must have S3 read access to CUR bucket and BigQuery write access
+
+pipeline_id: "{org_slug}-aws-billing"
+name: "AWS Billing Sync"
+description: "Extract AWS Cost & Usage Report data for {org_slug}"
+version: "1.0.0"
+
+# Schedule configuration (cron expression: daily at 05:00 UTC)
+schedule: "0 5 * * *"
+
+variables:
+  org_slug: "{org_slug}"
+  provider: "aws"
+  domain: "cost"
+  template_name: "{template_name}"
+  # CUR export location - configured per-org via integration settings
+  aws_cur_bucket: "{aws_cur_bucket}"
+  aws_cur_prefix: "{aws_cur_prefix}"
+
+steps:
+  # Step 1: Authenticate with AWS
+  - step_id: "authenticate"
+    ps_type: "cloud.aws.authenticator"
+    description: "Authenticate with AWS using IAM Role or Access Keys"
+    config:
+      provider: "AWS_IAM"
+      require_valid: true
+      context_key: "aws_credentials"
+    on_failure: "abort"
+
+  # Step 2: Extract CUR Data from S3
+  - step_id: "extract_cur"
+    ps_type: "cloud.aws.cur_extractor"
+    description: "Extract CUR Data from S3"
+    depends_on:
+      - "authenticate"
+    timeout_minutes: 30
+    config:
+      source_bucket: "{aws_cur_bucket}"
+      source_prefix: "{aws_cur_prefix}"
+      date_filter: "{date}"
+      # CUR format options
+      compression: "GZIP"
+      format: "Parquet"
+
+  # Step 3: Transform and Load to BigQuery
+  - step_id: "load_to_bq"
+    ps_type: "generic.bq_loader"
+    description: "Load to BigQuery"
+    depends_on:
+      - "extract_cur"
+    timeout_minutes: 20
+    config:
+      destination_table: "{org_slug}_prod.aws_billing_cost_daily"
+      write_disposition: "WRITE_APPEND"
+      partition_field: "usage_date"
+      schema_template: "aws_billing_cost"
+      table_config:
+        time_partitioning:
+          field: "usage_date"
+          type: "DAY"
+          expiration_days: 730
+        clustering_fields:
+          - "linked_account_id"
+          - "service_code"
+          - "product_code"
+          - "region"
+
+  # Step 4: Notification on failure
+  - step_id: "notify_on_failure"
+    ps_type: "notify_systems.email_notification"
+    description: "Send failure notification"
+    trigger: "on_failure"
+    config:
+      to_emails:
+        - "{admin_email}"
+        - "data-ops@example.com"
+      subject: "[ALERT] AWS Billing Pipeline Failed - {org_slug}"
+      message: |
+        ALERT: The AWS billing pipeline has failed!
+
+        Organization: {org_slug}
+        Pipeline: {pipeline_id}
+        Run Date: {date}
+        CUR Bucket: {aws_cur_bucket}
+
+requires_auth: true
+auth_type: "org_api_key"
+
+tags:
+  - billing
+  - aws
+  - cost
+  - daily
+category: "cloud_cost"

@@ -20,6 +20,17 @@ import {
 // Map provider IDs to their local SVG filename
 // Source of truth: data/seed/provider-logos.csv
 const PROVIDER_LOGO_FILES: Record<string, string> = {
+  // Cloud Providers
+  gcp: "gcp.svg",
+  google_cloud: "gcp.svg",
+  aws: "aws.svg",
+  amazon_web_services: "aws.svg",
+  azure: "azure.svg",
+  microsoft_azure: "azure.svg",
+  oci: "oci.svg",
+  oracle: "oci.svg",
+  oracle_cloud: "oci.svg",
+
   // GenAI API Providers
   openai: "openai.svg",
   anthropic: "anthropic.svg",

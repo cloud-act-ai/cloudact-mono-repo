@@ -34,5 +34,10 @@
   {"name": "source_currency", "type": "STRING", "mode": "NULLABLE", "description": "Original currency of template price (e.g., USD)"},
   {"name": "source_price", "type": "FLOAT64", "mode": "NULLABLE", "description": "Original price before conversion"},
   {"name": "exchange_rate_used", "type": "FLOAT64", "mode": "NULLABLE", "description": "Exchange rate at time of creation"},
-  {"name": "updated_at", "type": "TIMESTAMP", "mode": "NULLABLE", "description": "Timestamp of the last row update."}
+  {"name": "updated_at", "type": "TIMESTAMP", "mode": "NULLABLE", "description": "Timestamp of the last row update."},
+  {"name": "x_pipeline_id", "type": "STRING", "mode": "REQUIRED", "description": "Pipeline template name. Example: saas_subscription_plans."},
+  {"name": "x_credential_id", "type": "STRING", "mode": "REQUIRED", "description": "Credential ID from org_integration_credentials. KEY for multi-account isolation."},
+  {"name": "x_pipeline_run_date", "type": "DATE", "mode": "REQUIRED", "description": "The DATA date being processed. KEY for idempotent re-runs."},
+  {"name": "x_run_id", "type": "STRING", "mode": "REQUIRED", "description": "Unique pipeline run UUID for full traceability."},
+  {"name": "x_ingested_at", "type": "TIMESTAMP", "mode": "REQUIRED", "description": "Timestamp when data was written to this table."}
 ]

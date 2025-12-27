@@ -11,7 +11,7 @@ Usage in pipeline:
 import logging
 from typing import Dict, Any
 
-from src.core.processors.gcp.authenticator import GCPAuthenticator
+from src.core.processors.cloud.gcp.authenticator import GCPAuthenticator
 from src.app.config import get_settings
 
 

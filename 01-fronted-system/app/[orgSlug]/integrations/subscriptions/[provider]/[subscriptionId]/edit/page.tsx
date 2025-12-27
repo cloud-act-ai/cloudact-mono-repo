@@ -18,6 +18,7 @@ import {
   ChevronRight,
   Info,
   Calendar,
+  HelpCircle,
 } from "lucide-react"
 import { format } from "date-fns"
 
@@ -622,6 +623,37 @@ export default function EditSubscriptionPage() {
                   </>
                 )}
               </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Help Documentation */}
+        <Card className="border-slate-200">
+          <CardContent className="py-6">
+            <div className="flex items-start gap-4">
+              <div className="h-10 w-10 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
+                <HelpCircle className="h-5 w-5 text-blue-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-[15px] font-semibold text-slate-900 mb-2">
+                  About Version History
+                </h3>
+                <div className="text-[13px] text-slate-600 space-y-2">
+                  <p><strong>How it works:</strong> When you edit a subscription, a new version is created starting from the effective date. The old version is preserved with an end date (day before effective date) for historical reporting.</p>
+                  <p><strong>Effective Date:</strong> The date when the new pricing/terms take effect. This determines when cost calculations switch to the new values.</p>
+                  <p><strong>Common scenarios:</strong></p>
+                  <ul className="list-disc list-inside pl-2 space-y-1">
+                    <li><strong>Price increase:</strong> Set effective date to when the new billing starts (e.g., next renewal date)</li>
+                    <li><strong>Adding seats:</strong> Set effective date to when new users were added</li>
+                    <li><strong>Plan upgrade:</strong> Change both pricing model and price, set effective date to upgrade date</li>
+                  </ul>
+                  <div className="text-[12px] text-amber-700 bg-amber-50 p-2 rounded-lg mt-3">
+                    <strong>Example:</strong> Acme Inc upgraded Slack from Pro ($8.75/seat) to Business+ ($15/seat) on Feb 1, 2025.
+                    Edit the subscription, change price to $15, and set effective date to Feb 1, 2025.
+                    Reports before Feb 1 show Pro pricing; after Feb 1 show Business+ pricing.
+                  </div>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>

@@ -96,10 +96,10 @@
     "description": "Source: subscription_amortization."
   },
   {
-    "name": "run_date",
+    "name": "x_pipeline_run_date",
     "type": "DATE",
     "mode": "REQUIRED",
-    "description": "Date when pipeline job ran to calculate this cost."
+    "description": "The DATA date being processed. KEY for idempotent re-runs."
   },
   {
     "name": "hierarchy_dept_id",
@@ -142,5 +142,29 @@
     "type": "TIMESTAMP",
     "mode": "REQUIRED",
     "description": "Timestamp when this row was written."
+  },
+  {
+    "name": "x_pipeline_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Pipeline template name. Example: saas_subscription_cost."
+  },
+  {
+    "name": "x_credential_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Credential ID from org_integration_credentials. KEY for multi-account isolation."
+  },
+  {
+    "name": "x_run_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Unique pipeline run UUID for full traceability."
+  },
+  {
+    "name": "x_ingested_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "Timestamp when data was written to this table."
   }
 ]

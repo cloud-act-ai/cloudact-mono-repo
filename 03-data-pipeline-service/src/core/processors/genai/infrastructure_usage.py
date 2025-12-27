@@ -120,12 +120,17 @@ class InfrastructureUsageProcessor:
                     "message": f"No infrastructure usage for {provider}"
                 }
 
-            # Add metadata
+            # Add lineage metadata (standardized x_ prefix columns)
             now = datetime.utcnow().isoformat() + "Z"
+            pipeline_id = f"genai_infrastructure_usage_{provider}"
+            credential_id = credentials.get("credential_id", "default") if credentials else "default"
             for record in usage_records:
                 record["org_slug"] = org_slug
-                record["run_id"] = run_id
-                record["ingested_at"] = now
+                record["x_pipeline_id"] = pipeline_id
+                record["x_credential_id"] = credential_id
+                record["x_pipeline_run_date"] = start_date.isoformat()
+                record["x_run_id"] = run_id
+                record["x_ingested_at"] = now
 
             # Write to BigQuery
             table_id = f"{project_id}.{dataset_id}.genai_infrastructure_usage_raw"
@@ -282,8 +287,12 @@ class InfrastructureUsageProcessor:
                         "hierarchy_project_name": record.get("hierarchy_project_name"),
                         "hierarchy_team_id": record.get("hierarchy_team_id"),
                         "hierarchy_team_name": record.get("hierarchy_team_name"),
-                        "run_id": record.get("run_id"),
-                        "ingested_at": record.get("ingested_at"),
+                        # Standardized lineage columns (x_ prefix)
+                        "x_pipeline_id": record.get("x_pipeline_id"),
+                        "x_credential_id": record.get("x_credential_id"),
+                        "x_pipeline_run_date": record.get("x_pipeline_run_date"),
+                        "x_run_id": record.get("x_run_id"),
+                        "x_ingested_at": record.get("x_ingested_at"),
                     })
 
                 # Create temp table
@@ -297,7 +306,8 @@ class InfrastructureUsageProcessor:
                         hierarchy_dept_id STRING, hierarchy_dept_name STRING,
                         hierarchy_project_id STRING, hierarchy_project_name STRING,
                         hierarchy_team_id STRING, hierarchy_team_name STRING,
-                        run_id STRING, ingested_at TIMESTAMP
+                        x_pipeline_id STRING, x_credential_id STRING, x_pipeline_run_date DATE,
+                        x_run_id STRING, x_ingested_at TIMESTAMP
                     )
                 """
                 client.query(create_temp).result()
@@ -326,19 +336,24 @@ class InfrastructureUsageProcessor:
                             hierarchy_project_name = S.hierarchy_project_name,
                             hierarchy_team_id = S.hierarchy_team_id,
                             hierarchy_team_name = S.hierarchy_team_name,
-                            run_id = S.run_id,
-                            ingested_at = S.ingested_at
+                            x_pipeline_id = S.x_pipeline_id,
+                            x_credential_id = S.x_credential_id,
+                            x_pipeline_run_date = S.x_pipeline_run_date,
+                            x_run_id = S.x_run_id,
+                            x_ingested_at = S.x_ingested_at
                     WHEN NOT MATCHED THEN
                         INSERT (org_slug, provider, resource_id, instance_type, gpu_type, gpu_count,
                                 usage_date, region, gpu_hours, spot_hours, on_demand_hours,
                                 preemptible_hours, credential_id, hierarchy_dept_id, hierarchy_dept_name,
                                 hierarchy_project_id, hierarchy_project_name, hierarchy_team_id,
-                                hierarchy_team_name, run_id, ingested_at)
+                                hierarchy_team_name, x_pipeline_id, x_credential_id, x_pipeline_run_date,
+                                x_run_id, x_ingested_at)
                         VALUES (S.org_slug, S.provider, S.resource_id, S.instance_type, S.gpu_type, S.gpu_count,
                                 S.usage_date, S.region, S.gpu_hours, S.spot_hours, S.on_demand_hours,
                                 S.preemptible_hours, S.credential_id, S.hierarchy_dept_id, S.hierarchy_dept_name,
                                 S.hierarchy_project_id, S.hierarchy_project_name, S.hierarchy_team_id,
-                                S.hierarchy_team_name, S.run_id, S.ingested_at)
+                                S.hierarchy_team_name, S.x_pipeline_id, S.x_credential_id, S.x_pipeline_run_date,
+                                S.x_run_id, S.x_ingested_at)
                 """
 
                 job = client.query(merge_query)

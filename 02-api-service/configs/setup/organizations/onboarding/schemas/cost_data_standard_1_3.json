@@ -488,14 +488,32 @@
   {
     "name": "x_PipelineId",
     "type": "STRING",
-    "mode": "NULLABLE",
-    "description": "[Extension] Pipeline ID that generated this record. Used for lineage and debugging."
+    "mode": "REQUIRED",
+    "description": "[Extension] Pipeline template name. Example: focus_convert_gcp. KEY for idempotent re-runs."
   },
   {
     "name": "x_PipelineRunId",
     "type": "STRING",
-    "mode": "NULLABLE",
-    "description": "[Extension] Specific pipeline run ID from org_meta_pipeline_runs. Used for audit trail."
+    "mode": "REQUIRED",
+    "description": "[Extension] Unique pipeline run UUID for full traceability."
+  },
+  {
+    "name": "x_CredentialId",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "[Extension] Credential ID from org_integration_credentials. KEY for multi-account isolation."
+  },
+  {
+    "name": "x_PipelineRunDate",
+    "type": "DATE",
+    "mode": "REQUIRED",
+    "description": "[Extension] The DATA date being processed. KEY for idempotent re-runs."
+  },
+  {
+    "name": "x_IngestedAt",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "[Extension] Timestamp when data was written to this table."
   },
   {
     "name": "x_DataQualityScore",

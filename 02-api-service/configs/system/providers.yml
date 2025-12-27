@@ -148,6 +148,63 @@ providers:
     retry_backoff_seconds: 2
     rate_limit_per_minute: 100 # Higher limit for cloud operations
 
+  AWS_IAM:
+    type: cloud
+    credential_type: AWS_IAM_ROLE
+    display_name: "AWS IAM Role (Cross-Account)"
+    context_key: aws_iam_role
+    required_fields:
+      - role_arn
+      - external_id
+    # Retry and rate limiting
+    max_retries: 3
+    retry_backoff_seconds: 2
+    rate_limit_per_minute: 100
+
+  AWS_KEYS:
+    type: cloud
+    credential_type: AWS_ACCESS_KEYS
+    display_name: "AWS Access Keys"
+    context_key: aws_access_keys
+    required_fields:
+      - access_key_id
+      - secret_access_key
+    # Retry and rate limiting
+    max_retries: 3
+    retry_backoff_seconds: 2
+    rate_limit_per_minute: 100
+
+  AZURE:
+    type: cloud
+    credential_type: SERVICE_PRINCIPAL_JSON
+    display_name: "Azure Service Principal"
+    context_key: azure_sp_json
+    required_fields:
+      - tenant_id
+      - client_id
+      - client_secret
+      - subscription_id
+    # Retry and rate limiting
+    max_retries: 3
+    retry_backoff_seconds: 2
+    rate_limit_per_minute: 100
+
+  OCI:
+    type: cloud
+    credential_type: OCI_API_KEY
+    display_name: "Oracle Cloud API Key"
+    context_key: oci_credentials
+    required_fields:
+      - tenancy_ocid
+      - user_ocid
+      - fingerprint
+      - private_key
+      - region
+    # Retry and rate limiting
+    max_retries: 3
+    retry_backoff_seconds: 2
+    rate_limit_per_minute: 100
+
 # Provider groups for easy lookup
 provider_groups:
   llm:
@@ -158,6 +215,10 @@ provider_groups:
     - DEEPSEEK
   cloud:
     - GCP_SA
+    - AWS_IAM
+    - AWS_KEYS
+    - AZURE
+    - OCI
   all:
     - OPENAI
     - ANTHROPIC
@@ -165,6 +226,10 @@ provider_groups:
     - GEMINI
     - DEEPSEEK
     - GCP_SA
+    - AWS_IAM
+    - AWS_KEYS
+    - AZURE
+    - OCI
 
 # Provider aliases (for normalization)
 # Maps user-friendly names to canonical provider names
@@ -177,6 +242,11 @@ aliases:
   deepseek: DEEPSEEK
   gcp: GCP_SA
   gcp_sa: GCP_SA
+  aws: AWS_IAM
+  aws_iam: AWS_IAM
+  aws_keys: AWS_KEYS
+  azure: AZURE
+  oci: OCI
 
 # Default settings
 defaults:

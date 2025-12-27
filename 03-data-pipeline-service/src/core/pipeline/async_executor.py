@@ -1587,6 +1587,7 @@ class AsyncPipelineExecutor:
             context["org_slug"] = self.org_slug
             context["pipeline_id"] = self.pipeline_id
             context["step_id"] = step_id
+            context["run_id"] = self.pipeline_logging_id  # For lineage tracking (x_run_id)
 
             result = await engine.execute(step_config, context)
 

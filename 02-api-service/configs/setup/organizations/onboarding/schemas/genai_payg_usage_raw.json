@@ -14,13 +14,15 @@
   {"name": "successful_requests", "type": "INT64", "mode": "NULLABLE", "description": "Number of successful requests (2xx)."},
   {"name": "failed_requests", "type": "INT64", "mode": "NULLABLE", "description": "Number of failed requests (4xx/5xx)."},
   {"name": "avg_latency_ms", "type": "FLOAT64", "mode": "NULLABLE", "description": "Average response latency in milliseconds."},
-  {"name": "credential_id", "type": "STRING", "mode": "NULLABLE", "description": "Reference to API credential used (from org_integration_credentials)."},
   {"name": "hierarchy_dept_id", "type": "STRING", "mode": "NULLABLE", "description": "Department ID for cost allocation."},
   {"name": "hierarchy_dept_name", "type": "STRING", "mode": "NULLABLE", "description": "Department name (denormalized)."},
   {"name": "hierarchy_project_id", "type": "STRING", "mode": "NULLABLE", "description": "Project ID for cost allocation."},
   {"name": "hierarchy_project_name", "type": "STRING", "mode": "NULLABLE", "description": "Project name (denormalized)."},
   {"name": "hierarchy_team_id", "type": "STRING", "mode": "NULLABLE", "description": "Team ID for cost allocation."},
   {"name": "hierarchy_team_name", "type": "STRING", "mode": "NULLABLE", "description": "Team name (denormalized)."},
-  {"name": "run_id", "type": "STRING", "mode": "NULLABLE", "description": "Pipeline run ID that ingested this data."},
-  {"name": "ingested_at", "type": "TIMESTAMP", "mode": "NULLABLE", "description": "Timestamp when data was ingested."}
+  {"name": "x_pipeline_id", "type": "STRING", "mode": "REQUIRED", "description": "Pipeline template name. Example: genai_payg_openai."},
+  {"name": "x_credential_id", "type": "STRING", "mode": "REQUIRED", "description": "Credential ID from org_integration_credentials. KEY for multi-account isolation."},
+  {"name": "x_pipeline_run_date", "type": "DATE", "mode": "REQUIRED", "description": "The DATA date being processed. KEY for idempotent re-runs."},
+  {"name": "x_run_id", "type": "STRING", "mode": "REQUIRED", "description": "Unique pipeline run UUID for full traceability."},
+  {"name": "x_ingested_at", "type": "TIMESTAMP", "mode": "REQUIRED", "description": "Timestamp when data was written to this table."}
 ]

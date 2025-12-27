@@ -1,0 +1,34 @@
+# Azure Cost Management Pipeline
+# Extracts billing data from Azure Cost Management exports
+pipeline_name: "{pipeline_id}"
+description: "Extract Azure Cost Management data for {org_slug}"
+
+variables:
+  org_slug: "{org_slug}"
+  provider: "azure"
+  domain: "cost"
+  template_name: "{template_name}"
+
+steps:
+  - id: authenticate
+    name: "Authenticate with Azure"
+    ps_type: cloud.azure.authenticator
+    config:
+      provider: "AZURE"
+
+  - id: extract_costs
+    name: "Extract Cost Data"
+    ps_type: cloud.azure.cost_extractor
+    depends_on: [authenticate]
+    config:
+      date_filter: "{date}"
+      granularity: "Daily"
+
+  - id: load_to_bq
+    name: "Load to BigQuery"
+    ps_type: generic.bq_loader
+    depends_on: [extract_costs]
+    config:
+      destination_table: "{org_slug}_prod.azure_billing_cost_daily"
+      write_disposition: "WRITE_APPEND"
+      partition_field: "usage_date"

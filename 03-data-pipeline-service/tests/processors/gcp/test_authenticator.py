@@ -25,8 +25,8 @@ class TestGCPAuthenticator:
     @pytest.mark.asyncio
     async def test_authenticate_success(self, mock_settings, sample_sa_json):
         """Test successful GCP credential decryption."""
-        with patch("src.core.processors.gcp.authenticator.BigQueryClient") as MockBQClient, \
-             patch("src.core.processors.gcp.authenticator.decrypt_value") as mock_decrypt, \
+        with patch("src.core.processors.cloud.gcp.authenticator.BigQueryClient") as MockBQClient, \
+             patch("src.core.processors.cloud.gcp.authenticator.decrypt_value") as mock_decrypt, \
              patch("google.oauth2.service_account.Credentials.from_service_account_info") as mock_creds:
 
             # Setup BQ mock
@@ -49,7 +49,7 @@ class TestGCPAuthenticator:
             # Setup credentials mock
             mock_creds.return_value = MagicMock()
 
-            from src.core.processors.gcp.authenticator import GCPAuthenticator
+            from src.core.processors.cloud.gcp.authenticator import GCPAuthenticator
             auth = GCPAuthenticator("test_org_123")
             credentials = await auth.authenticate()
 
@@ -60,8 +60,8 @@ class TestGCPAuthenticator:
     @pytest.mark.asyncio
     async def test_authenticate_caches_credentials(self, mock_settings, sample_sa_json):
         """Test that credentials are cached after first call."""
-        with patch("src.core.processors.gcp.authenticator.BigQueryClient") as MockBQClient, \
-             patch("src.core.processors.gcp.authenticator.decrypt_value") as mock_decrypt, \
+        with patch("src.core.processors.cloud.gcp.authenticator.BigQueryClient") as MockBQClient, \
+             patch("src.core.processors.cloud.gcp.authenticator.decrypt_value") as mock_decrypt, \
              patch("google.oauth2.service_account.Credentials.from_service_account_info") as mock_creds:
 
             # Setup BQ mock
@@ -84,7 +84,7 @@ class TestGCPAuthenticator:
             # Setup credentials mock
             mock_creds.return_value = MagicMock()
 
-            from src.core.processors.gcp.authenticator import GCPAuthenticator
+            from src.core.processors.cloud.gcp.authenticator import GCPAuthenticator
             auth = GCPAuthenticator("test_org_123")
 
             # First call
@@ -99,7 +99,7 @@ class TestGCPAuthenticator:
     @pytest.mark.asyncio
     async def test_authenticate_no_credentials_found(self, mock_settings):
         """Test error when no credentials found in database."""
-        with patch("src.core.processors.gcp.authenticator.BigQueryClient") as MockBQClient:
+        with patch("src.core.processors.cloud.gcp.authenticator.BigQueryClient") as MockBQClient:
             mock_client = MagicMock()
             mock_result = MagicMock()
             mock_result.__iter__ = MagicMock(return_value=iter([]))
@@ -107,7 +107,7 @@ class TestGCPAuthenticator:
             mock_client.client.query.return_value.result.return_value = mock_result
             MockBQClient.return_value = mock_client
 
-            from src.core.processors.gcp.authenticator import GCPAuthenticator
+            from src.core.processors.cloud.gcp.authenticator import GCPAuthenticator
             auth = GCPAuthenticator("nonexistent_org")
 
             with pytest.raises(ValueError, match="No valid GCP credentials found"):
@@ -116,8 +116,8 @@ class TestGCPAuthenticator:
     @pytest.mark.asyncio
     async def test_validate_success(self, mock_settings, sample_sa_json):
         """Test successful validation."""
-        with patch("src.core.processors.gcp.authenticator.BigQueryClient") as MockBQClient, \
-             patch("src.core.processors.gcp.authenticator.decrypt_value") as mock_decrypt, \
+        with patch("src.core.processors.cloud.gcp.authenticator.BigQueryClient") as MockBQClient, \
+             patch("src.core.processors.cloud.gcp.authenticator.decrypt_value") as mock_decrypt, \
              patch("google.oauth2.service_account.Credentials.from_service_account_info") as mock_creds, \
              patch("google.cloud.bigquery.Client") as MockBQValidate:
 
@@ -146,7 +146,7 @@ class TestGCPAuthenticator:
             mock_bq.list_datasets.return_value = iter([MagicMock()])
             MockBQValidate.return_value = mock_bq
 
-            from src.core.processors.gcp.authenticator import GCPAuthenticator
+            from src.core.processors.cloud.gcp.authenticator import GCPAuthenticator
             auth = GCPAuthenticator("test_org_123")
             result = await auth.validate()
 
@@ -157,14 +157,14 @@ class TestGCPAuthenticator:
     @pytest.mark.asyncio
     async def test_validate_invalid_credentials(self, mock_settings):
         """Test validation failure with invalid credentials."""
-        with patch("src.core.processors.gcp.authenticator.BigQueryClient") as MockBQClient:
+        with patch("src.core.processors.cloud.gcp.authenticator.BigQueryClient") as MockBQClient:
             mock_client = MagicMock()
             mock_result = MagicMock()
             mock_result.__iter__ = MagicMock(return_value=iter([]))
             mock_client.client.query.return_value.result.return_value = mock_result
             MockBQClient.return_value = mock_client
 
-            from src.core.processors.gcp.authenticator import GCPAuthenticator
+            from src.core.processors.cloud.gcp.authenticator import GCPAuthenticator
             auth = GCPAuthenticator("test_org_123")
             result = await auth.validate()
 
@@ -174,8 +174,8 @@ class TestGCPAuthenticator:
     @pytest.mark.asyncio
     async def test_get_bigquery_client(self, mock_settings, sample_sa_json):
         """Test BigQuery client factory method."""
-        with patch("src.core.processors.gcp.authenticator.BigQueryClient") as MockBQClient, \
-             patch("src.core.processors.gcp.authenticator.decrypt_value") as mock_decrypt, \
+        with patch("src.core.processors.cloud.gcp.authenticator.BigQueryClient") as MockBQClient, \
+             patch("src.core.processors.cloud.gcp.authenticator.decrypt_value") as mock_decrypt, \
              patch("google.oauth2.service_account.Credentials.from_service_account_info") as mock_creds, \
              patch("google.cloud.bigquery.Client") as MockBQFactory:
 
@@ -199,7 +199,7 @@ class TestGCPAuthenticator:
             # Setup credentials mock
             mock_creds.return_value = MagicMock()
 
-            from src.core.processors.gcp.authenticator import GCPAuthenticator
+            from src.core.processors.cloud.gcp.authenticator import GCPAuthenticator
             auth = GCPAuthenticator("test_org_123")
             client = await auth.get_bigquery_client()
 
@@ -213,7 +213,7 @@ class TestGCPValidationProcessor:
     @pytest.mark.asyncio
     async def test_execute_success(self, mock_settings):
         """Test successful validation execution."""
-        with patch("src.core.processors.gcp.validation.GCPAuthenticator") as MockAuth:
+        with patch("src.core.processors.cloud.gcp.validation.GCPAuthenticator") as MockAuth:
             mock_auth = MagicMock()
             mock_auth.validate = AsyncMock(return_value={
                 "status": "VALID",
@@ -223,7 +223,7 @@ class TestGCPValidationProcessor:
             mock_auth.update_validation_status = AsyncMock()
             MockAuth.return_value = mock_auth
 
-            from src.core.processors.gcp.validation import GCPValidationProcessor
+            from src.core.processors.cloud.gcp.validation import GCPValidationProcessor
             processor = GCPValidationProcessor()
             result = await processor.execute(
                 step_config={},
@@ -236,7 +236,7 @@ class TestGCPValidationProcessor:
     @pytest.mark.asyncio
     async def test_execute_missing_org_slug(self, mock_settings):
         """Test error when org_slug is missing."""
-        from src.core.processors.gcp.validation import GCPValidationProcessor
+        from src.core.processors.cloud.gcp.validation import GCPValidationProcessor
 
         processor = GCPValidationProcessor()
         result = await processor.execute(

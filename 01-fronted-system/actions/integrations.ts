@@ -33,9 +33,23 @@ import { getOrgApiKeySecure } from "@/actions/backend-onboarding"
 // Types
 // ============================================
 
-export type IntegrationProvider = "openai" | "anthropic" | "gemini" | "deepseek" | "gcp" | "gcp_service_account"
+export type IntegrationProvider = "openai" | "anthropic" | "gemini" | "deepseek" | "gcp" | "gcp_service_account" | "aws" | "azure" | "oci"
 
-const VALID_PROVIDERS: IntegrationProvider[] = ["openai", "anthropic", "gemini", "deepseek", "gcp", "gcp_service_account"]
+// Cloud providers use the new cloud_provider_integrations table
+export type CloudProvider = "gcp" | "gcp_service_account" | "aws" | "azure" | "oci"
+
+// LLM providers use the organizations table columns
+export type LLMIntegrationProvider = "openai" | "anthropic" | "gemini" | "deepseek"
+
+const VALID_PROVIDERS: IntegrationProvider[] = ["openai", "anthropic", "gemini", "deepseek", "gcp", "gcp_service_account", "aws", "azure", "oci"]
+
+const CLOUD_PROVIDERS: CloudProvider[] = ["gcp", "gcp_service_account", "aws", "azure", "oci"]
+
+const LLM_PROVIDERS: LLMIntegrationProvider[] = ["openai", "anthropic", "gemini", "deepseek"]
+
+function isCloudProvider(provider: string): provider is CloudProvider {
+  return CLOUD_PROVIDERS.includes(provider.toLowerCase() as CloudProvider)
+}
 
 export interface SetupIntegrationInput {
   orgSlug: string
@@ -173,42 +187,76 @@ export async function setupIntegration(
     }
 
     // Step 2.5: Check if adding this integration would exceed the provider limit
-    // Only check if this is a NEW integration (not updating an existing one)
     const adminClient = createServiceRoleClient()
     const { data: orgData } = await adminClient
       .from("organizations")
-      .select("providers_limit, integration_openai_status, integration_anthropic_status, integration_gcp_status")
+      .select("id, providers_limit, integration_openai_status, integration_anthropic_status, integration_gemini_status, integration_deepseek_status, integration_gcp_status")
       .eq("org_slug", input.orgSlug)
       .single()
 
     if (orgData) {
-      const providersLimit = orgData.providers_limit || 3
+      const providersLimit = orgData.providers_limit || 10
 
-      // Map provider to status column
-      const providerStatusMap: Record<string, string | null> = {
-        openai: orgData.integration_openai_status,
-        anthropic: orgData.integration_anthropic_status,
-        gcp: orgData.integration_gcp_status,
-        gcp_service_account: orgData.integration_gcp_status,
+      // Count LLM integrations from organizations table
+      type OrgDataWithIntegrations = typeof orgData & {
+        integration_openai_status?: string | null
+        integration_anthropic_status?: string | null
+        integration_gemini_status?: string | null
+        integration_deepseek_status?: string | null
+        integration_gcp_status?: string | null
+      }
+      const orgWithIntegrations = orgData as OrgDataWithIntegrations
+
+      let configuredCount = 0
+
+      // Count LLM providers
+      const llmStatusMap: Record<string, string | null | undefined> = {
+        openai: orgWithIntegrations.integration_openai_status,
+        anthropic: orgWithIntegrations.integration_anthropic_status,
+        gemini: orgWithIntegrations.integration_gemini_status,
+        deepseek: orgWithIntegrations.integration_deepseek_status,
+      }
+
+      for (const status of Object.values(llmStatusMap)) {
+        if (status === 'VALID') configuredCount++
+      }
+
+      // Count cloud provider integrations from junction table
+      const { count: cloudCount } = await adminClient
+        .from("cloud_provider_integrations")
+        .select("*", { count: "exact", head: true })
+        .eq("org_id", orgData.id)
+        .eq("status", "VALID")
+        .eq("is_enabled", true)
+
+      configuredCount += cloudCount || 0
+
+      // GCP fallback from organizations table (if not in junction table yet)
+      if (orgWithIntegrations.integration_gcp_status === 'VALID' && (cloudCount || 0) === 0) {
+        configuredCount++
       }
 
       // Check if this provider is already configured
-      const isAlreadyConfigured = providerStatusMap[input.provider.toLowerCase()] === 'VALID'
+      let isAlreadyConfigured = false
+      if (isCloudProvider(input.provider)) {
+        const normalizedProvider = input.provider === "gcp_service_account" ? "gcp" : input.provider
+        const { data: existing } = await adminClient
+          .from("cloud_provider_integrations")
+          .select("id")
+          .eq("org_id", orgData.id)
+          .eq("provider", normalizedProvider)
+          .eq("status", "VALID")
+          .limit(1)
+        isAlreadyConfigured = (existing && existing.length > 0) || false
+      } else {
+        isAlreadyConfigured = llmStatusMap[input.provider.toLowerCase()] === 'VALID'
+      }
 
-      if (!isAlreadyConfigured) {
-        // Count currently configured providers
-        const configuredCount = [
-          orgData.integration_openai_status === 'VALID',
-          orgData.integration_anthropic_status === 'VALID',
-          orgData.integration_gcp_status === 'VALID',
-        ].filter(Boolean).length
-
-        if (configuredCount >= providersLimit) {
-          return {
-            success: false,
-            provider: input.provider,
-            error: `Integration limit reached (${configuredCount}/${providersLimit}). Upgrade your plan to add more integrations.`,
-          }
+      if (!isAlreadyConfigured && configuredCount >= providersLimit) {
+        return {
+          success: false,
+          provider: input.provider,
+          error: `Integration limit reached (${configuredCount}/${providersLimit}). Upgrade your plan to add more integrations.`,
         }
       }
     }
@@ -266,8 +314,8 @@ export async function setupIntegration(
 
 /**
  * Get all integration statuses for an organization.
- * Reads from Supabase integration status reference columns (frontend source of truth).
- * Falls back to defaults if columns don't exist yet (migration not run).
+ * - LLM providers: Reads from Supabase organizations table columns
+ * - Cloud providers: Reads from cloud_provider_integrations table
  *
  * SECURITY: Verifies user is authenticated and member of the organization.
  */
@@ -279,7 +327,6 @@ export async function getIntegrations(
   error?: string
 }> {
   // Default response when data is unavailable
-  // Use 'as const' to ensure proper type narrowing for status
   const defaultResponse = {
     success: true as const,
     integrations: {
@@ -290,6 +337,9 @@ export async function getIntegrations(
         GEMINI: { provider: "GEMINI", status: "NOT_CONFIGURED" as const },
         DEEPSEEK: { provider: "DEEPSEEK", status: "NOT_CONFIGURED" as const },
         GCP_SA: { provider: "GCP_SA", status: "NOT_CONFIGURED" as const },
+        AWS_IAM: { provider: "AWS_IAM", status: "NOT_CONFIGURED" as const },
+        AZURE: { provider: "AZURE", status: "NOT_CONFIGURED" as const },
+        OCI: { provider: "OCI", status: "NOT_CONFIGURED" as const },
       },
       all_valid: false,
       providers_configured: [] as string[],
@@ -308,10 +358,9 @@ export async function getIntegrations(
       return { success: false, error: authResult.error || "Not authorized" }
     }
 
-    // Read from Supabase integration status columns (frontend reference)
     const supabase = await createClient()
 
-    // First check if org exists with minimal query (no integration columns)
+    // Get org ID first
     const { data: orgExists, error: existsError } = await supabase
       .from("organizations")
       .select("id")
@@ -322,7 +371,7 @@ export async function getIntegrations(
       return defaultResponse
     }
 
-    // Try to get integration columns - they may not exist if migration not run
+    // Get LLM integrations from organizations table
     const { data: org, error: orgError } = await supabase
       .from("organizations")
       .select(`
@@ -345,20 +394,18 @@ export async function getIntegrations(
       .eq("org_slug", orgSlug)
       .single()
 
-    if (orgError) {
-      return defaultResponse
-    }
+    // Get cloud provider integrations from junction table (primary per provider)
+    const { data: cloudIntegrations, error: cloudError } = await supabase
+      .from("cloud_provider_integrations")
+      .select("*")
+      .eq("org_id", orgExists.id)
+      .eq("is_enabled", true)
+      .order("configured_at", { ascending: true })
 
-    if (!org) {
-      return defaultResponse
-    }
+    // Build integrations map
+    const integrations: Record<string, IntegrationStatus> = {}
 
-    // Build response from Supabase reference data
-    // Note: last_validated_at uses configured_at since validation happens at configuration time
-    // Use optional chaining to handle missing columns gracefully
-    // is_enabled defaults to true (enabled) unless explicitly disabled
-
-    // Helper to safely access optional properties
+    // LLM providers from organizations table
     type OrgDataWithOptionalIntegrations = typeof org & {
       integration_openai_enabled?: boolean
       integration_anthropic_enabled?: boolean
@@ -368,54 +415,97 @@ export async function getIntegrations(
       integration_deepseek_status?: string
       integration_deepseek_configured_at?: string
       integration_deepseek_enabled?: boolean
+      integration_gcp_status?: string
+      integration_gcp_configured_at?: string
       integration_gcp_enabled?: boolean
     }
 
-    const orgData = org as OrgDataWithOptionalIntegrations
+    const orgData = (org || {}) as OrgDataWithOptionalIntegrations
 
-    const integrations: Record<string, IntegrationStatus> = {
-      OPENAI: {
-        provider: "OPENAI",
-        status: (org?.integration_openai_status as IntegrationStatus["status"]) || "NOT_CONFIGURED",
-        created_at: org?.integration_openai_configured_at,
-        last_validated_at: org?.integration_openai_configured_at,
-        is_enabled: orgData?.integration_openai_enabled !== false,
-      },
-      ANTHROPIC: {
-        provider: "ANTHROPIC",
-        status: (org?.integration_anthropic_status as IntegrationStatus["status"]) || "NOT_CONFIGURED",
-        created_at: org?.integration_anthropic_configured_at,
-        last_validated_at: org?.integration_anthropic_configured_at,
-        is_enabled: orgData?.integration_anthropic_enabled !== false,
-      },
-      GEMINI: {
-        provider: "GEMINI",
-        status: (orgData?.integration_gemini_status as IntegrationStatus["status"]) || "NOT_CONFIGURED",
-        created_at: orgData?.integration_gemini_configured_at,
-        last_validated_at: orgData?.integration_gemini_configured_at,
-        is_enabled: orgData?.integration_gemini_enabled !== false,
-      },
-      DEEPSEEK: {
-        provider: "DEEPSEEK",
-        status: (orgData?.integration_deepseek_status as IntegrationStatus["status"]) || "NOT_CONFIGURED",
-        created_at: orgData?.integration_deepseek_configured_at,
-        last_validated_at: orgData?.integration_deepseek_configured_at,
-        is_enabled: orgData?.integration_deepseek_enabled !== false,
-      },
-      GCP_SA: {
+    integrations.OPENAI = {
+      provider: "OPENAI",
+      status: (orgData?.integration_openai_status as IntegrationStatus["status"]) || "NOT_CONFIGURED",
+      created_at: orgData?.integration_openai_configured_at,
+      last_validated_at: orgData?.integration_openai_configured_at,
+      is_enabled: orgData?.integration_openai_enabled !== false,
+    }
+    integrations.ANTHROPIC = {
+      provider: "ANTHROPIC",
+      status: (orgData?.integration_anthropic_status as IntegrationStatus["status"]) || "NOT_CONFIGURED",
+      created_at: orgData?.integration_anthropic_configured_at,
+      last_validated_at: orgData?.integration_anthropic_configured_at,
+      is_enabled: orgData?.integration_anthropic_enabled !== false,
+    }
+    integrations.GEMINI = {
+      provider: "GEMINI",
+      status: (orgData?.integration_gemini_status as IntegrationStatus["status"]) || "NOT_CONFIGURED",
+      created_at: orgData?.integration_gemini_configured_at,
+      last_validated_at: orgData?.integration_gemini_configured_at,
+      is_enabled: orgData?.integration_gemini_enabled !== false,
+    }
+    integrations.DEEPSEEK = {
+      provider: "DEEPSEEK",
+      status: (orgData?.integration_deepseek_status as IntegrationStatus["status"]) || "NOT_CONFIGURED",
+      created_at: orgData?.integration_deepseek_configured_at,
+      last_validated_at: orgData?.integration_deepseek_configured_at,
+      is_enabled: orgData?.integration_deepseek_enabled !== false,
+    }
+
+    // Cloud providers from junction table OR fallback to organizations columns (GCP only for backward compat)
+    // Map provider names to integration keys
+    const cloudProviderMap: Record<string, string> = {
+      gcp: "GCP_SA",
+      aws: "AWS_IAM",
+      azure: "AZURE",
+      oci: "OCI",
+    }
+
+    // Initialize cloud providers with defaults
+    integrations.GCP_SA = { provider: "GCP_SA", status: "NOT_CONFIGURED" as const }
+    integrations.AWS_IAM = { provider: "AWS_IAM", status: "NOT_CONFIGURED" as const }
+    integrations.AZURE = { provider: "AZURE", status: "NOT_CONFIGURED" as const }
+    integrations.OCI = { provider: "OCI", status: "NOT_CONFIGURED" as const }
+
+    // Override from cloud_provider_integrations table
+    if (cloudIntegrations && cloudIntegrations.length > 0) {
+      // Get first (primary) integration per provider
+      const primaryByProvider = new Map<string, typeof cloudIntegrations[0]>()
+      for (const integration of cloudIntegrations) {
+        if (!primaryByProvider.has(integration.provider)) {
+          primaryByProvider.set(integration.provider, integration)
+        }
+      }
+
+      for (const [provider, integration] of primaryByProvider) {
+        const key = cloudProviderMap[provider]
+        if (key) {
+          integrations[key] = {
+            provider: key,
+            status: (integration.status as IntegrationStatus["status"]) || "NOT_CONFIGURED",
+            created_at: integration.configured_at,
+            last_validated_at: integration.last_validated_at,
+            is_enabled: integration.is_enabled !== false,
+            credential_id: integration.credential_id,
+            credential_name: integration.credential_name,
+          }
+        }
+      }
+    } else if (orgData?.integration_gcp_status) {
+      // Fallback: GCP from organizations table (backward compat during migration)
+      integrations.GCP_SA = {
         provider: "GCP_SA",
-        status: (org?.integration_gcp_status as IntegrationStatus["status"]) || "NOT_CONFIGURED",
-        created_at: org?.integration_gcp_configured_at,
-        last_validated_at: org?.integration_gcp_configured_at,
-        is_enabled: orgData?.integration_gcp_enabled !== false,
-      },
+        status: (orgData.integration_gcp_status as IntegrationStatus["status"]) || "NOT_CONFIGURED",
+        created_at: orgData.integration_gcp_configured_at,
+        last_validated_at: orgData.integration_gcp_configured_at,
+        is_enabled: orgData.integration_gcp_enabled !== false,
+      }
     }
 
     const providersConfigured = Object.entries(integrations)
       .filter(([, v]) => v && v.status === "VALID")
       .map(([k]) => k)
 
-    const allValid = providersConfigured.length === 3
+    const allValid = providersConfigured.length >= 4 // At least 4 providers configured
 
     return {
       success: true,
@@ -427,7 +517,6 @@ export async function getIntegrations(
       },
     }
   } catch {
-    // Return defaults instead of error to prevent page crashes
     return defaultResponse
   }
 }
@@ -566,22 +655,38 @@ export async function deleteIntegration(
 // Helper: Save Integration Status to Supabase
 // ============================================
 
+/**
+ * Save integration status.
+ * - Cloud providers (gcp, aws, azure, oci) → cloud_provider_integrations table
+ * - LLM providers (openai, anthropic, etc.) → organizations table columns
+ */
 async function saveIntegrationStatus(
   orgSlug: string,
   provider: IntegrationProvider,
-  status: string
+  status: string,
+  options?: {
+    credentialId?: string
+    credentialName?: string
+    accountIdentifier?: string
+    billingAccountId?: string
+    metadata?: Record<string, unknown>
+    lastError?: string
+  }
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const adminClient = createServiceRoleClient()
 
-    // Map provider to column name
+    // Cloud providers use the new junction table
+    if (isCloudProvider(provider)) {
+      return await saveCloudIntegrationStatus(orgSlug, provider, status, options)
+    }
+
+    // LLM providers use the organizations table columns
     const columnMap: Record<string, string> = {
       openai: "integration_openai",
       anthropic: "integration_anthropic",
       gemini: "integration_gemini",
       deepseek: "integration_deepseek",
-      gcp: "integration_gcp",
-      gcp_service_account: "integration_gcp",
     }
 
     const columnPrefix = columnMap[provider]
@@ -605,6 +710,77 @@ async function saveIntegrationStatus(
 
     if (dbError) {
       return { success: false, error: dbError.message }
+    }
+
+    return { success: true }
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : "Unknown error"
+    return { success: false, error: errorMessage }
+  }
+}
+
+/**
+ * Save cloud provider integration status to junction table.
+ * Supports multiple credentials per provider.
+ */
+async function saveCloudIntegrationStatus(
+  orgSlug: string,
+  provider: CloudProvider,
+  status: string,
+  options?: {
+    credentialId?: string
+    credentialName?: string
+    accountIdentifier?: string
+    billingAccountId?: string
+    metadata?: Record<string, unknown>
+    lastError?: string
+  }
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const adminClient = createServiceRoleClient()
+
+    // Get org ID from slug
+    const { data: org, error: orgError } = await adminClient
+      .from("organizations")
+      .select("id")
+      .eq("org_slug", orgSlug)
+      .single()
+
+    if (orgError || !org) {
+      return { success: false, error: "Organization not found" }
+    }
+
+    // Normalize provider name (gcp_service_account -> gcp)
+    const normalizedProvider = provider === "gcp_service_account" ? "gcp" : provider
+
+    // Generate credential ID if not provided
+    const credentialId = options?.credentialId || `${normalizedProvider}_${Date.now()}`
+    const credentialName = options?.credentialName || `${normalizedProvider.toUpperCase()} Integration`
+
+    // Upsert integration record
+    const { error: upsertError } = await adminClient
+      .from("cloud_provider_integrations")
+      .upsert(
+        {
+          org_id: org.id,
+          credential_id: credentialId,
+          credential_name: credentialName,
+          provider: normalizedProvider,
+          status: status,
+          account_identifier: options?.accountIdentifier,
+          billing_account_id: options?.billingAccountId,
+          metadata: options?.metadata || {},
+          last_error: options?.lastError,
+          last_validated_at: status === "VALID" ? new Date().toISOString() : null,
+          configured_at: new Date().toISOString(),
+        },
+        {
+          onConflict: "org_id,credential_id",
+        }
+      )
+
+    if (upsertError) {
+      return { success: false, error: upsertError.message }
     }
 
     return { success: true }
@@ -1154,14 +1330,16 @@ export async function resetLLMSubscriptions(
 
 /**
  * Toggle an integration's enabled state.
- * This allows users to disable an integration without deleting it.
+ * - Cloud providers: Updates cloud_provider_integrations table
+ * - LLM providers: Updates organizations table columns
  *
  * SECURITY: Verifies user is authenticated and member of the organization.
  */
 export async function toggleIntegrationEnabled(
   orgSlug: string,
   provider: IntegrationProvider,
-  enabled: boolean
+  enabled: boolean,
+  credentialId?: string // Optional: for multi-credential cloud providers
 ): Promise<{
   success: boolean
   enabled?: boolean
@@ -1184,14 +1362,48 @@ export async function toggleIntegrationEnabled(
 
     const adminClient = createServiceRoleClient()
 
-    // Map provider to column name
+    // Cloud providers use the junction table
+    if (isCloudProvider(provider)) {
+      // Get org ID
+      const { data: org, error: orgError } = await adminClient
+        .from("organizations")
+        .select("id")
+        .eq("org_slug", orgSlug)
+        .single()
+
+      if (orgError || !org) {
+        return { success: false, error: "Organization not found" }
+      }
+
+      const normalizedProvider = provider === "gcp_service_account" ? "gcp" : provider
+
+      // Build query
+      let query = adminClient
+        .from("cloud_provider_integrations")
+        .update({ is_enabled: enabled })
+        .eq("org_id", org.id)
+        .eq("provider", normalizedProvider)
+
+      // If credentialId provided, update specific credential; otherwise update primary
+      if (credentialId) {
+        query = query.eq("credential_id", credentialId)
+      }
+
+      const { error } = await query
+
+      if (error) {
+        return { success: false, error: "Failed to update cloud integration state" }
+      }
+
+      return { success: true, enabled }
+    }
+
+    // LLM providers use organizations table columns
     const columnMap: Record<string, string> = {
       openai: "integration_openai",
       anthropic: "integration_anthropic",
       gemini: "integration_gemini",
       deepseek: "integration_deepseek",
-      gcp: "integration_gcp",
-      gcp_service_account: "integration_gcp",
     }
 
     const columnPrefix = columnMap[provider]
@@ -1221,6 +1433,146 @@ export async function toggleIntegrationEnabled(
   }
 }
 
+// ============================================
+// Cloud Provider Integration Management
+// ============================================
+
+export interface CloudIntegration {
+  id: string
+  credential_id: string
+  credential_name: string
+  provider: string
+  account_identifier?: string
+  billing_account_id?: string
+  status: string
+  last_validated_at?: string
+  last_error?: string
+  is_enabled: boolean
+  configured_at: string
+  metadata?: Record<string, unknown>
+}
+
+/**
+ * Get all cloud provider integrations for an organization.
+ * Returns all credentials for all cloud providers (for future multi-credential UI).
+ *
+ * SECURITY: Verifies user is authenticated and member of the organization.
+ */
+export async function getCloudIntegrations(
+  orgSlug: string,
+  provider?: CloudProvider
+): Promise<{
+  success: boolean
+  integrations?: CloudIntegration[]
+  error?: string
+}> {
+  try {
+    if (!isValidOrgSlug(orgSlug)) {
+      return { success: false, error: "Invalid organization slug format" }
+    }
+
+    // Verify authentication and authorization
+    const authResult = await verifyOrgMembership(orgSlug)
+    if (!authResult.authorized) {
+      return { success: false, error: authResult.error || "Not authorized" }
+    }
+
+    const supabase = await createClient()
+
+    // Get org ID
+    const { data: org, error: orgError } = await supabase
+      .from("organizations")
+      .select("id")
+      .eq("org_slug", orgSlug)
+      .single()
+
+    if (orgError || !org) {
+      return { success: false, error: "Organization not found" }
+    }
+
+    // Build query
+    let query = supabase
+      .from("cloud_provider_integrations")
+      .select("*")
+      .eq("org_id", org.id)
+      .order("provider")
+      .order("configured_at", { ascending: true })
+
+    if (provider) {
+      const normalizedProvider = provider === "gcp_service_account" ? "gcp" : provider
+      query = query.eq("provider", normalizedProvider)
+    }
+
+    const { data: integrations, error } = await query
+
+    if (error) {
+      return { success: false, error: error.message }
+    }
+
+    return {
+      success: true,
+      integrations: integrations as CloudIntegration[],
+    }
+  } catch (err: unknown) {
+    const errorMessage = err instanceof Error ? err.message : "Failed to get cloud integrations"
+    return { success: false, error: errorMessage }
+  }
+}
+
+/**
+ * Delete a specific cloud provider integration.
+ *
+ * SECURITY: Verifies user is authenticated and member of the organization.
+ */
+export async function deleteCloudIntegration(
+  orgSlug: string,
+  credentialId: string
+): Promise<{
+  success: boolean
+  error?: string
+}> {
+  try {
+    if (!isValidOrgSlug(orgSlug)) {
+      return { success: false, error: "Invalid organization slug format" }
+    }
+
+    // Verify authentication and authorization
+    const authResult = await verifyOrgMembership(orgSlug)
+    if (!authResult.authorized) {
+      return { success: false, error: authResult.error || "Not authorized" }
+    }
+
+    const adminClient = createServiceRoleClient()
+
+    // Get org ID
+    const { data: org, error: orgError } = await adminClient
+      .from("organizations")
+      .select("id")
+      .eq("org_slug", orgSlug)
+      .single()
+
+    if (orgError || !org) {
+      return { success: false, error: "Organization not found" }
+    }
+
+    // Delete the integration
+    const { error } = await adminClient
+      .from("cloud_provider_integrations")
+      .delete()
+      .eq("org_id", org.id)
+      .eq("credential_id", credentialId)
+
+    if (error) {
+      return { success: false, error: error.message }
+    }
+
+    return { success: true }
+  } catch (err: unknown) {
+    const errorMessage = err instanceof Error ? err.message : "Failed to delete cloud integration"
+    return { success: false, error: errorMessage }
+  }
+}
+
 // Re-export types for use in components
 export type {
   LLMPricing,
@@ -1229,5 +1581,6 @@ export type {
   SaaSSubscription,
   SaaSSubscriptionCreate,
   SaaSSubscriptionUpdate,
-  LLMProvider
+  LLMProvider,
+  CloudProvider
 }

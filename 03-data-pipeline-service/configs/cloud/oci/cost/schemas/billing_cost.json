@@ -1,0 +1,190 @@
+{
+  "description": "OCI Cost Analysis schema for BigQuery destination tables",
+  "schemas": {
+    "oci_billing_cost": {
+      "description": "OCI Usage API cost data schema with key metrics",
+      "fields": [
+        {
+          "name": "usage_date",
+          "type": "DATE",
+          "mode": "REQUIRED",
+          "description": "Date of usage - partition key"
+        },
+        {
+          "name": "org_slug",
+          "type": "STRING",
+          "mode": "REQUIRED",
+          "description": "Organization identifier"
+        },
+        {
+          "name": "provider",
+          "type": "STRING",
+          "mode": "REQUIRED",
+          "description": "Cloud provider (oci)"
+        },
+        {
+          "name": "tenancy_ocid",
+          "type": "STRING",
+          "mode": "REQUIRED",
+          "description": "OCI Tenancy OCID"
+        },
+        {
+          "name": "compartment_id",
+          "type": "STRING",
+          "mode": "NULLABLE",
+          "description": "Compartment OCID"
+        },
+        {
+          "name": "compartment_name",
+          "type": "STRING",
+          "mode": "NULLABLE",
+          "description": "Compartment name"
+        },
+        {
+          "name": "compartment_path",
+          "type": "STRING",
+          "mode": "NULLABLE",
+          "description": "Full compartment path"
+        },
+        {
+          "name": "service",
+          "type": "STRING",
+          "mode": "NULLABLE",
+          "description": "OCI service name (e.g., COMPUTE)"
+        },
+        {
+          "name": "resource_id",
+          "type": "STRING",
+          "mode": "NULLABLE",
+          "description": "Resource OCID"
+        },
+        {
+          "name": "resource_name",
+          "type": "STRING",
+          "mode": "NULLABLE",
+          "description": "Resource name"
+        },
+        {
+          "name": "region",
+          "type": "STRING",
+          "mode": "NULLABLE",
+          "description": "OCI region (e.g., us-ashburn-1)"
+        },
+        {
+          "name": "availability_domain",
+          "type": "STRING",
+          "mode": "NULLABLE",
+          "description": "Availability domain"
+        },
+        {
+          "name": "sku_name",
+          "type": "STRING",
+          "mode": "NULLABLE",
+          "description": "SKU name"
+        },
+        {
+          "name": "sku_part_number",
+          "type": "STRING",
+          "mode": "NULLABLE",
+          "description": "SKU part number"
+        },
+        {
+          "name": "usage_amount",
+          "type": "FLOAT64",
+          "mode": "NULLABLE",
+          "description": "Usage quantity"
+        },
+        {
+          "name": "usage_unit",
+          "type": "STRING",
+          "mode": "NULLABLE",
+          "description": "Unit of usage"
+        },
+        {
+          "name": "computed_amount",
+          "type": "FLOAT64",
+          "mode": "REQUIRED",
+          "description": "Computed cost - primary cost metric"
+        },
+        {
+          "name": "computed_quantity",
+          "type": "FLOAT64",
+          "mode": "NULLABLE",
+          "description": "Computed quantity"
+        },
+        {
+          "name": "currency",
+          "type": "STRING",
+          "mode": "NULLABLE",
+          "description": "Billing currency"
+        },
+        {
+          "name": "unit_price",
+          "type": "FLOAT64",
+          "mode": "NULLABLE",
+          "description": "Unit price"
+        },
+        {
+          "name": "overages_flag",
+          "type": "BOOLEAN",
+          "mode": "NULLABLE",
+          "description": "Whether this is overage usage"
+        },
+        {
+          "name": "is_forecast",
+          "type": "BOOLEAN",
+          "mode": "NULLABLE",
+          "description": "Whether this is forecast data"
+        },
+        {
+          "name": "subscription_id",
+          "type": "STRING",
+          "mode": "NULLABLE",
+          "description": "OCI subscription ID"
+        },
+        {
+          "name": "tags_json",
+          "type": "STRING",
+          "mode": "NULLABLE",
+          "description": "Resource tags as JSON"
+        },
+        {
+          "name": "ingestion_timestamp",
+          "type": "TIMESTAMP",
+          "mode": "REQUIRED",
+          "description": "When this record was ingested"
+        },
+        {
+          "name": "x_pipeline_id",
+          "type": "STRING",
+          "mode": "REQUIRED",
+          "description": "Pipeline template name. Example: cloud_cost_oci"
+        },
+        {
+          "name": "x_credential_id",
+          "type": "STRING",
+          "mode": "REQUIRED",
+          "description": "Credential ID from org_integration_credentials. KEY for multi-account isolation"
+        },
+        {
+          "name": "x_pipeline_run_date",
+          "type": "DATE",
+          "mode": "REQUIRED",
+          "description": "The DATA date being processed. KEY for idempotent re-runs"
+        },
+        {
+          "name": "x_run_id",
+          "type": "STRING",
+          "mode": "REQUIRED",
+          "description": "Unique pipeline run UUID for full traceability"
+        },
+        {
+          "name": "x_ingested_at",
+          "type": "TIMESTAMP",
+          "mode": "REQUIRED",
+          "description": "Timestamp when data was written to this table"
+        }
+      ]
+    }
+  }
+}
