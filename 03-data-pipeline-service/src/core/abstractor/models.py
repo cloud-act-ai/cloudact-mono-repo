@@ -192,6 +192,15 @@ class DataQualitySourceConfig(BaseModel):
     table: str = Field(..., description="Table name to validate")
 
 
+class RetryConfig(BaseModel):
+    """Issue #12: Retry configuration for pipeline steps."""
+    max_attempts: int = Field(default=3, ge=1, le=10, description="Maximum retry attempts")
+    backoff_seconds: int = Field(default=30, ge=1, le=3600, description="Backoff time between retries in seconds")
+    exponential_backoff: bool = Field(default=False, description="Use exponential backoff")
+
+    model_config = ConfigDict(extra="forbid")
+
+
 class PipelineStepConfig(BaseModel):
     """Single pipeline step configuration."""
     step_id: str = Field(..., description="Unique step identifier")
@@ -228,6 +237,8 @@ class PipelineStepConfig(BaseModel):
 
     # Step configuration
     timeout_minutes: int = Field(default=10, ge=1, le=120, description="Step timeout in minutes")
+    timeout_seconds: Optional[int] = Field(None, ge=60, le=7200, description="Issue #12: Step timeout in seconds (alternative to timeout_minutes)")
+    retry: Optional[RetryConfig] = Field(None, description="Issue #12: Retry configuration for this step")
     on_failure: OnFailure = Field(default=OnFailure.STOP, description="Failure handling strategy")
     depends_on: List[str] = Field(default_factory=list, description="List of step IDs this step depends on")
     metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
@@ -268,17 +279,58 @@ class PipelineStepConfig(BaseModel):
     model_config = ConfigDict(use_enum_values=True, extra="allow")
 
 
+class ScheduleConfig(BaseModel):
+    """Issue #12: Schedule configuration for pipelines."""
+    cron: str = Field(..., description="Cron expression (e.g., '0 2 * * *')")
+    timezone: str = Field(default="UTC", description="Timezone for schedule")
+    enabled: bool = Field(default=True, description="Whether schedule is enabled")
+
+    @field_validator("cron")
+    @classmethod
+    def validate_cron(cls, v: str) -> str:
+        """Validate cron expression format."""
+        import re
+        # Basic cron format validation (5 fields: minute hour day month weekday)
+        if not re.match(r'^[\d\*,\-/]+(\s+[\d\*,\-/]+){4}$', v.strip()):
+            raise ValueError(f"Invalid cron expression format: {v}")
+        return v.strip()
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class NotificationsConfig(BaseModel):
+    """Issue #12: Pipeline notifications configuration."""
+    on_failure: List[str] = Field(default_factory=list, description="Notification channels on failure (e.g., 'email', 'slack')")
+    on_success: List[str] = Field(default_factory=list, description="Notification channels on success")
+
+    @field_validator("on_failure", "on_success")
+    @classmethod
+    def validate_notification_channels(cls, v: List[str]) -> List[str]:
+        """Validate notification channels are valid."""
+        valid_channels = {"email", "slack", "pagerduty", "webhook"}
+        for channel in v:
+            if channel.lower() not in valid_channels:
+                raise ValueError(f"Invalid notification channel: {channel}. Valid: {valid_channels}")
+        return [c.lower() for c in v]
+
+    model_config = ConfigDict(extra="forbid")
+
+
 class PipelineConfig(BaseModel):
     """Complete pipeline configuration."""
     pipeline_id: str = Field(..., description="Unique pipeline identifier", min_length=1)
+    name: Optional[str] = Field(None, description="Issue #12: Human-readable pipeline name")
     description: Optional[str] = Field(None, description="Pipeline description")
+    provider: Optional[str] = Field(None, description="Issue #12: Provider name (e.g., 'genai', 'gcp')")
+    domain: Optional[str] = Field(None, description="Issue #12: Domain name (e.g., 'payg', 'commitment')")
     version: Optional[str] = Field(None, description="Pipeline version")
-    schedule: Optional[str | Dict[str, Any]] = Field(None, description="Cron expression or schedule config")
+    schedule: Optional[str | Dict[str, Any] | ScheduleConfig] = Field(None, description="Cron expression or schedule config")
     steps: List[PipelineStepConfig] = Field(..., min_length=1, description="Pipeline steps (at least 1 required)")
     timeout_minutes: int = Field(default=30, ge=1, le=1440, description="Pipeline timeout in minutes")
     timeout_seconds: int = Field(default=3600, ge=60, description="Pipeline timeout in seconds (deprecated)")
     retry_attempts: int = Field(default=3, ge=0, le=10, description="Number of retry attempts on failure")
     parameters: Dict[str, Any] = Field(default_factory=dict, description="Runtime parameters")
+    notifications: Optional[NotificationsConfig] = Field(None, description="Issue #12: Notification configuration")
 
     @field_validator("pipeline_id")
     @classmethod

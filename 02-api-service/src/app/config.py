@@ -493,7 +493,12 @@ class Settings(BaseSettings):
     )
     email_smtp_password: Optional[str] = Field(
         default=None,
-        description="SMTP password (root configuration)"
+        description=(
+            "SMTP password (root configuration). "
+            "SECURITY WARNING: In production, use Secret Manager reference instead of plaintext. "
+            "Format: 'secretmanager://projects/{project}/secrets/{name}/versions/latest' "
+            "or use SMTP_PASSWORD_SECRET_NAME env var pointing to Secret Manager secret."
+        )
     )
     email_from_address: Optional[str] = Field(
         default=None,
@@ -672,6 +677,25 @@ class Settings(BaseSettings):
     def is_development(self) -> bool:
         """Check if running in development environment."""
         return self.environment == "development"
+
+    def check_smtp_password_security(self) -> None:
+        """
+        SECURITY FIX #8: Check if SMTP password is configured securely.
+
+        In production, SMTP passwords should use Secret Manager reference.
+        Logs a warning if plaintext password is detected.
+        """
+        if self.email_smtp_password and self.is_production:
+            # Check if it's a Secret Manager reference
+            if not self.email_smtp_password.startswith("secretmanager://"):
+                import warnings
+                warnings.warn(
+                    "SECURITY WARNING: SMTP password is configured as plaintext in production. "
+                    "Use Secret Manager reference instead: "
+                    "'secretmanager://projects/{project}/secrets/{name}/versions/latest' "
+                    "or set SMTP_PASSWORD_SECRET_NAME environment variable.",
+                    SecurityWarning
+                )
 
     def get_org_config_path(self, org_slug: str) -> str:
         """Get the base configuration path for an organization."""

@@ -5,19 +5,98 @@ Validates and stores integration credentials encrypted via GCP KMS.
 Supports all providers defined in configs/system/providers.yml.
 
 To add a new provider: just update providers.yml - no code changes needed.
+
+SECURITY NOTES:
+- Credentials are stored with expiration policy (SECURITY FIX #6)
+- Error messages are sanitized to prevent metadata leakage (SECURITY FIX #7)
+- Audit logging is performed for all credential operations
 """
 
 import json
 import logging
+import re
 import uuid
-from datetime import datetime
-from typing import Dict, Any
+from datetime import datetime, timedelta
+from typing import Dict, Any, Optional
 from google.cloud import bigquery
 
 from src.core.engine.bq_client import BigQueryClient
 from src.core.security.kms_encryption import encrypt_value
 from src.core.providers import provider_registry, validate_credential, validate_credential_format
 from src.app.config import get_settings
+
+
+# SECURITY FIX #6: Default credential expiration (90 days)
+DEFAULT_CREDENTIAL_EXPIRATION_DAYS = 90
+
+# Warning threshold before expiration (14 days)
+EXPIRATION_WARNING_DAYS = 14
+
+
+def sanitize_error_message(error: Exception) -> str:
+    """
+    SECURITY FIX #7: Sanitize exception messages before storing/returning.
+
+    Removes potentially sensitive information like:
+    - File paths
+    - IP addresses
+    - API endpoints
+    - Stack traces
+    - Internal service names
+
+    Args:
+        error: The exception to sanitize
+
+    Returns:
+        Sanitized error message
+    """
+    message = str(error)
+
+    # Remove file paths (Unix and Windows)
+    message = re.sub(r'(/[a-zA-Z0-9_.\-/]+)+', '[PATH]', message)
+    message = re.sub(r'([A-Za-z]:\\[a-zA-Z0-9_.\-\\]+)+', '[PATH]', message)
+
+    # Remove IP addresses
+    message = re.sub(r'\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b', '[IP]', message)
+
+    # Remove URLs
+    message = re.sub(r'https?://[^\s<>"{}|\\^`\[\]]+', '[URL]', message)
+
+    # Remove potential API keys/tokens (long alphanumeric strings)
+    message = re.sub(r'\b[A-Za-z0-9_-]{32,}\b', '[REDACTED]', message)
+
+    # Remove project IDs that look like GCP project IDs
+    message = re.sub(r'\b[a-z][a-z0-9-]{4,28}[a-z0-9]\b', '[PROJECT]', message)
+
+    # Truncate to reasonable length
+    max_length = 500
+    if len(message) > max_length:
+        message = message[:max_length] + "... [truncated]"
+
+    return message
+
+
+def get_generic_error_code(error: Exception) -> str:
+    """
+    SECURITY FIX #7: Map exceptions to generic error codes.
+
+    Returns:
+        Generic error code for the exception type
+    """
+    error_type = type(error).__name__
+
+    error_codes = {
+        "ConnectionError": "CONN_001",
+        "TimeoutError": "TIMEOUT_001",
+        "AuthenticationError": "AUTH_001",
+        "PermissionError": "PERM_001",
+        "ValueError": "INVALID_001",
+        "KeyError": "MISSING_001",
+        "TypeError": "TYPE_001",
+        "JSONDecodeError": "FORMAT_001",
+    }
+
+    return error_codes.get(error_type, "INTERNAL_001")
 
 
 class KMSStoreIntegrationProcessor:
@@ -147,7 +226,8 @@ class KMSStoreIntegrationProcessor:
             except Exception as e:
                 self.logger.error(f"Credential validation error: {e}", exc_info=True)
                 validation_status = "INVALID"
-                validation_error = str(e)
+                # SECURITY FIX #7: Sanitize error message
+                validation_error = sanitize_error_message(e)
 
         # Step 3: Encrypt credential using KMS
         try:
@@ -155,9 +235,11 @@ class KMSStoreIntegrationProcessor:
             self.logger.info(f"Credential encrypted successfully for {org_slug}/{provider}")
         except Exception as e:
             self.logger.error(f"KMS encryption failed: {e}", exc_info=True)
+            # SECURITY FIX #7: Return generic error, log detailed one
             return {
                 "status": "FAILED",
-                "error": f"KMS encryption failed: {str(e)}",
+                "error": "Encryption failed. Please try again or contact support.",
+                "error_code": get_generic_error_code(e),
                 "provider": provider
             }
 
@@ -191,15 +273,19 @@ class KMSStoreIntegrationProcessor:
             # Use PARSE_JSON for the metadata field since BigQuery JSON columns require it
             metadata_json_str = json.dumps(metadata) if metadata else "{}"
 
+            # SECURITY FIX #6: Calculate expiration date
+            expiration_days = config.get("expiration_days", DEFAULT_CREDENTIAL_EXPIRATION_DAYS)
+            expires_at = datetime.utcnow() + timedelta(days=expiration_days)
+
             insert_query = f"""
             INSERT INTO `{self.settings.gcp_project_id}.organizations.org_integration_credentials`
             (credential_id, org_slug, provider, credential_name, encrypted_credential,
              credential_type, validation_status, last_validated_at, last_error,
-             metadata, is_active, created_by_user_id, created_at, updated_at)
+             metadata, is_active, created_by_user_id, created_at, updated_at, expires_at)
             VALUES
             (@credential_id, @org_slug, @provider, @credential_name, @encrypted_credential,
              @credential_type, @validation_status, @last_validated_at, @last_error,
-             PARSE_JSON(@metadata), TRUE, @user_id, CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP())
+             PARSE_JSON(@metadata), TRUE, @user_id, CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP(), @expires_at)
             """
 
             job_config = bigquery.QueryJobConfig(
@@ -215,6 +301,7 @@ class KMSStoreIntegrationProcessor:
                     bigquery.ScalarQueryParameter("last_error", "STRING", validation_error),
                     bigquery.ScalarQueryParameter("metadata", "STRING", metadata_json_str),
                     bigquery.ScalarQueryParameter("user_id", "STRING", user_id),
+                    bigquery.ScalarQueryParameter("expires_at", "TIMESTAMP", expires_at),
                 ],
                 job_timeout_ms=60000  # 60 seconds for integration ops
             )
@@ -227,7 +314,8 @@ class KMSStoreIntegrationProcessor:
                     "org_slug": org_slug,
                     "provider": provider,
                     "credential_id": credential_id,
-                    "validation_status": validation_status
+                    "validation_status": validation_status,
+                    "expires_at": expires_at.isoformat(),  # SECURITY FIX #6
                 }
             )
 
@@ -237,14 +325,17 @@ class KMSStoreIntegrationProcessor:
                 "provider": provider,
                 "validation_status": validation_status,
                 "validation_error": validation_error,
+                "expires_at": expires_at.isoformat(),  # SECURITY FIX #6
                 "message": f"Integration credential stored for {provider}"
             }
 
         except Exception as e:
             self.logger.error(f"Failed to store credential: {e}", exc_info=True)
+            # SECURITY FIX #7: Return sanitized error
             return {
                 "status": "FAILED",
-                "error": f"Failed to store credential: {str(e)}",
+                "error": "Failed to store credential. Please try again or contact support.",
+                "error_code": get_generic_error_code(e),
                 "provider": provider
             }
 

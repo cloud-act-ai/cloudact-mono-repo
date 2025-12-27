@@ -9,12 +9,47 @@ const supabaseAdmin = createClient(
   { auth: { autoRefreshToken: false, persistSession: false } }
 )
 
+// Simple rate limiting for password reset (per IP)
+const resetRateLimits = new Map<string, { count: number; resetAt: number }>()
+const MAX_RESETS_PER_HOUR = 5
+
+function checkResetRateLimit(ip: string): boolean {
+  const now = Date.now()
+  const record = resetRateLimits.get(ip)
+
+  if (!record || now > record.resetAt) {
+    resetRateLimits.set(ip, { count: 1, resetAt: now + 3600000 }) // 1 hour
+    return true
+  }
+
+  if (record.count >= MAX_RESETS_PER_HOUR) {
+    return false
+  }
+
+  record.count++
+  return true
+}
+
+// Email validation
+const isValidEmail = (email: string): boolean => {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && email.length <= 254
+}
+
 export async function POST(request: NextRequest) {
   try {
+    // Rate limit by IP
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0] || "unknown"
+    if (!checkResetRateLimit(ip)) {
+      return NextResponse.json(
+        { error: "Too many password reset requests. Please try again later." },
+        { status: 429 }
+      )
+    }
+
     const { email } = await request.json()
 
-    if (!email) {
-      return NextResponse.json({ error: "Email is required" }, { status: 400 })
+    if (!email || !isValidEmail(email)) {
+      return NextResponse.json({ error: "Valid email is required" }, { status: 400 })
     }
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"

@@ -72,6 +72,55 @@ providers:
     retry_backoff_seconds: 2
     rate_limit_per_minute: 60
 
+  GEMINI:
+    type: llm
+    credential_type: API_KEY
+    display_name: "Google Gemini API Key"
+    context_key: gemini_api_key
+    api_base_url: "https://generativelanguage.googleapis.com/v1beta"
+    validation_endpoint: "/models"
+    auth_header: ""  # Gemini uses query param for API key
+    auth_prefix: ""
+    auth_query_param: "key"  # API key passed as ?key=xxx
+    key_prefix: "AIza"  # Google API keys start with AIza
+    # Validation configuration
+    validation_model: "gemini-1.5-flash"  # Fast model for validation
+    # Retry and rate limiting
+    max_retries: 3
+    retry_backoff_seconds: 2
+    rate_limit_per_minute: 60
+    # LLM data tables config
+    data_tables:
+      pricing_table: gemini_model_pricing
+      subscriptions_table: gemini_subscriptions
+      seed_path: configs/gemini/seed
+      pricing_schema: gemini_model_pricing.json
+      subscriptions_schema: gemini_subscriptions.json
+
+  DEEPSEEK:
+    type: llm
+    credential_type: API_KEY
+    display_name: "DeepSeek API Key"
+    context_key: deepseek_api_key
+    api_base_url: "https://api.deepseek.com"
+    validation_endpoint: "/models"
+    auth_header: "Authorization"
+    auth_prefix: "Bearer "
+    key_prefix: "sk-"  # DeepSeek API keys start with sk-
+    # Validation configuration
+    validation_model: "deepseek-chat"  # Model used for lightweight validation calls
+    # Retry and rate limiting
+    max_retries: 3
+    retry_backoff_seconds: 2
+    rate_limit_per_minute: 60
+    # LLM data tables config
+    data_tables:
+      pricing_table: deepseek_model_pricing
+      subscriptions_table: deepseek_subscriptions
+      seed_path: configs/deepseek/seed
+      pricing_schema: deepseek_model_pricing.json
+      subscriptions_schema: deepseek_subscriptions.json
+
   # Cloud Providers
   GCP_SA:
     type: cloud
@@ -103,12 +152,16 @@ provider_groups:
     - OPENAI
     - ANTHROPIC
     - CLAUDE  # Include CLAUDE alias in LLM group
+    - GEMINI
+    - DEEPSEEK
   cloud:
     - GCP_SA
   all:
     - OPENAI
     - ANTHROPIC
     - CLAUDE
+    - GEMINI
+    - DEEPSEEK
     - GCP_SA
 
 # Provider aliases (for normalization)
@@ -117,6 +170,9 @@ aliases:
   openai: OPENAI
   anthropic: ANTHROPIC
   claude: CLAUDE
+  gemini: GEMINI
+  google: GEMINI
+  deepseek: DEEPSEEK
   gcp: GCP_SA
   gcp_sa: GCP_SA
 

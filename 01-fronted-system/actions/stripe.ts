@@ -176,7 +176,6 @@ export async function createOnboardingCheckoutSession(priceId: string) {
       if (process.env.NODE_ENV === "development") {
         origin = "http://localhost:3000"
       } else {
-        console.error("[v0] No origin or NEXT_PUBLIC_APP_URL configured")
         return { url: null, error: "Application URL not configured. Please contact support." }
       }
     }
@@ -188,8 +187,6 @@ export async function createOnboardingCheckoutSession(priceId: string) {
 
     // Remove any trailing slashes or extra spaces
     origin = origin.trim().replace(/\/+$/, "")
-
-    console.log("[v0] Using origin:", origin)
 
     // Generate idempotency key to prevent duplicate sessions
     // NOTE: Do NOT include Date.now() - it defeats idempotency by creating unique keys per request
@@ -481,12 +478,10 @@ export async function getBillingInfo(orgSlug: string): Promise<{ data: BillingIn
           subscription = await stripe.subscriptions.retrieve(subscriptions.data[0].id, {
             expand: ["default_payment_method", "items.data.price.product"],
           })
-          console.log("[v0] Found subscription by customer ID (webhook may have missed):", subscription.id)
         }
       }
-    } catch (subError: unknown) {
-      const errorMessage = subError instanceof Error ? subError.message : "Unknown error"
-      console.error("[v0] Error fetching subscription:", errorMessage)
+    } catch {
+      // Subscription fetch failed - continue with null subscription
     }
 
     if (subscription) {
@@ -494,10 +489,7 @@ export async function getBillingInfo(orgSlug: string): Promise<{ data: BillingIn
         const priceItem = subscription.items.data[0]?.price
         const product = priceItem?.product
 
-        // Validate priceItem exists before using it
-        if (!priceItem) {
-          console.warn("[v0] Subscription has no price item, using org defaults")
-        }
+        // priceItem may be null - use org defaults in that case
 
         // Get plan info from Stripe price/product (single source of truth)
         // Use same logic as webhook: plan_id metadata OR lowercase product name
@@ -549,9 +541,8 @@ export async function getBillingInfo(orgSlug: string): Promise<{ data: BillingIn
             }
           }
         }
-      } catch (subError: unknown) {
-        const errorMessage = subError instanceof Error ? subError.message : "Unknown error"
-        console.error("[v0] Error fetching subscription:", errorMessage)
+      } catch {
+        // Error processing subscription details - subscription remains with partial data
       }
     }
 
@@ -573,15 +564,13 @@ export async function getBillingInfo(orgSlug: string): Promise<{ data: BillingIn
         hostedInvoiceUrl: inv.hosted_invoice_url ?? null,
         invoicePdf: inv.invoice_pdf ?? null,
       }))
-    } catch (invError: unknown) {
-      const errorMessage = invError instanceof Error ? invError.message : "Unknown error"
-      console.error("[v0] Error fetching invoices:", errorMessage)
+    } catch {
+      // Invoice fetch failed - return partial billing info without invoices
     }
 
     return { data: billingInfo, error: null }
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Failed to fetch billing info"
-    console.error("[v0] getBillingInfo error:", error)
     return { data: null, error: errorMessage }
   }
 }
@@ -592,7 +581,6 @@ export async function createBillingPortalSession(orgSlug: string): Promise<{ url
   try {
     // Validate orgSlug format (prevent path traversal/injection)
     if (!isValidOrgSlug(orgSlug)) {
-      console.error("[v0] Invalid org slug format in createBillingPortalSession")
       return { url: null, error: "Invalid organization" }
     }
 
@@ -642,7 +630,6 @@ export async function createBillingPortalSession(orgSlug: string): Promise<{ url
       if (process.env.NODE_ENV === "development") {
         origin = "http://localhost:3000"
       } else {
-        console.error("[v0] No origin or NEXT_PUBLIC_APP_URL configured")
         return { url: null, error: "Application URL not configured. Please contact support." }
       }
     }
@@ -667,14 +654,11 @@ export async function createBillingPortalSession(orgSlug: string): Promise<{ url
 
     // Validate that the session URL was generated
     if (!session.url) {
-      console.error("[v0] Billing portal session created but no URL returned")
       return { url: null, error: "Failed to create billing portal session. Please try again." }
     }
 
-    console.log("[v0] Billing portal session created:", session.id)
     return { url: session.url, error: null }
-  } catch (error: unknown) {
-    console.error("[v0] createBillingPortalSession error:", error)
+  } catch {
     return { url: null, error: "Unable to access billing portal. Please try again or contact support if the issue persists." }
   }
 }
@@ -710,11 +694,8 @@ export async function changeSubscriptionPlan(
   try {
     // Validate orgSlug format (prevent path traversal/injection)
     if (!isValidOrgSlug(orgSlug)) {
-      console.error("[v0] Invalid org slug format in changeSubscriptionPlan")
       return { success: false, subscription: null, error: "Invalid organization" }
     }
-
-    console.log("[v0] Changing subscription plan for org:", orgSlug)
 
     // Validate price ID format
     if (!isValidStripePriceId(newPriceId)) {
@@ -740,7 +721,6 @@ export async function changeSubscriptionPlan(
       .single()
 
     if (orgError || !org) {
-      console.error("[v0] Failed to find organization:", orgSlug, "Error:", orgError?.message || "No org returned")
       return { success: false, subscription: null, error: "Organization not found" }
     }
 
@@ -793,8 +773,7 @@ export async function changeSubscriptionPlan(
       .eq("status", "active")
 
     if (countError) {
-      console.error("[v0] Failed to count members for downgrade check:", countError)
-      // Fail safe: don't block if we can't check, but log error
+      // Fail safe: don't block if we can't check member count
     } else if (memberCount !== null && memberCount > newPlanLimits.max_team_members) {
       return {
         success: false,
@@ -820,8 +799,6 @@ export async function changeSubscriptionPlan(
       { idempotencyKey }
     )
 
-    console.log("[v0] Subscription updated successfully:", updatedSubscription.id)
-
     // Get the new plan details from the updated subscription
     const priceItem = updatedSubscription.items.data[0]?.price
     const product = priceItem?.product
@@ -841,7 +818,6 @@ export async function changeSubscriptionPlan(
     const metadata = isValidProduct ? (product as Stripe.Product).metadata || {} : {}
 
     if (!metadata.teamMembers || !metadata.providers || !metadata.pipelinesPerDay || !metadata.concurrentPipelines) {
-      console.error("[v0] New plan missing required metadata")
       return { success: false, subscription: null, error: "Plan configuration error. Please contact support." }
     }
 
@@ -859,7 +835,6 @@ export async function changeSubscriptionPlan(
       limits.pipelines_per_day_limit < 1 || limits.pipelines_per_day_limit > 10000 ||
       limits.concurrent_pipelines_limit < 1 || limits.concurrent_pipelines_limit > 50
     ) {
-      console.error("[v0] Plan limits outside valid bounds", limits)
       return { success: false, subscription: null, error: "Plan configuration error. Please contact support." }
     }
 
@@ -881,12 +856,7 @@ export async function changeSubscriptionPlan(
       })
       .eq("id", org.id)
 
-    if (updateError) {
-      console.error("[v0] Failed to update database:", updateError)
-      // Don't fail the whole operation - Stripe is updated, webhook will sync
-    } else {
-      console.log("[v0] Database updated with new plan:", planId)
-    }
+    // Note: if updateError, don't fail - Stripe is updated, webhook will sync
 
     // Get the old price from current subscription for comparison
     const oldPriceItem = currentSubscription.items.data[0]?.price
@@ -916,9 +886,7 @@ export async function changeSubscriptionPlan(
             proration_behavior: 'create_prorations',
           }
         })
-      console.log(`[v0] Plan change audit logged: ${action} from ${org.plan} to ${planId}`)
-    } catch (auditErr) {
-      console.warn(`[v0] Failed to log plan change audit:`, auditErr)
+    } catch {
       // Non-blocking - don't fail plan change if audit fails
     }
 
@@ -944,7 +912,6 @@ export async function changeSubscriptionPlan(
       })
 
       if (syncResult.success) {
-        console.log(`[v0] Backend subscription synced for org: ${orgSlug}`)
         // Update audit log with sync success
         await adminClient
           .from("plan_change_audit")
@@ -953,7 +920,6 @@ export async function changeSubscriptionPlan(
           .eq("stripe_subscription_id", updatedSubscription.id)
           .is("sync_status", 'pending')
       } else {
-        console.warn(`[v0] Backend sync failed for org ${orgSlug}: ${syncResult.error}`)
         syncWarning = syncResult.error || "Backend sync failed"
         syncQueued = syncResult.queued || false
 
@@ -968,9 +934,7 @@ export async function changeSubscriptionPlan(
           .eq("stripe_subscription_id", updatedSubscription.id)
       }
     } catch (syncErr: unknown) {
-      const errorMessage = syncErr instanceof Error ? syncErr.message : "Backend sync error"
-      console.error(`[v0] Backend sync error for org ${orgSlug}:`, syncErr)
-      syncWarning = errorMessage
+      syncWarning = syncErr instanceof Error ? syncErr.message : "Backend sync error"
       // Non-blocking - don't fail the plan change if backend sync fails
     }
 
@@ -994,7 +958,6 @@ export async function changeSubscriptionPlan(
     }
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Failed to change plan"
-    console.error("[v0] changeSubscriptionPlan error:", error)
     return { success: false, subscription: null, error: errorMessage }
   }
 }
@@ -1063,7 +1026,6 @@ export async function getStripePlans(): Promise<{ data: DynamicPlan[] | null; er
 
       // Skip products without required metadata
       if (!metadata.teamMembers || !metadata.providers || !metadata.pipelinesPerDay) {
-        console.warn(`[v0] Skipping product ${stripeProduct.name}: missing required metadata (teamMembers, providers, pipelinesPerDay)`)
         continue
       }
 
@@ -1075,7 +1037,6 @@ export async function getStripePlans(): Promise<{ data: DynamicPlan[] | null; er
 
       // Skip plans with invalid limits
       if (limits.teamMembers <= 0 || limits.providers <= 0 || limits.pipelinesPerDay <= 0) {
-        console.warn(`[v0] Skipping product ${stripeProduct.name}: invalid limit values`)
         continue
       }
 
@@ -1120,7 +1081,6 @@ export async function getStripePlans(): Promise<{ data: DynamicPlan[] | null; er
     return { data: plans, error: null }
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Failed to fetch plans"
-    console.error("[v0] getStripePlans error:", error)
     return { data: null, error: errorMessage }
   }
 }

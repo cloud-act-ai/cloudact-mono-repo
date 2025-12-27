@@ -24,10 +24,15 @@ export default async function UnauthorizedPage() {
     .limit(1)
     .single()
 
-  let userOrgSlug = null
-  if (memberData && memberData.organizations) {
-    const org = memberData.organizations as unknown as { org_slug: string }
-    userOrgSlug = org.org_slug
+  let userOrgSlug: string | null = null
+  if (memberData?.organizations) {
+    // Supabase returns single relation as object when using .single()
+    const orgs = memberData.organizations
+    if (Array.isArray(orgs) && orgs.length > 0) {
+      userOrgSlug = orgs[0].org_slug
+    } else if (typeof orgs === "object" && orgs !== null && "org_slug" in orgs) {
+      userOrgSlug = (orgs as { org_slug: string }).org_slug
+    }
   }
 
   return (

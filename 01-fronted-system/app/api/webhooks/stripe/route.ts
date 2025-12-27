@@ -140,6 +140,9 @@ function getServiceClient() {
   return createClient(supabaseUrl, supabaseServiceKey);
 }
 
+// Stripe API timeout for webhook handlers (15 seconds - webhooks should be fast)
+const STRIPE_API_TIMEOUT_MS = 15000;
+
 // Fetch plan details from Stripe price/product metadata
 // Returns plan ID and limits - all from Stripe (no hardcoded values)
 async function getPlanDetailsFromStripe(priceId: string): Promise<{
@@ -151,9 +154,11 @@ async function getPlanDetailsFromStripe(priceId: string): Promise<{
   };
 } | null> {
   try {
-    // Fetch the price with expanded product
+    // Fetch the price with expanded product (with explicit timeout)
     const price = await stripe.prices.retrieve(priceId, {
       expand: ["product"],
+    }, {
+      timeout: STRIPE_API_TIMEOUT_MS,
     });
 
     const product = price.product;
@@ -320,9 +325,11 @@ export async function POST(request: NextRequest) {
           throw new Error("Missing subscription ID in checkout session");
         }
 
-        // Get subscription details
+        // Get subscription details (with explicit timeout)
         const subscription =
-          await stripe.subscriptions.retrieve(subscriptionId);
+          await stripe.subscriptions.retrieve(subscriptionId, {}, {
+            timeout: STRIPE_API_TIMEOUT_MS,
+          });
 
         // Validate subscription items exist
         const subscriptionItem = subscription.items?.data?.[0];
@@ -406,6 +413,11 @@ export async function POST(request: NextRequest) {
               .update({ backend_quota_synced: true })
               .eq("id", metadata.org_id);
           } else {
+            // Log sync failure for debugging - silent failures are hard to diagnose
+            console.error(
+              `[Stripe Webhook] Backend sync failed for checkout.session.completed:`,
+              { orgSlug: updatedOrg[0].org_slug, error: syncResult.error }
+            );
             // Update backend_quota_synced flag to false
             await supabase
               .from("organizations")
@@ -525,6 +537,11 @@ export async function POST(request: NextRequest) {
                   .update({ backend_quota_synced: true })
                   .eq("stripe_customer_id", customerId);
               } else {
+                // Log sync failure for debugging
+                console.error(
+                  `[Stripe Webhook] Backend sync failed for subscription.updated (fallback):`,
+                  { orgSlug: fallbackOrg[0].org_slug, error: syncResult.error }
+                );
                 // Update backend_quota_synced flag to false
                 await supabase
                   .from("organizations")
@@ -573,6 +590,11 @@ export async function POST(request: NextRequest) {
               .update({ backend_quota_synced: true })
               .eq("stripe_subscription_id", subscription.id);
           } else {
+            // Log sync failure for debugging
+            console.error(
+              `[Stripe Webhook] Backend sync failed for subscription.updated:`,
+              { orgSlug: orgForSync.org_slug, error: syncResult.error }
+            );
             // Update backend_quota_synced flag to false
             await supabase
               .from("organizations")
@@ -664,6 +686,11 @@ export async function POST(request: NextRequest) {
               .update({ backend_quota_synced: true })
               .eq("stripe_subscription_id", subscription.id);
           } else {
+            // Log sync failure for debugging
+            console.error(
+              `[Stripe Webhook] Backend sync failed for subscription.deleted:`,
+              { orgSlug: orgForCancelSync.org_slug, error: syncResult.error }
+            );
             // Update backend_quota_synced flag to false
             await supabase
               .from("organizations")
@@ -810,7 +837,9 @@ export async function POST(request: NextRequest) {
             const customerId = subscription.customer as string;
             if (customerId) {
               try {
-                const customer = await stripe.customers.retrieve(customerId);
+                const customer = await stripe.customers.retrieve(customerId, {}, {
+                  timeout: STRIPE_API_TIMEOUT_MS,
+                });
                 if (customer && !customer.deleted && customer.email) {
                   const appUrl = process.env.NEXT_PUBLIC_APP_URL!;
                   const billingLink = `${appUrl}/${org.org_slug}/billing`;

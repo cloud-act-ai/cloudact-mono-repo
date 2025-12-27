@@ -129,7 +129,7 @@ async def list_pricing(
     provider: LLMProvider,
     include_custom: bool = Query(True, description="Include custom pricing entries"),
     is_enabled: Optional[bool] = Query(None, description="Filter by enabled status"),
-    limit: int = 1000,
+    limit: int = 500,
     offset: int = 0,
     org: Dict = Depends(get_current_org),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
@@ -181,6 +181,7 @@ async def list_pricing(
         where_clause = " AND ".join(where_conditions)
 
         # Explicit column selection for better performance and clarity
+        # Note: discounted_input/output_price_per_1k are not in the schema
         query = f"""
         SELECT
             pricing_id, provider, model_id, model_name, is_custom,
@@ -190,7 +191,6 @@ async def list_pricing(
             pricing_type, free_tier_input_tokens, free_tier_output_tokens,
             free_tier_reset_frequency, discount_percentage, discount_reason,
             volume_threshold_tokens, base_input_price_per_1k, base_output_price_per_1k,
-            discounted_input_price_per_1k, discounted_output_price_per_1k,
             created_at, updated_at
         FROM `{table_id}`
         WHERE {where_clause}
@@ -243,6 +243,7 @@ async def get_pricing(
         table_id = f"{settings.gcp_project_id}.{dataset_id}.{UNIFIED_PRICING_TABLE}"
 
         # Explicit column selection for better performance
+        # Note: discounted_input/output_price_per_1k are not in the schema
         query = f"""
         SELECT
             pricing_id, provider, model_id, model_name, is_custom,
@@ -252,7 +253,6 @@ async def get_pricing(
             pricing_type, free_tier_input_tokens, free_tier_output_tokens,
             free_tier_reset_frequency, discount_percentage, discount_reason,
             volume_threshold_tokens, base_input_price_per_1k, base_output_price_per_1k,
-            discounted_input_price_per_1k, discounted_output_price_per_1k,
             created_at, updated_at
         FROM `{table_id}`
         WHERE model_id = @model_id AND (provider = @provider OR provider = 'custom')
@@ -321,8 +321,9 @@ async def create_pricing(
         # Generate pricing_id
         pricing_id = f"price_{provider_value}_{pricing.model_id.replace('-', '_').replace('.', '_')}"
 
-        # Determine is_custom: True if provider is 'custom' or if user-created (API-created entries are custom)
-        is_custom = provider_value == "custom" or True  # All API-created entries are custom
+        # Determine is_custom: True for API-created entries (not seeded from CSV)
+        # Issue #5 Fix: Removed erroneous `or True` that made all entries custom
+        is_custom = True  # API-created entries are always custom (seeded entries set is_custom=False)
 
         # Use standard INSERT instead of streaming insert to avoid streaming buffer issues
         # Streaming inserts can't be modified/deleted for ~90 minutes
@@ -542,12 +543,13 @@ async def delete_pricing(
         dataset_id = get_org_dataset(org_slug)
         table_id = f"{settings.gcp_project_id}.{dataset_id}.{UNIFIED_PRICING_TABLE}"
 
-        query = f"DELETE FROM `{table_id}` WHERE model_id = @model_id AND provider = @provider AND org_slug = @org_slug"
+        # NOTE: llm_model_pricing table does not have org_slug column - tenant isolation is at dataset level
+        # Dataset is already org-specific: {org_slug}_prod, so no additional org_slug filter needed
+        query = f"DELETE FROM `{table_id}` WHERE model_id = @model_id AND provider = @provider"
         job_config = bigquery.QueryJobConfig(
             query_parameters=[
                 bigquery.ScalarQueryParameter("model_id", "STRING", model_id),
-                bigquery.ScalarQueryParameter("provider", "STRING", provider_value),
-                bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
+                bigquery.ScalarQueryParameter("provider", "STRING", provider_value)
             ],
             job_timeout_ms=30000  # 30 second timeout for user operations
         )
@@ -588,7 +590,17 @@ async def reset_pricing(
         if result.get("status") != "SUCCESS":
             raise HTTPException(status_code=500, detail=result.get("error", "Failed to reset pricing"))
 
-        return await list_pricing(org_slug, provider, org, bq_client)
+        # Call list_pricing with keyword args for Depends parameters
+        return await list_pricing(
+            org_slug=org_slug,
+            provider=provider,
+            include_custom=True,
+            is_enabled=None,
+            limit=500,
+            offset=0,
+            org=org,
+            bq_client=bq_client
+        )
 
     except HTTPException:
         raise
@@ -676,10 +688,10 @@ async def bulk_update_pricing(
                 validate_model_id(item.model_id)
 
                 update_fields = []
+                # NOTE: llm_model_pricing table does not have org_slug column - tenant isolation is at dataset level
                 query_params = [
                     bigquery.ScalarQueryParameter("model_id", "STRING", item.model_id),
-                    bigquery.ScalarQueryParameter("provider", "STRING", provider_value),
-                    bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
+                    bigquery.ScalarQueryParameter("provider", "STRING", provider_value)
                 ]
 
                 # Core fields
@@ -743,7 +755,8 @@ async def bulk_update_pricing(
 
                 update_fields.append("updated_at = CURRENT_TIMESTAMP()")
 
-                query = f"UPDATE `{table_id}` SET {', '.join(update_fields)} WHERE model_id = @model_id AND provider = @provider AND org_slug = @org_slug"
+                # NOTE: llm_model_pricing does not have org_slug - tenant isolation is at dataset level
+                query = f"UPDATE `{table_id}` SET {', '.join(update_fields)} WHERE model_id = @model_id AND provider = @provider"
                 job_config = bigquery.QueryJobConfig(
                     query_parameters=query_params,
                     job_timeout_ms=30000  # 30 second timeout for user operations
@@ -789,7 +802,7 @@ async def list_subscriptions(
     provider: LLMProvider,
     include_custom: bool = Query(True, description="Include custom subscription entries"),
     is_enabled: Optional[bool] = Query(None, description="Filter by enabled status"),
-    limit: int = 1000,
+    limit: int = 500,
     offset: int = 0,
     org: Dict = Depends(get_current_org),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
@@ -1105,9 +1118,11 @@ async def update_subscription(
         table_id = f"{settings.gcp_project_id}.{dataset_id}.{UNIFIED_SUBSCRIPTIONS_TABLE}"
 
         update_fields = []
+        # SECURITY: Include org_slug in query params for defense in depth
         query_params = [
             bigquery.ScalarQueryParameter("plan_name", "STRING", plan_name),
-            bigquery.ScalarQueryParameter("provider", "STRING", provider_value)
+            bigquery.ScalarQueryParameter("provider", "STRING", provider_value),
+            bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug)
         ]
 
         # Core subscription fields
@@ -1185,7 +1200,8 @@ async def update_subscription(
 
         update_fields.append("updated_at = CURRENT_TIMESTAMP()")
 
-        query = f"UPDATE `{table_id}` SET {', '.join(update_fields)} WHERE plan_name = @plan_name AND provider = @provider"
+        # SECURITY: Include org_slug in WHERE clause for defense in depth (saas_subscription_plans has org_slug column)
+        query = f"UPDATE `{table_id}` SET {', '.join(update_fields)} WHERE plan_name = @plan_name AND provider = @provider AND org_slug = @org_slug"
         job_config = bigquery.QueryJobConfig(
             query_parameters=query_params,
             job_timeout_ms=30000  # 30 second timeout for user operations

@@ -5,6 +5,7 @@ Thread-safe BigQuery client with connection pooling and retry logic.
 
 import json
 import threading
+from datetime import datetime
 from typing import Optional, List, Dict, Any, Iterator
 from pathlib import Path
 import logging
@@ -725,7 +726,164 @@ class BigQueryClient:
             extra={"org_slug": org_slug, "table_name": table_name})
 
 
-# Global singleton instance for connection reuse
+# ============================================
+# Connection Pool Manager (Singleton Pattern)
+# ============================================
+
+class BigQueryPoolManager:
+    """
+    Thread-safe BigQuery connection pool manager.
+
+    Implements singleton pattern to ensure only one BigQueryClient instance
+    exists across the entire application, maximizing connection reuse.
+
+    Features:
+    - Thread-safe initialization with double-checked locking
+    - Lazy client creation on first access
+    - Connection health monitoring
+    - Graceful shutdown support
+    - Pool statistics for monitoring
+
+    Usage:
+        pool_manager = BigQueryPoolManager.get_instance()
+        client = pool_manager.get_client()
+    """
+
+    _instance: Optional["BigQueryPoolManager"] = None
+    _instance_lock = threading.Lock()
+
+    def __init__(self):
+        """Private constructor - use get_instance() instead."""
+        self._client: Optional[BigQueryClient] = None
+        self._client_lock = threading.Lock()
+        self._request_count = 0
+        self._error_count = 0
+        self._last_health_check: Optional[datetime] = None
+        self._is_healthy = True
+
+    @classmethod
+    def get_instance(cls) -> "BigQueryPoolManager":
+        """
+        Get the singleton pool manager instance.
+
+        Thread-safe: Uses double-checked locking pattern.
+
+        Returns:
+            BigQueryPoolManager: The singleton instance
+        """
+        # Fast path: already initialized
+        if cls._instance is not None:
+            return cls._instance
+
+        # Slow path: initialize with lock
+        with cls._instance_lock:
+            if cls._instance is None:
+                cls._instance = cls()
+                logger.info("Created BigQuery pool manager singleton")
+
+        return cls._instance
+
+    def get_client(self) -> BigQueryClient:
+        """
+        Get BigQuery client from the pool.
+
+        Returns the same BigQueryClient instance, ensuring connection reuse.
+
+        Returns:
+            BigQueryClient: The pooled client instance
+        """
+        # Fast path: client already created
+        if self._client is not None:
+            self._request_count += 1
+            return self._client
+
+        # Slow path: create client with lock
+        with self._client_lock:
+            if self._client is None:
+                self._client = BigQueryClient()
+                logger.info(
+                    "Created BigQuery client in pool",
+                    extra={"pool_manager": "BigQueryPoolManager"}
+                )
+
+        self._request_count += 1
+        return self._client
+
+    def record_error(self) -> None:
+        """Record an error for health monitoring."""
+        self._error_count += 1
+
+    def get_stats(self) -> Dict[str, Any]:
+        """
+        Get pool statistics for monitoring.
+
+        Returns:
+            Dict with pool statistics
+        """
+        return {
+            "request_count": self._request_count,
+            "error_count": self._error_count,
+            "error_rate": self._error_count / max(self._request_count, 1),
+            "is_healthy": self._is_healthy,
+            "client_initialized": self._client is not None,
+            "last_health_check": self._last_health_check.isoformat() if self._last_health_check else None
+        }
+
+    def health_check(self) -> bool:
+        """
+        Perform a health check on the BigQuery connection.
+
+        Returns:
+            True if healthy, False otherwise
+        """
+        from datetime import datetime
+        try:
+            if self._client is None:
+                return True  # Not yet initialized is considered healthy
+
+            # Simple query to verify connection
+            list(self._client.query("SELECT 1"))
+            self._is_healthy = True
+            self._last_health_check = datetime.utcnow()
+            return True
+        except Exception as e:
+            logger.error(f"BigQuery health check failed: {e}")
+            self._is_healthy = False
+            self._last_health_check = datetime.utcnow()
+            return False
+
+    def shutdown(self) -> None:
+        """
+        Gracefully shutdown the pool manager.
+
+        Closes the underlying BigQuery client connection.
+        """
+        with self._client_lock:
+            if self._client is not None:
+                try:
+                    self._client.client.close()
+                    logger.info("BigQuery client connection closed")
+                except Exception as e:
+                    logger.warning(f"Error closing BigQuery client: {e}")
+                finally:
+                    self._client = None
+
+    @classmethod
+    def reset_instance(cls) -> None:
+        """
+        Reset the singleton instance (for testing purposes).
+
+        WARNING: Only use in tests. Calling this in production will
+        close all connections and force re-initialization.
+        """
+        with cls._instance_lock:
+            if cls._instance is not None:
+                cls._instance.shutdown()
+                cls._instance = None
+                logger.warning("BigQuery pool manager instance reset")
+
+
+# Global singleton instance for connection reuse (legacy compatibility)
 _global_bq_client: Optional[BigQueryClient] = None
 _global_client_lock = threading.Lock()
 
@@ -738,21 +896,12 @@ def get_bigquery_client() -> BigQueryClient:
     the underlying connection pool. This prevents cold connection overhead
     on every request.
 
-    Thread-safe: Uses double-checked locking pattern.
+    Thread-safe: Uses double-checked locking pattern via BigQueryPoolManager.
 
     Note: Tenant isolation is enforced at the query level (org_slug in dataset names),
     not at the connection level. All orgs share the same BigQuery project.
+
+    Recommended: Use BigQueryPoolManager.get_instance().get_client() for new code
+    to access pool statistics and health monitoring features.
     """
-    global _global_bq_client
-
-    # Fast path: already initialized
-    if _global_bq_client is not None:
-        return _global_bq_client
-
-    # Slow path: initialize with lock
-    with _global_client_lock:
-        if _global_bq_client is None:
-            _global_bq_client = BigQueryClient()
-            logger.info("Created global BigQuery client singleton")
-
-    return _global_bq_client
+    return BigQueryPoolManager.get_instance().get_client()

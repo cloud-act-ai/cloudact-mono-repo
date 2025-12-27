@@ -340,7 +340,7 @@ export default function CloudProvidersPage() {
                         </Link>
                         <Switch
                           checked={isEnabled}
-                          onCheckedChange={(checked) => handleToggle(provider.id, checked)}
+                          onCheckedChange={(checked) => handleToggle(provider.backendKey, checked)}
                           disabled={isToggling}
                           className="data-[state=checked]:bg-[#90FCA6]"
                         />

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, type FormEvent } from "react"
+import { useState, useEffect, type FormEvent } from "react"
 import {
   Mail,
   Phone,
@@ -44,6 +44,14 @@ export default function ContactPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
 
+  // Auto-clear success message after 10 seconds
+  useEffect(() => {
+    if (isSuccess) {
+      const timer = setTimeout(() => setIsSuccess(false), 10000)
+      return () => clearTimeout(timer)
+    }
+  }, [isSuccess])
+
   const validateForm = (): boolean => {
     const newErrors: ValidationErrors = {}
 
@@ -57,7 +65,8 @@ export default function ContactPage() {
 
     if (!formData.email.trim()) {
       newErrors.email = "Email is required"
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+    } else if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(formData.email)) {
+      // More robust email validation: requires proper domain with TLD
       newErrors.email = "Please enter a valid email"
     }
 

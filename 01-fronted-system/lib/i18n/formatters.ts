@@ -153,12 +153,23 @@ function safeDate(value: unknown): Date {
 
 /**
  * Validate and normalize a timezone value
- * Returns "UTC" for invalid timezones
+ * Returns "UTC" for invalid timezones, logs warning in dev mode
  */
 function safeTimezone(value: unknown): string {
   if (typeof value !== "string" || !value) return DEFAULT_TIMEZONE
-  // Basic validation - more thorough validation done in try/catch
-  return value
+
+  // Try to validate the timezone using Intl
+  try {
+    // This will throw for invalid timezones
+    Intl.DateTimeFormat(undefined, { timeZone: value })
+    return value
+  } catch {
+    // Log warning in development mode for invalid timezone
+    if (typeof console !== "undefined" && process.env.NODE_ENV === "development") {
+      console.warn(`[i18n] Invalid timezone "${value}", falling back to UTC`)
+    }
+    return DEFAULT_TIMEZONE
+  }
 }
 
 /**
@@ -263,8 +274,23 @@ export function formatDateOnly(
       return ""
     }
 
+    // Validate day based on month (handle Feb 30, Apr 31, etc.)
+    const daysInMonth = new Date(year, month, 0).getDate()
+    if (day > daysInMonth) {
+      // Invalid date like Feb 30 - log warning and return empty
+      if (typeof console !== "undefined" && process.env.NODE_ENV === "development") {
+        console.warn(`[i18n] Invalid date: ${dateString} (${month}/${day} doesn't exist)`)
+      }
+      return ""
+    }
+
     // Create local date (month is 0-indexed in Date constructor)
     const localDate = new Date(year, month - 1, day)
+
+    // Verify the date wasn't adjusted (handles edge cases)
+    if (localDate.getDate() !== day || localDate.getMonth() !== month - 1) {
+      return ""
+    }
 
     // Format using Intl without timezone conversion
     return new Intl.DateTimeFormat(locale, {

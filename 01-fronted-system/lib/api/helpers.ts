@@ -61,6 +61,7 @@ export async function fetchWithTimeout(
 /**
  * Safely parse JSON response with error handling.
  * Returns fallback for empty responses, throws for parse errors.
+ * Validates content-type header before parsing.
  *
  * @param response - Fetch response object
  * @param fallback - Default value if response is empty
@@ -68,6 +69,16 @@ export async function fetchWithTimeout(
  */
 export async function safeJsonParse<T>(response: Response, fallback: T): Promise<T> {
   try {
+    // Validate content-type is JSON before attempting to parse
+    const contentType = response.headers.get("content-type")
+    if (contentType && !contentType.includes("application/json")) {
+      // Not JSON content - log warning and return fallback
+      if (typeof console !== "undefined" && process.env.NODE_ENV === "development") {
+        console.warn(`[API] Expected JSON but received: ${contentType}`)
+      }
+      return fallback
+    }
+
     const text = await response.text()
     if (!text || text.trim() === "") {
       return fallback

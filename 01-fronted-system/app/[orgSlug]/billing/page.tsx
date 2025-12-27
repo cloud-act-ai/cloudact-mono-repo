@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { useParams, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
@@ -202,6 +202,16 @@ export default function BillingPage() {
     fetchPlans()
   }, [orgSlug, fetchBillingData, fetchPlans])
 
+  // Ref to track if component is mounted for safe state updates during polling
+  const isMountedRef = useRef(true)
+
+  useEffect(() => {
+    isMountedRef.current = true
+    return () => {
+      isMountedRef.current = false
+    }
+  }, [])
+
   useEffect(() => {
     if (searchParams.get("success") === "true" && !hasStripeSubscription && !isLoadingBilling) {
       let pollCount = 0
@@ -210,10 +220,11 @@ export default function BillingPage() {
       let timeoutId: ReturnType<typeof setTimeout> | null = null
 
       const pollForSubscription = async () => {
+        if (!isMountedRef.current) return
         pollCount++
         await fetchBillingData()
 
-        if (pollCount < maxPolls && !hasStripeSubscription) {
+        if (isMountedRef.current && pollCount < maxPolls && !hasStripeSubscription) {
           timeoutId = setTimeout(pollForSubscription, pollInterval)
         }
       }

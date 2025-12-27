@@ -1,0 +1,44 @@
+# Azure OpenAI PTU Commitment Pipeline
+#
+# Extracts PTU usage from Azure and calculates commitment costs
+# Schedule: Daily at 3:00 AM UTC
+# URL: POST /api/v1/pipelines/run/{org}/genai/commitment/azure_ptu
+
+pipeline_id: "{org_slug}-genai-commitment-azure-ptu"
+name: "Azure OpenAI PTU Commitment"
+description: "Extract Azure OpenAI PTU usage and calculate commitment costs"
+provider: "genai"
+domain: "commitment"
+version: "1.0.0"
+
+schedule:
+  cron: "0 3 * * *"
+  timezone: "UTC"
+  enabled: true
+
+steps:
+  - step_id: extract_usage
+    name: "Extract PTU Usage"
+    ps_type: genai.commitment_usage
+    config:
+      provider: "azure_openai"
+    timeout_seconds: 300
+    retry:
+      max_attempts: 3
+      backoff_seconds: 60
+
+  - step_id: calculate_costs
+    name: "Calculate PTU Costs"
+    ps_type: genai.commitment_cost
+    config:
+      provider: "azure_openai"
+    depends_on:
+      - extract_usage
+    timeout_seconds: 300
+    retry:
+      max_attempts: 2
+      backoff_seconds: 30
+
+notifications:
+  on_failure:
+    - email

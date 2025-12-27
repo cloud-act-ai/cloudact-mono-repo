@@ -145,7 +145,7 @@ export default function InviteMembersPage() {
       toast.success("Invitation sent successfully")
       setInviteLink(result.inviteLink || null)
       setInviteEmail("")
-      void fetchData()
+      await fetchData() // Await to ensure list updates before any UI changes
     } catch {
       toast.error("Failed to invite member")
     } finally {
@@ -160,8 +160,8 @@ export default function InviteMembersPage() {
     const result = await removeMember(orgSlug, memberIdToRemove)
     if (result.success) {
       toast.success("Member removed successfully")
-      void fetchData()
       setMemberToRemove(null)
+      await fetchData() // Await to ensure UI reflects deletion before any further actions
     } else {
       toast.error(result.error || "Failed to remove member")
       setMemberToRemove(null)
@@ -172,7 +172,7 @@ export default function InviteMembersPage() {
     const result = await updateMemberRole(orgSlug, memberUserId, newRole)
     if (result.success) {
       toast.success("Role updated successfully")
-      void fetchData()
+      await fetchData() // Await to ensure UI reflects role change
     } else {
       toast.error(result.error || "Failed to update role")
     }
@@ -182,7 +182,7 @@ export default function InviteMembersPage() {
     const result = await cancelInvite(orgSlug, inviteId)
     if (result.success) {
       toast.success("Invitation cancelled")
-      void fetchData()
+      await fetchData() // Await to ensure UI reflects cancellation
     } else {
       toast.error(result.error || "Failed to cancel invitation")
     }

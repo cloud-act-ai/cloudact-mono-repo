@@ -1,0 +1,44 @@
+# Azure OpenAI PAYG Usage and Cost Pipeline
+#
+# Extracts usage from Azure OpenAI and calculates costs
+# Schedule: Daily at 2:45 AM UTC
+# URL: POST /api/v1/pipelines/run/{org}/genai/payg/azure_openai
+
+pipeline_id: "{org_slug}-genai-payg-azure-openai"
+name: "Azure OpenAI PAYG Usage and Cost"
+description: "Extract Azure OpenAI token usage and calculate daily costs"
+provider: "genai"
+domain: "payg"
+version: "1.0.0"
+
+schedule:
+  cron: "45 2 * * *"
+  timezone: "UTC"
+  enabled: true
+
+steps:
+  - step_id: extract_usage
+    name: "Extract Azure OpenAI Usage"
+    ps_type: genai.payg_usage
+    config:
+      provider: "azure_openai"
+    timeout_seconds: 300
+    retry:
+      max_attempts: 3
+      backoff_seconds: 60
+
+  - step_id: calculate_costs
+    name: "Calculate Azure OpenAI Costs"
+    ps_type: genai.payg_cost
+    config:
+      provider: "azure_openai"
+    depends_on:
+      - extract_usage
+    timeout_seconds: 300
+    retry:
+      max_attempts: 2
+      backoff_seconds: 30
+
+notifications:
+  on_failure:
+    - email

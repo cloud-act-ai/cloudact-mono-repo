@@ -122,12 +122,16 @@ export default function GenAIIntegrationsPage() {
       if (result.validationStatus === "VALID") {
         setSuccessMessage(`${providerId.charAt(0).toUpperCase() + providerId.slice(1)} validated successfully`)
       } else {
-        setError(result.error || `Validation failed`)
+        const providerName = providerId.charAt(0).toUpperCase() + providerId.slice(1)
+        const errorDetail = result.error || result.lastError || "Unknown error"
+        setError(`${providerName} validation failed: ${errorDetail}`)
       }
 
       await loadIntegrations()
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to validate")
+      const providerName = providerId.charAt(0).toUpperCase() + providerId.slice(1)
+      const errorMessage = err instanceof Error ? err.message : "An unexpected error occurred"
+      setError(`${providerName} validation error: ${errorMessage}`)
     } finally {
       setValidatingProvider(null)
     }
@@ -145,10 +149,16 @@ export default function GenAIIntegrationsPage() {
         setSuccessMessage(`${providerId.charAt(0).toUpperCase() + providerId.slice(1)} ${enabled ? 'enabled' : 'disabled'}`)
         await loadIntegrations()
       } else {
-        setError(result.error || `Failed to toggle`)
+        const providerName = providerId.charAt(0).toUpperCase() + providerId.slice(1)
+        const action = enabled ? 'enable' : 'disable'
+        const errorDetail = result.error || "Unknown error"
+        setError(`Failed to ${action} ${providerName}: ${errorDetail}`)
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to toggle")
+      const providerName = providerId.charAt(0).toUpperCase() + providerId.slice(1)
+      const action = enabled ? 'enable' : 'disable'
+      const errorMessage = err instanceof Error ? err.message : "An unexpected error occurred"
+      setError(`Failed to ${action} ${providerName}: ${errorMessage}`)
     } finally {
       setTogglingProvider(null)
     }
@@ -234,20 +244,28 @@ export default function GenAIIntegrationsPage() {
         </div>
       )}
 
-      {/* Alerts */}
+      {/* Alerts - with ARIA live regions for screen reader announcements */}
       {error && (
-        <div className="p-4 rounded-xl bg-[#FF6C5E]/10 border border-[#FF6C5E]/30">
+        <div
+          className="p-4 rounded-xl bg-[#FF6C5E]/10 border border-[#FF6C5E]/30"
+          role="alert"
+          aria-live="assertive"
+        >
           <div className="flex items-center gap-3">
-            <AlertCircle className="h-5 w-5 text-[#FF6C5E] flex-shrink-0" />
+            <AlertCircle className="h-5 w-5 text-[#FF6C5E] flex-shrink-0" aria-hidden="true" />
             <p className="text-[14px] font-medium text-[#FF6C5E]">{error}</p>
           </div>
         </div>
       )}
 
       {successMessage && (
-        <div className="p-4 rounded-xl bg-[#90FCA6]/15 border border-[#90FCA6]/30">
+        <div
+          className="p-4 rounded-xl bg-[#90FCA6]/15 border border-[#90FCA6]/30"
+          role="status"
+          aria-live="polite"
+        >
           <div className="flex items-center gap-3">
-            <Check className="h-5 w-5 text-[#1a7a3a] flex-shrink-0" />
+            <Check className="h-5 w-5 text-[#1a7a3a] flex-shrink-0" aria-hidden="true" />
             <p className="text-[14px] font-medium text-[#1a7a3a]">{successMessage}</p>
           </div>
         </div>
@@ -298,25 +316,31 @@ export default function GenAIIntegrationsPage() {
                         <button
                           onClick={() => handleValidate(provider.id)}
                           disabled={isValidating}
+                          aria-label={`Validate ${provider.name} integration`}
+                          aria-busy={isValidating}
                           className="h-9 px-3 text-[13px] font-medium text-slate-600 hover:text-black hover:bg-slate-50 rounded-xl border border-slate-200 transition-all flex items-center gap-1.5"
                         >
                           {isValidating ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
                           ) : (
-                            <RefreshCw className="h-3.5 w-3.5" />
+                            <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
                           )}
                           Validate
                         </button>
                         <Link href={`/${orgSlug}/integrations/${provider.href}`}>
-                          <button className="h-9 px-3 text-[13px] font-semibold text-black hover:bg-slate-50 rounded-xl border border-slate-200 transition-all flex items-center gap-1">
+                          <button
+                            className="h-9 px-3 text-[13px] font-semibold text-black hover:bg-slate-50 rounded-xl border border-slate-200 transition-all flex items-center gap-1"
+                            aria-label={`Configure ${provider.name} integration`}
+                          >
                             Configure
-                            <ChevronRight className="h-3.5 w-3.5" />
+                            <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
                           </button>
                         </Link>
                         <Switch
                           checked={isEnabled}
                           onCheckedChange={(checked) => handleToggle(provider.id, checked)}
                           disabled={isToggling}
+                          aria-label={`${isEnabled ? 'Disable' : 'Enable'} ${provider.name} integration`}
                           className="data-[state=checked]:bg-[#90FCA6]"
                         />
                       </div>
@@ -333,12 +357,14 @@ export default function GenAIIntegrationsPage() {
       {unconnectedProviders.length > 0 && (
         <div className="space-y-4">
           <h2 className="text-[13px] font-semibold text-black uppercase tracking-wide">Available</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" role="list" aria-label="Available GenAI providers">
             {unconnectedProviders.map((provider) => (
               <Link
                 key={provider.id}
                 href={`/${orgSlug}/integrations/${provider.href}`}
                 className="group p-5 bg-white rounded-2xl border border-slate-200 hover:border-slate-300 hover:shadow-md transition-all"
+                aria-label={`Connect ${provider.name} - ${provider.description}`}
+                role="listitem"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -353,9 +379,12 @@ export default function GenAIIntegrationsPage() {
                       <p className="text-[12px] text-slate-500">{provider.description}</p>
                     </div>
                   </div>
-                  <button className="h-8 px-3 text-[12px] font-semibold text-black bg-[#90FCA6] hover:bg-[#B8FDCA] rounded-xl transition-all">
+                  <span
+                    className="h-8 px-3 text-[12px] font-semibold text-black bg-[#90FCA6] hover:bg-[#B8FDCA] rounded-xl transition-all flex items-center"
+                    aria-hidden="true"
+                  >
                     Connect
-                  </button>
+                  </span>
                 </div>
               </Link>
             ))}

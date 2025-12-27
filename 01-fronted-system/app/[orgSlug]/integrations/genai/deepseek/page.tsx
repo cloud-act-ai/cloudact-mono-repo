@@ -1,624 +1,162 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
-import { useParams } from "next/navigation"
-import { Cpu, Loader2, Check, AlertCircle, ArrowLeft, DollarSign, CreditCard, RotateCcw, Pencil, Save, X } from "lucide-react"
-import Link from "next/link"
+import { Telescope } from "lucide-react"
+import { GenAIProviderPageTemplate, ProviderConfig } from "@/components/genai/provider-page-template"
+import {
+  GENAI_INFRASTRUCTURE_PRICING,
+} from "@/lib/data/genai/genai-infrastructure-pricing"
+import type { GenAIPAYGPricing } from "@/lib/data/genai/genai-payg-pricing"
+import type { GenAICommitmentPricing } from "@/lib/data/genai/genai-commitment-pricing"
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { IntegrationConfigCard, IntegrationStatus } from "@/components/integration-config-card"
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import {
-  getIntegrations,
-  setupIntegration,
-  validateIntegration,
-  deleteIntegration,
-  listLLMPricing,
-  updateLLMPricing,
-  resetLLMPricing,
-  listSaaSSubscriptions,
-  updateSaaSSubscription,
-  resetSaaSSubscriptions,
-  LLMPricing,
-  SaaSSubscription,
-} from "@/actions/integrations"
-
-// Client-side API key format validation
+// DeepSeek API key validation
 function validateDeepSeekKey(credential: string): { valid: boolean; error?: string } {
   if (!credential || credential.length < 20) {
-    return { valid: false, error: "API key is too short. DeepSeek keys are typically 30+ characters." }
+    return { valid: false, error: "API key is too short. DeepSeek keys are typically 50+ characters." }
   }
   if (!credential.startsWith("sk-")) {
-    return { valid: false, error: "DeepSeek API keys typically start with 'sk-'. Please check your key." }
+    return { valid: false, error: "DeepSeek API keys must start with 'sk-'. Please check your key." }
   }
   return { valid: true }
 }
 
+// Provider configuration
+const DEEPSEEK_CONFIG: ProviderConfig = {
+  id: "deepseek",
+  name: "DeepSeek",
+  description: "DeepSeek-V3, DeepSeek-R1, and Coder models with exceptional price-performance ratio",
+  icon: <Telescope className="h-7 w-7" />,
+  color: "#7C3AED",
+  placeholder: "sk-...",
+  helperText: "Enter your DeepSeek API key starting with 'sk-'. You can find this in your DeepSeek dashboard.",
+  docsUrl: "https://platform.deepseek.com/api_keys",
+  docsSteps: [
+    'Go to <a href="https://platform.deepseek.com/api_keys" target="_blank" rel="noopener noreferrer" class="text-[#007AFF] font-medium hover:underline">DeepSeek Platform API Keys</a>',
+    'Sign in with your account or <a href="https://platform.deepseek.com/sign_up" target="_blank" rel="noopener noreferrer" class="text-[#007AFF] font-medium hover:underline">create a new account</a>',
+    'Click <strong>"Create new API key"</strong> button',
+    '<strong>Important:</strong> Copy the key immediately - it starts with <code>sk-</code> and will only be shown once!',
+    '<strong>Free Credits:</strong> New accounts receive free credits. Check your balance at <a href="https://platform.deepseek.com/usage" target="_blank" rel="noopener noreferrer" class="text-[#007AFF] font-medium hover:underline">Usage Dashboard</a>',
+    '<strong>Top Up:</strong> Add credits at <a href="https://platform.deepseek.com/top_up" target="_blank" rel="noopener noreferrer" class="text-[#007AFF] font-medium hover:underline">Top Up</a> when needed',
+    '<strong>Troubleshooting:</strong> If validation fails, verify: (1) Key starts with sk-, (2) Account has credits, (3) Key has not been deleted',
+  ],
+  validateCredential: validateDeepSeekKey,
+}
+
+// DeepSeek pricing data (inline since not in main data file yet)
+const DEEPSEEK_PAYG_PRICING: GenAIPAYGPricing[] = [
+  {
+    provider: "deepseek",
+    model: "deepseek-chat",
+    model_family: "deepseek-v3",
+    model_version: "latest",
+    region: "global",
+    input_per_1m: 0.14,
+    output_per_1m: 0.28,
+    cached_input_per_1m: 0.014,
+    cached_write_per_1m: null,
+    batch_input_per_1m: null,
+    batch_output_per_1m: null,
+    cached_discount_pct: 90,
+    batch_discount_pct: 0,
+    volume_tier: "standard",
+    volume_discount_pct: 0,
+    free_tier_input_tokens: 0,
+    free_tier_output_tokens: 0,
+    rate_limit_rpm: 60,
+    rate_limit_tpm: 1000000,
+    context_window: 64000,
+    max_output_tokens: 8192,
+    supports_vision: false,
+    supports_streaming: true,
+    supports_tools: true,
+    sla_uptime_pct: 99.9,
+    effective_from: "2024-12-01",
+    effective_to: null,
+    status: "active",
+    last_updated: "2024-12-26",
+    notes: "DeepSeek V3 Chat",
+  },
+  {
+    provider: "deepseek",
+    model: "deepseek-reasoner",
+    model_family: "deepseek-r1",
+    model_version: "latest",
+    region: "global",
+    input_per_1m: 0.55,
+    output_per_1m: 2.19,
+    cached_input_per_1m: 0.14,
+    cached_write_per_1m: null,
+    batch_input_per_1m: null,
+    batch_output_per_1m: null,
+    cached_discount_pct: 75,
+    batch_discount_pct: 0,
+    volume_tier: "standard",
+    volume_discount_pct: 0,
+    free_tier_input_tokens: 0,
+    free_tier_output_tokens: 0,
+    rate_limit_rpm: 60,
+    rate_limit_tpm: 1000000,
+    context_window: 64000,
+    max_output_tokens: 8192,
+    supports_vision: false,
+    supports_streaming: true,
+    supports_tools: false,
+    sla_uptime_pct: 99.9,
+    effective_from: "2025-01-20",
+    effective_to: null,
+    status: "active",
+    last_updated: "2024-12-26",
+    notes: "DeepSeek R1 Reasoning",
+  },
+  {
+    provider: "deepseek",
+    model: "deepseek-coder",
+    model_family: "deepseek-coder",
+    model_version: "v2.5",
+    region: "global",
+    input_per_1m: 0.14,
+    output_per_1m: 0.28,
+    cached_input_per_1m: 0.014,
+    cached_write_per_1m: null,
+    batch_input_per_1m: null,
+    batch_output_per_1m: null,
+    cached_discount_pct: 90,
+    batch_discount_pct: 0,
+    volume_tier: "standard",
+    volume_discount_pct: 0,
+    free_tier_input_tokens: 0,
+    free_tier_output_tokens: 0,
+    rate_limit_rpm: 60,
+    rate_limit_tpm: 1000000,
+    context_window: 128000,
+    max_output_tokens: 8192,
+    supports_vision: false,
+    supports_streaming: true,
+    supports_tools: true,
+    sla_uptime_pct: 99.9,
+    effective_from: "2024-12-01",
+    effective_to: null,
+    status: "active",
+    last_updated: "2024-12-26",
+    notes: "DeepSeek Coder V2.5",
+  },
+]
+
 export default function DeepSeekIntegrationPage() {
-  const params = useParams()
-  const orgSlug = params.orgSlug as string
+  // DeepSeek PAYG pricing
+  const paygPricing = DEEPSEEK_PAYG_PRICING
 
-  const [integration, setIntegration] = useState<IntegrationStatus | undefined>()
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  // DeepSeek doesn't have commitment pricing (API-only)
+  const commitmentPricing: GenAICommitmentPricing[] = []
 
-  // Pricing and Subscriptions state
-  const [pricing, setPricing] = useState<LLMPricing[]>([])
-  const [subscriptions, setSubscriptions] = useState<SaaSSubscription[]>([])
-  const [pricingLoading, setPricingLoading] = useState(false)
-  const [subscriptionsLoading, setSubscriptionsLoading] = useState(false)
-
-  // Edit state
-  const [editingPricing, setEditingPricing] = useState<string | null>(null)
-  const [editingSubscription, setEditingSubscription] = useState<string | null>(null)
-  const [editValues, setEditValues] = useState<Record<string, any>>({})
-
-  // Load integration status
-  const loadIntegration = useCallback(async () => {
-    setIsLoading(true)
-    setError(null)
-
-    const result = await getIntegrations(orgSlug)
-
-    if (result.success && result.integrations) {
-      const deepseekIntegration = result.integrations?.integrations?.["DEEPSEEK"]
-      setIntegration(deepseekIntegration)
-    } else {
-      setError(result.error || "Failed to load integration status")
-    }
-
-    setIsLoading(false)
-  }, [orgSlug])
-
-  // Load pricing
-  const loadPricing = useCallback(async () => {
-    setPricingLoading(true)
-    const result = await listLLMPricing(orgSlug, "deepseek")
-    if (result.success && result.pricing) {
-      setPricing(result.pricing)
-    }
-    setPricingLoading(false)
-  }, [orgSlug])
-
-  // Load subscriptions
-  const loadSubscriptions = useCallback(async () => {
-    setSubscriptionsLoading(true)
-    const result = await listSaaSSubscriptions(orgSlug, "deepseek")
-    if (result.success && result.subscriptions) {
-      setSubscriptions(result.subscriptions)
-    }
-    setSubscriptionsLoading(false)
-  }, [orgSlug])
-
-  useEffect(() => {
-    void loadIntegration()
-  }, [loadIntegration])
-
-  // Load pricing and subscriptions when integration is valid
-  useEffect(() => {
-    if (integration?.status === "VALID") {
-      void loadPricing()
-      void loadSubscriptions()
-    }
-  }, [integration?.status, loadPricing, loadSubscriptions])
-
-  // Clear success message after delay
-  useEffect(() => {
-    if (successMessage) {
-      const timer = setTimeout(() => setSuccessMessage(null), 5000)
-      return () => clearTimeout(timer)
-    }
-  }, [successMessage])
-
-  // Clear error message after delay
-  useEffect(() => {
-    if (error) {
-      const timer = setTimeout(() => setError(null), 10000)
-      return () => clearTimeout(timer)
-    }
-  }, [error])
-
-  // Handle setup
-  const handleSetup = async (credential: string) => {
-    setError(null)
-    setSuccessMessage(null)
-
-    const result = await setupIntegration({
-      orgSlug,
-      provider: "deepseek",
-      credential,
-    })
-
-    if (result.success) {
-      setSuccessMessage(
-        result.validationStatus === "VALID"
-          ? "DeepSeek API key connected and validated successfully!"
-          : `DeepSeek API key saved (Status: ${result.validationStatus})`
-      )
-      await loadIntegration()
-    } else {
-      setError(result.error || result.message || "Setup failed. Please check your API key and try again.")
-    }
-  }
-
-  // Handle validate
-  const handleValidate = async () => {
-    setError(null)
-    setSuccessMessage(null)
-
-    const result = await validateIntegration(orgSlug, "deepseek")
-
-    if (result.validationStatus === "VALID") {
-      setSuccessMessage("DeepSeek API key validated successfully!")
-    } else {
-      setError(result.error || "Validation failed")
-    }
-
-    await loadIntegration()
-  }
-
-  // Handle delete
-  const handleDelete = async () => {
-    setError(null)
-    setSuccessMessage(null)
-
-    const result = await deleteIntegration(orgSlug, "deepseek")
-
-    if (result.success) {
-      setSuccessMessage("DeepSeek integration removed")
-      setPricing([])
-      setSubscriptions([])
-      await loadIntegration()
-    } else {
-      setError(result.error || "Delete failed")
-    }
-  }
-
-  // Handle pricing update
-  const handlePricingUpdate = async (modelId: string) => {
-    const values = editValues[modelId]
-    if (!values) return
-
-    const result = await updateLLMPricing(orgSlug, "deepseek", modelId, {
-      input_price_per_1k: parseFloat(values.input_price_per_1k),
-      output_price_per_1k: parseFloat(values.output_price_per_1k),
-    })
-
-    if (result.success) {
-      setSuccessMessage(`Pricing updated for ${modelId}`)
-      setEditingPricing(null)
-      await loadPricing()
-    } else {
-      setError(result.error || "Failed to update pricing")
-    }
-  }
-
-  // Handle subscription update
-  const handleSubscriptionUpdate = async (planName: string) => {
-    const values = editValues[planName]
-    if (!values) return
-
-    const result = await updateSaaSSubscription(orgSlug, "deepseek", planName, {
-      quantity: parseInt(values.quantity),
-      unit_price_usd: parseFloat(values.unit_price_usd),
-    })
-
-    if (result.success) {
-      setSuccessMessage(`Subscription updated for ${planName}`)
-      setEditingSubscription(null)
-      await loadSubscriptions()
-    } else {
-      setError(result.error || "Failed to update subscription")
-    }
-  }
-
-  // Handle reset pricing
-  const handleResetPricing = async () => {
-    if (!confirm("Reset all pricing to default values? This cannot be undone.")) return
-
-    const result = await resetLLMPricing(orgSlug, "deepseek")
-    if (result.success) {
-      setSuccessMessage("Pricing reset to defaults")
-      await loadPricing()
-    } else {
-      setError(result.error || "Failed to reset pricing")
-    }
-  }
-
-  // Handle reset subscriptions
-  const handleResetSubscriptions = async () => {
-    if (!confirm("Reset all subscriptions to default values? This cannot be undone.")) return
-
-    const result = await resetSaaSSubscriptions(orgSlug, "deepseek")
-    if (result.success) {
-      setSuccessMessage("Subscriptions reset to defaults")
-      await loadSubscriptions()
-    } else {
-      setError(result.error || "Failed to reset subscriptions")
-    }
-  }
-
-  // Start editing pricing
-  const startEditPricing = (model: LLMPricing) => {
-    setEditingPricing(model.model_id)
-    setEditValues({
-      ...editValues,
-      [model.model_id]: {
-        input_price_per_1k: model.input_price_per_1k,
-        output_price_per_1k: model.output_price_per_1k,
-      }
-    })
-  }
-
-  // Start editing subscription
-  const startEditSubscription = (sub: SaaSSubscription) => {
-    setEditingSubscription(sub.plan_name)
-    setEditValues({
-      ...editValues,
-      [sub.plan_name]: {
-        quantity: sub.quantity,
-        unit_price_usd: sub.unit_price_usd,
-      }
-    })
-  }
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-[#1a7a3a]" />
-      </div>
-    )
-  }
-
-  const isConnected = integration?.status === "VALID"
+  // No infrastructure pricing for DeepSeek API
+  const infrastructurePricing: typeof GENAI_INFRASTRUCTURE_PRICING = []
 
   return (
-    <div className="space-y-6">
-      {/* Header with back link */}
-      <div className="flex items-center gap-4">
-        <Link href={`/${orgSlug}/integrations/genai`}>
-          <Button variant="ghost" size="sm" className="text-slate-600 hover:text-black hover:bg-slate-50 h-9 rounded-xl transition-colors">
-            <ArrowLeft className="h-4 w-4 mr-1" />
-            GenAI Providers
-          </Button>
-        </Link>
-      </div>
-
-      {/* Enhanced Provider Header */}
-      <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#8B5CF6] to-[#7C3AED]" />
-        <div className="flex items-start gap-4">
-          <div className="h-14 w-14 rounded-2xl bg-[#8B5CF6]/10 flex items-center justify-center flex-shrink-0">
-            <Cpu className="h-7 w-7 text-[#8B5CF6]" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-3 mb-2">
-              <h1 className="text-[32px] font-bold text-black tracking-tight">DeepSeek Integration</h1>
-              {isConnected && (
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#90FCA6]/15">
-                  <div className="h-1.5 w-1.5 rounded-full bg-[#1a7a3a]" />
-                  <span className="text-[11px] font-bold text-[#1a7a3a] uppercase tracking-wide">Connected</span>
-                </div>
-              )}
-            </div>
-            <p className="text-[15px] text-slate-600 leading-relaxed">
-              Connect your DeepSeek API key to track DeepSeek-V3 and DeepSeek-Coder usage with competitive pricing analytics
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Alerts */}
-      {error && (
-        <Alert variant="destructive" className="border-[#FF6C5E]/30 bg-[#FF6C5E]/10 rounded-xl">
-          <AlertCircle className="h-4 w-4 text-[#FF6C5E]" />
-          <AlertTitle className="text-[#FF6C5E] font-semibold">Error</AlertTitle>
-          <AlertDescription className="text-[#FF6C5E]">{error}</AlertDescription>
-        </Alert>
-      )}
-
-      {successMessage && (
-        <Alert className="border-[#90FCA6]/30 bg-[#90FCA6]/15 rounded-xl">
-          <Check className="h-4 w-4 text-[#1a7a3a]" />
-          <AlertTitle className="text-[#1a7a3a] font-semibold">Success</AlertTitle>
-          <AlertDescription className="text-[#1a7a3a]">{successMessage}</AlertDescription>
-        </Alert>
-      )}
-
-      {/* Integration Card */}
-      <IntegrationConfigCard
-        provider="deepseek"
-        providerName="DeepSeek"
-        providerDescription="DeepSeek-V3, DeepSeek-Coder, and other DeepSeek models"
-        icon={<Cpu className="h-6 w-6" />}
-        placeholder="sk-..."
-        inputType="text"
-        helperText="Enter your DeepSeek API key starting with 'sk-'. You can find this in your DeepSeek platform console."
-        integration={integration}
-        onSetup={handleSetup}
-        onValidate={handleValidate}
-        onDelete={handleDelete}
-        isLoading={isLoading}
-        validateCredentialFormat={validateDeepSeekKey}
-      />
-
-      {/* Pricing & Subscriptions Management - Only show when connected */}
-      {isConnected && (
-        <Accordion type="multiple" className="w-full">
-          {/* Subscriptions Section */}
-          <AccordionItem value="subscriptions" className="border rounded-lg px-4">
-            <AccordionTrigger className="hover:no-underline">
-              <div className="flex items-center gap-2">
-                <CreditCard className="h-5 w-5 text-[#1a7a3a]" />
-                <span className="font-semibold">Subscriptions</span>
-                <span className="console-subheading ml-2">
-                  ({subscriptions.length} plans)
-                </span>
-              </div>
-            </AccordionTrigger>
-            <AccordionContent>
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <p className="console-body">
-                    Manage your DeepSeek subscription tiers and quantities.
-                  </p>
-                  <Button variant="outline" size="sm" onClick={handleResetSubscriptions} className="console-button-secondary">
-                    <RotateCcw className="h-4 w-4 mr-1" />
-                    Reset to Defaults
-                  </Button>
-                </div>
-
-                {subscriptionsLoading ? (
-                  <div className="flex justify-center py-4">
-                    <Loader2 className="h-6 w-6 animate-spin text-[#1a7a3a]" />
-                    <span className="ml-2 console-body">Loading subscriptions...</span>
-                  </div>
-                ) : subscriptions.length === 0 ? (
-                  <p className="console-body text-center py-4">
-                    No subscriptions configured. Click "Reset to Defaults" to load data from BigQuery.
-                  </p>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Plan Name</TableHead>
-                        <TableHead className="text-right">Quantity</TableHead>
-                        <TableHead className="text-right">Unit Price (USD)</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {subscriptions.map((sub) => (
-                        <TableRow key={sub.plan_name}>
-                          <TableCell className="font-medium">{sub.plan_name}</TableCell>
-                          <TableCell className="text-right">
-                            {editingSubscription === sub.plan_name ? (
-                              <Input
-                                type="number"
-                                className="w-24 ml-auto"
-                                value={editValues[sub.plan_name]?.quantity ?? sub.quantity}
-                                onChange={(e) => setEditValues({
-                                  ...editValues,
-                                  [sub.plan_name]: {
-                                    ...editValues[sub.plan_name],
-                                    quantity: e.target.value
-                                  }
-                                })}
-                              />
-                            ) : (
-                              sub.quantity
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {editingSubscription === sub.plan_name ? (
-                              <Input
-                                type="number"
-                                step="0.01"
-                                className="w-28 ml-auto"
-                                value={editValues[sub.plan_name]?.unit_price_usd ?? sub.unit_price_usd}
-                                onChange={(e) => setEditValues({
-                                  ...editValues,
-                                  [sub.plan_name]: {
-                                    ...editValues[sub.plan_name],
-                                    unit_price_usd: e.target.value
-                                  }
-                                })}
-                              />
-                            ) : (
-                              `$${sub.unit_price_usd.toFixed(2)}`
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {editingSubscription === sub.plan_name ? (
-                              <div className="flex gap-1 justify-end">
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => handleSubscriptionUpdate(sub.plan_name)}
-                                >
-                                  <Save className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => setEditingSubscription(null)}
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            ) : (
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => startEditSubscription(sub)}
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </div>
-            </AccordionContent>
-          </AccordionItem>
-
-          {/* Pricing Section */}
-          <AccordionItem value="pricing" className="border rounded-lg px-4 mt-4">
-            <AccordionTrigger className="hover:no-underline">
-              <div className="flex items-center gap-2">
-                <DollarSign className="h-5 w-5 text-[#FF6C5E]" />
-                <span className="font-semibold">Model Pricing</span>
-                <span className="console-subheading ml-2">
-                  ({pricing.length} models)
-                </span>
-              </div>
-            </AccordionTrigger>
-            <AccordionContent>
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <p className="console-body">
-                    Configure pricing per 1K tokens for each model.
-                  </p>
-                  <Button variant="outline" size="sm" onClick={handleResetPricing} className="console-button-secondary">
-                    <RotateCcw className="h-4 w-4 mr-1" />
-                    Reset to Defaults
-                  </Button>
-                </div>
-
-                {pricingLoading ? (
-                  <div className="flex justify-center py-4">
-                    <Loader2 className="h-6 w-6 animate-spin text-[#1a7a3a]" />
-                    <span className="ml-2 console-body">Loading pricing...</span>
-                  </div>
-                ) : pricing.length === 0 ? (
-                  <p className="console-body text-center py-4">
-                    No pricing configured. Click "Reset to Defaults" to load data from BigQuery.
-                  </p>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Model</TableHead>
-                        <TableHead className="text-right">Input ($/1K)</TableHead>
-                        <TableHead className="text-right">Output ($/1K)</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {pricing.map((model) => (
-                        <TableRow key={model.model_id}>
-                          <TableCell className="font-medium">
-                            {model.model_name || model.model_id}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {editingPricing === model.model_id ? (
-                              <Input
-                                type="number"
-                                step="0.0001"
-                                className="w-28 ml-auto"
-                                value={editValues[model.model_id]?.input_price_per_1k ?? model.input_price_per_1k}
-                                onChange={(e) => setEditValues({
-                                  ...editValues,
-                                  [model.model_id]: {
-                                    ...editValues[model.model_id],
-                                    input_price_per_1k: e.target.value
-                                  }
-                                })}
-                              />
-                            ) : (
-                              `$${model.input_price_per_1k.toFixed(4)}`
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {editingPricing === model.model_id ? (
-                              <Input
-                                type="number"
-                                step="0.0001"
-                                className="w-28 ml-auto"
-                                value={editValues[model.model_id]?.output_price_per_1k ?? model.output_price_per_1k}
-                                onChange={(e) => setEditValues({
-                                  ...editValues,
-                                  [model.model_id]: {
-                                    ...editValues[model.model_id],
-                                    output_price_per_1k: e.target.value
-                                  }
-                                })}
-                              />
-                            ) : (
-                              `$${model.output_price_per_1k.toFixed(4)}`
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {editingPricing === model.model_id ? (
-                              <div className="flex gap-1 justify-end">
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => handlePricingUpdate(model.model_id)}
-                                >
-                                  <Save className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => setEditingPricing(null)}
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            ) : (
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => startEditPricing(model)}
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </div>
-            </AccordionContent>
-          </AccordionItem>
-        </Accordion>
-      )}
-
-      {/* Help Section */}
-      <div className="rounded-2xl border border-slate-200 p-5 bg-slate-50">
-        <h3 className="text-[15px] font-semibold text-black mb-3">How to get your DeepSeek API key</h3>
-        <ol className="list-decimal list-inside space-y-2 text-[13px] text-slate-700">
-          <li>Go to <a href="https://platform.deepseek.com/api_keys" target="_blank" rel="noopener noreferrer" className="text-[#007AFF] font-medium hover:underline transition-all">DeepSeek Platform</a></li>
-          <li>Sign in or create an account</li>
-          <li>Navigate to API Keys section</li>
-          <li>Click "Create API Key" and copy it</li>
-        </ol>
-        <p className="text-[13px] text-slate-700 mt-3">
-          <strong className="text-black">Note:</strong> DeepSeek offers competitive pricing for their models. Make sure your account has credits.
-        </p>
-      </div>
-    </div>
+    <GenAIProviderPageTemplate
+      config={DEEPSEEK_CONFIG}
+      paygPricing={paygPricing}
+      commitmentPricing={commitmentPricing}
+      infrastructurePricing={infrastructurePricing}
+    />
   )
 }

@@ -345,7 +345,9 @@ async def test_complete_user_onboarding_e2e(
         assert onboard_data["dataset_created"] is True
 
         logger.info(f"✓ Organization onboarded: {TEST_ORG_SLUG}")
-        logger.info(f"  - API Key: {org_api_key[:20]}... (length: {len(org_api_key)})")
+        # SECURITY FIX #11: Mask API key in logs - only show fingerprint
+        api_key_fingerprint = org_api_key[-4:] if org_api_key else "N/A"
+        logger.info(f"  - API Key fingerprint: ...{api_key_fingerprint} (length: {len(org_api_key)})")
         logger.info(f"  - Tables created: {len(onboard_data.get('tables_created', []))}")
 
         # Verify org exists in BigQuery

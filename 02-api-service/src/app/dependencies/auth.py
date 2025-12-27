@@ -88,18 +88,69 @@ def load_test_api_keys() -> Dict[str, Dict[str, Any]]:
         return _test_api_keys
 
 
+def _verify_test_key_signature(key_data: Dict[str, Any], api_key: str) -> bool:
+    """
+    Verify test API key signature to prevent tampering.
+
+    Test keys loaded from disk should have a signature field that can be verified.
+    This prevents attackers from modifying test_api_keys.json to inject malicious org data.
+
+    Args:
+        key_data: The key data from test_api_keys.json
+        api_key: The plain text API key provided
+
+    Returns:
+        True if signature is valid or not required, False if invalid
+    """
+    # If no signature field, verify the key hash matches
+    expected_hash = key_data.get("org_api_key_hash")
+    if expected_hash:
+        computed_hash = hash_api_key(api_key)
+        if not secrets.compare_digest(expected_hash, computed_hash):
+            logger.warning(
+                "Test API key hash mismatch - possible tampering",
+                extra={"org_slug": key_data.get("org_slug")}
+            )
+            return False
+
+    # Verify required fields are present to prevent injection of incomplete/malicious data
+    required_fields = ["org_slug", "api_key"]
+    for field in required_fields:
+        if not key_data.get(field):
+            logger.warning(
+                f"Test API key missing required field: {field}",
+                extra={"org_slug": key_data.get("org_slug")}
+            )
+            return False
+
+    return True
+
+
 def get_test_org_from_api_key(api_key: str) -> Optional[Dict[str, Any]]:
     """
-    Look up test org data from test API key.
+    Look up test org data from test API key with signature verification.
 
     Args:
         api_key: Plain text API key
 
     Returns:
-        Org dict if found, None otherwise
+        Org dict if found and verified, None otherwise
     """
     test_keys = load_test_api_keys()
-    return test_keys.get(api_key)
+    key_data = test_keys.get(api_key)
+
+    if key_data is None:
+        return None
+
+    # Verify signature/integrity before returning
+    if not _verify_test_key_signature(key_data, api_key):
+        logger.warning(
+            "Test API key failed signature verification",
+            extra={"org_slug": key_data.get("org_slug")}
+        )
+        return None
+
+    return key_data
 
 
 # ============================================
@@ -143,11 +194,24 @@ class AuthMetricsAggregator:
             self.pending_updates: Set[str] = set()  # Set of org_api_key_ids to update
             self.batch_lock = threading.Lock()
             self.flush_interval = 60  # Flush every 60 seconds
-            self.is_running = False
+            self._is_running = False  # Protected by _running_lock
+            self._running_lock = threading.Lock()  # Lock for is_running flag
             self.background_task: Optional[asyncio.Task] = None
             self._initialized = True
 
             logger.info("AuthMetricsAggregator initialized with 60s flush interval")
+
+    @property
+    def is_running(self) -> bool:
+        """Thread-safe getter for is_running flag."""
+        with self._running_lock:
+            return self._is_running
+
+    @is_running.setter
+    def is_running(self, value: bool) -> None:
+        """Thread-safe setter for is_running flag."""
+        with self._running_lock:
+            self._is_running = value
 
     def add_update(self, org_api_key_id: str) -> None:
         """

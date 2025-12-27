@@ -265,6 +265,110 @@ const FALLBACK_PIPELINES: PipelineConfig[] = [
     required_integration: "ANTHROPIC",
     enabled: true,
   },
+  // GenAI PAYG Pipelines
+  {
+    id: "genai_payg_openai",
+    name: "OpenAI Usage & Cost",
+    description: "Extract OpenAI token usage and calculate daily costs",
+    provider: "genai",
+    domain: "payg",
+    pipeline: "openai",
+    required_integration: "OPENAI",
+    enabled: true,
+  },
+  {
+    id: "genai_payg_anthropic",
+    name: "Anthropic Usage & Cost",
+    description: "Extract Anthropic token usage and calculate daily costs",
+    provider: "genai",
+    domain: "payg",
+    pipeline: "anthropic",
+    required_integration: "ANTHROPIC",
+    enabled: true,
+  },
+  {
+    id: "genai_payg_gemini",
+    name: "Gemini Usage & Cost",
+    description: "Extract Gemini token usage and calculate daily costs",
+    provider: "genai",
+    domain: "payg",
+    pipeline: "gemini",
+    required_integration: "GEMINI",
+    enabled: true,
+  },
+  {
+    id: "genai_payg_deepseek",
+    name: "DeepSeek Usage & Cost",
+    description: "Extract DeepSeek token usage and calculate daily costs",
+    provider: "genai",
+    domain: "payg",
+    pipeline: "deepseek",
+    required_integration: "DEEPSEEK",
+    enabled: true,
+  },
+  {
+    id: "genai_payg_azure_openai",
+    name: "Azure OpenAI Usage & Cost",
+    description: "Extract Azure OpenAI token usage and calculate daily costs",
+    provider: "genai",
+    domain: "payg",
+    pipeline: "azure_openai",
+    required_integration: "AZURE_OPENAI",
+    enabled: true,
+  },
+  // GenAI Commitment Pipelines
+  {
+    id: "genai_commitment_aws_bedrock",
+    name: "AWS Bedrock Provisioned Throughput",
+    description: "Extract AWS Bedrock PT usage and calculate commitment costs",
+    provider: "genai",
+    domain: "commitment",
+    pipeline: "aws_bedrock",
+    required_integration: "AWS_BEDROCK",
+    enabled: true,
+  },
+  {
+    id: "genai_commitment_azure_ptu",
+    name: "Azure OpenAI PTU Commitment",
+    description: "Extract Azure OpenAI PTU usage and calculate commitment costs",
+    provider: "genai",
+    domain: "commitment",
+    pipeline: "azure_ptu",
+    required_integration: "AZURE_OPENAI",
+    enabled: true,
+  },
+  {
+    id: "genai_commitment_gcp_vertex",
+    name: "GCP Vertex AI GSU Commitment",
+    description: "Extract GCP Vertex AI GSU usage and calculate commitment costs",
+    provider: "genai",
+    domain: "commitment",
+    pipeline: "gcp_vertex",
+    required_integration: "GCP_VERTEX",
+    enabled: true,
+  },
+  // GenAI Infrastructure Pipeline
+  {
+    id: "genai_infrastructure_gcp_gpu",
+    name: "GCP GPU Infrastructure",
+    description: "Extract GCP GPU/TPU usage and calculate infrastructure costs",
+    provider: "genai",
+    domain: "infrastructure",
+    pipeline: "gcp_gpu",
+    required_integration: "GCP_SA",
+    enabled: true,
+  },
+  // GenAI Unified Pipeline
+  {
+    id: "genai_unified_consolidate",
+    name: "GenAI Unified Consolidation",
+    description: "Consolidate PAYG, Commitment, and Infrastructure costs into unified tables and FOCUS 1.3",
+    provider: "genai",
+    domain: "unified",
+    pipeline: "consolidate",
+    required_integration: "",
+    enabled: true,
+  },
   {
     id: "saas_subscription_costs",
     name: "SaaS Subscription Costs",
@@ -467,6 +571,65 @@ export const runGcpCostBillingPipeline = runGcpBillingPipeline
 // ============================================
 // Pipeline Logs Actions
 // ============================================
+
+/**
+ * Poll pipeline run status until completion or timeout.
+ * Useful for tracking async pipeline execution.
+ *
+ * @param orgSlug - Organization slug
+ * @param runId - Pipeline run ID to poll
+ * @param options - Polling options
+ * @returns Final status when complete or timeout
+ */
+export async function pollPipelineStatus(
+  orgSlug: string,
+  runId: string,
+  options?: {
+    maxAttempts?: number      // Default: 30 (5 minutes with 10s interval)
+    intervalMs?: number       // Default: 10000 (10 seconds)
+    onStatusChange?: (status: string) => void
+  }
+): Promise<{
+  success: boolean
+  status?: string
+  completed?: boolean
+  error?: string
+}> {
+  const maxAttempts = options?.maxAttempts ?? 30
+  const intervalMs = options?.intervalMs ?? 10000
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const result = await getPipelineRunDetail(orgSlug, runId)
+
+    if (!result.success) {
+      return { success: false, error: result.error }
+    }
+
+    const status = result.data?.status || "UNKNOWN"
+    options?.onStatusChange?.(status)
+
+    // Check for terminal states
+    if (["COMPLETED", "FAILED", "CANCELLED", "TIMEOUT"].includes(status)) {
+      return {
+        success: true,
+        status,
+        completed: true,
+      }
+    }
+
+    // Wait before next poll (except on last attempt)
+    if (attempt < maxAttempts) {
+      await new Promise(resolve => setTimeout(resolve, intervalMs))
+    }
+  }
+
+  return {
+    success: true,
+    status: "POLLING_TIMEOUT",
+    completed: false,
+    error: `Pipeline still running after ${maxAttempts * intervalMs / 1000}s`,
+  }
+}
 
 /**
  * Get pipeline runs (execution history) for an organization.

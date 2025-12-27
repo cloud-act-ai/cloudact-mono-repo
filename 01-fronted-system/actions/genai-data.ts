@@ -36,6 +36,19 @@ import {
   DiscountReason,
 } from "@/lib/api/backend"
 import { getOrgApiKeySecure } from "@/actions/backend-onboarding"
+import {
+  VALID_BILLING_PERIODS,
+  VALID_TIER_TYPES,
+  VALID_PRICING_TYPES,
+  VALID_FREE_TIER_RESET_FREQUENCIES,
+  VALID_DISCOUNT_REASONS,
+  isValidBillingPeriod,
+  isValidTierType,
+  isValidPricingType,
+  isValidFreeTierResetFrequency,
+  isValidDiscountReason,
+  isValidLLMProvider,
+} from "@/lib/constants"
 
 // ============================================
 // Types
@@ -76,8 +89,8 @@ function isValidOrgSlug(orgSlug: string): boolean {
 }
 
 function isValidProvider(provider: string): provider is LLMProvider {
-  const validProviders: LLMProvider[] = ["openai", "anthropic", "gemini"]
-  return validProviders.includes(provider.toLowerCase() as LLMProvider)
+  // Use shared validation from constants - includes: openai, anthropic, gemini, deepseek, custom
+  return isValidLLMProvider(provider)
 }
 
 function normalizeProvider(provider: string): LLMProvider {
@@ -94,45 +107,14 @@ function isValidPlanName(planName: string): boolean {
   return /^[a-zA-Z0-9_]{1,50}$/.test(planName)
 }
 
-// Valid billing periods matching backend BillingPeriodEnum
-const VALID_BILLING_PERIODS: BillingPeriod[] = ["weekly", "monthly", "quarterly", "yearly", "pay_as_you_go"]
-
-function isValidBillingPeriod(period: string | undefined): period is BillingPeriod {
-  if (!period) return true // Optional field
-  return VALID_BILLING_PERIODS.includes(period as BillingPeriod)
-}
-
-// Valid tier types matching backend TierTypeEnum
-const VALID_TIER_TYPES: TierType[] = ["free", "trial", "paid", "enterprise", "committed_use"]
-
-function isValidTierType(tier: string | undefined): tier is TierType {
-  if (!tier) return true // Optional field
-  return VALID_TIER_TYPES.includes(tier as TierType)
-}
-
-// Valid pricing types matching backend PricingTypeEnum
-const VALID_PRICING_TYPES: PricingType[] = ["standard", "free_tier", "volume_discount", "committed_use", "promotional", "negotiated"]
-
-function isValidPricingType(type: string | undefined): type is PricingType {
-  if (!type) return true // Optional field
-  return VALID_PRICING_TYPES.includes(type as PricingType)
-}
-
-// Valid free tier reset frequencies matching backend FreeTierResetFrequency enum
-const VALID_FREE_TIER_RESET_FREQUENCIES: FreeTierResetFrequency[] = ["daily", "monthly", "never"]
-
-function isValidFreeTierResetFrequency(freq: string | undefined): freq is FreeTierResetFrequency {
-  if (!freq) return true // Optional field
-  return VALID_FREE_TIER_RESET_FREQUENCIES.includes(freq as FreeTierResetFrequency)
-}
-
-// Valid discount reasons matching backend DiscountReasonEnum
-const VALID_DISCOUNT_REASONS: DiscountReason[] = ["volume", "commitment", "promotion", "negotiated", "trial"]
-
-function isValidDiscountReason(reason: string | undefined): reason is DiscountReason {
-  if (!reason) return true // Optional field
-  return VALID_DISCOUNT_REASONS.includes(reason as DiscountReason)
-}
+// ============================================
+// Validation Constants
+// ============================================
+// Note: VALID_BILLING_PERIODS, VALID_TIER_TYPES, VALID_PRICING_TYPES,
+// VALID_FREE_TIER_RESET_FREQUENCIES, VALID_DISCOUNT_REASONS, and their
+// corresponding validation functions are imported from @/lib/constants.
+// These values MUST match backend enums - see constants.ts for documentation.
+// ============================================
 
 /**
  * Validate subscription create/update data.
@@ -257,6 +239,7 @@ async function verifyOrgMembership(orgSlug: string): Promise<{
   authorized: boolean
   userId?: string
   orgId?: string
+  role?: string
   error?: string
 }> {
   const supabase = await createClient()
@@ -288,7 +271,7 @@ async function verifyOrgMembership(orgSlug: string): Promise<{
     return { authorized: false, userId: user.id, error: "Not a member of this organization" }
   }
 
-  return { authorized: true, userId: user.id, orgId: org.id }
+  return { authorized: true, userId: user.id, orgId: org.id, role: membership.role }
 }
 
 async function getOrgApiKey(orgSlug: string): Promise<string | null> {
@@ -407,6 +390,11 @@ export async function createLLMPricing(
       return { success: false, error: authResult.error || "Not authorized" }
     }
 
+    // Security: Only admins and owners can create pricing
+    if (authResult.role !== "admin" && authResult.role !== "owner") {
+      return { success: false, error: "Only admins and owners can create pricing" }
+    }
+
     const apiKey = await getOrgApiKey(orgSlug)
     if (!apiKey) {
       return { success: false, error: "Organization API key not found" }
@@ -455,6 +443,11 @@ export async function updateLLMPricing(
       return { success: false, error: authResult.error || "Not authorized" }
     }
 
+    // Security: Only admins and owners can update pricing
+    if (authResult.role !== "admin" && authResult.role !== "owner") {
+      return { success: false, error: "Only admins and owners can update pricing" }
+    }
+
     const apiKey = await getOrgApiKey(orgSlug)
     if (!apiKey) {
       return { success: false, error: "Organization API key not found" }
@@ -496,6 +489,11 @@ export async function deleteLLMPricing(
       return { success: false, error: authResult.error || "Not authorized" }
     }
 
+    // Security: Only admins and owners can delete pricing
+    if (authResult.role !== "admin" && authResult.role !== "owner") {
+      return { success: false, error: "Only admins and owners can delete pricing" }
+    }
+
     const apiKey = await getOrgApiKey(orgSlug)
     if (!apiKey) {
       return { success: false, error: "Organization API key not found" }
@@ -531,6 +529,11 @@ export async function resetLLMPricing(
     const authResult = await verifyOrgMembership(orgSlug)
     if (!authResult.authorized) {
       return { success: false, error: authResult.error || "Not authorized" }
+    }
+
+    // Security: Only admins and owners can reset pricing
+    if (authResult.role !== "admin" && authResult.role !== "owner") {
+      return { success: false, error: "Only admins and owners can reset pricing" }
     }
 
     const apiKey = await getOrgApiKey(orgSlug)
@@ -662,6 +665,11 @@ export async function createSaaSSubscription(
       return { success: false, error: authResult.error || "Not authorized" }
     }
 
+    // Security: Only admins and owners can create subscriptions
+    if (authResult.role !== "admin" && authResult.role !== "owner") {
+      return { success: false, error: "Only admins and owners can create subscriptions" }
+    }
+
     const apiKey = await getOrgApiKey(orgSlug)
     if (!apiKey) {
       return { success: false, error: "Organization API key not found" }
@@ -672,7 +680,7 @@ export async function createSaaSSubscription(
 
     return { success: true, data, message: "Subscription created successfully" }
   } catch (err: unknown) {
-    
+
     const errorMessage = err instanceof Error ? err.message : "Failed to create subscription"
     const errorDetail = typeof err === 'object' && err !== null && 'detail' in err ? String(err.detail) : errorMessage
     return { success: false, error: errorDetail }
@@ -708,6 +716,11 @@ export async function updateSaaSSubscription(
     const authResult = await verifyOrgMembership(orgSlug)
     if (!authResult.authorized) {
       return { success: false, error: authResult.error || "Not authorized" }
+    }
+
+    // Security: Only admins and owners can update subscriptions
+    if (authResult.role !== "admin" && authResult.role !== "owner") {
+      return { success: false, error: "Only admins and owners can update subscriptions" }
     }
 
     const apiKey = await getOrgApiKey(orgSlug)
@@ -751,6 +764,11 @@ export async function deleteSaaSSubscription(
       return { success: false, error: authResult.error || "Not authorized" }
     }
 
+    // Security: Only admins and owners can delete subscriptions
+    if (authResult.role !== "admin" && authResult.role !== "owner") {
+      return { success: false, error: "Only admins and owners can delete subscriptions" }
+    }
+
     const apiKey = await getOrgApiKey(orgSlug)
     if (!apiKey) {
       return { success: false, error: "Organization API key not found" }
@@ -786,6 +804,11 @@ export async function resetSaaSSubscriptions(
     const authResult = await verifyOrgMembership(orgSlug)
     if (!authResult.authorized) {
       return { success: false, error: authResult.error || "Not authorized" }
+    }
+
+    // Security: Only admins and owners can reset subscriptions
+    if (authResult.role !== "admin" && authResult.role !== "owner") {
+      return { success: false, error: "Only admins and owners can reset subscriptions" }
     }
 
     const apiKey = await getOrgApiKey(orgSlug)

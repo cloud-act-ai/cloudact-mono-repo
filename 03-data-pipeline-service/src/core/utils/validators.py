@@ -335,6 +335,23 @@ def validate_integer_range(
     return value
 
 
+def is_valid_org_slug(org_slug: str) -> bool:
+    """
+    Check if org_slug is valid without raising an exception.
+
+    Useful for processors that return status dicts instead of raising exceptions.
+
+    Args:
+        org_slug: Organization identifier to validate
+
+    Returns:
+        True if valid, False otherwise
+    """
+    if not org_slug:
+        return False
+    return bool(ORG_SLUG_PATTERN.match(org_slug))
+
+
 def sanitize_sql_identifier(identifier: str, field_name: str = "identifier") -> str:
     """
     Sanitize SQL identifiers (table names, column names, etc.).

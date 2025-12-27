@@ -57,6 +57,49 @@ category: "cost|usage|subscription|etl"
 
 **Note:** SaaS subscription costs use `generic.procedure_executor` with stored procedures. See `subscription-costs` skill.
 
+## Getting API Keys for Testing
+
+### Get Org API Key from Supabase
+The org API key is stored in the `org_api_keys_secure` table in Supabase (service_role access only).
+
+**Via Frontend Server Action (recommended):**
+```typescript
+// In a Next.js server action or API route
+import { createServiceRoleClient } from "@/lib/supabase/server"
+
+const adminClient = createServiceRoleClient()
+const { data } = await adminClient
+  .from("org_api_keys_secure")
+  .select("api_key")
+  .eq("org_slug", "guru_inc_12012025")
+  .single()
+
+console.log(data?.api_key)  // Your org API key
+```
+
+**Via Supabase Dashboard:**
+1. Go to https://supabase.com/dashboard
+2. Select your project
+3. Table Editor → `org_api_keys_secure`
+4. Filter by `org_slug`
+5. Copy the `api_key` value
+
+**Via SQL (service_role):**
+```sql
+SELECT api_key FROM org_api_keys_secure WHERE org_slug = 'your_org_slug';
+```
+
+### Using Keys in API Calls
+```bash
+# Org-level operations (pipelines, integrations)
+curl -X POST "http://localhost:8001/api/v1/pipelines/run/{org}/..." \
+  -H "X-API-Key: {org_api_key}"
+
+# Admin operations (bootstrap, onboarding)
+curl -X POST "http://localhost:8000/api/v1/admin/bootstrap" \
+  -H "X-CA-Root-Key: ${CA_ROOT_API_KEY}"
+```
+
 ## Instructions
 
 ### 1. Create New Pipeline

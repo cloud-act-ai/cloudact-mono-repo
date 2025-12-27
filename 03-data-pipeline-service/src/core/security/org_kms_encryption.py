@@ -17,6 +17,7 @@ import logging
 import threading
 import hashlib
 from typing import Optional, Tuple, Dict, Any
+from collections import OrderedDict
 from google.cloud import kms
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
@@ -24,7 +25,10 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 from src.app.config import get_settings
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("src.core.security.org_kms_encryption")
+
+# SECURITY: Cache configuration
+DEK_CACHE_MAX_SIZE = 1000  # Maximum number of DEKs to cache
 
 
 class OrgKMSEncryption:
@@ -45,11 +49,13 @@ class OrgKMSEncryption:
     def __init__(self):
         self.settings = get_settings()
         self._kms_client: Optional[kms.KeyManagementServiceClient] = None
-        # SECURITY: Cache key is org_slug:dek_hash to prevent cross-org DEK confusion
-        self._dek_cache: Dict[str, Tuple[Fernet, float]] = {}  # cache_key -> (Fernet, expiry)
+        # SECURITY: LRU cache with max size to prevent unbounded memory growth
+        # Cache key is org_slug:dek_hash to prevent cross-org DEK confusion
+        self._dek_cache: OrderedDict[str, Tuple[Fernet, float]] = OrderedDict()  # LRU cache
         self._cache_lock = threading.RLock()  # Thread-safe cache access
         self._cache_ttl_seconds = 300  # 5 minutes
         self._kms_timeout_seconds = 30  # Timeout for KMS operations
+        self._cache_max_size = DEK_CACHE_MAX_SIZE
 
     def _get_cache_key(self, org_slug: str, wrapped_dek: bytes) -> str:
         """
@@ -160,10 +166,11 @@ class OrgKMSEncryption:
 
     def get_org_fernet(self, org_slug: str, wrapped_dek: bytes) -> Fernet:
         """
-        Get Fernet instance for an org, with thread-safe caching.
+        Get Fernet instance for an org, with thread-safe LRU caching.
 
         SECURITY: Uses composite cache key (org_slug:dek_hash) and thread lock
         to prevent race conditions and cross-org DEK confusion.
+        SECURITY: Implements LRU eviction to prevent unbounded cache growth.
 
         Args:
             org_slug: Organization identifier
@@ -182,6 +189,8 @@ class OrgKMSEncryption:
             if cache_key in self._dek_cache:
                 fernet, expiry = self._dek_cache[cache_key]
                 if time.time() < expiry:
+                    # LRU: Move to end (most recently used)
+                    self._dek_cache.move_to_end(cache_key)
                     return fernet
                 else:
                     # Cache expired - remove within lock
@@ -191,13 +200,19 @@ class OrgKMSEncryption:
         dek = self.unwrap_dek(wrapped_dek)
         fernet = Fernet(dek)
 
-        # Cache it with thread safety
+        # Cache it with thread safety and LRU eviction
         with self._cache_lock:
+            # Add new entry
             self._dek_cache[cache_key] = (fernet, time.time() + self._cache_ttl_seconds)
+            # LRU eviction: remove oldest entries if cache is full
+            while len(self._dek_cache) > self._cache_max_size:
+                oldest_key = next(iter(self._dek_cache))
+                del self._dek_cache[oldest_key]
+                logger.debug(f"LRU evicted cache entry: {oldest_key[:20]}...")
 
         logger.debug(
             f"Unwrapped and cached DEK for org",
-            extra={"org_slug": org_slug, "cache_key": cache_key[:20] + "..."}
+            extra={"org_slug": org_slug, "cache_key": cache_key[:20] + "...", "cache_size": len(self._dek_cache)}
         )
 
         return fernet
@@ -278,15 +293,23 @@ class OrgKMSEncryption:
         return new_wrapped_dek, new_dek
 
 
-# Global instance
+# SECURITY: Thread-safe global singleton with double-checked locking
 _org_kms: Optional[OrgKMSEncryption] = None
+_org_kms_lock = threading.Lock()
 
 
 def get_org_kms() -> OrgKMSEncryption:
-    """Get or create the global OrgKMSEncryption instance."""
+    """
+    Get or create the global OrgKMSEncryption instance.
+
+    SECURITY: Uses double-checked locking pattern for thread-safe initialization.
+    """
     global _org_kms
     if _org_kms is None:
-        _org_kms = OrgKMSEncryption()
+        with _org_kms_lock:
+            # Double-check after acquiring lock
+            if _org_kms is None:
+                _org_kms = OrgKMSEncryption()
     return _org_kms
 
 

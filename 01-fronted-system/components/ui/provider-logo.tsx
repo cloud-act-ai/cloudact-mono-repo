@@ -132,6 +132,8 @@ export function ProviderLogo({
         height: size,
         color: fallbackColor
       }}
+      role="img"
+      aria-label={`${provider} logo`}
     >
       {FallbackIcon}
     </div>

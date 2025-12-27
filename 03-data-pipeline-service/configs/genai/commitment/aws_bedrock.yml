@@ -1,0 +1,44 @@
+# AWS Bedrock Provisioned Throughput Pipeline
+#
+# Extracts PT usage from AWS Bedrock and calculates commitment costs
+# Schedule: Daily at 3:15 AM UTC
+# URL: POST /api/v1/pipelines/run/{org}/genai/commitment/aws_bedrock
+
+pipeline_id: "{org_slug}-genai-commitment-aws-bedrock"
+name: "AWS Bedrock Provisioned Throughput"
+description: "Extract AWS Bedrock PT usage and calculate commitment costs"
+provider: "genai"
+domain: "commitment"
+version: "1.0.0"
+
+schedule:
+  cron: "15 3 * * *"
+  timezone: "UTC"
+  enabled: true
+
+steps:
+  - step_id: extract_usage
+    name: "Extract PT Usage"
+    ps_type: genai.commitment_usage
+    config:
+      provider: "aws_bedrock"
+    timeout_seconds: 300
+    retry:
+      max_attempts: 3
+      backoff_seconds: 60
+
+  - step_id: calculate_costs
+    name: "Calculate PT Costs"
+    ps_type: genai.commitment_cost
+    config:
+      provider: "aws_bedrock"
+    depends_on:
+      - extract_usage
+    timeout_seconds: 300
+    retry:
+      max_attempts: 2
+      backoff_seconds: 30
+
+notifications:
+  on_failure:
+    - email

@@ -1,0 +1,44 @@
+# Gemini PAYG Usage and Cost Pipeline
+#
+# Extracts usage from Gemini API and calculates costs
+# Schedule: Daily at 2:30 AM UTC
+# URL: POST /api/v1/pipelines/run/{org}/genai/payg/gemini
+
+pipeline_id: "{org_slug}-genai-payg-gemini"
+name: "Gemini PAYG Usage and Cost"
+description: "Extract Gemini token usage and calculate daily costs"
+provider: "genai"
+domain: "payg"
+version: "1.0.0"
+
+schedule:
+  cron: "30 2 * * *"
+  timezone: "UTC"
+  enabled: true
+
+steps:
+  - step_id: extract_usage
+    name: "Extract Gemini Usage"
+    ps_type: genai.payg_usage
+    config:
+      provider: "gemini"
+    timeout_seconds: 300
+    retry:
+      max_attempts: 3
+      backoff_seconds: 60
+
+  - step_id: calculate_costs
+    name: "Calculate Gemini Costs"
+    ps_type: genai.payg_cost
+    config:
+      provider: "gemini"
+    depends_on:
+      - extract_usage
+    timeout_seconds: 300
+    retry:
+      max_attempts: 2
+      backoff_seconds: 30
+
+notifications:
+  on_failure:
+    - email

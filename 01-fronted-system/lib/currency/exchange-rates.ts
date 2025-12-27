@@ -11,6 +11,30 @@
  * This file maintains backward compatibility with hardcoded constants.
  */
 
+// Exchange rate staleness threshold (30 days in milliseconds)
+const RATE_STALENESS_THRESHOLD_MS = 30 * 24 * 60 * 60 * 1000
+const RATES_LAST_UPDATED = "2025-12-14"
+
+/**
+ * Check if exchange rates are stale (older than 30 days)
+ * Returns warning message if stale, null otherwise
+ */
+export function checkExchangeRateStaleness(): { isStale: boolean; daysOld: number; warning: string | null } {
+  const lastUpdated = new Date(RATES_LAST_UPDATED)
+  const now = new Date()
+  const diffMs = now.getTime() - lastUpdated.getTime()
+  const daysOld = Math.floor(diffMs / (24 * 60 * 60 * 1000))
+  const isStale = diffMs > RATE_STALENESS_THRESHOLD_MS
+
+  return {
+    isStale,
+    daysOld,
+    warning: isStale
+      ? `Exchange rates are ${daysOld} days old (last updated: ${RATES_LAST_UPDATED}). Currency conversions may be inaccurate.`
+      : null
+  }
+}
+
 import { CURRENCY_CODES } from "@/lib/i18n/constants"
 import {
   loadExchangeRates,
@@ -42,6 +66,12 @@ export const EXCHANGE_RATES: Record<string, number> = {
   CNY: 7.24,
   INR: 83.12,
   SGD: 1.34,
+
+  // Additional currencies (from CSV)
+  HKD: 7.78,
+  NZD: 1.67,
+  SEK: 10.45,
+  KRW: 1320.0,
 
   // Arab currencies
   AED: 3.673,
@@ -103,11 +133,15 @@ export function convertCurrency(
   // Same currency - no conversion needed
   if (fromCurrency === toCurrency) return amount
 
-  // Validate currencies
+  // Validate currencies - warn if missing
   const fromRate = EXCHANGE_RATES[fromCurrency]
   const toRate = EXCHANGE_RATES[toCurrency]
 
   if (!fromRate || !toRate) {
+    // Log warning for debugging - currency conversion silently failing is hard to diagnose
+    if (typeof console !== "undefined" && process.env.NODE_ENV === "development") {
+      console.warn(`[Currency] Missing exchange rate for conversion: ${fromCurrency} → ${toCurrency}`)
+    }
     return amount
   }
 

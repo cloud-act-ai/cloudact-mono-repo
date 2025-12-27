@@ -1,0 +1,24 @@
+provider,tier_name,tier_order,min_monthly_spend_usd,max_monthly_spend_usd,min_monthly_tokens,max_monthly_tokens,discount_pct,input_multiplier,output_multiplier,applies_to_cached,applies_to_batch,commitment_required,effective_from,effective_to,status,notes
+openai,free,0,0,0,0,0,0,1.00,1.00,false,false,false,2024-01-01,,active,Free tier limits only
+openai,tier-1,1,0,1000,0,100000000,0,1.00,1.00,true,true,false,2024-01-01,,active,Standard pricing
+openai,tier-2,2,1000,5000,100000000,500000000,5,0.95,0.95,true,true,false,2024-01-01,,active,5% volume discount
+openai,tier-3,3,5000,25000,500000000,2500000000,10,0.90,0.90,true,true,false,2024-01-01,,active,10% volume discount
+openai,tier-4,4,25000,100000,2500000000,10000000000,15,0.85,0.85,true,true,false,2024-01-01,,active,15% volume discount
+openai,tier-5,5,100000,0,10000000000,0,20,0.80,0.80,true,true,true,2024-01-01,,active,Enterprise 20%
+anthropic,free,0,0,0,0,0,0,1.00,1.00,false,false,false,2024-01-01,,active,Free tier limits only
+anthropic,standard,1,0,1000,0,100000000,0,1.00,1.00,true,true,false,2024-01-01,,active,Standard pricing
+anthropic,growth,2,1000,10000,100000000,1000000000,10,0.90,0.90,true,true,false,2024-01-01,,active,10% volume discount
+anthropic,scale,3,10000,50000,1000000000,5000000000,15,0.85,0.85,true,true,false,2024-01-01,,active,15% volume discount
+anthropic,enterprise,4,50000,0,5000000000,0,25,0.75,0.75,true,true,true,2024-01-01,,active,Enterprise 25%
+gemini,free,0,0,0,0,1000000,0,1.00,1.00,true,true,false,2024-01-01,,active,Free tier (1M tokens)
+gemini,standard,1,0,500,1000000,500000000,0,1.00,1.00,true,true,false,2024-01-01,,active,Standard pricing
+gemini,growth,2,500,5000,500000000,5000000000,10,0.90,0.90,true,true,false,2024-01-01,,active,10% volume discount
+gemini,enterprise,3,5000,0,5000000000,0,20,0.80,0.80,true,true,true,2024-01-01,,active,Enterprise 20%
+azure_openai,payg,1,0,10000,0,0,0,1.00,1.00,true,true,false,2024-01-01,,active,Pay as you go
+azure_openai,commitment-1yr,2,10000,50000,0,0,20,0.80,0.80,true,true,true,2024-01-01,,active,1-year commitment
+azure_openai,commitment-3yr,3,50000,0,0,0,35,0.65,0.65,true,true,true,2024-01-01,,active,3-year commitment
+aws_bedrock,on-demand,1,0,10000,0,0,0,1.00,1.00,false,false,false,2024-01-01,,active,On-demand pricing
+aws_bedrock,provisioned,2,10000,0,0,0,30,0.70,0.70,false,false,true,2024-01-01,,active,Provisioned throughput
+gcp_vertex,on-demand,1,0,5000,0,0,0,1.00,1.00,true,true,false,2024-01-01,,active,On-demand pricing
+gcp_vertex,committed,2,5000,25000,0,0,15,0.85,0.85,true,true,true,2024-01-01,,active,Committed use
+gcp_vertex,enterprise,3,25000,0,0,0,25,0.75,0.75,true,true,true,2024-01-01,,active,Enterprise agreement

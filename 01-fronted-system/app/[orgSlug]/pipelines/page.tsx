@@ -241,9 +241,13 @@ export default function PipelinesPage() {
       if (result.success && result.data) {
         setPipelineRuns(result.data.runs)
         calculateQuickStats(result.data.runs)
+      } else if (!result.success) {
+        // Log the error for debugging - silent failures are hard to diagnose
+        console.warn("[Pipelines] Failed to load pipeline runs:", result.error)
       }
-    } catch {
-      // Pipeline runs load failure handled silently - will retry on next poll
+    } catch (err) {
+      // Log the error for debugging
+      console.warn("[Pipelines] Error loading pipeline runs:", err)
     }
     setRunsLoading(false)
   }, [orgSlug, calculateQuickStats])
@@ -296,9 +300,11 @@ export default function PipelinesPage() {
         const result = await getPipelineRunDetail(orgSlug, runId)
         if (result.success && result.data) {
           setRunDetails(prev => ({ ...prev, [runId]: result.data! }))
+        } else if (!result.success) {
+          console.warn("[Pipelines] Failed to load run details:", result.error)
         }
-      } catch {
-        // Run details load failure handled silently
+      } catch (err) {
+        console.warn("[Pipelines] Error loading run details:", err)
       }
       setLoadingDetail(null)
     }
@@ -326,9 +332,11 @@ export default function PipelinesPage() {
       // Use yesterday's date by default
       const yesterday = new Date()
       yesterday.setDate(yesterday.getDate() - 1)
-      const date = yesterday.toISOString().split("T")[0]
+      const dateStr = yesterday.toISOString().split("T")[0]
 
-      const result = await runPipeline(orgSlug, pipelineId, { date })
+      // Pass both date and start_date for compatibility with all pipeline types
+      // GCP/SaaS pipelines use 'date', GenAI pipelines use 'start_date'
+      const result = await runPipeline(orgSlug, pipelineId, { date: dateStr, start_date: dateStr })
       setLastResult({
         pipelineId,
         success: result.success,
@@ -347,8 +355,8 @@ export default function PipelinesPage() {
 
     // Refresh runs after executing a pipeline
     setTimeout(() => {
-      loadPipelineRuns().catch(() => {
-        // Silently handle refresh errors
+      loadPipelineRuns().catch((err) => {
+        console.warn("[Pipelines] Error refreshing runs after execution:", err)
       })
     }, 2000)
   }

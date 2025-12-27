@@ -83,6 +83,11 @@ export default function PersonalSettingsPage() {
   const [success, setSuccess] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<"profile" | "security" | "danger">("profile")
 
+  // Clear error when switching tabs to prevent stale error messages
+  useEffect(() => {
+    setError(null)
+  }, [activeTab])
+
   // Profile fields
   const [email, setEmail] = useState("")
   const [firstName, setFirstName] = useState("")

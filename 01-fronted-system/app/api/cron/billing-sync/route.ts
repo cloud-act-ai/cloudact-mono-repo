@@ -90,16 +90,33 @@ async function handleReconciliation() {
   }
 
   try {
-    // Get all organizations with Stripe subscriptions
-    const { data: orgs, error: orgsError } = await adminClient
-      .from("organizations")
-      .select("id, org_slug, stripe_subscription_id, billing_status, plan, seat_limit, providers_limit, pipelines_per_day_limit")
-      .not("stripe_subscription_id", "is", null)
-      .limit(100)
+    // Get all organizations with Stripe subscriptions - paginate to handle more than 100
+    const PAGE_SIZE = 100
+    let allOrgs: typeof orgs = []
+    let offset = 0
+    let hasMore = true
 
-    if (orgsError) {
-      throw new Error(`Failed to fetch organizations: ${orgsError.message}`)
+    while (hasMore) {
+      const { data: orgs, error: orgsError } = await adminClient
+        .from("organizations")
+        .select("id, org_slug, stripe_subscription_id, billing_status, plan, seat_limit, providers_limit, pipelines_per_day_limit")
+        .not("stripe_subscription_id", "is", null)
+        .range(offset, offset + PAGE_SIZE - 1)
+
+      if (orgsError) {
+        throw new Error(`Failed to fetch organizations: ${orgsError.message}`)
+      }
+
+      if (orgs && orgs.length > 0) {
+        allOrgs = [...allOrgs, ...orgs]
+        offset += PAGE_SIZE
+        hasMore = orgs.length === PAGE_SIZE
+      } else {
+        hasMore = false
+      }
     }
+
+    const orgs = allOrgs
 
     if (!orgs || orgs.length === 0) {
       return NextResponse.json({

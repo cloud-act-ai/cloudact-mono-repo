@@ -69,17 +69,17 @@ function StatusBadge({ status }: { status: string }) {
     VALID: {
       variant: "default",
       text: "Connected",
-      className: "bg-[var(--cloudact-bg-mint)] text-[var(--cloudact-mint-dark)] border-[var(--cloudact-mint)] hover:bg-[#E5F9F8]",
+      className: "bg-[#90FCA6]/15 text-[#1a7a3a] border-[#90FCA6] hover:bg-[#90FCA6]/20",
     },
     INVALID: {
       variant: "destructive",
       text: "Invalid",
-      className: "bg-[var(--cloudact-bg-coral)] text-[var(--cloudact-coral)] border-[var(--cloudact-coral)] hover:bg-[#FFE8E3]",
+      className: "bg-[#FF6C5E]/10 text-[#FF6C5E] border-[#FF6C5E] hover:bg-[#FF6C5E]/15",
     },
     PENDING: {
       variant: "secondary",
       text: "Validating...",
-      className: "bg-[var(--cloudact-bg-coral)] text-[var(--cloudact-coral)] border-[var(--cloudact-coral)] hover:bg-[#FFE8E3]",
+      className: "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100",
     },
   }
 
@@ -176,8 +176,8 @@ export function IntegrationConfigCard({
     <Card
       className={
         status === "INVALID"
-          ? "border-2 border-[var(--cloudact-coral)] shadow-sm hover:shadow-md transition-shadow"
-          : "console-stat-card border shadow-sm hover:shadow-md transition-shadow"
+          ? "border-2 border-[#FF6C5E] shadow-sm hover:shadow-md transition-shadow"
+          : "border border-slate-200 bg-white shadow-sm hover:shadow-md transition-shadow"
       }
     >
       <CardHeader>
@@ -185,7 +185,7 @@ export function IntegrationConfigCard({
           <div className="flex items-center gap-3">
             {/* Integration icon - Auto-loaded provider logo with consistent sizing */}
             {icon ? (
-              <div className="h-12 w-12 rounded-lg bg-[var(--cloudact-bg-mint)] flex items-center justify-center shadow-sm border border-[var(--cloudact-mint-light)]/20">
+              <div className="h-12 w-12 rounded-lg bg-slate-50 flex items-center justify-center shadow-sm border border-slate-200">
                 {icon}
               </div>
             ) : (
@@ -207,16 +207,16 @@ export function IntegrationConfigCard({
       <CardContent className="space-y-4">
         {/* Error Alert - Use Coral */}
         {integration?.last_error && status === "INVALID" && (
-          <Alert variant="destructive" className="border-2 border-[var(--cloudact-coral)] bg-[var(--cloudact-bg-coral)]">
-            <AlertCircle className="h-4 w-4 text-[var(--cloudact-coral)]" />
-            <AlertTitle className="text-[var(--cloudact-coral)] font-semibold">Validation Error</AlertTitle>
-            <AlertDescription className="text-foreground/90 mt-1">{integration.last_error}</AlertDescription>
+          <Alert variant="destructive" className="border border-[#FF6C5E]/30 bg-[#FF6C5E]/10">
+            <AlertCircle className="h-4 w-4 text-[#FF6C5E]" />
+            <AlertTitle className="text-[#FF6C5E] font-semibold">Validation Error</AlertTitle>
+            <AlertDescription className="text-slate-700 mt-1">{integration.last_error}</AlertDescription>
           </Alert>
         )}
 
         {/* Setup Form or Status Display */}
         {showSetup ? (
-          <div className="space-y-4 p-5 border-2 border-[var(--cloudact-mint)]/20 rounded-xl bg-[var(--cloudact-mint)]/5">
+          <div className="space-y-4 p-5 border border-slate-200 rounded-xl bg-slate-50">
             <div className="space-y-2">
               <Label htmlFor={`${provider}-credential`} className="console-label text-foreground font-medium">
                 {provider === "gcp" ? "Service Account JSON" : "API Key"}
@@ -224,7 +224,7 @@ export function IntegrationConfigCard({
               {inputType === "textarea" ? (
                 <textarea
                   id={`${provider}-credential`}
-                  className="flex min-h-[150px] w-full rounded-xl border-2 border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--cloudact-mint-dark)] focus-visible:border-[var(--cloudact-mint)] disabled:cursor-not-allowed disabled:opacity-50 font-mono transition-colors"
+                  className="flex min-h-[150px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:border-slate-400 disabled:cursor-not-allowed disabled:opacity-50 font-mono transition-colors"
                   placeholder={placeholder}
                   value={credential}
                   onChange={(e) => setCredential(e.target.value)}
@@ -240,19 +240,19 @@ export function IntegrationConfigCard({
                   onChange={(e) => setCredential(e.target.value)}
                   disabled={localLoading}
                   aria-describedby={validationError ? `${provider}-error` : undefined}
-                  className="h-11 rounded-xl console-input font-mono border-2 border-input focus-visible:ring-2 focus-visible:ring-[var(--cloudact-mint-dark)] focus-visible:border-[var(--cloudact-mint)] transition-colors"
+                  className="h-11 rounded-xl console-input font-mono border border-slate-200 bg-white focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:border-slate-400 transition-colors"
                 />
               )}
               <p className="console-small text-muted-foreground">{helperText}</p>
               {validationError && (
-                <p id={`${provider}-error`} className="console-small text-[var(--cloudact-coral)] mt-1 font-medium" role="alert">{validationError}</p>
+                <p id={`${provider}-error`} className="console-small text-[#FF6C5E] mt-1 font-medium" role="alert">{validationError}</p>
               )}
             </div>
             <div className="flex gap-2">
               <Button
                 onClick={handleSetup}
                 disabled={!credential.trim() || localLoading}
-                className="h-11 rounded-xl bg-[var(--cloudact-mint)] hover:bg-[var(--cloudact-mint-dark)] text-black font-medium shadow-sm hover:shadow transition-all focus-visible:outline-[var(--cloudact-mint-dark)] focus-visible:ring-[var(--cloudact-mint-dark)]"
+                className="h-11 rounded-xl bg-[#90FCA6] hover:bg-[#6EE890] text-black font-medium shadow-sm hover:shadow transition-all"
               >
                 {localLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {isConfigured ? "Update Credential" : "Connect"}
@@ -263,7 +263,7 @@ export function IntegrationConfigCard({
                   setShowSetup(false)
                   setCredential("")
                 }}
-                className="h-11 rounded-xl console-button-secondary border-2 border-border hover:bg-[var(--cloudact-mint)]/5 transition-colors focus-visible:outline-[var(--cloudact-mint-dark)] focus-visible:ring-[var(--cloudact-mint-dark)]"
+                className="h-11 rounded-xl console-button-secondary border border-slate-200 hover:bg-slate-100 transition-colors"
               >
                 Cancel
               </Button>
@@ -272,9 +272,9 @@ export function IntegrationConfigCard({
         ) : isConfigured ? (
           <div className="space-y-4">
             {/* Credential Info */}
-            <div className="flex items-center gap-4 p-4 border-2 border-[var(--cloudact-mint-light)]/20 rounded-lg bg-[var(--cloudact-bg-mint)] shadow-sm">
-              <div className="h-10 w-10 rounded-lg bg-white flex items-center justify-center shadow-sm border border-[var(--cloudact-mint-light)]/30">
-                <Key className="h-5 w-5 text-[var(--cloudact-mint-dark)]" />
+            <div className="flex items-center gap-4 p-4 border border-slate-200 rounded-lg bg-slate-50 shadow-sm">
+              <div className="h-10 w-10 rounded-lg bg-white flex items-center justify-center shadow-sm border border-slate-200">
+                <Key className="h-5 w-5 text-slate-600" />
               </div>
               <div className="flex-1">
                 <p className="console-card-title text-foreground">
@@ -282,7 +282,7 @@ export function IntegrationConfigCard({
                 </p>
                 <div className="flex flex-wrap items-center gap-3 mt-1.5 console-small text-muted-foreground">
                   <span className="flex items-center gap-1.5">
-                    <Clock className="h-3.5 w-3.5 text-[var(--cloudact-mint-dark)]" />
+                    <Clock className="h-3.5 w-3.5 text-slate-500" />
                     Last validated: {formatDate(integration?.last_validated_at)}
                   </span>
                   {integration?.created_at && (
@@ -296,15 +296,15 @@ export function IntegrationConfigCard({
             </div>
 
             {/* Security Note */}
-            <div className="flex items-start gap-2.5 console-small text-muted-foreground bg-[#90FCA6]/5 p-3 rounded-xl border border-border">
-              <Shield className="h-4 w-4 mt-0.5 flex-shrink-0 text-[var(--cloudact-mint-dark)]" />
+            <div className="flex items-start gap-2.5 console-small text-muted-foreground bg-slate-50 p-3 rounded-xl border border-slate-200">
+              <Shield className="h-4 w-4 mt-0.5 flex-shrink-0 text-slate-500" />
               <span>Credentials are encrypted using Google Cloud KMS and never stored in plain text.</span>
             </div>
           </div>
         ) : (
           <div className="text-center py-10 px-4">
-            <div className="inline-flex items-center justify-center h-16 w-16 rounded-full bg-[var(--cloudact-bg-mint)] mb-4 shadow-sm border border-[var(--cloudact-mint-light)]/20">
-              <Key className="h-8 w-8 text-[var(--cloudact-mint-dark)]" />
+            <div className="inline-flex items-center justify-center h-16 w-16 rounded-full bg-slate-100 mb-4 shadow-sm border border-slate-200">
+              <Key className="h-8 w-8 text-slate-500" />
             </div>
             <p className="console-body text-muted-foreground mb-6 max-w-md mx-auto">
               No {providerName} integration configured. Click below to add your credentials.
@@ -312,7 +312,7 @@ export function IntegrationConfigCard({
             <Button
               onClick={() => setShowSetup(true)}
               size="lg"
-              className="h-11 rounded-xl bg-[#90FCA6] hover:bg-[#6EE890] text-black font-medium shadow-sm hover:shadow transition-all focus-visible:outline-[var(--cloudact-mint-dark)] focus-visible:ring-[var(--cloudact-mint-dark)]"
+              className="h-11 rounded-xl bg-[#90FCA6] hover:bg-[#6EE890] text-black font-medium shadow-sm hover:shadow transition-all"
             >
               <Key className="h-4 w-4 mr-2" />
               Connect {providerName}
@@ -323,14 +323,14 @@ export function IntegrationConfigCard({
 
       {/* Actions Footer */}
       {isConfigured && !showSetup && (
-        <CardFooter className="flex justify-between border-t pt-5 bg-[#90FCA6]/5">
+        <CardFooter className="flex justify-between border-t pt-5 bg-slate-50/50">
           <div className="flex gap-2">
             <Button
               variant="outline"
               size="sm"
               onClick={handleValidate}
               disabled={isLoading || localLoading}
-              className="h-11 rounded-xl border-2 border-border text-[var(--cloudact-mint-dark)] hover:bg-[var(--cloudact-mint)]/5 hover:text-[var(--cloudact-mint-dark)] font-medium transition-colors shadow-sm focus-visible:outline-[var(--cloudact-mint-dark)] focus-visible:ring-[var(--cloudact-mint-dark)]"
+              className="h-11 rounded-xl border border-slate-200 text-[#1a7a3a] hover:bg-[#90FCA6]/10 font-medium transition-colors shadow-sm"
             >
               {localLoading ? (
                 <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
@@ -343,7 +343,7 @@ export function IntegrationConfigCard({
               variant="outline"
               size="sm"
               onClick={() => setShowSetup(true)}
-              className="h-11 rounded-xl console-button-secondary border-2 border-border hover:bg-[var(--cloudact-mint)]/5 transition-colors shadow-sm focus-visible:outline-[var(--cloudact-mint-dark)] focus-visible:ring-[var(--cloudact-mint-dark)]"
+              className="h-11 rounded-xl border border-slate-200 hover:bg-slate-100 transition-colors shadow-sm"
             >
               <Key className="h-4 w-4 mr-1.5" />
               Update Credential
@@ -356,7 +356,7 @@ export function IntegrationConfigCard({
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-11 rounded-xl text-[var(--cloudact-coral)] hover:text-[var(--cloudact-coral)] hover:bg-[var(--cloudact-coral)]/10 font-medium transition-colors focus-visible:outline-[var(--cloudact-mint-dark)] focus-visible:ring-[var(--cloudact-mint-dark)]"
+                className="h-11 rounded-xl text-[#FF6C5E] hover:text-[#FF6C5E] hover:bg-[#FF6C5E]/10 font-medium transition-colors"
               >
                 <Trash2 className="h-4 w-4 mr-1.5" />
                 Remove
@@ -376,7 +376,7 @@ export function IntegrationConfigCard({
                 <Button
                   variant="outline"
                   onClick={() => setShowDeleteDialog(false)}
-                  className="h-11 rounded-xl console-button-secondary border-2 border-border hover:bg-[var(--cloudact-mint)]/5 transition-colors focus-visible:outline-[var(--cloudact-mint-dark)] focus-visible:ring-[var(--cloudact-mint-dark)]"
+                  className="h-11 rounded-xl border border-slate-200 hover:bg-slate-100 transition-colors"
                 >
                   Cancel
                 </Button>
@@ -384,7 +384,7 @@ export function IntegrationConfigCard({
                   variant="destructive"
                   onClick={handleDelete}
                   disabled={localLoading}
-                  className="h-11 rounded-xl bg-[var(--cloudact-coral)] hover:bg-[var(--cloudact-coral)] text-white font-medium shadow-sm hover:shadow transition-all focus-visible:outline-[var(--cloudact-mint-dark)] focus-visible:ring-[var(--cloudact-mint-dark)]"
+                  className="h-11 rounded-xl bg-[#FF6C5E] hover:bg-[#e55a4d] text-white font-medium shadow-sm hover:shadow transition-all"
                 >
                   {localLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Remove Integration

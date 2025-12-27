@@ -970,6 +970,87 @@ async def onboard_org(
                             "schema_file": "org_hierarchy.json",
                             "description": "Organizational hierarchy for cost allocation. Stores departments, projects, and teams with version history.",
                             "clustering_fields": ["entity_type", "entity_id"]
+                        },
+                        # ========================================
+                        # GenAI Cost Tracking Tables (3 flows)
+                        # ========================================
+                        # --- PAYG Flow (Token-based: OpenAI, Anthropic, Gemini, etc.) ---
+                        {
+                            "table_name": "genai_payg_pricing",
+                            "schema_file": "genai_payg_pricing.json",
+                            "description": "GenAI PAYG token pricing with org-specific override support. Covers all API providers.",
+                            "clustering_fields": ["provider", "model"]
+                        },
+                        {
+                            "table_name": "genai_payg_usage_raw",
+                            "schema_file": "genai_payg_usage_raw.json",
+                            "description": "Daily GenAI PAYG token usage (input/output/cached tokens) from provider APIs.",
+                            "partition_field": "usage_date",
+                            "clustering_fields": ["provider", "model"]
+                        },
+                        {
+                            "table_name": "genai_payg_costs_daily",
+                            "schema_file": "genai_payg_costs_daily.json",
+                            "description": "Daily GenAI PAYG costs calculated from usage and pricing.",
+                            "partition_field": "cost_date",
+                            "clustering_fields": ["provider", "hierarchy_team_id"]
+                        },
+                        # --- Commitment Flow (PTU/GSU: Azure OpenAI, AWS Bedrock, GCP Vertex) ---
+                        {
+                            "table_name": "genai_commitment_pricing",
+                            "schema_file": "genai_commitment_pricing.json",
+                            "description": "GenAI commitment pricing (PTU, GSU, Provisioned Throughput) with override support.",
+                            "clustering_fields": ["provider", "commitment_type"]
+                        },
+                        {
+                            "table_name": "genai_commitment_usage_raw",
+                            "schema_file": "genai_commitment_usage_raw.json",
+                            "description": "Daily GenAI commitment usage (PTU/GSU units, utilization %).",
+                            "partition_field": "usage_date",
+                            "clustering_fields": ["provider", "commitment_id"]
+                        },
+                        {
+                            "table_name": "genai_commitment_costs_daily",
+                            "schema_file": "genai_commitment_costs_daily.json",
+                            "description": "Daily GenAI commitment costs (fixed + overage).",
+                            "partition_field": "cost_date",
+                            "clustering_fields": ["provider", "hierarchy_team_id"]
+                        },
+                        # --- Infrastructure Flow (Self-hosted: GPU/TPU hourly) ---
+                        {
+                            "table_name": "genai_infrastructure_pricing",
+                            "schema_file": "genai_infrastructure_pricing.json",
+                            "description": "GPU/TPU infrastructure pricing with spot/reserved discounts and org overrides.",
+                            "clustering_fields": ["provider", "instance_type"]
+                        },
+                        {
+                            "table_name": "genai_infrastructure_usage_raw",
+                            "schema_file": "genai_infrastructure_usage_raw.json",
+                            "description": "Daily GPU/TPU infrastructure usage (hours, instances, utilization).",
+                            "partition_field": "usage_date",
+                            "clustering_fields": ["provider", "instance_type"]
+                        },
+                        {
+                            "table_name": "genai_infrastructure_costs_daily",
+                            "schema_file": "genai_infrastructure_costs_daily.json",
+                            "description": "Daily GPU/TPU infrastructure costs.",
+                            "partition_field": "cost_date",
+                            "clustering_fields": ["provider", "hierarchy_team_id"]
+                        },
+                        # --- Unified Tables (All 3 flows consolidated) ---
+                        {
+                            "table_name": "genai_usage_daily_unified",
+                            "schema_file": "genai_usage_daily_unified.json",
+                            "description": "Consolidated GenAI usage (PAYG + Commitment + Infrastructure) for analytics and forecasting.",
+                            "partition_field": "usage_date",
+                            "clustering_fields": ["cost_type", "provider"]
+                        },
+                        {
+                            "table_name": "genai_costs_daily_unified",
+                            "schema_file": "genai_costs_daily_unified.json",
+                            "description": "Consolidated GenAI costs (PAYG + Commitment + Infrastructure) for dashboards and billing.",
+                            "partition_field": "cost_date",
+                            "clustering_fields": ["cost_type", "provider"]
                         }
                     ],
                     # LLM tables created empty - customers add custom plans via UI
@@ -2564,6 +2645,73 @@ async def repair_org_tables(
             "table_name": "org_hierarchy",
             "schema_file": "org_hierarchy.json",
             "clustering_fields": ["entity_type", "entity_id"]
+        },
+        # GenAI PAYG Tables
+        {
+            "table_name": "genai_payg_pricing",
+            "schema_file": "genai_payg_pricing.json",
+            "clustering_fields": ["provider", "model"]
+        },
+        {
+            "table_name": "genai_payg_usage_raw",
+            "schema_file": "genai_payg_usage_raw.json",
+            "partition_field": "usage_date",
+            "clustering_fields": ["provider", "model"]
+        },
+        {
+            "table_name": "genai_payg_costs_daily",
+            "schema_file": "genai_payg_costs_daily.json",
+            "partition_field": "cost_date",
+            "clustering_fields": ["provider", "model"]
+        },
+        # GenAI Commitment Tables
+        {
+            "table_name": "genai_commitment_pricing",
+            "schema_file": "genai_commitment_pricing.json",
+            "clustering_fields": ["provider", "commitment_type"]
+        },
+        {
+            "table_name": "genai_commitment_usage_raw",
+            "schema_file": "genai_commitment_usage_raw.json",
+            "partition_field": "usage_date",
+            "clustering_fields": ["provider", "commitment_id"]
+        },
+        {
+            "table_name": "genai_commitment_costs_daily",
+            "schema_file": "genai_commitment_costs_daily.json",
+            "partition_field": "cost_date",
+            "clustering_fields": ["provider", "commitment_id"]
+        },
+        # GenAI Infrastructure Tables
+        {
+            "table_name": "genai_infrastructure_pricing",
+            "schema_file": "genai_infrastructure_pricing.json",
+            "clustering_fields": ["provider", "resource_type"]
+        },
+        {
+            "table_name": "genai_infrastructure_usage_raw",
+            "schema_file": "genai_infrastructure_usage_raw.json",
+            "partition_field": "usage_date",
+            "clustering_fields": ["provider", "resource_type"]
+        },
+        {
+            "table_name": "genai_infrastructure_costs_daily",
+            "schema_file": "genai_infrastructure_costs_daily.json",
+            "partition_field": "cost_date",
+            "clustering_fields": ["provider", "resource_type"]
+        },
+        # GenAI Unified Tables
+        {
+            "table_name": "genai_usage_daily_unified",
+            "schema_file": "genai_usage_daily_unified.json",
+            "partition_field": "usage_date",
+            "clustering_fields": ["provider", "cost_type"]
+        },
+        {
+            "table_name": "genai_costs_daily_unified",
+            "schema_file": "genai_costs_daily_unified.json",
+            "partition_field": "cost_date",
+            "clustering_fields": ["provider", "cost_type"]
         }
     ]
 

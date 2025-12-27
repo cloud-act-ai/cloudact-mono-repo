@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation"
 import {
   Loader2, Check, Brain, Palette, FileText, MessageSquare, Code, Cloud,
   ChevronRight, ChevronDown, AlertCircle, Plus, ArrowUpRight,
-  TrendingUp, Settings2, Layers, Search, X
+  TrendingUp, Settings2, Layers, Search, X, HelpCircle, BookOpen
 } from "lucide-react"
 import Link from "next/link"
 
@@ -514,6 +514,43 @@ export default function SubscriptionIntegrationsPage() {
             Add Custom Provider
           </button>
         </Link>
+      </div>
+
+      {/* Help Documentation */}
+      <div className="mt-8 p-6 rounded-2xl bg-white border border-slate-200">
+        <div className="flex items-start gap-4">
+          <div className="h-10 w-10 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
+            <BookOpen className="h-5 w-5 text-blue-600" />
+          </div>
+          <div className="flex-1">
+            <h3 className="text-[15px] font-semibold text-slate-900 mb-3">
+              How Subscription Tracking Works
+            </h3>
+            <div className="space-y-3 text-[13px] text-slate-600">
+              <div className="flex items-start gap-2">
+                <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-slate-100 text-[11px] font-semibold text-slate-600 flex-shrink-0 mt-0.5">1</span>
+                <p><strong>Enable a Provider:</strong> Click on any provider from the "Available Providers" section to enable tracking. For example, enable "Slack" to start tracking your Slack subscription.</p>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-slate-100 text-[11px] font-semibold text-slate-600 flex-shrink-0 mt-0.5">2</span>
+                <p><strong>Add Subscription Plans:</strong> After enabling, click "Add Plans" to configure your subscription details - plan type (Pro, Team, Enterprise), number of seats, billing cycle (monthly/annual), and pricing.</p>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-slate-100 text-[11px] font-semibold text-slate-600 flex-shrink-0 mt-0.5">3</span>
+                <p><strong>Assign to Hierarchy:</strong> Optionally assign subscriptions to departments, projects, or teams for detailed cost allocation and chargeback reporting.</p>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-slate-100 text-[11px] font-semibold text-slate-600 flex-shrink-0 mt-0.5">4</span>
+                <p><strong>Track Costs:</strong> View aggregated costs in the <Link href={`/${orgSlug}/cost-dashboards/subscription-costs`} className="text-[#007AFF] font-medium hover:underline">Subscription Costs Dashboard</Link>. Costs are calculated daily based on your plan configurations.</p>
+              </div>
+              <div className="mt-4 p-3 rounded-lg bg-amber-50 border border-amber-200">
+                <p className="text-[12px] text-amber-800">
+                  <strong>Tip:</strong> Use the same currency across all subscriptions (matching your organization's default currency) for accurate cost comparisons. Currency can be set in <Link href={`/${orgSlug}/settings/organization`} className="text-[#007AFF] font-medium hover:underline">Organization Settings</Link>.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   )

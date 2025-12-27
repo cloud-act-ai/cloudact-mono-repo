@@ -41,6 +41,16 @@ Before closing this session, you MUST complete ALL of the following:
 | `CA_ROOT_API_KEY` | `X-CA-Root-Key` | Bootstrap, org onboarding (admin) |
 | Org API Key | `X-API-Key` | Integrations, pipelines (per-org) |
 
+**Get Org API Key for Testing:**
+```bash
+# Via Supabase REST API (service_role required)
+curl -s "https://kwroaccbrxppfiysqlzs.supabase.co/rest/v1/org_api_keys_secure?org_slug=eq.{ORG_SLUG}&select=api_key" \
+  -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+  -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}"
+
+# Example response: [{"api_key":"org_slug_api_Kq888VvuvTABjDkm"}]
+```
+
 ## 4. Comprehensive Do's and Don'ts
 
 ### DO's

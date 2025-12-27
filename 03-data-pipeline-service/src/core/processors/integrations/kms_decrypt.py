@@ -139,6 +139,44 @@ class KMSDecryptIntegrationProcessor:
             credential_id = row["credential_id"]
             encrypted_credential = row["encrypted_credential"]
             validation_status = row["validation_status"]
+            credential_type = row.get("credential_type")
+
+            # Validate credential_type matches expected type from provider registry
+            expected_credential_type = provider_registry.get_credential_type(provider)
+            if expected_credential_type:
+                if not credential_type:
+                    self.logger.error(
+                        "Credential type missing from stored credential",
+                        extra={
+                            "org_slug": org_slug,
+                            "provider": provider,
+                            "credential_id": credential_id
+                        }
+                    )
+                    return {
+                        "status": "FAILED",
+                        "error": "Credential type validation failed: credential type is missing",
+                        "provider": provider,
+                        "credential_id": credential_id
+                    }
+
+                if credential_type != expected_credential_type:
+                    self.logger.error(
+                        "Credential type mismatch",
+                        extra={
+                            "org_slug": org_slug,
+                            "provider": provider,
+                            "credential_id": credential_id,
+                            "stored_type": credential_type,
+                            "expected_type": expected_credential_type
+                        }
+                    )
+                    return {
+                        "status": "FAILED",
+                        "error": f"Credential type mismatch: expected {expected_credential_type}, got {credential_type}",
+                        "provider": provider,
+                        "credential_id": credential_id
+                    }
 
             # Decrypt credential
             try:
@@ -152,10 +190,20 @@ class KMSDecryptIntegrationProcessor:
                     }
                 )
             except Exception as e:
-                self.logger.error(f"KMS decryption failed: {e}", exc_info=True)
+                # Log full error internally but return generic message to avoid credential leaks
+                self.logger.error(
+                    "KMS decryption failed",
+                    extra={
+                        "org_slug": org_slug,
+                        "provider": provider,
+                        "credential_id": credential_id,
+                        "error_type": type(e).__name__
+                    },
+                    exc_info=True
+                )
                 return {
                     "status": "FAILED",
-                    "error": f"Failed to decrypt credential: {str(e)}",
+                    "error": "Failed to decrypt credential. Please contact support if the issue persists.",
                     "provider": provider,
                     "credential_id": credential_id
                 }
@@ -203,10 +251,19 @@ class KMSDecryptIntegrationProcessor:
             }
 
         except Exception as e:
-            self.logger.error(f"Failed to retrieve credential: {e}", exc_info=True)
+            # Log full error internally but return generic message to avoid credential leaks
+            self.logger.error(
+                "Failed to retrieve credential",
+                extra={
+                    "org_slug": org_slug,
+                    "provider": provider,
+                    "error_type": type(e).__name__
+                },
+                exc_info=True
+            )
             return {
                 "status": "FAILED",
-                "error": f"Failed to retrieve credential: {str(e)}",
+                "error": "Failed to retrieve credential. Please verify integration is configured correctly.",
                 "provider": provider
             }
 
@@ -292,10 +349,18 @@ class GetIntegrationStatusProcessor:
             }
 
         except Exception as e:
-            self.logger.error(f"Failed to get integration status: {e}", exc_info=True)
+            # Log full error internally but return generic message to avoid credential leaks
+            self.logger.error(
+                "Failed to get integration status",
+                extra={
+                    "org_slug": org_slug,
+                    "error_type": type(e).__name__
+                },
+                exc_info=True
+            )
             return {
                 "status": "FAILED",
-                "error": str(e)
+                "error": "Failed to retrieve integration status. Please try again later."
             }
 
 

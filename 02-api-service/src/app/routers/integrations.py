@@ -10,7 +10,7 @@ All credentials are encrypted via GCP KMS.
 URL Structure: /api/v1/integrations/{org_slug}/{provider}/setup|validate
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional, Dict, Any, Literal
 from datetime import datetime
@@ -23,6 +23,8 @@ from src.core.engine.bq_client import get_bigquery_client, BigQueryClient
 from src.app.dependencies.auth import get_current_org
 from src.app.config import settings
 from src.core.providers import provider_registry
+from src.core.utils.validators import validate_org_slug, sanitize_sql_identifier
+from src.app.dependencies.rate_limit_decorator import rate_limit_by_org
 from google.cloud import bigquery
 
 router = APIRouter()
@@ -30,18 +32,57 @@ logger = logging.getLogger(__name__)
 
 
 # ============================================
-# Input Validation (Multi-Tenancy Security)
+# Rate Limiting Helper (Fail-Closed)
 # ============================================
 
-def validate_org_slug(org_slug: str) -> None:
+async def safe_rate_limit(request: Request, org_slug: str, limit: int, action: str) -> None:
     """
-    Validate org_slug format to prevent path traversal and injection.
-    Must match backend requirements: 3-50 alphanumeric characters with underscores.
+    Issue #30: Wrapper for rate limiting with proper error handling.
+    Fail-closed for security - reject requests if rate limiting fails.
     """
-    if not org_slug or not re.match(r'^[a-zA-Z0-9_]{3,50}$', org_slug):
+    try:
+        await rate_limit_by_org(request, org_slug, limit, action)
+    except HTTPException:
+        raise
+    except Exception as e:
+        # SECURITY: Fail-closed - reject requests if rate limiting fails
+        logger.error(
+            f"Rate limit check failed for {org_slug}/{action}: {type(e).__name__}",
+            extra={"org_slug": org_slug, "action": action}
+        )
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid org_slug format. Must be 3-50 alphanumeric characters with underscores."
+            status_code=503,
+            detail="Service temporarily unavailable - rate limit check failed"
+        )
+
+
+def enforce_credential_size_limit(credential: str, org_slug: str) -> None:
+    """
+    Issue #50: Enforce credential size limit from settings.max_credential_size_bytes.
+
+    SECURITY: Prevents DOS attacks via oversized credential payloads.
+    The limit is configurable via MAX_CREDENTIAL_SIZE_BYTES env var (default 100KB).
+
+    Args:
+        credential: The credential string to check
+        org_slug: Organization slug for logging
+
+    Raises:
+        HTTPException: 413 if credential exceeds size limit
+    """
+    credential_size = len(credential.encode('utf-8'))
+    if credential_size > settings.max_credential_size_bytes:
+        logger.warning(
+            f"Credential size exceeds limit for {org_slug}",
+            extra={
+                "org_slug": org_slug,
+                "credential_size": credential_size,
+                "max_size": settings.max_credential_size_bytes
+            }
+        )
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"Credential size ({credential_size} bytes) exceeds maximum allowed ({settings.max_credential_size_bytes} bytes)"
         )
 
 
@@ -109,16 +150,28 @@ class AllIntegrationsResponse(BaseModel):
 
 def get_valid_providers() -> list:
     """Get list of valid providers from registry."""
+    if provider_registry is None:
+        logger.error("Provider registry not initialized")
+        return []
     return provider_registry.get_all_providers()
 
 
 def get_default_credential_name(provider: str) -> str:
     """Get default credential name for a provider."""
+    if provider_registry is None:
+        return f"{provider} Credential"
     return provider_registry.get_display_name(provider.upper()) or f"{provider} Credential"
 
 
 def normalize_provider(provider: str) -> str:
     """Normalize provider name to internal format using registry."""
+    if provider_registry is None:
+        logger.error("Provider registry not initialized")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Service configuration error. Please try again later."
+        )
+
     # First try direct lookup
     provider_upper = provider.upper()
     if provider_registry.is_valid_provider(provider_upper):
@@ -126,14 +179,22 @@ def normalize_provider(provider: str) -> str:
 
     # Then try aliases
     aliases = provider_registry.get_provider_aliases()
+    if aliases is None:
+        logger.error("Provider registry aliases not available")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Service configuration error. Please try again later."
+        )
+
     normalized = aliases.get(provider.lower())
     if normalized:
         return normalized
 
-    # Not found
+    # Not found - return generic message without exposing internal provider list
+    logger.warning(f"Invalid provider requested: {provider}")
     raise HTTPException(
         status_code=status.HTTP_400_BAD_REQUEST,
-        detail=f"Invalid provider: {provider}. Valid providers: {list(aliases.keys())}"
+        detail="Invalid provider specified. Please check the supported providers list."
     )
 
 
@@ -145,11 +206,12 @@ def normalize_provider(provider: str) -> str:
     "/integrations/{org_slug}/gcp/setup",
     response_model=SetupIntegrationResponse,
     summary="Setup GCP Service Account integration",
-    description="Validates and stores GCP Service Account JSON encrypted via KMS"
+    description="Validates and stores GCP Service Account JSON encrypted via KMS. Rate limited: 10 req/min."
 )
 async def setup_gcp_integration(
     org_slug: str,
-    request: SetupIntegrationRequest,
+    setup_request: SetupIntegrationRequest,
+    request: Request,
     org: Dict = Depends(get_current_org),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
@@ -160,6 +222,24 @@ async def setup_gcp_integration(
     """
     # SECURITY: Validate org_slug format first
     validate_org_slug(org_slug)
+    # SECURITY: Rate limiting to prevent brute force attacks on credentials (10 req/min)
+    await safe_rate_limit(request, org_slug, 10, "setup_gcp_integration")
+
+    # SECURITY: Enforce credential size limit (Issue #50)
+    credential_size = len(setup_request.credential.encode('utf-8'))
+    if credential_size > settings.max_credential_size_bytes:
+        logger.warning(
+            f"Credential size exceeds limit for {org_slug}",
+            extra={
+                "org_slug": org_slug,
+                "credential_size": credential_size,
+                "max_size": settings.max_credential_size_bytes
+            }
+        )
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"Credential size ({credential_size} bytes) exceeds maximum allowed ({settings.max_credential_size_bytes} bytes)"
+        )
 
     # Skip org validation when auth is disabled (dev mode)
     if not settings.disable_auth and org["org_slug"] != org_slug:
@@ -170,7 +250,7 @@ async def setup_gcp_integration(
 
     # Validate JSON format with specific error messages
     try:
-        sa_data = json.loads(request.credential)
+        sa_data = json.loads(setup_request.credential)
     except json.JSONDecodeError as e:
         logger.warning(
             f"Invalid JSON in GCP credential for {org_slug}",
@@ -209,17 +289,17 @@ async def setup_gcp_integration(
         )
 
     # Extract metadata from SA JSON
-    metadata = request.metadata or {}
+    metadata = setup_request.metadata or {}
     metadata["project_id"] = sa_data.get("project_id")
     metadata["client_email"] = sa_data.get("client_email")
 
     return await _setup_integration(
         org_slug=org_slug,
         provider="GCP_SA",
-        credential=request.credential,
-        credential_name=request.credential_name or f"GCP SA ({sa_data.get('project_id')})",
+        credential=setup_request.credential,
+        credential_name=setup_request.credential_name or f"GCP SA ({sa_data.get('project_id')})",
         metadata=metadata,
-        skip_validation=request.skip_validation,
+        skip_validation=setup_request.skip_validation,
         user_id=org.get("user_id")
     )
 
@@ -228,17 +308,20 @@ async def setup_gcp_integration(
     "/integrations/{org_slug}/openai/setup",
     response_model=SetupIntegrationResponse,
     summary="Setup OpenAI integration",
-    description="Validates and stores OpenAI API key encrypted via KMS"
+    description="Validates and stores OpenAI API key encrypted via KMS. Rate limited: 10 req/min."
 )
 async def setup_openai_integration(
     org_slug: str,
-    request: SetupIntegrationRequest,
+    setup_request: SetupIntegrationRequest,
+    request: Request,
     org: Dict = Depends(get_current_org),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """Setup OpenAI integration for an organization."""
     # SECURITY: Validate org_slug format first
     validate_org_slug(org_slug)
+    # SECURITY: Rate limiting to prevent brute force attacks on credentials (10 req/min)
+    await safe_rate_limit(request, org_slug, 10, "setup_openai_integration")
 
     # Skip org validation when auth is disabled (dev mode)
     if not settings.disable_auth and org["org_slug"] != org_slug:
@@ -250,10 +333,10 @@ async def setup_openai_integration(
     return await _setup_integration(
         org_slug=org_slug,
         provider="OPENAI",
-        credential=request.credential,
-        credential_name=request.credential_name or "OpenAI API Key",
-        metadata=request.metadata,
-        skip_validation=request.skip_validation,
+        credential=setup_request.credential,
+        credential_name=setup_request.credential_name or "OpenAI API Key",
+        metadata=setup_request.metadata,
+        skip_validation=setup_request.skip_validation,
         user_id=org.get("user_id")
     )
 
@@ -262,17 +345,20 @@ async def setup_openai_integration(
     "/integrations/{org_slug}/anthropic/setup",
     response_model=SetupIntegrationResponse,
     summary="Setup Anthropic (Claude) integration",
-    description="Validates and stores Anthropic API key encrypted via KMS"
+    description="Validates and stores Anthropic API key encrypted via KMS. Rate limited: 10 req/min."
 )
 async def setup_anthropic_integration(
     org_slug: str,
-    request: SetupIntegrationRequest,
+    setup_request: SetupIntegrationRequest,
+    request: Request,
     org: Dict = Depends(get_current_org),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """Setup Anthropic/Claude integration."""
     # SECURITY: Validate org_slug format first
     validate_org_slug(org_slug)
+    # SECURITY: Rate limiting to prevent brute force attacks on credentials (10 req/min)
+    await safe_rate_limit(request, org_slug, 10, "setup_anthropic_integration")
 
     # Skip org validation when auth is disabled (dev mode)
     if not settings.disable_auth and org["org_slug"] != org_slug:
@@ -284,10 +370,10 @@ async def setup_anthropic_integration(
     return await _setup_integration(
         org_slug=org_slug,
         provider="ANTHROPIC",
-        credential=request.credential,
-        credential_name=request.credential_name or "Anthropic API Key",
-        metadata=request.metadata,
-        skip_validation=request.skip_validation,
+        credential=setup_request.credential,
+        credential_name=setup_request.credential_name or "Anthropic API Key",
+        metadata=setup_request.metadata,
+        skip_validation=setup_request.skip_validation,
         user_id=org.get("user_id")
     )
 
@@ -296,17 +382,20 @@ async def setup_anthropic_integration(
     "/integrations/{org_slug}/gemini/setup",
     response_model=SetupIntegrationResponse,
     summary="Setup Google Gemini integration",
-    description="Validates and stores Gemini API key encrypted via KMS"
+    description="Validates and stores Gemini API key encrypted via KMS. Rate limited: 10 req/min."
 )
 async def setup_gemini_integration(
     org_slug: str,
-    request: SetupIntegrationRequest,
+    setup_request: SetupIntegrationRequest,
+    request: Request,
     org: Dict = Depends(get_current_org),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """Setup Google Gemini integration for an organization."""
     # SECURITY: Validate org_slug format first
     validate_org_slug(org_slug)
+    # SECURITY: Rate limiting to prevent brute force attacks on credentials (10 req/min)
+    await safe_rate_limit(request, org_slug, 10, "setup_gemini_integration")
 
     # Skip org validation when auth is disabled (dev mode)
     if not settings.disable_auth and org["org_slug"] != org_slug:
@@ -318,10 +407,47 @@ async def setup_gemini_integration(
     return await _setup_integration(
         org_slug=org_slug,
         provider="GEMINI",
-        credential=request.credential,
-        credential_name=request.credential_name or "Gemini API Key",
-        metadata=request.metadata,
-        skip_validation=request.skip_validation,
+        credential=setup_request.credential,
+        credential_name=setup_request.credential_name or "Gemini API Key",
+        metadata=setup_request.metadata,
+        skip_validation=setup_request.skip_validation,
+        user_id=org.get("user_id")
+    )
+
+
+@router.post(
+    "/integrations/{org_slug}/deepseek/setup",
+    response_model=SetupIntegrationResponse,
+    summary="Setup DeepSeek integration",
+    description="Validates and stores DeepSeek API key encrypted via KMS. Rate limited: 10 req/min."
+)
+async def setup_deepseek_integration(
+    org_slug: str,
+    setup_request: SetupIntegrationRequest,
+    request: Request,
+    org: Dict = Depends(get_current_org),
+    bq_client: BigQueryClient = Depends(get_bigquery_client)
+):
+    """Setup DeepSeek integration for an organization."""
+    # SECURITY: Validate org_slug format first
+    validate_org_slug(org_slug)
+    # SECURITY: Rate limiting to prevent brute force attacks on credentials (10 req/min)
+    await safe_rate_limit(request, org_slug, 10, "setup_deepseek_integration")
+
+    # Skip org validation when auth is disabled (dev mode)
+    if not settings.disable_auth and org["org_slug"] != org_slug:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cannot configure integrations for another organization"
+        )
+
+    return await _setup_integration(
+        org_slug=org_slug,
+        provider="DEEPSEEK",
+        credential=setup_request.credential,
+        credential_name=setup_request.credential_name or "DeepSeek API Key",
+        metadata=setup_request.metadata,
+        skip_validation=setup_request.skip_validation,
         user_id=org.get("user_id")
     )
 
@@ -333,57 +459,101 @@ async def setup_gemini_integration(
 @router.post(
     "/integrations/{org_slug}/gcp/validate",
     response_model=SetupIntegrationResponse,
-    summary="Validate GCP integration"
+    summary="Validate GCP integration",
+    description="Re-validate GCP Service Account credentials. Rate limited: 30 req/min."
 )
 async def validate_gcp_integration(
     org_slug: str,
+    request: Request,
     org: Dict = Depends(get_current_org),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """Re-validate GCP Service Account credentials using authenticator."""
+    # SECURITY: Validate org_slug format first
+    validate_org_slug(org_slug)
+    # Rate limiting: 30 requests per minute for validation endpoints
+    await safe_rate_limit(request, org_slug, 30, "validate_gcp_integration")
     return await _validate_integration(org_slug, "GCP_SA", org)
 
 
 @router.post(
     "/integrations/{org_slug}/openai/validate",
     response_model=SetupIntegrationResponse,
-    summary="Validate OpenAI integration"
+    summary="Validate OpenAI integration",
+    description="Re-validate OpenAI API key. Rate limited: 30 req/min."
 )
 async def validate_openai_integration(
     org_slug: str,
+    request: Request,
     org: Dict = Depends(get_current_org),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """Re-validate OpenAI API key using authenticator."""
+    # SECURITY: Validate org_slug format first
+    validate_org_slug(org_slug)
+    # Rate limiting: 30 requests per minute for validation endpoints
+    await safe_rate_limit(request, org_slug, 30, "validate_openai_integration")
     return await _validate_integration(org_slug, "OPENAI", org)
 
 
 @router.post(
     "/integrations/{org_slug}/anthropic/validate",
     response_model=SetupIntegrationResponse,
-    summary="Validate Anthropic integration"
+    summary="Validate Anthropic integration",
+    description="Re-validate Anthropic API key. Rate limited: 30 req/min."
 )
 async def validate_anthropic_integration(
     org_slug: str,
+    request: Request,
     org: Dict = Depends(get_current_org),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """Re-validate Anthropic API key using authenticator."""
+    # SECURITY: Validate org_slug format first
+    validate_org_slug(org_slug)
+    # Rate limiting: 30 requests per minute for validation endpoints
+    await safe_rate_limit(request, org_slug, 30, "validate_anthropic_integration")
     return await _validate_integration(org_slug, "ANTHROPIC", org)
 
 
 @router.post(
     "/integrations/{org_slug}/gemini/validate",
     response_model=SetupIntegrationResponse,
-    summary="Validate Gemini integration"
+    summary="Validate Gemini integration",
+    description="Re-validate Gemini API key. Rate limited: 30 req/min."
 )
 async def validate_gemini_integration(
     org_slug: str,
+    request: Request,
     org: Dict = Depends(get_current_org),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """Re-validate Gemini API key using authenticator."""
+    # SECURITY: Validate org_slug format first
+    validate_org_slug(org_slug)
+    # Rate limiting: 30 requests per minute for validation endpoints
+    await safe_rate_limit(request, org_slug, 30, "validate_gemini_integration")
     return await _validate_integration(org_slug, "GEMINI", org)
+
+
+@router.post(
+    "/integrations/{org_slug}/deepseek/validate",
+    response_model=SetupIntegrationResponse,
+    summary="Validate DeepSeek integration",
+    description="Re-validate DeepSeek API key. Rate limited: 30 req/min."
+)
+async def validate_deepseek_integration(
+    org_slug: str,
+    request: Request,
+    org: Dict = Depends(get_current_org),
+    bq_client: BigQueryClient = Depends(get_bigquery_client)
+):
+    """Re-validate DeepSeek API key using authenticator."""
+    # SECURITY: Validate org_slug format first
+    validate_org_slug(org_slug)
+    # Rate limiting: 30 requests per minute for validation endpoints
+    await safe_rate_limit(request, org_slug, 30, "validate_deepseek_integration")
+    return await _validate_integration(org_slug, "DEEPSEEK", org)
 
 
 # ============================================
@@ -462,10 +632,15 @@ async def get_all_integrations(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error getting integrations for {org_slug}: {e}", exc_info=True)
+        # SECURITY: Log full details but return generic message to client
+        logger.error(
+            f"Error getting integrations for {org_slug}",
+            extra={"error_type": type(e).__name__},
+            exc_info=True
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Operation failed. Please check server logs for details."
+            detail="Failed to retrieve integrations. Please try again or contact support."
         )
 
 
@@ -496,9 +671,10 @@ async def get_integration_status(
     integration = all_integrations.integrations.get(provider_upper)
 
     if not integration:
+        logger.warning(f"Unknown provider requested: {provider}")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Unknown provider: {provider}"
+            detail="Provider not found. Please check the supported providers list."
         )
 
     return integration
@@ -534,12 +710,13 @@ class UpdateIntegrationRequest(BaseModel):
     "/integrations/{org_slug}/{provider}",
     response_model=SetupIntegrationResponse,
     summary="Update an integration",
-    description="Update an existing integration's credential or metadata"
+    description="Update an existing integration's credential or metadata. Rate limited: 10 req/min."
 )
 async def update_integration(
     org_slug: str,
     provider: str,
-    request: UpdateIntegrationRequest,
+    update_request: UpdateIntegrationRequest,
+    request: Request,
     org: Dict = Depends(get_current_org),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
@@ -551,6 +728,8 @@ async def update_integration(
     """
     # SECURITY: Validate org_slug format first
     validate_org_slug(org_slug)
+    # SECURITY: Rate limiting to prevent brute force attacks on credentials (10 req/min)
+    await safe_rate_limit(request, org_slug, 10, "update_integration")
 
     # Skip org validation when auth is disabled (dev mode)
     if not settings.disable_auth and org["org_slug"] != org_slug:
@@ -581,9 +760,11 @@ async def update_integration(
         ).result())
 
         if not check_result:
+            # SECURITY: Log details but return generic message
+            logger.info(f"No active {provider_upper} integration found for {org_slug}")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"No active {provider_upper} integration found for {org_slug}"
+                detail="No active integration found for the specified provider."
             )
 
         existing_credential_id = check_result[0]["credential_id"]
@@ -592,21 +773,26 @@ async def update_integration(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error checking integration: {e}", exc_info=True)
+        # SECURITY: Log full details but return generic message to client
+        logger.error(
+            f"Error checking integration for {org_slug}/{provider_upper}",
+            extra={"error_type": type(e).__name__},
+            exc_info=True
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to check existing integration"
+            detail="Failed to verify integration status. Please try again or contact support."
         )
 
     # If new credential is provided, re-setup entirely
-    if request.credential:
+    if update_request.credential:
         return await _setup_integration(
             org_slug=org_slug,
             provider=provider_upper,
-            credential=request.credential,
-            credential_name=request.credential_name or existing_name,
-            metadata=request.metadata,
-            skip_validation=request.skip_validation,
+            credential=update_request.credential,
+            credential_name=update_request.credential_name or existing_name,
+            metadata=update_request.metadata,
+            skip_validation=update_request.skip_validation,
             user_id=org.get("user_id")
         )
 
@@ -618,14 +804,14 @@ async def update_integration(
             bigquery.ScalarQueryParameter("provider", "STRING", provider_upper),
         ]
 
-        if request.credential_name:
+        if update_request.credential_name:
             update_fields.append("credential_name = @credential_name")
-            query_params.append(bigquery.ScalarQueryParameter("credential_name", "STRING", request.credential_name))
+            query_params.append(bigquery.ScalarQueryParameter("credential_name", "STRING", update_request.credential_name))
 
-        if request.metadata:
+        if update_request.metadata:
             import json
             update_fields.append("metadata = @metadata")
-            query_params.append(bigquery.ScalarQueryParameter("metadata", "STRING", json.dumps(request.metadata)))
+            query_params.append(bigquery.ScalarQueryParameter("metadata", "STRING", json.dumps(update_request.metadata)))
 
         update_query = f"""
         UPDATE `{settings.gcp_project_id}.organizations.org_integration_credentials`
@@ -652,26 +838,35 @@ async def update_integration(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error updating integration: {e}", exc_info=True)
+        # SECURITY: Log full details but return generic message to client
+        logger.error(
+            f"Error updating integration for {org_slug}/{provider_upper}",
+            extra={"error_type": type(e).__name__},
+            exc_info=True
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to update integration"
+            detail="Failed to update integration. Please try again or contact support."
         )
 
 
 @router.delete(
     "/integrations/{org_slug}/{provider}",
-    summary="Delete an integration"
+    summary="Delete an integration",
+    description="Deactivate an integration. Rate limited: 10 req/min."
 )
 async def delete_integration(
     org_slug: str,
     provider: str,
+    request: Request,
     org: Dict = Depends(get_current_org),
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """Delete (deactivate) an integration."""
     # SECURITY: Validate org_slug format first
     validate_org_slug(org_slug)
+    # Rate limiting: 10 requests per minute for delete endpoints (lower limit)
+    await safe_rate_limit(request, org_slug, 10, "delete_integration")
 
     # Skip org validation when auth is disabled (dev mode)
     if not settings.disable_auth and org["org_slug"] != org_slug:
@@ -708,10 +903,15 @@ async def delete_integration(
         }
 
     except Exception as e:
-        logger.error(f"Error deleting integration: {e}", exc_info=True)
+        # SECURITY: Log full details but return generic message to client
+        logger.error(
+            f"Error deleting integration for {org_slug}/{provider_upper}",
+            extra={"error_type": type(e).__name__},
+            exc_info=True
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Operation failed. Please check server logs for details."
+            detail="Failed to delete integration. Please try again or contact support."
         )
 
 
@@ -730,6 +930,16 @@ async def _setup_integration(
 ) -> SetupIntegrationResponse:
     """Common logic for setting up any integration."""
     try:
+        # SECURITY: Enforce credential size limit (Issue #50)
+        enforce_credential_size_limit(credential, org_slug)
+
+        # SECURITY: Validate table name components before dynamic usage
+        # This prevents SQL injection in table names constructed from org_slug/provider
+        sanitize_sql_identifier(org_slug, "org_slug")
+        # Provider can have underscores (e.g., GCP_SA), so validate alphanumeric part only
+        provider_clean = provider.replace("_", "")
+        sanitize_sql_identifier(provider_clean, "provider")
+
         # INTEGRATION LIMITS ENFORCEMENT: Check if adding a new integration would exceed the org's provider limit
         bq_client = get_bigquery_client()
 
@@ -958,20 +1168,33 @@ async def _setup_integration(
                 message=message
             )
         else:
+            # SECURITY: Log full error but return generic message to client
+            error_detail = result.get("error", "Unknown error")
+            logger.error(
+                f"Integration setup failed for {org_slug}/{provider}",
+                extra={"error_detail": error_detail}
+            )
             return SetupIntegrationResponse(
                 success=False,
                 provider=provider,
                 credential_id=None,
                 validation_status="FAILED",
-                validation_error=result.get("error"),
-                message=f"Failed to setup {provider} integration: {result.get('error', 'Unknown error')}"
+                validation_error="Integration setup failed",
+                message=f"Failed to setup {provider} integration. Please verify your credentials and try again."
             )
 
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Integration setup error: {e}", exc_info=True)
+        # SECURITY: Log full details but return generic message to client
+        logger.error(
+            f"Integration setup error for {org_slug}/{provider}",
+            extra={"error_type": type(e).__name__},
+            exc_info=True
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Operation failed. Please check server logs for details."
+            detail="Integration setup failed. Please try again or contact support."
         )
 
 
@@ -1000,9 +1223,10 @@ async def _validate_integration(
             from src.core.processors.anthropic.authenticator import AnthropicAuthenticator
             auth = AnthropicAuthenticator(org_slug)
         else:
+            logger.warning(f"Unsupported provider for validation: {provider}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid provider: {provider}"
+                detail="Validation is not supported for the specified provider."
             )
 
         # Validate and update status
@@ -1030,15 +1254,20 @@ async def _validate_integration(
             credential_id=None,
             validation_status="NOT_CONFIGURED",
             validation_error="Integration not configured",
-            message=f"No {provider} integration found"
+            message="No integration found for the specified provider."
         )
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Validation error for {org_slug}/{provider}: {e}", exc_info=True)
+        # SECURITY: Log full details but return generic message to client
+        logger.error(
+            f"Validation error for {org_slug}/{provider}",
+            extra={"error_type": type(e).__name__},
+            exc_info=True
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Operation failed. Please check server logs for details."
+            detail="Credential validation failed. Please try again or contact support."
         )
 
 
@@ -1151,17 +1380,23 @@ async def _initialize_openai_pricing(org_slug: str, force: bool = False) -> Dict
         if rows:
             errors = bq_client.insert_rows_json(table_id, rows)
             if errors:
-                logger.error(f"Failed to insert pricing rows: {errors}")
-                return {"status": "FAILED", "error": str(errors)}
+                # SECURITY: Log full error details but return generic message
+                logger.error(f"Failed to insert pricing rows for {org_slug}", extra={"bq_errors": errors})
+                return {"status": "FAILED", "error": "Failed to insert pricing data"}
 
         logger.info(f"Seeded {len(rows)} pricing rows for {org_slug}")
         return {"status": "SUCCESS", "rows_seeded": len(rows)}
 
     except Exception as e:
-        logger.error(f"Error initializing OpenAI pricing: {e}", exc_info=True)
+        # SECURITY: Log full details but return generic message
+        logger.error(
+            f"Error initializing OpenAI pricing for {org_slug}",
+            extra={"error_type": type(e).__name__},
+            exc_info=True
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to initialize OpenAI pricing. Please check server logs for details."
+            detail="Failed to initialize pricing data. Please try again or contact support."
         ) from e
 
 
@@ -1261,15 +1496,21 @@ async def _initialize_openai_subscriptions(org_slug: str, force: bool = False) -
         if rows:
             errors = bq_client.insert_rows_json(table_id, rows)
             if errors:
-                logger.error(f"Failed to insert subscription rows: {errors}")
-                return {"status": "FAILED", "error": str(errors)}
+                # SECURITY: Log full error details but return generic message
+                logger.error(f"Failed to insert subscription rows for {org_slug}", extra={"bq_errors": errors})
+                return {"status": "FAILED", "error": "Failed to insert subscription data"}
 
         logger.info(f"Seeded {len(rows)} subscription rows for {org_slug}")
         return {"status": "SUCCESS", "rows_seeded": len(rows)}
 
     except Exception as e:
-        logger.error(f"Error initializing OpenAI subscriptions: {e}", exc_info=True)
-        return {"status": "FAILED", "error": str(e)}
+        # SECURITY: Log full details but return generic error
+        logger.error(
+            f"Error initializing OpenAI subscriptions for {org_slug}",
+            extra={"error_type": type(e).__name__},
+            exc_info=True
+        )
+        return {"status": "FAILED", "error": "Subscription initialization failed"}
 
 
 # ============================================
@@ -1490,8 +1731,13 @@ async def _initialize_llm_pricing(org_slug: str, provider: str, force: bool = Fa
         return {"status": "SUCCESS", "rows_seeded": len(rows)}
 
     except Exception as e:
-        logger.error(f"Error initializing {provider.upper()} pricing: {e}", exc_info=True)
-        return {"status": "FAILED", "error": str(e)}
+        # SECURITY: Log full details but return generic error
+        logger.error(
+            f"Error initializing {provider.upper()} pricing for {org_slug}",
+            extra={"error_type": type(e).__name__},
+            exc_info=True
+        )
+        return {"status": "FAILED", "error": "Pricing initialization failed"}
 
 
 async def _initialize_saas_subscriptions(org_slug: str, provider: str, force: bool = False) -> Dict[str, Any]:
@@ -1696,8 +1942,13 @@ async def _initialize_saas_subscriptions(org_slug: str, provider: str, force: bo
         return {"status": "SUCCESS", "rows_seeded": len(rows)}
 
     except Exception as e:
-        logger.error(f"Error initializing {provider.upper()} subscriptions: {e}", exc_info=True)
-        return {"status": "FAILED", "error": str(e)}
+        # SECURITY: Log full details but return generic error
+        logger.error(
+            f"Error initializing {provider.upper()} subscriptions for {org_slug}",
+            extra={"error_type": type(e).__name__},
+            exc_info=True
+        )
+        return {"status": "FAILED", "error": "Subscription initialization failed"}
 
 
 # ============================================
@@ -1792,15 +2043,21 @@ async def _initialize_gemini_pricing(org_slug: str, force: bool = False) -> Dict
         if rows:
             errors = bq_client.client.insert_rows_json(table_id, rows)
             if errors:
-                logger.error(f"Failed to insert Gemini pricing rows: {errors}")
-                return {"status": "FAILED", "error": str(errors)}
+                # SECURITY: Log full error details but return generic message
+                logger.error(f"Failed to insert Gemini pricing rows for {org_slug}", extra={"bq_errors": errors})
+                return {"status": "FAILED", "error": "Failed to insert Gemini pricing data"}
 
         logger.info(f"Seeded {len(rows)} Gemini pricing rows for {org_slug}")
         return {"status": "SUCCESS", "rows_seeded": len(rows)}
 
     except Exception as e:
-        logger.error(f"Error initializing Gemini pricing: {e}", exc_info=True)
-        return {"status": "FAILED", "error": str(e)}
+        # SECURITY: Log full details but return generic error
+        logger.error(
+            f"Error initializing Gemini pricing for {org_slug}",
+            extra={"error_type": type(e).__name__},
+            exc_info=True
+        )
+        return {"status": "FAILED", "error": "Gemini pricing initialization failed"}
 
 
 async def _initialize_gemini_subscriptions(org_slug: str, force: bool = False) -> Dict[str, Any]:
@@ -1898,12 +2155,18 @@ async def _initialize_gemini_subscriptions(org_slug: str, force: bool = False) -
         if rows:
             errors = bq_client.client.insert_rows_json(table_id, rows)
             if errors:
-                logger.error(f"Failed to insert Gemini subscription rows: {errors}")
-                return {"status": "FAILED", "error": str(errors)}
+                # SECURITY: Log full error details but return generic message
+                logger.error(f"Failed to insert Gemini subscription rows for {org_slug}", extra={"bq_errors": errors})
+                return {"status": "FAILED", "error": "Failed to insert Gemini subscription data"}
 
         logger.info(f"Seeded {len(rows)} Gemini subscription rows for {org_slug}")
         return {"status": "SUCCESS", "rows_seeded": len(rows)}
 
     except Exception as e:
-        logger.error(f"Error initializing Gemini subscriptions: {e}", exc_info=True)
-        return {"status": "FAILED", "error": str(e)}
+        # SECURITY: Log full details but return generic error
+        logger.error(
+            f"Error initializing Gemini subscriptions for {org_slug}",
+            extra={"error_type": type(e).__name__},
+            exc_info=True
+        )
+        return {"status": "FAILED", "error": "Gemini subscription initialization failed"}

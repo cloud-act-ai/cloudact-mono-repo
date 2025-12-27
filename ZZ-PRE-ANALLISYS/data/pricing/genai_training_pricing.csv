@@ -1,0 +1,18 @@
+provider,training_type,model,base_model,region,training_per_1m_tokens,inference_input_per_1m,inference_output_per_1m,inference_cached_per_1m,min_epochs,max_epochs,min_examples,max_training_tokens,storage_per_gb_month,rate_limit_rpm,sla_uptime_pct,effective_from,effective_to,status,last_updated,notes
+openai,fine-tuning,gpt-4o-2024-08-06-ft,gpt-4o,global,25.00,3.75,15.00,1.875,1,50,10,50000000,0,500,99.9,2024-08-06,,active,2024-12-01,GPT-4o fine-tuning
+openai,fine-tuning,gpt-4o-mini-2024-07-18-ft,gpt-4o-mini,global,3.00,0.30,1.20,0.15,1,50,10,50000000,0,500,99.9,2024-07-18,,active,2024-12-01,GPT-4o-mini fine-tuning
+openai,fine-tuning,gpt-3.5-turbo-ft,gpt-3.5-turbo,global,8.00,3.00,6.00,,1,50,10,50000000,0,500,99.9,2024-01-01,,active,2024-12-01,GPT-3.5 fine-tuning
+openai,fine-tuning,davinci-002-ft,davinci-002,global,6.00,12.00,12.00,,1,50,10,50000000,0,500,99.9,2024-01-01,,active,2024-12-01,Davinci fine-tuning
+openai,fine-tuning,babbage-002-ft,babbage-002,global,0.40,1.60,1.60,,1,50,10,50000000,0,500,99.9,2024-01-01,,active,2024-12-01,Babbage fine-tuning
+openai,distillation,gpt-4o-mini-distilled,gpt-4o,global,3.00,0.30,1.20,0.15,1,50,10,50000000,0,500,99.9,2024-12-01,,active,2024-12-01,Knowledge distillation
+openai,reinforcement,o1-ft,o1,global,,,,,1,10,100,10000000,0,100,99.0,2024-12-01,,preview,2024-12-01,Reinforcement fine-tuning preview
+anthropic,fine-tuning,claude-3-haiku-ft,claude-3-haiku,global,5.00,0.50,1.25,0.05,1,20,50,10000000,0,50,99.9,2024-06-01,,active,2024-12-01,Haiku fine-tuning (beta)
+gemini,fine-tuning,gemini-1.5-flash-ft,gemini-1.5-flash,global,0,0.075,0.30,0.01875,1,50,100,100000000,0,1000,99.9,2024-05-01,,active,2024-12-01,Free tuning (GA limited)
+gemini,fine-tuning,gemini-1.5-pro-ft,gemini-1.5-pro,global,0,1.25,5.00,0.3125,1,50,100,100000000,0,360,99.9,2024-05-01,,active,2024-12-01,Free tuning (GA limited)
+azure_openai,fine-tuning,gpt-4o-ft,gpt-4o,eastus,25.00,3.75,15.00,1.875,1,50,10,50000000,0.10,500,99.95,2024-11-01,,active,2024-12-01,Azure GPT-4o fine-tuning
+azure_openai,fine-tuning,gpt-4o-mini-ft,gpt-4o-mini,eastus,3.00,0.30,1.20,0.15,1,50,10,50000000,0.10,500,99.95,2024-07-01,,active,2024-12-01,Azure GPT-4o-mini fine-tuning
+azure_openai,fine-tuning,gpt-35-turbo-ft,gpt-35-turbo,eastus,8.00,3.00,6.00,,1,50,10,50000000,0.10,500,99.95,2024-01-01,,active,2024-12-01,Azure GPT-3.5 fine-tuning
+aws_bedrock,customization,claude-3-haiku-custom,claude-3-haiku,us-east-1,5.00,0.25,1.25,,1,20,50,10000000,0,50,99.9,2024-06-01,,active,2024-12-01,Bedrock model customization
+aws_bedrock,customization,amazon-titan-custom,amazon-titan,us-east-1,0.80,0.50,1.00,,1,20,100,50000000,0,100,99.9,2024-01-01,,active,2024-12-01,Titan customization
+gcp_vertex,tuning,gemini-1.5-flash-tuned,gemini-1.5-flash,us-central1,0,0.075,0.30,0.01875,1,50,100,100000000,0,1000,99.9,2024-05-01,,active,2024-12-01,Vertex supervised tuning
+gcp_vertex,tuning,gemini-1.5-pro-tuned,gemini-1.5-pro,us-central1,0,1.25,5.00,0.3125,1,50,100,100000000,0,360,99.9,2024-05-01,,active,2024-12-01,Vertex supervised tuning

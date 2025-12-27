@@ -1,0 +1,44 @@
+# GCP GPU Infrastructure Pipeline
+#
+# Extracts GPU usage from GCP and calculates infrastructure costs
+# Schedule: Daily at 4:00 AM UTC
+# URL: POST /api/v1/pipelines/run/{org}/genai/infrastructure/gcp_gpu
+
+pipeline_id: "{org_slug}-genai-infrastructure-gcp-gpu"
+name: "GCP GPU Infrastructure"
+description: "Extract GCP GPU/TPU usage and calculate infrastructure costs"
+provider: "genai"
+domain: "infrastructure"
+version: "1.0.0"
+
+schedule:
+  cron: "0 4 * * *"
+  timezone: "UTC"
+  enabled: true
+
+steps:
+  - step_id: extract_usage
+    name: "Extract GPU Usage"
+    ps_type: genai.infrastructure_usage
+    config:
+      provider: "gcp_gpu"
+    timeout_seconds: 600
+    retry:
+      max_attempts: 3
+      backoff_seconds: 120
+
+  - step_id: calculate_costs
+    name: "Calculate GPU Costs"
+    ps_type: genai.infrastructure_cost
+    config:
+      provider: "gcp_gpu"
+    depends_on:
+      - extract_usage
+    timeout_seconds: 300
+    retry:
+      max_attempts: 2
+      backoff_seconds: 30
+
+notifications:
+  on_failure:
+    - email

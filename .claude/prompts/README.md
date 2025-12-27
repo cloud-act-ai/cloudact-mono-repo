@@ -17,6 +17,7 @@ Reference these prompts when conducting code reviews. Each focuses on **IDENTIFY
 | `FRONTEND_REVIEW_PROMPT.md` | Reviewing Next.js, Supabase, Stripe code |
 | `BACKEND_REVIEW_PROMPT.md` | Reviewing FastAPI, BigQuery, pipeline code |
 | `INTEGRATION_FLOWS_REVIEW_PROMPT.md` | Reviewing cross-system flows |
+| `GENAI_COSTS_PROMPTS.md` | GenAI cost management scenarios |
 
 ---
 

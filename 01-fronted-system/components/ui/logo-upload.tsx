@@ -50,12 +50,16 @@ export function LogoUpload({
     const allowedTypes = ["image/png", "image/jpeg", "image/gif", "image/svg+xml", "image/webp"]
     if (!allowedTypes.includes(file.type)) {
       onError("Invalid file type. Allowed: PNG, JPG, GIF, SVG, WebP")
+      // Clear file input so user can re-select the same file after fixing the error
+      if (fileInputRef.current) fileInputRef.current.value = ""
       return
     }
 
     const maxSize = 1 * 1024 * 1024
     if (file.size > maxSize) {
       onError("File too large. Maximum size is 1MB")
+      // Clear file input so user can re-select the same file after fixing the error
+      if (fileInputRef.current) fileInputRef.current.value = ""
       return
     }
 
@@ -89,9 +93,21 @@ export function LogoUpload({
         }
         onSuccess("Logo uploaded successfully!")
       } else {
+        // Clear file state on upload error to allow re-selection
+        setSelectedFile(null)
+        setPreviewUrl(null)
+        if (fileInputRef.current) {
+          fileInputRef.current.value = ""
+        }
         onError(result.error || "Failed to upload logo")
       }
     } catch (err) {
+      // Clear file state on error to allow re-selection
+      setSelectedFile(null)
+      setPreviewUrl(null)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ""
+      }
       onError(err instanceof Error ? err.message : "Failed to upload logo")
     } finally {
       setIsUploading(false)

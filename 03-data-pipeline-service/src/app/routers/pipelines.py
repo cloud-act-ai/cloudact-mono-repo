@@ -455,8 +455,12 @@ async def trigger_templated_pipeline(
     api_key = http_request.headers.get("X-API-Key", "")
 
     # Construct pipeline_id for validation (matches registry format)
-    # e.g., "gcp_billing", "openai_usage_cost"
-    validation_pipeline_id = f"{provider}_{template_name}"
+    # e.g., "gcp_billing" (no domain), "genai_payg_openai" (with domain)
+    # Format: {provider}_{domain}_{pipeline} when domain exists, else {provider}_{pipeline}
+    if domain:
+        validation_pipeline_id = f"{provider}_{domain}_{template_name}"
+    else:
+        validation_pipeline_id = f"{provider}_{template_name}"
 
     logger.info(f"Calling api-service for validation: org={org_slug}, pipeline={validation_pipeline_id}")
 

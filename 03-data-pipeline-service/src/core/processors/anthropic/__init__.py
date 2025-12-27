@@ -1,16 +1,19 @@
 """Anthropic Processors Package
 
-Available processors:
-    - anthropic.usage: Extract usage data from Anthropic API
-    - anthropic.cost: Transform usage to cost using model pricing
+DEPRECATED: Usage and cost processors have been removed.
+Use the unified GenAI processors instead:
+    - genai.payg_usage with config.provider="anthropic"
+    - genai.payg_cost with config.provider="anthropic"
+
+Remaining:
+    - AnthropicAuthenticator: For credential validation during integration setup
+    - AnthropicValidationProcessor: For validating Anthropic credentials
 """
 
 from src.core.processors.anthropic.authenticator import AnthropicAuthenticator
-from src.core.processors.anthropic.usage import AnthropicUsageProcessor as UsageProcessor
-from src.core.processors.anthropic.cost import CostProcessor
+from src.core.processors.anthropic.validation import AnthropicValidationProcessor
 
 __all__ = [
     "AnthropicAuthenticator",
-    "UsageProcessor",
-    "CostProcessor",
+    "AnthropicValidationProcessor",
 ]

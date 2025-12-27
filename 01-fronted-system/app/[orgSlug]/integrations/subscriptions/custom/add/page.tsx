@@ -143,13 +143,13 @@ export default function AddCustomProviderPage() {
       return
     }
 
-    if (formData.unit_price === undefined || formData.unit_price < 0) {
-      setError("Price must be a valid positive number")
+    if (formData.unit_price === undefined || formData.unit_price <= 0) {
+      setError("Price must be greater than zero")
       return
     }
 
     if (formData.seats === undefined || formData.seats < 0) {
-      setError("Seats must be a valid positive number")
+      setError("Seats must be zero or a positive number")
       return
     }
 

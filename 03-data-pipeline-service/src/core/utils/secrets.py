@@ -1,10 +1,16 @@
 """
 Enterprise Secrets Management
 Handles org-specific secrets from filesystem with fallback to Cloud Secret Manager.
+
+SECURITY NOTES:
+- Secrets are cached with TTL to prevent stale credentials (SECURITY FIX #5)
+- Cache is cleared automatically after TTL expires
+- Use clear_cache() to manually invalidate secrets after rotation
 """
 
 import os
-from typing import Optional, Dict
+import time
+from typing import Optional, Dict, Tuple
 from pathlib import Path
 from functools import lru_cache
 import logging
@@ -16,6 +22,9 @@ from src.app.config import settings
 
 logger = logging.getLogger(__name__)
 
+# SECURITY FIX #5: Default TTL for cached secrets (5 minutes)
+DEFAULT_CACHE_TTL_SECONDS = 300
+
 
 class SecretsManager:
     """
@@ -24,11 +33,23 @@ class SecretsManager:
     Hierarchy:
     1. Check filesystem: configs/{org_slug}/secrets/{secret_name}.txt
     2. Fallback to Cloud Secret Manager: {org_slug}/{secret_name}
+
+    SECURITY:
+    - Secrets are cached with TTL (SECURITY FIX #5)
+    - Expired secrets are automatically removed from cache
     """
 
-    def __init__(self):
-        """Initialize secrets manager."""
-        self._cache: Dict[str, str] = {}
+    def __init__(self, cache_ttl_seconds: int = DEFAULT_CACHE_TTL_SECONDS):
+        """
+        Initialize secrets manager.
+
+        Args:
+            cache_ttl_seconds: TTL for cached secrets in seconds (default: 300)
+        """
+        # SECURITY FIX #5: Use TTL cache instead of simple dict
+        # Cache stores tuples of (value, timestamp)
+        self._cache: Dict[str, Tuple[str, float]] = {}
+        self._cache_ttl_seconds = cache_ttl_seconds
         self._secret_manager_client: Optional[secretmanager.SecretManagerServiceClient] = None
 
     @property
@@ -60,10 +81,18 @@ class SecretsManager:
         """
         cache_key = f"{org_slug}:{secret_name}"
 
-        # Check cache first
+        # SECURITY FIX #5: Check cache with TTL validation
         if use_cache and cache_key in self._cache:
-            logger.debug(f"Secret cache hit: {cache_key}")
-            return self._cache[cache_key]
+            cached_value, cached_at = self._cache[cache_key]
+            age = time.time() - cached_at
+
+            if age < self._cache_ttl_seconds:
+                logger.debug(f"Secret cache hit: {cache_key} (age: {age:.1f}s)")
+                return cached_value
+            else:
+                # Cache expired - remove it
+                logger.debug(f"Secret cache expired: {cache_key} (age: {age:.1f}s, TTL: {self._cache_ttl_seconds}s)")
+                del self._cache[cache_key]
 
         # Try filesystem first
         secret_value = self._get_secret_from_filesystem(org_slug, secret_name)
@@ -82,9 +111,9 @@ class SecretsManager:
                 "in filesystem or Cloud Secret Manager"
             )
 
-        # Cache the secret
+        # SECURITY FIX #5: Cache the secret with timestamp
         if use_cache:
-            self._cache[cache_key] = secret_value
+            self._cache[cache_key] = (secret_value, time.time())
 
         return secret_value
 
@@ -270,6 +299,51 @@ class SecretsManager:
             for key in keys_to_delete:
                 del self._cache[key]
             logger.info(f"Cleared secrets cache for org: {org_slug}")
+
+    def cleanup_expired(self) -> int:
+        """
+        SECURITY FIX #5: Remove all expired entries from cache.
+
+        Should be called periodically (e.g., via background task) to clean up
+        stale secrets that haven't been accessed.
+
+        Returns:
+            Number of expired entries removed
+        """
+        current_time = time.time()
+        expired_keys = []
+
+        for key, (value, cached_at) in self._cache.items():
+            if (current_time - cached_at) >= self._cache_ttl_seconds:
+                expired_keys.append(key)
+
+        for key in expired_keys:
+            del self._cache[key]
+
+        if expired_keys:
+            logger.info(f"Cleaned up {len(expired_keys)} expired secrets from cache")
+
+        return len(expired_keys)
+
+    def get_cache_stats(self) -> Dict[str, int]:
+        """
+        Get cache statistics for monitoring.
+
+        Returns:
+            Dict with cache stats
+        """
+        current_time = time.time()
+        total = len(self._cache)
+        expired = sum(
+            1 for _, (_, cached_at) in self._cache.items()
+            if (current_time - cached_at) >= self._cache_ttl_seconds
+        )
+        return {
+            "total_entries": total,
+            "expired_entries": expired,
+            "valid_entries": total - expired,
+            "ttl_seconds": self._cache_ttl_seconds,
+        }
 
 
 # Global singleton instance

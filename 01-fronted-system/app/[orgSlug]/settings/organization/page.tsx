@@ -426,6 +426,10 @@ export default function OrganizationSettingsPage() {
         setOriginalContactDetails(result.contactDetails)
       }
     } catch (err: unknown) {
+      // Silently fail - contact details are non-critical
+      if (process.env.NODE_ENV === "development") {
+        console.error("Failed to load contact details:", err)
+      }
     } finally {
       setLoadingContactDetails(false)
     }
@@ -440,18 +444,29 @@ export default function OrganizationSettingsPage() {
         setOwnedOrgs(result.data)
       }
     } catch (err: unknown) {
+      // Silently fail - owned orgs list is non-critical
+      if (process.env.NODE_ENV === "development") {
+        console.error("Failed to load owned organizations:", err)
+      }
     } finally {
       setLoadingOwnedOrgs(false)
     }
   }, [])
 
   const fetchLocale = useCallback(async () => {
+    setIsLoading(true)
     try {
-      setIsLoading(true)
-      const [localeResult, logoResult] = await Promise.all([
-        getOrgLocale(orgSlug),
-        getOrgLogo(orgSlug)
-      ])
+      // Wrap Promise.all in try-catch to handle individual failures
+      let localeResult, logoResult
+      try {
+        [localeResult, logoResult] = await Promise.all([
+          getOrgLocale(orgSlug),
+          getOrgLogo(orgSlug)
+        ])
+      } catch (promiseErr) {
+        setError("Failed to load organization settings")
+        return
+      }
 
       if (!localeResult.success || !localeResult.locale) {
         setError(localeResult.error || "Failed to fetch organization locale")

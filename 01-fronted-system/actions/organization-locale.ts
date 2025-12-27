@@ -211,6 +211,7 @@ export async function getOrgLocale(orgSlug: string): Promise<GetOrgLocaleResult>
     }
 
     // Default fiscal year based on timezone if not set
+    // Use nullish coalescing (??) to preserve month=1 (January) which is falsy with ||
     const timezone = data.default_timezone || "UTC"
     const fiscalYearDefault = getFiscalYearFromTimezone(timezone)
 
@@ -221,7 +222,7 @@ export async function getOrgLocale(orgSlug: string): Promise<GetOrgLocaleResult>
         default_timezone: timezone,
         default_country: data.default_country || undefined,
         default_language: data.default_language || undefined,
-        fiscal_year_start_month: data.fiscal_year_start_month || fiscalYearDefault,
+        fiscal_year_start_month: data.fiscal_year_start_month ?? fiscalYearDefault,
       },
     }
   } catch (err: unknown) {
@@ -316,9 +317,9 @@ async function syncLocaleToBackend(
       
     }
 
-    // Wait before retry (exponential backoff)
+    // Wait before retry (exponential backoff: 1s, 2s, 4s...)
     if (attempt < maxRetries) {
-      await new Promise(resolve => setTimeout(resolve, 1000 * attempt))
+      await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt - 1)))
     }
   }
 
@@ -395,13 +396,19 @@ export async function validateLocaleSync(orgSlug: string): Promise<{
     }
 
     try {
+      // Add timeout to prevent hanging requests
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 15000) // 15s timeout
+
       const response = await fetch(
         `${backendUrl}/api/v1/organizations/${orgSlug}/locale`,
         {
           method: "GET",
           headers: { "X-API-Key": orgApiKey },
+          signal: controller.signal,
         }
       )
+      clearTimeout(timeoutId)
 
       if (!response.ok) {
         return { inSync: false, supabase: supabaseLocale, error: "Failed to fetch BigQuery locale" }
@@ -429,10 +436,6 @@ export async function validateLocaleSync(orgSlug: string): Promise<{
         mismatch.push(`timezone: Supabase=${supabaseLocale.default_timezone}, BigQuery=${bigqueryLocale.default_timezone}`)
       }
 
-      if (mismatch.length > 0) {
-        
-      }
-
       return {
         inSync: mismatch.length === 0,
         supabase: supabaseLocale,
@@ -440,8 +443,11 @@ export async function validateLocaleSync(orgSlug: string): Promise<{
         mismatch: mismatch.length > 0 ? mismatch : undefined,
       }
 
-    } catch (fetchErr) {
-      
+    } catch (fetchErr: unknown) {
+      const error = fetchErr as { name?: string; message?: string }
+      if (error.name === "AbortError") {
+        return { inSync: false, supabase: supabaseLocale, error: "Backend request timed out" }
+      }
       return { inSync: false, supabase: supabaseLocale, error: "Failed to connect to backend" }
     }
 
@@ -1002,6 +1008,7 @@ export async function getOrgDetails(orgSlug: string): Promise<{
     }
 
     // Default fiscal year based on timezone if not set
+    // Use nullish coalescing (??) to preserve month=1 (January) which is falsy with ||
     const timezone = data.default_timezone || "UTC"
     const fiscalYearDefault = getFiscalYearFromTimezone(timezone)
 
@@ -1013,7 +1020,7 @@ export async function getOrgDetails(orgSlug: string): Promise<{
         logoUrl: data.logo_url || null,
         currency: data.default_currency || "USD",
         timezone: timezone,
-        fiscalYearStartMonth: data.fiscal_year_start_month || fiscalYearDefault,
+        fiscalYearStartMonth: data.fiscal_year_start_month ?? fiscalYearDefault,
       },
     }
   } catch (err: unknown) {

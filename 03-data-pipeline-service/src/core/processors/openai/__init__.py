@@ -1,19 +1,19 @@
 """OpenAI Processors Package
 
-Available processors:
-    - openai.usage: Extract usage data from OpenAI API
-    - openai.cost: Transform usage to cost using per-org pricing table
-    - openai.seed_csv: Load seed data (pricing) from CSV
+DEPRECATED: Usage and cost processors have been removed.
+Use the unified GenAI processors instead:
+    - genai.payg_usage with config.provider="openai"
+    - genai.payg_cost with config.provider="openai"
+
+Remaining:
+    - OpenAIAuthenticator: For credential validation during integration setup
+    - OpenAIValidationProcessor: For validating OpenAI credentials
 """
 
 from src.core.processors.openai.authenticator import OpenAIAuthenticator
-from src.core.processors.openai.usage import OpenAIUsageProcessor as UsageProcessor
-from src.core.processors.openai.cost import CostProcessor
-from src.core.processors.openai.seed_csv import SeedCSVProcessor
+from src.core.processors.openai.validation import OpenAIValidationProcessor
 
 __all__ = [
     "OpenAIAuthenticator",
-    "UsageProcessor",
-    "CostProcessor",
-    "SeedCSVProcessor",
+    "OpenAIValidationProcessor",
 ]

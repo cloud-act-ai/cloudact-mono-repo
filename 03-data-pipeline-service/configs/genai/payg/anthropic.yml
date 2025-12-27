@@ -1,0 +1,44 @@
+# Anthropic PAYG Usage and Cost Pipeline
+#
+# Extracts usage from Anthropic API and calculates costs
+# Schedule: Daily at 2:15 AM UTC
+# URL: POST /api/v1/pipelines/run/{org}/genai/payg/anthropic
+
+pipeline_id: "{org_slug}-genai-payg-anthropic"
+name: "Anthropic PAYG Usage and Cost"
+description: "Extract Anthropic token usage and calculate daily costs"
+provider: "genai"
+domain: "payg"
+version: "1.0.0"
+
+schedule:
+  cron: "15 2 * * *"
+  timezone: "UTC"
+  enabled: true
+
+steps:
+  - step_id: extract_usage
+    name: "Extract Anthropic Usage"
+    ps_type: genai.payg_usage
+    config:
+      provider: "anthropic"
+    timeout_seconds: 300
+    retry:
+      max_attempts: 3
+      backoff_seconds: 60
+
+  - step_id: calculate_costs
+    name: "Calculate Anthropic Costs"
+    ps_type: genai.payg_cost
+    config:
+      provider: "anthropic"
+    depends_on:
+      - extract_usage
+    timeout_seconds: 300
+    retry:
+      max_attempts: 2
+      backoff_seconds: 30
+
+notifications:
+  on_failure:
+    - email

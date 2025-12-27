@@ -1,0 +1,28 @@
+provider,support_tier,tier_order,monthly_base_cost,spend_percentage,min_monthly_spend,response_time_critical,response_time_high,response_time_normal,uptime_sla_pct,dedicated_tam,phone_support,slack_support,training_included,effective_from,effective_to,status,notes
+openai,free,0,0,0,0,,,,,false,false,false,false,2024-01-01,,active,Community/docs only
+openai,usage-tier-1,1,0,0,0,,,24h,,false,false,false,false,2024-01-01,,active,<$100/month usage
+openai,usage-tier-2,2,0,0,100,,,12h,,false,false,false,false,2024-01-01,,active,$100-$1K/month
+openai,usage-tier-3,3,0,0,1000,,4h,8h,,false,false,false,false,2024-01-01,,active,$1K-$10K/month
+openai,usage-tier-4,4,0,0,10000,1h,2h,4h,,false,true,false,false,2024-01-01,,active,$10K-$100K/month
+openai,usage-tier-5,5,0,0,100000,15min,1h,2h,99.9,true,true,true,true,2024-01-01,,active,Enterprise >$100K
+anthropic,free,0,0,0,0,,,,,false,false,false,false,2024-01-01,,active,Community/docs
+anthropic,developer,1,0,0,0,,,24h,,false,false,false,false,2024-01-01,,active,Basic support
+anthropic,team,2,0,0,400,,8h,24h,,false,false,true,false,2024-01-01,,active,Team tier
+anthropic,enterprise,3,0,0,0,1h,4h,8h,99.9,true,true,true,true,2024-01-01,,active,Custom agreement
+gemini,free,0,0,0,0,,,,,false,false,false,false,2024-01-01,,active,Community support
+gemini,standard,1,0,0,0,,24h,48h,99.0,false,false,false,false,2024-01-01,,active,Standard support
+gemini,enhanced,2,500,0,500,4h,8h,24h,99.5,false,true,false,false,2024-01-01,,active,Enhanced support
+gemini,premium,3,3000,0,10000,1h,4h,8h,99.9,true,true,true,true,2024-01-01,,active,Premium support
+azure_openai,basic,0,0,0,0,,,24h,99.0,false,false,false,false,2024-01-01,,active,Basic support
+azure_openai,developer,1,29,0,0,,8h,24h,99.5,false,false,false,false,2024-01-01,,active,Developer support
+azure_openai,standard,2,100,0,0,4h,8h,24h,99.5,false,true,false,false,2024-01-01,,active,Standard support
+azure_openai,professional,3,1000,0,0,1h,4h,8h,99.9,false,true,true,false,2024-01-01,,active,Professional direct
+azure_openai,enterprise,4,0,10,50000,15min,1h,4h,99.95,true,true,true,true,2024-01-01,,active,10% of spend min $5K
+aws_bedrock,basic,0,0,0,0,,,24h,99.0,false,false,false,false,2024-01-01,,active,Basic support
+aws_bedrock,developer,1,29,0,0,,12h,24h,99.5,false,false,false,false,2024-01-01,,active,Developer support
+aws_bedrock,business,2,100,3,0,4h,12h,24h,99.9,false,true,false,false,2024-01-01,,active,3% spend or $100 min
+aws_bedrock,enterprise,3,15000,0,0,15min,1h,4h,99.99,true,true,true,true,2024-01-01,,active,Enterprise support
+gcp_vertex,basic,0,0,0,0,,,24h,99.0,false,false,false,false,2024-01-01,,active,Basic support
+gcp_vertex,standard,1,100,0,0,,8h,24h,99.5,false,false,false,false,2024-01-01,,active,Standard support
+gcp_vertex,enhanced,2,500,0,0,4h,8h,24h,99.9,false,true,false,false,2024-01-01,,active,Enhanced support
+gcp_vertex,premium,3,0,4,12500,1h,4h,8h,99.99,true,true,true,true,2024-01-01,,active,4% spend min $12.5K

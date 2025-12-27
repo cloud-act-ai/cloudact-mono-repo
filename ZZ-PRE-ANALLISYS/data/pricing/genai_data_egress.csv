@@ -1,0 +1,27 @@
+cloud_provider,egress_type,destination,region,tier_start_gb,tier_end_gb,price_per_gb,free_tier_gb,effective_from,effective_to,status,notes
+aws,internet,worldwide,us-east-1,0,10240,0.09,100,2024-01-01,,active,First 10TB
+aws,internet,worldwide,us-east-1,10240,51200,0.085,0,2024-01-01,,active,10-50TB
+aws,internet,worldwide,us-east-1,51200,153600,0.07,0,2024-01-01,,active,50-150TB
+aws,internet,worldwide,us-east-1,153600,0,0.05,0,2024-01-01,,active,150TB+
+aws,cross-region,us-west-2,us-east-1,0,0,0.02,0,2024-01-01,,active,Cross-region US
+aws,cross-region,eu-west-1,us-east-1,0,0,0.02,0,2024-01-01,,active,Cross-region to EU
+aws,same-az,internal,us-east-1,0,0,0,0,2024-01-01,,active,Same AZ free
+aws,cross-az,internal,us-east-1,0,0,0.01,0,2024-01-01,,active,Cross AZ
+gcp,internet,worldwide,us-central1,0,1024,0.12,1,2024-01-01,,active,0-1TB premium
+gcp,internet,worldwide,us-central1,1024,10240,0.11,0,2024-01-01,,active,1-10TB
+gcp,internet,worldwide,us-central1,10240,0,0.08,0,2024-01-01,,active,10TB+
+gcp,cross-region,us-west1,us-central1,0,0,0.01,0,2024-01-01,,active,Cross-region US
+gcp,cross-region,europe-west1,us-central1,0,0,0.08,0,2024-01-01,,active,Cross-region intercontinental
+gcp,same-zone,internal,us-central1,0,0,0,0,2024-01-01,,active,Same zone free
+gcp,cross-zone,internal,us-central1,0,0,0.01,0,2024-01-01,,active,Cross zone same region
+azure,internet,zone-1,eastus,0,10240,0.087,100,2024-01-01,,active,First 10TB to Zone 1
+azure,internet,zone-1,eastus,10240,51200,0.083,0,2024-01-01,,active,10-50TB
+azure,internet,zone-1,eastus,51200,153600,0.07,0,2024-01-01,,active,50-150TB
+azure,internet,zone-1,eastus,153600,512000,0.05,0,2024-01-01,,active,150-500TB
+azure,internet,zone-2,eastus,0,10240,0.138,100,2024-01-01,,active,Zone 2 (Asia/Oceania)
+azure,cross-region,westus,eastus,0,0,0.02,0,2024-01-01,,active,Cross-region Americas
+azure,cross-region,westeurope,eastus,0,0,0.05,0,2024-01-01,,active,Cross-region intercontinental
+azure,same-vnet,internal,eastus,0,0,0,0,2024-01-01,,active,Same VNet free
+azure,cross-vnet-peering,internal,eastus,0,0,0.01,0,2024-01-01,,active,VNet peering
+self_hosted,internet,worldwide,on-prem,0,0,0,0,2024-01-01,,active,ISP costs not included
+self_hosted,internal,local,on-prem,0,0,0,0,2024-01-01,,active,Internal network free

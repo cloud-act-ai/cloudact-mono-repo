@@ -655,12 +655,19 @@ const DEFAULT_RETRY_CONFIG: RetryConfig = {
 
 /**
  * Check if an error is retryable.
- * Only retry on 5xx server errors and network errors.
+ * Retry on 5xx server errors, 429 rate limiting, and network errors.
  */
 function isRetryableError(error: unknown): boolean {
   if (error instanceof BackendAPIError) {
     // Retry on 5xx errors (server errors)
-    return error.statusCode >= 500 && error.statusCode < 600
+    if (error.statusCode >= 500 && error.statusCode < 600) {
+      return true
+    }
+    // Also retry on 429 (rate limited) - use Retry-After if available
+    if (error.statusCode === 429) {
+      return true
+    }
+    return false
   }
   if (error instanceof BackendTimeoutError) {
     // Retry on timeout errors
@@ -712,10 +719,16 @@ async function fetchWithRetry(
       }
 
       // Calculate delay with exponential backoff
-      const delayMs = Math.min(
+      // For 429 errors, respect Retry-After header if available
+      let delayMs = Math.min(
         retryConfig.initialDelayMs * Math.pow(retryConfig.backoffMultiplier, attempt - 1),
         retryConfig.maxDelayMs
       )
+
+      // Use Retry-After from rate limit response if available
+      if (error instanceof BackendAPIError && error.statusCode === 429 && error.retryAfter) {
+        delayMs = Math.max(delayMs, error.retryAfter * 1000)
+      }
 
       await sleep(delayMs)
     }

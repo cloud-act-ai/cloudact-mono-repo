@@ -1,0 +1,44 @@
+# GCP Vertex AI GSU Commitment Pipeline
+#
+# Extracts GSU usage from GCP Vertex AI and calculates commitment costs
+# Schedule: Daily at 3:30 AM UTC
+# URL: POST /api/v1/pipelines/run/{org}/genai/commitment/gcp_vertex
+
+pipeline_id: "{org_slug}-genai-commitment-gcp-vertex"
+name: "GCP Vertex AI GSU Commitment"
+description: "Extract GCP Vertex AI GSU usage and calculate commitment costs"
+provider: "genai"
+domain: "commitment"
+version: "1.0.0"
+
+schedule:
+  cron: "30 3 * * *"
+  timezone: "UTC"
+  enabled: true
+
+steps:
+  - step_id: extract_usage
+    name: "Extract GSU Usage"
+    ps_type: genai.commitment_usage
+    config:
+      provider: "gcp_vertex"
+    timeout_seconds: 300
+    retry:
+      max_attempts: 3
+      backoff_seconds: 60
+
+  - step_id: calculate_costs
+    name: "Calculate GSU Costs"
+    ps_type: genai.commitment_cost
+    config:
+      provider: "gcp_vertex"
+    depends_on:
+      - extract_usage
+    timeout_seconds: 300
+    retry:
+      max_attempts: 2
+      backoff_seconds: 30
+
+notifications:
+  on_failure:
+    - email

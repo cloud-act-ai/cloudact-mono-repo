@@ -566,7 +566,18 @@ export async function importHierarchy(
       return { success: false, error: `Failed to import hierarchy: ${errorText}` }
     }
 
-    const data = await response.json()
+    const data = await response.json() as HierarchyImportResult
+
+    // Check if there were any errors during import - report partial success accurately
+    const hasErrors = data.errors && data.errors.length > 0
+    const totalProcessed = (data.created || 0) + (data.updated || 0)
+
+    if (hasErrors && totalProcessed === 0) {
+      // Complete failure - no items processed
+      return { success: false, data, error: `Import failed: ${data.errors?.length} errors` }
+    }
+
+    // Return success with data - UI can check data.errors for partial failures
     return { success: true, data }
   } catch (error) {
     logError("importHierarchy", error)

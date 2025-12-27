@@ -1,0 +1,37 @@
+provider,media_type,model,model_version,region,quality,size_resolution,unit,price_per_unit,batch_discount_pct,volume_tier,volume_discount_pct,free_tier_units,rate_limit_rpm,sla_uptime_pct,effective_from,effective_to,status,last_updated,notes
+openai,image,dall-e-3,latest,global,hd,1024x1024,image,0.080,0,standard,0,0,7,99.9,2024-01-01,,active,2024-12-01,High quality
+openai,image,dall-e-3,latest,global,hd,1024x1792,image,0.120,0,standard,0,0,7,99.9,2024-01-01,,active,2024-12-01,HD portrait
+openai,image,dall-e-3,latest,global,hd,1792x1024,image,0.120,0,standard,0,0,7,99.9,2024-01-01,,active,2024-12-01,HD landscape
+openai,image,dall-e-3,latest,global,standard,1024x1024,image,0.040,0,standard,0,0,7,99.9,2024-01-01,,active,2024-12-01,Standard quality
+openai,image,dall-e-3,latest,global,standard,1024x1792,image,0.080,0,standard,0,0,7,99.9,2024-01-01,,active,2024-12-01,Standard portrait
+openai,image,dall-e-3,latest,global,standard,1792x1024,image,0.080,0,standard,0,0,7,99.9,2024-01-01,,active,2024-12-01,Standard landscape
+openai,image,dall-e-2,latest,global,standard,256x256,image,0.016,0,standard,0,0,50,99.9,2024-01-01,,active,2024-12-01,Small
+openai,image,dall-e-2,latest,global,standard,512x512,image,0.018,0,standard,0,0,50,99.9,2024-01-01,,active,2024-12-01,Medium
+openai,image,dall-e-2,latest,global,standard,1024x1024,image,0.020,0,standard,0,0,50,99.9,2024-01-01,,active,2024-12-01,Large
+openai,image,gpt-image-1,latest,global,low,1024x1024,image,0.011,0,standard,0,0,50,99.9,2024-12-01,,active,2024-12-01,Low quality square
+openai,image,gpt-image-1,latest,global,medium,1024x1024,image,0.042,0,standard,0,0,50,99.9,2024-12-01,,active,2024-12-01,Medium quality
+openai,image,gpt-image-1,latest,global,high,1024x1024,image,0.167,0,standard,0,0,50,99.9,2024-12-01,,active,2024-12-01,High quality
+openai,audio,whisper-1,latest,global,standard,per_minute,minute,0.006,0,standard,0,0,50,99.9,2024-01-01,,active,2024-12-01,Speech to text
+openai,audio,tts-1,latest,global,standard,per_1m_chars,1m_chars,15.00,0,standard,0,0,50,99.9,2024-01-01,,active,2024-12-01,Text to speech
+openai,audio,tts-1-hd,latest,global,hd,per_1m_chars,1m_chars,30.00,0,standard,0,0,50,99.9,2024-01-01,,active,2024-12-01,HD text to speech
+openai,audio,gpt-4o-audio,latest,global,standard,input_per_1m,tokens,100.00,0,standard,0,0,50,99.9,2024-12-01,,active,2024-12-01,Audio input tokens
+openai,audio,gpt-4o-audio,latest,global,standard,output_per_1m,tokens,200.00,0,standard,0,0,50,99.9,2024-12-01,,active,2024-12-01,Audio output tokens
+openai,video,sora,preview,global,720p,per_second,second,0.10,0,standard,0,0,5,99.0,2024-12-01,,preview,2024-12-01,Video generation preview
+openai,video,sora,preview,global,1080p,per_second,second,0.20,0,standard,0,0,5,99.0,2024-12-01,,preview,2024-12-01,Video generation HD
+gemini,image,imagen-3,latest,global,standard,1024x1024,image,0.040,0,standard,0,50,10,99.9,2025-01-01,,active,2024-12-01,Standard quality
+gemini,image,imagen-3,latest,global,fast,1024x1024,image,0.020,0,standard,0,50,20,99.9,2025-01-01,,active,2024-12-01,Fast generation
+gemini,image,imagen-3,latest,global,standard,1536x1536,image,0.080,0,standard,0,50,10,99.9,2025-01-01,,active,2024-12-01,High resolution
+gemini,audio,gemini-2.5-flash,latest,global,standard,audio_input_per_min,minute,0.0001,75,standard,0,1000000,1000,99.9,2025-01-01,,active,2024-12-01,Audio input
+gemini,audio,gemini-2.5-flash,latest,global,standard,audio_output_per_min,minute,0.0008,75,standard,0,1000000,1000,99.9,2025-01-01,,active,2024-12-01,Audio output
+gemini,video,veo-2,preview,global,720p,per_second,second,0.05,0,standard,0,10,5,99.0,2024-12-01,,preview,2024-12-01,Video generation
+gemini,video,veo-2,preview,global,1080p,per_second,second,0.10,0,standard,0,10,5,99.0,2024-12-01,,preview,2024-12-01,HD video generation
+anthropic,image,claude-3.5-sonnet,latest,global,standard,per_image_input,image,0.0048,90,standard,0,0,50,99.9,2024-10-22,,active,2024-12-01,Image input (up to 1568px)
+anthropic,image,claude-3-haiku,latest,global,standard,per_image_input,image,0.0004,88,standard,0,0,50,99.9,2024-03-07,,active,2024-12-01,Image input (up to 1568px)
+azure_openai,image,dall-e-3,latest,eastus,hd,1024x1024,image,0.080,0,standard,0,0,7,99.95,2024-01-01,,active,2024-12-01,Azure East US
+azure_openai,image,dall-e-3,latest,westeurope,hd,1024x1024,image,0.088,0,standard,0,0,7,99.95,2024-01-01,,active,2024-12-01,Azure West Europe +10%
+azure_openai,audio,whisper,latest,eastus,standard,per_minute,minute,0.006,0,standard,0,0,50,99.95,2024-01-01,,active,2024-12-01,Azure whisper
+aws_bedrock,image,stability-sdxl,latest,us-east-1,standard,1024x1024,image,0.040,0,standard,0,0,50,99.9,2024-01-01,,active,2024-12-01,Stability SDXL
+aws_bedrock,image,stability-sd3,latest,us-east-1,standard,1024x1024,image,0.080,0,standard,0,0,50,99.9,2024-06-01,,active,2024-12-01,Stable Diffusion 3
+aws_bedrock,image,amazon-titan-image,latest,us-east-1,standard,1024x1024,image,0.010,0,standard,0,0,100,99.9,2024-01-01,,active,2024-12-01,Amazon Titan Image
+gcp_vertex,image,imagen-3,latest,us-central1,standard,1024x1024,image,0.040,0,standard,0,0,10,99.9,2025-01-01,,active,2024-12-01,Vertex Imagen 3
+gcp_vertex,image,imagen-3,latest,europe-west1,standard,1024x1024,image,0.044,0,standard,0,0,10,99.9,2025-01-01,,active,2024-12-01,Vertex EU +10%

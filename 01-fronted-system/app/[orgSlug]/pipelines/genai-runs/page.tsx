@@ -18,6 +18,10 @@ import {
   Plug,
   TrendingUp,
   CalendarClock,
+  Zap,
+  Server,
+  Layers,
+  ArrowRightLeft,
 } from "lucide-react"
 import Link from "next/link"
 
@@ -46,6 +50,38 @@ interface PipelineConfig {
   enabled: boolean
 }
 
+// Tab configuration for GenAI pipeline categories
+const PIPELINE_TABS = [
+  {
+    id: "payg",
+    label: "Raw Usage",
+    icon: Zap,
+    description: "Token-based usage from LLM providers",
+    filter: (p: PipelineConfig) => p.domain === "payg",
+  },
+  {
+    id: "commitment",
+    label: "Commitments",
+    icon: Clock,
+    description: "Reserved capacity & provisioned throughput",
+    filter: (p: PipelineConfig) => p.domain === "commitment",
+  },
+  {
+    id: "infrastructure",
+    label: "Infrastructure",
+    icon: Server,
+    description: "GPU/TPU compute costs",
+    filter: (p: PipelineConfig) => p.domain === "infrastructure",
+  },
+  {
+    id: "consolidation",
+    label: "Consolidation",
+    icon: Layers,
+    description: "Unified costs & FOCUS 1.3 conversion",
+    filter: (p: PipelineConfig) => p.domain === "unified",
+  },
+]
+
 export default function GenAIRunsPage() {
   const params = useParams()
   const orgSlug = params.orgSlug as string
@@ -64,12 +100,17 @@ export default function GenAIRunsPage() {
   const [runDetails, setRunDetails] = useState<Record<string, PipelineRunDetailType>>({})
   const [loadingDetail, setLoadingDetail] = useState<string | null>(null)
 
+  // Active tab state
+  const [activeTab, setActiveTab] = useState("payg")
+
   const MAX_RUNS = 100
 
   // Filter for GenAI/LLM domain pipelines
   const filterDomain = (domain: string) => {
     const d = domain.toLowerCase()
-    return d === 'genai' || d === 'llm' || d === 'ai' || d.includes('usage')
+    return d === 'genai' || d === 'llm' || d === 'ai' || d === 'payg' ||
+           d === 'commitment' || d === 'infrastructure' || d === 'unified' ||
+           d.includes('usage')
   }
 
   const loadPipelineRuns = useCallback(async () => {
@@ -104,8 +145,9 @@ export default function GenAIRunsPage() {
     setHasApiKey(apiKeyResult.hasKey)
 
     if (pipelinesResult.success && pipelinesResult.pipelines) {
+      // Filter only genai provider pipelines
       const filtered = pipelinesResult.pipelines.filter((p: PipelineConfig) =>
-        p.enabled && filterDomain(p.domain)
+        p.enabled && p.provider === 'genai'
       )
       setPipelines(filtered)
     }
@@ -163,9 +205,10 @@ export default function GenAIRunsPage() {
     try {
       const yesterday = new Date()
       yesterday.setDate(yesterday.getDate() - 1)
-      const date = yesterday.toISOString().split("T")[0]
+      const startDate = yesterday.toISOString().split("T")[0]
 
-      const result = await runPipeline(orgSlug, pipelineId, { date })
+      // GenAI pipelines require start_date parameter
+      const result = await runPipeline(orgSlug, pipelineId, { start_date: startDate })
       setLastResult({
         pipelineId,
         success: result.success,
@@ -258,14 +301,22 @@ export default function GenAIRunsPage() {
     }
   }
 
-  // Filter to only connected pipelines
-  const connectedPipelines = pipelines.filter((pipeline) => {
+  // Helper to check if pipeline is connected
+  const isPipelineConnected = (pipeline: PipelineConfig) => {
     if (!pipeline.required_integration || pipeline.required_integration === "") {
       return true
     }
     const integration = integrations[pipeline.required_integration]
     return integration?.status === "VALID"
-  })
+  }
+
+  // Get pipelines for current tab
+  const currentTabConfig = PIPELINE_TABS.find(t => t.id === activeTab)
+  const tabPipelines = pipelines.filter(currentTabConfig?.filter || (() => true))
+
+  // Count connected vs not connected for current tab
+  const connectedCount = tabPipelines.filter(isPipelineConnected).length
+  const notConnectedCount = tabPipelines.length - connectedCount
 
   // Calculate run statistics
   const runStats = {
@@ -274,6 +325,27 @@ export default function GenAIRunsPage() {
     failed: pipelineRuns.filter(r => r.status === "FAILED" || r.status === "TIMEOUT").length,
     running: pipelineRuns.filter(r => r.status === "RUNNING" || r.status === "PENDING").length,
   }
+
+  // Filter runs by current tab
+  const getRunsForTab = (tabId: string) => {
+    return pipelineRuns.filter(run => {
+      const pipelineId = run.pipeline_id.toLowerCase()
+      switch (tabId) {
+        case "payg":
+          return pipelineId.includes('payg') && !pipelineId.includes('unified')
+        case "commitment":
+          return pipelineId.includes('commitment')
+        case "infrastructure":
+          return pipelineId.includes('infrastructure')
+        case "consolidation":
+          return pipelineId.includes('unified') || pipelineId.includes('consolidat')
+        default:
+          return true
+      }
+    })
+  }
+
+  const tabRuns = getRunsForTab(activeTab)
 
   if (isLoading) {
     return (
@@ -309,7 +381,7 @@ export default function GenAIRunsPage() {
           GenAI Pipeline Runs
         </h1>
         <p className="text-[15px] text-slate-500 mt-2 max-w-lg">
-          Monitor your AI/ML cost pipeline executions
+          Monitor your AI/ML cost pipeline executions across all providers
         </p>
       </div>
 
@@ -381,15 +453,6 @@ export default function GenAIRunsPage() {
         </div>
       )}
 
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 bg-[var(--cloudact-mint)]/5">
-        <div className="flex items-center gap-3">
-          <Info className="h-5 w-5 text-[var(--cloudact-mint-dark)] flex-shrink-0" />
-          <p className="text-[15px] text-slate-900">
-            GenAI pipelines track API usage and costs from LLM providers like OpenAI, Anthropic, and Google.
-          </p>
-        </div>
-      </div>
-
       {lastResult && (
         <div className={`bg-white rounded-2xl border border-slate-200 shadow-sm p-4 ${lastResult.success ? 'bg-[var(--cloudact-mint)]/10' : 'bg-[var(--cloudact-coral)]/10'}`}>
           <div className="flex items-center gap-3">
@@ -405,26 +468,89 @@ export default function GenAIRunsPage() {
         </div>
       )}
 
+      {/* Tabs Navigation */}
+      <div className="border-b border-slate-200">
+        <nav className="flex gap-1 -mb-px overflow-x-auto pb-px">
+          {PIPELINE_TABS.map((tab) => {
+            const Icon = tab.icon
+            const tabPipelineCount = pipelines.filter(tab.filter).length
+            const isActive = activeTab === tab.id
+
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`
+                  flex items-center gap-2 px-4 py-3 text-[14px] font-medium whitespace-nowrap border-b-2 transition-all
+                  ${isActive
+                    ? 'border-[var(--cloudact-mint-dark)] text-[#1a7a3a] bg-[var(--cloudact-mint)]/5'
+                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                  }
+                `}
+              >
+                <Icon className={`h-4 w-4 ${isActive ? 'text-[var(--cloudact-mint-dark)]' : ''}`} />
+                {tab.label}
+                <span className={`
+                  inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[11px] font-semibold
+                  ${isActive
+                    ? 'bg-[var(--cloudact-mint)] text-[#1a7a3a]'
+                    : 'bg-slate-100 text-slate-500'
+                  }
+                `}>
+                  {tabPipelineCount}
+                </span>
+              </button>
+            )
+          })}
+        </nav>
+      </div>
+
+      {/* Tab Description */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 bg-[var(--cloudact-mint)]/5">
+        <div className="flex items-center gap-3">
+          <Info className="h-5 w-5 text-[var(--cloudact-mint-dark)] flex-shrink-0" />
+          <p className="text-[15px] text-slate-900">
+            {currentTabConfig?.description || "GenAI pipelines track API usage and costs from LLM providers."}
+          </p>
+        </div>
+      </div>
+
+      {/* Available Pipelines for Current Tab */}
       <div>
-        <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide mb-4">Available Pipelines</h2>
+        <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide mb-4">
+          {currentTabConfig?.label} Pipelines
+        </h2>
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-0 overflow-hidden">
           <div className="px-4 sm:px-6 py-4 border-b border-[#E5E5EA]">
-            <div className="flex items-center gap-2">
-              <Brain className="h-[18px] w-[18px] text-[#1a7a3a]" />
-              <span className="text-[15px] font-semibold text-[#1a7a3a]">LLM usage tracking pipelines</span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {currentTabConfig && <currentTabConfig.icon className="h-[18px] w-[18px] text-[#1a7a3a]" />}
+                <span className="text-[15px] font-semibold text-[#1a7a3a]">
+                  {currentTabConfig?.label} - {currentTabConfig?.description}
+                </span>
+              </div>
+              <div className="flex items-center gap-3 text-[12px]">
+                <span className="text-[#1a7a3a]">{connectedCount} connected</span>
+                {notConnectedCount > 0 && (
+                  <>
+                    <span className="text-slate-300">&#8226;</span>
+                    <span className="text-slate-500">{notConnectedCount} not connected</span>
+                  </>
+                )}
+              </div>
             </div>
           </div>
 
           {/* Empty state */}
-          {connectedPipelines.length === 0 && (
+          {tabPipelines.length === 0 && (
             <div className="px-4 sm:px-6 py-12 text-center">
               <div className="space-y-4">
                 <div className="inline-flex p-4 rounded-2xl bg-[var(--cloudact-mint)]/10 mb-2">
                   <Plug className="h-12 w-12 text-[var(--cloudact-mint-dark)]" />
                 </div>
-                <h3 className="text-[20px] font-semibold text-black">No GenAI pipelines</h3>
+                <h3 className="text-[20px] font-semibold text-black">No {currentTabConfig?.label.toLowerCase()} pipelines</h3>
                 <p className="text-[15px] text-muted-foreground max-w-md mx-auto">
-                  Connect an LLM provider to see available usage pipelines.
+                  Connect an LLM provider to see available pipelines.
                 </p>
                 <Link href={`/${orgSlug}/integrations/genai`}>
                   <button className="inline-flex items-center gap-2 h-11 px-6 bg-[var(--cloudact-mint)] text-black text-[15px] font-semibold rounded-xl hover:bg-[var(--cloudact-mint-dark)] transition-colors shadow-sm">
@@ -436,55 +562,9 @@ export default function GenAIRunsPage() {
             </div>
           )}
 
-          {/* Mobile card view */}
-          {connectedPipelines.length > 0 && (
-            <div className="md:hidden divide-y divide-[#E5E5EA]">
-              {connectedPipelines.map((pipeline) => {
-                const isRunning = runningPipeline === pipeline.id
-
-                return (
-                  <div key={pipeline.id} className="p-4 space-y-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="text-[15px] font-semibold text-slate-900">{pipeline.name}</div>
-                        <div className="text-[13px] text-slate-500 mt-0.5">{pipeline.description}</div>
-                      </div>
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#B8FDCA] text-[#1a7a3a] border border-[var(--cloudact-mint)]/20 flex-shrink-0">
-                        <CheckCircle2 className="h-3 w-3" />
-                        Connected
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[var(--cloudact-mint)]/5 text-muted-foreground border border-border">
-                        {pipeline.provider}
-                      </span>
-                      <button
-                        onClick={() => handleRun(pipeline.id)}
-                        disabled={isRunning}
-                        className="inline-flex items-center gap-2 h-11 px-4 bg-[var(--cloudact-mint)] text-black text-[15px] font-semibold rounded-xl hover:bg-[var(--cloudact-mint-dark)] disabled:bg-[#E5E5EA] disabled:text-[#C7C7CC] disabled:cursor-not-allowed disabled:opacity-70 transition-all touch-manipulation shadow-sm hover:shadow-md"
-                      >
-                        {isRunning ? (
-                          <>
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            Running...
-                          </>
-                        ) : (
-                          <>
-                            <Play className="h-4 w-4" />
-                            Run Now
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-
           {/* Desktop table view */}
-          {connectedPipelines.length > 0 && (
-            <div className="hidden md:block overflow-x-auto">
+          {tabPipelines.length > 0 && (
+            <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="border-b border-[#E5E5EA]">
@@ -495,11 +575,12 @@ export default function GenAIRunsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {connectedPipelines.map((pipeline) => {
+                  {tabPipelines.map((pipeline) => {
                     const isRunning = runningPipeline === pipeline.id
+                    const isConnected = isPipelineConnected(pipeline)
 
                     return (
-                      <TableRow key={pipeline.id} className="console-table-row">
+                      <TableRow key={pipeline.id} className={`console-table-row ${!isConnected ? 'opacity-75' : ''}`}>
                         <TableCell className="console-table-cell">
                           <div className="space-y-0.5">
                             <div className="text-[15px] font-semibold text-slate-900">{pipeline.name}</div>
@@ -508,33 +589,49 @@ export default function GenAIRunsPage() {
                         </TableCell>
                         <TableCell className="console-table-cell">
                           <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[var(--cloudact-mint)]/5 text-muted-foreground border border-border">
-                            {pipeline.provider}
+                            {pipeline.pipeline}
                           </span>
                         </TableCell>
                         <TableCell className="console-table-cell">
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#B8FDCA] text-[#1a7a3a] border border-[var(--cloudact-mint)]/20">
-                            <CheckCircle2 className="h-3 w-3" />
-                            Connected
-                          </span>
+                          {isConnected ? (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#B8FDCA] text-[#1a7a3a] border border-[var(--cloudact-mint)]/20">
+                              <CheckCircle2 className="h-3 w-3" />
+                              Connected
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-slate-100 text-slate-500 border border-slate-200">
+                              <AlertCircle className="h-3 w-3" />
+                              Not Connected
+                            </span>
+                          )}
                         </TableCell>
                         <TableCell className="console-table-cell text-right">
-                          <button
-                            onClick={() => handleRun(pipeline.id)}
-                            disabled={isRunning}
-                            className="inline-flex items-center gap-2 h-11 px-4 bg-[var(--cloudact-mint)] text-black text-[15px] font-semibold rounded-xl hover:bg-[var(--cloudact-mint-dark)] disabled:bg-[#E5E5EA] disabled:text-[#C7C7CC] disabled:cursor-not-allowed disabled:opacity-70 transition-all touch-manipulation shadow-sm hover:shadow-md"
-                          >
-                            {isRunning ? (
-                              <>
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                                Running...
-                              </>
-                            ) : (
-                              <>
-                                <Play className="h-4 w-4" />
-                                Run Now
-                              </>
-                            )}
-                          </button>
+                          {isConnected ? (
+                            <button
+                              onClick={() => handleRun(pipeline.id)}
+                              disabled={isRunning}
+                              className="inline-flex items-center gap-2 h-11 px-4 bg-[var(--cloudact-mint)] text-black text-[15px] font-semibold rounded-xl hover:bg-[var(--cloudact-mint-dark)] disabled:bg-[#E5E5EA] disabled:text-[#C7C7CC] disabled:cursor-not-allowed disabled:opacity-70 transition-all touch-manipulation shadow-sm hover:shadow-md"
+                            >
+                              {isRunning ? (
+                                <>
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                  Running...
+                                </>
+                              ) : (
+                                <>
+                                  <Play className="h-4 w-4" />
+                                  Run Now
+                                </>
+                              )}
+                            </button>
+                          ) : (
+                            <Link href={`/${orgSlug}/integrations/genai`}>
+                              <button className="inline-flex items-center gap-2 h-11 px-4 bg-slate-100 text-slate-600 text-[15px] font-semibold rounded-xl hover:bg-slate-200 transition-all touch-manipulation">
+                                <Plug className="h-4 w-4" />
+                                Connect
+                              </button>
+                            </Link>
+                          )}
                         </TableCell>
                       </TableRow>
                     )
@@ -546,27 +643,28 @@ export default function GenAIRunsPage() {
         </div>
       </div>
 
+      {/* Run History for Current Tab */}
       {backendConnected && hasApiKey && (
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
-              <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide">Run History</h2>
-              {pipelineRuns.length > 0 && (
+              <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide">
+                {currentTabConfig?.label} Run History
+              </h2>
+              {tabRuns.length > 0 && (
                 <div className="flex items-center gap-4 mt-2">
                   <div className="flex items-center gap-1.5">
                     <div className="h-2 w-2 rounded-full bg-[var(--cloudact-mint)]"></div>
-                    <span className="text-[13px] text-slate-500">{runStats.completed} completed</span>
+                    <span className="text-[13px] text-slate-500">
+                      {tabRuns.filter(r => r.status === "COMPLETED").length} completed
+                    </span>
                   </div>
-                  {runStats.failed > 0 && (
+                  {tabRuns.filter(r => r.status === "FAILED" || r.status === "TIMEOUT").length > 0 && (
                     <div className="flex items-center gap-1.5">
                       <div className="h-2 w-2 rounded-full bg-[var(--cloudact-coral)]"></div>
-                      <span className="text-[13px] text-slate-500">{runStats.failed} failed</span>
-                    </div>
-                  )}
-                  {runStats.running > 0 && (
-                    <div className="flex items-center gap-1.5">
-                      <div className="h-2 w-2 rounded-full bg-[var(--cloudact-mint)] animate-pulse"></div>
-                      <span className="text-[13px] text-slate-500">{runStats.running} running</span>
+                      <span className="text-[13px] text-slate-500">
+                        {tabRuns.filter(r => r.status === "FAILED" || r.status === "TIMEOUT").length} failed
+                      </span>
                     </div>
                   )}
                 </div>
@@ -588,158 +686,28 @@ export default function GenAIRunsPage() {
 
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-0 overflow-hidden">
             {/* Loading state */}
-            {runsLoading && pipelineRuns.length === 0 && (
+            {runsLoading && tabRuns.length === 0 && (
               <div className="px-4 sm:px-6 py-12 text-center">
                 <Loader2 className="h-8 w-8 animate-spin mx-auto text-[var(--cloudact-mint-dark)]" />
               </div>
             )}
 
             {/* Empty state */}
-            {!runsLoading && pipelineRuns.length === 0 && (
+            {!runsLoading && tabRuns.length === 0 && (
               <div className="px-4 sm:px-6 py-12 text-center">
                 <div className="space-y-3">
                   <div className="inline-flex p-3 rounded-2xl bg-[var(--cloudact-mint)]/10 mb-2">
                     <History className="h-10 w-10 text-[var(--cloudact-mint-dark)]" />
                   </div>
-                  <h3 className="text-[17px] font-semibold text-slate-900">No runs yet</h3>
-                  <p className="text-[15px] text-slate-500">Run a GenAI pipeline to see history</p>
+                  <h3 className="text-[17px] font-semibold text-slate-900">No {currentTabConfig?.label.toLowerCase()} runs yet</h3>
+                  <p className="text-[15px] text-slate-500">Run a pipeline to see history</p>
                 </div>
               </div>
             )}
 
-            {/* Mobile card view */}
-            {pipelineRuns.length > 0 && (
-              <div className="md:hidden divide-y divide-[#E5E5EA]">
-                {pipelineRuns.map((run) => {
-                  const isExpanded = expandedRun === run.pipeline_logging_id
-                  const detail = runDetails[run.pipeline_logging_id]
-                  const isLoadingThisDetail = loadingDetail === run.pipeline_logging_id
-
-                  return (
-                    <div key={run.pipeline_logging_id}>
-                      <button
-                        className="w-full p-4 text-left touch-manipulation hover:bg-[var(--cloudact-mint)]/5 transition-colors"
-                        onClick={() => toggleRunExpansion(run.pipeline_logging_id)}
-                      >
-                        <div className="flex items-start justify-between gap-3 mb-3">
-                          <div className="flex items-start gap-2 flex-1 min-w-0">
-                            {isExpanded ? (
-                              <ChevronDown className="h-4 w-4 text-[#C7C7CC] mt-1 flex-shrink-0" />
-                            ) : (
-                              <ChevronRight className="h-4 w-4 text-[#C7C7CC] mt-1 flex-shrink-0" />
-                            )}
-                            <div className="min-w-0">
-                              <div className="text-[15px] font-semibold text-slate-900 truncate">{run.pipeline_id}</div>
-                              <div className="text-[11px] text-slate-500 font-mono mt-0.5">
-                                {run.pipeline_logging_id.slice(0, 8)}...
-                              </div>
-                            </div>
-                          </div>
-                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium rounded-full border flex-shrink-0 ${getStatusColor(run.status)}`}>
-                            {getStatusIcon(run.status)}
-                            {run.status}
-                          </span>
-                        </div>
-
-                        <div className="ml-6 space-y-2">
-                          <div className="flex items-center gap-4 text-[13px] text-slate-500">
-                            <span className="flex items-center gap-1">
-                              <CalendarClock className="h-3 w-3" />
-                              {formatDateTime(run.start_time)}
-                            </span>
-                          </div>
-
-                          <div className="space-y-1">
-                            <div className="flex items-center justify-between text-[11px]">
-                              <span className="text-slate-500">Duration</span>
-                              <span className="font-medium text-slate-900">{formatDuration(run.duration_ms)}</span>
-                            </div>
-                            <div className="h-1.5 bg-[#E5E5EA] rounded-full overflow-hidden">
-                              <div
-                                className={`h-full rounded-full transition-all ${run.status === 'COMPLETED' ? 'bg-[var(--cloudact-mint)]' : run.status === 'FAILED' ? 'bg-[var(--cloudact-coral)]' : 'bg-[var(--cloudact-mint)]/50'}`}
-                                style={{ width: getDurationWidth(run.duration_ms) }}
-                              ></div>
-                            </div>
-                          </div>
-                        </div>
-                      </button>
-
-                      {isExpanded && (
-                        <div className="px-4 pb-4 bg-[var(--cloudact-mint)]/5">
-                          {isLoadingThisDetail ? (
-                            <div className="flex items-center justify-center py-6">
-                              <Loader2 className="h-6 w-6 animate-spin text-[var(--cloudact-mint-dark)]" />
-                            </div>
-                          ) : detail ? (
-                            <div className="space-y-4">
-                              {run.error_message && (
-                                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 bg-[var(--cloudact-coral)]/10 border-l-4 border-[var(--cloudact-coral)]">
-                                  <div className="flex items-start gap-3">
-                                    <XCircle className="h-5 w-5 text-[var(--cloudact-coral)] mt-0.5 flex-shrink-0" />
-                                    <div className="flex-1 min-w-0">
-                                      <p className="text-[15px] font-semibold text-slate-900">Error Details</p>
-                                      <p className="text-[13px] text-slate-500 mt-1 break-words font-mono">{run.error_message}</p>
-                                    </div>
-                                  </div>
-                                </div>
-                              )}
-
-                              <div className="space-y-3">
-                                <div className="flex items-center gap-2">
-                                  <TrendingUp className="h-4 w-4 text-[var(--cloudact-mint-dark)]" />
-                                  <h4 className="text-[15px] font-semibold text-slate-900">Pipeline Steps</h4>
-                                </div>
-                                {detail.steps.length === 0 ? (
-                                  <p className="text-center text-slate-500 text-[13px] py-4">No step logs available</p>
-                                ) : (
-                                  <div className="space-y-2">
-                                    {detail.steps.map((step) => (
-                                      <div key={step.step_logging_id} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-3">
-                                        <div className="flex items-center justify-between gap-3 mb-2">
-                                          <div className="flex items-center gap-2 min-w-0">
-                                            <span className="flex items-center justify-center h-6 w-6 rounded-full bg-[var(--cloudact-mint)]/10 text-[var(--cloudact-mint-dark)] text-[11px] font-bold flex-shrink-0">
-                                              {step.step_index}
-                                            </span>
-                                            <span className="text-[13px] font-semibold text-slate-900 truncate">{step.step_name}</span>
-                                          </div>
-                                          <span className={`inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-full flex-shrink-0 ${getStatusColor(step.status)}`}>
-                                            {step.status}
-                                          </span>
-                                        </div>
-                                        <div className="ml-8 space-y-1">
-                                          <div className="flex items-center justify-between text-[11px]">
-                                            <span className="text-slate-500">Duration</span>
-                                            <span className="font-medium text-slate-900">{formatDuration(step.duration_ms)}</span>
-                                          </div>
-                                          <div className="h-1 bg-[#E5E5EA] rounded-full overflow-hidden">
-                                            <div
-                                              className={`h-full rounded-full ${step.status === 'COMPLETED' ? 'bg-[var(--cloudact-mint)]' : step.status === 'FAILED' ? 'bg-[var(--cloudact-coral)]' : 'bg-[var(--cloudact-mint)]/50'}`}
-                                              style={{ width: getDurationWidth(step.duration_ms) }}
-                                            ></div>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="text-center text-slate-500 text-[13px] py-6">
-                              Failed to load details
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-
             {/* Desktop table view */}
-            {pipelineRuns.length > 0 && (
-              <div className="hidden md:block overflow-x-auto">
+            {tabRuns.length > 0 && (
+              <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow className="border-b border-[#E5E5EA]">
@@ -751,7 +719,7 @@ export default function GenAIRunsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {pipelineRuns.map((run) => {
+                    {tabRuns.map((run) => {
                       const isExpanded = expandedRun === run.pipeline_logging_id
                       const detail = runDetails[run.pipeline_logging_id]
                       const isLoadingThisDetail = loadingDetail === run.pipeline_logging_id

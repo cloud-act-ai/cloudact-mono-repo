@@ -181,6 +181,7 @@ export default function HierarchySettingsPage() {
   const openCreateDialog = (type: HierarchyEntityType, parentId?: string) => {
     setCreateType(type)
     setFormData({ ...initialFormData, parent_id: parentId || "" })
+    setError(null) // Clear any previous errors when opening dialog
     setCreateDialogOpen(true)
   }
 

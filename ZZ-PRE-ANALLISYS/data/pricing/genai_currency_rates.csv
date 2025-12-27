@@ -1,0 +1,21 @@
+currency_code,currency_name,rate_to_usd,rate_from_usd,decimal_places,symbol,effective_from,effective_to,source,last_updated
+USD,US Dollar,1.000000,1.000000,2,$,2024-01-01,,base,2024-12-26
+EUR,Euro,1.104500,0.905350,2,€,2024-12-26,,ecb,2024-12-26
+GBP,British Pound,1.253200,0.797957,2,£,2024-12-26,,ecb,2024-12-26
+JPY,Japanese Yen,0.006410,156.010000,0,¥,2024-12-26,,ecb,2024-12-26
+CAD,Canadian Dollar,0.698100,1.432460,2,$,2024-12-26,,ecb,2024-12-26
+AUD,Australian Dollar,0.624800,1.600512,2,$,2024-12-26,,ecb,2024-12-26
+CHF,Swiss Franc,1.119300,0.893413,2,Fr,2024-12-26,,ecb,2024-12-26
+CNY,Chinese Yuan,0.137050,7.296536,2,¥,2024-12-26,,ecb,2024-12-26
+INR,Indian Rupee,0.011780,84.890000,2,₹,2024-12-26,,ecb,2024-12-26
+SGD,Singapore Dollar,0.737200,1.356485,2,$,2024-12-26,,ecb,2024-12-26
+HKD,Hong Kong Dollar,0.128400,7.788162,2,$,2024-12-26,,ecb,2024-12-26
+KRW,South Korean Won,0.000691,1447.900000,0,₩,2024-12-26,,ecb,2024-12-26
+BRL,Brazilian Real,0.162800,6.142506,2,R$,2024-12-26,,ecb,2024-12-26
+MXN,Mexican Peso,0.049100,20.366599,2,$,2024-12-26,,ecb,2024-12-26
+SEK,Swedish Krona,0.091500,10.928962,2,kr,2024-12-26,,ecb,2024-12-26
+NOK,Norwegian Krone,0.088200,11.337868,2,kr,2024-12-26,,ecb,2024-12-26
+DKK,Danish Krone,0.148100,6.752195,2,kr,2024-12-26,,ecb,2024-12-26
+NZD,New Zealand Dollar,0.563100,1.776062,2,$,2024-12-26,,ecb,2024-12-26
+ZAR,South African Rand,0.054300,18.416206,2,R,2024-12-26,,ecb,2024-12-26
+AED,UAE Dirham,0.272300,3.672490,2,د.إ,2024-12-26,,ecb,2024-12-26

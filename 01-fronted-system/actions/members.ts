@@ -138,6 +138,13 @@ export async function fetchMembersData(orgSlug: string) {
       return { success: false, error: "Failed to fetch invites" }
     }
 
+    // Check if there might be more members beyond the pagination limit
+    const { count: totalMemberCount } = await adminClient
+      .from("organization_members")
+      .select("*", { count: "exact", head: true })
+      .eq("org_id", org.id)
+      .eq("status", "active")
+
     return {
       success: true,
       data: {
@@ -145,6 +152,11 @@ export async function fetchMembersData(orgSlug: string) {
         userRole: membership.role,
         members: membersWithProfiles,
         invites: invitesData || [],
+        pagination: {
+          totalMembers: totalMemberCount || membersWithProfiles.length,
+          hasMoreMembers: (totalMemberCount || 0) > MAX_MEMBERS_PER_PAGE,
+          limit: MAX_MEMBERS_PER_PAGE,
+        },
       },
     }
   } catch (err: unknown) {

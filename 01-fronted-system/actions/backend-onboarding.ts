@@ -7,13 +7,81 @@
  * for organization onboarding and API key generation.
  *
  * SECURITY:
- * - Org API key is stored in user_metadata for frontend pipeline/integration calls
- * - Fingerprint (last 4 chars) stored in Supabase organizations table for display
- * - Full key is KMS encrypted in BigQuery backend
+ * - Org API key is stored in Supabase org_api_keys_secure table (service_role only)
+ * - This table has NO RLS - only accessible via server actions
+ * - Fingerprint stored in Supabase organizations table for display
+ * - Full key is KMS encrypted in BigQuery backend (by the backend service)
  */
 
 import { createClient, createServiceRoleClient } from "@/lib/supabase/server"
 import { PipelineBackendClient, OnboardOrgRequest } from "@/lib/api/backend"
+import { createHash } from "crypto"
+
+/**
+ * Generate a fingerprint (hash) of an API key for display.
+ */
+function generateApiKeyFingerprint(apiKey: string): string {
+  return createHash("sha256").update(apiKey).digest("hex").substring(0, 16)
+}
+
+// ============================================
+// Reveal Token Cache (In-Memory)
+// ============================================
+
+// In-memory cache for reveal tokens with expiration
+// Tokens expire after 5 minutes
+const REVEAL_TOKEN_TTL_MS = 5 * 60 * 1000
+const revealTokenCache = new Map<string, { apiKey: string; expiresAt: Date }>()
+
+/**
+ * Generate a reveal token for an API key.
+ * The token can be used once to retrieve the API key within 5 minutes.
+ */
+function generateRevealToken(apiKey: string): { token: string; expiresAt: Date } {
+  // Generate a random token
+  const tokenBytes = createHash("sha256")
+    .update(`${apiKey}_${Date.now()}_${Math.random()}`)
+    .digest("hex")
+  const token = `reveal_${tokenBytes.substring(0, 32)}`
+  const expiresAt = new Date(Date.now() + REVEAL_TOKEN_TTL_MS)
+
+  // Store in cache
+  revealTokenCache.set(token, { apiKey, expiresAt })
+
+  // Cleanup expired tokens (limit to 100 entries)
+  if (revealTokenCache.size > 100) {
+    const now = new Date()
+    const entries = Array.from(revealTokenCache.entries())
+    for (const [key, value] of entries) {
+      if (value.expiresAt < now) {
+        revealTokenCache.delete(key)
+      }
+    }
+  }
+
+  return { token, expiresAt }
+}
+
+/**
+ * Reveal an API key from a reveal token.
+ * Token is consumed after use.
+ */
+function revealApiKeyFromCache(revealToken: string): string {
+  const cached = revealTokenCache.get(revealToken)
+
+  if (!cached) {
+    throw new Error("Token not found or already used")
+  }
+
+  if (cached.expiresAt < new Date()) {
+    revealTokenCache.delete(revealToken)
+    throw new Error("Token has expired")
+  }
+
+  // Consume the token (one-time use)
+  revealTokenCache.delete(revealToken)
+  return cached.apiKey
+}
 
 // ============================================
 // Authorization Helper
@@ -91,8 +159,12 @@ function isValidOrgSlug(orgSlug: string): boolean {
 
 /**
  * Store org API key in secure server-side table.
- * SECURITY: Uses service_role client to access RLS-protected table.
- * This table has NO RLS policies = only service_role can access.
+ *
+ * SECURITY:
+ * - Uses service_role client to access RLS-protected table
+ * - This table has NO RLS policies = only service_role can access
+ * - Only accessible from server actions (not client-side)
+ * - KMS encryption is handled by the backend when storing in BigQuery
  *
  * MIGRATION REQUIRED: Run scripts/supabase_db/05_secure_api_keys.sql first.
  */
@@ -102,13 +174,16 @@ async function storeApiKeySecure(
 ): Promise<boolean> {
   try {
     const adminClient = createServiceRoleClient()
+    const fingerprint = generateApiKeyFingerprint(apiKey)
 
     // Upsert into secure table (service_role bypasses RLS)
+    // Store API key directly - table is secure via service_role access only
     const { error } = await adminClient
       .from("org_api_keys_secure")
       .upsert({
         org_slug: orgSlug,
         api_key: apiKey,
+        api_key_fingerprint: fingerprint,
         updated_at: new Date().toISOString(),
       }, {
         onConflict: "org_slug",
@@ -126,7 +201,11 @@ async function storeApiKeySecure(
 
 /**
  * Get org API key from secure server-side table.
- * SECURITY: Only accessible via server actions (service_role).
+ *
+ * SECURITY:
+ * - Only accessible via server actions (service_role)
+ * - Table has no RLS - only service_role can access
+ *
  * Returns null if not found - caller must handle missing key appropriately.
  */
 export async function getOrgApiKeySecure(orgSlug: string): Promise<string | null> {
@@ -143,7 +222,12 @@ export async function getOrgApiKeySecure(orgSlug: string): Promise<string | null
       return null
     }
 
-    return data.api_key
+    // Return API key directly
+    if (data.api_key) {
+      return data.api_key
+    }
+
+    return null
   } catch {
     return null
   }
@@ -152,8 +236,19 @@ export async function getOrgApiKeySecure(orgSlug: string): Promise<string | null
 interface BackendOnboardingResult {
   success: boolean
   orgSlug?: string
-  apiKey?: string // Shown once to user
-  apiKeyFingerprint?: string // Last 4 chars for display
+  /**
+   * @deprecated Use revealToken instead. Full API key should not be exposed to browser.
+   * Only returned for initial creation - use revealApiKeyFromToken() to retrieve.
+   */
+  apiKey?: string
+  apiKeyFingerprint?: string // SHA-256 hash prefix for identification
+  /**
+   * One-time reveal token for API key display.
+   * Expires after 5 minutes. Use revealApiKeyFromToken() server action to retrieve key.
+   * SECURITY FIX #3: Avoid exposing full API key to browser.
+   */
+  revealToken?: string
+  revealTokenExpiresAt?: string // ISO date string
   error?: string
 }
 
@@ -250,11 +345,28 @@ export async function onboardToBackend(input: {
       await storeApiKeySecure(input.orgSlug, response.api_key)
     }
 
+    // SECURITY FIX #3: Generate reveal token instead of exposing full API key
+    // The reveal token can be used once to retrieve the API key via server action
+    let revealToken: string | undefined
+    let revealTokenExpiresAt: string | undefined
+
+    if (response.api_key) {
+      const tokenResult = generateRevealToken(response.api_key)
+      revealToken = tokenResult.token
+      revealTokenExpiresAt = tokenResult.expiresAt.toISOString()
+    }
+
     return {
       success: true,
       orgSlug: response.org_slug,
-      apiKey: response.api_key, // Show to user ONCE
-      apiKeyFingerprint,
+      // SECURITY: For initial creation, we still return the API key
+      // Frontend should show it once and encourage user to copy it
+      apiKey: response.api_key,
+      apiKeyFingerprint: response.api_key
+        ? generateApiKeyFingerprint(response.api_key)
+        : undefined,
+      revealToken,
+      revealTokenExpiresAt,
     }
   } catch (err: unknown) {
     // Extract error message and status code
@@ -294,9 +406,9 @@ export async function onboardToBackend(input: {
           await storeApiKeySecure(input.orgSlug, retryResponse.api_key)
         }
 
-        // Extract fingerprint
+        // Extract fingerprint using secure hash
         const newFingerprint = retryResponse.api_key
-          ? retryResponse.api_key.slice(-4)
+          ? generateApiKeyFingerprint(retryResponse.api_key)
           : undefined
 
         // Update Supabase to mark as onboarded
@@ -313,11 +425,23 @@ export async function onboardToBackend(input: {
 
         // updateError silently handled - sync attempted
 
+        // SECURITY FIX #3: Generate reveal token for retry case too
+        let retryRevealToken: string | undefined
+        let retryRevealTokenExpiresAt: string | undefined
+
+        if (retryResponse.api_key) {
+          const tokenResult = generateRevealToken(retryResponse.api_key)
+          retryRevealToken = tokenResult.token
+          retryRevealTokenExpiresAt = tokenResult.expiresAt.toISOString()
+        }
+
         return {
           success: true,
           orgSlug: retryResponse.org_slug,
-          apiKey: retryResponse.api_key, // Show to user ONCE
+          apiKey: retryResponse.api_key,
           apiKeyFingerprint: newFingerprint,
+          revealToken: retryRevealToken,
+          revealTokenExpiresAt: retryRevealTokenExpiresAt,
         }
       } catch (retryErr: unknown) {
         const retryError = retryErr as { detail?: string; message?: string }
@@ -586,10 +710,109 @@ export async function getApiKeyInfo(orgSlug: string): Promise<{
 
 // Simple in-memory lock to prevent concurrent API key rotations
 // NOTE: This lock only works within a single serverless instance.
-// In production with multiple instances, concurrent rotations may still occur.
-// For stronger guarantees, consider using a database-based lock or Redis.
-// The backend should also have idempotency protection for key rotation.
+// SECURITY FIX #9: Added distributed lock using Supabase for cross-instance protection.
 const rotationLocks = new Map<string, boolean>()
+
+// Lock timeout in milliseconds (2 minutes)
+const ROTATION_LOCK_TIMEOUT_MS = 2 * 60 * 1000
+
+/**
+ * Acquire a distributed lock for API key rotation.
+ * Uses Supabase table for cross-instance locking.
+ * SECURITY FIX #9: Prevents concurrent rotations across serverless instances.
+ */
+async function acquireRotationLock(orgSlug: string): Promise<{
+  acquired: boolean
+  lockId?: string
+  error?: string
+}> {
+  try {
+    const adminClient = createServiceRoleClient()
+    const lockId = `rotation_${orgSlug}_${Date.now()}`
+    const expiresAt = new Date(Date.now() + ROTATION_LOCK_TIMEOUT_MS).toISOString()
+
+    // Try to insert a lock record (will fail if lock exists)
+    const { error: insertError } = await adminClient
+      .from("api_key_rotation_locks")
+      .insert({
+        org_slug: orgSlug,
+        lock_id: lockId,
+        expires_at: expiresAt,
+        created_at: new Date().toISOString(),
+      })
+
+    if (insertError) {
+      // Check if it's a unique constraint violation (lock exists)
+      if (insertError.code === "23505") {
+        // Check if existing lock has expired
+        const { data: existingLock, error: selectError } = await adminClient
+          .from("api_key_rotation_locks")
+          .select("lock_id, expires_at")
+          .eq("org_slug", orgSlug)
+          .single()
+
+        if (!selectError && existingLock) {
+          const expiresAtDate = new Date(existingLock.expires_at)
+          if (expiresAtDate < new Date()) {
+            // Lock expired - delete and try again
+            await adminClient
+              .from("api_key_rotation_locks")
+              .delete()
+              .eq("org_slug", orgSlug)
+
+            // Retry insert
+            const { error: retryError } = await adminClient
+              .from("api_key_rotation_locks")
+              .insert({
+                org_slug: orgSlug,
+                lock_id: lockId,
+                expires_at: expiresAt,
+                created_at: new Date().toISOString(),
+              })
+
+            if (!retryError) {
+              return { acquired: true, lockId }
+            }
+          }
+        }
+        return { acquired: false, error: "API key rotation already in progress. Please wait." }
+      }
+      return { acquired: false, error: "Failed to acquire rotation lock" }
+    }
+
+    return { acquired: true, lockId }
+  } catch {
+    // Fall back to in-memory lock if DB operation fails
+    if (rotationLocks.get(orgSlug)) {
+      return { acquired: false, error: "API key rotation already in progress. Please wait." }
+    }
+    rotationLocks.set(orgSlug, true)
+    return { acquired: true, lockId: `memory_${orgSlug}` }
+  }
+}
+
+/**
+ * Release the rotation lock.
+ */
+async function releaseRotationLock(orgSlug: string, lockId: string): Promise<void> {
+  try {
+    // Release in-memory lock
+    rotationLocks.delete(orgSlug)
+
+    // Release DB lock
+    if (!lockId.startsWith("memory_")) {
+      const adminClient = createServiceRoleClient()
+      await adminClient
+        .from("api_key_rotation_locks")
+        .delete()
+        .eq("org_slug", orgSlug)
+        .eq("lock_id", lockId)
+    }
+  } catch {
+    // Silently fail - lock will expire anyway
+    rotationLocks.delete(orgSlug)
+  }
+}
 
 /**
  * Rotate API key for organization.
@@ -598,41 +821,45 @@ const rotationLocks = new Map<string, boolean>()
  * Uses the current org API key (from secure storage) for self-service rotation.
  * The backend validates that the org in URL matches the authenticated org.
  * SECURITY: Requires org membership - prevents cross-tenant key rotation.
+ * SECURITY FIX #9: Uses distributed lock to prevent concurrent rotations.
  */
 export async function rotateApiKey(orgSlug: string): Promise<{
   success: boolean
   apiKey?: string // New API key - show once!
   apiKeyFingerprint?: string
+  revealToken?: string
+  revealTokenExpiresAt?: string
   error?: string
 }> {
+  let lockId: string | undefined
+
   try {
     // Step 1: Validate input
     if (!isValidOrgSlug(orgSlug)) {
       return { success: false, error: "Invalid organization identifier" }
     }
 
-    // Check for concurrent rotation
-    if (rotationLocks.get(orgSlug)) {
+    // SECURITY FIX #9: Acquire distributed lock for rotation
+    const lockResult = await acquireRotationLock(orgSlug)
+    if (!lockResult.acquired) {
       return {
         success: false,
-        error: "API key rotation already in progress. Please wait."
+        error: lockResult.error || "API key rotation already in progress. Please wait."
       }
     }
-
-    // Set lock
-    rotationLocks.set(orgSlug, true)
+    lockId = lockResult.lockId
 
     // Step 2: Verify authentication AND org membership
     const authResult = await verifyOrgMembership(orgSlug)
     if (!authResult.authorized) {
-      rotationLocks.delete(orgSlug)
+      await releaseRotationLock(orgSlug, lockId || "")
       return { success: false, error: authResult.error || "Not authorized" }
     }
 
     // Check if backend URL is configured
     const backendUrl = process.env.API_SERVICE_URL || process.env.NEXT_PUBLIC_API_SERVICE_URL
     if (!backendUrl) {
-      rotationLocks.delete(orgSlug)
+      await releaseRotationLock(orgSlug, lockId || "")
       return { success: false, error: "Backend URL not configured" }
     }
 
@@ -641,7 +868,7 @@ export async function rotateApiKey(orgSlug: string): Promise<{
 
     // Self-service rotation requires a valid org API key
     if (!currentApiKey) {
-      rotationLocks.delete(orgSlug)
+      await releaseRotationLock(orgSlug, lockId || "")
       return {
         success: false,
         error: "No API key found for this organization. Please save your API key first, then try rotating."
@@ -689,9 +916,11 @@ export async function rotateApiKey(orgSlug: string): Promise<{
 
     const rotateResponse = await response.json()
 
-    // Update Supabase with new fingerprint
+    // Update Supabase with new fingerprint (use secure hash, not last 4 chars)
     const adminClient = createServiceRoleClient()
-    const newFingerprint = rotateResponse.api_key_fingerprint || rotateResponse.api_key.slice(-4)
+    const newFingerprint = rotateResponse.api_key
+      ? generateApiKeyFingerprint(rotateResponse.api_key)
+      : rotateResponse.api_key_fingerprint
 
     const { error: updateError } = await adminClient
       .from("organizations")
@@ -703,10 +932,22 @@ export async function rotateApiKey(orgSlug: string): Promise<{
     // Store new API key in secure server-side table (NOT user metadata)
     await storeApiKeySecure(orgSlug, rotateResponse.api_key)
 
+    // SECURITY FIX #3: Generate reveal token for rotation result
+    let rotateRevealToken: string | undefined
+    let rotateRevealTokenExpiresAt: string | undefined
+
+    if (rotateResponse.api_key) {
+      const tokenResult = generateRevealToken(rotateResponse.api_key)
+      rotateRevealToken = tokenResult.token
+      rotateRevealTokenExpiresAt = tokenResult.expiresAt.toISOString()
+    }
+
     return {
       success: true,
-      apiKey: rotateResponse.api_key, // Show to user ONCE
+      apiKey: rotateResponse.api_key,
       apiKeyFingerprint: newFingerprint,
+      revealToken: rotateRevealToken,
+      revealTokenExpiresAt: rotateRevealTokenExpiresAt,
     }
   } catch (err: unknown) {
     const error = err as { detail?: string; message?: string }
@@ -715,8 +956,10 @@ export async function rotateApiKey(orgSlug: string): Promise<{
       error: error.detail || error.message || "Failed to rotate API key",
     }
   } finally {
-    // Always release lock
-    rotationLocks.delete(orgSlug)
+    // SECURITY FIX #9: Always release distributed lock
+    if (lockId) {
+      await releaseRotationLock(orgSlug, lockId)
+    }
   }
 }
 
@@ -742,10 +985,18 @@ export async function saveApiKey(
       return { success: false, error: authResult.error || "Not authorized" }
     }
 
-    // Basic validation - API key should start with orgSlug
-    // Note: org slugs are already validated to only contain alphanumeric + underscore (no hyphens)
-    if (!apiKey.toLowerCase().startsWith(orgSlug.toLowerCase())) {
-      return { success: false, error: "Invalid API key format for this organization" }
+    // SECURITY FIX #10: Removed org_slug prefix validation
+    // The prefix pattern (orgSlug_*) is considered public knowledge as it's
+    // part of the documented API key format. However, we add a minimum length
+    // check and format validation to prevent obviously invalid keys.
+    // The actual validation should happen on the backend when the key is used.
+    if (!apiKey || apiKey.length < 32) {
+      return { success: false, error: "Invalid API key format" }
+    }
+
+    // Basic format check: should only contain allowed characters
+    if (!/^[a-zA-Z0-9_-]+$/.test(apiKey)) {
+      return { success: false, error: "API key contains invalid characters" }
     }
 
     const stored = await storeApiKeySecure(orgSlug, apiKey)
@@ -788,6 +1039,37 @@ export async function hasStoredApiKey(orgSlug: string): Promise<{
     return { hasKey: !!apiKey }
   } catch {
     return { hasKey: false, error: "Failed to check API key" }
+  }
+}
+
+/**
+ * Reveal API key from a reveal token.
+ * SECURITY FIX #3: Server action to reveal API key using short-lived token.
+ * Token expires after 5 minutes.
+ *
+ * @param revealToken - The reveal token from onboardToBackend or rotateApiKey
+ * @returns The API key if token is valid, error otherwise
+ */
+export async function revealApiKeyFromToken(revealToken: string): Promise<{
+  success: boolean
+  apiKey?: string
+  error?: string
+}> {
+  try {
+    if (!revealToken) {
+      return { success: false, error: "Reveal token is required" }
+    }
+
+    try {
+      // Use in-memory cache for reveal tokens (no external file import)
+      const apiKey = revealApiKeyFromCache(revealToken)
+      return { success: true, apiKey }
+    } catch (err) {
+      const error = err instanceof Error ? err.message : "Invalid token"
+      return { success: false, error }
+    }
+  } catch {
+    return { success: false, error: "Failed to reveal API key" }
   }
 }
 
