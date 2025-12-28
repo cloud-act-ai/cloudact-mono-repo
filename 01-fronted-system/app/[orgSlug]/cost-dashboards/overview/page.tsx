@@ -428,21 +428,25 @@ export default function CostOverviewPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {providers.slice(0, 10).map((provider) => (
-                <TableRow key={provider.provider}>
-                  <TableCell className="font-medium">{provider.provider}</TableCell>
-                  <TableCell className="text-slate-500">{provider.record_count}</TableCell>
-                  <TableCell className="text-right font-mono">
-                    {formatCurrency(provider.total_cost / 30, orgCurrency)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono">
-                    {formatCurrency(provider.total_cost, orgCurrency)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono font-semibold">
-                    {formatCurrency(provider.total_cost * 12, orgCurrency)}
-                  </TableCell>
-                </TableRow>
-              ))}
+              {providers.slice(0, 10).map((provider) => {
+                // FIX: EDGE-002 - Use actual days in current month instead of hardcoded 30
+                const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate()
+                return (
+                  <TableRow key={provider.provider}>
+                    <TableCell className="font-medium">{provider.provider}</TableCell>
+                    <TableCell className="text-slate-500">{provider.record_count}</TableCell>
+                    <TableCell className="text-right font-mono">
+                      {formatCurrency(provider.total_cost / daysInMonth, orgCurrency)}
+                    </TableCell>
+                    <TableCell className="text-right font-mono">
+                      {formatCurrency(provider.total_cost, orgCurrency)}
+                    </TableCell>
+                    <TableCell className="text-right font-mono font-semibold">
+                      {formatCurrency(provider.total_cost * 12, orgCurrency)}
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
             </TableBody>
           </Table>
         </div>

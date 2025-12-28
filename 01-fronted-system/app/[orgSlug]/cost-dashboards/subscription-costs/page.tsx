@@ -326,23 +326,27 @@ export default function SubscriptionCostsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {categories.map((category) => (
-                <TableRow key={category.category}>
-                  <TableCell className="font-medium">
-                    {CATEGORY_NAMES[category.category] || category.category}
-                  </TableCell>
-                  <TableCell className="text-slate-500">{category.count}</TableCell>
-                  <TableCell className="text-right font-mono">
-                    {formatCurrency(category.total_cost / 30, orgCurrency)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono">
-                    {formatCurrency(category.total_cost, orgCurrency)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono font-semibold">
-                    {formatCurrency(category.total_cost * 12, orgCurrency)}
-                  </TableCell>
-                </TableRow>
-              ))}
+              {categories.map((category) => {
+                // FIX: EDGE-002 - Use actual days in current month instead of hardcoded 30
+                const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate()
+                return (
+                  <TableRow key={category.category}>
+                    <TableCell className="font-medium">
+                      {CATEGORY_NAMES[category.category] || category.category}
+                    </TableCell>
+                    <TableCell className="text-slate-500">{category.count}</TableCell>
+                    <TableCell className="text-right font-mono">
+                      {formatCurrency(category.total_cost / daysInMonth, orgCurrency)}
+                    </TableCell>
+                    <TableCell className="text-right font-mono">
+                      {formatCurrency(category.total_cost, orgCurrency)}
+                    </TableCell>
+                    <TableCell className="text-right font-mono font-semibold">
+                      {formatCurrency(category.total_cost * 12, orgCurrency)}
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
             </TableBody>
           </Table>
         </div>

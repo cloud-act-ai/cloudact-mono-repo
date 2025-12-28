@@ -57,12 +57,14 @@ export const CURRENCY_TO_COUNTRY = Object.fromEntries(
 
 // ============================================
 // TIMEZONES (IANA) - 15 supported
+// NOTE: Offsets shown are standard time only (not DST-adjusted).
+// For accurate current offsets, use Intl.DateTimeFormat dynamically.
 // ============================================
 
 export interface TimezoneInfo {
   value: string
   label: string
-  offset: string // For display purposes
+  offset: string // Standard time offset (not DST-adjusted)
 }
 
 export const SUPPORTED_TIMEZONES: readonly TimezoneInfo[] = [

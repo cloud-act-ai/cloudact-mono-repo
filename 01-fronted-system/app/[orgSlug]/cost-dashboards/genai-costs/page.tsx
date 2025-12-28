@@ -84,9 +84,10 @@ export default function GenAICostsPage() {
 
       if (providersResult.success && providersResult.data) {
         // Filter to only LLM providers
-        const llmProviders = ["openai", "anthropic", "google", "gemini", "cohere", "mistral", "azure_openai", "aws_bedrock"]
+        // FIX: VAL-003 - Use exact match instead of includes() to prevent partial matches
+        const llmProviders = new Set(["openai", "anthropic", "google", "gemini", "cohere", "mistral", "azure_openai", "aws_bedrock"])
         const filtered = providersResult.data.filter(p =>
-          p.provider && llmProviders.some(llm => p.provider.toLowerCase().includes(llm))
+          p.provider && llmProviders.has(p.provider.toLowerCase())
         )
         setProviders(filtered)
       }
@@ -306,23 +307,27 @@ export default function GenAICostsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {providers.slice(0, 10).map((provider) => (
-                <TableRow key={provider.provider}>
-                  <TableCell className="font-medium">
-                    {PROVIDER_NAMES[provider.provider.toLowerCase()] || provider.provider}
-                  </TableCell>
-                  <TableCell className="text-slate-500">LLM API</TableCell>
-                  <TableCell className="text-right font-mono">
-                    {formatCurrency(provider.total_cost / 30, orgCurrency)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono">
-                    {formatCurrency(provider.total_cost, orgCurrency)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono font-semibold">
-                    {formatCurrency(provider.total_cost * 12, orgCurrency)}
-                  </TableCell>
-                </TableRow>
-              ))}
+              {providers.slice(0, 10).map((provider) => {
+                // FIX: EDGE-002 - Use actual days in current month instead of hardcoded 30
+                const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate()
+                return (
+                  <TableRow key={provider.provider}>
+                    <TableCell className="font-medium">
+                      {PROVIDER_NAMES[provider.provider.toLowerCase()] || provider.provider}
+                    </TableCell>
+                    <TableCell className="text-slate-500">LLM API</TableCell>
+                    <TableCell className="text-right font-mono">
+                      {formatCurrency(provider.total_cost / daysInMonth, orgCurrency)}
+                    </TableCell>
+                    <TableCell className="text-right font-mono">
+                      {formatCurrency(provider.total_cost, orgCurrency)}
+                    </TableCell>
+                    <TableCell className="text-right font-mono font-semibold">
+                      {formatCurrency(provider.total_cost * 12, orgCurrency)}
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
             </TableBody>
           </Table>
         </div>

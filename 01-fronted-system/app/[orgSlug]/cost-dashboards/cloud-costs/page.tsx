@@ -80,9 +80,10 @@ export default function CloudCostsPage() {
 
       if (providersResult.success && providersResult.data) {
         // Filter to only cloud providers
-        const cloudProviders = ["gcp", "aws", "azure", "google_cloud", "amazon_web_services", "microsoft_azure"]
+        // FIX: VAL-003 - Use exact match instead of includes() to prevent partial matches
+        const cloudProviders = new Set(["gcp", "aws", "azure", "google_cloud", "amazon_web_services", "microsoft_azure"])
         const filtered = providersResult.data.filter(p =>
-          p.provider && cloudProviders.some(cloud => p.provider.toLowerCase().includes(cloud))
+          p.provider && cloudProviders.has(p.provider.toLowerCase())
         )
         setProviders(filtered)
       }
@@ -302,23 +303,27 @@ export default function CloudCostsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {providers.slice(0, 10).map((provider) => (
-                <TableRow key={provider.provider}>
-                  <TableCell className="font-medium">
-                    {PROVIDER_NAMES[provider.provider.toLowerCase()] || provider.provider}
-                  </TableCell>
-                  <TableCell className="text-slate-500">Cloud Infrastructure</TableCell>
-                  <TableCell className="text-right font-mono">
-                    {formatCurrency(provider.total_cost / 30, orgCurrency)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono">
-                    {formatCurrency(provider.total_cost, orgCurrency)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono font-semibold">
-                    {formatCurrency(provider.total_cost * 12, orgCurrency)}
-                  </TableCell>
-                </TableRow>
-              ))}
+              {providers.slice(0, 10).map((provider) => {
+                // FIX: EDGE-002 - Use actual days in current month instead of hardcoded 30
+                const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate()
+                return (
+                  <TableRow key={provider.provider}>
+                    <TableCell className="font-medium">
+                      {PROVIDER_NAMES[provider.provider.toLowerCase()] || provider.provider}
+                    </TableCell>
+                    <TableCell className="text-slate-500">Cloud Infrastructure</TableCell>
+                    <TableCell className="text-right font-mono">
+                      {formatCurrency(provider.total_cost / daysInMonth, orgCurrency)}
+                    </TableCell>
+                    <TableCell className="text-right font-mono">
+                      {formatCurrency(provider.total_cost, orgCurrency)}
+                    </TableCell>
+                    <TableCell className="text-right font-mono font-semibold">
+                      {formatCurrency(provider.total_cost * 12, orgCurrency)}
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
             </TableBody>
           </Table>
         </div>

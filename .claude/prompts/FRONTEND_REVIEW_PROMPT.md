@@ -59,7 +59,7 @@ Review Next.js frontend for **Supabase + Stripe multi-tenancy enterprise SaaS** 
 | Check | Description |
 |-------|-------------|
 | URL param verification | Never trust org_slug from URL alone - verify membership |
-| Query isolation | Include org_id in ALL queries, not just rely on RLS |
+| Query isolation | Include org_slug in ALL queries (parameterized: @org_slug) |
 | Pagination | All list queries limited to max 100 per page |
 | Membership caching | Cache org membership checks with 5min TTL |
 | Background jobs | Queue jobs scoped to org, not global |

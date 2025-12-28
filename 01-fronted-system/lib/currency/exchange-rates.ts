@@ -35,7 +35,7 @@ export function checkExchangeRateStaleness(): { isStale: boolean; daysOld: numbe
   }
 }
 
-import { CURRENCY_CODES } from "@/lib/i18n/constants"
+import { CURRENCY_CODES, CURRENCY_BY_CODE } from "@/lib/i18n/constants"
 import {
   loadExchangeRates,
   getExchangeRate as getExchangeRateFromCSV,
@@ -46,11 +46,20 @@ import {
 // ============================================
 
 /**
- * Exchange rates relative to USD (Fallback/Legacy)
- * To convert USD to target: amount * EXCHANGE_RATES[target]
- * To convert target to USD: amount / EXCHANGE_RATES[target]
+ * Exchange rates relative to USD (FALLBACK ONLY)
  *
- * NOTE: These are fallback values. Prefer using getExchangeRate() which loads from CSV.
+ * IMPORTANT: These hardcoded rates are FALLBACK values used only when:
+ * 1. CSV file fails to load
+ * 2. Synchronous conversion is required (prefer async CSV-based functions)
+ *
+ * For production use, prefer async functions that load from CSV:
+ * - convertCurrencyAsync() instead of convertCurrency()
+ * - getExchangeRateAsync() instead of getExchangeRate()
+ *
+ * NOTE: This list includes additional currencies (HKD, NZD, SEK, KRW) that
+ * are supported for conversion but not in SUPPORTED_CURRENCIES constants.
+ * Use isCurrencySupported() to check conversion support, isValidCurrency()
+ * from constants to check if it's a primary supported currency.
  */
 export const EXCHANGE_RATES: Record<string, number> = {
   // Base
@@ -86,14 +95,23 @@ export const EXCHANGE_RATES: Record<string, number> = {
 // CSV-BASED EXCHANGE RATES (Async)
 // ============================================
 
+// Cache TTL: 5 minutes (refresh rates periodically if CSV updates during runtime)
+const CACHE_TTL_MS = 5 * 60 * 1000
+
 let exchangeRatesMapCache: Record<string, number> | null = null
+let cacheTimestamp: number | null = null
 
 /**
  * Load exchange rates from CSV and build map
- * (Internal helper)
+ * (Internal helper with TTL-based cache)
  */
 async function loadExchangeRatesMap(): Promise<Record<string, number>> {
-  if (exchangeRatesMapCache) return exchangeRatesMapCache
+  const now = Date.now()
+
+  // Return cached if still valid
+  if (exchangeRatesMapCache && cacheTimestamp && (now - cacheTimestamp) < CACHE_TTL_MS) {
+    return exchangeRatesMapCache
+  }
 
   const rates = await loadExchangeRates()
   const map: Record<string, number> = {}
@@ -103,7 +121,16 @@ async function loadExchangeRatesMap(): Promise<Record<string, number>> {
   })
 
   exchangeRatesMapCache = map
+  cacheTimestamp = now
   return map
+}
+
+/**
+ * Clear the exchange rate cache (useful for testing or forcing refresh)
+ */
+export function clearExchangeRateCache(): void {
+  exchangeRatesMapCache = null
+  cacheTimestamp = null
 }
 
 // ============================================
@@ -116,14 +143,19 @@ async function loadExchangeRatesMap(): Promise<Record<string, number>> {
  * @param amount - Amount to convert
  * @param fromCurrency - Source currency code (e.g., "USD")
  * @param toCurrency - Target currency code (e.g., "INR")
- * @returns Converted amount rounded to 2 decimals
+ * @returns Converted amount rounded to currency-specific decimals
  *
  * NOTE: Uses hardcoded rates. For CSV-based conversion, use convertCurrencyAsync().
+ *
+ * WARNING: If either currency is not supported, returns original amount unchanged.
+ * Always validate currencies with isCurrencySupported() before conversion if
+ * you need to detect unsupported currencies.
  *
  * @example
  * convertCurrency(100, "USD", "INR") // 8312.00
  * convertCurrency(100, "INR", "USD") // 1.20
  * convertCurrency(100, "EUR", "GBP") // 85.87
+ * convertCurrency(100, "USD", "XYZ") // 100 (unsupported - returns original!)
  */
 export function convertCurrency(
   amount: number,
@@ -138,9 +170,12 @@ export function convertCurrency(
   const toRate = EXCHANGE_RATES[toCurrency]
 
   if (!fromRate || !toRate) {
-    // Log warning for debugging - currency conversion silently failing is hard to diagnose
-    if (typeof console !== "undefined" && process.env.NODE_ENV === "development") {
-      console.warn(`[Currency] Missing exchange rate for conversion: ${fromCurrency} → ${toCurrency}`)
+    // Always log warning - silent currency failures cause data integrity issues
+    if (typeof console !== "undefined") {
+      console.warn(
+        `[Currency] Unsupported currency conversion: ${fromCurrency} → ${toCurrency}. ` +
+        `Returning original amount (${amount}). Use isCurrencySupported() to validate currencies.`
+      )
     }
     return amount
   }
@@ -149,8 +184,10 @@ export function convertCurrency(
   const usdAmount = amount / fromRate
   const converted = usdAmount * toRate
 
-  // Round to 2 decimals
-  return Math.round(converted * 100) / 100
+  // Round to currency-specific decimals (JPY=0, KWD/BHD/OMR=3, most=2)
+  const decimals = CURRENCY_BY_CODE[toCurrency]?.decimals ?? 2
+  const multiplier = Math.pow(10, decimals)
+  return Math.round(converted * multiplier) / multiplier
 }
 
 /**
@@ -187,8 +224,10 @@ export async function convertCurrencyAsync(
     const usdAmount = amount / fromRate
     const converted = usdAmount * toRate
 
-    // Round to 2 decimals
-    return Math.round(converted * 100) / 100
+    // Round to currency-specific decimals (JPY=0, KWD/BHD/OMR=3, most=2)
+    const decimals = CURRENCY_BY_CODE[toCurrency]?.decimals ?? 2
+    const multiplier = Math.pow(10, decimals)
+    return Math.round(converted * multiplier) / multiplier
   } catch {
     return convertCurrency(amount, fromCurrency, toCurrency)
   }

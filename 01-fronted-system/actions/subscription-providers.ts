@@ -1368,6 +1368,7 @@ export async function getSaaSSubscriptionCosts(
   summary: SaaSCostSummary | null
   cache_hit: boolean
   query_time_ms: number
+  currency?: string
   error?: string
 }> {
   try {
@@ -1426,6 +1427,7 @@ export async function getSaaSSubscriptionCosts(
       summary: SaaSCostSummary | null
       cache_hit: boolean
       query_time_ms: number
+      currency?: string
       error?: string
     }
 
@@ -1500,6 +1502,7 @@ export async function getSaaSSubscriptionCosts(
       summary: summary,
       cache_hit: result.cache_hit,
       query_time_ms: result.query_time_ms,
+      currency: result.currency,
       error: result.error,
     }
   } catch (error) {
@@ -1509,6 +1512,7 @@ export async function getSaaSSubscriptionCosts(
       summary: null,
       cache_hit: false,
       query_time_ms: 0,
+      currency: undefined,
       error: logError("getSaaSSubscriptionCosts", error),
     }
   }

@@ -30,9 +30,9 @@ CloudAct enforces usage quotas per organization for API calls, pipeline runs, an
 ## Quota Schema
 ```json
 {
-  "table_name": "quotas",
+  "table_name": "org_usage_quotas",
   "schema": [
-    {"name": "org_id", "type": "STRING", "mode": "REQUIRED"},
+    {"name": "org_slug", "type": "STRING", "mode": "REQUIRED"},
     {"name": "quota_type", "type": "STRING", "mode": "REQUIRED"},
     {"name": "limit_value", "type": "INTEGER", "mode": "REQUIRED"},
     {"name": "current_usage", "type": "INTEGER", "mode": "NULLABLE"},
@@ -89,26 +89,26 @@ curl -X PUT "http://localhost:8000/api/v1/quotas/{org_slug}" \
 ### 3. Query Quota Usage
 ```sql
 SELECT
-    org_id,
+    org_slug,
     quota_type,
     limit_value,
     current_usage,
     ROUND(current_usage * 100.0 / limit_value, 2) as usage_percent,
     reset_at
-FROM `organizations.quotas`
-WHERE org_id = '{org_slug}'
+FROM `organizations.org_usage_quotas`
+WHERE org_slug = @org_slug  -- Always use parameterized queries
 ORDER BY quota_type;
 ```
 
 ### 4. Check Near-Limit Orgs
 ```sql
 SELECT
-    org_id,
+    org_slug,
     quota_type,
     limit_value,
     current_usage,
     ROUND(current_usage * 100.0 / limit_value, 2) as usage_percent
-FROM `organizations.quotas`
+FROM `organizations.org_usage_quotas`
 WHERE current_usage >= limit_value * 0.8  -- 80% threshold
 ORDER BY usage_percent DESC;
 ```
@@ -139,15 +139,22 @@ async def check_quota(org_slug: str, quota_type: str) -> bool:
 
     return True
 
-# Increment usage
+# Increment usage (always use parameterized queries)
 async def increment_usage(org_slug: str, quota_type: str, amount: int = 1):
-    await bq_client.query(f"""
-        UPDATE `organizations.quotas`
-        SET current_usage = current_usage + {amount},
+    await bq_client.query(
+        """
+        UPDATE `organizations.org_usage_quotas`
+        SET current_usage = current_usage + @amount,
             updated_at = CURRENT_TIMESTAMP()
-        WHERE org_id = '{org_slug}'
-          AND quota_type = '{quota_type}'
-    """)
+        WHERE org_slug = @org_slug
+          AND quota_type = @quota_type
+        """,
+        parameters=[
+            bigquery.ScalarQueryParameter("org_slug", "STRING", org_slug),
+            bigquery.ScalarQueryParameter("quota_type", "STRING", quota_type),
+            bigquery.ScalarQueryParameter("amount", "INT64", amount),
+        ]
+    )
 ```
 
 ## Quota Reset Schedule
@@ -161,7 +168,7 @@ RESET_SCHEDULES = {
 
 async def reset_expired_quotas():
     await bq_client.query("""
-        UPDATE `organizations.quotas`
+        UPDATE `organizations.org_usage_quotas`
         SET current_usage = 0,
             reset_at = TIMESTAMP_ADD(reset_at, INTERVAL 1 DAY)
         WHERE reset_at < CURRENT_TIMESTAMP()

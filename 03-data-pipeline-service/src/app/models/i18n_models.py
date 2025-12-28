@@ -13,7 +13,6 @@ Standards:
 
 from enum import Enum
 from typing import Dict, Any, Optional, List
-import re
 
 
 # ============================================
@@ -126,6 +125,8 @@ LANGUAGE_METADATA: Dict[str, Dict[str, Any]] = {
 
 # ============================================
 # TIMEZONE (IANA)
+# NOTE: Offsets in TIMEZONE_METADATA are standard time only (not DST-adjusted).
+# For accurate current offsets, compute dynamically using pytz or zoneinfo.
 # ============================================
 
 SUPPORTED_TIMEZONES: List[str] = [
@@ -230,10 +231,10 @@ def validate_timezone(timezone: str) -> bool:
 
 
 def validate_country(country: str) -> bool:
-    """Validate country code format (2 uppercase letters)."""
+    """Validate country is in supported list."""
     if not country:
         return False
-    return bool(re.match(r'^[A-Z]{2}$', country.upper()))
+    return country.upper() in SUPPORTED_COUNTRIES
 
 
 def validate_language(language: str) -> bool:

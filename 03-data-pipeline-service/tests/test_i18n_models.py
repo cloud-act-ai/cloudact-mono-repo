@@ -194,11 +194,11 @@ def test_validate_timezone():
 
 
 def test_validate_country():
-    """Test country code validation."""
+    """Test country code validation against supported list."""
     assert validate_country("US") is True
     assert validate_country("AE") is True
     assert validate_country("us") is True  # Case-insensitive
-    assert validate_country("XX") is True  # Any 2-letter code is valid format
+    assert validate_country("XX") is False  # Must be in SUPPORTED_COUNTRIES
     assert validate_country("USA") is False  # Must be 2 letters
     assert validate_country("1") is False
     assert validate_country("") is False

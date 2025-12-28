@@ -125,6 +125,8 @@ LANGUAGE_METADATA: Dict[str, Dict[str, Any]] = {
 
 # ============================================
 # TIMEZONE (IANA)
+# NOTE: Offsets in TIMEZONE_METADATA are standard time only (not DST-adjusted).
+# For accurate current offsets, compute dynamically using pytz or zoneinfo.
 # ============================================
 
 SUPPORTED_TIMEZONES: List[str] = [

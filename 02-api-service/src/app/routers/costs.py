@@ -58,6 +58,22 @@ def validate_org_slug_format(org_slug: str) -> None:
         )
 
 
+def validate_date_range(start_date: Optional[date], end_date: Optional[date]) -> None:
+    """
+    Validate date range parameters.
+
+    FIX: VAL-001 - Ensure start_date is before end_date
+
+    Raises:
+        HTTPException: If date range is invalid
+    """
+    if start_date and end_date and start_date > end_date:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid date range: start_date must be before or equal to end_date"
+        )
+
+
 def validate_org_access(url_org_slug: str, auth_context: OrgContext) -> None:
     """
     CRITICAL MULTI-TENANCY CHECK: Ensure URL org_slug matches authenticated org.
@@ -253,6 +269,9 @@ async def get_costs(
     """
     # CRITICAL: Multi-tenancy security check
     validate_org_access(org_slug, auth_context)
+
+    # FIX: VAL-001 - Validate date range
+    validate_date_range(start_date, end_date)
 
     # Apply rate limiting (60 requests per minute per org)
     await rate_limit_by_org(

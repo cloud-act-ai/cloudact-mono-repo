@@ -111,32 +111,38 @@ WHERE partition_date = CURRENT_DATE()
 ```
 
 ## 14 Bootstrap Tables (organizations dataset)
-| Table | Purpose | Key Fields |
-|-------|---------|------------|
-| profiles | User profiles | user_id, email, org_ids |
-| api_keys | API key management | key_hash, org_id, scopes |
-| subscription_plans | SaaS plan tracking | plan_id, provider, status |
-| quotas | Usage quotas | org_id, quota_type, limit |
-| integration_credentials | Encrypted creds | org_id, provider, encrypted_value |
-| pipeline_runs | Run history | run_id, org_id, status, duration |
-| dq_results | Data quality | check_id, table, passed |
-| audit_logs | Audit trail | action, actor, timestamp |
-| pipeline_configs | Pipeline definitions | config_id, yaml_content |
-| scheduled_runs | Scheduled jobs | schedule_id, cron, next_run |
-| execution_queue | Job queue | job_id, priority, status |
-| cost_tracking | Cost metrics | org_id, service, amount |
-| state_transitions | Workflow states | entity_id, from_state, to_state |
-| idempotency_keys | Dedup keys | key, created_at, expires_at |
 
-## 6 Org-Specific Tables ({org_slug}_prod dataset)
+**Note:** All tables use `org_slug` as the tenant identifier (NOT `org_id`).
+
 | Table | Purpose | Key Fields |
 |-------|---------|------------|
-| cost_data_standard_1_3 | FOCUS 1.3 costs | billing_period, provider, amount |
+| org_profiles | Org profiles | org_slug, name, status |
+| org_api_keys | API key management | key_hash, org_slug, scopes |
+| org_subscriptions | SaaS plan tracking | org_slug, provider, status |
+| org_usage_quotas | Usage quotas | org_slug, quota_type, limit |
+| org_integration_credentials | Encrypted creds | org_slug, provider, encrypted_value |
+| org_meta_pipeline_runs | Run history | run_id, org_slug, status |
+| org_meta_dq_results | Data quality | org_slug, table, passed |
+| org_audit_logs | Audit trail | org_slug, action, timestamp |
+| org_pipeline_configs | Pipeline definitions | org_slug, config_id, yaml_content |
+| org_scheduled_pipeline_runs | Scheduled jobs | org_slug, cron, next_run |
+| org_pipeline_execution_queue | Job queue | org_slug, priority, status |
+| org_cost_tracking | Cost metrics | org_slug, service, amount |
+| org_meta_state_transitions | Workflow states | org_slug, from_state, to_state |
+| org_idempotency_keys | Dedup keys | org_slug, key, expires_at |
+
+## 6+ Org-Specific Tables ({org_slug}_prod dataset)
+
+**Note:** These tables have `org_slug` embedded in the dataset name for isolation.
+
+| Table | Purpose | Key Fields |
+|-------|---------|------------|
+| cost_data_standard_1_3 | FOCUS 1.3 costs | SubAccountId (=org_slug), provider, amount |
 | contract_commitment_1_3 | Commitments | contract_id, commitment_value |
-| saas_subscription_plans | SaaS subscriptions | plan_id, provider, price |
-| saas_subscription_plan_costs_daily | Daily costs | date, plan_id, daily_cost |
-| org_hierarchy | Org structure | entity_id, parent_id, type |
-| llm_model_pricing | LLM pricing | model_id, input_price, output_price |
+| saas_subscription_plans | SaaS subscriptions | org_slug, provider, price |
+| saas_subscription_plan_costs_daily | Daily costs | org_slug, date, daily_cost |
+| org_hierarchy | Org structure | org_slug, entity_id, parent_id |
+| genai_*_pricing | GenAI pricing | org_slug, model, input_price, output_price |
 
 ## Validation Checklist
 - [ ] Schema JSON valid syntax

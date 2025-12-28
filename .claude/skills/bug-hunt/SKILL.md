@@ -188,14 +188,14 @@ Search ALL 3 services for the feature. **Must check every relevant file.**
 
 **Check at each layer:**
 ```
-Frontend        → Input validation, auth state, error handling, org context
-API Middleware  → Auth bypass, rate limit, org isolation
-API Router      → Input validation, response codes, IDOR
+Frontend        → Input validation, auth state, error handling, orgSlug context
+API Middleware  → Auth bypass, rate limit, org_slug isolation
+API Router      → Input validation, response codes, IDOR, org_slug in URL vs auth
 API Service     → Business logic, transactions, idempotency
-Pipeline Router → Auth, org context, config validation
+Pipeline Router → Auth, org_slug context, config validation
 Pipeline Exec   → Race conditions, retry safety, error handling
-Processor       → Data integrity, multi-tenancy, edge cases
-BigQuery        → Query injection, org isolation, indexes
+Processor       → Data integrity, org_slug in all writes (x_* fields)
+BigQuery        → Parameterized queries (@org_slug), dataset isolation ({org_slug}_prod)
 ```
 
 ### STEP 3: Apply 10-Category Checklist (5 bugs each)
@@ -205,13 +205,19 @@ BigQuery        → Query injection, org isolation, indexes
 ## Bug Categories
 
 ### 1. Multi-Tenancy (MT-001 to MT-005)
+
+**CloudAct uses `org_slug` (NOT `org_id`) for tenant isolation:**
+- Query filter: `WHERE org_slug = @org_slug` or `WHERE SubAccountId = @org_slug`
+- Dataset isolation: `{org_slug}_prod`, `{org_slug}_stage`
+- Validation: `^[a-zA-Z0-9_]{3,50}$`
+
 | Check | What to Look For |
 |-------|------------------|
-| MT-A | Missing `org_id` in WHERE clauses |
-| MT-B | Cross-org data in JOINs without org filter |
-| MT-C | Shared caches without org namespace |
-| MT-D | Background jobs missing org context |
-| MT-E | File paths without org isolation |
+| MT-A | Missing `org_slug` in WHERE clauses (parameterized: `@org_slug`) |
+| MT-B | Cross-org data in JOINs without org_slug filter |
+| MT-C | Shared caches without org_slug namespace |
+| MT-D | Background jobs missing org_slug context |
+| MT-E | File paths without org_slug isolation |
 
 ### 2. Idempotency (IDEM-001 to IDEM-005)
 | Check | What to Look For |
@@ -307,11 +313,11 @@ BigQuery        → Query injection, org isolation, indexes
 
 ## 1. Multi-Tenancy Issues
 
-### MT-001 [CRITICAL] Missing org_id filter in pipeline query
+### MT-001 [CRITICAL] Missing org_slug filter in pipeline query
 - **File:** `03-data-pipeline-service/src/core/processors/base.py:234`
-- **Issue:** SELECT query fetches all records without org_id WHERE clause
+- **Issue:** SELECT query fetches all records without org_slug WHERE clause
 - **Impact:** Data leakage - org A can see org B's pipeline data
-- **Fix:** Add `WHERE org_id = '{org_id}'` to query
+- **Fix:** Add `WHERE org_slug = @org_slug` (parameterized query)
 
 ### MT-002 [HIGH] ...
 ```
@@ -320,8 +326,8 @@ BigQuery        → Query injection, org isolation, indexes
 ```
 BUG HUNT: {feature_name} | 50 bugs | C:3 H:12 M:25 L:10
 
-MT-001 [C] base.py:234 - Missing org_id filter
-MT-002 [H] executor.py:89 - Cross-org JOIN
+MT-001 [C] base.py:234 - Missing org_slug filter
+MT-002 [H] executor.py:89 - Cross-org JOIN without org_slug
 IDEM-001 [H] setup.py:156 - INSERT without ON CONFLICT
 ...
 ```

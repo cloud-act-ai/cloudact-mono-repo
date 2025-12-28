@@ -180,11 +180,23 @@ class LRUCache:
 # Global Cache Instance
 # ==============================================================================
 
-_cost_cache = LRUCache(max_size=1000, default_ttl=300)
+import os
+
+# FIX: SCALE-002 - Make cache size configurable via environment variable
+_CACHE_MAX_SIZE = int(os.environ.get("COST_CACHE_MAX_SIZE", "1000"))
+_CACHE_DEFAULT_TTL = int(os.environ.get("COST_CACHE_TTL_SECONDS", "300"))
+
+_cost_cache = LRUCache(max_size=_CACHE_MAX_SIZE, default_ttl=_CACHE_DEFAULT_TTL)
 
 
 def get_cost_cache() -> LRUCache:
-    """Get the global cost cache instance."""
+    """
+    Get the global cost cache instance.
+
+    Configurable via environment variables:
+    - COST_CACHE_MAX_SIZE: Maximum cache entries (default: 1000)
+    - COST_CACHE_TTL_SECONDS: Default TTL in seconds (default: 300)
+    """
     return _cost_cache
 
 
@@ -423,13 +435,14 @@ class PolarsCostService:
         loop = asyncio.get_event_loop()
 
         def run_query():
-            # Build job config with parameters if provided
-            job_config = None
+            # FIX: ERR-003 - Always set job timeout (not just for parameterized queries)
+            job_config = bigquery.QueryJobConfig(
+                job_timeout_ms=30000  # 30 second timeout for cost queries
+            )
+
+            # Add query parameters if provided
             if query_params:
-                job_config = bigquery.QueryJobConfig(
-                    query_parameters=query_params,
-                    job_timeout_ms=30000  # 30 second timeout for cost queries
-                )
+                job_config.query_parameters = query_params
 
             job = self.bq_client.client.query(sql, job_config=job_config)
             result = job.result()
@@ -1200,6 +1213,32 @@ class PolarsCostService:
                             total_daily += row.get('BilledCost', 0) or 0
                     except (ValueError, AttributeError):
                         pass
+
+        # FIX: EDGE-001 - If still no daily cost, fall back to average of last 7 days
+        if total_daily == 0:
+            last_7_days_start = today - timedelta(days=7)
+            last_7_days_total = 0.0
+            days_with_data = set()
+            for row in data:
+                charge_date_str = row.get('ChargePeriodStart', '')
+                if charge_date_str:
+                    try:
+                        if isinstance(charge_date_str, str):
+                            charge_date = date.fromisoformat(charge_date_str.split('T')[0])
+                        elif hasattr(charge_date_str, 'date'):
+                            charge_date = charge_date_str.date()
+                        else:
+                            charge_date = charge_date_str
+
+                        if last_7_days_start <= charge_date <= today:
+                            last_7_days_total += row.get('BilledCost', 0) or 0
+                            days_with_data.add(charge_date)
+                    except (ValueError, AttributeError):
+                        pass
+
+            # Calculate average daily cost based on days with actual data
+            if days_with_data:
+                total_daily = last_7_days_total / len(days_with_data)
 
         # Calculate MTD costs (actual costs from start of current month)
         mtd_cost = 0.0

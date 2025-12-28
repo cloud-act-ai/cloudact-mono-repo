@@ -99,15 +99,15 @@ RATE_LIMITS = {
 
 ### 1. Audit API Key Usage
 ```sql
--- Check API key access patterns
+-- Check API key access patterns (org_slug is the tenant identifier)
 SELECT
-    org_id,
+    org_slug,
     endpoint,
     COUNT(*) as calls,
     MAX(timestamp) as last_access
 FROM `organizations.audit_logs`
 WHERE action = 'api_call'
-GROUP BY org_id, endpoint
+GROUP BY org_slug, endpoint
 ORDER BY calls DESC;
 ```
 
@@ -119,13 +119,13 @@ from google.cloud import bigquery
 
 client = bigquery.Client()
 query = '''
-SELECT org_id, provider,
+SELECT org_slug, provider,
        CASE WHEN encrypted_value IS NOT NULL THEN 'encrypted'
             ELSE 'PLAIN TEXT - CRITICAL' END as status
-FROM organizations.integration_credentials
+FROM organizations.org_integration_credentials
 '''
 for row in client.query(query):
-    print(f'{row.org_id}/{row.provider}: {row.status}')
+    print(f'{row.org_slug}/{row.provider}: {row.status}')
 "
 ```
 
