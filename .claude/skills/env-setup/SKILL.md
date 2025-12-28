@@ -49,9 +49,9 @@ git clone https://github.com/your-org/cloudact-mono-repo.git
 cd cloudact-mono-repo
 
 # Create environment file
-cp .env.example .env
+cp .env.example .env.local
 
-# Edit .env with your values
+# Edit .env.local with your values
 ```
 
 ### 2. Configure GCP Credentials

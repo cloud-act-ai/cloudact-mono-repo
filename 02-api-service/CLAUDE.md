@@ -2,6 +2,28 @@
 
 Frontend-facing API for org management, auth, and integrations. Handles bootstrap, onboarding, integration setup, subscription plans, and cost analytics. Does NOT run pipelines (port 8001).
 
+## PRODUCTION-READY REQUIREMENTS (CRITICAL)
+
+**MANDATORY for all code generation and modifications:**
+
+1. **NO MOCKS OR STUBS** - Never create mock implementations, placeholder code, or TODO stubs unless explicitly requested
+2. **NO HALLUCINATED CODE** - Only reference files, functions, and APIs that actually exist in the codebase
+3. **WORKING CODE ONLY** - All generated code must be complete, functional, and production-ready
+4. **VERIFY BEFORE REFERENCE** - Always read/check files before referencing them in code or documentation
+5. **USE EXISTING PATTERNS** - Follow established patterns in the codebase, don't invent new ones
+6. **NO NEW DEPENDENCIES** - Don't add new pip packages without explicit approval
+7. **ENVIRONMENT FILES** - Use this project's environment files:
+   - Local/Testing: `02-api-service/.env.local`
+   - Staging: `02-api-service/.env.stage`
+   - Production: `02-api-service/.env.prod`
+   - **NEVER use `.env`** - always use environment-specific files
+
+**Before writing code:**
+- Read existing files to understand current patterns
+- Verify imports and dependencies exist
+- Check that referenced APIs/endpoints are real
+- Ensure schema matches actual BigQuery tables
+
 ## Routers
 
 | Router | Endpoints | Purpose |

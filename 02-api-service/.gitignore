@@ -45,10 +45,10 @@ htmlcov/
 .dmypy.json
 dmypy.json
 
-# Environment
-.env
+# Environment - Only .env.local, .env.stage, .env.prod allowed
 .env.local
-.env.*.local
+.env.stage
+.env.prod
 
 # GCP
 *.json

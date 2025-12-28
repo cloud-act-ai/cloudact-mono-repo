@@ -137,9 +137,10 @@ celerybeat.pid
 # SageMath parsed files
 *.sage.py
 
-# Environments
-.env
+# Environments - Only .env.local, .env.stage, .env.prod allowed
 .env.local
+.env.stage
+.env.prod
 .env.admin
 .envrc
 .venv

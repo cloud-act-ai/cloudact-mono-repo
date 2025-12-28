@@ -48,7 +48,7 @@ The notification system supports two configuration levels:
 
 ## Environment Variables
 
-Set these in your `.env` file:
+Set these in your `.env.local` file:
 
 ```bash
 # Email Configuration (for SMTP)

@@ -35,10 +35,10 @@ env/
 *~
 .DS_Store
 
-# Environment files
-.env
-.env.*
-*.env
+# Environment files - Only .env.local, .env.stage, .env.prod allowed
+.env.local
+.env.stage
+.env.prod
 
 # Secrets and credentials
 **/*secret*.json

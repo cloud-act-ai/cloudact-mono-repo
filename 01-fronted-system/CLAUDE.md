@@ -2,6 +2,28 @@
 
 Next.js frontend with Supabase auth and Stripe payments. Port 3000. Connects to api-service (8000) for onboarding and pipeline-service (8001) for execution.
 
+## PRODUCTION-READY REQUIREMENTS (CRITICAL)
+
+**MANDATORY for all code generation and modifications:**
+
+1. **NO MOCKS OR STUBS** - Never create mock implementations, placeholder code, or TODO stubs unless explicitly requested
+2. **NO HALLUCINATED CODE** - Only reference files, functions, and APIs that actually exist in the codebase
+3. **WORKING CODE ONLY** - All generated code must be complete, functional, and production-ready
+4. **VERIFY BEFORE REFERENCE** - Always read/check files before referencing them in code or documentation
+5. **USE EXISTING PATTERNS** - Follow established patterns in the codebase, don't invent new ones
+6. **NO NEW DEPENDENCIES** - Don't add new npm packages without explicit approval
+7. **ENVIRONMENT FILES** - Use this project's environment files:
+   - Local/Testing: `01-fronted-system/.env.local`
+   - Staging: `01-fronted-system/.env.stage`
+   - Production: `01-fronted-system/.env.prod`
+   - **NEVER use `.env`** - always use environment-specific files
+
+**Before writing code:**
+- Read existing files to understand current patterns
+- Verify imports and dependencies exist
+- Check that referenced APIs/endpoints are real
+- Ensure component props match actual interfaces
+
 ## Development
 
 ```bash
