@@ -315,6 +315,13 @@ class SaaSSubscriptionUpdate(BaseModel):
     contract_id: Optional[str] = Field(None, max_length=100)
     notes: Optional[str] = Field(None, max_length=1000)
     seats: Optional[int] = Field(None, ge=1)
+    # Hierarchy fields for cost allocation
+    hierarchy_dept_id: Optional[str] = Field(None, max_length=50)
+    hierarchy_dept_name: Optional[str] = Field(None, max_length=200)
+    hierarchy_project_id: Optional[str] = Field(None, max_length=50)
+    hierarchy_project_name: Optional[str] = Field(None, max_length=200)
+    hierarchy_team_id: Optional[str] = Field(None, max_length=50)
+    hierarchy_team_name: Optional[str] = Field(None, max_length=200)
 
     model_config = ConfigDict(
         use_enum_values=True,

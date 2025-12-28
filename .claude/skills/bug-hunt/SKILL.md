@@ -364,6 +364,29 @@ After generating the bug report:
    - Run tests for ALL services after fixes
    - Validate no existing functionality broken
 
+## Fix All Command
+
+When user says **"fix all {N} issues"** or **"fix all bugs"**:
+1. **NO SKIPS**: Every reported bug MUST be fixed - no exceptions
+2. **NO PHASES**: Fix all bugs in one session, not spread across multiple
+3. **ALL AT ONCE**: Create TodoWrite with all N items and complete each one
+4. **VERIFY FIXABLE**: Every bug reported MUST have a concrete fix that can be applied
+5. **NO THEORETICAL**: Only report bugs that exist AND can be fixed in current code
+
+**Example Response to "fix all 12 issues":**
+```
+I'll fix all 12 bugs now:
+[Creates TodoWrite with 12 items]
+[Fixes each bug sequentially or in parallel]
+[Marks each as completed as done]
+[Reports completion of all 12]
+```
+
+**Anti-pattern to AVOID:**
+- "Let's start with the critical ones..." (NO - fix ALL)
+- "We can address LOW severity later..." (NO - fix ALL)
+- "This would require a larger refactor..." (NO - report only fixable bugs)
+
 ## Fix Constraints (CRITICAL)
 
 | Constraint | Enforcement |
@@ -398,10 +421,14 @@ cd 03-data-pipeline-service && python -m pytest tests/ -v
 /bug-hunt login --compact
 /bug-hunt org-onboarding --compact
 
-# After receiving report
-"Fix all critical bugs first"
+# After receiving report - FIX ALL (recommended)
+"Fix all 12 issues"           # Fixes ALL reported bugs
+"Fix all bugs now"            # Fixes ALL reported bugs
+"Fix everything"              # Fixes ALL reported bugs
+
+# Selective fixing (if user explicitly requests)
+"Fix only CRITICAL bugs"
 "Start with MT-001 and MT-002"
-"Skip LOW severity for now"
 ```
 
 ## Related Skills

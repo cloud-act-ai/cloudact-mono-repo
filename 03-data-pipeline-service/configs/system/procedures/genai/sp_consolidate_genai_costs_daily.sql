@@ -17,13 +17,17 @@
 CREATE OR REPLACE PROCEDURE `{project_id}.organizations`.sp_consolidate_genai_costs_daily(
   p_project_id STRING,
   p_dataset_id STRING,
-  p_cost_date DATE
+  p_cost_date DATE,
+  p_credential_id STRING DEFAULT NULL,  -- MT-001 FIX: Add credential_id for multi-account isolation
+  p_pipeline_id STRING DEFAULT 'genai_consolidate',  -- STATE-001 FIX: Add lineage params
+  p_run_id STRING DEFAULT NULL
 )
 OPTIONS(strict_mode=TRUE)
 BEGIN
   DECLARE v_rows_deleted INT64 DEFAULT 0;
   DECLARE v_rows_inserted INT64 DEFAULT 0;
   DECLARE v_total_cost FLOAT64 DEFAULT 0.0;
+  DECLARE v_run_id STRING DEFAULT COALESCE(p_run_id, GENERATE_UUID());
 
   -- Validation
   ASSERT p_project_id IS NOT NULL AS "p_project_id cannot be NULL";
@@ -32,16 +36,27 @@ BEGIN
 
   BEGIN TRANSACTION;
 
-    -- Step 1: Delete existing records for this date (idempotent)
-    EXECUTE IMMEDIATE FORMAT("""
-      DELETE FROM `%s.%s.genai_costs_daily_unified`
-      WHERE cost_date = @p_date
-    """, p_project_id, p_dataset_id)
-    USING p_cost_date AS p_date;
+    -- Step 1: Delete existing records for this date AND credential (idempotent)
+    -- MT-001 FIX: Add credential_id filter to prevent deleting other credentials' data
+    IF p_credential_id IS NOT NULL THEN
+      EXECUTE IMMEDIATE FORMAT("""
+        DELETE FROM `%s.%s.genai_costs_daily_unified`
+        WHERE cost_date = @p_date
+          AND x_credential_id = @p_credential_id
+      """, p_project_id, p_dataset_id)
+      USING p_cost_date AS p_date, p_credential_id AS p_credential_id;
+    ELSE
+      -- Backward compatible: if no credential_id provided, delete all for date
+      EXECUTE IMMEDIATE FORMAT("""
+        DELETE FROM `%s.%s.genai_costs_daily_unified`
+        WHERE cost_date = @p_date
+      """, p_project_id, p_dataset_id)
+      USING p_cost_date AS p_date;
+    END IF;
 
     SET v_rows_deleted = @@row_count;
 
-    -- Step 2: Insert PAYG costs
+    -- Step 2: Insert PAYG costs with lineage columns (STATE-001 FIX)
     EXECUTE IMMEDIATE FORMAT("""
       INSERT INTO `%s.%s.genai_costs_daily_unified`
       (cost_date, org_slug, cost_type, provider, model, instance_type, gpu_type,
@@ -49,7 +64,8 @@ BEGIN
        infrastructure_cost_usd, total_cost_usd, discount_applied_pct,
        usage_quantity, usage_unit, hierarchy_dept_id, hierarchy_dept_name,
        hierarchy_project_id, hierarchy_project_name, hierarchy_team_id,
-       hierarchy_team_name, source_table, consolidated_at)
+       hierarchy_team_name, source_table, consolidated_at,
+       x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
       SELECT
         cost_date,
         org_slug,
@@ -75,13 +91,21 @@ BEGIN
         hierarchy_team_id,
         hierarchy_team_name,
         'genai_payg_costs_daily' as source_table,
-        CURRENT_TIMESTAMP() as consolidated_at
+        CURRENT_TIMESTAMP() as consolidated_at,
+        -- STATE-001 FIX: Preserve lineage from source or use procedure params
+        COALESCE(x_pipeline_id, @p_pipeline_id) as x_pipeline_id,
+        COALESCE(x_credential_id, @p_credential_id) as x_credential_id,
+        COALESCE(x_pipeline_run_date, @p_date) as x_pipeline_run_date,
+        COALESCE(x_run_id, @p_run_id) as x_run_id,
+        COALESCE(x_ingested_at, CURRENT_TIMESTAMP()) as x_ingested_at
       FROM `%s.%s.genai_payg_costs_daily`
       WHERE cost_date = @p_date
+        AND (@p_credential_id IS NULL OR x_credential_id = @p_credential_id)
     """, p_project_id, p_dataset_id, p_project_id, p_dataset_id)
-    USING p_cost_date AS p_date;
+    USING p_cost_date AS p_date, p_credential_id AS p_credential_id,
+          p_pipeline_id AS p_pipeline_id, v_run_id AS p_run_id;
 
-    -- Step 3: Insert Commitment costs
+    -- Step 3: Insert Commitment costs with lineage columns (STATE-001 FIX)
     EXECUTE IMMEDIATE FORMAT("""
       INSERT INTO `%s.%s.genai_costs_daily_unified`
       (cost_date, org_slug, cost_type, provider, model, instance_type, gpu_type,
@@ -89,7 +113,8 @@ BEGIN
        infrastructure_cost_usd, total_cost_usd, discount_applied_pct,
        usage_quantity, usage_unit, hierarchy_dept_id, hierarchy_dept_name,
        hierarchy_project_id, hierarchy_project_name, hierarchy_team_id,
-       hierarchy_team_name, source_table, consolidated_at)
+       hierarchy_team_name, source_table, consolidated_at,
+       x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
       SELECT
         cost_date,
         org_slug,
@@ -115,13 +140,21 @@ BEGIN
         hierarchy_team_id,
         hierarchy_team_name,
         'genai_commitment_costs_daily' as source_table,
-        CURRENT_TIMESTAMP() as consolidated_at
+        CURRENT_TIMESTAMP() as consolidated_at,
+        -- STATE-001 FIX: Preserve lineage from source or use procedure params
+        COALESCE(x_pipeline_id, @p_pipeline_id) as x_pipeline_id,
+        COALESCE(x_credential_id, @p_credential_id) as x_credential_id,
+        COALESCE(x_pipeline_run_date, @p_date) as x_pipeline_run_date,
+        COALESCE(x_run_id, @p_run_id) as x_run_id,
+        COALESCE(x_ingested_at, CURRENT_TIMESTAMP()) as x_ingested_at
       FROM `%s.%s.genai_commitment_costs_daily`
       WHERE cost_date = @p_date
+        AND (@p_credential_id IS NULL OR x_credential_id = @p_credential_id)
     """, p_project_id, p_dataset_id, p_project_id, p_dataset_id)
-    USING p_cost_date AS p_date;
+    USING p_cost_date AS p_date, p_credential_id AS p_credential_id,
+          p_pipeline_id AS p_pipeline_id, v_run_id AS p_run_id;
 
-    -- Step 4: Insert Infrastructure costs
+    -- Step 4: Insert Infrastructure costs with lineage columns (STATE-001 FIX)
     EXECUTE IMMEDIATE FORMAT("""
       INSERT INTO `%s.%s.genai_costs_daily_unified`
       (cost_date, org_slug, cost_type, provider, model, instance_type, gpu_type,
@@ -129,7 +162,8 @@ BEGIN
        infrastructure_cost_usd, total_cost_usd, discount_applied_pct,
        usage_quantity, usage_unit, hierarchy_dept_id, hierarchy_dept_name,
        hierarchy_project_id, hierarchy_project_name, hierarchy_team_id,
-       hierarchy_team_name, source_table, consolidated_at)
+       hierarchy_team_name, source_table, consolidated_at,
+       x_pipeline_id, x_credential_id, x_pipeline_run_date, x_run_id, x_ingested_at)
       SELECT
         cost_date,
         org_slug,
@@ -155,11 +189,19 @@ BEGIN
         hierarchy_team_id,
         hierarchy_team_name,
         'genai_infrastructure_costs_daily' as source_table,
-        CURRENT_TIMESTAMP() as consolidated_at
+        CURRENT_TIMESTAMP() as consolidated_at,
+        -- STATE-001 FIX: Preserve lineage from source or use procedure params
+        COALESCE(x_pipeline_id, @p_pipeline_id) as x_pipeline_id,
+        COALESCE(x_credential_id, @p_credential_id) as x_credential_id,
+        COALESCE(x_pipeline_run_date, @p_date) as x_pipeline_run_date,
+        COALESCE(x_run_id, @p_run_id) as x_run_id,
+        COALESCE(x_ingested_at, CURRENT_TIMESTAMP()) as x_ingested_at
       FROM `%s.%s.genai_infrastructure_costs_daily`
       WHERE cost_date = @p_date
+        AND (@p_credential_id IS NULL OR x_credential_id = @p_credential_id)
     """, p_project_id, p_dataset_id, p_project_id, p_dataset_id)
-    USING p_cost_date AS p_date;
+    USING p_cost_date AS p_date, p_credential_id AS p_credential_id,
+          p_pipeline_id AS p_pipeline_id, v_run_id AS p_run_id;
 
     -- Get total count and cost
     EXECUTE IMMEDIATE FORMAT("""

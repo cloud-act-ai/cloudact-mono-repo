@@ -444,7 +444,7 @@ export default function GenAIRunsPage() {
                 Complete organization onboarding to run pipelines.
               </p>
               <Link href={`/${orgSlug}/settings/organization`}>
-                <button className="inline-flex items-center gap-2 h-11 px-4 bg-[var(--cloudact-mint)] text-black text-[15px] font-semibold rounded-xl hover:bg-[var(--cloudact-mint-dark)] transition-colors">
+                <button className="inline-flex items-center gap-2 h-11 px-4 bg-[var(--cloudact-mint)] text-slate-900 text-[15px] font-semibold rounded-xl hover:bg-[var(--cloudact-mint-dark)] transition-colors">
                   Go to Settings
                 </button>
               </Link>
@@ -548,12 +548,12 @@ export default function GenAIRunsPage() {
                 <div className="inline-flex p-4 rounded-2xl bg-[var(--cloudact-mint)]/10 mb-2">
                   <Plug className="h-12 w-12 text-[var(--cloudact-mint-dark)]" />
                 </div>
-                <h3 className="text-[20px] font-semibold text-black">No {currentTabConfig?.label.toLowerCase()} pipelines</h3>
+                <h3 className="text-[20px] font-semibold text-slate-900">No {currentTabConfig?.label.toLowerCase()} pipelines</h3>
                 <p className="text-[15px] text-muted-foreground max-w-md mx-auto">
                   Connect an LLM provider to see available pipelines.
                 </p>
                 <Link href={`/${orgSlug}/integrations/genai`}>
-                  <button className="inline-flex items-center gap-2 h-11 px-6 bg-[var(--cloudact-mint)] text-black text-[15px] font-semibold rounded-xl hover:bg-[var(--cloudact-mint-dark)] transition-colors shadow-sm">
+                  <button className="inline-flex items-center gap-2 h-11 px-6 bg-[var(--cloudact-mint)] text-slate-900 text-[15px] font-semibold rounded-xl hover:bg-[var(--cloudact-mint-dark)] transition-colors shadow-sm">
                     <Brain className="h-4 w-4" />
                     Configure GenAI Providers
                   </button>
@@ -610,7 +610,7 @@ export default function GenAIRunsPage() {
                             <button
                               onClick={() => handleRun(pipeline.id)}
                               disabled={isRunning}
-                              className="inline-flex items-center gap-2 h-11 px-4 bg-[var(--cloudact-mint)] text-black text-[15px] font-semibold rounded-xl hover:bg-[var(--cloudact-mint-dark)] disabled:bg-[#E5E5EA] disabled:text-[#C7C7CC] disabled:cursor-not-allowed disabled:opacity-70 transition-all touch-manipulation shadow-sm hover:shadow-md"
+                              className="inline-flex items-center gap-2 h-11 px-4 bg-[var(--cloudact-mint)] text-slate-900 text-[15px] font-semibold rounded-xl hover:bg-[var(--cloudact-mint-dark)] disabled:bg-[#E5E5EA] disabled:text-[#C7C7CC] disabled:cursor-not-allowed disabled:opacity-70 transition-all touch-manipulation shadow-sm hover:shadow-md"
                             >
                               {isRunning ? (
                                 <>

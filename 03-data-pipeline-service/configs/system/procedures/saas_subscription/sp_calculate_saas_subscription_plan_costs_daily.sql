@@ -108,11 +108,11 @@ BEGIN
         org_slug, provider, subscription_id, plan_name, display_name,
         cost_date, billing_cycle, currency, seats, pricing_model,
         cycle_cost, daily_cost, monthly_run_rate, annual_run_rate,
-        invoice_id_last, source, run_date,
+        invoice_id_last, source, x_pipeline_run_date,
         hierarchy_dept_id, hierarchy_dept_name,
         hierarchy_project_id, hierarchy_project_name,
         hierarchy_team_id, hierarchy_team_name,
-        updated_at
+        updated_at, x_pipeline_id, x_credential_id, x_run_id, x_ingested_at
       )
       WITH subscriptions AS (
         -- Read all subscriptions that overlap with date range
@@ -423,7 +423,7 @@ BEGIN
         ) AS NUMERIC) AS annual_run_rate,
         invoice_id_last,
         'subscription_amortization' AS source,
-        CURRENT_DATE() AS run_date,
+        CURRENT_DATE() AS x_pipeline_run_date,
         -- Hierarchy fields for cost allocation
         hierarchy_dept_id,
         hierarchy_dept_name,
@@ -431,7 +431,12 @@ BEGIN
         hierarchy_project_name,
         hierarchy_team_id,
         hierarchy_team_name,
-        CURRENT_TIMESTAMP() AS updated_at
+        CURRENT_TIMESTAMP() AS updated_at,
+        -- Pipeline lineage columns (x_ prefix)
+        'saas_subscription_cost' AS x_pipeline_id,
+        'internal' AS x_credential_id,
+        GENERATE_UUID() AS x_run_id,
+        CURRENT_TIMESTAMP() AS x_ingested_at
       FROM daily_expanded
       WHERE daily_cost > 0  -- Skip zero-cost rows (FREE plans)
     """, p_project_id, p_dataset_id, p_project_id, p_dataset_id)

@@ -189,7 +189,7 @@ class TestRequireScopesDecorator:
             pytest.helpers.run_async(mock_endpoint(org=org_data))
 
         assert exc_info.value.status_code == 403
-        assert "Missing required scopes" in str(exc_info.value.detail)
+        assert "Requires one of these scopes" in str(exc_info.value.detail)
 
     def test_decorator_with_wildcard_scope(self):
         """Test decorator allows wildcard scopes."""

@@ -328,7 +328,7 @@ export default function GCPIntegrationPage() {
       {/* Header with back link */}
       <div className="flex items-center gap-3">
         <Link href={`/${orgSlug}/integrations/cloud-providers`}>
-          <button className="h-10 px-4 rounded-xl hover:bg-slate-100 transition-colors flex items-center gap-2 text-slate-600 hover:text-black font-medium text-[14px]">
+          <button className="h-10 px-4 rounded-xl hover:bg-slate-100 transition-colors flex items-center gap-2 text-slate-600 hover:text-slate-900 font-medium text-[14px]">
             <ArrowLeft className="h-4 w-4" />
             Back to Providers
           </button>
@@ -343,7 +343,7 @@ export default function GCPIntegrationPage() {
           </svg>
         </div>
         <div>
-          <h1 className="text-[32px] font-bold text-black tracking-tight">Google Cloud Platform</h1>
+          <h1 className="text-[32px] font-bold text-slate-900 tracking-tight">Google Cloud Platform</h1>
           <p className="text-[15px] text-slate-500 mt-2">
             Connect your GCP Service Account to enable billing data access and cloud cost analytics
           </p>
@@ -358,7 +358,7 @@ export default function GCPIntegrationPage() {
               <AlertCircle className="h-5 w-5 text-red-600" />
             </div>
             <div>
-              <h3 className="text-[15px] font-semibold text-black">Error</h3>
+              <h3 className="text-[15px] font-semibold text-slate-900">Error</h3>
               <p className="text-[14px] text-red-700 mt-1">{error}</p>
             </div>
           </div>
@@ -372,7 +372,7 @@ export default function GCPIntegrationPage() {
               <CheckCircle2 className="h-5 w-5 text-[#1a7a3a]" />
             </div>
             <div>
-              <h3 className="text-[15px] font-semibold text-black">Success</h3>
+              <h3 className="text-[15px] font-semibold text-slate-900">Success</h3>
               <p className="text-[14px] text-[#1a7a3a] mt-1">{successMessage}</p>
             </div>
           </div>
@@ -388,7 +388,7 @@ export default function GCPIntegrationPage() {
                 <Cloud className="h-6 w-6 text-[#4285F4]" />
               </div>
               <div>
-                <h2 className="text-[18px] font-bold text-black">Service Account Connection</h2>
+                <h2 className="text-[18px] font-bold text-slate-900">Service Account Connection</h2>
                 <p className="text-[14px] text-slate-500 mt-1">
                   Upload your GCP Service Account JSON for secure authentication
                 </p>
@@ -405,7 +405,7 @@ export default function GCPIntegrationPage() {
               <div className="flex items-start gap-3">
                 <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
                 <div>
-                  <h4 className="text-[14px] font-semibold text-black">Validation Error</h4>
+                  <h4 className="text-[14px] font-semibold text-slate-900">Validation Error</h4>
                   <p className="text-[13px] text-red-700 mt-1">{integration.last_error}</p>
                 </div>
               </div>
@@ -417,7 +417,7 @@ export default function GCPIntegrationPage() {
             <div className="space-y-6 p-6 border-2 border-slate-200 rounded-2xl bg-slate-50">
               {/* Step Indicator */}
               <div className="flex items-center justify-between">
-                <span className="text-[14px] font-semibold text-black">Connection Wizard</span>
+                <span className="text-[14px] font-semibold text-slate-900">Connection Wizard</span>
                 <StepIndicator currentStep={wizardStep} totalSteps={3} />
               </div>
 
@@ -452,7 +452,7 @@ export default function GCPIntegrationPage() {
                     <div className="h-16 w-16 rounded-2xl bg-[#90FCA6]/15 flex items-center justify-center mx-auto mb-4">
                       <Upload className="h-8 w-8 text-[#1a7a3a]" />
                     </div>
-                    <p className="text-[16px] font-bold text-black mb-2">
+                    <p className="text-[16px] font-bold text-slate-900 mb-2">
                       {isDragging ? 'Drop your file here' : 'Upload Service Account JSON'}
                     </p>
                     <p className="text-[14px] text-slate-500">
@@ -475,7 +475,7 @@ export default function GCPIntegrationPage() {
                           <FileJson className="h-6 w-6 text-[#1a7a3a]" />
                         </div>
                         <div className="flex-1">
-                          <p className="font-semibold text-[15px] text-black mb-1">{uploadedFile.name}</p>
+                          <p className="font-semibold text-[15px] text-slate-900 mb-1">{uploadedFile.name}</p>
                           <p className="text-[13px] text-slate-500">
                             {(uploadedFile.size / 1024).toFixed(1)} KB
                           </p>
@@ -497,7 +497,7 @@ export default function GCPIntegrationPage() {
                           </div>
                           <div>
                             <p className="text-[12px] font-semibold text-slate-500 mb-1">Project ID</p>
-                            <p className="text-[14px] font-mono font-medium text-black">{parsedSA.project_id}</p>
+                            <p className="text-[14px] font-mono font-medium text-slate-900">{parsedSA.project_id}</p>
                           </div>
                         </div>
                         <div className="flex items-start gap-3">
@@ -506,7 +506,7 @@ export default function GCPIntegrationPage() {
                           </div>
                           <div>
                             <p className="text-[12px] font-semibold text-slate-500 mb-1">Service Account</p>
-                            <p className="text-[13px] font-mono text-black break-all">{parsedSA.client_email}</p>
+                            <p className="text-[13px] font-mono text-slate-900 break-all">{parsedSA.client_email}</p>
                           </div>
                         </div>
                       </div>
@@ -519,7 +519,7 @@ export default function GCPIntegrationPage() {
               {wizardStep === 3 && (
                 <div className="text-center py-8">
                   <Loader2 className="h-12 w-12 animate-spin text-[#1a7a3a] mx-auto mb-4" />
-                  <p className="text-[16px] font-bold text-black mb-2">Connecting to GCP...</p>
+                  <p className="text-[16px] font-bold text-slate-900 mb-2">Connecting to GCP...</p>
                   <p className="text-[13px] text-muted-foreground">
                     Encrypting and validating your credentials
                   </p>
@@ -540,7 +540,7 @@ export default function GCPIntegrationPage() {
                   <button
                     onClick={handleSetup}
                     disabled={!fileContent || uploadLoading}
-                    className="flex-1 h-12 bg-[#90FCA6] hover:bg-[#6EE890] text-black text-[15px] font-semibold rounded-xl shadow-sm hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    className="flex-1 h-12 bg-[#90FCA6] hover:bg-[#6EE890] text-slate-900 text-[15px] font-semibold rounded-xl shadow-sm hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
                     {uploadLoading && <Loader2 className="h-4 w-4 animate-spin" />}
                     {isConfigured ? "Update Credential" : "Connect GCP"}
@@ -565,7 +565,7 @@ export default function GCPIntegrationPage() {
                   <Key className="h-6 w-6 text-[#1a7a3a]" />
                 </div>
                 <div className="flex-1">
-                  <p className="font-semibold text-[16px] text-black mb-1">
+                  <p className="font-semibold text-[16px] text-slate-900 mb-1">
                     {integration?.credential_name || "GCP Service Account"}
                   </p>
                   <div className="flex items-center gap-2 text-[13px] text-slate-500">
@@ -588,7 +588,7 @@ export default function GCPIntegrationPage() {
               <div className="h-20 w-20 rounded-2xl bg-[#4285F4]/15 flex items-center justify-center mx-auto mb-6">
                 <Cloud className="h-10 w-10 text-[#4285F4]" />
               </div>
-              <p className="text-[18px] font-bold text-black mb-3">
+              <p className="text-[18px] font-bold text-slate-900 mb-3">
                 No Service Account Connected
               </p>
               <p className="text-[15px] text-slate-500 mb-8 max-w-md mx-auto leading-relaxed">
@@ -599,7 +599,7 @@ export default function GCPIntegrationPage() {
                   setShowUpload(true)
                   setWizardStep(1)
                 }}
-                className="h-12 px-6 bg-[#90FCA6] hover:bg-[#6EE890] text-black text-[15px] font-semibold rounded-xl shadow-sm hover:shadow-md transition-all inline-flex items-center gap-2"
+                className="h-12 px-6 bg-[#90FCA6] hover:bg-[#6EE890] text-slate-900 text-[15px] font-semibold rounded-xl shadow-sm hover:shadow-md transition-all inline-flex items-center gap-2"
               >
                 <Upload className="h-4 w-4" />
                 Start Connection Wizard
@@ -646,7 +646,7 @@ export default function GCPIntegrationPage() {
               </DialogTrigger>
               <DialogContent className="rounded-2xl">
                 <DialogHeader>
-                  <DialogTitle className="text-[20px] font-bold text-black">Remove GCP Integration</DialogTitle>
+                  <DialogTitle className="text-[20px] font-bold text-slate-900">Remove GCP Integration</DialogTitle>
                   <DialogDescription className="text-[14px] leading-relaxed text-slate-600 mt-2">
                     Are you sure you want to remove this integration? This will delete the stored credentials
                     and any pipelines using this integration will stop working.
@@ -680,7 +680,7 @@ export default function GCPIntegrationPage() {
           <div className="h-10 w-10 rounded-xl bg-[#4285F4]/15 flex items-center justify-center">
             <Cloud className="h-5 w-5 text-[#4285F4]" />
           </div>
-          <h3 className="text-[18px] font-bold text-black">
+          <h3 className="text-[18px] font-bold text-slate-900">
             How to get your Service Account JSON
           </h3>
         </div>
@@ -702,7 +702,7 @@ export default function GCPIntegrationPage() {
         </ol>
         <div className="mt-5 p-5 rounded-xl bg-[#90FCA6]/10 border border-[#90FCA6]/20">
           <p className="text-[14px] text-slate-600 leading-relaxed">
-            <strong className="text-black font-semibold">Required roles:</strong> BigQuery Data Viewer, Billing Account Viewer (for cost data)
+            <strong className="text-slate-900 font-semibold">Required roles:</strong> BigQuery Data Viewer, Billing Account Viewer (for cost data)
           </p>
         </div>
       </div>

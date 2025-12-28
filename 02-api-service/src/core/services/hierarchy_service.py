@@ -477,8 +477,8 @@ class HierarchyService:
         # Mark old version as ended
         end_query = f"""
         UPDATE `{table_ref}`
-        SET end_date = TIMESTAMP('{now.isoformat()}'),
-            updated_at = TIMESTAMP('{now.isoformat()}'),
+        SET end_date = TIMESTAMP('{now}'),
+            updated_at = TIMESTAMP('{now}'),
             updated_by = '{updated_by}'
         WHERE id = '{existing.id}'
         """
@@ -674,9 +674,9 @@ class HierarchyService:
         # Soft delete by setting end_date and is_active = false
         delete_query = f"""
         UPDATE `{table_ref}`
-        SET end_date = TIMESTAMP('{now.isoformat()}'),
+        SET end_date = TIMESTAMP('{now}'),
             is_active = FALSE,
-            updated_at = TIMESTAMP('{now.isoformat()}'),
+            updated_at = TIMESTAMP('{now}'),
             updated_by = '{deleted_by}'
         WHERE id = '{existing.id}'
         """
@@ -716,7 +716,7 @@ class HierarchyService:
             now = datetime.utcnow().isoformat()
             delete_query = f"""
             UPDATE `{table_ref}`
-            SET end_date = TIMESTAMP('{now.isoformat()}'),
+            SET end_date = TIMESTAMP('{now}'),
                 is_active = FALSE,
                 updated_by = '{imported_by}'
             WHERE end_date IS NULL

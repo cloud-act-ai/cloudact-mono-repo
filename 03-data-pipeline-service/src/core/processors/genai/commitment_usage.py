@@ -236,11 +236,22 @@ class CommitmentUsageProcessor:
             return False
 
         except Exception as e:
-            # If table doesn't exist or query fails, assume not processed
-            self.logger.warning(
-                f"Idempotency check failed (assuming not processed): {type(e).__name__}"
-            )
-            return False
+            # PROC-001 FIX: Fail-closed on idempotency check error
+            # Return True (skip processing) instead of False (process anyway) to prevent duplicates
+            # If table doesn't exist, BigQuery returns specific error we can handle
+            error_msg = str(e).lower()
+            if "not found" in error_msg or "does not exist" in error_msg:
+                # Table doesn't exist - safe to process (first run)
+                self.logger.info(
+                    f"Target table not found - safe to process (first run): {type(e).__name__}"
+                )
+                return False
+            else:
+                # Other errors - fail closed to prevent duplicate processing
+                self.logger.error(
+                    f"Idempotency check failed - SKIPPING to prevent duplicates: {type(e).__name__}: {e}"
+                )
+                return True  # Skip processing to be safe
 
     async def _insert_usage(self, bq_client, table_id, records):
         """
@@ -263,65 +274,57 @@ class CommitmentUsageProcessor:
             client = bigquery.Client(project=self.settings.gcp_project_id)
             total_affected = 0
 
-            # Process in batches
-            batch_size = 100
+            # Process in batches - UNNEST has practical limits ~500 rows
+            batch_size = 500
             for i in range(0, len(records), batch_size):
                 batch = records[i:i + batch_size]
 
-                # Build values for temp table
-                values_rows = []
+                # Build UNNEST array for BigQuery MERGE (correct pattern, no temp tables)
+                struct_values = []
                 for record in batch:
-                    values_rows.append({
-                        "org_slug": record.get("org_slug"),
-                        "provider": record.get("provider"),
-                        "commitment_id": record.get("commitment_id"),
-                        "commitment_type": record.get("commitment_type"),
-                        "model": record.get("model"),
-                        "usage_date": record.get("usage_date"),
-                        "region": record.get("region") or "global",
-                        "ptu_units": record.get("ptu_units") or 0,
-                        "tokens_generated": record.get("tokens_generated") or 0,
-                        "utilization_pct": record.get("utilization_pct") or 0.0,
-                        "usage_hours": record.get("usage_hours") or 0.0,
-                        "credential_id": record.get("credential_id"),
-                        "hierarchy_dept_id": record.get("hierarchy_dept_id"),
-                        "hierarchy_dept_name": record.get("hierarchy_dept_name"),
-                        "hierarchy_project_id": record.get("hierarchy_project_id"),
-                        "hierarchy_project_name": record.get("hierarchy_project_name"),
-                        "hierarchy_team_id": record.get("hierarchy_team_id"),
-                        "hierarchy_team_name": record.get("hierarchy_team_name"),
-                        # Standardized lineage columns (x_ prefix)
-                        "x_pipeline_id": record.get("x_pipeline_id"),
-                        "x_credential_id": record.get("x_credential_id"),
-                        "x_pipeline_run_date": record.get("x_pipeline_run_date"),
-                        "x_run_id": record.get("x_run_id"),
-                        "x_ingested_at": record.get("x_ingested_at"),
-                    })
+                    def escape_str(v):
+                        if v is None:
+                            return "NULL"
+                        return f"'{str(v).replace(chr(39), chr(39)+chr(39))}'"
 
-                # Create temp table
-                temp_table = f"_temp_commitment_usage_{datetime.utcnow().strftime('%Y%m%d%H%M%S%f')}"
-                create_temp = f"""
-                    CREATE TEMP TABLE `{temp_table}` (
-                        org_slug STRING, provider STRING, commitment_id STRING, commitment_type STRING,
-                        model STRING, usage_date DATE, region STRING, ptu_units INT64,
-                        tokens_generated INT64, utilization_pct FLOAT64, usage_hours FLOAT64,
-                        credential_id STRING, hierarchy_dept_id STRING, hierarchy_dept_name STRING,
-                        hierarchy_project_id STRING, hierarchy_project_name STRING,
-                        hierarchy_team_id STRING, hierarchy_team_name STRING,
-                        x_pipeline_id STRING, x_credential_id STRING, x_pipeline_run_date DATE,
-                        x_run_id STRING, x_ingested_at TIMESTAMP
-                    )
-                """
-                client.query(create_temp).result()
+                    def escape_int(v):
+                        return str(v) if v is not None else "0"
 
-                # Insert into temp table
-                temp_table_ref = f"{client.project}.{temp_table}"
-                client.insert_rows_json(temp_table_ref, values_rows)
+                    def escape_float(v):
+                        return str(v) if v is not None else "0.0"
 
-                # MERGE from temp table to target
+                    struct_values.append(f"""STRUCT(
+                        {escape_str(record.get('org_slug'))} as org_slug,
+                        {escape_str(record.get('provider'))} as provider,
+                        {escape_str(record.get('commitment_id'))} as commitment_id,
+                        {escape_str(record.get('commitment_type'))} as commitment_type,
+                        {escape_str(record.get('model'))} as model,
+                        DATE('{record.get('usage_date')}') as usage_date,
+                        {escape_str(record.get('region') or 'global')} as region,
+                        {escape_int(record.get('ptu_units'))} as ptu_units,
+                        {escape_int(record.get('tokens_generated'))} as tokens_generated,
+                        {escape_float(record.get('utilization_pct'))} as utilization_pct,
+                        {escape_float(record.get('usage_hours'))} as usage_hours,
+                        {escape_str(record.get('credential_id'))} as credential_id,
+                        {escape_str(record.get('hierarchy_dept_id'))} as hierarchy_dept_id,
+                        {escape_str(record.get('hierarchy_dept_name'))} as hierarchy_dept_name,
+                        {escape_str(record.get('hierarchy_project_id'))} as hierarchy_project_id,
+                        {escape_str(record.get('hierarchy_project_name'))} as hierarchy_project_name,
+                        {escape_str(record.get('hierarchy_team_id'))} as hierarchy_team_id,
+                        {escape_str(record.get('hierarchy_team_name'))} as hierarchy_team_name,
+                        {escape_str(record.get('x_pipeline_id'))} as x_pipeline_id,
+                        {escape_str(record.get('x_credential_id'))} as x_credential_id,
+                        DATE('{record.get('x_pipeline_run_date')}') as x_pipeline_run_date,
+                        {escape_str(record.get('x_run_id'))} as x_run_id,
+                        TIMESTAMP('{record.get('x_ingested_at')}') as x_ingested_at
+                    )""")
+
+                unnest_source = ",\n".join(struct_values)
+
+                # MERGE using UNNEST - correct BigQuery pattern (no temp tables)
                 merge_query = f"""
                     MERGE `{table_id}` T
-                    USING `{temp_table}` S
+                    USING UNNEST([{unnest_source}]) S
                     ON T.org_slug = S.org_slug
                         AND T.provider = S.provider
                         AND T.commitment_id = S.commitment_id

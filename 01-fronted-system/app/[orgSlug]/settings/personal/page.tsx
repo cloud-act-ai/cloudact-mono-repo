@@ -267,56 +267,61 @@ export default function PersonalSettingsPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[500px]">
-        <div className="text-center">
-          <div className="h-12 w-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
-            <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+      <div className="max-w-4xl">
+        <div className="mb-10">
+          <h1 className="text-[32px] font-bold text-slate-900 tracking-tight leading-none">
+            Personal Settings
+          </h1>
+          <p className="text-[15px] text-slate-500 mt-2">
+            Manage your profile, security, and account preferences
+          </p>
+        </div>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="h-12 w-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
+              <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+            </div>
+            <p className="text-[14px] text-slate-500 font-medium">Loading settings...</p>
           </div>
-          <p className="text-[14px] text-slate-500 font-medium">Loading settings...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="max-w-4xl">
       {/* Header */}
       <div className="mb-10">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-[#90FCA6] to-[#B8FDCA] flex items-center justify-center shadow-sm">
-            <User className="h-6 w-6 text-black" />
-          </div>
-          <h1 className="text-[32px] font-bold text-black tracking-tight leading-none">
-            Personal Settings
-          </h1>
-        </div>
-        <p className="text-[15px] text-slate-500 mt-2 max-w-lg ml-[60px]">
-          Manage your profile, security, and account settings
+        <h1 className="text-[32px] font-bold text-slate-900 tracking-tight leading-none">
+          Personal Settings
+        </h1>
+        <p className="text-[15px] text-slate-500 mt-2">
+          Manage your profile, security, and account preferences
         </p>
       </div>
 
       {/* Stats Row */}
-      <div className="flex items-center gap-6 mb-8">
+      <div className="flex flex-wrap items-center gap-6 py-5 px-6 bg-white rounded-2xl border border-slate-200 shadow-sm mb-8">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-[#90FCA6]/15 flex items-center justify-center">
+          <div className="h-10 w-10 rounded-xl bg-[#90FCA6]/10 flex items-center justify-center">
             <User className="h-5 w-5 text-[#1a7a3a]" />
           </div>
           <div>
-            <p className="text-[14px] text-slate-600 font-medium">Account</p>
-            <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#90FCA6]/15">
-              <div className="h-1.5 w-1.5 rounded-full bg-[#1a7a3a]" />
-              <p className="text-[12px] text-[#1a7a3a] font-semibold">Active</p>
+            <p className="text-[12px] text-slate-500 font-medium">Account Status</p>
+            <div className="inline-flex items-center gap-1.5">
+              <div className="h-2 w-2 rounded-full bg-[#1a7a3a]" />
+              <p className="text-[14px] text-slate-900 font-semibold">Active</p>
             </div>
           </div>
         </div>
-        <div className="h-8 w-px bg-slate-200"></div>
+        <div className="h-8 w-px bg-slate-200" />
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center">
             <Shield className="h-5 w-5 text-slate-500" />
           </div>
           <div>
-            <p className="text-[14px] text-slate-600 font-medium">Security</p>
-            <p className="text-[12px] text-slate-500 font-medium">Protected</p>
+            <p className="text-[12px] text-slate-500 font-medium">Security</p>
+            <p className="text-[14px] text-slate-900 font-semibold">Password protected</p>
           </div>
         </div>
       </div>
@@ -337,7 +342,7 @@ export default function PersonalSettingsPage() {
       )}
 
       {/* Tab Navigation */}
-      <div className="flex items-center gap-1 mb-8 p-1 bg-slate-50/80 rounded-xl w-fit border border-slate-200/50">
+      <div className="flex items-center gap-1.5 mb-8 p-1.5 bg-slate-100/80 rounded-xl w-fit">
         {[
           { id: "profile", label: "Profile", icon: <User className="h-4 w-4" /> },
           { id: "security", label: "Security", icon: <Shield className="h-4 w-4" /> },
@@ -346,14 +351,14 @@ export default function PersonalSettingsPage() {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as "profile" | "security" | "danger")}
-            className={`h-9 px-4 text-[13px] font-semibold rounded-lg flex items-center gap-2 transition-all ${
+            className={`h-10 px-4 text-[13px] font-semibold rounded-lg flex items-center gap-2 transition-all ${
               activeTab === tab.id
                 ? tab.danger
                   ? "bg-[#FF6C5E] text-white shadow-sm"
-                  : "bg-white text-black shadow-sm border border-slate-200/50"
+                  : "bg-white text-slate-900 shadow-sm"
                 : tab.danger
-                  ? "text-[#FF6C5E] hover:text-[#E55A3C]"
-                  : "text-slate-500 hover:text-slate-700"
+                  ? "text-[#FF6C5E] hover:bg-[#FF6C5E]/10"
+                  : "text-slate-600 hover:bg-white/60"
             }`}
           >
             {tab.icon}
@@ -364,70 +369,75 @@ export default function PersonalSettingsPage() {
 
       {/* Profile Tab */}
       {activeTab === "profile" && (
-        <section>
-          <div className="flex items-center gap-2 mb-4">
-            <h2 className="text-[13px] font-semibold text-black uppercase tracking-wide">
-              Personal Information
-            </h2>
-          </div>
+        <section className="space-y-6">
+          {/* Section Label */}
+          <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide">
+            Personal Information
+          </h2>
 
-          <div className="metric-card shadow-sm hover:shadow-md transition-shadow duration-300">
-            <div className="metric-card-content space-y-6">
-              {/* Email - Read Only */}
+          {/* Profile Card */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="p-6 sm:p-8 space-y-7">
+              {/* Email - Read Only with Premium Style */}
               <div className="group relative">
-                <div className="absolute left-0 top-2 bottom-2 w-1 rounded-full bg-[#90FCA6]/40 opacity-60" />
-                <div className="pl-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Mail className="h-4 w-4 text-[#1a7a3a]" />
-                    <label className="text-[13px] font-medium text-slate-700">Email Address</label>
+                <div className="absolute left-0 top-0 bottom-0 w-1 rounded-full bg-gradient-to-b from-[#90FCA6] to-[#6EE890]" />
+                <div className="pl-5">
+                  <div className="flex items-center gap-2.5 mb-3">
+                    <div className="h-8 w-8 rounded-lg bg-[#90FCA6]/15 flex items-center justify-center">
+                      <Mail className="h-4 w-4 text-[#1a7a3a]" />
+                    </div>
+                    <label className="text-[13px] font-bold text-slate-900/80 tracking-tight">Email Address</label>
+                    <span className="px-2 py-0.5 rounded-md bg-black/[0.04] text-[10px] font-semibold text-slate-900/40">READ ONLY</span>
                   </div>
                   <input
                     type="email"
                     value={email}
                     disabled
-                    className="w-full h-11 px-4 text-[14px] bg-slate-50 text-slate-500 border border-slate-200 rounded-xl cursor-not-allowed"
+                    className="w-full h-12 px-4 text-[14px] bg-black/[0.02] text-slate-900/50 border border-black/[0.06] rounded-xl cursor-not-allowed font-medium"
                   />
-                  <p className="text-[12px] text-slate-400 mt-1.5">Contact support to update your email</p>
+                  <p className="text-[11px] text-slate-900/40 mt-2 font-medium">Contact support to update your email</p>
                 </div>
               </div>
 
-              <div className="h-px bg-slate-100"></div>
+              <div className="h-px bg-gradient-to-r from-transparent via-black/[0.06] to-transparent" />
 
               {/* Name Fields */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div>
-                  <label className="text-[13px] font-medium text-slate-700 mb-2 block">First Name</label>
+                  <label className="text-[12px] font-bold text-slate-900/60 mb-2.5 block uppercase tracking-wider">First Name</label>
                   <input
                     type="text"
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
                     placeholder="Enter first name"
-                    className="w-full h-11 px-4 text-[14px] bg-white border border-slate-200 rounded-xl focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6] transition-colors"
+                    className="w-full h-12 px-4 text-[14px] bg-white border-2 border-black/[0.06] rounded-xl focus:border-[#90FCA6] focus:ring-2 focus:ring-[#90FCA6]/20 transition-all duration-200 font-medium placeholder:text-slate-900/30"
                   />
                 </div>
                 <div>
-                  <label className="text-[13px] font-medium text-slate-700 mb-2 block">Last Name</label>
+                  <label className="text-[12px] font-bold text-slate-900/60 mb-2.5 block uppercase tracking-wider">Last Name</label>
                   <input
                     type="text"
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
                     placeholder="Enter last name"
-                    className="w-full h-11 px-4 text-[14px] bg-white border border-slate-200 rounded-xl focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6] transition-colors"
+                    className="w-full h-12 px-4 text-[14px] bg-white border-2 border-black/[0.06] rounded-xl focus:border-[#90FCA6] focus:ring-2 focus:ring-[#90FCA6]/20 transition-all duration-200 font-medium placeholder:text-slate-900/30"
                   />
                 </div>
               </div>
 
               {/* Phone */}
               <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <Phone className="h-4 w-4 text-slate-400" />
-                  <label className="text-[13px] font-medium text-slate-700">
-                    Phone Number <span className="text-rose-500">*</span>
+                <div className="flex items-center gap-2.5 mb-2.5">
+                  <div className="h-7 w-7 rounded-lg bg-black/[0.04] flex items-center justify-center">
+                    <Phone className="h-3.5 w-3.5 text-slate-900/50" />
+                  </div>
+                  <label className="text-[12px] font-bold text-slate-900/60 uppercase tracking-wider">
+                    Phone Number <span className="text-[#FF6C5E]">*</span>
                   </label>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-3">
                   <Select value={countryCode} onValueChange={setCountryCode}>
-                    <SelectTrigger className="w-[100px] h-11 text-[13px] border-slate-200 rounded-xl">
+                    <SelectTrigger className="w-[110px] h-12 text-[13px] border-2 border-black/[0.06] rounded-xl font-semibold">
                       <SelectValue>{countryCode}</SelectValue>
                     </SelectTrigger>
                     <SelectContent className="max-h-[300px]">
@@ -446,20 +456,22 @@ export default function PersonalSettingsPage() {
                       if (error) setError(null)
                     }}
                     placeholder="555 123 4567"
-                    className="flex-1 h-11 px-4 text-[14px] bg-white border border-slate-200 rounded-xl focus:border-[#90FCA6] focus:ring-1 focus:ring-[#90FCA6] transition-colors"
+                    className="flex-1 h-12 px-4 text-[14px] bg-white border-2 border-black/[0.06] rounded-xl focus:border-[#90FCA6] focus:ring-2 focus:ring-[#90FCA6]/20 transition-all duration-200 font-medium placeholder:text-slate-900/30"
                   />
                 </div>
-                <p className="text-[12px] text-slate-400 mt-1.5">Used for account recovery and notifications</p>
+                <p className="text-[11px] text-slate-900/40 mt-2 font-medium">Used for account recovery and notifications</p>
               </div>
 
               {/* Timezone */}
               <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <Globe className="h-4 w-4 text-slate-400" />
-                  <label className="text-[13px] font-medium text-slate-700">Timezone</label>
+                <div className="flex items-center gap-2.5 mb-2.5">
+                  <div className="h-7 w-7 rounded-lg bg-black/[0.04] flex items-center justify-center">
+                    <Globe className="h-3.5 w-3.5 text-slate-900/50" />
+                  </div>
+                  <label className="text-[12px] font-bold text-slate-900/60 uppercase tracking-wider">Timezone</label>
                 </div>
                 <Select value={timezone} onValueChange={setTimezone}>
-                  <SelectTrigger className="w-full h-11 text-[13px] border-slate-200 rounded-xl">
+                  <SelectTrigger className="w-full h-12 text-[13px] border-2 border-black/[0.06] rounded-xl font-medium">
                     <SelectValue placeholder="Select timezone" />
                   </SelectTrigger>
                   <SelectContent>
@@ -473,12 +485,12 @@ export default function PersonalSettingsPage() {
               </div>
             </div>
 
-            {/* Save Button */}
-            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/30">
+            {/* Save Footer */}
+            <div className="px-6 py-5 border-t border-slate-100 bg-slate-50/50">
               <button
                 onClick={handleSave}
                 disabled={isSaving}
-                className="console-button-primary h-11 px-6 transition-all hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                className="h-11 px-6 text-[13px] font-semibold bg-[#90FCA6] hover:bg-[#B8FDCA] text-slate-900 rounded-xl shadow-sm hover:shadow-md transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isSaving ? (
                   <>
@@ -500,69 +512,62 @@ export default function PersonalSettingsPage() {
       {/* Security Tab */}
       {activeTab === "security" && (
         <section className="space-y-6">
-          <div className="flex items-center gap-2 mb-4">
-            <h2 className="text-[13px] font-semibold text-black uppercase tracking-wide">
-              Authentication
-            </h2>
-          </div>
+          {/* Section Label */}
+          <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide">
+            Authentication
+          </h2>
 
-          <div className="metric-card shadow-sm hover:shadow-md transition-shadow duration-300">
-            <div className="metric-card-content">
-              <div className="group relative">
-                <div className="absolute left-0 top-4 bottom-4 w-1 rounded-full bg-[#90FCA6] opacity-60 group-hover:opacity-100 transition-opacity" />
-                <div className="pl-5 py-5 pr-5 flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-4 min-w-0 flex-1">
-                    <div className="h-11 w-11 rounded-xl bg-[#90FCA6]/15 flex items-center justify-center flex-shrink-0">
-                      <Key className="h-5 w-5 text-[#1a7a3a]" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <h3 className="text-[15px] font-semibold text-black tracking-tight">Password</h3>
-                      <p className="text-[12px] text-slate-500 mt-0.5">Reset your password via email verification</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={handleResetPassword}
-                    disabled={isResettingPassword}
-                    className="console-button-primary h-11 px-6 transition-all hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isResettingPassword ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Sending...
-                      </>
-                    ) : (
-                      "Reset Password"
-                    )}
-                  </button>
+          {/* Password Reset Card */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+              <div className="flex items-center gap-4">
+                <div className="h-12 w-12 rounded-xl bg-[#90FCA6]/10 flex items-center justify-center">
+                  <Key className="h-6 w-6 text-[#1a7a3a]" />
+                </div>
+                <div>
+                  <h3 className="text-[17px] font-semibold text-slate-900">Password</h3>
+                  <p className="text-[13px] text-slate-500 mt-0.5">Reset your password via email verification</p>
                 </div>
               </div>
+              <button
+                onClick={handleResetPassword}
+                disabled={isResettingPassword}
+                className="h-11 px-5 text-[13px] font-semibold bg-[#90FCA6] hover:bg-[#B8FDCA] text-slate-900 rounded-xl shadow-sm hover:shadow-md transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+              >
+                {isResettingPassword ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  "Reset Password"
+                )}
+              </button>
             </div>
           </div>
 
           {/* Security Tips */}
-          <div className="metric-card shadow-sm bg-gradient-to-br from-[#90FCA6]/5 via-slate-50 to-white border-[#90FCA6]/10">
-            <div className="metric-card-content">
-              <div className="flex items-start gap-4">
-                <div className="h-10 w-10 rounded-xl bg-white border border-[#90FCA6]/20 flex items-center justify-center flex-shrink-0 shadow-sm">
-                  <Shield className="h-5 w-5 text-[#1a7a3a]" />
-                </div>
-                <div>
-                  <h3 className="text-[15px] font-semibold text-black mb-2">Security Tips</h3>
-                  <ul className="text-[13px] text-slate-600 space-y-1.5">
-                    <li className="flex items-start gap-2">
-                      <span className="text-[#1a7a3a] font-bold">•</span>
-                      <span>Use a strong, unique password for your account</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="text-[#1a7a3a] font-bold">•</span>
-                      <span>Never share your password or reset links with anyone</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="text-[#1a7a3a] font-bold">•</span>
-                      <span>Log out when using shared or public devices</span>
-                    </li>
-                  </ul>
-                </div>
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+            <div className="flex items-start gap-4">
+              <div className="h-12 w-12 rounded-xl bg-[#90FCA6]/10 flex items-center justify-center flex-shrink-0">
+                <Shield className="h-6 w-6 text-[#1a7a3a]" />
+              </div>
+              <div>
+                <h3 className="text-[17px] font-semibold text-slate-900 mb-3">Security Tips</h3>
+                <ul className="text-[13px] text-slate-600 space-y-2.5">
+                  <li className="flex items-start gap-3">
+                    <Check className="h-4 w-4 text-[#1a7a3a] flex-shrink-0 mt-0.5" />
+                    <span>Use a strong, unique password for your account</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <Check className="h-4 w-4 text-[#1a7a3a] flex-shrink-0 mt-0.5" />
+                    <span>Never share your password or reset links with anyone</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <Check className="h-4 w-4 text-[#1a7a3a] flex-shrink-0 mt-0.5" />
+                    <span>Log out when using shared or public devices</span>
+                  </li>
+                </ul>
               </div>
             </div>
           </div>
@@ -572,103 +577,102 @@ export default function PersonalSettingsPage() {
       {/* Danger Zone Tab */}
       {activeTab === "danger" && (
         <section className="space-y-6">
-          <div className="flex items-center gap-2 mb-4">
-            <h2 className="text-[13px] font-semibold text-[#FF6C5E] uppercase tracking-wide">
-              Danger Zone
-            </h2>
-          </div>
+          {/* Section Label */}
+          <h2 className="text-[13px] font-semibold text-[#FF6C5E] uppercase tracking-wide">
+            Danger Zone
+          </h2>
 
           {/* Owned Organizations Warning */}
           {loadingOwnedOrgs ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+              <Loader2 className="h-6 w-6 animate-spin text-[#FF6C5E]/50" />
             </div>
           ) : ownedOrgs.length > 0 && (
-            <div className="metric-card shadow-sm border-2 border-amber-200/50 bg-gradient-to-br from-amber-50/50 to-white">
-              <div className="metric-card-content">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="h-10 w-10 rounded-xl bg-amber-100 flex items-center justify-center">
-                    <Building2 className="h-5 w-5 text-amber-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-[15px] font-semibold text-amber-800">Organizations You Own</h3>
-                    <p className="text-[12px] text-amber-600">Transfer or delete these before deleting your account</p>
-                  </div>
+            <div className="bg-gradient-to-br from-amber-50 via-white to-amber-50/50 rounded-2xl border-2 border-amber-200/60 p-6 sm:p-8 shadow-sm">
+              <div className="flex items-center gap-4 mb-5">
+                <div className="h-12 w-12 rounded-2xl bg-white flex items-center justify-center shadow-md shadow-amber-500/10 border border-amber-200">
+                  <Building2 className="h-6 w-6 text-amber-600" />
                 </div>
-                <div className="space-y-2">
-                  {ownedOrgs.map((org) => (
-                    <div key={org.id} className="flex items-center justify-between p-3 bg-amber-50 rounded-xl">
-                      <div className="flex items-center gap-3">
-                        <Building2 className="h-4 w-4 text-amber-600" />
-                        <div>
-                          <p className="text-[14px] font-medium text-amber-900">{org.org_name}</p>
-                          <div className="flex items-center gap-1 text-[12px] text-amber-600">
-                            <Users className="h-3 w-3" />
-                            <span>{org.member_count} member{org.member_count !== 1 ? "s" : ""}</span>
-                          </div>
+                <div>
+                  <h3 className="text-[16px] font-bold text-amber-800 tracking-tight">Organizations You Own</h3>
+                  <p className="text-[12px] text-amber-600 font-medium">Transfer or delete these before deleting your account</p>
+                </div>
+              </div>
+              <div className="space-y-2.5">
+                {ownedOrgs.map((org) => (
+                  <div key={org.id} className="flex items-center justify-between p-4 bg-white rounded-2xl border border-amber-200/50 shadow-sm">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-xl bg-amber-100 flex items-center justify-center">
+                        <Building2 className="h-5 w-5 text-amber-600" />
+                      </div>
+                      <div>
+                        <p className="text-[14px] font-bold text-amber-900">{org.org_name}</p>
+                        <div className="flex items-center gap-1.5 text-[12px] text-amber-600 font-medium">
+                          <Users className="h-3.5 w-3.5" />
+                          <span>{org.member_count} member{org.member_count !== 1 ? "s" : ""}</span>
                         </div>
                       </div>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}
 
           {/* Delete Account Card */}
-          <div className="metric-card shadow-sm border-2 border-[#FF6C5E]/30 bg-gradient-to-br from-rose-50/50 to-white">
-            <div className="metric-card-content">
-              <div className="group relative">
-                <div className="absolute left-0 top-4 bottom-4 w-1 rounded-full bg-[#FF6C5E] opacity-60" />
-                <div className="pl-5 py-5 pr-5">
-                  <div className="flex items-center gap-4 mb-4">
-                    <div className="h-11 w-11 rounded-xl bg-[#FF6C5E]/10 flex items-center justify-center flex-shrink-0">
-                      <Trash2 className="h-5 w-5 text-[#FF6C5E]" />
-                    </div>
-                    <div>
-                      <h3 className="text-[15px] font-semibold text-[#FF6C5E]">Delete Account</h3>
-                      <p className="text-[12px] text-rose-600 mt-0.5">Permanently delete your account and all data</p>
-                    </div>
-                  </div>
-
-                  {deletionRequested ? (
-                    <div className="p-4 rounded-xl bg-[#90FCA6]/15 border border-[#90FCA6]/30 flex items-start gap-3">
-                      <Mail className="h-4 w-4 text-[#1a7a3a] mt-0.5 flex-shrink-0" />
-                      <div>
-                        <p className="text-[13px] font-semibold text-[#1a7a3a]">Verification email sent!</p>
-                        <p className="text-[12px] text-[#1a7a3a]/80 mt-1">
-                          Check your inbox and click the confirmation link. The link expires in 30 minutes.
-                        </p>
-                      </div>
-                    </div>
-                  ) : ownedOrgs.length > 0 ? (
-                    <div className="p-4 rounded-xl bg-[#FF6C5E]/10 border border-[#FF6C5E]/30 flex items-center gap-3">
-                      <AlertCircle className="h-4 w-4 text-[#FF6C5E] flex-shrink-0" />
-                      <p className="text-[13px] text-[#FF6C5E]">
-                        You own {ownedOrgs.length} organization{ownedOrgs.length !== 1 ? "s" : ""}.
-                        Transfer or delete them first.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="p-4 rounded-xl bg-[#FF6C5E]/10 border border-[#FF6C5E]/30 flex items-center gap-3">
-                      <AlertCircle className="h-4 w-4 text-[#FF6C5E] flex-shrink-0" />
-                      <p className="text-[13px] text-[#FF6C5E]">
-                        This action is permanent and cannot be undone. Your data will be lost forever.
-                      </p>
-                    </div>
-                  )}
+          <div className="bg-white rounded-2xl border-2 border-[#FF6C5E]/20 shadow-sm overflow-hidden">
+            <div className="p-6 sm:p-8">
+              <div className="flex items-start gap-4 mb-6">
+                <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-[#FF6C5E]/15 to-[#FF6C5E]/5 flex items-center justify-center ring-4 ring-[#FF6C5E]/10">
+                  <Trash2 className="h-7 w-7 text-[#FF6C5E]" />
+                </div>
+                <div>
+                  <h3 className="text-[18px] font-bold text-[#FF6C5E] tracking-tight">Delete Account</h3>
+                  <p className="text-[13px] text-slate-900/50 mt-1 font-medium">Permanently delete your account and all associated data</p>
                 </div>
               </div>
-            </div>
-          </div>
 
-          <div className="metric-card shadow-sm border-2 border-[#FF6C5E]/30 bg-gradient-to-br from-rose-50/50 to-white">
-            <div className="px-6 py-4 border-t border-[#FF6C5E]/10 bg-[#FF6C5E]/5">
+              {deletionRequested ? (
+                <div className="p-5 rounded-2xl bg-gradient-to-r from-[#90FCA6]/15 via-[#90FCA6]/10 to-[#90FCA6]/5 border border-[#90FCA6]/30 flex items-start gap-4">
+                  <div className="h-10 w-10 rounded-xl bg-white flex items-center justify-center shadow-sm border border-[#90FCA6]/20 flex-shrink-0">
+                    <Mail className="h-5 w-5 text-[#1a7a3a]" />
+                  </div>
+                  <div>
+                    <p className="text-[14px] font-bold text-[#1a7a3a]">Verification email sent!</p>
+                    <p className="text-[12px] text-[#1a7a3a]/70 mt-1 font-medium">
+                      Check your inbox and click the confirmation link. The link expires in 30 minutes.
+                    </p>
+                  </div>
+                </div>
+              ) : ownedOrgs.length > 0 ? (
+                <div className="p-5 rounded-2xl bg-gradient-to-r from-[#FF6C5E]/10 via-[#FF6C5E]/5 to-transparent border border-[#FF6C5E]/20 flex items-center gap-4">
+                  <div className="h-10 w-10 rounded-xl bg-white flex items-center justify-center shadow-sm border border-[#FF6C5E]/20 flex-shrink-0">
+                    <AlertCircle className="h-5 w-5 text-[#FF6C5E]" />
+                  </div>
+                  <p className="text-[13px] text-[#FF6C5E] font-semibold">
+                    You own {ownedOrgs.length} organization{ownedOrgs.length !== 1 ? "s" : ""}.
+                    Transfer or delete them first.
+                  </p>
+                </div>
+              ) : (
+                <div className="p-5 rounded-2xl bg-gradient-to-r from-[#FF6C5E]/10 via-[#FF6C5E]/5 to-transparent border border-[#FF6C5E]/20 flex items-center gap-4">
+                  <div className="h-10 w-10 rounded-xl bg-white flex items-center justify-center shadow-sm border border-[#FF6C5E]/20 flex-shrink-0">
+                    <AlertCircle className="h-5 w-5 text-[#FF6C5E]" />
+                  </div>
+                  <p className="text-[13px] text-[#FF6C5E] font-semibold">
+                    This action is permanent and cannot be undone. Your data will be lost forever.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Delete Button Footer */}
+            <div className="px-6 sm:px-8 py-5 border-t border-[#FF6C5E]/10 bg-gradient-to-r from-[#FF6C5E]/5 via-white to-white">
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <button
                     disabled={ownedOrgs.length > 0 || isRequestingDeletion || deletionRequested}
-                    className="h-11 px-6 text-[13px] font-semibold bg-[#FF6C5E] hover:bg-[#E55A3C] text-white rounded-xl transition-all hover:shadow-md flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="h-11 px-6 text-[13px] font-semibold bg-[#FF6C5E] hover:bg-[#E55A4E] text-white rounded-xl shadow-sm hover:shadow-md transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isRequestingDeletion ? (
                       <>
@@ -682,28 +686,28 @@ export default function PersonalSettingsPage() {
                       </>
                     ) : (
                       <>
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-4 w-4" strokeWidth={2.5} />
                         Delete Account
                       </>
                     )}
                   </button>
                 </AlertDialogTrigger>
-                <AlertDialogContent>
+                <AlertDialogContent className="rounded-2xl border-none shadow-2xl">
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Request Account Deletion</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      We will send a verification email to <span className="font-medium">{email}</span>.
+                    <AlertDialogTitle className="text-[18px] font-bold">Request Account Deletion</AlertDialogTitle>
+                    <AlertDialogDescription className="text-[14px] text-slate-900/60">
+                      We will send a verification email to <span className="font-bold text-slate-900">{email}</span>.
                       Click the link to confirm deletion.
-                      <span className="block mt-2 text-rose-600 font-medium">
+                      <span className="block mt-3 text-[#FF6C5E] font-bold">
                         This action is permanent and cannot be undone.
                       </span>
                     </AlertDialogDescription>
                   </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogFooter className="gap-3">
+                    <AlertDialogCancel className="rounded-xl font-semibold">Cancel</AlertDialogCancel>
                     <AlertDialogAction
                       onClick={handleRequestAccountDeletion}
-                      className="bg-rose-500 hover:bg-rose-600 text-white"
+                      className="bg-[#FF6C5E] hover:bg-[#E55A4E] text-white rounded-xl font-semibold shadow-sm hover:shadow-md transition-all"
                     >
                       Send Verification Email
                     </AlertDialogAction>

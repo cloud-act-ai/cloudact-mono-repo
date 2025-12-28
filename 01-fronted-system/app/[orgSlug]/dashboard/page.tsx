@@ -286,7 +286,7 @@ export default function DashboardPage() {
           <Card className="h-full">
             <CardHeader className="border-b border-border">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-[20px] font-bold text-slate-900">Cost Trends</CardTitle>
+                <CardTitle className="text-[17px] font-bold text-slate-900">Cost Trends</CardTitle>
                 <Link href={`/${orgSlug}/cost-dashboards/overview`}>
                   <button className="inline-flex items-center gap-2 text-sm font-semibold text-slate-900 hover:text-black transition-colors">
                     View Details
@@ -299,7 +299,7 @@ export default function DashboardPage() {
               {/* Placeholder for chart */}
               <div className="flex h-[280px] items-center justify-center rounded-xl bg-gradient-to-br from-[#90FCA6]/5 to-[#FF6C5E]/5 border border-border">
                 <div className="text-center space-y-3">
-                  <Activity className="h-12 w-12 mx-auto text-[#6EE890]" />
+                  <Activity className="h-12 w-12 mx-auto text-[#1a7a3a]" />
                   <div className="space-y-1">
                     <p className="text-[15px] font-semibold text-slate-900">
                       Cost trend visualization
@@ -309,7 +309,7 @@ export default function DashboardPage() {
                     </p>
                   </div>
                   <Link href={`/${orgSlug}/cost-dashboards/overview`}>
-                    <button className="inline-flex items-center gap-2 h-11 px-6 bg-[#90FCA6] text-[#000000] text-[15px] font-semibold rounded-xl hover:bg-[#B8FDCA] transition-colors shadow-sm">
+                    <button className="inline-flex items-center gap-2 h-11 px-6 bg-[#90FCA6] text-slate-900 text-[13px] font-semibold rounded-xl hover:bg-[#B8FDCA] shadow-sm hover:shadow-md transition-all">
                       <BarChart3 className="h-4 w-4" />
                       Open Analytics
                     </button>
@@ -324,7 +324,7 @@ export default function DashboardPage() {
         <div className="lg:col-span-1">
           <Card className="h-full">
             <CardHeader className="border-b border-border">
-              <CardTitle className="text-[20px] font-bold text-slate-900">Integrations</CardTitle>
+              <CardTitle className="text-[17px] font-bold text-slate-900">Integrations</CardTitle>
             </CardHeader>
             <CardContent className="p-6">
               <div className="space-y-3">
@@ -392,7 +392,7 @@ export default function DashboardPage() {
                         {action.icon}
                       </div>
                       <div className="space-y-1">
-                        <h3 className="text-[17px] font-bold text-slate-900">{action.title}</h3>
+                        <h3 className="text-[16px] font-bold text-slate-900">{action.title}</h3>
                         <p className="text-sm text-muted-foreground">{action.description}</p>
                       </div>
                     </div>
@@ -464,15 +464,15 @@ export default function DashboardPage() {
           <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
             <div className="space-y-2 text-center sm:text-left">
               <div className="flex items-center gap-2 justify-center sm:justify-start">
-                <Users className="h-5 w-5 text-[#6EE890]" />
-                <h3 className="text-[20px] font-bold text-slate-900">Invite Your Team</h3>
+                <Users className="h-5 w-5 text-[#1a7a3a]" />
+                <h3 className="text-[17px] font-bold text-slate-900">Invite Your Team</h3>
               </div>
               <p className="text-sm text-muted-foreground">
                 Collaborate on cost optimization with your team members
               </p>
             </div>
             <Link href={`/${orgSlug}/settings/members`}>
-              <button className="inline-flex items-center gap-2 h-12 px-8 bg-[#90FCA6] text-[#000000] text-[15px] font-semibold rounded-xl hover:bg-[#B8FDCA] transition-all shadow-lg hover:shadow-xl">
+              <button className="inline-flex items-center gap-2 h-11 px-6 bg-[#90FCA6] text-slate-900 text-[13px] font-semibold rounded-xl hover:bg-[#B8FDCA] shadow-sm hover:shadow-md transition-all">
                 <Users className="h-5 w-5" />
                 Manage Team
               </button>

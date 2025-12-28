@@ -63,14 +63,20 @@ export default function SubscriptionRunsPage() {
 
   const MAX_RUNS = 100
 
-  // Filter for subscription/saas pipelines (check both domain and provider)
+  // Filter for subscription/saas pipelines (check domain, provider, pipeline id, and pipeline name)
   const isSubscriptionPipeline = (pipeline: PipelineConfig) => {
     const d = pipeline.domain.toLowerCase()
     const p = pipeline.provider.toLowerCase()
+    const id = pipeline.id.toLowerCase()
+    const pipelineName = pipeline.pipeline.toLowerCase()
     // Match by domain: saas, subscription, or contains 'subscription'
     // OR match by provider: saas_subscription
+    // OR match by id: contains 'saas' or 'subscription'
+    // OR match by pipeline name: contains 'saas' (e.g., saas_cost)
     return d === 'saas' || d === 'subscription' || d.includes('subscription') ||
-           p === 'saas_subscription' || p.includes('subscription')
+           p === 'saas_subscription' || p.includes('subscription') ||
+           id.includes('saas') || id.includes('subscription') ||
+           pipelineName.includes('saas')
   }
 
   const loadPipelineRuns = useCallback(async () => {
@@ -78,10 +84,10 @@ export default function SubscriptionRunsPage() {
     try {
       const result = await getPipelineRuns(orgSlug, { limit: MAX_RUNS })
       if (result.success && result.data) {
-        // Filter runs by subscription domain
+        // Filter runs by saas/subscription in pipeline_id
         const filteredRuns = result.data.runs.filter((run: PipelineRunSummary) => {
           const pipelineId = run.pipeline_id.toLowerCase()
-          return pipelineId.includes('saas') || pipelineId.includes('subscription')
+          return pipelineId.includes('saas') || pipelineId.includes('subscription') || pipelineId.includes('saas_cost')
         })
         setPipelineRuns(filteredRuns)
       }
@@ -350,7 +356,7 @@ export default function SubscriptionRunsPage() {
                   Enable subscription providers in Integrations to run cost pipelines.
                 </p>
                 <Link href={`/${orgSlug}/integrations/subscriptions`}>
-                  <button className="inline-flex items-center gap-2 h-11 px-6 bg-[var(--cloudact-mint)] text-black text-[15px] font-semibold rounded-xl hover:bg-[var(--cloudact-mint-dark)] transition-colors shadow-sm">
+                  <button className="inline-flex items-center gap-2 h-11 px-6 bg-[var(--cloudact-mint)] text-slate-900 text-[15px] font-semibold rounded-xl hover:bg-[var(--cloudact-mint-dark)] transition-colors shadow-sm">
                     <Wallet className="h-4 w-4" />
                     Manage Subscriptions
                   </button>
@@ -384,7 +390,7 @@ export default function SubscriptionRunsPage() {
                       <button
                         onClick={() => handleRun(pipeline.id)}
                         disabled={isRunning}
-                        className="inline-flex items-center gap-2 h-11 px-4 bg-[var(--cloudact-mint)] text-black text-[15px] font-semibold rounded-xl hover:bg-[var(--cloudact-mint-dark)] disabled:bg-[#E5E5EA] disabled:text-[#C7C7CC] disabled:cursor-not-allowed disabled:opacity-70 transition-all touch-manipulation shadow-sm hover:shadow-md"
+                        className="inline-flex items-center gap-2 h-11 px-4 bg-[var(--cloudact-mint)] text-slate-900 text-[15px] font-semibold rounded-xl hover:bg-[var(--cloudact-mint-dark)] disabled:bg-[#E5E5EA] disabled:text-[#C7C7CC] disabled:cursor-not-allowed disabled:opacity-70 transition-all touch-manipulation shadow-sm hover:shadow-md"
                       >
                         {isRunning ? (
                           <>
@@ -444,7 +450,7 @@ export default function SubscriptionRunsPage() {
                           <button
                             onClick={() => handleRun(pipeline.id)}
                             disabled={isRunning}
-                            className="inline-flex items-center gap-2 h-11 px-4 bg-[var(--cloudact-mint)] text-black text-[15px] font-semibold rounded-xl hover:bg-[var(--cloudact-mint-dark)] disabled:bg-[#E5E5EA] disabled:text-[#C7C7CC] disabled:cursor-not-allowed disabled:opacity-70 transition-all touch-manipulation shadow-sm hover:shadow-md"
+                            className="inline-flex items-center gap-2 h-11 px-4 bg-[var(--cloudact-mint)] text-slate-900 text-[15px] font-semibold rounded-xl hover:bg-[var(--cloudact-mint-dark)] disabled:bg-[#E5E5EA] disabled:text-[#C7C7CC] disabled:cursor-not-allowed disabled:opacity-70 transition-all touch-manipulation shadow-sm hover:shadow-md"
                           >
                             {isRunning ? (
                               <>

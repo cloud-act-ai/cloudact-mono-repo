@@ -172,10 +172,12 @@ class UnifiedConsolidatorProcessor:
                 FROM `{project_id}.{dataset_id}.genai_infrastructure_usage_raw`
                 WHERE usage_date = @process_date AND org_slug = @org_slug
             ) S
+            -- MT-002 FIX: Add x_credential_id to MERGE key for multi-account isolation
             ON T.usage_date = S.usage_date
                 AND T.org_slug = S.org_slug
                 AND T.cost_type = S.cost_type
                 AND T.provider = S.provider
+                AND COALESCE(T.x_credential_id, 'default') = COALESCE(S.x_credential_id, 'default')
                 AND COALESCE(T.model, '') = COALESCE(S.model, '')
                 AND COALESCE(T.instance_type, '') = COALESCE(S.instance_type, '')
                 AND COALESCE(T.region, 'global') = COALESCE(S.region, 'global')
@@ -299,10 +301,12 @@ class UnifiedConsolidatorProcessor:
                 FROM `{project_id}.{dataset_id}.genai_infrastructure_costs_daily`
                 WHERE cost_date = @process_date AND org_slug = @org_slug
             ) S
+            -- MT-003 FIX: Add x_credential_id to MERGE key for multi-account isolation
             ON T.cost_date = S.cost_date
                 AND T.org_slug = S.org_slug
                 AND T.cost_type = S.cost_type
                 AND T.provider = S.provider
+                AND COALESCE(T.x_credential_id, 'default') = COALESCE(S.x_credential_id, 'default')
                 AND COALESCE(T.model, '') = COALESCE(S.model, '')
                 AND COALESCE(T.instance_type, '') = COALESCE(S.instance_type, '')
                 AND COALESCE(T.region, 'global') = COALESCE(S.region, 'global')

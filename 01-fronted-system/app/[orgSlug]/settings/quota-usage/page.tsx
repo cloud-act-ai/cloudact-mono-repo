@@ -79,10 +79,10 @@ export default function QuotaUsagePage() {
       <div className="mb-10">
         <div className="flex items-start gap-4">
           <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-[#90FCA6] to-[#B8FDCA] flex items-center justify-center flex-shrink-0 shadow-sm">
-            <TrendingUp className="h-6 w-6 text-black" />
+            <TrendingUp className="h-6 w-6 text-slate-900" />
           </div>
           <div>
-            <h1 className="text-[32px] font-bold text-black tracking-tight leading-none">
+            <h1 className="text-[32px] font-bold text-slate-900 tracking-tight leading-none">
               Usage & Quotas
             </h1>
             <p className="text-[15px] text-slate-500 mt-2 max-w-lg">
@@ -101,7 +101,7 @@ export default function QuotaUsagePage() {
                 <Users className="h-6 w-6 text-[#1a7a3a]" />
               </div>
               <div>
-                <p className="text-[28px] font-bold text-black leading-none tracking-tight">
+                <p className="text-[28px] font-bold text-slate-900 leading-none tracking-tight">
                   {quotaLimits.team_members_count}
                 </p>
                 <p className="text-[13px] text-slate-500 font-medium mt-1">
@@ -117,7 +117,7 @@ export default function QuotaUsagePage() {
                 <Plug className="h-6 w-6 text-[#8B5CF6]" />
               </div>
               <div>
-                <p className="text-[28px] font-bold text-black leading-none tracking-tight">
+                <p className="text-[28px] font-bold text-slate-900 leading-none tracking-tight">
                   {quotaLimits.configured_providers_count}
                 </p>
                 <p className="text-[13px] text-slate-500 font-medium mt-1">
@@ -172,7 +172,7 @@ export default function QuotaUsagePage() {
                         <Users className="h-6 w-6 text-[#1a7a3a]" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <h3 className="text-[16px] font-semibold text-black tracking-tight">
+                        <h3 className="text-[16px] font-semibold text-slate-900 tracking-tight">
                           Team Members
                         </h3>
                         <p className="text-[13px] text-slate-500 mt-1">
@@ -181,7 +181,7 @@ export default function QuotaUsagePage() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-[24px] font-bold text-black tracking-tight">
+                      <p className="text-[24px] font-bold text-slate-900 tracking-tight">
                         {quotaLimits.team_members_count}
                         <span className="text-[15px] font-normal text-slate-500">
                           {" "}/ {quotaLimits.seat_limit > 0 ? quotaLimits.seat_limit : "∞"}
@@ -227,7 +227,7 @@ export default function QuotaUsagePage() {
                         <Plug className="h-6 w-6 text-[#8B5CF6]" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <h3 className="text-[16px] font-semibold text-black tracking-tight">
+                        <h3 className="text-[16px] font-semibold text-slate-900 tracking-tight">
                           Integrations
                         </h3>
                         <p className="text-[13px] text-slate-500 mt-1">
@@ -236,7 +236,7 @@ export default function QuotaUsagePage() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-[24px] font-bold text-black tracking-tight">
+                      <p className="text-[24px] font-bold text-slate-900 tracking-tight">
                         {quotaLimits.configured_providers_count}
                         <span className="text-[15px] font-normal text-slate-500">
                           {" "}/ {quotaLimits.providers_limit > 0 ? quotaLimits.providers_limit : "∞"}
@@ -286,7 +286,7 @@ export default function QuotaUsagePage() {
                 <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-2">
                   Daily
                 </p>
-                <p className="text-[36px] font-bold text-black leading-none tracking-tight">
+                <p className="text-[36px] font-bold text-slate-900 leading-none tracking-tight">
                   {quotaLimits.pipelines_per_day_limit > 0 ? quotaLimits.pipelines_per_day_limit : "∞"}
                 </p>
                 <p className="text-[13px] text-slate-500 mt-2">runs per day</p>
@@ -300,7 +300,7 @@ export default function QuotaUsagePage() {
                 <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-2">
                   Weekly
                 </p>
-                <p className="text-[36px] font-bold text-black leading-none tracking-tight">
+                <p className="text-[36px] font-bold text-slate-900 leading-none tracking-tight">
                   {quotaLimits.pipelines_per_week_limit > 0 ? quotaLimits.pipelines_per_week_limit : "∞"}
                 </p>
                 <p className="text-[13px] text-slate-500 mt-2">runs per week</p>
@@ -314,7 +314,7 @@ export default function QuotaUsagePage() {
                 <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-2">
                   Monthly
                 </p>
-                <p className="text-[36px] font-bold text-black leading-none tracking-tight">
+                <p className="text-[36px] font-bold text-slate-900 leading-none tracking-tight">
                   {quotaLimits.pipelines_per_month_limit > 0 ? quotaLimits.pipelines_per_month_limit : "∞"}
                 </p>
                 <p className="text-[13px] text-slate-500 mt-2">runs per month</p>
@@ -329,7 +329,7 @@ export default function QuotaUsagePage() {
                 <Zap className="h-6 w-6 text-[#1a7a3a]" />
               </div>
               <div>
-                <h3 className="text-[16px] font-semibold text-black mb-2">
+                <h3 className="text-[16px] font-semibold text-slate-900 mb-2">
                   About Your Quotas
                 </h3>
                 <ul className="text-[13px] text-slate-600 space-y-1.5">
@@ -358,7 +358,7 @@ export default function QuotaUsagePage() {
             <AlertCircle className="h-6 w-6 text-[#FF6C5E]" />
           </div>
           <div>
-            <h3 className="text-[16px] font-semibold text-black">Unable to load quotas</h3>
+            <h3 className="text-[16px] font-semibold text-slate-900">Unable to load quotas</h3>
             <p className="text-[13px] text-slate-600 mt-1">
               Please refresh the page to try again.
             </p>

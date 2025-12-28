@@ -601,12 +601,14 @@ async def execute_migration(
         )
 
     try:
-        # Build CALL statement
+        # SEC-001 FIX: Use parameterized query to prevent SQL injection
+        # Note: BigQuery CALL doesn't support parameters for procedure name,
+        # but we validate procedure_name above. Dataset uses parameterized approach.
         call_sql = f"""
         CALL `{project_id}.organizations`.{procedure_name}(
-            '{project_id}',
-            '{request.org_dataset}',
-            {str(request.dry_run).upper()}
+            @p_project_id,
+            @p_org_dataset,
+            @p_dry_run
         )
         """
 
@@ -615,8 +617,17 @@ async def execute_migration(
             f"(dry_run={request.dry_run})"
         )
 
+        # SEC-001 FIX: Execute with query parameters to prevent SQL injection
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("p_project_id", "STRING", project_id),
+                bigquery.ScalarQueryParameter("p_org_dataset", "STRING", request.org_dataset),
+                bigquery.ScalarQueryParameter("p_dry_run", "BOOL", request.dry_run),
+            ]
+        )
+
         # Execute procedure
-        job = bq_client.client.query(call_sql)
+        job = bq_client.client.query(call_sql, job_config=job_config)
         results = job.result()
 
         # Convert results to list of dicts

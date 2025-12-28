@@ -451,7 +451,7 @@ team,TEAM-ANDROID,Android Team,PROJ-MOBILE,,Grace Chen,grace@example.com,Android
           <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${getIconBg()}`}>
             {getIcon()}
           </div>
-          <span className="font-semibold text-[14px] text-black">{node.entity_name}</span>
+          <span className="font-semibold text-[14px] text-slate-900">{node.entity_name}</span>
           <span className="text-[11px] font-mono text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
             {node.entity_id}
           </span>
@@ -524,7 +524,7 @@ team,TEAM-ANDROID,Android Team,PROJ-MOBILE,,Grace Chen,grace@example.com,Android
   return (
     <div className="space-y-6 sm:space-y-8 animate-in fade-in duration-500">
       <div>
-        <h1 className="text-[32px] sm:text-[34px] font-bold text-black tracking-tight flex items-center gap-3">
+        <h1 className="text-[32px] sm:text-[34px] font-bold text-slate-900 tracking-tight flex items-center gap-3">
           <div className="h-10 w-10 rounded-2xl bg-gradient-mint flex items-center justify-center shadow-sm">
             <Network className="h-5 w-5 text-white" />
           </div>
@@ -574,7 +574,7 @@ team,TEAM-ANDROID,Android Team,PROJ-MOBILE,,Grace Chen,grace@example.com,Android
         <Button
           variant={showImportSection ? "default" : "outline"}
           className={showImportSection
-            ? "h-11 px-5 bg-[#90FCA6] text-black hover:bg-[#6EE890]"
+            ? "h-11 px-5 bg-[#90FCA6] text-slate-900 hover:bg-[#6EE890]"
             : "console-button-secondary h-11 px-5"
           }
           onClick={() => setShowImportSection(!showImportSection)}
@@ -592,7 +592,7 @@ team,TEAM-ANDROID,Android Team,PROJ-MOBILE,,Grace Chen,grace@example.com,Android
               <Upload className="h-6 w-6 text-[#1a7a3a]" />
             </div>
             <div>
-              <h3 className="text-[18px] font-bold text-black">Import Hierarchy from CSV</h3>
+              <h3 className="text-[18px] font-bold text-slate-900">Import Hierarchy from CSV</h3>
               <p className="text-[14px] text-slate-600 mt-1">
                 Bulk import departments, projects, and teams. Upload a CSV file or paste data directly.
               </p>
@@ -609,7 +609,7 @@ team,TEAM-ANDROID,Android Team,PROJ-MOBILE,,Grace Chen,grace@example.com,Android
                     <FileSpreadsheet className="h-4 w-4 text-[#1a7a3a]" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h4 className="text-[14px] font-semibold text-black mb-1">Start with a Template</h4>
+                    <h4 className="text-[14px] font-semibold text-slate-900 mb-1">Start with a Template</h4>
                     <p className="text-[12px] text-slate-500 mb-3">
                       Download sample CSV with example hierarchy structure.
                     </p>
@@ -646,7 +646,7 @@ team,TEAM-ANDROID,Android Team,PROJ-MOBILE,,Grace Chen,grace@example.com,Android
                   {importFileName ? (
                     <div className="flex items-center justify-center gap-2">
                       <FileSpreadsheet className="h-5 w-5 text-[#1a7a3a]" />
-                      <span className="text-[14px] font-medium text-black">{importFileName}</span>
+                      <span className="text-[14px] font-medium text-slate-900">{importFileName}</span>
                       <Button
                         variant="ghost"
                         size="sm"
@@ -729,7 +729,7 @@ team,TEAM-ANDROID,Android Team,PROJ-MOBILE,,Grace Chen,grace@example.com,Android
                     size="sm"
                     onClick={handleImport}
                     disabled={isImporting || !importData.trim()}
-                    className="h-9 px-4 bg-[#90FCA6] text-black hover:bg-[#6EE890] rounded-lg font-semibold"
+                    className="h-9 px-4 bg-[#90FCA6] text-slate-900 hover:bg-[#6EE890] rounded-lg font-semibold"
                   >
                     {isImporting ? (
                       <>
@@ -759,7 +759,7 @@ team,TEAM-ANDROID,Android Team,PROJ-MOBILE,,Grace Chen,grace@example.com,Android
             </div>
             <div>
               <p className="text-[13px] text-muted-foreground">Departments</p>
-              <p className="text-[28px] font-bold text-black">{treeData?.total_departments || 0}</p>
+              <p className="text-[28px] font-bold text-slate-900">{treeData?.total_departments || 0}</p>
             </div>
           </div>
         </div>
@@ -770,7 +770,7 @@ team,TEAM-ANDROID,Android Team,PROJ-MOBILE,,Grace Chen,grace@example.com,Android
             </div>
             <div>
               <p className="text-[13px] text-muted-foreground">Projects</p>
-              <p className="text-[28px] font-bold text-black">{treeData?.total_projects || 0}</p>
+              <p className="text-[28px] font-bold text-slate-900">{treeData?.total_projects || 0}</p>
             </div>
           </div>
         </div>
@@ -781,7 +781,7 @@ team,TEAM-ANDROID,Android Team,PROJ-MOBILE,,Grace Chen,grace@example.com,Android
             </div>
             <div>
               <p className="text-[13px] text-muted-foreground">Teams</p>
-              <p className="text-[28px] font-bold text-black">{treeData?.total_teams || 0}</p>
+              <p className="text-[28px] font-bold text-slate-900">{treeData?.total_teams || 0}</p>
             </div>
           </div>
         </div>
@@ -792,28 +792,28 @@ team,TEAM-ANDROID,Android Team,PROJ-MOBILE,,Grace Chen,grace@example.com,Android
         <TabsList className="w-full sm:w-auto bg-slate-50/80 border border-slate-200 p-1 rounded-xl">
           <TabsTrigger
             value="tree"
-            className="rounded-lg text-[13px] font-semibold data-[state=active]:bg-[#90FCA6] data-[state=active]:text-black data-[state=active]:shadow-sm transition-all"
+            className="rounded-lg text-[13px] font-semibold data-[state=active]:bg-[#90FCA6] data-[state=active]:text-slate-900 data-[state=active]:shadow-sm transition-all"
           >
             <Network className="h-4 w-4 mr-2" />
             Tree View
           </TabsTrigger>
           <TabsTrigger
             value="departments"
-            className="rounded-lg text-[13px] font-semibold data-[state=active]:bg-[#90FCA6] data-[state=active]:text-black data-[state=active]:shadow-sm transition-all"
+            className="rounded-lg text-[13px] font-semibold data-[state=active]:bg-[#90FCA6] data-[state=active]:text-slate-900 data-[state=active]:shadow-sm transition-all"
           >
             <Building2 className="h-4 w-4 mr-2" />
             Departments
           </TabsTrigger>
           <TabsTrigger
             value="projects"
-            className="rounded-lg text-[13px] font-semibold data-[state=active]:bg-[#90FCA6] data-[state=active]:text-black data-[state=active]:shadow-sm transition-all"
+            className="rounded-lg text-[13px] font-semibold data-[state=active]:bg-[#90FCA6] data-[state=active]:text-slate-900 data-[state=active]:shadow-sm transition-all"
           >
             <FolderKanban className="h-4 w-4 mr-2" />
             Projects
           </TabsTrigger>
           <TabsTrigger
             value="teams"
-            className="rounded-lg text-[13px] font-semibold data-[state=active]:bg-[#90FCA6] data-[state=active]:text-black data-[state=active]:shadow-sm transition-all"
+            className="rounded-lg text-[13px] font-semibold data-[state=active]:bg-[#90FCA6] data-[state=active]:text-slate-900 data-[state=active]:shadow-sm transition-all"
           >
             <Users className="h-4 w-4 mr-2" />
             Teams
@@ -854,7 +854,7 @@ team,TEAM-ANDROID,Android Team,PROJ-MOBILE,,Grace Chen,grace@example.com,Android
                 {departments.length > 0 ? departments.map(dept => (
                   <TableRow key={dept.entity_id} className="console-table-row">
                     <TableCell className="console-table-cell font-mono text-[13px] text-slate-600">{dept.entity_id}</TableCell>
-                    <TableCell className="console-table-cell font-semibold text-black">{dept.entity_name}</TableCell>
+                    <TableCell className="console-table-cell font-semibold text-slate-900">{dept.entity_name}</TableCell>
                     <TableCell className="console-table-cell text-slate-600">{dept.owner_name || "—"}</TableCell>
                     <TableCell className="console-table-cell">
                       <span className="inline-flex items-center justify-center h-6 min-w-[24px] px-2 rounded-full bg-[#90FCA6]/15 text-[12px] font-semibold text-[#1a7a3a]">
@@ -913,7 +913,7 @@ team,TEAM-ANDROID,Android Team,PROJ-MOBILE,,Grace Chen,grace@example.com,Android
                 {projects.length > 0 ? projects.map(proj => (
                   <TableRow key={proj.entity_id} className="console-table-row">
                     <TableCell className="console-table-cell font-mono text-[13px] text-slate-600">{proj.entity_id}</TableCell>
-                    <TableCell className="console-table-cell font-semibold text-black">{proj.entity_name}</TableCell>
+                    <TableCell className="console-table-cell font-semibold text-slate-900">{proj.entity_name}</TableCell>
                     <TableCell className="console-table-cell">
                       <span className="inline-flex items-center gap-1.5 text-slate-600">
                         <Building2 className="h-3.5 w-3.5 text-[#90FCA6]" />
@@ -978,7 +978,7 @@ team,TEAM-ANDROID,Android Team,PROJ-MOBILE,,Grace Chen,grace@example.com,Android
                 {teams.length > 0 ? teams.map(team => (
                   <TableRow key={team.entity_id} className="console-table-row">
                     <TableCell className="console-table-cell font-mono text-[13px] text-slate-600">{team.entity_id}</TableCell>
-                    <TableCell className="console-table-cell font-semibold text-black">{team.entity_name}</TableCell>
+                    <TableCell className="console-table-cell font-semibold text-slate-900">{team.entity_name}</TableCell>
                     <TableCell className="console-table-cell">
                       <span className="inline-flex items-center gap-1.5 text-slate-600">
                         <FolderKanban className="h-3.5 w-3.5 text-[#FF6C5E]" />

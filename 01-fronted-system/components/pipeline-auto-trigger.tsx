@@ -46,7 +46,7 @@ import { getMonthStartUTC, getTodayDateUTC } from "@/lib/api/helpers"
 const DAILY_PIPELINES = [
   {
     id: "saas_subscription_costs",
-    path: "saas_subscription/costs/saas_cost",
+    path: "saas/costs/saas_cost",
     description: "SaaS subscription cost calculation",
   },
   // Future pipelines:

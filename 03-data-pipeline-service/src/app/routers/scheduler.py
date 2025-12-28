@@ -1191,43 +1191,81 @@ async def reset_daily_quotas(
     bq_client: BigQueryClient = Depends(get_bigquery_client)
 ):
     """
-    Reset daily quota counters and archive old records.
+    Reset daily quota counters by creating new records for today.
 
     Logic:
-    1. UPDATE org_usage_quotas SET all daily counters to 0 WHERE usage_date < CURRENT_DATE()
-    2. Archive/DELETE records older than 90 days
-    3. Return count of records updated/archived
+    1. MERGE to create/update today's quota records with zeroed daily counters
+    2. Carry over monthly count from previous day's record
+    3. Archive/DELETE records older than 90 days
+    4. Return count of records created/updated/archived
 
     Security:
     - Requires admin API key
     - Validates before executing destructive operations
 
     Performance:
-    - Batch processes all orgs in single UPDATE
+    - Batch processes all orgs in single MERGE
     - Archives old data to prevent table bloat
     """
     try:
-        updated_count = 0
+        reset_count = 0
         archived_count = 0
 
-        # Reset daily counters for previous days
+        # MERGE to create today's records OR reset existing ones
+        # This properly handles the daily reset by creating fresh records
         reset_query = f"""
-        UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
-        SET
-            pipelines_run_today = 0,
-            pipelines_succeeded_today = 0,
-            pipelines_failed_today = 0,
-            concurrent_pipelines_running = 0,
-            max_concurrent_reached = 0,
-            last_updated = CURRENT_TIMESTAMP()
-        WHERE usage_date < CURRENT_DATE()
+        MERGE `{settings.gcp_project_id}.organizations.org_usage_quotas` T
+        USING (
+            SELECT
+                CONCAT(p.org_slug, '_', FORMAT_DATE('%Y%m%d', CURRENT_DATE())) as usage_id,
+                p.org_slug,
+                CURRENT_DATE() as usage_date,
+                -- Carry over monthly count from latest record this month
+                COALESCE(
+                    (SELECT pipelines_run_month
+                     FROM `{settings.gcp_project_id}.organizations.org_usage_quotas` m
+                     WHERE m.org_slug = p.org_slug
+                       AND m.usage_date >= DATE_TRUNC(CURRENT_DATE(), MONTH)
+                       AND m.usage_date < CURRENT_DATE()
+                     ORDER BY m.usage_date DESC
+                     LIMIT 1),
+                    0
+                ) as pipelines_run_month,
+                s.daily_limit,
+                s.monthly_limit,
+                s.concurrent_limit
+            FROM `{settings.gcp_project_id}.organizations.org_profiles` p
+            INNER JOIN `{settings.gcp_project_id}.organizations.org_subscriptions` s
+                ON p.org_slug = s.org_slug AND s.status = 'ACTIVE'
+            WHERE p.status = 'ACTIVE'
+        ) S
+        ON T.usage_id = S.usage_id
+        WHEN MATCHED THEN
+            UPDATE SET
+                pipelines_run_today = 0,
+                pipelines_failed_today = 0,
+                pipelines_succeeded_today = 0,
+                concurrent_pipelines_running = 0,
+                max_concurrent_reached = 0,
+                daily_limit = S.daily_limit,
+                monthly_limit = S.monthly_limit,
+                concurrent_limit = S.concurrent_limit,
+                last_updated = CURRENT_TIMESTAMP()
+        WHEN NOT MATCHED THEN
+            INSERT (usage_id, org_slug, usage_date, pipelines_run_today, pipelines_failed_today,
+                    pipelines_succeeded_today, pipelines_run_month, concurrent_pipelines_running,
+                    max_concurrent_reached, daily_limit, monthly_limit, concurrent_limit,
+                    created_at, last_updated)
+            VALUES (S.usage_id, S.org_slug, S.usage_date, 0, 0, 0, S.pipelines_run_month, 0, 0,
+                    S.daily_limit, S.monthly_limit, S.concurrent_limit,
+                    CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP())
         """
 
         reset_job = bq_client.client.query(reset_query)
         reset_job.result()
-        updated_count = reset_job.num_dml_affected_rows
+        reset_count = reset_job.num_dml_affected_rows
 
-        logger.info(f"Reset daily quotas for {updated_count} records")
+        logger.info(f"Reset daily quotas: {reset_count} records created/updated for today")
 
         # Archive/delete records older than 90 days
         archive_query = f"""
@@ -1243,9 +1281,9 @@ async def reset_daily_quotas(
 
         return {
             "status": "success",
-            "records_updated": updated_count,
+            "records_reset": reset_count,
             "records_archived": archived_count,
-            "message": f"Reset {updated_count} daily quotas, archived {archived_count} old records",
+            "message": f"Reset {reset_count} daily quotas for today, archived {archived_count} old records",
             "executed_at": datetime.now(timezone.utc).isoformat()
         }
 
@@ -1346,13 +1384,18 @@ async def cleanup_orphaned_pipelines(
 
                 if cleaned_count > 0:
                     # Decrement concurrent_pipelines_running counter
+                    # Update the most recent quota record (could be today or yesterday for cross-day pipelines)
                     decrement_query = f"""
                     UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
                     SET
                         concurrent_pipelines_running = GREATEST(concurrent_pipelines_running - @cleaned_count, 0),
                         last_updated = CURRENT_TIMESTAMP()
                     WHERE org_slug = @org_slug
-                      AND usage_date = CURRENT_DATE()
+                      AND usage_date = (
+                          SELECT MAX(usage_date)
+                          FROM `{settings.gcp_project_id}.organizations.org_usage_quotas`
+                          WHERE org_slug = @org_slug
+                      )
                     """
 
                     job_config = bigquery.QueryJobConfig(

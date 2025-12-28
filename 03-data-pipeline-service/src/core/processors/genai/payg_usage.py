@@ -430,7 +430,13 @@ class PAYGUsageProcessor:
         CRITICAL FIX #1: Insert usage records using MERGE for idempotency.
 
         Uses MERGE (upsert) instead of streaming inserts to prevent duplicate
-        data on re-runs. Deduplication key: (org_slug, provider, model, usage_date, region)
+        data on re-runs.
+
+        CRUD-002 FIX: Clarified MERGE key structure:
+        - Primary composite key: (org_slug, x_pipeline_id, x_credential_id, x_pipeline_run_date)
+          These ensure idempotency for pipeline re-runs with multi-account support.
+        - Business key additions: (provider, model, usage_date, region)
+          These ensure granular deduplication within a pipeline run.
 
         MEDIUM FIX #11: Returns list of successfully processed record IDs for retry handling.
 
@@ -450,70 +456,65 @@ class PAYGUsageProcessor:
             successful_ids = []
             total_affected = 0
 
-            # Process in batches to avoid query size limits
-            batch_size = 100
+            # PERF-001 FIX: Use larger batch size - UNNEST can handle up to ~1000 rows efficiently
+            # For larger datasets, we process in batches
+            batch_size = 500
             for i in range(0, len(records), batch_size):
                 batch = records[i:i + batch_size]
 
-                # Build VALUES clause for this batch using parameterized approach
-                # We'll use a temp table approach for safety
-                values_rows = []
+                # Build UNNEST array for BigQuery MERGE
+                # This is the correct BigQuery pattern - no temp tables needed
+                struct_values = []
                 for record in batch:
-                    values_rows.append({
-                        "org_slug": record.get("org_slug"),
-                        "provider": record.get("provider"),
-                        "model": record.get("model"),
-                        "model_family": record.get("model_family"),
-                        "usage_date": record.get("usage_date"),
-                        "region": record.get("region") or "global",
-                        "input_tokens": record.get("input_tokens") or 0,
-                        "output_tokens": record.get("output_tokens") or 0,
-                        "cached_input_tokens": record.get("cached_input_tokens") or 0,
-                        "total_tokens": record.get("total_tokens") or 0,
-                        "request_count": record.get("request_count") or 0,
-                        "is_batch": record.get("is_batch") or False,
-                        "hierarchy_dept_id": record.get("hierarchy_dept_id"),
-                        "hierarchy_dept_name": record.get("hierarchy_dept_name"),
-                        "hierarchy_project_id": record.get("hierarchy_project_id"),
-                        "hierarchy_project_name": record.get("hierarchy_project_name"),
-                        "hierarchy_team_id": record.get("hierarchy_team_id"),
-                        "hierarchy_team_name": record.get("hierarchy_team_name"),
-                        # Standardized lineage columns (x_ prefix)
-                        "x_pipeline_id": record.get("x_pipeline_id"),
-                        "x_credential_id": record.get("x_credential_id"),
-                        "x_pipeline_run_date": record.get("x_pipeline_run_date"),
-                        "x_run_id": record.get("x_run_id"),
-                        "x_ingested_at": record.get("x_ingested_at"),
-                    })
+                    # Escape string values and handle nulls
+                    def escape_str(v):
+                        if v is None:
+                            return "NULL"
+                        return f"'{str(v).replace(chr(39), chr(39)+chr(39))}'"
 
-                # Use CREATE TEMP TABLE + MERGE pattern for safety
-                temp_table = f"_temp_payg_usage_{datetime.utcnow().strftime('%Y%m%d%H%M%S%f')}"
+                    def escape_int(v):
+                        return str(v) if v is not None else "0"
 
-                # Create temp table and insert data
-                create_temp = f"""
-                    CREATE TEMP TABLE `{temp_table}` (
-                        org_slug STRING, provider STRING, model STRING, model_family STRING,
-                        usage_date DATE, region STRING, input_tokens INT64, output_tokens INT64,
-                        cached_input_tokens INT64, total_tokens INT64, request_count INT64,
-                        is_batch BOOL, hierarchy_dept_id STRING,
-                        hierarchy_dept_name STRING, hierarchy_project_id STRING,
-                        hierarchy_project_name STRING, hierarchy_team_id STRING,
-                        hierarchy_team_name STRING,
-                        x_pipeline_id STRING, x_credential_id STRING, x_pipeline_run_date DATE,
-                        x_run_id STRING, x_ingested_at TIMESTAMP
-                    )
-                """
-                client.query(create_temp).result()
+                    def escape_bool(v):
+                        return "TRUE" if v else "FALSE"
 
-                # Insert into temp table using streaming (temp tables are ephemeral)
-                temp_table_ref = f"{client.project}.{temp_table}"
-                client.insert_rows_json(temp_table_ref, values_rows)
+                    struct_values.append(f"""STRUCT(
+                        {escape_str(record.get('org_slug'))} as org_slug,
+                        {escape_str(record.get('provider'))} as provider,
+                        {escape_str(record.get('model'))} as model,
+                        {escape_str(record.get('model_family'))} as model_family,
+                        DATE('{record.get('usage_date')}') as usage_date,
+                        {escape_str(record.get('region') or 'global')} as region,
+                        {escape_int(record.get('input_tokens'))} as input_tokens,
+                        {escape_int(record.get('output_tokens'))} as output_tokens,
+                        {escape_int(record.get('cached_input_tokens'))} as cached_input_tokens,
+                        {escape_int(record.get('total_tokens'))} as total_tokens,
+                        {escape_int(record.get('request_count'))} as request_count,
+                        {escape_bool(record.get('is_batch'))} as is_batch,
+                        {escape_str(record.get('hierarchy_dept_id'))} as hierarchy_dept_id,
+                        {escape_str(record.get('hierarchy_dept_name'))} as hierarchy_dept_name,
+                        {escape_str(record.get('hierarchy_project_id'))} as hierarchy_project_id,
+                        {escape_str(record.get('hierarchy_project_name'))} as hierarchy_project_name,
+                        {escape_str(record.get('hierarchy_team_id'))} as hierarchy_team_id,
+                        {escape_str(record.get('hierarchy_team_name'))} as hierarchy_team_name,
+                        {escape_str(record.get('x_pipeline_id'))} as x_pipeline_id,
+                        {escape_str(record.get('x_credential_id'))} as x_credential_id,
+                        DATE('{record.get('x_pipeline_run_date')}') as x_pipeline_run_date,
+                        {escape_str(record.get('x_run_id'))} as x_run_id,
+                        TIMESTAMP('{record.get('x_ingested_at')}') as x_ingested_at
+                    )""")
 
-                # Now MERGE from temp table to target
-                # Uses composite key: (org_slug, x_pipeline_id, x_credential_id, x_pipeline_run_date)
+                unnest_source = ",\n".join(struct_values)
+
+                # MERGE using UNNEST - correct BigQuery pattern (no temp tables)
+                # CRUD-002 FIX: Composite key explanation:
+                # - Primary idempotency: (org_slug, x_pipeline_id, x_credential_id, x_pipeline_run_date)
+                #   Ensures pipeline re-runs replace their own data, multi-account isolation
+                # - Business granularity: (provider, model, usage_date, region)
+                #   Ensures each unique usage record is tracked separately
                 merge_query = f"""
                     MERGE `{table_id}` T
-                    USING `{temp_table}` S
+                    USING UNNEST([{unnest_source}]) S
                     ON T.org_slug = S.org_slug
                         AND T.x_pipeline_id = S.x_pipeline_id
                         AND T.x_credential_id = S.x_credential_id

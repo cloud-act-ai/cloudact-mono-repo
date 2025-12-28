@@ -373,8 +373,8 @@ const FALLBACK_PIPELINES: PipelineConfig[] = [
     id: "saas_subscription_costs",
     name: "SaaS Subscription Costs",
     description: "Calculate daily amortized costs from SaaS subscription plans",
-    provider: "saas_subscription",
-    domain: "costs",  // configs/saas_subscription/costs/saas_cost.yml
+    provider: "saas",
+    domain: "costs",  // configs/saas/costs/saas_cost.yml
     pipeline: "saas_cost",
     required_integration: "",  // No external integration needed
     enabled: true,

@@ -268,11 +268,15 @@ class TestGetCurrentOrg:
 
     @pytest.mark.asyncio
     async def test_get_current_org_disable_auth(self, mock_bq_client):
-        """Test authentication bypassed when disabled."""
+        """Test authentication bypassed when disabled in development."""
         # Arrange
         with patch("src.app.dependencies.auth.settings") as mock_settings:
             mock_settings.disable_auth = True
+            mock_settings.is_production = False  # DISABLE_AUTH only works in dev
             mock_settings.default_org_slug = "dev_org_local"
+            mock_settings.fallback_daily_limit = 100
+            mock_settings.fallback_monthly_limit = 3000
+            mock_settings.fallback_concurrent_limit = 5
 
             # Act
             result = await get_current_org(api_key=None, bq_client=mock_bq_client)
@@ -280,7 +284,22 @@ class TestGetCurrentOrg:
             # Assert
             assert result["org_slug"] == "dev_org_local"
             assert result["status"] == "ACTIVE"
-            assert result["subscription"]["plan_name"] == "ENTERPRISE"
+            assert result["subscription"]["plan_name"] == "STARTER"
+
+    @pytest.mark.asyncio
+    async def test_get_current_org_disable_auth_blocked_in_production(self, mock_bq_client):
+        """Test DISABLE_AUTH is blocked in production (security fix)."""
+        # Arrange
+        with patch("src.app.dependencies.auth.settings") as mock_settings:
+            mock_settings.disable_auth = True
+            mock_settings.is_production = True  # Should fail in production
+
+            # Act & Assert
+            with pytest.raises(HTTPException) as exc_info:
+                await get_current_org(api_key=None, bq_client=mock_bq_client)
+
+            assert exc_info.value.status_code == 500
+            assert "misconfiguration" in exc_info.value.detail.lower()
 
     @pytest.mark.asyncio
     async def test_get_current_org_trial_subscription(self, mock_bq_client, mock_settings):

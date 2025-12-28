@@ -112,7 +112,7 @@ export async function getPipelineStatus(
  * API service proxies to pipeline service (8001).
  *
  * @param orgSlug - Organization slug
- * @param pipelinePath - Pipeline path (e.g., "saas_subscription/costs/saas_cost")
+ * @param pipelinePath - Pipeline path (e.g., "saas/costs/saas_cost")
  * @param startDate - Start date (YYYY-MM-DD)
  * @param endDate - End date (YYYY-MM-DD), defaults to today (UTC)
  * @returns Trigger result
@@ -189,7 +189,7 @@ export async function triggerPipelineViaApi(
 const DAILY_PIPELINES = [
   {
     id: "saas_subscription_costs",
-    path: "saas_subscription/costs/saas_cost",
+    path: "saas/costs/saas_cost",
     description: "SaaS subscription cost calculation",
   },
   // Future pipelines:
@@ -300,7 +300,7 @@ export async function forceTriggerSaaSCostPipeline(
 
   return triggerPipelineViaApi(
     orgSlug,
-    "saas_subscription/costs/saas_cost",
+    "saas/costs/saas_cost",
     startDate || getMonthStartUTC(),
     getTodayDateUTC()
   )

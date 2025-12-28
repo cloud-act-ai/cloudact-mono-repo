@@ -174,27 +174,28 @@ async function storeApiKeySecure(
 ): Promise<boolean> {
   try {
     const adminClient = createServiceRoleClient()
-    const fingerprint = generateApiKeyFingerprint(apiKey)
 
     // Upsert into secure table (service_role bypasses RLS)
     // Store API key directly - table is secure via service_role access only
+    // Note: Table schema only has org_slug, api_key, created_at, updated_at
     const { error } = await adminClient
       .from("org_api_keys_secure")
       .upsert({
         org_slug: orgSlug,
         api_key: apiKey,
-        api_key_fingerprint: fingerprint,
         updated_at: new Date().toISOString(),
       }, {
         onConflict: "org_slug",
       })
 
     if (error) {
+      console.error(`[storeApiKeySecure] Failed to store API key for ${orgSlug}:`, error.message)
       return false
     }
 
     return true
-  } catch {
+  } catch (err) {
+    console.error(`[storeApiKeySecure] Exception storing API key for ${orgSlug}:`, err)
     return false
   }
 }

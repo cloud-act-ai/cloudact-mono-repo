@@ -113,10 +113,10 @@ class PipelineStatusResponse(BaseModel):
 # ============================================
 
 KNOWN_DAILY_PIPELINES = [
-    {"id": "saas_subscription_costs", "path": "saas_subscription/costs/saas_cost"},
+    {"id": "saas_subscription_costs", "path": "saas/costs/saas_cost"},
     # Add more as needed:
-    # {"id": "gcp_billing", "path": "gcp/cost/billing"},
-    # {"id": "openai_usage", "path": "openai/cost/usage_cost"},
+    # {"id": "gcp_billing", "path": "cloud/gcp/cost/billing"},
+    # {"id": "openai_usage", "path": "genai/payg/openai"},
 ]
 
 

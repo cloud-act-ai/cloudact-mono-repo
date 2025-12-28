@@ -232,11 +232,22 @@ class InfrastructureUsageProcessor:
             return False
 
         except Exception as e:
-            # If table doesn't exist or query fails, assume not processed
-            self.logger.warning(
-                f"Idempotency check failed (assuming not processed): {type(e).__name__}"
-            )
-            return False
+            # PROC-001 FIX: Fail-closed on idempotency check error
+            # Return True (skip processing) instead of False (process anyway) to prevent duplicates
+            # If table doesn't exist, BigQuery returns specific error we can handle
+            error_msg = str(e).lower()
+            if "not found" in error_msg or "does not exist" in error_msg:
+                # Table doesn't exist - safe to process (first run)
+                self.logger.info(
+                    f"Target table not found - safe to process (first run): {type(e).__name__}"
+                )
+                return False
+            else:
+                # Other errors - fail closed to prevent duplicate processing
+                self.logger.error(
+                    f"Idempotency check failed - SKIPPING to prevent duplicates: {type(e).__name__}: {e}"
+                )
+                return True  # Skip processing to be safe
 
     async def _insert_usage(self, bq_client, table_id, records):
         """
@@ -259,67 +270,58 @@ class InfrastructureUsageProcessor:
             client = bigquery.Client(project=self.settings.gcp_project_id)
             total_affected = 0
 
-            # Process in batches
-            batch_size = 100
+            # Process in batches - UNNEST has practical limits ~500 rows
+            batch_size = 500
             for i in range(0, len(records), batch_size):
                 batch = records[i:i + batch_size]
 
-                # Build values for temp table
-                values_rows = []
+                # Build UNNEST array for BigQuery MERGE (correct pattern, no temp tables)
+                struct_values = []
                 for record in batch:
-                    values_rows.append({
-                        "org_slug": record.get("org_slug"),
-                        "provider": record.get("provider"),
-                        "resource_id": record.get("resource_id"),
-                        "instance_type": record.get("instance_type"),
-                        "gpu_type": record.get("gpu_type"),
-                        "gpu_count": record.get("gpu_count") or 0,
-                        "usage_date": record.get("usage_date"),
-                        "region": record.get("region") or "global",
-                        "gpu_hours": record.get("gpu_hours") or 0.0,
-                        "spot_hours": record.get("spot_hours") or 0.0,
-                        "on_demand_hours": record.get("on_demand_hours") or 0.0,
-                        "preemptible_hours": record.get("preemptible_hours") or 0.0,
-                        "credential_id": record.get("credential_id"),
-                        "hierarchy_dept_id": record.get("hierarchy_dept_id"),
-                        "hierarchy_dept_name": record.get("hierarchy_dept_name"),
-                        "hierarchy_project_id": record.get("hierarchy_project_id"),
-                        "hierarchy_project_name": record.get("hierarchy_project_name"),
-                        "hierarchy_team_id": record.get("hierarchy_team_id"),
-                        "hierarchy_team_name": record.get("hierarchy_team_name"),
-                        # Standardized lineage columns (x_ prefix)
-                        "x_pipeline_id": record.get("x_pipeline_id"),
-                        "x_credential_id": record.get("x_credential_id"),
-                        "x_pipeline_run_date": record.get("x_pipeline_run_date"),
-                        "x_run_id": record.get("x_run_id"),
-                        "x_ingested_at": record.get("x_ingested_at"),
-                    })
+                    def escape_str(v):
+                        if v is None:
+                            return "NULL"
+                        return f"'{str(v).replace(chr(39), chr(39)+chr(39))}'"
 
-                # Create temp table
-                temp_table = f"_temp_infra_usage_{datetime.utcnow().strftime('%Y%m%d%H%M%S%f')}"
-                create_temp = f"""
-                    CREATE TEMP TABLE `{temp_table}` (
-                        org_slug STRING, provider STRING, resource_id STRING, instance_type STRING,
-                        gpu_type STRING, gpu_count INT64, usage_date DATE, region STRING,
-                        gpu_hours FLOAT64, spot_hours FLOAT64, on_demand_hours FLOAT64,
-                        preemptible_hours FLOAT64, credential_id STRING,
-                        hierarchy_dept_id STRING, hierarchy_dept_name STRING,
-                        hierarchy_project_id STRING, hierarchy_project_name STRING,
-                        hierarchy_team_id STRING, hierarchy_team_name STRING,
-                        x_pipeline_id STRING, x_credential_id STRING, x_pipeline_run_date DATE,
-                        x_run_id STRING, x_ingested_at TIMESTAMP
-                    )
-                """
-                client.query(create_temp).result()
+                    def escape_int(v):
+                        return str(v) if v is not None else "0"
 
-                # Insert into temp table
-                temp_table_ref = f"{client.project}.{temp_table}"
-                client.insert_rows_json(temp_table_ref, values_rows)
+                    def escape_float(v):
+                        return str(v) if v is not None else "0.0"
 
-                # MERGE from temp table to target
+                    struct_values.append(f"""STRUCT(
+                        {escape_str(record.get('org_slug'))} as org_slug,
+                        {escape_str(record.get('provider'))} as provider,
+                        {escape_str(record.get('resource_id'))} as resource_id,
+                        {escape_str(record.get('instance_type'))} as instance_type,
+                        {escape_str(record.get('gpu_type'))} as gpu_type,
+                        {escape_int(record.get('gpu_count'))} as gpu_count,
+                        DATE('{record.get('usage_date')}') as usage_date,
+                        {escape_str(record.get('region') or 'global')} as region,
+                        {escape_float(record.get('gpu_hours'))} as gpu_hours,
+                        {escape_float(record.get('spot_hours'))} as spot_hours,
+                        {escape_float(record.get('on_demand_hours'))} as on_demand_hours,
+                        {escape_float(record.get('preemptible_hours'))} as preemptible_hours,
+                        {escape_str(record.get('credential_id'))} as credential_id,
+                        {escape_str(record.get('hierarchy_dept_id'))} as hierarchy_dept_id,
+                        {escape_str(record.get('hierarchy_dept_name'))} as hierarchy_dept_name,
+                        {escape_str(record.get('hierarchy_project_id'))} as hierarchy_project_id,
+                        {escape_str(record.get('hierarchy_project_name'))} as hierarchy_project_name,
+                        {escape_str(record.get('hierarchy_team_id'))} as hierarchy_team_id,
+                        {escape_str(record.get('hierarchy_team_name'))} as hierarchy_team_name,
+                        {escape_str(record.get('x_pipeline_id'))} as x_pipeline_id,
+                        {escape_str(record.get('x_credential_id'))} as x_credential_id,
+                        DATE('{record.get('x_pipeline_run_date')}') as x_pipeline_run_date,
+                        {escape_str(record.get('x_run_id'))} as x_run_id,
+                        TIMESTAMP('{record.get('x_ingested_at')}') as x_ingested_at
+                    )""")
+
+                unnest_source = ",\n".join(struct_values)
+
+                # MERGE using UNNEST - correct BigQuery pattern (no temp tables)
                 merge_query = f"""
                     MERGE `{table_id}` T
-                    USING `{temp_table}` S
+                    USING UNNEST([{unnest_source}]) S
                     ON T.org_slug = S.org_slug
                         AND T.provider = S.provider
                         AND T.resource_id = S.resource_id

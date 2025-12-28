@@ -39,38 +39,56 @@ async def reset_daily_quotas() -> Dict[str, Any]:
     bq_client = get_bigquery_client()
     today = get_utc_date()  # Use UTC date for consistency with BigQuery
 
-    # Insert new quota records for today for all active orgs
-    # Copy limits from subscriptions
-    insert_query = f"""
-    INSERT INTO `{settings.gcp_project_id}.organizations.org_usage_quotas`
-    (usage_id, org_slug, usage_date, pipelines_run_today, pipelines_failed_today,
-     pipelines_succeeded_today, pipelines_run_month, concurrent_pipelines_running,
-     daily_limit, monthly_limit, concurrent_limit, created_at, last_updated)
-    SELECT
-        CONCAT(p.org_slug, '_', FORMAT_DATE('%Y%m%d', @today)) as usage_id,
-        p.org_slug,
-        @today as usage_date,
-        0 as pipelines_run_today,
-        0 as pipelines_failed_today,
-        0 as pipelines_succeeded_today,
-        -- Carry over monthly count from yesterday
-        COALESCE(y.pipelines_run_month, 0) as pipelines_run_month,
-        0 as concurrent_pipelines_running,
-        s.daily_limit,
-        s.monthly_limit,
-        s.concurrent_limit,
-        CURRENT_TIMESTAMP() as created_at,
-        CURRENT_TIMESTAMP() as last_updated
-    FROM `{settings.gcp_project_id}.organizations.org_profiles` p
-    INNER JOIN `{settings.gcp_project_id}.organizations.org_subscriptions` s
-        ON p.org_slug = s.org_slug AND s.status = 'ACTIVE'
-    LEFT JOIN `{settings.gcp_project_id}.organizations.org_usage_quotas` y
-        ON p.org_slug = y.org_slug AND y.usage_date = DATE_SUB(@today, INTERVAL 1 DAY)
-    WHERE p.status = 'ACTIVE'
-      AND NOT EXISTS (
-          SELECT 1 FROM `{settings.gcp_project_id}.organizations.org_usage_quotas` e
-          WHERE e.org_slug = p.org_slug AND e.usage_date = @today
-      )
+    # MERGE to create new quota records OR reset existing ones for today
+    # This handles both:
+    # 1. Orgs that don't have a record for today yet (INSERT)
+    # 2. Orgs that already have a record for today (UPDATE to reset counters)
+    merge_query = f"""
+    MERGE `{settings.gcp_project_id}.organizations.org_usage_quotas` T
+    USING (
+        SELECT
+            CONCAT(p.org_slug, '_', FORMAT_DATE('%Y%m%d', @today)) as usage_id,
+            p.org_slug,
+            @today as usage_date,
+            -- Get monthly count from the latest record this month (not just yesterday)
+            COALESCE(
+                (SELECT pipelines_run_month
+                 FROM `{settings.gcp_project_id}.organizations.org_usage_quotas` m
+                 WHERE m.org_slug = p.org_slug
+                   AND m.usage_date >= DATE_TRUNC(@today, MONTH)
+                   AND m.usage_date < @today
+                 ORDER BY m.usage_date DESC
+                 LIMIT 1),
+                0
+            ) as pipelines_run_month,
+            s.daily_limit,
+            s.monthly_limit,
+            s.concurrent_limit
+        FROM `{settings.gcp_project_id}.organizations.org_profiles` p
+        INNER JOIN `{settings.gcp_project_id}.organizations.org_subscriptions` s
+            ON p.org_slug = s.org_slug AND s.status = 'ACTIVE'
+        WHERE p.status = 'ACTIVE'
+    ) S
+    ON T.usage_id = S.usage_id
+    WHEN MATCHED THEN
+        UPDATE SET
+            pipelines_run_today = 0,
+            pipelines_failed_today = 0,
+            pipelines_succeeded_today = 0,
+            concurrent_pipelines_running = 0,
+            max_concurrent_reached = 0,
+            daily_limit = S.daily_limit,
+            monthly_limit = S.monthly_limit,
+            concurrent_limit = S.concurrent_limit,
+            last_updated = CURRENT_TIMESTAMP()
+    WHEN NOT MATCHED THEN
+        INSERT (usage_id, org_slug, usage_date, pipelines_run_today, pipelines_failed_today,
+                pipelines_succeeded_today, pipelines_run_month, concurrent_pipelines_running,
+                max_concurrent_reached, daily_limit, monthly_limit, concurrent_limit,
+                created_at, last_updated)
+        VALUES (S.usage_id, S.org_slug, S.usage_date, 0, 0, 0, S.pipelines_run_month, 0, 0,
+                S.daily_limit, S.monthly_limit, S.concurrent_limit,
+                CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP())
     """
 
     job_config = bigquery.QueryJobConfig(
@@ -80,23 +98,23 @@ async def reset_daily_quotas() -> Dict[str, Any]:
     )
 
     try:
-        query_job = bq_client.client.query(insert_query, job_config=job_config)
+        query_job = bq_client.client.query(merge_query, job_config=job_config)
         query_job.result()
 
-        rows_inserted = query_job.num_dml_affected_rows or 0
+        rows_affected = query_job.num_dml_affected_rows or 0
 
         logger.info(
             f"Daily quota reset complete",
             extra={
                 "date": today.isoformat(),
-                "orgs_reset": rows_inserted
+                "orgs_reset": rows_affected
             }
         )
 
         return {
             "status": "SUCCESS",
             "date": today.isoformat(),
-            "orgs_reset": rows_inserted
+            "orgs_reset": rows_affected
         }
 
     except Exception as e:

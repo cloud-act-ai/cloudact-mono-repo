@@ -20,10 +20,5 @@
   {"name": "override_hourly_rate", "type": "FLOAT64", "mode": "NULLABLE", "description": "Org-specific hourly rate override. Issue #45: Standardized override naming."},
   {"name": "override_effective_from", "type": "DATE", "mode": "NULLABLE", "description": "When override pricing became effective. Issue #45: Added for consistency with PAYG."},
   {"name": "override_notes", "type": "STRING", "mode": "NULLABLE", "description": "Notes for pricing override (contract reference)."},
-  {"name": "last_updated", "type": "TIMESTAMP", "mode": "NULLABLE", "description": "Timestamp of last update."},
-  {"name": "x_pipeline_id", "type": "STRING", "mode": "REQUIRED", "description": "Pipeline template name. Example: genai_infrastructure_pricing."},
-  {"name": "x_credential_id", "type": "STRING", "mode": "REQUIRED", "description": "Credential ID from org_integration_credentials. KEY for multi-account isolation."},
-  {"name": "x_pipeline_run_date", "type": "DATE", "mode": "REQUIRED", "description": "The DATA date being processed. KEY for idempotent re-runs."},
-  {"name": "x_run_id", "type": "STRING", "mode": "REQUIRED", "description": "Unique pipeline run UUID for full traceability."},
-  {"name": "x_ingested_at", "type": "TIMESTAMP", "mode": "REQUIRED", "description": "Timestamp when data was written to this table."}
+  {"name": "last_updated", "type": "TIMESTAMP", "mode": "NULLABLE", "description": "Timestamp of last update."}
 ]

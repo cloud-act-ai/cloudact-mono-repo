@@ -4,12 +4,9 @@ import type React from "react"
 import Link from "next/link"
 import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Cloud, Loader2, Phone, Globe, DollarSign, Mail, Lock, Building2, Briefcase } from "lucide-react"
+import { Loader2, Mail, Lock, Phone, Building2, Briefcase, DollarSign, Globe, ArrowRight, ChevronDown, CheckCircle2, Shield } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { AuthLayout } from "@/components/auth/auth-layout"
 import { DEFAULT_TRIAL_DAYS } from "@/lib/constants"
 import { SUPPORTED_CURRENCIES, SUPPORTED_TIMEZONES, isValidCurrency, isValidTimezone, DEFAULT_CURRENCY, DEFAULT_TIMEZONE } from "@/lib/i18n"
 import { COUNTRY_CODES } from "@/lib/constants/countries"
@@ -26,22 +23,72 @@ const ORG_TYPES = [
 
 /**
  * Validate redirect URL to prevent open redirect attacks.
- * Only allows relative paths that don't escape to external sites.
  */
 function isValidRedirect(url: string | null): url is string {
   if (!url) return false
-  // Must start with /
   if (!url.startsWith("/")) return false
-  // Reject protocol-relative URLs (//evil.com)
   if (url.startsWith("//")) return false
-  // Reject URLs with encoded characters that could bypass checks
   if (url.includes("\\")) return false
-  // Reject URLs with @ which could indicate user@host
   if (url.includes("@")) return false
-  // Reject URLs with control characters
   // eslint-disable-next-line no-control-regex
   if (/[\x00-\x1f]/.test(url)) return false
   return true
+}
+
+// Custom Select Component
+function PremiumSelect({
+  id,
+  value,
+  onChange,
+  options,
+  placeholder,
+  disabled,
+  icon: Icon,
+  focused,
+  onFocus,
+  onBlur,
+}: {
+  id: string
+  value: string
+  onChange: (value: string) => void
+  options: { value: string; label: string }[]
+  placeholder?: string
+  disabled?: boolean
+  icon?: React.ComponentType<{ className?: string; strokeWidth?: number }>
+  focused?: boolean
+  onFocus?: () => void
+  onBlur?: () => void
+}) {
+  return (
+    <div className="relative group">
+      {Icon && (
+        <div className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-200 ${focused ? 'text-[#16a34a]' : 'text-gray-400'}`}>
+          <Icon className="h-[18px] w-[18px]" strokeWidth={2} />
+        </div>
+      )}
+      <select
+        id={id}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
+        onFocus={onFocus}
+        onBlur={onBlur}
+        className={`w-full h-[48px] sm:h-[52px] ${Icon ? 'pl-12' : 'pl-4'} pr-10 rounded-xl sm:rounded-2xl border-2 border-gray-100 bg-gray-50/50 text-[14px] sm:text-[15px] text-[#0a0a0b] outline-none transition-all duration-200 hover:border-gray-200 focus:border-[#90FCA6] focus:bg-white focus:ring-4 focus:ring-[#90FCA6]/10 appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed`}
+      >
+        {placeholder && (
+          <option value="" disabled>
+            {placeholder}
+          </option>
+        )}
+        {options.map((opt) => (
+          <option key={opt.value} value={opt.value}>
+            {opt.label}
+          </option>
+        ))}
+      </select>
+      <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+    </div>
+  )
 }
 
 function SignupForm() {
@@ -50,8 +97,6 @@ function SignupForm() {
   const rawRedirect = searchParams.get("redirect")
   const redirectTo = isValidRedirect(rawRedirect) ? rawRedirect : null
   const prefillEmail = searchParams.get("email")
-
-  // Check if user is coming from an invite - they don't need company info
   const isInviteFlow = redirectTo?.startsWith("/invite/")
 
   const [email, setEmail] = useState("")
@@ -64,41 +109,42 @@ function SignupForm() {
   const [timezone, setTimezone] = useState("UTC")
   const [serverError, setServerError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [focusedField, setFocusedField] = useState<string | null>(null)
+  const [step, setStep] = useState<1 | 2>(1)
 
-  // Pre-fill email from query param (e.g., from invite link)
   useEffect(() => {
     if (prefillEmail) {
       try {
         const decoded = decodeURIComponent(prefillEmail)
-        // Basic email validation before pre-filling
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
         if (emailRegex.test(decoded) && decoded.length <= 254) {
           setEmail(decoded)
         }
       } catch {
-        // Invalid URL encoding, ignore
+        // Invalid URL encoding
       }
     }
   }, [prefillEmail])
+
+  const handleNextStep = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!isValidPhone(phoneNumber, countryCode)) {
+      const hint = getPhoneHint(countryCode)
+      const country = COUNTRY_CODES.find(c => c.code === countryCode)?.country || "your country"
+      setServerError(`Please enter a valid phone number for ${country} (${hint})`)
+      return
+    }
+    setServerError(null)
+    setStep(2)
+  }
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
     setServerError(null)
 
-    // Validate phone number with country-specific rules
-    if (!isValidPhone(phoneNumber, countryCode)) {
-      const hint = getPhoneHint(countryCode)
-      const country = COUNTRY_CODES.find(c => c.code === countryCode)?.country || "your country"
-      setServerError(`Please enter a valid phone number for ${country} (${hint})`)
-      setIsLoading(false)
-      return
-    }
-
-    // For invite flow, skip company validation
-    // For normal signup, company name is required
     if (!isInviteFlow && !isValidOrgName(companyName)) {
-      setServerError("Please enter a valid company name (2-100 characters, no special tags)")
+      setServerError("Please enter a valid company name (2-100 characters)")
       setIsLoading(false)
       return
     }
@@ -108,14 +154,9 @@ function SignupForm() {
 
     try {
       const supabase = createClient()
-
-      // For invite flow, redirect back to invite; otherwise go to billing
       const finalRedirect = redirectTo || "/onboarding/billing"
-
-      // Normalize email - trim whitespace and lowercase
       const normalizedEmail = email.trim().toLowerCase()
 
-      // Build user metadata - only include company info for non-invite signup
       const userData: Record<string, string> = {
         phone: fullPhone,
         signup_completed_at: new Date().toISOString(),
@@ -124,12 +165,10 @@ function SignupForm() {
       if (!isInviteFlow) {
         userData.pending_company_name = sanitizedCompanyName
         userData.pending_company_type = companyType
-        // Validate and fallback to defaults for i18n fields
         userData.pending_currency = isValidCurrency(currency) ? currency : DEFAULT_CURRENCY
         userData.pending_timezone = isValidTimezone(timezone) ? timezone : DEFAULT_TIMEZONE
       }
 
-      // Signup with user_metadata (use normalizedEmail for consistency)
       const origin = typeof window !== "undefined" ? window.location.origin : ""
       const { data: authData, error: signupError } = await supabase.auth.signUp({
         email: normalizedEmail,
@@ -143,9 +182,6 @@ function SignupForm() {
       if (signupError) throw new Error(signupError.message)
       if (!authData.user) throw new Error("Signup failed")
 
-      // Signup successful - user ID and company info stored in metadata
-
-      // Sign in to establish session (use normalized email to match signup)
       const { error: signinError } = await supabase.auth.signInWithPassword({
         email: normalizedEmail,
         password,
@@ -158,7 +194,6 @@ function SignupForm() {
         return
       }
 
-      // Success - redirect to billing page for plan selection
       if (typeof window !== "undefined") window.location.href = finalRedirect
     } catch (error: unknown) {
       setServerError(error instanceof Error ? error.message : "An error occurred during signup")
@@ -167,54 +202,81 @@ function SignupForm() {
   }
 
   return (
-    <div className="w-full max-w-[480px] space-y-3">
-      <div className="flex flex-col items-center gap-2 text-center">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-mint text-black shadow-lg shadow-mint/20">
-          <Cloud className="h-5 w-5" />
-        </div>
-        <div className="space-y-1">
-          <h1 className="text-2xl font-bold text-[#1C1C1E] tracking-tight">
-            {isInviteFlow ? "Create your account" : "Create your account"}
+    <AuthLayout variant="signup">
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="space-y-2">
+          <h1 className="text-[26px] sm:text-[32px] font-bold text-[#0a0a0b] tracking-[-0.02em] leading-tight">
+            {isInviteFlow ? "Join your team" : step === 1 ? "Create your account" : "Set up organization"}
           </h1>
-          <p className="text-sm text-muted-foreground font-medium">
-            {isInviteFlow ? "Sign up to accept your team invite" : `Start your ${DEFAULT_TRIAL_DAYS}-day free trial`}
+          <p className="text-[14px] sm:text-[15px] text-gray-500 leading-relaxed">
+            {isInviteFlow
+              ? "Sign up to accept your team invitation"
+              : step === 1
+              ? `${DEFAULT_TRIAL_DAYS} days free. No credit card required.`
+              : "Configure your workspace settings"}
           </p>
         </div>
-      </div>
 
-      <div className="glass-card p-6">
-        {/* suppressHydrationWarning: Password manager extensions (LastPass, 1Password, etc.)
-            inject elements into forms before React hydrates, causing harmless mismatches */}
-        <form onSubmit={onSubmit} className="space-y-4" suppressHydrationWarning>
-          {/* Account Section */}
-          <div className="space-y-3">
-            <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Your Details</div>
+        {/* Progress Steps */}
+        {!isInviteFlow && (
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <div className={`flex items-center justify-center w-7 h-7 rounded-full text-xs font-semibold transition-all duration-300 ${step >= 1 ? 'bg-[#90FCA6] text-[#0a0a0b]' : 'bg-gray-100 text-gray-400'}`}>
+                {step > 1 ? <CheckCircle2 className="w-4 h-4" /> : '1'}
+              </div>
+              <span className={`text-[13px] font-medium ${step >= 1 ? 'text-[#0a0a0b]' : 'text-gray-400'}`}>Account</span>
+            </div>
+            <div className="flex-1 h-[2px] bg-gray-100 rounded-full overflow-hidden">
+              <div className={`h-full bg-[#90FCA6] transition-all duration-500 ${step >= 2 ? 'w-full' : 'w-0'}`} />
+            </div>
+            <div className="flex items-center gap-2">
+              <div className={`flex items-center justify-center w-7 h-7 rounded-full text-xs font-semibold transition-all duration-300 ${step >= 2 ? 'bg-[#90FCA6] text-[#0a0a0b]' : 'bg-gray-100 text-gray-400'}`}>
+                2
+              </div>
+              <span className={`text-[13px] font-medium ${step >= 2 ? 'text-[#0a0a0b]' : 'text-gray-400'}`}>Organization</span>
+            </div>
+          </div>
+        )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="space-y-1.5 md:col-span-2" suppressHydrationWarning>
-                <Label htmlFor="email" className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
-                  <Mail className="h-3.5 w-3.5" />
-                  Email address
-                </Label>
-                <Input
+        {/* Form */}
+        {step === 1 ? (
+          <form onSubmit={isInviteFlow ? onSubmit : handleNextStep} className="space-y-4" suppressHydrationWarning>
+            {/* Email Field */}
+            <div className="space-y-1.5" suppressHydrationWarning>
+              <label htmlFor="email" className="block text-[12px] font-semibold text-gray-500 uppercase tracking-wider">
+                Email address
+              </label>
+              <div className="relative">
+                <div className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-200 ${focusedField === 'email' ? 'text-[#16a34a]' : 'text-gray-400'}`}>
+                  <Mail className="h-[18px] w-[18px]" strokeWidth={2} />
+                </div>
+                <input
                   id="email"
                   type="email"
                   placeholder="you@company.com"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="h-10 focus:border-mint focus:ring-mint"
+                  onFocus={() => setFocusedField('email')}
+                  onBlur={() => setFocusedField(null)}
+                  className="w-full h-[48px] pl-12 pr-4 rounded-xl border-2 border-gray-100 bg-gray-50/50 text-[14px] text-[#0a0a0b] placeholder:text-gray-400 outline-none transition-all duration-200 hover:border-gray-200 focus:border-[#90FCA6] focus:bg-white focus:ring-4 focus:ring-[#90FCA6]/10"
                   disabled={isLoading}
                   autoComplete="email"
                 />
               </div>
+            </div>
 
-              <div className="space-y-1.5 md:col-span-2" suppressHydrationWarning>
-                <Label htmlFor="password" className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
-                  <Lock className="h-3.5 w-3.5" />
-                  Password
-                </Label>
-                <Input
+            {/* Password Field */}
+            <div className="space-y-1.5" suppressHydrationWarning>
+              <label htmlFor="password" className="block text-[12px] font-semibold text-gray-500 uppercase tracking-wider">
+                Password
+              </label>
+              <div className="relative">
+                <div className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-200 ${focusedField === 'password' ? 'text-[#16a34a]' : 'text-gray-400'}`}>
+                  <Lock className="h-[18px] w-[18px]" strokeWidth={2} />
+                </div>
+                <input
                   id="password"
                   type="password"
                   placeholder="Min 8 characters"
@@ -222,198 +284,261 @@ function SignupForm() {
                   minLength={8}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="h-10 focus:border-mint focus:ring-mint"
+                  onFocus={() => setFocusedField('password')}
+                  onBlur={() => setFocusedField(null)}
+                  className="w-full h-[48px] pl-12 pr-4 rounded-xl border-2 border-gray-100 bg-gray-50/50 text-[14px] text-[#0a0a0b] placeholder:text-gray-400 outline-none transition-all duration-200 hover:border-gray-200 focus:border-[#90FCA6] focus:bg-white focus:ring-4 focus:ring-[#90FCA6]/10"
                   disabled={isLoading}
                   autoComplete="new-password"
                 />
               </div>
             </div>
 
-            {/* Phone Number with Country Code */}
+            {/* Phone Number */}
             <div className="space-y-1.5">
-              <Label htmlFor="phone" className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
-                <Phone className="h-3.5 w-3.5" />
+              <label htmlFor="phone" className="block text-[12px] font-semibold text-gray-500 uppercase tracking-wider">
                 Phone number
-              </Label>
+              </label>
               <div className="flex gap-2">
-                <Select value={countryCode} onValueChange={setCountryCode} disabled={isLoading}>
-                  <SelectTrigger className="w-24 h-10 justify-center focus:border-mint focus:ring-mint">
-                    <SelectValue className="text-center">{countryCode}</SelectValue>
-                  </SelectTrigger>
-                  <SelectContent className="max-h-[300px]">
-                    {COUNTRY_CODES.map((c) => (
-                      <SelectItem key={`${c.code}-${c.country}`} value={c.code}>
-                        {c.country} ({c.code})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Input
-                  id="phone"
-                  type="tel"
-                  placeholder="555 123 4567"
-                  required
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
-                  className="h-10 flex-1 focus:border-mint focus:ring-mint"
-                  disabled={isLoading}
-                  autoComplete="tel-national"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Company Section - Only show for non-invite flow */}
-          {!isInviteFlow && (
-            <div className="space-y-3 pt-3 border-t">
-              <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Organization Details</div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="companyName" className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
-                    <Building2 className="h-3.5 w-3.5" />
-                    Company name
-                  </Label>
-                  <Input
-                    id="companyName"
-                    type="text"
-                    placeholder="Acme Inc."
-                    required
-                    minLength={2}
-                    maxLength={100}
-                    value={companyName}
-                    onChange={(e) => setCompanyName(e.target.value)}
-                    className="h-10 focus:border-mint focus:ring-mint"
-                    disabled={isLoading}
-                    autoComplete="organization"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="companyType" className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
-                    <Briefcase className="h-3.5 w-3.5" />
-                    Company type
-                  </Label>
+                <div className="relative w-[100px]">
                   <select
-                    id="companyType"
-                    value={companyType}
-                    onChange={(e) => setCompanyType(e.target.value)}
-                    className="flex h-10 w-full rounded-md border border-input bg-white px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-mint focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    value={countryCode}
+                    onChange={(e) => setCountryCode(e.target.value)}
                     disabled={isLoading}
-                    aria-label="Select company type"
+                    className="w-full h-[48px] pl-3 pr-8 rounded-xl border-2 border-gray-100 bg-gray-50/50 text-[14px] text-[#0a0a0b] outline-none transition-all duration-200 hover:border-gray-200 focus:border-[#90FCA6] focus:bg-white focus:ring-4 focus:ring-[#90FCA6]/10 appearance-none cursor-pointer"
                   >
-                    {ORG_TYPES.map((t) => (
-                      <option key={t.value} value={t.value}>
-                        {t.label}
+                    {COUNTRY_CODES.map((c) => (
+                      <option key={`${c.code}-${c.country}`} value={c.code}>
+                        {c.code}
                       </option>
                     ))}
                   </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
                 </div>
-              </div>
-
-              {/* Currency and Timezone */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="currency" className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
-                    <DollarSign className="h-3.5 w-3.5" />
-                    Currency
-                  </Label>
-                  <Select value={currency} onValueChange={setCurrency} disabled={isLoading}>
-                    <SelectTrigger className="h-10 focus:border-mint focus:ring-mint">
-                      <SelectValue placeholder="Select currency" />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-[300px]">
-                      {SUPPORTED_CURRENCIES.map((c) => (
-                        <SelectItem key={c.code} value={c.code}>
-                          {c.symbol} {c.code} - {c.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="timezone" className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
-                    <Globe className="h-3.5 w-3.5" />
-                    Timezone
-                  </Label>
-                  <Select value={timezone} onValueChange={setTimezone} disabled={isLoading}>
-                    <SelectTrigger className="h-10 focus:border-mint focus:ring-mint">
-                      <SelectValue placeholder="Select timezone" />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-[300px]">
-                      {SUPPORTED_TIMEZONES.map((tz) => (
-                        <SelectItem key={tz.value} value={tz.value}>
-                          {tz.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <div className="relative flex-1">
+                  <div className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-200 ${focusedField === 'phone' ? 'text-[#16a34a]' : 'text-gray-400'}`}>
+                    <Phone className="h-[18px] w-[18px]" strokeWidth={2} />
+                  </div>
+                  <input
+                    id="phone"
+                    type="tel"
+                    placeholder="555 123 4567"
+                    required
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    onFocus={() => setFocusedField('phone')}
+                    onBlur={() => setFocusedField(null)}
+                    className="w-full h-[48px] pl-12 pr-4 rounded-xl border-2 border-gray-100 bg-gray-50/50 text-[14px] text-[#0a0a0b] placeholder:text-gray-400 outline-none transition-all duration-200 hover:border-gray-200 focus:border-[#90FCA6] focus:bg-white focus:ring-4 focus:ring-[#90FCA6]/10"
+                    disabled={isLoading}
+                    autoComplete="tel-national"
+                  />
                 </div>
               </div>
             </div>
-          )}
 
-          {serverError && (
-            <Alert variant="destructive" className="py-2 bg-[var(--cloudact-bg-coral)] border-coral">
-              <AlertDescription className="text-sm text-coral">{serverError}</AlertDescription>
-            </Alert>
-          )}
-
-          <button type="submit" className="cloudact-btn-primary w-full h-10 text-sm font-semibold" disabled={isLoading}>
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Creating account...
-              </>
-            ) : isInviteFlow ? (
-              "Create account & accept invite"
-            ) : (
-              "Continue to plan selection"
+            {/* Error Alert */}
+            {serverError && (
+              <div className="p-3 rounded-xl bg-[#FFF5F3] border border-[#FF6C5E]/20">
+                <p className="text-[13px] font-medium text-[#CC4F35]">{serverError}</p>
+              </div>
             )}
-          </button>
 
-          <p className="text-center text-xs text-gray-600">
-            By signing up, you agree to our Terms of Service and Privacy Policy
+            {/* Submit Button - Mint */}
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="group relative w-full h-[48px] rounded-xl bg-[#90FCA6] text-[#0a0a0b] font-semibold text-[14px] transition-all duration-300 hover:bg-[#6EE890] hover:shadow-lg hover:shadow-[#90FCA6]/30 hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed overflow-hidden"
+            >
+              <span className="relative z-10 flex items-center justify-center gap-2">
+                {isLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    {isInviteFlow ? "Creating account..." : "Processing..."}
+                  </>
+                ) : (
+                  <>
+                    {isInviteFlow ? "Create account & accept invite" : "Continue"}
+                    <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                  </>
+                )}
+              </span>
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={onSubmit} className="space-y-4" suppressHydrationWarning>
+            {/* Company Name */}
+            <div className="space-y-1.5">
+              <label htmlFor="companyName" className="block text-[12px] font-semibold text-gray-500 uppercase tracking-wider">
+                Company name
+              </label>
+              <div className="relative">
+                <div className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-200 ${focusedField === 'company' ? 'text-[#16a34a]' : 'text-gray-400'}`}>
+                  <Building2 className="h-[18px] w-[18px]" strokeWidth={2} />
+                </div>
+                <input
+                  id="companyName"
+                  type="text"
+                  placeholder="Acme Inc."
+                  required
+                  minLength={2}
+                  maxLength={100}
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                  onFocus={() => setFocusedField('company')}
+                  onBlur={() => setFocusedField(null)}
+                  className="w-full h-[48px] pl-12 pr-4 rounded-xl border-2 border-gray-100 bg-gray-50/50 text-[14px] text-[#0a0a0b] placeholder:text-gray-400 outline-none transition-all duration-200 hover:border-gray-200 focus:border-[#90FCA6] focus:bg-white focus:ring-4 focus:ring-[#90FCA6]/10"
+                  disabled={isLoading}
+                  autoComplete="organization"
+                />
+              </div>
+            </div>
+
+            {/* Company Type */}
+            <div className="space-y-1.5">
+              <label htmlFor="companyType" className="block text-[12px] font-semibold text-gray-500 uppercase tracking-wider">
+                Company type
+              </label>
+              <PremiumSelect
+                id="companyType"
+                value={companyType}
+                onChange={setCompanyType}
+                options={ORG_TYPES}
+                disabled={isLoading}
+                icon={Briefcase}
+                focused={focusedField === 'companyType'}
+                onFocus={() => setFocusedField('companyType')}
+                onBlur={() => setFocusedField(null)}
+              />
+            </div>
+
+            {/* Currency and Timezone Row */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label htmlFor="currency" className="block text-[12px] font-semibold text-gray-500 uppercase tracking-wider">
+                  Currency
+                </label>
+                <PremiumSelect
+                  id="currency"
+                  value={currency}
+                  onChange={setCurrency}
+                  options={SUPPORTED_CURRENCIES.map((c) => ({
+                    value: c.code,
+                    label: `${c.symbol} ${c.code}`,
+                  }))}
+                  disabled={isLoading}
+                  icon={DollarSign}
+                  focused={focusedField === 'currency'}
+                  onFocus={() => setFocusedField('currency')}
+                  onBlur={() => setFocusedField(null)}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label htmlFor="timezone" className="block text-[12px] font-semibold text-gray-500 uppercase tracking-wider">
+                  Timezone
+                </label>
+                <PremiumSelect
+                  id="timezone"
+                  value={timezone}
+                  onChange={setTimezone}
+                  options={SUPPORTED_TIMEZONES.map((tz) => ({
+                    value: tz.value,
+                    label: tz.label.split(' ').slice(-1)[0],
+                  }))}
+                  disabled={isLoading}
+                  icon={Globe}
+                  focused={focusedField === 'timezone'}
+                  onFocus={() => setFocusedField('timezone')}
+                  onBlur={() => setFocusedField(null)}
+                />
+              </div>
+            </div>
+
+            {/* Error Alert */}
+            {serverError && (
+              <div className="p-3 rounded-xl bg-[#FFF5F3] border border-[#FF6C5E]/20">
+                <p className="text-[13px] font-medium text-[#CC4F35]">{serverError}</p>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setStep(1)}
+                disabled={isLoading}
+                className="w-1/3 h-[48px] rounded-xl border-2 border-gray-100 bg-white text-[14px] font-semibold text-gray-600 transition-all duration-200 hover:border-gray-200 hover:bg-gray-50 disabled:opacity-50"
+              >
+                Back
+              </button>
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="group relative flex-1 h-[48px] rounded-xl bg-[#90FCA6] text-[#0a0a0b] font-semibold text-[14px] transition-all duration-300 hover:bg-[#6EE890] hover:shadow-lg hover:shadow-[#90FCA6]/30 hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed overflow-hidden"
+              >
+                <span className="relative z-10 flex items-center justify-center gap-2">
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Creating account...
+                    </>
+                  ) : (
+                    <>
+                      Create account
+                      <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                    </>
+                  )}
+                </span>
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* Security Note */}
+        <div className="flex items-start gap-2 p-3 rounded-xl bg-gray-50 border border-gray-100">
+          <Shield className="h-4 w-4 text-gray-400 mt-0.5 shrink-0" />
+          <p className="text-[12px] text-gray-500 leading-relaxed">
+            By signing up, you agree to our{" "}
+            <Link href="/terms" className="text-[#0a0a0b] font-medium hover:underline">Terms of Service</Link>
+            {" "}and{" "}
+            <Link href="/privacy" className="text-[#0a0a0b] font-medium hover:underline">Privacy Policy</Link>
           </p>
-        </form>
-      </div>
+        </div>
 
-      <div className="text-center text-sm text-gray-600">
-        Already have an account?{" "}
-        <Link href="/login" className="font-semibold text-ca-blue hover:text-ca-blue-dark hover:underline">
-          Sign in
-        </Link>
+        {/* Sign In Link */}
+        <div className="text-center text-[14px] text-gray-500">
+          Already have an account?{" "}
+          <Link href="/login" className="font-semibold text-[#0a0a0b] hover:underline">
+            Sign in
+          </Link>
+        </div>
       </div>
-    </div>
+    </AuthLayout>
   )
 }
 
 function SignupFormFallback() {
   return (
-    <div className="w-full max-w-[480px] space-y-3">
-      <div className="flex flex-col items-center gap-2 text-center">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-mint text-black shadow-lg">
-          <Cloud className="h-5 w-5" />
+    <AuthLayout variant="signup">
+      <div className="space-y-6">
+        <div className="space-y-2">
+          <div className="h-8 w-56 bg-gray-100 rounded-lg animate-pulse" />
+          <div className="h-4 w-72 bg-gray-100 rounded-lg animate-pulse" />
         </div>
-        <div className="space-y-1">
-          <h1 className="text-2xl font-bold text-gray-900">Create your account</h1>
-          <p className="text-sm text-gray-600">Start your {DEFAULT_TRIAL_DAYS}-day free trial</p>
+        <div className="space-y-4">
+          <div className="h-[48px] bg-gray-100 rounded-xl animate-pulse" />
+          <div className="h-[48px] bg-gray-100 rounded-xl animate-pulse" />
+          <div className="h-[48px] bg-gray-100 rounded-xl animate-pulse" />
+          <div className="h-[48px] bg-gray-100 rounded-xl animate-pulse" />
         </div>
       </div>
-      <div className="glass-card p-5 flex items-center justify-center min-h-[300px]">
-        <Loader2 className="h-6 w-6 animate-spin text-mint-dark" />
-      </div>
-    </div>
+    </AuthLayout>
   )
 }
 
 export default function SignupPage() {
   return (
-    <div className="flex min-h-svh w-full flex-col items-center justify-center mesh-gradient p-4">
-      <Suspense fallback={<SignupFormFallback />}>
-        <SignupForm />
-      </Suspense>
-    </div>
+    <Suspense fallback={<SignupFormFallback />}>
+      <SignupForm />
+    </Suspense>
   )
 }

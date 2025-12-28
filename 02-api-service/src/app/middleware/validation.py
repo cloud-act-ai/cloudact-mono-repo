@@ -376,7 +376,15 @@ async def validation_middleware(request: Request, call_next):
                 "request_id": request_id
             }
         )
-        # Don't block request on middleware errors, but still add request ID
-        response = await call_next(request)
-        response.headers["X-Request-ID"] = request_id
-        return response
+        # SECURITY: Don't allow request through on validation errors
+        # Return 500 to fail closed rather than fail open
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={
+                "error": "VALIDATION_ERROR",
+                "message": "Request validation failed",
+                "category": "INTERNAL",
+                "request_id": request_id
+            },
+            headers={"X-Request-ID": request_id}
+        )

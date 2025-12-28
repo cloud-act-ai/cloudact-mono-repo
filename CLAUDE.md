@@ -43,6 +43,30 @@ Frontend (3000)              API Service (8000)           Pipeline Engine (8001)
 - Never skip authentication
 - Never expose CA_ROOT_API_KEY to client-side
 
+## Pipeline Metadata Fields (x_* fields)
+
+**CRITICAL RULE:** `x_*` fields are for **Pipeline Service (8001) ONLY** - never API Service (8000).
+
+| Field | Purpose | API Service | Pipeline Service |
+|-------|---------|-------------|------------------|
+| `x_pipeline_id` | Which pipeline wrote data | ❌ NEVER | ✅ REQUIRED |
+| `x_credential_id` | Integration credential used | ❌ NEVER | ✅ REQUIRED |
+| `x_pipeline_run_date` | Date being processed | ❌ NEVER | ✅ REQUIRED |
+| `x_run_id` | Pipeline execution UUID | ❌ NEVER | ✅ REQUIRED |
+| `x_ingested_at` | Pipeline write timestamp | ❌ NEVER | ✅ REQUIRED |
+
+**API Service tables (NO x_* fields):**
+- `saas_subscription_plans` - CRUD via REST API
+- `genai_*_pricing` - Seed/reference data
+- `org_hierarchy` - CRUD via REST API
+- Any table managed via `/api/v1/*` endpoints
+
+**Pipeline Service tables (MUST have x_* fields):**
+- `*_costs_daily` - Pipeline-generated costs
+- `*_usage_raw` - Pipeline-ingested usage
+- `*_unified` - Pipeline-consolidated data
+- `billing_cost` - Cloud cost pipelines
+
 ## Documentation
 
 | Component | Path |
@@ -156,4 +180,4 @@ pkill -f "uvicorn.*8001"
 **Cost Flow:** Subscriptions → Daily Costs → FOCUS 1.3 (with hierarchy extension fields)
 
 ---
-**Last Updated:** 2025-12-26
+**Last Updated:** 2025-12-27

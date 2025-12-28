@@ -11,10 +11,11 @@
 
 :root {
   /* ========== TYPOGRAPHY ========== */
-  /* Primary: DM Sans for EVERYTHING (modern, clean, consistent) */
-  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-dm-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-mono: "JetBrains Mono", "Fira Code", "SF Mono", Menlo, Monaco, monospace;
+  /* Primary: DM Sans for EVERYTHING - loaded via next/font in layout.tsx */
+  /* The --font-dm-sans variable is set by next/font, we use it as the primary */
+  --font-sans: var(--font-dm-sans), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  /* Mono font also loaded via next/font */
+  --font-mono-stack: var(--font-mono), "JetBrains Mono", "Fira Code", "SF Mono", Menlo, Monaco, monospace;
   /* Keep serif for legacy but prefer sans */
   --font-merriweather: Georgia, Cambria, "Times New Roman", Times, serif;
 
@@ -65,11 +66,16 @@
   --cloudact-coral-dark: #E5544A;
   --cloudact-coral-text: #CC4F35;  /* Dark text on coral backgrounds */
 
-  /* Blue - Links, info, secondary actions */
+  /* Blue - Charts & data visualization ONLY (never for links/buttons) */
   --cloudact-blue: #007AFF;
   --cloudact-blue-light: #4DA3FF;
   --cloudact-blue-dark: #0062CC;
-  --cloudact-blue-text: #0055B3;  /* Visited links */
+  --cloudact-blue-text: #0055B3;
+
+  /* Obsidian - Premium dark buttons, auth panels */
+  --cloudact-obsidian: #0a0a0b;
+  --cloudact-obsidian-light: #1a1a1b;
+  --cloudact-obsidian-lighter: #2a2a2b;
 
   /* Legacy aliases - DO NOT USE IN NEW CODE */
   --cloudact-teal: var(--cloudact-mint);
@@ -315,9 +321,9 @@
 }
 
 @theme inline {
-  /* Typography - DM Sans Only */
-  --font-sans: var(--font-dm-sans);
-  --font-mono: "Geist Mono";
+  /* Typography - DM Sans loaded via next/font, mono via JetBrains Mono */
+  --font-sans: var(--font-dm-sans), system-ui, -apple-system, sans-serif;
+  --font-mono: var(--font-mono), "JetBrains Mono", monospace;
 
   /* Color Mappings */
   --color-background: var(--background);
@@ -599,30 +605,82 @@
   box-shadow: none;
 }
 
+/* Dark/Obsidian Button - Premium auth flows, high-contrast contexts */
+.cloudact-btn-dark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.625rem 1.5rem;
+  background: #0a0a0b;
+  color: #ffffff;
+  border-radius: 0.75rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  border: none;
+  cursor: pointer;
+  min-height: 44px;
+  position: relative;
+  overflow: hidden;
+}
+
+.cloudact-btn-dark:hover {
+  background: #1a1a1b;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.cloudact-btn-dark:focus-visible {
+  outline: 2px solid var(--cloudact-mint);
+  outline-offset: 2px;
+}
+
+.cloudact-btn-dark:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Shimmer effect for dark button */
+.cloudact-btn-dark::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+  transform: translateX(-100%);
+  transition: transform 0.6s ease;
+}
+
+.cloudact-btn-dark:hover::after {
+  transform: translateX(100%);
+}
+
 .cloudact-btn-secondary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: 0.625rem 1.5rem;
   background: white;
-  color: var(--cloudact-blue);
-  border: 2px solid var(--cloudact-blue);
+  color: #1C1C1E; /* Black/Slate - NOT blue */
+  border: 2px solid #E5E5EA;
   border-radius: 0.5rem;
   font-size: 0.9375rem;
   font-weight: 600;
-  transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+  transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
   cursor: pointer;
   min-height: 44px;
 }
 
 .cloudact-btn-secondary:hover {
-  background: #EBF5FF;
+  background: #F5F5F7;
+  border-color: #D1D1D6;
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 122, 255, 0.2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .cloudact-btn-secondary:focus-visible {
-  outline: 2px solid var(--cloudact-blue);
+  outline: 2px solid var(--cloudact-mint);
   outline-offset: 2px;
 }
 
@@ -704,22 +762,23 @@
   justify-content: center;
   padding: 0.625rem 1.5rem;
   background: transparent;
-  color: var(--cloudact-blue);
+  color: #1C1C1E; /* Black/Slate - NOT blue */
   border: none;
   border-radius: 0.5rem;
   font-size: 0.9375rem;
   font-weight: 600;
-  transition: background 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease;
   cursor: pointer;
   min-height: 44px;
 }
 
 .cloudact-btn-ghost:hover {
-  background: #EBF5FF;
+  background: #F5F5F7;
+  color: #0a0a0b;
 }
 
 .cloudact-btn-ghost:focus-visible {
-  outline: 2px solid var(--cloudact-blue);
+  outline: 2px solid var(--cloudact-mint);
   outline-offset: 2px;
 }
 
@@ -2011,4 +2070,148 @@ a.disabled {
 [data-slot="sidebar-gap"],
 [data-slot="sidebar-container"] {
   transition: width 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ============================================
+   PREMIUM AUTH PAGE ANIMATIONS
+   Floating orbs and sophisticated effects
+   ============================================ */
+
+@keyframes float-slow {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  25% {
+    transform: translate(30px, -20px) scale(1.05);
+  }
+  50% {
+    transform: translate(-20px, 30px) scale(0.95);
+  }
+  75% {
+    transform: translate(20px, 20px) scale(1.02);
+  }
+}
+
+@keyframes float-slower {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(-40px, 30px) scale(1.08);
+  }
+  66% {
+    transform: translate(30px, -40px) scale(0.92);
+  }
+}
+
+@keyframes float-medium {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  20% {
+    transform: translate(20px, -30px) scale(1.03);
+  }
+  40% {
+    transform: translate(-30px, 10px) scale(0.97);
+  }
+  60% {
+    transform: translate(10px, 40px) scale(1.05);
+  }
+  80% {
+    transform: translate(-20px, -20px) scale(0.98);
+  }
+}
+
+.animate-float-slow {
+  animation: float-slow 20s ease-in-out infinite;
+}
+
+.animate-float-slower {
+  animation: float-slower 25s ease-in-out infinite;
+}
+
+.animate-float-medium {
+  animation: float-medium 15s ease-in-out infinite;
+}
+
+/* Premium input focus glow */
+@keyframes input-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 4px rgba(144, 252, 166, 0.1);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(144, 252, 166, 0.15);
+  }
+}
+
+.input-focus-glow:focus {
+  animation: input-glow 2s ease-in-out infinite;
+}
+
+/* Staggered entrance animation */
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.6s ease-out forwards;
+}
+
+.animate-fade-up-delay-1 {
+  animation: fade-up 0.6s ease-out 0.1s forwards;
+  opacity: 0;
+}
+
+.animate-fade-up-delay-2 {
+  animation: fade-up 0.6s ease-out 0.2s forwards;
+  opacity: 0;
+}
+
+.animate-fade-up-delay-3 {
+  animation: fade-up 0.6s ease-out 0.3s forwards;
+  opacity: 0;
+}
+
+/* Gradient text animation */
+@keyframes gradient-shift {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.animate-gradient-text {
+  background-size: 200% 200%;
+  animation: gradient-shift 3s ease infinite;
+}
+
+/* Button shimmer on hover */
+@keyframes button-shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Premium card hover lift */
+.premium-hover-lift {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.premium-hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1),
+              0 8px 16px rgba(0, 0, 0, 0.06);
 }

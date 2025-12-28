@@ -102,9 +102,9 @@ export default function SecurityPage() {
       <div className="mb-10">
         <div className="flex items-center gap-3 mb-3">
           <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-[#90FCA6] to-[#B8FDCA] flex items-center justify-center shadow-sm">
-            <Shield className="h-6 w-6 text-black" />
+            <Shield className="h-6 w-6 text-slate-900" />
           </div>
-          <h1 className="text-[32px] font-bold text-black tracking-tight leading-none">
+          <h1 className="text-[32px] font-bold text-slate-900 tracking-tight leading-none">
             Security
           </h1>
         </div>
@@ -157,7 +157,7 @@ export default function SecurityPage() {
       {/* Password Section */}
       <section className="mb-8">
         <div className="flex items-center gap-2 mb-4">
-          <h2 className="text-[13px] font-semibold text-black uppercase tracking-wide">
+          <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide">
             Authentication
           </h2>
         </div>
@@ -174,7 +174,7 @@ export default function SecurityPage() {
                     <Key className="h-5 w-5 text-[#1a7a3a]" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <h3 className="text-[15px] font-semibold text-black tracking-tight">
+                    <h3 className="text-[15px] font-semibold text-slate-900 tracking-tight">
                       Password
                     </h3>
                     <p className="text-[12px] text-slate-500 mt-0.5">
@@ -206,7 +206,7 @@ export default function SecurityPage() {
       {/* Security Tips */}
       <section>
         <div className="flex items-center gap-2 mb-4">
-          <h2 className="text-[13px] font-semibold text-black uppercase tracking-wide">
+          <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide">
             Security Best Practices
           </h2>
         </div>
@@ -250,7 +250,7 @@ export default function SecurityPage() {
                   <div style={{ color: tip.accent }}>{tip.icon}</div>
                 </div>
                 <div>
-                  <h3 className="text-[13px] font-semibold text-black">{tip.title}</h3>
+                  <h3 className="text-[13px] font-semibold text-slate-900">{tip.title}</h3>
                   <p className="text-[12px] text-slate-600 mt-0.5">{tip.description}</p>
                 </div>
               </div>
@@ -267,7 +267,7 @@ export default function SecurityPage() {
               <Shield className="h-5 w-5 text-[#1a7a3a]" />
             </div>
             <div>
-              <h3 className="text-[15px] font-semibold text-black mb-1">
+              <h3 className="text-[15px] font-semibold text-slate-900 mb-1">
                 Your account is protected
               </h3>
               <p className="text-[13px] text-slate-600 leading-relaxed">

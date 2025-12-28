@@ -9,6 +9,16 @@
  *
  * Fixes applied:
  * - #9: Use shared helpers from lib/api/helpers.ts
+ *
+ * STATE-004: Frontend State Management Notes
+ * ------------------------------------------
+ * This module does NOT use optimistic updates. All mutations wait for server
+ * confirmation before updating UI state. If implementing optimistic updates:
+ * 1. Use SWR's mutate() with optimisticData for immediate UI feedback
+ * 2. Implement rollback on server error (revert to previous state)
+ * 3. Consider race conditions with concurrent updates
+ * 4. Backend cache invalidation (invalidate_all_subscription_caches) ensures
+ *    subsequent fetches return fresh data.
  */
 
 import { createClient, createServiceRoleClient } from "@/lib/supabase/server"
@@ -90,10 +100,15 @@ const RESERVED_PROVIDER_NAMES = ["system", "admin", "api", "internal", "test", "
 
 
 // Valid enum values for plan fields (must match backend validation)
-const VALID_BILLING_CYCLES = new Set(["monthly", "annual", "quarterly", "semi-annual", "weekly"])
+// VAL-001: TypeScript type for billing cycle validation
+export type BillingCycle = "monthly" | "annual" | "quarterly" | "semi-annual" | "weekly"
+const VALID_BILLING_CYCLES = new Set<BillingCycle>(["monthly", "annual", "quarterly", "semi-annual", "weekly"])
 const VALID_PRICING_MODELS = new Set(["PER_SEAT", "FLAT_FEE"])
 const VALID_DISCOUNT_TYPES = new Set(["percent", "fixed"])
 const VALID_STATUS_VALUES = new Set(["active", "cancelled", "expired", "pending"])
+
+// VAL-002: Maximum notes length
+const MAX_NOTES_LENGTH = 1000
 
 // ============================================
 // Auto-Backfill Helper
@@ -131,7 +146,7 @@ export async function triggerCostBackfill(
     
 
     const response = await fetchWithTimeout(
-      `${apiUrl}/api/v1/pipelines/trigger/${orgSlug}/saas_subscription/costs/saas_cost`,
+      `${apiUrl}/api/v1/pipelines/trigger/${orgSlug}/saas/costs/saas_cost`,
       {
         method: "POST",
         headers: {
@@ -246,6 +261,12 @@ function validatePlanData(plan: PlanCreate | PlanUpdate): { valid: boolean; erro
   if ("status" in plan && plan.status && !VALID_STATUS_VALUES.has(plan.status)) {
     return { valid: false, error: `Invalid status: ${plan.status}. Must be: active, cancelled, expired, or pending` }
   }
+
+  // VAL-002: Validate notes max length
+  if ("notes" in plan && plan.notes && plan.notes.length > MAX_NOTES_LENGTH) {
+    return { valid: false, error: `Notes too long. Maximum ${MAX_NOTES_LENGTH} characters allowed.` }
+  }
+
   return { valid: true }
 }
 
@@ -387,7 +408,7 @@ export interface PlanCreate {
   plan_name: string
   display_name?: string
   unit_price: number
-  billing_cycle?: string
+  billing_cycle?: BillingCycle  // VAL-001: Strongly typed billing cycle
   currency?: string  // Currency code (USD, EUR, GBP)
   seats?: number
   pricing_model?: 'PER_SEAT' | 'FLAT_FEE'
@@ -419,7 +440,7 @@ export interface PlanUpdate {
   display_name?: string
   unit_price?: number
   status?: 'active' | 'cancelled' | 'expired' | 'pending'
-  billing_cycle?: string
+  billing_cycle?: BillingCycle  // VAL-001: Strongly typed billing cycle
   currency?: string  // Currency code (USD, EUR, GBP)
   seats?: number
   pricing_model?: 'PER_SEAT' | 'FLAT_FEE'

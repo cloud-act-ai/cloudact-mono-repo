@@ -162,23 +162,44 @@ Checkout: 1 per 30sec | Invites: 10 per hour
 
 ## Design System
 
-### Brand Colors (Updated 2025-12-26)
+### Brand Colors (Updated 2025-12-27)
 
 | Color | Hex | Usage |
 |-------|-----|-------|
-| **Mint** | `#90FCA6` | Primary buttons, success states, active indicators |
+| **Mint** | `#90FCA6` | Primary buttons (console), success states, active indicators |
 | **Mint Light** | `#B8FDCA` | Hover states, light backgrounds |
 | **Mint Dark** | `#6EE890` | Pressed states, borders |
-| **Coral** | `#FF6C5E` | Warnings, destructive actions, accents |
+| **Coral** | `#FF6C5E` | Warnings, destructive actions, cost indicators |
+| **Obsidian** | `#0a0a0b` | Premium dark buttons (auth flows), dark panels |
 | **Black/Slate** | `#1C1C1E` | Links, text, secondary actions |
 
 **Typography:** DM Sans | **Spacing:** 8px grid
+
+### Button System
+
+| Button Class | Background | Text | Use Case |
+|--------------|------------|------|----------|
+| `.cloudact-btn-primary` | Mint `#90FCA6` | Black | Console CTAs, dashboard actions |
+| `.cloudact-btn-dark` | Obsidian `#0a0a0b` | White | Auth flows, premium contexts, high-contrast |
+| `.cloudact-btn-secondary` | White | Black/Slate | Secondary actions |
+| `.cloudact-btn-destructive` | Coral `#FF6C5E` | White | Delete, cancel, warnings |
+| `.cloudact-btn-outline` | Transparent | Mint Dark | Tertiary actions |
+| `.cloudact-btn-ghost` | Transparent | Black/Slate | Minimal actions |
+
+**Blue Usage:** Charts and data visualization icons ONLY - never for links or buttons.
+
+**When to use Dark vs Mint:**
+- **Dark (`.cloudact-btn-dark`):** Auth pages, premium split-screen layouts, contexts with dark left panels
+- **Mint (`.cloudact-btn-primary`):** Console/dashboard, general CTAs, success confirmations
 
 ### Color Usage Rules
 
 ```css
 /* Primary buttons - BLACK text on mint */
-.btn-primary { background: #90FCA6; color: #000000; }
+.cloudact-btn-primary { background: #90FCA6; color: #000000; }
+
+/* Dark/Premium buttons - WHITE text on obsidian */
+.cloudact-btn-dark { background: #0a0a0b; color: #FFFFFF; }
 
 /* Links use neutral black/slate (NOT blue) */
 a { color: #1C1C1E; }
@@ -212,6 +233,37 @@ a { color: #1C1C1E; }
 **CSS Files:** `globals.css`, `console.css`, `landing.css`, `premium.css`
 
 **Premium theme:** White surfaces, mint tints - NO gray backgrounds
+
+### Auth Pages (FINALIZED - 2025-12-27)
+
+**Status:** LOCKED - No changes without explicit user permission.
+
+**Files:**
+- `app/login/page.tsx` - Login page
+- `app/signup/page.tsx` - Signup page (2-step flow)
+- `components/auth/auth-layout.tsx` - Premium split-screen layout
+
+**Design Decisions (Final):**
+- Split-screen layout: Left panel (obsidian with animated orbs), Right panel (white form)
+- **Mint buttons** for all primary CTAs (NOT dark/obsidian)
+- 2-step signup: Step 1 (Account) → Step 2 (Organization)
+- Mobile responsive with proper breakpoints (sm/lg)
+- Dark mode ready (activates only when user enables)
+- Form inputs: 48px mobile, 52px desktop, rounded-xl/2xl
+
+**Key Elements:**
+- Animated gradient orbs (mint, coral) with float animations
+- Stats section: $2.4M+, 340+ teams, 99.9% uptime
+- Feature cards with icons
+- Trust badge with avatar stack
+- Premium entrance animations
+
+**DO NOT CHANGE** without user permission:
+- Button colors (mint primary)
+- Layout structure (split-screen)
+- Form field styling
+- Animation effects
+- Mobile breakpoints
 
 ### Sidebar Navigation
 

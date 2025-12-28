@@ -253,10 +253,10 @@ export default function InviteMembersPage() {
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <div className="flex items-start gap-4">
             <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-[#90FCA6] to-[#B8FDCA] flex items-center justify-center flex-shrink-0 shadow-sm">
-              <Users className="h-6 w-6 text-black" />
+              <Users className="h-6 w-6 text-slate-900" />
             </div>
             <div>
-              <h1 className="text-[32px] font-bold text-black tracking-tight leading-none">
+              <h1 className="text-[32px] font-bold text-slate-900 tracking-tight leading-none">
                 Team Members
               </h1>
               <p className="text-[15px] text-slate-500 mt-2 max-w-lg">
@@ -269,7 +269,7 @@ export default function InviteMembersPage() {
               <DialogTrigger asChild>
                 <button
                   disabled={!seatLimit || seatsAvailable <= 0}
-                  className="h-11 px-6 text-[13px] font-semibold bg-[#90FCA6] hover:bg-[#6EE890] text-black rounded-xl transition-all shadow-sm hover:shadow-md flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="h-11 px-6 text-[13px] font-semibold bg-[#90FCA6] hover:bg-[#6EE890] text-slate-900 rounded-xl transition-all shadow-sm hover:shadow-md flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <UserPlus className="h-4 w-4" />
                   Invite Member
@@ -298,7 +298,7 @@ export default function InviteMembersPage() {
                       </Button>
                     </div>
                     <button
-                      className="w-full h-11 text-[13px] font-semibold bg-[#90FCA6] hover:bg-[#6EE890] text-black rounded-xl transition-all shadow-sm hover:shadow-md"
+                      className="w-full h-11 text-[13px] font-semibold bg-[#90FCA6] hover:bg-[#6EE890] text-slate-900 rounded-xl transition-all shadow-sm hover:shadow-md"
                       onClick={() => {
                         setInviteLink(null)
                         setIsInviteDialogOpen(false)
@@ -356,7 +356,7 @@ export default function InviteMembersPage() {
                       <button
                         onClick={handleInvite}
                         disabled={isInviting || !inviteEmail || !validateEmail(inviteEmail)}
-                        className="h-10 px-5 text-[13px] font-semibold bg-[#90FCA6] hover:bg-[#6EE890] text-black rounded-xl transition-all shadow-sm hover:shadow-md flex items-center gap-2 disabled:opacity-50"
+                        className="h-10 px-5 text-[13px] font-semibold bg-[#90FCA6] hover:bg-[#6EE890] text-slate-900 rounded-xl transition-all shadow-sm hover:shadow-md flex items-center gap-2 disabled:opacity-50"
                       >
                         {isInviting ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
@@ -382,7 +382,7 @@ export default function InviteMembersPage() {
               <Users className="h-6 w-6 text-[#1a7a3a]" />
             </div>
             <div>
-              <p className="text-[28px] font-bold text-black leading-none tracking-tight">{currentSeats}</p>
+              <p className="text-[28px] font-bold text-slate-900 leading-none tracking-tight">{currentSeats}</p>
               <p className="text-[13px] text-slate-500 font-medium mt-1">
                 of {seatLimit ?? "∞"} seats
               </p>
@@ -396,7 +396,7 @@ export default function InviteMembersPage() {
               <Clock className="h-6 w-6 text-[#FF6C5E]" />
             </div>
             <div>
-              <p className="text-[28px] font-bold text-black leading-none tracking-tight">{invites.length}</p>
+              <p className="text-[28px] font-bold text-slate-900 leading-none tracking-tight">{invites.length}</p>
               <p className="text-[13px] text-slate-500 font-medium mt-1">pending invites</p>
             </div>
           </div>
@@ -408,7 +408,7 @@ export default function InviteMembersPage() {
               <Check className="h-6 w-6 text-[#1a7a3a]" />
             </div>
             <div>
-              <p className="text-[28px] font-bold text-black leading-none tracking-tight">{seatsAvailable}</p>
+              <p className="text-[28px] font-bold text-slate-900 leading-none tracking-tight">{seatsAvailable}</p>
               <p className="text-[13px] text-slate-500 font-medium mt-1">seats available</p>
             </div>
           </div>
@@ -456,7 +456,7 @@ export default function InviteMembersPage() {
               <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-[#90FCA6]/20 to-[#B8FDCA]/20 flex items-center justify-center mx-auto mb-4">
                 <Users className="h-7 w-7 text-[#1a7a3a]" />
               </div>
-              <h3 className="text-[17px] font-semibold text-black mb-1">No team members yet</h3>
+              <h3 className="text-[17px] font-semibold text-slate-900 mb-1">No team members yet</h3>
               <p className="text-[13px] text-slate-500 mb-6 max-w-xs mx-auto">
                 Get started by inviting your first team member
               </p>
@@ -464,7 +464,7 @@ export default function InviteMembersPage() {
                 <button
                   onClick={() => setIsInviteDialogOpen(true)}
                   disabled={!seatLimit || seatsAvailable <= 0}
-                  className="h-11 px-6 text-[13px] font-semibold bg-[#90FCA6] hover:bg-[#6EE890] text-black rounded-xl transition-all shadow-sm hover:shadow-md inline-flex items-center gap-2 disabled:opacity-50"
+                  className="h-11 px-6 text-[13px] font-semibold bg-[#90FCA6] hover:bg-[#6EE890] text-slate-900 rounded-xl transition-all shadow-sm hover:shadow-md inline-flex items-center gap-2 disabled:opacity-50"
                 >
                   <UserPlus className="h-4 w-4" />
                   Invite Member
@@ -492,7 +492,7 @@ export default function InviteMembersPage() {
                         {(member.profiles?.full_name?.[0] || member.profiles?.email?.[0] || "?").toUpperCase()}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <h3 className="text-[15px] font-semibold text-black tracking-tight truncate">
+                        <h3 className="text-[15px] font-semibold text-slate-900 tracking-tight truncate">
                           {member.profiles?.full_name || member.profiles?.email || "Unknown"}
                         </h3>
                         <p className="text-[13px] text-slate-500 truncate mt-0.5">{member.profiles?.email}</p>
@@ -581,7 +581,7 @@ export default function InviteMembersPage() {
                         <Mail className="h-5 w-5 text-[#FF6C5E]" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <h3 className="text-[15px] font-semibold text-black tracking-tight truncate">
+                        <h3 className="text-[15px] font-semibold text-slate-900 tracking-tight truncate">
                           {invite.email}
                         </h3>
                         <p className="text-[13px] text-slate-500 mt-0.5">
@@ -596,7 +596,7 @@ export default function InviteMembersPage() {
                       {isOwner && (
                         <button
                           onClick={() => handleCancelInvite(invite.id)}
-                          className="h-9 px-4 rounded-lg text-[12px] font-medium text-slate-600 hover:text-black hover:bg-slate-100 transition-colors"
+                          className="h-9 px-4 rounded-lg text-[12px] font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
                         >
                           Cancel
                         </button>
@@ -624,7 +624,7 @@ export default function InviteMembersPage() {
             <div className="h-12 w-12 rounded-2xl bg-[#90FCA6]/15 flex items-center justify-center mb-4 shadow-sm">
               <Users className="h-6 w-6 text-[#1a7a3a]" />
             </div>
-            <h3 className="text-[16px] font-semibold text-black mb-1">Owner</h3>
+            <h3 className="text-[16px] font-semibold text-slate-900 mb-1">Owner</h3>
             <p className="text-[13px] text-slate-500 mb-4">Full access to everything</p>
             <div className="space-y-2">
               {["View data", "Edit data", "Invite members", "Manage roles", "Access billing"].map((perm) => (
@@ -641,7 +641,7 @@ export default function InviteMembersPage() {
             <div className="h-12 w-12 rounded-2xl bg-[#8B5CF6]/15 flex items-center justify-center mb-4 shadow-sm">
               <Edit3 className="h-6 w-6 text-[#8B5CF6]" />
             </div>
-            <h3 className="text-[16px] font-semibold text-black mb-1">Collaborator</h3>
+            <h3 className="text-[16px] font-semibold text-slate-900 mb-1">Collaborator</h3>
             <p className="text-[13px] text-slate-500 mb-4">Can view and edit data</p>
             <div className="space-y-2">
               {[
@@ -670,7 +670,7 @@ export default function InviteMembersPage() {
             <div className="h-12 w-12 rounded-2xl bg-slate-100 flex items-center justify-center mb-4 shadow-sm">
               <Eye className="h-6 w-6 text-slate-600" />
             </div>
-            <h3 className="text-[16px] font-semibold text-black mb-1">Read Only</h3>
+            <h3 className="text-[16px] font-semibold text-slate-900 mb-1">Read Only</h3>
             <p className="text-[13px] text-slate-500 mb-4">View access only</p>
             <div className="space-y-2">
               {[

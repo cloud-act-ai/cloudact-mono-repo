@@ -101,6 +101,8 @@ BEGIN
         x_OrgSlug, x_OrgName, x_OrgOwnerEmail, x_OrgDefaultCurrency, x_OrgDefaultTimezone,
         x_OrgDefaultCountry, x_OrgSubscriptionPlan, x_OrgSubscriptionStatus,
         x_PipelineId, x_PipelineRunId, x_DataQualityScore, x_CreatedAt,
+        -- Required pipeline lineage fields (FOCUS extension)
+        x_CredentialId, x_PipelineRunDate, x_IngestedAt,
         -- Hierarchy extension fields for cost allocation
         x_HierarchyDeptId, x_HierarchyDeptName,
         x_HierarchyProjectId, x_HierarchyProjectName,
@@ -280,6 +282,11 @@ BEGIN
         GENERATE_UUID() AS x_PipelineRunId,
         1.0 AS x_DataQualityScore,
         CURRENT_TIMESTAMP() AS x_CreatedAt,
+
+        -- Required pipeline lineage fields
+        'internal' AS x_CredentialId,
+        spc.cost_date AS x_PipelineRunDate,
+        CURRENT_TIMESTAMP() AS x_IngestedAt,
 
         -- Hierarchy extension fields for cost allocation (from subscription plans)
         spc.hierarchy_dept_id AS x_HierarchyDeptId,

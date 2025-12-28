@@ -5,11 +5,22 @@ Part of 'Pipeline as Config' Architecture.
 Loads data from pipeline context (extracted rows) into BigQuery tables.
 Supports schema templates, partitioning, and clustering.
 
+CRUD-001 FIX: Added idempotent mode using MERGE pattern to prevent duplicates on re-runs.
+
 ps_type: generic.bq_loader
+
+Configuration:
+    # Standard append mode (default)
+    write_disposition: "WRITE_APPEND"
+
+    # Idempotent mode - uses MERGE to prevent duplicates
+    idempotent: true
+    merge_keys: ["date_column", "id_column"]  # Keys for deduplication
 """
 
 import logging
 import json
+import uuid
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 
@@ -122,20 +133,39 @@ class BQLoader:
                 extracted_data[0] if extracted_data else {}
             )
 
-            # Load data
-            rows_loaded = await self._load_data(
-                dest_table_id,
-                extracted_data,
-                write_disposition,
-                config.get("partition_field")
-            )
+            # CRUD-001 FIX: Check if idempotent mode is enabled
+            idempotent = config.get("idempotent", False)
 
-            return {
-                "status": "SUCCESS",
-                "rows_loaded": rows_loaded,
-                "destination_table": dest_table_id,
-                "write_disposition": write_disposition_str
-            }
+            if idempotent:
+                # Use MERGE for idempotent writes
+                merge_keys = config.get("merge_keys", ["org_slug", "x_pipeline_id", "x_credential_id", "x_pipeline_run_date"])
+                rows_loaded = await self._load_data_idempotent(
+                    dest_table_id,
+                    extracted_data,
+                    merge_keys,
+                    org_slug,
+                    context
+                )
+                return {
+                    "status": "SUCCESS",
+                    "rows_loaded": rows_loaded,
+                    "destination_table": dest_table_id,
+                    "write_mode": "MERGE (idempotent)"
+                }
+            else:
+                # Standard load
+                rows_loaded = await self._load_data(
+                    dest_table_id,
+                    extracted_data,
+                    write_disposition,
+                    config.get("partition_field")
+                )
+                return {
+                    "status": "SUCCESS",
+                    "rows_loaded": rows_loaded,
+                    "destination_table": dest_table_id,
+                    "write_disposition": write_disposition_str
+                }
 
         except Exception as e:
             logger.error(f"BQ Load failed: {e}", exc_info=True)
@@ -297,6 +327,125 @@ class BQLoader:
         job.result()  # Wait for job to complete
 
         return len(rows)
+
+    async def _load_data_idempotent(
+        self,
+        table_id: str,
+        rows: List[Dict[str, Any]],
+        merge_keys: List[str],
+        org_slug: str,
+        context: Dict[str, Any]
+    ) -> int:
+        """
+        CRUD-001 FIX: Load rows using MERGE for idempotent writes.
+
+        Uses BigQuery MERGE with UNNEST pattern (correct approach, no temp tables).
+        This prevents duplicate data on pipeline re-runs.
+
+        Args:
+            table_id: Full BigQuery table ID
+            rows: Data rows to load
+            merge_keys: Columns to use for matching existing records
+            org_slug: Organization slug
+            context: Pipeline context
+
+        Returns:
+            Number of rows affected
+        """
+        if not rows:
+            return 0
+
+        # Add lineage columns for traceability
+        run_id = context.get("run_id") or str(uuid.uuid4())
+        pipeline_id = context.get("pipeline_id", "generic_bq_loader")
+        credential_id = context.get("credential_id", "default")
+        run_date = context.get("start_date") or datetime.utcnow().date().isoformat()
+        ingested_at = datetime.utcnow().isoformat()
+
+        for row in rows:
+            row["org_slug"] = row.get("org_slug", org_slug)
+            row["x_pipeline_id"] = row.get("x_pipeline_id", pipeline_id)
+            row["x_credential_id"] = row.get("x_credential_id", credential_id)
+            row["x_pipeline_run_date"] = row.get("x_pipeline_run_date", run_date)
+            row["x_run_id"] = row.get("x_run_id", run_id)
+            row["x_ingested_at"] = row.get("x_ingested_at", ingested_at)
+
+        try:
+            client = self.bq_client.client
+            total_affected = 0
+
+            # Process in batches (UNNEST has practical limits ~500 rows)
+            batch_size = 500
+            for i in range(0, len(rows), batch_size):
+                batch = rows[i:i + batch_size]
+
+                # Get column names from first row
+                columns = list(batch[0].keys())
+                update_columns = [c for c in columns if c not in merge_keys]
+
+                # Build UNNEST source with proper value escaping
+                struct_values = []
+                for row in batch:
+                    field_values = []
+                    for col in columns:
+                        val = row.get(col)
+                        if val is None:
+                            field_values.append(f"CAST(NULL AS STRING) as {col}")
+                        elif isinstance(val, bool):
+                            field_values.append(f"{'TRUE' if val else 'FALSE'} as {col}")
+                        elif isinstance(val, (int, float)):
+                            field_values.append(f"{val} as {col}")
+                        elif col.endswith("_date") or col == "x_pipeline_run_date":
+                            field_values.append(f"DATE('{val}') as {col}")
+                        elif col == "x_ingested_at" or col == "ingestion_timestamp":
+                            field_values.append(f"TIMESTAMP('{val}') as {col}")
+                        else:
+                            escaped = str(val).replace("'", "''")
+                            field_values.append(f"'{escaped}' as {col}")
+                    struct_values.append(f"STRUCT({', '.join(field_values)})")
+
+                unnest_source = ", ".join(struct_values)
+
+                # Build MERGE ON clause
+                on_clause = " AND ".join([
+                    f"COALESCE(CAST(T.{k} AS STRING), '') = COALESCE(CAST(S.{k} AS STRING), '')"
+                    for k in merge_keys
+                ])
+
+                update_set = ", ".join([f"{c} = S.{c}" for c in update_columns]) if update_columns else "x_ingested_at = S.x_ingested_at"
+                insert_columns = ", ".join(columns)
+                insert_values = ", ".join([f"S.{c}" for c in columns])
+
+                # MERGE using UNNEST - correct BigQuery pattern
+                merge_query = f"""
+                    MERGE `{table_id}` T
+                    USING UNNEST([{unnest_source}]) S
+                    ON {on_clause}
+                    WHEN MATCHED THEN
+                        UPDATE SET {update_set}
+                    WHEN NOT MATCHED THEN
+                        INSERT ({insert_columns})
+                        VALUES ({insert_values})
+                """
+
+                job = client.query(merge_query)
+                job.result()
+                total_affected += job.num_dml_affected_rows or len(batch)
+
+            logger.info(
+                f"Idempotent MERGE load complete",
+                extra={
+                    "table_id": table_id,
+                    "rows_affected": total_affected,
+                    "merge_keys": merge_keys
+                }
+            )
+
+            return total_affected
+
+        except Exception as e:
+            logger.error(f"Idempotent load failed: {e}", exc_info=True)
+            raise
 
 
 async def execute(step_config: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:

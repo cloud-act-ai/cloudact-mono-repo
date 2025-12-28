@@ -1,11 +1,32 @@
 import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 
+/**
+ * Validate redirect URL to prevent open redirect attacks.
+ * Only allows relative paths that don't escape to external sites.
+ */
+function isValidRedirect(url: string | null): url is string {
+  if (!url) return false
+  // Must start with /
+  if (!url.startsWith("/")) return false
+  // Reject protocol-relative URLs (//evil.com)
+  if (url.startsWith("//")) return false
+  // Reject URLs with encoded characters that could bypass checks
+  if (url.includes("\\")) return false
+  // Reject URLs with @ which could indicate user@host
+  if (url.includes("@")) return false
+  // Reject URLs with control characters
+  // eslint-disable-next-line no-control-regex
+  if (/[\x00-\x1f]/.test(url)) return false
+  return true
+}
+
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get("code")
-  // if "next" is in param, use it as the redirect URL
-  const next = searchParams.get("next")
+  // Validate next parameter to prevent open redirect
+  const rawNext = searchParams.get("next")
+  const next = isValidRedirect(rawNext) ? rawNext : null
 
   if (code) {
     const supabase = await createClient()

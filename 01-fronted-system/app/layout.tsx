@@ -1,11 +1,25 @@
 import type React from "react"
 import type { Metadata } from "next"
+import { DM_Sans, JetBrains_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { Toaster } from "sonner"
 import "./globals.css"
 
-// Font CSS variables are defined in globals.css using system font stacks
-// This avoids network dependency on Google Fonts during development
+// Load DM Sans for the entire app - premium, modern sans-serif
+const dmSans = DM_Sans({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-dm-sans",
+  display: "swap",
+})
+
+// JetBrains Mono for code blocks and technical content
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  variable: "--font-mono",
+  display: "swap",
+})
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://cloudact.ai"),
@@ -84,8 +98,8 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning data-scroll-behavior="smooth">
-      <body className={`font-sans antialiased`} suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning data-scroll-behavior="smooth" className={`${dmSans.variable} ${jetbrainsMono.variable}`}>
+      <body className="font-sans antialiased" suppressHydrationWarning>
         {children}
         <Toaster position="top-right" richColors closeButton duration={5000} />
         <Analytics />

@@ -781,18 +781,18 @@ export default function OrganizationSettingsPage() {
 
   return (
     <div className="space-y-6 sm:space-y-8 animate-in fade-in duration-500">
+      {/* Premium Header */}
       <div className="mb-10">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-[#90FCA6] to-[#B8FDCA] flex items-center justify-center shadow-sm">
-            <Building2 className="h-6 w-6 text-black" />
+        <div className="flex items-start justify-between gap-6 mb-6">
+          <div>
+            <h1 className="text-[32px] font-bold text-slate-900 tracking-tight leading-none">
+              Organization Settings
+            </h1>
+            <p className="text-[15px] text-slate-500 mt-2 max-w-lg">
+              Manage your organization locale, branding, and backend configuration
+            </p>
           </div>
-          <h1 className="text-[32px] font-bold text-black tracking-tight leading-none">
-            Organization Settings
-          </h1>
         </div>
-        <p className="text-[15px] text-slate-500 mt-2 max-w-lg ml-[60px]">
-          Manage your organization locale, branding, and backend configuration
-        </p>
       </div>
 
       {error && (
@@ -810,36 +810,56 @@ export default function OrganizationSettingsPage() {
       )}
 
       <Tabs defaultValue="general" className="w-full">
-        <TabsList className="w-full sm:w-auto flex-wrap touch-manipulation bg-slate-50/80 border border-slate-200/50 p-1 rounded-xl">
-          <TabsTrigger value="general" className="cursor-pointer data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-slate-200/50 rounded-lg">
+        {/* Tab Navigation */}
+        <TabsList className="w-full sm:w-auto flex flex-wrap gap-1.5 bg-slate-100/80 p-1.5 rounded-xl h-auto mb-8">
+          <TabsTrigger
+            value="general"
+            className="cursor-pointer h-10 px-4 rounded-lg text-[13px] font-semibold transition-all data-[state=inactive]:bg-transparent data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-white/60 data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
+          >
             <Sparkles className="h-4 w-4 mr-2" />
             General
           </TabsTrigger>
-          <TabsTrigger value="contact" className="cursor-pointer data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-slate-200/50 rounded-lg">
+          <TabsTrigger
+            value="contact"
+            className="cursor-pointer h-10 px-4 rounded-lg text-[13px] font-semibold transition-all data-[state=inactive]:bg-transparent data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-white/60 data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
+          >
             <User className="h-4 w-4 mr-2" />
             Contact
           </TabsTrigger>
-          <TabsTrigger value="backend" className="cursor-pointer data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-slate-200/50 rounded-lg">
+          <TabsTrigger
+            value="backend"
+            className="cursor-pointer h-10 px-4 rounded-lg text-[13px] font-semibold transition-all data-[state=inactive]:bg-transparent data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-white/60 data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
+          >
             <Activity className="h-4 w-4 mr-2" />
             Backend
           </TabsTrigger>
-          <TabsTrigger value="danger" className="text-[#FF6C5E] data-[state=active]:bg-[#FF6C5E] data-[state=active]:text-white data-[state=active]:shadow-sm cursor-pointer rounded-lg">
+          <TabsTrigger
+            value="danger"
+            className="cursor-pointer h-10 px-4 rounded-lg text-[13px] font-semibold transition-all data-[state=inactive]:bg-transparent data-[state=inactive]:text-[#FF6C5E] data-[state=inactive]:hover:bg-[#FF6C5E]/10 data-[state=active]:bg-[#FF6C5E] data-[state=active]:text-white data-[state=active]:shadow-sm"
+          >
             <Shield className="h-4 w-4 mr-2" />
             Danger Zone
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="general" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      {/* Organization Branding */}
-      <div className="metric-card shadow-sm hover:shadow-md transition-shadow duration-300">
-        <div className="metric-card-header mb-4">
-          <h2 className="text-[18px] font-semibold text-black">Organization Logo</h2>
-          <p className="text-[14px] text-muted-foreground mt-1">
-            Upload or link your organization's logo (displayed in sidebar)
-          </p>
+      {/* Organization Branding - Premium Card */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="p-6 border-b border-slate-100">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-[#90FCA6]/10 flex items-center justify-center">
+              <Sparkles className="h-5 w-5 text-[#1a7a3a]" />
+            </div>
+            <div>
+              <h2 className="text-[17px] font-semibold text-slate-900">Organization Logo</h2>
+              <p className="text-[13px] text-slate-500">
+                Upload or link your organization's logo (displayed in sidebar)
+              </p>
+            </div>
+          </div>
         </div>
 
-        <div className="metric-card-content">
+        <div className="p-6 sm:p-8">
           <LogoUpload
             orgSlug={orgSlug}
             currentLogoUrl={logoUrl}
@@ -856,16 +876,23 @@ export default function OrganizationSettingsPage() {
         </div>
       </div>
 
-      {/* Organization Locale */}
-      <div className="metric-card shadow-sm hover:shadow-md transition-shadow duration-300">
-        <div className="metric-card-header mb-4">
-          <h2 className="text-[18px] font-semibold text-black">Locale Settings</h2>
-          <p className="text-[14px] text-muted-foreground mt-1">
-            Configure currency, timezone, and fiscal year
-          </p>
+      {/* Organization Locale - Premium Card */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="p-6 border-b border-slate-100">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-[#90FCA6]/10 flex items-center justify-center">
+              <Activity className="h-5 w-5 text-[#1a7a3a]" />
+            </div>
+            <div>
+              <h2 className="text-[17px] font-semibold text-slate-900">Locale Settings</h2>
+              <p className="text-[13px] text-slate-500">
+                Configure currency, timezone, and fiscal year
+              </p>
+            </div>
+          </div>
         </div>
 
-        <div className="metric-card-content space-y-5">
+        <div className="p-6 sm:p-8 space-y-5">
           {/* Currency Selection */}
           <div className="space-y-2">
             <Label htmlFor="currency" className="text-[14px] font-medium text-foreground">
@@ -933,7 +960,7 @@ export default function OrganizationSettingsPage() {
                   onClick={handleSaveFiscalYear}
                   disabled={isSavingFiscalYear}
                   size="sm"
-                  className="h-10 px-3 bg-[#90FCA6] hover:bg-[#6EE890] text-black font-medium rounded-lg"
+                  className="h-10 px-3 bg-[#90FCA6] hover:bg-[#6EE890] text-slate-900 font-medium rounded-lg"
                 >
                   {isSavingFiscalYear ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
                 </Button>
@@ -954,20 +981,20 @@ export default function OrganizationSettingsPage() {
         </div>
 
         {hasLocaleChanges && (
-          <div className="pt-4 border-t border-border flex gap-2">
+          <div className="px-6 sm:px-8 pb-6 sm:pb-8 pt-6 border-t border-black/[0.04] flex gap-3">
             <Button
               onClick={handleSave}
               disabled={isSaving}
-              className="h-9 px-4 bg-[#90FCA6] hover:bg-[#6EE890] text-black font-medium rounded-lg"
+              className="h-11 px-6 text-[13px] font-semibold bg-[#90FCA6] hover:bg-[#B8FDCA] text-slate-900 rounded-xl shadow-sm hover:shadow-md transition-all"
             >
-              {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
               Save Changes
             </Button>
             <Button
               onClick={handleReset}
               disabled={isSaving}
               variant="outline"
-              className="h-9 px-4 rounded-lg"
+              className="h-11 px-5 text-[13px] font-semibold rounded-xl border-2 border-slate-200 hover:bg-slate-50 hover:shadow-sm transition-all"
             >
               Reset
             </Button>
@@ -975,26 +1002,33 @@ export default function OrganizationSettingsPage() {
         )}
       </div>
 
-      {/* Information Note */}
-      <div className="p-4 rounded-lg bg-slate-50 border border-slate-200">
-        <p className="text-[13px] text-slate-600 leading-relaxed">
-          <strong className="text-slate-700">Note:</strong> Currency and timezone changes affect how data is displayed.
+      {/* Information Note - Premium */}
+      <div className="p-5 rounded-2xl bg-gradient-to-r from-[#90FCA6]/10 to-transparent border border-[#90FCA6]/20">
+        <p className="text-[13px] text-slate-900/70 leading-relaxed">
+          <strong className="text-[#1a7a3a] font-semibold">Note:</strong> Currency and timezone changes affect how data is displayed.
           Settings sync to BigQuery for cost calculations. All team members share these locale settings.
         </p>
       </div>
         </TabsContent>
 
         <TabsContent value="contact" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      {/* Contact Details */}
-      <div className="metric-card shadow-sm hover:shadow-md transition-shadow duration-300">
-        <div className="metric-card-header mb-4">
-          <h2 className="text-[18px] font-semibold text-black">Contact Details</h2>
-          <p className="text-[14px] text-muted-foreground mt-1">
-            Business contact person and address
-          </p>
+      {/* Contact Details - Premium Card */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="p-6 border-b border-slate-100">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-[#90FCA6]/10 flex items-center justify-center">
+              <User className="h-5 w-5 text-[#1a7a3a]" />
+            </div>
+            <div>
+              <h2 className="text-[17px] font-semibold text-slate-900">Contact Details</h2>
+              <p className="text-[13px] text-slate-500">
+                Business contact person and address
+              </p>
+            </div>
+          </div>
         </div>
 
-        <div className="metric-card-content space-y-6">
+        <div className="p-6 sm:p-8 space-y-6">
           {loadingContactDetails ? (
             <div className="flex items-center gap-3 py-8">
               <Loader2 className="h-5 w-5 animate-spin text-[#90FCA6]" />
@@ -1193,11 +1227,11 @@ export default function OrganizationSettingsPage() {
           )}
         </div>
 
-        <div className="pt-4 sm:pt-6 border-t border-border flex gap-3">
+        <div className="px-6 sm:px-8 pb-6 sm:pb-8 pt-6 border-t border-black/[0.04] flex gap-3">
           <Button
             onClick={handleSaveContactDetails}
             disabled={isSavingContactDetails || !hasContactChanges}
-            className="console-button-primary h-11 px-6 transition-all hover:shadow-md"
+            className="h-11 px-6 text-[13px] font-semibold bg-[#90FCA6] hover:bg-[#B8FDCA] text-slate-900 rounded-xl shadow-sm hover:shadow-md transition-all disabled:opacity-50"
           >
             {isSavingContactDetails ? (
               <>
@@ -1217,7 +1251,7 @@ export default function OrganizationSettingsPage() {
               onClick={handleResetContactDetails}
               disabled={isSavingContactDetails}
               variant="outline"
-              className="console-button-secondary h-11 px-4"
+              className="h-11 px-5 text-[13px] font-semibold rounded-xl border-2 border-slate-200 hover:bg-slate-50 hover:shadow-sm transition-all"
             >
               Reset
             </Button>
@@ -1227,16 +1261,23 @@ export default function OrganizationSettingsPage() {
         </TabsContent>
 
         <TabsContent value="backend" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      {/* Backend Connection */}
-      <div className="metric-card shadow-sm hover:shadow-md transition-shadow duration-300">
-        <div className="metric-card-header mb-4">
-          <h2 className="text-[18px] font-semibold text-black">Backend Connection</h2>
-          <p className="text-[14px] text-muted-foreground mt-1">
-            BigQuery backend status and API key
-          </p>
+      {/* Backend Connection - Premium Card */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="p-6 border-b border-slate-100">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-[#90FCA6]/10 flex items-center justify-center">
+              <Activity className="h-5 w-5 text-[#1a7a3a]" />
+            </div>
+            <div>
+              <h2 className="text-[17px] font-semibold text-slate-900">Backend Connection</h2>
+              <p className="text-[13px] text-slate-500">
+                BigQuery backend status and API key
+              </p>
+            </div>
+          </div>
         </div>
 
-        <div className="metric-card-content space-y-4">
+        <div className="p-6 sm:p-8 space-y-4">
           {loadingBackendStatus ? (
             <div className="flex items-center gap-3 py-8">
               <Loader2 className="h-5 w-5 animate-spin text-[#90FCA6]" />
@@ -1269,7 +1310,7 @@ export default function OrganizationSettingsPage() {
                     } animate-ping opacity-75`} />
                   </div>
                   <div>
-                    <p className="text-[17px] font-semibold text-black">
+                    <p className="text-[17px] font-semibold text-slate-900">
                       {backendOnboarded && apiKeyValid !== false ? "Connected" : "Not Connected"}
                     </p>
                     <p className="text-[13px] text-slate-600">
@@ -1309,7 +1350,7 @@ export default function OrganizationSettingsPage() {
                       <Key className={`h-5 w-5 ${apiKeyValid === false ? 'text-[#FF6C5E]' : 'text-[#1a7a3a]'}`} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-[15px] font-medium text-black">API Key</p>
+                      <p className="text-[15px] font-medium text-slate-900">API Key</p>
                       <p className={`text-[13px] font-mono truncate ${apiKeyValid === false ? 'text-[#FF6C5E]' : 'text-slate-600'}`}>
                         ••••••••{apiKeyFingerprint}
                         {apiKeyValid === false && " (invalid)"}
@@ -1338,16 +1379,15 @@ export default function OrganizationSettingsPage() {
           )}
         </div>
 
-        <div className="pt-4 sm:pt-6 border-t border-border flex flex-col sm:flex-row gap-3">
-          <div>
+        <div className="px-6 sm:px-8 pb-6 sm:pb-8 pt-6 border-t border-black/[0.04] flex flex-col sm:flex-row gap-4">
+          <div className="flex-1">
             <Button
               onClick={handleResync}
               disabled={isResyncing || loadingBackendStatus}
-              variant={(!backendOnboarded || apiKeyValid === false) ? "default" : "outline"}
-              className={`h-11 px-6 rounded-xl transition-all hover:shadow-md ${
+              className={`h-11 px-6 text-[13px] font-semibold rounded-xl transition-all ${
                 (!backendOnboarded || apiKeyValid === false)
-                  ? "console-button-primary"
-                  : "console-button-secondary"
+                  ? "bg-[#90FCA6] hover:bg-[#B8FDCA] text-slate-900 shadow-sm hover:shadow-md"
+                  : "border-2 border-slate-200 bg-white text-slate-900 hover:bg-slate-50 hover:shadow-sm"
               }`}
             >
               {isResyncing ? (
@@ -1362,7 +1402,7 @@ export default function OrganizationSettingsPage() {
                 </>
               )}
             </Button>
-            <p className="text-[12px] text-muted-foreground mt-2">
+            <p className="text-[12px] text-slate-900/50 mt-2">
               {(!backendOnboarded || apiKeyValid === false)
                 ? "Re-onboard your organization to generate a new API key and restore backend connection"
                 : "Re-synchronize your organization's locale and subscription data with the backend"}
@@ -1371,12 +1411,11 @@ export default function OrganizationSettingsPage() {
 
           {/* Billing Sync Button - Only show when backend is connected */}
           {backendOnboarded && apiKeyValid !== false && (
-            <div>
+            <div className="flex-1">
               <Button
                 onClick={handleSyncBilling}
                 disabled={isBillingSyncing || loadingBackendStatus}
-                variant="outline"
-                className="h-11 px-6 rounded-xl console-button-outline transition-all hover:shadow-md"
+                className="h-11 px-6 text-[13px] font-semibold rounded-xl border-2 border-slate-200 bg-white text-slate-900 hover:bg-slate-50 hover:shadow-sm transition-all"
               >
                 {isBillingSyncing ? (
                   <>
@@ -1390,7 +1429,7 @@ export default function OrganizationSettingsPage() {
                   </>
                 )}
               </Button>
-              <p className="text-[12px] text-muted-foreground mt-2">
+              <p className="text-[12px] text-slate-900/50 mt-2">
                 Refresh billing data from Stripe and sync to backend
               </p>
             </div>
@@ -1400,50 +1439,62 @@ export default function OrganizationSettingsPage() {
         </TabsContent>
 
         <TabsContent value="danger" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      {/* Danger Zone Section */}
-      <div className="pt-4 sm:pt-6">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-[#FF6C5E] to-[#E55A3C] flex items-center justify-center shadow-sm">
-            <AlertTriangle className="h-6 w-6 text-white" />
+      {/* Danger Zone Section - Premium */}
+      <div>
+        {/* Premium Danger Zone Header */}
+        <div className="flex items-start gap-4 mb-8">
+          <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-[#FF6C5E] via-[#FF6C5E] to-[#E55A3C] flex items-center justify-center shadow-lg shadow-[#FF6C5E]/25 ring-4 ring-[#FF6C5E]/10">
+            <AlertTriangle className="h-7 w-7 text-white" />
           </div>
-          <h2 className="text-[22px] font-bold text-[#FF6C5E]">Danger Zone</h2>
+          <div>
+            <h2 className="text-[22px] font-bold text-[#FF6C5E] tracking-tight">Danger Zone</h2>
+            <p className="text-[13px] text-slate-900/50 mt-1">
+              Irreversible actions that require careful consideration
+            </p>
+          </div>
         </div>
 
         {/* Owned Organizations Management */}
         {loadingOwnedOrgs ? (
-          <div className="metric-card shadow-sm border-[#FF6C5E]/30">
-            <div className="metric-card-content py-8">
+          <div className="bg-white rounded-2xl border-2 border-[#FF6C5E]/20 shadow-sm overflow-hidden">
+            <div className="p-8">
               <div className="flex items-center justify-center">
-                <Loader2 className="h-6 w-6 animate-spin text-[#90FCA6]" />
-                <span className="ml-2 text-[15px] text-muted-foreground">Loading organizations...</span>
+                <Loader2 className="h-6 w-6 animate-spin text-[#FF6C5E]" />
+                <span className="ml-2 text-[15px] text-slate-900/50">Loading organizations...</span>
               </div>
             </div>
           </div>
         ) : ownedOrgs.length > 0 ? (
-          <div className="metric-card shadow-sm border-2 border-[#FF6C5E]/30 mb-6">
-            <div className="metric-card-header mb-4">
-              <div className="flex items-center gap-2">
-                <Building2 className="h-5 w-5 text-[#FF6C5E]" />
-                <h3 className="text-[18px] font-bold text-[#FF6C5E]">Organizations You Own</h3>
+          <div className="bg-white rounded-2xl border-2 border-[#FF6C5E]/20 shadow-sm overflow-hidden mb-6">
+            <div className="p-6 sm:p-8 border-b border-[#FF6C5E]/10 bg-gradient-to-r from-[#FF6C5E]/5 to-transparent">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-[#FF6C5E]/10 flex items-center justify-center">
+                  <Building2 className="h-5 w-5 text-[#FF6C5E]" />
+                </div>
+                <div>
+                  <h3 className="text-[17px] font-bold text-[#FF6C5E] tracking-tight">Organizations You Own</h3>
+                  <p className="text-[13px] text-slate-900/50">
+                    Transfer ownership or delete before deleting your account
+                  </p>
+                </div>
               </div>
-              <p className="text-[13px] sm:text-[15px] text-muted-foreground mt-1">
-                You must transfer ownership or delete these organizations before you can delete your account.
-              </p>
             </div>
-            <div className="metric-card-content space-y-4">
+            <div className="p-6 sm:p-8 space-y-4">
               {ownedOrgs.map((org) => (
                 <div
                   key={org.id}
-                  className="flex items-center justify-between p-4 border-2 border-border rounded-xl bg-gradient-to-br from-[#90FCA6]/5 to-transparent hover:border-[#90FCA6]/30 transition-all"
+                  className="flex items-center justify-between p-4 sm:p-5 border-2 border-black/[0.04] rounded-2xl bg-gradient-to-br from-white to-[#FF6C5E]/[0.02] hover:border-[#FF6C5E]/20 transition-all duration-200"
                 >
                   <div className="flex items-center gap-3">
-                    <Building2 className="h-5 w-5 text-muted-foreground" />
+                    <div className="h-10 w-10 rounded-xl bg-black/[0.03] flex items-center justify-center">
+                      <Building2 className="h-5 w-5 text-slate-900/40" />
+                    </div>
                     <div>
-                      <p className="text-[15px] font-medium text-black">{org.org_name}</p>
-                      <div className="flex items-center gap-2 text-[13px] text-muted-foreground">
+                      <p className="text-[15px] font-semibold text-slate-900">{org.org_name}</p>
+                      <div className="flex items-center gap-2 text-[12px] text-slate-900/50">
                         <Users className="h-3 w-3" />
                         <span>{org.member_count} member{org.member_count !== 1 ? "s" : ""}</span>
-                        <Badge variant="outline" className="flex-shrink-0 ml-2 bg-[#B8FDCA] text-[#1a7a3a] border-0">Owner</Badge>
+                        <Badge className="ml-1 bg-[#FF6C5E]/10 text-[#FF6C5E] border-0 text-[10px] font-semibold px-2 py-0.5">Owner</Badge>
                       </div>
                     </div>
                   </div>
@@ -1453,7 +1504,7 @@ export default function OrganizationSettingsPage() {
                         variant="outline"
                         size="sm"
                         onClick={() => openTransferDialog(org)}
-                        className="console-button-secondary h-11"
+                        className="h-11 px-5 text-[13px] font-semibold rounded-xl border-2 border-slate-200 hover:bg-slate-50 hover:shadow-sm transition-all"
                       >
                         <ArrowRightLeft className="h-4 w-4 mr-2" />
                         Transfer
@@ -1463,7 +1514,7 @@ export default function OrganizationSettingsPage() {
                       variant="destructive"
                       size="sm"
                       onClick={() => openDeleteOrgDialog(org)}
-                      className="h-11 rounded-xl bg-[#FF6C5E] hover:bg-[#E55A3C] text-white shadow-sm"
+                      className="h-11 px-5 text-[13px] font-semibold rounded-xl bg-[#FF6C5E] hover:bg-[#E55A4E] text-white shadow-sm hover:shadow-md transition-all"
                     >
                       <Trash2 className="h-4 w-4 mr-2" />
                       Delete
@@ -1603,52 +1654,64 @@ export default function OrganizationSettingsPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Account Deletion Card */}
-        <div className="metric-card shadow-sm border-2 border-[#FF6C5E]/30">
-          <div className="metric-card-header mb-4">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-[#FF6C5E]" />
-              <h3 className="text-[18px] font-bold text-[#FF6C5E]">Delete Account</h3>
+        {/* Account Deletion Card - Premium */}
+        <div className="bg-white rounded-2xl border-2 border-[#FF6C5E]/20 shadow-sm overflow-hidden">
+          <div className="p-6 sm:p-8 border-b border-[#FF6C5E]/10 bg-gradient-to-r from-[#FF6C5E]/5 to-transparent">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-[#FF6C5E]/10 flex items-center justify-center">
+                <AlertTriangle className="h-5 w-5 text-[#FF6C5E]" />
+              </div>
+              <div>
+                <h3 className="text-[17px] font-bold text-[#FF6C5E] tracking-tight">Delete Account</h3>
+                <p className="text-[13px] text-slate-900/50">
+                  Permanently delete your account and all associated data
+                </p>
+              </div>
             </div>
-            <p className="text-[13px] sm:text-[15px] text-muted-foreground mt-1">Permanently delete your account and all associated data</p>
           </div>
-          <div className="metric-card-content">
+          <div className="p-6 sm:p-8">
             {deletionRequested ? (
-              <Alert className="bg-muted border-[#90FCA6]/30">
-                <Mail className="h-4 w-4 text-[#90FCA6]" />
-                <AlertDescription>
-                  <p className="font-medium text-foreground">Verification email sent!</p>
-                  <p className="text-sm mt-1">
-                    Please check your inbox and click the confirmation link to complete account deletion.
-                    The link will expire in 30 minutes.
-                  </p>
-                </AlertDescription>
-              </Alert>
+              <div className="p-5 rounded-2xl bg-gradient-to-r from-[#90FCA6]/10 to-transparent border border-[#90FCA6]/20">
+                <div className="flex items-start gap-3">
+                  <Mail className="h-5 w-5 text-[#1a7a3a] mt-0.5" />
+                  <div>
+                    <p className="font-semibold text-[#1a7a3a]">Verification email sent!</p>
+                    <p className="text-[13px] text-slate-900/60 mt-1">
+                      Please check your inbox and click the confirmation link to complete account deletion.
+                      The link will expire in 30 minutes.
+                    </p>
+                  </div>
+                </div>
+              </div>
             ) : ownedOrgs.length > 0 ? (
-              <Alert variant="destructive" className="border-[#FF6C5E]/30 bg-[#FF6C5E]/5">
-                <AlertTriangle className="h-4 w-4 text-[#FF6C5E]" />
-                <AlertDescription>
-                  You own {ownedOrgs.length} organization{ownedOrgs.length !== 1 ? "s" : ""}.
-                  Please transfer ownership or delete them before deleting your account.
-                </AlertDescription>
-              </Alert>
+              <div className="p-5 rounded-2xl bg-gradient-to-r from-[#FF6C5E]/10 to-transparent border border-[#FF6C5E]/20">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="h-5 w-5 text-[#FF6C5E] mt-0.5" />
+                  <p className="text-[13px] text-[#FF6C5E] font-medium">
+                    You own {ownedOrgs.length} organization{ownedOrgs.length !== 1 ? "s" : ""}.
+                    Please transfer ownership or delete them before deleting your account.
+                  </p>
+                </div>
+              </div>
             ) : (
-              <Alert variant="destructive" className="border-[#FF6C5E]/30 bg-[#FF6C5E]/5">
-                <AlertTriangle className="h-4 w-4 text-[#FF6C5E]" />
-                <AlertDescription>
-                  Deleting your account will permanently remove you from all organizations and cannot be
-                  undone. Your data will be lost forever.
-                </AlertDescription>
-              </Alert>
+              <div className="p-5 rounded-2xl bg-gradient-to-r from-[#FF6C5E]/10 to-transparent border border-[#FF6C5E]/20">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="h-5 w-5 text-[#FF6C5E] mt-0.5" />
+                  <p className="text-[13px] text-[#FF6C5E] font-medium">
+                    Deleting your account will permanently remove you from all organizations and cannot be
+                    undone. Your data will be lost forever.
+                  </p>
+                </div>
+              </div>
             )}
           </div>
-          <div className="pt-4 border-t border-[#E5E5EA]">
+          <div className="px-6 sm:px-8 pb-6 sm:pb-8 pt-4 border-t border-black/[0.04]">
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button
                   variant="destructive"
                   disabled={ownedOrgs.length > 0 || isRequestingDeletion || deletionRequested}
-                  className="bg-[#FF6C5E] hover:bg-[#E55A3C] text-white shadow-sm hover:shadow-md transition-all"
+                  className="h-11 px-6 text-[13px] font-semibold rounded-xl bg-[#FF6C5E] hover:bg-[#E55A4E] text-white shadow-sm hover:shadow-md transition-all disabled:opacity-50"
                 >
                   {isRequestingDeletion ? (
                     <>

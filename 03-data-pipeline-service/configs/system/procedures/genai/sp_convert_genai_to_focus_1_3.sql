@@ -17,11 +17,15 @@
 CREATE OR REPLACE PROCEDURE `{project_id}.organizations`.sp_convert_genai_to_focus_1_3(
   p_project_id STRING,
   p_dataset_id STRING,
-  p_cost_date DATE
+  p_cost_date DATE,
+  p_credential_id STRING DEFAULT NULL,  -- MT-001 FIX: Add credential_id for multi-account isolation
+  p_pipeline_id STRING DEFAULT 'genai_to_focus',  -- STATE-001 FIX: Add lineage params
+  p_run_id STRING DEFAULT NULL
 )
 OPTIONS(strict_mode=TRUE)
 BEGIN
   DECLARE v_rows_inserted INT64 DEFAULT 0;
+  DECLARE v_run_id STRING DEFAULT COALESCE(p_run_id, GENERATE_UUID());
 
   -- Validation
   ASSERT p_project_id IS NOT NULL AS "p_project_id cannot be NULL";
@@ -30,15 +34,26 @@ BEGIN
 
   BEGIN TRANSACTION;
 
-    -- Step 1: Delete existing GenAI FOCUS records for this date (idempotent)
-    EXECUTE IMMEDIATE FORMAT("""
-      DELETE FROM `%s.%s.cost_data_standard_1_3`
-      WHERE ChargePeriodStart = @p_date
-        AND x_genai_cost_type IS NOT NULL
-    """, p_project_id, p_dataset_id)
-    USING p_cost_date AS p_date;
+    -- Step 1: Delete existing GenAI FOCUS records for this date AND credential (idempotent)
+    -- MT-001 FIX: Add credential_id filter to prevent deleting other credentials' data
+    IF p_credential_id IS NOT NULL THEN
+      EXECUTE IMMEDIATE FORMAT("""
+        DELETE FROM `%s.%s.cost_data_standard_1_3`
+        WHERE ChargePeriodStart = @p_date
+          AND x_genai_cost_type IS NOT NULL
+          AND x_CredentialId = @p_credential_id
+      """, p_project_id, p_dataset_id)
+      USING p_cost_date AS p_date, p_credential_id AS p_credential_id;
+    ELSE
+      EXECUTE IMMEDIATE FORMAT("""
+        DELETE FROM `%s.%s.cost_data_standard_1_3`
+        WHERE ChargePeriodStart = @p_date
+          AND x_genai_cost_type IS NOT NULL
+      """, p_project_id, p_dataset_id)
+      USING p_cost_date AS p_date;
+    END IF;
 
-    -- Step 2: Insert GenAI costs into FOCUS 1.3 table
+    -- Step 2: Insert GenAI costs into FOCUS 1.3 table with lineage columns (STATE-001 FIX)
     EXECUTE IMMEDIATE FORMAT("""
       INSERT INTO `%s.%s.cost_data_standard_1_3`
       (ChargePeriodStart, ChargePeriodEnd, BillingPeriodStart, BillingPeriodEnd,
@@ -52,7 +67,10 @@ BEGIN
        x_genai_cost_type, x_genai_provider, x_genai_model,
        x_hierarchy_dept_id, x_hierarchy_dept_name,
        x_hierarchy_project_id, x_hierarchy_project_name,
-       x_hierarchy_team_id, x_hierarchy_team_name)
+       x_hierarchy_team_id, x_hierarchy_team_name,
+       -- STATE-001 FIX: Required lineage columns for FOCUS 1.3
+       x_PipelineId, x_PipelineRunId, x_DataQualityScore, x_CreatedAt,
+       x_CredentialId, x_PipelineRunDate, x_IngestedAt)
       SELECT
         cost_date as ChargePeriodStart,
         cost_date as ChargePeriodEnd,
@@ -147,13 +165,24 @@ BEGIN
         hierarchy_project_id as x_hierarchy_project_id,
         hierarchy_project_name as x_hierarchy_project_name,
         hierarchy_team_id as x_hierarchy_team_id,
-        hierarchy_team_name as x_hierarchy_team_name
+        hierarchy_team_name as x_hierarchy_team_name,
+
+        -- STATE-001 FIX: Lineage values for FOCUS 1.3
+        COALESCE(x_pipeline_id, @p_pipeline_id) as x_PipelineId,
+        COALESCE(x_run_id, @p_run_id) as x_PipelineRunId,
+        100.0 as x_DataQualityScore,  -- GenAI consolidated costs are high quality
+        CURRENT_TIMESTAMP() as x_CreatedAt,
+        COALESCE(x_credential_id, @p_credential_id, 'internal') as x_CredentialId,
+        COALESCE(x_pipeline_run_date, cost_date) as x_PipelineRunDate,
+        COALESCE(x_ingested_at, CURRENT_TIMESTAMP()) as x_IngestedAt
 
       FROM `%s.%s.genai_costs_daily_unified`
       WHERE cost_date = @p_date
         AND total_cost_usd > 0
+        AND (@p_credential_id IS NULL OR x_credential_id = @p_credential_id)
     """, p_project_id, p_dataset_id, p_project_id, p_dataset_id)
-    USING p_cost_date AS p_date;
+    USING p_cost_date AS p_date, p_credential_id AS p_credential_id,
+          p_pipeline_id AS p_pipeline_id, v_run_id AS p_run_id;
 
     SET v_rows_inserted = @@row_count;
 

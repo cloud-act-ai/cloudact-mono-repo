@@ -196,25 +196,33 @@ export default function IntegrationsPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-[#6EE890]" />
+      <div className="space-y-8 max-w-6xl mx-auto">
+        <div className="mb-10">
+          <h1 className="text-[32px] font-bold text-slate-900 tracking-tight leading-none">Integrations</h1>
+          <p className="text-[15px] text-slate-500 mt-2">
+            Connect cloud providers, LLM APIs, and subscription services
+          </p>
+        </div>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="h-12 w-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
+              <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+            </div>
+            <p className="text-[14px] text-slate-500 font-medium">Loading integrations...</p>
+          </div>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-8 max-w-5xl">
+    <div className="space-y-8 max-w-6xl mx-auto">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <div className="h-12 w-12 rounded-xl bg-[#90FCA6]/15 flex items-center justify-center flex-shrink-0">
-          <Shield className="h-6 w-6 text-[#1a7a3a]" />
-        </div>
-        <div className="space-y-1">
-          <h1 className="text-[32px] font-bold text-black tracking-tight">Integrations</h1>
-          <p className="text-[15px] text-slate-500">
-            Connect cloud providers, LLM APIs, and subscription services
-          </p>
-        </div>
+      <div className="mb-10">
+        <h1 className="text-[32px] font-bold text-slate-900 tracking-tight leading-none">Integrations</h1>
+        <p className="text-[15px] text-slate-500 mt-2">
+          Connect cloud providers, LLM APIs, and subscription services
+        </p>
       </div>
 
       {/* Backend Warning */}
@@ -225,7 +233,7 @@ export default function IntegrationsPage() {
               <AlertCircle className="h-5 w-5 text-amber-600" />
             </div>
             <div className="flex-1">
-              <h3 className="text-[15px] font-semibold text-black">
+              <h3 className="text-[15px] font-semibold text-slate-900">
                 {!backendConnected ? "Backend Not Connected" : "API Key Missing"}
               </h3>
               <p className="text-[13px] text-slate-600 mt-1">
@@ -233,7 +241,7 @@ export default function IntegrationsPage() {
               </p>
               <Link
                 href={`/${orgSlug}/settings/organization`}
-                className="inline-flex items-center gap-1.5 mt-3 text-[13px] font-semibold text-slate-900 hover:text-black transition-colors"
+                className="inline-flex items-center gap-1.5 mt-3 text-[13px] font-semibold text-slate-900 hover:text-slate-700 transition-colors"
               >
                 Go to Settings
                 <ChevronRight className="h-4 w-4" />
@@ -248,28 +256,28 @@ export default function IntegrationsPage() {
         <div className="flex items-center gap-3">
           <div className="h-2.5 w-2.5 rounded-full bg-[#90FCA6] shadow-sm"></div>
           <span className="text-[14px] text-slate-600">
-            <span className="font-semibold text-black">{connectedCount}</span> Connected
+            <span className="font-semibold text-slate-900">{connectedCount}</span> Connected
           </span>
         </div>
         <div className="h-5 w-px bg-slate-200"></div>
         <div className="flex items-center gap-2">
           <Cloud className="h-4 w-4 text-[#1a7a3a]" />
           <span className="text-[14px] text-slate-600">
-            <span className="font-semibold text-black">{cloudCount}</span> Cloud
+            <span className="font-semibold text-slate-900">{cloudCount}</span> Cloud
           </span>
         </div>
         <div className="h-5 w-px bg-slate-200"></div>
         <div className="flex items-center gap-2">
           <Brain className="h-4 w-4 text-[#FF6C5E]" />
           <span className="text-[14px] text-slate-600">
-            <span className="font-semibold text-black">{llmCount}</span> LLM
+            <span className="font-semibold text-slate-900">{llmCount}</span> LLM
           </span>
         </div>
         <div className="h-5 w-px bg-slate-200"></div>
         <div className="flex items-center gap-2">
-          <CreditCard className="h-4 w-4 text-slate-600" />
+          <CreditCard className="h-4 w-4 text-slate-500" />
           <span className="text-[14px] text-slate-600">
-            <span className="font-semibold text-black">{saasCount}</span> SaaS
+            <span className="font-semibold text-slate-900">{saasCount}</span> SaaS
           </span>
         </div>
       </div>
@@ -304,7 +312,7 @@ export default function IntegrationsPage() {
                         <Icon className="h-6 w-6" />
                       </div>
                       <div>
-                        <h3 className="text-[16px] font-semibold text-black">{category.name}</h3>
+                        <h3 className="text-[17px] font-semibold text-slate-900">{category.name}</h3>
                         <p className="text-[13px] text-slate-500 mt-1">{category.description}</p>
                       </div>
                     </div>
@@ -354,11 +362,11 @@ export default function IntegrationsPage() {
       {/* Security Notice */}
       <div className="p-6 bg-white rounded-2xl border border-slate-200 shadow-sm">
         <div className="flex items-start gap-4">
-          <div className="h-12 w-12 rounded-xl bg-[#90FCA6]/15 flex items-center justify-center flex-shrink-0">
+          <div className="h-12 w-12 rounded-xl bg-[#90FCA6]/10 flex items-center justify-center flex-shrink-0">
             <Shield className="h-6 w-6 text-[#1a7a3a]" />
           </div>
           <div>
-            <h3 className="text-[16px] font-semibold text-black">Enterprise Security</h3>
+            <h3 className="text-[17px] font-semibold text-slate-900">Enterprise Security</h3>
             <p className="text-[14px] text-slate-600 mt-2 leading-relaxed">
               All credentials are encrypted using Google Cloud KMS. Your integration keys are protected with AES-256 encryption and never stored in plain text.
             </p>

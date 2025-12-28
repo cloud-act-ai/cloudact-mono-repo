@@ -6,13 +6,14 @@ Fallback to local file-based API keys for development.
 """
 
 import hashlib
+import hmac
 import json
 import os
 import asyncio
 from dataclasses import dataclass
 from typing import Optional, Dict, Any, Set
 from pathlib import Path
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from fastapi import Header, HTTPException, status, Depends, BackgroundTasks
 from functools import lru_cache
 import logging
@@ -83,6 +84,7 @@ def load_test_api_keys() -> Dict[str, Dict[str, Any]]:
 def get_test_org_from_api_key(api_key: str) -> Optional[Dict[str, Any]]:
     """
     Look up test org data from test API key.
+    DISABLED in production for security.
 
     Args:
         api_key: Plain text API key
@@ -90,6 +92,10 @@ def get_test_org_from_api_key(api_key: str) -> Optional[Dict[str, Any]]:
     Returns:
         Org dict if found, None otherwise
     """
+    # SECURITY: Never use test API keys in production
+    if settings.is_production:
+        return None
+
     test_keys = load_test_api_keys()
     return test_keys.get(api_key)
 
@@ -127,17 +133,21 @@ class AuthMetricsAggregator:
 
     def __init__(self):
         """Initialize aggregator with batching state."""
-        if self._initialized:
-            return
+        # SCALE-001 FIX: Move lock acquisition earlier to protect _initialized check
+        # This prevents a race condition where multiple threads could pass the
+        # _initialized check before any of them sets it to True
+        with self._lock:
+            if self._initialized:
+                return
 
-        self.pending_updates: Set[str] = set()  # Set of org_api_key_ids to update
-        self.batch_lock = threading.Lock()
-        self.flush_interval = 60  # Flush every 60 seconds
-        self.is_running = False
-        self.background_task: Optional[asyncio.Task] = None
-        self._initialized = True
+            self.pending_updates: Set[str] = set()  # Set of org_api_key_ids to update
+            self.batch_lock = threading.Lock()
+            self.flush_interval = 60  # Flush every 60 seconds
+            self.is_running = False
+            self.background_task: Optional[asyncio.Task] = None
+            self._initialized = True
 
-        logger.info("AuthMetricsAggregator initialized with 60s flush interval")
+            logger.info("AuthMetricsAggregator initialized with 60s flush interval")
 
     def add_update(self, org_api_key_id: str) -> None:
         """
@@ -228,7 +238,13 @@ class AuthMetricsAggregator:
         while self.is_running:
             try:
                 await asyncio.sleep(self.flush_interval)
-                await self.flush_updates(bq_client)
+                # SCALE-002 FIX: Add timeout to prevent blocking forever
+                # If BigQuery is slow or unresponsive, we don't want to block
+                # the background task indefinitely
+                try:
+                    await asyncio.wait_for(self.flush_updates(bq_client), timeout=30.0)
+                except asyncio.TimeoutError:
+                    logger.error("Auth metrics flush timed out after 30s")
             except asyncio.CancelledError:
                 logger.info("Background flush task cancelled")
                 break
@@ -530,9 +546,9 @@ async def validate_subscription(
     """
     subscription = org.get("subscription", {})
 
-    # Check subscription status
-    if subscription.get("status") != "ACTIVE":
-        logger.warning(f"Inactive subscription for org: {org['org_slug']}")
+    # Check subscription status - allow both ACTIVE and TRIAL
+    if subscription.get("status") not in ("ACTIVE", "TRIAL"):
+        logger.warning(f"Inactive subscription for org: {org['org_slug']}, status: {subscription.get('status')}")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"Subscription is {subscription.get('status')}. Please contact support."
@@ -595,7 +611,7 @@ async def validate_quota(
         HTTPException: 429 if quota exceeded
     """
     org_slug = org["org_slug"]
-    today = date.today()
+    today = datetime.now(timezone.utc).date()
 
     # Get or create today's usage record
     query = f"""
@@ -623,27 +639,26 @@ async def validate_quota(
         ))
 
         if not results:
-            # Create today's usage record
+            # Create today's usage record using MERGE for idempotency
+            # This prevents race conditions when multiple concurrent requests try to create
+            # the same usage record - MERGE handles the conflict gracefully
             usage_id = f"{org_slug}_{today.strftime('%Y%m%d')}"
-            insert_query = f"""
-            INSERT INTO `{settings.gcp_project_id}.organizations.org_usage_quotas`
-            (usage_id, org_slug, usage_date, pipelines_run_today, pipelines_failed_today,
-             pipelines_succeeded_today, pipelines_run_month, concurrent_pipelines_running,
-             daily_limit, monthly_limit, concurrent_limit, created_at)
-            VALUES (
-                @usage_id,
-                @org_slug,
-                @usage_date,
-                0, 0, 0, 0, 0,
-                @daily_limit,
-                @monthly_limit,
-                @concurrent_limit,
-                CURRENT_TIMESTAMP()
-            )
+            merge_query = f"""
+            MERGE `{settings.gcp_project_id}.organizations.org_usage_quotas` T
+            USING (SELECT @usage_id as usage_id) S
+            ON T.usage_id = S.usage_id
+            WHEN NOT MATCHED THEN
+                INSERT (usage_id, org_slug, usage_date, pipelines_run_today, pipelines_failed_today,
+                        pipelines_succeeded_today, pipelines_run_month, concurrent_pipelines_running,
+                        max_concurrent_reached, daily_limit, monthly_limit, concurrent_limit,
+                        created_at, last_updated)
+                VALUES (@usage_id, @org_slug, @usage_date, 0, 0, 0, 0, 0, 0,
+                        @daily_limit, @monthly_limit, @concurrent_limit,
+                        CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP())
             """
 
             bq_client.client.query(
-                insert_query,
+                merge_query,
                 job_config=bigquery.QueryJobConfig(
                     query_parameters=[
                         bigquery.ScalarQueryParameter("usage_id", "STRING", usage_id),
@@ -671,42 +686,47 @@ async def validate_quota(
         # Check existing usage
         usage = results[0]
 
+        # Use subscription limits (fresh) not usage table limits (may be stale)
+        daily_limit = subscription["max_pipelines_per_day"]
+        monthly_limit = subscription["max_pipelines_per_month"]
+        concurrent_limit = subscription["max_concurrent_pipelines"]
+
         # Check daily limit
-        if usage["pipelines_run_today"] >= usage["daily_limit"]:
+        if usage["pipelines_run_today"] >= daily_limit:
             logger.warning(f"Daily quota exceeded for org: {org_slug}")
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail=f"Daily pipeline quota exceeded ({usage['daily_limit']} pipelines/day). Try again tomorrow.",
+                detail=f"Daily pipeline quota exceeded ({daily_limit} pipelines/day). Try again tomorrow.",
                 headers={"Retry-After": "86400"}  # 24 hours
             )
 
         # Check monthly limit
-        if usage["pipelines_run_month"] >= usage["monthly_limit"]:
+        if usage["pipelines_run_month"] >= monthly_limit:
             logger.warning(f"Monthly quota exceeded for org: {org_slug}")
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail=f"Monthly pipeline quota exceeded ({usage['monthly_limit']} pipelines/month). Upgrade your plan.",
+                detail=f"Monthly pipeline quota exceeded ({monthly_limit} pipelines/month). Upgrade your plan.",
             )
 
         # Check concurrent limit
-        if usage["concurrent_pipelines_running"] >= usage["concurrent_limit"]:
+        if usage["concurrent_pipelines_running"] >= concurrent_limit:
             logger.warning(f"Concurrent pipeline limit reached for org: {org_slug}")
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail=f"Concurrent pipeline limit reached ({usage['concurrent_limit']} pipelines). Wait for running pipelines to complete.",
+                detail=f"Concurrent pipeline limit reached ({concurrent_limit} pipelines). Wait for running pipelines to complete.",
                 headers={"Retry-After": "300"}  # 5 minutes
             )
 
-        # Return quota info
+        # Return quota info using subscription limits (fresh)
         quota_info = {
             "pipelines_run_today": usage["pipelines_run_today"],
             "pipelines_run_month": usage["pipelines_run_month"],
             "concurrent_pipelines_running": usage["concurrent_pipelines_running"],
-            "daily_limit": usage["daily_limit"],
-            "monthly_limit": usage["monthly_limit"],
-            "concurrent_limit": usage["concurrent_limit"],
-            "remaining_today": usage["daily_limit"] - usage["pipelines_run_today"],
-            "remaining_month": usage["monthly_limit"] - usage["pipelines_run_month"]
+            "daily_limit": daily_limit,
+            "monthly_limit": monthly_limit,
+            "concurrent_limit": concurrent_limit,
+            "remaining_today": daily_limit - usage["pipelines_run_today"],
+            "remaining_month": monthly_limit - usage["pipelines_run_month"]
         }
 
         logger.info(f"Quota validated for org: {org_slug} - {quota_info['remaining_today']} remaining today")
@@ -737,14 +757,16 @@ async def increment_pipeline_usage(
         pipeline_status: Pipeline execution status (SUCCESS, FAILED, RUNNING)
         bq_client: BigQuery client instance
     """
-    today = date.today()
+    today = datetime.now(timezone.utc).date()
 
     # Determine which counters to increment
     if pipeline_status == "RUNNING":
-        # Increment concurrent counter
+        # Increment concurrent counter AND daily/monthly to reserve quota
         update_query = f"""
         UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
-        SET concurrent_pipelines_running = concurrent_pipelines_running + 1
+        SET concurrent_pipelines_running = concurrent_pipelines_running + 1,
+            pipelines_run_today = pipelines_run_today + 1,
+            pipelines_run_month = pipelines_run_month + 1
         WHERE org_slug = @org_slug
             AND usage_date = @usage_date
         """
@@ -766,16 +788,14 @@ async def increment_pipeline_usage(
             logger.error(f"Failed to increment pipeline usage: {e}", exc_info=True)
 
     elif pipeline_status in ["SUCCESS", "FAILED"]:
-        # Increment completion counters and decrement concurrent
-        # SECURITY: Use parameterized query parameters instead of f-string interpolation
+        # Decrement concurrent and update success/failed counters
+        # NOTE: daily/monthly already incremented when RUNNING started
         success_increment = 1 if pipeline_status == "SUCCESS" else 0
         failed_increment = 1 if pipeline_status == "FAILED" else 0
 
         update_query = f"""
         UPDATE `{settings.gcp_project_id}.organizations.org_usage_quotas`
         SET
-            pipelines_run_today = pipelines_run_today + 1,
-            pipelines_run_month = pipelines_run_month + 1,
             pipelines_succeeded_today = pipelines_succeeded_today + @success_increment,
             pipelines_failed_today = pipelines_failed_today + @failed_increment,
             concurrent_pipelines_running = GREATEST(concurrent_pipelines_running - 1, 0)
@@ -1043,7 +1063,9 @@ async def get_org_from_local_file(org_api_key_hash: str) -> Optional[str]:
             with open(metadata_file, 'r') as f:
                 metadata = json.load(f)
 
-            if metadata.get("org_api_key_hash") == org_api_key_hash:
+            # SECURITY: Use constant-time comparison to prevent timing attacks
+            stored_hash = metadata.get("org_api_key_hash", "")
+            if stored_hash and hmac.compare_digest(stored_hash, org_api_key_hash):
                 org_slug = metadata.get("org_slug")
                 logger.info(f"Found API key in local file for org: {org_slug}")
                 return org_slug
@@ -1102,8 +1124,15 @@ async def get_org_from_api_key(
         ))
 
         if not results:
-            logger.warning(f"API key not found in organizations dataset, trying local files")
-            return await get_org_from_local_file(org_api_key_hash)
+            # SECURITY: Only fall back to local files in development mode
+            if settings.is_development or os.getenv("ENABLE_DEV_MODE", "false").lower() == "true":
+                logger.warning("API key not found in organizations dataset, falling back to local files (dev mode only)")
+                org_slug = await get_org_from_local_file(org_api_key_hash)
+                if org_slug:
+                    return {"org_slug": org_slug, "org_api_key_id": "local-dev-key"}
+            else:
+                logger.warning("API key not found in organizations dataset")
+            return None
 
         row = results[0]
 
@@ -1124,11 +1153,13 @@ async def get_org_from_api_key(
         return result
 
     except Exception as e:
-        logger.warning(f"Centralized auth lookup failed: {e}, trying local files")
-        # Fallback to local file lookup for development
-        org_slug = await get_org_from_local_file(org_api_key_hash)
-        if org_slug:
-            return {"org_slug": org_slug, "org_api_key_id": "local-dev-key"}
+        logger.error(f"Centralized auth lookup failed: {e}", exc_info=True)
+        # SECURITY: Only fall back to local files in development mode
+        if settings.is_development or os.getenv("ENABLE_DEV_MODE", "false").lower() == "true":
+            logger.warning("Falling back to local file lookup (dev mode only)")
+            org_slug = await get_org_from_local_file(org_api_key_hash)
+            if org_slug:
+                return {"org_slug": org_slug, "org_api_key_id": "local-dev-key"}
         return None
 
 
