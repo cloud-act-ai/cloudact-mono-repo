@@ -1,15 +1,13 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useCallback } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
 import {
   TrendingUp,
-  TrendingDown,
   DollarSign,
   Cloud,
   Sparkles,
-  PiggyBank,
   Play,
   Settings,
   BarChart3,
@@ -21,81 +19,21 @@ import {
   Zap,
   Users,
   Database,
+  Loader2,
+  RefreshCw,
+  Brain,
+  Wallet,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-
-interface MetricCardProps {
-  title: string
-  value: string
-  change?: string
-  trend?: "up" | "down" | "neutral"
-  icon: React.ReactNode
-  color: "teal" | "coral" | "purple" | "blue"
-}
-
-function MetricCard({ title, value, change, trend, icon, color }: MetricCardProps) {
-  // Use CSS utility classes from globals.css for brand colors
-  const colorClasses = {
-    teal: "bg-gradient-mint",
-    coral: "bg-gradient-coral",
-    purple: "bg-gradient-blue",
-    blue: "bg-gradient-blue",
-  }
-
-  const iconColorClasses = {
-    teal: "icon-container-mint",
-    coral: "icon-container-coral",
-    purple: "icon-container-blue",
-    blue: "icon-container-blue",
-  }
-
-  return (
-    <Card className={`relative overflow-hidden border ${colorClasses[color]} group`}>
-      <CardContent className="p-6">
-        <div className="flex items-start justify-between">
-          <div className="space-y-3 flex-1">
-            <p className="text-sm font-medium text-muted-foreground">{title}</p>
-            <div className="space-y-1">
-              <p className="text-3xl font-bold tracking-tight text-slate-900">{value}</p>
-              {change && (
-                <div className="flex items-center gap-1.5">
-                  {trend === "up" && <TrendingUp className="h-4 w-4 text-mint-dark" />}
-                  {trend === "down" && <TrendingDown className="h-4 w-4 text-coral" />}
-                  <span
-                    className={`text-sm font-semibold ${
-                      trend === "up"
-                        ? "text-mint-dark"
-                        : trend === "down"
-                        ? "text-coral"
-                        : "text-muted-foreground"
-                    }`}
-                  >
-                    {change}
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-          <div
-            className={`flex h-12 w-12 items-center justify-center rounded-xl ${iconColorClasses[color]} shadow-lg transition-transform duration-200 group-hover:scale-110`}
-          >
-            {icon}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
-
-interface ActivityItem {
-  id: string
-  type: "pipeline" | "integration" | "cost" | "alert"
-  title: string
-  description: string
-  timestamp: string
-  status: "success" | "warning" | "error" | "info"
-}
+import { Button } from "@/components/ui/button"
+import { getTotalCosts, type TotalCostSummary } from "@/actions/costs"
+import { getPipelineRuns } from "@/actions/pipelines"
+import { getIntegrations } from "@/actions/integrations"
+import { createClient } from "@/lib/supabase/client"
+import { formatCurrency } from "@/lib/i18n"
+import { DEFAULT_CURRENCY } from "@/lib/i18n/constants"
+import type { PipelineRunSummary } from "@/lib/api/backend"
 
 interface QuickAction {
   title: string
@@ -105,11 +43,94 @@ interface QuickAction {
   color: "teal" | "coral" | "purple"
 }
 
+interface IntegrationItem {
+  name: string
+  provider: string
+  status: "connected" | "pending" | "not_connected"
+}
+
 export default function DashboardPage() {
   const params = useParams()
   const orgSlug = params.orgSlug as string
+
   const [greeting, setGreeting] = useState("")
   const [isLoading, setIsLoading] = useState(true)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [costSummary, setCostSummary] = useState<TotalCostSummary | null>(null)
+  const [recentPipelines, setRecentPipelines] = useState<PipelineRunSummary[]>([])
+  const [integrations, setIntegrations] = useState<IntegrationItem[]>([])
+  const [orgCurrency, setOrgCurrency] = useState<string>(DEFAULT_CURRENCY)
+
+  const loadData = useCallback(async () => {
+    try {
+      const supabase = createClient()
+      const [costsResult, pipelinesResult, integrationsResult, orgResult] = await Promise.all([
+        getTotalCosts(orgSlug),
+        getPipelineRuns(orgSlug, { limit: 5 }),
+        getIntegrations(orgSlug),
+        supabase
+          .from("organizations")
+          .select("locale_currency")
+          .eq("org_slug", orgSlug)
+          .single(),
+      ])
+
+      if (costsResult.success && costsResult.data) {
+        setCostSummary(costsResult.data)
+      }
+
+      if (pipelinesResult.success && pipelinesResult.data?.runs) {
+        setRecentPipelines(pipelinesResult.data.runs.slice(0, 5))
+      }
+
+      if (integrationsResult.success && integrationsResult.integrations) {
+        const integrationList: IntegrationItem[] = []
+        const intData = integrationsResult.integrations.integrations
+
+        // Map provider names to display names
+        const providerNames: Record<string, string> = {
+          OPENAI: "OpenAI",
+          ANTHROPIC: "Anthropic",
+          GEMINI: "Google Gemini",
+          DEEPSEEK: "DeepSeek",
+          GCP_SA: "Google Cloud",
+          AWS_IAM: "AWS",
+          AZURE: "Azure",
+          OCI: "Oracle Cloud",
+        }
+
+        for (const [key, value] of Object.entries(intData)) {
+          const status = value.status === "VALID"
+            ? "connected"
+            : value.status === "PENDING"
+            ? "pending"
+            : "not_connected"
+
+          integrationList.push({
+            name: providerNames[key] || key,
+            provider: key,
+            status,
+          })
+        }
+
+        // Sort: connected first, then pending, then not_connected
+        integrationList.sort((a, b) => {
+          const order = { connected: 0, pending: 1, not_connected: 2 }
+          return order[a.status] - order[b.status]
+        })
+
+        setIntegrations(integrationList.slice(0, 4))
+      }
+
+      if (orgResult.data?.locale_currency) {
+        setOrgCurrency(orgResult.data.locale_currency)
+      }
+    } catch {
+      // Silently handle errors - show empty state
+    } finally {
+      setIsLoading(false)
+    }
+  }, [orgSlug])
 
   useEffect(() => {
     const hour = new Date().getHours()
@@ -117,46 +138,14 @@ export default function DashboardPage() {
     else if (hour < 18) setGreeting("Good afternoon")
     else setGreeting("Good evening")
 
-    // Simulate data loading
-    const timer = setTimeout(() => setIsLoading(false), 500)
-    return () => clearTimeout(timer)
-  }, [])
+    loadData()
+  }, [loadData])
 
-  // Mock data - replace with real data fetching
-  const recentActivity: ActivityItem[] = [
-    {
-      id: "1",
-      type: "pipeline",
-      title: "GCP Cost Pipeline",
-      description: "Successfully processed 1,234 cost records",
-      timestamp: "2 hours ago",
-      status: "success",
-    },
-    {
-      id: "2",
-      type: "integration",
-      title: "OpenAI Integration",
-      description: "API key validated and connected",
-      timestamp: "5 hours ago",
-      status: "success",
-    },
-    {
-      id: "3",
-      type: "cost",
-      title: "Cost Spike Detected",
-      description: "GenAI costs increased 23% this week",
-      timestamp: "1 day ago",
-      status: "warning",
-    },
-    {
-      id: "4",
-      type: "pipeline",
-      title: "AWS Cost Pipeline",
-      description: "Failed to fetch billing data",
-      timestamp: "2 days ago",
-      status: "error",
-    },
-  ]
+  const handleRefresh = async () => {
+    setIsRefreshing(true)
+    await loadData()
+    setIsRefreshing(false)
+  }
 
   const quickActions: QuickAction[] = [
     {
@@ -182,50 +171,54 @@ export default function DashboardPage() {
     },
   ]
 
-  const integrationStatus = [
-    { name: "Google Cloud", status: "connected", color: "success" as const },
-    { name: "OpenAI", status: "connected", color: "success" as const },
-    { name: "AWS", status: "pending", color: "warning" as const },
-    { name: "Azure", status: "not_connected", color: "outline" as const },
-  ]
+  const getPipelineIcon = (pipelineId: string) => {
+    if (pipelineId.includes("openai") || pipelineId.includes("anthropic") || pipelineId.includes("gemini")) {
+      return <Brain className="h-4 w-4" />
+    }
+    if (pipelineId.includes("gcp") || pipelineId.includes("aws") || pipelineId.includes("azure")) {
+      return <Cloud className="h-4 w-4" />
+    }
+    if (pipelineId.includes("saas") || pipelineId.includes("subscription")) {
+      return <Wallet className="h-4 w-4" />
+    }
+    return <Database className="h-4 w-4" />
+  }
 
-  const getActivityIcon = (type: ActivityItem["type"]) => {
-    switch (type) {
-      case "pipeline":
-        return <Database className="h-4 w-4" />
-      case "integration":
-        return <Zap className="h-4 w-4" />
-      case "cost":
-        return <DollarSign className="h-4 w-4" />
-      case "alert":
-        return <AlertCircle className="h-4 w-4" />
+  const getStatusColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case "completed":
+      case "success":
+        return "bg-[#90FCA6]/10 text-[#1a7a3a] border-[#90FCA6]/20"
+      case "running":
+      case "in_progress":
+        return "bg-blue-500/10 text-blue-600 border-blue-500/20"
+      case "failed":
+      case "error":
+        return "bg-red-500/10 text-red-600 border-red-500/20"
+      default:
+        return "bg-slate-100 text-slate-600 border-slate-200"
     }
   }
 
-  const getActivityStatusColor = (status: ActivityItem["status"]) => {
-    switch (status) {
-      case "success":
-        return "bg-[#90FCA6]/10 text-[#1a7a3a] border-[#90FCA6]/20"
-      case "warning":
-        return "bg-[#FF6C5E]/10 text-[#FF6C5E] border-[#FF6C5E]/20"
-      case "error":
-        return "bg-red-500/10 text-red-600 border-red-500/20"
-      case "info":
-        return "bg-blue-500/10 text-blue-600 border-blue-500/20"
-    }
+  const formatTimeAgo = (dateStr?: string) => {
+    if (!dateStr) return "Unknown"
+    const date = new Date(dateStr)
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffMins = Math.floor(diffMs / 60000)
+    const diffHours = Math.floor(diffMs / 3600000)
+    const diffDays = Math.floor(diffMs / 86400000)
+
+    if (diffMins < 60) return `${diffMins}m ago`
+    if (diffHours < 24) return `${diffHours}h ago`
+    return `${diffDays}d ago`
   }
 
   if (isLoading) {
     return (
-      <div className="max-w-6xl mx-auto space-y-8">
-        <div className="mb-10">
-          <div className="h-8 w-64 bg-slate-200 rounded animate-pulse"></div>
-          <div className="h-5 w-96 bg-slate-100 rounded animate-pulse mt-2"></div>
-        </div>
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-32 bg-slate-100 rounded-xl animate-pulse"></div>
-          ))}
+      <div className="max-w-6xl mx-auto py-8">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Loader2 className="h-8 w-8 animate-spin text-[var(--cloudact-mint-text)]" />
         </div>
       </div>
     )
@@ -234,59 +227,92 @@ export default function DashboardPage() {
   return (
     <div className="max-w-6xl mx-auto space-y-8">
       {/* Welcome Header */}
-      <div className="mb-10">
-        <h1 className="text-[32px] font-bold text-slate-900 tracking-tight leading-none">
-          {greeting}
-        </h1>
-        <p className="text-[15px] text-slate-500 mt-2 max-w-lg">
-          Here&#39;s what&#39;s happening with your cloud costs today.
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-[32px] font-bold text-slate-900 tracking-tight leading-none">
+            {greeting}
+          </h1>
+          <p className="text-[15px] text-slate-500 mt-2 max-w-lg">
+            Here&#39;s what&#39;s happening with your cloud costs today.
+          </p>
+        </div>
+        <Button
+          onClick={handleRefresh}
+          disabled={isRefreshing}
+          variant="outline"
+          size="sm"
+          className="h-9"
+        >
+          <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
+          Refresh
+        </Button>
       </div>
 
-      {/* Metric Cards Grid */}
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        <MetricCard
-          title="Total Spend (MTD)"
-          value="$12,458"
-          change="+12.5% vs last month"
-          trend="up"
-          icon={<DollarSign className="h-6 w-6" />}
-          color="teal"
-        />
-        <MetricCard
-          title="GenAI Costs"
-          value="$3,245"
-          change="+23.4% vs last month"
-          trend="up"
-          icon={<Sparkles className="h-6 w-6" />}
-          color="purple"
-        />
-        <MetricCard
-          title="Cloud Infrastructure"
-          value="$9,213"
-          change="+8.2% vs last month"
-          trend="up"
-          icon={<Cloud className="h-6 w-6" />}
-          color="blue"
-        />
-        <MetricCard
-          title="Savings Identified"
-          value="$1,847"
-          change="This month"
-          trend="neutral"
-          icon={<PiggyBank className="h-6 w-6" />}
-          color="coral"
-        />
+      {/* Metric Cards Grid - Apple Health Style */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Total Spend */}
+        <div className="bg-white rounded-2xl border border-slate-200 p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <DollarSign className="h-4 w-4 text-[var(--cloudact-mint-text)]" />
+            <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Total Monthly</span>
+          </div>
+          <div className="text-3xl font-bold text-slate-900">
+            {formatCurrency(costSummary?.total?.total_monthly_cost || 0, orgCurrency)}
+          </div>
+          <div className="text-xs text-slate-500 mt-1">all services</div>
+        </div>
+
+        {/* GenAI Costs */}
+        <div className="bg-white rounded-2xl border border-slate-200 p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <Brain className="h-4 w-4 text-[#10A37F]" />
+            <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">GenAI</span>
+          </div>
+          <div className="text-3xl font-bold text-slate-900">
+            {formatCurrency(costSummary?.llm?.total_monthly_cost || 0, orgCurrency)}
+          </div>
+          <div className="text-xs text-slate-500 mt-1">
+            {costSummary?.llm?.providers?.length || 0} providers
+          </div>
+        </div>
+
+        {/* Cloud Costs */}
+        <div className="bg-white rounded-2xl border border-slate-200 p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <Cloud className="h-4 w-4 text-[#4285F4]" />
+            <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Cloud</span>
+          </div>
+          <div className="text-3xl font-bold text-slate-900">
+            {formatCurrency(costSummary?.cloud?.total_monthly_cost || 0, orgCurrency)}
+          </div>
+          <div className="text-xs text-slate-500 mt-1">
+            {costSummary?.cloud?.providers?.length || 0} providers
+          </div>
+        </div>
+
+        {/* SaaS Costs */}
+        <div className="bg-white rounded-2xl border border-slate-200 p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <Wallet className="h-4 w-4 text-[#FF6C5E]" />
+            <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">SaaS</span>
+          </div>
+          <div className="text-3xl font-bold text-slate-900">
+            {formatCurrency(costSummary?.saas?.total_monthly_cost || 0, orgCurrency)}
+          </div>
+          <div className="text-xs text-slate-500 mt-1">
+            {costSummary?.saas?.providers?.length || 0} subscriptions
+          </div>
+        </div>
       </div>
 
       {/* Two Column Layout */}
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Cost Trend Chart - Larger column */}
+        {/* Cost Overview Link - Larger column */}
         <div className="lg:col-span-2">
           <Card className="h-full">
             <CardHeader className="border-b border-border">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-[17px] font-bold text-slate-900">Cost Trends</CardTitle>
+                <CardTitle className="text-[17px] font-bold text-slate-900">Cost Breakdown</CardTitle>
                 <Link href={`/${orgSlug}/cost-dashboards/overview`}>
                   <button className="inline-flex items-center gap-2 text-sm font-semibold text-slate-900 hover:text-black transition-colors">
                     View Details
@@ -296,26 +322,45 @@ export default function DashboardPage() {
               </div>
             </CardHeader>
             <CardContent className="p-6">
-              {/* Placeholder for chart */}
-              <div className="flex h-[280px] items-center justify-center rounded-xl bg-gradient-to-br from-[#90FCA6]/5 to-[#FF6C5E]/5 border border-border">
-                <div className="text-center space-y-3">
-                  <Activity className="h-12 w-12 mx-auto text-[#1a7a3a]" />
-                  <div className="space-y-1">
-                    <p className="text-[15px] font-semibold text-slate-900">
-                      Cost trend visualization
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      Chart component will be integrated here
-                    </p>
-                  </div>
-                  <Link href={`/${orgSlug}/cost-dashboards/overview`}>
-                    <button className="inline-flex items-center gap-2 h-11 px-6 bg-[#90FCA6] text-slate-900 text-[13px] font-semibold rounded-xl hover:bg-[#B8FDCA] shadow-sm hover:shadow-md transition-all">
-                      <BarChart3 className="h-4 w-4" />
-                      Open Analytics
-                    </button>
-                  </Link>
-                </div>
+              {/* Horizontal bar breakdown */}
+              <div className="space-y-4">
+                {[
+                  { name: "GenAI", cost: costSummary?.llm?.total_monthly_cost || 0, color: "bg-[#10A37F]", icon: Brain },
+                  { name: "Cloud", cost: costSummary?.cloud?.total_monthly_cost || 0, color: "bg-[#4285F4]", icon: Cloud },
+                  { name: "SaaS", cost: costSummary?.saas?.total_monthly_cost || 0, color: "bg-[#FF6C5E]", icon: Wallet },
+                ].map((item) => {
+                  const totalCost = (costSummary?.total?.total_monthly_cost || 1)
+                  const percentage = totalCost > 0 ? (item.cost / totalCost) * 100 : 0
+                  const Icon = item.icon
+
+                  return (
+                    <div key={item.name} className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Icon className="h-4 w-4 text-slate-500" />
+                          <span className="text-sm font-medium text-slate-700">{item.name}</span>
+                        </div>
+                        <span className="text-sm font-bold text-slate-900">
+                          {formatCurrency(item.cost, orgCurrency)}
+                        </span>
+                      </div>
+                      <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full ${item.color} rounded-full transition-all duration-500`}
+                          style={{ width: `${Math.max(percentage, 0)}%` }}
+                        />
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
+
+              <Link href={`/${orgSlug}/cost-dashboards/overview`} className="block mt-6">
+                <button className="w-full inline-flex items-center justify-center gap-2 h-11 px-6 bg-[#90FCA6] text-slate-900 text-[13px] font-semibold rounded-xl hover:bg-[#B8FDCA] shadow-sm hover:shadow-md transition-all">
+                  <BarChart3 className="h-4 w-4" />
+                  Open Cost Analytics
+                </button>
+              </Link>
             </CardContent>
           </Card>
         </div>
@@ -328,29 +373,49 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent className="p-6">
               <div className="space-y-3">
-                {integrationStatus.map((integration) => (
-                  <div
-                    key={integration.name}
-                    className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-white to-[#90FCA6]/5 border border-border hover:shadow-md transition-all duration-200"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#90FCA6]/10">
-                        <Cloud className="h-4 w-4 text-[#1a7a3a]" />
+                {integrations.length > 0 ? (
+                  integrations.map((integration) => (
+                    <div
+                      key={integration.provider}
+                      className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-white to-[#90FCA6]/5 border border-border hover:shadow-md transition-all duration-200"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#90FCA6]/10">
+                          {integration.provider.includes("GCP") || integration.provider.includes("AWS") || integration.provider.includes("AZURE") ? (
+                            <Cloud className="h-4 w-4 text-[#1a7a3a]" />
+                          ) : (
+                            <Zap className="h-4 w-4 text-[#1a7a3a]" />
+                          )}
+                        </div>
+                        <span className="text-sm font-semibold text-slate-900">
+                          {integration.name}
+                        </span>
                       </div>
-                      <span className="text-sm font-semibold text-slate-900">
-                        {integration.name}
-                      </span>
+                      <Badge
+                        variant={
+                          integration.status === "connected"
+                            ? "success"
+                            : integration.status === "pending"
+                            ? "warning"
+                            : "outline"
+                        }
+                        className="text-[11px]"
+                      >
+                        {integration.status === "connected"
+                          ? "Connected"
+                          : integration.status === "pending"
+                          ? "Pending"
+                          : "Not Connected"}
+                      </Badge>
                     </div>
-                    <Badge variant={integration.color} className="text-[11px]">
-                      {integration.status === "connected"
-                        ? "Connected"
-                        : integration.status === "pending"
-                        ? "Pending"
-                        : "Not Connected"}
-                    </Badge>
+                  ))
+                ) : (
+                  <div className="text-center py-6">
+                    <Zap className="h-8 w-8 text-slate-300 mx-auto mb-2" />
+                    <p className="text-sm text-slate-500">No integrations configured</p>
                   </div>
-                ))}
-                <Link href={`/${orgSlug}/integrations/cloud-providers`}>
+                )}
+                <Link href={`/${orgSlug}/integrations`}>
                   <button className="w-full mt-2 inline-flex items-center justify-center gap-2 h-11 px-4 bg-[#90FCA6]/5 text-[#1a7a3a] text-[15px] font-semibold rounded-xl hover:bg-[#90FCA6]/10 transition-colors border border-[#90FCA6]/20">
                     Manage Integrations
                     <ArrowRight className="h-4 w-4" />
@@ -404,52 +469,68 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Recent Activity */}
+      {/* Recent Pipeline Runs */}
       <div>
-        <h2 className="text-[13px] font-semibold text-slate-500 uppercase tracking-wide mb-4">Recent Activity</h2>
+        <h2 className="text-[13px] font-semibold text-slate-500 uppercase tracking-wide mb-4">Recent Pipeline Runs</h2>
         <Card>
           <CardContent className="p-0">
-            <div className="divide-y divide-border">
-              {recentActivity.map((activity) => (
-                <div
-                  key={activity.id}
-                  className="flex items-start gap-4 p-4 hover:bg-[#90FCA6]/5 transition-colors"
-                >
+            {recentPipelines.length > 0 ? (
+              <div className="divide-y divide-border">
+                {recentPipelines.map((pipeline) => (
                   <div
-                    className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border ${getActivityStatusColor(
-                      activity.status
-                    )}`}
+                    key={pipeline.pipeline_logging_id}
+                    className="flex items-start gap-4 p-4 hover:bg-[#90FCA6]/5 transition-colors"
                   >
-                    {getActivityIcon(activity.type)}
-                  </div>
-                  <div className="flex-1 min-w-0 space-y-1">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="space-y-0.5">
-                        <p className="text-[15px] font-semibold text-slate-900">{activity.title}</p>
-                        <p className="text-sm text-muted-foreground">{activity.description}</p>
+                    <div
+                      className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border ${getStatusColor(pipeline.status)}`}
+                    >
+                      {getPipelineIcon(pipeline.pipeline_id)}
+                    </div>
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="space-y-0.5">
+                          <p className="text-[15px] font-semibold text-slate-900">{pipeline.pipeline_id}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {pipeline.duration_ms
+                              ? `Duration: ${(pipeline.duration_ms / 1000).toFixed(1)}s`
+                              : pipeline.error_message
+                              ? pipeline.error_message.slice(0, 50)
+                              : "Running..."}
+                          </p>
+                        </div>
+                        <Badge
+                          variant={
+                            pipeline.status === "COMPLETED" ? "success"
+                            : pipeline.status === "FAILED" ? "destructive"
+                            : "outline"
+                          }
+                          className="text-[10px] flex-shrink-0"
+                        >
+                          {pipeline.status === "COMPLETED" && <CheckCircle2 className="h-3 w-3 mr-1" />}
+                          {pipeline.status === "FAILED" && <AlertCircle className="h-3 w-3 mr-1" />}
+                          {pipeline.status === "RUNNING" && <Activity className="h-3 w-3 mr-1 animate-pulse" />}
+                          {pipeline.status}
+                        </Badge>
                       </div>
-                      <Badge
-                        variant={activity.status === "success" ? "success" : activity.status === "warning" ? "warning" : "destructive"}
-                        className="text-[10px] flex-shrink-0"
-                      >
-                        {activity.status === "success" && <CheckCircle2 className="h-3 w-3 mr-1" />}
-                        {activity.status === "warning" && <AlertCircle className="h-3 w-3 mr-1" />}
-                        {activity.status === "error" && <AlertCircle className="h-3 w-3 mr-1" />}
-                        {activity.status.toUpperCase()}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <Clock className="h-3 w-3" />
-                      {activity.timestamp}
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <Clock className="h-3 w-3" />
+                        {formatTimeAgo(pipeline.start_time)}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-8 text-center">
+                <Database className="h-10 w-10 text-slate-300 mx-auto mb-3" />
+                <p className="text-sm font-medium text-slate-900">No pipeline runs yet</p>
+                <p className="text-xs text-slate-500 mt-1">Run a pipeline to see activity here</p>
+              </div>
+            )}
             <div className="border-t border-border p-4 bg-[#90FCA6]/5">
               <Link href={`/${orgSlug}/pipelines`}>
                 <button className="w-full inline-flex items-center justify-center gap-2 text-sm font-semibold text-slate-900 hover:text-black transition-colors">
-                  View All Activity
+                  View All Pipelines
                   <ArrowRight className="h-4 w-4" />
                 </button>
               </Link>

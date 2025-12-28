@@ -23,33 +23,70 @@ export default async function OrgLayout({
   ])
 
   // Use cached data layer - queries are deduplicated within this request
-  const layoutData = await getOrgLayoutData(orgSlug)
+  let layoutData = await getOrgLayoutData(orgSlug)
 
   if (!layoutData) {
     // No valid session or org - check why
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+    // Log auth issues in development for debugging
+    if (process.env.NODE_ENV === "development" && authError) {
+      console.warn(`[OrgLayout] Auth error for ${orgSlug}:`, authError.message)
+    }
 
     if (!user) {
       redirect("/login")
     }
 
-    // User exists but org not found - check for other orgs
-    const { data: userOrgs } = await supabase
+    // Check if user has membership to THIS org specifically first
+    // This handles transient cache/timing issues
+    const { data: currentOrgMembership } = await supabase
       .from("organization_members")
-      .select("org_id, organizations(org_slug)")
+      .select("org_id, organizations(org_slug, org_name)")
       .eq("user_id", user.id)
       .eq("status", "active")
-      .limit(1)
 
-    if (userOrgs && userOrgs.length > 0) {
-      const existingOrg = userOrgs[0].organizations as { org_slug?: string } | null
-      if (existingOrg?.org_slug) {
-        redirect(`/${existingOrg.org_slug}/dashboard`)
+    const hasCurrentOrgMembership = currentOrgMembership?.some(
+      m => (m.organizations as { org_slug?: string } | null)?.org_slug === orgSlug
+    )
+
+    // If user has membership to this org, the issue might be transient - retry once
+    if (hasCurrentOrgMembership) {
+      if (process.env.NODE_ENV === "development") {
+        console.warn(`[OrgLayout] Transient data issue for ${orgSlug}, retrying...`)
       }
-    }
+      // Small delay to allow any pending writes to complete
+      await new Promise(resolve => setTimeout(resolve, 100))
+      // Re-fetch layout data
+      layoutData = await getOrgLayoutData(orgSlug)
 
-    redirect("/onboarding/billing")
+      // If still null after retry, continue to render with fallback (don't redirect)
+      if (!layoutData) {
+        if (process.env.NODE_ENV === "development") {
+          console.warn(`[OrgLayout] Retry failed for ${orgSlug}, redirecting to dashboard`)
+        }
+        // Redirect to same org's dashboard rather than another org
+        redirect(`/${orgSlug}/dashboard`)
+      }
+    } else {
+      // User doesn't have membership to this org - find another org
+      const { data: userOrgs } = await supabase
+        .from("organization_members")
+        .select("org_id, organizations(org_slug)")
+        .eq("user_id", user.id)
+        .eq("status", "active")
+        .limit(1)
+
+      if (userOrgs && userOrgs.length > 0) {
+        const existingOrg = userOrgs[0].organizations as { org_slug?: string } | null
+        if (existingOrg?.org_slug) {
+          redirect(`/${existingOrg.org_slug}/dashboard`)
+        }
+      }
+
+      redirect("/onboarding/billing")
+    }
   }
 
   const { user, org, membership, profile, memberCount } = layoutData

@@ -96,9 +96,9 @@ export default function AboutPage() {
                 were saving 40-60% on their GenAI bills. Word spread fast.
               </p>
               <p>
-                Today, CloudAct.ai has grown into the leading platform for GenAI and multi-cloud cost
-                intelligence. We serve over 500 companies, manage $50M+ in annual cloud spend, and help teams
-                reduce costs by an average of 67%—all while accelerating their AI innovation.
+                Today, CloudAct.ai has grown into a comprehensive platform for GenAI and multi-cloud cost
+                intelligence. We help teams gain visibility into their costs and find optimization opportunities
+                —all while accelerating their AI innovation.
               </p>
             </div>
           </div>
@@ -109,222 +109,58 @@ export default function AboutPage() {
       <section className="ca-stats-section">
         <div className="ca-stats-grid">
           <div>
-            <div className="ca-stat-value">500+</div>
-            <div className="ca-stat-label">Companies Trust Us</div>
+            <div className="ca-stat-value">50+</div>
+            <div className="ca-stat-label">Integrations</div>
           </div>
           <div>
-            <div className="ca-stat-value">$50M+</div>
-            <div className="ca-stat-label">Costs Optimized Annually</div>
+            <div className="ca-stat-value">3</div>
+            <div className="ca-stat-label">Cloud Providers</div>
           </div>
           <div>
-            <div className="ca-stat-value">67%</div>
-            <div className="ca-stat-label">Average Cost Reduction</div>
+            <div className="ca-stat-value">Real-time</div>
+            <div className="ca-stat-label">Cost Intelligence</div>
           </div>
         </div>
       </section>
 
-      {/* Team/Leadership Section */}
+      {/* Team Section */}
       <section className="ca-section">
         <div className="ca-section-header">
-          <div className="ca-section-label">Leadership</div>
-          <h2 className="ca-display-md">Meet the Team Building CloudAct.ai</h2>
+          <div className="ca-section-label">Our Team</div>
+          <h2 className="ca-display-md">Building CloudAct.ai</h2>
           <p className="ca-body" style={{ maxWidth: "700px", margin: "1rem auto 0" }}>
             We're a team of cloud infrastructure veterans, AI engineers, and data scientists passionate about
             making cost intelligence accessible to everyone.
           </p>
         </div>
 
-        <div className="ca-features-grid">
-          {/* Team Member 1 */}
-          <div className="ca-card" style={{ padding: "2.5rem", textAlign: "center" }}>
-            <div
-              style={{
-                width: "120px",
-                height: "120px",
-                borderRadius: "24px",
-                background: "linear-gradient(135deg, var(--cloudact-mint) 0%, var(--cloudact-mint-dark) 100%)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "white",
-                fontSize: "2.5rem",
-                fontWeight: 700,
-                margin: "0 auto 1.5rem",
-                boxShadow: "var(--shadow-xl)",
-              }}
-            >
-              SM
+        <div style={{ maxWidth: "800px", margin: "0 auto" }}>
+          <div className="ca-card" style={{ padding: "3rem", textAlign: "center" }}>
+            <div className="ca-feature-icon ca-feature-icon-teal" style={{ margin: "0 auto 1.5rem" }}>
+              <Users size={32} />
             </div>
-            <h3 className="ca-heading" style={{ marginBottom: "0.5rem" }}>
-              Sarah Mitchell
+            <h3 className="ca-heading" style={{ marginBottom: "1rem" }}>
+              Our Expertise
             </h3>
-            <p className="ca-label" style={{ marginBottom: "1rem" }}>
-              Co-Founder & CEO
+            <p className="ca-body" style={{ marginBottom: "2rem" }}>
+              Our team brings deep expertise from leading cloud and AI companies. We combine experience in
+              cloud infrastructure, machine learning, and FinOps to build the most comprehensive cost
+              intelligence platform.
             </p>
-            <p className="ca-body-sm">
-              Former Head of Cloud Infrastructure at a Fortune 500 company. 15+ years building scalable
-              systems. MIT Computer Science.
-            </p>
-          </div>
-
-          {/* Team Member 2 */}
-          <div className="ca-card" style={{ padding: "2.5rem", textAlign: "center" }}>
-            <div
-              style={{
-                width: "120px",
-                height: "120px",
-                borderRadius: "24px",
-                background: "linear-gradient(135deg, var(--cloudact-coral) 0%, var(--cloudact-coral-dark) 100%)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "white",
-                fontSize: "2.5rem",
-                fontWeight: 700,
-                margin: "0 auto 1.5rem",
-                boxShadow: "var(--shadow-xl)",
-              }}
-            >
-              AK
+            <div style={{ display: "flex", justifyContent: "center", gap: "2rem", flexWrap: "wrap" }}>
+              <div style={{ textAlign: "center" }}>
+                <div className="ca-subheading">Cloud Architecture</div>
+                <p className="ca-body-sm">AWS, GCP, Azure experts</p>
+              </div>
+              <div style={{ textAlign: "center" }}>
+                <div className="ca-subheading">AI & ML</div>
+                <p className="ca-body-sm">GenAI optimization</p>
+              </div>
+              <div style={{ textAlign: "center" }}>
+                <div className="ca-subheading">FinOps</div>
+                <p className="ca-body-sm">Cost management specialists</p>
+              </div>
             </div>
-            <h3 className="ca-heading" style={{ marginBottom: "0.5rem" }}>
-              Alex Kim
-            </h3>
-            <p className="ca-label" style={{ marginBottom: "1rem" }}>
-              Co-Founder & CTO
-            </p>
-            <p className="ca-body-sm">
-              AI researcher and engineer with 12+ years at Google Brain and OpenAI. PhD in Machine Learning
-              from Stanford.
-            </p>
-          </div>
-
-          {/* Team Member 3 */}
-          <div className="ca-card" style={{ padding: "2.5rem", textAlign: "center" }}>
-            <div
-              style={{
-                width: "120px",
-                height: "120px",
-                borderRadius: "24px",
-                background: "linear-gradient(135deg, var(--cloudact-mint) 0%, var(--cloudact-coral) 100%)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "white",
-                fontSize: "2.5rem",
-                fontWeight: 700,
-                margin: "0 auto 1.5rem",
-                boxShadow: "var(--shadow-xl)",
-              }}
-            >
-              RP
-            </div>
-            <h3 className="ca-heading" style={{ marginBottom: "0.5rem" }}>
-              Raj Patel
-            </h3>
-            <p className="ca-label" style={{ marginBottom: "1rem" }}>
-              VP of Engineering
-            </p>
-            <p className="ca-body-sm">
-              Built cost optimization systems at AWS and Azure. 10+ years in cloud architecture. Carnegie
-              Mellon Engineering.
-            </p>
-          </div>
-
-          {/* Team Member 4 */}
-          <div className="ca-card" style={{ padding: "2.5rem", textAlign: "center" }}>
-            <div
-              style={{
-                width: "120px",
-                height: "120px",
-                borderRadius: "24px",
-                background: "linear-gradient(135deg, #10B981 0%, #059669 100%)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "white",
-                fontSize: "2.5rem",
-                fontWeight: 700,
-                margin: "0 auto 1.5rem",
-                boxShadow: "var(--shadow-xl)",
-              }}
-            >
-              LW
-            </div>
-            <h3 className="ca-heading" style={{ marginBottom: "0.5rem" }}>
-              Lisa Wang
-            </h3>
-            <p className="ca-label" style={{ marginBottom: "1rem" }}>
-              Head of Product
-            </p>
-            <p className="ca-body-sm">
-              Product leader from Stripe and Databricks. Specialized in FinOps and developer tools. Berkeley
-              MBA.
-            </p>
-          </div>
-
-          {/* Team Member 5 */}
-          <div className="ca-card" style={{ padding: "2.5rem", textAlign: "center" }}>
-            <div
-              style={{
-                width: "120px",
-                height: "120px",
-                borderRadius: "24px",
-                background: "linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "white",
-                fontSize: "2.5rem",
-                fontWeight: 700,
-                margin: "0 auto 1.5rem",
-                boxShadow: "var(--shadow-xl)",
-              }}
-            >
-              MC
-            </div>
-            <h3 className="ca-heading" style={{ marginBottom: "0.5rem" }}>
-              Marcus Chen
-            </h3>
-            <p className="ca-label" style={{ marginBottom: "1rem" }}>
-              VP of Customer Success
-            </p>
-            <p className="ca-body-sm">
-              Customer success veteran from Snowflake and MongoDB. 8+ years helping enterprises adopt cloud
-              technologies.
-            </p>
-          </div>
-
-          {/* Team Member 6 */}
-          <div className="ca-card" style={{ padding: "2.5rem", textAlign: "center" }}>
-            <div
-              style={{
-                width: "120px",
-                height: "120px",
-                borderRadius: "24px",
-                background: "linear-gradient(135deg, #F59E0B 0%, #D97706 100%)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "white",
-                fontSize: "2.5rem",
-                fontWeight: 700,
-                margin: "0 auto 1.5rem",
-                boxShadow: "var(--shadow-xl)",
-              }}
-            >
-              EN
-            </div>
-            <h3 className="ca-heading" style={{ marginBottom: "0.5rem" }}>
-              Elena Novak
-            </h3>
-            <p className="ca-label" style={{ marginBottom: "1rem" }}>
-              Head of Security
-            </p>
-            <p className="ca-body-sm">
-              Security architect with SOC 2 and ISO 27001 expertise. Former security lead at Cloudflare and
-              Auth0.
-            </p>
           </div>
         </div>
       </section>
@@ -415,73 +251,51 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* Additional Stats */}
+      {/* Platform Capabilities */}
       <section className="ca-section">
         <div className="ca-section-header">
-          <div className="ca-section-label">By the Numbers</div>
-          <h2 className="ca-display-md">Impact at Scale</h2>
+          <div className="ca-section-label">Platform Capabilities</div>
+          <h2 className="ca-display-md">What We Offer</h2>
         </div>
 
         <div className="ca-features-grid">
-          {/* Stat 1 */}
-          <div className="ca-card" style={{ padding: "2.5rem", textAlign: "center" }}>
-            <div className="ca-feature-icon ca-feature-icon-teal" style={{ margin: "0 auto 1.5rem" }}>
-              <Users size={32} />
-            </div>
-            <div className="ca-stat-value" style={{ fontSize: "3.5rem", marginBottom: "0.5rem" }}>
-              500+
-            </div>
-            <p className="ca-body-sm">Companies across 40+ countries trust CloudAct.ai</p>
-          </div>
-
-          {/* Stat 2 */}
-          <div className="ca-card" style={{ padding: "2.5rem", textAlign: "center" }}>
-            <div className="ca-feature-icon ca-feature-icon-coral" style={{ margin: "0 auto 1.5rem" }}>
-              <TrendingUp size={32} />
-            </div>
-            <div className="ca-stat-value" style={{ fontSize: "3.5rem", marginBottom: "0.5rem" }}>
-              $50M+
-            </div>
-            <p className="ca-body-sm">Total cloud and GenAI costs optimized annually</p>
-          </div>
-
-          {/* Stat 3 */}
-          <div className="ca-card" style={{ padding: "2.5rem", textAlign: "center" }}>
-            <div className="ca-feature-icon ca-feature-icon-green" style={{ margin: "0 auto 1.5rem" }}>
-              <Zap size={32} />
-            </div>
-            <div className="ca-stat-value" style={{ fontSize: "3.5rem", marginBottom: "0.5rem" }}>
-              67%
-            </div>
-            <p className="ca-body-sm">Average cost reduction without performance loss</p>
-          </div>
-
-          {/* Stat 4 */}
+          {/* Capability 1 */}
           <div className="ca-card" style={{ padding: "2.5rem", textAlign: "center" }}>
             <div className="ca-feature-icon ca-feature-icon-teal" style={{ margin: "0 auto 1.5rem" }}>
               <Globe size={32} />
             </div>
             <div className="ca-stat-value" style={{ fontSize: "3.5rem", marginBottom: "0.5rem" }}>
-              12+
+              50+
             </div>
-            <p className="ca-body-sm">Cloud and GenAI provider integrations supported</p>
+            <p className="ca-body-sm">Integrations with cloud, GenAI, and SaaS providers</p>
           </div>
 
-          {/* Stat 5 */}
+          {/* Capability 2 */}
           <div className="ca-card" style={{ padding: "2.5rem", textAlign: "center" }}>
             <div className="ca-feature-icon ca-feature-icon-coral" style={{ margin: "0 auto 1.5rem" }}>
-              <Heart size={32} />
+              <TrendingUp size={32} />
             </div>
             <div className="ca-stat-value" style={{ fontSize: "3.5rem", marginBottom: "0.5rem" }}>
-              98%
+              Real-time
             </div>
-            <p className="ca-body-sm">Customer satisfaction and retention rate</p>
+            <p className="ca-body-sm">Cost tracking and anomaly detection</p>
           </div>
 
-          {/* Stat 6 */}
+          {/* Capability 3 */}
           <div className="ca-card" style={{ padding: "2.5rem", textAlign: "center" }}>
             <div className="ca-feature-icon ca-feature-icon-green" style={{ margin: "0 auto 1.5rem" }}>
-              <Award size={32} />
+              <Zap size={32} />
+            </div>
+            <div className="ca-stat-value" style={{ fontSize: "3.5rem", marginBottom: "0.5rem" }}>
+              AI-Powered
+            </div>
+            <p className="ca-body-sm">Optimization recommendations</p>
+          </div>
+
+          {/* Capability 4 */}
+          <div className="ca-card" style={{ padding: "2.5rem", textAlign: "center" }}>
+            <div className="ca-feature-icon ca-feature-icon-teal" style={{ margin: "0 auto 1.5rem" }}>
+              <Shield size={32} />
             </div>
             <div className="ca-stat-value" style={{ fontSize: "3.5rem", marginBottom: "0.5rem" }}>
               SOC 2

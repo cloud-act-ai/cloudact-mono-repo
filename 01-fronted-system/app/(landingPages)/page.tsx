@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useCallback } from "react"
 import {
   ArrowRight,
   Check,
@@ -19,9 +19,11 @@ import {
   Activity,
   ArrowUpRight,
   Play,
+  Loader2,
 } from "lucide-react"
 import "./premium.css"
 import { DEFAULT_TRIAL_DAYS } from "@/lib/constants"
+import { getStripePlans, type DynamicPlan } from "@/actions/stripe"
 
 // Provider data
 const PROVIDERS = [
@@ -35,75 +37,24 @@ const PROVIDERS = [
   { name: "Datadog", icon: "📊", type: "SaaS", angle: 315 },
 ]
 
-// Animated counter hook
-function useCounter(end: number, duration: number = 2000) {
-  const [count, setCount] = useState(0)
-  const [started, setStarted] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting && !started) {
-          setStarted(true)
-        }
-      },
-      { threshold: 0.5 }
-    )
-    if (ref.current) observer.observe(ref.current)
-    return () => observer.disconnect()
-  }, [started])
-
-  useEffect(() => {
-    if (!started) return
-    let start: number
-    const step = (timestamp: number) => {
-      if (!start) start = timestamp
-      const progress = Math.min((timestamp - start) / duration, 1)
-      setCount(Math.floor(progress * end))
-      if (progress < 1) requestAnimationFrame(step)
-    }
-    requestAnimationFrame(step)
-  }, [started, end, duration])
-
-  return { count, ref }
-}
-
-// Live ticker component
-function LiveTicker() {
-  const [data, setData] = useState({
-    savings: 2847392,
-    orgs: 847,
-    queries: 12847392,
-  })
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setData(prev => ({
-        savings: prev.savings + Math.floor(Math.random() * 50),
-        orgs: prev.orgs + (Math.random() > 0.95 ? 1 : 0),
-        queries: prev.queries + Math.floor(Math.random() * 500),
-      }))
-    }, 2000)
-    return () => clearInterval(interval)
-  }, [])
-
+// Live status component - shows platform capabilities
+function LiveStatus() {
   return (
     <div className="ca-ticker ca-animate">
       <div className="ca-ticker-item">
         <div className="ca-ticker-dot" />
-        <span className="ca-ticker-label">Savings</span>
-        <span className="ca-ticker-value">${data.savings.toLocaleString()}</span>
+        <span className="ca-ticker-label">Platform</span>
+        <span className="ca-ticker-value">Live</span>
       </div>
       <div className="ca-ticker-item">
         <div className="ca-ticker-dot" />
-        <span className="ca-ticker-label">Orgs</span>
-        <span className="ca-ticker-value">{data.orgs.toLocaleString()}</span>
+        <span className="ca-ticker-label">Integrations</span>
+        <span className="ca-ticker-value">50+</span>
       </div>
       <div className="ca-ticker-item">
         <div className="ca-ticker-dot" />
-        <span className="ca-ticker-label">Queries/Day</span>
-        <span className="ca-ticker-value">{data.queries.toLocaleString()}</span>
+        <span className="ca-ticker-label">Real-time</span>
+        <span className="ca-ticker-value">Tracking</span>
       </div>
     </div>
   )
@@ -207,30 +158,30 @@ function DashboardPreview() {
         <div className="ca-metrics-grid">
           <div className="ca-metric-card">
             <div className="ca-metric-label">Monthly Spend</div>
-            <div className="ca-metric-value ca-mono">$127,432</div>
+            <div className="ca-metric-value ca-mono">Your costs</div>
             <div className="ca-metric-change ca-metric-change-positive">
-              <TrendingDown className="w-3 h-3" /> -23%
+              <TrendingDown className="w-3 h-3" /> Tracked
             </div>
           </div>
           <div className="ca-metric-card">
             <div className="ca-metric-label">GenAI Costs</div>
-            <div className="ca-metric-value ca-mono text-coral">$43,892</div>
+            <div className="ca-metric-value ca-mono text-coral">AI spend</div>
             <div className="ca-metric-change ca-metric-change-negative">
-              <Activity className="w-3 h-3" /> 4.2M tokens
+              <Activity className="w-3 h-3" /> Token usage
             </div>
           </div>
           <div className="ca-metric-card">
             <div className="ca-metric-label">Cloud Infra</div>
-            <div className="ca-metric-value ca-mono">$68,240</div>
+            <div className="ca-metric-value ca-mono">Cloud spend</div>
             <div className="ca-metric-change ca-metric-change-positive">
-              <Globe className="w-3 h-3" /> 3 providers
+              <Globe className="w-3 h-3" /> All providers
             </div>
           </div>
           <div className="ca-metric-card ca-metric-card-highlight">
             <div className="ca-metric-label">Savings Found</div>
-            <div className="ca-metric-value ca-mono">$31,847</div>
+            <div className="ca-metric-value ca-mono">Optimized</div>
             <div className="ca-metric-change" style={{ background: 'rgba(255,255,255,0.2)', color: 'white' }}>
-              <Sparkles className="w-3 h-3" /> 12 tips
+              <Sparkles className="w-3 h-3" /> AI tips
             </div>
           </div>
         </div>
@@ -350,32 +301,46 @@ function PricingCard({
 // Testimonials
 const TESTIMONIALS = [
   {
-    quote: "CloudAct.ai reduced our GenAI costs by 47% in the first month. The visibility into token usage across OpenAI and Anthropic was a game-changer.",
+    quote: "CloudAct.ai gave us complete visibility into token usage across OpenAI and Anthropic. The unified dashboard was a game-changer for our FinOps team.",
     author: "Sarah Chen",
-    role: "VP of Engineering, TechScale Inc",
+    role: "VP of Engineering",
     avatar: "SC",
-    savings: "$127K",
+    highlight: "Complete visibility",
   },
   {
-    quote: "Finally, a single dashboard for all our cloud and AI costs. We went from spending 2 days on monthly reports to having real-time insights.",
+    quote: "Finally, a single dashboard for all our cloud and AI costs. We went from spending days on monthly reports to having real-time insights.",
     author: "Marcus Rodriguez",
-    role: "CTO, DataFlow Technologies",
+    role: "CTO",
     avatar: "MR",
-    savings: "$340K",
+    highlight: "Real-time insights",
   },
   {
-    quote: "The automated recommendations alone have saved us over $200K annually. CloudAct.ai is essential for any team using LLMs at scale.",
+    quote: "The automated recommendations helped us identify significant optimization opportunities. CloudAct.ai is essential for any team using LLMs at scale.",
     author: "Emily Watson",
-    role: "Head of FinOps, Enterprise AI Corp",
+    role: "Head of FinOps",
     avatar: "EW",
-    savings: "$210K",
+    highlight: "AI recommendations",
   },
 ]
 
 export default function PremiumLandingPage() {
   const [activeTestimonial, setActiveTestimonial] = useState(0)
-  const savingsCounter = useCounter(2847000, 2500)
-  const orgsCounter = useCounter(847, 2000)
+  const [plans, setPlans] = useState<DynamicPlan[]>([])
+  const [isLoadingPlans, setIsLoadingPlans] = useState(true)
+
+  // Fetch Stripe plans
+  const loadPlans = useCallback(async () => {
+    setIsLoadingPlans(true)
+    const result = await getStripePlans()
+    if (result.data) {
+      setPlans(result.data)
+    }
+    setIsLoadingPlans(false)
+  }, [])
+
+  useEffect(() => {
+    loadPlans()
+  }, [loadPlans])
 
   // Auto-rotate testimonials
   useEffect(() => {
@@ -424,7 +389,7 @@ export default function PremiumLandingPage() {
         </div>
 
         <div className="ca-hero-content">
-          <LiveTicker />
+          <LiveStatus />
 
           <h1 className="ca-display-xl ca-animate ca-delay-1" style={{ marginBottom: '24px', maxWidth: '900px', marginLeft: 'auto', marginRight: 'auto' }}>
             Track Every Dollar Across{' '}
@@ -458,7 +423,7 @@ export default function PremiumLandingPage() {
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#52525B', fontSize: '0.875rem' }}>
               <TrendingDown className="w-4 h-4" style={{ color: '#10B981' }} />
-              67% avg. cost reduction
+              Reduce costs
             </div>
           </div>
 
@@ -532,22 +497,18 @@ export default function PremiumLandingPage() {
 
       {/* Stats */}
       <section className="ca-stats-section">
-        <div className="ca-stats-grid" ref={savingsCounter.ref}>
-          <div>
-            <div className="ca-stat-value ca-mono">
-              ${(savingsCounter.count / 1000000).toFixed(1)}M+
-            </div>
-            <p className="ca-stat-label">Total customer savings</p>
-          </div>
-          <div ref={orgsCounter.ref}>
-            <div className="ca-stat-value ca-mono">
-              {orgsCounter.count}+
-            </div>
-            <p className="ca-stat-label">Organizations worldwide</p>
-          </div>
+        <div className="ca-stats-grid">
           <div>
             <div className="ca-stat-value ca-mono">50+</div>
             <p className="ca-stat-label">Integrations supported</p>
+          </div>
+          <div>
+            <div className="ca-stat-value ca-mono">3</div>
+            <p className="ca-stat-label">Major cloud providers</p>
+          </div>
+          <div>
+            <div className="ca-stat-value ca-mono">Real-time</div>
+            <p className="ca-stat-label">Cost tracking & alerts</p>
           </div>
         </div>
       </section>
@@ -569,7 +530,7 @@ export default function PremiumLandingPage() {
               <div className="ca-testimonial-role">{TESTIMONIALS[activeTestimonial].role}</div>
             </div>
             <div className="ca-testimonial-savings">
-              Saved {TESTIMONIALS[activeTestimonial].savings}
+              {TESTIMONIALS[activeTestimonial].highlight}
             </div>
           </div>
           <p className="ca-testimonial-quote">
@@ -615,48 +576,83 @@ export default function PremiumLandingPage() {
         </div>
 
         <div className="ca-pricing-grid">
-          <PricingCard
-            name="Starter"
-            price="$0"
-            period="mo"
-            description="Perfect for small teams"
-            features={[
-              "Up to 3 team members",
-              "5 integrations",
-              "Basic cost dashboards",
-              "7-day data retention",
-              "Community support",
-            ]}
-          />
-          <PricingCard
-            name="Pro"
-            price="$249"
-            period="mo"
-            description="For growing teams"
-            featured
-            features={[
-              "Up to 20 team members",
-              "Unlimited integrations",
-              "AI-powered recommendations",
-              "90-day data retention",
-              "Priority support",
-              "Custom alerts & reports",
-            ]}
-          />
-          <PricingCard
-            name="Enterprise"
-            price="Custom"
-            description="For large organizations"
-            ctaText="Contact sales"
-            features={[
-              "Unlimited team members",
-              "Unlimited integrations",
-              "Advanced security (SSO, SCIM)",
-              "Unlimited data retention",
-              "Dedicated success manager",
-              "Custom SLAs & contracts",
-            ]}
-          />
+          {isLoadingPlans ? (
+            <div className="col-span-3 flex items-center justify-center py-16">
+              <Loader2 className="h-8 w-8 animate-spin text-[var(--cloudact-mint)]" />
+            </div>
+          ) : plans.length > 0 ? (
+            <>
+              {plans.map((plan, index) => (
+                <PricingCard
+                  key={plan.id}
+                  name={plan.name}
+                  price={plan.price === 0 ? "$0" : `$${plan.price}`}
+                  period={plan.interval === "year" ? "yr" : "mo"}
+                  description={plan.description || (index === 0 ? "Perfect for small teams" : "For growing teams")}
+                  featured={index === 1}
+                  features={plan.features}
+                />
+              ))}
+              <PricingCard
+                name="Enterprise"
+                price="Custom"
+                description="For large organizations"
+                ctaText="Contact sales"
+                features={[
+                  "Unlimited team members",
+                  "Unlimited integrations",
+                  "Advanced security (SSO, SCIM)",
+                  "Unlimited data retention",
+                  "Dedicated success manager",
+                  "Custom SLAs & contracts",
+                ]}
+              />
+            </>
+          ) : (
+            <>
+              <PricingCard
+                name="Starter"
+                price="Free"
+                period="mo"
+                description="Perfect for small teams"
+                features={[
+                  "Up to 3 team members",
+                  "5 integrations",
+                  "Basic cost dashboards",
+                  "7-day data retention",
+                  "Community support",
+                ]}
+              />
+              <PricingCard
+                name="Pro"
+                price="Contact us"
+                description="For growing teams"
+                featured
+                features={[
+                  "Up to 20 team members",
+                  "Unlimited integrations",
+                  "AI-powered recommendations",
+                  "90-day data retention",
+                  "Priority support",
+                  "Custom alerts & reports",
+                ]}
+              />
+              <PricingCard
+                name="Enterprise"
+                price="Custom"
+                description="For large organizations"
+                ctaText="Contact sales"
+                features={[
+                  "Unlimited team members",
+                  "Unlimited integrations",
+                  "Advanced security (SSO, SCIM)",
+                  "Unlimited data retention",
+                  "Dedicated success manager",
+                  "Custom SLAs & contracts",
+                ]}
+              />
+            </>
+          )}
         </div>
       </section>
 
@@ -670,8 +666,8 @@ export default function PremiumLandingPage() {
             </div>
             <h2 className="ca-cta-title">Ready to take control of your costs?</h2>
             <p className="ca-cta-subtitle">
-              Join 800+ teams using CloudAct.ai to track, analyze, and optimize their
-              GenAI, cloud, and SaaS spending.
+              Use CloudAct.ai to track, analyze, and optimize your
+              GenAI, cloud, and SaaS spending in one unified platform.
             </p>
             <div className="ca-cta-buttons">
               <Link href="/signup" className="ca-cta-btn-white">

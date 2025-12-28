@@ -1,3 +1,7 @@
+"use client"
+
+import React, { useState, useEffect, useCallback } from "react"
+import { useParams } from "next/navigation"
 import Link from "next/link"
 import {
   Activity,
@@ -10,41 +14,151 @@ import {
   ChevronRight,
   BarChart3,
   Timer,
-  Database
+  Database,
+  Loader2,
+  RefreshCw,
+  Wallet,
 } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { getPipelineRuns } from "@/actions/pipelines"
+import type { PipelineRunSummary } from "@/lib/api/backend"
 
-export default async function OperationsPage({
-  params,
-}: {
-  params: Promise<{ orgSlug: string }>
-}) {
-  const { orgSlug } = await params
+interface PipelineStats {
+  total: number
+  running: number
+  completed: number
+  failed: number
+  successRate: number
+}
 
-  // Mock data for demonstration
-  const pipelineStats = {
-    total: 156,
-    running: 2,
-    completed: 148,
-    failed: 6,
-    successRate: 95
+export default function OperationsPage() {
+  const params = useParams()
+  const orgSlug = params.orgSlug as string
+
+  const [isLoading, setIsLoading] = useState(true)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [pipelineStats, setPipelineStats] = useState<PipelineStats>({
+    total: 0,
+    running: 0,
+    completed: 0,
+    failed: 0,
+    successRate: 0,
+  })
+  const [recentPipelines, setRecentPipelines] = useState<PipelineRunSummary[]>([])
+
+  const loadData = useCallback(async () => {
+    try {
+      const result = await getPipelineRuns(orgSlug, { limit: 100 })
+
+      if (result.success && result.data?.runs) {
+        const runs = result.data.runs
+        const total = result.data.total || runs.length
+
+        // Calculate stats from pipeline runs
+        const running = runs.filter(r => r.status === "RUNNING" || r.status === "IN_PROGRESS").length
+        const completed = runs.filter(r => r.status === "COMPLETED").length
+        const failed = runs.filter(r => r.status === "FAILED").length
+        const successRate = total > 0 ? Math.round((completed / total) * 100) : 0
+
+        setPipelineStats({
+          total,
+          running,
+          completed,
+          failed,
+          successRate,
+        })
+
+        // Get 5 most recent pipelines
+        setRecentPipelines(runs.slice(0, 5))
+      }
+    } catch {
+      // Silently handle errors - show empty state
+    } finally {
+      setIsLoading(false)
+    }
+  }, [orgSlug])
+
+  useEffect(() => {
+    loadData()
+  }, [loadData])
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true)
+    await loadData()
+    setIsRefreshing(false)
   }
 
-  const recentPipelines = [
-    { name: "GCP Cost Billing", status: "running", duration: "2m 34s", provider: "gcp" },
-    { name: "AWS Cost Usage", status: "completed", duration: "1m 12s", provider: "aws" },
-    { name: "OpenAI Usage Sync", status: "completed", duration: "45s", provider: "openai" },
-  ]
+  const getPipelineIcon = (pipelineId: string) => {
+    const id = pipelineId.toLowerCase()
+    if (id.includes("openai") || id.includes("anthropic") || id.includes("gemini")) {
+      return <Brain className="h-5 w-5 text-purple-500" />
+    }
+    if (id.includes("gcp")) {
+      return <Cloud className="h-5 w-5 text-blue-500" />
+    }
+    if (id.includes("aws")) {
+      return <Cloud className="h-5 w-5 text-orange-500" />
+    }
+    if (id.includes("azure")) {
+      return <Cloud className="h-5 w-5 text-[#0078D4]" />
+    }
+    if (id.includes("saas") || id.includes("subscription")) {
+      return <Wallet className="h-5 w-5 text-[#FF6C5E]" />
+    }
+    return <Database className="h-5 w-5 text-slate-500" />
+  }
+
+  const getProviderColor = (pipelineId: string) => {
+    const id = pipelineId.toLowerCase()
+    if (id.includes("gcp")) return "bg-blue-500/10"
+    if (id.includes("aws")) return "bg-orange-500/10"
+    if (id.includes("azure")) return "bg-[#0078D4]/10"
+    if (id.includes("openai") || id.includes("anthropic") || id.includes("gemini")) return "bg-purple-500/10"
+    if (id.includes("saas") || id.includes("subscription")) return "bg-[#FF6C5E]/10"
+    return "bg-slate-100"
+  }
+
+  const formatDuration = (durationMs?: number) => {
+    if (!durationMs) return "-"
+    const seconds = durationMs / 1000
+    if (seconds < 60) return `${seconds.toFixed(1)}s`
+    const minutes = Math.floor(seconds / 60)
+    const remainingSeconds = Math.round(seconds % 60)
+    return `${minutes}m ${remainingSeconds}s`
+  }
+
+  if (isLoading) {
+    return (
+      <div className="max-w-6xl mx-auto py-8">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Loader2 className="h-8 w-8 animate-spin text-[var(--cloudact-mint-text)]" />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-8 max-w-6xl mx-auto">
       {/* Header */}
-      <div className="mb-10">
-        <h1 className="text-[32px] font-bold text-slate-900 tracking-tight leading-none">
-          Operations
-        </h1>
-        <p className="text-[15px] text-slate-500 mt-2 max-w-lg">
-          Monitor your system operations and health
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-[32px] font-bold text-slate-900 tracking-tight leading-none">
+            Operations
+          </h1>
+          <p className="text-[15px] text-slate-500 mt-2 max-w-lg">
+            Monitor your system operations and health
+          </p>
+        </div>
+        <Button
+          onClick={handleRefresh}
+          disabled={isRefreshing}
+          variant="outline"
+          size="sm"
+          className="h-9"
+        >
+          <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
+          Refresh
+        </Button>
       </div>
 
       {/* Stats Row */}
@@ -73,7 +187,7 @@ export default async function OperationsPage({
         <div className="flex items-center gap-3">
           <AlertTriangle className="h-4 w-4 text-amber-500" />
           <span className="text-[14px] text-slate-600">
-            <span className="font-semibold text-amber-600">{pipelineStats.failed}</span> Failed (24h)
+            <span className="font-semibold text-amber-600">{pipelineStats.failed}</span> Failed
           </span>
         </div>
       </div>
@@ -95,7 +209,9 @@ export default async function OperationsPage({
             <div className="h-9 w-9 rounded-xl bg-[var(--cloudact-coral)]/10 flex items-center justify-center">
               <Zap className="h-4 w-4 text-[var(--cloudact-coral)]" />
             </div>
-            <div className="h-2 w-2 rounded-full bg-[var(--cloudact-coral)] animate-pulse"></div>
+            {pipelineStats.running > 0 && (
+              <div className="h-2 w-2 rounded-full bg-[var(--cloudact-coral)] animate-pulse"></div>
+            )}
           </div>
           <p className="text-[12px] text-slate-500 uppercase tracking-wide">Running Now</p>
           <p className="text-[24px] font-bold text-slate-900 mt-1">{pipelineStats.running}</p>
@@ -117,7 +233,7 @@ export default async function OperationsPage({
               <AlertTriangle className="h-4 w-4 text-amber-500" />
             </div>
           </div>
-          <p className="text-[12px] text-slate-500 uppercase tracking-wide">Failed (24h)</p>
+          <p className="text-[12px] text-slate-500 uppercase tracking-wide">Failed</p>
           <p className="text-[24px] font-bold text-slate-900 mt-1">{pipelineStats.failed}</p>
         </div>
       </div>
@@ -136,63 +252,70 @@ export default async function OperationsPage({
         </div>
 
         <div className="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100">
-          {recentPipelines.map((pipeline, idx) => (
-            <div
-              key={idx}
-              className="group relative"
-            >
-              {/* Left accent */}
+          {recentPipelines.length > 0 ? (
+            recentPipelines.map((pipeline) => (
               <div
-                className={`absolute left-0 top-3 bottom-3 w-1 rounded-full ${
-                  pipeline.status === 'running' ? 'bg-[var(--cloudact-coral)]' : 'bg-[var(--cloudact-mint)]'
-                }`}
-              />
+                key={pipeline.pipeline_logging_id}
+                className="group relative"
+              >
+                {/* Left accent */}
+                <div
+                  className={`absolute left-0 top-3 bottom-3 w-1 rounded-full ${
+                    pipeline.status === "RUNNING" || pipeline.status === "IN_PROGRESS"
+                      ? "bg-[var(--cloudact-coral)]"
+                      : pipeline.status === "FAILED"
+                      ? "bg-red-500"
+                      : "bg-[var(--cloudact-mint)]"
+                  }`}
+                />
 
-              <div className="flex items-center justify-between p-4 pl-5">
-                <div className="flex items-center gap-4">
-                  <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${
-                    pipeline.provider === 'gcp' ? 'bg-blue-500/10' :
-                    pipeline.provider === 'aws' ? 'bg-orange-500/10' :
-                    'bg-purple-500/10'
-                  }`}>
-                    {pipeline.provider === 'gcp' && <Cloud className="h-5 w-5 text-blue-500" />}
-                    {pipeline.provider === 'aws' && <Cloud className="h-5 w-5 text-orange-500" />}
-                    {pipeline.provider === 'openai' && <Brain className="h-5 w-5 text-purple-500" />}
-                  </div>
-                  <div>
-                    <p className="text-[15px] font-semibold text-slate-900">{pipeline.name}</p>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <Timer className="h-3 w-3 text-slate-400" />
-                      <span className="text-[12px] text-slate-500">{pipeline.duration}</span>
+                <div className="flex items-center justify-between p-4 pl-5">
+                  <div className="flex items-center gap-4">
+                    <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${getProviderColor(pipeline.pipeline_id)}`}>
+                      {getPipelineIcon(pipeline.pipeline_id)}
+                    </div>
+                    <div>
+                      <p className="text-[15px] font-semibold text-slate-900">{pipeline.pipeline_id}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <Timer className="h-3 w-3 text-slate-400" />
+                        <span className="text-[12px] text-slate-500">{formatDuration(pipeline.duration_ms)}</span>
+                      </div>
                     </div>
                   </div>
+                  <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ${
+                    pipeline.status === "RUNNING" || pipeline.status === "IN_PROGRESS"
+                      ? "bg-[var(--cloudact-coral)]/10 text-[var(--cloudact-coral)]"
+                      : pipeline.status === "FAILED"
+                      ? "bg-red-500/10 text-red-600"
+                      : "bg-[var(--cloudact-mint)]/10 text-[var(--cloudact-mint-text)]"
+                  }`}>
+                    {pipeline.status === "RUNNING" || pipeline.status === "IN_PROGRESS" ? (
+                      <span className="flex items-center gap-1.5">
+                        <span className="h-1.5 w-1.5 rounded-full bg-[var(--cloudact-coral)] animate-pulse"></span>
+                        Running
+                      </span>
+                    ) : pipeline.status === "FAILED" ? (
+                      <span className="flex items-center gap-1.5">
+                        <AlertTriangle className="h-3 w-3" />
+                        Failed
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1.5">
+                        <CheckCircle2 className="h-3 w-3" />
+                        Completed
+                      </span>
+                    )}
+                  </span>
                 </div>
-                <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold ${
-                  pipeline.status === 'running'
-                    ? 'bg-[var(--cloudact-coral)]/10 text-[var(--cloudact-coral)]'
-                    : 'bg-[var(--cloudact-mint)]/10 text-[var(--cloudact-mint-text)]'
-                }`}>
-                  {pipeline.status === 'running' ? (
-                    <span className="flex items-center gap-1.5">
-                      <span className="h-1.5 w-1.5 rounded-full bg-[var(--cloudact-coral)] animate-pulse"></span>
-                      Running
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-1.5">
-                      <CheckCircle2 className="h-3 w-3" />
-                      Completed
-                    </span>
-                  )}
-                </span>
               </div>
+            ))
+          ) : (
+            <div className="p-8 text-center">
+              <Database className="h-10 w-10 text-slate-300 mx-auto mb-3" />
+              <p className="text-sm font-medium text-slate-900">No pipeline runs yet</p>
+              <p className="text-xs text-slate-500 mt-1">Run a pipeline to see activity here</p>
             </div>
-          ))}
-        </div>
-
-        <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 text-center">
-          <p className="text-[13px] text-slate-500">
-            Real-time pipeline monitoring coming soon
-          </p>
+          )}
         </div>
       </div>
 

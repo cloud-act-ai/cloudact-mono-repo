@@ -37,16 +37,16 @@ const providerGroups = {
 }
 
 const features = [
-  { icon: TrendingDown, title: "Cut costs by 23%", description: "AI-powered savings recommendations" },
+  { icon: TrendingDown, title: "Reduce costs", description: "AI-powered savings recommendations" },
   { icon: BarChart3, title: "Real-time analytics", description: "Live dashboards & trend analysis" },
   { icon: Users, title: "Team collaboration", description: "Unlimited users & role-based access" },
   { icon: Clock, title: "2-minute setup", description: "Quick OAuth integrations" },
 ]
 
 const stats = [
-  { value: "$2.4M+", label: "Optimized" },
-  { value: "3,000+", label: "Teams" },
-  { value: "99.9%", label: "Uptime" },
+  { value: "50+", label: "Integrations" },
+  { value: "Real-time", label: "Tracking" },
+  { value: "Secure", label: "Platform" },
 ]
 
 // Team avatars for social proof
@@ -125,7 +125,7 @@ export function AuthLayout({ children, variant = "login" }: AuthLayoutProps) {
                 spending
               </h1>
               <p className="text-[14px] xl:text-[15px] text-gray-500 leading-relaxed max-w-lg mx-auto">
-                Join thousands of teams who trust CloudAct to track, analyze, and optimize their tech spend.
+                Track, analyze, and optimize your tech spend across all your cloud and AI providers.
               </p>
             </div>
 
@@ -258,8 +258,8 @@ export function AuthLayout({ children, variant = "login" }: AuthLayoutProps) {
                 ))}
               </div>
               <div>
-                <div className="text-[10px] font-semibold text-[#0a0a0b]">Trusted by 3,000+ teams</div>
-                <div className="text-[8px] text-gray-400">from startups to Fortune 500</div>
+                <div className="text-[10px] font-semibold text-[#0a0a0b]">Built for modern teams</div>
+                <div className="text-[8px] text-gray-400">from startups to enterprise</div>
               </div>
             </div>
 

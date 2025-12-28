@@ -1,73 +1,11 @@
 "use client"
 
-import { useState } from "react"
-import type { Metadata } from "next"
+import { useState, useEffect } from "react"
 import Link from "next/link"
-import { Check, X, ArrowRight, Zap, Shield, Clock, Users, Sparkles } from "lucide-react"
+import { Check, X, ArrowRight, Zap, Shield, Clock, Users, Sparkles, Loader2 } from "lucide-react"
+import { getStripePlans, type DynamicPlan } from "@/actions/stripe"
 
-// Metadata must be exported separately in a server component
-// For now, using client component for interactivity
-
-const PRICING_DATA = {
-  starter: {
-    name: "Starter",
-    price: 0,
-    description: "Perfect for small teams getting started",
-    features: [
-      { name: "Up to 3 cloud integrations", included: true },
-      { name: "Basic cost analytics", included: true },
-      { name: "7-day data retention", included: true },
-      { name: "Email support", included: true },
-      { name: "Monthly reports", included: true },
-      { name: "Single organization", included: true },
-      { name: "Real-time alerts", included: false },
-      { name: "Advanced forecasting", included: false },
-      { name: "API access", included: false },
-      { name: "Custom integrations", included: false },
-    ],
-    cta: "Get Started Free",
-    highlight: false,
-  },
-  pro: {
-    name: "Pro",
-    price: 249,
-    description: "Advanced features for growing businesses",
-    features: [
-      { name: "Unlimited cloud integrations", included: true },
-      { name: "Advanced cost analytics", included: true },
-      { name: "90-day data retention", included: true },
-      { name: "Priority email & chat support", included: true },
-      { name: "Weekly reports + custom schedules", included: true },
-      { name: "Up to 5 organizations", included: true },
-      { name: "Real-time alerts", included: true },
-      { name: "Advanced forecasting", included: true },
-      { name: "API access", included: true },
-      { name: "Custom integrations", included: false },
-    ],
-    cta: "Start 14-Day Trial",
-    highlight: true,
-  },
-  enterprise: {
-    name: "Enterprise",
-    price: null,
-    description: "Custom solutions for large organizations",
-    features: [
-      { name: "Unlimited cloud integrations", included: true },
-      { name: "Enterprise analytics suite", included: true },
-      { name: "Unlimited data retention", included: true },
-      { name: "24/7 dedicated support", included: true },
-      { name: "Custom reporting", included: true },
-      { name: "Unlimited organizations", included: true },
-      { name: "Real-time alerts", included: true },
-      { name: "Advanced forecasting", included: true },
-      { name: "Full API access", included: true },
-      { name: "Custom integrations", included: true },
-    ],
-    cta: "Contact Sales",
-    highlight: false,
-  },
-}
-
+// FAQs - static content
 const FAQS = [
   {
     question: "Is there a free trial?",
@@ -111,30 +49,65 @@ const FAQS = [
   },
 ]
 
+// Plan icons based on plan name
+const getPlanIcon = (planName: string) => {
+  const name = planName.toLowerCase()
+  if (name.includes("starter") || name.includes("free")) return Zap
+  if (name.includes("pro") || name.includes("professional")) return Shield
+  if (name.includes("enterprise") || name.includes("business")) return Users
+  return Zap
+}
+
+// Plan accent color based on plan name
+const getPlanAccent = (planName: string) => {
+  const name = planName.toLowerCase()
+  if (name.includes("pro") || name.includes("professional")) return "coral"
+  return "teal"
+}
+
 export default function PricingPage() {
   const [billingPeriod, setBillingPeriod] = useState<"monthly" | "annual">("monthly")
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null)
+  const [plans, setPlans] = useState<DynamicPlan[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const getPrice = (basePrice: number | null) => {
-    if (basePrice === null) return null
-    if (billingPeriod === "annual") {
-      return Math.floor(basePrice * 12 * 0.8) // 20% discount
+  useEffect(() => {
+    async function loadPlans() {
+      setIsLoading(true)
+      const result = await getStripePlans()
+      if (result.data) {
+        setPlans(result.data)
+      } else {
+        setError(result.error || "Failed to load pricing plans")
+      }
+      setIsLoading(false)
     }
-    return basePrice
-  }
+    loadPlans()
+  }, [])
 
-  const getPriceDisplay = (basePrice: number | null) => {
-    const price = getPrice(basePrice)
-    if (price === null) return "Custom"
+  // Filter plans by billing period
+  const filteredPlans = plans.filter(plan =>
+    billingPeriod === "monthly" ? plan.interval === "month" : plan.interval === "year"
+  )
+
+  // If no plans for selected period, show all
+  const displayPlans = filteredPlans.length > 0 ? filteredPlans : plans
+
+  const formatPrice = (price: number, interval: string) => {
     if (price === 0) return "Free"
-    if (billingPeriod === "annual") {
-      return `$${price}/year`
-    }
-    return `$${price}/mo`
+    return `$${price}/${interval === "year" ? "year" : "mo"}`
   }
 
   const toggleFaq = (index: number) => {
     setOpenFaqIndex(openFaqIndex === index ? null : index)
+  }
+
+  // Calculate savings for annual billing
+  const getAnnualSavings = () => {
+    const monthlyPro = plans.find(p => p.interval === "month" && p.price > 0)
+    if (!monthlyPro) return null
+    return Math.floor(monthlyPro.price * 12 * 0.2)
   }
 
   return (
@@ -187,9 +160,9 @@ export default function PricingPage() {
               </span>
             </button>
           </div>
-          {billingPeriod === "annual" && (
+          {billingPeriod === "annual" && getAnnualSavings() && (
             <p className="text-sm text-gray-500">
-              Pay annually and save ${Math.floor(249 * 12 * 0.2)}/year on Pro plan
+              Pay annually and save ${getAnnualSavings()}/year on Pro plan
             </p>
           )}
         </div>
@@ -198,172 +171,145 @@ export default function PricingPage() {
       {/* Pricing Cards */}
       <section className="py-12 md:py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4">
-          <div className="ca-pricing-grid">
-            {/* Starter Plan */}
-            <div className={`ca-pricing-card ${PRICING_DATA.starter.highlight ? "ca-pricing-card-featured" : ""}`}>
-              {PRICING_DATA.starter.highlight && (
-                <div className="ca-pricing-badge">Most Popular</div>
-              )}
+          {isLoading ? (
+            <div className="flex items-center justify-center py-20">
+              <Loader2 className="h-8 w-8 animate-spin text-[var(--ca-teal)]" />
+              <span className="ml-3 text-gray-600">Loading plans...</span>
+            </div>
+          ) : error ? (
+            <div className="text-center py-20">
+              <p className="text-red-600 mb-4">{error}</p>
+              <Link href="/contact" className="ca-btn ca-btn-secondary">
+                Contact Sales
+              </Link>
+            </div>
+          ) : displayPlans.length === 0 ? (
+            <div className="text-center py-20">
+              <p className="text-gray-600 mb-4">No pricing plans available. Please contact us for custom pricing.</p>
+              <Link href="/contact" className="ca-btn ca-btn-primary">
+                Contact Sales
+              </Link>
+            </div>
+          ) : (
+            <div className="ca-pricing-grid">
+              {displayPlans.map((plan, index) => {
+                const Icon = getPlanIcon(plan.name)
+                const accent = getPlanAccent(plan.name)
+                const isHighlighted = plan.name.toLowerCase().includes("pro")
 
-              <div className="mb-8">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="w-12 h-12 rounded-xl bg-[var(--ca-teal-50)] flex items-center justify-center">
-                    <Zap className="w-6 h-6 ca-text-teal" />
+                return (
+                  <div
+                    key={plan.id}
+                    className={`ca-pricing-card ${isHighlighted ? "ca-pricing-card-featured" : ""}`}
+                  >
+                    {isHighlighted && (
+                      <div className="ca-pricing-badge">Most Popular</div>
+                    )}
+
+                    <div className="mb-8">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className={`w-12 h-12 rounded-xl ${accent === "coral" ? "bg-[var(--ca-coral-50)]" : "bg-[var(--ca-teal-50)]"} flex items-center justify-center`}>
+                          <Icon className={`w-6 h-6 ${accent === "coral" ? "ca-text-coral" : "ca-text-teal"}`} />
+                        </div>
+                        <h3 className="ca-pricing-name">{plan.name}</h3>
+                      </div>
+                      <p className="ca-pricing-desc">{plan.description}</p>
+                    </div>
+
+                    <div className="ca-pricing-price">
+                      <div className="flex items-baseline gap-2">
+                        <span className="ca-pricing-amount">
+                          {plan.price === 0 ? "Free" : `$${plan.price}`}
+                        </span>
+                        {plan.price > 0 && (
+                          <span className="ca-pricing-period">
+                            /{plan.interval === "year" ? "year" : "mo"}
+                          </span>
+                        )}
+                      </div>
+                      {plan.interval === "year" && plan.price > 0 && (
+                        <p className="text-sm text-gray-500 mt-2">
+                          ${Math.floor(plan.price / 12)}/mo billed annually
+                        </p>
+                      )}
+                    </div>
+
+                    <ul className="ca-pricing-features">
+                      {plan.features.map((feature, i) => (
+                        <li key={i} className="ca-pricing-feature">
+                          <Check className="ca-text-teal" />
+                          <span className="text-gray-700">{feature}</span>
+                        </li>
+                      ))}
+                      {/* Show limits */}
+                      <li className="ca-pricing-feature">
+                        <Check className="ca-text-teal" />
+                        <span className="text-gray-700">
+                          {plan.limits.teamMembers === -1 ? "Unlimited" : `Up to ${plan.limits.teamMembers}`} team members
+                        </span>
+                      </li>
+                      <li className="ca-pricing-feature">
+                        <Check className="ca-text-teal" />
+                        <span className="text-gray-700">
+                          {plan.limits.providers === -1 ? "Unlimited" : `Up to ${plan.limits.providers}`} integrations
+                        </span>
+                      </li>
+                      <li className="ca-pricing-feature">
+                        <Check className="ca-text-teal" />
+                        <span className="text-gray-700">
+                          {plan.limits.pipelinesPerDay === -1 ? "Unlimited" : `${plan.limits.pipelinesPerDay}`} pipeline runs/day
+                        </span>
+                      </li>
+                    </ul>
+
+                    <Link
+                      href={plan.price === 0 ? "/signup?plan=starter" : `/signup?plan=${plan.id}`}
+                      className={`w-full ca-btn ${isHighlighted ? "ca-btn-primary" : "ca-btn-secondary"}`}
+                    >
+                      {plan.price === 0 ? "Get Started Free" : plan.trialDays > 0 ? `Start ${plan.trialDays}-Day Trial` : "Subscribe Now"}
+                      <ArrowRight className="w-4 h-4" />
+                    </Link>
                   </div>
-                  <h3 className="ca-pricing-name">{PRICING_DATA.starter.name}</h3>
-                </div>
-                <p className="ca-pricing-desc">{PRICING_DATA.starter.description}</p>
-              </div>
+                )
+              })}
 
-              <div className="ca-pricing-price">
-                <div className="flex items-baseline gap-2">
-                  <span className="ca-pricing-amount">{getPriceDisplay(PRICING_DATA.starter.price).replace(/\/.*/, '')}</span>
-                  {PRICING_DATA.starter.price !== null && PRICING_DATA.starter.price > 0 && (
-                    <span className="ca-pricing-period">
-                      /{billingPeriod === "monthly" ? "mo" : "year"}
-                    </span>
-                  )}
+              {/* Always show Enterprise card */}
+              <div className="ca-pricing-card">
+                <div className="mb-8">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-12 h-12 rounded-xl bg-[var(--ca-teal-50)] flex items-center justify-center">
+                      <Users className="w-6 h-6 ca-text-teal" />
+                    </div>
+                    <h3 className="ca-pricing-name">Enterprise</h3>
+                  </div>
+                  <p className="ca-pricing-desc">Custom solutions for large organizations</p>
                 </div>
-                {billingPeriod === "annual" && PRICING_DATA.starter.price !== null && PRICING_DATA.starter.price > 0 && (
+
+                <div className="ca-pricing-price">
+                  <div className="flex items-baseline gap-2">
+                    <span className="ca-pricing-amount text-4xl">Custom</span>
+                  </div>
                   <p className="text-sm text-gray-500 mt-2">
-                    ${Math.floor(PRICING_DATA.starter.price * 12 * 0.8 / 12)}/mo billed annually
+                    Tailored to your specific needs
                   </p>
-                )}
+                </div>
+
+                <ul className="ca-pricing-features">
+                  <li className="ca-pricing-feature"><Check className="ca-text-teal" /><span className="text-gray-700">Unlimited cloud integrations</span></li>
+                  <li className="ca-pricing-feature"><Check className="ca-text-teal" /><span className="text-gray-700">Enterprise analytics suite</span></li>
+                  <li className="ca-pricing-feature"><Check className="ca-text-teal" /><span className="text-gray-700">Unlimited data retention</span></li>
+                  <li className="ca-pricing-feature"><Check className="ca-text-teal" /><span className="text-gray-700">24/7 dedicated support</span></li>
+                  <li className="ca-pricing-feature"><Check className="ca-text-teal" /><span className="text-gray-700">Custom integrations</span></li>
+                  <li className="ca-pricing-feature"><Check className="ca-text-teal" /><span className="text-gray-700">SLA guarantees</span></li>
+                </ul>
+
+                <Link href="/contact" className="w-full ca-btn ca-btn-secondary">
+                  Contact Sales
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
               </div>
-
-              <ul className="ca-pricing-features">
-                {PRICING_DATA.starter.features.map((feature, i) => (
-                  <li key={i} className="ca-pricing-feature">
-                    {feature.included ? (
-                      <Check className="ca-text-teal" />
-                    ) : (
-                      <X className="text-gray-300" />
-                    )}
-                    <span className={feature.included ? "text-gray-700" : "text-gray-400"}>
-                      {feature.name}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-
-              <Link
-                href={`/signup?plan=starter`}
-                className={`w-full ca-btn ${
-                  PRICING_DATA.starter.highlight ? "ca-btn-primary" : "ca-btn-secondary"
-                }`}
-              >
-                {PRICING_DATA.starter.cta}
-                <ArrowRight className="w-4 h-4" />
-              </Link>
             </div>
-
-            {/* Pro Plan */}
-            <div className={`ca-pricing-card ${PRICING_DATA.pro.highlight ? "ca-pricing-card-featured" : ""}`}>
-              {PRICING_DATA.pro.highlight && (
-                <div className="ca-pricing-badge">Most Popular</div>
-              )}
-
-              <div className="mb-8">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="w-12 h-12 rounded-xl bg-[var(--ca-coral-50)] flex items-center justify-center">
-                    <Shield className="w-6 h-6 ca-text-coral" />
-                  </div>
-                  <h3 className="ca-pricing-name">{PRICING_DATA.pro.name}</h3>
-                </div>
-                <p className="ca-pricing-desc">{PRICING_DATA.pro.description}</p>
-              </div>
-
-              <div className="ca-pricing-price">
-                <div className="flex items-baseline gap-2">
-                  <span className="ca-pricing-amount">
-                    ${getPrice(PRICING_DATA.pro.price)}
-                  </span>
-                  <span className="ca-pricing-period">
-                    /{billingPeriod === "monthly" ? "mo" : "year"}
-                  </span>
-                </div>
-                {billingPeriod === "annual" && (
-                  <p className="text-sm text-gray-500 mt-2">
-                    ${Math.floor(getPrice(PRICING_DATA.pro.price)! / 12)}/mo billed annually
-                  </p>
-                )}
-              </div>
-
-              <ul className="ca-pricing-features">
-                {PRICING_DATA.pro.features.map((feature, i) => (
-                  <li key={i} className="ca-pricing-feature">
-                    {feature.included ? (
-                      <Check className="ca-text-teal" />
-                    ) : (
-                      <X className="text-gray-300" />
-                    )}
-                    <span className={feature.included ? "text-gray-700" : "text-gray-400"}>
-                      {feature.name}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-
-              <Link
-                href={`/signup?plan=pro`}
-                className={`w-full ca-btn ${
-                  PRICING_DATA.pro.highlight ? "ca-btn-primary" : "ca-btn-secondary"
-                }`}
-              >
-                {PRICING_DATA.pro.cta}
-                <ArrowRight className="w-4 h-4" />
-              </Link>
-            </div>
-
-            {/* Enterprise Plan */}
-            <div className={`ca-pricing-card ${PRICING_DATA.enterprise.highlight ? "ca-pricing-card-featured" : ""}`}>
-              {PRICING_DATA.enterprise.highlight && (
-                <div className="ca-pricing-badge">Most Popular</div>
-              )}
-
-              <div className="mb-8">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="w-12 h-12 rounded-xl bg-[var(--ca-teal-50)] flex items-center justify-center">
-                    <Users className="w-6 h-6 ca-text-teal" />
-                  </div>
-                  <h3 className="ca-pricing-name">{PRICING_DATA.enterprise.name}</h3>
-                </div>
-                <p className="ca-pricing-desc">{PRICING_DATA.enterprise.description}</p>
-              </div>
-
-              <div className="ca-pricing-price">
-                <div className="flex items-baseline gap-2">
-                  <span className="ca-pricing-amount text-4xl">Custom</span>
-                </div>
-                <p className="text-sm text-gray-500 mt-2">
-                  Tailored to your specific needs
-                </p>
-              </div>
-
-              <ul className="ca-pricing-features">
-                {PRICING_DATA.enterprise.features.map((feature, i) => (
-                  <li key={i} className="ca-pricing-feature">
-                    {feature.included ? (
-                      <Check className="ca-text-teal" />
-                    ) : (
-                      <X className="text-gray-300" />
-                    )}
-                    <span className={feature.included ? "text-gray-700" : "text-gray-400"}>
-                      {feature.name}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-
-              <Link
-                href="/contact"
-                className="w-full ca-btn ca-btn-secondary"
-              >
-                {PRICING_DATA.enterprise.cta}
-                <ArrowRight className="w-4 h-4" />
-              </Link>
-            </div>
-          </div>
+          )}
 
           {/* Trust Badges */}
           <div className="mt-16 flex flex-col md:flex-row items-center justify-center gap-8 text-sm font-medium text-gray-600 border-t border-gray-200 pt-12">
@@ -378,127 +324,6 @@ export default function PricingPage() {
             <div className="flex items-center gap-3">
               <Check className="w-5 h-5 ca-text-teal flex-shrink-0" />
               <span>GDPR & SOC 2 compliant</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Feature Comparison Table */}
-      <section className="py-20 bg-gray-50">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="text-center mb-12">
-            <h2 className="ca-display-md mb-4">Compare All Features</h2>
-            <p className="ca-body">
-              See exactly what's included in each plan
-            </p>
-          </div>
-
-          <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-xl">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-gray-200 bg-gray-50">
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
-                      Features
-                    </th>
-                    <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">
-                      Starter
-                    </th>
-                    <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900 bg-[var(--ca-teal-50)]">
-                      Pro
-                    </th>
-                    <th className="px-6 py-4 text-center text-sm font-semibold text-gray-900">
-                      Enterprise
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  <tr>
-                    <td className="px-6 py-4 text-sm text-gray-900 font-medium">Cloud Integrations</td>
-                    <td className="px-6 py-4 text-center text-sm text-gray-600">Up to 3</td>
-                    <td className="px-6 py-4 text-center text-sm text-gray-900 bg-[var(--ca-teal-50)]">Unlimited</td>
-                    <td className="px-6 py-4 text-center text-sm text-gray-900">Unlimited</td>
-                  </tr>
-                  <tr>
-                    <td className="px-6 py-4 text-sm text-gray-900 font-medium">Data Retention</td>
-                    <td className="px-6 py-4 text-center text-sm text-gray-600">7 days</td>
-                    <td className="px-6 py-4 text-center text-sm text-gray-900 bg-[var(--ca-teal-50)]">90 days</td>
-                    <td className="px-6 py-4 text-center text-sm text-gray-900">Unlimited</td>
-                  </tr>
-                  <tr>
-                    <td className="px-6 py-4 text-sm text-gray-900 font-medium">Organizations</td>
-                    <td className="px-6 py-4 text-center text-sm text-gray-600">1</td>
-                    <td className="px-6 py-4 text-center text-sm text-gray-900 bg-[var(--ca-teal-50)]">Up to 5</td>
-                    <td className="px-6 py-4 text-center text-sm text-gray-900">Unlimited</td>
-                  </tr>
-                  <tr>
-                    <td className="px-6 py-4 text-sm text-gray-900 font-medium">Cost Analytics</td>
-                    <td className="px-6 py-4 text-center">
-                      <Check className="w-5 h-5 ca-text-teal mx-auto" />
-                    </td>
-                    <td className="px-6 py-4 text-center bg-[var(--ca-teal-50)]">
-                      <Check className="w-5 h-5 ca-text-teal mx-auto" />
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <Check className="w-5 h-5 ca-text-teal mx-auto" />
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="px-6 py-4 text-sm text-gray-900 font-medium">Real-time Alerts</td>
-                    <td className="px-6 py-4 text-center">
-                      <X className="w-5 h-5 text-gray-300 mx-auto" />
-                    </td>
-                    <td className="px-6 py-4 text-center bg-[var(--ca-teal-50)]">
-                      <Check className="w-5 h-5 ca-text-teal mx-auto" />
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <Check className="w-5 h-5 ca-text-teal mx-auto" />
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="px-6 py-4 text-sm text-gray-900 font-medium">Advanced Forecasting</td>
-                    <td className="px-6 py-4 text-center">
-                      <X className="w-5 h-5 text-gray-300 mx-auto" />
-                    </td>
-                    <td className="px-6 py-4 text-center bg-[var(--ca-teal-50)]">
-                      <Check className="w-5 h-5 ca-text-teal mx-auto" />
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <Check className="w-5 h-5 ca-text-teal mx-auto" />
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="px-6 py-4 text-sm text-gray-900 font-medium">API Access</td>
-                    <td className="px-6 py-4 text-center">
-                      <X className="w-5 h-5 text-gray-300 mx-auto" />
-                    </td>
-                    <td className="px-6 py-4 text-center bg-[var(--ca-teal-50)]">
-                      <Check className="w-5 h-5 ca-text-teal mx-auto" />
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <Check className="w-5 h-5 ca-text-teal mx-auto" />
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="px-6 py-4 text-sm text-gray-900 font-medium">Custom Integrations</td>
-                    <td className="px-6 py-4 text-center">
-                      <X className="w-5 h-5 text-gray-300 mx-auto" />
-                    </td>
-                    <td className="px-6 py-4 text-center bg-[var(--ca-teal-50)]">
-                      <X className="w-5 h-5 text-gray-300 mx-auto" />
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <Check className="w-5 h-5 ca-text-teal mx-auto" />
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="px-6 py-4 text-sm text-gray-900 font-medium">Support</td>
-                    <td className="px-6 py-4 text-center text-sm text-gray-600">Email</td>
-                    <td className="px-6 py-4 text-center text-sm text-gray-900 bg-[var(--ca-teal-50)]">Priority</td>
-                    <td className="px-6 py-4 text-center text-sm text-gray-900">24/7 Dedicated</td>
-                  </tr>
-                </tbody>
-              </table>
             </div>
           </div>
         </div>
@@ -559,11 +384,11 @@ export default function PricingPage() {
             </div>
 
             <h2 className="ca-cta-title">
-              Ready to Cut Your Cloud Costs by 30%?
+              Ready to Optimize Your Cloud Costs?
             </h2>
 
             <p className="ca-cta-subtitle">
-              Join hundreds of teams already saving thousands every month with CloudAct.ai.
+              Join teams already saving with CloudAct.ai.
               Get started in minutes with our 14-day free trial.
             </p>
 

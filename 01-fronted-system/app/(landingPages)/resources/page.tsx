@@ -48,7 +48,7 @@ export default function ResourcesPage() {
       icon: Newspaper,
       title: "Blog",
       description: "Latest insights on cost optimization",
-      count: "47 articles",
+      count: "Articles",
       color: "teal",
     },
     {
@@ -56,7 +56,7 @@ export default function ResourcesPage() {
       icon: BookOpen,
       title: "Guides",
       description: "Step-by-step tutorials",
-      count: "23 guides",
+      count: "Tutorials",
       color: "coral",
     },
     {
@@ -64,7 +64,7 @@ export default function ResourcesPage() {
       icon: PlayCircle,
       title: "Webinars",
       description: "Live and recorded sessions",
-      count: "12 webinars",
+      count: "Sessions",
       color: "teal",
     },
     {
@@ -72,7 +72,7 @@ export default function ResourcesPage() {
       icon: Briefcase,
       title: "Case Studies",
       description: "Real-world success stories",
-      count: "8 stories",
+      count: "Stories",
       color: "coral",
     },
     {
@@ -80,7 +80,7 @@ export default function ResourcesPage() {
       icon: FileCode,
       title: "Documentation",
       description: "Complete API reference",
-      count: "100+ pages",
+      count: "Reference",
       color: "teal",
     },
     {
@@ -88,7 +88,7 @@ export default function ResourcesPage() {
       icon: Video,
       title: "Videos",
       description: "Quick video tutorials",
-      count: "35 videos",
+      count: "Tutorials",
       color: "coral",
     },
   ]
@@ -97,7 +97,7 @@ export default function ResourcesPage() {
     {
       category: "Guide",
       title: "Complete Guide to Cloud Cost Optimization",
-      description: "Learn proven strategies to reduce your cloud spending by up to 70% while maintaining performance and reliability.",
+      description: "Learn proven strategies to optimize your cloud spending while maintaining performance and reliability.",
       readTime: "15 min read",
       date: "Dec 18, 2025",
       tags: ["Cost Optimization", "Best Practices", "Strategy"],
@@ -106,12 +106,12 @@ export default function ResourcesPage() {
     },
     {
       category: "Case Study",
-      title: "How TechCorp Saved $2M in Cloud Costs",
-      description: "Discover how a Fortune 500 company reduced their cloud infrastructure costs by 65% using CloudAct.ai's advanced analytics.",
+      title: "Enterprise Cloud Cost Optimization",
+      description: "Discover how enterprise teams use CloudAct.ai's advanced analytics to gain visibility and reduce cloud costs.",
       readTime: "8 min read",
       date: "Dec 15, 2025",
       tags: ["Success Story", "Enterprise", "ROI"],
-      href: "/case-studies/techcorp",
+      href: "/case-studies/enterprise",
     },
     {
       category: "Blog",
@@ -165,21 +165,21 @@ export default function ResourcesPage() {
       title: "Cloud Cost Optimization Checklist",
       type: "PDF",
       size: "2.4 MB",
-      downloads: "1.2K",
+      label: "Popular",
       href: "/downloads/cost-optimization-checklist.pdf",
     },
     {
       title: "GenAI Cost Calculator Template",
       type: "Excel",
       size: "156 KB",
-      downloads: "847",
+      label: "New",
       href: "/downloads/genai-cost-calculator.xlsx",
     },
     {
       title: "Multi-Cloud Strategy Guide",
       type: "PDF",
       size: "3.1 MB",
-      downloads: "623",
+      label: "Featured",
       href: "/downloads/multi-cloud-strategy.pdf",
     },
   ]
@@ -399,9 +399,8 @@ export default function ResourcesPage() {
                       <div className="flex items-center gap-4 text-sm text-gray-500">
                         <span className="font-mono">{download.type}</span>
                         <span>{download.size}</span>
-                        <span className="flex items-center gap-1">
-                          <Download className="h-3.5 w-3.5" />
-                          {download.downloads} downloads
+                        <span className="px-2 py-0.5 bg-mint/10 text-mint-text text-xs rounded">
+                          {download.label}
                         </span>
                       </div>
                     </div>
@@ -494,24 +493,24 @@ export default function ResourcesPage() {
                   </button>
                 </div>
                 <p className="text-black/70 text-sm mt-4">
-                  Join 5,000+ cloud professionals. Unsubscribe anytime.
+                  Weekly insights for cloud professionals. Unsubscribe anytime.
                 </p>
               </form>
 
-              {/* Social Proof */}
+              {/* Content Categories */}
               <div className="mt-10 pt-8 border-t border-black/10">
                 <div className="flex flex-wrap items-center justify-center gap-8 text-black/80">
                   <div className="text-center">
-                    <div className="ca-mono text-3xl font-bold text-black mb-1">5K+</div>
-                    <div className="text-sm">Subscribers</div>
+                    <div className="ca-mono text-3xl font-bold text-black mb-1">📊</div>
+                    <div className="text-sm">Guides</div>
                   </div>
                   <div className="text-center">
-                    <div className="ca-mono text-3xl font-bold text-black mb-1">50+</div>
-                    <div className="text-sm">Articles/Month</div>
+                    <div className="ca-mono text-3xl font-bold text-black mb-1">🎥</div>
+                    <div className="text-sm">Tutorials</div>
                   </div>
                   <div className="text-center">
-                    <div className="ca-mono text-3xl font-bold text-black mb-1">4.9</div>
-                    <div className="text-sm">Avg. Rating</div>
+                    <div className="ca-mono text-3xl font-bold text-black mb-1">💡</div>
+                    <div className="text-sm">Best Practices</div>
                   </div>
                 </div>
               </div>

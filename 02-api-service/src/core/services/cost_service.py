@@ -18,7 +18,7 @@ import logging
 import asyncio
 import re
 from datetime import datetime, date, timedelta
-from typing import Optional, Dict, Any, List, Tuple
+from typing import Optional, Dict, Any, List, Tuple, Union
 from dataclasses import dataclass, field
 from functools import lru_cache
 from collections import OrderedDict
@@ -283,10 +283,15 @@ class PolarsCostService:
         """Validate org_slug format to prevent SQL injection."""
         return bool(org_slug and ORG_SLUG_PATTERN.match(org_slug))
 
-    def _build_cost_query(self, query: CostQuery) -> str:
+    def _build_cost_query(self, query: CostQuery) -> Tuple[str, List[bigquery.ScalarQueryParameter]]:
         """
-        Build optimized BigQuery SQL for cost data.
+        Build optimized BigQuery SQL for cost data with parameterized queries.
         Uses FOCUS 1.3 standard schema (cost_data_standard_1_3).
+
+        SECURITY: Uses parameterized queries to prevent SQL injection.
+
+        Returns:
+            Tuple of (sql_string, query_parameters)
         """
         dataset_id = self._get_dataset_id(query.org_slug)
         project_id = settings.gcp_project_id
@@ -316,22 +321,29 @@ class PolarsCostService:
 
         select_clause = ", ".join(columns)
 
-        # Build WHERE clause
-        where_conditions = [f"SubAccountId = '{query.org_slug}'"]
+        # Build WHERE clause with parameterized queries (SECURITY)
+        where_conditions = ["SubAccountId = @org_slug"]
+        query_params = [
+            bigquery.ScalarQueryParameter("org_slug", "STRING", query.org_slug)
+        ]
 
         if query.start_date:
-            where_conditions.append(f"DATE(ChargePeriodStart) >= '{query.start_date}'")
+            where_conditions.append("DATE(ChargePeriodStart) >= @start_date")
+            query_params.append(bigquery.ScalarQueryParameter("start_date", "DATE", query.start_date))
 
         if query.end_date:
-            where_conditions.append(f"DATE(ChargePeriodStart) <= '{query.end_date}'")
+            where_conditions.append("DATE(ChargePeriodStart) <= @end_date")
+            query_params.append(bigquery.ScalarQueryParameter("end_date", "DATE", query.end_date))
 
         if query.providers:
-            providers_list = ", ".join(f"'{p}'" for p in query.providers)
-            where_conditions.append(f"ServiceProviderName IN ({providers_list})")
+            # SECURITY: Use UNNEST with array parameter instead of string interpolation
+            where_conditions.append("ServiceProviderName IN UNNEST(@providers)")
+            query_params.append(bigquery.ArrayQueryParameter("providers", "STRING", query.providers))
 
         if query.service_categories:
-            categories_list = ", ".join(f"'{c}'" for c in query.service_categories)
-            where_conditions.append(f"ServiceCategory IN ({categories_list})")
+            # SECURITY: Use UNNEST with array parameter instead of string interpolation
+            where_conditions.append("ServiceCategory IN UNNEST(@service_categories)")
+            query_params.append(bigquery.ArrayQueryParameter("service_categories", "STRING", query.service_categories))
 
         where_clause = " AND ".join(where_conditions)
 
@@ -344,27 +356,41 @@ class PolarsCostService:
         OFFSET {query.offset}
         """
 
-        return sql
+        return sql, query_params
 
-    def _build_summary_query(self, query: CostQuery) -> str:
-        """Build summary aggregation query."""
+    def _build_summary_query(self, query: CostQuery) -> Tuple[str, List[bigquery.ScalarQueryParameter]]:
+        """
+        Build summary aggregation query with parameterized queries.
+
+        SECURITY: Uses parameterized queries to prevent SQL injection.
+
+        Returns:
+            Tuple of (sql_string, query_parameters)
+        """
         dataset_id = self._get_dataset_id(query.org_slug)
         project_id = settings.gcp_project_id
         table_ref = f"`{project_id}.{dataset_id}.cost_data_standard_1_3`"
 
-        where_conditions = [f"SubAccountId = '{query.org_slug}'"]
+        # Build WHERE clause with parameterized queries (SECURITY)
+        where_conditions = ["SubAccountId = @org_slug"]
+        query_params = [
+            bigquery.ScalarQueryParameter("org_slug", "STRING", query.org_slug)
+        ]
 
         if query.start_date:
-            where_conditions.append(f"DATE(ChargePeriodStart) >= '{query.start_date}'")
+            where_conditions.append("DATE(ChargePeriodStart) >= @start_date")
+            query_params.append(bigquery.ScalarQueryParameter("start_date", "DATE", query.start_date))
         if query.end_date:
-            where_conditions.append(f"DATE(ChargePeriodStart) <= '{query.end_date}'")
+            where_conditions.append("DATE(ChargePeriodStart) <= @end_date")
+            query_params.append(bigquery.ScalarQueryParameter("end_date", "DATE", query.end_date))
         if query.providers:
-            providers_list = ", ".join(f"'{p}'" for p in query.providers)
-            where_conditions.append(f"ServiceProviderName IN ({providers_list})")
+            # SECURITY: Use UNNEST with array parameter instead of string interpolation
+            where_conditions.append("ServiceProviderName IN UNNEST(@providers)")
+            query_params.append(bigquery.ArrayQueryParameter("providers", "STRING", query.providers))
 
         where_clause = " AND ".join(where_conditions)
 
-        return f"""
+        sql = f"""
         SELECT
             SUM(CAST(BilledCost AS FLOAT64)) as total_billed_cost,
             SUM(CAST(EffectiveCost AS FLOAT64)) as total_effective_cost,
@@ -376,6 +402,8 @@ class PolarsCostService:
         FROM {table_ref}
         WHERE {where_clause}
         """
+
+        return sql, query_params
 
     async def _execute_query(
         self,
@@ -441,11 +469,11 @@ class PolarsCostService:
             )
 
         try:
-            # Build and execute query
-            sql = self._build_cost_query(query)
+            # Build and execute query with parameterized queries (SECURITY)
+            sql, query_params = self._build_cost_query(query)
             logger.debug(f"Executing cost query for {query.org_slug}")
 
-            df = await self._execute_query(sql)
+            df = await self._execute_query(sql, query_params)
 
             # Cache result
             # Use shorter TTL for recent data
@@ -501,8 +529,9 @@ class PolarsCostService:
             )
 
         try:
-            sql = self._build_summary_query(query)
-            df = await self._execute_query(sql)
+            # Build and execute query with parameterized queries (SECURITY)
+            sql, query_params = self._build_summary_query(query)
+            df = await self._execute_query(sql, query_params)
 
             # Cache with longer TTL for summaries
             self._cache.set(cache_key, df, ttl=300)
@@ -943,7 +972,6 @@ class PolarsCostService:
                 ServiceCategory,
                 ServiceName,
                 ChargeCategory,
-                ChargeSubcategory,
                 ChargeDescription,
                 ChargeFrequency,
                 ResourceId,
@@ -1041,7 +1069,6 @@ class PolarsCostService:
                 ServiceCategory,
                 ServiceName,
                 ChargeCategory,
-                ChargeSubcategory,
                 ChargeDescription,
                 ChargeFrequency,
                 ResourceId,

@@ -55,13 +55,13 @@ export default function SolutionsPage() {
             </div>
           </div>
 
-          {/* Live Stats Ticker */}
+          {/* Platform Features */}
           <div className="ca-ticker ca-animate ca-delay-2">
             <div className="ca-ticker-item">
               <div className="ca-ticker-dot" />
               <div>
-                <div className="ca-ticker-label">Avg Savings</div>
-                <div className="ca-ticker-value">32%</div>
+                <div className="ca-ticker-label">Integrations</div>
+                <div className="ca-ticker-value">50+</div>
               </div>
             </div>
             <div className="ca-ticker-item">
@@ -74,8 +74,8 @@ export default function SolutionsPage() {
             <div className="ca-ticker-item">
               <div className="ca-ticker-dot" style={{ background: "var(--ca-green)" }} />
               <div>
-                <div className="ca-ticker-label">Teams Optimized</div>
-                <div className="ca-ticker-value">2,400+</div>
+                <div className="ca-ticker-label">Tracking</div>
+                <div className="ca-ticker-value">Real-time</div>
               </div>
             </div>
           </div>
@@ -304,8 +304,8 @@ export default function SolutionsPage() {
             <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", padding: "var(--space-4)", background: "var(--ca-teal-50)", borderRadius: "12px" }}>
               <TrendingDown size={24} style={{ color: "var(--ca-teal)" }} />
               <div>
-                <div style={{ fontSize: "0.75rem", color: "var(--ca-gray-500)", fontWeight: 600 }}>AVG IMPROVEMENT</div>
-                <div style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--ca-teal)" }}>2.5x faster insights</div>
+                <div style={{ fontSize: "0.75rem", color: "var(--ca-gray-500)", fontWeight: 600 }}>KEY BENEFIT</div>
+                <div style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--ca-teal)" }}>Instant visibility</div>
               </div>
             </div>
           </div>
@@ -330,8 +330,8 @@ export default function SolutionsPage() {
             <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", padding: "var(--space-4)", background: "var(--ca-coral-50)", borderRadius: "12px" }}>
               <Clock size={24} style={{ color: "var(--ca-coral)" }} />
               <div>
-                <div style={{ fontSize: "0.75rem", color: "var(--ca-gray-500)", fontWeight: 600 }}>TIME SAVED</div>
-                <div style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--ca-coral)" }}>15 hours/month</div>
+                <div style={{ fontSize: "0.75rem", color: "var(--ca-gray-500)", fontWeight: 600 }}>KEY BENEFIT</div>
+                <div style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--ca-coral)" }}>Automated alerts</div>
               </div>
             </div>
           </div>
@@ -356,8 +356,8 @@ export default function SolutionsPage() {
             <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", padding: "var(--space-4)", background: "var(--ca-green-light)", borderRadius: "12px" }}>
               <Award size={24} style={{ color: "var(--ca-green)" }} />
               <div>
-                <div style={{ fontSize: "0.75rem", color: "var(--ca-gray-500)", fontWeight: 600 }}>COST REDUCTION</div>
-                <div style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--ca-green)" }}>32% average</div>
+                <div style={{ fontSize: "0.75rem", color: "var(--ca-gray-500)", fontWeight: 600 }}>KEY BENEFIT</div>
+                <div style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--ca-green)" }}>AI recommendations</div>
               </div>
             </div>
           </div>
@@ -382,52 +382,52 @@ export default function SolutionsPage() {
             <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", padding: "var(--space-4)", background: "var(--ca-teal-50)", borderRadius: "12px" }}>
               <Users size={24} style={{ color: "var(--ca-teal)" }} />
               <div>
-                <div style={{ fontSize: "0.75rem", color: "var(--ca-gray-500)", fontWeight: 600 }}>GENAI SAVINGS</div>
-                <div style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--ca-teal)" }}>Up to 45%</div>
+                <div style={{ fontSize: "0.75rem", color: "var(--ca-gray-500)", fontWeight: 600 }}>KEY BENEFIT</div>
+                <div style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--ca-teal)" }}>Token optimization</div>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Case Study Highlights */}
+      {/* Use Cases */}
       <section className="ca-section">
         <div className="ca-section-header">
-          <span className="ca-section-label">SUCCESS STORIES</span>
+          <span className="ca-section-label">USE CASES</span>
           <h2 className="ca-display-lg" style={{ marginBottom: "var(--space-4)" }}>
-            Real Teams, Real Results
+            How Teams Use CloudAct
           </h2>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "var(--space-6)", maxWidth: "1200px", margin: "0 auto" }} className="ca-case-studies">
           <div className="ca-card" style={{ padding: "var(--space-8)", textAlign: "center" }}>
             <div style={{ fontSize: "3rem", marginBottom: "var(--space-4)" }}>🚀</div>
-            <div className="ca-metric-value" style={{ color: "var(--ca-coral)", marginBottom: "var(--space-2)" }}>$2.4M</div>
-            <div className="ca-heading" style={{ marginBottom: "var(--space-3)" }}>Annual Savings</div>
+            <div className="ca-metric-value" style={{ color: "var(--ca-coral)", marginBottom: "var(--space-2)" }}>GenAI</div>
+            <div className="ca-heading" style={{ marginBottom: "var(--space-3)" }}>Cost Optimization</div>
             <p className="ca-body-sm" style={{ marginBottom: "var(--space-4)" }}>
-              SaaS company reduced GenAI costs by 42% with token optimization
+              Track token usage and optimize LLM costs across OpenAI, Anthropic, and more
             </p>
-            <div className="ca-label">FINTECH • SERIES B</div>
+            <div className="ca-label">AI-FIRST TEAMS</div>
           </div>
 
           <div className="ca-card" style={{ padding: "var(--space-8)", textAlign: "center" }}>
             <div style={{ fontSize: "3rem", marginBottom: "var(--space-4)" }}>📊</div>
-            <div className="ca-metric-value" style={{ color: "var(--ca-teal)", marginBottom: "var(--space-2)" }}>3 days</div>
-            <div className="ca-heading" style={{ marginBottom: "var(--space-3)" }}>to Full Visibility</div>
+            <div className="ca-metric-value" style={{ color: "var(--ca-teal)", marginBottom: "var(--space-2)" }}>Unified</div>
+            <div className="ca-heading" style={{ marginBottom: "var(--space-3)" }}>Cost Visibility</div>
             <p className="ca-body-sm" style={{ marginBottom: "var(--space-4)" }}>
-              Enterprise team got complete cost visibility across 200+ services
+              Get complete cost visibility across all cloud and SaaS providers
             </p>
-            <div className="ca-label">HEALTHCARE • ENTERPRISE</div>
+            <div className="ca-label">MULTI-CLOUD TEAMS</div>
           </div>
 
           <div className="ca-card" style={{ padding: "var(--space-8)", textAlign: "center" }}>
             <div style={{ fontSize: "3rem", marginBottom: "var(--space-4)" }}>⚡</div>
-            <div className="ca-metric-value" style={{ color: "var(--ca-green)", marginBottom: "var(--space-2)" }}>68%</div>
-            <div className="ca-heading" style={{ marginBottom: "var(--space-3)" }}>Idle Resource Reduction</div>
+            <div className="ca-metric-value" style={{ color: "var(--ca-green)", marginBottom: "var(--space-2)" }}>Smart</div>
+            <div className="ca-heading" style={{ marginBottom: "var(--space-3)" }}>Resource Management</div>
             <p className="ca-body-sm" style={{ marginBottom: "var(--space-4)" }}>
-              DevOps team automated cleanup of unused cloud resources
+              Identify idle resources and get AI-powered optimization recommendations
             </p>
-            <div className="ca-label">E-COMMERCE • GROWTH</div>
+            <div className="ca-label">DEVOPS TEAMS</div>
           </div>
         </div>
       </section>
@@ -520,7 +520,7 @@ export default function SolutionsPage() {
           <div className="ca-cta-content">
             <div className="ca-cta-badge">
               <div className="ca-ticker-dot" style={{ background: "white" }} />
-              <span>Join 2,400+ teams optimizing costs</span>
+              <span>Start optimizing your cloud costs today</span>
             </div>
 
             <h2 className="ca-cta-title">

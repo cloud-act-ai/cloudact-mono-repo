@@ -392,16 +392,16 @@ export default function FeaturesPage() {
       <section className="ca-stats-section">
         <div className="ca-stats-grid">
           <div>
-            <div className="ca-stat-value">95%</div>
-            <div className="ca-stat-label">Forecast Accuracy</div>
+            <div className="ca-stat-value">50+</div>
+            <div className="ca-stat-label">Integrations</div>
           </div>
           <div>
-            <div className="ca-stat-value">$2.8M</div>
-            <div className="ca-stat-label">Total Savings Tracked</div>
+            <div className="ca-stat-value">3</div>
+            <div className="ca-stat-label">Cloud Providers</div>
           </div>
           <div>
-            <div className="ca-stat-value">847</div>
-            <div className="ca-stat-label">Organizations</div>
+            <div className="ca-stat-value">Real-time</div>
+            <div className="ca-stat-label">Cost Tracking</div>
           </div>
         </div>
       </section>
@@ -499,36 +499,36 @@ export default function FeaturesPage() {
             {/* Right - Visual */}
             <div className="ca-card" style={{ padding: "2rem" }}>
               <div className="ca-metric-card ca-metric-card-highlight" style={{ marginBottom: "1rem" }}>
-                <div className="ca-metric-label">TOTAL COST (TODAY)</div>
-                <div className="ca-metric-value">$1,247</div>
+                <div className="ca-metric-label">TOTAL COST</div>
+                <div className="ca-metric-value">Your spend</div>
                 <div className="ca-metric-change ca-metric-change-positive">
                   <TrendingUp className="w-3 h-3" />
-                  <span>12% vs yesterday</span>
+                  <span>Real-time tracking</span>
                 </div>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
                 <div className="ca-metric-card">
                   <div className="ca-metric-label">GenAI</div>
                   <div className="ca-metric-value" style={{ fontSize: "1.5rem" }}>
-                    $847
+                    AI costs
                   </div>
                 </div>
                 <div className="ca-metric-card">
                   <div className="ca-metric-label">Cloud</div>
                   <div className="ca-metric-value" style={{ fontSize: "1.5rem" }}>
-                    $312
+                    Infra costs
                   </div>
                 </div>
                 <div className="ca-metric-card">
                   <div className="ca-metric-label">SaaS</div>
                   <div className="ca-metric-value" style={{ fontSize: "1.5rem" }}>
-                    $88
+                    Subscriptions
                   </div>
                 </div>
                 <div className="ca-metric-card">
                   <div className="ca-metric-label">Other</div>
                   <div className="ca-metric-value" style={{ fontSize: "1.5rem" }}>
-                    $0
+                    Custom
                   </div>
                 </div>
               </div>
@@ -547,8 +547,8 @@ export default function FeaturesPage() {
             </div>
             <h2 className="ca-cta-title">Ready to Master Your Costs?</h2>
             <p className="ca-cta-subtitle">
-              Join hundreds of companies using CloudAct to optimize their GenAI and cloud spending.
-              Start tracking in minutes.
+              Use CloudAct to optimize your GenAI and cloud spending.
+              Start tracking in minutes with a free trial.
             </p>
             <div className="ca-cta-buttons">
               <Link href="/signup" className="ca-cta-btn-white">

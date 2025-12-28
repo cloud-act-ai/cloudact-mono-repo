@@ -9,6 +9,8 @@ Main notification service with:
 """
 
 import json
+import os
+import re
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 import logging
@@ -55,6 +57,38 @@ class NotificationService:
         # Load root configuration
         self._load_root_config()
 
+    def _resolve_env_vars(self, obj: Any) -> Any:
+        """
+        Recursively resolve environment variables in config data.
+
+        Supports ${VAR_NAME} syntax. Unresolved vars are replaced with empty string.
+
+        Args:
+            obj: Config data (dict, list, or scalar)
+
+        Returns:
+            Config data with env vars resolved
+        """
+        if isinstance(obj, dict):
+            return {k: self._resolve_env_vars(v) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [self._resolve_env_vars(item) for item in obj]
+        elif isinstance(obj, str):
+            # Match ${VAR_NAME} pattern
+            pattern = r'\$\{([^}]+)\}'
+
+            def replace_var(match):
+                var_name = match.group(1)
+                value = os.environ.get(var_name, "")
+                if not value:
+                    logger.warning(f"Environment variable {var_name} not set, using empty string")
+                return value
+
+            resolved = re.sub(pattern, replace_var, obj)
+            return resolved
+        else:
+            return obj
+
     def _load_root_config(self):
         """Load root/global notification configuration"""
         root_config_path = self.config_base_path / "notifications" / "config.json"
@@ -63,6 +97,18 @@ class NotificationService:
             if root_config_path.exists():
                 with open(root_config_path, "r") as f:
                     config_data = json.load(f)
+                    # Resolve environment variables in config
+                    config_data = self._resolve_env_vars(config_data)
+                    # Filter out empty email addresses
+                    if "email" in config_data and "to_emails" in config_data["email"]:
+                        config_data["email"]["to_emails"] = [
+                            e for e in config_data["email"]["to_emails"]
+                            if e and "@" in e
+                        ]
+                        # If no valid emails, disable email notifications
+                        if not config_data["email"]["to_emails"]:
+                            config_data["email"]["enabled"] = False
+                            logger.warning("No valid email addresses configured, disabling email notifications")
                     self._root_config = NotificationConfig(**config_data)
                     logger.info(f"Loaded root notification configuration from {root_config_path}")
             else:
@@ -95,6 +141,14 @@ class NotificationService:
             if org_config_path.exists():
                 with open(org_config_path, "r") as f:
                     config_data = json.load(f)
+                    # Resolve environment variables in config
+                    config_data = self._resolve_env_vars(config_data)
+                    # Filter out empty email addresses
+                    if "email" in config_data and "to_emails" in config_data["email"]:
+                        config_data["email"]["to_emails"] = [
+                            e for e in config_data["email"]["to_emails"]
+                            if e and "@" in e
+                        ]
                     config = NotificationConfig(**config_data, org_slug=org_slug)
                     logger.info(
                         f"Loaded org-specific notification configuration for {org_slug} "

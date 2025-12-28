@@ -504,9 +504,28 @@ export default function OrganizationSettingsPage() {
       const { data: { user }, error: authError } = await supabase.auth.getUser()
 
       // Handle auth errors (e.g., invalid refresh token)
+      // Only redirect for truly invalid sessions, not transient errors
       if (authError) {
-        if (authError.message?.includes("Refresh Token") || authError.status === 400) {
-          window.location.href = `/login?redirectTo=/${orgSlug}/settings/organization&reason=session_expired`
+        const isSessionError = authError.message?.includes("Refresh Token") ||
+                               authError.message?.includes("JWT") ||
+                               authError.status === 400
+
+        if (isSessionError) {
+          // Log in development
+          if (process.env.NODE_ENV === "development") {
+            console.warn(`[OrgSettings] Auth error:`, authError.message)
+          }
+          // Only redirect if this is a persistent issue
+          // Give the session a chance to refresh first
+          await new Promise(resolve => setTimeout(resolve, 500))
+          const { data: { user: retryUser } } = await supabase.auth.getUser()
+          if (!retryUser) {
+            window.location.href = `/login?redirectTo=/${orgSlug}/settings/organization&reason=session_expired`
+            return
+          }
+          // Session recovered, continue
+          setEmail(retryUser.email || "")
+          await loadOwnedOrganizations()
           return
         }
       }
@@ -519,9 +538,17 @@ export default function OrganizationSettingsPage() {
       setEmail(user.email || "")
       await loadOwnedOrganizations()
     } catch (err: unknown) {
-      // Check if it's an auth error
+      // Check if it's an auth error - only redirect for persistent issues
       if (err instanceof Error && (err.message?.includes("Refresh Token") || err.message?.includes("JWT"))) {
-        window.location.href = `/login?redirectTo=/${orgSlug}/settings/organization&reason=session_expired`
+        if (process.env.NODE_ENV === "development") {
+          console.warn(`[OrgSettings] Caught auth error:`, err.message)
+        }
+        // Retry once before redirecting
+        const supabase = createClient()
+        const { data: { user: retryUser } } = await supabase.auth.getUser()
+        if (!retryUser) {
+          window.location.href = `/login?redirectTo=/${orgSlug}/settings/organization&reason=session_expired`
+        }
       }
     }
   }, [loadOwnedOrganizations, router, orgSlug])
