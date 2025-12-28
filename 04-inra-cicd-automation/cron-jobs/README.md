@@ -1,6 +1,6 @@
-# Cron Scripts
+# Cron Jobs
 
-Scripts for scheduled tasks. These can be run manually or scheduled via cron/Cloud Scheduler.
+Scheduled tasks for CloudAct. Run manually or via cron/Cloud Scheduler.
 
 ## Scripts
 
@@ -17,7 +17,7 @@ Scripts for scheduled tasks. These can be run manually or scheduled via cron/Clo
 
 ```bash
 # Required for billing scripts
-export APP_URL="https://app.cloudact.ai"
+export APP_URL="${CLOUDACT_APP_URL:-https://app.cloudact.io}"
 export CRON_SECRET="your-secure-cron-secret-min-32-chars"
 
 # Required for cleanup script
@@ -35,7 +35,7 @@ CRON_SECRET=your-secure-cron-secret-min-32-chars
 ### 3. Make Scripts Executable
 
 ```bash
-chmod +x scripts/cron/*.sh
+chmod +x 04-inra-cicd-automation/scripts/cron/*.sh
 ```
 
 ### 4. Schedule via Cron
@@ -44,11 +44,11 @@ chmod +x scripts/cron/*.sh
 # Edit crontab
 crontab -e
 
-# Add entries:
-*/5 * * * * /path/to/fronted-system/scripts/cron/billing-sync-retry.sh >> /var/log/billing-sync-retry.log 2>&1
-0 2 * * * /path/to/fronted-system/scripts/cron/billing-reconciliation.sh >> /var/log/billing-reconciliation.log 2>&1
-*/15 * * * * /path/to/fronted-system/scripts/cron/billing-sync-stats.sh >> /var/log/billing-sync-stats.log 2>&1
-0 3 * * * /path/to/fronted-system/scripts/cron/run-all-cleanup.sh >> /var/log/cleanup.log 2>&1
+# Add entries (adjust paths):
+*/5 * * * * /path/to/04-inra-cicd-automation/scripts/cron/billing-sync-retry.sh >> /var/log/billing-sync-retry.log 2>&1
+0 2 * * * /path/to/04-inra-cicd-automation/scripts/cron/billing-reconciliation.sh >> /var/log/billing-reconciliation.log 2>&1
+*/15 * * * * /path/to/04-inra-cicd-automation/scripts/cron/billing-sync-stats.sh >> /var/log/billing-sync-stats.log 2>&1
+0 3 * * * /path/to/04-inra-cicd-automation/scripts/cron/run-all-cleanup.sh >> /var/log/cleanup.log 2>&1
 ```
 
 ### 5. Or Use Cloud Scheduler (GCP)
@@ -57,17 +57,17 @@ crontab -e
 # Billing sync retry (every 5 minutes)
 gcloud scheduler jobs create http billing-sync-retry \
   --schedule="*/5 * * * *" \
-  --uri="https://app.cloudact.ai/api/cron/billing-sync" \
+  --uri="${CLOUDACT_APP_URL}/api/cron/billing-sync" \
   --http-method=POST \
-  --headers="Content-Type=application/json,x-cron-secret=YOUR_SECRET" \
+  --headers="Content-Type=application/json,x-cron-secret=${CRON_SECRET}" \
   --message-body='{"action":"retry","limit":10}'
 
 # Billing reconciliation (daily at 2 AM UTC)
 gcloud scheduler jobs create http billing-reconciliation \
   --schedule="0 2 * * *" \
-  --uri="https://app.cloudact.ai/api/cron/billing-sync" \
+  --uri="${CLOUDACT_APP_URL}/api/cron/billing-sync" \
   --http-method=POST \
-  --headers="Content-Type=application/json,x-cron-secret=YOUR_SECRET" \
+  --headers="Content-Type=application/json,x-cron-secret=${CRON_SECRET}" \
   --message-body='{"action":"reconcile"}' \
   --attempt-deadline=300s
 ```
@@ -75,20 +75,22 @@ gcloud scheduler jobs create http billing-reconciliation \
 ## Manual Execution
 
 ```bash
+cd 04-inra-cicd-automation/scripts/cron
+
 # Run billing sync retry
-./scripts/cron/billing-sync-retry.sh
+./billing-sync-retry.sh
 
 # Run with custom limit
-./scripts/cron/billing-sync-retry.sh 20
+./billing-sync-retry.sh 20
 
 # Run reconciliation
-./scripts/cron/billing-reconciliation.sh
+./billing-reconciliation.sh
 
 # Get stats
-./scripts/cron/billing-sync-stats.sh
+./billing-sync-stats.sh
 
 # Run cleanup
-./scripts/cron/run-all-cleanup.sh
+./run-all-cleanup.sh
 ```
 
 ## Monitoring

@@ -19,27 +19,20 @@ fi
 # Configuration
 TIMESTAMP=$(date +%s)
 
+if [ -z "$CA_ROOT_API_KEY" ]; then
+    echo -e "${RED}Error: CA_ROOT_API_KEY not set.${NC}"
+    echo "Please export CA_ROOT_API_KEY='ca_root_...' before running."
+    exit 1
+fi
+
 if [ "$ENV" = "local" ]; then
     API_URL="http://localhost:8000"
-    if [ -z "$CA_ROOT_API_KEY" ]; then
-        echo -e "${RED}Error: CA_ROOT_API_KEY not set.${NC}"
-        echo "Please export CA_ROOT_API_KEY='ca_root_...' before running."
-        exit 1
-    fi
 elif [ "$ENV" = "stage" ]; then
-    API_URL="https://convergence-pipeline-stage-526075321773.us-central1.run.app"
-     if [ -z "$CA_ROOT_API_KEY" ]; then
-         echo -e "${RED}Error: CA_ROOT_API_KEY not set for stage.${NC}"
-         exit 1
-    fi
+    API_URL="${CLOUDACT_STAGE_URL:-https://api-stage.cloudact.io}"
 elif [ "$ENV" = "prod" ]; then
-    API_URL="https://convergence-pipeline-prod-820784027009.us-central1.run.app"
-     if [ -z "$CA_ROOT_API_KEY" ]; then
-         echo -e "${RED}Error: CA_ROOT_API_KEY not set for prod.${NC}"
-         exit 1
-    fi
+    API_URL="${CLOUDACT_PROD_URL:-https://api.cloudact.io}"
 else
-    echo -e "${RED}Invalid environment.${NC}"
+    echo -e "${RED}Invalid environment. Use: local|stage|prod${NC}"
     exit 1
 fi
 

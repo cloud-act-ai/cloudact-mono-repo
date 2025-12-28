@@ -1076,6 +1076,8 @@ class PolarsCostService:
             project_id = settings.gcp_project_id
             table_ref = f"`{project_id}.{dataset_id}.cost_data_standard_1_3`"
 
+            # FIX: Exclude saas_subscription_costs_daily to prevent counting SaaS subscriptions
+            # as LLM API costs. LLM costs are pay-as-you-go API usage, not subscriptions.
             sql = f"""
             SELECT
                 ServiceProviderName,
@@ -1108,10 +1110,12 @@ class PolarsCostService:
                 OR LOWER(x_SourceSystem) LIKE '%anthropic%'
                 OR LOWER(x_SourceSystem) LIKE '%gemini%'
                 OR LOWER(x_SourceSystem) LIKE '%cohere%'
+                OR LOWER(x_SourceSystem) LIKE '%genai%'
                 OR LOWER(ServiceProviderName) IN ('openai', 'anthropic', 'google', 'cohere', 'mistral', 'meta')
                 OR LOWER(ServiceCategory) = 'llm'
-                OR LOWER(ServiceCategory) = 'ai'
               )
+              -- Exclude SaaS subscription costs (those are shown in Subscription Costs dashboard)
+              AND COALESCE(x_SourceSystem, '') != 'saas_subscription_costs_daily'
               AND DATE(ChargePeriodStart) >= @start_date
               AND DATE(ChargePeriodStart) <= @end_date
             ORDER BY BilledCost DESC

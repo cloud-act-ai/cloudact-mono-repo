@@ -54,7 +54,7 @@ fi
 
 REGION="us-central1"
 IMAGE_NAME="gcr.io/${PROJECT_ID}/${SERVICE_NAME}"
-SOURCE_DIR="convergence-data-pipeline"
+SOURCE_DIR="03-data-pipeline-service"
 
 echo "Project: $PROJECT_ID"
 echo "Service: $SERVICE_NAME"
