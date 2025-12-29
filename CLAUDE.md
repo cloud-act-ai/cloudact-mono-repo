@@ -99,6 +99,7 @@ Frontend (3000)              API Service (8000)           Pipeline Engine (8001)
 | Pipeline Engine | `03-data-pipeline-service/CLAUDE.md` |
 | Frontend | `01-fronted-system/CLAUDE.md` |
 | Security | `03-data-pipeline-service/SECURITY.md` |
+| **CI/CD & Deployment** | `04-inra-cicd-automation/CICD/README.md` |
 
 **Feature Docs (00-requirements-specs/):** Internationalization, User Management, Billing, Costs, Pipelines, Integrations, Security, Testing
 
@@ -154,6 +155,70 @@ export DISABLE_AUTH="false"
 export RATE_LIMIT_ENABLED="true"
 ```
 
+## Production Deployment
+
+### Deployment Workflow (CICD)
+```bash
+cd 04-inra-cicd-automation/CICD
+
+# 1. ALWAYS validate before prod deployment
+./secrets/validate-env.sh prod frontend
+./secrets/verify-secrets.sh prod
+
+# 2. Check current version
+./releases.sh next
+
+# 3. Deploy to staging first
+./release.sh v1.0.0 --deploy --env stage
+
+# 4. Test staging, then deploy to production
+./release.sh v1.0.0 --deploy --env prod
+
+# 5. Monitor for 15 minutes
+./monitor/watch-all.sh prod 50
+
+# 6. Rollback if issues
+./release.sh v0.9.0 --deploy --env prod
+```
+
+### Required Secrets (Google Secret Manager)
+
+| Secret Name | Required By | Description |
+|-------------|-------------|-------------|
+| `ca-root-api-key-{env}` | All services | System root API key |
+| `stripe-secret-key-{env}` | Frontend | Stripe secret key (sk_live_*) |
+| `stripe-webhook-secret-{env}` | Frontend | Stripe webhook signing secret |
+| `supabase-service-role-key-{env}` | Frontend | Supabase service role JWT |
+
+### Environment Configuration
+
+| Environment | GCP Project | Supabase | Stripe |
+|-------------|-------------|----------|--------|
+| `local` | `cloudact-testing-1` | Test (kwroaccbrxppfiysqlzs) | TEST keys (pk_test_*) |
+| `test` | `cloudact-testing-1` | Test (kwroaccbrxppfiysqlzs) | TEST keys (pk_test_*) |
+| `stage` | `cloudact-stage` | Test (kwroaccbrxppfiysqlzs) | TEST keys (pk_test_*) |
+| `prod` | `cloudact-prod` | Prod (ovfxswhkkshouhsryzaf) | LIVE keys (pk_live_*) |
+
+### Production Stripe Products
+| Plan | Price ID | Monthly |
+|------|----------|---------|
+| Starter | `price_1SWJMfDoxINmrJKY7tOoJUIs` | $19 |
+| Professional | `price_1SWJOYDoxINmrJKY8jEZwVuU` | $69 |
+| Scale | `price_1SWJP8DoxINmrJKYfg0jmeLv` | $199 |
+
+### Production URLs
+| Service | URL |
+|---------|-----|
+| Frontend | https://cloudact.ai |
+| API Service | https://api.cloudact.ai |
+| Pipeline Service | https://pipeline.cloudact.ai |
+
+### Critical Production Notes
+1. **Supabase email confirmation:** Must be DISABLED for immediate sign-in after signup
+2. **Stripe keys:** Production MUST use LIVE keys (pk_live_*, sk_live_*)
+3. **NEXT_PUBLIC_* vars:** Baked at build time - must rebuild to change
+4. **Server-side vars:** Set at Cloud Run runtime via Secret Manager
+
 ## Development Commands
 
 ```bash
@@ -187,6 +252,9 @@ pkill -f "uvicorn.*8001"
 1. **Pipeline 404:** Provider lowercase (`gcp` not `GCP`), domain matches subfolder
 2. **Frontend wrong port:** api-service (8000) for ALL except pipeline runs (8001)
 3. **Org slug validation:** `^[a-zA-Z0-9_]{3,50}$` (underscores only)
+4. **Signup 400 error:** Supabase email confirmation enabled - disable in Supabase Auth settings
+5. **Stripe checkout fails:** Missing STRIPE_SECRET_KEY - run `./secrets/setup-secrets.sh prod`
+6. **Plans not loading:** Wrong Stripe price IDs - verify LIVE price IDs in .env.production
 
 ## Environments & URLs
 

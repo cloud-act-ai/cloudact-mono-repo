@@ -49,11 +49,26 @@ Deploy services to test/stage/prod, manage versioned releases, backups, rollback
 /infra-cicd rollback prod v0.9.0              # Rollback to specific version
 ```
 
+### Bootstrap (Required for new environments)
+```
+/infra-cicd bootstrap test                    # Initialize test BigQuery datasets
+/infra-cicd bootstrap stage                   # Initialize stage BigQuery datasets
+/infra-cicd bootstrap prod                    # Initialize prod BigQuery datasets
+```
+
 ### Fix Auth (403 Forbidden)
 ```
 /infra-cicd fix-auth test                     # Enable public access on test
 /infra-cicd fix-auth stage                    # Enable public access on stage
 /infra-cicd fix-auth prod                     # Enable public access on prod
+```
+
+### Secrets Validation (CRITICAL before prod deploy)
+```
+/infra-cicd validate prod frontend            # Validate env + secrets for frontend
+/infra-cicd validate prod api-service         # Validate env + secrets for API
+/infra-cicd secrets verify prod               # Verify all secrets exist
+/infra-cicd secrets setup prod                # Create secrets from env file
 ```
 
 ## Instructions
@@ -169,6 +184,13 @@ gcloud run services update-traffic cloudact-{service}-{env} \
   --to-revisions=<previous-revision>=100
 ```
 
+### Bootstrap Action (CRITICAL for new environments)
+Bootstrap creates BigQuery datasets and meta tables. **MUST run after api-service is deployed, before first user signup**.
+```bash
+cd $REPO_ROOT/04-inra-cicd-automation/CICD/bootstrap
+./bootstrap.sh {env}
+```
+
 ### Fix Auth Action
 When services return 403 Forbidden, run:
 ```bash
@@ -176,6 +198,29 @@ cd $REPO_ROOT/04-inra-cicd-automation/CICD
 ./quick/fix-auth.sh {env}
 ```
 This adds `allUsers` with `roles/run.invoker` to all Cloud Run services.
+
+### Validate Action (CRITICAL before prod)
+```bash
+cd $REPO_ROOT/04-inra-cicd-automation/CICD/secrets
+
+# Full validation (env vars + secrets)
+./validate-env.sh {env} {service}
+
+# Examples:
+./validate-env.sh prod frontend
+./validate-env.sh test api-service
+```
+
+### Secrets Action
+```bash
+cd $REPO_ROOT/04-inra-cicd-automation/CICD/secrets
+
+# Verify all secrets exist
+./verify-secrets.sh {env}
+
+# Setup secrets from env file
+./setup-secrets.sh {env}
+```
 
 ## Environment Details
 
@@ -209,26 +254,55 @@ This adds `allUsers` with `roles/run.invoker` to all Cloud Run services.
 - **MINOR** - New features
 - **MAJOR** - Breaking changes
 
+## Environment Configuration
+
+### Supabase
+| Environment | Project ID | URL |
+|-------------|------------|-----|
+| local/test/stage | `kwroaccbrxppfiysqlzs` | https://kwroaccbrxppfiysqlzs.supabase.co |
+| prod | `ovfxswhkkshouhsryzaf` | https://ovfxswhkkshouhsryzaf.supabase.co |
+
+### Stripe
+| Environment | Key Type | Price IDs |
+|-------------|----------|-----------|
+| local/test/stage | TEST (`pk_test_*`) | `price_1SWBiD*` |
+| prod | LIVE (`pk_live_*`) | Starter: `price_1SWJMf*`, Pro: `price_1SWJOY*`, Scale: `price_1SWJP8*` |
+
+### Required Secrets per Environment
+| Secret Name | Required By |
+|-------------|-------------|
+| `ca-root-api-key-{env}` | All services |
+| `stripe-secret-key-{env}` | Frontend |
+| `stripe-webhook-secret-{env}` | Frontend |
+| `supabase-service-role-key-{env}` | Frontend |
+
 ## Critical Rules
 
-1. **Use releases for production** - `./release.sh` with version tags
-2. **Deploy to stage first** - `./release.sh vX.Y.Z --deploy --env stage`
-3. **ALWAYS confirm before prod deployment**
-4. **Deploy order: api-service -> pipeline-service -> frontend**
-5. **Monitor logs for 15 minutes after prod deploy**
-6. **Rollback if health check fails after 5 minutes**
+1. **ALWAYS validate before prod** - `./secrets/validate-env.sh prod frontend`
+2. **Use releases for production** - `./release.sh` with version tags
+3. **Deploy to stage first** - `./release.sh vX.Y.Z --deploy --env stage`
+4. **ALWAYS confirm before prod deployment**
+5. **Deploy order: api-service -> pipeline-service -> frontend**
+6. **Monitor logs for 15 minutes after prod deploy**
+7. **Rollback if health check fails after 5 minutes**
 
 ## Recommended Production Workflow
 
 ```
-1. ./releases.sh next                           # Check version
-2. ./release.sh v1.0.0 --deploy --env stage     # Deploy to stage
-3. ./quick/status.sh stage                      # Verify stage
-4. [Manual testing on stage]
-5. ./release.sh v1.0.0 --deploy --env prod      # Promote to prod
-6. ./quick/status.sh prod                       # Verify prod
-7. ./monitor/watch-all.sh prod 50               # Monitor logs
+1. ./secrets/validate-env.sh prod frontend      # CRITICAL: Validate first!
+2. ./secrets/verify-secrets.sh prod             # Verify secrets exist
+3. ./releases.sh next                           # Check version
+4. ./release.sh v1.0.0 --deploy --env stage     # Deploy to stage
+5. ./bootstrap/bootstrap.sh stage               # Initialize BigQuery (if new env)
+6. ./quick/status.sh stage                      # Verify stage
+7. [Manual testing on stage]
+8. ./release.sh v1.0.0 --deploy --env prod      # Promote to prod
+9. ./bootstrap/bootstrap.sh prod                # Initialize BigQuery (if new env)
+10. ./quick/status.sh prod                      # Verify prod
+11. ./monitor/watch-all.sh prod 50              # Monitor logs
 ```
+
+> **Note:** Bootstrap only needs to run once per environment. It's idempotent - safe to re-run.
 
 ## Variables
 

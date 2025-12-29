@@ -2,7 +2,84 @@
 
 This document provides a comprehensive testing checklist for all 10 enterprise use cases as specified in the requirements.
 
-## Test Environment
+## Multi-Environment Testing
+
+### Environment Configuration
+
+| Environment | GCP Project | Supabase | Stripe | Frontend URL |
+|-------------|-------------|----------|--------|--------------|
+| `local` | cloudact-testing-1 | Test (kwroaccbrxppfiysqlzs) | TEST keys | http://localhost:3000 |
+| `test` | cloudact-testing-1 | Test (kwroaccbrxppfiysqlzs) | TEST keys | Cloud Run URL |
+| `stage` | cloudact-stage | Test (kwroaccbrxppfiysqlzs) | TEST keys | Cloud Run URL |
+| `prod` | cloudact-prod | Prod (ovfxswhkkshouhsryzaf) | **LIVE keys** | https://cloudact.ai |
+
+### Running Tests by Environment
+
+```bash
+# Frontend tests (vitest)
+cd 01-fronted-system
+
+# Local development (default)
+TEST_ENV=local npm test
+
+# Test environment (Cloud Run test)
+TEST_ENV=test npm test
+
+# Staging environment
+TEST_ENV=stage npm test
+
+# Production environment (use with caution!)
+TEST_ENV=prod npm test
+
+# Run specific test file
+TEST_ENV=prod npx vitest run tests/01-signup-onboarding-billing-dashboard.test.ts
+```
+
+### Backend Tests (pytest)
+
+```bash
+# API Service tests
+cd 02-api-service
+
+# Unit tests (mocked BigQuery)
+python -m pytest tests/ -v
+
+# Integration tests (real BigQuery)
+python -m pytest tests/ -v --run-integration
+
+# Pipeline Service tests
+cd 03-data-pipeline-service
+python -m pytest tests/ -v
+```
+
+### Environment File Setup
+
+Each service requires environment-specific files:
+
+```
+01-fronted-system/
+├── .env.local        # Local development
+├── .env.test         # Test environment
+├── .env.stage        # Staging environment
+└── .env.prod         # Production (reference only)
+
+02-api-service/
+└── .env.local        # Local development
+
+03-data-pipeline-service/
+└── .env.local        # Local development
+```
+
+### Production Testing Guidelines
+
+**⚠️ CAUTION:** Production tests create real data and may incur Stripe charges.
+
+1. Use dedicated test accounts with unique email addresses
+2. Use test credit cards (Stripe test mode uses `4242 4242 4242 4242`)
+3. Clean up test data after testing
+4. Monitor logs during tests: `./monitor/watch-all.sh prod 50`
+
+## Test Environment (Legacy)
 
 **Preview URL**: The v0 preview URL for this project will be provided after deployment.
 

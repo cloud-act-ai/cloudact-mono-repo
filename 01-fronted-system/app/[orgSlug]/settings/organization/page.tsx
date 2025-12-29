@@ -807,15 +807,15 @@ export default function OrganizationSettingsPage() {
   }
 
   return (
-    <div className="space-y-6 sm:space-y-8 animate-in fade-in duration-500">
-      {/* Premium Header */}
-      <div className="mb-10">
-        <div className="flex items-start justify-between gap-6 mb-6">
+    <div className="space-y-4 sm:space-y-6 animate-in fade-in duration-500">
+      {/* Premium Header - Mobile-optimized */}
+      <div className="mb-6 sm:mb-10">
+        <div className="flex items-start justify-between gap-4 sm:gap-6 mb-4 sm:mb-6">
           <div>
-            <h1 className="text-[32px] font-bold text-slate-900 tracking-tight leading-none">
+            <h1 className="text-[24px] sm:text-[32px] font-bold text-slate-900 tracking-tight leading-none">
               Organization Settings
             </h1>
-            <p className="text-[15px] text-slate-500 mt-2 max-w-lg">
+            <p className="text-[13px] sm:text-[15px] text-slate-500 mt-2 max-w-lg">
               Manage your organization locale, branding, and backend configuration
             </p>
           </div>
@@ -837,34 +837,34 @@ export default function OrganizationSettingsPage() {
       )}
 
       <Tabs defaultValue="general" className="w-full">
-        {/* Tab Navigation */}
-        <TabsList className="w-full sm:w-auto flex flex-wrap gap-1.5 bg-slate-100/80 p-1.5 rounded-xl h-auto mb-8">
+        {/* Tab Navigation - Horizontally scrollable on mobile */}
+        <TabsList className="w-full sm:w-auto flex gap-1.5 bg-slate-100/80 p-1.5 rounded-xl h-auto mb-8 overflow-x-auto scrollbar-hide whitespace-nowrap">
           <TabsTrigger
             value="general"
-            className="cursor-pointer h-10 px-4 rounded-lg text-[13px] font-semibold transition-all data-[state=inactive]:bg-transparent data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-white/60 data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
+            className="cursor-pointer h-10 px-4 rounded-lg text-[13px] font-semibold transition-all flex-shrink-0 data-[state=inactive]:bg-transparent data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-white/60 data-[state=active]:bg-[#90FCA6] data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
           >
-            <Sparkles className="h-4 w-4 mr-2" />
+            <Sparkles className="h-4 w-4 mr-2 flex-shrink-0" />
             General
           </TabsTrigger>
           <TabsTrigger
             value="contact"
-            className="cursor-pointer h-10 px-4 rounded-lg text-[13px] font-semibold transition-all data-[state=inactive]:bg-transparent data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-white/60 data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
+            className="cursor-pointer h-10 px-4 rounded-lg text-[13px] font-semibold transition-all flex-shrink-0 data-[state=inactive]:bg-transparent data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-white/60 data-[state=active]:bg-[#90FCA6] data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
           >
-            <User className="h-4 w-4 mr-2" />
+            <User className="h-4 w-4 mr-2 flex-shrink-0" />
             Contact
           </TabsTrigger>
           <TabsTrigger
             value="backend"
-            className="cursor-pointer h-10 px-4 rounded-lg text-[13px] font-semibold transition-all data-[state=inactive]:bg-transparent data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-white/60 data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
+            className="cursor-pointer h-10 px-4 rounded-lg text-[13px] font-semibold transition-all flex-shrink-0 data-[state=inactive]:bg-transparent data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-white/60 data-[state=active]:bg-[#90FCA6] data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
           >
-            <Activity className="h-4 w-4 mr-2" />
+            <Activity className="h-4 w-4 mr-2 flex-shrink-0" />
             Backend
           </TabsTrigger>
           <TabsTrigger
             value="danger"
-            className="cursor-pointer h-10 px-4 rounded-lg text-[13px] font-semibold transition-all data-[state=inactive]:bg-transparent data-[state=inactive]:text-[#FF6C5E] data-[state=inactive]:hover:bg-[#FF6C5E]/10 data-[state=active]:bg-[#FF6C5E] data-[state=active]:text-white data-[state=active]:shadow-sm"
+            className="cursor-pointer h-10 px-4 rounded-lg text-[13px] font-semibold transition-all flex-shrink-0 data-[state=inactive]:bg-transparent data-[state=inactive]:text-[#FF6C5E] data-[state=inactive]:hover:bg-[#FF6C5E]/10 data-[state=active]:bg-[#FF6C5E] data-[state=active]:text-white data-[state=active]:shadow-sm"
           >
-            <Shield className="h-4 w-4 mr-2" />
+            <Shield className="h-4 w-4 mr-2 flex-shrink-0" />
             Danger Zone
           </TabsTrigger>
         </TabsList>

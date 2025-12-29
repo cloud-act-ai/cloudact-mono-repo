@@ -279,7 +279,41 @@ gcloud run services update cloudact-api-service-stage \
   --min-instances=0
 ```
 
-## Secrets Management
+## Secrets Management (CRITICAL)
+
+### Required Secrets per Environment
+
+Each environment requires these secrets in Google Secret Manager:
+
+| Secret Name | Required By | Description |
+|-------------|-------------|-------------|
+| `ca-root-api-key-{env}` | All services | System root API key |
+| `stripe-secret-key-{env}` | Frontend | Stripe secret key (sk_test_* or sk_live_*) |
+| `stripe-webhook-secret-{env}` | Frontend | Stripe webhook signing secret (whsec_*) |
+| `supabase-service-role-key-{env}` | Frontend | Supabase service role JWT |
+
+### Secrets Validation Scripts
+
+```bash
+cd 04-inra-cicd-automation/CICD/secrets
+
+# Setup secrets from env file
+./setup-secrets.sh test|stage|prod
+
+# Verify all secrets exist
+./verify-secrets.sh [test|stage|prod]
+
+# Full validation (env vars + secrets) before deployment
+./validate-env.sh prod frontend
+./validate-env.sh test api-service
+```
+
+### Validate Before Every Production Deployment
+```bash
+# CRITICAL: Always validate before prod deployment
+./secrets/validate-env.sh prod frontend
+./secrets/verify-secrets.sh prod
+```
 
 ### List Secrets
 ```bash
@@ -290,25 +324,83 @@ gcloud secrets list --project=cloudact-prod
 ### Create/Update Secret
 ```bash
 # Create new secret
-echo -n "secret-value" | gcloud secrets create my-secret \
-  --project=cloudact-prod \
+echo -n "secret-value" | gcloud secrets create my-secret-{env} \
+  --project=cloudact-{env} \
   --data-file=- \
   --replication-policy="automatic"
 
 # Add new version
-echo -n "new-value" | gcloud secrets versions add my-secret \
-  --project=cloudact-prod \
+echo -n "new-value" | gcloud secrets versions add my-secret-{env} \
+  --project=cloudact-{env} \
   --data-file=-
+
+# Grant service account access
+gcloud secrets add-iam-policy-binding my-secret-{env} \
+  --project=cloudact-{env} \
+  --member="serviceAccount:cloudact-sa-{env}@cloudact-{env}.iam.gserviceaccount.com" \
+  --role="roles/secretmanager.secretAccessor"
 ```
+
+### Current Secrets Status
+```
+TEST (cloudact-testing-1):
+  ✓ ca-root-api-key-test
+  ✓ stripe-secret-key-test
+  ✓ stripe-webhook-secret-test
+  ✓ supabase-service-role-key-test
+
+PROD (cloudact-prod):
+  ✓ ca-root-api-key-prod
+  ✓ stripe-secret-key-prod
+  ✓ stripe-webhook-secret-prod
+  ✓ supabase-service-role-key-prod
+```
+
+## Environment Configuration Matrix
+
+### GCP Projects
+| Environment | GCP Project | Credentials |
+|------------|-------------|-------------|
+| `test` | `cloudact-testing-1` | `~/.gcp/cloudact-testing-1-e44da390bf82.json` |
+| `stage` | `cloudact-stage` | `~/.gcp/cloudact-stage.json` |
+| `prod` | `cloudact-prod` | `~/.gcp/cloudact-prod.json` |
+
+### Supabase Configuration
+| Environment | Project ID | URL |
+|-------------|------------|-----|
+| local/test/stage | `kwroaccbrxppfiysqlzs` | https://kwroaccbrxppfiysqlzs.supabase.co |
+| prod | `ovfxswhkkshouhsryzaf` | https://ovfxswhkkshouhsryzaf.supabase.co |
+
+### Stripe Configuration
+| Environment | Key Type | Price IDs |
+|-------------|----------|-----------|
+| local/test/stage | TEST (`pk_test_*`, `sk_test_*`) | `price_1SWBiD*` (test) |
+| prod | LIVE (`pk_live_*`, `sk_live_*`) | `price_1SWJMf*`, `price_1SWJOY*`, `price_1SWJP8*` |
+
+**Production Stripe Products:**
+| Plan | Price ID | Monthly |
+|------|----------|---------|
+| Starter | `price_1SWJMfDoxINmrJKY7tOoJUIs` | $19 |
+| Professional | `price_1SWJOYDoxINmrJKY8jEZwVuU` | $69 |
+| Scale | `price_1SWJP8DoxINmrJKYfg0jmeLv` | $199 |
+
+### Production URLs
+| Service | URL |
+|---------|-----|
+| Frontend | https://cloudact.ai |
+| API Service | https://api.cloudact.ai |
+| Pipeline Service | https://pipeline.cloudact.ai |
 
 ## Graceful Production Deployment Checklist
 
 ### Pre-Deployment
+- [ ] Run `./secrets/validate-env.sh prod frontend`
+- [ ] Run `./secrets/verify-secrets.sh prod`
 - [ ] Run `./releases.sh next` to check version
 - [ ] Ensure all tests pass locally
 - [ ] Check current health: `./quick/status.sh prod`
-- [ ] Review changes since last release
-- [ ] Verify secrets are configured
+- [ ] Verify Stripe LIVE keys (pk_live_*, sk_live_*)
+- [ ] Verify Supabase prod project (ovfxswhkkshouhsryzaf)
 
 ### Deployment (Recommended)
 1. **Create release:** `./release.sh vX.Y.Z`
@@ -320,7 +412,7 @@ echo -n "new-value" | gcloud secrets versions add my-secret \
 ### Post-Deployment
 - [ ] Verify health endpoints
 - [ ] Check logs for errors: `./monitor/watch-all.sh prod 50`
-- [ ] Test critical user flows
+- [ ] Test critical user flows (signup, Stripe checkout)
 - [ ] Monitor for 15 minutes
 - [ ] Tag release in GitHub if not auto-pushed
 
@@ -374,6 +466,9 @@ Images include version metadata:
 
 | Issue | Cause | Solution |
 |-------|-------|----------|
+| Signup fails with 400 | Email confirmation enabled | Disable in Supabase or update flow |
+| Stripe checkout fails | Missing STRIPE_SECRET_KEY | Run `./secrets/setup-secrets.sh prod` |
+| Plans not loading | Wrong Stripe price IDs | Verify LIVE price IDs in env |
 | `File not found` for credentials | `.env.local` in Docker | Add to `.dockerignore` |
 | `Connection refused localhost:8001` | Wrong service URL | Set `PIPELINE_SERVICE_URL` env |
 | `Cannot connect to validation` | Wrong API URL | Set `API_SERVICE_URL` env |
@@ -381,6 +476,22 @@ Images include version metadata:
 | 403 Forbidden on Cloud Run | IAM not configured | Run `./quick/fix-auth.sh <env>` |
 | Image push fails | Wrong account | Activate correct service account |
 | Tag already exists | Git tag conflict | Use `--force` or new version |
+
+### Common Production Issues
+
+**1. Signup 400 Error from Supabase**
+- **Cause:** Email confirmation was enabled in Supabase production
+- **Symptom:** User signup succeeds but immediate login fails with 400
+- **Fix:** Disable email confirmation in Supabase dashboard → Authentication → Email Auth
+
+**2. Missing Stripe Secret Key**
+- **Cause:** STRIPE_SECRET_KEY not in Cloud Run environment
+- **Symptom:** Checkout session creation fails
+- **Fix:** `./secrets/setup-secrets.sh prod` then redeploy
+
+**3. Frontend Environment Variables Not Updated**
+- **Cause:** NEXT_PUBLIC_* vars baked at build time
+- **Fix:** Must rebuild Docker image, cannot change at runtime
 
 ## File Locations
 
@@ -390,7 +501,7 @@ Images include version metadata:
 ├── releases.sh             # List/manage releases
 ├── build/build.sh          # Docker build
 ├── push/push.sh            # Push to GCR
-├── deploy/deploy.sh        # Deploy to Cloud Run
+├── deploy/deploy.sh        # Deploy to Cloud Run (with secrets)
 ├── deploy-all.sh           # Deploy all services
 ├── cicd.sh                 # Full pipeline (build+push+deploy)
 ├── environments.conf       # Environment config
@@ -400,6 +511,11 @@ Images include version metadata:
 │   ├── deploy-prod.sh      # Quick prod deploy
 │   ├── status.sh           # Service status checker
 │   └── fix-auth.sh         # Fix Cloud Run IAM (enable public access)
+├── secrets/
+│   ├── setup-secrets.sh    # Create secrets from env files
+│   ├── verify-secrets.sh   # Verify secrets exist
+│   ├── validate-env.sh     # Full validation before deploy
+│   └── env-vars.conf       # Public env vars per environment
 ├── monitor/
 │   ├── watch-all.sh        # All service logs
 │   └── watch-api-logs.sh   # Single service logs

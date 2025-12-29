@@ -290,18 +290,18 @@ export default function PersonalSettingsPage() {
 
   return (
     <div className="max-w-4xl">
-      {/* Header */}
-      <div className="mb-10">
-        <h1 className="text-[32px] font-bold text-slate-900 tracking-tight leading-none">
+      {/* Header - Mobile optimized */}
+      <div className="mb-6 sm:mb-10">
+        <h1 className="text-[24px] sm:text-[32px] font-bold text-slate-900 tracking-tight leading-none">
           Personal Settings
         </h1>
-        <p className="text-[15px] text-slate-500 mt-2">
+        <p className="text-[13px] sm:text-[15px] text-slate-500 mt-2">
           Manage your profile, security, and account preferences
         </p>
       </div>
 
-      {/* Stats Row */}
-      <div className="flex flex-wrap items-center gap-6 py-5 px-6 bg-white rounded-2xl border border-slate-200 shadow-sm mb-8">
+      {/* Stats Row - Mobile optimized */}
+      <div className="flex flex-wrap items-center gap-4 sm:gap-6 py-4 sm:py-5 px-4 sm:px-6 bg-white rounded-2xl border border-slate-200 shadow-sm mb-6 sm:mb-8">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-xl bg-[#90FCA6]/10 flex items-center justify-center">
             <User className="h-5 w-5 text-[#1a7a3a]" />
@@ -341,21 +341,21 @@ export default function PersonalSettingsPage() {
         </div>
       )}
 
-      {/* Tab Navigation */}
-      <div className="flex items-center gap-1.5 mb-8 p-1.5 bg-slate-100/80 rounded-xl w-fit">
+      {/* Tab Navigation - Horizontally scrollable on mobile */}
+      <div className="flex items-center gap-1.5 mb-8 p-1.5 bg-slate-100/80 rounded-xl w-full sm:w-fit overflow-x-auto scrollbar-hide">
         {[
-          { id: "profile", label: "Profile", icon: <User className="h-4 w-4" /> },
-          { id: "security", label: "Security", icon: <Shield className="h-4 w-4" /> },
-          { id: "danger", label: "Danger Zone", icon: <AlertCircle className="h-4 w-4" />, danger: true },
+          { id: "profile", label: "Profile", icon: <User className="h-4 w-4 flex-shrink-0" /> },
+          { id: "security", label: "Security", icon: <Shield className="h-4 w-4 flex-shrink-0" /> },
+          { id: "danger", label: "Danger Zone", icon: <AlertCircle className="h-4 w-4 flex-shrink-0" />, danger: true },
         ].map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as "profile" | "security" | "danger")}
-            className={`h-10 px-4 text-[13px] font-semibold rounded-lg flex items-center gap-2 transition-all ${
+            className={`h-10 px-4 text-[13px] font-semibold rounded-lg flex items-center gap-2 transition-all flex-shrink-0 whitespace-nowrap ${
               activeTab === tab.id
                 ? tab.danger
                   ? "bg-[#FF6C5E] text-white shadow-sm"
-                  : "bg-white text-slate-900 shadow-sm"
+                  : "bg-[#90FCA6] text-slate-900 shadow-sm"
                 : tab.danger
                   ? "text-[#FF6C5E] hover:bg-[#FF6C5E]/10"
                   : "text-slate-600 hover:bg-white/60"

@@ -787,35 +787,35 @@ team,TEAM-ANDROID,Android Team,PROJ-MOBILE,,Grace Chen,grace@example.com,Android
         </div>
       </div>
 
-      {/* Content Tabs */}
+      {/* Content Tabs - Horizontally scrollable on mobile */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="w-full sm:w-auto bg-slate-50/80 border border-slate-200 p-1 rounded-xl">
+        <TabsList className="w-full sm:w-auto flex gap-1 bg-slate-50/80 border border-slate-200 p-1 rounded-xl overflow-x-auto scrollbar-hide whitespace-nowrap">
           <TabsTrigger
             value="tree"
-            className="rounded-lg text-[13px] font-semibold data-[state=active]:bg-[#90FCA6] data-[state=active]:text-slate-900 data-[state=active]:shadow-sm transition-all"
+            className="flex-shrink-0 rounded-lg text-[13px] font-semibold data-[state=active]:bg-[#90FCA6] data-[state=active]:text-slate-900 data-[state=active]:shadow-sm transition-all"
           >
-            <Network className="h-4 w-4 mr-2" />
+            <Network className="h-4 w-4 mr-2 flex-shrink-0" />
             Tree View
           </TabsTrigger>
           <TabsTrigger
             value="departments"
-            className="rounded-lg text-[13px] font-semibold data-[state=active]:bg-[#90FCA6] data-[state=active]:text-slate-900 data-[state=active]:shadow-sm transition-all"
+            className="flex-shrink-0 rounded-lg text-[13px] font-semibold data-[state=active]:bg-[#90FCA6] data-[state=active]:text-slate-900 data-[state=active]:shadow-sm transition-all"
           >
-            <Building2 className="h-4 w-4 mr-2" />
+            <Building2 className="h-4 w-4 mr-2 flex-shrink-0" />
             Departments
           </TabsTrigger>
           <TabsTrigger
             value="projects"
-            className="rounded-lg text-[13px] font-semibold data-[state=active]:bg-[#90FCA6] data-[state=active]:text-slate-900 data-[state=active]:shadow-sm transition-all"
+            className="flex-shrink-0 rounded-lg text-[13px] font-semibold data-[state=active]:bg-[#90FCA6] data-[state=active]:text-slate-900 data-[state=active]:shadow-sm transition-all"
           >
-            <FolderKanban className="h-4 w-4 mr-2" />
+            <FolderKanban className="h-4 w-4 mr-2 flex-shrink-0" />
             Projects
           </TabsTrigger>
           <TabsTrigger
             value="teams"
-            className="rounded-lg text-[13px] font-semibold data-[state=active]:bg-[#90FCA6] data-[state=active]:text-slate-900 data-[state=active]:shadow-sm transition-all"
+            className="flex-shrink-0 rounded-lg text-[13px] font-semibold data-[state=active]:bg-[#90FCA6] data-[state=active]:text-slate-900 data-[state=active]:shadow-sm transition-all"
           >
-            <Users className="h-4 w-4 mr-2" />
+            <Users className="h-4 w-4 mr-2 flex-shrink-0" />
             Teams
           </TabsTrigger>
         </TabsList>

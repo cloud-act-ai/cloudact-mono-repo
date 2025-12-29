@@ -3,8 +3,17 @@ import { loadEnv } from 'vite'
 import * as dotenv from 'dotenv'
 import path from 'path'
 
-// Load .env.local directly for Node environment
-dotenv.config({ path: '.env.local' })
+// Environment-specific .env file loading
+const testEnv = process.env.TEST_ENV || 'local'
+const envFiles: Record<string, string> = {
+  local: '.env.local',
+  test: '.env.test',
+  stage: '.env.stage',
+  prod: '.env.prod',
+}
+const envFile = envFiles[testEnv] || '.env.local'
+console.log(`🧪 Loading environment: ${testEnv} from ${envFile}`)
+dotenv.config({ path: envFile })
 
 export default defineConfig(({ mode }: { mode: string }) => {
     const env = loadEnv(mode, process.cwd(), ['NEXT_PUBLIC_', 'CA_ROOT_', 'API_', 'SUPABASE_'])

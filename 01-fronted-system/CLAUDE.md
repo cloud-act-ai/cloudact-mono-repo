@@ -59,10 +59,30 @@ cd scripts/supabase_db && ./migrate.sh
 
 **DON'T:** Expose CA_ROOT_API_KEY client-side, create org before Stripe checkout, skip input validation
 
-## Environment (.env.local)
+## Environment Configuration
 
+### Environment Files
+```
+01-fronted-system/
+├── .env.local        # Local development
+├── .env.test         # Test environment (Cloud Run test)
+├── .env.production   # Production (used by Dockerfile for prod builds)
+└── .env.prod         # Production reference
+```
+
+### Build-time vs Runtime Variables
+
+**NEXT_PUBLIC_* variables** are baked into Docker image at build time:
+- Cannot be changed after build
+- Must rebuild to update
+
+**Server-side variables** (STRIPE_SECRET_KEY, etc.) are set at Cloud Run runtime:
+- Can be updated via `gcloud run services update`
+- Secrets come from Secret Manager
+
+### Local Development (.env.local)
 ```bash
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_URL=https://kwroaccbrxppfiysqlzs.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbG...
 SUPABASE_SERVICE_ROLE_KEY=eyJhbG...
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
@@ -72,6 +92,61 @@ NEXT_PUBLIC_API_SERVICE_URL=http://localhost:8000
 NEXT_PUBLIC_PIPELINE_SERVICE_URL=http://localhost:8001
 CA_ROOT_API_KEY=your-admin-key-32chars
 NEXT_PUBLIC_APP_URL=http://localhost:3000
+NEXT_PUBLIC_DEFAULT_TRIAL_DAYS=14
+```
+
+### Production Configuration (.env.production)
+```bash
+# Supabase Production
+NEXT_PUBLIC_SUPABASE_URL=https://ovfxswhkkshouhsryzaf.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbG...
+
+# Stripe LIVE Keys (CRITICAL)
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_...
+STRIPE_SECRET_KEY=sk_live_...  # From Secret Manager
+STRIPE_WEBHOOK_SECRET=whsec_...  # From Secret Manager
+
+# Production Price IDs
+NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID=price_1SWJMfDoxINmrJKY7tOoJUIs
+NEXT_PUBLIC_STRIPE_PROFESSIONAL_PRICE_ID=price_1SWJOYDoxINmrJKY8jEZwVuU
+NEXT_PUBLIC_STRIPE_SCALE_PRICE_ID=price_1SWJP8DoxINmrJKYfg0jmeLv
+
+# Production URLs
+NEXT_PUBLIC_API_SERVICE_URL=https://api.cloudact.ai
+NEXT_PUBLIC_PIPELINE_SERVICE_URL=https://pipeline.cloudact.ai
+NEXT_PUBLIC_APP_URL=https://cloudact.ai
+NEXT_PUBLIC_DEFAULT_TRIAL_DAYS=14
+```
+
+### Environment Matrix
+
+| Environment | Supabase Project | Stripe Keys | Price IDs |
+|-------------|------------------|-------------|-----------|
+| local/test | `kwroaccbrxppfiysqlzs` | TEST (`pk_test_*`) | `price_1SWBiD*` |
+| stage | `kwroaccbrxppfiysqlzs` | TEST (`pk_test_*`) | `price_1SWBiD*` |
+| prod | `ovfxswhkkshouhsryzaf` | LIVE (`pk_live_*`) | `price_1SWJMf*`, etc. |
+
+### Production Stripe Products
+
+| Plan | Price ID | Monthly |
+|------|----------|---------|
+| Starter | `price_1SWJMfDoxINmrJKY7tOoJUIs` | $19 |
+| Professional | `price_1SWJOYDoxINmrJKY8jEZwVuU` | $69 |
+| Scale | `price_1SWJP8DoxINmrJKYfg0jmeLv` | $199 |
+
+### Cloud Run Secrets (Required for Frontend)
+
+These secrets must exist in Secret Manager for frontend deployment:
+- `ca-root-api-key-{env}` - System root API key
+- `stripe-secret-key-{env}` - Stripe secret key (sk_live_*)
+- `stripe-webhook-secret-{env}` - Stripe webhook signing secret
+- `supabase-service-role-key-{env}` - Supabase service role JWT
+
+**Validate before deployment:**
+```bash
+cd 04-inra-cicd-automation/CICD
+./secrets/validate-env.sh prod frontend
+./secrets/verify-secrets.sh prod
 ```
 
 ## Route Groups
@@ -357,5 +432,27 @@ saas_subscription_plan_costs_daily (with hierarchy)
 cost_data_standard_1_3 (x_Hierarchy* extension fields)
 ```
 
+## Supabase Configuration
+
+**Important Production Settings:**
+- **Email confirmation:** DISABLED (for immediate sign-in after signup)
+- **If enabled:** Update signup flow to handle email confirmation
+
+**Test vs Production:**
+| Setting | Test | Production |
+|---------|------|------------|
+| Project | `kwroaccbrxppfiysqlzs` | `ovfxswhkkshouhsryzaf` |
+| Email confirmation | Disabled | Disabled |
+| Row Level Security | Enabled | Enabled |
+
+## Troubleshooting
+
+| Issue | Cause | Solution |
+|-------|-------|----------|
+| Signup 400 error | Email confirmation enabled | Disable in Supabase Auth settings |
+| Stripe checkout fails | Missing STRIPE_SECRET_KEY | Run secrets setup script |
+| Plans not loading | Wrong price IDs | Verify LIVE price IDs in .env.production |
+| Build fails | Missing env vars | Check .env.production has all NEXT_PUBLIC_* |
+
 ---
-**Last Updated:** 2025-12-26
+**Last Updated:** 2025-12-29

@@ -40,9 +40,9 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
         <div className="absolute -bottom-[300px] -left-[200px] w-[600px] h-[600px] rounded-full bg-gradient-to-tr from-[#FF6C5E]/5 via-transparent to-transparent blur-3xl" />
       </div>
 
-      {/* Mobile Settings Header - Only visible on mobile */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-xl border-b border-black/[0.04]">
-        <div className="flex items-center gap-2 px-4 py-3 overflow-x-auto scrollbar-hide">
+      {/* Mobile Settings Header - Only visible on mobile (consistent with MobileHeader breakpoint) */}
+      <div className="md:hidden sticky top-14 left-0 right-0 z-30 bg-white/95 backdrop-blur-xl border-b border-black/[0.04]">
+        <div className="flex items-center gap-2 px-4 py-2.5 overflow-x-auto scrollbar-hide">
           {settingsNav.map((item) => {
             const isActive = currentSection === item.id
             const Icon = item.icon
@@ -65,9 +65,9 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
         </div>
       </div>
 
-      {/* Main Content Area */}
-      <main className="relative min-h-screen pt-16 lg:pt-0">
-        <div className="max-w-5xl mx-auto px-6 py-8 lg:py-12">
+      {/* Main Content Area - Extra padding on mobile to account for settings tabs */}
+      <main className="relative min-h-screen pt-14 md:pt-0">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 lg:py-12">
           {children}
         </div>
       </main>
