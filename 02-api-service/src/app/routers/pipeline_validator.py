@@ -372,20 +372,39 @@ async def validate_pipeline_execution(
     pipeline_config = registry.get_pipeline(pipeline_id)
 
     # If direct ID lookup fails, try parsing as path-based ID
-    # Format: {category}_{domain}_{pipeline} or {category}_{provider}_{domain}_{pipeline}
+    # Format depends on category:
+    # - cloud: {category}_{provider}_{domain}_{pipeline} (4 segments, e.g., cloud_gcp_cost_billing)
+    # - genai/saas: {category}_{domain}_{pipeline} (3 segments, pipeline may contain underscores)
     if not pipeline_config:
         parts = pipeline_id.split("_")
         if len(parts) >= 3:
-            if len(parts) == 3:
-                # category_domain_pipeline (e.g., saas_costs_saas_cost)
-                category, domain, pipeline = parts
-                provider = ""
-            else:
-                # category_provider_domain_pipeline (e.g., cloud_gcp_cost_billing)
-                category = parts[0]
+            category = parts[0]
+
+            # Known categories that use 3-segment format (category_domain_pipeline)
+            # For these, provider equals category in the registry
+            three_segment_categories = {"saas", "genai"}
+
+            if category == "cloud" and len(parts) >= 4:
+                # Cloud uses 4-segment: cloud_provider_domain_pipeline
                 provider = parts[1]
                 domain = parts[2]
                 pipeline = "_".join(parts[3:])  # Handle multi-part pipeline names
+            elif category in three_segment_categories:
+                # SaaS/GenAI use 3-segment: category_domain_pipeline
+                # Pipeline name may contain underscores (e.g., saas_cost, azure_openai)
+                domain = parts[1]
+                pipeline = "_".join(parts[2:])  # Everything after domain is pipeline name
+                provider = ""  # Will match if registry has provider="" or provider=category
+            else:
+                # Unknown category - try both formats
+                if len(parts) == 3:
+                    domain = parts[1]
+                    pipeline = parts[2]
+                    provider = ""
+                else:
+                    provider = parts[1]
+                    domain = parts[2]
+                    pipeline = "_".join(parts[3:])
 
             pipeline_config = registry.get_pipeline_by_path(category, provider, domain, pipeline)
             if pipeline_config:

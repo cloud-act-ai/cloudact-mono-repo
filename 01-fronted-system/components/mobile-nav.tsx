@@ -340,10 +340,10 @@ export function MobileNav({
                 isItemActive={isActive(`/${orgSlug}/pipelines/subscription-runs`)}
               />
               <NavItem
-                href={`/${orgSlug}/pipelines/cost-runs`}
+                href={`/${orgSlug}/pipelines/cloud-runs`}
                 icon={Workflow}
-                label="Cost Runs"
-                isItemActive={isActive(`/${orgSlug}/pipelines/cost-runs`)}
+                label="Cloud Runs"
+                isItemActive={isActive(`/${orgSlug}/pipelines/cloud-runs`)}
               />
               <NavItem
                 href={`/${orgSlug}/pipelines/genai-runs`}

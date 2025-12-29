@@ -482,12 +482,12 @@ export function DashboardSidebar({
                 <SidebarMenuButton
                   asChild
                   className={cn(
-                    isActive(`/${orgSlug}/pipelines/cost-runs`) ? activeItemClass : itemClass
+                    isActive(`/${orgSlug}/pipelines/cloud-runs`) ? activeItemClass : itemClass
                   )}
                 >
-                  <Link href={`/${orgSlug}/pipelines/cost-runs`}>
+                  <Link href={`/${orgSlug}/pipelines/cloud-runs`}>
                     <Workflow className="h-4 w-4 flex-shrink-0" />
-                    <span>Cost Runs</span>
+                    <span>Cloud Runs</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
