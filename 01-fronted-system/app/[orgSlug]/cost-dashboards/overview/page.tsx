@@ -238,16 +238,16 @@ export default function CostOverviewPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto py-8 space-y-8">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-[var(--cloudact-mint)]/10">
-            <DollarSign className="h-6 w-6 text-[var(--cloudact-mint-text)]" />
+    <div className="max-w-4xl mx-auto py-4 sm:py-6 lg:py-8 space-y-4 sm:space-y-6 lg:space-y-8">
+      {/* Header - Mobile optimized */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+        <div className="flex items-center gap-2.5 sm:gap-3">
+          <div className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-[var(--cloudact-mint)]/10">
+            <DollarSign className="h-5 w-5 sm:h-6 sm:w-6 text-[var(--cloudact-mint-text)]" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Cost Overview</h1>
-            <p className="text-sm text-slate-500">Unified view of all spending</p>
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Cost Overview</h1>
+            <p className="text-xs sm:text-sm text-slate-500">Unified view of all spending</p>
           </div>
         </div>
         <Button
@@ -255,63 +255,63 @@ export default function CostOverviewPage() {
           disabled={isRefreshing}
           variant="outline"
           size="sm"
-          className="h-9"
+          className="h-10 sm:h-9 w-full sm:w-auto"
         >
           <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
           Refresh
         </Button>
       </div>
 
-      {/* Scorecards - Apple Health Style */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Scorecards - Mobile optimized Apple Health Style */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* Month to Date */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <Calendar className="h-4 w-4 text-[var(--cloudact-coral)]" />
-            <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">MTD Spend</span>
+        <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-3 sm:p-5">
+          <div className="flex items-center gap-1.5 sm:gap-2 mb-2 sm:mb-3">
+            <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[var(--cloudact-coral)]" />
+            <span className="text-[10px] sm:text-xs font-medium text-slate-500 uppercase tracking-wide">MTD</span>
           </div>
-          <div className="text-3xl font-bold text-slate-900">
+          <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900">
             {formatCurrency(combinedMTD, orgCurrency)}
           </div>
-          <div className="text-xs text-slate-500 mt-1">
-            {new Date().toLocaleString("default", { month: "long" })}
+          <div className="text-[10px] sm:text-xs text-slate-500 mt-0.5 sm:mt-1 truncate">
+            {new Date().toLocaleString("default", { month: "short" })}
           </div>
         </div>
 
         {/* Daily Rate */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <DollarSign className="h-4 w-4 text-[var(--cloudact-mint-text)]" />
-            <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Daily Rate</span>
+        <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-3 sm:p-5">
+          <div className="flex items-center gap-1.5 sm:gap-2 mb-2 sm:mb-3">
+            <DollarSign className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[var(--cloudact-mint-text)]" />
+            <span className="text-[10px] sm:text-xs font-medium text-slate-500 uppercase tracking-wide">Daily</span>
           </div>
-          <div className="text-3xl font-bold text-slate-900">
+          <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900">
             {formatCurrency(combinedDaily, orgCurrency)}
           </div>
-          <div className="text-xs text-slate-500 mt-1">per day</div>
+          <div className="text-[10px] sm:text-xs text-slate-500 mt-0.5 sm:mt-1">per day</div>
         </div>
 
         {/* Monthly Forecast */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <TrendingUp className="h-4 w-4 text-[var(--cloudact-coral)]" />
-            <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Forecast</span>
+        <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-3 sm:p-5">
+          <div className="flex items-center gap-1.5 sm:gap-2 mb-2 sm:mb-3">
+            <TrendingUp className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[var(--cloudact-coral)]" />
+            <span className="text-[10px] sm:text-xs font-medium text-slate-500 uppercase tracking-wide">Forecast</span>
           </div>
-          <div className="text-3xl font-bold text-slate-900">
+          <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900">
             {formatCurrency(combinedForecast, orgCurrency)}
           </div>
-          <div className="text-xs text-slate-500 mt-1">this month</div>
+          <div className="text-[10px] sm:text-xs text-slate-500 mt-0.5 sm:mt-1">this month</div>
         </div>
 
         {/* YTD */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <Sparkles className="h-4 w-4 text-[var(--cloudact-mint-text)]" />
-            <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">YTD {new Date().getFullYear()}</span>
+        <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-3 sm:p-5">
+          <div className="flex items-center gap-1.5 sm:gap-2 mb-2 sm:mb-3">
+            <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[var(--cloudact-mint-text)]" />
+            <span className="text-[10px] sm:text-xs font-medium text-slate-500 uppercase tracking-wide">YTD</span>
           </div>
-          <div className="text-3xl font-bold text-slate-900">
+          <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900">
             {formatCurrency(combinedYTD, orgCurrency)}
           </div>
-          <div className="text-xs text-slate-500 mt-1">year to date</div>
+          <div className="text-[10px] sm:text-xs text-slate-500 mt-0.5 sm:mt-1">year to date</div>
         </div>
       </div>
 
