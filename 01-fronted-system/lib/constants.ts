@@ -6,37 +6,25 @@
 const isProduction = process.env.NODE_ENV === "production"
 const isDevelopment = process.env.NODE_ENV === "development"
 
-// Validate required env vars in production
-function getRequiredEnvVar(name: string, fallback?: string): string {
-  const value = process.env[name]
-  if (value) return value
-
-  if (isProduction && !fallback) {
-    throw new Error(`Missing required environment variable: ${name}`)
-  }
-
-  return fallback || ""
-}
-
 // Trial period configuration
 export const DEFAULT_TRIAL_DAYS = parseInt(
   process.env.NEXT_PUBLIC_DEFAULT_TRIAL_DAYS || "14",
   10
 )
 
-// API URLs - require in production, allow localhost fallback in development
-export const API_SERVICE_URL = getRequiredEnvVar(
-  "NEXT_PUBLIC_API_SERVICE_URL",
-  isDevelopment ? "http://localhost:8000" : undefined
-)
-export const PIPELINE_SERVICE_URL = getRequiredEnvVar(
-  "NEXT_PUBLIC_PIPELINE_SERVICE_URL",
-  isDevelopment ? "http://localhost:8001" : undefined
-)
-export const APP_URL = getRequiredEnvVar(
-  "NEXT_PUBLIC_APP_URL",
-  isDevelopment ? "http://localhost:3000" : undefined
-)
+// API URLs - use static access so Next.js can inline at build time
+// IMPORTANT: process.env.NEXT_PUBLIC_* must be accessed statically for Next.js to inline
+export const API_SERVICE_URL =
+  process.env.NEXT_PUBLIC_API_SERVICE_URL ||
+  (isDevelopment ? "http://localhost:8000" : "")
+
+export const PIPELINE_SERVICE_URL =
+  process.env.NEXT_PUBLIC_PIPELINE_SERVICE_URL ||
+  (isDevelopment ? "http://localhost:8001" : "")
+
+export const APP_URL =
+  process.env.NEXT_PUBLIC_APP_URL ||
+  (isDevelopment ? "http://localhost:3000" : "")
 
 // ============================================
 // GenAI Validation Constants

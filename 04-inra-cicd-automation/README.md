@@ -9,9 +9,19 @@ Scripts and configurations for CloudAct infrastructure management.
 ├── auth-admin/       # Admin key generation
 ├── backup/           # Backup scripts
 ├── bigquery-ops/     # BigQuery operations (cleanup, list datasets)
+├── CICD/             # CI/CD scripts (build, push, deploy)
+│   ├── build/        # Docker build scripts
+│   ├── push/         # Artifact Registry push scripts
+│   └── deploy/       # Cloud Run deploy scripts
 ├── cron-jobs/        # Scheduled jobs (billing sync, cleanup)
-├── deployment/       # Cloud Run deployment
-├── gcp-setup/        # GCP infrastructure (APIs, KMS, pipeline verification)
+├── deployment/       # Legacy deployment scripts
+├── gcp-setup/        # GCP infrastructure setup
+│   ├── 00-gcp-enable-apis.sh
+│   ├── 01-setup-cloud-build.sh
+│   ├── 02-artifactory-setup.sh
+│   ├── 03-secrets-setup.sh
+│   ├── 04-iam-setup.sh
+│   └── 05-cloud-run-setup.sh
 └── testing/          # Test utilities
 ```
 
@@ -38,19 +48,53 @@ python cleanup_test_datasets.py --delete
 python auth-admin/generate_admin_key.py
 ```
 
-### GCP Setup
+### GCP Setup (Infrastructure Provisioning)
+
+Run these scripts in order to set up a new GCP project:
 
 ```bash
 cd gcp-setup
 
-# Setup GCP APIs
-python setup_gcp_api.py
+# 1. Enable required APIs
+./00-gcp-enable-apis.sh <project-id>
 
-# Setup KMS infrastructure
+# 2. Setup Cloud Build
+./01-setup-cloud-build.sh <project-id>
+
+# 3. Setup Artifact Registry
+./02-artifactory-setup.sh <project-id>
+
+# 4. Setup secrets (per environment)
+./03-secrets-setup.sh <project-id> <env>  # env: test, stage, prod
+
+# 5. Setup IAM (per environment)
+./04-iam-setup.sh <project-id> <env>
+
+# 6. Create Cloud Run services (per environment)
+./05-cloud-run-setup.sh <project-id> <env>
+
+# Legacy scripts
 python setup_kms_infrastructure.py --project your-project-id
-
-# Verify pipeline execution
 python verify_pipeline_execution.py
+```
+
+### CI/CD (Build, Push, Deploy)
+
+```bash
+cd CICD
+
+# All-in-one: build → push → deploy
+./cicd.sh <service> <env> <project-id> [tag]
+./cicd.sh api-service test cloudact-testing-1
+./cicd.sh pipeline-service prod cloudact-prod v1.2.3
+
+# Individual steps
+./build/build.sh <service> <env> [tag]
+./push/push.sh <service> <env> <project-id> [tag]
+./deploy/deploy.sh <service> <env> <project-id> [image-tag]
+
+# Services: api-service, pipeline-service, frontend
+# Environments: test, stage, prod
 ```
 
 ### Cron Jobs

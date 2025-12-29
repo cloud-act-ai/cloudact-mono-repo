@@ -1,0 +1,212 @@
+[
+  {
+    "name": "billing_account_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "GCP billing account identifier - primary key for organization mapping"
+  },
+  {
+    "name": "service_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "GCP service identifier (e.g., compute.googleapis.com)"
+  },
+  {
+    "name": "service_description",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Human-readable service name (e.g., Compute Engine)"
+  },
+  {
+    "name": "sku_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "SKU (Stock Keeping Unit) identifier for the resource type"
+  },
+  {
+    "name": "sku_description",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Human-readable SKU description"
+  },
+  {
+    "name": "usage_start_time",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "When resource usage started - used for time-based analysis"
+  },
+  {
+    "name": "usage_end_time",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "When resource usage ended - used for time-based analysis"
+  },
+  {
+    "name": "project_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "GCP project identifier where resource was used"
+  },
+  {
+    "name": "project_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Human-readable project name"
+  },
+  {
+    "name": "project_number",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "GCP project number"
+  },
+  {
+    "name": "location_location",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Resource location (e.g., us-central1, europe-west1)"
+  },
+  {
+    "name": "location_region",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Geographic region"
+  },
+  {
+    "name": "location_zone",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Availability zone"
+  },
+  {
+    "name": "resource_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Resource name/identifier"
+  },
+  {
+    "name": "resource_global_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Fully qualified resource name"
+  },
+  {
+    "name": "cost",
+    "type": "FLOAT64",
+    "mode": "REQUIRED",
+    "description": "Total cost in billing currency - primary cost metric"
+  },
+  {
+    "name": "currency",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Billing currency code (e.g., USD, EUR)"
+  },
+  {
+    "name": "currency_conversion_rate",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Conversion rate to USD if currency is not USD"
+  },
+  {
+    "name": "usage_amount",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Usage quantity (e.g., GB-hours, API calls)"
+  },
+  {
+    "name": "usage_unit",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Unit of measurement for usage (e.g., byte-seconds, requests)"
+  },
+  {
+    "name": "usage_amount_in_pricing_units",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Usage amount converted to pricing units"
+  },
+  {
+    "name": "usage_pricing_unit",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Pricing unit (e.g., gibibyte hour)"
+  },
+  {
+    "name": "cost_type",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Type of cost (regular, tax, adjustment, rounding_error)"
+  },
+  {
+    "name": "credits_total",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Total credits applied (sum of all credit amounts)"
+  },
+  {
+    "name": "cost_at_list",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Cost at list price before any discounts"
+  },
+  {
+    "name": "invoice_month",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Invoice month (YYYYMM format)"
+  },
+  {
+    "name": "ingestion_date",
+    "type": "DATE",
+    "mode": "REQUIRED",
+    "description": "Date when this record was ingested - partition key"
+  },
+  {
+    "name": "labels_json",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "User-applied resource labels as JSON string for flexible querying"
+  },
+  {
+    "name": "system_labels_json",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "System-applied labels as JSON string"
+  },
+  {
+    "name": "org_slug",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Organization identifier for multi-tenancy"
+  },
+  {
+    "name": "x_pipeline_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Pipeline template name. Example: cloud_cost_gcp"
+  },
+  {
+    "name": "x_credential_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Credential ID from org_integration_credentials. KEY for multi-account isolation"
+  },
+  {
+    "name": "x_pipeline_run_date",
+    "type": "DATE",
+    "mode": "REQUIRED",
+    "description": "The DATA date being processed. KEY for idempotent re-runs"
+  },
+  {
+    "name": "x_run_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Unique pipeline run UUID for full traceability"
+  },
+  {
+    "name": "x_ingested_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "Timestamp when data was written to this table"
+  }
+]

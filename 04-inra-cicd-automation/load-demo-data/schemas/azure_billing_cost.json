@@ -1,0 +1,224 @@
+[
+  {
+    "name": "usage_date",
+    "type": "DATE",
+    "mode": "REQUIRED",
+    "description": "Date of usage - partition key"
+  },
+  {
+    "name": "org_slug",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Organization identifier"
+  },
+  {
+    "name": "provider",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Cloud provider (azure)"
+  },
+  {
+    "name": "subscription_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Azure subscription ID"
+  },
+  {
+    "name": "subscription_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Azure subscription name"
+  },
+  {
+    "name": "resource_group",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Resource group name"
+  },
+  {
+    "name": "resource_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Azure resource ID"
+  },
+  {
+    "name": "resource_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Resource name"
+  },
+  {
+    "name": "resource_type",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Resource type (e.g., Microsoft.Compute/virtualMachines)"
+  },
+  {
+    "name": "resource_location",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Azure region (e.g., eastus)"
+  },
+  {
+    "name": "meter_category",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Meter category (e.g., Virtual Machines)"
+  },
+  {
+    "name": "meter_subcategory",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Meter subcategory"
+  },
+  {
+    "name": "meter_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Meter name"
+  },
+  {
+    "name": "meter_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Meter ID (GUID)"
+  },
+  {
+    "name": "service_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Service name"
+  },
+  {
+    "name": "service_tier",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Service tier"
+  },
+  {
+    "name": "usage_quantity",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Usage quantity"
+  },
+  {
+    "name": "usage_unit",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Unit of usage"
+  },
+  {
+    "name": "cost_in_billing_currency",
+    "type": "FLOAT64",
+    "mode": "REQUIRED",
+    "description": "Cost in billing currency - primary cost metric"
+  },
+  {
+    "name": "cost_in_usd",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Cost in USD"
+  },
+  {
+    "name": "billing_currency",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Billing currency code"
+  },
+  {
+    "name": "effective_price",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Effective unit price"
+  },
+  {
+    "name": "unit_price",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "List unit price"
+  },
+  {
+    "name": "pricing_model",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Pricing model (OnDemand, Reservation, Spot)"
+  },
+  {
+    "name": "charge_type",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Charge type (Usage, Purchase, Refund)"
+  },
+  {
+    "name": "reservation_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Reservation ID if applicable"
+  },
+  {
+    "name": "reservation_name",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Reservation name if applicable"
+  },
+  {
+    "name": "invoice_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Invoice ID"
+  },
+  {
+    "name": "billing_period_start",
+    "type": "DATE",
+    "mode": "NULLABLE",
+    "description": "Billing period start"
+  },
+  {
+    "name": "billing_period_end",
+    "type": "DATE",
+    "mode": "NULLABLE",
+    "description": "Billing period end"
+  },
+  {
+    "name": "tags_json",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Resource tags as JSON"
+  },
+  {
+    "name": "ingestion_timestamp",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "When this record was ingested"
+  },
+  {
+    "name": "x_pipeline_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Pipeline template name. Example: cloud_cost_azure"
+  },
+  {
+    "name": "x_credential_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Credential ID from org_integration_credentials. KEY for multi-account isolation"
+  },
+  {
+    "name": "x_pipeline_run_date",
+    "type": "DATE",
+    "mode": "REQUIRED",
+    "description": "The DATA date being processed. KEY for idempotent re-runs"
+  },
+  {
+    "name": "x_run_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Unique pipeline run UUID for full traceability"
+  },
+  {
+    "name": "x_ingested_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "Timestamp when data was written to this table"
+  }
+]

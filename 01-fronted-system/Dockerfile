@@ -21,6 +21,25 @@ COPY . .
 # Disable telemetry during build
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# Build args for environment URLs (passed at build time)
+ARG NEXT_PUBLIC_API_SERVICE_URL
+ARG NEXT_PUBLIC_PIPELINE_SERVICE_URL
+ARG NEXT_PUBLIC_APP_URL
+
+# Override URL vars in .env.local if build args are provided
+RUN if [ -n "${NEXT_PUBLIC_API_SERVICE_URL}" ]; then \
+      sed -i "s|^NEXT_PUBLIC_API_SERVICE_URL=.*|NEXT_PUBLIC_API_SERVICE_URL=${NEXT_PUBLIC_API_SERVICE_URL}|" .env.local 2>/dev/null || true; \
+      sed -i "s|^API_SERVICE_URL=.*|API_SERVICE_URL=${NEXT_PUBLIC_API_SERVICE_URL}|" .env.local 2>/dev/null || true; \
+    fi && \
+    if [ -n "${NEXT_PUBLIC_PIPELINE_SERVICE_URL}" ]; then \
+      sed -i "s|^NEXT_PUBLIC_PIPELINE_SERVICE_URL=.*|NEXT_PUBLIC_PIPELINE_SERVICE_URL=${NEXT_PUBLIC_PIPELINE_SERVICE_URL}|" .env.local 2>/dev/null || true; \
+      sed -i "s|^PIPELINE_SERVICE_URL=.*|PIPELINE_SERVICE_URL=${NEXT_PUBLIC_PIPELINE_SERVICE_URL}|" .env.local 2>/dev/null || true; \
+    fi && \
+    if [ -n "${NEXT_PUBLIC_APP_URL}" ]; then \
+      sed -i "s|^NEXT_PUBLIC_APP_URL=.*|NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}|" .env.local 2>/dev/null || true; \
+    fi && \
+    cat .env.local | grep -E "NEXT_PUBLIC_(API|PIPELINE|APP)" || true
+
 # Build the application
 RUN npm run build
 
