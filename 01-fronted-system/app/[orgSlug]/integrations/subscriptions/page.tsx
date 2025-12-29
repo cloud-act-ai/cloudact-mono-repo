@@ -292,20 +292,20 @@ export default function SubscriptionIntegrationsPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="max-w-6xl mx-auto px-4 sm:px-0">
       {/* Header */}
-      <div className="mb-10">
-        <div className="flex items-start justify-between gap-6 mb-6">
+      <div className="mb-6 sm:mb-10">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 sm:gap-6 mb-4 sm:mb-6">
           <div>
-            <h1 className="text-[32px] font-bold text-slate-900 tracking-tight leading-none">
+            <h1 className="text-[24px] sm:text-[32px] font-bold text-slate-900 tracking-tight leading-none">
               Subscriptions
             </h1>
-            <p className="text-[15px] text-slate-500 mt-2 max-w-lg">
-              Track your SaaS spending across all providers. Add plans to start monitoring costs.
+            <p className="text-[13px] sm:text-[15px] text-slate-500 mt-1.5 sm:mt-2 max-w-lg">
+              Track your SaaS spending across all providers
             </p>
           </div>
           <Link href={`/${orgSlug}/cost-dashboards/subscription-costs`}>
-            <button className="h-11 px-5 bg-[#90FCA6] hover:bg-[#B8FDCA] text-black text-[13px] font-semibold rounded-xl transition-colors flex items-center gap-2 shadow-sm">
+            <button className="h-10 sm:h-11 w-full sm:w-auto px-4 sm:px-5 bg-[#90FCA6] hover:bg-[#B8FDCA] text-black text-[12px] sm:text-[13px] font-semibold rounded-lg sm:rounded-xl transition-colors flex items-center justify-center gap-2 shadow-sm touch-manipulation">
               <TrendingUp className="h-4 w-4" />
               View Costs
               <ArrowUpRight className="h-3.5 w-3.5 opacity-50" />
@@ -314,40 +314,40 @@ export default function SubscriptionIntegrationsPage() {
         </div>
 
         {/* Stats Row */}
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-[#90FCA6]/10 flex items-center justify-center">
-              <Check className="h-5 w-5 text-[#1a7a3a]" />
+        <div className="flex items-center gap-4 sm:gap-6 overflow-x-auto scrollbar-hide pb-2">
+          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+            <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl bg-[#90FCA6]/10 flex items-center justify-center">
+              <Check className="h-4 w-4 sm:h-5 sm:w-5 text-[#1a7a3a]" />
             </div>
             <div>
-              <p className="text-[24px] font-bold text-slate-900 leading-none">{trackingProviders.length}</p>
-              <p className="text-[12px] text-slate-500 font-medium mt-0.5">Tracking</p>
+              <p className="text-[18px] sm:text-[24px] font-bold text-slate-900 leading-none">{trackingProviders.length}</p>
+              <p className="text-[10px] sm:text-[12px] text-slate-500 font-medium mt-0.5">Tracking</p>
             </div>
           </div>
 
           {setupProviders.length > 0 && (
             <>
-              <div className="h-8 w-px bg-slate-200"></div>
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-amber-100 flex items-center justify-center">
-                  <Settings2 className="h-5 w-5 text-amber-600" />
+              <div className="h-6 sm:h-8 w-px bg-slate-200 flex-shrink-0"></div>
+              <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+                <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl bg-amber-100 flex items-center justify-center">
+                  <Settings2 className="h-4 w-4 sm:h-5 sm:w-5 text-amber-600" />
                 </div>
                 <div>
-                  <p className="text-[24px] font-bold text-slate-900 leading-none">{setupProviders.length}</p>
-                  <p className="text-[12px] text-slate-500 font-medium mt-0.5">Needs Setup</p>
+                  <p className="text-[18px] sm:text-[24px] font-bold text-slate-900 leading-none">{setupProviders.length}</p>
+                  <p className="text-[10px] sm:text-[12px] text-slate-500 font-medium mt-0.5">Setup</p>
                 </div>
               </div>
             </>
           )}
 
-          <div className="h-8 w-px bg-slate-200"></div>
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center">
-              <Layers className="h-5 w-5 text-slate-500" />
+          <div className="h-6 sm:h-8 w-px bg-slate-200 flex-shrink-0"></div>
+          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+            <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl bg-slate-100 flex items-center justify-center">
+              <Layers className="h-4 w-4 sm:h-5 sm:w-5 text-slate-500" />
             </div>
             <div>
-              <p className="text-[24px] font-bold text-slate-900 leading-none">{availableProviders.length}</p>
-              <p className="text-[12px] text-slate-500 font-medium mt-0.5">Available</p>
+              <p className="text-[18px] sm:text-[24px] font-bold text-slate-900 leading-none">{availableProviders.length}</p>
+              <p className="text-[10px] sm:text-[12px] text-slate-500 font-medium mt-0.5">Available</p>
             </div>
           </div>
         </div>
@@ -444,12 +444,12 @@ export default function SubscriptionIntegrationsPage() {
 
       {/* Available Section */}
       <section>
-        <div className="flex items-center justify-between gap-4 mb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mb-4">
           <div className="flex items-center gap-2">
-            <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide">
+            <h2 className="text-[12px] sm:text-[13px] font-semibold text-slate-900 uppercase tracking-wide">
               Available Providers
             </h2>
-            <span className="text-[11px] text-slate-500 font-medium bg-slate-100 px-2 py-0.5 rounded-full">
+            <span className="text-[10px] sm:text-[11px] text-slate-500 font-medium bg-slate-100 px-2 py-0.5 rounded-full">
               {availableProviders.length}
             </span>
           </div>
@@ -462,12 +462,12 @@ export default function SubscriptionIntegrationsPage() {
               placeholder="Search providers..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-9 w-64 pl-9 pr-4 text-[13px] bg-slate-100 border-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-300 placeholder:text-slate-400"
+              className="h-10 sm:h-9 w-full sm:w-64 pl-9 pr-4 text-[14px] sm:text-[13px] bg-slate-100 border-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-300 placeholder:text-slate-400"
             />
           </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2.5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2">
           {displayedAvailable.map((provider) => (
             <AvailableCard
               key={provider.provider}

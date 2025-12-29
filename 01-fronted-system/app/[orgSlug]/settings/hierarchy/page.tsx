@@ -522,16 +522,16 @@ team,TEAM-ANDROID,Android Team,PROJ-MOBILE,,Grace Chen,grace@example.com,Android
   }
 
   return (
-    <div className="space-y-6 sm:space-y-8 animate-in fade-in duration-500">
+    <div className="space-y-5 sm:space-y-8 animate-in fade-in duration-500 px-4 sm:px-0">
       <div>
-        <h1 className="text-[32px] sm:text-[34px] font-bold text-slate-900 tracking-tight flex items-center gap-3">
-          <div className="h-10 w-10 rounded-2xl bg-gradient-mint flex items-center justify-center shadow-sm">
-            <Network className="h-5 w-5 text-white" />
+        <h1 className="text-[24px] sm:text-[32px] lg:text-[34px] font-bold text-slate-900 tracking-tight flex items-center gap-2.5 sm:gap-3">
+          <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl sm:rounded-2xl bg-gradient-mint flex items-center justify-center shadow-sm flex-shrink-0">
+            <Network className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
           </div>
-          Organizational Hierarchy
+          <span className="leading-tight">Organizational Hierarchy</span>
         </h1>
-        <p className="text-[15px] text-muted-foreground mt-2 ml-[52px]">
-          Manage departments, projects, and teams for cost allocation
+        <p className="text-[13px] sm:text-[15px] text-muted-foreground mt-1.5 sm:mt-2 ml-[46px] sm:ml-[52px]">
+          Manage departments, projects, and teams
         </p>
       </div>
 
@@ -550,37 +550,40 @@ team,TEAM-ANDROID,Android Team,PROJ-MOBILE,,Grace Chen,grace@example.com,Android
       )}
 
       {/* Action Bar */}
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap gap-2 sm:gap-3">
         <Button
           onClick={() => openCreateDialog("department")}
-          className="console-button-primary h-11 px-5"
+          className="console-button-primary h-10 sm:h-11 px-4 sm:px-5 text-[13px] touch-manipulation"
         >
-          <Plus className="mr-2 h-4 w-4" />
-          Add Department
+          <Plus className="mr-1.5 sm:mr-2 h-4 w-4" />
+          <span className="hidden sm:inline">Add Department</span>
+          <span className="sm:hidden">Add Dept</span>
         </Button>
         <Button
           onClick={handleExport}
           disabled={isExporting}
           variant="outline"
-          className="console-button-secondary h-11 px-5"
+          className="console-button-secondary h-10 sm:h-11 px-3 sm:px-5 text-[13px] touch-manipulation"
         >
           {isExporting ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            <Loader2 className="mr-1.5 sm:mr-2 h-4 w-4 animate-spin" />
           ) : (
-            <Download className="mr-2 h-4 w-4" />
+            <Download className="mr-1.5 sm:mr-2 h-4 w-4" />
           )}
-          Export CSV
+          <span className="hidden sm:inline">Export CSV</span>
+          <span className="sm:hidden">Export</span>
         </Button>
         <Button
           variant={showImportSection ? "default" : "outline"}
           className={showImportSection
-            ? "h-11 px-5 bg-[#90FCA6] text-slate-900 hover:bg-[#6EE890]"
-            : "console-button-secondary h-11 px-5"
+            ? "h-10 sm:h-11 px-3 sm:px-5 text-[13px] bg-[#90FCA6] text-slate-900 hover:bg-[#6EE890] touch-manipulation"
+            : "console-button-secondary h-10 sm:h-11 px-3 sm:px-5 text-[13px] touch-manipulation"
           }
           onClick={() => setShowImportSection(!showImportSection)}
         >
-          <Upload className="mr-2 h-4 w-4" />
-          {showImportSection ? "Hide Import" : "Import CSV"}
+          <Upload className="mr-1.5 sm:mr-2 h-4 w-4" />
+          <span className="hidden sm:inline">{showImportSection ? "Hide Import" : "Import CSV"}</span>
+          <span className="sm:hidden">Import</span>
         </Button>
       </div>
 
@@ -751,37 +754,37 @@ team,TEAM-ANDROID,Android Team,PROJ-MOBILE,,Grace Chen,grace@example.com,Android
       )}
 
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="metric-card shadow-sm border-l-4 border-l-mint">
-          <div className="metric-card-content flex items-center gap-4">
-            <div className="h-12 w-12 rounded-xl bg-mint/10 flex items-center justify-center">
-              <Building2 className="h-6 w-6 text-mint" />
+      <div className="grid grid-cols-3 gap-2 sm:gap-4">
+        <div className="metric-card shadow-sm border-l-4 border-l-mint p-3 sm:p-4">
+          <div className="metric-card-content flex items-center gap-2 sm:gap-4">
+            <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg sm:rounded-xl bg-mint/10 flex items-center justify-center flex-shrink-0">
+              <Building2 className="h-5 w-5 sm:h-6 sm:w-6 text-mint" />
             </div>
             <div>
-              <p className="text-[13px] text-muted-foreground">Departments</p>
-              <p className="text-[28px] font-bold text-slate-900">{treeData?.total_departments || 0}</p>
+              <p className="text-[11px] sm:text-[13px] text-muted-foreground">Depts</p>
+              <p className="text-[20px] sm:text-[28px] font-bold text-slate-900">{treeData?.total_departments || 0}</p>
             </div>
           </div>
         </div>
-        <div className="metric-card shadow-sm border-l-4 border-l-coral">
-          <div className="metric-card-content flex items-center gap-4">
-            <div className="h-12 w-12 rounded-xl bg-coral/10 flex items-center justify-center">
-              <FolderKanban className="h-6 w-6 text-coral" />
+        <div className="metric-card shadow-sm border-l-4 border-l-coral p-3 sm:p-4">
+          <div className="metric-card-content flex items-center gap-2 sm:gap-4">
+            <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg sm:rounded-xl bg-coral/10 flex items-center justify-center flex-shrink-0">
+              <FolderKanban className="h-5 w-5 sm:h-6 sm:w-6 text-coral" />
             </div>
             <div>
-              <p className="text-[13px] text-muted-foreground">Projects</p>
-              <p className="text-[28px] font-bold text-slate-900">{treeData?.total_projects || 0}</p>
+              <p className="text-[11px] sm:text-[13px] text-muted-foreground">Projects</p>
+              <p className="text-[20px] sm:text-[28px] font-bold text-slate-900">{treeData?.total_projects || 0}</p>
             </div>
           </div>
         </div>
-        <div className="metric-card shadow-sm border-l-4 border-l-ca-blue">
-          <div className="metric-card-content flex items-center gap-4">
-            <div className="h-12 w-12 rounded-xl bg-ca-blue/10 flex items-center justify-center">
-              <Users className="h-6 w-6 text-ca-blue" />
+        <div className="metric-card shadow-sm border-l-4 border-l-ca-blue p-3 sm:p-4">
+          <div className="metric-card-content flex items-center gap-2 sm:gap-4">
+            <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg sm:rounded-xl bg-ca-blue/10 flex items-center justify-center flex-shrink-0">
+              <Users className="h-5 w-5 sm:h-6 sm:w-6 text-ca-blue" />
             </div>
             <div>
-              <p className="text-[13px] text-muted-foreground">Teams</p>
-              <p className="text-[28px] font-bold text-slate-900">{treeData?.total_teams || 0}</p>
+              <p className="text-[11px] sm:text-[13px] text-muted-foreground">Teams</p>
+              <p className="text-[20px] sm:text-[28px] font-bold text-slate-900">{treeData?.total_teams || 0}</p>
             </div>
           </div>
         </div>

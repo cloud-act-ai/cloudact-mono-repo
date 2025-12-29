@@ -146,16 +146,16 @@ export default function CloudCostsPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto py-8 space-y-8">
+    <div className="max-w-4xl mx-auto py-4 sm:py-8 px-4 sm:px-0 space-y-6 sm:space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-[var(--cloudact-mint)]/10">
-            <Cloud className="h-6 w-6 text-[var(--cloudact-mint-text)]" />
+          <div className="p-2 sm:p-2.5 rounded-xl bg-[var(--cloudact-mint)]/10">
+            <Cloud className="h-5 w-5 sm:h-6 sm:w-6 text-[var(--cloudact-mint-text)]" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Cloud Costs</h1>
-            <p className="text-sm text-slate-500">Infrastructure spend across cloud providers</p>
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Cloud Costs</h1>
+            <p className="text-xs sm:text-sm text-slate-500">Infrastructure spend across providers</p>
           </div>
         </div>
         <Button
@@ -163,7 +163,7 @@ export default function CloudCostsPage() {
           disabled={isRefreshing}
           variant="outline"
           size="sm"
-          className="h-9"
+          className="h-10 sm:h-9 w-full sm:w-auto touch-manipulation"
         >
           <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
           Refresh
@@ -171,62 +171,62 @@ export default function CloudCostsPage() {
       </div>
 
       {/* Scorecards - Apple Health Style */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* Month to Date */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <Calendar className="h-4 w-4 text-[var(--cloudact-coral)]" />
-            <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">MTD Spend</span>
+        <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-3 sm:p-5">
+          <div className="flex items-center gap-1.5 sm:gap-2 mb-2 sm:mb-3">
+            <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[var(--cloudact-coral)]" />
+            <span className="text-[10px] sm:text-xs font-medium text-slate-500 uppercase tracking-wide">MTD Spend</span>
           </div>
-          <div className="text-3xl font-bold text-slate-900">
+          <div className="text-lg sm:text-2xl lg:text-3xl font-bold text-slate-900 truncate">
             {formatCurrency(summary?.mtd_cost || 0, orgCurrency)}
           </div>
-          <div className="text-xs text-slate-500 mt-1">
+          <div className="text-[10px] sm:text-xs text-slate-500 mt-0.5 sm:mt-1">
             {new Date().toLocaleString("default", { month: "long" })}
           </div>
         </div>
 
         {/* Daily Rate */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <DollarSign className="h-4 w-4 text-[var(--cloudact-mint-text)]" />
-            <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Daily Rate</span>
+        <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-3 sm:p-5">
+          <div className="flex items-center gap-1.5 sm:gap-2 mb-2 sm:mb-3">
+            <DollarSign className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[var(--cloudact-mint-text)]" />
+            <span className="text-[10px] sm:text-xs font-medium text-slate-500 uppercase tracking-wide">Daily Rate</span>
           </div>
-          <div className="text-3xl font-bold text-slate-900">
+          <div className="text-lg sm:text-2xl lg:text-3xl font-bold text-slate-900 truncate">
             {formatCurrency(summary?.total_daily_cost || 0, orgCurrency)}
           </div>
-          <div className="text-xs text-slate-500 mt-1">per day</div>
+          <div className="text-[10px] sm:text-xs text-slate-500 mt-0.5 sm:mt-1">per day</div>
         </div>
 
         {/* Monthly Forecast */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <TrendingUp className="h-4 w-4 text-[var(--cloudact-coral)]" />
-            <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Forecast</span>
+        <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-3 sm:p-5">
+          <div className="flex items-center gap-1.5 sm:gap-2 mb-2 sm:mb-3">
+            <TrendingUp className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[var(--cloudact-coral)]" />
+            <span className="text-[10px] sm:text-xs font-medium text-slate-500 uppercase tracking-wide">Forecast</span>
           </div>
-          <div className="text-3xl font-bold text-slate-900">
+          <div className="text-lg sm:text-2xl lg:text-3xl font-bold text-slate-900 truncate">
             {formatCurrency(summary?.forecast_monthly_cost || 0, orgCurrency)}
           </div>
-          <div className="text-xs text-slate-500 mt-1">this month</div>
+          <div className="text-[10px] sm:text-xs text-slate-500 mt-0.5 sm:mt-1">this month</div>
         </div>
 
         {/* YTD */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <Sparkles className="h-4 w-4 text-[var(--cloudact-mint-text)]" />
-            <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">YTD {new Date().getFullYear()}</span>
+        <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-3 sm:p-5">
+          <div className="flex items-center gap-1.5 sm:gap-2 mb-2 sm:mb-3">
+            <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[var(--cloudact-mint-text)]" />
+            <span className="text-[10px] sm:text-xs font-medium text-slate-500 uppercase tracking-wide">YTD {new Date().getFullYear()}</span>
           </div>
-          <div className="text-3xl font-bold text-slate-900">
+          <div className="text-lg sm:text-2xl lg:text-3xl font-bold text-slate-900 truncate">
             {formatCurrency(summary?.ytd_cost || 0, orgCurrency)}
           </div>
-          <div className="text-xs text-slate-500 mt-1">year to date</div>
+          <div className="text-[10px] sm:text-xs text-slate-500 mt-0.5 sm:mt-1">year to date</div>
         </div>
       </div>
 
       {/* Horizontal Bar Chart - Provider Breakdown */}
       {providers.length > 0 && (
-        <div className="bg-white rounded-2xl border border-slate-200 p-6">
-          <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wide mb-6">
+        <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-4 sm:p-6">
+          <h2 className="text-xs sm:text-sm font-semibold text-slate-900 uppercase tracking-wide mb-4 sm:mb-6">
             Cost by Provider
           </h2>
           <div className="space-y-4">
@@ -265,16 +265,16 @@ export default function CloudCostsPage() {
 
       {/* Empty State */}
       {!summary && providers.length === 0 && (
-        <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
-          <div className="inline-flex p-4 rounded-2xl bg-[var(--cloudact-mint)]/10 mb-4">
-            <Cloud className="h-10 w-10 text-[var(--cloudact-mint-text)]" />
+        <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 p-8 sm:p-12 text-center">
+          <div className="inline-flex p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-[var(--cloudact-mint)]/10 mb-3 sm:mb-4">
+            <Cloud className="h-8 w-8 sm:h-10 sm:w-10 text-[var(--cloudact-mint-text)]" />
           </div>
-          <h3 className="text-lg font-semibold text-slate-900 mb-2">No cloud costs yet</h3>
-          <p className="text-sm text-slate-500 mb-6 max-w-md mx-auto">
+          <h3 className="text-base sm:text-lg font-semibold text-slate-900 mb-2">No cloud costs yet</h3>
+          <p className="text-xs sm:text-sm text-slate-500 mb-4 sm:mb-6 max-w-md mx-auto">
             Connect your cloud providers (GCP, AWS, Azure) and run the cloud cost pipeline to see your infrastructure spend.
           </p>
           <Link href={`/${orgSlug}/integrations/cloud-providers`}>
-            <Button className="console-button-primary">
+            <Button className="console-button-primary h-11 touch-manipulation">
               Connect Providers
             </Button>
           </Link>
@@ -283,15 +283,16 @@ export default function CloudCostsPage() {
 
       {/* Data Table */}
       {providers.length > 0 && (
-        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-          <div className="p-4 border-b border-slate-200">
-            <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">
+        <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 overflow-hidden">
+          <div className="p-3 sm:p-4 border-b border-slate-200">
+            <h2 className="text-xs sm:text-sm font-semibold text-slate-900 uppercase tracking-wide">
               Cost Details
             </h2>
-            <p className="text-xs text-slate-500 mt-1">
+            <p className="text-[10px] sm:text-xs text-slate-500 mt-0.5 sm:mt-1">
               {summary?.record_count || 0} records from {summary?.date_range?.start || "-"} to {summary?.date_range?.end || "-"}
             </p>
           </div>
+          <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -326,6 +327,7 @@ export default function CloudCostsPage() {
               })}
             </TableBody>
           </Table>
+          </div>
         </div>
       )}
     </div>

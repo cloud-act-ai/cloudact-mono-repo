@@ -97,44 +97,44 @@ export default function SecurityPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="max-w-6xl mx-auto px-4 sm:px-0">
       {/* Header */}
-      <div className="mb-10">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-[#90FCA6] to-[#B8FDCA] flex items-center justify-center shadow-sm">
-            <Shield className="h-6 w-6 text-slate-900" />
+      <div className="mb-6 sm:mb-10">
+        <div className="flex items-center gap-2.5 sm:gap-3 mb-2 sm:mb-3">
+          <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[#90FCA6] to-[#B8FDCA] flex items-center justify-center shadow-sm flex-shrink-0">
+            <Shield className="h-5 w-5 sm:h-6 sm:w-6 text-slate-900" />
           </div>
-          <h1 className="text-[32px] font-bold text-slate-900 tracking-tight leading-none">
+          <h1 className="text-[24px] sm:text-[32px] font-bold text-slate-900 tracking-tight leading-none">
             Security
           </h1>
         </div>
-        <p className="text-[15px] text-slate-500 mt-2 max-w-lg ml-[60px]">
-          Manage your password and account security settings
+        <p className="text-[13px] sm:text-[15px] text-slate-500 mt-1.5 sm:mt-2 max-w-lg ml-[50px] sm:ml-[60px]">
+          Manage your password and account security
         </p>
       </div>
 
       {/* Stats Row */}
-      <div className="flex items-center gap-6 mb-8">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-[#90FCA6]/15 flex items-center justify-center">
-            <Shield className="h-5 w-5 text-[#1a7a3a]" />
+      <div className="flex items-center gap-4 sm:gap-6 mb-6 sm:mb-8 overflow-x-auto scrollbar-hide pb-2">
+        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+          <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl bg-[#90FCA6]/15 flex items-center justify-center">
+            <Shield className="h-4 w-4 sm:h-5 sm:w-5 text-[#1a7a3a]" />
           </div>
           <div>
-            <p className="text-[14px] text-slate-600 font-medium">Account Status</p>
-            <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#90FCA6]/15">
+            <p className="text-[12px] sm:text-[14px] text-slate-600 font-medium">Account</p>
+            <div className="inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded-md bg-[#90FCA6]/15">
               <div className="h-1.5 w-1.5 rounded-full bg-[#1a7a3a]" />
-              <p className="text-[12px] text-[#1a7a3a] font-semibold">Protected</p>
+              <p className="text-[10px] sm:text-[12px] text-[#1a7a3a] font-semibold">Protected</p>
             </div>
           </div>
         </div>
-        <div className="h-8 w-px bg-slate-200"></div>
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center">
-            <Lock className="h-5 w-5 text-slate-500" />
+        <div className="h-6 sm:h-8 w-px bg-slate-200 flex-shrink-0"></div>
+        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+          <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl bg-slate-100 flex items-center justify-center">
+            <Lock className="h-4 w-4 sm:h-5 sm:w-5 text-slate-500" />
           </div>
           <div>
-            <p className="text-[14px] text-slate-600 font-medium">Password</p>
-            <p className="text-[12px] text-slate-500 font-medium">Set</p>
+            <p className="text-[12px] sm:text-[14px] text-slate-600 font-medium">Password</p>
+            <p className="text-[10px] sm:text-[12px] text-slate-500 font-medium">Set</p>
           </div>
         </div>
       </div>

@@ -183,48 +183,48 @@ export default function CloudProvidersPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8">
+    <div className="max-w-6xl mx-auto space-y-6 sm:space-y-8 px-4 sm:px-0">
       {/* Header */}
-      <div className="mb-10">
-        <h1 className="text-[32px] font-bold text-slate-900 tracking-tight leading-none">
+      <div className="mb-6 sm:mb-10">
+        <h1 className="text-[24px] sm:text-[32px] font-bold text-slate-900 tracking-tight leading-none">
           Cloud Providers
         </h1>
-        <p className="text-[15px] text-slate-500 mt-2 max-w-lg">
+        <p className="text-[13px] sm:text-[15px] text-slate-500 mt-1.5 sm:mt-2 max-w-lg">
           Connect your cloud accounts to start tracking costs
         </p>
       </div>
 
       {/* Stats Row */}
-      <div className="flex items-center gap-6 py-5 px-6 bg-white rounded-2xl border border-slate-200 shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-[#90FCA6]/10 flex items-center justify-center">
-            <Check className="h-5 w-5 text-[#1a7a3a]" />
+      <div className="flex items-center gap-4 sm:gap-6 py-4 sm:py-5 px-4 sm:px-6 bg-white rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm overflow-x-auto scrollbar-hide">
+        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+          <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl bg-[#90FCA6]/10 flex items-center justify-center">
+            <Check className="h-4 w-4 sm:h-5 sm:w-5 text-[#1a7a3a]" />
           </div>
           <div>
-            <p className="text-[24px] font-bold text-slate-900 leading-none">{connectedProviders.length}</p>
-            <p className="text-[12px] text-slate-500 font-medium mt-0.5">Connected</p>
+            <p className="text-[18px] sm:text-[24px] font-bold text-slate-900 leading-none">{connectedProviders.length}</p>
+            <p className="text-[10px] sm:text-[12px] text-slate-500 font-medium mt-0.5">Connected</p>
           </div>
         </div>
-        <div className="h-8 w-px bg-slate-200"></div>
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center">
-            <Cloud className="h-5 w-5 text-slate-500" />
+        <div className="h-6 sm:h-8 w-px bg-slate-200 flex-shrink-0"></div>
+        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+          <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl bg-slate-100 flex items-center justify-center">
+            <Cloud className="h-4 w-4 sm:h-5 sm:w-5 text-slate-500" />
           </div>
           <div>
-            <p className="text-[24px] font-bold text-slate-900 leading-none">{availableProviders.length}</p>
-            <p className="text-[12px] text-slate-500 font-medium mt-0.5">Available</p>
+            <p className="text-[18px] sm:text-[24px] font-bold text-slate-900 leading-none">{availableProviders.length}</p>
+            <p className="text-[10px] sm:text-[12px] text-slate-500 font-medium mt-0.5">Available</p>
           </div>
         </div>
         {comingSoonProviders.length > 0 && (
           <>
-            <div className="h-8 w-px bg-slate-200"></div>
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-amber-100 flex items-center justify-center">
-                <Server className="h-5 w-5 text-amber-600" />
+            <div className="h-6 sm:h-8 w-px bg-slate-200 flex-shrink-0"></div>
+            <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+              <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl bg-amber-100 flex items-center justify-center">
+                <Server className="h-4 w-4 sm:h-5 sm:w-5 text-amber-600" />
               </div>
               <div>
-                <p className="text-[24px] font-bold text-slate-900 leading-none">{comingSoonProviders.length}</p>
-                <p className="text-[12px] text-slate-500 font-medium mt-0.5">Coming Soon</p>
+                <p className="text-[18px] sm:text-[24px] font-bold text-slate-900 leading-none">{comingSoonProviders.length}</p>
+                <p className="text-[10px] sm:text-[12px] text-slate-500 font-medium mt-0.5">Soon</p>
               </div>
             </div>
           </>
@@ -321,23 +321,24 @@ export default function CloudProvidersPage() {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2 sm:gap-3">
                         <button
                           onClick={() => handleValidate(provider.id)}
                           disabled={isValidating}
-                          className="h-10 px-4 text-[13px] font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors flex items-center gap-2"
+                          className="h-9 sm:h-10 px-3 sm:px-4 text-[12px] sm:text-[13px] font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg sm:rounded-xl transition-colors flex items-center gap-1.5 sm:gap-2 touch-manipulation"
                         >
                           {isValidating ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
                           ) : (
-                            <RefreshCw className="h-4 w-4" />
+                            <RefreshCw className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                           )}
-                          Validate
+                          <span className="hidden sm:inline">Validate</span>
                         </button>
                         <Link href={`/${orgSlug}/integrations/${provider.href}`}>
-                          <button className="h-10 px-4 text-[13px] font-semibold text-slate-900 bg-[#90FCA6] hover:bg-[#6EE890] rounded-xl transition-colors flex items-center gap-1.5">
-                            Configure
-                            <ChevronRight className="h-4 w-4" />
+                          <button className="h-9 sm:h-10 px-3 sm:px-4 text-[12px] sm:text-[13px] font-semibold text-slate-900 bg-[#90FCA6] hover:bg-[#6EE890] rounded-lg sm:rounded-xl transition-colors flex items-center gap-1 sm:gap-1.5 touch-manipulation">
+                            <span className="hidden sm:inline">Configure</span>
+                            <span className="sm:hidden">Edit</span>
+                            <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                           </button>
                         </Link>
                         <Switch
@@ -358,29 +359,29 @@ export default function CloudProvidersPage() {
 
       {/* Available Providers */}
       {availableProviders.length > 0 && (
-        <div className="space-y-4">
-          <h2 className="text-[13px] font-semibold text-slate-900 uppercase tracking-wide">Available</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="space-y-3 sm:space-y-4">
+          <h2 className="text-[12px] sm:text-[13px] font-semibold text-slate-900 uppercase tracking-wide">Available</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             {availableProviders.map((provider) => (
               <Link
                 key={provider.id}
                 href={`/${orgSlug}/integrations/${provider.href}`}
-                className="group p-5 bg-white rounded-2xl border border-slate-200 hover:border-slate-300 hover:shadow-md transition-all"
+                className="group p-4 sm:p-5 bg-white rounded-xl sm:rounded-2xl border border-slate-200 hover:border-slate-300 hover:shadow-md transition-all touch-manipulation"
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 sm:gap-4 min-w-0">
                     <div
-                      className="h-12 w-12 rounded-xl flex items-center justify-center"
+                      className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0"
                       style={{ backgroundColor: `${provider.accent}15` }}
                     >
                       <ProviderLogo provider={provider.id} category="cloud" size={24} />
                     </div>
-                    <div>
-                      <h3 className="text-[15px] font-semibold text-slate-900">{provider.name}</h3>
-                      <p className="text-[13px] text-slate-500 mt-0.5">{provider.description}</p>
+                    <div className="min-w-0">
+                      <h3 className="text-[14px] sm:text-[15px] font-semibold text-slate-900 truncate">{provider.name}</h3>
+                      <p className="text-[12px] sm:text-[13px] text-slate-500 mt-0.5 truncate">{provider.description}</p>
                     </div>
                   </div>
-                  <button className="h-10 px-4 text-[13px] font-semibold text-slate-900 bg-[#90FCA6] hover:bg-[#6EE890] rounded-xl transition-colors">
+                  <button className="h-9 sm:h-10 px-3 sm:px-4 text-[12px] sm:text-[13px] font-semibold text-slate-900 bg-[#90FCA6] hover:bg-[#6EE890] rounded-lg sm:rounded-xl transition-colors flex-shrink-0">
                     Connect
                   </button>
                 </div>
@@ -423,14 +424,14 @@ export default function CloudProvidersPage() {
       )}
 
       {/* Security Notice */}
-      <div className="p-6 bg-white rounded-2xl border border-slate-200 shadow-sm">
-        <div className="flex items-start gap-4">
-          <div className="h-12 w-12 rounded-xl bg-[#90FCA6]/15 flex items-center justify-center flex-shrink-0">
-            <Shield className="h-6 w-6 text-[#1a7a3a]" />
+      <div className="p-4 sm:p-6 bg-white rounded-xl sm:rounded-2xl border border-slate-200 shadow-sm">
+        <div className="flex items-start gap-3 sm:gap-4">
+          <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg sm:rounded-xl bg-[#90FCA6]/15 flex items-center justify-center flex-shrink-0">
+            <Shield className="h-5 w-5 sm:h-6 sm:w-6 text-[#1a7a3a]" />
           </div>
           <div>
-            <h3 className="text-[16px] font-semibold text-slate-900">Secure Storage</h3>
-            <p className="text-[14px] text-slate-600 mt-2 leading-relaxed">
+            <h3 className="text-[14px] sm:text-[16px] font-semibold text-slate-900">Secure Storage</h3>
+            <p className="text-[12px] sm:text-[14px] text-slate-600 mt-1.5 sm:mt-2 leading-relaxed">
               All service account credentials are encrypted using Google Cloud KMS with AES-256 encryption.
             </p>
           </div>

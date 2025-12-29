@@ -416,11 +416,11 @@ export default function PipelinesPage() {
   return (
     <div className="max-w-6xl mx-auto space-y-6 sm:space-y-8">
       {/* Header Section */}
-      <div className="mb-10">
-        <h1 className="text-[32px] font-bold text-slate-900 tracking-tight leading-none">
+      <div className="mb-6 sm:mb-10 px-4 sm:px-0">
+        <h1 className="text-[24px] sm:text-[32px] font-bold text-slate-900 tracking-tight leading-none">
           Pipelines
         </h1>
-        <p className="text-[15px] text-slate-500 mt-2 max-w-lg">
+        <p className="text-[13px] sm:text-[15px] text-slate-500 mt-1.5 sm:mt-2 max-w-lg">
           Run data pipelines to fetch your cloud data
         </p>
       </div>
@@ -432,54 +432,54 @@ export default function PipelinesPage() {
 
       {/* Quick Stats Row */}
       {backendConnected && hasApiKey && pipelineRuns.length > 0 && (
-        <div className="flex items-center gap-6 mb-8 overflow-x-auto pb-2">
+        <div className="flex items-center gap-4 sm:gap-6 mb-6 sm:mb-8 overflow-x-auto pb-2 px-4 sm:px-0 scrollbar-hide">
           {/* Runs Today */}
-          <div className="flex items-center gap-3 flex-shrink-0">
-            <div className="h-10 w-10 rounded-xl bg-[var(--cloudact-mint)]/10 flex items-center justify-center">
-              <Clock className="h-5 w-5 text-[var(--cloudact-mint-dark)]" />
+          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+            <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl bg-[var(--cloudact-mint)]/10 flex items-center justify-center">
+              <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-[var(--cloudact-mint-dark)]" />
             </div>
             <div>
-              <p className="text-[24px] font-bold text-slate-900 leading-none">{quickStats.runsToday}</p>
-              <p className="text-[12px] text-slate-500 font-medium mt-0.5">Runs Today</p>
+              <p className="text-[18px] sm:text-[24px] font-bold text-slate-900 leading-none">{quickStats.runsToday}</p>
+              <p className="text-[10px] sm:text-[12px] text-slate-500 font-medium mt-0.5">Today</p>
             </div>
           </div>
 
-          <div className="h-8 w-px bg-slate-200 flex-shrink-0"></div>
+          <div className="h-6 sm:h-8 w-px bg-slate-200 flex-shrink-0"></div>
 
           {/* Success Rate */}
-          <div className="flex items-center gap-3 flex-shrink-0">
-            <div className="h-10 w-10 rounded-xl bg-[var(--cloudact-mint)]/10 flex items-center justify-center">
-              <TrendingUp className="h-5 w-5 text-[var(--cloudact-mint-dark)]" />
+          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+            <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl bg-[var(--cloudact-mint)]/10 flex items-center justify-center">
+              <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-[var(--cloudact-mint-dark)]" />
             </div>
             <div>
-              <p className="text-[24px] font-bold text-slate-900 leading-none">{quickStats.successRate}%</p>
-              <p className="text-[12px] text-slate-500 font-medium mt-0.5">Success Rate</p>
+              <p className="text-[18px] sm:text-[24px] font-bold text-slate-900 leading-none">{quickStats.successRate}%</p>
+              <p className="text-[10px] sm:text-[12px] text-slate-500 font-medium mt-0.5">Success</p>
             </div>
           </div>
 
-          <div className="h-8 w-px bg-slate-200 flex-shrink-0"></div>
+          <div className="h-6 sm:h-8 w-px bg-slate-200 flex-shrink-0"></div>
 
           {/* Avg Duration */}
-          <div className="flex items-center gap-3 flex-shrink-0">
-            <div className="h-10 w-10 rounded-xl bg-[var(--cloudact-coral)]/10 flex items-center justify-center">
-              <Activity className="h-5 w-5 text-[var(--cloudact-coral)]" />
+          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+            <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl bg-[var(--cloudact-coral)]/10 flex items-center justify-center">
+              <Activity className="h-4 w-4 sm:h-5 sm:w-5 text-[var(--cloudact-coral)]" />
             </div>
             <div>
-              <p className="text-[24px] font-bold text-slate-900 leading-none">{formatDuration(quickStats.avgDuration)}</p>
-              <p className="text-[12px] text-slate-500 font-medium mt-0.5">Avg Duration</p>
+              <p className="text-[18px] sm:text-[24px] font-bold text-slate-900 leading-none">{formatDuration(quickStats.avgDuration)}</p>
+              <p className="text-[10px] sm:text-[12px] text-slate-500 font-medium mt-0.5">Avg Time</p>
             </div>
           </div>
 
-          <div className="h-8 w-px bg-slate-200 flex-shrink-0"></div>
+          <div className="h-6 sm:h-8 w-px bg-slate-200 flex-shrink-0"></div>
 
           {/* Total Runs */}
-          <div className="flex items-center gap-3 flex-shrink-0">
-            <div className="h-10 w-10 rounded-xl bg-[var(--cloudact-mint)]/10 flex items-center justify-center">
-              <History className="h-5 w-5 text-[var(--cloudact-mint-dark)]" />
+          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+            <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl bg-[var(--cloudact-mint)]/10 flex items-center justify-center">
+              <History className="h-4 w-4 sm:h-5 sm:w-5 text-[var(--cloudact-mint-dark)]" />
             </div>
             <div>
-              <p className="text-[24px] font-bold text-slate-900 leading-none">{quickStats.totalRuns}</p>
-              <p className="text-[12px] text-slate-500 font-medium mt-0.5">Total Runs</p>
+              <p className="text-[18px] sm:text-[24px] font-bold text-slate-900 leading-none">{quickStats.totalRuns}</p>
+              <p className="text-[10px] sm:text-[12px] text-slate-500 font-medium mt-0.5">Total</p>
             </div>
           </div>
         </div>
