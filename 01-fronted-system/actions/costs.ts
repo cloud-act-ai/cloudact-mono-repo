@@ -569,9 +569,20 @@ export async function getCostByProvider(
       }
     }
 
+    // API returns BigQuery column names, need to transform to frontend interface
+    interface ApiProviderData {
+      ServiceProviderName?: string
+      provider?: string  // Fallback if already transformed
+      total_billed_cost?: number
+      total_effective_cost?: number
+      total_cost?: number  // Fallback if already transformed
+      record_count: number
+      service_categories?: string[]
+      percentage?: number
+    }
     interface ProviderResponse {
       success: boolean
-      data: ProviderBreakdown[]
+      data: ApiProviderData[]
       currency: string
     }
     const result = await safeJsonParse<ProviderResponse>(response, {
@@ -580,9 +591,29 @@ export async function getCostByProvider(
       currency: "USD",
     })
 
+    // Transform API response to frontend interface
+    const rawData = result.data || []
+    const totalCost = rawData.reduce((sum, p) => {
+      // Use || to treat empty/0 as falsy
+      const cost = p.total_effective_cost || p.total_billed_cost || p.total_cost || 0
+      return sum + cost
+    }, 0)
+
+    const transformedData: ProviderBreakdown[] = rawData.map(p => {
+      // Use || to treat empty string as falsy (not just null/undefined)
+      const providerName = p.ServiceProviderName || p.provider || "Unknown"
+      const cost = p.total_effective_cost || p.total_billed_cost || p.total_cost || 0
+      return {
+        provider: providerName.trim() || "Unknown",  // Also trim whitespace
+        total_cost: cost,
+        record_count: p.record_count || 0,
+        percentage: totalCost > 0 ? (cost / totalCost) * 100 : 0,
+      }
+    })
+
     return {
       success: result.success,
-      data: result.data || [],
+      data: transformedData,
       currency: result.currency || "USD",
     }
   } catch (error) {

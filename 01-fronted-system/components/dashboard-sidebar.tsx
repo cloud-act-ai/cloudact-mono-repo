@@ -47,6 +47,7 @@ import {
   PanelLeftClose,
   PanelLeft,
   Settings,
+  TrendingUp,
 } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
@@ -56,7 +57,7 @@ import { useState, useEffect } from "react"
 import { cn } from "@/lib/utils"
 import { getOrgDetails } from "@/actions/organization-locale"
 
-type SectionId = "dashboards" | "pipelines" | "integrations" | "settings"
+type SectionId = "dashboards" | "cost-analytics" | "pipelines" | "integrations" | "settings"
 
 function formatOrgName(name: string): string {
   const withoutDate = name.replace(/_\d{8}$/, "")
@@ -142,8 +143,10 @@ export function DashboardSidebar({
   useEffect(() => {
     if (!pathname) return
 
-    if (pathname.includes("/cost-dashboards")) {
+    if (pathname.endsWith("/dashboard") || pathname.includes("/dashboard/")) {
       setActiveSection("dashboards")
+    } else if (pathname.includes("/cost-dashboards")) {
+      setActiveSection("cost-analytics")
     } else if (pathname.includes("/pipelines")) {
       setActiveSection("pipelines")
     } else if (pathname.includes("/integrations")) {
@@ -219,6 +222,7 @@ export function DashboardSidebar({
   // Section icons for visual hierarchy - slightly larger
   const sectionIcons: Record<SectionId, React.ReactNode> = {
     dashboards: <BarChart3 className="h-4 w-4" />,
+    "cost-analytics": <TrendingUp className="h-4 w-4" />,
     pipelines: <Workflow className="h-4 w-4" />,
     integrations: <Server className="h-4 w-4" />,
     settings: <Settings className="h-4 w-4" />,
@@ -333,10 +337,10 @@ export function DashboardSidebar({
       <SidebarContent className="px-0 py-2 overflow-y-auto">
         <SidebarMenu className="gap-0">
 
-          {/* Cost Dashboards Section */}
+          {/* Account Summary Section */}
           {!isCollapsed && (
             <SectionHeader
-              title="Dashboards"
+              title="Account Summary"
               section="dashboards"
               isExpanded={activeSection === "dashboards"}
             />
@@ -344,7 +348,7 @@ export function DashboardSidebar({
           {isCollapsed && (
             <SidebarMenuItem>
               <SidebarMenuButton asChild className="h-10 rounded-lg justify-center px-2 mx-1">
-                <Link href={`/${orgSlug}/cost-dashboards/overview`}>
+                <Link href={`/${orgSlug}/dashboard`}>
                   <LayoutDashboard className="h-4 w-4 text-slate-500" />
                 </Link>
               </SidebarMenuButton>
@@ -356,25 +360,47 @@ export function DashboardSidebar({
                 <SidebarMenuButton
                   asChild
                   className={cn(
-                    isActive(`/${orgSlug}/cost-dashboards/overview`, true) ? activeItemClass : itemClass
+                    isActive(`/${orgSlug}/dashboard`, true) ? activeItemClass : itemClass
                   )}
                 >
-                  <Link href={`/${orgSlug}/cost-dashboards/overview`}>
+                  <Link href={`/${orgSlug}/dashboard`}>
                     <LayoutDashboard className="h-4 w-4 flex-shrink-0" />
-                    <span>Overview</span>
+                    <span>Dashboard</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+            </div>
+          )}
+
+          {/* Cost Analytics Section */}
+          {!isCollapsed && (
+            <SectionHeader
+              title="Cost Analytics"
+              section="cost-analytics"
+              isExpanded={activeSection === "cost-analytics"}
+            />
+          )}
+          {isCollapsed && (
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild className="h-10 rounded-lg justify-center px-2 mx-1">
+                <Link href={`/${orgSlug}/cost-dashboards/overview`}>
+                  <TrendingUp className="h-4 w-4 text-slate-500" />
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
+          {!isCollapsed && activeSection === "cost-analytics" && (
+            <div className="pb-2 space-y-0.5">
               <SidebarMenuItem>
                 <SidebarMenuButton
                   asChild
                   className={cn(
-                    isActive(`/${orgSlug}/cost-dashboards/subscription-costs`) ? activeItemClass : itemClass
+                    isActive(`/${orgSlug}/cost-dashboards/overview`, true) ? activeItemClass : itemClass
                   )}
                 >
-                  <Link href={`/${orgSlug}/cost-dashboards/subscription-costs`}>
-                    <Receipt className="h-4 w-4 flex-shrink-0" />
-                    <span>Subscriptions</span>
+                  <Link href={`/${orgSlug}/cost-dashboards/overview`}>
+                    <BarChart3 className="h-4 w-4 flex-shrink-0" />
+                    <span>Overview</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -401,6 +427,19 @@ export function DashboardSidebar({
                   <Link href={`/${orgSlug}/cost-dashboards/cloud-costs`}>
                     <Cloud className="h-4 w-4 flex-shrink-0" />
                     <span>Cloud</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  className={cn(
+                    isActive(`/${orgSlug}/cost-dashboards/subscription-costs`) ? activeItemClass : itemClass
+                  )}
+                >
+                  <Link href={`/${orgSlug}/cost-dashboards/subscription-costs`}>
+                    <Receipt className="h-4 w-4 flex-shrink-0" />
+                    <span>Subscription</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

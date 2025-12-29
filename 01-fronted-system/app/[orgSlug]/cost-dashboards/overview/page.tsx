@@ -49,6 +49,7 @@ interface CostCategory {
   category: string
   total_cost: number
   percentage: number
+  subscriptionCount?: number  // Unique subscriptions, not daily rows
 }
 
 export default function CostOverviewPage() {
@@ -69,9 +70,15 @@ export default function CostOverviewPage() {
     setError(null)
 
     try {
+      // Get current month date range for filtering
+      const now = new Date()
+      const startOfMonth = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1))
+      const startDate = startOfMonth.toISOString().split('T')[0]  // YYYY-MM-DD
+      const endDate = now.toISOString().split('T')[0]  // Today
+
       const [costsResult, providersResult, saasResult] = await Promise.all([
         getTotalCosts(orgSlug),
-        getCostByProvider(orgSlug),
+        getCostByProvider(orgSlug, startDate, endDate),  // Filter to current month
         getSaaSSubscriptionCosts(orgSlug),
       ])
 
@@ -83,8 +90,53 @@ export default function CostOverviewPage() {
         }
       }
 
-      if (providersResult.success) {
-        setProviders(providersResult.data.slice(0, 10))
+      // Calculate provider breakdown from SaaS data with correct unique subscription count
+      // This replaces getCostByProvider which returns row counts, not subscription counts
+      if (saasResult.success && saasResult.data && saasResult.data.length > 0) {
+        // Filter to current month only
+        const currentMonthStart = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1))
+        const currentMonthEnd = new Date(Date.UTC(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59))
+
+        const providerMap: Record<string, { totalCost: number; uniqueIds: Set<string> }> = {}
+
+        for (const row of saasResult.data) {
+          // Filter to current month
+          const chargeDate = row.ChargePeriodStart ? new Date(row.ChargePeriodStart) : null
+          if (!chargeDate || chargeDate < currentMonthStart || chargeDate > currentMonthEnd) {
+            continue
+          }
+
+          const provider = row.ServiceProviderName || row.ProviderName || "Unknown"
+          const resourceId = row.ResourceId || row.ServiceName || "unknown"
+
+          if (!providerMap[provider]) {
+            providerMap[provider] = { totalCost: 0, uniqueIds: new Set() }
+          }
+          providerMap[provider].totalCost += row.EffectiveCost || 0
+          providerMap[provider].uniqueIds.add(resourceId)
+        }
+
+        const totalProviderCost = Object.values(providerMap).reduce((sum, p) => sum + p.totalCost, 0)
+
+        const validProviders: ProviderBreakdown[] = Object.entries(providerMap)
+          .filter(([name, _]) => name && name.trim() !== "" && name !== "Unknown")
+          .map(([name, data]) => ({
+            provider: name,
+            total_cost: data.totalCost,
+            record_count: data.uniqueIds.size,  // Unique subscriptions, not rows!
+            percentage: totalProviderCost > 0 ? (data.totalCost / totalProviderCost) * 100 : 0,
+          }))
+          .filter(p => p.total_cost > 0)
+          .sort((a, b) => b.total_cost - a.total_cost)
+          .slice(0, 10)
+
+        setProviders(validProviders)
+      } else if (providersResult.success) {
+        // Fallback to API data if no SaaS data (but filter out invalid entries)
+        const validProviders = providersResult.data
+          .filter(p => p.provider && p.provider.trim() !== "" && p.provider !== "Unknown" && p.total_cost > 0)
+          .slice(0, 10)
+        setProviders(validProviders)
       }
 
       if (saasResult.success) {
@@ -97,11 +149,20 @@ export default function CostOverviewPage() {
       const saasCost = costsResult.data?.saas?.total_monthly_cost || 0
       const totalCost = genaiCost + cloudCost + saasCost
 
+      // Calculate unique subscription count from SaaS data (not row count)
+      let saasSubscriptionCount = 0
+      if (saasResult.success && saasResult.data && saasResult.data.length > 0) {
+        const uniqueResourceIds = new Set(
+          saasResult.data.map(r => r.ResourceId || r.ServiceName || 'unknown')
+        )
+        saasSubscriptionCount = uniqueResourceIds.size
+      }
+
       if (totalCost > 0) {
         const categoryList: CostCategory[] = [
           { category: "genai", total_cost: genaiCost, percentage: (genaiCost / totalCost) * 100 },
           { category: "cloud", total_cost: cloudCost, percentage: (cloudCost / totalCost) * 100 },
-          { category: "saas", total_cost: saasCost, percentage: (saasCost / totalCost) * 100 },
+          { category: "saas", total_cost: saasCost, percentage: (saasCost / totalCost) * 100, subscriptionCount: saasSubscriptionCount },
         ].filter(c => c.total_cost > 0).sort((a, b) => b.total_cost - a.total_cost)
         setCategories(categoryList)
       }
@@ -285,6 +346,9 @@ export default function CostOverviewPage() {
                     />
                   </div>
                   <div className="flex items-center justify-between text-xs text-slate-500">
+                    {category.subscriptionCount !== undefined && category.subscriptionCount > 0 && (
+                      <span>{category.subscriptionCount} subscription{category.subscriptionCount !== 1 ? "s" : ""}</span>
+                    )}
                     <span>{category.percentage.toFixed(1)}% of total</span>
                   </div>
                 </div>
@@ -320,7 +384,7 @@ export default function CostOverviewPage() {
                     />
                   </div>
                   <div className="flex items-center justify-between text-xs text-slate-500">
-                    <span>{provider.record_count} records</span>
+                    <span>{provider.record_count} subscription{provider.record_count !== 1 ? "s" : ""}</span>
                     {/* FIX: EDGE-004 - Handle NaN percentage */}
                     <span>{(provider.percentage ?? 0).toFixed(1)}% of total</span>
                   </div>
@@ -414,35 +478,45 @@ export default function CostOverviewPage() {
               Provider Details
             </h2>
             <p className="text-xs text-slate-500 mt-1">
-              {providers.reduce((acc, p) => acc + p.record_count, 0)} total records
+              {providers.reduce((acc, p) => acc + p.record_count, 0)} subscription{providers.reduce((acc, p) => acc + p.record_count, 0) !== 1 ? "s" : ""}
             </p>
           </div>
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead className="text-xs font-semibold uppercase">Provider</TableHead>
-                <TableHead className="text-xs font-semibold uppercase">Records</TableHead>
-                <TableHead className="text-xs font-semibold uppercase text-right">Daily</TableHead>
-                <TableHead className="text-xs font-semibold uppercase text-right">Monthly</TableHead>
-                <TableHead className="text-xs font-semibold uppercase text-right">Annual</TableHead>
+                <TableHead className="text-xs font-semibold uppercase">Subscriptions</TableHead>
+                <TableHead className="text-xs font-semibold uppercase text-right">Daily Rate</TableHead>
+                <TableHead className="text-xs font-semibold uppercase text-right">Monthly Est.</TableHead>
+                <TableHead className="text-xs font-semibold uppercase text-right">Annual Est.</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {providers.slice(0, 10).map((provider) => {
-                // FIX: EDGE-002 - Use actual days in current month instead of hardcoded 30
-                const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate()
+                // Calculate days elapsed for accurate daily rate
+                const now = new Date()
+                const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
+                const daysElapsed = now.getDate()
+
+                // Daily rate = total cost / days elapsed
+                const dailyRate = daysElapsed > 0 ? provider.total_cost / daysElapsed : 0
+                // Monthly forecast = daily rate * days in month
+                const monthlyForecast = dailyRate * daysInMonth
+                // Annual forecast = monthly * 12
+                const annualForecast = monthlyForecast * 12
+
                 return (
                   <TableRow key={provider.provider}>
-                    <TableCell className="font-medium">{provider.provider}</TableCell>
+                    <TableCell className="font-medium">{provider.provider || "Unknown"}</TableCell>
                     <TableCell className="text-slate-500">{provider.record_count}</TableCell>
                     <TableCell className="text-right font-mono">
-                      {formatCurrency(provider.total_cost / daysInMonth, orgCurrency)}
+                      {formatCurrency(dailyRate, orgCurrency)}
                     </TableCell>
                     <TableCell className="text-right font-mono">
-                      {formatCurrency(provider.total_cost, orgCurrency)}
+                      {formatCurrency(monthlyForecast, orgCurrency)}
                     </TableCell>
                     <TableCell className="text-right font-mono font-semibold">
-                      {formatCurrency(provider.total_cost * 12, orgCurrency)}
+                      {formatCurrency(annualForecast, orgCurrency)}
                     </TableCell>
                   </TableRow>
                 )

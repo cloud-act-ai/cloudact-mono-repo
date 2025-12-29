@@ -10,19 +10,19 @@
     "smtp_username": "${SMTP_USERNAME}",
     "smtp_password": "${SMTP_PASSWORD}",
     "smtp_use_tls": true,
-    "from_email": "noreply@cloudact.io",
-    "from_name": "CloudAct Platform",
+    "from_email": "support@cloudact.ai",
+    "from_name": "CloudAct.ai",
     "to_emails": [
       "${ORG_ADMIN_EMAIL}"
     ],
     "cc_emails": [],
-    "subject_prefix": "[CloudAct]"
+    "subject_prefix": "[CloudAct.ai]"
   },
   "slack": {
     "enabled": false,
     "webhook_url": "${SLACK_WEBHOOK_URL}",
     "channel": "#alerts",
-    "username": "CloudAct Bot",
+    "username": "CloudAct.ai Bot",
     "icon_emoji": ":robot_face:",
     "mention_users": [],
     "mention_channel": false

@@ -140,11 +140,11 @@ cat > "$CONFIG_FILE" <<EOF
     "smtp_password": "$SMTP_PASSWORD",
     "smtp_use_tls": true,
     "from_email": "$FROM_EMAIL",
-    "from_name": "CloudAct Platform",
+    "from_name": "CloudAct.ai",
     "to_emails": [
       "$ADMIN_EMAIL"
     ],
-    "subject_prefix": "[CloudAct]"
+    "subject_prefix": "[CloudAct.ai]"
   },
 EOF
 
@@ -154,7 +154,7 @@ cat >> "$CONFIG_FILE" <<EOF
     "enabled": true,
     "webhook_url": "$SLACK_WEBHOOK",
     "channel": "$SLACK_CHANNEL",
-    "username": "CloudAct Bot",
+    "username": "CloudAct.ai Bot",
     "icon_emoji": ":robot_face:",
     "mention_users": [],
     "mention_channel": false

@@ -21,8 +21,9 @@ const transporter = nodemailer.createTransport({
   },
 })
 
-const fromEmail = process.env.FROM_EMAIL || "noreply@cloudact.ai"
-const appName = "CloudAct.AI"
+const fromEmail = process.env.FROM_EMAIL || "support@cloudact.ai"
+const fromName = process.env.FROM_NAME || "CloudAct.ai"
+const appName = "CloudAct.ai"
 
 interface SendEmailOptions {
   to: string
@@ -38,7 +39,7 @@ export async function sendEmail({ to, subject, html, text }: SendEmailOptions): 
 
   try {
     await transporter.sendMail({
-      from: `"${appName}" <${fromEmail}>`,
+      from: `"${fromName}" <${fromEmail}>`,
       to,
       subject,
       html,

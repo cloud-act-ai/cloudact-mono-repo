@@ -1,0 +1,145 @@
+# =============================================
+# CloudAct Platform - Local Docker Development
+# =============================================
+# Uses .env.local files from each service
+#
+# Usage:
+#   docker-compose -f docker-compose.local.yml up -d          # Start all
+#   docker-compose -f docker-compose.local.yml up -d --build  # Rebuild and start
+#   docker-compose -f docker-compose.local.yml logs -f        # View logs
+#   docker-compose -f docker-compose.local.yml down           # Stop all
+#   docker-compose -f docker-compose.local.yml down -v        # Stop and remove volumes
+# =============================================
+
+services:
+  # =============================================
+  # API Service - FastAPI (Port 8000)
+  # =============================================
+  api-service:
+    build:
+      context: ./02-api-service
+      dockerfile: Dockerfile
+    container_name: cloudact-api-local
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./02-api-service/.env.local
+    environment:
+      # Override for Docker container paths
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/credentials/service-account.json
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+      - API_WORKERS=1
+      - ENABLE_API_DOCS=true
+      - CORS_ORIGINS=["http://localhost:3000","http://frontend:3000"]
+      - PIPELINE_SERVICE_URL=http://pipeline-service:8001
+    volumes:
+      # Mount GCP credentials (reads path from host)
+      - ~/.gcp/cloudact-testing-1-e44da390bf82.json:/app/credentials/service-account.json:ro
+      # Mount source for development (optional - comment out for production-like testing)
+      - ./02-api-service/src:/app/src:ro
+      - ./02-api-service/configs:/app/configs:ro
+    networks:
+      - cloudact-local
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    command: uvicorn src.app.main:app --host 0.0.0.0 --port 8000 --workers 1
+
+  # =============================================
+  # Pipeline Service - FastAPI (Port 8001)
+  # =============================================
+  pipeline-service:
+    build:
+      context: ./03-data-pipeline-service
+      dockerfile: Dockerfile
+    container_name: cloudact-pipeline-local
+    ports:
+      - "8001:8001"
+    env_file:
+      - ./03-data-pipeline-service/.env.local
+    environment:
+      # Override for Docker container paths
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/credentials/service-account.json
+      - PORT=8001
+      - API_HOST=0.0.0.0
+      - API_PORT=8001
+      - API_WORKERS=1
+      - ENABLE_API_DOCS=true
+    volumes:
+      # Mount GCP credentials
+      - ~/.gcp/cloudact-testing-1-e44da390bf82.json:/app/credentials/service-account.json:ro
+      # Mount source for development (optional)
+      - ./03-data-pipeline-service/src:/app/src:ro
+      - ./03-data-pipeline-service/configs:/app/configs:ro
+    networks:
+      - cloudact-local
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    command: uvicorn src.app.main:app --host 0.0.0.0 --port 8001 --workers 1
+
+  # =============================================
+  # Frontend - Next.js (Port 3000)
+  # =============================================
+  frontend:
+    build:
+      context: ./01-fronted-system
+      dockerfile: Dockerfile
+      args:
+        # Build-time variables for Next.js static generation
+        - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL:-https://kwroaccbrxppfiysqlzs.supabase.co}
+        - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt3cm9hY2NicnhwcGZpeXNxbHpzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQwMzUzOTAsImV4cCI6MjA3OTYxMTM5MH0.2NTsyuaovE1M8xQDtoZ2vyWeT0ZmtiMnJvbh_UCC1hE}
+        - NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:-pk_test_51STnd4DXGNX5XqKaoVFdJC7eOpG3Hcu7lMAzqduDWbg7SKZ9NKXvLGCZXwNF9NWWp4RlpBviiNd3vuLqpEcbMuby00Oh0B0JGv}
+        - NEXT_PUBLIC_API_SERVICE_URL=http://localhost:8000
+        - NEXT_PUBLIC_PIPELINE_SERVICE_URL=http://localhost:8001
+        - NEXT_PUBLIC_APP_URL=http://localhost:3000
+    container_name: cloudact-frontend-local
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./01-fronted-system/.env.local
+    environment:
+      - NODE_ENV=production
+      # Override API URLs for browser access (must be localhost)
+      - NEXT_PUBLIC_API_SERVICE_URL=http://localhost:8000
+      - NEXT_PUBLIC_PIPELINE_SERVICE_URL=http://localhost:8001
+      - NEXT_PUBLIC_APP_URL=http://localhost:3000
+      # Server-side URLs (internal Docker network)
+      - API_SERVICE_URL=http://api-service:8000
+      - PIPELINE_SERVICE_URL=http://pipeline-service:8001
+    depends_on:
+      api-service:
+        condition: service_healthy
+      pipeline-service:
+        condition: service_healthy
+    networks:
+      - cloudact-local
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/', (r) => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+networks:
+  cloudact-local:
+    driver: bridge
+
+# =============================================
+# QUICK START:
+# =============================================
+# 1. Ensure .env.local files exist in each service directory
+# 2. Ensure GCP credentials file exists at ~/.gcp/cloudact-testing-1-e44da390bf82.json
+# 3. Run: docker-compose -f docker-compose.local.yml up -d --build
+# 4. Access:
+#    - Frontend: http://localhost:3000
+#    - API Service: http://localhost:8000/docs
+#    - Pipeline Service: http://localhost:8001/docs
+# =============================================

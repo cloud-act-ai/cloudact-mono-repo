@@ -26,7 +26,7 @@ The notification system supports two configuration levels:
     "smtp_port": 587,
     "smtp_username": "${SMTP_USERNAME}",
     "smtp_password": "${SMTP_PASSWORD}",
-    "from_email": "noreply@cloudact.io",
+    "from_email": "support@cloudact.ai",
     "to_emails": ["admin@example.com"]
   },
   "slack": {
@@ -138,11 +138,11 @@ SLACK_WEBHOOK_URL=https://hooks.slack.com/services/YOUR/WEBHOOK/URL
     "smtp_host": "smtp.gmail.com",
     "smtp_port": 587,
     "smtp_use_tls": true,
-    "from_email": "noreply@cloudact.io",
-    "from_name": "CloudAct Platform",
+    "from_email": "support@cloudact.ai",
+    "from_name": "CloudAct.ai",
     "to_emails": ["admin@example.com", "ops@example.com"],
     "cc_emails": ["manager@example.com"],
-    "subject_prefix": "[CloudAct]"
+    "subject_prefix": "[CloudAct.ai]"
   }
 }
 ```

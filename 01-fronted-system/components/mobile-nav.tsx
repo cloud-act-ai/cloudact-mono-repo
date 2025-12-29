@@ -36,12 +36,13 @@ import {
   ChevronDown,
   ChevronRight,
   Network,
+  TrendingUp,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
 import { getOrgDetails } from "@/actions/organization-locale"
 
-type SectionId = "dashboards" | "pipelines" | "integrations" | "settings"
+type SectionId = "cost-analytics" | "pipelines" | "integrations" | "settings"
 
 interface MobileNavProps {
   isOpen: boolean
@@ -103,7 +104,7 @@ export function MobileNav({
   const pathname = usePathname()
   const router = useRouter()
   // Accordion: only one section open at a time
-  const [activeSection, setActiveSection] = useState<SectionId>("dashboards")
+  const [activeSection, setActiveSection] = useState<SectionId>("cost-analytics")
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [logoUrl, setLogoUrl] = useState<string | null>(null)
 
@@ -113,8 +114,10 @@ export function MobileNav({
   useEffect(() => {
     if (!pathname) return
 
-    if (pathname.includes("/cost-dashboards")) {
-      setActiveSection("dashboards")
+    // Dashboard is a direct link, not a section
+    if (pathname.includes("/cost-dashboards") && !pathname.includes("/cost-dashboards/overview")) {
+      // GenAI, Cloud, Subscription costs go to cost-analytics
+      setActiveSection("cost-analytics")
     } else if (pathname.includes("/pipelines")) {
       setActiveSection("pipelines")
     } else if (pathname.includes("/integrations")) {
@@ -271,25 +274,35 @@ export function MobileNav({
 
         {/* Navigation Content */}
         <div className="flex-1 overflow-y-auto py-4">
-          {/* Dashboards */}
+          {/* Dashboard - Direct link to main summary dashboard */}
+          <div className="px-2 pb-2">
+            <button
+              onClick={() => handleNavigation(`/${orgSlug}/dashboard`)}
+              className={cn(
+                "w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors rounded-lg",
+                isActive(`/${orgSlug}/dashboard`, true)
+                  ? "bg-[var(--cloudact-coral)]/10 text-[var(--cloudact-coral)] font-semibold"
+                  : "text-slate-600 hover:bg-[var(--cloudact-coral)]/10 hover:text-[var(--cloudact-coral)]"
+              )}
+            >
+              <LayoutDashboard className="h-4 w-4 flex-shrink-0" />
+              <span className="text-[13px]">Dashboard</span>
+            </button>
+          </div>
+
+          {/* Cost Analytics */}
           <SectionHeader
-            title="Dashboards"
-            section="dashboards"
-            isExpanded={activeSection === "dashboards"}
+            title="Cost Analytics"
+            section="cost-analytics"
+            isExpanded={activeSection === "cost-analytics"}
           />
-          {activeSection === "dashboards" && (
+          {activeSection === "cost-analytics" && (
             <div className="px-2 pb-2 space-y-0.5">
               <NavItem
                 href={`/${orgSlug}/cost-dashboards/overview`}
-                icon={LayoutDashboard}
+                icon={BarChart3}
                 label="Overview"
                 isItemActive={isActive(`/${orgSlug}/cost-dashboards/overview`, true)}
-              />
-              <NavItem
-                href={`/${orgSlug}/cost-dashboards/subscription-costs`}
-                icon={Receipt}
-                label="Subscriptions"
-                isItemActive={isActive(`/${orgSlug}/cost-dashboards/subscription-costs`)}
               />
               <NavItem
                 href={`/${orgSlug}/cost-dashboards/genai-costs`}
@@ -302,6 +315,12 @@ export function MobileNav({
                 icon={Cloud}
                 label="Cloud"
                 isItemActive={isActive(`/${orgSlug}/cost-dashboards/cloud-costs`)}
+              />
+              <NavItem
+                href={`/${orgSlug}/cost-dashboards/subscription-costs`}
+                icon={Receipt}
+                label="Subscription"
+                isItemActive={isActive(`/${orgSlug}/cost-dashboards/subscription-costs`)}
               />
             </div>
           )}

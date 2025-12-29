@@ -9,12 +9,12 @@
     "smtp_username": "${SMTP_USERNAME}",
     "smtp_password": "${SMTP_PASSWORD}",
     "smtp_use_tls": true,
-    "from_email": "noreply@cloudact.io",
-    "from_name": "CloudAct Platform",
+    "from_email": "support@cloudact.ai",
+    "from_name": "CloudAct.ai",
     "to_emails": [
       "${DEFAULT_ADMIN_EMAIL}"
     ],
-    "subject_prefix": "[CloudAct]"
+    "subject_prefix": "[CloudAct.ai]"
   },
   "event_triggers": [
     {

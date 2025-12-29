@@ -85,25 +85,39 @@ export default function SubscriptionCostsPage() {
         }
 
         // Build category breakdown from subscriptions data if available
+        // FIX: Only use CURRENT MONTH data to match summary.mtd_cost
+        // Count UNIQUE subscriptions per category (by ResourceId), not total daily rows
         if (costsResult.data && costsResult.data.length > 0) {
-          const categoryMap: Record<string, { total: number; count: number }> = {}
-          const totalCost = costsResult.summary.total_monthly_cost || 0
+          const categoryMap: Record<string, { total: number; uniqueIds: Set<string> }> = {}
+          const mtdCost = costsResult.summary.mtd_cost || 0
+
+          // Get current month boundaries for filtering
+          const now = new Date()
+          const currentMonthStart = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1))
+          const currentMonthEnd = new Date(Date.UTC(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59))
 
           for (const sub of costsResult.data) {
+            // Filter to current month only using ChargePeriodStart
+            const chargeDate = sub.ChargePeriodStart ? new Date(sub.ChargePeriodStart) : null
+            if (!chargeDate || chargeDate < currentMonthStart || chargeDate > currentMonthEnd) {
+              continue // Skip rows outside current month
+            }
+
             const category = sub.ServiceCategory?.toLowerCase() || "other"
+            const resourceId = sub.ResourceId || sub.ServiceName || 'unknown'
             if (!categoryMap[category]) {
-              categoryMap[category] = { total: 0, count: 0 }
+              categoryMap[category] = { total: 0, uniqueIds: new Set() }
             }
             categoryMap[category].total += sub.EffectiveCost || 0
-            categoryMap[category].count++
+            categoryMap[category].uniqueIds.add(resourceId)
           }
 
           const breakdown: CategoryBreakdown[] = Object.entries(categoryMap)
             .map(([cat, data]) => ({
               category: cat,
               total_cost: data.total,
-              count: data.count,
-              percentage: totalCost > 0 ? (data.total / totalCost) * 100 : 0,
+              count: data.uniqueIds.size,  // Unique subscriptions, not rows
+              percentage: mtdCost > 0 ? (data.total / mtdCost) * 100 : 0,
             }))
             .sort((a, b) => b.total_cost - a.total_cost)
 
@@ -320,15 +334,25 @@ export default function SubscriptionCostsPage() {
               <TableRow>
                 <TableHead className="text-xs font-semibold uppercase">Category</TableHead>
                 <TableHead className="text-xs font-semibold uppercase">Subscriptions</TableHead>
-                <TableHead className="text-xs font-semibold uppercase text-right">Daily</TableHead>
-                <TableHead className="text-xs font-semibold uppercase text-right">Monthly</TableHead>
-                <TableHead className="text-xs font-semibold uppercase text-right">Annual</TableHead>
+                <TableHead className="text-xs font-semibold uppercase text-right">Daily Rate</TableHead>
+                <TableHead className="text-xs font-semibold uppercase text-right">Monthly Est.</TableHead>
+                <TableHead className="text-xs font-semibold uppercase text-right">Annual Est.</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {categories.map((category) => {
-                // FIX: EDGE-002 - Use actual days in current month instead of hardcoded 30
-                const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate()
+                // Calculate days elapsed in current month (for accurate daily rate)
+                const now = new Date()
+                const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
+                const daysElapsed = now.getDate() // Days so far this month
+
+                // Daily rate = MTD cost / days elapsed
+                const dailyRate = daysElapsed > 0 ? category.total_cost / daysElapsed : 0
+                // Monthly forecast = daily rate * days in month
+                const monthlyForecast = dailyRate * daysInMonth
+                // Annual forecast = monthly forecast * 12
+                const annualForecast = monthlyForecast * 12
+
                 return (
                   <TableRow key={category.category}>
                     <TableCell className="font-medium">
@@ -336,13 +360,13 @@ export default function SubscriptionCostsPage() {
                     </TableCell>
                     <TableCell className="text-slate-500">{category.count}</TableCell>
                     <TableCell className="text-right font-mono">
-                      {formatCurrency(category.total_cost / daysInMonth, orgCurrency)}
+                      {formatCurrency(dailyRate, orgCurrency)}
                     </TableCell>
                     <TableCell className="text-right font-mono">
-                      {formatCurrency(category.total_cost, orgCurrency)}
+                      {formatCurrency(monthlyForecast, orgCurrency)}
                     </TableCell>
                     <TableCell className="text-right font-mono font-semibold">
-                      {formatCurrency(category.total_cost * 12, orgCurrency)}
+                      {formatCurrency(annualForecast, orgCurrency)}
                     </TableCell>
                   </TableRow>
                 )

@@ -192,8 +192,8 @@ class EmailNotificationProvider(BaseNotificationProvider):
         html += """
         </div>
         <div class="footer">
-            <p>This is an automated notification from CloudAct Platform</p>
-            <p>For assistance, contact your system administrator</p>
+            <p>CloudAct.ai - Cloud Cost Analytics</p>
+            <p>&copy; 2025 CloudAct Inc. All rights reserved.</p>
         </div>
     </div>
 </body>
@@ -246,8 +246,8 @@ class EmailNotificationProvider(BaseNotificationProvider):
         text_parts.extend([
             "",
             "=" * 60,
-            "This is an automated notification from CloudAct Platform",
-            "For assistance, contact your system administrator",
+            "CloudAct.ai - Cloud Cost Analytics",
+            "© 2025 CloudAct Inc. All rights reserved.",
         ])
 
         return "\n".join(text_parts)

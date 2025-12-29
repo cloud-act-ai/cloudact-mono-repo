@@ -177,6 +177,47 @@ class PipelineRegistry:
         self._load_pipelines()
         return [p for p in self._pipelines if p["provider"].lower() == provider.lower()]
 
+    def get_pipeline_by_path(self, category: str, provider: str, domain: str, pipeline: str) -> Optional[Dict[str, Any]]:
+        """
+        Get a pipeline by its path components.
+
+        This is used when the pipeline service sends path-based lookups.
+        Matches on category, provider (if non-empty), domain, and pipeline fields.
+
+        Args:
+            category: Category (cloud, genai, saas)
+            provider: Provider (gcp, aws, azure, or empty for genai/saas)
+            domain: Domain (cost, payg, costs)
+            pipeline: Pipeline template name (billing, saas_cost, etc.)
+
+        Returns:
+            Pipeline config dict if found, None otherwise
+        """
+        self._load_pipelines()
+        for p in self._pipelines:
+            # Check category matches
+            if p.get("category", "").lower() != category.lower():
+                continue
+            # Check provider matches (empty string is valid for genai/saas)
+            p_provider = p.get("provider", "")
+            # For SaaS/GenAI, provider in config equals category (e.g., "saas" or "genai")
+            # But in URL path, provider is empty. So match either empty or category.
+            if provider:
+                if p_provider.lower() != provider.lower():
+                    continue
+            else:
+                # provider is empty in URL - match if p_provider is empty OR equals category
+                if p_provider and p_provider.lower() != category.lower():
+                    continue
+            # Check domain matches
+            if p.get("domain", "").lower() != domain.lower():
+                continue
+            # Check pipeline matches
+            if p.get("pipeline", "").lower() != pipeline.lower():
+                continue
+            return p
+        return None
+
 
 def get_pipeline_registry() -> PipelineRegistry:
     """Get the pipeline registry instance."""
@@ -329,6 +370,26 @@ async def validate_pipeline_execution(
     # Get pipeline config
     registry = get_pipeline_registry()
     pipeline_config = registry.get_pipeline(pipeline_id)
+
+    # If direct ID lookup fails, try parsing as path-based ID
+    # Format: {category}_{domain}_{pipeline} or {category}_{provider}_{domain}_{pipeline}
+    if not pipeline_config:
+        parts = pipeline_id.split("_")
+        if len(parts) >= 3:
+            if len(parts) == 3:
+                # category_domain_pipeline (e.g., saas_costs_saas_cost)
+                category, domain, pipeline = parts
+                provider = ""
+            else:
+                # category_provider_domain_pipeline (e.g., cloud_gcp_cost_billing)
+                category = parts[0]
+                provider = parts[1]
+                domain = parts[2]
+                pipeline = "_".join(parts[3:])  # Handle multi-part pipeline names
+
+            pipeline_config = registry.get_pipeline_by_path(category, provider, domain, pipeline)
+            if pipeline_config:
+                logger.info(f"Found pipeline by path lookup: {pipeline_id} -> {pipeline_config['id']}")
 
     if not pipeline_config:
         return PipelineValidationResponse(

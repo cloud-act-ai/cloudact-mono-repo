@@ -195,10 +195,10 @@ export default function ContactPage() {
                       <h3 className="ca-heading text-base mb-1">Email Us</h3>
                       <p className="ca-body-sm mb-2">For general inquiries</p>
                       <a
-                        href="mailto:hello@cloudact.ai"
+                        href={`mailto:${process.env.NEXT_PUBLIC_CONTACT_EMAIL || "hello@cloudact.ai"}`}
                         className="text-[var(--ca-teal)] font-medium text-sm hover:underline inline-flex items-center gap-1 group/link"
                       >
-                        hello@cloudact.ai
+                        {process.env.NEXT_PUBLIC_CONTACT_EMAIL || "hello@cloudact.ai"}
                         <ArrowRight className="w-4 h-4 group-hover/link:translate-x-1 transition-transform" />
                       </a>
                     </div>

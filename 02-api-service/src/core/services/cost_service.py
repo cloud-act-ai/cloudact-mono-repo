@@ -1291,6 +1291,13 @@ class PolarsCostService:
         # Forecast annual cost (YTD actual + daily rate × remaining days)
         forecast_annual_cost = ytd_cost + (total_daily * remaining_days_in_year)
 
+        # FIX: Count UNIQUE subscriptions (by ResourceId), not total rows
+        # Each subscription has one row per day, so len(data) overcounts
+        unique_subscriptions = set()
+        for row in data:
+            resource_id = row.get('ResourceId') or row.get('ServiceName') or 'unknown'
+            unique_subscriptions.add(resource_id)
+
         return CostResponse(
             success=True,
             data=data,
@@ -1305,7 +1312,7 @@ class PolarsCostService:
                 "forecast_annual_cost": round(forecast_annual_cost, 2),
                 "providers": list(set(row.get('ServiceProviderName', '') for row in data if row.get('ServiceProviderName'))),
                 "service_categories": list(set(row.get('ServiceCategory', '') for row in data if row.get('ServiceCategory'))),
-                "record_count": len(data),
+                "record_count": len(unique_subscriptions),  # Unique subscriptions, not rows
                 "date_range": {"start": str(start_date), "end": str(end_date)}
             },
             cache_hit=cache_hit,

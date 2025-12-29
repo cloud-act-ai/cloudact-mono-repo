@@ -150,11 +150,11 @@ pipelines:
   # SaaS Subscription Pipelines
   # ============================================
 
-  - id: saas_costs_saas_cost
+  - id: saas_subscription_costs
     name: SaaS Subscription Costs
     description: Calculate daily amortized SaaS subscription costs and convert to FOCUS 1.3 format
     category: saas
-    provider: ""
+    provider: "saas"  # Use category as provider for 3-segment path: saas/costs/saas_cost
     domain: costs
     pipeline: saas_cost
     required_integration: ""  # No external integration needed - uses internal data
@@ -170,7 +170,7 @@ pipelines:
     name: OpenAI Usage & Cost
     description: Extract OpenAI token usage and calculate daily costs
     category: genai
-    provider: ""
+    provider: "genai"  # Use category as provider for 3-segment path: genai/payg/openai
     domain: payg
     pipeline: openai
     required_integration: OPENAI
@@ -182,7 +182,7 @@ pipelines:
     name: Anthropic Usage & Cost
     description: Extract Anthropic token usage and calculate daily costs
     category: genai
-    provider: ""
+    provider: "genai"  # Use category as provider for 3-segment path
     domain: payg
     pipeline: anthropic
     required_integration: ANTHROPIC
@@ -194,7 +194,7 @@ pipelines:
     name: Gemini Usage & Cost
     description: Extract Gemini token usage and calculate daily costs
     category: genai
-    provider: ""
+    provider: "genai"  # Use category as provider for 3-segment path
     domain: payg
     pipeline: gemini
     required_integration: GEMINI
@@ -206,7 +206,7 @@ pipelines:
     name: DeepSeek Usage & Cost
     description: Extract DeepSeek token usage and calculate daily costs
     category: genai
-    provider: ""
+    provider: "genai"  # Use category as provider for 3-segment path
     domain: payg
     pipeline: deepseek
     required_integration: DEEPSEEK
@@ -218,7 +218,7 @@ pipelines:
     name: Azure OpenAI Usage & Cost
     description: Extract Azure OpenAI token usage and calculate daily costs
     category: genai
-    provider: ""
+    provider: "genai"  # Use category as provider for 3-segment path
     domain: payg
     pipeline: azure_openai
     required_integration: AZURE_OPENAI
@@ -234,7 +234,7 @@ pipelines:
     name: AWS Bedrock Provisioned Throughput
     description: Extract AWS Bedrock PT usage and calculate commitment costs
     category: genai
-    provider: ""
+    provider: "genai"  # Use category as provider for 3-segment path
     domain: commitment
     pipeline: aws_bedrock
     required_integration: AWS_BEDROCK
@@ -246,7 +246,7 @@ pipelines:
     name: Azure OpenAI PTU Commitment
     description: Extract Azure OpenAI PTU usage and calculate commitment costs
     category: genai
-    provider: ""
+    provider: "genai"  # Use category as provider for 3-segment path
     domain: commitment
     pipeline: azure_ptu
     required_integration: AZURE_OPENAI
@@ -258,7 +258,7 @@ pipelines:
     name: GCP Vertex AI GSU Commitment
     description: Extract GCP Vertex AI GSU usage and calculate commitment costs
     category: genai
-    provider: ""
+    provider: "genai"  # Use category as provider for 3-segment path
     domain: commitment
     pipeline: gcp_vertex
     required_integration: GCP_VERTEX
@@ -274,7 +274,7 @@ pipelines:
     name: GCP GPU Infrastructure
     description: Extract GCP GPU/TPU usage and calculate infrastructure costs
     category: genai
-    provider: ""
+    provider: "genai"  # Use category as provider for 3-segment path
     domain: infrastructure
     pipeline: gcp_gpu
     required_integration: GCP_SA
@@ -290,7 +290,7 @@ pipelines:
     name: GenAI Unified Consolidation
     description: Consolidate PAYG, Commitment, and Infrastructure costs into unified tables and FOCUS 1.3
     category: genai
-    provider: ""
+    provider: "genai"  # Use category as provider for 3-segment path
     domain: unified
     pipeline: consolidate
     required_integration: ""  # No external integration - uses internal data
@@ -306,7 +306,7 @@ pipelines:
     name: Cloud FOCUS 1.3 Conversion (All Providers)
     description: Convenience pipeline - converts ALL cloud providers to FOCUS 1.3 in one run. Use per-provider pipelines for granular control.
     category: cloud
-    provider: ""
+    provider: "cloud"  # Use category as provider for 3-segment path
     domain: unified
     pipeline: focus_convert
     required_integration: ""  # No external integration - uses internal data

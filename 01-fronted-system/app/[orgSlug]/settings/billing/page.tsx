@@ -306,7 +306,7 @@ export default function BillingPage() {
                 Contact our support team for questions about billing, invoices, or plan changes.
               </p>
               <a
-                href="mailto:support@cloudact.ai"
+                href={`mailto:${process.env.NEXT_PUBLIC_BILLING_EMAIL || "billing@cloudact.ai"}`}
                 className="inline-flex items-center gap-2 text-[13px] font-semibold text-slate-900 hover:text-slate-600 transition-colors"
               >
                 Contact Support

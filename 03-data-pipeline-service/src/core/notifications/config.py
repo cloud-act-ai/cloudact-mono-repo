@@ -49,10 +49,10 @@ class EmailConfig(BaseModel):
     smtp_password: Optional[str] = Field(default=None, description="SMTP authentication password")
     smtp_use_tls: bool = Field(default=True, description="Use TLS for SMTP connection")
     from_email: EmailStr = Field(..., description="Sender email address")
-    from_name: Optional[str] = Field(default="CloudAct Platform", description="Sender display name")
+    from_name: Optional[str] = Field(default="CloudAct.ai", description="Sender display name")
     to_emails: List[EmailStr] = Field(..., description="Recipient email addresses")
     cc_emails: Optional[List[EmailStr]] = Field(default=None, description="CC email addresses")
-    subject_prefix: Optional[str] = Field(default="[CloudAct]", description="Email subject prefix")
+    subject_prefix: Optional[str] = Field(default="[CloudAct.ai]", description="Email subject prefix")
 
     @field_validator('smtp_port')
     @classmethod
