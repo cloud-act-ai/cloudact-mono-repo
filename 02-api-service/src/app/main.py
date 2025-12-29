@@ -714,6 +714,8 @@ async def health_check():
         "status": "healthy",
         "service": "api-service",
         "version": settings.app_version,
+        "release": settings.release_version,
+        "release_timestamp": settings.release_timestamp,
         "environment": settings.environment
     }
 
