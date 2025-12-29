@@ -25,7 +25,14 @@ fi
 SERVICE=$1
 ENV=$2
 PROJECT_ID=$3
-TAG=${4:-$(cat /tmp/cloudact-last-build-${SERVICE}-${ENV} 2>/dev/null | grep -o '[^:]*$' || date +%Y%m%d-%H%M%S)}
+# Get tag from last build file or generate one
+RAW_TAG=${4:-$(cat /tmp/cloudact-last-build-${SERVICE}-${ENV} 2>/dev/null | grep -o '[^:]*$' || date +%Y%m%d-%H%M%S)}
+# If tag already starts with env prefix, use as-is; otherwise add prefix
+if [[ "$RAW_TAG" == ${ENV}-* ]]; then
+    TAG="$RAW_TAG"
+else
+    TAG="${ENV}-${RAW_TAG}"
+fi
 REGION="us-central1"
 
 # Validate service
@@ -53,23 +60,23 @@ echo "Region: $REGION"
 echo "Tag: $TAG"
 echo ""
 
-# Artifact Registry repository
-AR_REPO="${REGION}-docker.pkg.dev/${PROJECT_ID}/cloudact-${SERVICE}"
-LOCAL_IMAGE="cloudact-${SERVICE}:${ENV}-${TAG}"
-REMOTE_IMAGE="${AR_REPO}:${ENV}-${TAG}"
-REMOTE_LATEST="${AR_REPO}:${ENV}-latest"
+# Artifact Registry repository (using GCR for simpler setup)
+GCR_REPO="gcr.io/${PROJECT_ID}/cloudact-${SERVICE}-${ENV}"
+LOCAL_IMAGE="cloudact-${SERVICE}:${TAG}"
+REMOTE_IMAGE="${GCR_REPO}:${TAG}"
+REMOTE_LATEST="${GCR_REPO}:latest"
 
-# Configure Docker authentication
+# Configure Docker authentication for GCR
 echo -e "${YELLOW}Configuring Docker authentication...${NC}"
-gcloud auth configure-docker ${REGION}-docker.pkg.dev --quiet
+gcloud auth configure-docker gcr.io --quiet
 
-# Tag for Artifact Registry
-echo -e "${YELLOW}Tagging image for Artifact Registry...${NC}"
+# Tag for GCR
+echo -e "${YELLOW}Tagging image for GCR...${NC}"
 docker tag $LOCAL_IMAGE $REMOTE_IMAGE
 docker tag $LOCAL_IMAGE $REMOTE_LATEST
 
-# Push to Artifact Registry
-echo -e "${YELLOW}Pushing to Artifact Registry...${NC}"
+# Push to GCR
+echo -e "${YELLOW}Pushing to GCR...${NC}"
 docker push $REMOTE_IMAGE
 docker push $REMOTE_LATEST
 

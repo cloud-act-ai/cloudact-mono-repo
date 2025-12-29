@@ -342,12 +342,8 @@ app = FastAPI(
     },
     servers=[
         {
-            "url": "https://convergence-pipeline-prod-820784027009.us-central1.run.app",
+            "url": "https://pipeline.cloudact.ai",
             "description": "Production environment"
-        },
-        {
-            "url": "https://convergence-pipeline-stage-526075321773.us-central1.run.app",
-            "description": "Staging environment"
         },
         {
             "url": "http://localhost:8001",

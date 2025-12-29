@@ -16,8 +16,9 @@ Multi-org cloud cost analytics platform. BigQuery-powered. Two backend services:
 6. **NO NEW DEPENDENCIES** - Don't add new npm/pip packages without explicit approval
 7. **ENVIRONMENT FILES** - Each service uses its own environment files:
    - Local development: `{service}/.env.local`
-   - Staging: `{service}/.env.stage`
-   - Production: `{service}/.env.prod`
+   - Testing: `{service}/.env.test`
+   - Production (frontend only): `01-fronted-system/.env.prod`
+   - Backend stage/prod: Environment vars injected by `deploy.sh` at deploy time
    - **NEVER use `.env`** - always use the respective environment-specific files
 
 **Before writing code:**
@@ -187,9 +188,18 @@ pkill -f "uvicorn.*8001"
 2. **Frontend wrong port:** api-service (8000) for ALL except pipeline runs (8001)
 3. **Org slug validation:** `^[a-zA-Z0-9_]{3,50}$` (underscores only)
 
-## Environments
-- **Stage:** `https://convergence-pipeline-stage-526075321773.us-central1.run.app`
-- **Prod:** `https://convergence-pipeline-prod-820784027009.us-central1.run.app`
+## Environments & URLs
+
+| Environment | GCP Project | Frontend | API Service | Pipeline Service |
+|-------------|-------------|----------|-------------|------------------|
+| **Local** | cloudact-testing-1 | `http://localhost:3000` | `http://localhost:8000` | `http://localhost:8001` |
+| **Test** | cloudact-testing-1 | - | Cloud Run URL | Cloud Run URL |
+| **Stage** | cloudact-stage | `https://cloudact-stage.vercel.app` | Cloud Run URL | Cloud Run URL |
+| **Prod** | cloudact-prod | `https://cloudact.ai` | Cloud Run URL + `https://api.cloudact.ai` | Cloud Run URL + `https://pipeline.cloudact.ai` |
+
+**Cloud Run Service Naming:** `cloudact-{service}-{env}-{hash}.us-central1.run.app`
+
+**Custom Domains (Prod only):** `api.cloudact.ai`, `pipeline.cloudact.ai` → mapped via GoDaddy DNS
 
 ## Organizational Hierarchy
 
@@ -202,4 +212,4 @@ pkill -f "uvicorn.*8001"
 **Cost Flow:** Subscriptions → Daily Costs → FOCUS 1.3 (with hierarchy extension fields)
 
 ---
-**Last Updated:** 2025-12-27
+**Last Updated:** 2025-12-29

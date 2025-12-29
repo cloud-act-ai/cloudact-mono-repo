@@ -52,19 +52,19 @@ ENV_CONFIGS = {
     },
     # Stage: Cloud Run staging environment
     "stage": {
-        "api_base_url": os.environ.get("STAGE_API_URL", "https://convergence-api-stage-526075321773.us-central1.run.app"),
-        "pipeline_base_url": os.environ.get("STAGE_PIPELINE_URL", "https://convergence-pipeline-stage-526075321773.us-central1.run.app"),
+        "api_base_url": os.environ.get("STAGE_API_URL", ""),  # Set via STAGE_API_URL env var
+        "pipeline_base_url": os.environ.get("STAGE_PIPELINE_URL", ""),  # Set via STAGE_PIPELINE_URL env var
         "frontend_base_url": os.environ.get("STAGE_FRONTEND_URL", "https://cloudact-stage.vercel.app"),
-        "gcp_project_id": os.environ.get("STAGE_GCP_PROJECT", "cloudact-testing-1"),
+        "gcp_project_id": os.environ.get("STAGE_GCP_PROJECT", "cloudact-stage"),
         "ca_root_api_key": os.environ.get("STAGE_CA_ROOT_API_KEY", ""),
         "dataset_suffix": "_stage",
         "description": "Cloud Run staging environment",
     },
     # Prod: Cloud Run production environment
     "prod": {
-        "api_base_url": os.environ.get("PROD_API_URL", "https://convergence-api-prod-820784027009.us-central1.run.app"),
-        "pipeline_base_url": os.environ.get("PROD_PIPELINE_URL", "https://convergence-pipeline-prod-820784027009.us-central1.run.app"),
-        "frontend_base_url": os.environ.get("PROD_FRONTEND_URL", "https://cloudact.io"),
+        "api_base_url": os.environ.get("PROD_API_URL", "https://api.cloudact.ai"),
+        "pipeline_base_url": os.environ.get("PROD_PIPELINE_URL", "https://pipeline.cloudact.ai"),
+        "frontend_base_url": os.environ.get("PROD_FRONTEND_URL", "https://cloudact.ai"),
         "gcp_project_id": os.environ.get("PROD_GCP_PROJECT", "cloudact-prod"),
         "ca_root_api_key": os.environ.get("PROD_CA_ROOT_API_KEY", ""),
         "dataset_suffix": "_prod",

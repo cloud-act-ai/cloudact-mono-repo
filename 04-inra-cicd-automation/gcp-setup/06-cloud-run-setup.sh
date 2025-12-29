@@ -1,7 +1,7 @@
 #!/bin/bash
 ################################################################################
-# 05-cloud-run-setup.sh - Create Cloud Run services
-# Usage: ./05-cloud-run-setup.sh <project-id> <environment>
+# 06-cloud-run-setup.sh - Create Cloud Run services
+# Usage: ./06-cloud-run-setup.sh <project-id> <environment>
 # Environments: test, stage, prod
 ################################################################################
 
@@ -10,7 +10,7 @@ set -e
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC='\033[0m'
 
 if [ "$#" -lt 2 ]; then
-    echo -e "${RED}Usage: ./05-cloud-run-setup.sh <project-id> <environment>${NC}"
+    echo -e "${RED}Usage: ./06-cloud-run-setup.sh <project-id> <environment>${NC}"
     echo "Environments: test, stage, prod"
     exit 1
 fi
@@ -84,12 +84,14 @@ for service in "${!SERVICES[@]}"; do
         echo -e "${YELLOW}Already exists${NC}"
     else
         # Create service with placeholder (will be updated by deploy script)
+        # NOTE: Using --allow-unauthenticated because API handles its own auth
+        # via X-CA-Root-Key and X-API-Key headers
         gcloud run deploy $SERVICE_NAME \
             --image="gcr.io/cloudrun/placeholder" \
             --region=$REGION \
             --project=$PROJECT_ID \
             --platform=managed \
-            --no-allow-unauthenticated \
+            --allow-unauthenticated \
             --service-account=$SA_EMAIL \
             --memory=$MEMORY \
             --cpu=$CPU \

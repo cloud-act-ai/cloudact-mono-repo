@@ -11,6 +11,14 @@ description: |
 ## Overview
 CloudAct uses BigQuery as its primary data store with strict schema-first approach via JSON configs.
 
+## GCP Projects
+
+| Environment | GCP Project | BigQuery Location |
+|-------------|-------------|-------------------|
+| Test | `cloudact-testing-1` | `US` |
+| Stage | `cloudact-stage` | `US` |
+| Prod | `cloudact-prod` | `US` |
+
 ## Key Locations
 - **Bootstrap Schemas:** `02-api-service/configs/setup/bootstrap/schemas/*.json`
 - **Org Schemas:** `02-api-service/configs/setup/organizations/onboarding/schemas/*.json`

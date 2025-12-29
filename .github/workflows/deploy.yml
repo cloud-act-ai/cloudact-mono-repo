@@ -50,10 +50,10 @@ jobs:
         run: |
           if [ "${{ env.ENVIRONMENT }}" = "production" ]; then
             echo "GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID_PROD }}" >> $GITHUB_ENV
-            echo "SERVICE_NAME=convergence-pipeline-prod" >> $GITHUB_ENV
+            echo "SERVICE_NAME=cloudact-pipeline-service-prod" >> $GITHUB_ENV
           else
             echo "GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID_STAGE }}" >> $GITHUB_ENV
-            echo "SERVICE_NAME=convergence-pipeline-stage" >> $GITHUB_ENV
+            echo "SERVICE_NAME=cloudact-pipeline-service-stage" >> $GITHUB_ENV
           fi
           echo "REGION=us-central1" >> $GITHUB_ENV
 

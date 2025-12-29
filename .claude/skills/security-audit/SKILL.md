@@ -11,6 +11,18 @@ description: |
 ## Overview
 CloudAct implements defense-in-depth security with KMS encryption, API key hierarchy, and rate limiting.
 
+## Cloud Run Auth Model
+
+> **Important:** All Cloud Run services use `--allow-unauthenticated`. This is intentional.
+>
+> **Why?** The application handles its own authentication via:
+> - `X-CA-Root-Key` header for system admin operations
+> - `X-API-Key` header for organization-level operations
+>
+> Cloud Run IAM auth is NOT used - app-level auth is enforced instead. This allows the frontend to call APIs directly from the browser.
+
+To fix 403 errors on Cloud Run: `./04-inra-cicd-automation/CICD/quick/fix-auth.sh <env>`
+
 ## Key Locations
 - **Security Docs:** `03-data-pipeline-service/SECURITY.md`
 - **KMS Encryption:** `02-api-service/src/core/security/kms_encryption.py`

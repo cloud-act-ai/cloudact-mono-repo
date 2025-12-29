@@ -770,10 +770,18 @@ def get_settings() -> Settings:
     """
     settings_instance = Settings()
 
-    # Set GOOGLE_APPLICATION_CREDENTIALS environment variable if configured
+    # Set GOOGLE_APPLICATION_CREDENTIALS environment variable if configured AND file exists
     # This is required because the Google Cloud client libraries look for this env var
+    # In Cloud Run, credentials come from the service account, not a file
     if settings_instance.google_application_credentials:
-        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = settings_instance.google_application_credentials
+        creds_path = settings_instance.google_application_credentials
+        if os.path.exists(creds_path):
+            os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = creds_path
+        else:
+            # Don't set invalid path - let Google Cloud use default credentials (e.g., service account)
+            # This happens in Cloud Run where GOOGLE_APPLICATION_CREDENTIALS may be set in env file
+            # but the file doesn't exist (local path baked into Docker image)
+            pass
 
     return settings_instance
 

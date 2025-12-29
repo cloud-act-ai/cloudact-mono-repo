@@ -1,7 +1,7 @@
 #!/bin/bash
 ################################################################################
-# 03-secrets-setup.sh - Setup Secret Manager secrets
-# Usage: ./03-secrets-setup.sh <project-id> <environment>
+# 04-secrets-setup.sh - Setup Secret Manager secrets
+# Usage: ./04-secrets-setup.sh <project-id> <environment>
 # Environments: test, stage, prod
 ################################################################################
 
@@ -10,7 +10,7 @@ set -e
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
 
 if [ "$#" -lt 2 ]; then
-    echo -e "${RED}Usage: ./03-secrets-setup.sh <project-id> <environment>${NC}"
+    echo -e "${RED}Usage: ./04-secrets-setup.sh <project-id> <environment>${NC}"
     echo "Environments: test, stage, prod"
     exit 1
 fi
@@ -56,4 +56,4 @@ for secret in "${SECRETS[@]}"; do
     echo "  gcloud secrets versions add $secret --data-file=- <<< 'YOUR_VALUE'"
 done
 echo ""
-echo "Next: Run 04-iam-setup.sh"
+echo "Next: Run 05-iam-setup.sh"

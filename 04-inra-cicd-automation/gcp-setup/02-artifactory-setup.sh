@@ -53,4 +53,4 @@ for repo in "${REPOS[@]}"; do
     echo "  ${REGION}-docker.pkg.dev/${PROJECT_ID}/${repo}"
 done
 echo ""
-echo "Next: Run 05-cloud-run-setup.sh"
+echo "Next: Run 03-kms-setup.sh"

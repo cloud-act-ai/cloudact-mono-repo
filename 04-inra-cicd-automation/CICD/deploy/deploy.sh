@@ -76,6 +76,9 @@ KMS_KEYRING="cloudact-keyring"
 KMS_KEY="api-key-encryption"
 
 # Environment-specific settings
+# NOTE: All environments use --allow-unauthenticated because the API handles
+# its own authentication via X-CA-Root-Key and X-API-Key headers.
+# Cloud Run IAM auth is NOT used - app-level auth is enforced instead.
 case $ENV in
     test)
         ALLOW_UNAUTH="--allow-unauthenticated"
@@ -86,7 +89,7 @@ case $ENV in
         ENV_NAME="staging"
         ;;
     prod)
-        ALLOW_UNAUTH="--no-allow-unauthenticated"
+        ALLOW_UNAUTH="--allow-unauthenticated"
         ENV_NAME="production"
         ;;
 esac
@@ -110,15 +113,78 @@ COMMON_ENV_VARS="GCP_PROJECT_ID=${PROJECT_ID},BIGQUERY_LOCATION=US,ENVIRONMENT=$
 
 if [ "$SERVICE" = "frontend" ]; then
     # Frontend needs API URLs and app configuration
-    API_URL="https://cloudact-api-service-${ENV}-2adubqjovq-uc.a.run.app"
-    PIPELINE_URL="https://cloudact-pipeline-service-${ENV}-2adubqjovq-uc.a.run.app"
-    APP_URL="https://cloudact-frontend-${ENV}-2adubqjovq-uc.a.run.app"
+    # Get URLs dynamically from existing Cloud Run services
+    API_URL=$(gcloud run services describe cloudact-api-service-${ENV} --project=$PROJECT_ID --region=$REGION --format="value(status.url)" 2>/dev/null || echo "")
+    PIPELINE_URL=$(gcloud run services describe cloudact-pipeline-service-${ENV} --project=$PROJECT_ID --region=$REGION --format="value(status.url)" 2>/dev/null || echo "")
+    APP_URL=$(gcloud run services describe cloudact-frontend-${ENV} --project=$PROJECT_ID --region=$REGION --format="value(status.url)" 2>/dev/null || echo "")
 
+    # Fallback to service name pattern if not found
+    [ -z "$API_URL" ] && API_URL="https://cloudact-api-service-${ENV}-${PROJECT_ID}.${REGION}.run.app"
+    [ -z "$PIPELINE_URL" ] && PIPELINE_URL="https://cloudact-pipeline-service-${ENV}-${PROJECT_ID}.${REGION}.run.app"
+    [ -z "$APP_URL" ] && APP_URL="https://cloudact-frontend-${ENV}-${PROJECT_ID}.${REGION}.run.app"
+
+    # Load environment-specific configuration
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    ENV_VARS_CONF="$SCRIPT_DIR/../secrets/env-vars.conf"
+    if [ -f "$ENV_VARS_CONF" ]; then
+        source "$ENV_VARS_CONF"
+    fi
+
+    # Get environment-specific Supabase/Stripe config
+    ENV_UPPER=$(echo "$ENV" | tr '[:lower:]' '[:upper:]')
+    SUPABASE_URL_VAR="${ENV_UPPER}_SUPABASE_URL"
+    SUPABASE_ANON_KEY_VAR="${ENV_UPPER}_SUPABASE_ANON_KEY"
+    STRIPE_PUB_KEY_VAR="${ENV_UPPER}_STRIPE_PUBLISHABLE_KEY"
+    STRIPE_STARTER_VAR="${ENV_UPPER}_STRIPE_STARTER_PRICE_ID"
+    STRIPE_PRO_VAR="${ENV_UPPER}_STRIPE_PROFESSIONAL_PRICE_ID"
+    STRIPE_SCALE_VAR="${ENV_UPPER}_STRIPE_SCALE_PRICE_ID"
+
+    SUPABASE_URL="${!SUPABASE_URL_VAR}"
+    SUPABASE_ANON_KEY="${!SUPABASE_ANON_KEY_VAR}"
+    STRIPE_PUB_KEY="${!STRIPE_PUB_KEY_VAR}"
+    STRIPE_STARTER="${!STRIPE_STARTER_VAR}"
+    STRIPE_PRO="${!STRIPE_PRO_VAR}"
+    STRIPE_SCALE="${!STRIPE_SCALE_VAR}"
+
+    echo -e "${YELLOW}Service URLs:${NC}"
+    echo "  API: $API_URL"
+    echo "  Pipeline: $PIPELINE_URL"
+    echo "  App: $APP_URL"
+    echo -e "${YELLOW}Supabase:${NC} $SUPABASE_URL"
+    echo -e "${YELLOW}Stripe Pub Key:${NC} ${STRIPE_PUB_KEY:0:20}..."
+
+    # Build env vars with Supabase and Stripe public config
     ENV_VARS="${COMMON_ENV_VARS},NEXT_PUBLIC_API_SERVICE_URL=${API_URL},API_SERVICE_URL=${API_URL},NEXT_PUBLIC_PIPELINE_SERVICE_URL=${PIPELINE_URL},PIPELINE_SERVICE_URL=${PIPELINE_URL},NEXT_PUBLIC_APP_URL=${APP_URL},NODE_ENV=production"
-    SECRETS_FLAG="--set-secrets=CA_ROOT_API_KEY=ca-root-api-key-${ENV}:latest"
+    ENV_VARS="${ENV_VARS},NEXT_PUBLIC_SUPABASE_URL=${SUPABASE_URL},NEXT_PUBLIC_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}"
+    ENV_VARS="${ENV_VARS},NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${STRIPE_PUB_KEY}"
+    ENV_VARS="${ENV_VARS},NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID=${STRIPE_STARTER}"
+    ENV_VARS="${ENV_VARS},NEXT_PUBLIC_STRIPE_PROFESSIONAL_PRICE_ID=${STRIPE_PRO}"
+    ENV_VARS="${ENV_VARS},NEXT_PUBLIC_STRIPE_SCALE_PRICE_ID=${STRIPE_SCALE}"
+    ENV_VARS="${ENV_VARS},NEXT_PUBLIC_DEFAULT_TRIAL_DAYS=14"
+
+    # Frontend needs: CA_ROOT_API_KEY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, SUPABASE_SERVICE_ROLE_KEY
+    SECRETS_FLAG="--set-secrets=CA_ROOT_API_KEY=ca-root-api-key-${ENV}:latest,STRIPE_SECRET_KEY=stripe-secret-key-${ENV}:latest,STRIPE_WEBHOOK_SECRET=stripe-webhook-secret-${ENV}:latest,SUPABASE_SERVICE_ROLE_KEY=supabase-service-role-key-${ENV}:latest"
 else
     # Backend services
-    ENV_VARS="${COMMON_ENV_VARS},KMS_PROJECT_ID=${KMS_PROJECT_ID},KMS_LOCATION=${KMS_LOCATION},KMS_KEYRING=${KMS_KEYRING},KMS_KEY=${KMS_KEY}"
+    # Get pipeline service URL for api-service to proxy requests
+    PIPELINE_URL=$(gcloud run services describe cloudact-pipeline-service-${ENV} --project=$PROJECT_ID --region=$REGION --format="value(status.url)" 2>/dev/null || echo "")
+    [ -z "$PIPELINE_URL" ] && PIPELINE_URL="https://cloudact-pipeline-service-${ENV}-${PROJECT_ID}.${REGION}.run.app"
+
+    # Get API service URL for pipeline-service to call for validation
+    API_URL=$(gcloud run services describe cloudact-api-service-${ENV} --project=$PROJECT_ID --region=$REGION --format="value(status.url)" 2>/dev/null || echo "")
+    [ -z "$API_URL" ] && API_URL="https://cloudact-api-service-${ENV}-${PROJECT_ID}.${REGION}.run.app"
+
+    if [ "$SERVICE" = "api-service" ]; then
+        # api-service needs pipeline URL for proxying pipeline triggers
+        ENV_VARS="${COMMON_ENV_VARS},KMS_PROJECT_ID=${KMS_PROJECT_ID},KMS_LOCATION=${KMS_LOCATION},KMS_KEYRING=${KMS_KEYRING},KMS_KEY=${KMS_KEY},PIPELINE_SERVICE_URL=${PIPELINE_URL}"
+        echo -e "${YELLOW}Pipeline Service URL: ${PIPELINE_URL}${NC}"
+    elif [ "$SERVICE" = "pipeline-service" ]; then
+        # pipeline-service needs api URL for validation calls
+        ENV_VARS="${COMMON_ENV_VARS},KMS_PROJECT_ID=${KMS_PROJECT_ID},KMS_LOCATION=${KMS_LOCATION},KMS_KEYRING=${KMS_KEYRING},KMS_KEY=${KMS_KEY},API_SERVICE_URL=${API_URL}"
+        echo -e "${YELLOW}API Service URL: ${API_URL}${NC}"
+    else
+        ENV_VARS="${COMMON_ENV_VARS},KMS_PROJECT_ID=${KMS_PROJECT_ID},KMS_LOCATION=${KMS_LOCATION},KMS_KEYRING=${KMS_KEYRING},KMS_KEY=${KMS_KEY}"
+    fi
     SECRETS_FLAG="--set-secrets=CA_ROOT_API_KEY=ca-root-api-key-${ENV}:latest"
 fi
 

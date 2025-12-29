@@ -114,20 +114,36 @@ curl -X POST "http://localhost:8000/api/v1/organizations/onboard" \
 }
 ```
 
+## Environments
+
+| Environment | GCP Project | API Service |
+|-------------|-------------|-------------|
+| Local | `cloudact-testing-1` | `http://localhost:8000` |
+| Test | `cloudact-testing-1` | Cloud Run URL |
+| Stage | `cloudact-stage` | Cloud Run URL |
+| Prod | `cloudact-prod` | Cloud Run URL or `https://api.cloudact.ai` |
+
+> **Note:** Get actual Cloud Run URLs via: `gcloud run services describe cloudact-api-service-{env} --region=us-central1 --format="value(status.url)"`
+
 ## Instructions
 
 ### 1. Initialize New Deployment
 ```bash
 # Step 1: Set environment
 export CA_ROOT_API_KEY="your-secure-key-min-32-chars"
-export GOOGLE_CLOUD_PROJECT="your-project"
+export GOOGLE_CLOUD_PROJECT="cloudact-testing-1"  # or cloudact-stage/cloudact-prod
 
-# Step 2: Start API service
+# Step 2: Start API service (local)
 cd 02-api-service
 python3 -m uvicorn src.app.main:app --port 8000
 
 # Step 3: Run bootstrap
+# Local
 curl -X POST "http://localhost:8000/api/v1/admin/bootstrap" \
+  -H "X-CA-Root-Key: $CA_ROOT_API_KEY"
+
+# Production (via custom domain)
+curl -X POST "https://api.cloudact.ai/api/v1/admin/bootstrap" \
   -H "X-CA-Root-Key: $CA_ROOT_API_KEY"
 ```
 

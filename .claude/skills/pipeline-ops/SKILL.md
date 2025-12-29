@@ -11,6 +11,17 @@ description: |
 ## Overview
 CloudAct's core principle: **Everything is a pipeline**. This skill manages the complete pipeline lifecycle.
 
+## Environments
+
+| Environment | Pipeline Service Base URL |
+|-------------|--------------------------|
+| Local | `http://localhost:8001` |
+| Test | Cloud Run URL (get via gcloud) |
+| Stage | Cloud Run URL (get via gcloud) |
+| Prod | Cloud Run URL or `https://pipeline.cloudact.ai` |
+
+> **Note:** Get actual Cloud Run URLs: `gcloud run services describe cloudact-pipeline-service-{env} --region=us-central1 --format="value(status.url)"`
+
 ## Key Locations
 - **Pipeline Configs:** `03-data-pipeline-service/configs/{provider}/{domain}/*.yml`
 - **Provider Registry:** `03-data-pipeline-service/configs/system/providers.yml`

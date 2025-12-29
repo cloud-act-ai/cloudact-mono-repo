@@ -11,6 +11,27 @@ description: |
 ## Overview
 CloudAct development requires Docker, Python 3.11+, Node.js 20+, and GCP credentials.
 
+## Environments
+
+| Environment | GCP Project | Service Account | Credentials File |
+|-------------|-------------|-----------------|------------------|
+| Test | `cloudact-testing-1` | `cloudact-sa-test@cloudact-testing-1.iam.gserviceaccount.com` | `~/.gcp/cloudact-testing-1-e44da390bf82.json` |
+| Stage | `cloudact-stage` | `cloudact-sa-stage@cloudact-stage.iam.gserviceaccount.com` | `~/.gcp/cloudact-stage.json` |
+| Prod | `cloudact-prod` | `cloudact-sa-prod@cloudact-prod.iam.gserviceaccount.com` | `~/.gcp/cloudact-prod.json` |
+
+### Service URLs
+
+**Cloud Run Pattern:** `cloudact-{service}-{env}-{hash}.us-central1.run.app`
+
+| Env | API Service | Pipeline Service | Frontend |
+|-----|-------------|------------------|----------|
+| Local | `http://localhost:8000` | `http://localhost:8001` | `http://localhost:3000` |
+| Test | Cloud Run URL | Cloud Run URL | - |
+| Stage | Cloud Run URL | Cloud Run URL | `https://cloudact-stage.vercel.app` |
+| Prod | Cloud Run URL + `https://api.cloudact.ai` | Cloud Run URL + `https://pipeline.cloudact.ai` | `https://cloudact.ai` |
+
+> **Note:** All Cloud Run services allow unauthenticated access. App handles auth via `X-CA-Root-Key` and `X-API-Key` headers.
+
 ## Key Locations
 - **Docker Compose:** `docker-compose.yml`
 - **Frontend Config:** `01-fronted-system/package.json`
@@ -56,15 +77,28 @@ cp .env.example .env.local
 
 ### 2. Configure GCP Credentials
 ```bash
-# Login to GCP
+# Login to GCP (for development)
 gcloud auth login
 gcloud auth application-default login
 
-# Set project
-gcloud config set project your-project-id
+# Set project for local development
+gcloud config set project cloudact-testing-1
 
 # Verify
 gcloud config list
+
+# For remote environments, use service account keys:
+# Test
+gcloud auth activate-service-account --key-file=~/.gcp/cloudact-testing-1-e44da390bf82.json
+gcloud config set project cloudact-testing-1
+
+# Stage
+gcloud auth activate-service-account --key-file=~/.gcp/cloudact-stage.json
+gcloud config set project cloudact-stage
+
+# Prod
+gcloud auth activate-service-account --key-file=~/.gcp/cloudact-prod.json
+gcloud config set project cloudact-prod
 ```
 
 ### 3. Setup Python Environments
@@ -87,8 +121,10 @@ pip install -r requirements.txt
 cd 01-fronted-system
 npm install
 
-# Copy environment
-cp .env.example .env.local
+# Environment files per environment:
+# - .env.local   → Local development
+# - .env.stage   → Staging (Vercel preview)
+# - .env.prod    → Production (Vercel)
 
 # Configure Supabase and Stripe keys in .env.local
 ```
@@ -149,18 +185,34 @@ curl -X POST "http://localhost:8000/api/v1/organizations/onboard" \
 
 ## Environment Variables
 
+### Environment Files Per Service
+Each service uses environment-specific files:
+```
+{service}/
+├── .env.local    # Local development (excluded from Docker)
+├── .env.stage    # Staging config
+└── .env.prod     # Production config
+```
+
+**IMPORTANT:** `.env.local` files contain machine-specific paths. Docker containers use service account identity.
+
 ### Required
 ```bash
-# GCP
-GOOGLE_CLOUD_PROJECT=your-project-id
-GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
+# GCP - varies by environment
+GOOGLE_CLOUD_PROJECT=cloudact-testing-1  # test
+GOOGLE_CLOUD_PROJECT=cloudact-stage      # stage
+GOOGLE_CLOUD_PROJECT=cloudact-prod       # prod
+
+# Only set locally - Docker uses service account identity
+GOOGLE_APPLICATION_CREDENTIALS=~/.gcp/cloudact-testing-1-e44da390bf82.json
 
 # Security
 CA_ROOT_API_KEY=your-secure-key-min-32-chars
-ENVIRONMENT=development
+ENVIRONMENT=development|staging|production
 
 # BigQuery
 BQ_LOCATION=US
+BIGQUERY_LOCATION=US
 ```
 
 ### Frontend (.env.local)

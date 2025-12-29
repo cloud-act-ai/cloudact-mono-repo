@@ -32,8 +32,8 @@ Before closing this session, you MUST complete ALL of the following:
 **Environments:**
 | Env | URL |
 |-----|-----|
-| Stage | `https://convergence-pipeline-stage-526075321773.us-central1.run.app` |
-| Prod | `https://convergence-pipeline-prod-820784027009.us-central1.run.app` |
+| Stage | Cloud Run URL (dynamic) |
+| Prod | `https://pipeline.cloudact.ai` (custom domain) |
 
 **API Keys:**
 | Key | Header | Purpose |

@@ -685,19 +685,37 @@ See backend CLAUDE.md for naming conventions:
 
 ### Production Environments
 
-| Environment | Frontend            | Backend                        |
-| ----------- | ------------------- | ------------------------------ |
-| **Stage**   | Vercel (preview)    | Cloud Run (stage-526075321773) |
-| **Prod**    | Vercel (production) | Cloud Run (prod-820784027009)  |
+| Environment | GCP Project | Frontend | Backend |
+| ----------- | ----------- | -------- | ------- |
+| **Test** | cloudact-testing-1 | - | Cloud Run |
+| **Stage** | cloudact-stage | Vercel (preview) | Cloud Run |
+| **Prod** | cloudact-prod | Vercel (production) | Cloud Run |
 
 ### Deployment URLs
 
-| Service  | Stage                                                                 | Production                                                           |
-| -------- | --------------------------------------------------------------------- | -------------------------------------------------------------------- |
-| Frontend | `https://cloudact-stage.vercel.app`                                   | `https://cloudact.ai`                                                |
-| Pipeline Service  | `https://convergence-pipeline-stage-526075321773.us-central1.run.app` | `https://convergence-pipeline-prod-820784027009.us-central1.run.app` |
+**Frontend:**
+| Environment | URL |
+| ----------- | --- |
+| Stage | `https://cloudact-stage.vercel.app` |
+| Prod | `https://cloudact.ai` |
 
-> **Note:** Pipeline service Cloud Run deployments still use "convergence-pipeline" naming. Renaming requires infrastructure updates.
+**Backend (Cloud Run):**
+
+Services follow the pattern: `cloudact-{service}-{env}-{hash}.us-central1.run.app`
+
+| Service | Test | Stage | Prod |
+| ------- | ---- | ----- | ---- |
+| API | `cloudact-api-service-test-{hash}` | `cloudact-api-service-stage-{hash}` | `cloudact-api-service-prod-{hash}` |
+| Pipeline | `cloudact-pipeline-service-test-{hash}` | `cloudact-pipeline-service-stage-{hash}` | `cloudact-pipeline-service-prod-{hash}` |
+
+**Custom Domains (Prod only):**
+
+| Custom Domain | Maps To |
+| ------------- | ------- |
+| `https://api.cloudact.ai` | `cloudact-api-service-prod` |
+| `https://pipeline.cloudact.ai` | `cloudact-pipeline-service-prod` |
+
+> **Note:** Stage uses Cloud Run URLs directly. Prod has both Cloud Run URLs and custom domains mapped via GoDaddy DNS.
 
 ### Deployment Process
 

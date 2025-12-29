@@ -11,6 +11,17 @@ description: |
 ## Overview
 CloudAct integrates with multiple provider types for cost tracking and usage analysis.
 
+## Environments
+
+| Environment | API Service Base URL |
+|-------------|---------------------|
+| Local | `http://localhost:8000` |
+| Test | Cloud Run URL (get via gcloud) |
+| Stage | Cloud Run URL (get via gcloud) |
+| Prod | Cloud Run URL or `https://api.cloudact.ai` |
+
+> **Note:** Get actual Cloud Run URLs: `gcloud run services describe cloudact-api-service-{env} --region=us-central1 --format="value(status.url)"`
+
 ## Key Locations
 - **Provider Registry:** `03-data-pipeline-service/configs/system/providers.yml`
 - **Integration Router:** `02-api-service/src/app/routers/integrations.py`

@@ -9,30 +9,47 @@ description: |
 # Deployment Checks
 
 ## Overview
-CloudAct deploys to Google Cloud Run with staging and production environments.
+CloudAct deploys to Google Cloud Run with test, staging and production environments.
 
 ## Key Locations
-- **Deploy Workflow:** `.github/workflows/deploy.yml`
-- **Test Workflow:** `.github/workflows/test.yml`
+- **Deploy Script:** `04-inra-cicd-automation/CICD/deploy/deploy.sh`
+- **Push Script:** `04-inra-cicd-automation/CICD/push/push.sh`
+- **Environments Config:** `04-inra-cicd-automation/CICD/environments.conf`
 - **Dockerfiles:** `{service}/Dockerfile`
-- **Docker Compose:** `docker-compose.yml`
 
 ## Environments
-| Environment | Project ID | URL Pattern |
-|-------------|------------|-------------|
-| Staging | 526075321773 | `*-stage-526075321773.us-central1.run.app` |
-| Production | 820784027009 | `*-prod-820784027009.us-central1.run.app` |
+
+| Environment | GCP Project | Service Account | Auth Mode |
+|-------------|-------------|-----------------|-----------|
+| Test | `cloudact-testing-1` | `cloudact-sa-test@cloudact-testing-1.iam.gserviceaccount.com` | Public (app auth) |
+| Stage | `cloudact-stage` | `cloudact-sa-stage@cloudact-stage.iam.gserviceaccount.com` | Public (app auth) |
+| Prod | `cloudact-prod` | `cloudact-sa-prod@cloudact-prod.iam.gserviceaccount.com` | Public (app auth) |
+
+> **Note:** All environments allow unauthenticated Cloud Run access. App handles auth via `X-CA-Root-Key` and `X-API-Key` headers.
+
+### Credentials Location
+```
+~/.gcp/cloudact-testing-1-e44da390bf82.json  # Test
+~/.gcp/cloudact-stage.json                    # Stage
+~/.gcp/cloudact-prod.json                     # Prod
+```
 
 ## Service URLs
-```
-# Staging
-API: https://convergence-api-stage-526075321773.us-central1.run.app
-Pipeline: https://convergence-pipeline-stage-526075321773.us-central1.run.app
 
-# Production
-API: https://convergence-api-prod-820784027009.us-central1.run.app
-Pipeline: https://convergence-pipeline-prod-820784027009.us-central1.run.app
-```
+**Cloud Run Naming:** `cloudact-{service}-{env}-{hash}.us-central1.run.app`
+
+| Service | Test | Stage | Prod |
+|---------|------|-------|------|
+| API | `cloudact-api-service-test-{hash}` | `cloudact-api-service-stage-{hash}` | `cloudact-api-service-prod-{hash}` |
+| Pipeline | `cloudact-pipeline-service-test-{hash}` | `cloudact-pipeline-service-stage-{hash}` | `cloudact-pipeline-service-prod-{hash}` |
+
+**Custom Domains (Prod only):**
+- `https://api.cloudact.ai` → cloudact-api-service-prod
+- `https://pipeline.cloudact.ai` → cloudact-pipeline-service-prod
+
+**Frontend:**
+- Stage: `https://cloudact-stage.vercel.app`
+- Prod: `https://cloudact.ai`
 
 ## Pre-Deployment Checklist
 
@@ -92,83 +109,71 @@ curl http://localhost:8000/health
 curl http://localhost:8001/health
 ```
 
-### 3. Deploy to Staging
+### 3. Deploy Using CICD Scripts
 ```bash
-# Via GitHub Actions (recommended)
-git push origin main  # Triggers deploy.yml
+cd 04-inra-cicd-automation/CICD
 
-# Manual (if needed)
-gcloud run deploy api-service \
-  --image gcr.io/{project}/api-service:latest \
-  --region us-central1 \
-  --platform managed \
-  --memory 2Gi \
-  --timeout 300
+# Push images
+./push/push.sh api-service test cloudact-testing-1
+./push/push.sh pipeline-service test cloudact-testing-1
+
+# Deploy to Cloud Run
+./deploy/deploy.sh api-service test cloudact-testing-1
+./deploy/deploy.sh pipeline-service test cloudact-testing-1
 ```
 
-### 4. Verify Staging Deployment
+### 4. Verify Deployment
 ```bash
-# Health checks
-curl -s https://convergence-api-stage-526075321773.us-central1.run.app/health
-curl -s https://convergence-pipeline-stage-526075321773.us-central1.run.app/health
+# Get service URL
+gcloud run services describe cloudact-api-service-test \
+  --project=cloudact-testing-1 \
+  --region=us-central1 \
+  --format="value(status.url)"
 
-# API functionality
-curl -s https://convergence-api-stage-526075321773.us-central1.run.app/api/v1/health
+# Health check
+curl -s ${SERVICE_URL}/health
 ```
 
-### 5. Promote to Production
+### 5. Deploy to Stage/Prod
 ```bash
-# After staging verification
-# Trigger production deploy via GitHub Actions
-# or manual promotion
+# Stage
+./deploy/deploy.sh api-service stage cloudact-stage
+./deploy/deploy.sh pipeline-service stage cloudact-stage
 
-gcloud run services update-traffic api-service \
-  --to-latest \
-  --region us-central1 \
-  --project {prod-project}
+# Prod
+./deploy/deploy.sh api-service prod cloudact-prod
+./deploy/deploy.sh pipeline-service prod cloudact-prod
 ```
 
 ### 6. Post-Deployment Verification
 ```bash
-# Production health checks
-curl -s https://convergence-api-prod-820784027009.us-central1.run.app/health
-curl -s https://convergence-pipeline-prod-820784027009.us-central1.run.app/health
+# Production health checks (via custom domain)
+curl -s https://api.cloudact.ai/health
+curl -s https://pipeline.cloudact.ai/health
 
 # Check logs
 gcloud logging read "resource.type=cloud_run_revision" \
-  --project {project} \
+  --project cloudact-prod \
   --limit 100
 ```
 
 ### 7. Rollback if Needed
 ```bash
 # List revisions
-gcloud run revisions list --service api-service --region us-central1
+gcloud run revisions list --service cloudact-api-service-prod --region us-central1
 
 # Rollback to previous
-gcloud run services update-traffic api-service \
+gcloud run services update-traffic cloudact-api-service-prod \
   --to-revisions {previous-revision}=100 \
   --region us-central1
-```
-
-## CI/CD Workflow
-```yaml
-# .github/workflows/deploy.yml flow
-1. Run tests (test.yml)
-2. Authenticate to GCP
-3. Build Docker images
-4. Push to GCR
-5. Deploy to Cloud Run
-6. Health check
-7. Summary report
 ```
 
 ## Environment Variables
 ```bash
 # Required for deployment
-GOOGLE_CLOUD_PROJECT=your-project
+GCP_PROJECT_ID=cloudact-prod
 CA_ROOT_API_KEY=your-secure-key
-ENVIRONMENT=production|staging
+ENVIRONMENT=production
 DISABLE_AUTH=false  # NEVER true in prod
 
 # Optional
@@ -203,6 +208,30 @@ CMD ["uvicorn", "src.app.main:app", "--host", "0.0.0.0", "--port", "8080"]
 | Health check timeout | Increase startup time or fix init |
 | Permission denied | Check service account IAM roles |
 | Secret not found | Verify Secret Manager config |
+| 403 Forbidden | Run `./quick/fix-auth.sh <env>` to enable public access |
+| File not found for credentials | Add `.env.local` to `.dockerignore` |
+| Connection refused localhost | Set `PIPELINE_SERVICE_URL` or `API_SERVICE_URL` env |
+
+## CICD Scripts Reference
+```
+04-inra-cicd-automation/CICD/
+├── release.sh              # Versioned release workflow
+├── releases.sh             # List/manage releases
+├── build/build.sh          # Docker build
+├── push/push.sh            # Push to GCR
+├── deploy/deploy.sh        # Deploy to Cloud Run
+├── deploy-all.sh           # Deploy all services
+├── cicd.sh                 # Full pipeline
+├── quick/
+│   ├── deploy-test.sh      # Quick test deploy
+│   ├── deploy-stage.sh     # Quick stage deploy
+│   ├── deploy-prod.sh      # Quick prod deploy
+│   ├── status.sh           # Service status checker
+│   └── fix-auth.sh         # Fix Cloud Run IAM (enable public access)
+└── monitor/
+    ├── watch-all.sh        # All service logs
+    └── watch-api-logs.sh   # Single service logs
+```
 
 ## Example Prompts
 

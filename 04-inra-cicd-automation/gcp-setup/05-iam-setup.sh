@@ -1,7 +1,7 @@
 #!/bin/bash
 ################################################################################
-# 04-iam-setup.sh - Setup IAM roles and permissions
-# Usage: ./04-iam-setup.sh <project-id> <environment>
+# 05-iam-setup.sh - Setup IAM roles and permissions
+# Usage: ./05-iam-setup.sh <project-id> <environment>
 # Environments: test, stage, prod
 ################################################################################
 
@@ -10,7 +10,7 @@ set -e
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
 
 if [ "$#" -lt 2 ]; then
-    echo -e "${RED}Usage: ./04-iam-setup.sh <project-id> <environment>${NC}"
+    echo -e "${RED}Usage: ./05-iam-setup.sh <project-id> <environment>${NC}"
     echo "Environments: test, stage, prod"
     exit 1
 fi
@@ -91,4 +91,4 @@ echo -e "${GREEN}IAM setup complete for $ENV environment!${NC}"
 echo ""
 echo "Service Account: $SA_EMAIL"
 echo ""
-echo "Next: Run 05-cloud-run-setup.sh"
+echo "Next: Run 06-cloud-run-setup.sh"

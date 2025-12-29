@@ -323,12 +323,8 @@ app = FastAPI(
     },
     servers=[
         {
-            "url": "https://cloudact-api-prod-820784027009.us-central1.run.app",
+            "url": "https://api.cloudact.ai",
             "description": "Production environment"
-        },
-        {
-            "url": "https://cloudact-api-stage-526075321773.us-central1.run.app",
-            "description": "Staging environment"
         },
         {
             "url": "http://localhost:8000",
